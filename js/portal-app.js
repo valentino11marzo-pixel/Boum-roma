@@ -5404,7 +5404,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
                     <div class="sg-case-meta"><span><span class="sg-meta-label">${p?.draft && !p.approval ? 'Dopo l’invio · chi agisce' : 'Chi agisce'}</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
                 </div>
-                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button></div>
+                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button>${window.BOOM_OGGI_WORKSPACE?.messageTemplates ? `<button class="btn btn-secondary" type="button" data-sg-action="message" data-sg-id="${esc(task.id)}">Scrivi e organizza</button>` : ''}</div>
                 ${!p ? `<details class="sg-reading-details" data-sg-detail="${esc('reading-' + task.id)}" ${opened.has('reading-' + task.id) ? 'open' : ''}><summary>Leggi la richiesta<span aria-hidden="true">+</span></summary><div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div></details>` : ''}
                 ${p ? `<details class="sg-reading-details" data-sg-detail="${esc('reading-' + task.id)}" ${opened.has('reading-' + task.id) ? 'open' : ''}><summary>Contesto${doubts || incomplete ? ' e punti da verificare' : ' e fonti'}<span aria-hidden="true">+</span></summary><p>${esc(p.summary)}</p><div class="sg-ai-reading">${oggiSegretariaPreparedDate(p)}</div><p><strong>Raccomandazione AI</strong><br>${esc(p.recommendation)}</p><div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div>${n?.reason ? `<div class="sg-action-reason"><span class="sg-meta-label">Perché questo passo</span><p>${esc(n.reason)}</p></div>` : ''}${oggiSegretariaQuestions(p)}</details>` : ''}
                 <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Collegamenti e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions">${property?.id ? `<button class="btn btn-secondary" type="button" data-sg-action="property" data-sg-id="${esc(task.id)}" data-sg-property="${esc(property.id)}">Apri immobile</button>` : ''}<button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
@@ -5454,6 +5454,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 });
             }
             if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
+            if (button.dataset.sgAction === 'message' && isAdmin()) return oggiSegretariaOpen(task.id, '', 'message');
             if (button.dataset.sgAction === 'plan') return oggiSegretariaOpen(task.id, '', 'execute');
             if (['review', 'generate', 'inspect'].includes(button.dataset.sgAction)) return oggiSegretariaOpen(task.id, '', 'review', button.dataset.sgAction === 'generate');
             if (button.dataset.sgAction === 'source') return oggiSegretariaSource(task);
@@ -5596,9 +5597,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             (document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`) || document.getElementById('ogQueueTitle'))?.focus();
         }
     }
-    async function oggiSegretariaOpen(id, notice, mode, generateRequested) {
+    async function oggiSegretariaOpen(id, notice, mode, generateRequested, preservedMessage) {
         if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
-        const modal = { id, returnFocus: oggiSegretaria.modal?.returnFocus || document.activeElement, returnFocusArea: oggiSegretaria.modal?.returnFocusArea || document.activeElement?.closest?.('#ogWorkBriefing, #ogWorkResults')?.id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
+        const modal = { id, returnFocus: oggiSegretaria.modal?.returnFocus || document.activeElement, returnFocusArea: oggiSegretaria.modal?.returnFocusArea || document.activeElement?.closest?.('#ogWorkBriefing, #ogWorkResults')?.id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false, message: preservedMessage || null };
         oggiSegretaria.modal = modal;
         oggiSegretariaModalRender();
         try {
@@ -5672,6 +5673,73 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div></details>
         </div>`;
     }
+    function oggiMessageHouse(task, dossier) {
+        const target = window.BOOM_SEGRETARIA_CASI.propertyTarget(task, dossier, S);
+        const houses = (S.properties || []).filter(row => row.id === target?.id);
+        return houses.length === 1 ? houses[0].name || houses[0].address || '' : '';
+    }
+    function oggiMessagePanel(m) {
+        const house = oggiMessageHouse(m.task, m.dossier);
+        if (!m.message) m.message = { text: '', uid: auth.currentUser?.uid, house, copied: false };
+        const templates = window.BOOM_OGGI_WORKSPACE.messageTemplates(house);
+        return `<section class="ow-message" aria-labelledby="owMessageTitle">
+            <div class="ow-message-heading"><div><p class="sg-eyebrow">1 / Il messaggio</p><h4 id="owMessageTitle">Prepara il messaggio</h4></div><span class="ow-message-tag">Nessun invio automatico</span></div>
+            <p class="ow-message-context">${house ? 'Immobile verificato: <strong>' + esc(house) + '</strong>' : 'Immobile da chiarire: il testo non associa questa richiesta a una casa.'}</p>
+            <p class="ow-message-label">Parti da un modello oppure scrivi direttamente.</p>
+            <div class="ow-message-templates" role="group" aria-label="Modelli di messaggio">${templates.map(t => `<button type="button" class="btn btn-secondary" data-ow-template="${esc(t.id)}">${esc(t.label)}</button>`).join('')}</div>
+            <label for="owMessageText" class="form-label">Testo da copiare</label><textarea id="owMessageText" class="form-textarea" rows="6" maxlength="4000" placeholder="Scrivi soltanto ciò che vuoi comunicare al destinatario…">${esc(m.message.text)}</textarea>
+            <div class="ow-message-copy"><button type="button" class="btn" id="owMessageCopy" ${m.message.text.trim() ? '' : 'disabled'}>Copia testo</button><span id="owMessageStatus" role="status">${m.message.copied ? 'Copiato. Scegli tu la chat o l’email in cui incollarlo.' : 'Controlla testo e destinatario prima di inviare.'}</span></div>
+            ${m.message.stale ? '<p class="sg-notice sg-notice--warning">È arrivata una nuova richiesta o il collegamento è cambiato. La tua bozza è conservata: confrontala con la fonte aggiornata.</p><button class="btn btn-secondary" type="button" id="owMessageReviewed">Ho ricontrollato il testo</button>' : ''}
+            <p class="ow-message-foot">La copia non segna il messaggio come inviato. Questo testo resta qui fino alla chiusura.</p>
+        </section><div class="ow-message-next"><p class="sg-eyebrow">2 / Il seguito interno</p><h4>Chi se ne occupa, e quando ricontrolli?</h4><p>Registra il prossimo passo. L’orario del ricontrollo resta interno.</p></div>`;
+    }
+    function oggiMessageMount(m, wrap) {
+        const input = wrap.querySelector('#owMessageText');
+        if (!input || !m.message) return;
+        const status = wrap.querySelector('#owMessageStatus'), copy = wrap.querySelector('#owMessageCopy');
+        const update = () => { m.message.text = input.value; m.message.copied = false; copy.disabled = !input.value.trim(); status.textContent = 'Controlla testo e destinatario prima di inviare.'; };
+        input.addEventListener('input', update);
+        wrap.querySelectorAll('[data-ow-recheck]').forEach(button => button.addEventListener('click', () => {
+            const date = new Date();
+            if (button.dataset.owRecheck === 'tomorrow') { date.setDate(date.getDate() + 1); date.setHours(9, 0, 0, 0); }
+            else date.setTime(date.getTime() + 2 * 3600000);
+            wrap.querySelector('#sgCheckAt').value = window.BOOM_SEGRETARIA_CASI.localDateTime(date.toISOString());
+        }));
+        wrap.querySelector('#owMessageReviewed')?.addEventListener('click', event => {
+            m.message.stale = false; m.message.house = oggiMessageHouse(m.task, m.dossier);
+            m.message.templateText = null; update(); event.currentTarget.remove();
+        });
+        wrap.querySelector('#sgPractice')?.addEventListener('change', () => {
+            status.textContent = 'Pratica modificata. Salva il seguito e riapri il messaggio per usare il nuovo collegamento.';
+        });
+        wrap.querySelectorAll('[data-ow-template]').forEach(button => button.addEventListener('click', () => {
+            const text = window.BOOM_OGGI_WORKSPACE.messageTemplates(m.message.house).find(t => t.id === button.dataset.owTemplate)?.text;
+            if (!text) return;
+            // Never overwrite an operator's draft with a shortcut. Selection
+            // changes only an untouched template; edited text remains intact.
+            if (input.value.trim() && input.value !== m.message.templateText) {
+                status.textContent = 'Hai modificato il testo. Svuotalo per usare un altro modello.';
+                input.focus(); return;
+            }
+            input.value = text; m.message.templateText = text; update(); input.focus();
+        }));
+        copy.addEventListener('click', async () => {
+            if (!isAdmin() || m.message.uid !== auth.currentUser?.uid || oggiSegretaria.userId !== auth.currentUser?.uid || oggiSegretaria.modal !== m || !input.value.trim()) return;
+            if (m.message.stale) { status.textContent = 'Controlla la nuova richiesta e premi «Ho ricontrollato il testo» prima di copiare.'; return; }
+            const current = oggiSegretaria.rows.find(t => t.id === m.id && t.status === 'open');
+            if (!current || current.followUp?.lastMessageId !== m.task.followUp.lastMessageId
+                || ['propertyRef', 'practiceRef', 'needsReview', 'ambiguous', 'confirmed'].some(key => current.followUp?.[key] !== m.task.followUp[key])
+                || oggiMessageHouse(current, oggiSegretaria.dossiers[m.id] || m.dossier) !== m.message.house
+                || (wrap.querySelector('#sgPractice')?.value || '') !== (m.task.followUp.practiceRef || '')) {
+                status.textContent = 'La richiesta è cambiata. Riaprila e ricontrolla le informazioni prima di copiare.'; return;
+            }
+            const text = input.value;
+            const ok = await copyToClipboard(text, 'Testo copiato · nessun invio', 'Copia il testo:');
+            if (oggiSegretaria.modal !== m || input.value !== text) return;
+            m.message.copied = ok;
+            status.textContent = ok ? 'Copiato. Scegli tu la chat o l’email in cui incollarlo.' : 'Copia automatica non riuscita: seleziona e copia il testo qui sopra.';
+        });
+    }
     function oggiSegretariaModalRender() {
         const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI;
         if (!m) return;
@@ -5699,10 +5767,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="form-group"><label class="form-label" for="sgWaitingOn">Chi deve agire</label><select class="form-select" id="sgWaitingOn">${Object.entries(E.WAITING).map(([key, label]) => `<option value="${key}" ${f.waitingOn === key ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
             <div class="form-group"><label class="form-label" for="sgWaitingLabel">Nome o riferimento</label><input class="form-input" id="sgWaitingLabel" required maxlength="100" value="${esc(f.waitingLabel || '')}"></div>
             <div class="form-group"><label class="form-label" for="sgCheckAt">Ricontrollo interno · ${esc(timezone)}</label><input class="form-input" type="datetime-local" id="sgCheckAt" required value="${esc(E.localDateTime(f.checkAt))}"></div>
+            ${m.mode === 'message' ? '<div class="ow-message-templates" role="group" aria-label="Imposta ricontrollo"><button type="button" class="btn btn-secondary" data-ow-recheck="soon">Tra 2 ore</button><button type="button" class="btn btn-secondary" data-ow-recheck="tomorrow">Domani alle 9</button></div>' : ''}
             <p class="list-subtitle">${esc(f.checkBasis || 'Data da confermare.')} Questo salvataggio non invia messaggi e non crea appuntamenti.</p>
         </form>`;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
-            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : m.mode === 'execute' ? 'Piano di esecuzione' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
+        if (f && m.mode === 'message' && m.task.status === 'open') form = oggiMessagePanel(m) + form;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet ${m.mode === 'message' ? 'ow-message-sheet' : ''}" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
+            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : m.mode === 'execute' ? 'Piano di esecuzione' : m.mode === 'message' ? 'Messaggio e seguito' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
             <div class="modal-body sg-modal-body">
                 ${m.notice ? `<div class="sg-notice sg-notice--warning" role="status">${esc(m.notice)}</div>` : ''}
                 <div id="sgFollowError" role="alert" class="sg-notice sg-notice--warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
@@ -5727,7 +5797,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (action === 'source') return oggiSegretariaSource(m.task);
             if (action === 'edit') { m.mode = 'edit'; m.error = ''; oggiSegretariaModalRender(); return; }
             if (action === 'generate' || action === 'approve' || action === 'resume') return oggiSegretariaPrepare(action);
-            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
+            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : m.message ? 'message' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
         };
         wrap.onkeydown = event => {
             if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
@@ -5745,7 +5815,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         wrap.querySelector('#sgWaitingOn')?.addEventListener('change', event => { wrap.querySelector('#sgWaitingLabel').value = E.WAITING[event.target.value] || ''; });
         if (m.busy) wrap.querySelectorAll('button, input, select, textarea').forEach(control => { control.disabled = true; });
-        if (oggiSegretaria.modal === m) (wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus();
+        oggiMessageMount(m, wrap);
+        if (oggiSegretaria.modal === m) (wrap.querySelector('#owMessageText') || wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus();
     }
     async function oggiSegretariaPrepare(operation) {
         const m = oggiSegretaria.modal;
@@ -5860,7 +5931,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) {
             if (oggiSegretaria.modal !== m) return;
             if (e.code === 'new_message_reload' || e.code === 'practice_not_verified') {
-                oggiSegretariaOpen(m.id, oggiSegretariaError(e));
+                oggiSegretariaOpen(m.id, oggiSegretariaError(e), m.message ? 'message' : m.mode, false, m.message ? { ...m.message, stale: true, copied: false } : null);
                 oggiSegretariaLoad(true);
                 return;
             }
@@ -5942,6 +6013,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const task = oggiSegretaria.rows.find(t => t.id === button.dataset.owCase && t.status === 'open');
         if (!task) return;
         if (button.dataset.owAction === 'source') return oggiSegretariaSource(task);
+        if (button.dataset.owAction === 'message') return oggiSegretariaOpen(task.id, '', 'message');
         return oggiSegretariaOpen(task.id, '', 'review'); // Read only: no implicit generation.
     }
     function oggiWorkCaseCard(task) {
@@ -5954,7 +6026,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <p class="ow-case-reading"><span>${p ? 'Sintesi AI · da verificare' : 'Ultima richiesta · estratto'}</span>${esc(p?.summary || d.preview || 'Apri la fonte per leggere la richiesta.')}</p>
             ${issue ? `<p class="ow-source-note">${esc(issue)}</p>` : ''}
             <div class="ow-case-meta"><span><small>Chi agisce${p && !p.approval ? ' · proposto' : ''}</small>${esc(p?.nextAction?.waitingLabel || d.waiting)}</span><span><small>Ricontrollo${p && !p.approval ? ' · proposto' : ''}</small>${esc(oggiSegretariaDate(p?.nextAction?.checkAt ? Date.parse(p.nextAction.checkAt) : d.checkAt))}</span></div>
-            <div class="ow-case-actions"><button class="btn btn-sm" type="button" data-ow-case="${esc(task.id)}">${p?.draft ? 'Rivedi risposta' : p ? 'Rivedi seguito' : 'Esamina richiesta'} ↗</button>${source ? `<a class="ow-link" href="${esc(source)}" target="_blank" rel="noopener">Audio e trascrizione ↗</a>` : ''}${d.conversationId ? `<button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="source">Apri conversazione</button>` : ''}</div></article>`;
+            <div class="ow-case-actions"><button class="btn btn-sm" type="button" data-ow-case="${esc(task.id)}">${p?.draft ? 'Rivedi risposta' : p ? 'Rivedi seguito' : 'Esamina richiesta'} ↗</button><button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="message">Scrivi e organizza</button>${source ? `<a class="ow-link" href="${esc(source)}" target="_blank" rel="noopener">Audio e trascrizione ↗</a>` : ''}${d.conversationId ? `<button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="source">Apri conversazione</button>` : ''}</div></article>`;
     }
     function oggiWorkspaceContext() {
         const target = document.getElementById('ogContextConnections'), record = oggiWorkspace.selected, E = window.BOOM_OGGI_WORKSPACE;
@@ -31286,7 +31358,7 @@ IBAN: ${l.iban || '-'}`;
     // Copia negli appunti con ricaduta su prompt() — su Safari senza HTTPS
     // o senza permesso, navigator.clipboard non c'è e il tasto sembrerebbe
     // rotto invece di dare comunque il link all'operatore.
-    async function copyToClipboard(text, okMsg) {
+    async function copyToClipboard(text, okMsg, fallbackLabel) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
@@ -31302,7 +31374,7 @@ IBAN: ${l.iban || '-'}`;
             ta.remove();
             if (ok) { toast('success', okMsg || 'Copiato'); return true; }
         } catch (e) {}
-        window.prompt('Copia il link:', text);
+        window.prompt(fallbackLabel || 'Copia il link:', text);
         return false;
     }
 

@@ -108,7 +108,7 @@ try{
    await page.waitForSelector('#pdos-title');assert.equal(await page.locator('#pdos-title').innerText(),'Casa Aurora');
    await page.locator('[data-pdos-tab="contracts"]').click();assert.match(page.url(),/contracts$/);
    await page.locator('[data-pdos-action="back"]').click();await page.waitForFunction(()=>oggiSegretaria.loaded);
-   assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('.ow-selection h3').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+   assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('.ow-selection > div:first-child > h3').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
   });
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');

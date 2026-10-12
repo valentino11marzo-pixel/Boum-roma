@@ -8,9 +8,25 @@ const clock = src.slice(src.indexOf('    function viewingWhenLocal('), src.index
 const dossierStart = src.indexOf('    window.BOOM_PROPERTY_DOSSIER?.configure({');
 const dossierConfig = src.slice(dossierStart, src.indexOf('    // ══', dossierStart));
 const propertyOpen = src.slice(src.indexOf('    function viewProperty(id)'), src.indexOf('    function viewPropertyLandlord(id)'));
+// Execute the production mutation rules; only their persistence boundary is
+// synthetic. This keeps the preview's confirm/close and 409 semantics honest.
+const followUpSource = read('api/segretaria/_follow-up.js');
+const availabilitySource = read('api/viewings/_avail.js');
+const between = (source, start, end) => {
+ const from=source.indexOf(start),to=end?source.indexOf(end,from):source.length;
+ if(from<0||to<=from)throw Error('Missing production preview boundary: '+start);
+ return source.slice(from,to).replace(/^export /gm,'');
+};
+const copy = between(src, '    async function copyToClipboard(', '    // Un solo pannello');
+const followUpMutations = ['clean','inputText','precondition'].map(name=>{
+ const line=followUpSource.split('\n').find(line=>line.startsWith('const '+name+' ='));
+ if(!line)throw Error('Missing follow-up helper: '+name);return line;
+}).join('\n')+'\n'+between(followUpSource,'export function checkTimestamp(','export async function captureFollowUp(')
+ +'\nconst TZ="Europe/Rome";\n'+between(availabilitySource,'function romeCalendarParts(','const hhmm =')
+ +'\n'+between(followUpSource,'export async function updateFollowUp(');
 const scripts = ['oggi-engine','oggi-workspace-engine','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
-export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span></div><div class="demo-brand">BOOM</div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
-window.testIO={reads:[],writes:[],actions:[],failViewings:false,failProposals:false,holdViewings:false,pendingReads:[]};
+export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span><small style="display:block;margin-top:4px;font-weight:400">Le modifiche durano fino al ricaricamento.</small></div><div class="demo-brand">BOOM <button type="button" onclick="oggiSegretariaOpen('sg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','','message')" style="float:right;font:12px sans-serif;letter-spacing:0;padding:10px 14px;border:1px solid #d4af37;border-radius:8px;background:none;color:#d4af37;cursor:pointer">Prova un intervento ↗</button></div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
+window.testIO={reads:[],writes:[],demoWrites:[],responses:[],actions:[],failViewings:false,failProposals:false,holdViewings:false,pendingReads:[]};
 const now=new Date(), today=now.toISOString().slice(0,10);
 const isoAt=h=>today+'T'+h+':00:00Z';
 const auth={currentUser:{uid:'demo-admin',getIdToken:async()=> 'not-a-credential'}};
@@ -63,9 +79,39 @@ function confirmViewingModal(id){const row=S.viewingRequests.find(v=>v.id===id);
 function rescheduleViewingModal(id){demoAction('rescheduleViewingModal',id);}
 window.open=(...args)=>demoAction('open',...args);
 const db={collection(name){testIO.reads.push(name);return {orderBy(){return this;},limit(){return this;},where(){return this;},onSnapshot(next){next({docs:[]});return()=>{};},async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');const list=name==='viewingRequests'?S.viewingRequests:[];return {docs:list.map(v=>({id:v.id,data:()=>({...v})}))};},doc(){testIO.writes.push(name);throw Error('No writes in preview');}}}};
-window.fetch=async(url,options={})=>{if(options.method&&options.method!=='GET'){testIO.writes.push(url);throw Error('No sending or AI calls in preview');}if(!String(url).startsWith('/api/segretaria/follow-up'))throw Error('Unexpected API');const id=new URL(String(url),'https://example.invalid').searchParams.get('id');const task=testIO.followUps.find(t=>t.id===id);return {ok:true,json:async()=>id?({ok:true,task,dossier:{practices:task?.followUp.practiceRef?[{ref:task.followUp.practiceRef,propertyRefs:['properties/casa-demo']}]:[],identityAmbiguous:!!task?.followUp.ambiguous}}):({ok:true,rows:testIO.followUps,monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}})};};
+function demoDossier(task){return {practices:task?.followUp.practiceRef?[{ref:task.followUp.practiceRef,propertyRefs:['properties/casa-demo']}]:[],identityAmbiguous:!!task?.followUp.ambiguous};}
+async function fsGetVersioned(path){
+ const task=testIO.followUps.find(t=>'operatorTasks/'+t.id===path);
+ return task?{data:structuredClone(task),updateTime:JSON.stringify(task)}:null;
+}
+async function fsCommit(operations){
+ if(operations.length!==1)throw Error('Unexpected demo transaction');
+ const op=operations[0],task=testIO.followUps.find(t=>'operatorTasks/'+t.id===op.docPath);
+ if(!task||op.precondition?.updateTime!==JSON.stringify(task)){const error=Error('Demo version conflict');error.conflict=true;throw error;}
+ Object.assign(task,structuredClone(op.fields));testIO.demoWrites.push({id:task.id,fields:structuredClone(op.fields)});
+}
+${followUpMutations}
+window.fetch=async(url,options={})=>{
+ const parsed=new URL(String(url),'https://example.invalid'),method=options.method||'GET';
+ if(parsed.origin!=='https://example.invalid'||parsed.pathname!=='/api/segretaria/follow-up'||!['GET','POST'].includes(method)){
+  if(method!=='GET')testIO.writes.push(String(url));throw Error('No sending, AI or external requests in preview');
+ }
+ const response=(code,data)=>({ok:code===200,status:code,json:async()=>structuredClone({ok:code===200,...data})});
+ if(!isAdmin()||!auth.currentUser)return response(403,{error:'forbidden'});
+ if(method==='POST'){
+  let input;try{input=JSON.parse(options.body);}catch{return response(400,{error:'invalid_body'});}
+  if(!['confirm','close'].includes(input?.op)){testIO.writes.push(String(url));throw Error('Only demo confirm/close allowed');}
+  const task=testIO.followUps.find(t=>t.id===input.id);
+  const result=await updateFollowUp({id:input.id,input,actor:auth.currentUser.uid,dossier:demoDossier(task)});
+  testIO.responses.push({op:input.op,id:input.id,code:result.code,error:result.error});return response(result.code,result);
+ }
+ const id=parsed.searchParams.get('id'),task=testIO.followUps.find(t=>t.id===id);
+ return id?(task?response(200,{task,dossier:demoDossier(task)}):response(404,{error:'case_not_found'}))
+  :response(200,{rows:testIO.followUps.filter(t=>t.status==='open'),monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}});
+};
 ${search}
 ${clock}
+${copy}
 ${oggi}
 ${dossierConfig}
 BOOM_PROPERTY_DOSSIER.setSourceState('ready');BOOM_PROPERTY_DOSSIER.setTasksSourceState('ready');

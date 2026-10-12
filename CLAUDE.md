@@ -2149,6 +2149,13 @@ Un giro solo, otto interventi, 33 suite verdi:
   revisione ritrova caso/filtro, ricerca e selezione. Nessuna nuova lettura o AI.
   Prove: `oggihomeui`, `propertyoggiui`, `segretarialiveui`, `segretariafreshui`,
   `seguitoui`, `segretariapropostaui`; anteprima con fascicolo reale e dati sintetici.
+- **Messaggio e seguito (12/10/2026):** «Scrivi e organizza» apre i modelli
+  editoriali di `oggi-workspace-engine` nello stesso dialogo del seguito. Solo
+  l’immobile verificato entra nel testo; fonte, scadenza interna e note restano fuori.
+  Copia esplicita con helper Safari, nessun invio/AI e nessun testo salvato dal confirm.
+  Bozza preservata nei conflitti; cambio pratica, fonte o contesto impone ricontrollo.
+  Prove `oggimessageui`, `hometrial`: renderer e updateFollowUp reali, IO dimostrativo
+  solo in memoria, con verifica per mutazione della guardia sull’ultimo messaggio.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

@@ -112,6 +112,26 @@
   .ow-home .og-item .og-actions { padding-left:0; }
 }
 /* One work area. Filters change the view, never the state of a case. */
+.ow-message-sheet { --text:var(--sg-ink); --text-secondary:var(--sg-muted); --border:var(--sg-line); --bg-card:#fffefa; --gold:#a18a28; }
+.ow-message-sheet .ow-message { margin:24px 0 28px; padding:24px; border:1px solid var(--border); border-top:2px solid var(--gold); border-radius:12px; background:var(--bg-card); }
+.ow-message-sheet .ow-message-heading { display:flex; justify-content:space-between; gap:16px; align-items:start; }
+.ow-message-sheet h4 { margin:4px 0 10px; font-size:20px; font-weight:500; line-height:1.35; }
+.ow-message-sheet .ow-message-tag { color:var(--text-secondary); font-size:10px; white-space:nowrap; padding-top:4px; }
+.ow-message-sheet .ow-message-context,.ow-message-sheet .ow-message-label,.ow-message-sheet .ow-message-next > p:last-child { font-size:12px; line-height:1.6; color:var(--text-secondary); }
+.ow-message-sheet .ow-message-context strong { color:var(--text); font-weight:500; }
+.ow-message-sheet .ow-message-templates { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 22px; }
+.ow-message-sheet .ow-message-templates .btn { font-size:12px; padding:10px 12px; }
+.ow-message-sheet #owMessageText { font-size:15px; line-height:1.7; min-height:175px; }
+.ow-message-sheet .ow-message-copy { display:flex; align-items:center; gap:16px; margin-top:12px; }
+.ow-message-sheet #owMessageStatus { font-size:12px; line-height:1.5; color:var(--text-secondary); }
+.ow-message-sheet .ow-message-foot { font-size:11px; color:var(--text-secondary); line-height:1.6; margin:14px 0 0; }
+.ow-message-sheet .ow-message-next { border-top:1px solid var(--border); padding-top:22px; margin-bottom:18px; }
+@media(max-width:600px) {
+  .ow-message-sheet .ow-message { padding:16px; margin:18px 0; }
+  .ow-message-sheet .ow-message-heading,.ow-message-sheet .ow-message-copy { flex-direction:column; gap:10px; }
+  .ow-message-sheet .ow-message-templates { flex-direction:column; }
+  .ow-message-sheet .ow-message-copy .btn { width:100%; }
+}
 .ow-home [hidden] { display:none!important; }
 .ow-home .ow-workbench { padding:20px 24px; }
 .ow-home .ow-workbench-head { margin-bottom:14px; }
@@ -144,7 +164,8 @@
 .ow-home #sgFollowPanel .sg-next-action > .sg-meta-label { display:none; }
 .ow-home #sgFollowPanel .sg-case-title { font-size:16px; line-height:1.45; }
 .ow-home #sgFollowPanel .sg-case-meta { margin-top:12px; padding-top:10px; }
-.ow-home #sgFollowPanel .sg-case-action { padding:0; justify-content:flex-start; }
+.ow-home #sgFollowPanel .sg-case-action { padding:0; justify-content:flex-start; flex-direction:row; flex-wrap:wrap; align-items:center; gap:8px; }
+.ow-home #sgFollowPanel .sg-case-action > .btn-secondary { min-height:38px; padding:9px 14px; font-size:12px; border-radius:8px; }
 .ow-home #sgFollowPanel .sg-primary { width:auto; min-width:0; min-height:38px; padding:9px 14px; font-size:12px; }
 .ow-home #sgFollowPanel :is(.sg-case-details,.sg-reading-details) { border-top:1px solid var(--border); padding-top:0; }
 .ow-home #sgFollowPanel :is(.sg-case-details,.sg-reading-details) > summary { padding:10px 0; min-height:36px; font-size:12px; }

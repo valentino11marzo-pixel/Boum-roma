@@ -140,5 +140,19 @@
         return match ? '/chiamate?call=' + encodeURIComponent(match[1]) : null;
     }
 
-    return Object.freeze({ buildAgenda, appointmentInstant: when, contextFor, phoneSource });
+    // Editorial shortcuts, not an interpretation of a conversation. The caller
+    // supplies only a verified property label; dates, people, notes and AI drafts
+    // deliberately have no input here and cannot leak into an external message.
+    function messageTemplates(propertyName) {
+        const house = text(propertyName);
+        const rows = [{ id: 'clarify', label: 'Chiarisci la richiesta',
+            text: 'Buongiorno, a quale immobile si riferisce? Mi indica cosa serve e per quando? Così posso verificare e darle una risposta precisa. Grazie.' },
+            { id: 'update', label: 'Chiedi un aggiornamento',
+                text: 'Buongiorno, ci sono aggiornamenti' + (house ? ' per ' + house : ' sulla sua richiesta') + '? Mi indica cosa manca e quando possiamo risentirci? Grazie.' }];
+        if (house) rows.unshift({ id: 'access', label: 'Organizza un intervento',
+            text: 'Buongiorno, per ' + house + ' può indicarmi giorno e fascia oraria in cui sarebbe disponibile per l’intervento? Verifico l’accesso e le confermo il passaggio. Grazie.' });
+        return rows;
+    }
+
+    return Object.freeze({ buildAgenda, appointmentInstant: when, contextFor, phoneSource, messageTemplates });
 }));
