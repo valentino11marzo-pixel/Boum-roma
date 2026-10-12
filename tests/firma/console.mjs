@@ -26,7 +26,7 @@ const mkEl = (id) => els[id] || (els[id] = {
   id, innerHTML: '', textContent: '', style: {}, value: '',
   classList: { toggle() {}, add() {}, remove() {} },
   querySelectorAll: () => [], querySelector: () => ({ textContent: '' }),
-  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; },
+  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; }, remove() {},
 });
 const chipI = {};
 const chips = ['all', 'open', 'close', 'paid', 'signed', 'nocontract', 'reserve', 'revoked'].map(f => ({
@@ -153,6 +153,37 @@ ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · 
   'I · versione caricata: la riga dice quale versione gira e perché, con 📤 e ↺ Modello BOOM');
 ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
   'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
+
+/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso Chiara Tavolieri,
+   Via dei Latini 76: pagata da venti giorni, nessun contratto, nessun modo
+   di mandare la Scheda al proprietario se non dentro la richiesta del mandato) */
+ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietario/) && has(5, /onclick="askLandlordMandateFor\('F'\)"/)
+  && has(5, /<b>📋 Scheda proprietario<\/b> crea il contratto/) && has(5, /non esistono la Scheda né i link di firma delle parti/) && !has(2, /sendLandlordScheda/),
+  'F · pagato senza contratto: 📋 Scheda proprietario sulla riga, e la riga dice PERCHÉ Scheda e link non esistono ancora; C · firmato da entrambi: niente 📋');
+{
+  let lastBody = null;
+  ctx.fetch = async (u, o) => { lastBody = JSON.parse(o.body); return { json: async () => ({
+    ok: true, contractId: 'pa_F', created: true, propertyCreated: true, url: 'https://www.boomrome.com/scheda?t=pa_F.l.x',
+    message: 'Gentile Giulia,\nper preparare il contratto ci mancano ancora: codice fiscale.\nDue minuti qui, dal telefono: https://www.boomrome.com/scheda?t=pa_F.l.x\n\n— BOOM Roma',
+    missing: [{ key: 'landlordCF', label: 'codice fiscale' }], phone: '+39334', email: null, emailed: false, locked: false }) }; };
+  await ctx.sendLandlordScheda('F', null);
+  const ovl = Object.values(els).find(e => /📋 Scheda del proprietario/.test(e.innerHTML || ''));
+  ok(!!lastBody && lastBody.op === 'landlord-scheda' && lastBody.id === 'F' && lastBody.createProperty === true
+    && !!ovl && /<a class="pbtn prim wa" href="https:\/\/wa\.me\/39334\?text=Gentile%20Giulia/.test(ovl.innerHTML)
+    && /Contratto creato adesso insieme all’immobile/.test(ovl.innerHTML) && /gli mancano 1 dati per il contratto: codice fiscale/.test(ovl.innerHTML) && /Nessuna email in archivio/.test(ovl.innerHTML),
+    '📋 il tap: op landlord-scheda con createProperty (proposta non collegata), finestra con WhatsApp come LINK vero, contratto e immobile appena nati detti, i dati mancanti nominati');
+  /* ✍️ Firmo io sul giro vero della console: piano → firma → tocca al
+     proprietario, e il SUO link firma esce subito in una finestra */
+  const ops = [];
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); ops.push(bd.op); return { json: async () => (bd.op === 'status'
+    ? { ok: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, contractVersion: 1, coTenantsPending: [] } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L2', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sl = Object.values(els).find(e => /🖊 Firma del proprietario/.test(e.innerHTML || ''));
+  ok(ops.join() === 'status,sign' && !!sl && /href="https:\/\/wa\.me\/39334\?text=Ciao%20Giulia!/.test(sl.innerHTML) && /sign%3Fsign%3DL2/.test(sl.innerHTML)
+    && /🏠 Chiedi invece il mandato/.test(sl.innerHTML) && !/Nessuna email in archivio/.test(sl.innerHTML),
+    'dopo ✍️ (conduttore firmato per mandato): il link FIRMA del proprietario subito in una finestra, WhatsApp col suo numero, e l’alternativa del mandato');
+}
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

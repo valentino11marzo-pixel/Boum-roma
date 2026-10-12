@@ -192,7 +192,11 @@ ok(/!gotMoney&&!cid&&st!=='paid'\?'<button class="pbtn warn" onclick="revokePA/.
 // 1.1 l'immobile dalla proposta, 1.2 la guardia sovrapposizioni, 1.3 «per
 // mandato» esplicito, 2.3 il cliente firma dalla sua pagina, 3.3 il preflight.
 const convS = src('api/preagreement/convert.js');
-ok(/export function propertyFromPa\(/.test(convS) && /export const propertyIdForPa = \(paId\) => 'prop_pa_' \+ paId;/.test(convS) && /createProperty === true && canCreate/.test(convS),
+// l'id deterministico vive nel motore del mandato (12/10/2026: il mandato lo
+// riconosce come l'indirizzo approvato) — convert lo usa da lì, una copia sola
+const mandE = src('js/mandato-engine.js');
+ok(/export function propertyFromPa\(/.test(convS) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(convS)
+  && /const PA_PROPERTY_PREFIX = 'prop_pa_';/.test(mandE) && /return s \? PA_PROPERTY_PREFIX \+ s : null;/.test(mandE) && /createProperty === true && canCreate/.test(convS),
   '1.1 convert: l\'immobile nasce dalla proposta con id deterministico, solo su richiesta esplicita (createProperty) e solo con un indirizzo');
 ok(/error: 'no_property', canCreate/.test(convS) && /\.\.\.\(propertyId \? \{ propertyId \} : \{\}\)/.test(convS),
   '1.1 convert: no_property dichiara canCreate; il back-link riporta propertyId sulla proposta');
