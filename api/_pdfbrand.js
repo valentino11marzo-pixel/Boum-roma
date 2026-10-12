@@ -43,13 +43,100 @@ export const RED = rgb(0.66, 0.16, 0.13);
 // WinAnsi: StandardFonts non conosce nient'altro, e un carattere fuori
 // tabella non degrada — LANCIA, uccidendo il documento intero (la lezione
 // del certificato FES, dove una freccia "→" bloccava ogni generazione).
+//
+// I NOMI non si cancellano, si traslitterano (12/10/2026). Il vecchio filtro
+// toglieva tutto ciò che non era in tabella: «Şükrü Yılmaz» usciva «ükrü
+// Ylmaz», «Ayşe Doğan» «Aye Doan» e «Иван Петров» una stringa VUOTA — sul
+// rendiconto alla proprietaria, sul verbale delle chiavi, sull'inventario.
+// Ora, carattere per carattere:
+//  1. ciò che WinAnsi conosce RESTA: tutto Latin-1 (à è é ì ò ù ü ö ç ñ ß…),
+//     € – — ‘ ’ “ ” … e le lettere Š š Ž ž Œ œ Ÿ, che la tabella ha;
+//  2. le lettere latine senza scomposizione hanno la loro (ı → i, ł → l,
+//     đ → d, ə → e…), il cirillico e il greco la traslitterazione dei
+//     passaporti (ICAO 9303 per il cirillico: Иван Петров → Ivan Petrov);
+//  3. il resto si scompone (NFD) e tiene la lettera base: ş → s, ğ → g,
+//     ă → a, ő → o — o la lettera accentata di Latin-1 quando esiste (ế → ê);
+//  4. ciò che non ha una forma latina (emoji, ideogrammi) si toglie.
+// Un testo che aveva lettere e ne esce senza nessuna non diventa vuoto: si
+// stampa che non è stampabile. Un nome vuoto su un documento è un nome perso.
+const WIN_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+const LATIN_MAP = {
+  'ı': 'i', 'İ': 'I', 'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ħ': 'h', 'Ħ': 'H', 'ŀ': 'l', 'Ŀ': 'L',
+  'ŋ': 'ng', 'Ŋ': 'Ng', 'ĸ': 'k', 'ſ': 's', 'ə': 'e', 'Ə': 'E', 'ɛ': 'e', 'Ɛ': 'E', 'ɔ': 'o', 'Ɔ': 'O',
+  'ƀ': 'b', 'ɓ': 'b', 'ɗ': 'd', 'ƙ': 'k', 'ƴ': 'y', 'ȷ': 'j', 'ĳ': 'ij', 'Ĳ': 'IJ',
+  // punteggiatura e simboli che hanno un equivalente stampabile
+  'ʼ': '’', 'ʻ': '‘', '′': "'", '″': '"', '‐': '-', '‑': '-', '‒': '–', '―': '—', '−': '-',
+  '→': '->', '➔': '->', '➡': '->', '←': '<-', '✓': 'X', '✔': 'X', '☑': 'X', '☒': 'X',
+  '≈': '~', '≤': '<=', '≥': '>=', '≠': '!=', '№': 'N.',
+};
+// Cirillico: ICAO 9303 (la grafia dei passaporti russi e ucraini), più le
+// lettere serbe/macedoni/bielorusse. Minuscole; la maiuscola si ricava.
+const CYR = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'i',
+  'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f',
+  'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': 'ie', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'iu', 'я': 'ia',
+  'є': 'ie', 'і': 'i', 'ї': 'i', 'ґ': 'g', 'ў': 'u', 'ђ': 'dj', 'ј': 'j', 'љ': 'lj', 'њ': 'nj', 'ћ': 'c', 'џ': 'dz',
+  'ѓ': 'gj', 'ќ': 'kj', 'ѕ': 'dz',
+};
+const GREEK = {
+  'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l',
+  'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p', 'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f',
+  'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+};
+// Le coppie greche che si leggono come una (ELOT 743): Παπαδόπουλος è
+// Papadopoulos, non Papadopoylos; Ευάγγελος è Evangelos.
+const GREEK_PAIRS = { 'ου': 'ou', 'αυ': 'av', 'ευ': 'ev', 'γγ': 'ng' };
+const bare = (ch) => (ch || '').normalize('NFD').charAt(0).toLowerCase();
+function inWinAnsi(ch) {
+  const c = ch.codePointAt(0);
+  return (c >= 0x20 && c <= 0x7E) || (c >= 0xA0 && c <= 0xFF) || WIN_EXTRA.includes(ch);
+}
+const isUpper = (ch) => !!ch && ch !== ch.toLowerCase() && ch === ch.toUpperCase();
+// Una lettera di un alfabeto non latino → la sua forma latina, nella stessa
+// "taglia": Ж → Zh in un nome (Жанна → Zhanna), ZH in una parola maiuscola.
+function fromAlphabet(ch, prev, next) {
+  const lo = ch.toLowerCase();
+  const t = CYR[lo] != null ? CYR[lo] : GREEK[lo];
+  if (t == null) return null;
+  if (!isUpper(ch) || !t) return t;
+  return (isUpper(prev) || isUpper(next)) ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
+}
+function latinOf(ch, prev, next) {
+  if (LATIN_MAP[ch] != null) return LATIN_MAP[ch];
+  const a = fromAlphabet(ch, prev, next);
+  if (a != null) return a;
+  const d = ch.normalize('NFD');
+  if (d === ch) return '';
+  const chars = [...d], base = chars[0];
+  // La lettera accentata di Latin-1 quando esiste (ế → ê), altrimenti la base.
+  if (chars.length > 1) { const one = (base + chars[1]).normalize('NFC'); if ([...one].length === 1 && inWinAnsi(one)) return one; }
+  if (inWinAnsi(base)) return base;
+  const b = fromAlphabet(base, prev, next);  // greco accentato: ά → α → a
+  return b != null ? b : (LATIN_MAP[base] || '');
+}
 export function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[→➔➡]/g, '->').replace(/[✓✔☑☒]/g, 'X').replace(/−/g, '-')
-    // – — ' ' " " … € NON si toccano: stanno in WinAnsi e sono la
-    // punteggiatura vera dei nostri testi. Si tolgono solo i caratteri che
-    // il font NON conosce — e che non degradano: fanno fallire il documento.
-    .replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
+  // NFC prima di tutto: un "è" arrivato scomposto (e + accento, da macOS o
+  // da un copia-incolla) torna una lettera sola di Latin-1, e resta.
+  const src = String(s == null ? '' : s).normalize('NFC');
+  const chars = [...src];
+  let out = '';
+  for (let i = 0; i < chars.length; i++) {
+    const ch = chars[i], c = ch.codePointAt(0);
+    if (c === 0x09 || c === 0x0A || c === 0x0D) { out += ' '; continue; }   // a capo: uno spazio, mai due parole incollate
+    if (c < 0x20 || (c >= 0x7F && c <= 0x9F)) continue;                       // controlli: il font non li ha
+    if (inWinAnsi(ch)) { out += ch; continue; }
+    if (/\s/u.test(ch)) { out += ' '; continue; }                              // spazi sottili/unificatori
+    const pair = GREEK_PAIRS[bare(ch) + bare(chars[i + 1])];
+    if (pair) {
+      out += !isUpper(ch) ? pair : isUpper(chars[i + 1]) ? pair.toUpperCase() : pair.charAt(0).toUpperCase() + pair.slice(1);
+      i++; continue;
+    }
+    out += latinOf(ch, chars[i - 1], chars[i + 1]);
+  }
+  // – — ' ' " " … € NON si toccano: stanno in WinAnsi e sono la
+  // punteggiatura vera dei nostri testi.
+  if (/\p{L}/u.test(src) && !/[A-Za-z0-9\u00C0-\u00FF]/.test(out)) return '(testo in caratteri non stampabili)';
+  return out;
 }
 
 // Font + marchio, caricati una volta per documento. Il marchio è
