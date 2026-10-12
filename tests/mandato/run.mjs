@@ -1441,16 +1441,19 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /\(done&&!sig\.landlordSigned&&sig\.status!=='complete'\?'<button class="pbtn" onclick="sendLandlordScheda\(/.test(cons)
     && /op:'landlord-scheda',id:id,propertyId:d\.propertyId\|\|undefined,createProperty:!d\.propertyId/.test(cons));
   check('console: il contratto che manca si annuncia PRIMA (confirmContractBirth) per 📋 e 🏠, non dopo ✍️ (contractKnown)',
-    /if\(!confirmContractBirth\(d,'mandare la Scheda a /.test(cons) && /if\(!\(opt&&opt\.contractKnown\)&&!confirmContractBirth\(d,'chiedere il mandato al proprietario'\)\)return;/.test(cons)
+    /if\(!\(await confirmContractBirth\(d,'mandare la Scheda a /.test(cons) && /if\(!\(opt&&opt\.contractKnown\)&&!\(await confirmContractBirth\(d,'chiedere il mandato al proprietario'\)\)\)return;/.test(cons)
     && /askLandlordMandateFor\(d\.id,\{contractKnown:true\}\)/.test(cons));
   check('console: niente window.open dopo la chiamata al server per 🏠 (Safari lo blocca in silenzio): WhatsApp è un link vero nella finestra della pagina',
     !/window\.open\('https:\/\/wa\.me\/'\+String\(j\.phone\)/.test(cons) && /function showPartySend\(d,o\)/.test(cons) && /'<a class="pbtn prim wa" href="'\+wa\+'" target="_blank" rel="noopener">📲 Manda su WhatsApp<\/a>'/.test(cons));
   check('console: dopo ✍️ col proprietario di turno, il SUO link firma subito, dalla risposta',
     /if\(j\.landlordPending&&j\.landlordSignUrl\)showLandlordSignLink\(d,j\.landlordSignUrl,!j\.askLandlordMandate\);/.test(cons) && /function showLandlordSignLink\(d,url,offerMandate\)/.test(cons));
   check('console: ✍️ senza contratto (lo dice il SERVER, hasContract) annuncia la nascita nella stessa conferma e manda createProperty/propertyId',
-    /var needsContract=st\.hasContract===false;/.test(cons) && /if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare'\)\);/.test(cons)
+    /var needsContract=st\.hasContract===false;/.test(cons) && /if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare',await existingPropFor\(d\)\)\);/.test(cons)
     && /if\(needsContract\)\{if\(d\.propertyId\)body\.propertyId=d\.propertyId;else body\.createProperty=true;\}/.test(cons)
-    && /return ask\(contractBirthText\(d,purpose\)\+'\\n\\nProcedere\?'\);/.test(cons));
+    && /return ask\(contractBirthText\(d,purpose,await existingPropFor\(d\)\)\+'\\n\\nProcedere\?'\);/.test(cons));
+  check('console: prima di creare un immobile dalla proposta (📋 🏠 ✍️) si cerca la casa GIÀ nel portal con lo stesso abbinamento di → Contratto (una copia), escluso l\'immobile nato da questa proposta',
+    /async function existingPropFor\(d\)\{\n  if\(!d\|\|d\.propertyId\)return null;\n  var g=propGuess\(d,await loadProps\(\)\);\n  return \(g&&g\.id!=='prop_pa_'\+d\.id\)\?g:null;\n\}/.test(cons)
+    && /var guess=propGuess\(d,props\);/.test(cons) && (cons.match(/function propGuess\(/g) || []).length === 1 && !/norm\(addr\)\.indexOf\(norm\(p\.address\)\.slice\(0,14\)\)===0\}\)\n    \|\|props\.find/.test(cons.slice(cons.indexOf('window.convertPA='))));
   check('portal: 🖊 Firma ora e il mandato armato confrontano con termsForMandate (lo stesso confronto del server)',
     /ME\.termsForMandate \? ME\.termsForMandate\(c, mand\)/.test(app) && /ME\.termsForMandate \? ME\.termsForMandate\(c, c\.tenantMandate\)/.test(app));
   check('portal Share Hub: WhatsApp/email delle parti dai contatti del CONTRATTO quando manca il profilo; l\'accesso al portale solo a chi ha un profilo',

@@ -800,7 +800,7 @@ window.signFor=async function(id,btn){
     if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
     if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
     var lines=[];
-    if(needsContract)lines.push(contractBirthText(d,'firmare'));
+    if(needsContract)lines.push(contractBirthText(d,'firmare',await existingPropFor(d)));
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
     if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
     var lm=p.landlordMandate||null;
@@ -881,7 +881,7 @@ window.askMandateFor=async function(id){
 window.askLandlordMandateFor=async function(id,opt){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   /* dopo ✍️ il contratto esiste già anche se la riga non l'ha ancora riletto */
-  if(!(opt&&opt.contractKnown)&&!confirmContractBirth(d,'chiedere il mandato al proprietario'))return;
+  if(!(opt&&opt.contractKnown)&&!(await confirmContractBirth(d,'chiedere il mandato al proprietario')))return;
   try{
     var tok=await USER.getIdToken();
     var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'ask-landlord-mandate',id:id,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
@@ -902,15 +902,28 @@ window.askLandlordMandateFor=async function(id,opt){
    immobile del portal nasce anche l'immobile, dalla proposta. Lo si dice
    PRIMA (12/10/2026: senza dirlo, l'operatore non sapeva perché la
    Scheda di Chiara Tavolieri non esisteva). */
-function contractBirthText(d,purpose){
+function contractBirthText(d,purpose,same){
   var addr=((d.property||{}).address)||'';
   return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso'
     +(d.propertyId?'.':', insieme all’immobile «'+addr+'» (dalla proposta: nel portal non è collegato a nessun immobile).')
-    +'\n\nSe la casa è già nel portal con un altro nome, annulla e usa → Contratto per sceglierla.';
+    +(same
+      ?'\n\n⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «'+same.name+(same.address&&same.address!==same.name?' — '+same.address:'')+'». Se è la stessa casa, ANNULLA e usa → Contratto per collegarla: un immobile nuovo sarebbe un doppione, e il controllo delle sovrapposizioni non vedrebbe i contratti già vivi su quella casa. Procedi solo se è un’altra casa (es. un altro interno).'
+      :'\n\nSe la casa è già nel portal con un altro nome, annulla e usa → Contratto per sceglierla.');
 }
-function confirmContractBirth(d,purpose){
+/* L'IMMOBILE C'È GIÀ? (12/10/2026 — Viale Angelico 9: proposta non
+   collegata, ma l'appartamento era nel portal con un contratto vivo fino al
+   30/01/2027 e la nuova locazione partiva l'1/01). 📋 🏠 ✍️ mandano
+   createProperty a occhi chiusi: senza questo avviso nasceva un doppione e la
+   guardia sovrapposizioni, che confronta l'immobile, taceva. La regola è
+   quella con cui → Contratto preseleziona: una copia sola (propGuess). */
+async function existingPropFor(d){
+  if(!d||d.propertyId)return null;
+  var g=propGuess(d,await loadProps());
+  return (g&&g.id!=='prop_pa_'+d.id)?g:null;
+}
+async function confirmContractBirth(d,purpose){
   if(contractIdOf(d))return true;
-  return ask(contractBirthText(d,purpose)+'\n\nProcedere?');
+  return ask(contractBirthText(d,purpose,await existingPropFor(d))+'\n\nProcedere?');
 }
 function partyErr(m){
   return m==='no_property'?'la proposta non ha l’indirizzo dell’immobile: usa → Contratto e scegli la proprietà.'
@@ -967,7 +980,7 @@ function showLandlordSignLink(d,url,offerMandate){
 window.sendLandlordScheda=async function(id,btn){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   var ll=d.landlord||{};
-  if(!confirmContractBirth(d,'mandare la Scheda a '+(ll.name||'il proprietario')))return;
+  if(!(await confirmContractBirth(d,'mandare la Scheda a '+(ll.name||'il proprietario'))))return;
   var was=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Preparo…';}
   try{
@@ -1484,15 +1497,24 @@ async function loadProps(){
   }catch(e){console.warn('properties load',e);}
   return PROPS;
 }
+/* quale immobile del portal È la casa della proposta: il collegato, se c'è,
+   altrimenti il primo con lo stesso indirizzo. → Contratto lo preseleziona,
+   📋 🏠 ✍️ lo usano per avvisare prima di creare un doppione. */
+function propGuess(d,props){
+  var addr=((d&&d.property)||{}).address||'';
+  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
+  props=props||[];
+  return (d&&d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||(norm(addr)?props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0}):null)
+    ||(norm(addr)?props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0}):null)
+    ||null;
+}
 window.closeConvert=function(){var o=document.getElementById('cvov');if(o)o.remove();};
 window.convertPA=async function(id){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   var props=await loadProps();
   var t=d.tenant||{},ll=d.landlord||{},addr=((d.property||{}).address||'');
-  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
-  var guess=(d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
-    ||props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
-    ||props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0});
+  var guess=propGuess(d,props);
   var ov=document.createElement('div');ov.className='cvov';ov.id='cvov';
   ov.innerHTML='<div class="cvbox">'
     +'<h3>Converti in contratto</h3>'
