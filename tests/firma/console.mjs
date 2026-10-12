@@ -183,6 +183,35 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   ok(ops.join() === 'status,sign' && !!sl && /href="https:\/\/wa\.me\/39334\?text=Ciao%20Giulia!/.test(sl.innerHTML) && /sign%3Fsign%3DL2/.test(sl.innerHTML)
     && /🏠 Chiedi invece il mandato/.test(sl.innerHTML) && !/Nessuna email in archivio/.test(sl.innerHTML),
     'dopo ✍️ (conduttore firmato per mandato): il link FIRMA del proprietario subito in una finestra, WhatsApp col suo numero, e l’alternativa del mandato');
+
+  /* ✍️ premuto PER PRIMO su una proposta senza contratto né immobile: il
+     server dice hasContract:false → UNA conferma che annuncia la nascita del
+     contratto e dell'immobile, e la firma parte con createProperty (prima
+     moriva su no_property DOPO il «Procedere?») */
+  const asked = [], bodies = [];
+  const stNoContract = { ok: true, hasContract: false, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, coTenantsPending: [] } };
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? stNoContract
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L3', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sb = bodies.find(b => b.op === 'sign');
+  ok(bodies.map(b => b.op).join() === 'status,sign' && !!sb && sb.createProperty === true && !('propertyId' in sb)
+    && /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso, insieme all’immobile «Viale Angelico 9»/.test(asked[0] || '')
+    && /Firmi TU per il conduttore Ines Test/.test(asked[0] || ''),
+    '✍️ per primo, senza contratto né immobile: UNA conferma che dice che nascono contratto e immobile, e la firma parte con createProperty');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return false; };
+  await ctx.signFor('F', null);
+  ok(bodies.map(b => b.op).join() === 'status' && asked.length === 1, '… annullata la conferma: nessuna firma, nessun contratto creato');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? { ...stNoContract, hasContract: true, plan: { ...stNoContract.plan, needsContract: undefined } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L4', askLandlordMandate: false, contractId: 'pa_A' }) }; };
+  await ctx.signFor('A', null);
+  const sa = bodies.find(b => b.op === 'sign');
+  ok(!!sa && !('createProperty' in sa) && !('propertyId' in sa) && !/non esiste ancora/.test(asked[0] || ''),
+    '✍️ con il contratto già nato: nessun annuncio di nascita, nessun createProperty');
+  delete ctx.confirm;
 }
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);

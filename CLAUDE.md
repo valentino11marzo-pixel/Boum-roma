@@ -3370,6 +3370,14 @@ tre difetti veri:
   Dopo ✍️ Firmo io, col proprietario di turno, il SUO link di firma esce
   subito dalla risposta (`showLandlordSignLink`), con l'alternativa del
   mandato: col locatore senza email nessun invito parte da solo.
+- **✍️ Firmo io premuto PER PRIMO** (stesso giorno, dopo il merge): su una
+  proposta senza contratto la firma partiva senza `createProperty` e, DOPO il
+  «Procedere?», moriva su `no_property`. Ora la console legge `hasContract`
+  dallo status (il server, non la riga): se manca, la STESSA conferma apre
+  con la nascita del contratto e dell'immobile (`contractBirthText`, una
+  copia con 📋/🏠) e la firma parte con `createProperty` (o `propertyId` se la
+  proposta è collegata). Un tap: contratto, immobile, conduttore per mandato
+  e link del proprietario.
 - **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
   contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
@@ -3380,13 +3388,18 @@ Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
 email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il
 conduttore e restituisce il link del proprietario; i confini per mutazione:
 immobile diverso, immobile di un'altra proposta, canone cambiato, foto con
-immobile; email quando c'è; 400 senza indirizzo; 403 non admin; giunzioni) e
+immobile; email quando c'è; 400 senza indirizzo; 403 non admin; ✍️ per
+primo: senza `createProperty` 400 e nessuna scrittura, con `createProperty`
+contratto + immobile + firma per mandato in un tap; giunzioni) e
 `tests/firma/console.mjs` (riga F col 📋 e il perché, il tap con
 `createProperty` e la finestra con WhatsApp come link, ✍️ → link del
-proprietario). Mutazioni prese: allineamento spento, `mandateCheck` e
+proprietario; ✍️ per primo: una conferma con la nascita detta, firma con
+`createProperty`, annullata = niente firma, col contratto già nato niente
+annuncio). Mutazioni prese: allineamento spento, `mandateCheck` e
 `tenantMandateFor` senza allineamento, qualunque immobile allineato, 📋 che
 arma il mandato, Share Hub senza contatti dal contratto, niente link dopo ✍️,
-niente bottone, 📋 senza `createProperty`.
+niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
+`needsContract` fisso a falso o a vero, annuncio tolto dalla conferma.
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva

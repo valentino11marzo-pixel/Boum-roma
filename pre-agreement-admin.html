@@ -791,10 +791,16 @@ window.signFor=async function(id,btn){
     if(!st||!st.ok)throw new Error((st&&st.error)||'status_failed');
     if(!st.operatorSignature){restore();return openSigModal(function(){signFor(id,btn)});}
     var p=st.plan||{},t=d.tenant||{},ll=d.landlord||{};
+    /* il contratto lo dice il SERVER (hasContract), non la riga: senza
+       contratto ✍️ lo fa nascere — e su una proposta non collegata anche
+       l'immobile, dalla proposta (12/10/2026: prima la firma partiva senza
+       createProperty e, DOPO il «Procedere?», moriva su no_property) */
+    var needsContract=st.hasContract===false;
     if(p.signatureStatus==='complete'){restore();alert('Il contratto è già firmato da entrambe le parti.');return;}
     if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
     if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
     var lines=[];
+    if(needsContract)lines.push(contractBirthText(d,'firmare'));
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
     if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
     var lm=p.landlordMandate||null;
@@ -814,6 +820,7 @@ window.signFor=async function(id,btn){
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id,contractVersion:p.contractVersion||1,ackUploadedPdf:!!p.uploadedPdf};
+    if(needsContract){if(d.propertyId)body.propertyId=d.propertyId;else body.createProperty=true;}
     if(!p.landlordSigned&&!lm&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link (o gli chiedi il mandato dalla riga).')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
@@ -895,12 +902,15 @@ window.askLandlordMandateFor=async function(id,opt){
    immobile del portal nasce anche l'immobile, dalla proposta. Lo si dice
    PRIMA (12/10/2026: senza dirlo, l'operatore non sapeva perché la
    Scheda di Chiara Tavolieri non esisteva). */
+function contractBirthText(d,purpose){
+  var addr=((d.property||{}).address)||'';
+  return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso'
+    +(d.propertyId?'.':', insieme all’immobile «'+addr+'» (dalla proposta: nel portal non è collegato a nessun immobile).')
+    +'\n\nSe la casa è già nel portal con un altro nome, annulla e usa → Contratto per sceglierla.';
+}
 function confirmContractBirth(d,purpose){
   if(contractIdOf(d))return true;
-  var addr=((d.property||{}).address)||'';
-  return ask('Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso'
-    +(d.propertyId?'.':', insieme all’immobile «'+addr+'» (dalla proposta: nel portal non è collegato a nessun immobile).')
-    +'\n\nSe la casa è già nel portal con un altro nome, annulla e usa → Contratto per sceglierla.\n\nProcedere?');
+  return ask(contractBirthText(d,purpose)+'\n\nProcedere?');
 }
 function partyErr(m){
   return m==='no_property'?'la proposta non ha l’indirizzo dell’immobile: usa → Contratto e scegli la proprietà.'
