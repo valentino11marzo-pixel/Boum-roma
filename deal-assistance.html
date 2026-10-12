@@ -1154,7 +1154,7 @@ html {
     <div class="fld"><label for="sListing">Listing link or address <span style="color:var(--t4);text-transform:none;letter-spacing:0">(optional — the apartment you found)</span></label><input id="sListing" placeholder="https://www.immobiliare.it/…"></div>
     <input id="sCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr"></div>
-    <button class="paybtn" id="sGo" onclick="paySheet()"><span class="lk">🔒</span><span class="tx"><b>Pay €249 &amp; start</b><small>Stripe checkout · takes one minute</small></span><span class="amt">€249</span></button>
+    <button class="paybtn" id="sGo" onclick="paySheet()" data-analytics-kind="checkout" data-analytics-label="Deal Assistance checkout"><span class="lk">🔒</span><span class="tx"><b>Pay €249 &amp; start</b><small>Stripe checkout · takes one minute</small></span><span class="amt">€249</span></button>
     <p class="alt">Prefer to talk first? <a href="https://wa.me/393313251961?text=Hi!%20I%20found%20an%20apartment%20—%20can%20you%20check%20the%20deal%3F" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'deal-assistance'})">WhatsApp us →</a></p>
   </div>
 </div>
@@ -1512,5 +1512,7 @@ function paySheet(){
   conta();
 })();
 </script>
+
+<script defer src="/js/boom-track.js"></script>
 </body>
 </html>
