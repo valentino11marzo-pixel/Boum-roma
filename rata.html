@@ -108,6 +108,11 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       reports: 'Bonifici segnalati:', withProof: 'ricevuta allegata',
       repProof: 'Ricevuta allegata.', repNoProof: 'Se hai la ricevuta, mandala a BOOM su WhatsApp: si verifica prima.', proofFailed: 'La ricevuta non è arrivata: mandala a BOOM su WhatsApp.',
       wa: 'Scrivi a BOOM su WhatsApp', more: 'Segnala un altro bonifico (es. la tua metà)', withdraw: 'Era un errore: annulla la segnalazione', withdrawn: 'Segnalazione annullata.',
+      amt: 'Importo del bonifico', amtHint: 'Se hai pagato solo una parte (es. la tua metà), scrivi quanto.', badAmount: 'L’importo non torna: scrivi quanto hai bonificato, al massimo l’importo della rata.',
+      partialP: function (a, b) { return 'Finora sono stati segnalati ' + a + ' su ' + b + '. Se devi pagare il resto, fai il bonifico e segnalalo qui sotto.'; },
+      wdConfirm: function (d) { return 'Annullo la segnalazione del bonifico' + (d ? ' del ' + d : '') + ' fatta da questo telefono?'; },
+      wdOthers: 'Su questa rata ci sono più segnalazioni: per annullarne una fatta da un altro telefono, scrivi a BOOM su WhatsApp.',
+      severalWd: 'Su questa rata ci sono più segnalazioni e da qui non si può dire quale sia la tua: scrivi a BOOM su WhatsApp.',
       procH: 'Pagamento in corso', procP: 'Un pagamento per questa rata è già in elaborazione. Non pagare di nuovo: lo stato si aggiorna da solo.',
       reviewH: 'Pagamento da verificare', reviewP: 'Su questo pagamento c’è un rimborso o una contestazione: BOOM lo sta verificando. Non pagare di nuovo finché BOOM non ti scrive.',
       otherH: 'Rata da verificare', otherP: 'Questa rata non si può pagare da qui. Scrivi a BOOM per capire cosa fare.',
@@ -139,6 +144,11 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       reports: 'Reported transfers:', withProof: 'receipt attached',
       repProof: 'Receipt attached.', repNoProof: 'If you have the receipt, send it to BOOM on WhatsApp: it gets checked sooner.', proofFailed: 'The receipt didn’t arrive: send it to BOOM on WhatsApp.',
       wa: 'Message BOOM on WhatsApp', more: 'Report another transfer (e.g. your half)', withdraw: 'That was a mistake: cancel the report', withdrawn: 'Report cancelled.',
+      amt: 'Amount transferred', amtHint: 'If you paid only part of it (e.g. your half), enter how much.', badAmount: 'That amount doesn’t add up: enter what you transferred, at most the instalment amount.',
+      partialP: function (a, b) { return a + ' of ' + b + ' reported so far. If you’re paying the rest, make the transfer and report it below.'; },
+      wdConfirm: function (d) { return 'Cancel the transfer report' + (d ? ' made on ' + d : '') + ' sent from this phone?'; },
+      wdOthers: 'This instalment has more than one report: to cancel one sent from another phone, message BOOM on WhatsApp.',
+      severalWd: 'This instalment has more than one report and this page can’t tell which one is yours: message BOOM on WhatsApp.',
       procH: 'Payment in progress', procP: 'A payment for this instalment is already being processed. Don’t pay again: the status updates by itself.',
       reviewH: 'Payment being checked', reviewP: 'There is a refund or a dispute on this payment and BOOM is checking it. Don’t pay again until BOOM contacts you.',
       otherH: 'Instalment to check', otherP: 'This instalment can’t be paid from here. Message BOOM to sort it out.',
@@ -158,7 +168,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     lang = q === 'it' || q === 'en' ? q : sl === 'it' || sl === 'en' ? sl : nav.indexOf('it') === 0 ? 'it' : 'en';
   })();
   var rata = null, payUrl = '', state = 'loading', form = false, proof = null, after = null;
-  var draft = { date: '', note: '' };
+  var draft = { date: '', note: '', amount: '' };
   // Ogni modulo aperto ha il suo nonce: il doppio tocco (o una risposta persa
   // e il nuovo invio) manda lo STESSO nonce e il server non raddoppia; due
   // moduli diversi sono due bonifici, anche coi valori proposti uguali (le
@@ -166,7 +176,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
   // modulo aperto da «Segnala un altro bonifico».
   var nonce = '', another = false;
   function openForm(isAnother) {
-    form = true; another = !!isAnother; proof = null; draft = { date: '', note: '' };
+    form = true; another = !!isAnother; proof = null; draft = { date: '', note: '', amount: '' };
     try { var a = new Uint8Array(12); crypto.getRandomValues(a); nonce = Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }
     catch (_) { nonce = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32); }
   }
@@ -221,10 +231,24 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       '<div class="field"><label class="lab" for="dt">' + esc(t('when')) + '</label><input type="date" id="dt" name="date" max="' + today() + '" value="' + esc(draft.date || today()) + '"></div>' +
       '<div class="field"><span class="lab" id="pfl">' + esc(t('proof')) + '</span><div class="proof"><label><input type="file" id="pf" accept="image/*,application/pdf" aria-labelledby="pfl"><span>📎 ' + esc(proof ? t('proofChange') : t('proofAdd')) + '</span></label>' +
         (proof ? (proof.preview ? '<img alt="" src="' + proof.preview + '">' : '<span class="pdf">' + esc(proof.name) + '</span>') : '') + '</div><p class="hint">' + esc(t('proofHint')) + '</p></div>' +
+      '<div class="field"><label class="lab" for="am">' + esc(t('amt')) + '</label><input type="text" inputmode="decimal" id="am" name="amount" autocomplete="off" value="' + esc(draft.amount !== '' ? draft.amount : defaultAmount()) + '"><p class="hint">' + esc(t('amtHint')) + '</p></div>' +
       '<div class="field"><label class="lab" for="nt">' + esc(t('note')) + '</label><input type="text" id="nt" name="note" maxlength="500" placeholder="' + esc(t('notePh')) + '" value="' + esc(draft.note) + '"></div>' +
       '<div class="hp" aria-hidden="true"><input type="text" name="company" tabindex="-1" autocomplete="off"></div>' +
       '<button type="submit" class="btn" id="send">' + esc(t('report')) + '</button><p class="err" id="err" role="alert"></p></form>';
   }
+  // L'importo proposto: la rata intera, o ciò che manca se altri hanno già
+  // segnalato una parte (la seconda metà del co-intestatario).
+  function defaultAmount() {
+    var r = rata || {}, tot = Number(r.amount) || 0, left = r.reportedSum != null ? Math.round((tot - r.reportedSum) * 100) / 100 : tot;
+    var v = left > 0 ? left : tot;
+    return v ? String(v) : '';
+  }
+  // Le segnalazioni partite da QUESTO telefono (nonce + data): servono per
+  // annullare la propria senza toccare quella dell'altro co-intestatario.
+  function nonceKey() { return 'rata_nonces_' + id; }
+  function myNonces() { try { var a = JSON.parse(localStorage.getItem(nonceKey()) || '[]'); return Array.isArray(a) ? a : []; } catch (_) { return []; } }
+  function rememberNonce(n, d) { if (!n) return; try { var a = myNonces().filter(function (x) { return x && x.n !== n; }); a.push({ n: n, d: d || '' }); localStorage.setItem(nonceKey(), JSON.stringify(a.slice(-6))); } catch (_) {} }
+  function forgetNonce(n) { try { localStorage.setItem(nonceKey(), JSON.stringify(myNonces().filter(function (x) { return x && x.n !== n; }))); } catch (_) {} }
   function bindForm() {
     var f = document.getElementById('f');
     if (!f) return;
@@ -244,14 +268,20 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       return;
     }
     if (r.state === 'reported') {
-      var ps = [T[lang].repP(day(r.reportedDate))];
+      var ps = [r.partial ? T[lang].partialP(eur(r.reportedSum), eur(r.amount)) : T[lang].repP(day(r.reportedDate))];
       if (after && after.proofFailed) ps.push(t('proofFailed')); else ps.push(r.hasProof || (after && after.proof) ? t('repProof') : t('repNoProof'));
-      var list = r.reports && r.reports.length > 1 ? '<ul>' + r.reports.map(function (x) { return '<li>' + esc(day(x.date)) + (x.hasProof ? ' · ' + esc(t('withProof')) : '') + '</li>'; }).join('') + '</ul>' : '';
+      var list = r.reports && (r.reports.length > 1 || r.partial) ? '<ul>' + r.reports.map(function (x) { return '<li>' + esc(day(x.date)) + (x.amount != null ? ' · ' + esc(eur(x.amount)) : '') + (x.hasProof ? ' · ' + esc(t('withProof')) : '') + '</li>'; }).join('') + '</ul>' : '';
       if (list) list = '<p>' + esc(t('reports')) + '</p>' + list;
       html += status('', '✓', t('repH'), ps, list + (!r.hasProof && !(after && after.proof) ? '<a class="link" href="' + esc(waLink()) + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>' : ''));
       if (form && r.canReportMore) { html += bankCard() + reportForm(); app.innerHTML = html; bindAll(); return; }
+      // Una parte segnalata: dove si paga il resto resta in vista.
+      if (r.partial) html += bankCard();
       if (r.canReportMore) html += '<button type="button" class="btn ghost" id="more">' + esc(t('more')) + '</button><div style="height:10px"></div>';
-      if (r.canWithdraw) html += '<button type="button" class="btn ghost" id="wd">' + esc(t('withdraw')) + '</button>';
+      // Più segnalazioni: si annulla solo la propria (il nonce di questo
+      // telefono); senza, l'annullo passa da BOOM.
+      var several = r.reports && r.reports.length > 1, mine = myNonces();
+      if (r.canWithdraw && (!several || mine.length)) html += '<button type="button" class="btn ghost" id="wd">' + esc(t('withdraw')) + '</button>';
+      else if (r.canWithdraw && several) html += '<p class="hint">' + esc(t('wdOthers')) + ' <a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a></p>';
       html += '<p class="err" id="err" role="alert"></p>';
       app.innerHTML = html;
       var more = document.getElementById('more'); if (more) more.onclick = function () { openForm(true); after = null; render(); var d = document.getElementById('dt'); if (d) d.focus(); };
@@ -329,19 +359,30 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     e.preventDefault();
     var f = e.target, btn = document.getElementById('send');
     btn.disabled = true; btn.textContent = t('sending'); fail('');
-    api({ op: 'report', date: draft.date || today(), note: draft.note, company: f.company.value, nonce: nonce, another: another, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
+    var sentDate = draft.date || today();
+    api({ op: 'report', date: sentDate, note: draft.note, amount: draft.amount !== '' ? draft.amount : defaultAmount(), company: f.company.value, nonce: nonce, another: another, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
       .then(function (j) {
-        if (j.ok) { after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; nonce = ''; another = false; draft = { date: '', note: '' }; return load(); }
+        if (j.ok) { rememberNonce(nonce, sentDate); after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; nonce = ''; another = false; draft = { date: '', note: '', amount: '' }; return load(); }
         btn.disabled = false; btn.textContent = t('report');
-        fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'bad_date' ? t('badDate') : j.error === 'too_many_reports' ? t('tooMany')
+        fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'bad_date' ? t('badDate') : j.error === 'bad_amount' ? t('badAmount') : j.error === 'too_many_reports' ? t('tooMany')
           : j.error === 'card_completed' ? t('cardDone') : j.error === 'state_changed' ? t('changed') : j.error === 'invalid_link' ? t('invalid') : t('fail'));
       }, function () { btn.disabled = false; btn.textContent = t('report'); fail(t('fail')); });
   }
   function withdraw() {
-    var btn = document.getElementById('wd'); btn.disabled = true;
-    api({ op: 'withdraw' }).then(function (j) {
-      if (j.ok) { after = null; form = false; return load(); }
-      btn.disabled = false; fail(j.error === 'state_changed' ? t('changed') : t('fail'));
+    var btn = document.getElementById('wd');
+    var several = rata && rata.reports && rata.reports.length > 1, mine = myNonces(), last = mine[mine.length - 1];
+    // Con più segnalazioni (co-intestatari) si annulla SOLO quella partita da
+    // questo telefono, e lo si chiede prima: un tocco non deve cancellare la
+    // metà dell'altro.
+    if (several) {
+      if (!last) { fail(t('severalWd')); return; }
+      if (!window.confirm(T[lang].wdConfirm(day(last.d)))) return;
+    }
+    btn.disabled = true;
+    api(several ? { op: 'withdraw', nonce: last.n } : { op: 'withdraw' }).then(function (j) {
+      if (j.ok) { if (several) forgetNonce(last.n); after = null; form = false; return load(); }
+      if (j.error === 'several_reports' && several) forgetNonce(last.n);
+      btn.disabled = false; fail(j.error === 'state_changed' ? t('changed') : j.error === 'several_reports' ? t('severalWd') : t('fail'));
     }, function () { btn.disabled = false; fail(t('fail')); });
   }
   function load() {

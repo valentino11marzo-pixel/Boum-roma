@@ -65,7 +65,7 @@ const NAMES = ['isAdmin', 'isLandlord', 'isTenant', 'contractIsPaper', 'contract
   'checkAlerts', 'viewContract', 'viewContractLandlord', 'viewMaintenance', 'openFirmaOra', 'openSignContractModal', 'generateContractPasses',
   'regenerateContractPDF', 'openShareHub', 'readContractPDF', 'settingsPage', 'sendMyPasswordLink', '_getOnboardingSteps', 'getModal', 'updateContract',
   'inboxLogMessage', 'inboxHomieBanner', 'commercialistaLocatore', 'commercialistaBuildingContracts', 'commercialistaTaxPayments', 'commercialistaProps', 'commercialistaLandlordLite', 'fiscalScadenzarioCard',
-  'paymentAfterClose', 'commercialistaAdminFull', 'buildRiepilogoPDF', 'downloadTaxPackZip', 'pdfLatin',
+  'paymentAfterClose', 'isPaymentLateLive', 'commercialistaAdminFull', 'buildRiepilogoPDF', 'downloadTaxPackZip', 'pdfLatin',
   'burocraziaOutOfJourney', 'burocraziaPage', 'renderContractRow', 'myPaymentsPage', 'myDocumentsPage', 'boomEmailDenied', 'sendBoomEmail',
   'innestoPools', 'innestoLinkFor', 'innestoApply', 'innestoSkippedContractCard',
   'palazzoLinkOwner', 'palazzoImport', 'palazzoSaveLook', 'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper',

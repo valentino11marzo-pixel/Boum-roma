@@ -978,12 +978,27 @@ Valentyne - BOOM Rome`
     function landlordLatePayments() {
         const props = new Map((S.properties || []).map(p => [p.id, p]));
         return getMyPayments().filter(p => {
-            if (!isPaymentLate(p)) return false;
+            if (!isPaymentLateLive(p)) return false;
             const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
             const month = String(p.month || p.dueDate || '').slice(0, 7);
             return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
         });
     }
+    // Da Oggi (o da qualunque elenco) all'interno giusto del Palazzo: il
+    // palazzo di quell'interno e la sua scheda aperta, dove «Manda il link
+    // della rata» c'è in ogni vista — anche nel 3D, che è la vista di
+    // partenza dell'admin su desktop e non ha i pannelli del mese.
+    function openPalazzoUnit(propertyId) {
+        const prop = (S.properties || []).find(p => p.id === propertyId);
+        const UI = window.BOOM_PALAZZO_UI, P = window.BOOM_PALAZZO;
+        if (prop && UI && UI.ui) {
+            const key = P && typeof P.buildingKeyOf === 'function' ? P.buildingKeyOf(prop) : '';
+            if (key) UI.ui.key = key;
+            UI.ui.selected = propertyId;
+        }
+        goTo('palazzo');
+    }
+    window.openPalazzoUnit = openPalazzoUnit;
     function palazzoAdminOnly() {
         if (isAdmin()) return true;
         toast('info', 'Lo fa BOOM', 'Questa operazione la esegue l’operatore BOOM.');
@@ -1712,9 +1727,12 @@ Valentyne - BOOM Rome`
     // (che dopo il rinomino non trovava più niente — il proprietario non
     // vedeva un solo arretrato). Segnalate e in corso non sono ritardi.
     function isPaymentLate(p) {
-        if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue' && !paymentAfterClose(p);
+        if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue';
         return !!p && (p.status === 'pending' || p.status === 'overdue') && isOverdue(p.dueDate);
     }
+    // Il ritardo VERO di qualcuno: in ritardo e non dopo la chiusura del suo
+    // contratto. Lo usano la proprietaria (badge «Il Palazzo») e le notifiche.
+    function isPaymentLateLive(p) { return isPaymentLate(p) && !paymentAfterClose(p); }
     // Una rata il cui periodo comincia DOPO la chiusura vera del suo
     // contratto (BOOM_RENT.afterClose, la regola del Palazzo) non è un
     // ritardo di nessuno: va annullata. Prima il Palazzo diceva «libero,
@@ -3679,7 +3697,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         // Overdue payments — per la proprietaria come le conta il Palazzo: mai
         // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
-        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => isPaymentLate(p))).forEach(p => {
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => isPaymentLateLive(p))).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -11213,7 +11231,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const p = row.payment, id = rentActionArg(row.id);
         const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
         const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
-        const proof = rentSafeHttpUrl(p.proofUrl);
+        const proofs = (Array.isArray(p.tenantReports) && p.tenantReports.length ? p.tenantReports.map(x => x && rentSafeHttpUrl(x.proofUrl)) : [rentSafeHttpUrl(p.proofUrl)]).filter(Boolean);
+        const rowContract = (S.contracts || []).find(x => x.id === p.contractId);
+        const imported = p.source === 'palazzo-import' || !!(window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(rowContract));
         // Dopo un «Annulla incasso» e un nuovo incasso la rata ha DUE ricevute:
         // quella annullata e quella valida, in ordine di id (cioè a caso). Vale
         // quella collegata alla rata, poi una non annullata; mai l'annullata.
@@ -11226,7 +11246,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
             <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
             <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
-            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proofs.map((u, k) => `<a class="btn btn-sm btn-secondary" href="${esc(u)}" target="_blank" rel="noopener">Prova pagamento${proofs.length > 1 ? ' ' + (k + 1) : ''}</a>`).join('')}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">${imported ? 'Link della rata' : 'Link pagamento'}</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
         </div>`;
     }
     function rentMonthLabel(month, short = false) {
@@ -11475,6 +11495,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const amount = window.BOOM_RENT.amount(p.amount), rentP = window.BOOM_RENT.amount(p.rentAmount), oneriP = window.BOOM_RENT.amount(p.oneriAmount);
         const split = oneriP > 0 && rentP > 0 && Math.abs(rentP + oneriP - amount) < 0.01;
         const proof = rentSafeHttpUrl(p.proofUrl);
+        // TUTTE le segnalazioni (es. due co-intestatari che pagano metà
+        // ciascuno): la seconda ricevuta deve stare dove si decide, non solo
+        // nella scheda del Palazzo. La stessa regola di reportsOf (rata.js).
+        const reps = incassoReports(p);
         const landlord = prop && prop.ownerId ? (S.users || []).find(u => u.id === prop.ownerId) : null;
         const arg = rentActionArg(paymentId);
         const opt = (map, sel) => Object.keys(map).map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(map[k])}</option>`).join('');
@@ -11491,7 +11515,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="incTitle"><div class="modal-header"><h3 class="modal-title" id="incTitle">Registra incasso</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div>
             <form onsubmit="event.preventDefault();submitRecordIncasso(${arg})"><div class="modal-body">
             <p><strong>${esc(who.name || 'Inquilino da collegare')}</strong>${prop ? ' · ' + esc(prop.name || prop.address || '') : ''}<br>${esc(period || rentMonthLabel(p.month))} · ${rentMoney(amount)}${split ? ` <small>(canone ${rentMoney(rentP)} + oneri ${rentMoney(oneriP)})</small>` : ''}${p.dueDate ? ` · scadenza ${esc(incassoDateIt(p.dueDate))}` : ''}</p>
-            ${state === 'reported' ? `<p class="rent-note">L’inquilino ha segnalato un bonifico${rep ? ' del ' + esc(incassoDateIt(rep)) : ''}${proof ? ` · <a href="${esc(proof)}" target="_blank" rel="noopener">vedi la ricevuta</a>` : ' senza ricevuta'}.</p>` : ''}
+            ${state === 'reported' ? incassoReportsHtml(reps, amount, rep, proof) : ''}
             <div class="form-row"><div class="form-group"><label class="form-label" for="incDate">Data dell’accredito</label><input type="date" class="form-input" id="incDate" value="${def}" max="${today}" required></div>
             <div class="form-group"><label class="form-label" for="incVia">Come è arrivato</label><select class="form-select" id="incVia">${opt(INCASSO_VIA, 'bonifico')}</select></div></div>
             <div class="form-group"><label class="form-label" for="incEvidence">Da dove sai che è arrivato</label><select class="form-select" id="incEvidence" required><option value="">Scegli…</option>${opt(INCASSO_EVIDENCE, '')}</select>
@@ -11501,6 +11525,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <p id="incError" role="alert" style="color:var(--red)"></p></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" id="incSubmit" type="submit">Registra incasso</button></div></form></div></div>`;
         document.getElementById('incDate')?.focus?.();
+    }
+    function incassoReports(p) {
+        const list = Array.isArray(p && p.tenantReports) ? p.tenantReports.filter(x => x && typeof x === 'object') : [];
+        return list.length ? list : [{ date: p && p.tenantReportDate, note: p && p.tenantNotes, proofUrl: p && p.proofUrl }];
+    }
+    function incassoReportsHtml(reps, amount, firstDay, headProof) {
+        const amt = x => window.BOOM_RENT.amount(x && x.amount);
+        if (reps.length <= 1) {
+            const x = reps[0] || {}, a = amt(x);
+            const proof = rentSafeHttpUrl(x.proofUrl) || headProof;
+            return `<p class="rent-note">L’inquilino ha segnalato un bonifico${firstDay ? ' del ' + esc(incassoDateIt(firstDay)) : ''}${a != null && amount != null && a < amount - 0.005 ? ` di ${rentMoney(a)} su ${rentMoney(amount)}` : ''}${x.note ? ` · nota: «${esc(String(x.note).slice(0, 80))}»` : ''}${proof ? ` · <a href="${esc(proof)}" target="_blank" rel="noopener">vedi la ricevuta</a>` : ' senza ricevuta'}.</p>`;
+        }
+        const known = reps.map(amt), sum = known.every(a => a != null) ? Math.round(known.reduce((n, a) => n + a, 0) * 100) / 100 : null;
+        return `<div class="rent-note">L’inquilino ha segnalato ${reps.length} bonifici${sum != null ? ` (in tutto ${rentMoney(sum)} su ${rentMoney(amount)})` : ''}:<ul style="margin:6px 0 6px 18px;padding:0">${reps.map((x, k) => {
+            const d = incassoDay(x.date), a = amt(x), proof = rentSafeHttpUrl(x.proofUrl);
+            return `<li>${d ? esc(incassoDateIt(d)) : 'data non indicata'}${a != null ? ' · ' + rentMoney(a) : ''}${x.note ? ` · «${esc(String(x.note).slice(0, 80))}»` : ''} · ${proof ? `<a href="${esc(proof)}" target="_blank" rel="noopener">ricevuta ${k + 1} ↗</a>` : 'senza ricevuta'}</li>`;
+        }).join('')}</ul>Più segnalazioni (es. due co-intestatari): verifica sull’estratto che sia arrivato l’importo intero prima di registrare. La data proposta è quella della prima segnalazione.</div>`;
     }
     const incassoBusy = new Set();
     async function submitRecordIncasso(paymentId) {
@@ -11590,20 +11631,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             url = (j.links || {})[paymentId] || '';
             if (!url) return toast('warning', 'Link della rata non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(p)));
         } catch (e) { return toast('error', 'Link della rata non creato', e.message || ''); }
-        const first = String(c.tenantName || '').trim().split(/\s+/)[0] || '';
-        const due = incassoDateEn(p.dueDate);
-        const msg = `Hello${first ? ' ' + first : ''}, this is BOOM. Your rent for ${incassoMonth(p.month, 'en') || 'this month'} (€${incassoEuro(p.amount, 'en')}${due ? ', due ' + due : ''}) is still open. You can pay here, or tell us you paid by bank transfer and attach the receipt: ${url}&lang=en`;
+        // Il testo segue le regole del Palazzo (rataText in js/palazzo.js): il
+        // saldo del deposito non è «your rent», il primo messaggio porta
+        // l'informativa, ogni intestatario riceve il SUO WhatsApp, e si
+        // registra «sollecito» solo su una rata davvero in ritardo.
+        const st = window.BOOM_RENT.paymentState(p);
+        const kind = st === 'overdue' ? 'sollecito' : 'rata-link';
+        const first = !(S.payments || []).some(x => x && x.contractId === p.contractId && Array.isArray(x.dunningHistory) && x.dunningHistory.length);
+        const prop = (S.properties || []).find(x => x.id === (p.propertyId || c.propertyId)) || null;
         const CS = window.BOOM_CONTRACT_STATE;
-        const tel = CS && CS.phoneIntl ? CS.phoneIntl(c.tenantPhone || '') : { wa: null, kind: 'unknown' };
-        const pid = rentActionArg(paymentId), month = rentActionArg(p.month || '');
-        window._rataReminderText = msg;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">Sollecito · link della rata</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body"><p class="rent-note">${esc(c.tenantName || 'L’inquilino')} non ha un profilo nel portal: il sollecito è il link della sua rata (carta, se accesa, o bonifico con la ricevuta). Messaggio in inglese, modificabile su WhatsApp.</p>
-            <div class="form-input" style="white-space:pre-wrap;height:auto;font-size:13px;line-height:1.5">${esc(msg)}</div>
-            ${tel.wa ? '' : `<p class="rent-note" style="color:var(--orange)">${c.tenantPhone ? 'Il numero in archivio (' + esc(c.tenantPhone) + ') non è sicuro per WhatsApp: copia il messaggio e mandalo tu.' : 'Nessun telefono in archivio: copia il messaggio.'}</p>`}</div>
+        const people = [{ name: c.tenantName, phone: c.tenantPhone }].concat(Array.isArray(c.coTenants) ? c.coTenants.filter(x => x && typeof x === 'object') : [])
+            .map(x => ({ name: String(x.name || '').trim(), phone: String(x.phone || '').trim(), tel: CS && CS.phoneIntl ? CS.phoneIntl(x.phone || '') : { wa: null } }));
+        const msgFor = name => rataReminderText(p, c, prop, url + '&lang=en', name, first);
+        const pid = rentActionArg(paymentId), month = rentActionArg(p.month || ''), kindArg = rentActionArg(kind);
+        window._rataReminderText = msgFor(people[0].name);
+        window._rataReminderFor = people.map(x => msgFor(x.name));
+        const withWa = people.map((x, k) => ({ ...x, k })).filter(x => x.tel && x.tel.wa);
+        const noWa = people.filter(x => x.name && !(x.tel && x.tel.wa));
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">${kind === 'sollecito' ? 'Sollecito · link della rata' : 'Link della rata'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body"><p class="rent-note">${esc(c.tenantName || 'L’inquilino')} non ha un profilo nel portal: ${kind === 'sollecito' ? 'il sollecito è' : 'si manda'} il link della sua rata (carta, se accesa, o bonifico con la ricevuta). Messaggio in inglese, modificabile su WhatsApp${first ? ', col link all’informativa privacy (primo messaggio su questo contratto)' : ''}.</p>
+            <div class="form-input" style="white-space:pre-wrap;height:auto;font-size:13px;line-height:1.5">${esc(window._rataReminderText)}</div>
+            ${noWa.length ? `<p class="rent-note" style="color:var(--orange)">${noWa.map(x => x.phone ? esc(x.name) + ': il numero in archivio (' + esc(x.phone) + ') non è sicuro per WhatsApp' : esc(x.name) + ': nessun telefono in archivio').join(' · ')} — copia il messaggio e mandalo tu.</p>` : ''}</div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="copyToClipboard(window._rataReminderText,'Messaggio copiato')">Copia messaggio</button>
-            ${tel.wa ? `<button class="btn" onclick="window.open('https://wa.me/${tel.wa}?text='+encodeURIComponent(window._rataReminderText),'_blank');palazzoLogSent(${pid},{channel:'whatsapp',kind:'sollecito',month:${month}});closeModal()">WhatsApp</button>` : ''}</div></div></div>`;
+            ${withWa.map((x, j) => `<button class="btn${j ? ' btn-secondary' : ''}" onclick="window.open('https://wa.me/${esc(x.tel.wa)}?text='+encodeURIComponent(window._rataReminderFor[${x.k}]),'_blank');palazzoLogSent(${pid},{channel:'whatsapp',kind:${kindArg},month:${month}})">WhatsApp: ${esc(x.name.split(/\s+/)[0] || 'inquilino')}</button>`).join('')}</div></div></div>`;
         return true;
+    }
+    // Il messaggio della rata (inglese), con le parole della rata vera.
+    function rataReminderText(p, c, prop, link, name, first) {
+        const R = window.BOOM_RENT, st = R.paymentState(p), late = st === 'overdue';
+        const who = String(name || '').trim().split(/\s+/)[0] || '';
+        const type = String(p.type || '').toLowerCase();
+        const what = R.isRentPayment(p) ? 'the ' + (incassoMonth(p.month, 'en') || 'monthly') + ' rent'
+            : type === 'deposit-balance' ? 'the deposit balance' : type === 'deposit' ? 'the security deposit' : 'the payment';
+        const unit = prop && prop.interno ? 'unit ' + prop.interno : (prop && (prop.name || prop.address)) || '';
+        const card = typeof R.cardPolicy === 'function' ? R.cardPolicy(p, c, prop).available : false;
+        const how = card ? 'You can pay by card or Apple Pay, or report your bank transfer with a photo of the receipt, here: '
+            : 'Here you find the bank details and can report your transfer with a photo of the receipt: ';
+        const due = incassoDateEn(p.dueDate);
+        return 'Hello' + (who ? ' ' + who : '') + ', this is BOOM. ' + (late ? 'A reminder about ' : 'Here is ') + what + (unit ? ' (' + unit + ')' : '') + ': €' + incassoEuro(p.amount, 'en') +
+            (due ? (late ? ', due on ' : ', due by ') + due : '') + (late ? ' and we have not received it yet' : '') + '. ' + how + link +
+            (first ? '\nHow BOOM handles your data: https://www.boomrome.com/privacy-inquilini?lang=en' : '');
     }
     window.openRataReminder = openRataReminder;
 
@@ -11825,8 +11892,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const oldOpen = open.filter(m => daysSince(m.createdAt) > 7);
 
         // Maintenance row generator
-        const maintenanceRow = (m) => {
-            const p = S.properties.find(x => x.id === m.propertyId);
+        const maintenanceRow = (m0) => {
+            // Categoria, priorità, stato e id li scrive anche il browser di
+            // inquilino e proprietaria: nell'HTML arrivano già resi innocui
+            // (esc per gli attributi, jsq per gli onclick).
+            const m = Object.assign({}, m0, { status: esc(m0.status), priority: esc(m0.priority), id: jsq(m0.id) });
+            const p = S.properties.find(x => x.id === m0.propertyId);
             const u = S.users.find(x => x.id === m.userId);
             const owner = p ? S.users.find(x => x.id === p.ownerId) : null;
             const ageInDays = daysSince(m.createdAt);
@@ -11847,7 +11918,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${esc(m.status)}" data-priority="${esc(m.priority)}" onclick="viewMaintenance('${jsq(m.id)}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -11864,8 +11935,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
                 <div style="display:flex;align-items:center;gap:6px">
-                    ${m.status === 'open' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();updateMaintenanceStatus('${jsq(m.id)}','in_progress')" title="Inizia lavoro">▶️</button>` : ''}
-                    ${m.status === 'in_progress' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();updateMaintenanceStatus('${jsq(m.id)}','resolved')" title="Segna completata">✔</button>` : ''}
+                    ${m.status === 'open' ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','in_progress')" title="Inizia lavoro">▶️</button>` : ''}
+                    ${m.status === 'in_progress' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();updateMaintenanceStatus('${m.id}','resolved')" title="Segna completata">✔</button>` : ''}
                     ${owner?.phone ? `<a href="https://wa.me/${owner.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" class="btn btn-xs btn-secondary" title="Contatta proprietario">💬</a>` : ''}
                 </div>
             </div>`;
@@ -25970,10 +26041,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         inp.click();
     }
     window.aspiAllega = aspiAllega;
+    // Il contratto è GIÀ registrato all'AdE (✓ RLI registrato, o la colonna
+    // «Registrato il» della presa in carico)? Allora ad ASPI si chiede solo
+    // l'attestazione: una seconda richiesta di registrazione con fattura €278
+    // alla società è un errore che costa (13/10/2026). Il server può dirlo
+    // (st.registered); altrimenti lo dice lo stato del contratto.
+    function _aspiRegistered(st) {
+        if (!st) return null;
+        if (st.registered && typeof st.registered === 'object') return st.registered.at || true;
+        const s = st.state || {};
+        return s.registrationStatus === 'registered' || s.rliRegisteredAt ? (s.rliRegisteredAt || true) : null;
+    }
+    function _aspiItems(st, kind) {
+        const k = st.kinds || {};
+        // Le voci dell'attestazione sono quelle del «completo» (il server le
+        // calcola con la stessa regola): si usano finché il server non manda
+        // la variante a sé.
+        return k[kind] || (kind === 'asseverazione' ? k.completo : null) || k.completo || [];
+    }
     function _aspiRenderKind() {
         const st = window._aspiStatus; if (!st) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || st.kind;
-        const items = kind === 'registrazione' ? st.kinds.registrazione : st.kinds.completo;
+        const items = _aspiItems(st, kind);
         const el = document.getElementById('aspiChecklist');
         if (el) el.innerHTML = _aspiChecklistHtml(items);
         const bl = document.getElementById('aspiBillLbl');
@@ -25997,6 +26086,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window._aspiStatus = st;
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
+        const reg = _aspiRegistered(st);
+        if (reg) st.kind = 'asseverazione';
+        const regDay = reg && reg !== true ? String(reg).slice(0, 10) : '';
+        const prezzoAss = (s.prezzi && s.prezzi.asseverazione != null) ? s.prezzi.asseverazione : '';
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
@@ -26008,9 +26101,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
+                ${reg ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato all’AdE${regDay ? ' il ' + esc(incassoDateIt(regDay)) : ''}: si chiede solo l’attestazione di rispondenza (nessuna seconda registrazione).</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="asseverazione" ${st.kind === 'asseverazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo attestazione di rispondenza${prezzoAss !== '' ? ` · fattura €${prezzoAss}` : ''}</label>
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
@@ -26026,7 +26121,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.openAspi = openAspi;
     async function sendAspi(contractId) {
-        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
+        const st0 = window._aspiStatus && window._aspiStatus.contractId === contractId ? window._aspiStatus : null;
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || (st0 && st0.kind) || 'completo';
+        // Mai una seconda richiesta di registrazione per un contratto già
+        // registrato (anche se una pagina vecchia lascia il radio attivo).
+        if (_aspiRegistered(st0) && kind !== 'asseverazione') return toast('error', 'Contratto già registrato all’AdE', 'Ad ASPI si chiede solo l’attestazione di rispondenza.');
         const bill = !!document.getElementById('aspiBill')?.checked;
         const note = document.getElementById('aspiNote')?.value || '';
         const btnEl = document.getElementById('aspiSendBtn');
@@ -26043,6 +26142,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
                     ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
+                    : j && j.error === 'already_registered'
+                    ? 'Contratto già registrato' + (j.at ? ' il ' + incassoDateIt(String(j.at).slice(0, 10)) : '') + ': ad ASPI si chiede solo l’attestazione.'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
@@ -33308,6 +33409,12 @@ IBAN: ${l.iban || '-'}`;
         if (doc.status === 'paid') { toast('info', 'Già pagato', 'Apri la ricevuta della rata.'); return; }
         if (isInv && window.BOOM_RENT.paymentBlockReason(doc, 'invoice')) { toast('warning','Fattura non pagabile: aggiorna lo stato.'); return; }
         if (!isInv && !window.BOOM_RENT.canPay(doc)) { toast('warning', 'Link non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(doc))); return; }
+        // Una rata presa in carico dal Palazzo (niente profilo, carta spenta
+        // senza mandato, bonifico al conto del locatore): il link giusto è
+        // /rata, dal server, col messaggio in inglese al numero del contratto —
+        // mai il link di pagamento «carta e incasso automatico» in italiano.
+        const payContract = isInv ? null : (S.contracts || []).find(c => c.id === doc.contractId) || null;
+        if (!isInv && (doc.source === 'palazzo-import' || (window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(payContract)))) return openRataReminder(id);
 
         toast('info', 'Preparo il link…');
         let url;
@@ -33321,11 +33428,20 @@ IBAN: ${l.iban || '-'}`;
                || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
             name = doc.recipientName || who?.name || '';
         } else {
-            const contract = (S.contracts || []).find(c => c.id === doc.contractId);
+            const contract = payContract;
             who = (S.users || []).find(u => u.id === (doc.tenantId || contract?.tenantId));
-            name = who?.name || '';
+            name = who?.name || contract?.tenantName || '';
+            // Senza profilo il numero è quello del contratto, passato da
+            // phoneIntl (niente WhatsApp su un numero ambiguo).
+            if (!who && contract && contract.tenantPhone && window.BOOM_CONTRACT_STATE) {
+                const tel = window.BOOM_CONTRACT_STATE.phoneIntl(contract.tenantPhone);
+                if (tel && tel.wa) who = { phone: tel.wa };
+            }
         }
         phone = String(who?.phone || '').replace(/[^0-9]/g, '');
+        // La carta per questa rata: accesa o no (BOOM_RENT.cardPolicy). Spenta,
+        // il modale non promette «carta e incasso automatico».
+        const cardOn = isInv || !window.BOOM_RENT.cardPolicy || window.BOOM_RENT.cardPolicy(doc, payContract, (S.properties || []).find(x => x.id === (doc.propertyId || payContract?.propertyId))).available;
 
         const what = isInv
             ? `la fattura ${doc.number || ''}`.trim()
@@ -33339,7 +33455,7 @@ IBAN: ${l.iban || '-'}`;
             <div class="modal-body">
               <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
                 ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
-                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. ${cardOn ? `Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.` : 'Carta spenta per questa rata: si paga con bonifico al conto del locatore, e l’incasso lo registri tu.'}
               </div>
               <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap">

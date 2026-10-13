@@ -46,6 +46,10 @@ const MUTATIONS = {
   'afterclose-rata': ['/api/payments/rata.js', "const closed = !!contract && RENT.afterClose(pay, contract)", 'const closed = false'],
   'afterclose-pay': ['/api/payments/pay.js', 'if (ctx.contract && RENT.afterClose(pay, ctx.contract))', 'if (false)'],
   'afterclose-link': ['/api/payments/link.js', "if (kind === 'pay' && card.contract && RENT.afterClose(doc, card.contract)) {", 'if (false) {'],
+  // Le segnalazioni dei co-intestatari (13/10/2026): l'annullo che cancella
+  // anche quella dell'altro, il ping che non dice quanto è stato segnalato.
+  'withdraw-all': ['/api/payments/rata.js', 'if (was.length > 1) {', 'if (false) {'],
+  'ping-amount': ['/api/payments/rata.js', 'const how = extra.amount != null && view.amount != null', 'const how = false'],
 };
 
 export async function load(url, context, nextLoad) {

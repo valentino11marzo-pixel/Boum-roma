@@ -173,7 +173,8 @@ function build(src = SRC0) {
     region(src, '    async function sendPaymentConfirmEmail(', '    // ═══ 🖊 FIRMA ORA'),
     region(src, '    function _buildReceiptDoc(', '    function downloadInvoicePDF('),
     fnSrc(src, 'esc'), fnSrc(src, 'jsq'), fnSrc(src, 'fmtDate'), fnSrc(src, 'numberToWords'),
-    fnSrc(src, 'updateContract'), fnSrc(src, 'monthsBetween'), fnSrc(src, 'isPaymentLate'), fnSrc(src, 'paymentAfterClose'), fnSrc(src, 'livePaymentsForQueues'),
+    fnSrc(src, 'updateContract'), fnSrc(src, 'monthsBetween'), fnSrc(src, 'isPaymentLate'), fnSrc(src, 'isPaymentLateLive'), fnSrc(src, 'paymentAfterClose'), fnSrc(src, 'livePaymentsForQueues'),
+    fnSrc(src, 'showPaymentLink'), fnSrc(src, 'paymentLinkFor'),
   ].join('\n');
   vm.runInContext(code, ctx);
   const run = c => vm.runInContext(c, ctx);
@@ -648,8 +649,8 @@ const editForm = over => function () {
     { id: 'pay_cOld_2025-12', contractId: 'cOld', propertyId: 'p9', type: 'rent', month: '2025-12', amount: 900, dueDate: '2025-12-05', status: 'pending' });
   T.seed(f);
   await check('la rata dopo la chiusura non è un ritardo (badge, notifiche, proprietaria); quella dentro il contratto sì', () => {
-    assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='pay_cOld_2026-01'))"), false);
-    assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='pay_cOld_2025-12'))"), true);
+    assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='pay_cOld_2026-01'))"), false);
+    assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='pay_cOld_2025-12'))"), true);
     const ids = T.run('livePaymentsForQueues().map(p=>p.id)');
     assert.ok(!ids.includes('pay_cOld_2026-01') && ids.includes('pay_cOld_2025-12'), 'Oggi non riceve la rata dopo la chiusura');
   });
@@ -892,10 +893,156 @@ const ARREARS = () => {
     assert.equal(T.mails.length, 0);
     assert.equal(T.writes.length, 0, 'aprire il sollecito non scrive niente: si registra quando parte');
     const html = T.getEl("modals").innerHTML;
-    assert.match(html, /Hello Mario, this is BOOM\. Your rent for October 2026 \(€1,000\.00, due 5 Oct 2026\) is still open/);
+    assert.match(html, /Hello Mario, this is BOOM\. A reminder about the October 2026 rent \(unit 8\): €1,000\.00, due on 5 Oct 2026 and we have not received it yet\./);
     assert.ok(html.includes('https://www.boomrome.com/rata?id=pay_c8_2026-10&amp;t=prova&amp;lang=en'), html);
-    assert.match(html, /Nessun telefono in archivio/);
+    assert.ok(html.includes('How BOOM handles your data: https://www.boomrome.com/privacy-inquilini?lang=en'), 'primo messaggio: l’informativa');
+    assert.match(html, /nessun telefono in archivio/);
     assert.ok(!/wa\.me/.test(html), 'senza un numero sicuro niente WhatsApp');
+  });
+}
+// ═══ 9b. Il link della rata da Canoni: le parole e le persone giuste ═══════
+{
+  const T = build();
+  const f = FIX();
+  f.contracts.find(c => c.id === 'c7').coTenants = [{ name: 'Иван Петров', phone: '+7 900 000 0000' }];
+  f.payments.push({ id: 'depbal_c7', contractId: 'c7', propertyId: 'p7', type: 'deposit-balance', amount: 1600, dueDate: '2026-10-01', status: 'pending', source: 'palazzo-import' },
+    { id: 'pay_c7_2026-11', contractId: 'c7', propertyId: 'p7', type: 'rent', month: '2026-11', amount: 1720, dueDate: '2099-11-15', status: 'pending', source: 'palazzo-import' });
+  T.seed(f);
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  const fetches = [];
+  const real = T.ctx.fetch;
+  T.ctx.fetch = async (url, o) => { fetches.push(String(url)); return real(url, o); };
+  await T.run("showPaymentLink('pay','depbal_c7')");
+  const html = T.getEl('modals').innerHTML;
+  await check('«Link pagamento» su una rata del Palazzo: niente link Stripe in italiano, si passa da /rata', () => {
+    assert.ok(!fetches.some(u => u.includes('/api/payments/link-for')), 'mai il link di pagamento «carta e incasso automatico»');
+    assert.ok(fetches.some(u => u.includes('/api/payments/rata')));
+    assert.ok(!/si segna pagata da sola|portale BOOM/.test(html));
+  });
+  await check('il saldo del deposito non è «your rent»; il primo messaggio porta l’informativa; un WhatsApp per ogni intestatario', () => {
+    assert.match(html, /A reminder about the deposit balance \(unit 7\): €1,600\.00/);
+    assert.ok(!/rent for this month|Your rent/.test(html));
+    assert.ok(html.includes('privacy-inquilini?lang=en'));
+    assert.ok(html.includes('wa.me/390000000007') && html.includes('wa.me/79000000000'), 'titolare E co-intestatario');
+    assert.ok(html.includes('WhatsApp: Şükrü') && html.includes('WhatsApp: Иван'));
+    assert.equal(T.run('window._rataReminderFor.length'), 2);
+    assert.match(T.run('window._rataReminderFor[1]'), /^Hello Иван, this is BOOM\./);
+  });
+  // Una rata non ancora scaduta: «Link della rata», registrata come link (non sollecito).
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  await T.run("showPaymentLink('pay','pay_c7_2026-11')");
+  const h2 = T.getEl('modals').innerHTML;
+  await check('una rata non scaduta non è un sollecito: titolo, testo e registrazione «rata-link»', () => {
+    assert.match(h2, /<h3 class="modal-title">Link della rata<\/h3>/);
+    assert.match(h2, /Here is the November 2026 rent \(unit 7\): €1,720\.00, due by/);
+    assert.ok(h2.includes("kind:&quot;rata-link&quot;") || h2.includes('kind:"rata-link"') || /kind:[^,]*rata-link/.test(h2), h2.slice(-600));
+  });
+  await check('Canoni: «Link della rata» sulle righe del Palazzo, una «Prova pagamento» per ogni segnalazione', () => {
+    const pay = { ...T.S.payments.find(p => p.id === 'pay_c7_2026-10'), tenantReports: [{ date: '2026-10-03', proofUrl: 'https://files.example.invalid/a.pdf' }, { date: '2026-10-04', proofUrl: 'https://files.example.invalid/b.pdf' }] };
+    T.ctx.__row = { id: pay.id, payment: pay, state: 'due', amount: 1720, isRent: true, canPay: true, month: '2026-10', tenantName: 'Şükrü Yılmaz' };
+    const r = T.run('rentPaymentRow(__row)');
+    assert.ok(r.includes('>Link della rata</button>'), r);
+    assert.ok(r.includes('Prova pagamento 1') && r.includes('Prova pagamento 2') && r.includes('b.pdf'));
+  });
+}
+{
+  // Il link di pagamento per un contratto normale senza profilo: il numero
+  // dal contratto, e il modale dice la carta solo se c'è.
+  const T = build(); const f = FIX();
+  f.contracts.push({ id: 'cN', propertyId: 'p9', status: 'active', tenantName: 'Lena Prova', tenantPhone: '+90 532 000 0000', rent: 900 });
+  f.payments.push({ id: 'pay_cN', contractId: 'cN', propertyId: 'p9', type: 'rent', month: '2026-10', amount: 900, dueDate: '2099-10-05', status: 'pending' });
+  T.seed(f);
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  const real = T.ctx.fetch;
+  T.ctx.fetch = async (url, o) => String(url).includes('/api/payments/link-for') ? { ok: true, json: async () => ({ ok: true, url: 'https://www.boomrome.com/api/payments/link?k=pay&id=pay_cN&t=x' }) } : real(url, o);
+  await T.run("showPaymentLink('pay','pay_cN')");
+  const h = T.getEl('modals').innerHTML;
+  await check('contratto normale senza profilo: WhatsApp al numero del contratto (+90), nome dal contratto', () => {
+    assert.ok(h.includes('wa.me/905320000000'), h.slice(0, 400));
+    assert.ok(h.includes('Lena Prova') && !h.includes('Nessun telefono in archivio'));
+    assert.ok(h.includes('si segna pagata da sola'), 'qui la carta c’è: si dice com’era');
+  });
+}
+// ═══ 9d. ASPI su un contratto già registrato: solo l'attestazione ═════════
+{
+  const ASPI = region(SRC0, '    const ASPI_ALLEGABILI =', '    async function editAspiSettings(');
+  const mkAspi = (state, extra = {}) => {
+    const modals = { innerHTML: '' }, sent = [], toasts = [];
+    const checkedOf = () => { const m = /value="(\w+)" checked/.exec(modals.innerHTML); return m ? { value: m[1] } : null; };
+    const els = new Map();
+    const ctx = vm.createContext({
+      S: { contracts: [] }, console: { log() {}, warn() {} }, toast: (...a) => toasts.push(a), closeModal() {}, renderPage() {}, window: {},
+      auth: { currentUser: { getIdToken: async () => 'tok' } },
+      document: { getElementById: id => id === 'modals' ? modals : (els.get(id) || (els.set(id, { innerHTML: '', textContent: '', checked: id === 'aspiBill', value: '' }), els.get(id))),
+        querySelector: sel => sel === 'input[name="aspiKind"]:checked' ? checkedOf() : null },
+      fetch: async (url, o) => {
+        const b = JSON.parse(o.body);
+        if (b.op === 'status') return { json: async () => ({ ok: true, kind: 'completo', settings: { email: 'aspi@example.invalid', referente: 'Ref', billTo: 'landlord', autoInvoice: true, prezzi: { completo: 278, registrazione: 89, asseverazione: 189 }, costi: { completo: 137, registrazione: 37, asseverazione: 100 } },
+          kinds: { completo: [{ key: 'contratto', label: 'Contratto', state: 'ok' }], registrazione: [{ key: 'contratto', label: 'Contratto', state: 'ok' }] }, state, ...extra }) };
+        sent.push(b);
+        return { json: async () => ({ ok: true, to: 'aspi@example.invalid', kind: b.kind, attachments: [] }) };
+      },
+    });
+    vm.runInContext(ASPI + '\n' + fnSrc(SRC0, 'esc') + '\n' + fnSrc(SRC0, 'incassoDay') + '\n' + fnSrc(SRC0, 'incassoRomeDay') + '\n' + fnSrc(SRC0, 'incassoDateIt'), ctx);
+    return { ctx, modals, sent, toasts, run: c => vm.runInContext(c, ctx) };
+  };
+  const A = mkAspi({ registrationStatus: 'registered', rliRegisteredAt: '2026-09-25', aspiRequestedAt: null });
+  await A.run("openAspi('cReg')");
+  const h = A.modals.innerHTML;
+  await check('ASPI su un contratto registrato: «solo attestazione» preselezionata, registrazione e completo spenti, la data detta', () => {
+    assert.match(h, /value="asseverazione" checked/);
+    assert.match(h, /value="completo"\s+disabled/);
+    assert.match(h, /value="registrazione"\s+disabled/);
+    assert.ok(h.includes('Registrato all’AdE il 25/09/2026'));
+    assert.ok(h.includes('Solo attestazione di rispondenza · fattura €189'));
+    assert.ok(A.ctx.document.getElementById('aspiBillLbl').textContent.includes('€189'), 'la fattura è quella dell’attestazione');
+  });
+  await A.run("sendAspi('cReg')");
+  await check('l’invio chiede solo l’attestazione; una pagina che lasciasse «completo» acceso non parte', async () => {
+    assert.equal(A.sent.at(-1).kind, 'asseverazione');
+    A.modals.innerHTML = A.modals.innerHTML.replace('value="asseverazione" checked', 'value="asseverazione"').replace('value="completo"  disabled', 'value="completo" checked disabled');
+    const n = A.sent.length;
+    await A.run("sendAspi('cReg')");
+    assert.equal(A.sent.length, n, 'nessuna seconda richiesta di registrazione');
+    assert.match(A.toasts.at(-1).join(' '), /già registrato/);
+  });
+  const B = mkAspi({ registrationStatus: 'pending' });
+  await B.run("openAspi('cNew')");
+  await check('un contratto non registrato: le tre varianti, il completo di default', () => {
+    const hb = B.modals.innerHTML;
+    assert.match(hb, /value="completo" checked/);
+    assert.ok(!/disabled/.test(hb.match(/name="aspiKind"[^>]*>/g).join(' ')));
+    assert.ok(hb.includes('value="asseverazione"'));
+  });
+}
+// ═══ 9e. Da Oggi all'interno del debitore nel Palazzo ══════════════════════
+{
+  const PAL = require('../../js/palazzo-engine.js');
+  const ui = { key: 'altro', selected: '' }, went = [];
+  const ctx = vm.createContext({ S: { properties: [{ id: 'p7', address: 'Piazzale Esempio 42, Roma', interno: '7' }] }, goTo: x => went.push(x),
+    window: { BOOM_PALAZZO: PAL, BOOM_PALAZZO_UI: { ui } } });
+  vm.runInContext(fnSrc(SRC0, 'openPalazzoUnit'), ctx);
+  vm.runInContext("openPalazzoUnit('p7')", ctx);
+  await check('openPalazzoUnit apre il palazzo GIUSTO con la scheda dell’interno (dove «Manda il link della rata» c’è anche in 3D)', () => {
+    assert.equal(ui.key, PAL.buildingKeyOf({ id: 'p7', address: 'Piazzale Esempio 42, Roma', interno: '7' }));
+    assert.equal(ui.selected, 'p7'); assert.deepEqual(went, ['palazzo']);
+  });
+}
+// ═══ 9c. «Registra incasso» con due segnalazioni (co-intestatari) ══════════
+{
+  const T = build(); const f = FIX();
+  const p = f.payments.find(x => x.id === 'pay_c7_2026-10');
+  p.tenantReports = [{ date: '2026-10-03', amount: 860, note: 'Ayse half', proofUrl: 'https://files.example.invalid/ricevuta-A.pdf' },
+    { date: '2026-10-04', amount: 860, note: 'Mehmet half', proofUrl: 'https://files.example.invalid/ricevuta-B.pdf' }];
+  T.seed(f);
+  T.run("openRecordIncasso('pay_c7_2026-10')");
+  const html = T.getEl('modals').innerHTML;
+  await check('il modulo mostra TUTTE le segnalazioni: date, importi, note e ricevute, e chiede di verificare l’importo intero', () => {
+    assert.match(html, /ha segnalato 2 bonifici/);
+    assert.ok(html.includes('ricevuta-A.pdf') && html.includes('ricevuta-B.pdf'), 'la seconda ricevuta dove si decide');
+    assert.ok(html.includes('04/10/2026') && html.includes('Mehmet half'));
+    assert.match(html, /verifica sull’estratto che sia arrivato l’importo intero/);
+    assert.match(html, /id="incDate" value="2026-10-03"/, 'la data proposta resta la prima, ed è detto');
   });
   await check('il livello di sollecito vede le rate rinominate «overdue» in memoria, mai le segnalate', () => {
     const late = new Date(Date.now() - 20 * 864e5);
@@ -967,16 +1114,33 @@ await mutant('«Modifica» → Terminato che scrive solo lo stato (rate dopo l�
   await T.run("updateContract({preventDefault(){},target:null},'c8')");
   assert.equal(T.doc('payments/pay_c8_2026-12').status, 'cancelled');
 });
-await mutant('la rata dopo la chiusura contata come ritardo', "return window.BOOM_RENT.paymentState(p) === 'overdue' && !paymentAfterClose(p);", "return window.BOOM_RENT.paymentState(p) === 'overdue';", async T => {
+await mutant('la rata dopo la chiusura contata come ritardo', "function isPaymentLateLive(p) { return isPaymentLate(p) && !paymentAfterClose(p); }", "function isPaymentLateLive(p) { return isPaymentLate(p); }", async T => {
   T.S.contracts.push({ id: 'cOld', propertyId: 'p9', status: 'expired', startDate: '2025-01-01', endDate: '2025-12-31' });
   T.S.payments.push({ id: 'x', contractId: 'cOld', type: 'rent', month: '2026-01', amount: 900, dueDate: '2026-01-05', status: 'pending' });
-  assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='x'))"), false);
+  assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='x'))"), false);
 });
 await mutant('il deposito «restituito» scritto anche se non detto', "if (depRet != null) cUpd.depositReturned = depRet;", "cUpd.depositReturned = depRet || 0;", async T => {
   T.seed(CLOSE_FIX());
   T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', depositReturned: '', depositWithheld: '' }); };
   await T.run("terminateContract({preventDefault(){},target:null},'c8')");
   assert.ok(!('depositReturned' in T.doc('contracts/c8')));
+});
+await mutant('«Registra incasso» con la sola prima segnalazione', 'if (reps.length <= 1) {', 'if (true) {', async T => {
+  const p = T.S.payments.find(x => x.id === 'pay_c7_2026-10');
+  p.tenantReports = [{ date: '2026-10-03', proofUrl: 'https://files.example.invalid/ricevuta-A.pdf' }, { date: '2026-10-04', proofUrl: 'https://files.example.invalid/ricevuta-B.pdf' }];
+  T.run("openRecordIncasso('pay_c7_2026-10')");
+  assert.ok(T.getEl('modals').innerHTML.includes('ricevuta-B.pdf'));
+});
+await mutant('il link Stripe in italiano su una rata del Palazzo', "if (!isInv && (doc.source === 'palazzo-import' || (window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(payContract)))) return openRataReminder(id);", '', async T => {
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  let linkFor = 0; const real = T.ctx.fetch;
+  T.ctx.fetch = async (u, o) => { if (String(u).includes('link-for')) { linkFor++; return { ok: true, json: async () => ({ ok: true, url: 'https://x' }) }; } return real(u, o); };
+  await T.run("showPaymentLink('pay','pay_c8_2026-10')");
+  assert.equal(linkFor, 0);
+});
+await mutant('il saldo del deposito chiamato «rent»', "type === 'deposit-balance' ? 'the deposit balance'", "type === 'deposit-balance' ? 'the ' + (incassoMonth(p.month, 'en') || 'monthly') + ' rent'", async T => {
+  T.S.payments.push({ id: 'dep', contractId: 'c8', propertyId: 'p8', type: 'deposit-balance', amount: 500, dueDate: '2026-10-01', status: 'pending' });
+  assert.match(T.run("rataReminderText(S.payments.find(p=>p.id==='dep'), S.contracts.find(c=>c.id==='c8'), S.properties.find(p=>p.id==='p8'), 'u', 'Mario', false)"), /deposit balance/);
 });
 await mutant('la chiusura che lascia aperte le rate',"tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);", "void 0;", async T => {
   T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-09-30' }); };

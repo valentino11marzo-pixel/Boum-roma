@@ -337,14 +337,57 @@ await check('rata · il ping è una card agentNotifications con createdAt ISO (l
   return eq([d.type, d.priority, d.status, typeof d.createdAt, Number.isFinite(RealDate.parse(d.createdAt)), d.summary.includes('conto del locatore')],
     ['payment.reported', 'high', 'pending', 'string', true, true]);
 });
-await check('rata · annullare pulisce TUTTO (ricevuta compresa): la nuova segnalazione senza ricevuta non risulta "con ricevuta"', async () => {
+await check('rata · due segnalazioni senza nonce: «annulla» non cancella quella dell\'altro co-intestatario (409, nessuna scrittura)', async () => {
+  const v0 = versions.get('payments/rImp'), n0 = notes().length;
   const w = await rata({ op: 'withdraw', id: 'rImp', t: tk('rImp') });
-  const p = store.get('payments/rImp');
+  const x = await rata({ op: 'withdraw', id: 'rImp', t: tk('rImp'), nonce: 'nonce-di-nessuno-01' });
+  return eq([w.statusCode, w.body.error, x.statusCode, x.body.error, versions.get('payments/rImp') === v0, notes().length - n0], [409, 'several_reports', 409, 'several_reports', true, 0]);
+});
+await check('rata · annullare UNA segnalazione (unica) pulisce TUTTO (ricevuta compresa) e lo dice all\'operatore; la nuova senza ricevuta non risulta "con ricevuta"', async () => {
+  rate('rOne', 'cImp', 'pImp', { month: '2026-12', dueDate: '2099-12-05' });
+  await rata({ op: 'report', id: 'rOne', t: tk('rOne'), date: '2026-10-04', proof: { base64: JPEG, type: 'image/jpeg', name: 'r.jpg' } });
+  const n0 = notes().length;
+  const w = await rata({ op: 'withdraw', id: 'rOne', t: tk('rOne') });
+  const p = store.get('payments/rOne');
   eq([w.statusCode, p.tenantReported, p.proofUrl, p.proofName, p.tenantReportDate, p.tenantNotes, p.tenantReports], [200, false, null, null, null, null, null], 'pulita');
-  eq(p.tenantReportWithdrawn.reports.length, 2, 'la storia resta a parte');
-  await rata({ op: 'report', id: 'rImp', t: tk('rImp'), date: '2026-10-05' });
-  const v = (await rata({ op: 'lookup', id: 'rImp', t: tk('rImp') })).body.rata;
+  eq(p.tenantReportWithdrawn.reports.length, 1, 'la storia resta a parte');
+  const wd = notes().slice(n0).map(k => store.get(k));
+  eq([wd.length, wd[0] && wd[0].type, wd[0] && /torna da pagare/.test(wd[0].summary)], [1, 'payment.report_withdrawn', true], 'una card all\'operatore');
+  await rata({ op: 'report', id: 'rOne', t: tk('rOne'), date: '2026-10-05' });
+  const v = (await rata({ op: 'lookup', id: 'rOne', t: tk('rOne') })).body.rata;
   return eq([v.state, v.hasProof, v.reports.length], ['reported', false, 1]);
+});
+await check('rata · co-intestatari: chi annulla col SUO nonce toglie solo la sua; la ricevuta dell\'altro resta in testa e la rata resta segnalata', async () => {
+  rate('rTwo', 'cImp', 'pImp', { month: '2027-01', dueDate: '2099-01-05' });
+  await rata({ op: 'report', id: 'rTwo', t: tk('rTwo'), date: '2026-10-03', note: 'Ayse half', nonce: 'aaaaaaaaaaaa1001', amount: '860', proof: { base64: JPEG, type: 'image/jpeg', name: 'ayse.jpg' } });
+  await rata({ op: 'report', id: 'rTwo', t: tk('rTwo'), date: '2026-10-04', note: 'Mehmet half', nonce: 'bbbbbbbbbbbb2002', amount: '860', another: true });
+  const n0 = notes().length;
+  const w = await rata({ op: 'withdraw', id: 'rTwo', t: tk('rTwo'), nonce: 'bbbbbbbbbbbb2002' });
+  const p = store.get('payments/rTwo');
+  eq([w.statusCode, w.body.count, p.tenantReported, p.tenantReports.length, p.tenantReports[0].note, !!p.proofUrl, p.tenantReportDate], [200, 1, true, 1, 'Ayse half', true, '2026-10-03']);
+  eq([p.tenantReportWithdrawn.reports.length, p.tenantReportWithdrawn.reports[0].nonce], [1, 'bbbbbbbbbbbb2002'], 'la tolta resta nella storia');
+  const card = store.get(notes().slice(n0)[0]);
+  eq([card.type, /restano 1 segnalazione/.test(card.summary)], ['payment.report_withdrawn', true]);
+  // Togliere la PRIMA porta in testa quella che resta (mai la ricevuta di una tolta).
+  await rata({ op: 'report', id: 'rTwo', t: tk('rTwo'), date: '2026-10-06', note: 'Mehmet again', nonce: 'cccccccccccc3003', amount: '860', another: true });
+  await rata({ op: 'withdraw', id: 'rTwo', t: tk('rTwo'), nonce: 'aaaaaaaaaaaa1001' });
+  const q = store.get('payments/rTwo');
+  return eq([q.tenantReports.length, q.tenantReportDate, q.tenantNotes, q.proofUrl, RENT.paymentState(q)], [1, '2026-10-06', 'Mehmet again', null, 'reported']);
+});
+await check('rata · l\'importo segnalato: «la mia metà» resta metà — la card lo dice con la nota, la pagina non dice «non pagare di nuovo» finché manca il resto', async () => {
+  rate('rAmt', 'cImp', 'pImp', { month: '2027-02', dueDate: '2099-02-05' });
+  const n0 = notes().length;
+  const bad = await rata({ op: 'report', id: 'rAmt', t: tk('rAmt'), date: '2026-10-03', amount: '99999' });
+  const r = await rata({ op: 'report', id: 'rAmt', t: tk('rAmt'), date: '2026-10-03', note: 'my half 860', amount: '860', nonce: 'dddddddddddd4004' });
+  const card = store.get(notes().slice(n0)[0]);
+  ok(/segnalati €860 su €1\.720/.test(card.summary) && card.summary.includes('nota: «my half 860»'), card.summary);
+  ok(!/Ayse Esempio dice di aver pagato/.test(card.summary) && card.summary.includes('inviato a Ayse Esempio e co-intestatari'), 'mai «il titolare ha pagato tutto»');
+  eq([card.payload.amountReported, card.payload.note], [860, 'my half 860']);
+  const v = (await rata({ op: 'lookup', id: 'rAmt', t: tk('rAmt') })).body.rata;
+  eq([bad.statusCode, bad.body.error, r.statusCode, v.partial, v.reportedSum, v.reports[0].amount], [400, 'bad_amount', 200, true, 860, 860]);
+  await rata({ op: 'report', id: 'rAmt', t: tk('rAmt'), date: '2026-10-04', amount: '860', nonce: 'eeeeeeeeeeee5005', another: true });
+  const v2 = (await rata({ op: 'lookup', id: 'rAmt', t: tk('rAmt') })).body.rata;
+  return eq([v2.partial, v2.reportedSum], [false, 1720]);
 });
 await check('rata · oltre il tetto delle segnalazioni: 409 too_many_reports, nessuna scrittura', async () => {
   rate('rMany', 'cImp', 'pImp');
