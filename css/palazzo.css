@@ -596,3 +596,102 @@
 /* Oneri fissi pagati col canone: la rata è il totale, la voce sta sotto */
 .plz-rows li b small{display:block;font-weight:400;text-align:right;letter-spacing:0}
 .plz-facts dd small{color:var(--text-muted,#666);font-size:11px;margin-left:4px}
+
+/* ── Leggibilità (rilievo 71) ──────────────────────────────────────────
+   Il testo secondario della vista passa a un grigio con contrasto ≥ 4,5:1
+   sul fondo delle card (#0B0B0D): era #666, 3,6:1 — proprio «7 giorni di
+   ritardo» e «Contratto in arrivo da BOOM», le righe che contano. E i
+   bersagli si toccano col pollice: tab, CSV e tasti piccoli alti 40px. */
+.plz{--text-muted:#9A9A9A}
+.plz-line>span{white-space:normal}
+.plz-line>span small,.plz-rows li small,.plz-mitem small{font-size:12px;line-height:1.4}
+.plz-fac-cap small{font-size:12px;color:#A0A0A0}
+.plz-fac-lab{font-size:11px;color:rgba(232,200,90,.95)}
+.plz-fac-fl.is-ghost .plz-fac-lab{color:rgba(255,255,255,.55)}
+.plz-fac-yard p{font-size:11px}
+.plz-seg button{min-height:40px}
+.plz-btn.plz-sm,.plz-export .plz-btn,.plz-agroup .plz-btn{min-height:40px}
+.plz-close{width:40px;height:40px}
+.plz-ghostbox .plz-f-front small{letter-spacing:.5px!important;white-space:normal;text-align:center;line-height:1.2;padding:0 6px}
+.plz-rrow .plz-pill{white-space:normal;line-height:1.3}
+
+/* ── Elenco che sta nella colonna (rilievo 48) ─────────────────────────
+   Le sette colonne chiedevano ~950px e la colonna principale, accanto
+   alla scheda, ne ha 750 a 1440px e 600 su iPad: mesi pagati e arretrati
+   finivano fuori. Si guarda la larghezza della COLONNA (container query),
+   non dello schermo: sotto i 980px la riga va su due righe, sotto i 600
+   diventa una scheda. */
+.plz-main{container-type:inline-size;container-name:plzmain}
+@container plzmain (max-width:980px){
+  .plz-rhead{display:none}
+  .plz-rrow{grid-template-columns:92px minmax(0,1.3fr) 96px minmax(0,1fr) 92px;gap:6px 12px}
+  .plz-rrow>span[data-l="Fino al"]{grid-column:2/3;grid-row:2}
+  .plz-rrow>span[data-l="12 mesi"]{grid-column:3/-1;grid-row:2}
+  .plz-rrow>.plz-rint{grid-row:1/3}
+  .plz-rrow>span[data-l]::before{content:attr(data-l);display:block;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:2px}
+}
+@container plzmain (max-width:600px){
+  .plz-rrow{grid-template-columns:1fr auto;gap:6px 12px;padding:12px 14px}
+  .plz-rrow>.plz-rint{grid-row:auto}
+  .plz-rrow>span[data-l],.plz-rrow>span[data-l="Fino al"],.plz-rrow>span[data-l="12 mesi"]{grid-column:1/-1;grid-row:auto}
+  .plz-rrow>span[data-l="Canone"],.plz-rrow>span[data-l="Arretrati"]{grid-column:auto}
+}
+
+/* ── Ciò che il Palazzo sa di NON sapere ────────────────────────────── */
+.plz-alert{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,77,90,.45);background:rgba(255,77,90,.08)}
+.plz-alert p{margin:0;flex:1 1 260px;font-size:14px;line-height:1.45;color:var(--text,#fff)}
+.plz-loadline{margin:0 0 12px}
+.plz-before-line{margin:0;font-size:15px;line-height:1.5;color:var(--text-secondary,#C8C8C8)}
+.plz-kpis-before{display:block;padding:14px 16px;border:1px dashed rgba(255,255,255,.18);border-radius:16px;margin-bottom:16px}
+.plz-scard.plz-before{border-style:dashed}
+.plz-before-note{margin:0;font-size:12px}
+.plz-red-eyebrow{color:var(--plz-late)}
+
+/* ── Messaggi agli inquilini, rendiconto, carta ───────────────────── */
+.plz-lang{display:inline-flex;border:1px solid var(--plz-line);border-radius:999px;padding:3px;flex:none}
+.plz-lang button{border:0;background:transparent;color:var(--text-secondary,#999);border-radius:999px;padding:6px 11px;min-height:34px;font:inherit;font-size:12px;cursor:pointer}
+.plz-lang button[aria-pressed="true"]{background:rgba(212,175,55,.18);color:var(--gold,#D4AF37)}
+.plz-sm-note{display:inline-block;white-space:normal;text-transform:none;letter-spacing:0;font-size:12px;padding:4px 9px}
+.plz-rshare .plz-okline,.plz-rshare .plz-note{flex:1 1 100%;margin:2px 0 0}
+.plz-rend{margin-top:14px;padding-top:12px;border-top:1px solid var(--plz-line)}
+.plz-rend-seg button{text-transform:none;letter-spacing:.3px}
+.plz-rend-seg button[aria-pressed="true"]{background:var(--gold,#D4AF37);color:#000;font-weight:600}
+.plz-rend .plz-share-b{margin-top:8px}
+.plz-check{display:flex;gap:10px;align-items:center;margin:10px 0;font-size:13px;color:var(--text,#fff);cursor:pointer}
+.plz-check input{width:20px;height:20px;accent-color:var(--gold,#D4AF37);flex:none}
+.plz-card{margin-top:12px}
+.plz-below{margin-top:16px;max-width:760px}
+.plz-fee label{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px;color:var(--text,#fff);text-transform:none;letter-spacing:0}
+.plz-fee input{margin-top:3px;accent-color:var(--gold,#D4AF37)}
+.plz-file{position:relative;overflow:hidden}
+.plz-file input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.plz-file.is-busy{opacity:.6;pointer-events:none}
+.plz-file:focus-within{outline:2px solid var(--gold,#D4AF37);outline-offset:2px}
+.plz-terms{width:100%;margin:8px 0 0;padding:12px;border:1px solid var(--plz-line);border-radius:12px;background:rgba(255,255,255,.02)}
+.plz-terms label{display:flex;flex-direction:column;gap:4px;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted)}
+.plz-terms input{padding:10px 12px;border-radius:10px;border:1px solid var(--plz-line);background:var(--bg-input,#1A1A1A);color:var(--text,#fff);font:inherit;font-size:16px;letter-spacing:0;text-transform:none;max-width:200px}
+.plz-term-n{grid-column:1/-1;margin:4px 0 0;font-size:12px;color:var(--plz-amber)}
+.plz-docs{list-style:none;margin:0 0 14px;padding:0}
+.plz-docs li{display:flex;justify-content:space-between;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.05);font-size:13px}
+.plz-docs a{color:var(--gold,#D4AF37);text-decoration:none}
+.plz-docs small{color:var(--text-muted);font-size:12px;white-space:nowrap}
+.plz-mwho{margin:4px 0 0;font-size:12px;color:var(--text-secondary,#bbb)}
+.plz-mdesc{margin:4px 0 0;font-size:12px;line-height:1.45;color:var(--text-secondary,#bbb)}
+.plz-mitem .plz-reach{margin-top:6px}
+.plz-rows li a{color:var(--gold,#D4AF37)}
+
+/* ── La presa in carico: ciò che conta in evidenza ─────────────────── */
+.plz-imp-msgs{margin:8px 0;padding:10px 12px;border-radius:12px;border:1px solid rgba(242,169,59,.35);background:rgba(242,169,59,.07)}
+.plz-imp-msgs p{margin:3px 0;font-size:13px;line-height:1.45;color:var(--text,#fff)}
+.plz-imp-acc,.plz-imp-od{margin:10px 0;padding:10px 12px;border-radius:12px;border:1px solid var(--plz-line);background:rgba(255,255,255,.02)}
+.plz-imp-acc ul,.plz-imp-od ul{list-style:none;margin:4px 0 0;padding:0}
+.plz-imp-acc li,.plz-imp-od li{padding:5px 0;font-size:13px;border-top:1px solid rgba(255,255,255,.05)}
+.plz-imp-acc li:first-child,.plz-imp-od li:first-child{border-top:0}
+.plz-imp-acc small{display:block;color:var(--text-muted);font-size:12px}
+.plz-ok-i{font-style:normal;color:var(--gold,#D4AF37);font-size:12px}
+.plz-import-tab td small{display:block;margin-top:3px;font-size:12px;line-height:1.4;color:var(--text-secondary,#bbb)}
+.plz-import-tab td small.plz-imp-terms{color:var(--text-muted)}
+.plz-import-tab td small.plz-imp-diff{color:var(--text,#fff)}
+.plz-import-tab td small.plz-imp-diff.is-locked{color:var(--text-muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.25)}
+.plz-import-tab td small.plz-imp-alert{color:var(--plz-late);font-weight:500}
+.plz-import-tab td small.plz-warn{display:inline-block;margin:3px 0 0}

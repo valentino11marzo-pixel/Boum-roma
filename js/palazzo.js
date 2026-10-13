@@ -1786,7 +1786,8 @@
       if (sentId) {
         ui.rata.sent[sentId] = true;
         var A1 = adapter && adapter.actions || {};
-        if (A1.logRataSent) Promise.resolve(A1.logRataSent(sentId, { channel: 'whatsapp', kind: a.getAttribute('data-kind') === 'sollecito' ? 'sollecito' : 'rata-link', month: a.getAttribute('data-month') || '' }))
+        var meta = { channel: 'whatsapp', kind: a.getAttribute('data-kind') === 'sollecito' ? 'sollecito' : 'rata-link', month: a.getAttribute('data-month') || '' };
+        if (A1.logRataSent) Promise.resolve().then(function () { return A1.logRataSent(sentId, meta); })
           .then(function (ok) { if (ok === false) ui.rata.sent[sentId] = 'error'; if (doc.querySelector('.plz')) patch(); }, function () { ui.rata.sent[sentId] = 'error'; if (doc.querySelector('.plz')) patch(); });
         root.setTimeout(function () { if (doc.querySelector('.plz')) patch(); }, 0);
       }
@@ -2048,7 +2049,10 @@
     root.addEventListener('resize', function () { if (doc.getElementById('plz-world')) applyView(); syncFacade(); });
   }
 
-  var API = { configure: configure, render: render, mount: mount, patch: patch, ui: ui, eur: eur };
+  var API = { configure: configure, render: render, mount: mount, patch: patch, ui: ui, eur: eur,
+    // Le parole della vista, pure: per i test in Node (tests/palazzo/view*.mjs).
+    _t: { euroInput: euroInput, fmtPhone: fmtPhone, waNumber: waNumber, punctuality: punctuality, occupiedText: occupiedText, rendOutcome: rendOutcome,
+      periodText: periodText, debtNote: debtNote, eurEn: eurEn, withLang: withLang } };
   if (typeof module === 'object' && module.exports) module.exports = API;
   root.BOOM_PALAZZO_UI = API;
 })(typeof window !== 'undefined' ? window : globalThis);

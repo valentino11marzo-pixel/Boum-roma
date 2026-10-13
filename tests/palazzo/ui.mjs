@@ -27,7 +27,8 @@ function extract(name) {
   return next < 0 ? src.slice(start) : src.slice(start, start + 5 + next);
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentOpen',
-  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook', 'palazzoImport'];
+  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook', 'palazzoImport',
+  'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper', 'palazzoSendPasswordLink'];
 const functions = names.map(extract).join('\n');
 const cfgStart = src.indexOf('    window.BOOM_PALAZZO_UI?.configure({');
 const config = src.slice(cfgStart, src.indexOf('    // L\'unica scrittura della vista', cfgStart));
@@ -54,8 +55,17 @@ function openSchedaArpe(id){demoActions.push(['arpe',id]);}
 function logActivity(){}
 function innestoSeedFromHash(){return false;}
 window.confirm=()=>true;
-const firebase={firestore:{FieldValue:{serverTimestamp:()=>'SERVER_TS'}},auth(){return{currentUser:{getIdToken:async()=>'demo-'+S.profile.id}};}};
-const db={batch(){const ops=[];return{update(ref,data){ops.push([ref.path,data]);},set(ref,data){ops.push([ref.path,data]);},async commit(){writes.push(...ops);}};},collection(c){return{doc(id){return{path:c+'/'+id,async get(){return{exists:!!(S[c]||[]).find(x=>x.id===id)};}};},where(f,op,v){return{async get(){const arr=(S[c]||[]).filter(x=>op==='in'?v.includes(x[f]):x[f]===v);return{docs:arr.map(x=>({id:x.id}))};}};}};}};
+const FV={serverTimestamp:()=>'SERVER_TS',arrayUnion:(...v)=>({arrayUnion:v}),delete:()=>'DELETE'};
+const firebase={firestore:{FieldValue:FV},auth(){return{currentUser:{getIdToken:async()=>'demo-'+S.profile.id}};}};
+const auth={languageCode:'',async sendPasswordResetEmail(e,o){demoActions.push(['pwd',e,o&&o.url]);}};
+const clone=x=>x==null?x:JSON.parse(JSON.stringify(x));
+// Firestore finto: il «server» è S (le funzioni del portal tengono S in pari
+// da sé), le scritture si REGISTRANO in writes, mai applicate due volte.
+function dref(c,id){return{path:c+'/'+id,async get(){const x=(S[c]||[]).find(y=>y.id===id);return{exists:!!x,data:()=>clone(x)};},async update(data){writes.push([c+'/'+id,data]);}};}
+const db={batch(){const ops=[];return{update(ref,data){ops.push([ref.path,data]);},set(ref,data){ops.push([ref.path,data]);},async commit(){writes.push(...ops);}};},
+  collection(c){const q=(fs)=>({where(f,op,v){return q(fs.concat([[f,op,v]]));},async get(){const arr=(S[c]||[]).filter(x=>fs.every(([f,op,v])=>op==='in'?v.includes(x[f]):x[f]===v));return{docs:arr.map(x=>({id:x.id,data:()=>clone(x)}))};}});
+    return{doc(id){return dref(c,id);},where(f,op,v){return q([[f,op,v]]);}};},
+  async runTransaction(fn){const ops=[];const tx={get:r=>r.get(),update(r,d){ops.push([r.path,d]);},set(r,d){ops.push([r.path,d]);}};const out=await fn(tx);writes.push(...ops);return out;}};
 ${functions}
 ${config}
 goTo(${JSON.stringify(hash)});
@@ -242,42 +252,73 @@ try {
       await pg.locator('[data-plz="today"]').click();
       assert.ok(await h.evaluate(e => e.isConnected));
     });
-    await check('Semplice: chi non ha pagato, con UN tasto: il link della SUA rata su WhatsApp, col messaggio già scritto', async () => {
+    await check('Semplice: chi non ha pagato (anche i mesi prima), con UN tasto: il link della SUA rata su WhatsApp, in inglese, col messaggio già scritto', async () => {
       const card = pg.locator('.plz-scard.is-late');
       assert.equal(await card.locator('.plz-srow').count(), 2);
-      const r0 = rataCalls.length;
-      await card.locator('[data-plz="rata"]').nth(1).click();          // int. 3: ha un telefono
+      const rowsTxt = await card.locator('.plz-srow').allInnerTexts();
+      // il ritardo più lungo per primo, col totale e il mese da cui decorre
+      assert.ok(rowsTxt[0].includes('Int. 3') && rowsTxt[0].includes('€3.000') && /da \w+ \d{4} · \d+ giorni · 3 rate/.test(rowsTxt[0]), rowsTxt[0]);
+      assert.ok(rowsTxt[1].includes('Int. 12') && rowsTxt[1].includes('€1.200'), rowsTxt[1]);
+      const r0 = rataCalls.length, w0 = await pg.evaluate(() => writes.length);
+      await card.locator('[data-plz="rata"]').nth(0).click();          // int. 3: ha un telefono
       const wa = pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]');
-      await wa.waitFor({ timeout: 4000 }).catch(async e => { console.log('DEBUG', await pg.evaluate(() => JSON.stringify({ sel: BOOM_PALAZZO_UI.ui.selected, rata: BOOM_PALAZZO_UI.ui.rata, panel: (document.getElementById('plz-panel')||{}).innerHTML?.slice(0, 600) }))); throw e; });
+      await wa.waitFor({ timeout: 4000 });
       const href = decodeURIComponent(await wa.getAttribute('href'));
       assert.ok(href.startsWith('https://wa.me/390000000003?text='), href);
-      assert.ok(href.includes('Ciao Inquilino, ecco la rata di') && href.includes('(int. 3): €1.000, scaduta il ') && href.includes('carta o Apple Pay') &&
-        href.includes('bonifico con la foto della ricevuta') && /\/rata\?id=p3_\d{4}-\d{2}&t=demo$/.test(href), href);
+      // la rata da sollecitare è la più VECCHIA (payRow), il messaggio parte in inglese con &lang=en
+      assert.ok(href.includes('Hi Inquilino, a reminder about the ') && href.includes(' rent (unit 3): €1,000, due on ') && href.includes('report your transfer with a photo of the receipt') &&
+        /\/rata\?id=p3_\d{4}-\d{2}&t=demo&lang=en/.test(href), href);
+      // il primo messaggio a un contratto porta l'informativa per gli inquilini
+      assert.ok(href.includes('https://www.boomrome.com/privacy-inquilini?lang=en'), href);
+      const firstId = rataCalls.at(-1).paymentIds[0];
+      assert.equal(firstId, (await pg.evaluate(() => testState.payments.filter(p => p.contractId === 'c3' && p.status !== 'paid').map(p => p.id).sort()[0])), 'la rata più vecchia');
       assert.equal(rataCalls.length - r0, 1);
       assert.deepEqual([rataCalls.at(-1).op, rataCalls.at(-1).who], ['links', 'demo-admin']);
-      await wa.click();
-      await pg.waitForFunction(() => /Inviato/.test(document.querySelector('#plz-panel .plz-rshare a')?.textContent || ''));
+      // su telefono la scheda viene in vista col focus sul tasto WhatsApp
+      if (width <= 600) {
+        await pg.waitForTimeout(600);
+        assert.ok(await pg.evaluate(() => { const a = document.activeElement; return !!(a && a.matches('#plz-panel .plz-rshare a[href^="https://wa.me/"]')); }), 'focus sul tasto WhatsApp');
+        const box = await wa.boundingBox();
+        assert.ok(box && box.y >= 0 && box.y + box.height <= 1000, 'il tasto WhatsApp è nello schermo: ' + JSON.stringify(box));
+      }
+      // in italiano con un tocco: messaggio e link nella sua lingua
+      await pg.locator('#plz-panel [data-plz="msg-lang"][data-l="it"]').click();
+      const hrefIt = decodeURIComponent(await pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]').getAttribute('href'));
+      assert.ok(hrefIt.includes('Ciao Inquilino, ti ricordo la rata di') && hrefIt.includes('(int. 3): €1.000, scaduta il ') && /&t=demo&lang=it/.test(hrefIt) && hrefIt.includes('privacy-inquilini'), hrefIt);
+      await pg.locator('#plz-panel [data-plz="msg-lang"][data-l="en"]').click();
+      await pg.evaluate(() => document.addEventListener('click', e => { if (e.target.closest('a[href^="https://wa.me/"]')) e.preventDefault(); }, true));
+      await pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]').click();
+      // l'invio resta SULLA RATA (dunningHistory), non nella sessione
+      await pg.waitForFunction(() => /sollecito mandato il/.test(document.querySelector('#plz-panel .plz-rshare .plz-okline')?.textContent || ''));
+      const w = await pg.evaluate(n => writes.slice(n), w0);
+      assert.equal(w.length, 1, JSON.stringify(w));
+      assert.equal(w[0][0], 'payments/' + firstId);
+      assert.deepEqual([w[0][1].dunningHistory.arrayUnion[0].channel, w[0][1].dunningHistory.arrayUnion[0].kind], ['whatsapp', 'sollecito']);
+      assert.ok(/^\d{4}-\d{2}-\d{2}$/.test(w[0][1].lastReminderDate));
       assert.equal(await pg.evaluate(() => demoActions.filter(a => a[0] === 'payLink').length), 0, 'dal Palazzo mai più il link Stripe nudo: carta E bonifico');
       // int. 12 non ha telefono: il messaggio si copia, non si inventa un numero
-      await card.locator('[data-plz="rata"]').first().click();
+      await card.locator('[data-plz="rata"]').nth(1).click();
       await pg.waitForSelector('#plz-panel .plz-rshare [data-plz="copy-link"]');
       assert.equal(await pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]').count(), 0);
       assert.ok((await pg.locator('#plz-panel .plz-rshare').innerText()).includes('Nessun telefono in archivio'));
       await pg.locator('[data-plz="deselect"]').click();
     });
-    await check('Rate del mese: un elenco, un tap a testa — chi ha già segnalato il bonifico non riceve il link', async () => {
+    await check('Rate da pagare: un elenco con anche gli arretrati dei mesi prima, un tap a testa — chi ha già segnalato il bonifico non riceve il link', async () => {
       const r0 = rataCalls.length;
+      const have = await pg.evaluate(() => Object.keys(BOOM_PALAZZO_UI.ui.rata.urls));
       await pg.locator('[data-plz="rata-all"]').click();
-      await pg.waitForFunction(() => document.querySelectorAll('#plz-ratalist .plz-rshare input').length === 3);
+      await pg.waitForFunction(() => document.querySelectorAll('#plz-ratalist .plz-rshare input').length === 6);
       const items = await pg.locator('#plz-ratalist .plz-rataitem-h').allInnerTexts();
-      assert.equal(items.length, 3, items.join(' | '));
-      assert.ok(items[0].startsWith('Int. 3') && items[1].startsWith('Int. 12') && items[2].startsWith('Int. 5'), items.join(' | '));   // gli scaduti prima, poi per interno
+      assert.equal(items.length, 6, items.join(' | '));
+      assert.ok(items.slice(0, 3).every(t => t.startsWith('Int. 3')) && items.slice(3, 5).every(t => t.startsWith('Int. 12')) && items[5].startsWith('Int. 5'), items.join(' | '));   // gli scaduti prima, poi per interno
       assert.ok(!items.some(t => t.startsWith('Int. 6')), 'int. 6 ha segnalato il bonifico');
+      assert.ok(items.some(t => t.includes('mandato il')), 'il sollecito di prima si vede: ' + items.join(' | '));
       assert.equal(rataCalls.length - r0, 1, 'una richiesta sola per tutti');
-      assert.deepEqual(rataCalls.at(-1).paymentIds.map(id => id.split('_')[0]), ['p5'], 'i link di int. 3 e 12 erano già in tasca: si chiede solo quello che manca');
+      assert.ok(rataCalls.at(-1).paymentIds.every(id => !have.includes(id)) && rataCalls.at(-1).paymentIds.length === 6 - have.length, 'si chiede solo quello che manca: ' + rataCalls.at(-1).paymentIds.join(','));
       await pg.locator('[data-plz="rata-all"]').click();
       assert.equal(await pg.locator('#plz-ratalist').count(), 0);
     });
+
     await check('scheda: il bonifico segnalato si vede con la ricevuta, e l\'incasso lo registra un umano', async () => {
       await pg.locator('.plz-win[data-id="u6"]').scrollIntoViewIfNeeded();
       await pg.locator('.plz-win[data-id="u6"]').click();
