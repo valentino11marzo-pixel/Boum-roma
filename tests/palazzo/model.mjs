@@ -460,6 +460,18 @@ const TG = await import('../../api/telegram/_palazzo.js');
   const s2 = TG.palazzoSummary(m2);
   ok('Telegram: una riga per contratto, col suo nome e la sua cifra', s2.includes('• int. 82 · Ivo Vecchio · €800 · 20 giorni · contratto precedente\n• int. 82 · Nora Nuova · €1.650 · 9 giorni'), s2);
   bites('i debitori tornano una voce sola per interno', scenR2, "var k = r.contractId || '-';", "var k = '-';");
+  {
+    const contracts = [
+      { id: 'cOld', propertyId: 'u82', status: 'expired', startDate: '2026-10-01', endDate: '2027-09-15', tenantName: 'Ivo Vecchio', rent: 1600 },
+      { id: 'cNew', propertyId: 'u82', status: 'active', startDate: '2027-09-16', endDate: '2028-09-15', tenantName: 'Nora Nuova', rent: 1650 }];
+    const payments = [
+      { id: 'pay_cOld_2027-09', contractId: 'cOld', propertyId: 'u82', type: 'rent', amount: 800, month: '2027-09', dueDate: '2027-09-05', status: 'pending' },
+      { id: 'pay_cNew_2027-09', contractId: 'cNew', propertyId: 'u82', type: 'rent', amount: 1650, month: '2027-09', dueDate: '2027-09-16', status: 'pending' },
+      { id: 'pay_cNew_2027-10', contractId: 'cNew', propertyId: 'u82', type: 'rent', amount: 1650, month: '2027-10', dueDate: '2027-10-16', status: 'paid', paidDate: '2027-10-10' }];
+    const oct = build(P, { properties: [prop('u82')], contracts, payments }, '2027-10-20T10:00:00Z').model('2027-10');
+    same('a ottobre, alla proprietaria: i due debiti di settembre col nome di chi deve', P.brief(oct, { owner: true }).at(-1),
+      'Ancora da pagare dai mesi precedenti: int. 82 · Ivo Vecchio (settembre 2027, €800), int. 82 · Nora Nuova (settembre 2027, €1.650).');
+  }
 
   // 13.3 — contratto ancora 'active' oltre la fine: le rate restano dovute.
   const studAct = { id: 'c83', propertyId: 'u83', status: 'active', type: 'studenti', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Ugo Resta', rent: 1000 };
@@ -468,6 +480,7 @@ const TG = await import('../../api/telegram/_palazzo.js');
     const m = build(E, { properties: [prop('u83', { gestioneDal: '2026-09' })], contracts: [studAct], payments: paysT }, '2027-10-20T10:00:00Z').model('2027-10');
     const u = unit(m, 'u83'), be = code(m, 'beyondEnd');
     sameQ([u.month.state, u.month.occupied, u.month.tenants, u.arrears.amount, m.debtors.length], ['late', true, ['Ugo Resta'], 2000, 1], 'ottobre: occupato e in ritardo');
+    sameQ([u.month.beyondEnd, u.month.contractId, u.month.contractKind, u.month.rent], [true, 'c83', 'digital', 1000], 'il contratto del mese è quello ancora attivo, dichiarato');
     sameQ([!!code(m, 'afterClose'), be && be.items.map(x => [x.contractId, x.end, x.count, x.open, x.renews, x.from])], [false, [['c83', '2027-08-31', 2, 2, 'tacito', '2027-09']]], 'rinnovo?');
     return m;
   };

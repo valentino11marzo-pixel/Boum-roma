@@ -555,7 +555,11 @@
     var pid = str(p.id), contracts = ctx.contractsByProperty[pid] || [], rows = ctx.paymentsByProperty[pid] || [];
     var lease = contracts.filter(function (c) { return LIVE[cStatus(c)] && covers(c, month); })
       .sort(function (a, b) { return (day(b.startDate) || '').localeCompare(day(a.startDate) || ''); })[0] || null;
-    var monthRows = rowsForMonth(rows, month), carried = false;
+    var monthRows = rowsForMonth(rows, month), carried = false, beyond = false;
+    // Un contratto ancora 'attivo' oltre la sua fine con le rate di questo
+    // mese (rinnovo tacito, una data da aggiornare): è lui l'inquilino del
+    // mese — nome, canone, che contratto è — e lo si dichiara (beyondEnd).
+    if (!lease) { var br = monthRows.find(function (r) { return r.beyondEnd && r.contract; }); if (br) { lease = br.contract; beyond = true; } }
     // Il ripiego vale solo per la rata DEL CONTRATTO del mese: nel mese del
     // cambio inquilino la rata di luglio del vecchio non copre agosto del
     // nuovo (sarebbe un verde falso su una rata che manca).
@@ -609,7 +613,7 @@
       rent: contractRent(lease || incoming) != null ? contractRent(lease || incoming) : (lease && lease.contractMissing === true ? null : money(p.rent)),
       leaseStart: lease ? day(lease.startDate) : incoming ? day(incoming.startDate) : '', leaseEnd: leaseEnd,
       leaving: !!(leaseEnd && leaseEnd >= ref && leaseEnd <= dayAdd(ref, 90)),
-      rows: monthRows, carried: carried, pastDue: pastDue, overdueUpTo: overdueUpTo,
+      rows: monthRows, carried: carried, beyondEnd: beyond, pastDue: pastDue, overdueUpTo: overdueUpTo,
       expected: expected, collected: collected, lateAmount: lateAmount, unknownAmounts: unknownAmounts, lateUnknown: lateUnknown,
       // Canone e oneri separati (null se una rata non si divide con certezza).
       expectedRent: split.ok ? split.er : null, expectedOneri: split.ok ? split.eo : null,
