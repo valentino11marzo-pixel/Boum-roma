@@ -278,3 +278,22 @@
  .ow-home .ow-section-head h2 { font-size:20px; }
 }
 @media(prefers-reduced-motion:reduce) { .ow-home .ow-tool { transition:none; } }
+.portal-search-results{position:absolute;top:100%;left:0;right:0;max-height:420px;overflow:auto;z-index:1000;margin-top:4px;padding:6px;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px #0004}
+.portal-search-results>button{display:flex;align-items:center;gap:10px;width:100%;padding:12px;border:0;border-radius:7px;background:none;color:var(--text-primary);text-align:left;cursor:pointer}
+.portal-search-results>button:hover,.portal-search-results>button:focus-visible{background:var(--bg-elevated)}
+.portal-search-results strong,.portal-search-results small{display:block;overflow-wrap:anywhere}
+.portal-search-results small,.portal-search-results p{font-size:12px;color:var(--text-muted)}
+.portal-search-results p{padding:4px 12px}
+.ow-search-sources{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.ow-search-sources>summary{cursor:pointer;font-size:13px;font-weight:600;padding:4px 0}
+.ow-search-sources>summary>span{font-size:11px;color:var(--text-muted);font-weight:400;margin-left:8px}
+.ow-source-list{display:grid;grid-template-columns:1fr 1fr;column-gap:26px}
+.ow-source-list>div{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.ow-source-list strong,.ow-source-list small{display:block;overflow-wrap:anywhere}
+.ow-source-list strong{font-size:13px;font-weight:550}
+.ow-source-list small{font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:4px}
+.ow-source-list button{font-size:12px;flex-shrink:0;max-width:125px;text-align:right}
+.ow-source-list button:disabled{opacity:.45;cursor:default}
+.ow-source-boundaries{padding:8px 0;font-size:12px;line-height:1.6;color:var(--text-muted)}
+.ow-source-boundaries strong{color:var(--text-primary);font-weight:550}
+@media(max-width:640px){.ow-source-list{grid-template-columns:1fr}.ow-search-sources>summary>span{display:block;margin:5px 0 0 16px}}

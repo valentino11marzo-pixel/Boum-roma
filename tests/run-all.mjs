@@ -10,6 +10,9 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'portalsearch', file: 'tests/search/run.mjs', what: 'ricerca tipizzata condivisa, campi reali e collegamenti per ID' },
+  { name: 'searcharchive', file: 'tests/search/archive.mjs', what: 'archivio su richiesta a pagine, permessi e corse di sessione' },
+  { name: 'searchui', file: 'tests/search/ui.mjs', what: 'ricerca reale della home e header, pagine e apertura dei record canonici' },
   { name: 'behavior', file: 'tests/behavior/run.mjs', what: 'Behavior Intelligence: consenso, minimizzazione PII, copertura canonica, percorsi/sezioni/uscite, dashboard admin e retention' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },

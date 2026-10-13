@@ -2163,6 +2163,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
   Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
   con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
+- **Ricerca e fonti (13/10/2026):** `portal-search-engine` riunisce 15 fonti già
+  presenti in `S`, normalizza parole/telefoni/accenti e conserva gli ID tipizzati.
+  Header, home e selettori condividono il motore; risultati a pagine e collegamenti
+  espliciti, mai identità dedotte dal nome. `portal-search-archive` estende una fonte
+  di 200 record su click (Firestore, zero AI), con limiti, errori e sessione visibili.
+  I risultati dell’archivio vengono verificati sul record canonico prima dell’apertura.
+  WhatsApp completo, posta completa e contenuto PDF restano fuori dalla ricerca;
+  Inbox accessibile solo dai collegamenti già salvati. Prove `portalsearch/searcharchive/searchui`.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

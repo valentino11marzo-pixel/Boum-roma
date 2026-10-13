@@ -26,11 +26,15 @@ try{
    assert.equal(await page.locator('#ogWorkKind').inputValue(),'all');
    await page.locator('#ogWorkQuery').fill('Aurora');
    const kinds=await page.evaluate(()=>oggiWorkspace.records.map(r=>r.kind));
+   assert.equal(await page.locator('.ow-result').count(),12);
+   assert.match(await page.locator('#ogWorkResults').innerText(),/1–12 di/);
+   await page.getByRole('button',{name:'Mostra altri risultati',exact:true}).click();
+   kinds.push(...await page.evaluate(()=>oggiWorkspace.records.map(r=>r.kind)));
    assert(kinds.includes('client'));assert(kinds.includes('property'));assert(kinds.includes('contract'));
-   assert.equal(kinds.filter(k=>k==='client').length,3);
-   assert.match(await page.locator('#ogWorkResults').innerText(),/Primi 3 risultati/);
+   assert.equal(kinds.filter(k=>k==='client').length,15);
    await page.locator('#ogWorkKind').selectOption('client');
-   assert((await page.locator('.ow-result').count())>3);
+   assert.equal(await page.locator('.ow-result').count(),12);
+   assert.match(await page.locator('#ogWorkResults').innerText(),/1–12 di 15/);
    await page.locator('#ogWorkQuery').fill('');await page.locator('#ogWorkKind').selectOption('all');
    assert.equal(await page.evaluate(()=>testIO.actions.length),0);
   });
@@ -101,12 +105,12 @@ try{
   });
   await check(width+' stesso contesto, caso ambiguo separato e passaggio al contratto',async()=>{
    await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
-   assert.equal(await page.locator('.ow-related button').count(),2);
-   await page.locator('#ogContextConnections summary').click();
+   assert.deepEqual(await page.evaluate(()=>oggiWorkspace.related.map(r=>r.kind+':'+r.id).sort()),['contract:contratto-demo','maintenance:guasto-demo']);
+   await page.locator('#ogContextConnections details[data-ow-fold="cases"] > summary').click();
    assert.equal(await page.locator('#ogContextConnections .ow-case').count(),1);
    assert.doesNotMatch(await page.locator('#ogContextConnections').innerText(),/Giuliano/);
    await page.evaluate(()=>oggiSegretariaRender());
-   assert.equal(await page.locator('#ogContextConnections details').evaluate(e=>e.open),true);
+   assert.equal(await page.locator('#ogContextConnections details[data-ow-fold="cases"]').evaluate(e=>e.open),true);
    await page.locator('.ow-related button').filter({hasText:'Contratto'}).click();
    assert.equal(await page.evaluate(()=>oggiWorkspace.selected.id),'contratto-demo');
    await page.locator('[data-og-tool="home:inventory"]').click();

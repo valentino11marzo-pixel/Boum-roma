@@ -113,13 +113,29 @@ ok(ctx.every((a) => P.KINDS[a.need]), 'ogni azione contestuale punta a un tipo d
 ok(Object.values(P.KINDS).every((k) => k.ask && k.icon && k.label && k.via.length),
   'ogni tipo di record sa come si chiama, come si chiede e come si riconosce');
 
-// La riga di handleSearch che apre un contratto DEVE essere `viewContract('id')`:
-// è così che il selettore riconosce il tipo. Se cambia, il selettore smette
-// di trovare quel tipo — silenziosamente. Questo è il test che lo impedisce.
-const hs = app.slice(app.indexOf('function handleSearch'), app.indexOf('function handleSearch') + 4200);
-for (const [kind, k] of Object.entries(P.KINDS)) {
-  const found = k.via.some((fn) => new RegExp(`action: \`${fn}\\('`).test(hs));
-  ok(found, `tipo "${kind}": handleSearch produce davvero una riga ${k.via.join('/')}(...)`);
+// Il selettore legge la stessa API dati della home e dell'header. Il motore
+// reale verifica anche il filtro prima del limite, senza manipolare la tendina.
+const searchEngine = require(join(ROOT, 'js', 'portal-search-engine.js'));
+const sharedState = {
+  clients: Array.from({ length: 20 }, (_, i) => ({ id: 'crm-' + i, name: 'Rossi CRM ' + i })),
+  properties: [{ id: 'house-rossi', name: 'Casa Rossi' }],
+  users: [{ id: 'person-rossi', name: 'Rossi Persona', role: 'tenant' }],
+  contracts: [{ id: 'contract-rossi', propertyId: 'house-rossi', tenantId: 'person-rossi' }]
+};
+const sharedCalls = [];
+const sharedHost = {
+  portalSearchRecords(query, kind, limit) {
+    sharedCalls.push([query, kind, limit]);
+    return searchEngine.search(query, sharedState, { kind, limit });
+  },
+  handleSearch() { throw Error('Shared data search must not rebuild the dropdown'); }
+};
+for (const [kind, expected] of [['property', 'house-rossi'], ['person', 'person-rossi'], ['contract', 'contract-rossi'], ['client', 'crm-0']]) {
+  const records = P.findRecords('rossi', kind, sharedHost);
+  ok(records.some(record => record.id === expected) && records.every(record => record.kind === kind),
+    `findRecords: l'API condivisa trova il ${kind} anche oltre i primi clienti`);
+  ok(records.length <= 12 && JSON.stringify(sharedCalls.at(-1)) === JSON.stringify(['rossi', kind, 12]),
+    `findRecords: ${kind} usa il filtro e il limite espliciti, senza DOM`);
 }
 
 // I segnaposto diventano valori, e restano dati per tutto il percorso
@@ -138,9 +154,8 @@ ok(P.run(aFasc, ctxWin) === false && fasc === null, 'un\'azione contestuale SENZ
 ok(P.run(aFasc, ctxWin, { id: '' }) === false && fasc === null, 'un record senza id non conta come record');
 ok(P.run(aFasc, ctxWin, { id: 'ct7' }) === true && fasc === 'ct7', 'col record scelto parte con l\'id VERO');
 
-// ── 10. Il selettore guida la ricerca VERA (nessun secondo indice) ──────
-// Si costruisce la tendina ESATTAMENTE come la disegna portal-app.js e si
-// pretende che findRecords tenga solo le righe del tipo chiesto.
+// ── 10. Compatibilità con un portal legacy senza API dati condivisa ────
+// Il fallback continua a riconoscere solo le righe del tipo chiesto.
 function fakeWinWithSearch() {
   const rows = [];
   const mk = (onclick, label, sub) => ({

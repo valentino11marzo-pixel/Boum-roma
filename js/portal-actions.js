@@ -498,6 +498,7 @@
         var w = win || (typeof window !== 'undefined' ? window : null);
         var k = KINDS[kind];
         if (!w || !k || !query || query.length < 2) return [];
+        if (typeof w.portalSearchRecords === 'function') return w.portalSearchRecords(query, kind, 12).records;
         if (typeof w.handleSearch !== 'function') return [];
         var doc = w.document, out = [];
         // handleSearch appende la tendina al genitore di #globalSearch: senza

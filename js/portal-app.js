@@ -4608,75 +4608,185 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="empty-state" style="padding:80px 24px"><div class="empty-icon">🚫</div><h2 class="empty-title">Accesso Negato</h2><p class="empty-text">Non hai i permessi per questa sezione.</p><button class="btn" onclick="goTo('dashboard')">Torna alla Dashboard</button></div>`;
     }
 
-    function handleSearch(q, recordKind) {
-        if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
-        const ql = q.toLowerCase();
-        const results = [];
-        
-        // Search clients
-        (S.clients || []).filter(c => (c.name||'').toLowerCase().includes(ql) || (c.email||'').toLowerCase().includes(ql) || (c.phone||'').includes(q)).forEach(c => 
-            results.push({ type: '👥', label: c.name, sub: `${c.service || ''} · ${c.stage || ''}`, action: `viewClient('${c.id}')` }));
-        
-        // Search properties
-        (S.properties || []).filter(p => (p.name||'').toLowerCase().includes(ql) || (p.address||'').toLowerCase().includes(ql) || (p.zone||'').toLowerCase().includes(ql)).forEach(p => 
-            results.push({ type: '🏠', label: p.name, sub: p.address || p.zone || '', action: `viewProperty('${p.id}')` }));
-        
-        // Search users (tenants/landlords)
-        (S.users || []).filter(u => u.role !== 'admin' && ((u.name||'').toLowerCase().includes(ql) || (u.email||'').toLowerCase().includes(ql))).forEach(u => 
-            results.push({ type: u.role === 'tenant' ? '👤' : '🏡', label: u.name, sub: `${u.role} · ${u.email || ''}`, action: `viewUserProfile('${u.id}')` }));
-        
-        // Search payments
-        (S.payments || []).filter(p => (p.month||'').toLowerCase().includes(ql)).forEach(p => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            results.push({ type: '💳', label: `€${p.amount} - ${p.month}`, sub: `${prop?.name || ''} · ${p.status}`, action: `goTo('payments')` });
-        });
-        
-        // Search contracts
-        (S.contracts || []).filter(c => { const t = S.users.find(u => u.id === c.tenantId), p = S.properties.find(p => p.id === c.propertyId); return [c.id, c.ref, t?.name, p?.name, p?.address].some(value => String(value || '').toLowerCase().includes(ql)); }).forEach(c => {
-            const t = S.users.find(u => u.id === c.tenantId); const p = S.properties.find(x => x.id === c.propertyId);
-            results.push({ type: '📋', label: `Contratto ${p?.name || ''}`, sub: `${t?.name || ''} · €${c.rent}/mese`, action: `viewContract('${c.id}')` });
-        });
-        
-        // Search documents
-        (S.documents || []).filter(d => (d.name||'').toLowerCase().includes(ql)).forEach(d => 
-            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `boomOpen('${d.fileUrl}')` : `goTo('documents')` }));
-        
-        // Search maintenance
-        (S.maintenance || []).filter(m => (m.title||'').toLowerCase().includes(ql)).forEach(m => {
-            const p = S.properties.find(x => x.id === m.propertyId);
-            results.push({ type: '🔧', label: m.title, sub: `${p?.name || ''} · ${m.status}`, action: `viewMaintenance('${m.id}')` });
-        });
-
-        // Search leads
-        (S.leads || []).filter(l => (l.name||'').toLowerCase().includes(ql) || (l.email||'').toLowerCase().includes(ql) || (l.phone||'').includes(q) || (l.service||'').toLowerCase().includes(ql)).forEach(l =>
-            results.push({ type: '🔔', label: l.name, sub: `${l.service || ''} · ${l.email || ''}`, action: `goTo('leads')` }));
-
-        // Search tasks
-        (S.tasks || []).filter(t => (t.title||'').toLowerCase().includes(ql)).forEach(t =>
-            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('dashboard')` }));
-
-        // Search deadlines
-        (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
-            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('dashboard')` }));
-
-        // Context pickers filter BEFORE the display cap: unrelated records cannot hide the requested kind.
-        const via = { property: 'viewProperty(', person: 'viewUserProfile(', client: 'viewClient(', contract: 'viewContract(' }[recordKind];
-        const matches = via ? results.filter(r => r.action.startsWith(via)) : results;
-        // Render dropdown
+    function handleSearch(q, recordKind, more = false) {
+        if (!q || q.trim().length < 2) { document.getElementById('searchResults')?.remove(); return; }
+        const session = portalSearchSession();
+        session.headerPage = typeof more === 'number' ? Math.max(0, (session.headerPage || 0) + more) : more ? (session.headerPage || 0) + 1 : 0;
+        session.headerQuery = q; session.headerKind = recordKind || 'all';
+        let found = portalSearchRecords(q, session.headerKind, 12, session.headerPage * 12);
+        if (!found.records.length && found.total && session.headerPage) { session.headerPage = Math.floor((found.total - 1) / 12); found = portalSearchRecords(q, session.headerKind, 12, session.headerPage * 12); }
+        session.headerRecords = found.records;
         let dd = document.getElementById('searchResults');
-        if (!dd) { dd = document.createElement('div'); dd.id = 'searchResults'; dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;max-height:360px;overflow-y:auto;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,0.3);margin-top:4px'; document.getElementById('globalSearch').parentElement.style.position = 'relative'; document.getElementById('globalSearch').parentElement.appendChild(dd); }
-        
-        if (matches.length === 0) { dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results for "${esc(q)}"</div>`; return; }
-        
-        dd.innerHTML = matches.slice(0, 12).map(r => `<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--bg-elevated)'" onmouseleave="this.style.background=''" onclick="${r.action};document.getElementById('searchResults')?.remove();document.getElementById('globalSearch').value=''">
-            <span style="font-size:16px;width:24px;text-align:center">${r.type}</span>
-            <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.label)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(r.sub)}</div></div>
-        </div>`).join('') + (matches.length > 12 ? `<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-muted)">${matches.length - 12} more results...</div>` : '');
+        const input = document.getElementById('globalSearch');
+        if (!input) return;
+        if (!dd) {
+            dd = document.createElement('div'); dd.id = 'searchResults'; dd.className = 'portal-search-results';
+            input.parentElement.style.position = 'relative'; input.parentElement.appendChild(dd);
+        }
+        dd.innerHTML = found.records.map((r, i) => `<button type="button" data-search-index="${i}"><span aria-hidden="true">${esc(r.icon)}</span><span><strong>${esc(r.label)}</strong><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind].label)} · ${esc(r.sub)}</small></span></button>`).join('')
+            + `<p>${found.total ? (session.headerPage * 12 + 1) + '–' + (session.headerPage * 12 + found.records.length) + ' di ' + found.total + ' risultati nei dati caricati.' : 'Nessun risultato nei dati caricati.'}</p>`
+            + (session.headerPage ? '<button type="button" data-search-prev>Precedenti</button>' : '')
+            + (found.hasMore ? '<button type="button" data-search-more>Mostra altri risultati</button>' : '')
+            + (portalSearchAuthorized() ? '<button type="button" data-search-home>Ricerca e archivio nella home ↗</button>' : '');
+        dd.onclick = event => {
+            const row = event.target.closest('[data-search-index]');
+            if (row) {
+                const record = session.headerRecords[Number(row.dataset.searchIndex)];
+                dd.remove(); input.value = ''; portalSearchOpen(record);
+            } else if (event.target.closest('[data-search-prev]')) handleSearch(q, recordKind, -1);
+            else if (event.target.closest('[data-search-more]')) handleSearch(q, recordKind, true);
+            else if (event.target.closest('[data-search-home]')) {
+                dd.remove(); input.value = ''; goTo('oggi');
+                const home = document.getElementById('ogWorkQuery');
+                if (home) { home.value = q; oggiWorkspaceSearch(q); home.focus(); }
+            }
+        };
     }
+    // One ephemeral projection per signed-in admin. Archive scans are explicit,
+    // bounded reads; no background sweep, persistent index, AI or writes.
+    let portalSearchCache = null;
+    function portalSearchSession() {
+        const user = auth.currentUser;
+        if (!portalSearchCache || portalSearchCache.user !== user || !isAdmin()) {
+            portalSearchCache?.archive?.reset();
+            portalSearchCache = { user, headerRecords: [], headerPage: 0, hydration: new Map(), canonical: new Map(), generation: 0 };
+        }
+        return portalSearchCache;
+    }
+    function portalSearchReader() {
+        const session = portalSearchSession();
+        if (!session.archive && isAdmin() && window.BOOM_PORTAL_SEARCH_ARCHIVE) session.archive = window.BOOM_PORTAL_SEARCH_ARCHIVE.create({
+            getScope: () => ({ user: auth.currentUser, admin: portalSearchAuthorized() }),
+            readPage: async (collection, { afterId, limit }) => {
+                let query = db.collection(collection).orderBy(firebase.firestore.FieldPath.documentId()).limit(limit);
+                if (afterId) query = query.startAfter(afterId);
+                const snap = await query.get({ source: 'server' });
+                return { rows: snap.docs.map(d => ({ ...d.data(), id: d.id })), lastId: snap.docs.at(-1)?.id || '', hasMore: snap.docs.length === limit };
+            },
+            onChange: () => {
+                clearTimeout(session.updateTimer);
+                session.updateTimer = setTimeout(() => {
+                    if (portalSearchCache !== session || auth.currentUser !== session.user || !isAdmin()) return;
+                    if (document.getElementById('ogWorkResults') && !oggiWorkspace.selected) oggiWorkspaceSearch(oggiWorkspace.query, true);
+                    portalSearchSourcesRender();
+                }, 0);
+            }
+        });
+        return session.archive;
+    }
+    function portalSearchState() {
+        let state = { ...S }; const E = window.BOOM_PORTAL_SEARCH;
+        if (!portalSearchAuthorized()) {
+            const uid = auth.currentUser?.uid;
+            if (!uid || S.profile?.id !== uid) return {};
+            const owner = S.profile.role === 'landlord';
+            const properties = (S.properties || []).filter(p => owner && p.ownerId === uid);
+            const owned = new Set(properties.map(p => p.id));
+            const contracts = (S.contracts || []).filter(c => owner ? owned.has(c.propertyId) : c.tenantId === uid);
+            const houses = new Set(contracts.map(c => c.propertyId));
+            state = { users: (S.users || []).filter(u => u.id === uid), contracts,
+                properties: owner ? properties : (S.properties || []).filter(p => houses.has(p.id)),
+                documents: (S.documents || []).filter(d => d.userId === uid),
+                payments: (S.payments || []).filter(p => owner ? owned.has(p.propertyId) : p.tenantId === uid),
+                maintenance: (S.maintenance || []).filter(m => owner ? owned.has(m.propertyId) : m.userId === uid) };
+            return state;
+        }
+        const session = portalSearchSession(), reader = session.archive;
+        if (!reader || !E || !isAdmin()) return state;
+        Object.entries(E.KINDS).forEach(([kind, source]) => {
+            const existing = Array.isArray(S[source.collection]) ? S[source.collection] : [];
+            const scanned = reader.state(kind).rows;
+            const ids = new Set(scanned.map(row => row.id));
+            state[source.collection] = existing.filter(row => !ids.has(row.id)).concat(scanned);
+            session.canonical.forEach((row, key) => {
+                if (!key.startsWith(kind + ':')) return;
+                const id = key.slice(kind.length + 1);
+                state[source.collection] = state[source.collection].filter(r => r.id !== id);
+                if (row) state[source.collection].push(row);
+            });
+        });
+        return state;
+    }
+    function portalSearchCanRead() { return !!auth.currentUser && S.profile?.id === auth.currentUser.uid && ['admin', 'tenant', 'landlord'].includes(S.profile.role); }
+    function portalSearchAuthorized() { return isAdmin() && !!auth.currentUser && S.profile?.id === auth.currentUser.uid; }
+    function portalSearchRecords(query, kind = 'all', limit = 12, offset = 0) {
+        const E = window.BOOM_PORTAL_SEARCH;
+        if (!E || !portalSearchCanRead()) return { records: [], total: 0, hasMore: false };
+        return E.search(query, portalSearchState(), { kind, limit, offset });
+    }
+    window.portalSearchRecords = portalSearchRecords;
+    function portalSearchSourcesRender() {
+        const target = document.getElementById('ogSearchSources');
+        if (!target) return;
+        if (!portalSearchAuthorized()) { target.replaceChildren(); return; }
+        const E = window.BOOM_PORTAL_SEARCH, reader = portalSearchSession().archive;
+        if (!E) { target.innerHTML = '<p>Ricerca non disponibile. Ricarica la pagina.</p>'; return; }
+        const state = portalSearchState();
+        const kinds = oggiWorkspace.kind === 'all' ? Object.keys(E.KINDS) : [oggiWorkspace.kind];
+        target.innerHTML = `<p class="ow-hint">La ricerca iniziale usa i record caricati nel portale, anche da cache. Puoi estendere una fonte di 200 record alla volta dal database. La scansione non è una sincronizzazione continua. <button type="button" class="ow-link" data-search-reset>Ricomincia la lettura</button></p><div class="ow-source-list">${kinds.filter(k => E.KINDS[k]).map(kind => {
+            const meta = E.KINDS[kind], scan = reader?.state(kind), count = (state[meta.collection] || []).length;
+            const status = scan?.status === 'loading' ? 'Lettura in corso…' : scan?.status === 'error' ? 'Lettura non riuscita · dati precedenti conservati' : scan?.complete ? 'Scansione terminata' : scan?.rows?.length ? scan.rows.length + ' record letti dal database · archivio ancora parziale' : 'Completezza non verificata';
+            return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
+        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
+        target.onclick = event => {
+            if (event.target.closest('[data-search-reset]')) { const session = portalSearchSession(); session.generation++; session.hydration.clear(); session.canonical.clear(); reader?.reset(); return; }
+            const button = event.target.closest('[data-search-source]');
+            if (button && !button.disabled) portalSearchExtend(button.dataset.searchSource);
+        };
+    }
+    async function portalSearchExtend(kind) {
+        const E = window.BOOM_PORTAL_SEARCH, reader = portalSearchReader();
+        if (!portalSearchAuthorized() || !reader || !Object.hasOwn(E.KINDS, kind)) return;
+        const select = document.getElementById('ogWorkKind');
+        if (select) select.value = kind;
+        oggiWorkspaceSearch(document.getElementById('ogWorkQuery')?.value || '');
+        await reader.load(kind, E.KINDS[kind].collection);
+    }
+    async function portalSearchEnsure(record) {
+        if (!record || !portalSearchCanRead()) return null;
+        const E = window.BOOM_PORTAL_SEARCH, source = E?.KINDS[record.kind];
+        if (!source || !E.recordFor(record.kind, record.id, portalSearchState())) return null;
+        const session = portalSearchSession(), key = record.kind + ':' + record.id;
+        const scanned = session.archive?.state(record.kind).rows.some(row => row.id === record.id);
+        if (!scanned && E.recordFor(record.kind, record.id, S)) return E.recordFor(record.kind, record.id, S);
+        if (!portalSearchAuthorized()) return null;
+        if (session.hydration.has(key)) return session.hydration.get(key);
+        const user = auth.currentUser, generation = session.generation;
+        // A result outside the initial load must be re-read before opening a
+        // handler. Never hydrate from a stale scan or after an account switch.
+        const pending = (async () => { try {
+            const snap = await db.collection(source.collection).doc(record.id).get({ source: 'server' });
+            if (auth.currentUser !== user || !portalSearchAuthorized() || session !== portalSearchCache || generation !== session.generation) return null;
+            if (!snap.exists) { session.canonical.set(key, null); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
+            const row = { ...snap.data(), id: snap.id };
+            session.canonical.set(key, row);
+            S[source.collection] = (S[source.collection] || []).filter(r => r.id !== row.id).concat(row);
+            return E.recordFor(record.kind, record.id, S);
+        } catch { if (auth.currentUser === user && portalSearchAuthorized()) toast('warning', 'Impossibile verificare il record. Riprova.'); return null; }
+        finally { if (generation === session.generation) session.hydration.delete(key); } })();
+        session.hydration.set(key, pending);
+        return pending;
+    }
+    async function portalSearchOpen(record) {
+        if (!portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
+        const user = auth.currentUser;
+        const fresh = await portalSearchEnsure(record);
+        if (!fresh || auth.currentUser !== user || !portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
+        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUserProfile', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
+        if (fresh.kind === 'proposal') return window.open('/pre-agreement-admin', '_blank', 'noopener');
+        if (fresh.kind === 'payment') {
+            const payment = S.payments.find(p => p.id === fresh.id);
+            if (payment?.contractId && S.contracts.some(c => c.id === payment.contractId)) return viewContract(payment.contractId);
+            return goTo('payments');
+        }
+        const fn = window[routes[fresh.kind]];
+        if (typeof fn === 'function') fn(fresh.id);
+        else toast('warning', 'Apri la sezione dal menu: lo strumento non è disponibile.');
+    }
+
     
     // Close search on click outside
-    document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch')?.parentElement) document.getElementById('searchResults')?.remove(); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch, #searchResults')) document.getElementById('searchResults')?.remove(); });
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARDS
@@ -5058,6 +5168,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (focusedId) [...agendaPanel.querySelectorAll('[data-og-viewing]')].find(el => el.getAttribute('data-og-viewing') === focusedId)?.focus({ preventScroll: true });
             }
             oggiWorkBriefing();
+            if (!oggiWorkspace.selected && oggiWorkspace.query) oggiWorkspaceSearch(oggiWorkspace.query, true);
             oggiSegretariaFreshnessUpdate();
             if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
                 oggiSegretaria.refreshPending = false;
@@ -5958,62 +6069,64 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const input = id === 'ogOwnerTools' ? document.getElementById('ogOwnerQuery') : document.querySelector('[data-ow-view="decisions"]');
         input?.focus({ preventScroll: true });
     };
-    window.oggiWorkspaceSearch = function(query) {
-        if (!isAdmin()) return;
+    window.oggiWorkspaceSearch = function(query, refresh = false) {
+        if (!portalSearchAuthorized()) return;
         oggiWorkspaceResetUser();
         const target = document.getElementById('ogWorkResults');
         if (!target) return;
-        oggiWorkspace.records = []; oggiWorkspace.selected = null; oggiWorkspace.actions = [];
         query = String(query || '').trim().slice(0, 120);
+        if (!refresh) {
+            oggiWorkspace.selected = null; oggiWorkspace.actions = []; oggiWorkspace.searchPage = 0;
+        }
         oggiWorkspace.query = query;
         oggiWorkspace.kind = document.getElementById('ogWorkKind')?.value || 'all';
-        oggiQuickToolsRender();
-        if (query.length < 2) { target.innerHTML = ''; return; }
-        const P = window.BOOM_ACTIONS;
-        if (!P?.findRecords || !document.getElementById('globalSearch')) {
-            target.innerHTML = '<p role="status" class="ow-hint">La ricerca non è disponibile. Apri la sezione dal menu.</p>'; return;
+        oggiQuickToolsRender(); portalSearchSourcesRender();
+        if (query.length < 2) { target.innerHTML = ''; oggiWorkspace.records = []; return; }
+        if (!window.BOOM_PORTAL_SEARCH) {
+            target.innerHTML = '<p role="status" class="ow-hint">La ricerca non è disponibile. Ricarica il portale.</p>'; return;
         }
-        const kind = oggiWorkspace.kind;
-        if (!['all', 'property', 'person', 'contract', 'client'].includes(kind)) return;
-        const kinds = kind === 'all' ? ['client', 'property', 'person', 'contract'] : [kind];
-        let limited = false;
-        oggiWorkspace.records = kinds.flatMap(k => {
-            const records = P.findRecords(query, k, window);
-            if (kind === 'all' && records.length > 3) limited = true;
-            return kind === 'all' ? records.slice(0, 3) : records;
-        });
-        target.innerHTML = oggiWorkspace.records.length ? `<div class="ow-results">${oggiWorkspace.records.map((r, i) => `<button type="button" class="ow-result" onclick="oggiWorkspaceSelect(${i})"><span><small class="ow-result-kind">${esc(P.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><small>${esc(r.sub)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</div>${limited ? '<p class="ow-hint">Primi 3 risultati per categoria. Usa il filtro per vedere gli altri.</p>' : ''}`
-            : '<p role="status" class="ow-hint">Nessun risultato nei dati caricati. Prova un altro nome o apri la sezione completa.</p>';
+        let found = portalSearchRecords(query, oggiWorkspace.kind, 12, (oggiWorkspace.searchPage || 0) * 12);
+        if (!found.records.length && found.total && oggiWorkspace.searchPage) { oggiWorkspace.searchPage = Math.floor((found.total - 1) / 12); found = portalSearchRecords(query, oggiWorkspace.kind, 12, oggiWorkspace.searchPage * 12); }
+        oggiWorkspace.records = found.records;
+        target.innerHTML = found.records.length ? `<div class="ow-results">${found.records.map((r, i) => `<button type="button" class="ow-result" onclick="oggiWorkspaceSelect(${i})"><span><small class="ow-result-kind">${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><small>${esc(r.sub)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</div><p class="ow-hint">${(oggiWorkspace.searchPage || 0) * 12 + 1}–${(oggiWorkspace.searchPage || 0) * 12 + found.records.length} di ${found.total} risultati nei dati caricati. ${oggiWorkspace.searchPage ? '<button type="button" class="ow-link" onclick="oggiWorkspaceMore(-1)">Precedenti</button> · ' : ''}${found.hasMore ? '<button type="button" class="ow-link" onclick="oggiWorkspaceMore()">Mostra altri risultati</button>' : ''}</p>`
+            : '<p role="status" class="ow-hint">Nessun risultato nei dati caricati. Apri «Fonti e archivio» per estendere la ricerca.</p>';
     };
-    window.oggiWorkspaceSelect = function(index) {
-        if (!isAdmin()) return;
-        const record = oggiWorkspace.records[index], P = window.BOOM_ACTIONS;
-        if (!record || !P?.ACTIONS) return;
-        oggiWorkspaceShow(record);
+    window.oggiWorkspaceMore = function(delta = 1) {
+        oggiWorkspace.searchPage = Math.max(0, (oggiWorkspace.searchPage || 0) + delta);
+        oggiWorkspaceSearch(oggiWorkspace.query, true);
+    };
+    window.oggiWorkspaceSelect = async function(index) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const record = oggiWorkspace.records[index], user = auth.currentUser, query = oggiWorkspace.query;
+        const fresh = await portalSearchEnsure(record);
+        if (fresh && auth.currentUser === user && oggiWorkspace.query === query && oggiWorkspace.records[index] === record) oggiWorkspaceShow(fresh);
     };
     function oggiWorkspaceShow(record, focus = true) {
-        const P = window.BOOM_ACTIONS;
-        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid || !window.BOOM_OGGI_WORKSPACE?.contextFor(record, S).available) return;
+        const P = window.BOOM_ACTIONS, E = window.BOOM_PORTAL_SEARCH;
+        if (!portalSearchAuthorized() || oggiWorkspace.user !== auth.currentUser?.uid || !E?.recordFor(record.kind, record.id, S)) return;
         oggiWorkspace.selected = record;
         const safe = ['viewProperty', 'openPerson', 'viewUserProfile', 'viewUser', 'viewClient', 'viewContract', 'openFascicolo', 'openShareHub', 'viewContractSignatures'];
         oggiWorkspace.actions = P.ACTIONS.filter(a => a.need === record.kind && safe.includes(a.fn));
         const target = document.getElementById('ogWorkResults');
-        target.innerHTML = `<div class="ow-selection"><div><span class="ow-eyebrow">${esc(P.KINDS[record.kind]?.label || '')}</span><h3>${esc(record.label)}</h3><p>${esc(record.sub)}</p></div><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Cambia selezione</button><div id="ogContextConnections"></div></div>`;
+        target.innerHTML = `<div class="ow-selection"><div><span class="ow-eyebrow">${esc(E.KINDS[record.kind]?.label || '')}</span><h3>${esc(record.label)}</h3><p>${esc(record.sub)}</p></div><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}${oggiWorkspace.actions.length ? '' : '<button type="button" class="btn btn-secondary btn-sm" onclick="oggiWorkspaceOpen()">' + (record.kind === 'proposal' ? 'Apri console proposte' : record.kind === 'payment' ? 'Apri gestione pagamento' : 'Apri scheda') + ' ↗</button>'}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Torna ai risultati</button><div id="ogContextConnections"></div></div>`;
         target.onclick = oggiWorkCaseClick;
-        oggiWorkspaceContext();
-        oggiQuickToolsRender();
+        oggiWorkspaceContext(); oggiQuickToolsRender();
         if (focus) target.querySelector('button')?.focus({ preventScroll: true });
+    }
+    window.oggiWorkspaceOpen = function() {
+        if (oggiWorkspace.user === auth.currentUser?.uid) return portalSearchOpen(oggiWorkspace.selected);
     };
     window.oggiWorkspaceAction = function(index) {
         if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
         const action = oggiWorkspace.actions[index], record = oggiWorkspace.selected;
-        if (!window.BOOM_OGGI_WORKSPACE?.contextFor(record, S).available) return toast('warning', 'Il record non è più nei dati caricati. Ripeti la ricerca.');
+        if (!window.BOOM_PORTAL_SEARCH?.recordFor(record?.kind, record?.id, S)) return toast('warning', 'Il record non è più nei dati caricati. Ripeti la ricerca.');
         if (!action || !record || !window.BOOM_ACTIONS?.run(action, window, record)) toast('error', 'Strumento non disponibile. Apri la sezione dal menu.');
     };
-    window.oggiWorkspaceRelated = function(index) {
+    window.oggiWorkspaceRelated = async function(index) {
         if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
-        const record = oggiWorkspace.related[index];
-        if (record) oggiWorkspaceShow(record);
+        const record = oggiWorkspace.related[index], selected = oggiWorkspace.selected, user = auth.currentUser;
+        const fresh = await portalSearchEnsure(record);
+        if (fresh && auth.currentUser === user && oggiWorkspace.selected === selected) oggiWorkspaceShow(fresh);
     };
     function oggiWorkCaseClick(event) {
         const button = event.target.closest('[data-ow-case]');
@@ -6036,12 +6149,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="ow-case-meta"><span><small>Chi agisce${p && !p.approval ? ' · proposto' : ''}</small>${esc(p?.nextAction?.waitingLabel || d.waiting)}</span><span><small>Ricontrollo${p && !p.approval ? ' · proposto' : ''}</small>${esc(oggiSegretariaDate(p?.nextAction?.checkAt ? Date.parse(p.nextAction.checkAt) : d.checkAt))}</span></div>
             <div class="ow-case-actions"><button class="btn btn-sm" type="button" data-ow-case="${esc(task.id)}">${p?.draft ? 'Rivedi risposta' : p ? 'Rivedi seguito' : 'Esamina richiesta'} ↗</button><button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="message">Scrivi e organizza</button>${source ? `<a class="ow-link" href="${esc(source)}" target="_blank" rel="noopener">Audio e trascrizione ↗</a>` : ''}${d.conversationId ? `<button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="source">Apri conversazione</button>` : ''}</div></article>`;
     }
+    function oggiWorkspaceConversations(record) {
+        if (!portalSearchAuthorized() || !window.BOOM_PORTAL_SEARCH?.recordFor(record?.kind, record?.id, S)) return [];
+        const types = { person: ['tenant', 'landlord'], client: ['client'], lead: ['lead'], pfsClient: ['pfs'] }[record.kind] || [];
+        return (S.conversations || []).filter(c => c.contactId === record.id && types.includes(c.contactType)
+            && (S.conversations || []).filter(other => other.id === c.id).length === 1);
+    }
+    window.oggiWorkspaceConversation = function(index) {
+        if (oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const row = oggiWorkspaceConversations(oggiWorkspace.selected)[index];
+        if (row && typeof window.inboxSelect === 'function' && !document.body.classList.contains('modal-open') && !document.querySelector('.modal-overlay.active')) { goTo('inbox'); window.inboxSelect(row.id); }
+    };
     function oggiWorkspaceContext() {
         const target = document.getElementById('ogContextConnections'), record = oggiWorkspace.selected, E = window.BOOM_OGGI_WORKSPACE;
         if (!target || !record || !E?.contextFor || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
         const linked = E.contextFor(record, S);
+        const search = window.BOOM_PORTAL_SEARCH;
+        linked.available = !!search?.recordFor(record.kind, record.id, S);
+        linked.records = search?.relatedFor?.(record.kind, record.id, portalSearchState()) || [];
         oggiWorkspace.related = linked.records;
         if (!linked.available) { target.innerHTML = '<p class="ow-source-note">Il record non è più disponibile nei dati caricati. Ripeti la ricerca.</p>'; return; }
+        const conversations = oggiWorkspaceConversations(record);
         const tasks = oggiSegretaria.rows.filter(t => {
             if (t.status !== 'open' || !t.followUp) return false;
             const f = t.followUp;
@@ -6052,7 +6180,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const open = new Set([...target.querySelectorAll('details[open]')].map(d => d.dataset.owFold));
         const focused = target.contains(document.activeElement) ? document.activeElement : null;
         const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
-        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_ACTIONS.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+            ${conversations.length ? `<div class="ow-related" aria-label="Conversazioni collegate">${conversations.map((c, i) => `<button type="button" onclick="oggiWorkspaceConversation(${i})"><small>Conversazione · ${esc(c.channel || 'Inbox')}</small><strong>Apri messaggi ↗</strong><span>${esc(c.contactName || record.label)}</span></button>`).join('')}</div><p class="ow-hint">Conversazioni già collegate al contatto nel portale; lo storico HOMIE non è incluso.</p>` : ''}
             <details data-ow-fold="cases" ${open.has('cases') ? 'open' : ''}><summary>Seguiti collegati <span>${tasks.length}</span></summary>${oggiSegretaria.error || oggiSegretaria.incomplete ? '<p class="ow-source-note">La lettura dei seguiti è parziale o non aggiornata.</p>' : ''}${!oggiSegretaria.loaded ? '<p class="ow-hint">Lettura dei seguiti in corso.</p>' : tasks.length ? tasks.slice(0, 4).map(oggiWorkCaseCard).join('') + (tasks.length > 4 ? '<p class="ow-hint">Mostrati 4 di '+tasks.length+' seguiti collegati. <button type="button" class="ow-link" onclick="oggiOpenSection(\'ogFollowTools\')">Apri tutti i seguiti</button></p>' : '') : '<p class="ow-hint">Nessun seguito collegato in questo elenco. Le richieste da associare restano in Segreteria.</p>'}</details><p class="ow-hint">Collegamenti salvati nel portale. Le omonimie non vengono unite.</p></div>`;
         if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
     }
@@ -6103,8 +6232,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const descriptions = { '/chiamate': 'Audio, trascrizioni e riepiloghi salvati', '/risposte': 'Testi pronti e link da copiare', '/media-studio': 'Foto e reel dagli annunci', '/manuale': 'Istruzioni e informazioni della casa' };
         return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
     }
+    function oggiQuickContext() {
+        const selected = oggiWorkspace.selected;
+        return selected && ['client', 'person', 'property', 'contract'].includes(selected.kind) ? selected : null;
+    }
     function oggiQuickTools() {
-        const tools = window.BOOM_ACTIONS?.homeTools?.(oggiWorkspace.selected, S, new Date().getFullYear()) || [];
+        const tools = window.BOOM_ACTIONS?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
         const paths = {
             'home:new-client': '<circle cx="9" cy="8" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2M19 8v6m-3-3h6"/>',
             'home:inventory': '<path d="m3 10 9-7 9 7v11H3V10Zm5 11v-8h8v8"/><path d="m10 8 2-1.5L14 8"/>',
@@ -6120,12 +6253,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const target = document.getElementById('ogQuickTools'), context = document.getElementById('ogQuickContext');
         if (!target || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
         target.innerHTML = oggiQuickTools();
-        if (context) context.textContent = oggiWorkspace.selected ? 'Selezionato: ' + oggiWorkspace.selected.label : 'Scegli uno strumento, oppure cerca prima il cliente o la casa.';
+        if (context) context.textContent = oggiQuickContext() ? 'Selezionato: ' + oggiWorkspace.selected.label : 'Scegli uno strumento, oppure cerca prima il cliente o la casa.';
     }
     window.oggiQuickTool = function(id) {
         if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
         const P = window.BOOM_ACTIONS;
-        const action = P?.homeTools?.(oggiWorkspace.selected, S, new Date().getFullYear()).find(a => a.id === id);
+        const action = P?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()).find(a => a.id === id);
         if (!action || action.disabled) return toast('warning', action?.reason || 'La selezione è cambiata. Ripeti la ricerca.');
         if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning', 'Completa o chiudi prima il modulo aperto.');
         const handler = window[action.fn];
@@ -6141,8 +6274,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     };
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-labelledby="ogWorkTitle"><div class="ow-workbench-head"><div><p class="ow-eyebrow">IL TUO PUNTO DI PARTENZA</p><h2 id="ogWorkTitle">Da chi cominciamo?</h2></div><a class="ow-link" href="#clienti" onclick="event.preventDefault();goTo('clienti')">Tutti i clienti ↗</a></div>
-            <div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'],['client','Clienti'],['property','Immobili'],['person','Persone'],['contract','Contratti']].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca un cliente, una casa, un contratto…" oninput="oggiWorkspaceSearch(this.value)"><span aria-hidden="true">⌕</span></div>
-            <div id="ogWorkResults" aria-live="polite"></div>
+            <div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Nome, casa, telefono, documento o riferimento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
+            <div id="ogWorkResults" aria-live="polite"></div><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio <span>Estendi la ricerca · verifica la copertura</span></summary><div id="ogSearchSources"></div></details>
         </section><section class="ow-toolbox" aria-labelledby="ogToolsTitle"><div class="ow-tools-head"><h2 id="ogToolsTitle">Apri e fai.</h2><p id="ogQuickContext">${esc(oggiWorkspace.selected ? 'Selezionato: ' + oggiWorkspace.selected.label : 'Scegli uno strumento, oppure cerca prima il cliente o la casa.')}</p></div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
             <nav class="ow-shortcuts" aria-label="Altri strumenti quotidiani"><button type="button" onclick="goTo('inbox')">Messaggi ↗</button><a href="/chiamate" target="_blank" rel="noopener">Chiamate e trascrizioni ↗</a><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta ↗</button><button type="button" onclick="goTo('tools')">Tutti gli strumenti ↗</button></nav>
         </section>`;
