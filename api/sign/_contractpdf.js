@@ -32,8 +32,19 @@
 // send-sign.js (cintura e bretelle sui contratti pre-fix), magic-sign/
 // lookup.js (ultima rete: la prima apertura del link genera se manca o
 // se il PDF è di una versione clausole superata).
+//
+// CARTA E SEGNAPOSTO NON HANNO UN PDF DAL MODELLO (13/10/2026). Un contratto
+// firmato su carta (il documento vero è la scansione, paperPdfUrl) o un
+// segnaposto del Palazzo (contractMissing: niente date né canone) non
+// ricevono MAI un PDF impaginato dal modello BOOM, da nessuna strada
+// automatica: la Scheda che rigenera coi dati nuovi (force), la prima
+// apertura di /sign, gli inviti, la conversione, ↺ Modello BOOM di revise.
+// Un contratto finto in generatedPDF finirebbe nel Palazzo, nel Pack e nel
+// fascicolo come se fosse quello firmato con la proprietà. La guardia sta
+// QUI, una volta, così nessun chiamante può dimenticarla.
 
 import crypto from 'node:crypto';
+import CS from '../../js/contract-state.js';
 import jspdfNS from 'jspdf';
 import CONTRACT_PDF from '../../js/contract-pdf.js';
 import { fsGet, fsPatch, fsList } from '../homie/_lib.js';
@@ -101,6 +112,8 @@ const withBudget = (p, ms, label) => Promise.race([
 // Ritorna { bytes, hash, sigAnchors, hashSeed }; upload e patch restano ai
 // chiamanti, ciascuno sul proprio path.
 export function buildContractPdfBytes({ contractId, contract, property, tenant, landlord }) {
+  // Carta o segnaposto: nessun impaginato dal modello (vedi in testa).
+  if (CS.noModelPdf(contract)) { const e = new Error('no_model_pdf'); e.code = 'no_model_pdf'; throw e; }
   const built = CONTRACT_PDF.build({ jsPDF, contractId, contract, property, tenant, landlord });
   const bytes = Buffer.from(built.doc.output('arraybuffer'));
   if (!bytes.length) throw new Error('empty_pdf');
@@ -129,6 +142,8 @@ export const pdfPathOf = (contractId, c) => {
 // patchare. ensureContractPdf li scrive; revise li scrive nello stesso
 // commit condizionato che riapre la firma (mai una versione a metà).
 export async function renderContractPdf(contractId, contract) {
+  // Carta o segnaposto: niente PDF dal modello, nessun upload.
+  if (CS.noModelPdf(contract)) return null;
   let property = null, tenant = null, landlord = null;
   if (contract.propertyId) {
     try { property = await fsGet('properties/' + contract.propertyId); } catch (_) {}
@@ -167,6 +182,9 @@ export async function ensureContractPdf(contractId, preloaded = null, opts = {})
   if (!contractId) return null;
   const contract = preloaded || await fsGet('contracts/' + contractId);
   if (!contract) return null;
+  // Firmato su carta o segnaposto: il modello BOOM non è quel contratto.
+  // Nessuna generazione, nessuna scrittura — nemmeno con force.
+  if (CS.noModelPdf(contract)) return null;
   // La versione caricata dall'operatore è il documento: mai rigenerata qui.
   if (isUploadedPdf(contract)) return contract.generatedPDF;
   // PDF fresco (clausole correnti) → idempotente, si restituisce quello.
