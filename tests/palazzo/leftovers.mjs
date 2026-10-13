@@ -529,7 +529,10 @@ const FIX = () => ({
   ],
   payments: [
     { id: 'pRefund', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-10', amount: 900, dueDate: '2026-10-05', status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe',
+      paidAt: '2026-10-04T09:00:00Z', heldBy: 'boom', stripePaymentIntentId: 'pi_r1',
       stripeSessionId: 'cs_r1', checkoutSessionId: 'cs_r1', refundedAt: '2026-10-10T10:00:00Z', refundedAmount: 900, refundedFull: true },
+    { id: 'pSepa', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-08', amount: 900, dueDate: '2026-08-05', status: 'paid', paidDate: '2026-08-03', paidVia: 'sepa',
+      paidAt: '2026-08-03T09:00:00Z', sddPiId: 'pi_s1', sddStatus: 'succeeded', disputeStatus: 'lost', disputeId: 'dp_s1', disputeAt: '2026-08-20T10:00:00Z', disputeClosedAt: '2026-09-20T10:00:00Z' },
     { id: 'pDispute', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-11', amount: 900, dueDate: '2026-11-05', status: 'paid', paidDate: '2026-11-04', paidVia: 'stripe',
       stripeSessionId: 'cs_d1', checkoutSessionId: 'cs_d1', disputeStatus: 'open', disputeAt: '2026-11-10T10:00:00Z' },
     { id: 'pLost', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-12', amount: 900, dueDate: '2026-12-05', status: 'paid', paidDate: '2026-12-04', paidVia: 'stripe',
@@ -548,13 +551,92 @@ await check('L · Canoni: «review» ha la sua etichetta e il suo filtro Stato (
   assert.match(SRC, /review:'! Rimborso'/);
   assert.equal(RENT.paymentState(FIX().payments[0]), 'review');
 });
-await check('L · undoIncasso: un rimborso TOTALE riapre la rata; sessioni Stripe e segni del rimborso restano come storia', async () => {
+await check('L · undoIncasso: un rimborso TOTALE riapre la rata; le sessioni Stripe restano, i segni del rimborso vanno nella STORIA', async () => {
   const P = portal(); P.seed(FIX());
   assert.equal(await P.run("undoIncasso('pRefund')"), true);
   const p = P.st.get('payments/pRefund');
   assert.equal(p.status, 'pending'); assert.equal(p.stripeSessionId, 'cs_r1'); assert.equal(p.checkoutSessionId, 'cs_r1');
-  assert.equal(p.refundedFull, true); assert.equal(p.incassoAnnullato.was.reopenedFor, 'refund');
+  assert.equal(p.stripePaymentIntentId, 'pi_r1', 'il PaymentIntent resta: lega gli eventi tardivi di QUEL pagamento');
+  assert.equal(p.incassoAnnullato.was.reopenedFor, 'refund');
   assert.ok(!('paidDate' in p) && !('paidVia' in p));
+  // i segni del rimborso, l'istante e il «tenuto da BOOM» escono dalla rata…
+  for (const k of ['refundedAt', 'refundedAmount', 'refundedFull', 'paidAt', 'heldBy']) assert.ok(!(k in p), k + ' ancora sulla rata');
+  // …e restano, letti dalla transazione, nella storia
+  assert.deepEqual(p.incassoAnnullato.was.moneyBack, { refundedAt: '2026-10-10T10:00:00Z', refundedAmount: 900, refundedFull: true, paidAt: '2026-10-04T09:00:00Z', heldBy: 'boom' });
+  assert.equal(RENT.paymentState({ ...p, id: 'pRefund' }, new Date('2026-10-13T12:00:00Z')), 'overdue');
+  // in memoria lo stesso
+  const local = P.S.payments.find(x => x.id === 'pRefund');
+  assert.ok(!('refundedFull' in local) && !('paidAt' in local));
+});
+// La revisione (13/10): i segni lasciati sulla rata riportavano a «review»
+// QUALUNQUE incasso successivo — il Palazzo lo metteva «In attesa», il
+// rendiconto non lo contava, e undoIncasso offriva «Riapri: il pagamento con
+// carta è stato rimborsato» su un bonifico.
+async function reopenThenRecord(src, id) {
+  const P = portal(src); P.seed(FIX());
+  const reopened = await P.run(`undoIncasso('${id}')`);
+  const recorded = await P.run(`markPaymentPaid('${id}',{paidDate:'2026-10-12',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})`);
+  const p = { ...P.st.get('payments/' + id), id };
+  return { P, reopened, recorded, p, state: RENT.paymentState(p, new Date('2026-10-13T12:00:00Z')) };
+}
+await check('L · riaperta dopo un rimborso, poi «Registra incasso» (bonifico): la rata è PAGATA, non torna «review»', async () => {
+  for (const id of ['pRefund', 'pLost']) {
+    const r = await reopenThenRecord(SRC, id);
+    assert.equal(r.reopened, true, id); assert.equal(r.recorded, true, id);
+    assert.equal(r.p.status, 'paid'); assert.equal(r.p.paidVia, 'bonifico');
+    assert.equal(r.state, 'paid', id + ': ' + r.state);
+    // il bonifico registrato a mano si annulla come ogni incasso manuale (gli id
+    // della carta rimborsata, rimasti come storia, non lo rendono «automatico»)
+    const before = r.P.toasts.length;
+    assert.equal(await r.P.run(`undoIncasso('${id}')`), true, id + ': il bonifico registrato si annulla');
+    const after = r.P.st.get('payments/' + id);
+    assert.equal(after.status, 'pending'); assert.ok(!('reopenedFor' in after.incassoAnnullato.was), 'annullo di un incasso manuale, non una riapertura');
+    assert.ok(!r.P.toasts.slice(before).some(t => /Incasso automatico/.test(t[1])));
+  }
+  // la carta nuova, il webhook: stessa cosa (paidVia stripe, sessione nuova)
+  const P = portal(); P.seed(FIX());
+  await P.run("undoIncasso('pRefund')");
+  const p = { ...P.st.get('payments/pRefund'), id: 'pRefund', status: 'paid', paidVia: 'stripe', paidDate: '2026-10-12', stripeSessionId: 'cs_r2', checkoutSessionId: 'cs_r2' };
+  assert.equal(RENT.paymentState(p), 'paid');
+});
+await check('L · un addebito SEPA rimborsato/conteso si riapre PAGABILE a mano: sddPiId resta (il collettore non riaddebita da solo), sddStatus «cancelled»', async () => {
+  const P = portal(); P.seed(FIX());
+  assert.equal(RENT.paymentState({ ...FIX().payments.find(x => x.id === 'pSepa') }), 'review');
+  assert.equal(await P.run("undoIncasso('pSepa')"), true);
+  const p = P.st.get('payments/pSepa');
+  assert.equal(p.status, 'pending'); assert.equal(p.sddPiId, 'pi_s1'); assert.equal(p.sddStatus, 'cancelled');
+  assert.deepEqual(p.incassoAnnullato.was.sdd, { sddPiId: 'pi_s1', sddStatus: 'succeeded' });
+  assert.equal(p.incassoAnnullato.was.moneyBack.disputeStatus, 'lost');
+  assert.ok(!('disputeStatus' in p) && !('disputeId' in p) && !('disputeClosedAt' in p));
+  const st = RENT.paymentState({ ...p, id: 'pSepa' }, new Date('2026-10-13T12:00:00Z'));
+  assert.equal(st, 'overdue', 'non più «in corso»: si paga con carta o bonifico');
+  assert.ok(RENT.canPay({ ...p, id: 'pSepa' }, new Date('2026-10-13T12:00:00Z')));
+  assert.match(P.toasts.map(t => t[1]).join(' | '), /Incasso annullato/);
+  // il collettore salta chi ha già un sddPiId: nessun secondo addebito automatico
+  assert.match(read('api/payments/_sdd.js'), /if \(pay\.sddPiId \|\| pay\.sddInitError\) return false;/);
+});
+await check('mutazione presa: i segni del rimborso restano sulla rata → il bonifico registrato dopo torna «review»', async () => {
+  const bad = SRC.replace('                    ...(reopenBack ? backFields.clear(del) : {}),\n', '');
+  assert.notEqual(bad, SRC, 'mutazione non applicata (sorgente cambiato)');
+  const r = await reopenThenRecord(bad, 'pRefund');
+  assert.equal(r.recorded, true);
+  assert.equal(r.state, 'review', 'col difetto rimesso la suite deve vederlo');
+});
+await check('mutazione presa: la vecchia regola «automatico» (id della carta rimborsata) blocca l\'annullo del bonifico registrato', async () => {
+  const bad = SRC.replace("const automatic = !reopenBack && !p.paidRecordedBy && (!!(p.stripeSessionId || p.sddPiId || p.bankTxId) || ['stripe', 'sepa', 'bank'].includes(p.paidVia));",
+    "const automatic = !reopenBack && (!!(p.stripeSessionId || p.sddPiId || p.bankTxId) || (['stripe', 'sepa', 'bank'].includes(p.paidVia) && !p.paidRecordedBy));");
+  assert.notEqual(bad, SRC, 'mutazione non applicata (sorgente cambiato)');
+  const r = await reopenThenRecord(bad, 'pRefund');
+  assert.equal(r.state, 'paid');
+  assert.equal(await r.P.run("undoIncasso('pRefund')"), false);
+  assert.match(r.P.toasts.at(-1)[1], /Incasso automatico/);
+});
+await check('mutazione presa: senza sddStatus «cancelled» il SEPA riaperto resta «in corso» per sempre', async () => {
+  const bad = SRC.replace("                    ...(reopenBack && d.sddPiId ? { sddStatus: 'cancelled' } : {}),\n", '');
+  assert.notEqual(bad, SRC, 'mutazione non applicata (sorgente cambiato)');
+  const P = portal(bad); P.seed(FIX());
+  assert.equal(await P.run("undoIncasso('pSepa')"), true);
+  assert.equal(RENT.paymentState({ ...P.st.get('payments/pSepa'), id: 'pSepa' }, new Date('2026-10-13T12:00:00Z')), 'processing');
 });
 await check('L · …la contestazione PERSA anche; con la contestazione APERTA no (si aspetta l\'esito), e un incasso con carta normale resta intoccabile', async () => {
   const P = portal(); P.seed(FIX());

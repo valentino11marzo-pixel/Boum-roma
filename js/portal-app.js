@@ -18760,6 +18760,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) { toast('error', 'Errore', err.message); return false; }
     }
 
+    // I segni che il webhook scrive sulla rata quando i soldi di un pagamento
+    // con carta/SEPA tornano indietro (rimborso, contestazione), più l'istante
+    // e il «tenuto da BOOM» di quel pagamento. Alla riapertura escono dalla
+    // rata e restano nella storia: BOOM_RENT.moneyBack li legge su QUALUNQUE
+    // incasso successivo, quindi lasciarli lì riporterebbe a «review» anche il
+    // bonifico registrato dopo.
+    const MONEY_BACK_KEYS = ['refundedAt', 'refundedAmount', 'refundedFull', 'disputeStatus', 'disputeId', 'disputeAt', 'disputeClosedAt', 'paidAt', 'heldBy'];
+    function moneyBackFields(d) {
+        const history = {};
+        MONEY_BACK_KEYS.forEach(k => { if (d && d[k] != null && d[k] !== '') history[k] = d[k]; });
+        return { history, clear: del => Object.fromEntries(MONEY_BACK_KEYS.map(k => [k, del])) };
+    }
+
     // ↩ L'incasso registrato per errore: la rata torna da pagare (o «segnalata»
     // se l'inquilino l'aveva segnalata), data/canale/fonte/ricevuta puliti,
     // e quello che c'era resta in `incassoAnnullato`. L'attestazione emessa
@@ -18773,22 +18786,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!snap.exists) { toast('error', 'Rata non trovata'); return false; }
             const p = { ...snap.data(), id: paymentId };
             const st0 = window.BOOM_RENT.paymentState(p);
-            // «review» (13/10/2026): una rata pagata con carta poi RIMBORSATA per
-            // intero o con la contestazione PERSA non è più pagata — i soldi sono
-            // tornati indietro. Si riapre da qui (torna da pagare); i segni
-            // refunded*/dispute* e le sessioni Stripe restano sulla rata come
-            // storia (il webhook riconosce la sessione già registrata e non la
-            // ri-segna pagata). Con la contestazione ancora APERTA si aspetta
-            // l'esito: se BOOM la vince, l'incasso resta.
+            // «review» (13/10/2026): una rata pagata con carta (o SEPA) poi
+            // RIMBORSATA per intero o con la contestazione PERSA non è più
+            // pagata — i soldi sono tornati indietro. Si riapre da qui (torna
+            // da pagare). Le sessioni Stripe (stripeSessionId, checkoutSessionId)
+            // e il PaymentIntent RESTANO sulla rata: il webhook riconosce la
+            // sessione già registrata e non la ri-segna pagata. I segni
+            // refunded*/dispute* invece ESCONO dalla rata e vanno nella storia
+            // (incassoAnnullato.was.moneyBack): lasciati lì, il prossimo incasso
+            // (bonifico registrato, nuova carta, banca) tornerebbe «review» per
+            // un rimborso che riguardava QUELLO di prima. Con la contestazione
+            // ancora APERTA si aspetta l'esito: se BOOM la vince, l'incasso resta.
             const back = window.BOOM_RENT.moneyBack ? window.BOOM_RENT.moneyBack(p) : '';
             const reopenBack = st0 === 'review' && (back === 'refund' || String(p.disputeStatus || '').toLowerCase() === 'lost');
             if (st0 === 'review' && !reopenBack) { toast('info', 'Contestazione in corso', 'Aspetta l’esito su Stripe: se BOOM la vince, l’incasso resta. Si riapre la rata solo a contestazione persa o a rimborso totale.'); return false; }
             if (st0 !== 'paid' && !reopenBack) { toast('info', 'Niente da annullare', 'La rata non risulta pagata.'); return false; }
-            const automatic = !reopenBack && (!!(p.stripeSessionId || p.sddPiId || p.bankTxId) || (['stripe', 'sepa', 'bank'].includes(p.paidVia) && !p.paidRecordedBy));
+            // Automatico = l'ULTIMO incasso l'ha scritto la macchina (webhook,
+            // SEPA, banca). paidRecordedBy lo scrive solo «Registra incasso» (e
+            // la presa in carico): con lui l'incasso è dell'operatore anche se
+            // sulla rata restano gli id di un incasso automatico già annullato
+            // (la carta rimborsata e riaperta, un addebito SEPA fallito) — prima
+            // quegli id rendevano «automatico», e quindi non annullabile, un
+            // bonifico registrato a mano dopo la riapertura.
+            const automatic = !reopenBack && !p.paidRecordedBy && (!!(p.stripeSessionId || p.sddPiId || p.bankTxId) || ['stripe', 'sepa', 'bank'].includes(p.paidVia));
             if (automatic) { toast('warning', 'Incasso automatico', 'Carta, SEPA o banca: non si annulla da qui. Un rimborso o una contestazione passano da Stripe o dalla banca.'); return false; }
             const who = incassoParties(p);
+            const sepa = p.paidVia === 'sepa' || (!!p.sddPiId && p.paidVia !== 'stripe');
             const msg = (reopenBack
-                ? `Riapro ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}): il pagamento con carta è stato ${back === 'refund' ? 'rimborsato' : 'contestato e la contestazione è persa'}.\n\n`
+                ? `Riapro ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}): ${sepa ? 'l’addebito SEPA' : 'il pagamento con carta'} è stato ${back === 'refund' ? 'rimborsato' : 'contestato e la contestazione è persa'}.\n\n`
                 : `Annullo l’incasso di ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}${incassoDay(p.paidDate) ? ', accredito del ' + incassoDateIt(p.paidDate) : ''})?\n\n`)
                 + 'La rata torna da pagare. L’attestazione già emessa resta in archivio come ANNULLATA.'
                 + (who.property && who.property.ownerId ? '\nLa proprietaria riceve una correzione nel portale.' : '')
@@ -18813,8 +18838,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const rSnap = await tx.get(rRef);
                 const iRef = d.invoiceId ? db.collection('invoices').doc(d.invoiceId) : null;
                 const iSnap = iRef ? await tx.get(iRef) : null;
+                // Riapertura dopo un rimborso o una contestazione persa: i segni
+                // dei soldi tornati indietro, l'istante e il «tenuto da BOOM»
+                // del pagamento con carta passano nella storia (letti FRESCHI,
+                // dalla transazione) e lasciano la rata. Un addebito SEPA
+                // rimborsato tiene il suo sddPiId — il collettore non riaddebita
+                // da solo una rata che ha già un addebito — ma non è più «in
+                // corso»: sddStatus 'cancelled', e la rata torna pagabile a mano.
+                const backFields = reopenBack ? moneyBackFields(d) : {};
+                if (reopenBack) {
+                    was.moneyBack = backFields.history;
+                    if (d.sddPiId) was.sdd = { sddPiId: d.sddPiId, sddStatus: d.sddStatus || null };
+                    else delete was.sdd;
+                }
                 tx.update(ref, { status: 'pending', paidDate: del, paidVia: del, paidEvidence: del, paidNote: del, paidRecordedAt: del, paidRecordedBy: del,
                     receiptUrl: del, receiptDocId: del, invoiceId: del, invoiceNumber: del, tenantConfirmSentAt: del, tenantConfirmTo: del,
+                    ...(reopenBack ? backFields.clear(del) : {}),
+                    ...(reopenBack && d.sddPiId ? { sddStatus: 'cancelled' } : {}),
                     incassoAnnullato: { at, by, was } });
                 const rd = rSnap.exists ? rSnap.data() : null;
                 // Il PDF annullato si legge ancora come un'attestazione valida:
@@ -18830,6 +18870,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const local = (S.payments || []).find(x => x.id === paymentId);
             if (local) {
                 ['paidDate', 'paidVia', 'paidEvidence', 'paidNote', 'paidRecordedAt', 'paidRecordedBy', 'receiptUrl', 'receiptDocId', 'invoiceId', 'invoiceNumber', 'tenantConfirmSentAt', 'tenantConfirmTo'].forEach(k => { delete local[k]; });
+                if (reopenBack) { MONEY_BACK_KEYS.forEach(k => { delete local[k]; }); if (local.sddPiId) local.sddStatus = 'cancelled'; }
                 // Come il loader: in memoria una rata scaduta si chiama 'overdue'.
                 local.status = local.dueDate && String(local.dueDate) < incassoRomeDay() ? 'overdue' : 'pending';
                 local.incassoAnnullato = { at, by, was };
@@ -18842,7 +18883,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 try {
                     await createNotification(landlord.id, 'payment', '↩ Correzione incasso',
                         reopenBack
-                            ? `Il pagamento con carta di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} è stato ${back === 'refund' ? 'rimborsato' : 'contestato'}: la rata risulta di nuovo da pagare.`
+                            ? `${sepa ? 'L’addebito SEPA' : 'Il pagamento con carta'} di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} è stato ${back === 'refund' ? 'rimborsato' : 'contestato'}: la rata risulta di nuovo da pagare.`
                             : `L’incasso di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} era stato registrato per errore ed è stato annullato: la rata risulta di nuovo da pagare.`,
                         { paymentId, propertyId: who.property.id, skipEmail: true, skipOwnerCopy: true });
                 } catch (e) { console.warn('[undoIncasso] notifica', e); }

@@ -64,8 +64,10 @@
   // da "pagata": torna DA VERIFICARE (mai pagabile da sola, decide un umano).
   // Una contestazione vinta o chiusa senza seguito la lascia pagata; un
   // rimborso parziale (es. la sola commissione) pure. Vale SOLO su una rata
-  // ancora 'paid': se l'operatore la riapre (pending), i segni restano come
-  // storia e non la bloccano più.
+  // 'paid', e su QUALUNQUE incasso la porti a 'paid': per questo il portal,
+  // quando riapre la rata (↩ Riapri la rata, undoIncasso), toglie i segni
+  // dalla rata e li conserva in incassoAnnullato.was.moneyBack — lasciati lì,
+  // il bonifico o la nuova carta registrati dopo tornerebbero «review».
   var DISPUTE_LIVE = ['open', 'lost', 'needs_response', 'under_review', 'warning_needs_response', 'warning_under_review'];
   function moneyBack(payment) {
     var p = payment || {};
