@@ -557,6 +557,35 @@ function fixture() {
     eqj(await o.base.__adapter.proposals(['p11']), [], 'le proposte restano all\'operatore');
     assert.equal(o.log.reads.length, 0);
   });
+  await check('lacuna 1 · vista e portal chiedono insieme: UNA lettura; dalla memoria changed 0 (mai un giro di render); fresh rilegge', async () => {
+    const st = { contracts: [{ id: 'c7', propertyId: 'p7', status: 'active' }], payments: [{ id: 'n1', propertyId: 'p7', contractId: 'c7', status: 'pending', dueDate: '2099-01-05' }], maintenance: [], preAgreements: [] };
+    const a = track(makeCtx({ role: 'admin', state: { properties: fixture().properties, contracts: [], payments: [] }, store: st }));
+    a.run('var __renders = 0; renderPage = function () { __renders++; };');
+    a.S.page = 'palazzo';
+    a.window.BOOM_PALAZZO_UI.ui.key = PAL.buildingKeyOf(fixture().properties[0]);
+    a.run('palazzoEnsureBuilding()');
+    const fromView = a.base.__adapter.actions.loadBuilding(['p13', 'p7', 'p11']);
+    a.run('palazzoEnsureBuilding()');
+    const r = await fromView;
+    await new Promise(res => setImmediate(res));
+    const reads = () => a.log.reads.filter(x => x.filters && x.filters.length).length;
+    assert.equal(reads(), 5, 'quattro collezioni per immobile + le rate per contratto, una volta');
+    assert.equal(r.changed, 2);
+    assert.equal(a.run('__renders'), 1, 'ridisegna una volta, quando arriva');
+    const again = await a.base.__adapter.actions.loadBuilding(['p7', 'p11', 'p13']);
+    a.run('palazzoEnsureBuilding()');
+    await new Promise(res => setImmediate(res));
+    eqj([again.changed, again.cached, reads(), a.run('__renders')], [0, true, 5, 1]);
+    await a.run(`palazzoLoadBuilding(['p7', 'p11', 'p13'], { fresh: true })`);
+    assert.equal(reads(), 10);
+  });
+  await mutant('due letture dello stesso palazzo in volo', '            if (prev.promise) return prev.promise;\n', '', async code => {
+    const st = { contracts: [{ id: 'c7', propertyId: 'p7' }], payments: [], maintenance: [], preAgreements: [] };
+    const a = makeCtx({ role: 'admin', state: { properties: fixture().properties }, store: st, code });
+    const [one, two] = await Promise.all([a.run(`palazzoLoadBuilding(['p7'])`), a.run(`palazzoLoadBuilding(['p7'])`)]);
+    assert.equal(a.log.reads.length, 5);
+    eqj([one.contracts, two.contracts, two.changed], [1, 1, 1], 'chi arriva mentre è in volo riceve la STESSA lettura, non un vuoto');
+  });
   await check('63 · lacuna 1 · il Palazzo non legge più le «prime 150» proposte e l\'archivio troncato si segnala (sorgente)', () => {
     const palazzoCase = region("            case 'palazzo':", "            case 'my-properties':");
     assert.ok(!/preAgreements'\)\.limit\(150\)/.test(palazzoCase) && palazzoCase.includes('palazzoEnsureBuilding()'));

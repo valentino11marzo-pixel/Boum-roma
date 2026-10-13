@@ -1005,10 +1005,27 @@ Valentyne - BOOM Rome`
     // «libero» su un interno che le rate le ha. Qui contratti, rate (per
     // immobile E per contratto), manutenzioni e proposte degli interni del
     // palazzo si rileggono per id e si fondono in S.
-    async function palazzoLoadBuilding(propertyIds) {
-        if (!isAdmin()) return null;
-        const ids = [...new Set((propertyIds || []).filter(Boolean))];
-        if (!ids.length) return { contracts: 0, payments: 0, maintenance: 0, proposals: 0, changed: 0 };
+    // Una lettura sola per palazzo: la vista (all'apertura) e il portal
+    // (palazzoEnsureBuilding) possono chiederla insieme — chi arriva mentre è
+    // in volo riceve LA STESSA; nei 5 minuti dopo si risponde dalla memoria
+    // con changed: 0 (niente da ridisegnare: mai un giro di render infinito).
+    // { fresh: true } rilegge comunque.
+    function palazzoLoadBuilding(propertyIds, opts) {
+        if (!isAdmin()) return Promise.resolve(null);
+        const ids = [...new Set((propertyIds || []).filter(Boolean))].sort();
+        if (!ids.length) return Promise.resolve({ contracts: 0, payments: 0, maintenance: 0, proposals: 0, changed: 0 });
+        const key = ids.join('|'), runs = S._plzRuns = S._plzRuns || {};
+        const prev = runs[key];
+        if (prev && !(opts && opts.fresh)) {
+            if (prev.promise) return prev.promise;
+            if (Date.now() - prev.at < 5 * 60000) return Promise.resolve(Object.assign({}, prev.result, { changed: 0, cached: true }));
+        }
+        const promise = palazzoReadBuilding(ids);
+        runs[key] = { promise, at: Date.now() };
+        promise.then(r => { runs[key] = { at: Date.now(), result: r }; }, () => { delete runs[key]; });
+        return promise;
+    }
+    async function palazzoReadBuilding(ids) {
         const [contracts, payByProp, maint, proposals] = await Promise.all([
             palazzoReadIn('contracts', 'propertyId', ids, 30),
             palazzoReadIn('payments', 'propertyId', ids, 30),
@@ -1025,7 +1042,7 @@ Valentyne - BOOM Rome`
             + palazzoMerge('maintenance', maint) + palazzoMerge('preAgreements', proposals);
         // Si ricordano: un ascolto realtime (contratti 800, manutenzioni 600)
         // riscrive S intero e, ad archivio troncato, le farebbe sparire.
-        (S._plzRows = S._plzRows || {})[ids.slice().sort().join('|')] = { contracts, payments, maintenance: maint, proposals };
+        (S._plzRows = S._plzRows || {})[ids.join('|')] = { contracts, payments, maintenance: maint, proposals };
         if (changed && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
         return { contracts: contracts.length, payments: payments.length, maintenance: maint.length, proposals: proposals.length, changed };
     }
@@ -1052,20 +1069,20 @@ Valentyne - BOOM Rome`
         if (!key) return;
         const ids = (S.properties || []).filter(p => (window.BOOM_PALAZZO.buildingKeyOf(p) || 'x:senza-indirizzo') === key).map(p => p.id);
         if (!ids.length) return;
-        const loads = S._plzLoads = S._plzLoads || {};
-        const prev = loads[key];
-        if (prev && (prev.loading || Date.now() - prev.at < 5 * 60000)) return;
-        loads[key] = { loading: true, at: Date.now() };
+        const run = palazzoLoadBuilding(ids);
+        const k = ids.slice().sort().join('|');
+        // Dalla memoria (letta da poco) non c'è niente da seguire; una lettura
+        // in volo si segue UNA volta sola.
+        if (!(S._plzRuns && S._plzRuns[k] && S._plzRuns[k].promise === run) || S._plzFollow === run) return;
+        S._plzFollow = run;
         S.palazzoLoad = { key, state: 'loading', at: new Date().toISOString(), error: null };
-        palazzoLoadBuilding(ids).then(r => {
-            loads[key] = { loading: false, at: Date.now() };
+        run.then(r => {
             S.palazzoLoad = { key, state: 'ready', at: new Date().toISOString(), error: null, result: r };
             const a = document.activeElement;
             const typing = a && a.closest && a.closest('.plz') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
             const modal = document.querySelector('#modals .modal-overlay');
             if (r && r.changed && S.page === 'palazzo' && !typing && !modal) renderPage();
         }, err => {
-            loads[key] = { loading: false, at: Date.now() };
             S.palazzoLoad = { key, state: 'error', at: new Date().toISOString(), error: 'Non sono riuscito a rileggere i dati di questo palazzo: i numeri potrebbero essere incompleti.' };
             console.warn('[palazzo] lettura mirata', err && err.message);
         });
@@ -1074,7 +1091,7 @@ Valentyne - BOOM Rome`
     // ridisegnato. Ritorna true se è andato tutto bene.
     async function palazzoReload() {
         S.scopedLoadError = null;
-        if (S._plzLoads) S._plzLoads = {};
+        if (S._plzRuns) S._plzRuns = {};
         try { await loadDataFresh(false); }
         catch (e) { S.scopedLoadError = S.scopedLoadError || 'Caricamento non riuscito: riprova fra un attimo.'; }
         if (S.page === 'palazzo') renderPage();
