@@ -842,7 +842,9 @@ Valentyne - BOOM Rome`
             undoRecord: id => palazzoAdminOnly() && palazzoMissing(typeof undoIncasso === 'function' ? undoIncasso : null, 'Annulla incasso', id),
             applyOneri: (contractId, oneri) => palazzoAdminOnly() && palazzoMissing(typeof applyOneriFuture === 'function' ? applyOneriFuture : null, 'Oneri sulle rate future', contractId, oneri),
             setRent: (contractId, rent) => palazzoAdminOnly() && palazzoMissing(typeof applyRentFuture === 'function' ? applyRentFuture : null, 'Canone sulle rate future', contractId, rent),
-            terminate: id => palazzoAdminOnly() && palazzoMissing(typeof terminateContract === 'function' ? terminateContract : null, 'Chiudi contratto', id),
+            // Chiudi contratto: dal Palazzo arriva solo l'id, quindi si apre il
+            // modulo (data, motivo, deposito), come ⛔ Termina della scheda.
+            terminate: id => palazzoAdminOnly() && palazzoTerminate(id),
             logRataSent: (paymentId, meta) => palazzoLogSent(paymentId, meta),
             setRendiconto: (ownerId, mode) => palazzoSetRendiconto(ownerId, mode),
             saveRataCard: (propertyIds, cfg) => palazzoSaveRataCard(propertyIds, cfg),
@@ -946,6 +948,17 @@ Valentyne - BOOM Rome`
         toast('warning', label + ': non ancora disponibile', 'Questa versione del portale non ha ancora questa funzione.');
         return false;
     }
+    // terminateContract(e, id) è il GESTORE del form: chiamarlo con un id
+    // faceva e.preventDefault() su una stringa (TypeError, nessun toast).
+    // Si apre il modulo, che dice cosa succede alle rate prima di
+    // confermare — lo stesso che fa terminateContract(id) nel filone soldi.
+    function palazzoTerminate(id) {
+        const c = (S.contracts || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Contratto non trovato'); return false; }
+        if (c.status === 'terminated') { toast('info', 'Contratto già chiuso', c.terminatedAt ? 'Chiuso il ' + fmtDate(c.terminatedAt) + '.' : ''); return false; }
+        openModal('terminateContract', c);
+        return true;
+    }
     function palazzoCompany() { return { phone: '+393313251961', wa: '393313251961', email: 'valentino@boom-rome.com' }; }
     // Il testo già pronto per BOOM: palazzo e interno, così chi risponde sa
     // subito di cosa si parla.
@@ -965,8 +978,12 @@ Valentyne - BOOM Rome`
             window.location.href = 'mailto:' + co.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
             return true;
         }
-        const w = window.open('https://wa.me/' + co.wa + '?text=' + encodeURIComponent(text), '_blank', 'noopener');
-        if (!w) toast('info', 'Scrivi a BOOM', 'WhatsApp ' + co.phone + ' · email ' + co.email);
+        // Senza 'noopener' fra le opzioni: con quello window.open restituisce
+        // SEMPRE null (specifica HTML) e il ripiego qui sotto scattava a ogni
+        // tocco. L'opener si stacca a mano; null resta il popup bloccato.
+        const w = window.open('https://wa.me/' + co.wa + '?text=' + encodeURIComponent(text), '_blank');
+        if (w) { try { w.opener = null; } catch (_) {} }
+        else toast('info', 'Scrivi a BOOM', 'WhatsApp ' + co.phone + ' · email ' + co.email);
         return true;
     }
 
@@ -1315,6 +1332,14 @@ Valentyne - BOOM Rome`
         if (!isAdmin()) { toast('info', 'Lo fa BOOM', 'La scansione del contratto la carica l’operatore.'); return null; }
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) { toast('error', 'Contratto non trovato'); return null; }
+        // Solo dove la scansione È il documento (firmato su carta, o il
+        // segnaposto «da caricare»): su un contratto digitale nessuno la
+        // leggerebbe — il PDF resta il generato/firmato — e il caricamento
+        // sembrerebbe riuscito per niente.
+        if (!contractIsPaper(c) && !contractIsPlaceholder(c)) {
+            toast('info', 'Contratto digitale', 'Questo contratto si firma in digitale: il suo PDF è quello del modello BOOM, la scansione non serve.');
+            return null;
+        }
         if (!file) return null;
         const MAX = 15 * 1024 * 1024;
         if (file.size > MAX) { toast('error', 'File troppo grande', 'Massimo 15 MB: comprimi la scansione o dividila.'); return null; }
@@ -1329,7 +1354,8 @@ Valentyne - BOOM Rome`
             await db.collection('contracts').doc(contractId).update(patch);
             Object.assign(c, patch);
             logActivity('contract_paper_uploaded', 'contract', { contractId, size: file.size });
-            toast('success', 'Contratto firmato caricato', 'La scansione è il PDF del contratto, anche per la proprietaria.');
+            toast('success', 'Contratto firmato caricato', 'La scansione è il PDF del contratto, anche per la proprietaria.'
+                + (contractIsPlaceholder(c) ? ' Canone e date restano da completare dalla tabella del Palazzo.' : ''));
             if (S.page === 'palazzo') renderPage();
             return url;
         } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return null; }
@@ -3162,7 +3188,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const age = Date.now() - timestamp;
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
+                    // La proprietaria non legge l'Inbox (note e analisi
+                    // dell'operatore): conversazioni rimaste in una cache di
+                    // prima non tornano in memoria, e la cache si riscrive
+                    // subito senza — senza aspettare un carico che può fallire.
+                    const dropInbox = role === 'landlord' && Array.isArray(data && data.conversations) && data.conversations.length;
+                    if (role === 'landlord' && data) { data.conversations = []; data.messages = []; }
                     Object.assign(S, data);
+                    if (dropInbox) cacheData();
                     invalidateRentSnapshot();
                     window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
@@ -16066,7 +16099,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (isLandlord()) {
             const co = palazzoCompany();
             return [
-                { icon: '🏛️', title: 'Benvenuta' + (name && name !== 'there' ? ', ' + esc(name) : '') + '!', text: 'Qui c’è <strong>il suo palazzo</strong>, interno per interno: ogni mese vede chi è dentro, chi ha pagato e chi no. Toccando un interno trova l’inquilino con il telefono, la scadenza del contratto e i pagamenti.', btn: 'Avanti' },
+                // Il ruolo landlord non è solo la proprietaria del Palazzo:
+                // un saluto che non presume il genere.
+                { icon: '🏛️', title: 'Buongiorno' + (name && name !== 'there' ? ', ' + esc(name) : '') + '!', text: 'Qui c’è <strong>il suo palazzo</strong>, interno per interno: ogni mese vede chi è dentro, chi ha pagato e chi no. Toccando un interno trova l’inquilino con il telefono, la scadenza del contratto e i pagamenti.', btn: 'Avanti' },
                 { icon: '💬', title: 'BOOM pensa al resto', text: 'Incassi, solleciti, guasti e contratti li segue BOOM. Per qualunque domanda: WhatsApp <strong>' + esc(co.phone) + '</strong> o <strong>' + esc(co.email) + '</strong>.', btn: 'Apri il Palazzo' }
             ];
         }
@@ -19388,7 +19423,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${isPaperC || isPlaceholderC ? `<div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
                     <div style="font-weight:600;margin-bottom:6px">${isPlaceholderC ? '📄 Contratto non ancora in archivio' : '🖋 Firmato su carta'}</div>
                     <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5">${isPlaceholderC
-                        ? 'L’interno risulta occupato ma il contratto non è caricato: completa la riga dalla tabella del Palazzo (canone e date) o carica la scansione firmata. Niente da firmare in digitale.'
+                        ? (c.paperPdfUrl
+                            ? `La scansione firmata è allegata: <a href="${esc(c.paperPdfUrl)}" target="_blank" rel="noopener">Apri la scansione</a>. Canone e date non sono ancora in archivio: completa la riga dalla tabella del Palazzo. Niente da firmare in digitale.`
+                            : 'L’interno risulta occupato ma il contratto non è caricato: completa la riga dalla tabella del Palazzo (canone e date) o carica la scansione firmata. Niente da firmare in digitale.')
                         : 'Le parti hanno firmato il documento cartaceo: nessuna firma digitale da raccogliere.' + (c.paperPdfUrl ? ` <a href="${esc(c.paperPdfUrl)}" target="_blank" rel="noopener">Apri la scansione</a>` : ' La scansione si allega dal Palazzo.')}</div>
                 </div>` : `<div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -19489,7 +19526,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${isPaperC || isPlaceholderC ? `<label class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600;cursor:pointer" title="La scansione del contratto firmato su carta (PDF, fino a 15 MB): diventa il PDF del contratto, anche per la proprietaria">📎 ${c.paperPdfUrl ? 'Sostituisci la scansione' : 'Allega contratto firmato'}<input type="file" accept="application/pdf,.pdf" hidden onchange="palazzoUploadPaper('${c.id}', this.files && this.files[0]).then(u => { if (u) { closeModal(); viewContract('${c.id}'); } })"></label>` : ''}
                 ${isPlaceholderC ? '' : `<button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>`}
                 ${contractNotSignable(c) ? '' : `<button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>`}
-                ${isPlaceholderC ? '' : `<button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
+                ${isPlaceholderC && !c.paperPdfUrl ? '' : `<button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>`}
                 ${isPaperC || isPlaceholderC ? '' : `<button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>`}
                 ${isPlaceholderC ? '' : `<button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Fascicolo Fiscale: scheda di calcolo canone (Allegato 2/B ARPE) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
@@ -22208,9 +22245,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
             const contract = snapshot.data();
             // Firmato su carta: il documento è la SCANSIONE (paperPdfUrl),
-            // poi l'eventuale copia firmata/generata. Un segnaposto non ha
-            // documento: lo si dice, senza proporre di rigenerare il modello.
-            const paper = contract.signatureStatus === 'paper' && typeof contract.paperPdfUrl === 'string' && contract.paperPdfUrl ? contract.paperPdfUrl : '';
+            // poi l'eventuale copia firmata/generata. Anche il segnaposto
+            // («da caricare») può avere la scansione allegata dalla scheda:
+            // allora È il suo PDF (prima rispondeva «non ancora in archivio» a
+            // scansione già caricata). Senza scansione lo si dice, senza
+            // proporre di rigenerare il modello.
+            const paper = (contract.signatureStatus === 'paper' || contract.contractMissing === true)
+                && typeof contract.paperPdfUrl === 'string' && contract.paperPdfUrl ? contract.paperPdfUrl : '';
             if (!paper && contract.contractMissing === true) {
                 toast('info', isAdmin() ? 'Contratto non ancora in archivio: completalo dalla tabella del Palazzo o allega la scansione firmata.' : 'Il contratto non è ancora in archivio: BOOM lo sta caricando.');
                 return null;
@@ -30334,7 +30375,7 @@ IBAN: ${l.iban || '-'}`;
             // (spunta accesa), la proposta nel console (spunta spenta: è un
             // link che parte al cliente), il contratto saltato quando il deal
             // è già una proposta del console (nasce DA quella, non da qui).
-            create: { lead: true, preagreement: false }, pa: null, skipContract: false,
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false, skipReason: null,
             // «Riguarda» (22/09): l'immobile e le parti DICHIARATI dall'operatore
             // prima della lettura — l'aggancio è certo (per id, qui) e il modello
             // riceve nome e indirizzo come fatti; ciò che legge diventa una
@@ -30816,7 +30857,7 @@ IBAN: ${l.iban || '-'}`;
             <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">${clash.contractMissing === true
                 ? 'C’è il contratto <b>«da caricare»</b> della presa in carico del Palazzo: un secondo contratto qui accanto resterebbe in sovrapposizione e farebbe nascere rate dei mesi prima di BOOM. Completalo dalla <b>tabella del Palazzo</b> (reincolla la riga con canone e date) o allega la scansione firmata dalla scheda contratto.'
                 : 'Un contratto <b>attivo</b> copre già questo periodo' + (clash.tenantName ? ' (' + esc(clash.tenantName) + ')' : '') + ': chiudi prima il vecchio contratto, oppure non creare il contratto da qui.'}
-                <div style="margin-top:8px"><label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;color:var(--text)"><input type="checkbox" onchange="_innesto.skipContract=this.checked;renderPage()"> non creare il contratto da qui (aggiorna solo persone e immobile)</label></div></div>
+                <div style="margin-top:8px"><label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;color:var(--text)"><input type="checkbox" onchange="_innesto.skipContract=this.checked;_innesto.skipReason=this.checked?'clash':null;renderPage()"> non creare il contratto da qui (aggiorna solo persone e immobile)</label></div></div>
         </div>` : ''}
         ${contractLegs.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
             <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ Contratto NON creabile</div>
@@ -31062,7 +31103,7 @@ IBAN: ${l.iban || '-'}`;
         const state = _innesto, key = innestoPaKey(p);
         if (!key || (state.pa && state.pa.key === key)) return;
         const job = { key, loading: true, found: null, candidates: [], error: '' };
-        state.pa = job; state.skipContract = false;
+        state.pa = job; state.skipContract = false; state.skipReason = null;
         try {
             const exactRef = key.indexOf('email:') !== 0;
             const snap = await db.collection('preAgreements').where(exactRef ? 'ref' : 'tenant.email', '==', exactRef ? key : key.slice(6)).limit(exactRef ? 2 : 5).get();
@@ -31074,6 +31115,7 @@ IBAN: ${l.iban || '-'}`;
             const found = exactRef && candidates.length === 1 ? candidates[0] : null;
             Object.assign(job, { loading: false, found, candidates: found ? [] : candidates });
             if (found) state.skipContract = true;
+            state.skipReason = found ? 'pa' : null;
         } catch (e) {
             if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
             Object.assign(job, { loading: false, error: (e && e.message) || 'ricerca non riuscita' });
@@ -31097,6 +31139,7 @@ IBAN: ${l.iban || '-'}`;
         if (id && !found) return;
         _innesto.pa = Object.assign({}, lookup, { found, candidates: [] });
         _innesto.skipContract = !!found;
+        _innesto.skipReason = found ? 'pa' : null;
         renderPage();
     }
     function innestoLeadDup(ld) {
@@ -31146,7 +31189,7 @@ IBAN: ${l.iban || '-'}`;
                 : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">La proposta esiste (${esc(st)}). Il contratto si crea <b>dalla proposta</b> — con identità, documenti caricati, cadenza e mandato che porta con sé — non da qui.</div>
                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
                        <button class="btn btn-sm" type="button" onclick="innestoConvertPa('${esc(found.id)}')">→ Contratto dalla proposta</button>
-                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;renderPage()"> non creare il contratto da qui</label>
+                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;_innesto.skipReason=this.checked?'pa':null;renderPage()"> non creare il contratto da qui</label>
                    </div>`;
         } else {
             head = `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.preagreement=this.checked;renderPage()"> crea la proposta nel console</label>`;
@@ -31164,15 +31207,26 @@ IBAN: ${l.iban || '-'}`;
     }
     function innestoSkippedContractCard(p) {
         const found = _innesto.pa && _innesto.pa.found;
+        // Il PERCHÉ il contratto non nasce da qui decide le parole: la
+        // proposta nel console, oppure (skipReason 'clash') il contratto
+        // già vivo o «da caricare» sull'interno. Prima, senza proposta,
+        // la card parlava di una proposta che non c'era e la scelta non si
+        // poteva più togliere.
+        const undo = label => ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;_innesto.skipReason=null;renderPage()">' + label + '</a>';
+        const text = found && found.contractId
+            ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
+            : _innesto.skipReason === 'clash'
+            ? 'Contratto non creato: l’interno ha già un contratto (vivo o «da caricare»). Completalo dalla <b>tabella del Palazzo</b>, oppure chiudi prima il vecchio contratto. Le persone e l’immobile letti si agganciano e si aggiornano.' + undo('Annulla la scelta')
+            : found
+            ? 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.' + undo('Crealo comunque da qui')
+            : 'Hai scelto di non creare il contratto da qui: le persone e l’immobile letti si agganciano e si aggiornano.' + undo('Crealo da qui');
         return `
             <div class="card" style="margin-bottom:14px;border-style:dashed">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                     <strong style="font-size:14px">📋 Contratto</strong>
                     <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)">non creato da qui</span>
                 </div>
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${found && found.contractId
-                    ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
-                    : 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.'}${found && !found.contractId ? ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;renderPage()">Crealo comunque da qui</a>' : ''}</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${text}</div>
             </div>`;
     }
     async function innestoConvertPa(paId, opts) {
@@ -31350,7 +31404,7 @@ IBAN: ${l.iban || '-'}`;
         const t = innestoTarget(section); if (!t) return;
         t[key] = INNESTO_NUMERIC.indexOf(key) >= 0 ? (value === '' ? null : Number(value)) : value;
         if (_innesto.pa && _innesto.pa.key !== innestoPaKey(_innesto.proposal)) {
-            _innesto.pa = null; _innesto.skipContract = false;
+            _innesto.pa = null; _innesto.skipContract = false; _innesto.skipReason = null;
         }
         if (section === 'contract' && key === 'type' && value === 'studenti' && !t.studenti) t.studenti = { corsoStudi: '', universita: '', universitaIndirizzo: '', tipoIscrizione: '', annoAccademico: '' };
         // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe

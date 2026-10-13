@@ -24,6 +24,10 @@
 //  59  sessione scaduta: si esce una volta, senza domande, e si torna lì
 //  63  le proposte del palazzo lette mirate, non le «prime 150»
 //  lacune 0 (email da un non-admin), 1 (letture mirate), 7 (Innesto), 16 (scansione)
+// Seconda revisione: la scansione sul segnaposto si apre davvero, la card
+// dell'Innesto dice il perché giusto, Chiudi contratto apre il modulo,
+// «Scrivi a BOOM» non mostra il ripiego a scheda aperta, il saluto neutro,
+// la cache della proprietaria senza l'Inbox.
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
@@ -62,7 +66,7 @@ const NAMES = ['isAdmin', 'isLandlord', 'isTenant', 'contractIsPaper', 'contract
   'regenerateContractPDF', 'openShareHub', 'readContractPDF', 'settingsPage', 'sendMyPasswordLink', '_getOnboardingSteps', 'getModal', 'updateContract',
   'inboxLogMessage', 'inboxHomieBanner', 'commercialistaLocatore', 'commercialistaProps', 'commercialistaLandlordLite', 'fiscalScadenzarioCard',
   'burocraziaOutOfJourney', 'burocraziaPage', 'renderContractRow', 'myPaymentsPage', 'myDocumentsPage', 'boomEmailDenied', 'sendBoomEmail',
-  'innestoPools', 'innestoLinkFor', 'innestoApply',
+  'innestoPools', 'innestoLinkFor', 'innestoApply', 'innestoSkippedContractCard',
   'palazzoLinkOwner', 'palazzoImport', 'palazzoSaveLook', 'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper',
   'palazzoSendPasswordLink'];
 // Il blocco dell'adattatore del Palazzo e le sue funzioni di lettura (la
@@ -197,9 +201,9 @@ async function check(name, fn) {
 }
 // Mutazione: rimettere il difetto (sostituzione nel sorgente) deve far cadere
 // la stessa verifica.
-async function mutant(name, from, to, fn) {
-  assert.ok(BASE_CODE.includes(from), 'mutazione senza bersaglio: ' + name);
-  const code = BASE_CODE.split(from).join(to);
+async function mutant(name, from, to, fn, base = BASE_CODE) {
+  assert.ok(base.includes(from), 'mutazione senza bersaglio: ' + name);
+  const code = base.split(from).join(to);
   let caught = false;
   try { await fn(code); } catch (_) { caught = true; }
   assert.ok(caught, 'la mutazione «' + name + '» non è stata presa');
@@ -253,6 +257,18 @@ function fixture() {
     const html = h.el('modals').innerHTML;
     assert.ok(html.includes('Contratto da caricare') && html.includes('non in archivio'), html.slice(0, 400));
     assert.ok(!html.includes('openFirmaOra(') && !html.includes('downloadContractPDF(') && !/undefined/.test(html.replace(/onclick="[^"]*"/g, '')));
+  });
+  await check('lacuna 16 · segnaposto CON la scansione allegata: la scheda la apre (link, Anteprima, PDF), ancora niente Firma ora', () => {
+    const G = fixture();
+    const url = 'https://firebasestorage.googleapis.com/v0/b/demo/o/contracts%2Fc11%2Fcontratto-carta-1.pdf?alt=media&token=t';
+    G.contracts.find(c => c.id === 'c11').paperPdfUrl = url;
+    const g = track(makeCtx({ role: 'admin', state: G }));
+    g.run(`viewContract('c11')`);
+    const html = g.el('modals').innerHTML;
+    assert.ok(html.includes(`href="${url.replace(/&/g, '&amp;')}"`) && html.includes('Apri la scansione'), 'link alla scansione');
+    assert.ok(html.includes(`previewContractPDF('c11')`) && html.includes(`downloadContractPDF('c11')`), 'Anteprima e PDF');
+    assert.ok(html.includes('Sostituisci la scansione') && html.includes('tabella del Palazzo'));
+    assert.ok(!html.includes('openFirmaOra(') && !html.includes('regenerateContractPDF('));
   });
   await check('8 · il contratto digitale non firmato conserva Firma ora', () => {
     h.run(`viewContract('c13')`);
@@ -380,6 +396,22 @@ function fixture() {
     assert.ok(o.window.location.href.startsWith('mailto:valentino@boom-rome.com?subject=') && decodeURIComponent(o.window.location.href).includes('int. 7'));
     eqj(o.run('palazzoCompany()'), { phone: '+393313251961', wa: '393313251961', email: 'valentino@boom-rome.com' });
   });
+  // window.open come lo vuole la specifica HTML: con 'noopener' fra le opzioni
+  // restituisce SEMPRE null, anche a scheda aperta.
+  const writesBoom = async code => {
+    const w = track(makeCtx({ role: 'landlord', profile: OWNER, state: fixture(), code }));
+    let tab = null;
+    w.window.open = (u, t, f) => { w.log.open.push([u, t, f]); return /noopener/.test(String(f || '')) ? null : (tab = { opener: 'portal' }); };
+    w.run(`palazzoWriteBoom('p7')`);
+    assert.equal(w.log.toast.length, 0, 'scheda aperta: nessun ripiego');
+    assert.ok(tab && tab.opener === null, 'l\'opener si stacca a mano');
+    w.window.open = (...x) => { w.log.open.push(x); return null; };
+    w.run(`palazzoWriteBoom('p7')`);
+    assert.equal(w.log.toast.at(-1)[1], 'Scrivi a BOOM', 'popup bloccato: numero ed email in chiaro');
+    assert.match(w.log.toast.at(-1)[2], /393313251961|\+393313251961/);
+  };
+  await check('27 · «Scrivi a BOOM»: a scheda aperta nessun ripiego, a popup bloccato numero ed email', () => writesBoom());
+  await mutant('window.open con \'noopener\' (null anche a scheda aperta)', "encodeURIComponent(text), '_blank');", "encodeURIComponent(text), '_blank', 'noopener');", writesBoom);
   await check('27 · per l\'operatore «Scrivi a BOOM» resta l\'Inbox', () => {
     const a = track(makeCtx({ role: 'admin', state: fixture() }));
     a.run('buildNav = function () {}; renderPage = function () {};'); // il menu dell'operatore non è qui in prova
@@ -453,12 +485,33 @@ function fixture() {
     eqj(a.log.toast.map(t => t[1]), ['Annulla incasso: non ancora disponibile', 'Oneri sulle rate future: non ancora disponibile', 'Canone sulle rate future: non ancora disponibile']);
     const got = [];
     const b = makeCtx({ role: 'admin', state: fixture(), defs: { openRecordIncasso: id => got.push(['record', id]), undoIncasso: id => got.push(['undo', id]),
-      applyOneriFuture: (c, n) => got.push(['oneri', c, n]), applyRentFuture: (c, n) => got.push(['rent', c, n]), terminateContract: id => got.push(['term', id]) } });
+      applyOneriFuture: (c, n) => got.push(['oneri', c, n]), applyRentFuture: (c, n) => got.push(['rent', c, n]) } });
     const B = b.base.__adapter.actions;
-    await B.record('pay7-06'); await B.undoRecord('pay7-07'); await B.applyOneri('c7', 120); await B.setRent('c7', 1600); await B.terminate('c7');
-    eqj(got, [['record', 'pay7-06'], ['undo', 'pay7-07'], ['oneri', 'c7', 120], ['rent', 'c7', 1600], ['term', 'c7']]);
+    await B.record('pay7-06'); await B.undoRecord('pay7-07'); await B.applyOneri('c7', 120); await B.setRent('c7', 1600);
+    eqj(got, [['record', 'pay7-06'], ['undo', 'pay7-07'], ['oneri', 'c7', 120], ['rent', 'c7', 1600]]);
     assert.ok(!b.log.stub.some(s => s[0] === 'confirmRentPayment'), 'col modale non si passa più dal percorso vecchio');
   });
+  // Chiudi contratto: dal Palazzo arriva un id. terminateContract(e, id) di
+  // questo ramo è il gestore del FORM (e.preventDefault()): chiamato con un id
+  // lanciava TypeError senza un toast. Qui il gestore ha quella forma.
+  const formHandler = { terminateContract: async (e, id) => { e.preventDefault(); return id; } };
+  const terminates = async code => {
+    const a = makeCtx({ role: 'admin', state: fixture(), defs: formHandler, code });
+    const A = a.base.__adapter.actions;
+    assert.equal(await A.terminate('c7'), true);
+    const m = a.log.stub.find(s => s[0] === 'openModal');
+    assert.ok(m && m[1][0] === 'terminateContract' && m[1][1].id === 'c7', 'si apre il modulo col contratto');
+    a.log.stub.length = 0;
+    assert.equal(await A.terminate('nessuno'), false);
+    assert.equal(a.log.toast.at(-1)[1], 'Contratto non trovato');
+    a.S.contracts.find(c => c.id === 'c7').status = 'terminated';
+    assert.equal(await A.terminate('c7'), false);
+    assert.equal(a.log.toast.at(-1)[1], 'Contratto già chiuso');
+    assert.ok(!a.log.stub.some(s => s[0] === 'openModal'));
+  };
+  await check('adattatore · Chiudi contratto dal Palazzo apre il modulo del contratto (mai il gestore del form con un id)', () => terminates());
+  await mutant('terminate che chiama il gestore del form con l\'id', "            terminate: id => palazzoAdminOnly() && palazzoTerminate(id),",
+    "            terminate: id => palazzoAdminOnly() && palazzoMissing(typeof terminateContract === 'function' ? terminateContract : null, 'Chiudi contratto', id),", terminates);
   await check('adattatore · tutte le chiavi del contratto fra i filoni (§2) ci sono', () => {
     const a = makeCtx({ role: 'admin', state: fixture() });
     const ad = a.base.__adapter;
@@ -672,6 +725,31 @@ function fixture() {
     assert.equal(await o.run(`readContractPDF('c11')`), null);
     assert.match(o.log.toast.at(-1)[1], /non è ancora in archivio/);
   });
+  const SCAN = 'https://firebasestorage.googleapis.com/v0/b/demo/o/contracts%2Fc11%2Fcontratto-carta-1.pdf?alt=media&token=t';
+  const scanStore = () => ({ contracts: [{ id: 'c11', propertyId: 'p11', contractMissing: true, paperPdfUrl: SCAN }, { id: 'c12', propertyId: 'p11', contractMissing: true }] });
+  const readsScan = async code => {
+    for (const role of ['admin', 'landlord']) {
+      const h = makeCtx({ role, profile: role === 'landlord' ? OWNER : {}, state: fixture(), store: scanStore(), code });
+      const r = await h.run(`readContractPDF('c11')`);
+      assert.ok(r && r.url === SCAN && r.signed === true, role + ': la scansione è il PDF del segnaposto');
+      assert.equal(await h.run(`readContractPDF('c12')`), null, role + ': senza scansione resta «non in archivio»');
+      assert.match(h.log.toast.at(-1)[1], /non (è )?ancora in archivio/);
+    }
+  };
+  await check('lacuna 16 · segnaposto con la scansione: readContractPDF (e quindi il PDF del Palazzo) la dà all\'operatore e alla proprietaria', () => readsScan());
+  await mutant('la scansione letta solo sui contratti «paper»', "const paper = (contract.signatureStatus === 'paper' || contract.contractMissing === true)",
+    "const paper = (contract.signatureStatus === 'paper')", readsScan);
+  await check('lacuna 16 · la scansione si carica sul segnaposto (lo si dice: canone e date restano da fare), mai su un contratto digitale', async () => {
+    const a = track(makeCtx({ role: 'admin', state: fixture() }));
+    a.ctx.__file = pdfFile(PDF);
+    const url = await a.run(`palazzoUploadPaper('c11', __file)`);
+    assert.ok(url && a.log.writes.some(w => w[1] === 'contracts/c11' && w[2].paperPdfUrl === url));
+    assert.match(a.log.toast.at(-1)[2], /Canone e date restano da completare/);
+    a.log.storage.length = 0; a.log.writes.length = 0;
+    assert.equal(await a.run(`palazzoUploadPaper('c13', __file)`), null);
+    assert.equal(a.log.toast.at(-1)[1], 'Contratto digitale');
+    assert.equal(a.log.storage.length + a.log.writes.length, 0, 'su un contratto digitale niente Storage né scritture');
+  });
   await check('30 · il link per la password: in italiano, riporta al Palazzo; con dominio di ritorno rifiutato parte comunque', async () => {
     const a = track(makeCtx({ role: 'admin', state: fixture() }));
     assert.equal(await a.run(`palazzoSendPasswordLink('owner-demo')`), true);
@@ -738,7 +816,8 @@ function fixture() {
     const o = track(makeCtx({ role: 'landlord', profile: OWNER, state: fixture() }));
     const steps = o.run(`_getOnboardingSteps(null, S.properties[0])`);
     assert.equal(steps.length, 2);
-    assert.ok(steps[0].title.startsWith('Benvenuta') && steps[1].btn === 'Apri il Palazzo');
+    assert.ok(steps[0].title.startsWith('Buongiorno, Chiara') && steps[1].btn === 'Apri il Palazzo', steps[0].title);
+    assert.ok(!/Benvenut[ao]\b/.test(steps[0].title), 'un saluto che non presume il genere');
     assert.ok(!/Dashboard|Track rent|Welcome|Get Started/.test(JSON.stringify(steps)));
   });
   await check('31 · Impostazioni si apre senza Notification (iPhone fuori PWA); alla proprietaria Cambia password e Scrivi a BOOM, niente Firebase', () => {
@@ -784,6 +863,37 @@ function fixture() {
     eqj(msgs.map(m => [m.direction, m.contactUid, m.assignedLandlordId]), [['note', null, null], ['out', 'owner-demo', 'owner-demo']]);
     const o = track(makeCtx({ role: 'landlord', profile: OWNER, state: fixture() }));
     assert.equal(o.run(`inboxHomieBanner({ aiSummary: 'Riassunto', suggestedReply: 'Bozza', needsReply: true })`), '');
+  });
+  // La cache del dispositivo (boom_data_cache) scritta da una versione che
+  // leggeva le conversazioni della proprietaria: al boot non tornano in
+  // memoria e la cache si riscrive subito senza, anche se il carico fresco
+  // poi fallisce. L'operatore le tiene.
+  const CACHE_CODE = BASE_CODE + '\n' + extract('loadData') + '\n' + extract('cacheData');
+  const bootFromCache = (role, code) => {
+    const profile = role === 'landlord' ? OWNER : { id: 'admin', role: 'admin' };
+    const h = makeCtx({ role, profile, state: fixture(), code: code || CACHE_CODE, defs: { requestIdleCallback: fn => fn() } });
+    h.local.set('boom_data_cache', JSON.stringify({ timestamp: Date.now() - 60000, uid: profile.id, role,
+      data: { properties: fixture().properties, conversations: [{ id: 'conv1', aiSummary: 'Analisi interna', suggestedReply: 'Bozza' }] } }));
+    return h.run('loadData()').then(() => h);
+  };
+  const dropsInbox = async code => {
+    const o = await bootFromCache('landlord', code);
+    eqj(o.S.conversations, [], 'in memoria niente Inbox');
+    const saved = JSON.parse(o.local.get('boom_data_cache'));
+    eqj(saved.data.conversations, [], 'la cache si riscrive senza');
+    assert.equal(saved.data.properties.length, 4, 'il resto della cache resta');
+  };
+  await check('58 · cache di prima: le conversazioni non tornano alla proprietaria e la cache si riscrive senza; l\'operatore le tiene', async () => {
+    await dropsInbox();
+    const a = await bootFromCache('admin');
+    assert.equal(a.S.conversations.length, 1);
+    assert.equal(JSON.parse(a.local.get('boom_data_cache')).data.conversations.length, 1);
+  });
+  await mutant('cache della proprietaria con l\'Inbox di prima', "if (role === 'landlord' && data) { data.conversations = []; data.messages = []; }", '', dropsInbox, CACHE_CODE);
+  await check('58 · il carico fresco della proprietaria svuota comunque le conversazioni lette da una cache', async () => {
+    const o = track(makeCtx({ role: 'landlord', profile: OWNER, store: { properties: fixture().properties.slice(0, 3) }, state: { conversations: [{ id: 'conv1' }], messages: [{ id: 'm1' }] } }));
+    await o.run('loadDataScoped(true, 0)');
+    eqj([o.S.conversations, o.S.messages], [[], []]);
   });
   await check('59 · sessione scaduta: si esce SENZA domanda, una volta sola, e il login riporta alla pagina dov\'eri', async () => {
     const o = track(makeCtx({ role: 'landlord', profile: OWNER, state: Object.assign(fixture(), { page: 'palazzo', lastActivity: Date.now() - 31 * 60 * 1000 }) }));
@@ -843,6 +953,27 @@ function fixture() {
       try { await a.run('innestoApply()'); } catch (_) { /* senza guardia si prosegue verso le scritture */ }
       assert.equal(a.log.toast.at(-1)[1], 'L’interno ha già un contratto');
     });
+  // La card «Contratto non creato da qui» dice il PERCHÉ vero, e la scelta si
+  // può sempre togliere.
+  const skippedCards = code => {
+    const a = makeCtx({ role: 'admin', state: fixture(), code });
+    const card = st => { a.ctx._innesto = Object.assign({ skipContract: true, pa: null, skipReason: null }, st); return a.run('innestoSkippedContractCard({})'); };
+    const undo = '_innesto.skipContract=false;_innesto.skipReason=null;renderPage()';
+    const clash = card({ skipReason: 'clash' });
+    assert.ok(/già un contratto/.test(clash) && /tabella del Palazzo/.test(clash) && !/proposta nel console/.test(clash), 'il contratto vivo, non una proposta che non c\'è');
+    assert.ok(clash.includes(undo) && clash.includes('Annulla la scelta'), 'la scelta si toglie');
+    const pa = card({ skipReason: 'pa', pa: { found: { id: 'pa1', status: 'accepted' } } });
+    assert.ok(/proposta nel console/.test(pa) && pa.includes('Crealo comunque da qui') && pa.includes(undo));
+    const done = card({ skipReason: 'pa', pa: { found: { id: 'pa1', contractId: 'cZ' } } });
+    assert.ok(/esiste già/.test(done) && !done.includes(undo), 'contratto della proposta già nato: niente «crealo»');
+    const bare = card({});
+    assert.ok(!/proposta nel console/.test(bare) && bare.includes(undo), 'senza motivo noto: mai una proposta inventata');
+  };
+  await check('lacuna 7 · Innesto: la card del contratto saltato per il contratto già vivo lo dice, e la spunta si toglie', () => skippedCards());
+  await mutant('card del contratto saltato che ignora il perché', "            : _innesto.skipReason === 'clash'\n", "            : false\n", skippedCards);
+  await check('lacuna 7 · la spunta del riquadro «già un contratto» registra il perché (sorgente)', () => {
+    assert.ok(SRC.includes("onchange=\"_innesto.skipContract=this.checked;_innesto.skipReason=this.checked?'clash':null;renderPage()\"> non creare il contratto da qui (aggiorna solo persone e immobile)"));
+  });
   await check('lacuna 7 · la guardia sta PRIMA di ogni scrittura dell\'Innesto (sorgente)', () => {
     const body = extract('innestoApply');
     const guard = body.indexOf('clashPools.liveContract('), firstWrite = body.search(/_innesto\.busy = true|\.update\(|\.set\(|\.add\(|runTransaction/);

@@ -8,7 +8,9 @@
 //   2. ogni rotta ritirata (anche scritta a mano nell'hash) torna al Palazzo;
 //   3. Impostazioni si apre e porta «Cambia password» e «Scrivi a BOOM»;
 //   4. «Contratto» = l'interno selezionato nel suo Palazzo, mai il modale;
-//   5. Documenti: i condivisi da BOOM, in italiano; mai un annullato.
+//   5. Documenti: i condivisi da BOOM, in italiano; mai un annullato;
+//   6. «Scrivi a BOOM» apre WhatsApp in una scheda nuova, staccata dal
+//      portale, e il ripiego (numero ed email) NON compare a scheda aperta.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -107,6 +109,8 @@ try {
     const pg = await context.newPage();
     pg.on('pageerror', e => { errors.push(e.message); console.error('Browser:', e.message); });
     await pg.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
+    // La scheda di WhatsApp non esce dal sandbox: risponde il test.
+    await context.route('https://wa.me/**', route => route.fulfill({ status: 200, contentType: 'text/plain', body: 'wa' }));
     const check = async (label, fn) => { await fn(); count++; console.log('✓ ' + width + ' ' + label); };
 
     // Si entra da una pagina RITIRATA (un vecchio segnalibro): si atterra sul Palazzo.
@@ -149,6 +153,20 @@ try {
       assert.ok(txt.includes('Cambia password') && txt.includes('Scrivi a BOOM') && txt.includes('Attiva notifiche'), txt.slice(0, 400));
       assert.ok(!/Firebase|Lingua Documenti/.test(txt));
       assert.equal(await pg.locator('#main a[href^="https://wa.me/393313251961"]').count(), 1);
+    });
+    await check('«Scrivi a BOOM»: WhatsApp in una scheda nuova senza opener, nessun ripiego a scheda aperta', async () => {
+      await pg.evaluate(() => { demoActions.length = 0; const b = document.createElement('button'); b.id = 'wbTest'; b.textContent = 'wb';
+        b.style.cssText = 'position:fixed;top:0;left:0;z-index:2147483647';
+        b.onclick = () => palazzoWriteBoom('p7'); document.body.appendChild(b); });
+      const popup = context.waitForEvent('page');
+      await pg.click('#wbTest');
+      const tab = await popup;
+      await tab.waitForLoadState('domcontentloaded');
+      assert.ok(tab.url().startsWith('https://wa.me/393313251961?text='), tab.url());
+      assert.equal(await tab.evaluate(() => window.opener), null, 'la scheda non tiene il portale');
+      assert.deepEqual(await pg.evaluate(() => demoActions.filter(a => a[0] === 'toast')), [], 'nessun ripiego');
+      await tab.close();
+      await pg.evaluate(() => document.getElementById('wbTest').remove());
     });
     await check('ogni rotta ritirata scritta a mano torna al Palazzo', async () => {
       for (const p of ['dashboard', 'my-contracts', 'my-properties', 'my-maintenance', 'inbox', 'contracts']) {
