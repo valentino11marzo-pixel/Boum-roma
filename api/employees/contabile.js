@@ -26,6 +26,7 @@
 import FISCAL from '../../js/fiscal-engine.js';
 import RENT from '../../js/rent-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
+import CS from '../../js/contract-state.js';
 import { sendEmail } from '../agent/_lib.js';
 import { real } from '../_demo.js';
 import {
@@ -87,11 +88,15 @@ async function run({ dry, forceMonthly, yearOverride }) {
   const companyObl = FISCAL.companyObligations(fiscalYear, revenueByQuarter);
   const roll = FISCAL.rollup(landlordObl.concat(companyObl), now);
 
+  // L'etichetta dice DI QUALE immobile: «IMU — acconto 2026» ripetuto
+  // cinque volte su Telegram non è azionabile.
   const oblLine = o => ({
     key: o.key, label: o.label, party: o.party || 'landlord',
+    property: o.propertyId ? propLabel(propById, { propertyId: o.propertyId }) : null,
     dueDate: o.dueDate || null, days: o._daysUntil ?? null,
     amount: o.amount ?? null,
   });
+  const oblText = o => o.property ? `${o.label} — ${o.property}` : o.label;
   const overdue = roll.buckets.overdue.map(oblLine).slice(0, 15);
   const dueSoon = roll.buckets.dueSoon.map(oblLine).slice(0, 15);
 
@@ -119,9 +124,18 @@ async function run({ dry, forceMonthly, yearOverride }) {
   }
 
   // ── 3. Incassi: YTD + ritardi ─────────────────────────────────────────
+  // Lo stato di ogni rata da BOOM_RENT.paymentState (la stessa lettura del
+  // Palazzo): un bonifico SEGNALATO dall'inquilino è da verificare, non «in
+  // ritardo»; un mese prima della gestione BOOM (property.gestioneDal) non è
+  // un arretrato né un atteso.
   let incassatoYtd = 0, attesoYtd = 0;
-  const late = [];
+  const late = [], reported = [];
+  const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
+    const pc = contractById[p.contractId] || {};
+    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+    if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
+    const st = RENT.paymentState(p, now);
     const inYear = p.month && String(p.month).slice(0, 4) === String(fiscalYear);
     if (inYear) {
       const amt = Number(p.amount) || 0;
@@ -129,14 +143,18 @@ async function run({ dry, forceMonthly, yearOverride }) {
       if (p.status === 'paid') { incassatoYtd += amt; attesoYtd += amt; }
       else if (p.status !== 'cancelled' && due && due <= now.getTime()) attesoYtd += amt;
     }
-    if (!['paid', 'cancelled'].includes(p.status)) {
-      const d = daysUntil(p.dueDate, now.getTime());
-      if (d != null && d < 0) {
-        late.push({
-          paymentId: p.id, property: propLabel(propById, p),
-          month: p.month || null, amount: Number(p.amount) || 0, daysLate: -d,
-        });
-      }
+    const label = propLabel(propById, p.propertyId ? p : pc);
+    if (st === 'reported') {
+      reported.push({ paymentId: p.id, property: label, month: p.month || null, amount: Number(p.amount) || 0 });
+      continue;
+    }
+    if (st !== 'overdue') continue;
+    const d = daysUntil(p.dueDate, now.getTime());
+    if (d != null && d < 0) {
+      late.push({
+        paymentId: p.id, property: label,
+        month: p.month || null, amount: Number(p.amount) || 0, daysLate: -d,
+      });
     }
   }
   late.sort((a, b) => b.daysLate - a.daysLate);
@@ -161,6 +179,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     docsMissing: missingDocs.length,
     daSmistare,
     paymentsLate: late.length,
+    paymentsReported: reported.length,
     incassatoYtd: Math.round(incassatoYtd),
     outstandingYtd: Math.round(attesoYtd - incassatoYtd),
   };
@@ -168,18 +187,19 @@ async function run({ dry, forceMonthly, yearOverride }) {
     `Fisco: ${counts.oblOverdue} scadute · ${counts.oblDueSoon} ≤30gg | ` +
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
     `Canoni/depositi per conto dei proprietari YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
-    `${counts.paymentsLate} in ritardo` +
+    `${counts.paymentsLate} in ritardo` + (reported.length ? ` · ${reported.length} bonifici segnalati da verificare` : '') +
     (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '');
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
-  const actionable = overdue.length || urgentSoon.length || late.length || banca.toConfirm || banca.consentExpired;
+  const actionable = overdue.length || urgentSoon.length || late.length || reported.length || banca.toConfirm || banca.consentExpired;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
-    overdue.slice(0, 6).forEach(o => lines.push(`🔴 ${esc(o.label)} — scaduta da ${Math.abs(o.days)}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
-    urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(o.label)} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
+    overdue.slice(0, 6).forEach(o => lines.push(`🔴 ${esc(oblText(o))} — scaduta da ${Math.abs(o.days)}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
+    urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(oblText(o))} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
+    reported.slice(0, 4).forEach(r => lines.push(`💶 ${esc(r.property)} — ${euro(r.amount)} bonifico segnalato: verifica l'incasso`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
     if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
@@ -201,6 +221,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     obligations: { overdue, dueSoon },
     packs: packs.slice(0, 20),
     late: late.slice(0, 15),
+    reported: reported.slice(0, 15),
     banca,
     notified,
   };
@@ -238,7 +259,7 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
     `<td style="padding:6px 10px;border-bottom:1px solid #eee">${k.ready ? '✅ pronto' : esc(k.missing.slice(0, 3).join(' · '))}</td></tr>`
   ).join('');
   const oblRows = overdue.concat(dueSoon).slice(0, 10).map(o =>
-    `<li>${esc(o.label)} — ${o.days < 0 ? `scaduta da ${Math.abs(o.days)}gg` : `tra ${o.days}gg`}${o.amount ? ` · ~${euro(o.amount)}` : ''}</li>`
+    `<li>${esc(o.property ? o.label + ' — ' + o.property : o.label)} — ${o.days < 0 ? `scaduta da ${Math.abs(o.days)}gg` : `tra ${o.days}gg`}${o.amount ? ` · ~${euro(o.amount)}` : ''}</li>`
   ).join('');
 
   const html = `<div style="font-family:Helvetica,Arial,sans-serif;max-width:640px;margin:0 auto">

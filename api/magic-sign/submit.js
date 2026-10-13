@@ -24,6 +24,7 @@
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, tenantSideWaiting, termsFingerprint, mandateCheck, landlordMandateCheck, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
+import CS from '../../js/contract-state.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -73,6 +74,67 @@ async function alertSignFailure(contractId, role, reason, extra) {
   } catch (e) { console.warn('[magic-sign/submit] alert:', e.message); }
 }
 
+// ── Il piano delle rate (pura) ──────────────────────────────────────────
+// Cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual. The unit is a
+// LEASE month (start day → day before the next anniversary), not a calendar
+// month, so a lease that begins on the 10th is billed in full from day one
+// and never loses its first period. Each instalment is paid in advance and
+// covers `step` lease months — the last one is clamped and prorated to
+// whatever the lease actually has left.
+//
+// LE DATE SONO GIORNI DI CALENDARIO (12/10/2026). Prima si faceva
+// `new Date('2026-09-15')` — mezzanotte UTC — e poi si leggevano i
+// componenti LOCALI: su un runtime a ovest di Greenwich il 15 diventava il
+// 14, e la prima rata scadeva il giorno PRIMA che il periodo iniziasse
+// (proprio la regola che il generatore promette di rispettare). Ora le date
+// si leggono come anno/mese/giorno, e il giorno di pagamento si tiene
+// dentro il mese (il 31 di febbraio non rotola al 3 marzo).
+export function rentSchedule(c) {
+  const ymd = (v) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ''));
+    if (m) return new Date(+m[1], +m[2] - 1, +m[3]);
+    const d = new Date(v);
+    return Number.isFinite(d.getTime()) ? new Date(d.getFullYear(), d.getMonth(), d.getDate()) : null;
+  };
+  const pStart = ymd(c && c.startDate), pEnd = ymd(c && c.endDate);
+  const rent = Number(c && c.rent) || 0;
+  if (!pStart || !pEnd || !rent) return [];
+  const payDay = parseInt(c.paymentDay, 10) || 5;
+  const step = [1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1;
+  const addMonths = (d, n) => {
+    const x = new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
+    // month-end clamp: 31 Jan + 1 month = 28/29 Feb, never 3 March
+    if (x.getDate() !== d.getDate()) x.setDate(0);
+    return x;
+  };
+  const lastDay = (y, m) => new Date(y, m + 1, 0).getDate();
+  const pad = (n) => String(n).padStart(2, '0');
+  // how many whole lease months the contract really spans
+  let monthsTotal = 0;
+  while (monthsTotal < 600 && addMonths(pStart, monthsTotal) <= pEnd) monthsTotal++;
+  const perMonth = Math.round(((Number(c.installmentAmount) || rent * step) / step) * 100) / 100;
+  const out = [];
+  for (let i = 0; i < monthsTotal; i += step) {
+    const periodStart = addMonths(pStart, i);
+    const covered = Math.min(step, monthsTotal - i);
+    // due on the pay day of the period's month (clamped to its last day),
+    // never before the period itself begins
+    const y = periodStart.getFullYear(), mo = periodStart.getMonth();
+    let due = new Date(y, mo, Math.min(payDay, lastDay(y, mo)));
+    if (due < periodStart) due = periodStart;
+    const lastCovered = addMonths(pStart, i + covered - 1);
+    out.push({
+      month: `${y}-${pad(mo + 1)}`,
+      dueDate: `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`,
+      periodFrom: `${y}-${pad(mo + 1)}-${pad(periodStart.getDate())}`,
+      amount: Math.round(perMonth * covered * 100) / 100,
+      installmentMonths: covered,
+      coversTo: `${lastCovered.getFullYear()}-${pad(lastCovered.getMonth() + 1)}`,
+    });
+  }
+  return out;
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -105,6 +167,14 @@ export default async function handler(req, res) {
 
   const { contract, role, coIndex } = hit;
   const contractId = contract.id;
+
+  // Un contratto firmato SU CARTA o un segnaposto (contratto non in
+  // archivio) non si firma da qui, nemmeno con un token coniato per sbaglio
+  // prima della guardia di /api/sign/links: sarebbe una seconda firma
+  // digitale su un atto già concluso a penna (o su un PDF di puntini).
+  if (CS.isPaper(contract) || CS.isPlaceholder(contract)) {
+    return res.status(409).json({ ok: false, error: 'not_signable', reason: CS.notSignableReason(contract) });
+  }
 
   // Sequential signing guard (mirrors lookup — API can't bypass the order):
   // il locatore controfirma solo a LATO CONDUTTORI completo (principale +
@@ -733,59 +803,23 @@ export default async function handler(req, res) {
           limit: 10,
         })).filter(p => !String(p.type || '').startsWith('deposit'));
         if (!existing.length) {
-          const writes = [];
-          const pStart = new Date(fullContract.startDate);
-          const pEnd = new Date(fullContract.endDate);
-          const payDay = parseInt(fullContract.paymentDay, 10) || 5;
-          // Cadence: 1 = monthly (default), 2/3/6/12 = bimonthly…annual.
-          // The unit is a LEASE month (start day → day before the next
-          // anniversary), not a calendar month, so a lease that begins on the
-          // 10th is billed in full from day one and never loses its first
-          // period. Each instalment is paid in advance and covers `step`
-          // lease months — the last one is clamped and prorated to whatever
-          // the lease actually has left.
-          const step = [1, 2, 3, 6, 12].includes(Number(fullContract.installmentMonths))
-            ? Number(fullContract.installmentMonths) : 1;
-          const addMonths = (d, n) => {
-            const x = new Date(d.getFullYear(), d.getMonth() + n, d.getDate());
-            // month-end clamp: 31 Jan + 1 month = 28/29 Feb, never 3 March
-            if (x.getDate() !== d.getDate()) x.setDate(0);
-            return x;
-          };
-          // how many whole lease months the contract really spans
-          let monthsTotal = 0;
-          while (monthsTotal < 600 && addMonths(pStart, monthsTotal) <= pEnd) monthsTotal++;
-          const perMonth = Math.round(
-            ((Number(fullContract.installmentAmount) || fullContract.rent * step) / step) * 100
-          ) / 100;
-
-          for (let i = 0; i < monthsTotal; i += step) {
-            const periodStart = addMonths(pStart, i);
-            const covered = Math.min(step, monthsTotal - i);
-            // due on the pay day of the period's month, never before the
-            // period itself begins
-            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), payDay);
-            if (due < periodStart) due = periodStart;
-            const month = `${periodStart.getFullYear()}-${String(periodStart.getMonth() + 1).padStart(2, '0')}`;
-            const lastCovered = addMonths(pStart, i + covered - 1);
-            const coversTo = `${lastCovered.getFullYear()}-${String(lastCovered.getMonth() + 1).padStart(2, '0')}`;
-            const dueDate = `${due.getFullYear()}-${String(due.getMonth() + 1).padStart(2, '0')}-${String(due.getDate()).padStart(2, '0')}`;
-            writes.push({
-              docPath: 'payments/pay_' + contractId + '_' + month,
-              fields: {
-                contractId,
-                tenantId: fullContract.tenantId || '',
-                propertyId: fullContract.propertyId || '',
-                amount: Math.round(perMonth * covered * 100) / 100,
-                month,
-                dueDate,
-                status: 'pending',
-                installmentMonths: covered,
-                coversTo,
-              },
-              serverTimestampFields: ['createdAt'],
-            });
-          }
+          // Il piano delle rate vive in rentSchedule (pura, esportata e
+          // testata): qui solo la scrittura.
+          const writes = rentSchedule(fullContract).map(r => ({
+            docPath: 'payments/pay_' + contractId + '_' + r.month,
+            fields: {
+              contractId,
+              tenantId: fullContract.tenantId || '',
+              propertyId: fullContract.propertyId || '',
+              amount: r.amount,
+              month: r.month,
+              dueDate: r.dueDate,
+              status: 'pending',
+              installmentMonths: r.installmentMonths,
+              coversTo: r.coversTo,
+            },
+            serverTimestampFields: ['createdAt'],
+          }));
           if (writes.length) await commitWrites(writes);
         }
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }

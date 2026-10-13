@@ -128,6 +128,26 @@ export function categorize({ amount, description, counterparty }) {
 //      payment month, OR that amount is unique among ALL open payments.
 // Anything weaker becomes a suggestion (tx.matchSuggestions) surfaced in
 // /banca and in the Contabile's report — never a silent guess.
+// Una rata che si paga sul conto del LOCATORE, non su quello di BOOM: le
+// rate di un palazzo preso in carico (source 'palazzo-import') e quelle di
+// un contratto che porta il suo landlordIban (/rata indica quel conto). Per
+// costruzione non arrivano mai qui: un accredito di pari importo sul conto
+// BOOM è un'altra cosa (una provvigione, un rimborso). Al massimo un
+// SUGGERIMENTO da confermare, mai un «pagato» automatico.
+export function toLandlordAccount(p) {
+  return !!(p && (p.source === 'palazzo-import' || p.directToLandlord === true || p._toLandlord === true));
+}
+
+/** Marca le rate dei contratti che si pagano al locatore (landlordIban o
+ *  presa in carico del Palazzo). Muta e restituisce l'array. */
+export function markLandlordDirect(payments, contracts) {
+  const direct = new Set((contracts || [])
+    .filter(c => c && c.id && (c.source === 'palazzo-import' || String(c.landlordIban || '').trim()))
+    .map(c => c.id));
+  for (const p of payments || []) if (p && direct.has(p.contractId)) p._toLandlord = true;
+  return payments;
+}
+
 export function reconcile(tx, pendingPayments, tenantNameById) {
   if (tx.side !== 'in' || !tx.bookingDate) return { match: null, suggestions: [] };
 
@@ -141,7 +161,7 @@ export function reconcile(tx, pendingPayments, tenantNameById) {
   const byRef = findByRef(`${tx.description} ${tx.counterparty}`, pendingPayments);
   if (byRef) {
     const exact = Math.abs((Number(byRef.amount) || 0) - tx.amount) <= 0.01;
-    return exact
+    return exact && !toLandlordAccount(byRef)
       ? { match: { paymentId: byRef.id, confidence: 'reference' }, suggestions: [] }
       : { match: null, suggestions: [byRef.id] };
   }
@@ -157,6 +177,7 @@ export function reconcile(tx, pendingPayments, tenantNameById) {
   if (candidates.length > 1) return { match: null, suggestions: candidates.map(p => p.id).slice(0, 5) };
 
   const p = candidates[0];
+  if (toLandlordAccount(p)) return { match: null, suggestions: [p.id] };
   const hay = `${tx.description} ${tx.counterparty}`.toLowerCase();
   const tenantName = (tenantNameById[p.tenantId] || p.tenantName || '').toLowerCase();
   const nameHit = tenantName.split(/\s+/).some(tok => tok.length >= 4 && hay.includes(tok));
@@ -368,11 +389,12 @@ export async function ingestBankTransactions(rawTxs, { accountId, source, actor 
   const seen = withIds.length ? await batchExists('bankTransactions', withIds.map(w => w.docId)) : new Set();
   const fresh = withIds.filter(w => !seen.has(w.docId));
 
-  const [payments, users] = await Promise.all([
+  const [payments, users, contracts] = await Promise.all([
     fsList('payments', { limit: 600 }),
     fsList('users', { limit: 1000 }).catch(() => []),
+    fsList('contracts', { limit: 1000 }).catch(() => []),
   ]);
-  const pending = payments.filter(p => !['paid', 'cancelled'].includes(p.status));
+  const pending = markLandlordDirect(payments.filter(p => !['paid', 'cancelled'].includes(p.status)), contracts);
   const tenantNameById = {}; users.forEach(u => { tenantNameById[u.id] = u.name || ''; });
 
   let matched = 0, suggested = 0;

@@ -15,8 +15,9 @@
 // After processing each item, the daemon MUST call /api/agent/ack with
 // { id, status: 'done' | 'failed', detail? } so it doesn't get re-served.
 
-import { fsList, fsPatch, readJson, requireSecret } from '../homie/_lib.js';
+import { fsPatch, readJson, requireSecret } from '../homie/_lib.js';
 import { okJson, errJson } from './_lib.js';
+import { pendingNotifications } from './_pending.js';
 
 const PRIORITY_WEIGHT = { urgent: 0, high: 1, normal: 2, low: 3 };
 
@@ -33,9 +34,12 @@ export default async function handler(req, res) {
   const maxAgeSec = Math.max(60, parseInt(body.maxAge ?? 86400, 10) || 86400);
 
   try {
-    const pending = await fsList('agentNotifications', {
-      filter: { field: 'status', op: 'EQUAL', value: 'pending' },
-      limit: 50, // fetch more than `limit` so we can sort by priority client-side
+    // La finestra recente per createdAt + la lettura storica (api/agent/
+    // _pending.js): con più di 50 card 'pending' le nuove non entravano mai
+    // nella finestra ordinata per NOME. Più delle `limit` richieste, così
+    // l'ordine per priorità si fa qui.
+    const pending = await pendingNotifications({
+      days: Math.max(1, Math.ceil(maxAgeSec / 86400)), limit: 60, legacyLimit: 50,
     });
 
     const cutoff = Date.now() - maxAgeSec * 1000;

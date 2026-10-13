@@ -224,7 +224,51 @@
         consequence: 'Responsabilità per omesso riversamento.' });
     }
 
+    // Il contratto è GIÀ registrato (rliRegisteredAt o registrationStatus
+    // 'registered' — lo segna la presa in carico del Palazzo, il tasto ✓ RLI
+    // registrato, l'iter ASPI): registrazione, imposta di registro iniziale e
+    // opzione cedolare sono atti compiuti. Senza questa riga il digest del
+    // mattino le ricordava «in scadenza» su contratti registrati da mesi.
+    if (isRegistered(contract)) {
+      items.forEach(function (it) { if (REGISTRATION_DONE[it.code]) it.done = 'registration'; });
+    }
+
+    // Un contratto PRESO IN CARICO dalla tabella della proprietaria è stato
+    // firmato su carta prima di BOOM: l'APE allegato all'atto è un fatto di
+    // quella firma, non un adempimento che BOOM possa ancora compiere.
+    if (String((contract && contract.source) || '') === 'palazzo-import') {
+      items.forEach(function (it) { if (it.code === 'APE' && !it.done) it.na = 'presa-in-carico'; });
+    }
+
+    // Un contratto preso in carico a metà strada (il Palazzo: property.
+    // gestioneDal, YYYY-MM, passato come opts.property) porta adempimenti
+    // scaduti PRIMA che BOOM lo gestisse — imposta di registro, raccomandata
+    // cedolare della proprietà. Non sono lavoro di BOOM: 'na' invece di
+    // «SCADUTA» ogni mattina. Resta visibile la registrazione (RLI_REG): un
+    // contratto non registrato è un fatto legale che l'operatore deve
+    // confermare comunque.
+    const gd = String((opts.property && opts.property.gestioneDal) || '');
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(gd)) {
+      items.forEach(function (it) {
+        // un controllo di legalità (deposito) vale per il contratto in sé:
+        // superato è «fatto», violato resta rosso — mai «non nostro»
+        if (it.code === 'RLI_REG' || it.done || it.check) return;
+        const d = toDate(it.dueDate);
+        if (!d) return;
+        const ym = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        if (ym < gd) it.na = 'pre-gestione';
+      });
+    }
+
     return finalize(items);
+  }
+
+  // Gli atti che la registrazione chiude (l'asseverazione no: è un'altra
+  // organizzazione e un altro documento).
+  const REGISTRATION_DONE = { RLI_REG: 1, REGISTRO_BOLLO: 1, CEDOLARE_OPT: 1 };
+  function isRegistered(c) {
+    c = c || {};
+    return !!String(c.rliRegisteredAt || '').trim() || String(c.registrationStatus || '').trim() === 'registered';
   }
 
   function finalize(items) {
@@ -245,8 +289,13 @@
     soonDays = soonDays || 14;
     const explicit = doneMap && doneMap[item.code];
     if (explicit && (explicit.status === 'done' || explicit.status === 'na')) return explicit.status;
+    if (item.done) return 'done';                      // chiuso da un fatto del contratto (es. registrato)
+    if (item.na) return 'na';                          // prima della gestione BOOM: non è lavoro nostro
     if (item.check === 'violato') return 'overdue';   // a failed legality check reads as a red item
-    if (item.check === 'ok' && !item.dueDate) return 'done';
+    // Un controllo di legalità SUPERATO è fatto, con o senza data: il deposito
+    // entro 3 mensilità porta la data di stipula e, senza questa riga, un
+    // deposito REGOLARE diventava «SCADUTO» il giorno dopo la firma.
+    if (item.check === 'ok') return 'done';
     if (!item.dueDate) return 'todo';
     const days = Math.round((toDate(item.dueDate) - today) / DAY);
     if (days < 0) return 'overdue';
@@ -270,7 +319,7 @@
     return { counts, open, total: items.length, nextDue, worstSeverity: worst };
   }
 
-  const API = { obligationsFor, featuresOf, statusOf, rollup, toDate };
+  const API = { obligationsFor, featuresOf, statusOf, rollup, toDate, isRegistered };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_COMPLIANCE = API;
 })(typeof window !== 'undefined' ? window : null);

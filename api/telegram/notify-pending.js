@@ -18,6 +18,7 @@ import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
 import { pendingNewLeads } from '../leads/_fresh.js';
+import { pendingRecent, pendingNotifications, sweepStaleNotifications, tsOf } from '../agent/_pending.js';
 import { isReunion, reunionReplyText, isB2B, b2bReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
@@ -36,12 +37,12 @@ export default async function handler(req, res) {
   // orderBy on a DIFFERENT field (createdAt) needs a Firestore composite index
   // that isn't provisioned, which made this 500 once Telegram env was set. We
   // order in code instead.
+  // La finestra storica (status == pending, limit 50, senza ordine) da sola
+  // affamava le proposte NUOVE appena i pending superavano i 50: si affianca
+  // la finestra recente per createdAt (api/agent/_pending.js).
   let pending;
   try {
-    pending = await fsList('action_queue', {
-      filter: { field: 'status', op: 'EQUAL', value: 'pending' },
-      limit: 50,
-    });
+    pending = await pendingRecent('action_queue', { days: 3, limit: 60, legacyLimit: 50 });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'list_failed', details: e.message });
   }
@@ -95,16 +96,20 @@ export default async function handler(req, res) {
   // emergencies) used to reach Telegram only via the Mac daemon. Push urgent/high
   // ones server-side so the operator's phone pings even with the Mac off. No
   // buttons — these are informational; the action loop above carries the buttons.
+  // Il costo resta basso: la finestra recente legge solo le card degli
+  // ultimi due giorni (al massimo 60), la lettura storica è quella di prima.
+  // La finestra recente per createdAt (api/agent/_pending.js): un bonifico
+  // segnalato (payrep_…) o un guasto (maint_…) arrivano sul telefono anche
+  // con cento card vecchie ancora 'pending'. Le urgenti prima, poi in ordine
+  // di arrivo: nessuna aspetta più di qualche minuto.
   const HOT = new Set(['urgent', 'high']);
   let events = [];
   try {
-    events = await fsList('agentNotifications', {
-      filter: { field: 'status', op: 'EQUAL', value: 'pending' },
-      limit: 50,
-    });
+    events = await pendingNotifications({ days: 2, limit: 60, legacyLimit: 50 });
   } catch (_) { /* collection/rules absent → non-fatal */ }
   const evToNotify = (events || [])
     .filter(e => HOT.has(e.priority) && !e.telegramNotifiedAt)
+    .sort((a, b) => ((a.priority === 'urgent' ? 0 : 1) - (b.priority === 'urgent' ? 0 : 1)) || (tsOf(a.createdAt) - tsOf(b.createdAt)))
     .slice(0, MAX_PER_RUN);
   const evResults = [];
   for (const e of evToNotify) {
@@ -318,6 +323,12 @@ export default async function handler(req, res) {
     }
   }
 
+  // Lo spazzino delle card che nessuno reclamerà più (>14 giorni 'pending'):
+  // una volta l'ora, al massimo 100 per giro, best-effort.
+  let sweep = null;
+  try { sweep = await sweepStaleNotifications({}); }
+  catch (e) { console.warn('[notify-pending] sweep:', e.message); }
+
   // Heartbeat (audit P1.2): notify-pending gira ogni minuto ed è il canale con
   // cui l'operatore riceve TUTTO (azioni, lead, visite) sul telefono — era
   // cieco. Best-effort, mai fatale.
@@ -334,6 +345,7 @@ export default async function handler(req, res) {
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,
     events: { scanned: events.length, notified: evResults.filter(r => r.ok).length, failed: evResults.filter(r => !r.ok).length },
+    sweep,
     bugs: { scanned: bugs.length, notified: bugResults.filter(r => r.ok).length, failed: bugResults.filter(r => !r.ok).length },
     leads: { scanned: leads.length, notified: ldResults.filter(r => r.ok).length, failed: ldResults.filter(r => !r.ok).length },
     viewings: { scanned: viewings.length, notified: vwResults.filter(r => r.ok).length, failed: vwResults.filter(r => !r.ok).length },

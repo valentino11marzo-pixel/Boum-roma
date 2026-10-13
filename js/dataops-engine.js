@@ -93,9 +93,17 @@
                 return d.status === 'paid' || !!d.paidVia || !!d.paidDate
                     || !!d.stripeSessionId || !!d.receiptUrl;
             case 'contracts':
+                // 'complete' è il valore che il sistema scrive davvero a firma
+                // completa ('signed'/'completed' restano per i dati storici);
+                // 'paper' = firmato su carta (presa in carico del Palazzo);
+                // registrato all'AdE = rliRegisteredAt o registrationStatus.
+                // E ogni contratto preso in carico dalla tabella della
+                // proprietaria: è il suo archivio, non un dato di prova.
                 return !!d.tenantSignature || !!d.landlordSignature
-                    || d.signatureStatus === 'signed' || d.signatureStatus === 'completed'
-                    || !!d.registrationNumber || !!d.registeredAt;
+                    || ['signed', 'completed', 'complete', 'paper'].indexOf(d.signatureStatus) >= 0
+                    || !!d.registrationNumber || !!d.registeredAt
+                    || !!d.rliRegisteredAt || d.registrationStatus === 'registered'
+                    || d.source === 'palazzo-import';
             case 'invoices':
                 return d.status === 'paid' || !!d.paidAt || !!d.number;
             case 'documents':

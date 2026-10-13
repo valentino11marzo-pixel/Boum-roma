@@ -142,8 +142,17 @@ export function isoWeek(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+// Euro all'italiana DETERMINISTICI: €1.600, €1.620,50. Mai toLocaleString:
+// sul runtime delle funzioni (ICU ridotta) degradava in silenzio a "€1600",
+// e il rendiconto della proprietaria e il Palazzo scrivevano lo stesso
+// numero in due modi (la lezione già pagata su /executive e sul fascicolo).
 export function euro(n) {
-  return '€' + (Number(n) || 0).toLocaleString('it-IT');
+  const v = Number(n) || 0;
+  const neg = v < 0;
+  const cents = Math.round(Math.abs(v) * 100);
+  const int = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const dec = cents % 100;
+  return (neg ? '-' : '') + '€' + int + (dec ? ',' + String(dec).padStart(2, '0') : '');
 }
 
 export function esc(s) {

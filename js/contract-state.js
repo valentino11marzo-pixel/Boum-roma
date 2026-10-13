@@ -83,6 +83,72 @@
     return { e164: null, wa: null, kind: 'unknown', raw: s };
   }
 
+  // ── Aggiunte del filone automazioni (S7) ──────────────────────────────
+  // Le macchine del mattino (Gestore, Contabile, Oggi, compliance, scadenze
+  // fiscali, Bonifica) devono riconoscere gli STESSI fatti del Palazzo, non
+  // una loro versione. Qui i quattro fatti che servivano a tutte.
+
+  // Registrato all'AdE: lo dice la data della RLI o lo stato della pratica.
+  // Una registrazione segnata chiude RLI, imposta di registro e opzione
+  // cedolare: nessuna macchina deve ricordarle come «in scadenza».
+  function isRegistered(c) {
+    if (!c) return false;
+    return !!str(c.rliRegisteredAt) || str(c.registrationStatus) === 'registered';
+  }
+
+  // Il mese (YYYY-MM) cade PRIMA della gestione BOOM dell'immobile
+  // (property.gestioneDal, YYYY-MM)? Quei mesi non sono arretrati di BOOM:
+  // il Palazzo li mostra «Prima di BOOM», e nessun sollecito né scadenza
+  // deve nascere lì. Senza gestioneDal: mai.
+  function beforeGestione(month, property) {
+    var gd = str(property && property.gestioneDal), m = str(month).slice(0, 7);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(gd) || !/^\d{4}-(0[1-9]|1[0-2])$/.test(m)) return false;
+    return m < gd;
+  }
+
+  // Un giorno di calendario da qualunque forma (YYYY-MM-DD, ISO, Date,
+  // Timestamp Firestore {seconds}/{_seconds}/toDate). null se illeggibile.
+  function dayMs(v) {
+    if (v == null || v === '') return null;
+    if (typeof v === 'string') { var t = Date.parse(v.length === 10 ? v + 'T12:00:00Z' : v); return isFinite(t) ? t : null; }
+    if (v instanceof Date) return isFinite(v.getTime()) ? v.getTime() : null;
+    if (typeof v === 'number') return isFinite(v) ? v : null;
+    if (typeof v.toDate === 'function') { try { var d = v.toDate(); return isFinite(d.getTime()) ? d.getTime() : null; } catch (_) { return null; } }
+    if (typeof v.seconds === 'number') return v.seconds * 1000;
+    if (typeof v._seconds === 'number') return v._seconds * 1000;
+    return null;
+  }
+
+  // L'ultimo sollecito/link mandato per QUESTA rata (lastReminderDate o una
+  // voce di dunningHistory: WhatsApp dal Palazzo, email dal portal), se
+  // cade negli ultimi `days` giorni. → ms del sollecito, o null. Serve al
+  // Gestore per non proporre un'email a chi ha ricevuto il link ieri.
+  function recentReminder(payment, now, days) {
+    var p = payment || {};
+    var nowMs = dayMs(now == null ? new Date() : now);
+    var win = (Number(days) > 0 ? Number(days) : 7) * 86400000;
+    var best = null;
+    var consider = function (v) { var t = dayMs(v); if (t != null && t <= nowMs + 86400000 && nowMs - t <= win && (best == null || t > best)) best = t; };
+    consider(p.lastReminderDate);
+    (Array.isArray(p.dunningHistory) ? p.dunningHistory : []).forEach(function (h) { if (h) consider(h.at); });
+    return best;
+  }
+
+  // I telefoni delle parti conduttrici del contratto, come sono scritti:
+  // titolare + co-intestatari. Il riconoscimento (WhatsApp, telefonate) li
+  // normalizza da sé; qui solo la lista, mai inventata.
+  function tenantPhones(c) {
+    var out = [];
+    if (!c) return out;
+    var t = str(c.tenantPhone);
+    if (t) out.push({ phone: t, name: str(c.tenantName), role: 'tenant' });
+    (Array.isArray(c.coTenants) ? c.coTenants : []).forEach(function (x, i) {
+      var p = str(x && (x.phone || x.tel || x.telefono));
+      if (p) out.push({ phone: p, name: str(x && (x.name || x.fullName)), role: 'cotenant', index: i });
+    });
+    return out;
+  }
+
   var API = {
     isPaper: isPaper,
     isPlaceholder: isPlaceholder,
@@ -90,7 +156,11 @@
     notSignable: notSignable,
     notSignableReason: notSignableReason,
     outOfJourney: outOfJourney,
-    phoneIntl: phoneIntl
+    phoneIntl: phoneIntl,
+    isRegistered: isRegistered,
+    beforeGestione: beforeGestione,
+    recentReminder: recentReminder,
+    tenantPhones: tenantPhones
   };
 
   if (typeof module === 'object' && module.exports) module.exports = API;

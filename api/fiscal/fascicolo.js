@@ -34,6 +34,7 @@ import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import CANONE from '../../js/canone-engine.js';
+import CS from '../../js/contract-state.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 
@@ -586,6 +587,10 @@ export async function buildFascicolo(contractId, { contract, property, overrides
   try {
     let c = contract || await fsGet('contracts/' + contractId);
     if (!c) return { ok: false, error: 'contract_not_found' };
+    // Un segnaposto (l'interno è occupato ma il contratto non è in archivio:
+    // niente date, niente canone) non ha fatti da cui calcolare una scheda
+    // né quadri RLI: un fascicolo pieno di puntini sarebbe peggio di niente.
+    if (CS.isPlaceholder(c)) return { ok: false, error: 'contract_missing' };
     const p = property || (c.propertyId ? await fsGet('properties/' + c.propertyId).catch(() => null) : null) || {};
     if (!contract) {
       // Rigenerazione dalla console: stessa idratazione del finalize.
@@ -672,5 +677,5 @@ export default async function handler(req, res) {
   if (b.boxPre !== undefined) overrides.boxPre = !!b.boxPre;
 
   const out = await buildFascicolo(contractId, { overrides });
-  return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 500)).json(out);
+  return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : out.error === 'contract_missing' ? 409 : 500)).json(out);
 }

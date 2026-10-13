@@ -91,7 +91,12 @@
     var c = contract || {};
     var type = String(c.type || '').toLowerCase();
     var regime = String(c.taxRegime || c.regime || '').toLowerCase();
-    var isCedolare = c.cedolare === true || /cedolar/.test(regime);
+    // cedolareSecca è il campo che i contratti portano davvero (true/'si'/
+    // '10'/'21' oppure false/'no'); assente = si ricade sui segnali storici.
+    var ced = c.cedolareSecca;
+    var cedDecl = (ced === true || ced === 'si' || ced === 'sì' || ced === '10' || ced === '21' || ced === 10 || ced === 21) ? true
+      : (ced === false || ced === 'no') ? false : null;
+    var isCedolare = cedDecl !== null ? cedDecl : (c.cedolare === true || /cedolar/.test(regime));
     var isConcordato = c.concordato === true || /concordat|3\+2|10%/.test(regime) || type === 'concordato';
     var isStudenti = type === 'studenti' || type === 'student';
     var isTransitorio = type === 'transitorio' || type === 'transitional';

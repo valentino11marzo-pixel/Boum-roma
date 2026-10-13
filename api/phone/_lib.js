@@ -27,7 +27,7 @@
 
 import crypto from 'node:crypto';
 import { secretEqual, fsList, fsPatch, fsCreate, getAdminToken, logActivity } from '../homie/_lib.js';
-import { phoneVariants, isNoise, mergeMessage, buildLead, recentLeadByPhone } from '../homie/_lead.js';
+import { phoneVariants, isNoise, mergeMessage, buildLead, recentLeadByPhone, contractTenantByPhone } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
 import { ai } from '../_ai.js';
 
@@ -180,6 +180,16 @@ export async function resolveCaller(phone) {
       } catch { /* si continua a scandire */ }
     }
   }
+  // L'inquilino che esiste SOLO nel contratto (palazzo preso in carico dalla
+  // tabella della proprietaria: nessun doc users). Senza questa riga la sua
+  // telefonata diventava un lead source 'phone', la card diceva «🆕 lead
+  // creato» e la receptionist gli proponeva il catalogo. La copia del
+  // riconoscimento è quella di WhatsApp (homie/_lead.js): stesso numero,
+  // stesso verdetto, qualunque porta.
+  try {
+    const t = await contractTenantByPhone(phone);
+    if (t) return { type: 'tenant', entity: t };
+  } catch { /* lettura fallita: si prosegue come sconosciuto */ }
   return null;
 }
 
@@ -187,6 +197,13 @@ export async function resolveCaller(phone) {
 export function callerLabel(resolved, phone) {
   if (!resolved) return phone || 'Numero nascosto';
   const e = resolved.entity || {};
+  // Il conduttore riconosciuto dal contratto porta l'interno: «inquilino di
+  // Piazzale … int. 7» dice all'operatore chi è senza aprire niente.
+  if (e._contract) {
+    const who = e.name || phone || 'Inquilino';
+    const where = e.propertyLabel ? ' — ' + (e.role === 'cotenant' ? 'co-intestatario' : 'inquilino') + ' di ' + e.propertyLabel : '';
+    return who + where;
+  }
   return e.name
     || ((e.firstName ? (e.firstName + ' ' + (e.lastName || '')).trim() : ''))
     || e.email || phone || 'Contatto';
@@ -328,7 +345,9 @@ export function tgCallCard({ callerName, callerType, from, durationSec, analysis
     : '📞 <b>Segreteria BOOM</b> — nuovo messaggio';
   const lines = [
     header,
-    `👤 ${esc(callerName)}${TYPE_BADGE[callerType] ? ' · ' + TYPE_BADGE[callerType] : ''}${leadCreated ? ' · 🆕 lead creato' : ''}`,
+    // il nome di un conduttore riconosciuto dal contratto dice già il ruolo
+    // e l'interno («— inquilino di …»): il badge lo ripeterebbe
+    `👤 ${esc(callerName)}${TYPE_BADGE[callerType] && !/ — (inquilino|co-intestatario) di /.test(String(callerName || '')) ? ' · ' + TYPE_BADGE[callerType] : ''}${leadCreated ? ' · 🆕 lead creato' : ''}`,
     `${from ? '📱 ' + esc(from) + ' · ' : ''}⏱ ${durationSec != null ? durationSec + 's' : '?'}`,
     `🧠 ${esc(analysis.summary)}`,
   ];

@@ -19,6 +19,9 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` = read-only.
 
 import COMPLIANCE from '../../js/compliance-rules.js';
+import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
+import { rataLink } from '../payments/rata.js';
 import { real } from '../_demo.js';
 import { knobs, rejectedLine } from '../_squadra.js';
 import { readSignTokens } from '../sign/_tokens.js';
@@ -29,6 +32,51 @@ import {
 
 const EMPLOYEE = 'gestore';
 const BASE = 'https://www.boomrome.com';
+// Un sollecito (email dal portal, link della rata via WhatsApp dal Palazzo)
+// mandato negli ultimi N giorni basta: un secondo messaggio la settimana
+// stessa, da un altro canale, è il modo più rapido per irritare chi paga.
+const RECENT_REMINDER_DAYS = 7;
+
+// Mesi in parole, DETERMINISTICI (mai toLocaleDateString: con l'ICU ridotta
+// del runtime 'it-IT' ricade sull'inglese o su "M10").
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export function monthWords(ym, lang) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(ym || ''));
+  if (!m) return '';
+  return (lang === 'it' ? MESI : MONTHS)[+m[2] - 1] + ' ' + m[1];
+}
+export function dayWords(iso, lang) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  if (!m) return '';
+  return +m[3] + ' ' + (lang === 'it' ? MESI : MONTHS)[+m[2] - 1] + ' ' + m[1];
+}
+
+// La lingua di chi legge: l'inquilino BOOM è un expat, quindi inglese salvo
+// un italiano DICHIARATO (profilo o contratto).
+export function tenantLang(tenant, contract) {
+  const v = String((tenant && (tenant.language || tenant.lang || tenant.preferredLanguage)) || (contract && (contract.tenantLanguage || contract.language)) || '').toLowerCase();
+  return /^it/.test(v) ? 'it' : 'en';
+}
+
+// Il sollecito di una rata in ritardo, nella lingua dell'inquilino e con il
+// modo di pagare DENTRO (prima: italiano, nessun link — «basta rispondere a
+// questa email» a uno studente straniero che non sapeva dove pagare).
+export function reminderDraft({ lang, name, what, prop, amount, dueDate, link }) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  if (lang === 'it') {
+    return `Ciao ${first},\n\n` +
+      `ti scriviamo per ${what} relativo a ${prop}: non ci risulta ancora arrivato l'importo di ${amount}, in scadenza il ${dueDate}.\n\n` +
+      (link ? `Puoi pagare da qui in un minuto, con carta o bonifico:\n${link}\n\n` : '') +
+      `Se hai già pagato, rispondi pure a questa email e lo verifichiamo. Per qualsiasi difficoltà siamo qui.\n\n` +
+      `Grazie,\nIl team BOOM`;
+  }
+  return `Hi ${first},\n\n` +
+    `a quick note about ${what} for ${prop}: we haven't received ${amount} yet (due on ${dueDate}).\n\n` +
+    (link ? `You can pay here in a minute, by card or bank transfer:\n${link}\n\n` : '') +
+    `If you've already paid, just reply to this email and we'll check. If anything isn't right, tell us — we're here.\n\n` +
+    `Thanks,\nThe BOOM team`;
+}
 // Le tre soglie del Gestore non sono più costanti qui: vivono su
 // `settings/squadra` e si cambiano dalla scrivania (portale → La Squadra),
 // con default e intervalli ammessi dichiarati in js/squadra-registry.js —
@@ -77,39 +125,76 @@ async function run({ dry }) {
   const digest = [];
 
   // ── 1. Solleciti pagamento (proposta approvabile) ─────────────────────
+  // Lo STATO della rata lo decide BOOM_RENT.paymentState, la stessa lettura
+  // del Palazzo e dei Canoni (12/10/2026): prima bastava status != paid, e
+  // una rata col bonifico SEGNALATO dall'inquilino (con la ricevuta!)
+  // riceveva ogni settimana «risulta ancora da saldare». Ora:
+  //   · segnalata  → nessun sollecito, una riga «verifica l'incasso»;
+  //   · in corso   → (carta/SEPA in volo) niente;
+  //   · prima della gestione BOOM (property.gestioneDal) → non è un arretrato;
+  //   · già sollecitata negli ultimi giorni (lastReminderDate/dunningHistory,
+  //     anche il link mandato dal Palazzo) → niente doppione;
+  //   · presa in carico dal Palazzo o senza account → nessuna email: il
+  //     Palazzo ha il suo «Sollecita» col link della rata (WhatsApp), e il
+  //     digest porta quel link pronto;
+  //   · gli altri → email nella lingua dell'inquilino col modo di pagare.
+  let skippedRecent = 0;
   for (const p of payments) {
-    if (['paid', 'cancelled'].includes(p.status)) continue;
+    const c = contractById[p.contractId] || {};
+    const property = propById[p.propertyId || c.propertyId] || null;
+    const prop = propLabel(propById, p.propertyId ? p : c);
+    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+    if (CS.beforeGestione(month, property)) continue;
+    const state = RENT.paymentState(p, now);
+    if (state === 'reported') {
+      const when = String(p.tenantReportDate || '').slice(0, 10);
+      digest.push(`💶 ${prop} — ${euro(p.amount)} bonifico segnalato${when ? ' il ' + when : ''}${p.tenantReportProofUrl || p.proofUrl ? ' (ricevuta allegata)' : ''}: verifica l'incasso e premi Registra incasso`);
+      continue;
+    }
+    if (state !== 'overdue') continue;
     const d = daysUntil(p.dueDate, now.getTime());
     if (d == null || -d < k.lateAfterDays) continue;
     const late = -d;
-    const c = contractById[p.contractId] || {};
+    if (CS.recentReminder(p, now, RECENT_REMINDER_DAYS)) { skippedRecent++; continue; }
     const tenant = tenantOf(c);
-    const to = tenant.email || c.tenantEmail || null;
-    const name = tenant.name || c.tenantName || '';
-    const prop = propLabel(propById, p.propertyId ? p : c);
-    if (!to) {
-      digest.push(`💸 ${prop} — ${euro(p.amount)} in ritardo ${late}gg (nessuna email inquilino)`);
-      continue;
-    }
+    const lang = tenantLang(tenant, c);
     // month is 'YYYY-MM' for rent installments; deposit docs carry labels
     // like 'saldo deposito' — never feed those to Date (→ 'Invalid Date').
-    const monthLabel = /^\d{4}-\d{2}$/.test(String(p.month || ''))
-      ? new Date(p.month + '-01T00:00:00Z').toLocaleDateString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-      : (p.month || 'in corso');
-    const what = p.type === 'deposit-balance' ? 'il saldo del deposito cauzionale'
-      : (p.installmentMonths > 1 ? `la rata di canone ${p.installmentMonths}-mensile (${monthLabel})` : `il canone di ${monthLabel}`);
-    const draft =
-      `Ciao ${name || ''},\n\n` +
-      `ti scriviamo per ${what} relativo a ${prop}: risulta ancora da saldare l'importo di ${euro(p.amount)}, in scadenza il ${p.dueDate}.\n\n` +
-      `Se il pagamento è già partito, ignora pure questo messaggio. In caso contrario ti chiediamo di provvedere nei prossimi giorni; per qualsiasi difficoltà siamo qui — basta rispondere a questa email.\n\n` +
-      `Grazie,\nIl team BOOM`;
+    const mIt = monthWords(p.month, 'it') || (p.month || 'in corso');
+    const mLang = monthWords(p.month, lang) || (p.month || (lang === 'it' ? 'in corso' : 'this period'));
+    const link = rataLink(p.id);
+    if (CS.isImported(c)) {
+      // Palazzo preso in carico: nessun account BOOM, il rapporto lo tiene
+      // l'operatore col Palazzo (WhatsApp col link della rata). Al telefono
+      // dell'operatore arriva il link pronto, nessuna email a nome BOOM.
+      digest.push(`💸 ${prop} — ${euro(p.amount)} in ritardo ${late}gg (${mIt}) · manda il link della rata dal Palazzo${link ? ': ' + link : ''}`);
+      continue;
+    }
+    const to = tenant.email || c.tenantEmail || null;
+    const name = tenant.name || c.tenantName || '';
+    if (!to) {
+      digest.push(`💸 ${prop} — ${euro(p.amount)} in ritardo ${late}gg (nessuna email inquilino)${link ? ' · link della rata da mandare su WhatsApp: ' + link : ''}`);
+      continue;
+    }
+    const what = lang === 'it'
+      ? (p.type === 'deposit-balance' ? 'il saldo del deposito cauzionale'
+        : (p.installmentMonths > 1 ? `la rata di canone ${p.installmentMonths}-mensile (${mLang})` : `il canone di ${mLang}`))
+      : (p.type === 'deposit-balance' ? 'the deposit balance'
+        : (p.installmentMonths > 1 ? `the ${p.installmentMonths}-month rent instalment (${mLang})` : `the rent for ${mLang}`));
+    // Chi ha un account paga dalla sua casa (/casa); il link della rata
+    // vale per tutti gli altri, senza login.
+    const payUrl = c.tenantId ? `${BASE}/casa` : link;
+    const draft = reminderDraft({ lang, name, what, prop, amount: euro(p.amount), dueDate: dayWords(p.dueDate, lang) || p.dueDate, link: payUrl });
     const r = await maybePropose(dry, {
       leadId: `payment-${p.id}`,
       kind: 'reply',
-      summary: `Sollecito canone ${monthLabel} · ${prop} · ${euro(p.amount)} (${late}gg di ritardo)`,
+      summary: `Sollecito canone ${mIt} · ${prop} · ${euro(p.amount)} (${late}gg di ritardo)`,
       confidence: 0.85,
       proposedBy: 'gestore',
-      payload: { channel: 'email', recipient: to, to, subject: `BOOM · Promemoria canone ${monthLabel} — ${prop}`, draft },
+      payload: {
+        channel: 'email', recipient: to, to, lang, draft,
+        subject: lang === 'it' ? `BOOM · Promemoria canone ${mIt} — ${prop}` : `BOOM · Rent reminder ${mLang} — ${prop}`,
+      },
       contextHash: `gestore:payrem:${p.id}:${week}`,
     });
     if (r) proposals.push({ type: 'sollecito', ref: p.id, prop, dedupHit: r.dedupHit });
@@ -118,6 +203,11 @@ async function run({ dry }) {
   // ── 2. Firme mancanti (nudge col link Magic Sign) ─────────────────────
   for (const c of contracts) {
     if (!liveContract(c)) continue;
+    // Firmato su carta, segnaposto (contratto non in archivio) o già
+    // completo: non c'è nessuna firma digitale da raccogliere. Un token
+    // coniato per sbaglio (un tap su «Firma ora») NON deve far partire un
+    // sollecito settimanale su un atto già concluso a penna.
+    if (CS.notSignable(c)) continue;
     const created = Date.parse(c.createdAt || c.startDate || 0);
     if (created && (now - created) < k.unsignedAfterDays * 86400000) continue;
     if (c.tenantSignature && c.landlordSignature) continue;
@@ -169,7 +259,7 @@ async function run({ dry }) {
   for (const c of contracts) {
     if (!liveContract(c)) continue;
     let obligations;
-    try { obligations = COMPLIANCE.obligationsFor(c, { tenant: tenantOf(c), today: now }); } catch { continue; }
+    try { obligations = COMPLIANCE.obligationsFor(c, { tenant: tenantOf(c), today: now, property: propById[c.propertyId] }); } catch { continue; }
     for (const it of obligations) {
       const st = COMPLIANCE.statusOf(it, stateById[c.id] || {}, now, 14);
       if (st === 'overdue') digest.push(`🏛️ ${propLabel(propById, c)} — ${it.label} SCADUTA`);
@@ -188,6 +278,7 @@ async function run({ dry }) {
   const counts = {
     proposals: fresh.length,
     proposalsSkippedDedup: proposals.length - fresh.length,
+    remindersSkippedRecent: skippedRecent,
     digestItems: digest.length,
   };
   const summary = [`${fresh.length} proposte in coda (solleciti/firme) · ${digest.length} punti d'attenzione`, rejectedLine(rejected)].filter(Boolean).join(' — ');

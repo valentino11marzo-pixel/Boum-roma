@@ -25,6 +25,7 @@ import { ensureSignTokens } from './_tokens.js';
 import { requireRole, setCors } from '../_auth.js';
 import { sendSignInvite } from './_notify.js';
 import { ensureContractPdf } from './_contractpdf.js';
+import CS from '../../js/contract-state.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -54,6 +55,12 @@ export default async function handler(req, res) {
     if (!property || property.ownerId !== auth.uid) {
       return res.status(403).json({ ok: false, error: 'not_your_contract' });
     }
+  }
+
+  // Firmato su carta o segnaposto: nessun invito a firmare, nessun token
+  // coniato, nessun PDF dal modello BOOM per un atto che esiste su carta.
+  if (CS.isPaper(contract) || CS.isPlaceholder(contract)) {
+    return res.status(409).json({ ok: false, error: 'not_signable', reason: CS.notSignableReason(contract) });
   }
 
   const signed = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;

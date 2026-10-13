@@ -20,9 +20,17 @@
    Test: node tests/oggi/run.mjs
    ════════════════════════════════════════════════════════════════════════ */
 (function (root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory();
-    else root.BOOM_OGGI = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+    // Lo stato di una rata e i fatti del contratto vengono dai motori
+    // condivisi (BOOM_RENT, BOOM_CONTRACT_STATE): letti al momento del
+    // build, così l'ordine dei <script> nel portal non conta.
+    if (typeof module === 'object' && module.exports) {
+        module.exports = factory(function () { return require('./rent-engine.js'); },
+            function () { return require('./contract-state.js'); });
+    } else {
+        root.BOOM_OGGI = factory(function () { return root.BOOM_RENT; },
+            function () { return root.BOOM_CONTRACT_STATE; });
+    }
+}(typeof self !== 'undefined' ? self : this, function (getRent, getCS) {
     'use strict';
 
     const DAY = 86400000;
@@ -54,6 +62,40 @@
         // pagata e' non pagata, comunque il portale la chiami.
         const unpaid = (p) => p.status === 'pending' || p.status === 'overdue';
         const byC = (id) => C.find((c) => c.id === id);
+        // LO STATO VERO DI UNA RATA (12/10/2026): una rata col bonifico
+        // SEGNALATO dall'inquilino (/rata, /casa) resta 'pending' su
+        // Firestore, ma non è «in ritardo»: è da VERIFICARE. Oggi la metteva
+        // fra i ritardi col tasto 📧 Sollecito — a chi aveva appena caricato la
+        // ricevuta. Lo stato lo decide BOOM_RENT.paymentState, la stessa
+        // lettura del Palazzo e dei Canoni; i mesi prima della gestione BOOM
+        // (property.gestioneDal) non sono arretrati di nessuno.
+        const RENT = getRent ? getRent() : null;
+        const CS = getCS ? getCS() : null;
+        const nowDate = new Date(now);
+        const propOf = (id) => props.find((p) => p.id === id) || null;
+        const stateOf = (p) => {
+            if (RENT && RENT.paymentState) return RENT.paymentState(p, nowDate);
+            if (!unpaid(p)) return String(p.status || '');
+            return p.dueDate && new Date(p.dueDate).getTime() < now ? 'overdue' : 'due';
+        };
+        const monthOfPay = (p) => /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+        const preGestione = (p) => {
+            if (!CS || !CS.beforeGestione) return false;
+            const c = byC(p.contractId);
+            return CS.beforeGestione(monthOfPay(p), propOf(p.propertyId || (c && c.propertyId)));
+        };
+        const live = P.filter((p) => !preGestione(p));
+        // Una rata il cui conduttore NON ha un account: il 📧 Sollecito del
+        // portal cerca l'inquilino fra gli utenti e rispondeva «Inquilino non
+        // trovato». Per il Palazzo (presa in carico) le azioni sono le sue —
+        // il link della rata via WhatsApp e «Registra incasso»; per un
+        // contratto storico senza account, il link di pagamento.
+        const imported = (c) => !!(c && CS && CS.isImported && CS.isImported(c));
+        const noAccount = (c) => !c || !c.tenantId;
+        const nameOf = (c) => {
+            const t = c ? U.find((u) => u.id === c.tenantId) : null;
+            return t ? t.name : (c && c.tenantName) || '';
+        };
 
         // ── 1. Risposte AI in attesa di approvazione (action_queue) ──────
         // La firma dell'operatore È il prodotto: un'ora di attesa qui è
@@ -88,7 +130,7 @@
         // ── 3. I soldi in ritardo ────────────────────────────────────────
         // UNA card di quadro + le tre peggiori per nome: l'aggregato dà la
         // misura, il nome dà l'azione. Il sollecito morde nei primi giorni.
-        const overdue = P.filter((p) => unpaid(p) && p.dueDate && new Date(p.dueDate).getTime() < now);
+        const overdue = live.filter((p) => stateOf(p) === 'overdue');
         if (overdue.length) {
             const tot = overdue.reduce((s, p) => s + num(p.amount), 0);
             out.push({
@@ -104,13 +146,21 @@
                 .slice(0, 3)
                 .forEach(({ p, late }) => {
                     const c = byC(p.contractId);
-                    const t = c ? U.find((u) => u.id === c.tenantId) : null;
+                    const who = nameOf(c);
+                    const palazzo = imported(c);
+                    const bare = !palazzo && noAccount(c);
                     out.push({
                         id: 'pay_' + p.id, kind: 'incassi', icon: '⚠️', tint: 'red',
-                        title: `€${num(p.amount).toLocaleString('it-IT')} — ${t ? t.name : propName(c && c.propertyId) || p.month || 'rata'}`,
-                        sub: `${p.month || ''} · ${Math.round(late)}gg di ritardo`,
+                        title: `€${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || p.month || 'rata'}`,
+                        sub: [(palazzo || bare) && who ? propName(c && c.propertyId) : '', `${p.month || ''} · ${Math.round(late)}gg di ritardo`].filter(Boolean).join(' · '),
                         score: 74 + ageBoost(late, 1.5, 12) + Math.min(8, num(p.amount) / 300),
-                        actions: [
+                        actions: palazzo ? [
+                            { label: '🏛 Manda il link dal Palazzo', fn: 'goTo', args: ['palazzo'], primary: true },
+                            { label: '✓ Registra incasso', fn: 'confirmRentPayment', args: [p.id] }
+                        ] : bare ? [
+                            { label: '💳 Link di pagamento', fn: 'showPaymentLink', args: ['pay', p.id], primary: true },
+                            { label: '✓ Registra incasso', fn: 'confirmRentPayment', args: [p.id] }
+                        ] : [
                             { label: '📧 Sollecito', fn: 'sendPaymentReminder', args: [p.id], primary: true },
                             { label: '💳 Link carta', fn: 'showPaymentLink', args: ['pay', p.id] },
                             { label: '✓ Pagata', fn: 'markPaymentPaid', args: [p.id] }
@@ -118,6 +168,32 @@
                     });
                 });
         }
+
+        // ── 3b. Bonifici SEGNALATI: verificare, non sollecitare ─────────
+        // L'inquilino ha detto «ho pagato con bonifico» (spesso con la
+        // ricevuta): la decisione è dell'operatore che vede i soldi
+        // arrivare. Una card per rata, l'azione è registrare l'incasso.
+        const reported = live.filter((p) => stateOf(p) === 'reported');
+        reported
+            .map((p) => ({ p, age: days(p.tenantReportedAt || (p.tenantReported && p.tenantReported.at) || p.tenantReportDate || p.dueDate, now) }))
+            .sort((a, b) => b.age - a.age)
+            .slice(0, 5)
+            .forEach(({ p, age }) => {
+                const c = byC(p.contractId);
+                const who = nameOf(c);
+                const when = String(p.tenantReportDate || (p.tenantReported && p.tenantReported.date) || '').slice(0, 10);
+                const proof = !!(p.tenantReportProofUrl || p.proofUrl || (p.tenantReported && p.tenantReported.proofUrl));
+                out.push({
+                    id: 'rep_' + p.id, kind: 'incassi', icon: '💶', tint: 'gold',
+                    title: `Bonifico segnalato — verifica · €${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || 'rata'}`,
+                    sub: [who ? propName(c && c.propertyId) : '', p.month || '', when ? 'pagato il ' + when : '', proof ? 'ricevuta allegata' : 'senza ricevuta'].filter(Boolean).join(' · ').slice(0, 120),
+                    score: 72 + ageBoost(age, 2, 12),
+                    actions: [
+                        { label: '✓ Registra incasso', fn: 'confirmRentPayment', args: [p.id], primary: true },
+                        { label: 'Revoca segnalazione', fn: 'openRentReportReview', args: [p.id] }
+                    ]
+                });
+            });
 
         // ── 4. Lead caldi senza risposta ─────────────────────────────────
         const gradeRank = { A: 3, B: 2, C: 1 };
@@ -260,11 +336,15 @@
         // ── Il polso dei soldi (la striscia in testa) ───────────────────
         const paidMonth = P.filter((p) => p.status === 'paid' && (p.paidDate || '').slice(0, 7) === month)
             .reduce((s, p) => s + num(p.amount), 0);
-        const dueMonth = P.filter((p) => unpaid(p) && (p.dueDate || '').slice(0, 7) === month)
+        // Da incassare = dovuto o in ritardo (mai un bonifico segnalato, che
+        // ha la sua voce, né un mese prima della gestione BOOM).
+        const collectible = (p) => { const st = stateOf(p); return st === 'due' || st === 'overdue'; };
+        const dueMonth = live.filter((p) => collectible(p) && String(p.dueDate || '').slice(0, 7) === month)
             .reduce((s, p) => s + num(p.amount), 0);
         const overdueTot = overdue.reduce((s, p) => s + num(p.amount), 0);
-        const next7 = P.filter((p) => {
-            if (!unpaid(p) || !p.dueDate) return false;
+        const reportedTot = reported.reduce((s, p) => s + num(p.amount), 0);
+        const next7 = live.filter((p) => {
+            if (!collectible(p) || !p.dueDate) return false;
             const d = (new Date(p.dueDate).getTime() - now) / DAY;
             return d >= 0 && d <= 7;
         }).reduce((s, p) => s + num(p.amount), 0);
@@ -276,10 +356,12 @@
                 dueMonth: Math.round(dueMonth),
                 overdueTotal: Math.round(overdueTot),
                 overdueCount: overdue.length,
+                reportedTotal: Math.round(reportedTot),
+                reportedCount: reported.length,
                 next7: Math.round(next7)
             }
         };
     }
 
-    return { version: 'O2', build: build };
+    return { version: 'O3', build: build };
 }));
