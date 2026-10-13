@@ -12,8 +12,9 @@
 //                 documents: [{ id, name, type, category, fiscalYear, fileUrl, fileName }], note }
 // Response 404: invalid    410: expired/revoked
 
-import { fsList, fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { fsList, fsGet, fsGetMany, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { setCors } from '../_auth.js';
+import { ownership, validDocId } from '../documents/_owned.js';
 
 function clientIp(req) {
   const xff = req.headers['x-forwarded-for'];
@@ -50,10 +51,31 @@ export default async function handler(req, res) {
 
   // Resolve documents (admin creds bypass rules; we only return the ids the
   // share explicitly lists, so scope is exactly what the owner shared).
+  // E SOLO quelli del proprietario della condivisione (suoi o di un suo
+  // immobile): una condivisione scritta a mano (le regole lo permettevano a
+  // un proprietario) o una lista con l'id di un documento altrui — gli id si
+  // deducono dall'indirizzo — non consegna mai la ricevuta o il contratto di
+  // un altro. Unica eccezione: la condivisione emessa da un admin dal server
+  // (issuedBy 'admin', e chi l'ha creata è admin davvero).
+  const ids = (Array.isArray(share.docIds) ? share.docIds : []).filter(validDocId).slice(0, 200);
+  let byPath = new Map();
+  try { byPath = await fsGetMany(ids.map(id => 'documents/' + id)); } catch (_) { byPath = new Map(); }
+  let adminIssued = false;
+  if (share.issuedBy === 'admin' && validDocId(String(share.createdBy || ''))) {
+    const creator = await fsGet('users/' + share.createdBy).catch(() => null);
+    adminIssued = !!(creator && creator.role === 'admin');
+  }
+  let own = null;
+  if (!adminIssued) {
+    try { own = await ownership(share.ownerId, byPath); }
+    catch (_) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
+  }
   const documents = [];
-  for (const id of (share.docIds || [])) {
+  let omitted = 0;
+  for (const id of ids) {
     try {
-      const d = await fsGet('documents/' + id);
+      const d = byPath.get('documents/' + id);
+      if (d && own && !own.owned.has(id)) { omitted++; continue; }
       if (d) documents.push({
         id: d.id,
         name: d.name || 'Documento',
@@ -66,14 +88,15 @@ export default async function handler(req, res) {
     } catch (_) { /* skip unreadable */ }
   }
 
-  // Property summary (optional).
+  // Property summary (optional) — solo un immobile del proprietario.
   let property = null;
-  if (share.propertyId) {
+  if (share.propertyId && validDocId(String(share.propertyId))) {
     try {
       const p = await fsGet('properties/' + share.propertyId);
-      if (p) property = { name: p.name || '', address: p.address || '' };
+      if (p && (adminIssued || p.ownerId === share.ownerId)) property = { name: p.name || '', address: p.address || '' };
     } catch (_) {}
   }
+  if (omitted) console.warn('[share/lookup] documenti non del proprietario omessi:', omitted);
 
   // Audit the view: append to the share's views[] (capped) + activityLog.
   try {

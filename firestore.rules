@@ -198,17 +198,32 @@ service cloud.firestore {
     function notPast(v) {
       return !(v is string) || v == '' || v >= ymd(request.time - duration.value(60, 'd'));
     }
+    //
+    // 'terminated' CHIUDE ALLA DATA (13/10/2026). «Chiudi contratto» del
+    // portal scrive subito status 'terminated' con la data di uscita
+    // (terminatedAt), anche futura: la disdetta per fine novembre si segna a
+    // metà ottobre. Prima lo stato chiudeva SUBITO, e per sei settimane
+    // l'inquilino ancora in casa riceveva PERMISSION_DENIED su ogni guasto
+    // da /casa — mentre /guasto (liveSeats) e il Palazzo (effectiveEnd) lo
+    // tenevano vivo fino a terminatedAt. Ora la stessa regola: 'terminated'
+    // resta aperto fino al giorno di terminatedAt compreso, senza la
+    // tolleranza dei 60 giorni (quella è per un 'active' col rinnovo non
+    // ancora a sistema); 'terminated' senza data chiude subito.
     function contractOpen(cid) {
       let c = contractData(cid);
-      return !(c.get('status', '') in ['expired', 'ended', 'terminated', 'completed', 'closed',
+      return !(c.get('status', '') in ['expired', 'ended', 'completed', 'closed',
                                        'cancelled', 'canceled', 'rejected', 'void', 'draft', 'deleted', 'archived'])
+          && (c.get('status', '') != 'terminated'
+              || (c.get('terminatedAt', '') is string && c.get('terminatedAt', '') != ''
+                  && c.get('terminatedAt', '') >= ymd(request.time)))
           && notPast(c.get('endDate', '')) && notPast(c.get('terminatedAt', ''));
     }
     function tenantOfUnit(pid, cid) {
       return (cid is string && cid != '')
         ? (contractData(cid).get('tenantId', '') == uid() && contractData(cid).get('propertyId', '') == pid
            && contractOpen(cid)
-           && (propertyData(pid).get('currentContractId', '') == cid || contractData(cid).get('status', '') == 'active'))
+           && (propertyData(pid).get('currentContractId', '') == cid
+               || contractData(cid).get('status', '') in ['active', 'terminated']))
         : (propertyData(pid).get('currentContractId', '') is string
            && propertyData(pid).get('currentContractId', '') != ''
            && contractData(propertyData(pid).get('currentContractId', '')).get('tenantId', '') == uid()
@@ -266,9 +281,28 @@ service cloud.firestore {
       // RLI, deal-archive). Senza questo ramo ogni scrittura post-firma
       // tornava PERMISSION_DENIED e l'archiviazione legale non avveniva mai
       // (portal-app.js:1818/17263/17276/19468 — audit 2026-08-18 P0.3).
+      //
+      // CONDIVISO E «DA BOOM» LO DECIDE SOLO L'ADMIN (13/10/2026). Prima
+      // chiunque avesse una sessione — anche ANONIMA (/sign) o l'inquilino di
+      // un altro palazzo — creava un documento col proprio userId e
+      // `shared: true`, `uploadedBy: 'admin'`, `propertyId` di un interno
+      // altrui (gli id si deducono dall'indirizzo, plz_<via>_<n>): compariva
+      // nel Palazzo e fra i Documenti della proprietaria col badge «DA BOOM»
+      // — un «Contratto aggiornato, firma entro oggi» che porta a una pagina
+      // di phishing. Ora il browser di un non-admin crea SOLO documenti suoi,
+      // non condivisi, caricati da lui; e non può accenderli dopo (shared,
+      // uploadedBy, propertyId e userId non si cambiano). Il server scrive
+      // con credenziali admin e resta libero.
       allow create: if isAdmin()
-                    || (isSignedIn() && request.resource.data.userId == uid());
-      allow update, delete: if isAdmin() || resource.data.userId == uid();
+                    || (isSignedIn() && !isAnon()
+                        && request.resource.data.userId == uid()
+                        && !(request.resource.data.get('shared', false) in [true, 'true'])
+                        && request.resource.data.get('uploadedBy', uid()) == uid());
+      allow update: if isAdmin()
+                    || (isSignedIn() && !isAnon() && resource.data.userId == uid()
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['shared', 'uploadedBy', 'propertyId', 'userId']));
+      allow delete: if isAdmin() || resource.data.userId == uid();
     }
 
     // ─── notifications ────────────────────────────────────────────────
@@ -411,17 +445,30 @@ service cloud.firestore {
     match /passMeta/{x}          { allow read, write: if isAdmin(); }
 
     // ─── documentShares ───────────────────────────────────────────────
+    // Una condivisione per il commercialista nasce SOLO dal server
+    // (/api/documents/share, che controlla che ogni documento sia del
+    // proprietario): prima un proprietario poteva scriverne una a mano — o
+    // crearne una buona e poi riscriverne i `docIds` — con l'id del documento
+    // di un ALTRO (ricevute e contratti firmati hanno id deducibili), e
+    // /api/share/lookup glielo consegnava. Al proprietario resta leggere le
+    // sue e REVOCARLE (solo il campo `revoked`). Nessun client le crea.
     match /documentShares/{shareId} {
       allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
-      allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
-      allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isLandlord() && resource.data.ownerId == uid()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked']));
+      allow delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
     }
 
     // ─── taxPacks ─────────────────────────────────────────────────────
+    // Stessa disciplina delle condivisioni: nessun client li crea, il
+    // proprietario li legge e li può solo revocare.
     match /taxPacks/{packId} {
       allow read:   if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
-      allow create: if isAdmin() || (isLandlord() && request.resource.data.ownerId == uid());
-      allow update, delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isLandlord() && resource.data.ownerId == uid()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['revoked']));
+      allow delete: if isAdmin() || (isLandlord() && resource.data.ownerId == uid());
     }
 
     // ─── Admin-only operational collections ───────────────────────────

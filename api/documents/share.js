@@ -19,8 +19,9 @@
 // Response: { ok, token, url, expiresAt }
 
 import crypto from 'node:crypto';
-import { fsCreate, readJson, logActivity } from '../homie/_lib.js';
+import { fsCreate, fsGet, fsGetMany, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { ownership, validDocId } from './_owned.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -36,13 +37,38 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') return res.status(400).json({ ok: false, error: 'no_body' });
 
   const ownerId = String(body.ownerId || '').trim();
-  const docIds = Array.isArray(body.docIds) ? body.docIds.filter(Boolean).slice(0, 200) : [];
+  const rawIds = Array.isArray(body.docIds) ? body.docIds.filter(Boolean).slice(0, 200) : [];
   if (!ownerId) return res.status(400).json({ ok: false, error: 'ownerId_required' });
-  if (!docIds.length) return res.status(400).json({ ok: false, error: 'no_documents' });
+  if (!rawIds.length) return res.status(400).json({ ok: false, error: 'no_documents' });
+  // Un id è un segmento di path: niente '/', niente '..' (la lista non esce
+  // dalla collection `documents`).
+  if (!rawIds.every(validDocId)) return res.status(400).json({ ok: false, error: 'invalid_document_id' });
+  const docIds = [...new Set(rawIds)];
 
   // Landlords can only share their own bundle.
-  if (auth.profile.role === 'landlord' && ownerId !== auth.uid) {
+  const isLandlord = auth.profile.role === 'landlord';
+  if (isLandlord && ownerId !== auth.uid) {
     return res.status(403).json({ ok: false, error: 'cannot_share_others_documents' });
+  }
+  // …e solo documenti SUOI: suoi (userId) o di un suo immobile. Prima
+  // bastava un id qualunque — e gli id si deducono dall'indirizzo di un
+  // palazzo (ricevute, contratti firmati di altri inquilini). L'immobile
+  // della condivisione dev'essere suo anch'esso. L'admin condivide per conto
+  // del proprietario: nessun limite (la condivisione lo dichiara, issuedBy).
+  if (isLandlord) {
+    let docs;
+    try { docs = await fsGetMany(docIds.map(id => 'documents/' + id)); }
+    catch { return res.status(500).json({ ok: false, error: 'documents_lookup_failed' }); }
+    const own = await ownership(auth.uid, docs).catch(() => null);
+    if (!own) return res.status(500).json({ ok: false, error: 'documents_lookup_failed' });
+    if (own.foreign.length || own.missing.length) {
+      return res.status(403).json({ ok: false, error: 'foreign_document', count: own.foreign.length + own.missing.length });
+    }
+    if (body.propertyId) {
+      if (!validDocId(String(body.propertyId))) return res.status(400).json({ ok: false, error: 'invalid_property' });
+      const prop = await fsGet('properties/' + body.propertyId).catch(() => null);
+      if (!prop || prop.ownerId !== auth.uid) return res.status(403).json({ ok: false, error: 'foreign_property' });
+    }
   }
 
   const days = Math.min(365, Math.max(1, parseInt(body.expiresInDays, 10) || 60));
@@ -60,6 +86,10 @@ export default async function handler(req, res) {
     watermark: 'BOOM · ' + (body.recipientName || 'Commercialista') + ' · ' + new Date().toISOString().slice(0, 10),
     createdBy: auth.uid,
     createdByName: auth.profile.name || auth.email || '',
+    // Chi l'ha emessa, scritto SOLO qui (le regole non lasciano più creare
+    // documentShares dal browser): /api/share/lookup filtra i documenti per
+    // proprietario salvo che la condivisione l'abbia emessa un admin.
+    issuedBy: isLandlord ? 'landlord' : 'admin',
     createdAt: new Date(),
     expiresAt,
     revoked: false,
