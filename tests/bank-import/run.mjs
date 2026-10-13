@@ -57,7 +57,7 @@ r=await call({action:'import',...payload,digest:preview.digest});check('confirma
 for(const change of [{csv:csv+'\n09/09/2026;1,00;Altro'},{accountLabel:'Altro conto'}]){
  r=await call({action:'import',...payload,...change,digest:preview.digest,confirmed:true});check('changed file or account invalidates preview',()=>{assert.equal(r.code,409);assert.equal(writes,0)});
 }
-for(const bad of ['Data;Importo;Descrizione\n31/02/2026;10;Errore','Data;Importo;Descrizione\n07/09/2026;zero;Errore','Data;Entrate;Uscite;Descrizione\n07/09/2026;10;errato;Errore','Data;Importo;Descrizione;Currency\n07/09/2026;10;Errore;USD','Data;Importo;Descrizione\n07/09/2026;10.123;Errore','Data;Importo;Descrizione\n07/09/2026;10;','Data;Importo\n07/09/2026;10','Data;Importo;Descrizione\n07/09/2026;10;Uguale\n07/09/2026;10;Uguale']){
+for(const bad of ['Data;Importo;Descrizione\n07/09/2026;10;"Non chiusa', 'Data;Importo;Descrizione\n07/09/2026;10;Extra;Scartata', 'Data;Importo;Descrizione\n31/02/2026;10;Errore','Data;Importo;Descrizione\n07/09/2026;zero;Errore','Data;Entrate;Uscite;Descrizione\n07/09/2026;10;errato;Errore','Data;Importo;Descrizione;Currency\n07/09/2026;10;Errore;USD','Data;Importo;Descrizione\n07/09/2026;10.123;Errore','Data;Importo;Descrizione\n07/09/2026;10;','Data;Importo\n07/09/2026;10','Data;Importo;Descrizione\n07/09/2026;10;Uguale\n07/09/2026;10;Uguale']){
  r=await call({action:'preview',...payload,csv:bad});check('ambiguous or invalid source fails closed',()=>{assert.equal(r.code,400);assert.equal(writes,0)});
 }
 check('Data valuta is a date column, not currency',()=>assert.equal(parseBankCsv('Data operazione;Data valuta;Importo;Descrizione\n07/09/2026;07/09/2026;10;Servizio',{strict:true}).error,null));

@@ -254,7 +254,8 @@ export async function listLinkedAccounts() {
 // (statement attachments arriving by email). Column auto-detect covers the
 // common Italian exports (Intesa, Unicredit, BPER, Fineco, N26, Revolut).
 export function parseBankCsv(text, { strict = false } = {}) {
-  const rows = csvRows(text);
+  const rows = csvRows(text, strict);
+  if (!rows) return { txs: [], error: 'CSV incompleto: virgolette non chiuse' };
   if (rows.length < 2) return { txs: [], error: 'nessuna riga dati trovata' };
   // Header may not be on line 1 (some exports prepend account metadata):
   // scan the first 10 rows for the first one that maps to our columns.
@@ -268,6 +269,7 @@ export function parseBankCsv(text, { strict = false } = {}) {
   if (strict && map.desc == null) return { txs: [], error: 'serve la colonna descrizione per identificare i movimenti' };
   const txs = [];
   for (const [index, r] of rows.slice(headerIdx + 1).entries()) {
+    if (strict && r.length !== rows[headerIdx].length) return { txs: [], error: 'numero colonne non valido alla riga dati ' + (index + 1) };
     const dateIso = parseItDate(r[map.date]);
     if (strict && (!dateIso || !Number.isFinite(Date.parse(dateIso + 'T12:00:00Z')) || new Date(dateIso + 'T12:00:00Z').toISOString().slice(0, 10) !== dateIso)) return { txs: [], error: 'data non valida alla riga dati ' + (index + 1) };
     if (!dateIso) continue;
@@ -296,7 +298,7 @@ export function parseBankCsv(text, { strict = false } = {}) {
   return { txs, error: null };
 }
 
-function csvRows(text) {
+function csvRows(text, strict = false) {
   const firstLine = text.slice(0, text.indexOf('\n') + 1 || undefined);
   const sep = [';', ',', '\t'].map(s => ({ s, n: firstLine.split(s).length })).sort((a, b) => b.n - a.n)[0].s;
   const rows = [];
@@ -315,6 +317,7 @@ function csvRows(text) {
       row = [];
     } else field += c;
   }
+  if (strict && inQ) return null;
   if (field || row.length) { row.push(field.trim()); if (row.some(x => x !== '')) rows.push(row); }
   return rows;
 }
