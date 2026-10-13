@@ -229,6 +229,13 @@ const today = romeDay();
     assert.match(h, /Nessuna email all’inquilino/);
     assert.ok(!h.includes('id="incSend"'));
   });
+  await check('la scadenza proposta da «Registra Pagamento»: il giorno N del mese dopo a Roma, mai oltre la fine del mese', () => {
+    const t = today, y = +t.slice(0, 4), m = +t.slice(5, 7);
+    const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
+    const last = new Date(Date.UTC(ny, nm, 0)).getUTCDate();
+    assert.equal(T.run('incassoNextDue(5)'), `${ny}-${String(nm).padStart(2, '0')}-05`);
+    assert.equal(T.run('incassoNextDue(31)'), `${ny}-${String(nm).padStart(2, '0')}-${String(last).padStart(2, '0')}`);
+  });
   await check('il giorno di Roma, non quello UTC (mezzanotte e capodanno)', () => {
     assert.equal(T.run("incassoRomeDay(new Date('2026-11-05T23:30:00Z'))"), '2026-11-06');
     assert.equal(T.run("incassoRomeDay(new Date('2026-12-31T23:30:00Z'))"), '2027-01-01');
@@ -291,6 +298,10 @@ const today = romeDay();
     assert.ok(t.some(s => /tramite Egidi Immobiliare S\.r\.l\. \(BOOM\), che gestisce la locazione per conto del locatore/.test(s)));
     assert.ok(!t.some(s => /[^\x00-\xFF€–—‘’“”…•]/.test(s)), 'nessun carattere fuori WinAnsi nel PDF');
     assert.ok(!t.some(s => /RICEVUTO DA/.test(s)));
+    // Attesta ciò che è stato verificato, e dice cosa NON è.
+    const all = t.join(' ');
+    assert.match(all, /risulta ricevuto alla data dell'accredito, secondo la verifica indicata/);
+    assert.match(all, /Non è una fattura e non sostituisce la quietanza del locatore/);
   });
 }
 
