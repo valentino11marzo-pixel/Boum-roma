@@ -297,3 +297,46 @@
 .ow-source-boundaries{padding:8px 0;font-size:12px;line-height:1.6;color:var(--text-muted)}
 .ow-source-boundaries strong{color:var(--text-primary);font-weight:550}
 @media(max-width:640px){.ow-source-list{grid-template-columns:1fr}.ow-search-sources>summary>span{display:block;margin:5px 0 0 16px}}
+/* Work desk: one case per verified practice, sources behind the next step. */
+.ow-home .od-panel { margin-top:26px; border:1px solid var(--border); border-radius:16px; padding:26px; background:var(--bg-card); }
+.ow-home .od-heading { display:flex; justify-content:space-between; align-items:start; gap:24px; margin-bottom:24px; }
+.ow-home .od-heading h2 { margin:0 0 10px; font-size:clamp(21px,2.4vw,28px); font-weight:500; letter-spacing:-.7px; }
+.ow-home .od-heading p:not(.ow-eyebrow) { margin:0; color:var(--text-secondary); font-size:13px; line-height:1.6; }
+.ow-home .od-heading > .ow-link { flex-shrink:0; }
+.ow-home .od-areas { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; margin:20px 0; }
+.ow-home .od-areas button { border:1px solid var(--border); border-radius:10px; background:transparent; color:var(--text-secondary); padding:14px; text-align:left; cursor:pointer; font:inherit; min-height:83px; }
+.ow-home .od-areas button[aria-pressed="true"] { background:var(--gold-light); border-color:var(--gold); color:var(--text); }
+.ow-home .od-areas span { display:block; font-size:12px; line-height:1.4; }
+.ow-home .od-areas strong { display:block; font-size:20px; font-weight:500; margin-top:9px; font-variant-numeric:tabular-nums; }
+.ow-home .od-alert { display:flex; gap:16px; justify-content:space-between; align-items:center; border-left:2px solid var(--orange); background:var(--orange-light); padding:8px 14px; font-size:12px; line-height:1.5; }
+.ow-home .od-alert strong { font-weight:500; }
+.ow-home .od-case { display:flex; align-items:center; justify-content:space-between; gap:22px; padding:20px 0; border-top:1px solid var(--border); }
+.ow-home .od-case-copy { min-width:0; }
+.ow-home .od-case h3 { margin:6px 0; font-size:16px; font-weight:500; line-height:1.4; overflow-wrap:anywhere; }
+.ow-home .od-case p { margin:0; font-size:13px; color:var(--text-secondary); line-height:1.6; overflow-wrap:anywhere; }
+.ow-home .od-case p.od-case-status { font-size:10px; color:var(--gold); letter-spacing:.3px; }
+.ow-home .od-case small { display:block; font-size:11px; color:var(--text-secondary); line-height:1.5; margin-top:6px; }
+.ow-home .od-case-actions { display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0; max-width:42%; }
+.ow-home .od-case-actions .btn { white-space:normal; text-align:left; }
+.ow-home .od-pagination { display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--text-secondary); border-top:1px solid var(--border); padding-top:12px; gap:14px; }
+.ow-home .od-later { display:grid; grid-template-columns:1fr 1fr; gap:12px; border-top:1px solid var(--border); padding-top:18px; margin-top:8px; }
+.ow-home .od-later button { font:inherit; color:var(--text); text-align:left; background:var(--bg-elevated); border:1px solid var(--border); padding:16px; border-radius:10px; cursor:pointer; }
+.ow-home .od-later strong { font-weight:500; font-size:13px; display:flex; justify-content:space-between; gap:12px; }
+.ow-home .od-later strong span { color:var(--gold); }
+.ow-home .od-later small { display:block; color:var(--text-secondary); font-size:12px; line-height:1.5; margin-top:8px; }
+.ow-home .od-archive { margin:0; }
+.ow-home .od-archive > section { padding:20px; }
+.ow-home .od-show-all { margin:8px 20px 0; }
+.ow-home .od-archive:not([open]) > .od-show-all { display:none; }
+@media(max-width:700px) {
+ .ow-home .od-panel { padding:18px; }
+ .ow-home .od-heading { flex-direction:column; gap:8px; margin-bottom:16px; }
+ .ow-home .od-areas { grid-template-columns:repeat(2,minmax(0,1fr)); }
+ .ow-home .od-areas button { display:flex; justify-content:space-between; align-items:center; min-height:60px; gap:10px; padding:12px; }
+ .ow-home .od-areas strong { margin:0; }
+ .ow-home .od-areas button:last-child { grid-column:1/-1; }
+ .ow-home .od-case { flex-direction:column; align-items:stretch; gap:14px; }
+ .ow-home .od-case-actions { flex-direction:row; max-width:none; align-items:center; flex-wrap:wrap; gap:16px; }
+ .ow-home .od-later { grid-template-columns:1fr; }
+ .ow-home .od-alert { flex-direction:column; align-items:flex-start; gap:2px; }
+}

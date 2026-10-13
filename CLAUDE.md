@@ -2190,6 +2190,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   I risultati dell’archivio vengono verificati sul record canonico prima dell’apertura.
   WhatsApp completo, posta completa e contenuto PDF restano fuori dalla ricerca;
   Inbox accessibile solo dai collegamenti già salvati. Prove `portalsearch/searcharchive/searchui`.
+- **Home per risultato (13/10/2026):** `oggi-desk-engine` raggruppa per riferimenti
+  univoci i segnali esistenti in cinque percorsi, con apertura del passo successivo.
+  Proposte vecchie, date mancanti e collegamenti incerti restano nelle verifiche;
+  urgenze, nuove richieste non collegate ed errori di lettura rimangono visibili.
+  La coda originale resta apribile e filtrabile; nessuna chiusura, invio o AI in lettura.
+  Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
+  senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
+  `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

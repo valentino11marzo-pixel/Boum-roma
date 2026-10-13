@@ -21,6 +21,7 @@ try {
             Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async t => copied.push(t) } });
         });
         const open = async n => {
+            if (!await page.locator('#ogQueueArchive').evaluate(el => el.open)) await page.locator('#ogQueueArchive > summary').click();
             await page.locator('#sgFollowPanel [data-sg-action="message"]').nth(n).click();
             await page.waitForSelector('#owMessageText');
         };

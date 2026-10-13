@@ -31,6 +31,7 @@ try {
   const fresh = async () => { await page.goto(base); await ready(); };
   const card = id => page.locator('article[data-sg-id="' + id + '"]');
   const edit = async id => {
+    if (!await page.locator('#ogQueueArchive').evaluate(el => el.open)) await page.locator('#ogQueueArchive > summary').click();
     const details = card(id).locator('.sg-case-details');
     if (!(await details.evaluate(el => el.open))) await details.locator('summary').click();
     await card(id).locator('[data-sg-action="edit"]').click();

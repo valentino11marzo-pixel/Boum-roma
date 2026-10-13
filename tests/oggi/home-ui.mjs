@@ -20,6 +20,7 @@ try{
   await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
   await check(width+' home utile prima dei pannelli lunghi, senza invii',async()=>{
    assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),false);
+   assert.equal(await page.locator('#ogQueueArchive').evaluate(e=>e.open),false);
    assert.equal(await page.locator('#ogWorkBriefing').count(),0);
    assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
@@ -42,6 +43,7 @@ try{
    assert.equal(await page.evaluate(()=>testIO.actions.length),0);
   });
   await check(width+' decisioni, fonte telefonica e review usano il caso esistente senza AI',async()=>{
+   await page.locator('#ogQueueArchive > summary').click();
    assert.equal(await page.locator('#sgFollowPanel .sg-case').count(),2);
    assert.equal(await page.locator('#sgFollowPanel a[href="/chiamate?call=demo-call"]').count(),1);
    assert.equal(await page.locator('article[data-sg-id]').count(),2);
@@ -128,6 +130,7 @@ try{
    await page.locator('[data-pdos-tab="contracts"]').click();assert.match(page.url(),/contracts$/);
    await page.locator('[data-pdos-action="back"]').click();await page.waitForFunction(()=>oggiSegretaria.loaded);
    assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('.ow-selection > div:first-child > h3').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+   if(!await page.locator('#ogQueueArchive').evaluate(e=>e.open))await page.locator('#ogQueueArchive > summary').click();
   });
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');

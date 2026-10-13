@@ -51,7 +51,7 @@ const db={collection(name){
   doc(){testIO.writes++;throw Error('Unexpected Firestore access');}};
 }};
 `;
-const engines = ['oggi-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine']
+const engines = ['oggi-engine', 'oggi-desk-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine']
   .map(name => '<script src="/js/' + name + '.js"></script>').join('');
 const boot = "goTo(location.hash.slice(1)||'properties');";
 assert(propertyHtml.includes(boot));
@@ -94,6 +94,7 @@ try {
     let visit = 0;
     const fresh = async () => {
       await page.goto(base + '/portal?case=' + (++visit) + '#oggi'); await idle();
+      await page.locator('#ogQueueArchive > summary').click();
       await page.waitForSelector('article[data-sg-id="' + TARGET + '"]');
       // Existing mobile transformations are debounced by 70ms.
       await page.waitForTimeout(180);

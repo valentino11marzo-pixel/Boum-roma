@@ -73,7 +73,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
       document.dispatchEvent(new Event('visibilitychange'));
     };
   ` });
-  for (const name of ['oggi-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine'])
+  for (const name of ['oggi-engine', 'oggi-desk-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine'])
     await page.addScriptTag({ content: read('js/' + name + '.js') });
   await page.addScriptTag({ content: read('js/conversations.js') });
   if(globalOnline){
@@ -95,6 +95,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
     emitConversations(seedConversations);
   });
   await page.waitForTimeout(250);
+  await page.locator('#ogQueueArchive > summary').click();
   await page.locator('details[data-sg-detail="operations"] > summary').click();
   await page.locator('[data-ow-view="preparing"]').click();
   await page.locator('details[data-sg-detail="case-' + ID + '"] > summary').click();
