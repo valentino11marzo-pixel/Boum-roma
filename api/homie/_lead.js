@@ -23,7 +23,8 @@
 // giudica se la persona è seria: quello costerebbe token e li spende già
 // qualcun altro, meglio.
 
-import { fsList } from './_lib.js';
+import { fsList, fsGet } from './_lib.js';
+import CS from '../../js/contract-state.js';
 
 // ── il numero, scritto in tutti i modi in cui esiste davvero ───────────────
 // WhatsApp consegna SEMPRE l'internazionale (+393334444444); i portali e i
@@ -154,6 +155,115 @@ export async function recentLeadByPhone(phone, now = Date.now()) {
     .filter(r => now - new Date(r.createdAt || 0).getTime() < DEDUPE_WINDOW_MS)
     .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   return live[0] || null;
+}
+
+// ── l'inquilino che esiste solo nel CONTRATTO ──────────────────────────────
+// Gli inquilini di un palazzo preso in carico dalla tabella della
+// proprietaria non hanno un doc `users`: il loro numero vive SOLO in
+// contracts.tenantPhone (e nei co-intestatari). Le scansioni per telefono
+// (users, leads, pfsClients, clients) non li vedevano, quindi ogni loro
+// WhatsApp («ho fatto il bonifico», «perde la doccia») e ogni telefonata
+// diventava un LEAD NUOVO: Brain, card «ti ha scritto su WhatsApp», bozza
+// del Commerciale che risponde come a uno che cerca casa (12/10/2026).
+//
+// Il numero nella tabella è scritto come capita (col prefisso estero e gli
+// spazi, nazionale senza +39): un'uguaglianza su Firestore non lo trova. Quindi un
+// indice in memoria, costruito da UNA lettura dei contratti e tenuto per
+// 10 minuti nell'istanza calda (zero letture nei giri successivi), con le
+// chiavi normalizzate da normalizePhone. Un numero ambiguo (forma
+// nazionale straniera) non combacia: meglio un lead in più che un inquilino
+// attribuito alla persona sbagliata.
+const TENANT_INDEX_TTL_MS = 10 * 60 * 1000;
+const TENANT_STALE_MS = 365 * 86400000;
+let tenantIndex = null;          // { at, map: Map(e164 → [entry]) }
+let tenantIndexLoading = null;
+
+/** Le chiavi E.164 sotto cui cercare un numero (anche un JID senza '+'). */
+export function phoneKeys(p) {
+  const out = new Set();
+  const norm = normalizePhone(p);
+  if (norm) out.add(norm);
+  const raw = String(p || '').trim();
+  const digits = raw.replace(/\D/g, '');
+  // '393331234567' senza '+' (come lo consegna un JID WhatsApp): normalizePhone
+  // lo prenderebbe per un nazionale che comincia per 3 e ci attaccherebbe
+  // un secondo +39.
+  if (!raw.startsWith('+') && !raw.startsWith('00') && digits.length >= 11) out.add('+' + digits);
+  return [...out];
+}
+
+function contractAlive(c, now) {
+  const st = String(c.status || '').toLowerCase();
+  if (['draft', 'cancelled', 'canceled'].includes(st)) return false;
+  if (['expired', 'terminated', 'ended', 'closed'].includes(st)) {
+    const end = Date.parse(c.terminatedAt || c.endDate || '');
+    // finito da poco: chi chiama per il deposito è ancora un inquilino
+    return Number.isFinite(end) && now - end < TENANT_STALE_MS;
+  }
+  return true;
+}
+
+/** Pura: l'indice telefono → parti conduttrici dei contratti vivi. */
+export function buildTenantIndex(contracts, now = Date.now()) {
+  const map = new Map();
+  for (const c of contracts || []) {
+    if (!c || !c.id || !contractAlive(c, now)) continue;
+    for (const party of CS.tenantPhones(c)) {
+      for (const key of phoneKeys(party.phone)) {
+        if (!/^\+\d{8,15}$/.test(key)) continue;
+        const list = map.get(key) || [];
+        list.push({ contractId: c.id, propertyId: c.propertyId || null, name: party.name || '', role: party.role,
+          email: party.role === 'tenant' ? (c.tenantEmail || '') : '', source: c.source || null });
+        map.set(key, list);
+      }
+    }
+  }
+  return map;
+}
+
+async function tenantIndexNow(now) {
+  if (tenantIndex && now - tenantIndex.at < TENANT_INDEX_TTL_MS) return tenantIndex.map;
+  if (!tenantIndexLoading) {
+    tenantIndexLoading = fsList('contracts', { limit: 1000 })
+      .then(rows => { tenantIndex = { at: Date.now(), map: buildTenantIndex(rows, Date.now()) }; return tenantIndex.map; })
+      .finally(() => { tenantIndexLoading = null; });
+  }
+  return tenantIndexLoading;
+}
+
+/** Solo per i test: dimentica l'indice in memoria. */
+export function resetTenantIndex() { tenantIndex = null; tenantIndexLoading = null; }
+
+/**
+ * Il conduttore (titolare o co-intestatario) di un contratto vivo con questo
+ * numero, con l'immobile per il contesto ("Piazzale … int. 7"). null se il
+ * numero non è di nessun conduttore, o se combacia con PIÙ contratti di
+ * immobili diversi (ambiguo: non si attribuisce). Lancia solo se la lettura
+ * dei contratti fallisce — chi chiama decide (di solito: si prosegue come
+ * prima).
+ */
+export async function contractTenantByPhone(phone, { now = Date.now(), get } = {}) {
+  if (!phone) return null;
+  const map = await tenantIndexNow(now);
+  const hits = new Map();
+  for (const key of phoneKeys(phone)) for (const e of map.get(key) || []) hits.set(e.contractId + ':' + e.role, e);
+  const all = [...hits.values()];
+  if (!all.length) return null;
+  const props = new Set(all.map(e => e.propertyId || e.contractId));
+  if (props.size > 1) return null;
+  const e = all.find(x => x.role === 'tenant') || all[0];
+  let property = null;
+  if (e.propertyId) {
+    try { property = await (get || fsGet)('properties/' + e.propertyId); } catch { property = null; }
+  }
+  const propertyLabel = (property && (property.name || property.title || property.address)) || '';
+  return {
+    id: e.contractId, contractId: e.contractId, propertyId: e.propertyId, propertyLabel,
+    interno: (property && property.interno) || null,
+    name: e.name, phone: normalizePhone(phone), email: e.email || '', role: e.role,
+    imported: e.source === 'palazzo-import',
+    _contract: true,
+  };
 }
 
 /** Il catalogo, una lettura sola, tollerante al fallimento. */

@@ -14,6 +14,8 @@
 import { fsList, sendEmail, logActivity, guardPost, okJson, errJson } from './_lib.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
 import RELET from '../../js/relet-engine.js';
+import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -56,10 +58,19 @@ export default async function handler(req, res) {
       if (d < 0) pushRisk('high', `${propLabel(c)} — contratto scaduto da ${Math.abs(d)}gg`);
       else if (d <= 30) pushRisk('high', `${propLabel(c)} — scade tra ${d}gg`);
       else if (d <= horizon) pushRisk('med', `${propLabel(c)} — scade tra ${d}gg`);
-      if (c.status === 'active' && (!c.tenantSignature || !c.landlordSignature)) pushRisk('high', `${propLabel(c)} — firma mancante`);
+      // Firmato su carta o segnaposto: nessuna firma digitale da raccogliere.
+      if (c.status === 'active' && !CS.notSignable(c) && (!c.tenantSignature || !c.landlordSignature)) pushRisk('high', `${propLabel(c)} — firma mancante`);
     }
+    const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
     for (const p of payments) {
-      if (['paid', 'cancelled'].includes(p.status)) continue;
+      // Lo stato da BOOM_RENT: un bonifico SEGNALATO non è un ritardo, un mese
+      // prima della gestione BOOM non è un arretrato.
+      const st = RENT.paymentState(p, new Date(now));
+      if (st === 'reported') { pushRisk('med', `${p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`); continue; }
+      if (st !== 'overdue') continue;
+      const pc = contractById[p.contractId] || {};
+      const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+      if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }
     }
@@ -71,7 +82,7 @@ export default async function handler(req, res) {
       if (['expired', 'terminated', 'draft'].includes(c.status)) continue;
       const tenant = userById[c.tenantId || c.tenant || c.tenantUid] || {};
       const doneMap = stateById[c.id] || {};
-      let obligations; try { obligations = COMPLIANCE.obligationsFor(c, { tenant, today: todayD }); } catch { continue; }
+      let obligations; try { obligations = COMPLIANCE.obligationsFor(c, { tenant, today: todayD, property: propById[c.propertyId] }); } catch { continue; }
       for (const it of obligations) {
         const st = COMPLIANCE.statusOf(it, doneMap, todayD, 14);
         if (st === 'overdue') { buroOverdue++; pushRisk(it.severity === 'low' ? 'med' : 'high', `${propLabel(c)} — ${it.label} (scaduto)`); }

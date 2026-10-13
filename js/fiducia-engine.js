@@ -44,7 +44,12 @@
   /* ── le categorie promuovibili: SOLO testi template, mai bozze AI ─────── */
   var CATEGORIES = [
     { key: 'commerciale:followup', code: 'cf', label: 'Follow-up ai lead fermi da 48h (testo template)' },
-    { key: 'gestore:payrem',       code: 'gp', label: 'Sollecito pagamento in ritardo (testo template)' },
+    /* `since`: il testo del sollecito è cambiato il 12/10/2026 (lingua
+     * dell'inquilino, link per pagare, mai a chi ha segnalato il bonifico,
+     * mai agli inquilini del Palazzo): i sì dati al testo di prima non
+     * provano quello di adesso. Nel campione entrano solo le decisioni sulle
+     * proposte nate da quel giorno. */
+    { key: 'gestore:payrem',       code: 'gp', label: 'Sollecito pagamento in ritardo (testo template)', since: '2026-10-12' },
     { key: 'gestore:sign',         code: 'gs', label: 'Sollecito firma col link Magic Sign (testo template)' },
   ];
   /* Le mai-promuovibili, con la ragione scritta. `commerciale:first` è la
@@ -98,11 +103,28 @@
    * Status tolleranti come in miniera-engine.approvalStats: executor e
    * auto-apply scrivono varianti diverse dello stesso "sì". */
   var APPROVED = { approved: 1, executed: 1, 'auto-applied': 1, sent: 1, done: 1 };
+  /* Il millisecondo di una data in qualunque forma arrivi (ISO, Date,
+   * Timestamp Firestore {seconds}/{_seconds}/toMillis). 0 se illeggibile. */
+  function msOf(v) {
+    if (!v) return 0;
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    if (v instanceof Date) return v.getTime() || 0;
+    if (typeof v.toMillis === 'function') { try { return v.toMillis() || 0; } catch (_) { return 0; } }
+    if (typeof v.seconds === 'number') return v.seconds * 1000;
+    if (typeof v._seconds === 'number') return v._seconds * 1000;
+    var t = Date.parse(v);
+    return isFinite(t) ? t : 0;
+  }
+  var SINCE = {};
+  CATEGORIES.forEach(function (c) { if (c.since) SINCE[c.key] = Date.parse(c.since + 'T00:00:00Z'); });
   function statsFor(actions) {
     var by = {};
     (actions || []).forEach(function (a) {
       var key = categoryOf(a);
       if (!key) return;
+      /* una categoria il cui testo è cambiato conta solo le proposte nate
+       * dopo: senza data non si sa su quale testo è stata decisa → fuori */
+      if (SINCE[key] && msOf(a && a.createdAt) < SINCE[key]) return;
       var s = by[key] || (by[key] = { proposed: 0, approved: 0, rejected: 0, pending: 0, decided: 0, rate: null });
       var st = String((a && a.status) || 'pending');
       s.proposed++;

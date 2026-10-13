@@ -30,6 +30,7 @@
 import { getAdminToken, fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { aspiChecklist } from './_aspi.js';
+import CS from '../../js/contract-state.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -45,6 +46,11 @@ const DEST = {
   id_conduttore: { where: 'contract', role: 'tenant' },
   id_locatore:   { where: 'contract', role: 'landlord' },
   esigenza:      { where: 'contract', role: 'tenant', kind: 'extra' },
+  // La voce «contratto» si allega SOLO per un contratto firmato SU CARTA:
+  // è la scansione firmata (paperPdfUrl, lo stesso campo e lo stesso path
+  // del Palazzo). Per un contratto digitale il PDF si genera o si corregge
+  // (contracts/revise), per un segnaposto il contratto va prima caricato.
+  contratto:     { where: 'paper' },
 };
 
 const safeName = (s, fb) => String(s || fb).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
@@ -94,7 +100,19 @@ export default async function handler(req, res) {
     const name = safeName(body.name, key);
     let url;
 
-    if (dest.where === 'property') {
+    if (dest.where === 'paper') {
+      if (CS.isPlaceholder(contract)) return res.status(409).json({ ok: false, error: 'contract_missing' });
+      // un contratto digitale non si «allega»: il suo PDF si genera (o si
+      // corregge da 📤 Carica versione corretta) — la porta lo dice come prima
+      if (!CS.isPaper(contract)) return res.status(400).json({ ok: false, error: 'key_non_allegabile', reason: 'not_paper_contract' });
+      if (contentType !== 'application/pdf' || buf.slice(0, 5).toString('latin1') !== '%PDF-') {
+        return res.status(400).json({ ok: false, error: 'pdf_required' });
+      }
+      url = await storagePut(`contracts/${contractId}/contratto-carta-${Date.now()}.pdf`, buf, 'application/pdf');
+      const at = new Date().toISOString();
+      await fsPatch('contracts/' + contractId, { paperPdfUrl: url, paperPdfAt: at, paperPdfBy: auth.email || auth.uid, pdfSource: 'paper' });
+      Object.assign(contract, { paperPdfUrl: url, paperPdfAt: at });
+    } else if (dest.where === 'property') {
       if (!property) return res.status(409).json({ ok: false, error: 'contratto_senza_immobile' });
       url = await storagePut(`property-docs/${contract.propertyId}/${dest.slot}_${Date.now()}_${name}`, buf, contentType);
       const dossier = { ...(property.dossier || {}) };

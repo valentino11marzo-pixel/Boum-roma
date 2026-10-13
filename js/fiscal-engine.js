@@ -39,19 +39,52 @@
   function addYears(d, n) { var x = new Date(d); x.setFullYear(x.getFullYear() + n); return x; }
   function daysBetween(a, b) { return Math.round((toDate(b) - toDate(a)) / 86400000); }
 
+  // La cedolare DICHIARATA sul contratto (cedolareSecca: true/'si'/'10'/'21'
+  // oppure false/'no'). Il campo che i contratti portano davvero è
+  // cedolareSecca — il vecchio `cedolare === true` non lo scriveva nessuno, e
+  // un contratto senza cedolare veniva trattato come se la cedolare non ci
+  // fosse MAI (e uno con cedolare come regime ordinario). Assente = non
+  // dichiarata: si ricade sui segnali di prima (cedolare, regime).
+  function cedolareDeclared(c) {
+    var v = c && c.cedolareSecca;
+    if (v === true || v === 'si' || v === 'sì' || v === '10' || v === '21' || v === 10 || v === 21) return true;
+    if (v === false || v === 'no') return false;
+    return null;
+  }
+
   // Reuse contract classification if the taxpack engine is present; else inline.
   function classify(contract) {
+    var decl = cedolareDeclared(contract || {});
     if (root && root.BOOM_TAXPACK && root.BOOM_TAXPACK.classifyContract) {
-      return root.BOOM_TAXPACK.classifyContract(contract);
+      var t = root.BOOM_TAXPACK.classifyContract(contract);
+      if (decl !== null) t = Object.assign({}, t, { isCedolare: decl });
+      return t;
     }
     var c = contract || {};
     var type = String(c.type || '').toLowerCase();
     var regime = String(c.taxRegime || c.regime || '').toLowerCase();
     return {
-      isCedolare: c.cedolare === true || /cedolar/.test(regime),
+      isCedolare: decl !== null ? decl : (c.cedolare === true || /cedolar/.test(regime)),
       isConcordato: c.concordato === true || /concordat|3\+2/.test(regime) || type === 'concordato',
       isShortLet: type === 'breve' || type === 'short' || c.shortLet === true,
     };
+  }
+
+  // Registrato all'AdE (la data RLI o lo stato della pratica): la
+  // registrazione è un atto compiuto, non una scadenza.
+  function isRegistered(c) {
+    c = c || {};
+    return !!String(c.rliRegisteredAt || '').trim() || String(c.registrationStatus || '').trim() === 'registered';
+  }
+
+  // Le scadenze RICORRENTI (IMU, registro annuale, ISTAT) cadute prima che
+  // BOOM gestisse l'immobile (property.gestioneDal, YYYY-MM) non sono lavoro
+  // di BOOM: il Contabile le ricordava «scadute da 118gg» su un interno preso
+  // in carico ieri. Le una-tantum (RLI, scadenza contratto) restano.
+  function beforeGestione(dueIso, property) {
+    var gd = String((property && property.gestioneDal) || '');
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(gd) || !dueIso) return false;
+    return String(dueIso).slice(0, 7) < gd;
   }
 
   function obl(o) {
@@ -85,7 +118,8 @@
     var y = Number(fiscalYear) || new Date().getFullYear();
 
     // 1) RLI registration — within 30 days of contract start (one-time).
-    if (start) {
+    //    Già registrato: niente da fare, niente da ricordare.
+    if (start && !isRegistered(c)) {
       var rliDue = addDays(start, 30);
       var registroAmount = f.isCedolare ? 0 : Math.max(REGISTRO_MIN, annualRent * REGISTRO_RATE) + BOLLO_PER_COPY;
       out.push(obl({
@@ -164,7 +198,7 @@
       }));
     }
 
-    return out;
+    return out.filter(function (o) { return !(o.recurring && beforeGestione(o.dueDate, p)); });
   }
 
   // ─── Per-property obligations (IMU) ──────────────────────────────────
@@ -199,7 +233,7 @@
       severity: 'high', propertyId: p.id || null, recurring: true,
       note: imuEstimate == null ? 'Importo da definire col commercialista' : 'Stima su rendita catastale',
     }));
-    return out;
+    return out.filter(function (o) { return !beforeGestione(o.dueDate, p); });
   }
 
   // ─── Company (Egidi) obligations from revenue ────────────────────────
@@ -315,6 +349,8 @@
   var API = {
     REGISTRO_RATE: REGISTRO_RATE, IVA_STANDARD: IVA_STANDARD,
     classify: classify,
+    cedolareDeclared: cedolareDeclared,
+    isRegistered: isRegistered,
     contractObligations: contractObligations,
     propertyObligations: propertyObligations,
     companyObligations: companyObligations,

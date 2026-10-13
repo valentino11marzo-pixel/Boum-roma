@@ -25,6 +25,7 @@ import { fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { ensureSignTokens, migrateLegacySignTokens, signUrl } from './_tokens.js';
 import { cosignRef } from '../magic-sign/_shared.js';
+import CS from '../../js/contract-state.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -73,6 +74,15 @@ export default async function handler(req, res) {
 
   const sc = scopeFor(auth, contract, property);
   if (!sc) return res.status(403).json({ ok: false, error: 'not_your_contract' });
+
+  // Un contratto firmato SU CARTA o un segnaposto (contratto non in archivio)
+  // non ha una firma digitale da raccogliere: niente link, e soprattutto
+  // niente token coniato — un tap su «Firma ora» avviava un funnel di firma
+  // parallelo su un atto già concluso a penna, coi solleciti del Gestore
+  // ogni settimana (12/10/2026). La risposta dice perché, mai un 409 muto.
+  if (CS.isPaper(contract) || CS.isPlaceholder(contract)) {
+    return res.status(409).json({ ok: false, error: 'not_signable', reason: CS.notSignableReason(contract) });
+  }
 
   let toks;
   try { toks = await ensureSignTokens(contractId, contract, { mint: sc.roles }); }

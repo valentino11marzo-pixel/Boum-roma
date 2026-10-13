@@ -43,7 +43,7 @@ import { loadDocumentRelations, documentRelation } from '../documents/_relation.
 import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
-  normalizePhone, phoneVariants,
+  normalizePhone, phoneVariants, contractTenantByPhone,
 } from './_lead.js';
 // STATIC imports (la lezione nodemailer di CLAUDE.md: il bundler Vercel non
 // traccia i lazy import — un modulo mancante in produzione è un turno perso).
@@ -338,6 +338,9 @@ export default async function handler(req, res) {
   let contactUid  = body.contactUid || null;
   let assignedLandlordId = body.assignedLandlordId || null;
   let documentContact = null;
+  // Il conduttore che esiste solo nel contratto (palazzo preso in carico):
+  // non è un lead, è un inquilino — con l'interno nel contesto.
+  let tenantMatch = null;
 
   if (!contactType || !contactId) {
     let resolved = null;
@@ -360,7 +363,15 @@ export default async function handler(req, res) {
       if (!contactPhone) return res.status(400).json({ ok: false, error: 'no_contact: provide contactType+contactId or a phone' });
       contactType = 'whatsapp';
       contactId   = contactPhone.replace(/^\+/, '');
-      contactName = contactName || contactPhone;
+      // Sconosciuto alle anagrafiche, ma forse è il telefono di un conduttore
+      // scritto SOLO nel contratto (gli inquilini di un palazzo preso in
+      // carico non hanno un doc users). La chat resta quella del numero —
+      // nessuna chat nuova, nessun legame riscritto — ma porta il contesto
+      // e soprattutto NON diventa un lead. Un errore di lettura qui non
+      // ferma il messaggio: si prosegue come prima.
+      try { tenantMatch = await contractTenantByPhone(body.phone || contactPhone); }
+      catch (e) { console.warn('[homie/message] tenant lookup:', e.message); tenantMatch = null; }
+      contactName = contactName || (tenantMatch && tenantMatch.name) || contactPhone;
     }
   }
 
@@ -448,6 +459,12 @@ export default async function handler(req, res) {
     lastSource: 'homie',
     updatedAt: now,
     ...(bindingConflict ? { conversationBindingConflict: bindingConflict } : {}),
+    ...(tenantMatch ? {
+      contactRole: tenantMatch.role === 'cotenant' ? 'cotenant' : 'tenant',
+      tenantContractId: tenantMatch.contractId,
+      tenantPropertyId: tenantMatch.propertyId || null,
+      tenantPropertyLabel: tenantMatch.propertyLabel || '',
+    } : {}),
   };
   if (created) {
     header.status = 'open';
@@ -519,7 +536,7 @@ export default async function handler(req, res) {
   // → bozza del Commerciale. Nessuna AI in più rispetto a oggi, e una in
   // meno per messaggio sul Mac.
   let leadInfo = null;
-  try { if (!backlogReview && !bindingConflict) leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
+  try { if (!backlogReview && !bindingConflict) leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId, tenantMatch }); }
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
   if (!leadInfo?.bindingStatus && !bindingConflict && trackedConversation?.conversationBindingStatus === 'unavailable') {
     const recovered = await recoverUnavailableBinding({ ...msg, id: messageId });
@@ -648,7 +665,7 @@ async function fileWhatsAppAttachments({ urls, text, contactType, contactId, ent
  * problema qui non deve far fallire la registrazione del messaggio, che è il
  * dato che conta.
  */
-async function syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId }) {
+async function syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId, tenantMatch = null }) {
   // Il lead già agganciato a questa conversazione (o quello del portale/sito
   // creato pochi giorni fa dallo stesso numero: una persona, un lead).
   let leadId = (existing && existing.leadId) || null;
@@ -692,10 +709,17 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
         }
       }
       // ha riscritto dopo che era stato chiuso: torna vivo — a meno che il
-      // Brain l'avesse marcato dead (spam), che riscrive proprio perché è spam
+      // Brain l'avesse marcato dead (spam), che riscrive proprio perché è spam,
+      // o che quel numero sia ORA il conduttore di un contratto vivo: un
+      // inquilino che scrive per la rata non è un lead da riaprire (il lead
+      // chiuso a mano dall'operatore tornava 'new' ogni mese).
       if (['closed', 'archived'].includes(String(lead.status || '')) && lead.grade !== 'dead') {
-        patch.status = 'new';
-        patch.telegramNotifiedAt = null;      // rifallo squillare: è tornato
+        let tenantNow = tenantMatch;
+        if (!tenantNow && contactPhone) { try { tenantNow = await contractTenantByPhone(contactPhone); } catch { tenantNow = null; } }
+        if (!tenantNow) {
+          patch.status = 'new';
+          patch.telegramNotifiedAt = null;      // rifallo squillare: è tornato
+        }
       }
       await fsPatch(`leads/${leadId}`, patch);
       return { leadId, leadUpdated: true };
@@ -709,6 +733,12 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
   // Scrivono per la caldaia o per il contratto, non per affittare: la loro
   // conversazione è già visibile in Inbox e non deve inquinare la pipeline.
   if (contactType !== 'whatsapp') return null;
+
+  // ── il conduttore che esiste solo nel contratto ─────────────────────────
+  // «I made the bank transfer, receipt attached», «the shower is leaking»:
+  // non è qualcuno che cerca casa. Niente lead, niente Brain, niente bozza
+  // del Commerciale — la conversazione resta in Inbox col suo interno.
+  if (tenantMatch) return { tenant: true, contractId: tenantMatch.contractId, tenantPropertyLabel: tenantMatch.propertyLabel || '' };
 
   // ── un lead nuovo ───────────────────────────────────────────────────────
   if (isNoise(text)) return null;                       // un 👍 non è un cliente

@@ -31,6 +31,9 @@ import { schedaUrl } from '../profile/_scheda.js';
 // Wallet pass del contratto, sempre a portata dentro il journey (servito
 // live da /api/my-pass, link derivato — niente da generare).
 import { tenantWalletUrl } from '../sign/_notify.js';
+// I contratti fuori dal ciclo casa (presi in carico dal Palazzo, firmati su
+// carta, segnaposto): il rapporto con quegli inquilini lo tiene BOOM a mano.
+import CS from '../../js/contract-state.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -82,6 +85,14 @@ const dayDiff = (iso) => {
 // digitale a sistema) è una locazione vera: per lui il journey resta attivo.
 export function journeyEligible(c) {
   if (!c) return false;
+  // Fuori dal journey PER COSTRUZIONE (12/10/2026): gli inquilini di un
+  // palazzo preso in carico dalla tabella della proprietaria (source
+  // 'palazzo-import'), i contratti firmati su carta e i segnaposto. Erano
+  // «legacy su carta» e quindi DENTRO: il giorno in cui un loro profilo
+  // avesse avuto un'email, sarebbero partiti in automatico recensione,
+  // «Would you like to stay on?» e referral — a nome BOOM, su un immobile
+  // gestito per conto di una proprietaria che decide lei rinnovi e rapporti.
+  if (CS.outOfJourney(c)) return false;
   if (c.signatureStatus === 'complete') return true;
   // Nel funnel firma (journey muto) se: invitato alla firma digitale, firma
   // parziale, oppure NATO dal pre-agreement (digitale per costruzione — il

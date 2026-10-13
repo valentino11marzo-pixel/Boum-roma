@@ -13,6 +13,8 @@
 // l'operatore tocca. Una richiesta di massa brucia il profilo; una richiesta
 // mirata lo costruisce.
 
+import CS from '../../js/contract-state.js';
+
 const FALLBACK = 'https://www.google.com/search?q=BOOM+Rome+boomrome.com+reviews';
 
 /**
@@ -80,6 +82,10 @@ export function reviewCandidates(contracts, todayIso, opts = {}) {
   for (const c of contracts || []) {
     if (!c || c.reviewAskedAt) continue;                     // già chiesto: mai due volte
     if (c.status && ['cancelled', 'draft'].includes(c.status)) continue;
+    // Gli inquilini di un palazzo preso in carico, i contratti su carta e i
+    // segnaposto non ricevono la richiesta di recensione: il rapporto con
+    // loro lo tiene BOOM a mano per conto della proprietaria.
+    if (CS.outOfJourney(c)) continue;
     const start = String(c.startDate || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) continue;
     const days = Math.round((today - new Date(start + 'T00:00:00Z')) / 86400000);

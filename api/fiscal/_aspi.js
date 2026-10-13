@@ -53,6 +53,9 @@ import { buildFascicolo } from './fascicolo.js';
 // Il dizionario del contratto: i campi di parte risalgono la catena users
 // come nel PDF, così la checklist non dice «CF mancante» a un CF che c'è.
 import FIELDS from '../../js/contract-fields.js';
+// Carta e segnaposto: il contratto firmato su carta si allega come SCANSIONE
+// (paperPdfUrl), un segnaposto non ha un contratto da mandare.
+import CS from '../../js/contract-state.js';
 
 const BASE = 'https://www.boomrome.com';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -137,12 +140,39 @@ export function aspiChecklist(contract, property, kind) {
   const items = [];
   const push = (key, label, state, url, hint) => items.push({ key, label, state, url: url || '', hint: hint || '' });
 
-  const contractUrl = c.signedPdfUrl || c.generatedPDF || '';
-  if (c.signedPdfUrl) push('contratto', 'Contratto firmato (PDF con firme)', 'ok', c.signedPdfUrl);
-  else if (c.generatedPDF) push('contratto', 'Contratto (PDF non firmato digitalmente)', 'warn', c.generatedPDF,
-    'firma su carta? il PDF allegato è senza firme — se hai la scansione firmata mandala in risposta alla stessa email');
-  else push('contratto', 'Contratto (PDF)', 'missing', '',
-    'genera il PDF dalla riga contratto (🔄 Rigenera PDF) — senza contratto la richiesta NON parte');
+  // Il contratto da mandare. Tre nature diverse, tre righe diverse:
+  //  · segnaposto (contractMissing): l'interno è occupato ma il contratto
+  //    non è in archivio — niente da registrare finché non arriva;
+  //  · firmato SU CARTA (signatureStatus 'paper', presa in carico del
+  //    Palazzo): vale SOLO la scansione firmata (paperPdfUrl). Il PDF del
+  //    modello BOOM non è quel contratto — prima la riga suggeriva «🔄
+  //    Rigenera PDF», cioè di mandare all'associazione un documento DIVERSO
+  //    da quello firmato con la proprietà;
+  //  · digitale: il firmato, o il generato dichiarandolo.
+  let contractUrl = '';
+  if (CS.isPlaceholder(c)) {
+    push('contratto', 'Contratto (non ancora in archivio)', 'missing', '',
+      'il contratto di questo interno non è in archivio: caricalo dal Palazzo (riga con canone e date) prima della registrazione');
+  } else if (CS.isPaper(c)) {
+    contractUrl = c.paperPdfUrl || '';
+    if (contractUrl) push('contratto', 'Contratto firmato su carta (scansione)', 'ok', contractUrl);
+    else push('contratto', 'Contratto firmato su carta (scansione)', 'missing', '',
+      // L'istruzione dice SOLO dove si può fare davvero: il pannello ASPI
+      // del portal non offre ancora il 📎 su questa riga (13/10/2026), il
+      // Palazzo sì. `allegabile` è il segnale per il pannello: quando lo
+      // legge, il 📎 compare qui e fiscal/allega lo accetta già (key
+      // 'contratto' → paperPdfUrl, solo PDF).
+      'carica la scansione del contratto firmato su carta dal Palazzo (scheda dell\'interno) — il modello BOOM non è quel contratto');
+    items[items.length - 1].allegabile = true;   // anche a scansione presente: si può sostituire
+    items[items.length - 1].accept = 'application/pdf';
+  } else {
+    contractUrl = c.signedPdfUrl || c.generatedPDF || '';
+    if (c.signedPdfUrl) push('contratto', 'Contratto firmato (PDF con firme)', 'ok', c.signedPdfUrl);
+    else if (c.generatedPDF) push('contratto', 'Contratto (PDF non firmato digitalmente)', 'warn', c.generatedPDF,
+      'firma su carta? il PDF allegato è senza firme — se hai la scansione firmata mandala in risposta alla stessa email');
+    else push('contratto', 'Contratto (PDF)', 'missing', '',
+      'genera il PDF dalla riga contratto (🔄 Rigenera PDF) — senza contratto la richiesta NON parte');
+  }
   items[items.length - 1].blocking = !contractUrl;
 
   push('id_conduttore', 'Documento identità conduttore', idTenant.length ? 'ok' : 'missing', idTenant[0] && idTenant[0].url,
@@ -269,6 +299,9 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const contract = (opts.preloaded && opts.preloaded.contract) || await fsGet('contracts/' + contractId);
   if (!contract) return { ok: false, error: 'contract_not_found' };
   contract.id = contractId;
+  // Un segnaposto non si registra: non c'è un contratto da mandare (né un
+  // fascicolo da generare sui puntini). Lo si dice, non si spedisce niente.
+  if (CS.isPlaceholder(contract)) return { ok: false, error: 'contract_missing' };
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
@@ -315,7 +348,8 @@ export async function sendAspiRequest(contractId, opts = {}) {
 
   // ── Allegati: contratto, certificato, identità (+ asseverazione set) ──
   const wanted = [];
-  wanted.push([contract.signedPdfUrl || contract.generatedPDF, 'BOOM_Contratto' + (contract.signedPdfUrl ? '_firmato' : '') + '.pdf', 'application/pdf']);
+  if (CS.isPaper(contract)) wanted.push([contract.paperPdfUrl, 'Contratto_firmato_su_carta.pdf', 'application/pdf']);
+  else wanted.push([contract.signedPdfUrl || contract.generatedPDF, 'BOOM_Contratto' + (contract.signedPdfUrl ? '_firmato' : '') + '.pdf', 'application/pdf']);
   if (contract.signingCertificateUrl) wanted.push([contract.signingCertificateUrl, 'BOOM_Certificato_firma_FES.pdf', 'application/pdf']);
   const docs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url);
   const seen = new Set();

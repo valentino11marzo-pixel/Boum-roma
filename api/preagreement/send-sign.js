@@ -22,6 +22,7 @@ import { ensureContractPdf } from '../sign/_contractpdf.js';
 import { askLandlordScheda } from './_askscheda.js';
 import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
 import { tenantSideComplete } from '../magic-sign/_shared.js';
+import CS from '../../js/contract-state.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -64,6 +65,22 @@ export default async function handler(req, res) {
   try { pa = await fsGet('preAgreements/' + paId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!pa) return res.status(404).json({ ok: false, error: 'not_found' });
+  // LA PROPRIETÀ, NON SOLO IL RUOLO (12/10/2026). La porta accetta anche
+  // owner/landlord, ma controllava soltanto il ruolo: un qualunque
+  // proprietario poteva convertire e far partire l'invito alla firma su una
+  // proposta di un ALTRO immobile (bastava l'id). Per chi non è admin: la
+  // proposta deve riguardare un immobile suo (ownerId === uid), e le leve
+  // dell'operatore — scegliere un altro immobile, crearne uno dalla
+  // proposta, scavalcare la guardia sovrapposizioni — restano all'admin.
+  const isAdminCaller = auth.profile.role === 'admin';
+  if (!isAdminCaller) {
+    const ownPropId = pa.propertyId || null;
+    let ownProp = null;
+    if (ownPropId) { try { ownProp = await fsGet('properties/' + ownPropId); } catch (_) { ownProp = null; } }
+    if (!ownProp || !ownProp.ownerId || ownProp.ownerId !== auth.uid) {
+      return res.status(403).json({ ok: false, error: 'not_your_proposal' });
+    }
+  }
   if (pa.status !== 'accepted' && pa.status !== 'paid') {
     return res.status(409).json({ ok: false, error: 'not_accepted_yet', status: pa.status });
   }
@@ -73,13 +90,14 @@ export default async function handler(req, res) {
   // signs directly unless the caller explicitly asks for delega.
   const out = await convertPaToContract({
     pa, paId,
-    propertyId: b.propertyId || pa.propertyId,
+    propertyId: isAdminCaller ? (b.propertyId || pa.propertyId) : pa.propertyId,
     delegate: b.delegate === true,
     actor: auth.email || auth.uid,
     // le stesse leve del modale → Contratto: l'immobile che nasce dalla
     // proposta e lo scavalco DICHIARATO della guardia sovrapposizioni
-    createProperty: b.createProperty === true,
-    force: b.force === true,
+    // (solo admin: un proprietario non crea immobili né scavalca guardie)
+    createProperty: isAdminCaller && b.createProperty === true,
+    force: isAdminCaller && b.force === true,
   });
   if (!out.ok) {
     const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
@@ -112,6 +130,11 @@ export default async function handler(req, res) {
   if (out.contractId) {
     try { contract = await fsGet('contracts/' + out.contractId); }
     catch (e) { console.warn('[pa/send-sign] contract read:', e.message); }
+  }
+  // Un contratto firmato su carta o un segnaposto non riceve inviti a
+  // firmare (né email al conduttore, né link): l'atto esiste su carta.
+  if (contract && (CS.isPaper(contract) || CS.isPlaceholder(contract))) {
+    return res.status(409).json({ ok: false, error: 'not_signable', reason: CS.notSignableReason(contract), contractId: out.contractId });
   }
   const sig = signatureState(contract);
   // I CO-CONDUTTORI (3/10/2026): firmano col LORO link e il locatore

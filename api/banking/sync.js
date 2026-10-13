@@ -20,7 +20,7 @@
 // backfills as far as the consent allows, up to 540).
 
 import {
-  gc, gcConfigured, normalizeTx, txDocId, reconcile, applyMatch,
+  gc, gcConfigured, normalizeTx, txDocId, reconcile, applyMatch, markLandlordDirect,
   listLinkedAccounts, batchExists, fsPatch, fsList,
 } from './_lib.js';
 import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
@@ -60,11 +60,15 @@ async function run({ dry, windowDays }) {
   const iso = d => d.toISOString().slice(0, 10);
 
   // Pending payments + tenant names once, shared across accounts.
-  const [payments, users] = await Promise.all([
+  // Le rate che si pagano sul conto del LOCATORE (palazzo preso in carico)
+  // restano candidate — un pari importo resta ambiguo — ma non vengono MAI
+  // segnate pagate da sole: solo suggerite.
+  const [payments, users, contracts] = await Promise.all([
     fsList('payments', { limit: 600 }),
     fsList('users', { limit: 1000 }).catch(() => []),
+    fsList('contracts', { limit: 1000 }).catch(() => []),
   ]);
-  const pending = payments.filter(p => !['paid', 'cancelled'].includes(p.status));
+  const pending = markLandlordDirect(payments.filter(p => !['paid', 'cancelled'].includes(p.status)), contracts);
   const tenantNameById = {};
   users.forEach(u => { tenantNameById[u.id] = u.name || ''; });
 

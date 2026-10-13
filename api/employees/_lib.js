@@ -142,9 +142,34 @@ export function isoWeek(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+// Euro all'italiana DETERMINISTICI: €1.600, €1.620,50. Mai toLocaleString:
+// sul runtime delle funzioni (ICU ridotta) degradava in silenzio a "€1600",
+// e il rendiconto della proprietaria e il Palazzo scrivevano lo stesso
+// numero in due modi (la lezione già pagata su /executive e sul fascicolo).
 export function euro(n) {
-  return '€' + (Number(n) || 0).toLocaleString('it-IT');
+  const v = Number(n) || 0;
+  const neg = v < 0;
+  const cents = Math.round(Math.abs(v) * 100);
+  const int = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const dec = cents % 100;
+  return (neg ? '-' : '') + '€' + int + (dec ? ',' + String(dec).padStart(2, '0') : '');
 }
+
+// Gli stessi euro per chi legge in inglese: €1,600 e €1,620.50. Il
+// sollecito all'inquilino parte in inglese di default, e «€1.600» letto da
+// un inglese o da un americano è un euro e sessanta — su un'email di soldi.
+// Deterministico come euro(), per la stessa ragione.
+export function euroEn(n) {
+  const v = Number(n) || 0;
+  const neg = v < 0;
+  const cents = Math.round(Math.abs(v) * 100);
+  const int = String(Math.floor(cents / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  const dec = cents % 100;
+  return (neg ? '-' : '') + '€' + int + (dec ? '.' + String(dec).padStart(2, '0') : '');
+}
+
+// L'importo nella lingua di chi legge: 'it' → euro(), tutto il resto → euroEn().
+export function euroFor(n, lang) { return lang === 'it' ? euro(n) : euroEn(n); }
 
 export function esc(s) {
   return String(s || '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));

@@ -12,6 +12,8 @@
 import { fsList, guardPost, okJson, errJson } from './_lib.js';
 import { memoized } from './_memo.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
+import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -61,19 +63,33 @@ export async function scan(horizon = 60) {
     else if (d <= horizon) items.push({ sev: 'med', cat: 'Scadenza vicina', title: propLabel(c), detail: `Scade tra ${d}gg`, days: d, ref: c.id });
   }
 
-  // 2) Unsigned contracts
+  // 2) Unsigned contracts — mai i firmati su carta né i segnaposto (contratto
+  //    non in archivio): non c'è una firma digitale da raccogliere, e «Firma
+  //    mancante» alta priorità su un atto già firmato a penna è un falso allarme.
   for (const c of contracts) {
     if (['draft', 'expired', 'terminated'].includes(c.status)) continue;
+    if (CS.notSignable(c)) continue;
     const missing = [];
     if (!c.tenantSignature) missing.push('inquilino');
     if (!c.landlordSignature) missing.push('locatore');
     if (missing.length) items.push({ sev: c.status === 'active' ? 'high' : 'med', cat: 'Firma mancante', title: propLabel(c), detail: `Manca: ${missing.join(' + ')}`, days: 0, ref: c.id });
   }
 
-  // 3) Overdue payments
+  // 3) Overdue payments — lo stato da BOOM_RENT.paymentState: un bonifico
+  //    SEGNALATO non è un ritardo (è da verificare) e un mese prima della
+  //    gestione BOOM (property.gestioneDal) non è un arretrato di nessuno.
   const now = Date.now();
+  const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
-    if (['paid', 'cancelled'].includes(p.status)) continue;
+    const st = RENT.paymentState(p, new Date(now));
+    if (st === 'reported') {
+      items.push({ sev: 'med', cat: 'Bonifico segnalato', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · da verificare`, days: 0, ref: p.id });
+      continue;
+    }
+    if (st !== 'overdue') continue;
+    const pc = contractById[p.contractId] || {};
+    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+    if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
     const due = p.dueDate ? Date.parse(p.dueDate) : null;
     if (due && due < now) {
       const late = Math.round((now - due) / 86400000);
@@ -99,7 +115,7 @@ export async function scan(horizon = 60) {
     const tenant = userById[c.tenantId || c.tenant || c.tenantUid] || {};
     const doneMap = stateById[c.id] || {};
     let obligations;
-    try { obligations = COMPLIANCE.obligationsFor(c, { tenant, today: todayD }); } catch { continue; }
+    try { obligations = COMPLIANCE.obligationsFor(c, { tenant, today: todayD, property: propById[c.propertyId] }); } catch { continue; }
     for (const it of obligations) {
       const st = COMPLIANCE.statusOf(it, doneMap, todayD, 14);
       if (st !== 'overdue' && st !== 'due_soon') continue;
