@@ -68,6 +68,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
+  contract-state.js       Che contratto è, in UNA copia (browser + api):
+                          carta, segnaposto, non firmabile, fuori dal
+                          journey, e il telefono internazionale che non
+                          indovina mai. window.BOOM_CONTRACT_STATE.
   palazzo-engine.js       Il Palazzo, puro: per un palazzo (stesso civico) e
                           QUALUNQUE mese, interno per interno chi è dentro,
                           chi ha pagato, chi no. window.BOOM_PALAZZO.
@@ -2377,7 +2381,7 @@ diventa un documento.
   con la sonda per i filmati che dichiarano durata `Infinity` — l'elenco si
   corregge e senza la spunta non parte niente).
 
-### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron 1° del mese 06:10 UTC)
+### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron giorni 1–5 del mese 06:10 UTC)
 Il 1° del mese ogni proprietario riceve il rendiconto del mese CHIUSO:
 per ogni suo immobile i canoni incassati (data + via), le rate del mese
 aperte, gli ARRETRATI totali, le manutenzioni del periodo — PDF nel
@@ -2389,7 +2393,25 @@ Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
 (fsCreate 409 → skip; collection admin-only in firestore.rules — la
 lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
 come i cron PFS. Heartbeat `teamHealth/rendiconto`.
-Test: `node tests/rendiconto/run.mjs`.
+**Il giro dell'audit (12-13/10/2026)**: numeri e stati dallo STESSO
+motore del Palazzo (`PALAZZO.context/unitMonth/arrearsOf` + `BOOM_RENT.
+paymentState`: un bonifico segnalato è «in verifica», una rata annullata è
+«annullata», i mesi prima di `gestioneDal` non sono arretrati); un titolo
+per interno (mai l'indirizzo ripetuto), «contratto in arrivo da BOOM» al
+posto di €0, canone e oneri su righe distinte, «Locatore: <SRL> · alla c.a.
+di <persona>» quando il locatore è una società. **Modalità per proprietario**
+`users/<ownerId>.rendicontoMode`: `off` | `preview` | `auto`; assente =
+`auto`, ma `preview` per chi ha interni presi in carico dal Palazzo (il PDF va
+SOLO all'operatore con oggetto «ANTEPRIMA — Rendiconto …»); si sceglie dal
+Palazzo, che ha anche «Mandami l'anteprima» (`&preview=1`) e «Rimanda»
+(`&force=1`, solo admin). **Un invio non si perde**: il segnaposto è `sending`
+→ `sent` dopo l'invio riuscito, `failed` col motivo; un proprietario guasto non
+ferma gli altri; un invio INCERTO non si ritenta da solo. Cron nei giorni
+1–5 (`10 6 1-5 * *`): idempotente, chi è già `sent` si salta. Letture mirate
+per proprietario (propertyId IN a blocchi), mai tetti globali. `wa()` di
+`api/_pdfbrand.js` traslittera turco e cirillico (ICAO 9303) invece di
+cancellarli: mai un nome vuoto.
+Test: `node tests/rendiconto/run.mjs` + le suite `rendiconto*`.
 
 ### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
 L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i
@@ -6359,6 +6381,107 @@ NON VEDEVANO NIENTE (vedi sotto).
     I dati veri (nomi, telefoni, documenti, IBAN) NON stanno nel repo: la
     tabella per la presa in carico si prepara fuori, i test usano nomi e
     numeri inventati.
+  * **Il giro dell'audit (12-13/10/2026) — «consegnami un prodotto finito».**
+    Un audit da otto lenti (operatore, proprietaria, inquilini, soldi,
+    limiti, regole, copia, automazioni) ha trovato 75 difetti verificati più
+    17 lacune; li hanno corretti dieci filoni in parallelo, ognuno con una
+    revisione indipendente, poi una revisione finale da sei angoli sul ramo
+    intero. Le regole che ne sono uscite:
+    - **`js/contract-state.js`** (`window.BOOM_CONTRACT_STATE`, UMD, una
+      copia per browser e server): `isPaper` (signatureStatus 'paper'),
+      `isPlaceholder` (contractMissing), `notSignable`, `noModelPdf`,
+      `outOfJourney`, `phoneIntl`. Un contratto su carta o un segnaposto non
+      riceve MAI un invito a firmare, un token, un PDF dal modello BOOM, il
+      journey o una richiesta di recensione: `sign/links`, `send-link`,
+      `send-sign`, `magic-sign/lookup|submit` rispondono 409
+      `not_signable` (e /sign lo dice), Firma ora sparisce, la scansione
+      firmata si allega dal Palazzo (`paperPdfUrl`, `contracts/<id>/
+      contratto-carta-<ts>.pdf`). `phoneIntl` non indovina: un numero non
+      chiaramente italiano e senza prefisso resta `unknown` (niente
+      WhatsApp, avviso nella presa in carico e nel Palazzo); uno che
+      comincia per 0 è `it-fixed` e AMBIGUO (Ferrara o una Turchia scritta
+      alla nazionale).
+    - **Presa in carico**: reincollare la tabella DICE le differenze
+      (canone, oneri, nome, fine, contatti, scadenze) e le scrive solo con
+      «Applica le differenze» (`planImport(…, {applyDiffs})` →
+      `paymentUpdates`/`paymentCancels`, riletti rata per rata dal server e
+      scritti solo se ancora da pagare e all'importo atteso). Una decorrenza
+      diversa o un altro inquilino sovrapposto = errore di riga, mai un
+      secondo contratto vivo. «Pagato il» segna solo la rata nella cui
+      finestra cade. Nessuna rata scade prima dell'inizio del suo periodo
+      (contratto dal 15 → scade il 15; stessa regola in planImport,
+      generateMonthlyPayments e `rentSchedule` di magic-sign). Vie coi
+      numeri, P.le/Pzle/civ., «Via della Scala» non è una scala, interni
+      doppi, riga TOTALE, intestazioni sporche, telefoni senza prefisso,
+      cedolare con locatore società: tutti detti.
+    - **Il mese**: gli arretrati dei mesi prima restano (`m.debtors`, la
+      rata più vecchia per Sollecita, col contratto della RIGA nel cambio
+      inquilino); le rate dopo la chiusura (`terminateContract` le annulla
+      nella stessa transazione, status `cancelled`) e i mesi prima di BOOM
+      non contano; occupazione e «12 mesi» solo sui mesi misurati; un mese
+      tutto prima di BOOM è una riga sola. «Da sistemare» nuove:
+      `afterClose`, `expiredStillIn`, `noticeDue` (data limite della
+      disdetta dal modello), `listingLive`, `lookMissing`, `partial`. Una
+      rata il cui periodo comincia DOPO la chiusura del contratto è «da
+      annullare», mai un arretrato, su OGNI superficie (una regola:
+      `BOOM_RENT.openAfterClose` — Palazzo, rendiconto, Oggi, Gestore,
+      Contabile, risk.scan, digest, state.snapshot, /snapshot, badge). Un
+      segnaposto chiuso conserva la sua storia (i mesi abitati restano
+      occupati). Reincollare non rincara mai all'indietro una rata già
+      scaduta e sollecitata (`overdueKept`, detto nella conferma).
+    - **Incassi**: «Registra incasso» chiede data dell'ACCREDITO, canale
+      (`paidVia`) e fonte della prova (`paidEvidence`: BOOM non vede il conto
+      della SRL) e scrive `paidRecordedAt/By`; «Annulla incasso» riporta la
+      rata da pagare con `incassoAnnullato` e l'attestazione `voided`;
+      canone e oneri futuri si cambiano sulle sole rate non pagate.
+      L'attestazione di pagamento è intestata al locatore («tramite BOOM»),
+      canone e oneri separati, «non è una fattura». Alla proprietaria solo
+      la notifica nel portale, niente email per ogni incasso.
+    - **Carta su /rata**: SPENTA per i contratti presi in carico finché il
+      palazzo non ha `property.rataCard = {on:true, mandateAt}` (mandato
+      all'incasso registrato: la carta incassa sul conto Stripe di BOOM).
+      Commissione di default `absorbed` (zero all'inquilino: il sovrapprezzo
+      verso i consumatori è vietato, art. 62 Cod. consumo); `surcharge` solo
+      se scelto. Il bonifico è sempre in vista. Rimborso o contestazione →
+      stato `review` (mai più «pagato»); bonifico segnalato + carta = allarme
+      doppio incasso. Costi della carta in `paymentCosts/<id>` (admin), non
+      sulla rata che la proprietaria legge. /rata e /guasto in inglese di
+      default (`?lang`, scelta salvata, lingua del browser). L'IBAN del
+      LOCATORE compare su /rata solo per i contratti presi in carico (lì il
+      canone va alla SRL); per i contratti digitali il bonifico va sul conto
+      BOOM di `settings/payout`, lo stesso di /casa, che /banca riconcilia.
+    - **La proprietaria** vede solo Palazzo, Documenti, Commercialista,
+      Impostazioni; mai il modale admin del contratto né «segna pagato»;
+      letture a blocchi di 9 con errore DETTO e «Riprova»; documenti
+      condivisi; «Scrivi a BOOM» su WhatsApp/email; login in italiano con
+      «Password dimenticata?»; nessuna stima IRPEF per un locatore società.
+    - **Sicurezza**: storage.rules non fanno più leggere ai landlord
+      ricevute, documenti e foto di tutti; settings/registrazione e ai solo
+      admin; note interne dell'Inbox mai al landlord; guasti da client solo
+      con contractId del proprio contratto; il link /guasto è per CONTRATTO
+      vivo (al cambio inquilino il vecchio risponde 404); le porte che il
+      ruolo landlord apre (notify/send, proposte, send-sign, resolve, foto,
+      ingest, OCR) controllano la proprietà o sono solo admin.
+    - **Automazioni**: Gestore/Contabile/Oggi/risk/snapshot leggono
+      `BOOM_RENT.paymentState` (un bonifico segnalato si verifica, non si
+      sollecita); il Gestore salta le rate sollecitate da poco
+      (`dunningHistory`/`lastReminderDate`, scritti dal Palazzo a ogni
+      link) e per gli inquilini senza account mette il link /rata nel
+      digest; un WhatsApp o una telefonata da un numero di conduttore non
+      crea un lead; compliance e fisco non chiedono RLI/registro/cedolare
+      su un contratto registrato né IMU prima di `gestioneDal`; la banca non
+      segna MAI da sola pagata una rata presa in carico.
+    - **ASPI**: su un contratto già registrato «Invia ad ASPI» offre solo
+      l'attestazione; una richiesta di registrazione risponde 409
+      `already_registered` (nessuna email, nessuna fattura).
+    - Informativa per gli inquilini: `/privacy-inquilini` (IT/EN), linkata
+      da /rata, /guasto e dal primo messaggio WhatsApp di ogni contratto.
+    Test: le suite `palazzoimport`, `palazzomodel`, `palazzosoldi`,
+    `palazzoowner`, `palazzoownerui`, `palazzoautomazioni`, `palazzoporte`,
+    `palazzorimasugli`, `palazzoviewui`, `palazzoviewtext`,
+    `palazzoviewload`, `manutenzioneui`, `ratasoldi`,
+    `ratasoldimutations`, `rataui` e le sette `rendiconto*` (in
+    `tests/run-all.mjs`); `tests/rules/storage.mjs` gira con l'emulatore.
 Test: `node tests/palazzo/engine.mjs` (207 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
