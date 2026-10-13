@@ -337,7 +337,15 @@ export function ownerReport(o) {
         lines.push({ text: `${label} · ${reviewText(r)}`, amount: r.amount, tone: 'review', sub });
       }
     }
-    if (!um.rows.length && um.occupied && !placeholder) {
+    // Una rata del mese ANNULLATA (un mese condonato, una rata tolta
+    // dall'operatore) non è «non ancora registrata»: c'era ed è stata tolta,
+    // e lo si dice col motivo. Stato del motore del Palazzo, una copia sola.
+    if (!um.rows.length && um.occupied && !placeholder && um.state === 'waived') {
+      for (const r of um.waivedRows || []) {
+        const why = clip((r.payment || {}).cancelledReason, 80);
+        lines.push({ text: `${cap(payLabel(r))} · annullata${why ? ' (' + why + ')' : ''}`, amount: null, tone: 'muted', noAmount: true });
+      }
+    } else if (!um.rows.length && um.occupied && !placeholder) {
       lines.push({ text: `Rata di ${mese(month)} · non ancora registrata, in verifica da BOOM`, amount: null, tone: 'review', noAmount: true });
     }
     // ── gli altri mesi: incassi arrivati nel mese, arretrati, verifiche ──
@@ -389,6 +397,8 @@ export function ownerReport(o) {
       // mesi: nel riepilogo si dice QUALE («rata da settembre a novembre»).
       lateCover: !um.rows.some((r) => r.month === month && r.state === 'overdue') && coverLate ? coverLate.label : '',
       reportDate: (() => { const r = um.rows.find((x) => x.state === 'reported'); return r ? PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt) : ''; })(),
+      // La rata del mese annullata: il motivo (il primo), per il mese in breve.
+      waivedWhy: um.state === 'waived' ? clip(((um.waivedRows || [])[0] && um.waivedRows[0].payment || {}).cancelledReason, 80) : '',
     });
   }
 
@@ -433,6 +443,7 @@ export function ownerReport(o) {
     review: pick((s) => s.state === 'review' || s.state === 'unknown' || (s.state === 'norate' && !s.placeholder)),
     due: pick((s) => s.state === 'due'),
     placeholder: pick((s) => s.placeholder),
+    waived: pick((s) => s.state === 'waived' && !s.placeholder),
     arrearsOld: pick((s) => s.arrearsOld > 0),
   };
   const hasOneri = sections.some((s) => (s.oneri || 0) > 0 || s.collectedOneri > 0);
@@ -447,6 +458,7 @@ export function ownerReport(o) {
   if (lists.review.length) brief.push(`In verifica da BOOM: ${lists.review.map((s) => nm(s) + (s.reportDate ? ` (bonifico segnalato il ${itDate(s.reportDate)})` : '')).join(', ')}.`);
   if (lists.due.length) brief.push(`Da pagare entro la scadenza: ${lists.due.map((s) => nm(s) + (s.dueDate ? ` (entro il ${itDate(s.dueDate)})` : '')).join(', ')}.`);
   if (lists.placeholder.length) brief.push(`Contratto in arrivo da BOOM: ${lists.placeholder.map(nm).join(', ')}.`);
+  if (lists.waived.length) brief.push(`${lists.waived.length === 1 ? 'Rata' : 'Rate'} di ${mese(month)} ${lists.waived.length === 1 ? 'annullata' : 'annullate'}: ${lists.waived.map((s) => nm(s) + (s.waivedWhy ? ` (${s.waivedWhy})` : '')).join(', ')}.`);
   if (lists.arrearsOld.length) brief.push(`Arretrati di altri mesi: ${eur(totals.arrearsOld)} (${lists.arrearsOld.map(nm).join(', ')}).`);
   if (vacant.length) brief.push(`Liberi nel mese: ${vacant.map((v) => v.short + (v.incoming ? ` (nuovo contratto dal ${itDate(v.incoming)})` : '')).join(', ')}.`);
   // «Nessun arretrato» si decide dal NUMERO delle rate scadute, mai dalla
@@ -633,6 +645,7 @@ export function emailFor(rep, { preview = false, url = '', mode = null, modeSour
   if (L.arrearsOld.length) body += fine(`⚠️ <strong>Arretrati di altri mesi</strong> — ${esc(eur(t.arrearsOld))}: ${short(L.arrearsOld)}`);
   if (L.review.length) body += fine(`🔎 <strong>In verifica da BOOM</strong> — ${L.review.map((s) => esc(s.short) + (s.reportDate ? ` (bonifico segnalato il ${itDate(s.reportDate)})` : '')).join(', ')}`);
   if (L.placeholder.length) body += fine(`📄 <strong>Contratto in arrivo da BOOM</strong> — ${short(L.placeholder)}`);
+  if ((L.waived || []).length) body += fine(`➖ <strong>${L.waived.length === 1 ? 'Rata annullata' : 'Rate annullate'}</strong> — ${L.waived.map((s) => esc(s.short) + (s.waivedWhy ? ` (${esc(s.waivedWhy)})` : '')).join(', ')}`);
   if (!t.arrearsCount) body += fine(`✅ <strong>Nessun arretrato</strong> al ${itDate(rep.asOf)}`);
   else if (!t.arrears) body += fine(`⚠️ <strong>Arretrati: importo da verificare</strong> — ${t.arrearsCount === 1 ? 'una rata scaduta' : t.arrearsCount + ' rate scadute'} senza importo registrato, BOOM ${t.arrearsCount === 1 ? 'la' : 'le'} sta verificando`);
   body += rule()

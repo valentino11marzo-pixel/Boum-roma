@@ -206,6 +206,25 @@ let pdfTxt = '', previewHtml = '';
   check('due locatori diversi: ognuno sulla sua sezione', /Locatore\nAltra Società S\.p\.A\./.test(txt2) && /Locatore\nProva Immobiliare S\.r\.l\./.test(txt2) && !/alla c\.a\./.test(txt2));
 }
 
+// ═══ 8. La rata del mese ANNULLATA: detta col motivo, mai «in verifica» ════
+// Un mese condonato (o una rata tolta dall'operatore) su un contratto vivo:
+// il motore del Palazzo dà lo stato «waived». Prima il rendiconto stampava
+// «non ancora registrata, in verifica da BOOM» — una verifica che non c'è.
+{
+  seed({ mode: 'auto' });
+  const k = [...F.store.keys()].find((x) => x.startsWith('payments/') && x.includes('_11_') && x.endsWith('_' + M));
+  F.put(k, { ...F.store.get(k), status: 'cancelled', cancelledAt: M + '-02T09:00:00Z', cancelledReason: 'mese condonato', paidDate: null });
+  await drive();
+  const m = mails()[0] || {};
+  const txt = m.attachments ? await F.pdfText(m.attachments[0].content) : '';
+  const u11 = (txt.split(/^Int\. 11/m)[1] || '').split(/^Int\. 13/m)[0];
+  check('rata annullata: la sezione dice «annullata (motivo)»', new RegExp(`Rata di ${MESE} · annullata \\(mese condonato\\)`).test(u11.replace(/\n/g, ' ')));
+  check('rata annullata: mai «non ancora registrata, in verifica da BOOM»', !/non ancora registrata/.test(u11) && !/non ancora registrata/.test(txt));
+  check('rata annullata: il mese in breve la nomina col motivo', new RegExp(`Rata di ${MESE} annullata: int\\. 11 \\(mese condonato\\)`).test(txt.replace(/\n/g, ' ')));
+  check('rata annullata: l\'interno NON è fra «In verifica da BOOM»', !/In verifica da BOOM: [^.]*int\. 11/.test(txt.replace(/\n/g, ' ')));
+  check('rata annullata: l\'email lo dice', /Rata annullata<\/strong> — int\. 11 \(mese condonato\)/.test(String(m.html)));
+}
+
 console.log(`\nRendiconto · palazzo: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }
 process.exit(0);

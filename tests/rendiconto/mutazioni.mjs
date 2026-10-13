@@ -224,6 +224,22 @@ await guard('wa() che chiama non stampabile «Šš»', '_pdfbrand.js',
   [['!/[\\p{L}\\p{N}]/u.test(out)', '!/[A-Za-z0-9\\u00C0-\\u00FF]/.test(out)']],
   async (mod) => mod.wa('Šš') === 'Šš' && mod.wa('Œ') === 'Œ');
 
+// La rata del mese annullata (stato «waived» del motore) stampata come
+// «non ancora registrata, in verifica da BOOM».
+await guard('rata annullata detta «non ancora registrata, in verifica»', 'owners/rendiconto.js',
+  [["if (!um.rows.length && um.occupied && !placeholder && um.state === 'waived') {", 'if (false) {']],
+  async (mod) => {
+    const rep = mod.ownerReport({
+      ownerId: 'o1', user: { name: 'Prova', email: 'p@example.invalid' }, landlord: null,
+      properties: [{ id: 'w1', ownerId: 'o1', address: 'Via Finta 9', interno: '1' }],
+      contracts: [{ id: 'wc', propertyId: 'w1', tenantName: 'Inquilino', rent: 1000, status: 'active', startDate: M0 + '-01' }],
+      payments: [{ id: 'wp', contractId: 'wc', propertyId: 'w1', type: 'rent', amount: 1000, month: M, dueDate: M + '-05', status: 'cancelled', cancelledReason: 'mese condonato' }],
+      maintenance: [], users: [], month: M, now: NOW,
+    });
+    const ls = rep.sections[0].lines.map((l) => l.text).join(' | ');
+    return /annullata \(mese condonato\)/.test(ls) && !/non ancora registrata/.test(ls);
+  });
+
 console.log(`\nRendiconto · mutazioni: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }
 process.exit(0);
