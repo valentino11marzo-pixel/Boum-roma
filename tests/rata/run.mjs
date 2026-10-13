@@ -95,6 +95,12 @@ put('properties/p1', { ownerId: 'owner1', address: 'Piazzale Esempio 42, Roma', 
 put('contracts/c1', { propertyId: 'p1', tenantName: 'Giulia Bianchi', tenantPhone: '+393331234567', tenantEmail: 'giulia@example.invalid',
   landlordName: 'Proprietaria Esempio', landlordIban: 'IT60 X054 2811 1010 0000 0123 456' });
 put('contracts/c2', { propertyId: 'p1', tenantName: 'Senza Iban' });
+// Il conto BOOM (lo stesso di /casa): c1 e c2 sono contratti DIGITALI (non
+// presi in carico dal Palazzo), i loro canoni arrivano qui.
+put('payout/default', { iban: 'IT70 B030 6909 6061 0000 0012 345', beneficiary: 'Egidi Immobiliare S.r.l.' });
+put('contracts/c3', { propertyId: 'p1', source: 'palazzo-import', signatureStatus: 'paper', tenantName: 'Presa In Carico',
+  landlordName: 'Proprietaria Esempio', landlordIban: 'IT60 X054 2811 1010 0000 0123 456' });
+put('payments/r5', { contractId: 'c3', propertyId: 'p1', type: 'rent', month: '2026-10', amount: 950, status: 'pending', dueDate: '2026-10-05', source: 'palazzo-import' });
 put('payments/r1', { contractId: 'c1', propertyId: 'p1', type: 'rent', month: '2026-10', amount: 850, status: 'pending', dueDate: '2026-10-05' });
 put('payments/r2', { contractId: 'c2', propertyId: 'p1', type: 'rent', month: '2026-10', amount: 900, status: 'pending', dueDate: '2026-10-05' });
 put('payments/r3', { contractId: 'c1', propertyId: 'p1', type: 'rent', month: '2026-09', amount: 850, status: 'paid', dueDate: '2026-09-05', paidDate: '2026-09-03' });
@@ -125,15 +131,17 @@ await check('il link: /rata con il token DERIVATO del link di pagamento, una rat
   assert.equal((await call({ op: 'lookup', id: 'r2', t: t('r1') })).statusCode, 404, 'il token di una rata non apre l\'altra');
   assert.equal((await call({ op: 'lookup', id: 'nessuna', t: t('nessuna') })).statusCode, 404);
 });
-await check('lookup: importo, scadenza, commissione della carta DETTA prima, conto del contratto, causale', async () => {
+await check('lookup: importo, scadenza, commissione della carta DETTA prima, conto di chi incassa, causale', async () => {
   const r = await call({ op: 'lookup', id: 'r1', t: t('r1') });
   assert.equal(r.statusCode, 200);
   const v = r.body.rata;
   assert.equal(v.amount, 850); assert.equal(v.kind, 'rent'); assert.equal(v.month, '2026-10'); assert.ok(v.canPay);
   assert.ok(v.cardFee > 0, 'senza statistiche, il caso peggiore: mai sotto costo');
   assert.deepEqual(v.where, { building: 'Piazzale Esempio 42', interno: '7' });
-  assert.equal(v.bonifico.iban, 'IT60X0542811101000000123456');
-  assert.equal(v.bonifico.beneficiary, 'Proprietaria Esempio');
+  // Contratto DIGITALE: il canone arriva sul conto BOOM (payout/default, come
+  // /casa). Il landlordIban che il contratto porta (raccolto dalla Scheda)
+  // NON è il conto dei canoni: /banca non riconcilierebbe mai quel bonifico.
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary, v.bonifico.to], ['IT70B0306909606100000012345', 'Egidi Immobiliare S.r.l.', 'boom']);
   assert.ok(/^BOOM-[2-9A-HJ-NP-Z]{6} canone 2026-10$/.test(v.bonifico.causale), v.bonifico.causale);
   assert.equal(r.body.payUrl, 'https://www.boomrome.com/api/payments/link?k=pay&id=r1&t=' + t('r1') + '&from=rata', 'la carta passa dal link di pagamento che esiste già, e il ritorno da Stripe torna su /rata');
   assert.deepEqual([v.card.available, v.card.feeMode, v.card.fee], [true, 'standard', v.cardFee], 'un contratto normale (non preso in carico dal Palazzo) tiene la carta di sempre');
@@ -156,9 +164,43 @@ await check('una rata ANNULLATA: stato «cancelled», niente da pagare né da se
   const v = rv({ id: 'pay_x_2099-09', type: 'rent', month: '2099-09', amount: 900, status: 'cancelled', cancelledReason: 'mese condonato', dueDate: '2099-09-05' }, { contract: { source: 'palazzo-import' } });
   assert.deepEqual([v.state, v.canPay, v.canWithdraw, v.card.available], ['cancelled', false, false, false]);
 });
-await check('senza IBAN nel contratto non se ne inventa uno (mai il conto di BOOM al posto di quello pattuito)', async () => {
-  const v = (await call({ op: 'lookup', id: 'r2', t: t('r2') })).body.rata;
-  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary], ['', '']);
+await check('contratto preso in carico dal Palazzo: il conto del LOCATORE scritto nel contratto, mai il conto di BOOM', async () => {
+  const v = (await call({ op: 'lookup', id: 'r5', t: t('r5') })).body.rata;
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary, v.bonifico.to], ['IT60X0542811101000000123456', 'Proprietaria Esempio', 'landlord']);
+});
+await check('IBAN del locatore SOLO sui contratti presi in carico (la regola di /banca toLandlordAccount)', async () => {
+  const { bonificoAccount, rataView: rv } = await import('../../api/payments/rata.js');
+  const { toLandlordAccount, markLandlordDirect } = await import('../../api/banking/_lib.js');
+  const IB = 'IT60X0542811101000000123456', PO = { iban: 'IT70B0306909606100000012345', beneficiary: 'Egidi Immobiliare S.r.l.' };
+  const digital = { status: 'active', signatureStatus: 'complete', landlordName: 'Locatore Prova', landlordIban: IB };
+  const pay = { id: 'pay_dig_2026-11', contractId: 'cDig', type: 'rent', month: '2026-11', amount: 900, status: 'pending', dueDate: '2026-11-05' };
+  // la parità con /banca: dove /banca non riconcilia sul conto del locatore,
+  // /rata non manda il bonifico lì
+  const marked = markLandlordDirect([{ ...pay }], [{ id: 'cDig', ...digital }])[0];
+  assert.equal(toLandlordAccount(marked), false, 'premessa: /banca aspetta questo bonifico sul conto BOOM');
+  let v = rv(pay, { contract: digital, payout: PO });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary, v.bonifico.to], [PO.iban, PO.beneficiary, 'boom'], 'contratto digitale: il conto BOOM');
+  assert.ok(!JSON.stringify(v).includes('Locatore Prova'), 'il nome del locatore non è il beneficiario di un contratto digitale');
+  v = rv(pay, { contract: digital });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.to], ['', 'boom'], 'senza payout configurato: «il conto di sempre», mai il conto del locatore');
+  assert.deepEqual(bonificoAccount(pay, { contract: digital, payout: { iban: PO.iban } }).iban, '', 'come /casa: IBAN senza beneficiario = niente');
+  const imp = { ...digital, source: 'palazzo-import' };
+  const markedImp = markLandlordDirect([{ ...pay }], [{ id: 'cDig', ...imp }])[0];
+  assert.equal(toLandlordAccount(markedImp), true, 'premessa: preso in carico = conto del locatore anche per /banca');
+  v = rv(pay, { contract: imp, payout: PO });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary, v.bonifico.to], [IB, 'Locatore Prova', 'landlord']);
+  v = rv({ ...pay, source: 'palazzo-import' }, { contract: digital, payout: PO });
+  assert.equal(v.bonifico.to, 'landlord', 'la rata nata dalla tabella porta il suo source: conto del locatore');
+  v = rv(pay, { contract: null, contractError: true, payout: PO });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.to], ['', ''], 'contratto illeggibile: non si sa chi incassa, nessun IBAN');
+  const page = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
+  assert.ok(page.includes("'repPBoom'") && page.includes("'bankSameBoom'"), 'la pagina dice dove va il bonifico');
+});
+await check('senza IBAN nel contratto preso in carico non se ne inventa uno (mai il conto di BOOM al posto di quello pattuito)', async () => {
+  const { rataView: rv } = await import('../../api/payments/rata.js');
+  const v = rv({ id: 'x', type: 'rent', month: '2026-10', amount: 900, status: 'pending', dueDate: '2026-10-05' },
+    { contract: { source: 'palazzo-import', landlordName: 'Senza Iban' }, payout: { iban: 'IT70B0306909606100000012345', beneficiary: 'Egidi Immobiliare S.r.l.' } });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary, v.bonifico.to], ['', '', 'landlord']);
 });
 await check('«ho pagato con bonifico»: la rata diventa SEGNALATA, mai pagata; il ping parte DOPO', async () => {
   const before = notes().length;
@@ -248,7 +290,7 @@ await check('rataView pura: la commissione si mostra solo su una rata pagabile, 
 });
 await check('canone + oneri: la pagina dice di cosa è fatto il totale; un IBAN che non passa il mod-97 non si mostra', async () => {
   const v = rataView({ id: 'o1', type: 'rent', amount: 1720, rentAmount: 1600, oneriAmount: 120, status: 'pending', month: '2026-11', dueDate: '2026-11-05' },
-    { contract: { landlordIban: 'IT60X0542811101000000123457', landlordName: 'Acme S.r.l.' }, today: '2026-10-20' });
+    { contract: { source: 'palazzo-import', landlordIban: 'IT60X0542811101000000123457', landlordName: 'Acme S.r.l.' }, today: '2026-10-20' });
   assert.deepEqual(v.parts, { rent: 1600, oneri: 120 });
   assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary], ['', ''], 'una cifra sbagliata = «il conto di sempre», mai un conto falso');
   assert.equal(rataView({ id: 'o2', amount: 1700, rentAmount: 1600, oneriAmount: 120, status: 'pending' }, {}).parts, null, 'voci che non tornano col totale: non si scompone');

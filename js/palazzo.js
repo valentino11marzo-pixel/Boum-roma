@@ -23,6 +23,7 @@
   var CS = (NODE ? require('./contract-state.js') : root.BOOM_CONTRACT_STATE) || {
     isPaper: function (c) { return !!(c && String(c.signatureStatus || '').trim() === 'paper'); },
     isPlaceholder: function (c) { return !!(c && c.contractMissing === true); },
+    isImported: function (c) { return !!(c && String(c.source || '').trim() === 'palazzo-import'); },
     notSignable: function (c) { return !c || c.contractMissing === true || /^(paper|complete)$/.test(String(c.signatureStatus || '').trim()); },
     phoneIntl: function (raw) { var s = String(raw || '').trim(), d = s.replace(/\D/g, ''); return s.charAt(0) === '+' && d.length >= 8 ? { e164: '+' + d, wa: d, kind: d.indexOf('39') === 0 ? 'it' : 'intl', raw: s } : { e164: null, wa: null, kind: s ? 'unknown' : 'empty', raw: s }; }
   };
@@ -1186,7 +1187,11 @@
       (oneri ? '<div><dt>Oneri accessori</dt><dd class="plz-num">' + eur(oneri) + ' / mese <small>insieme al canone</small></dd></div>' : '') +
       (dep ? '<div><dt>Deposito</dt><dd class="plz-num">' + esc(dep) + '</dd></div>' : '') +
       (landlord ? '<div><dt>Locatore</dt><dd>' + esc(landlord.slice(0, 120)) + '</dd></div>' : '') +
-      (admin && lease ? '<div><dt>Conto per il bonifico</dt><dd' + (iban ? ' class="plz-num">' + esc(iban) : ' class="plz-muted">non in archivio: la pagina della rata dice «il conto di sempre»') + '</dd></div>' : '') +
+      // Il conto del bonifico su /rata: del locatore SOLO sui contratti presi
+      // in carico dal Palazzo; un contratto digitale paga sul conto BOOM (lo
+      // stesso di /casa) — il landlordIban che porta non è il conto dei canoni.
+      (admin && lease ? '<div><dt>Conto per il bonifico</dt><dd' + (!CS.isImported(lease) ? ' class="plz-muted">conto BOOM (contratto digitale, come /casa)'
+        : iban ? ' class="plz-num">' + esc(iban) : ' class="plz-muted">non in archivio: la pagina della rata dice «il conto di sempre»') + '</dd></div>' : '') +
       (admin && lease ? '<div><dt>Carta su /rata</dt><dd>' + esc(cardText(u, lease)) + '</dd></div>' : '') +
       (reg ? '<div><dt>Registrazione</dt><dd class="' + (admin && reg.late ? 'plz-red' : '') + '">' + esc(regText(reg, admin)) + '</dd></div>' : '') +
       (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +

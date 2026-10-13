@@ -94,7 +94,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       period: function (a, b) { return 'Periodo: ' + a + ' – ' + b; },
       prorated: function (a, b) { return 'In proporzione: ' + a + ' – ' + b + '. Il contratto copre solo una parte del mese, quindi l’importo è più basso del solito.'; },
       or: 'oppure', bankH: 'Paga con bonifico', free: 'gratis', beneficiary: 'Beneficiario', iban: 'IBAN', bic: 'BIC / SWIFT', causale: 'Causale', copy: 'Copia', copied: 'Copiato', copyOf: function (k) { return 'Copia ' + k; },
-      bankSame: 'Al conto di sempre, quello indicato nel contratto.', abroadBic: 'Da una banca fuori dall’area SEPA: usa IBAN e BIC qui sopra e scegli le spese «OUR», così arriva l’importo intero.',
+      bankSame: 'Al conto di sempre, quello indicato nel contratto.', bankSameBoom: 'Al conto BOOM di sempre: se non lo trovi, scrivi a BOOM su WhatsApp.', abroadBic: 'Da una banca fuori dall’area SEPA: usa IBAN e BIC qui sopra e scegli le spese «OUR», così arriva l’importo intero.',
       abroad: 'Da una banca fuori dall’area SEPA: usa l’IBAN qui sopra e scegli le spese «OUR», così arriva l’importo intero. Se la tua banca chiede il BIC, scrivi a BOOM.',
       already: 'Ho già fatto il bonifico', reportH: 'Segnala il bonifico che hai fatto', when: 'Quando hai fatto il bonifico', proof: 'Ricevuta del bonifico', proofAdd: 'Foto o PDF della ricevuta', proofChange: 'Cambia ricevuta',
       proofHint: 'Facoltativa, ma fa verificare l’incasso prima.', note: 'Una nota (facoltativa)', notePh: 'Es. pagato in due bonifici', report: 'Segnala il bonifico', sending: 'Invio…',
@@ -106,6 +106,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       paidH: 'Rata pagata', paidP: function (d) { return 'Il pagamento risulta registrato' + (d ? ' il ' + d : '') + '. Non devi fare altro.'; },
       paidCard: 'La ricevuta è stata mandata all’email inserita nel pagamento.', receipt: 'Vedi la ricevuta',
       repH: 'Bonifico segnalato', repP: function (d) { return 'È stato segnalato un bonifico' + (d ? ' del ' + d : '') + '. Il bonifico va sul conto del locatore: BOOM verifica con il locatore che sia arrivato e, quando risulta arrivato, questa pagina lo segna come pagato. Non pagare di nuovo.'; },
+      repPBoom: function (d) { return 'È stato segnalato un bonifico' + (d ? ' del ' + d : '') + '. Il bonifico arriva sul conto di BOOM: quando risulta arrivato, questa pagina lo segna come pagato. Non pagare di nuovo.'; },
       reports: 'Bonifici segnalati:', withProof: 'ricevuta allegata',
       repProof: 'Ricevuta allegata.', repNoProof: 'Se hai la ricevuta, mandala a BOOM su WhatsApp: si verifica prima.', proofFailed: 'La ricevuta non è arrivata: mandala a BOOM su WhatsApp.',
       wa: 'Scrivi a BOOM su WhatsApp', more: 'Segnala un altro bonifico (es. la tua metà)', withdraw: 'Era un errore: annulla la segnalazione', withdrawn: 'Segnalazione annullata.',
@@ -132,7 +133,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       period: function (a, b) { return 'Period: ' + a + ' – ' + b; },
       prorated: function (a, b) { return 'Pro rata: ' + a + ' – ' + b + '. The lease covers only part of the month, so the amount is lower than usual.'; },
       or: 'or', bankH: 'Pay by bank transfer', free: 'free', beneficiary: 'Beneficiary', iban: 'IBAN', bic: 'BIC / SWIFT', causale: 'Reference', copy: 'Copy', copied: 'Copied', copyOf: function (k) { return 'Copy ' + k; },
-      bankSame: 'To the usual account, the one in your lease.', abroadBic: 'From a bank outside the SEPA area: use the IBAN and BIC above and choose “OUR” fees, so the full amount arrives.',
+      bankSame: 'To the usual account, the one in your lease.', bankSameBoom: 'To the usual BOOM account: if you can’t find it, message BOOM on WhatsApp.', abroadBic: 'From a bank outside the SEPA area: use the IBAN and BIC above and choose “OUR” fees, so the full amount arrives.',
       abroad: 'From a bank outside the SEPA area: use the IBAN above and choose “OUR” fees, so the full amount arrives. If your bank asks for the BIC, message BOOM.',
       already: 'I have already paid by bank transfer', reportH: 'Report the transfer you made', when: 'When you made the transfer', proof: 'Transfer receipt', proofAdd: 'Photo or PDF of the receipt', proofChange: 'Change receipt',
       proofHint: 'Optional, but it gets the payment checked sooner.', note: 'A note (optional)', notePh: 'E.g. paid in two transfers', report: 'Report the transfer', sending: 'Sending…',
@@ -144,6 +145,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       paidH: 'Rent paid', paidP: function (d) { return 'The payment is recorded' + (d ? ' on ' + d : '') + '. Nothing else to do.'; },
       paidCard: 'The receipt was emailed to the address you entered when paying.', receipt: 'View the receipt',
       repH: 'Transfer reported', repP: function (d) { return 'A bank transfer' + (d ? ' made on ' + d : '') + ' was reported. The transfer goes to the landlord’s account: BOOM checks with the landlord that it arrived, and once it has, this page shows it as paid. Don’t pay again.'; },
+      repPBoom: function (d) { return 'A bank transfer' + (d ? ' made on ' + d : '') + ' was reported. The transfer goes to BOOM’s account: once it has arrived, this page shows it as paid. Don’t pay again.'; },
       reports: 'Reported transfers:', withProof: 'receipt attached',
       repProof: 'Receipt attached.', repNoProof: 'If you have the receipt, send it to BOOM on WhatsApp: it gets checked sooner.', proofFailed: 'The receipt didn’t arrive: send it to BOOM on WhatsApp.',
       wa: 'Message BOOM on WhatsApp', more: 'Report another transfer (e.g. your half)', withdraw: 'That was a mistake: cancel the report', withdrawn: 'Report cancelled.',
@@ -226,7 +228,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     var b = rata.bonifico || {};
     var rows = b.iban
       ? (b.beneficiary ? row(t('beneficiary'), b.beneficiary) : '') + row(t('iban'), b.iban.replace(/(.{4})/g, '$1 ').trim(), b.iban, true) + (b.bic ? row(t('bic'), b.bic, b.bic, true) : '')
-      : '<div class="row"><dt></dt><dd><span class="v">' + esc(t('bankSame')) + '</span></dd></div>';
+      : '<div class="row"><dt></dt><dd><span class="v">' + esc(t(b.to === 'boom' ? 'bankSameBoom' : 'bankSame')) + '</span></dd></div>';
     rows += row(t('causale'), b.causale || '', b.causale || '');
     return '<section class="card" aria-labelledby="bankh"><h2 class="lab" id="bankh">' + esc(t('bankH')) + ' — <span class="free">' + esc(t('free')) + '</span></h2><dl class="kv">' + rows + '</dl>' +
       (b.iban ? '<p class="hint">' + esc(b.bic ? t('abroadBic') : t('abroad')) + '</p>' : '') + '</section>';
@@ -273,7 +275,9 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       return;
     }
     if (r.state === 'reported') {
-      var ps = [r.partial ? T[lang].partialP(eur(r.reportedSum), eur(r.amount)) : T[lang].repP(day(r.reportedDate))];
+      // Dove va il bonifico lo dice la porta (bonifico.to): al locatore sui
+      // contratti del Palazzo, a BOOM sugli altri.
+      var ps = [r.partial ? T[lang].partialP(eur(r.reportedSum), eur(r.amount)) : T[lang][(r.bonifico || {}).to === 'boom' ? 'repPBoom' : 'repP'](day(r.reportedDate))];
       if (after && after.proofFailed) ps.push(t('proofFailed')); else ps.push(r.hasProof || (after && after.proof) ? t('repProof') : t('repNoProof'));
       var list = r.reports && (r.reports.length > 1 || r.partial) ? '<ul>' + r.reports.map(function (x) { return '<li>' + esc(day(x.date)) + (x.amount != null ? ' · ' + esc(eur(x.amount)) : '') + (x.hasProof ? ' · ' + esc(t('withProof')) : '') + '</li>'; }).join('') + '</ul>' : '';
       if (list) list = '<p>' + esc(t('reports')) + '</p>' + list;

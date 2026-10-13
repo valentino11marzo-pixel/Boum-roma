@@ -41,10 +41,17 @@
 //   Palazzo è SPENTA finché l'interno non ha il mandato all'incasso, e senza
 //   commissione all'inquilino salvo scelta esplicita. Quando c'è, la
 //   commissione si mostra PRIMA di aprire Stripe.
-// - Il conto per il bonifico è quello scritto nel contratto (landlordIban):
-//   mai il conto di BOOM al posto di quello pattuito. Senza IBAN nel
-//   contratto la pagina dice "il conto di sempre", non ne inventa uno; il BIC
-//   compare solo se il contratto lo porta.
+// - Il conto per il bonifico dipende da CHI incassa (bonificoAccount, la
+//   stessa regola di /banca toLandlordAccount): un contratto preso in carico
+//   dal Palazzo (source 'palazzo-import', sul contratto o sulla rata) paga
+//   sul conto del LOCATORE scritto nel contratto (landlordIban) — mai il
+//   conto di BOOM al posto di quello pattuito. Un contratto digitale paga
+//   sul conto BOOM (payout/default, lo stesso di /casa): il landlordIban che
+//   la Scheda raccoglie anche lì NON è il conto dei canoni, e un bonifico
+//   mandato lì /banca non lo riconcilierebbe mai. Senza conto la pagina dice
+//   "il conto di sempre", non ne inventa uno; il BIC compare solo se c'è.
+//   Contratto illeggibile su una rata senza source: non si sa chi incassa,
+//   nessun IBAN.
 // - La data di "oggi" è quella di Roma, e si accetta fino a domani UTC: chi
 //   segnala a mezzanotte e mezza non riceve un "data nel futuro".
 
@@ -57,6 +64,7 @@ import { verifyPayToken, payToken, payLink } from './_token.js';
 import { payCausale } from './_ref.js';
 import { paymentLabel, feeFor, checkoutRecorded } from './pay.js';
 import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
 
 const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
 const ID_RE = /^[\w.-]{1,200}$/;
@@ -141,6 +149,23 @@ function bicOk(v, iban) {
   return iban && b.slice(4, 6) === String(iban).slice(0, 2) ? b : '';
 }
 
+// Il conto del bonifico: del LOCATORE sui contratti presi in carico dal
+// Palazzo, di BOOM (payout/default, come /casa) sugli altri. `to` dice chi
+// incassa: 'landlord' | 'boom' | '' (contratto illeggibile: non si sa).
+// Pura, una copia per la pagina, il ping e i test.
+export function bonificoAccount(pay, { contract, payout, contractError } = {}) {
+  const p = pay || {}, c = contract || {};
+  if (CS.isImported(contract) || String(p.source || '') === 'palazzo-import') {
+    const iban = ibanOk(c.landlordIban);
+    return { to: 'landlord', iban, beneficiary: iban ? clip(c.landlordName, 120) : '', bic: iban ? bicOk(c.landlordBic, iban) : '' };
+  }
+  if (contractError) return { to: '', iban: '', beneficiary: '', bic: '' };
+  const po = payout && typeof payout === 'object' ? payout : {};
+  // Come /casa: IBAN E beneficiario, o niente.
+  const iban = clip(po.beneficiary, 120) ? ibanOk(po.iban) : '';
+  return { to: 'boom', iban, beneficiary: iban ? clip(po.beneficiary, 120) : '', bic: iban ? bicOk(po.bic, iban) : '' };
+}
+
 // Le segnalazioni di una rata, nell'ordine in cui sono arrivate. Una rata
 // segnalata prima che esistesse l'elenco ha la sua segnalazione nei campi in
 // testa: diventa la prima voce.
@@ -158,7 +183,7 @@ export function reportsOf(p) {
 // Le parole della pagina, dalla rata. Pura: si testa senza rete.
 // `contractError`: il contratto non si è potuto leggere — non si sa se la
 // carta sia permessa, quindi si spegne (resta il bonifico).
-export function rataView(p, { property, contract, feeStats, today, contractError } = {}) {
+export function rataView(p, { property, contract, feeStats, today, contractError, payout } = {}) {
   const pay = p || {}, amount = RENT.amount(pay.amount);
   // Una rata il cui periodo comincia DOPO la chiusura vera del contratto
   // (BOOM_RENT.afterClose, la regola del Palazzo) non è dovuta: la pagina non
@@ -171,7 +196,7 @@ export function rataView(p, { property, contract, feeStats, today, contractError
   const pr = property || {}, c = contract || {};
   const interno = clip(pr.interno || c.unit, 12);
   const building = clip(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name, 120);
-  const iban = ibanOk(c.landlordIban);
+  const bank = bonificoAccount(pay, { contract, payout, contractError });
   const rentPart = RENT.amount(pay.rentAmount), oneriPart = RENT.amount(pay.oneriAmount);
   const canPay = !closed && RENT.canPay(pay, today);
   const policy = contractError && String(pay.source || '') !== 'palazzo-import'
@@ -228,7 +253,7 @@ export function rataView(p, { property, contract, feeStats, today, contractError
     // Canone + oneri fissi pagati insieme (la rata è il totale): si dice
     // di cosa è fatto il numero, solo se le due voci tornano col totale.
     parts: oneriPart > 0 && rentPart > 0 && amount != null && Math.abs(rentPart + oneriPart - amount) < 0.01 ? { rent: rentPart, oneri: oneriPart } : null,
-    bonifico: { causale: payCausale(pay), iban, beneficiary: iban ? clip(c.landlordName, 120) : '', bic: iban ? bicOk(c.landlordBic, iban) : '' },
+    bonifico: { causale: payCausale(pay), iban: bank.iban, beneficiary: bank.beneficiary, bic: bank.bic, to: bank.to },
   };
   return view;
 }
@@ -294,7 +319,10 @@ async function ping(id, r, view, extra) {
     type: 'payment.reported', status: 'pending', priority: 'high',
     summary: '💶 ' + (where || 'Rata') + ' — ' + how + ' dal link della rata' + (who ? ' (inviato a ' + who + (co ? ' e co-intestatari' : '') + ')' : '') +
       (extra.note ? ' · nota: «' + clip(extra.note, 140) + '»' : '') +
-      (extra.proof ? ' · ricevuta allegata' : ' · senza ricevuta') + nth + '. Il bonifico va al conto del locatore: verifica con lui cosa è arrivato, poi premi Registra incasso.',
+      (extra.proof ? ' · ricevuta allegata' : ' · senza ricevuta') + nth + '. ' + ({
+        landlord: 'Il bonifico va al conto del locatore: verifica con lui cosa è arrivato, poi premi Registra incasso.',
+        boom: 'Il bonifico arriva sul conto BOOM: verifica in /banca cosa è arrivato, poi premi Registra incasso.',
+      }[view.bonifico.to] || 'Verifica cosa è arrivato (conto BOOM in /banca o conto del locatore), poi premi Registra incasso.'),
     ref: { collection: 'payments', id }, ownerId: (r.property && r.property.ownerId) || null,
     payload: { amount: view.amount, ...(extra.amount != null ? { amountReported: extra.amount } : {}), month: view.month, proof: !!extra.proof, date: extra.date || '', note: clip(extra.note, 500),
       via: 'rata-link', count: extra.count || 1 },
@@ -370,7 +398,11 @@ export default async function handler(req, res) {
   catch (e) { console.error('[rata] lettura:', e.message); return res.status(503).json({ ok: false, error: 'unavailable' }); }
   if (!r) return res.status(404).json({ ok: false, error: 'invalid_link' });
   const feeStats = op === 'lookup' ? await fsGet('settings/rentFeeStats').catch(() => null) : null;
-  const view = rataView(r.p, { property: r.property, contract: r.contract, feeStats, contractError: r.contractError });
+  // Il conto BOOM (lo stesso di /casa) solo dove incassa BOOM: per un
+  // contratto del Palazzo il conto è quello del locatore, scritto nel contratto.
+  const payout = op === 'lookup' && bonificoAccount(r.p, { contract: r.contract, contractError: r.contractError }).to === 'boom'
+    ? await fsGet('payout/default').catch(() => null) : null;
+  const view = rataView(r.p, { property: r.property, contract: r.contract, feeStats, contractError: r.contractError, payout });
 
   if (op === 'lookup') {
     // La carta passa dal link di pagamento che esiste già; `from=rata` fa

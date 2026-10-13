@@ -140,7 +140,10 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: true, state: 'reported', proof: !!b.proof, proofFailed: false })); return;
       }
       if (b.op === 'withdraw') { Object.assign(p, { tenantReported: false, tenantReportedAt: null }); res.end('{"ok":true}'); return; }
-      const view = rataView(p, { property: pr, contract: { ...c, landlordIban: 'IT60X0542811101000000123456', landlordName: 'Proprietaria Demo' } });
+      // Come la porta vera: il conto BOOM (payout/default) per i contratti
+      // digitali, il conto del locatore per quelli presi in carico.
+      const view = rataView(p, { property: pr, contract: { ...c, landlordIban: 'IT60X0542811101000000123456', landlordName: 'Proprietaria Demo' },
+        payout: { iban: 'IT70B0306909606100000012345', beneficiary: 'Egidi Immobiliare S.r.l.' } });
       res.end(JSON.stringify({ ok: true, rata: view, payUrl: view.canPay ? 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p.id + '&t=demo' : '' })); return;
     }
     if (path === '/api/owners/contatti' && req.method === 'POST') {
@@ -793,7 +796,10 @@ try {
       assert.equal(await card.getAttribute('href'), 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p5.id + '&t=demo&lang=it');
       assert.ok(/€950 \+ €[\d,]+ di commissione per il pagamento con carta\. Il bonifico non ha commissioni\./.test(await g.locator('.hint').first().innerText()));
       await g.locator('#bank').click();
-      assert.ok((await g.locator('.kv').innerText()).includes('IT60 X054 2811 1010 0000 0123 456'));
+      // u5 è un contratto digitale (carta con la commissione di sempre): il
+      // bonifico va al conto BOOM, non al landlordIban che il contratto porta.
+      const kv = await g.locator('.kv').innerText();
+      assert.ok(kv.includes('IT70 B030 6909 6061 0000 0012 345') && kv.includes('Egidi Immobiliare') && !kv.includes('IT60 X054'), kv);
       assert.ok(/BOOM-[2-9A-HJ-NP-Z]{6} canone \d{4}-\d{2}/.test(await g.locator('.kv').innerText()));
       const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
       await g.locator('#pf').setInputFiles({ name: 'ricevuta.png', mimeType: 'image/png', buffer: png });
