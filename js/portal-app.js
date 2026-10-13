@@ -10525,7 +10525,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
         const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
         const proof = rentSafeHttpUrl(p.proofUrl);
-        const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
+        // Dopo un «Annulla incasso» e un nuovo incasso la rata ha DUE ricevute:
+        // quella annullata e quella valida, in ordine di id (cioè a caso). Vale
+        // quella collegata alla rata, poi una non annullata; mai l'annullata.
+        const liveInv = i => i && !i.voided && i.status !== 'cancelled';
+        const invoice = (p.invoiceId ? (S.invoices || []).find(i => i.id === p.invoiceId && liveInv(i)) : null)
+            || (S.invoices || []).find(i => i.paymentId === row.id && liveInv(i));
         const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${!p.receiptDocId && !rentSafeHttpUrl(p.receiptUrl) && isAdmin() ? `<button class="btn btn-sm btn-secondary" onclick="publishRentReceipt(${id},this)">Archivia ricevuta per il cliente</button>` : ''}${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
         return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
             <div><strong>${esc(rentMonthLabel(row.month))}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
@@ -18056,7 +18061,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     receiptUrl: del, receiptDocId: del, invoiceId: del, invoiceNumber: del, tenantConfirmSentAt: del, tenantConfirmTo: del,
                     incassoAnnullato: { at, by, was } });
                 const rd = rSnap.exists ? rSnap.data() : null;
-                if (rd && rd.paymentId === paymentId && !rd.voided) tx.update(rRef, { voided: true, voidedAt: at, voidedBy: by, voidedReason: 'incasso annullato', name: '[ANNULLATA] ' + String(rd.name || 'Ricevuta') });
+                // Il PDF annullato si legge ancora come un'attestazione valida:
+                // esce dall'archivio dell'inquilino (i suoi documenti si leggono
+                // per userId) e dalla condivisione, resta solo all'admin. A chi
+                // era intestato lo dice voidedUserId.
+                if (rd && rd.paymentId === paymentId && !rd.voided) tx.update(rRef, { voided: true, voidedAt: at, voidedBy: by, voidedReason: 'incasso annullato', name: '[ANNULLATA] ' + String(rd.name || 'Ricevuta'),
+                    userId: null, shared: false, voidedUserId: rd.userId || null });
                 if (iSnap && iSnap.exists && (iSnap.data() || {}).paymentId === paymentId) tx.update(iRef, { status: 'cancelled', voided: true, voidedAt: at, voidedBy: by, voidedReason: 'incasso annullato' });
                 undone = true;
             });
@@ -18068,7 +18078,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 local.status = local.dueDate && String(local.dueDate) < incassoRomeDay() ? 'overdue' : 'pending';
                 local.incassoAnnullato = { at, by, was };
             }
-            (S.documents || []).forEach(d => { if (d.paymentId === paymentId && d.type === 'receipt' && !d.voided) Object.assign(d, { voided: true, voidedAt: at }); });
+            (S.documents || []).forEach(d => { if (d.paymentId === paymentId && d.type === 'receipt' && !d.voided && d.id === (was.receiptDocId || 'rent-receipt-' + paymentId)) Object.assign(d, { voided: true, voidedAt: at, voidedUserId: d.userId || null, userId: null, shared: false }); });
             (S.invoices || []).forEach(i => { if (i.paymentId === paymentId && was.invoiceId && i.id === was.invoiceId) Object.assign(i, { status: 'cancelled', voided: true, voidedAt: at }); });
             logActivity('payment_incasso_undone', 'payment', { id: paymentId, amount: p.amount, contractId: p.contractId, was });
             const landlord = who.property && who.property.ownerId ? (S.users || []).find(u => u.id === who.property.ownerId) : null;
@@ -18106,8 +18116,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // importo diverso dal canone del contratto: la quota energia di una
     // proposta, un ritocco a mano) NON si ricalcola: riscriverla col solo
     // canone nuovo cancellerebbe la parte che non conosciamo. Resta, e si dice.
-    function incassoFuturePlan(contract, payments, kind, value, fromMonth) {
-        const rows = [], skipped = [], unknown = [];
+    // Le rate GIÀ SCADUTE non pagate sono arretrati: l'inquilino le ha viste
+    // (sul link della rata, nei solleciti) con l'importo di prima, e un canone
+    // nuovo non le rincara all'indietro. Restano, e si elencano a parte —
+    // salvo un mese dichiarato (fromMonth: «dal mese X», anche passato) o
+    // includeOverdue esplicito, che è la scelta dell'operatore.
+    function incassoFuturePlan(contract, payments, kind, value, fromMonth, includeOverdue) {
+        const rows = [], skipped = [], unknown = [], overdue = [];
+        // Un arretrato lasciato all'importo di prima da un canone nuovo vale il
+        // canone di ALLORA: si riconosce anche quello (termsHistory), così una
+        // correzione successiva degli arretrati sa ancora di cosa sono fatti.
+        const rents = [Number(contract.rent)].concat((Array.isArray(contract.termsHistory) ? contract.termsHistory : [])
+            .filter(h => h && h.field === 'rent').map(h => Number(h.from))).filter(r => r > 0);
         (payments || []).filter(p => p && p.contractId === contract.id && window.BOOM_RENT.isRentPayment(p))
             .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')))
             .forEach(p => {
@@ -18125,7 +18145,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (hasRent || hasOneri) {
                     // Le due voci devono tornare col totale, o non sappiamo quale vale.
                     if (Math.abs(incassoRound(rentOld + oneriOld) - amt) > 0.01) { unknown.push(p); return; }
-                } else if (Number(contract.rent) > 0 && Math.abs(incassoRound(Number(contract.rent) * months * f) - amt) > 0.01) { unknown.push(p); return; }
+                } else if (rents.length && !rents.some(r => Math.abs(incassoRound(r * months * f) - amt) <= 0.01)) { unknown.push(p); return; }
                 const part = incassoRound(value * months * f);
                 const rentNew = kind === 'rent' ? part : rentOld, oneriNew = kind === 'oneri' ? part : oneriOld;
                 const to = incassoRound(rentNew + oneriNew);
@@ -18133,9 +18153,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (to === amt && (!split || (rentNew === window.BOOM_RENT.amount(p.rentAmount) && oneriNew === window.BOOM_RENT.amount(p.oneriAmount)))) return;
                 const upd = { amount: to };
                 if (split) { upd.rentAmount = rentNew; upd.oneriAmount = oneriNew; }
-                rows.push({ id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd });
+                const row = { id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd };
+                if (st === 'overdue' && !fromMonth && !includeOverdue) { overdue.push(row); return; }
+                rows.push(row);
             });
-        return { rows, skipped, unknown };
+        return { rows, skipped, unknown, overdue };
     }
     async function incassoApplyFuture(kind, contractId, raw, opts) {
         if (!isAdmin()) return false;
@@ -18143,6 +18165,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const what = kind === 'rent' ? 'Canone' : 'Oneri';
         if (value == null || (kind === 'rent' && !(value > 0))) { toast('warning', what + ' non valido', 'Scrivi l’importo mensile in euro.'); return false; }
         const fromMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(String((opts || {}).fromMonth || '')) ? opts.fromMonth : '';
+        const includeOverdue = (opts || {}).includeOverdue === true;
         const cRef = db.collection('contracts').doc(contractId);
         try {
             const cSnap = await cRef.get({ source: 'server' });
@@ -18150,23 +18173,42 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const contract = { ...cSnap.data(), id: contractId };
             // Le rate dal SERVER: il carico del portale ha dei tetti.
             const rs = await db.collection('payments').where('contractId', '==', contractId).get({ source: 'server' });
-            const plan = incassoFuturePlan(contract, rs.docs.map(d => ({ ...d.data(), id: d.id })), kind, value, fromMonth);
+            const plan = incassoFuturePlan(contract, rs.docs.map(d => ({ ...d.data(), id: d.id })), kind, value, fromMonth, includeOverdue);
             const full = plan.rows.find(r => !r.prorated) || plan.rows[0], part = plan.rows.find(r => r.prorated && r !== full);
+            // La rata del contratto (installmentAmount) può contenere più del
+            // canone: la quota energia di una proposta la porta dentro
+            // ((canone + energia) × cadenza), e la leggono il generatore delle
+            // rate, magic-sign e il PDF del contratto. Si sposta della
+            // DIFFERENZA di canone, mai si ricostruisce dal solo canone nuovo
+            // (cancellerebbe la parte che non conosciamo). Senza un canone di
+            // partenza la differenza non si sa: resta com'è, e si dice.
+            let iaNew = null, iaNote = '';
+            const step = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
+            if (kind === 'rent' && contract.installmentAmount != null && contract.installmentAmount !== '') {
+                const ia = Number(contract.installmentAmount), oldRent = Number(contract.rent);
+                const shifted = Number.isFinite(ia) && oldRent > 0 ? incassoRound(ia + (value - oldRent) * step) : NaN;
+                if (shifted > 0) {
+                    iaNew = shifted;
+                    if (Math.abs(incassoRound(oldRent * step) - ia) > 0.01) iaNote = `\nLa rata del contratto comprende altre voci oltre al canone: passa da €${incassoEuro(ia)} a €${incassoEuro(shifted)} (cambia solo la parte del canone).`;
+                } else iaNote = `\nLa rata del contratto${Number.isFinite(ia) ? ' (€' + incassoEuro(ia) + ')' : ''} include voci che non so separare dal canone: non la cambio, verificala dal contratto.`;
+            }
+            const ov = plan.overdue;
             const msg = `${kind === 'rent' ? 'Nuovo canone' : 'Nuovi oneri accessori'}: €${incassoEuro(value)} al mese${fromMonth ? ' da ' + incassoMonth(fromMonth) : ''}.\n\n`
                 + (plan.rows.length
                     ? `Aggiorno il contratto e ${plan.rows.length} ${plan.rows.length === 1 ? 'rata non pagata' : 'rate non pagate'} (${incassoMonth(plan.rows[0].month) || '—'}${plan.rows.length > 1 ? ' – ' + (incassoMonth(plan.rows[plan.rows.length - 1].month) || '—') : ''}): rata nuova €${incassoEuro(full.to)}${part ? `, quella in proporzione €${incassoEuro(part.to)}` : ''}.`
                     : 'Aggiorno solo il contratto: nessuna rata da pagare da ricalcolare.')
                 + (plan.skipped.length ? `\n${plan.skipped.length} ${plan.skipped.length === 1 ? 'rata segnalata dall’inquilino o in corso resta' : 'rate segnalate dall’inquilino o in corso restano'} come ${plan.skipped.length === 1 ? 'è' : 'sono'}: correggile a mano se serve.` : '')
                 + (plan.unknown.length ? `\n${plan.unknown.length} ${plan.unknown.length === 1 ? 'rata ha un importo che non è solo canone + oneri (per esempio con la quota energia): resta com’è' : 'rate hanno un importo che non è solo canone + oneri (per esempio con la quota energia): restano come sono'}, correggile dal dettaglio.` : '')
+                + (ov.length ? `\n${ov.length} ${ov.length === 1 ? 'rata già scaduta e non pagata' : 'rate già scadute e non pagate'} (${incassoMonth(ov[0].month) || '—'}${ov.length > 1 ? ' – ' + (incassoMonth(ov[ov.length - 1].month) || '—') : ''}) ${ov.length === 1 ? 'resta' : 'restano'} all’importo di prima: ${ov.length === 1 ? 'è un arretrato che l’inquilino ha visto' : 'sono arretrati che l’inquilino ha visto'} così. Se il nuovo importo vale anche per ${ov.length === 1 ? 'lei' : 'loro'}, correggi${ov.length === 1 ? 'la' : 'le'} dal dettaglio.` : '')
+                + iaNote
                 + '\nLe rate già pagate non cambiano.';
             if (!confirm(msg)) return false;
             const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
             const cUpd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                termsHistory: firebase.firestore.FieldValue.arrayUnion({ field: kind === 'rent' ? 'rent' : 'oneriQuota', from: kind === 'rent' ? (contract.rent ?? null) : (contract.oneriQuota ?? null), to: value, fromMonth: fromMonth || null, rates: plan.rows.length, at, by }) };
+                termsHistory: firebase.firestore.FieldValue.arrayUnion({ field: kind === 'rent' ? 'rent' : 'oneriQuota', from: kind === 'rent' ? (contract.rent ?? null) : (contract.oneriQuota ?? null), to: value, fromMonth: fromMonth || null, rates: plan.rows.length, overdueKept: ov.length, at, by }) };
             if (kind === 'rent') {
                 cUpd.rent = value;
-                const step = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
-                if (contract.installmentAmount != null) cUpd.installmentAmount = incassoRound(value * step);
+                if (iaNew != null) cUpd.installmentAmount = iaNew;
                 // canone.monthly × installments === total: il portale «aggiusta»
                 // da solo un canone che non torna, e lo farebbe male.
                 if (contract.canone && typeof contract.canone === 'object') { cUpd['canone.monthly'] = value; if (Number(contract.canone.installments) > 0) cUpd['canone.total'] = incassoRound(value * Number(contract.canone.installments)); }
@@ -18196,7 +18238,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return true;
         } catch (err) { toast('error', 'Errore', err.message); return false; }
     }
-    // Il Palazzo chiama questi due (CONTRACTS §2): opts.fromMonth facoltativo.
+    // Il Palazzo chiama questi due (CONTRACTS §2). opts facoltativo:
+    // { fromMonth: 'YYYY-MM' } = vale da quel mese (arretrati compresi, è una
+    // data dichiarata); { includeOverdue: true } = correggi anche le rate già
+    // scadute. Senza nessuno dei due si toccano solo le rate non ancora scadute.
     function applyOneriFuture(contractId, oneri, opts) { return incassoApplyFuture('oneri', contractId, oneri, opts); }
     function applyRentFuture(contractId, rent, opts) { return incassoApplyFuture('rent', contractId, rent, opts); }
 
@@ -21764,7 +21809,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             r4_icon: '📄', r4_label: receipt ? 'Receipt' : '', r4_value: receipt ? 'Download it with the button below (PDF)' : '',
             closing: receipt || home ? '' : 'Keep this email as your confirmation of payment.',
             cta_text: receipt ? 'View receipt →' : home ? 'Open your BOOM home →' : '',
-            portal_link: receipt || home
+            portal_link: receipt || home,
+            // La riga di chiusura la aggiunge /api/notify/send: con lang la
+            // scrive in inglese (finché il ponte non lo legge, è ignorato).
+            lang: 'en'
         });
     }
 

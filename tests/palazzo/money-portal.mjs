@@ -12,10 +12,13 @@
 //    all'attestazione, se il contratto ha la sua email; altrimenti nessuna promessa.
 //  · l'attestazione è intestata al locatore, canone e oneri separati, periodo vero,
 //    numero da tutto l'id, nomi turchi e cirillici traslitterati (mai vuoti).
-//  · «Annulla incasso» riporta la rata da pagare e annulla l'attestazione.
+//  · «Annulla incasso» riporta la rata da pagare e annulla l'attestazione, che
+//    esce dall'archivio dell'inquilino; il tasto «Documento» apre la valida.
 //  · la modifica della rata tiene i centesimi e la coerenza canone + oneri.
 //  · chiudere un contratto annulla nella stessa transazione le rate dopo l'uscita.
-//  · canone/oneri nuovi ricalcolano solo le rate da pagare.
+//  · canone/oneri nuovi ricalcolano solo le rate da pagare non ancora scadute
+//    (gli arretrati solo con un mese dichiarato o includeOverdue), e la rata del
+//    contratto si sposta della differenza, senza perdere la quota energia.
 //  · il generatore delle rate non fa scadere una rata prima del suo periodo, in
 //    nessun fuso orario del browser.
 import assert from 'node:assert/strict';
@@ -287,6 +290,8 @@ const today = romeDay();
     assert.equal(m[0].params.r2_value, '15 Oct 2026 – 14 Nov 2026');
     assert.equal(m[0].params.r3_value, '3 Oct 2026');
     assert.equal(m[0].params.portal_link, pay.receiptUrl);
+    // La chiusura dell'email la scrive il ponte: gli si dice la lingua.
+    assert.equal(m[0].params.lang, 'en');
     assert.ok(!JSON.stringify(m[0]).includes('/casa'));
     assert.equal(pay.tenantConfirmTo, 'sukru@example.invalid'); assert.match(pay.tenantConfirmSentAt, /T/);
   });
@@ -610,6 +615,131 @@ const today = romeDay();
   });
 }
 
+// ═══ 8b. La rata del contratto e gli arretrati ═════════════════════════════
+// Date relative a oggi (Roma): «scaduta» e «non ancora scaduta» non devono
+// cambiare con il giorno in cui gira la suite.
+const dayFromNow = n => romeDay(new Date(Date.now() + n * 864e5));
+const ENERGY = () => {
+  const f = FIX();
+  const d1 = dayFromNow(40), d2 = dayFromNow(80);
+  f.contracts.push(
+    // Nata da una proposta con la quota energia incassata col canone:
+    // installmentAmount = (canone 1000 + energia 100) × 1.
+    { id: 'cE', propertyId: 'p9', status: 'active', tenantName: 'Energia Prova', startDate: '2026-10-01', endDate: '2027-09-30', rent: 1000,
+      installmentMonths: 1, installmentAmount: 1100, energyCredit: 100, accessoryCharges: 100, canone: { monthly: 1000, installments: 12, total: 12000 } },
+    // Trimestrale senza altre voci: la rata del contratto è canone × 3.
+    { id: 'cQ', propertyId: 'p8', status: 'active', tenantName: 'Trimestre Prova', startDate: '2026-10-01', endDate: '2027-09-30', rent: 1000, installmentMonths: 3, installmentAmount: 3000 },
+    // Senza canone di partenza: la differenza non si sa.
+    { id: 'cN', propertyId: 'p7', status: 'active', tenantName: 'Senza Canone', startDate: '2026-10-01', endDate: '2027-09-30', installmentMonths: 1, installmentAmount: 900 });
+  f.payments = [
+    { id: 'pay_cE_' + d1.slice(0, 7), contractId: 'cE', propertyId: 'p9', type: 'rent', month: d1.slice(0, 7), amount: 1100, dueDate: d1, status: 'pending' },
+    { id: 'pay_cE_' + d2.slice(0, 7), contractId: 'cE', propertyId: 'p9', type: 'rent', month: d2.slice(0, 7), amount: 1100, dueDate: d2, status: 'pending' },
+  ];
+  return f;
+};
+{
+  const T = build(); T.seed(ENERGY());
+  await T.run("applyRentFuture('cE', 1050)");
+  await check('canone nuovo su un contratto con la quota energia: la rata del contratto si sposta della differenza (1100 → 1150), mai «canone × cadenza»', () => {
+    const c = T.doc('contracts/cE');
+    assert.equal(c.rent, 1050); assert.equal(c.installmentAmount, 1150);
+    assert.equal(c.canone.monthly, 1050); assert.equal(c.canone.total, 12600);
+    assert.match(T.confirms.at(-1), /La rata del contratto comprende altre voci oltre al canone: passa da €1\.100,00 a €1\.150,00/);
+    // Le rate con l'energia dentro restano (composizione non scritta sulla rata) e lo si dice.
+    for (const p of T.S.payments) assert.equal(T.doc('payments/' + p.id).amount, 1100);
+    assert.match(T.confirms.at(-1), /2 rate hanno un importo che non è solo canone \+ oneri/);
+  });
+  await T.run("applyRentFuture('cQ', 1100)");
+  await check('trimestrale senza altre voci: 3000 → 3300, e nessuna nota sulle «altre voci»', () => {
+    assert.equal(T.doc('contracts/cQ').installmentAmount, 3300);
+    assert.ok(!/altre voci/.test(T.confirms.at(-1)));
+  });
+  await T.run("applyRentFuture('cN', 950)");
+  await check('senza canone di partenza la rata del contratto resta com’è, e si dice', () => {
+    assert.equal(T.doc('contracts/cN').installmentAmount, 900); assert.equal(T.doc('contracts/cN').rent, 950);
+    assert.match(T.confirms.at(-1), /La rata del contratto \(€900,00\) include voci che non so separare dal canone: non la cambio/);
+  });
+}
+const ARREARS = () => {
+  const f = FIX();
+  const past = dayFromNow(-40), soon = dayFromNow(40), later = dayFromNow(80);
+  f.payments = [past, soon, later].map(d => ({ id: 'pay_c8_' + d.slice(0, 7), contractId: 'c8', propertyId: 'p8', type: 'rent', month: d.slice(0, 7), amount: 1000, dueDate: d, status: 'pending' }));
+  return { f, past: 'pay_c8_' + past.slice(0, 7), soon: 'pay_c8_' + soon.slice(0, 7), later: 'pay_c8_' + later.slice(0, 7), pastMonth: past.slice(0, 7) };
+};
+{
+  const A = ARREARS();
+  const T = build(); T.seed(A.f);
+  await T.run("applyRentFuture('c8', 1100)");
+  await check('canone nuovo senza mese: le rate non ancora scadute cambiano, l’arretrato resta e si elenca a parte', () => {
+    assert.equal(T.doc('payments/' + A.past).amount, 1000, 'arretrato rincarato all’indietro');
+    assert.equal(T.doc('payments/' + A.soon).amount, 1100); assert.equal(T.doc('payments/' + A.later).amount, 1100);
+    const label = T.run(`incassoMonth('${A.pastMonth}')`);
+    assert.ok(T.confirms.at(-1).includes(`1 rata già scaduta e non pagata (${label}) resta all’importo di prima`));
+    assert.match(T.confirms.at(-1), /Aggiorno il contratto e 2 rate non pagate/);
+    assert.equal(T.doc('contracts/c8').termsHistory.at(-1).overdueKept, 1);
+  });
+  await T.run("applyRentFuture('c8', 1200, {includeOverdue:true})");
+  await check('con includeOverdue l’operatore corregge anche l’arretrato', () => {
+    assert.equal(T.doc('payments/' + A.past).amount, 1200); assert.equal(T.doc('payments/' + A.soon).amount, 1200);
+    assert.ok(!/già scadut/.test(T.confirms.at(-1)));
+  });
+  const B = ARREARS(); T.seed(B.f);
+  await T.run(`applyOneriFuture('c8', 50, {fromMonth:'${B.pastMonth}'})`);
+  await check('un mese dichiarato (anche passato) vale da quel mese, arretrati compresi', () => {
+    const p = T.doc('payments/' + B.past);
+    assert.equal(p.amount, 1050); assert.equal(p.oneriAmount, 50); assert.equal(p.rentAmount, 1000);
+  });
+  const C = ARREARS(); T.seed(C.f);
+  await T.run("applyOneriFuture('c8', 50)");
+  await check('oneri nuovi senza mese: anche qui l’arretrato non cambia', () => {
+    assert.equal(T.doc('payments/' + C.past).amount, 1000); assert.equal(T.doc('payments/' + C.soon).amount, 1050);
+  });
+}
+
+// ═══ 8c. Dopo «Annulla incasso» e un nuovo incasso: due ricevute ══════════
+{
+  const T = build(); T.seed(FIX());
+  const reload = () => { for (const k of ['payments', 'invoices', 'documents']) T.S[k] = [...T.store.entries()].filter(([kk]) => kk.startsWith(k + '/')).map(([kk, v]) => ({ ...v, id: kk.split('/')[1] })); };
+  await T.run("markPaymentPaid('pay_c9_2026-10',{paidDate:'2026-10-06',paidVia:'contanti',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
+  const oldInv = T.doc('payments/pay_c9_2026-10').invoiceId;
+  reload();
+  await T.run("undoIncasso('pay_c9_2026-10')");
+  reload();
+  await T.run("markPaymentPaid('pay_c9_2026-10',{paidDate:'2026-10-07',paidVia:'contanti',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
+  reload();
+  const newInv = T.doc('payments/pay_c9_2026-10').invoiceId;
+  // La ricevuta annullata per prima, come può restituirla l'ordine degli id.
+  T.S.invoices.sort((a, b) => (b.voided ? 1 : 0) - (a.voided ? 1 : 0));
+  const row = () => T.run("rentPaymentRow({ id:'pay_c9_2026-10', payment: S.payments.find(p=>p.id==='pay_c9_2026-10'), state:'paid', amount:900, isRent:true, canPay:false, month:'2026-10', tenantName:'Profilo Inquilino' })");
+  await check('il tasto «Documento» apre la ricevuta valida, mai quella annullata', () => {
+    assert.ok(oldInv && newInv && oldInv !== newInv);
+    assert.equal(T.S.invoices[0].id, oldInv); assert.equal(T.S.invoices[0].voided, true);
+    const h = row();
+    assert.ok(h.includes('viewInvoice(' + T.run(`rentActionArg('${newInv}')`) + ')'));
+    assert.ok(!h.includes(T.run(`rentActionArg('${oldInv}')`)));
+  });
+  await check('anche senza invoiceId sulla rata (dati vecchi) l’annullata non vince', () => {
+    delete T.S.payments.find(p => p.id === 'pay_c9_2026-10').invoiceId;
+    assert.ok(row().includes('viewInvoice(' + T.run(`rentActionArg('${newInv}')`) + ')'));
+  });
+  await check('l’attestazione annullata esce dall’archivio dell’inquilino (userId), resta all’admin e dice a chi era', () => {
+    const d = T.doc('documents/rent-receipt-pay_c9_2026-10');
+    assert.equal(d.voided, true); assert.equal(d.userId, null); assert.equal(d.shared, false); assert.equal(d.voidedUserId, 't9');
+    // La lettura dell'inquilino (Firestore: where userId == uid).
+    const mine = [...T.store.entries()].filter(([k, v]) => k.startsWith('documents/') && v.userId === 't9');
+    assert.equal(mine.length, 1); assert.ok(!mine[0][1].voided);
+    // E il filtro del portale con il profilo dell'inquilino.
+    T.run([fnSrc(SRC0, 'isLandlord'), fnSrc(SRC0, 'isTenant'), fnSrc(SRC0, 'getMyProperties'), fnSrc(SRC0, 'getMyContracts'), fnSrc(SRC0, 'getMyDocuments')].join('\n'));
+    const admin = T.S.profile;
+    T.ctx.isAdmin = () => T.S.profile.role === 'admin';
+    T.S.profile = { id: 't9', role: 'tenant', name: 'Profilo Inquilino' };
+    try {
+      const vis = T.run('getMyDocuments()').filter(x => x.paymentId === 'pay_c9_2026-10');
+      assert.equal(vis.length, 1); assert.ok(!vis[0].voided);
+    } finally { T.S.profile = admin; T.ctx.isAdmin = () => true; }
+  });
+}
+
 // ═══ 9. Solleciti: un bonifico segnalato si verifica, non si sollecita ═════
 {
   const T = build(); T.seed(FIX());
@@ -695,7 +825,7 @@ await mutant('la chiusura che lascia aperte le rate', "tx.update(db.collection('
 await mutant('le rate segnalate ricalcolate col canone nuovo', "if ((st !== 'due' && st !== 'overdue') || amt == null) { skipped.push(p); return; }", "if (amt == null) { skipped.push(p); return; }", async T => {
   assert.equal(T.run("incassoFuturePlan(S.contracts.find(c=>c.id==='c7'), S.payments, 'oneri', 200, '').rows.length"), 0);
 });
-await mutant('la quota energia cancellata dal canone nuovo', "} else if (Number(contract.rent) > 0 && Math.abs(incassoRound(Number(contract.rent) * months * f) - amt) > 0.01) { unknown.push(p); return; }", "}", async T => {
+await mutant('la quota energia cancellata dal canone nuovo', "} else if (rents.length && !rents.some(r => Math.abs(incassoRound(r * months * f) - amt) <= 0.01)) { unknown.push(p); return; }", "}", async T => {
   T.store.set('payments/pay_c9_2026-11', { contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-11', amount: 960, dueDate: '2026-11-05', status: 'pending' });
   await T.run("applyRentFuture('c9', 950)");
   assert.equal(T.doc('payments/pay_c9_2026-11').amount, 960);
@@ -731,6 +861,33 @@ await mutant('il file dell’attestazione annullata riscritto dallo stesso accre
   await T.run("undoIncasso('pay_c8_2026-10')");
   await go();
   assert.equal(new Set(T.puts.map(x => x.path)).size, T.puts.length);
+});
+await mutant('la rata del contratto ricostruita dal solo canone (quota energia persa)', "if (iaNew != null) cUpd.installmentAmount = iaNew;", "if (contract.installmentAmount != null) cUpd.installmentAmount = incassoRound(value * step);", async T => {
+  T.seed(ENERGY());
+  await T.run("applyRentFuture('cE', 1050)");
+  assert.equal(T.doc('contracts/cE').installmentAmount, 1150);
+});
+await mutant('l’arretrato rincarato da un canone nuovo senza mese', "if (st === 'overdue' && !fromMonth && !includeOverdue) { overdue.push(row); return; }", "", async T => {
+  const A = ARREARS(); T.seed(A.f);
+  await T.run("applyRentFuture('c8', 1100)");
+  assert.equal(T.doc('payments/' + A.past).amount, 1000);
+});
+await mutant('l’arretrato lasciato al canone di prima non più riconosciuto', "const rents = [Number(contract.rent)].concat(", "const rents = [Number(contract.rent)].filter(r => r > 0) || [].concat(", async T => {
+  const A = ARREARS(); T.seed(A.f);
+  await T.run("applyRentFuture('c8', 1100)");
+  await T.run("applyRentFuture('c8', 1200, {includeOverdue:true})");
+  assert.equal(T.doc('payments/' + A.past).amount, 1200);
+});
+await mutant('la ricevuta annullata dietro il tasto «Documento»', [["const invoice = (p.invoiceId ? (S.invoices || []).find(i => i.id === p.invoiceId && liveInv(i)) : null)\n            || (S.invoices || []).find(i => i.paymentId === row.id && liveInv(i));", "const invoice = (S.invoices || []).find(i => i.paymentId === row.id);"]], async T => {
+  T.S.invoices = [{ id: 'inv_old', paymentId: 'pay_c9_2026-10', status: 'cancelled', voided: true }, { id: 'inv_new', paymentId: 'pay_c9_2026-10', status: 'paid' }];
+  Object.assign(T.S.payments.find(p => p.id === 'pay_c9_2026-10'), { status: 'paid', paidDate: '2026-10-06', invoiceId: 'inv_new' });
+  const h = T.run("rentPaymentRow({ id:'pay_c9_2026-10', payment: S.payments.find(p=>p.id==='pay_c9_2026-10'), state:'paid', amount:900, isRent:true, canPay:false, month:'2026-10' })");
+  assert.ok(h.includes('inv_new') && !h.includes('inv_old'));
+});
+await mutant('l’attestazione annullata ancora nell’archivio dell’inquilino', "userId: null, shared: false, voidedUserId: rd.userId || null });", "voidedUserId: rd.userId || null });", async T => {
+  await T.run("markPaymentPaid('pay_c9_2026-10',{paidDate:'2026-10-06',paidVia:'contanti',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
+  await T.run("undoIncasso('pay_c9_2026-10')");
+  assert.equal(T.doc('documents/rent-receipt-pay_c9_2026-10').userId, null);
 });
 {
   const r = gen('America/Los_Angeles', 'old');
