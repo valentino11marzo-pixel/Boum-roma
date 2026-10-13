@@ -1371,7 +1371,7 @@
   function rrReconcile(ctx, pid, cid, terms) {
     var byMonth = Object.create(null);
     rrSchedule(terms.start, terms.end, terms.rent, terms.oneri, terms.day).forEach(function (e) { byMonth[e.month] = e; });
-    var res = { updates: [], cancels: [], skipped: [], amount: 0, due: 0, period: 0 };
+    var res = { updates: [], cancels: [], skipped: [], amount: 0, due: 0, period: 0, amountOverdue: 0 };
     if (!terms.start || !terms.end) return res;
     (ctx.paymentsByProperty[pid] || []).forEach(function (x) {
       if (x.contractId !== cid || !x.isRent || (x.state !== 'due' && x.state !== 'overdue')) return;
@@ -1397,7 +1397,7 @@
       if (from && !!p.prorated !== (e.f < 1)) data.prorated = e.f < 1;
       if (from && x.dueDate && x.dueDate < from) { data.dueDate = e.due; why.push('due'); }
       if (!why.length) return;
-      if (why.indexOf('amount') >= 0) res.amount++;
+      if (why.indexOf('amount') >= 0) { res.amount++; if (x.state === 'overdue') res.amountOverdue++; }
       if (why.indexOf('due') >= 0) res.due++;
       if (why.indexOf('period') >= 0) res.period++;
       res.updates.push({ x: x, data: data, why: why });
@@ -1433,14 +1433,17 @@
     var today = ctx.today, nowIso = '';
     try { var nd = ctx.now instanceof Date ? ctx.now : new Date(ctx.now); if (isFinite(nd.getTime())) nowIso = nd.toISOString(); } catch (_) {}
     var out = { properties: [], contracts: [], payments: [], paymentUpdates: [], skipped: [], errors: [], notes: [], messages: [], rows: [], diffs: [],
-      paidMarks: [], overdueNow: [], listingLinks: [], accounts: [], unknownColumns: [], ignoredRows: [], applyDiffs: apply,
+      paidMarks: [], overdueNow: [], overdueKept: [], listingLinks: [], accounts: [], unknownColumns: [], ignoredRows: [], applyDiffs: apply,
       counts: { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, missing: 0, payments: 0, paid: 0, diffs: 0, diffsLocked: 0, diffsApplicable: 0,
-        paymentUpdates: 0, paymentCancels: 0, overdueNow: 0, rowErrors: 0, contacts: 0 } };
+        paymentUpdates: 0, paymentCancels: 0, paymentUpdatesOverdue: 0, overdueNow: 0, rowErrors: 0, contacts: 0 } };
     var meta0 = (rows || []).map(function (r) { return r && r.meta; }).filter(Boolean)[0] || null;
     if (meta0) { out.unknownColumns = (meta0.unknownColumns || []).slice(); out.ignoredRows = (meta0.ignored || []).slice(); }
     if (!skey) { out.errors.push('indirizzo'); return out; }
     if (!str(opts.ownerId)) out.errors.push('proprietaria');
     var existing = ctx.properties.filter(function (p) { return streetKey(p.address) === skey; });
+    // La gestione più vecchia del palazzo in archivio: un interno NUOVO che
+    // la eredita mesi dopo nasce con rate già scadute (mai gestite da BOOM).
+    var bldGd = existing.map(function (p) { return monthOf(p.gestioneDal); }).filter(Boolean).sort()[0] || '';
     var label = titleCase(streetKey(address));
     // Gli annunci li passa chi chiama (opts.listings: il contesto del
     // Palazzo non li espone tutti), oppure il contesto se un giorno li porta.
@@ -1529,10 +1532,12 @@
           out.listingLinks.push({ interno: r.interno, propertyId: pid, listingId: str(l0.id), status: ls, published: pub, occupied: !!live });
         }
       }
-      var plan = { contracts: [], payments: [], paymentUpdates: [], diffs: [], paidMarks: [], overdue: [] };
+      var plan = { contracts: [], payments: [], paymentUpdates: [], diffs: [], paidMarks: [], overdue: [], overdueKept: [] };
       var pcs = prop ? (ctx.contractsByProperty[pid] || []) : [];
       var aliveC = pcs.filter(rrAlive);
-      var ph = aliveC.find(function (c) { return rrPlaceholder(c) && !day(c.startDate); }) || null;
+      // Il segnaposto vivo: uno chiuso con ⛔ Termina (l'inquilino è uscito)
+      // non è il contratto di chi arriva dopo — mai riaprirlo a suo nome.
+      var ph = aliveC.find(function (c) { return rrPlaceholder(c) && !day(c.startDate) && !closedForReal(c); }) || null;
       // Il contratto di OGGI dell'interno (per i contatti): quello in corso,
       // altrimenti il segnaposto, altrimenti il prossimo in arrivo.
       var currentOf = function () {
@@ -1605,8 +1610,13 @@
         var tAll = { start: terms.start, end: full.endDate || terms.end, rent: full.rent != null ? full.rent : terms.rent,
           oneri: full.oneriQuota != null ? full.oneriQuota : terms.oneri, day: terms.day };
         var rec = rrReconcile(ctx, pid, str(c.id), tAll);
+        // Le rate già SCADUTE restano all'importo di prima (l'inquilino le ha
+        // viste così, magari in un sollecito): le stesse regole della leva
+        // «Cambia canone» del Palazzo. Si dicono a parte, mai contate fra
+        // quelle che cambiano.
+        var keepOver = !opts.includeOverdue, recN = keepOver ? rec.amount - rec.amountOverdue : rec.amount;
         cmp.diffs.forEach(function (d) {
-          if (d.field === 'rent' || d.field === 'oneriQuota') d.rates = rec.amount;
+          if (d.field === 'rent' || d.field === 'oneriQuota') { d.rates = recN; if (keepOver && rec.amountOverdue) d.ratesKept = rec.amountOverdue; }
           if (d.field === 'endDate') d.rates = rec.cancels.length + rec.period;
         });
         // Gli oneri (o il canone) arrivati DOPO le rate: il contratto si
@@ -1614,7 +1624,7 @@
         ['oneriQuota', 'rent'].forEach(function (f) {
           if (cmp.fill[f] != null && rec.amount && !cmp.diffs.some(function (d) { return d.field === f; })) {
             cmp.diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: f, label: f === 'rent' ? 'canone nelle rate' : 'oneri nelle rate', from: null, to: cmp.fill[f],
-              fromText: f === 'rent' ? 'rate senza canone' : 'rate col solo canone', toText: rrShow(f, cmp.fill[f]), locked: false, rates: rec.amount, fill: true });
+              fromText: f === 'rent' ? 'rate senza canone' : 'rate col solo canone', toText: rrShow(f, cmp.fill[f]), locked: false, rates: recN, ratesKept: keepOver ? rec.amountOverdue : 0, fill: true });
           }
         });
         if (rec.due) cmp.diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: 'dueDate', label: 'scadenza delle rate', from: null, to: null,
@@ -1628,6 +1638,14 @@
           recA.updates.forEach(function (u) {
             var d0 = u.data;
             if (!ratesChange) {
+              if (u.why.indexOf('due') < 0) return;
+              d0 = { dueDate: u.data.dueDate };
+            } else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0)) {
+              // Scaduta: importo e periodo restano quelli che l'inquilino ha
+              // visto. Si dice (con l'eventuale sollecito già mandato).
+              var p0 = u.x.payment || {}, hist = list(p0.dunningHistory).filter(function (h) { return h && h.at; }).map(function (h) { return day(h.at); }).filter(Boolean).sort();
+              var remAt = hist.length ? hist[hist.length - 1] : day(p0.lastReminderDate);
+              plan.overdueKept.push({ interno: r.interno, paymentId: u.x.id, month: u.x.month, from: u.x.amount, to: u.data.amount != null ? u.data.amount : u.x.amount, remindedAt: remAt || '' });
               if (u.why.indexOf('due') < 0) return;
               d0 = { dueDate: u.data.dueDate };
             }
@@ -1740,7 +1758,11 @@
             info.action = !prop || Object.keys(pdata).length ? 'property' : 'none';
           } else {
             info.action = 'free';
-            if (has && has.inquilino && cur0.c && !rrPlaceholder(cur0.c) && day(cur0.c.startDate) <= today) {
+            if (has && has.inquilino && cur0.c && rrPlaceholder(cur0.c)) {
+              // Il segnaposto: l'interno risulta occupato da qualcuno senza
+              // contratto in archivio. Da qui non si chiude, ma si dice dove.
+              info.warnings.push('la tabella lo dà libero, ma in archivio l’interno è occupato da ' + tenantOf(cur0.c) + ' (contratto da caricare): da qui non lo chiudo. Se è uscita/o, chiudi il segnaposto dalla scheda dell’interno (Apri il segnaposto → ⛔ Termina)');
+            } else if (has && has.inquilino && cur0.c && day(cur0.c.startDate) <= today) {
               var e0 = effectiveEnd(cur0.c);
               info.warnings.push('la tabella lo dà libero, ma in archivio c’è il contratto di ' + tenantOf(cur0.c) + (e0 ? ' fino al ' + rrIt(e0) : '') + ': da qui non lo chiudo');
             }
@@ -1777,6 +1799,12 @@
             info.action = 'contract-same'; info.contractId = str(dup.id);
             var cmpD = compare(dup);
             var tD = updateExisting(dup, cmpD);
+            // In archivio è chiuso prima della fine che la tabella dice: i due
+            // archivi divergono e lo si dice (il contratto chiuso non si riapre).
+            var endD = effectiveEnd(dup);
+            if (closedForReal(dup) && endD && r.al && r.al > endD) {
+              info.warnings.push('in archivio il contratto di ' + tenantOf(dup) + ' è chiuso al ' + rrIt(endD) + ' (la tabella dice fino al ' + rrIt(r.al) + '): non lo riapro da qui, correggi la tabella della proprietaria');
+            }
             if (plan.contracts.length || plan.diffs.length) info.action = 'contract-update';
             newRates(str(dup.id), tD, dup);
           } else if (overlap.length) {
@@ -1829,6 +1857,12 @@
           }
         }
       }
+      if (!info.errors.length && !prop && existing.length && plan.overdue.length && gd < ctx.month) {
+        info.gestioneInherited = true;
+        info.alerts.push('interno nuovo: le rate partono da ' + rrMonth(gd) + (gd === bldGd ? ' (la gestione del palazzo)' : '') + ' e ' +
+          rrPlural(plan.overdue.length, 'risulta già scaduta', 'risultano già scadute') + '; se BOOM gestisce questo interno solo da ' + rrMonth(ctx.month) +
+          ', cambia «Gestione BOOM dal» prima di caricare: dopo il carico non si corregge più');
+      }
       if (info.errors.length) {
         out.errors.push('row:' + r.line); out.skipped.push(r.line); out.counts.rowErrors++;
         return;
@@ -1845,7 +1879,8 @@
       plan.paymentUpdates.forEach(function (u) { out.paymentUpdates.push(u); if (u.cancel) out.counts.paymentCancels++; else out.counts.paymentUpdates++; });
       plan.diffs.forEach(function (d) { out.diffs.push(d); out.counts.diffs++; if (d.locked) out.counts.diffsLocked++; else out.counts.diffsApplicable++; });
       plan.paidMarks.forEach(function (x) { out.paidMarks.push(x); });
-      plan.overdue.forEach(function (x) { out.overdueNow.push(x); out.counts.overdueNow++; });
+      plan.overdue.forEach(function (x) { out.overdueNow.push(Object.assign({ newUnit: !!info.gestioneInherited }, x)); out.counts.overdueNow++; });
+      plan.overdueKept.forEach(function (x) { out.overdueKept.push(x); out.counts.paymentUpdatesOverdue++; });
       if (info.action === 'contacts') out.counts.contacts++;
       info.diffs = plan.diffs; info.paidMarks = plan.paidMarks; info.paid = plan.paidMarks.length > 0; info.overdue = plan.overdue.length;
       info.payments = plan.payments.length;
@@ -1884,10 +1919,24 @@
       : lf + ' differenze riguardano contratti firmati digitalmente (o co-intestatari che hanno firmato): da qui non si cambiano, correggile dal contratto.');
     if (lp) M.push(lp === 1 ? '1 differenza riguarda il contratto di un’altra persona: da qui non si applica (vedi la riga).'
       : lp + ' differenze riguardano il contratto di un’altra persona: da qui non si applicano (vedi le righe).');
-    if (out.overdueNow.length) M.push(rrPlural(out.overdueNow.length, 'rata risulta già scaduta', 'rate risultano già scadute') + ' oggi (' +
-      out.overdueNow.slice(0, 6).map(function (x) { return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + ', scadenza ' + rrIt(x.dueDate); }).join('; ') + (out.overdueNow.length > 6 ? '; …' : '') +
-      '): ' + (out.overdueNow.length === 1 ? 'se è stata pagata, scrivi «Pagato il» nella tabella o registra l’incasso dopo il carico.'
+    // Le rate scadute degli interni NUOVI che ereditano la gestione del
+    // palazzo: il rimedio non è «registra l'incasso», è la data giusta.
+    var ovNew = out.overdueNow.filter(function (x) { return x.newUnit; }), ovOld = out.overdueNow.filter(function (x) { return !x.newUnit; });
+    var ovList = function (a) { return a.slice(0, 6).map(function (x) { return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + ', scadenza ' + rrIt(x.dueDate); }).join('; ') + (a.length > 6 ? '; …' : ''); };
+    if (ovOld.length) M.push(rrPlural(ovOld.length, 'rata risulta già scaduta', 'rate risultano già scadute') + ' oggi (' + ovList(ovOld) +
+      '): ' + (ovOld.length === 1 ? 'se è stata pagata, scrivi «Pagato il» nella tabella o registra l’incasso dopo il carico.'
         : 'se sono state pagate, registra l’incasso di ciascuna dal Palazzo dopo il carico («Pagato il» vale solo per la prima rata di ogni interno).'));
+    if (ovNew.length) {
+      var nu = rrList(ovNew.map(function (x) { return x.interno; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+      M.push(rrPlural(ovNew.length, 'rata di un interno nuovo risulta già scaduta', 'rate di interni nuovi risultano già scadute') + ' oggi (' + ovList(ovNew) +
+        '): le rate partono da «Gestione BOOM dal» (' + rrMonth(gd) + '). Se BOOM gestisce ' + (nu.indexOf(',') >= 0 || nu.indexOf(' e ') >= 0 ? 'gli interni ' : 'l’interno ') + nu + ' da dopo, cambia «Gestione BOOM dal» prima di caricare.');
+    }
+    if (out.overdueKept.length) {
+      var kk = out.overdueKept;
+      M.push(rrPlural(kk.length, 'rata già scaduta resta', 'rate già scadute restano') + ' all’importo di prima (' + kk.slice(0, 6).map(function (x) {
+        return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + (x.remindedAt ? ', sollecitata il ' + rrIt(x.remindedAt) : '') + ' a ' + rrEur(x.from);
+      }).join('; ') + (kk.length > 6 ? '; …' : '') + '): è un arretrato che l’inquilino ha visto così. Se va corretto, da Gestisci canoni.');
+    }
     var noList = listings.filter(function (l) { return streetKey(l.address) === skey && !unitKey(unitOf(l)) && !linkedListing[str(l.id)] && !str(l.propertyId); });
     if (noList.length) M.push(rrPlural(noList.length, 'annuncio', 'annunci') + ' allo stesso civico senza interno (' + rrList(noList.map(function (l) { return '«' + (str(l.name || l.title) || l.id) + '»'; })) + '): ' + (noList.length === 1 ? 'agganciarlo' : 'agganciarli') + ' a mano dalla scheda dell’interno.');
     out.buildingKey = existing.length ? buildingKeyOf(existing[0]) : 'a:' + skey; out.label = label; out.gestioneDal = gd;

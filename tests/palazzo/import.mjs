@@ -74,12 +74,13 @@ const loaded = loadedFrom(first);
   eq('canone 1600→1650 e nome corretto: due differenze dette, con prima → dopo', d, [['tenantName', 'Carlo Tre', 'Carlo Trè'], ['rent', '€1.600', '€1.650']]);
   ok('senza applyDiffs nessuna scrittura (né contratto né rate)', !pl.contracts.length && !pl.paymentUpdates.length && pl.counts.diffs === 2);
   ok('il piano lo conta (counts.diffs) e lo dice in una frase', pl.messages.some(m => /^2 differenze con l’archivio: non le applico finché non lo chiedi\.$/.test(m)), pl.messages);
-  ok('la riga sa quante rate da pagare cambierebbero', pl.diffs.find(x => x.field === 'rent').rates === 12, pl.diffs.find(x => x.field === 'rent'));
+  // Il 12/10 la rata di ottobre (scadenza il 5) è già scaduta: resta com'era.
+  ok('la riga sa quante rate da pagare cambierebbero (e quante scadute restano)', pl.diffs.find(x => x.field === 'rent').rates === 11 && pl.diffs.find(x => x.field === 'rent').ratesKept === 1, pl.diffs.find(x => x.field === 'rent'));
   const ap = plan(P, t, loaded, { applyDiffs: true });
   const c11 = ap.contracts.find(x => x.interno === '11');
   eq('con applyDiffs il contratto prende canone e nome', [c11.exists, c11.data.rent, c11.data.tenantName], [true, 1650, 'Carlo Trè']);
   const ups = ap.paymentUpdates.filter(x => x.interno === '11');
-  ok('…e le rate da pagare prendono il canone nuovo, importo = canone + oneri', ups.length === 12 && ups.every(u => u.data.amount === 1650 && u.data.rentAmount + u.data.oneriAmount === u.data.amount), ups[0]);
+  ok('…e le rate da pagare prendono il canone nuovo, importo = canone + oneri (la scaduta di ottobre no)', ups.length === 11 && !ups.some(u => u.month === '2026-10') && ups.every(u => u.data.amount === 1650 && u.data.rentAmount + u.data.oneriAmount === u.data.amount), ups[0]);
   ok('ogni aggiornamento porta lo stato atteso (il portal ricontrolla prima di scrivere)', ups.every(u => u.expect && u.expect.status === 'pending'));
 
   // Una rata pagata, una segnalata, una in corso: mai toccate.
@@ -103,7 +104,7 @@ const loaded = loadedFrom(first);
   const t = base.replace('\t1600\t\t01/10/2026', '\t1600\t80\t01/10/2026');
   const pl = plan(P, t, loaded);
   const d = pl.diffs.find(x => x.interno === '11' && x.field === 'oneriQuota');
-  ok('oneri scritti dopo: il contratto si riempie, le rate col solo canone sono una differenza', d && d.fill && d.rates === 12 && pl.contracts.find(x => x.interno === '11').data.oneriQuota === 80, d);
+  ok('oneri scritti dopo: il contratto si riempie, le rate col solo canone sono una differenza', d && d.fill && d.rates === 11 && d.ratesKept === 1 && pl.contracts.find(x => x.interno === '11').data.oneriQuota === 80, d);
   ok('…e il vecchio avviso «oneri:» resta per la vista di oggi', pl.notes.includes('oneri:11'));
   const ap = plan(P, t, loaded, { applyDiffs: true });
   const u = ap.paymentUpdates.find(x => x.interno === '11');
@@ -550,6 +551,75 @@ const loaded = loadedFrom(first);
   ok('più rate scadute: «registra l\'incasso di ciascuna», «Pagato il» vale per la prima', od.messages.some(m => /^3 rate risultano già scadute oggi .*se sono state pagate, registra l’incasso di ciascuna dal Palazzo dopo il carico \(«Pagato il» vale solo per la prima rata di ogni interno\)\.$/.test(m)), od.messages);
   const od1 = plan(P, 'Interno\tPiano\tInquilino\tCanone\tDal\tAl\n9\t1\tAda Prova\t900\t01/10/2026\t30/09/2027', {});
   ok('una sola rata scaduta: la frase al singolare', od1.messages.some(m => /^1 rata risulta già scaduta oggi .*se è stata pagata, scrivi «Pagato il» nella tabella/.test(m)), od1.messages);
+}
+
+// ── 22. Correttore finale: scadute, interni nuovi, segnaposto, chiusure ──
+{
+  // 22.1 — reincollare con «Applica le differenze» non ricalcola la scaduta
+  // già sollecitata: la leva «Cambia canone» e la tabella, una regola sola.
+  const t = base.replace('\t1600\t', '\t1650\t');
+  const sol = loaded.payments.map(p => p.contractId.includes('_11_') && p.month === '2026-10'
+    ? { ...p, dunningHistory: [{ kind: 'sollecito', at: '2026-10-09T09:00:00Z', channel: 'whatsapp' }] } : p);
+  const keepCheck = E => {
+    const ap = E.planImport(E.parseRentRoll(t).rows, E.context({ now: NOW, ...loaded, payments: sol }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
+    const oct = ap.paymentUpdates.find(x => x.interno === '11' && x.month === '2026-10');
+    return !oct && ap.counts.paymentUpdates === 11 && ap.counts.paymentUpdatesOverdue === 1 &&
+      ap.messages.some(m => m === '1 rata già scaduta resta all’importo di prima (int. 11 · ottobre 2026, sollecitata il 09/10/2026 a €1.600): è un arretrato che l’inquilino ha visto così. Se va corretto, da Gestisci canoni.') &&
+      ap.messages.some(m => /11 rate da pagare cambiano/.test(m));
+  };
+  ok('applica le differenze: la rata scaduta e sollecitata resta a €1.600 e lo si dice, le 11 da pagare cambiano', keepCheck(P));
+  const inc = P.planImport(P.parseRentRoll(t).rows, P.context({ now: NOW, ...loaded, payments: sol }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true, includeOverdue: true });
+  ok('…solo con includeOverdue (scelta esplicita) la scaduta si ricalcola', inc.paymentUpdates.some(x => x.interno === '11' && x.month === '2026-10' && x.data.amount === 1650) && !inc.overdueKept.length);
+  mutation('la scaduta torna a essere ricalcolata', "} else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0)) {", "} else if (false) {", keepCheck);
+
+  // 22.2 — un interno NUOVO che eredita la gestione del palazzo mesi dopo.
+  const now2 = new Date('2027-01-20T10:00:00Z');
+  const row6 = 'Interno\tPiano\tInquilino\tCanone\tDal\tAl\n6\t3\tNina Sei\t1300\t01/09/2026\t31/08/2027';
+  const newCheck = E => {
+    const ctx = E.context({ now: now2, ...loaded });
+    const pl = E.planImport(E.parseRentRoll(row6).rows, ctx, { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10' });
+    const r = pl.rows[0];
+    return r.gestioneInherited === true && r.alerts.some(a => /^interno nuovo: le rate partono da ottobre 2026 \(la gestione del palazzo\) e 4 risultano già scadute; se BOOM gestisce questo interno solo da gennaio 2027, cambia «Gestione BOOM dal» prima di caricare/.test(a)) &&
+      pl.messages.some(m => /^4 rate di interni nuovi risultano già scadute oggi .*cambia «Gestione BOOM dal» prima di caricare\.$/.test(m)) &&
+      !pl.messages.some(m => /registra l’incasso di ciascuna/.test(m));
+  };
+  ok('interno nuovo con la gestione del palazzo: 4 rate già scadute dette come data da cambiare, non come incassi da registrare', newCheck(P));
+  const jan = P.planImport(P.parseRentRoll(row6).rows, P.context({ now: now2, ...loaded }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2027-01' });
+  ok('…con «Gestione BOOM dal» gennaio: prima rata a gennaio, nessun avviso', jan.payments[0].data.month === '2027-01' && !jan.rows[0].gestioneInherited && !jan.rows[0].alerts.length, jan.payments[0]);
+  mutation('l’interno nuovo torna a ereditare in silenzio', 'if (!info.errors.length && !prop && existing.length && plan.overdue.length && gd < ctx.month) {', 'if (false) {', newCheck);
+
+  // 22.3 — la tabella dà libero il segnaposto: lo si dice.
+  const stPh = { properties: [{ id: 'p14', address: ADDR, interno: '14', floor: '2', ownerId: 'owner-x', gestioneDal: '2026-10' }],
+    contracts: [{ id: 'c_p14_da-caricare', propertyId: 'p14', status: 'active', contractMissing: true, tenantName: 'Gaia Sette' }] };
+  const freeCheck = (E, apply) => {
+    const pl = E.planImport(E.parseRentRoll('Interno\tInquilino\tCanone\tDal\tAl\n14\t\t\t\t').rows, E.context({ now: NOW, ...stPh }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: apply });
+    const r = pl.rows[0];
+    return r.action === 'free' && !pl.contracts.length && r.warnings.some(w => /^la tabella lo dà libero, ma in archivio l’interno è occupato da Gaia Sette \(contratto da caricare\): da qui non lo chiudo/.test(w));
+  };
+  ok('segnaposto dato libero dalla tabella: nessuna scrittura, ma l’avviso nomina chi risulta dentro (con e senza applica)', freeCheck(P, false) && freeCheck(P, true));
+  mutation('il segnaposto dato libero torna muto', 'if (has && has.inquilino && cur0.c && rrPlaceholder(cur0.c)) {', 'if (false) {', E => freeCheck(E, false));
+
+  // 22.4 — reincollare dopo una chiusura anticipata.
+  const closed = { ...loaded, contracts: loaded.contracts.map(c => c.id.includes('_11_') ? { ...c, status: 'terminated', terminatedAt: '2026-10-31' } : c) };
+  const termCheck = E => [false, true].every(apply => {
+    const pl = E.planImport(E.parseRentRoll(base).rows, E.context({ now: new Date('2026-11-12T10:00:00Z'), ...closed }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: apply });
+    const r = pl.rows.find(x => x.interno === '11');
+    return r.warnings.includes('in archivio il contratto di Carlo Tre è chiuso al 31/10/2026 (la tabella dice fino al 30/09/2027): non lo riapro da qui, correggi la tabella della proprietaria') &&
+      !pl.contracts.some(x => x.interno === '11') && !pl.payments.some(x => x.interno === '11');
+  });
+  ok('contratto chiuso in archivio e vivo in tabella: lo si dice, niente si riapre né nasce', termCheck(P));
+  mutation('la chiusura torna muta', "if (closedForReal(dup) && endD && r.al && r.al > endD) {", 'if (false) {', termCheck);
+
+  // 22.5 — il segnaposto CHIUSO non diventa il contratto di chi arriva dopo.
+  const stOut = { ...stPh, contracts: [{ ...stPh.contracts[0], status: 'terminated', terminatedAt: '2026-11-10' }] };
+  const nextCheck = E => {
+    const pl = E.planImport(E.parseRentRoll('Interno\tInquilino\tCanone\tDal\tAl\n14\tNina Nuova\t1300\t15/11/2026\t14/11/2027').rows, E.context({ now: new Date('2026-11-12T10:00:00Z'), ...stOut }),
+      { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
+    const c = pl.contracts[0];
+    return pl.rows[0].action === 'contract-new' && c && c.id !== 'c_p14_da-caricare' && !c.exists && c.data.tenantName === 'Nina Nuova';
+  };
+  ok('il segnaposto chiuso (Gaia è uscita): la nuova inquilina ha il SUO contratto, quello di Gaia resta chiuso', nextCheck(P));
+  mutation('il segnaposto chiuso torna a essere completato a nome di un’altra', 'return rrPlaceholder(c) && !day(c.startDate) && !closedForReal(c);', 'return rrPlaceholder(c) && !day(c.startDate);', nextCheck);
 }
 
 console.log('\n' + n + ' check passati — presa in carico, nessuna rete.');
