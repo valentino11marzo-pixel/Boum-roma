@@ -198,7 +198,16 @@ await behavior('payments: la riga mostra lo stato condiviso e Dettagli apre la r
 await behavior('payments: link carta, registra incasso e sollecito conservano gli handler della rata', async () => {
   const rowButtons = buttons(payR);
   trigger(rowButtons.find(b => b.label === 'Link pagamento'));
+  // «Registra incasso» apre il modulo (data dell'accredito, canale, fonte):
+  // la rata arriva a markPaymentPaid solo quando il modulo è compilato.
   await trigger(rowButtons.find(b => b.label === 'Registra incasso'));
+  assert.ok(!rentCalls.some(c => c[0] === 'paid'));
+  assert.match(rentElement('modals').innerHTML, /Data dell’accredito/);
+  rentContext.closeModal = () => {};
+  Object.assign(rentElement('incDate'), { value: '2026-09-03' });
+  Object.assign(rentElement('incVia'), { value: 'bonifico' });
+  Object.assign(rentElement('incEvidence'), { value: 'estratto-conto-locatore' });
+  await runRent("submitRecordIncasso('p1')");
   trigger(rowButtons.find(b => /sollecito/i.test(b.label)));
   assert.ok(rentCalls.some(c => c[0] === 'link' && c[1] === 'pay' && c[2] === 'p1'));
   assert.ok(rentCalls.some(c => c[0] === 'paid' && c[1] === 'p1'));

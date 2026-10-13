@@ -8,7 +8,7 @@ const el=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',
 const ctx=vm.createContext({S:structuredClone(fixture),window:{BOOM_RENT:R},document:{getElementById:el},Intl,Date,JSON,Number,String,Set,Promise,URL,setTimeout,clearTimeout,console,
  esc:v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'),fmtDate:v=>v||'Da verificare',
  toast:(...v)=>calls.push(['toast',...v]),isAdmin:()=>true,auth:{currentUser:{uid:'admin',getIdToken:async()=> 'synthetic'}},firebase:{firestore:{FieldPath:{documentId:()=> '__name__'}}},
- refreshPaymentsView:()=>{},confirm:()=>true,markPaymentPaid:async id=>calls.push(['mark',id]),fetch:async(url,options)=>{calls.push(['fetch',url,JSON.parse(options.body)]);return {ok:true,json:async()=>({ok:true,url:'https://example.invalid/pay'})}}});
+ refreshPaymentsView:()=>{},confirm:()=>true,markPaymentPaid:async (id,opts)=>(calls.push(['mark',id,opts]),true),closeModal:()=>{},fetch:async(url,options)=>{calls.push(['fetch',url,JSON.parse(options.body)]);return {ok:true,json:async()=>({ok:true,url:'https://example.invalid/pay'})}}});
 vm.runInContext(fragment+'\n'+links,ctx);
 const run=code=>vm.runInContext(code,ctx);let count=0;
 function check(name,fn){fn();count++;console.log('OK',name)}
@@ -29,7 +29,11 @@ run("filterPayments('all'); searchPayments('Ostiense')");
 check('search/filter updates list without changing payment records',()=>{assert(el('paymentsContainer').innerHTML.includes('Ostiense'));assert(!el('paymentsContainer').innerHTML.includes('Trastevere'));assert.equal(ctx.S.payments.length,6)});
 run("searchPayments('nothing-matches')");check('empty search explains filtered empty, never all clear',()=>assert(el('paymentsContainer').innerHTML.includes('Nessuna unità corrisponde')));
 run("searchPayments('');paymentFilters.month='all'");check('all-period option remains selected on rerender',()=>assert(run('paymentsPage()').includes('value="all" selected')));
-await run("confirmRentPayment('p4')");check('reported confirmation reaches existing accounting flow',()=>assert(calls.some(c=>c[0]==='mark'&&c[1]==='p4')));
+await run("confirmRentPayment('p4')");check('reported confirmation opens the incasso form and never writes by itself',()=>{assert(el('modals').innerHTML.includes('Data dell’accredito'));assert(el('modals').innerHTML.includes('Da dove sai che è arrivato'));assert(!calls.some(c=>c[0]==='mark'))});
+el('incDate').value='2026-09-03';el('incVia').value='bonifico';el('incEvidence').value='';el('incNote').value='';el('incSend').checked=false;
+await run("submitRecordIncasso('p4')");check('the form refuses an incasso without the source of the evidence',()=>{assert(!calls.some(c=>c[0]==='mark'));assert.match(el('incError').textContent,/da dove/i)});
+el('incEvidence').value='estratto-conto-locatore';
+await run("submitRecordIncasso('p4')");check('reported confirmation reaches existing accounting flow with the accreditation date',()=>{const m=calls.find(c=>c[0]==='mark'&&c[1]==='p4');assert(m);assert.equal(m[2].paidDate,'2026-09-03');assert.equal(m[2].paidVia,'bonifico');assert.equal(m[2].paidEvidence,'estratto-conto-locatore')});
 const marks=calls.filter(c=>c[0]==='mark').length;await run("confirmRentPayment('p3')");check('processing cannot reach accounting flow',()=>assert.equal(calls.filter(c=>c[0]==='mark').length,marks));
 await run("showPaymentLink('pay','p1')");check('link resolves legacy tenant via contract',()=>{assert(el('modals').innerHTML.includes('Inquilino A'));assert(calls.some(c=>c[0]==='fetch'&&c[2].id==='p1'))});
 const reqs=calls.filter(c=>c[0]==='fetch').length;await run("showPaymentLink('pay','p2')");await run("showPaymentLink('pay','p3')");await run("showPaymentLink('pay','p4')");check('paid,processing,reported never request payment link',()=>assert.equal(calls.filter(c=>c[0]==='fetch').length,reqs));
@@ -49,10 +53,12 @@ console.log(`${count} admin rent checks passed; no live network or writes.`);
 const accounting=source.slice(source.indexOf('    async function markPaymentPaid('),source.indexOf('    // ── Next invoice number'));
 vm.runInContext(accounting,ctx);
 let fresh={status:'paid',amount:950},updates=0;
-ctx.db={collection(){return {doc(){return {get:async()=>({exists:true,data:()=>fresh}),update:async()=>{updates++}}}}}};
-await run("markPaymentPaid('p1')");check('fresh paid state blocks stale manual confirmation',()=>assert.equal(updates,0));
+const incOpts="{paidDate:'2026-09-03',paidVia:'bonifico',paidEvidence:'estratto-conto-locatore',notifyTenant:false}";
+ctx.db={runTransaction:async fn=>fn({get:async()=>({exists:true,data:()=>fresh}),update:()=>{updates++}}),collection(){return {doc(){return {get:async()=>({exists:true,data:()=>fresh}),update:async()=>{updates++}}}}}};
+await run("markPaymentPaid('p1',"+incOpts+")");check('fresh paid state blocks stale manual confirmation',()=>assert.equal(updates,0));
 fresh={status:'pending',amount:950,sddPiId:'pi_live',sddStatus:'processing'};
-await run("markPaymentPaid('p1')");check('fresh SEPA processing blocks stale manual confirmation',()=>assert.equal(updates,0));
+await run("markPaymentPaid('p1',"+incOpts+")");check('fresh SEPA processing blocks stale manual confirmation',()=>assert.equal(updates,0));
+await run("markPaymentPaid('p1')");check('without the incasso data no write happens: the form opens instead',()=>{assert.equal(updates,0);assert(el('modals').innerHTML.includes('Registra incasso'))});
 console.log(`${count} admin rent checks passed in total.`);
 const loadStart=source.indexOf('    async function loadData()');
 const loadEnd=source.indexOf('\n    async function ',loadStart+10);
