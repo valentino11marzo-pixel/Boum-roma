@@ -2250,7 +2250,8 @@
     // Le parole della vista, pure: per i test in Node (tests/palazzo/view*.mjs).
     _t: { euroInput: euroInput, fmtPhone: fmtPhone, waNumber: waNumber, punctuality: punctuality, occupiedText: occupiedText, rendOutcome: rendOutcome,
       periodText: periodText, debtNote: debtNote, eurEn: eurEn, withLang: withLang,
-      rowKind: rowKind, rowName: rowName, rataText: rataText, amtText: amtText, telOf: telOf, phoneOf: phoneOf, phoneWhy: phoneWhy, cardEffect: cardEffect } };
+      rowKind: rowKind, rowName: rowName, rataText: rataText, amtText: amtText, telOf: telOf, phoneOf: phoneOf, phoneWhy: phoneWhy, cardEffect: cardEffect,
+      impDefaults: impDefaults, exportCsv: exportCsv, last: function () { return last; } } };
   if (typeof module === 'object' && module.exports) module.exports = API;
   root.BOOM_PALAZZO_UI = API;
 })(typeof window !== 'undefined' ? window : globalThis);

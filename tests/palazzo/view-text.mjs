@@ -166,4 +166,193 @@ ok('carta su /rata: per i contratti non presi in carico la carta c\'è già, e l
   assert.equal(T.cardEffect({ on: false }, { any: 2, imported: 2, notImported: 0 }), 'Su /rata gli inquilini degli interni presi in carico vedono solo il bonifico al conto del locatore.');
 });
 
+// ── Il Palazzo DISEGNATO senza browser: render() della vista vera ─────
+// (correttore finale) La vista caricata come in portal.html, un adattatore
+// finto, l'HTML che la pagina scriverebbe. Date relative a OGGI (render usa
+// l'ora vera): CUR è il mese corrente.
+function loadWin(viewSrc) {
+  class U extends URL {}
+  U.createObjectURL = () => 'blob:demo'; U.revokeObjectURL = () => {};
+  const win = { Intl, Date, Math, JSON, console, URL: U, Number, String, Array, Object, RegExp, isFinite, isNaN, parseFloat, parseInt, setTimeout, clearTimeout, Promise };
+  win.Blob = class { constructor(parts) { win.__csv = parts.join(''); } };
+  win.window = win;
+  const ctx = vm.createContext(win);
+  for (const [f, s] of [['contract-state.js', read('contract-state.js')], ['rent-engine.js', read('rent-engine.js')], ['palazzo-engine.js', read('palazzo-engine.js')], ['palazzo.js', viewSrc || read('palazzo.js')]]) {
+    vm.runInContext(s, ctx, { filename: f });
+  }
+  return win;
+}
+const W0 = loadWin(), E0 = W0.BOOM_PALAZZO;
+const CUR = E0.context({ properties: [] }).month, MM = k => E0.monthAdd(CUR, k);
+const OWNER = { id: 'o1', role: 'landlord', name: 'Proprietaria Esempio' };
+const P0 = (id, extra = {}) => ({ id, address: 'Viale Prova 3, Roma', interno: id.replace(/^u/, ''), floor: '2', ownerId: 'o1', name: 'Viale Prova 3 int. ' + id.replace(/^u/, ''), ...extra });
+function draw(state, setup, viewSrc, actions) {
+  const W = viewSrc ? loadWin(viewSrc) : loadWin();
+  const UI = W.BOOM_PALAZZO_UI;
+  const st = { profile: { id: 'adm', role: 'admin' }, users: [OWNER], maintenance: [], listings: [], preAgreements: [], ...state };
+  UI.configure({ state: () => st, isAdmin: () => st.profile.role === 'admin', actions: actions || {}, rataLinks: async () => ({}), links: async () => ({}) });
+  if (setup) setup(UI.ui);
+  return { html: UI.render(), UI, W };
+}
+const unesc = s => s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+const waLinks = html => [...html.matchAll(/href="(https:\/\/wa\.me\/[^"]+)"[^>]*>WhatsApp: ([^<]+)</g)].map(m => ({ who: m[2], text: decodeURIComponent(unesc(m[1]).split('text=')[1] || '') }));
+
+// 1. L'informativa privacy arriva a OGNI intestatario, anche dopo il primo invio.
+const scenPriv = viewSrc => {
+  const pay = { id: 'p9', contractId: 'c9', propertyId: 'u9', type: 'rent', month: CUR, amount: 900, dueDate: CUR + '-01', status: 'pending',
+    // Il messaggio al titolare è già partito (palazzoLogSent): la rata lo ricorda.
+    dunningHistory: [{ kind: 'sollecito', at: new Date().toISOString(), channel: 'whatsapp' }] };
+  const { html } = draw({ properties: [P0('u9')], contracts: [{ id: 'c9', propertyId: 'u9', status: 'active', startDate: MM(-1) + '-01', endDate: MM(10) + '-28', tenantName: 'Chiara Demo', coTenants: [{ name: 'Coinquilino Demo' }], rent: 900 }], payments: [pay] },
+    ui => { ui.selected = 'u9'; ui.view = 'simple'; ui.month = CUR; ui.rata.urls.p9 = 'https://www.boomrome.com/rata?id=p9&t=demo'; ui.rata.open = 'p9';
+      ui.contacts.byId.c9 = [{ name: 'Chiara Demo', phone: '+39 000 000 0009' }, { name: 'Coinquilino Demo', phone: '+39 000 000 0019' }]; }, viewSrc);
+  const w = waLinks(html);
+  assert.equal(w.length, 2, 'due intestatari, due WhatsApp');
+  for (const x of w) assert.ok(x.text.includes('https://www.boomrome.com/privacy-inquilini?lang=en'), x.who + ': ' + x.text);
+  assert.ok(/Copia messaggio/.test(html) && /privacy-inquilini/.test(unesc(html.split('data-plz="copy-link"')[1] || '')), 'anche «Copia messaggio»');
+};
+ok('rata: l’informativa privacy arriva al co-intestatario anche dopo il messaggio al titolare (e nel «Copia messaggio»)', () => scenPriv());
+ok('mutazione: l’informativa «solo al primo messaggio del contratto» — il co-intestatario la perde, il controllo cade', () => {
+  const src = read('palazzo.js');
+  const from = "'. ' + howEn + url + '\\n' + privacyLine('en');";
+  assert.ok(src.includes(from), 'la riga da mutare esiste');
+  const bad = src.replace(from, "'. ' + howEn + url + (!(adapter.state().payments || []).some(function (p) { return p && p.contractId === r.contractId && Array.isArray(p.dunningHistory) && p.dunningHistory.length; }) ? '\\n' + privacyLine('en') : '');");
+  assert.throws(() => scenPriv(bad), { name: 'AssertionError' });
+});
+
+// 2. Il link dei guasti: in un mese passato col contratto chiuso, mai il link di chi abita lì oggi.
+const scenSeat = (viewSrc, seats) => {
+  const st = { properties: [P0('u6')], payments: [],
+    contracts: [{ id: 'c6old', propertyId: 'u6', status: 'expired', startDate: MM(-14) + '-01', endDate: E0.day(new Date(Date.UTC(+MM(-3).slice(0, 4), +MM(-3).slice(5, 7), 0))), tenantName: 'Uscito Demo', rent: 800 },
+      { id: 'c6new', propertyId: 'u6', status: 'active', startDate: MM(-2) + '-01', endDate: MM(10) + '-28', tenantName: 'Nuova Demo', rent: 850 }] };
+  const NEW = 'https://www.boomrome.com/guasto?t=u6.NUOVO';
+  const set = month => ui => { ui.selected = 'u6'; ui.view = 'simple'; ui.month = month; ui.links = { u6: NEW }; ui.linksBy = {}; if (seats) ui.linksSeat = { u6: 'c6new' };
+    ui.contacts.byId.c6old = [{ name: 'Uscito Demo', phone: '+39 000 000 0006' }]; ui.contacts.byId.c6new = [{ name: 'Nuova Demo', phone: '+39 000 000 0016' }]; };
+  const past = draw(st, set(MM(-4)), viewSrc).html;
+  assert.ok(!past.includes('u6.NUOVO') && !/WhatsApp: Uscito/.test(past), 'mese passato: niente link (né WhatsApp) all’ex inquilino');
+  assert.ok(past.includes('Il contratto di questo mese è chiuso'), 'e lo si dice');
+  assert.ok(!/data-plz="maint-link"/.test(past), 'niente «Link per l’inquilino» sul contratto chiuso');
+  const now = draw(st, set(CUR), viewSrc).html;
+  assert.ok(now.includes('u6.NUOVO') && /WhatsApp: Nuova/.test(now), 'mese corrente: il link alla nuova inquilina');
+};
+ok('guasti: in un mese passato il link della NUOVA inquilina non parte all’ex inquilino (posto dal motore)', () => scenSeat());
+ok('…e lo stesso coi posti detti dal server (seats)', () => scenSeat(null, true));
+ok('mutazione: il link dell’interno a chiunque sia nel mese — il controllo cade', () => {
+  const src = read('palazzo.js');
+  const from = 'var live = liveToday(u), url0 = live ? guastoUrlFor(u) : \'\';';
+  assert.ok(src.includes(from), 'la riga da mutare esiste');
+  assert.throws(() => scenSeat(src.replace(from, "var live = true, url0 = (ui.links && ui.links[u.id]) || '';")), { name: 'AssertionError' });
+});
+
+// 3. Il mese coperto dalla rata del mese prima: le schede dicono 2/2, come la frase.
+const scenKpi = viewSrc => {
+  const c31 = { id: 'c31', propertyId: 'u31', status: 'active', startDate: MM(-11) + '-15', endDate: CUR + '-14', tenantName: 'Ugo Demo', rent: 1000, type: 'studenti' };
+  const others = ['u32', 'u33'].map(pid => ({ id: 'c' + pid, propertyId: pid, status: 'active', startDate: MM(-11) + '-01', endDate: MM(5) + '-28', tenantName: 'Inq ' + pid, rent: 750 }));
+  const pays = [];
+  for (let k = -11; k <= -1; k++) pays.push({ id: 'pay_c31_' + MM(k), contractId: 'c31', propertyId: 'u31', type: 'rent', month: MM(k), coversTo: MM(k), amount: 1000, dueDate: MM(k) + '-15', status: 'paid', paidDate: MM(k) + '-14' });
+  for (const c of others) pays.push({ id: 'pay_' + c.id + '_' + CUR, contractId: c.id, propertyId: c.propertyId, type: 'rent', month: CUR, coversTo: CUR, amount: 750, dueDate: CUR + '-01', status: 'paid', paidDate: CUR + '-01' });
+  const st = { properties: ['u31', 'u32', 'u33'].map(id => P0(id, { gestioneDal: MM(-11) })), contracts: [c31, ...others], payments: pays };
+  const list = draw(st, ui => { ui.view = 'list'; ui.month = CUR; }, viewSrc).html, simple = draw(st, ui => { ui.view = 'simple'; ui.month = CUR; }, viewSrc).html;
+  const kpi = /Hanno pagato · [^<]+<\/span><strong>(\d+)<small>\/(\d+)<\/small>/.exec(list);
+  assert.deepEqual([kpi[1], kpi[2]], ['2', '2'], 'la scheda in alto: 2/2');
+  assert.ok(simple.includes('2 hanno pagato su 2'), 'la frase dice lo stesso');
+  for (const html of [list, simple]) {
+    assert.ok(/Coperti dalla rata del mese prima <b>1<\/b>/.test(html) && /rata di [a-z]+ \d{4} · pagata il/.test(html), 'il mese coperto ha la sua riga');
+    assert.ok(/Hanno pagato <b>2<\/b>/.test(html), 'fra chi ha pagato: due');
+    assert.ok(!/importo da verificare/.test(html), 'mai «importo da verificare» sulla rata che c’è');
+  }
+};
+ok('mese coperto dalla rata precedente: «Hanno pagato 2/2» come la frase, la sua riga con l’importo vero', () => scenKpi());
+ok('mutazione: la scheda torna a contare t.paid (3/3 sopra «2 su 2») — il controllo cade', () => {
+  const src = read('palazzo.js');
+  const from = 'var payers = t.payers != null ? t.payers : t.paid + t.late + t.due + t.review + t.unknown, paidN = t.paidPayers != null ? t.paidPayers : t.paid;';
+  assert.ok(src.includes(from));
+  assert.throws(() => scenKpi(src.replace(from, 'var payers = t.paid + t.late + t.due + t.review + t.unknown, paidN = t.paid;')), { name: 'AssertionError' });
+});
+
+// 4. La rata annullata a mano: filtro, scheda e motivo.
+const scenWaived = viewSrc => {
+  const c = { id: 'c51', propertyId: 'u51', status: 'active', startDate: CUR + '-01', endDate: MM(10) + '-28', tenantName: 'Ada Demo', rent: 1000 };
+  const pays = [{ id: 'pay_c51_' + CUR, contractId: 'c51', propertyId: 'u51', type: 'rent', month: CUR, amount: 1000, dueDate: CUR + '-05', status: 'cancelled', cancelledAt: CUR + '-02', cancelledReason: 'mese condonato per il guasto' }];
+  const st = { properties: [P0('u51')], contracts: [c], payments: pays };
+  const list = draw(st, ui => { ui.view = 'list'; ui.month = CUR; }, viewSrc).html;
+  const simple = draw(st, ui => { ui.view = 'simple'; ui.month = CUR; }, viewSrc).html;
+  const card = draw(st, ui => { ui.view = 'simple'; ui.month = CUR; ui.selected = 'u51'; }, viewSrc).html;
+  assert.ok(/data-f="waived"/.test(list), 'il filtro «Rata annullata» c’è');
+  for (const html of [list, simple]) assert.ok(/Rata annullata <b>1<\/b>/.test(html) && html.includes('annullata · mese condonato per il guasto'), 'la scheda del mese');
+  assert.ok(card.includes('annullata il ') && card.includes(': non è dovuta'), 'la riga della rata col motivo');
+  for (const html of [list, simple, card]) assert.ok(!/Rata non registrata|In verifica da BOOM/.test(html), 'mai «rata non registrata»');
+};
+ok('rata annullata su un contratto in corso: filtro, scheda e riga col motivo, mai «rata non registrata»', () => scenWaived());
+ok('mutazione: senza la chiave del filtro la rata annullata non ha il suo filtro — il controllo cade', () => {
+  const src = read('palazzo.js'), from = ", prima: 'before', annullata: 'waived' }[t.key]";
+  assert.ok(src.includes(from));
+  assert.throws(() => scenWaived(src.replace(from, ", prima: 'before' }[t.key]")), { name: 'AssertionError' });
+});
+ok('il foglio di stile ha la luce della rata annullata (facciata, cubi, legenda)', () => {
+  const css = readFileSync(new URL('../../css/palazzo.css', import.meta.url), 'utf8');
+  for (const sel of ['.plz-win[data-state="waived"]', '.plz-unit[data-state="waived"]', '.plz-key[data-state="waived"]', '.plz .plz-s-waived', '.plz-f-waived']) assert.ok(css.includes(sel), sel);
+});
+
+// 5. Il segnaposto non offre l'Innesto (che lì non crea il contratto).
+const scenPh = viewSrc => {
+  const { html } = draw({ properties: [P0('u14')], contracts: [{ id: 'c14', propertyId: 'u14', status: 'active', contractMissing: true, tenantName: 'Gaia Demo' }], payments: [] },
+    ui => { ui.view = 'simple'; ui.month = CUR; ui.selected = 'u14'; }, viewSrc, { innesto: () => true, uploadPaperContract: () => true });
+  assert.ok(/data-plz="load-contract"/.test(html), 'Carica il contratto c’è');
+  assert.ok(!/data-plz="innesto"/.test(html), 'niente «Da un PDF (Innesto)»');
+};
+ok('segnaposto: «Carica il contratto», mai «Da un PDF (Innesto)» anche con l’Innesto disponibile', () => scenPh());
+ok('mutazione: il tasto Innesto rimesso sul segnaposto — il controllo cade', () => {
+  const src = read('palazzo.js'), from = "groups.push(['Contratto', b('load-contract', 'Carica il contratto', ' data-id=\"' + esc(u.id) + '\"', true) +";
+  assert.ok(src.includes(from));
+  assert.throws(() => scenPh(src.replace(from, from + "\n        (A.innesto ? b('innesto', 'Da un PDF (Innesto)', ' data-id=\"' + esc(u.id) + '\"') : '') +")), { name: 'AssertionError' });
+});
+
+// 6. Il CSV dell'anno parte dalla gestione BOOM.
+const scenCsv = (viewSrc, month) => {
+  const gd = MM(-2);
+  const c = { id: 'c71', propertyId: 'u71', status: 'active', startDate: MM(-20) + '-01', endDate: MM(10) + '-28', tenantName: 'Ada Uno', rent: 1500, landlordName: 'Esempio Immobiliare S.r.l.' };
+  const { UI, W } = draw({ properties: [P0('u71', { gestioneDal: gd })], contracts: [c], payments: [] }, ui => { ui.view = 'simple'; ui.month = month || CUR; }, viewSrc);
+  UI._t.exportCsv(true);
+  const lines = String(W.__csv || '').replace(/^﻿/, '').split(/\r?\n/).filter(Boolean).slice(1);
+  return { lines, gd };
+};
+ok('CSV dell’anno: dal primo mese di gestione, mai mesi di righe vuote prima', () => {
+  const { lines, gd } = scenCsv();
+  const months = lines.map(l => l.split(';')[0]);
+  const y = CUR.slice(0, 4), first = gd.slice(0, 4) === y ? gd : y + '-01';
+  assert.equal(months[0], first, lines[0]);
+  assert.ok(!lines.some(l => /Prima della gestione BOOM/.test(l)) || first === y + '-01', lines.join('\n'));
+});
+ok('CSV di un anno tutto prima della gestione: UNA riga che lo dice', () => {
+  const y0 = String(+CUR.slice(0, 4) - 2);
+  const { lines } = scenCsv(null, y0 + '-06');
+  assert.equal(lines.length, 1, lines.join('\n'));
+  assert.ok(lines[0].startsWith(y0 + ';') && /Prima della gestione BOOM \(da [a-z]+ \d{4}\): nessun mese di \d{4} in archivio/.test(lines[0]), lines[0]);
+});
+ok('mutazione: il CSV dell’anno torna a partire da gennaio — il controllo cade', () => {
+  const src = read('palazzo.js'), from = "var start = gd0 && gd0 > y + '-01' ? gd0 : y + '-01';";
+  assert.ok(src.includes(from));
+  const y0 = String(+CUR.slice(0, 4) - 2);
+  assert.ok(scenCsv(src.replace(from, "var start = y + '-01';"), y0 + '-06').lines.length === 12);
+});
+
+// 7. La presa in carico: «Gestione BOOM dal» propone oggi; le scadute dette.
+ok('presa in carico: «Gestione BOOM dal» propone il mese di oggi anche in un palazzo gestito da mesi', () => {
+  const { UI } = draw({ properties: [P0('u81', { gestioneDal: MM(-4) })], contracts: [], payments: [] }, ui => { ui.view = 'simple'; ui.month = CUR; });
+  assert.equal(UI._t.impDefaults(UI._t.last()).from, CUR);
+});
+ok('presa in carico: interno nuovo con rate già scadute — «interno nuovo» nell’elenco, il rimedio giusto, «gestione BOOM da» per ogni interno', () => {
+  const gd = MM(-3);
+  const props = [P0('u81', { gestioneDal: gd })];
+  const text = 'Interno\tPiano\tInquilino\tCanone\tDal\tAl\n82\t3\tNina Demo\t1300\t' + ('01/' + MM(-6).slice(5, 7) + '/' + MM(-6).slice(0, 4)) + '\t' + ('28/' + MM(6).slice(5, 7) + '/' + MM(6).slice(0, 4));
+  const { html } = draw({ properties: props, contracts: [], payments: [] }, ui => {
+    ui.view = 'simple'; ui.month = CUR;
+    const ctx = E0.context({ properties: props });
+    const parsed = E0.parseRentRoll(text);
+    ui.imp = { address: 'Viale Prova 3, Roma', ownerId: 'o1', from: gd, text, parsed, plan: E0.planImport(parsed.rows, ctx, { address: 'Viale Prova 3, Roma', ownerId: 'o1', gestioneDal: gd }), applyDiffs: false };
+  });
+  assert.ok(/interno nuovo/.test(html) && /Interni nuovi: le rate partono da «Gestione BOOM dal»/.test(html), 'il riquadro delle scadute');
+  assert.ok(/gestione BOOM da [a-z]+ \d{4}/.test(html), 'gestione per l’interno nuovo');
+  assert.ok(/⚠ interno nuovo: le rate partono da/.test(html), 'l’avviso sulla riga');
+});
 console.log(`\n${n} check — le parole del Palazzo, senza browser.`);
