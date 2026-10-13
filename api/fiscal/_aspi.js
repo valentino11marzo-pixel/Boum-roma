@@ -157,7 +157,14 @@ export function aspiChecklist(contract, property, kind) {
     contractUrl = c.paperPdfUrl || '';
     if (contractUrl) push('contratto', 'Contratto firmato su carta (scansione)', 'ok', contractUrl);
     else push('contratto', 'Contratto firmato su carta (scansione)', 'missing', '',
-      'allega la scansione del contratto firmato su carta (📎 su questa riga, o dal Palazzo) — il modello BOOM non è quel contratto');
+      // L'istruzione dice SOLO dove si può fare davvero: il pannello ASPI
+      // del portal non offre ancora il 📎 su questa riga (13/10/2026), il
+      // Palazzo sì. `allegabile` è il segnale per il pannello: quando lo
+      // legge, il 📎 compare qui e fiscal/allega lo accetta già (key
+      // 'contratto' → paperPdfUrl, solo PDF).
+      'carica la scansione del contratto firmato su carta dal Palazzo (scheda dell\'interno) — il modello BOOM non è quel contratto');
+    items[items.length - 1].allegabile = true;   // anche a scansione presente: si può sostituire
+    items[items.length - 1].accept = 'application/pdf';
   } else {
     contractUrl = c.signedPdfUrl || c.generatedPDF || '';
     if (c.signedPdfUrl) push('contratto', 'Contratto firmato (PDF con firme)', 'ok', c.signedPdfUrl);

@@ -134,6 +134,15 @@
     return best;
   }
 
+  // Nessun PDF dal MODELLO BOOM per questo contratto: firmato su carta (il
+  // documento vero è la scansione, paperPdfUrl) o segnaposto (niente date né
+  // canone: il modello uscirebbe pieno di puntini). Lo leggono le strade che
+  // generano il PDF da sole — la Scheda che rigenera coi dati nuovi, la
+  // prima apertura di /sign, gli inviti — perché un contratto finto in
+  // generatedPDF finisce nel Palazzo, nel Pack e nel fascicolo come se
+  // fosse quello firmato con la proprietà (revisione del 13/10/2026).
+  function noModelPdf(c) { return isPaper(c) || isPlaceholder(c); }
+
   // I telefoni delle parti conduttrici del contratto, come sono scritti:
   // titolare + co-intestatari. Il riconoscimento (WhatsApp, telefonate) li
   // normalizza da sé; qui solo la lista, mai inventata.
@@ -160,6 +169,7 @@
     isRegistered: isRegistered,
     beforeGestione: beforeGestione,
     recentReminder: recentReminder,
+    noModelPdf: noModelPdf,
     tenantPhones: tenantPhones
   };
 

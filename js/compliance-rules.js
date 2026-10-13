@@ -240,6 +240,25 @@
       items.forEach(function (it) { if (it.code === 'APE' && !it.done) it.na = 'presa-in-carico'; });
     }
 
+    // L'ASSEVERAZIONE si legge dai DUE campi che il portal già usa per il
+    // badge della riga contratto (asseverazioneStatus 'done' = «CAF ✓»,
+    // requiresAsseverazione false = «Non richiesta») — prima la regola li
+    // ignorava, e nessuno scrive complianceState: una volta in scadenza,
+    // l'operatore non aveva modo di chiuderla. Su un contratto PRESO IN
+    // CARICO l'attestazione è un atto della firma su carta, prima di BOOM
+    // (come l'APE): 'na' finché qualcuno non dichiara che va fatta
+    // (requiresAsseverazione true). Senza questa riga, dal giorno dopo la
+    // scadenza un palazzo concordato da 18 interni dava 18 «SCADUTA» al
+    // giorno nel digest del Gestore, nel radar dei rischi e in quello di
+    // Homie (revisione del 13/10/2026).
+    items.forEach(function (it) {
+      if (it.code !== 'ASSEVERAZIONE' || it.done) return;
+      const c = contract || {};
+      if (String(c.asseverazioneStatus || '').trim() === 'done') { it.done = 'asseverazione'; return; }
+      if (c.requiresAsseverazione === false) { it.na = 'non-richiesta'; return; }
+      if (String(c.source || '') === 'palazzo-import' && c.requiresAsseverazione !== true) it.na = 'presa-in-carico';
+    });
+
     // Un contratto preso in carico a metà strada (il Palazzo: property.
     // gestioneDal, YYYY-MM, passato come opts.property) porta adempimenti
     // scaduti PRIMA che BOOM lo gestisse — imposta di registro, raccomandata

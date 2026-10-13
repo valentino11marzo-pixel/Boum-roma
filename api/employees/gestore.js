@@ -27,7 +27,7 @@ import { knobs, rejectedLine } from '../_squadra.js';
 import { readSignTokens } from '../sign/_tokens.js';
 import {
   requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
-  reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, esc, propLabel,
+  reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, euroFor, esc, propLabel,
 } from './_lib.js';
 
 const EMPLOYEE = 'gestore';
@@ -184,7 +184,9 @@ async function run({ dry }) {
     // Chi ha un account paga dalla sua casa (/casa); il link della rata
     // vale per tutti gli altri, senza login.
     const payUrl = c.tenantId ? `${BASE}/casa` : link;
-    const draft = reminderDraft({ lang, name, what, prop, amount: euro(p.amount), dueDate: dayWords(p.dueDate, lang) || p.dueDate, link: payUrl });
+    // L'importo nella lingua dell'inquilino (€1,600 in inglese, €1.600 in
+    // italiano): il riassunto e l'oggetto per l'operatore restano italiani.
+    const draft = reminderDraft({ lang, name, what, prop, amount: euroFor(p.amount, lang), dueDate: dayWords(p.dueDate, lang) || p.dueDate, link: payUrl });
     const r = await maybePropose(dry, {
       leadId: `payment-${p.id}`,
       kind: 'reply',

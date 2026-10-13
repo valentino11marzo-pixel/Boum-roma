@@ -740,5 +740,138 @@ const CS = require('../../js/contract-state.js');
   ok(MF.statsFor(old.concat(fresh))['gestore:payrem'].decided === 43, 'mutazione: senza la data di taglio il testo vecchio fa da campione (il test lo vede)');
 }
 
+// ═══ 19. Revisione del 13/10/2026 ═══════════════════════════════════════════
+// 19a. Il fatto condiviso per le strade che generano il PDF dal modello BOOM.
+{
+  ok(CS.noModelPdf({ signatureStatus: 'paper' }) && CS.noModelPdf({ contractMissing: true })
+    && !CS.noModelPdf({ signatureStatus: 'complete' }) && !CS.noModelPdf({ signatureStatus: 'none' }) && !CS.noModelPdf(null),
+    'noModelPdf: carta e segnaposto non ricevono il PDF del modello BOOM; i contratti digitali sì');
+}
+
+// 19b. Il sollecito in inglese scrive gli euro all'inglese: €1,620.50, mai
+// «€1.620,50» (che un inglese legge un euro e sessantadue).
+{
+  const { euro, euroEn, euroFor } = await import('../../api/employees/_lib.js');
+  ok(euroEn(1600) === '€1,600' && euroEn(1620.5) === '€1,620.50' && euroEn(900) === '€900' && euroEn(-12.4) === '-€12.40' && euroEn(1234567) === '€1,234,567',
+    'euroEn(): deterministico all\'inglese (migliaia con la virgola, centesimi col punto)', [euroEn(1600), euroEn(1620.5), euroEn(-12.4)]);
+  ok(euroFor(1600, 'it') === euro(1600) && euroFor(1600, 'en') === '€1,600' && euroFor(1600, undefined) === '€1,600',
+    'euroFor(): italiano solo per \'it\', inglese per tutto il resto');
+  const scenario = async (mod) => {
+    seedWorld();
+    seed('payments/pay_cN_2026-10', { contractId: 'cN', propertyId: 'pN', tenantId: 't9', type: 'rent', month: '2026-10', amount: 1620.5, dueDate: '2026-10-01', status: 'pending' });
+    seed('payments/pay_cM_2026-10', { contractId: 'cM', propertyId: 'pM', tenantId: 't10', type: 'rent', month: '2026-10', amount: 1250, dueDate: '2026-10-01', status: 'pending' });
+    await call(mod.default, { headers: asCron });
+    const aq = keys('action_queue').map(read);
+    return { en: aq.find(a => /pay_cN_2026-10/.test(a.contextHash)), it: aq.find(a => /pay_cM_2026-10/.test(a.contextHash)) };
+  };
+  const { en, it } = await scenario(await import('../../api/employees/gestore.js'));
+  ok(en && en.payload.draft.includes('€1,620.50') && !/€1\.620/.test(en.payload.draft),
+    'gestore: la bozza in inglese dice «€1,620.50» (mai «€1.620,50»)', en && en.payload.draft);
+  ok(en && /€1\.620,50/.test(en.summary || ''), 'gestore: il riassunto per l\'operatore resta all\'italiana', en && en.summary);
+  ok(it && it.payload.draft.includes('€1.250') && !it.payload.draft.includes('€1,250'), 'gestore: la bozza in italiano resta «€1.250»', it && it.payload.draft);
+  const MG = await importMutant('api/employees/gestore.js', 'amount: euroFor(p.amount, lang)', 'amount: euro(p.amount)');
+  const mut = await scenario(MG);
+  ok(mut.en && /€1\.620,50/.test(mut.en.payload.draft), 'mutazione: con euro() la bozza inglese torna «€1.620,50» (il test lo vede)', mut.en && mut.en.payload.draft);
+}
+
+// 19c. La checklist ASPI dice solo cose che si possono fare da dove sei.
+{
+  seedWorld();
+  const A = await import('../../api/fiscal/_aspi.js');
+  const row = A.aspiChecklist({ id: 'c7', ...read('contracts/c7') }, read('properties/plz7'), 'registrazione').find(i => i.key === 'contratto');
+  ok(row.state === 'missing' && !/📎/.test(row.hint) && /Palazzo/.test(row.hint) && row.allegabile === true && row.accept === 'application/pdf',
+    'ASPI: per la scansione su carta il suggerimento rimanda al Palazzo (niente 📎 che il pannello non mostra) e la voce si dichiara allegabile in PDF', row);
+  const dig = A.aspiChecklist({ id: 'cD', generatedPDF: 'https://x/m.pdf' }, {}, 'registrazione').find(i => i.key === 'contratto');
+  ok(!dig.allegabile, 'ASPI: il contratto digitale non è «allegabile» (il PDF si genera o si corregge)', dig);
+}
+
+// 19d. L'asseverazione: un contratto preso in carico non è un allarme quotidiano.
+{
+  const C = require('../../js/compliance-rules.js');
+  const today = new Date(NOW);
+  const c7 = { id: 'c7', type: 'studenti', rent: 1600, deposit: 3200, startDate: '2026-09-15', endDate: '2027-08-14', cedolareSecca: 'no',
+    rliRegisteredAt: '2026-09-20', registrationStatus: 'registered', signatureStatus: 'paper', source: 'palazzo-import' };
+  const st = (c, mod = C) => Object.fromEntries(mod.obligationsFor(c, { tenant: {}, today, property: { gestioneDal: '2026-10' } }).map(o => [o.code, mod.statusOf(o, {}, today, 14)]));
+  ok(st(c7).ASSEVERAZIONE === 'na', 'compliance: contratto preso in carico → asseverazione «na» (atto della firma su carta), non «in scadenza» ogni mattina', st(c7));
+  ok(st({ ...c7, requiresAsseverazione: true }).ASSEVERAZIONE === 'due_soon', 'compliance: se qualcuno DICHIARA che va fatta (requiresAsseverazione), torna visibile');
+  const boom = { ...c7, source: undefined, signatureStatus: 'complete' };
+  ok(st(boom).ASSEVERAZIONE === 'due_soon', 'compliance: per un contratto BOOM l\'asseverazione resta un adempimento vero', st(boom));
+  ok(st({ ...boom, asseverazioneStatus: 'done' }).ASSEVERAZIONE === 'done' && st({ ...boom, requiresAsseverazione: false }).ASSEVERAZIONE === 'na',
+    'compliance: «CAF ✓» (asseverazioneStatus) la chiude, «Non richiesta» (requiresAsseverazione false) la toglie — gli stessi campi del badge del portal');
+  const MA = requireMutant('js/compliance-rules.js', "      if (String(c.source || '') === 'palazzo-import' && c.requiresAsseverazione !== true) it.na = 'presa-in-carico';\n", '');
+  ok(st(c7, MA).ASSEVERAZIONE === 'due_soon', 'mutazione: senza la regola il contratto del Palazzo torna «in scadenza» (il test lo vede)');
+  // i handler veri: digest del Gestore e radar dei rischi
+  seedWorld();
+  const gestore = (await import('../../api/employees/gestore.js')).default;
+  const g = await call(gestore, { headers: asCron });
+  const digest = (g.body && g.body.report && g.body.report.digest) || [];
+  ok(g.statusCode === 200 && !digest.some(l => /int\. (7|11|14)/.test(l) && /Attestazione/.test(l)),
+    'gestore: nessuna «Attestazione / asseverazione … in scadenza» sui contratti del Palazzo', digest.filter(l => /Attestazione/.test(l)));
+  const { scan } = await import('../../api/agent/risk.scan.js');
+  const r = await scan(60);
+  ok(!r.items.some(i => /Burocrazia/.test(i.cat) && /int\. (7|11|14)/.test(i.title || '') && /asseverazione/i.test(i.detail || i.title || '')),
+    'risk.scan: nessuna asseverazione falsa sui contratti del Palazzo', r.items.filter(i => /assever/i.test((i.detail || '') + (i.title || ''))));
+}
+
+// 19e. Le rate: la firma digitale e il generatore del portal danno lo STESSO
+// piano (id pay_<contratto>_<mese> condiviso: la stessa rata non può avere
+// due scadenze secondo la porta da cui nasce). Il generatore del portal si
+// esegue VERO, estratto da js/portal-app.js con un Firestore finto.
+{
+  const { rentSchedule } = await import('../../api/magic-sign/submit.js');
+  const src = readFileSync(path.join(ROOT, 'js/portal-app.js'), 'utf8');
+  const head = 'async function generateMonthlyPayments(contractId, contract) {';
+  const at = src.indexOf(head);
+  let depth = 0, end = -1;
+  for (let i = at + head.length - 1; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') { depth--; if (depth === 0) { end = i + 1; break; } }
+  }
+  const body = src.slice(at, end);
+  const portalPlan = async (contract) => {
+    const sets = [];
+    const db = {
+      collection: () => ({ where: () => ({ limit: () => ({ get: async () => ({ docs: [] }) }) }), doc: (id) => ({ id }) }),
+      batch: () => ({ set: (ref, data) => sets.push({ id: ref.id, ...data }), commit: async () => {} }),
+    };
+    const firebase = { firestore: { FieldValue: { serverTimestamp: () => 'ts' } } };
+    const quiet = { log() {}, warn() {} };
+    const gen = new Function('db', 'firebase', 'console', body + '\nreturn generateMonthlyPayments;')(db, firebase, quiet);
+    await gen('cX', contract);
+    return sets.map(s => [s.month, s.dueDate, s.amount, s.installmentMonths, s.coversTo].join('|'));
+  };
+  const serverPlan = (contract, fn = rentSchedule) => fn(contract).map(s => [s.month, s.dueDate, s.amount, s.installmentMonths, s.coversTo].join('|'));
+  const cases = [];
+  for (const start of ['2026-09-01', '2026-09-15', '2026-01-31', '2026-10-28', '2026-03-10']) {
+    for (const step of [1, 3, 6]) {
+      for (const payDay of [1, 5, 10, 15, 28]) {
+        const s = new Date(start + 'T00:00:00Z');
+        const e = new Date(Date.UTC(s.getUTCFullYear() + 1, s.getUTCMonth(), s.getUTCDate() - 1)).toISOString().slice(0, 10);
+        cases.push({ startDate: start, endDate: e, rent: 1250, paymentDay: payDay, installmentMonths: step });
+      }
+    }
+  }
+  let diff = null;
+  for (const c of cases) {
+    const a = serverPlan(c).join(';'), b = (await portalPlan(c)).join(';');
+    if (a !== b) { diff = { c, server: a.slice(0, 200), portal: b.slice(0, 200) }; break; }
+  }
+  ok(body.length > 200 && !diff, 'rate: firma digitale e portal danno lo stesso piano (75 contratti: inizio a metà mese, fine mese, cadenze 1/3/6, giorni 1–28)', diff);
+  // giorni 29–31: la firma digitale tiene la scadenza DENTRO il mese; il
+  // portal oggi la fa rotolare al mese dopo (da allineare in js/portal-app.js,
+  // filone portal) — qui si conta, non si fallisce
+  let roll = 0;
+  for (const payDay of [29, 30, 31]) {
+    const c = { startDate: '2026-11-01', endDate: '2027-10-31', rent: 900, paymentDay: payDay };
+    const a = serverPlan(c), b = await portalPlan(c);
+    roll += a.filter((x, i) => x !== b[i]).length;
+  }
+  console.log(`  ℹ rate col giorno 29–31: ${roll} scadenze diverse fra firma digitale e portal (da allineare in js/portal-app.js)`);
+  const MS = await importMutant('api/magic-sign/submit.js', '    if (due < periodStart) due = periodStart;\n', '');
+  let mdiff = false;
+  for (const c of cases) { if (serverPlan(c, MS.rentSchedule).join(';') !== (await portalPlan(c)).join(';')) { mdiff = true; break; } }
+  ok(mdiff, 'mutazione: senza «mai prima del periodo» i due piani divergono (il test lo vede)');
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);
