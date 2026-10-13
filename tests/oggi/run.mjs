@@ -13,6 +13,7 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { runInNewContext } from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const require = createRequire(import.meta.url);
@@ -20,6 +21,7 @@ const E = require(join(ROOT, 'js', 'oggi-engine.js'));
 const app = readFileSync(join(ROOT, 'js/portal-app.js'), 'utf8');
 const html = readFileSync(join(ROOT, 'portal.html'), 'utf8');
 const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
+const engineSource = readFileSync(join(ROOT, 'js/oggi-engine.js'), 'utf8');
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { if (c) { pass++; console.log('PASS ' + n); } else { fail++; console.log('✗ FAIL ' + n); } };
@@ -35,15 +37,15 @@ const S = {
   contracts: [
     { id: 'c1', status: 'active', propertyId: 'x1', tenantId: 't1', endDate: '2027-08-31' },
     { id: 'c2', status: 'active', propertyId: 'x2', tenantId: 't2', endDate: '2026-09-10', signatureStatus: 'partial' },
-    // ── Registrazioni RLI (30gg dalla stipula): i cinque stati veri ──
+    // ── Promemoria RLI stimati: firma certa e decorrenza posteriore ──
     // firmato 3gg fa: c'e' tempo, ma la pratica esiste e si vede
-    { id: 'c3', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-16T10:00:00Z' },
+    { id: 'c3', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-16T10:00:00Z', startDate: '2026-08-31' },
     // firmato 45gg fa e mai registrato: termine SFORATO, ogni giorno costa
-    { id: 'c4', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-07-05T10:00:00Z' },
+    { id: 'c4', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-07-05T10:00:00Z', startDate: '2026-08-31' },
     // mandato ad ASPI ieri: sta lavorando lui, non e' una decisione
-    { id: 'c5', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-14T10:00:00Z', aspiRequestedAt: '2026-08-18T09:00:00Z', aspiRequestKind: 'completo' },
+    { id: 'c5', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-14T10:00:00Z', startDate: '2026-08-31', aspiRequestedAt: '2026-08-18T09:00:00Z', aspiRequestKind: 'completo' },
     // mandato 10gg fa e ancora niente: sollecito, con l'azione che CHIUDE il giro
-    { id: 'c6', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-08-07T10:00:00Z', aspiRequestedAt: '2026-08-09T10:00:00Z', aspiRequestKind: 'registrazione' },
+    { id: 'c6', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-08-07T10:00:00Z', startDate: '2026-08-31', aspiRequestedAt: '2026-08-09T10:00:00Z', aspiRequestKind: 'registrazione' },
     // gia' registrato: fuori dalla coda per sempre
     { id: 'c7', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-07-01', rliRegisteredAt: '2026-07-20' },
   ],
@@ -101,11 +103,9 @@ ok(pos('pa_pa1') < pos('pa_pa2'), 'una proposta INCASSATA batte una solo accetta
 ok(pos('pa_pa1') < pos('sig_c2'), 'soldi incassati senza contratto battono una firma a metà');
 ok(r.decisions.every((d, i) => i === 0 || r.decisions[i - 1].score >= d.score), 'la lista è davvero ordinata per punteggio');
 
-// ── 2b. Registrazioni RLI: il termine di legge guida la coda ───────────
-// L'unico ritardo con un prezzo scritto in legge (sanzione + cedolare a
-// rischio): il punteggio deve DORMIRE quando c'e' tempo e SCAVALCARE
-// quando il termine e' passato. E mentre il referente ha la pratica in
-// mano non e' una decisione: si tace.
+// ── 2b. Registrazioni RLI: promemoria stimato da verificare sull'atto ──
+// Il punteggio sale con l'età della base verificabile; non certifica un
+// ritardo fiscale. L'invio recente resta silenzioso se c'è ancora margine.
 ok(ids.includes('rli_c3'), 'un contratto firmato e non registrato entra in coda');
 ok(ids.includes('rli_c4'), 'un contratto oltre i 30gg entra (e resta finche\' non e\' registrato)');
 ok(!ids.includes('rli_c5'), 'appena mandato ad ASPI: SILENZIO — sta lavorando il referente, non e\' una decisione');
@@ -115,13 +115,138 @@ ok(!ids.includes('rli_c2'), 'una firma a META\' non e\' da registrare (si regist
 const rli3 = r.decisions.find((d) => d.id === 'rli_c3');
 const rli4 = r.decisions.find((d) => d.id === 'rli_c4');
 const rli6 = r.decisions.find((d) => d.id === 'rli_c6');
-ok(/RLI tra 27gg/.test(rli3.sub), 'la riga dice quanto manca al termine, in giorni veri');
-ok(/SCADUTA da 15gg/.test(rli4.sub) && rli4.tint === 'red', 'la scaduta lo DICE e si veste di rosso');
+ok(/Termine stimato tra 27gg · verifica stipula e decorrenza/.test(rli3.sub), 'il promemoria mantiene 27 giorni e dichiara la stima da verificare');
+ok(/Termine stimato superato da 15gg · verifica stipula e decorrenza/.test(rli4.sub) && rli4.tint === 'red', 'il promemoria oltre termine mantiene 15 giorni e dichiara la stima');
+ok(!/RLI SCADUTA|RLI scade/.test(rli3.sub + rli4.sub), 'nessuna certificazione di una scadenza fiscale dalla sola firma salvata');
 ok(rli4.score > 90 && pos('rli_c4') < pos('pay_all'), 'una RLI scaduta scavalca perfino il quadro degli incassi in ritardo');
 ok(rli3.score < 50 && pos('rli_c3') > pos('rli_c4'), 'una appena firmata dorme in fondo: c\'e\' tempo, non e\' un allarme');
 ok(rli3.actions[0].fn === 'openAspi' && rli3.actions[0].primary, 'da registrare → il tap primario e\' l\'invio ad ASPI');
 ok(rli6.actions[0].fn === 'markRliRegistered', 'in attesa → il tap primario CHIUDE il giro (conferma la registrazione)');
 ok(/In attesa di ASPI da 10gg/.test(rli6.title) && /solo registrazione/.test(rli6.sub), 'il sollecito dice da quanto aspetta e cosa e\' stato chiesto');
+
+// ── 2c. PA: backlink incompleto non significa contratto mancante ──────
+const proposal = { id: 'proposal-1', ref: 'BOOM-P1', status: 'paid', paidEur: 1800 };
+const paSignal = (contracts, extraProposals = [], overrides = {}, engine = E) => engine.build({
+  contracts, preAgreements: [{ ...proposal, ...overrides }, ...extraProposals]
+}, NOW).decisions.find((d) => d.id === 'pa_proposal-1');
+ok(!paSignal([{ id: 'contract-1', preAgreementId: 'proposal-1' }]), 'PA: relazione reverse per ID certa, nessun falso contratto mancante');
+ok(!paSignal([{ id: 'contract-1', preAgreementRef: 'BOOM-P1' }]), 'PA: riferimento reverse unico collega il contratto');
+ok(!paSignal([{ id: 'pa_proposal-1' }]), 'PA: ID deterministico del convert riconosce il contratto orfano');
+ok(!paSignal([], [], { contractId: 'contract-not-loaded' }), 'PA: backlink esplicito conserva la relazione anche fuori snapshot');
+const noLink = paSignal([{ id: 'unrelated', propertyId: 'same-home', tenantName: 'same-name' }]);
+ok(noLink?.reason === 'proposal_contract_missing' && !noLink.needsVerification, 'PA: nessuna associazione da nome o immobile');
+const multipleContracts = [{ id: 'contract-1', preAgreementId: 'proposal-1' }, { id: 'contract-2', preAgreementRef: 'BOOM-P1' }];
+const multiple = paSignal(multipleContracts);
+ok(multiple?.needsVerification && multiple.reason === 'proposal_contract_ambiguous', 'PA: due contratti reverse restano una verifica visibile');
+ok(multiple?.contractIds.length === 2 && multiple.practiceRef === 'preAgreements/proposal-1' && !multiple.contractId,
+  'PA: ambiguità espone entrambe le identità senza inventare un contratto canonico');
+ok(/verificare/.test(multiple?.title || '') && !/manca il contratto/.test(multiple?.title || '') && /1\.800|1800/.test(multiple?.sub || ''),
+  'PA: conflitto non dichiara assenza e mantiene visibile il denaro');
+const conflictRows = [{ id: 'contract-1', preAgreementRef: 'BOOM-P1', preAgreementId: 'other-proposal' }];
+ok(paSignal(conflictRows)?.reason === 'proposal_contract_conflict', 'PA: ref coincidente non supera un ID reverse contraddittorio');
+ok(paSignal([{ id: 'contract-1', preAgreementId: 'proposal-1', preAgreementRef: 'BOOM-OTHER' }])?.needsVerification,
+  'PA: ID reverse coincidente non supera un ref contraddittorio');
+ok(paSignal([{ id: 'pa_proposal-1', preAgreementId: 'other-proposal' }])?.needsVerification,
+  'PA: ID deterministico non supera una relazione contraddittoria');
+ok(paSignal([{ id: 'contract-2', preAgreementId: 'proposal-1' }], [], { contractId: 'contract-1' })?.reason === 'proposal_contract_conflict',
+  'PA: backlink e reverse diversi restano visibili anche se il backlink non è nello snapshot');
+ok(paSignal([{ id: 'contract-1', preAgreementId: 'other-proposal' }], [], { contractId: 'contract-1' })?.needsVerification,
+  'PA: backlink verso un contratto assegnato a un’altra proposta non sopprime il conflitto');
+ok(paSignal([{ id: 'contract-1', preAgreementRef: 'BOOM-P1' }], [{ id: 'proposal-2', ref: 'BOOM-P1' }])?.reason === 'proposal_contract_ambiguous',
+  'PA: ref condiviso da due proposte non è una relazione certa');
+ok(paSignal([], [{ id: 'proposal-2', contractId: 'contract-1' }], { contractId: 'contract-1' })?.needsVerification,
+  'PA: due proposte che rivendicano lo stesso backlink non vengono nascoste');
+
+// ── 2d. RLI: dati incompleti e storico sono verifiche, mai date inventate ──
+const signedContract = { id: 'registration-1', status: 'active', signatureStatus: 'complete', fullySignedAt: '2026-08-16T10:00:00Z', startDate: '2026-08-31' };
+const rliSignal = (overrides, engine = E) => engine.build({ contracts: [{ ...signedContract, ...overrides }] }, NOW)
+  .decisions.find((d) => d.id === 'rli_registration-1');
+const isArchive = (d) => d?.kind === 'archivio' && d.needsVerification === true &&
+  !('deadlineAt' in d) && !('daysLeft' in d) && !/Termine stimato|SCADUTA|RLI tra|scade OGGI/.test(d.sub) &&
+  d.actions.length === 1 && d.actions[0].fn === 'viewContract';
+const noSignatureDate = { fullySignedAt: undefined, startDate: '2020-01-01' };
+const noDateSignal = rliSignal(noSignatureDate);
+ok(isArchive(noDateSignal) && noDateSignal.reason === 'signature_date_missing', 'RLI: startDate non sostituisce una data firma assente');
+ok(noDateSignal?.practiceRef === 'contracts/registration-1' && noDateSignal.contractId === 'registration-1',
+  'RLI: verifica archivio ha un percorso certo al contratto');
+for (const value of ['not-a-date', '2026-02-30', '2026-08-20T10:00:00Z']) {
+  const d = rliSignal({ fullySignedAt: value });
+  ok(isArchive(d) && d.reason === 'signature_date_invalid', `RLI: firma ${value} non produce una scadenza`);
+}
+for (const status of ['terminated', 'expired']) {
+  const d = rliSignal({ status, aspiRequestedAt: '2026-08-18T10:00:00Z' });
+  ok(isArchive(d) && d.reason === 'contract_historical', `RLI: ${status} resta visibile in archivio anche appena inviato ad ASPI`);
+}
+ok(isArchive(rliSignal({ endDate: '2026-08-18' })), 'RLI: contratto attivo con fine passata richiede verifica storico');
+ok(isArchive(rliSignal({ endDate: '2026-02-30' })), 'RLI: fine impossibile richiede verifica lifecycle');
+ok(rliSignal({ endDate: '2026-08-19' })?.kind === 'registrazioni', 'RLI: la data di fine odierna non è già storico');
+for (const status of [undefined, 'draft', 'unknown']) {
+  const d = rliSignal({ status });
+  ok(isArchive(d) && d.reason === 'contract_lifecycle_unverified', `RLI: lifecycle ${status} non diventa implicitamente attivo`);
+}
+ok(!rliSignal({ status: 'terminated', registrationStatus: 'registered' }), 'RLI: storico con registrazione documentata non genera lavoro');
+ok(!rliSignal({ signatureStatus: 'partial' }), 'RLI: contratto non completamente firmato resta fuori dalle registrazioni');
+ok(rliSignal({ fullySignedAt: undefined, signatureDate: '2026-08-16T10:00:00Z' })?.daysLeft === 27,
+  'RLI: signatureDate esplicita già prevista dallo schema è utilizzabile');
+const partyDates = { fullySignedAt: undefined, tenantSignedAt: '2026-08-14T10:00:00Z', landlordSignedAt: '2026-08-15T10:00:00Z',
+  coTenants: [{ name: 'Co-tenant', signedAt: '2026-08-16T10:00:00Z' }] };
+ok(rliSignal(partyDates)?.daysLeft === 27, 'RLI: ultima firma include cointestatari come il finalizzatore');
+ok(isArchive(rliSignal({ ...partyDates, fullySignedAt: 'invalid' })), 'RLI: una data finale esplicita non valida non viene riparata per inferenza');
+ok(isArchive(rliSignal({ ...partyDates, coTenants: [{ name: 'Co-tenant', signedAt: 'invalid' }] })), 'RLI: firma legacy non valida non permette di scegliere una data precedente');
+for (const missingParty of [{ landlordSignedAt: undefined }, { tenantSignedAt: undefined }, { coTenants: [{ name: 'Co-tenant' }] }]) {
+  const d = rliSignal({ ...partyDates, ...missingParty });
+  ok(isArchive(d) && d.reason === 'signature_date_missing', 'RLI: senza data finale tutte le parti devono avere la data di firma');
+}
+ok(rliSignal({ ...partyDates, coTenants: [{ name: '' }, null] })?.daysLeft === 26,
+  'RLI: righe co-conduttore vuote non diventano firmatari mancanti');
+const currentRli = rliSignal({ fullySignedAt: '2020-01-01' });
+ok(currentRli?.kind === 'registrazioni' && currentRli.daysLeft < 0, 'RLI: sola età non archivia un contratto ancora attivo senza fine passata');
+ok(rli3.deadlineAt === '2026-09-15T10:00:00.000Z' && rli3.daysLeft === 27 && rli3.deadlineEstimated === true && rli3.deadlineBasis === 'signature',
+  'RLI: metadati esportano la medesima stima senza un secondo calcolo UI');
+const earlierStart = rliSignal({ startDate: '2026-08-01' });
+ok(earlierStart?.kind === 'registrazioni' && earlierStart.deadlineBasis === 'startDate' && earlierStart.deadlineAt === '2026-08-31T00:00:00.000Z'
+  && earlierStart.daysLeft === 12 && earlierStart.deadlineEstimated === true, 'RLI: decorrenza anteriore anticipa il promemoria a 12 giorni');
+ok(/Termine stimato tra 12gg · verifica stipula e decorrenza/.test(earlierStart?.sub || ''), 'RLI: anche la decorrenza anteriore produce una stima esplicita');
+const alreadyLate = rliSignal({ startDate: '2026-07-01', aspiRequestedAt: '2026-08-18T09:00:00Z' });
+ok(alreadyLate?.daysLeft < 0 && alreadyLate.tint === 'red' && alreadyLate.deadlineBasis === 'startDate',
+  'RLI: decorrenza anteriore già oltre termine non scompare dietro invio ASPI recente');
+for (const startDate of [undefined, 'invalid', '2026-02-30']) {
+  const d = rliSignal({ startDate });
+  ok(isArchive(d) && d.verificationReasons.includes(startDate ? 'contract_start_date_invalid' : 'contract_start_date_missing'),
+    `RLI: decorrenza ${startDate} richiede verifica senza scadenza finta`);
+}
+const bothProblems = rliSignal({ status: 'terminated', fullySignedAt: undefined });
+ok(isArchive(bothProblems) && bothProblems.verificationReasons.includes('contract_historical') && bothProblems.verificationReasons.includes('signature_date_missing'),
+  'RLI: storico e data assente conservano entrambe le ragioni');
+const immutable = { contracts: [{ ...signedContract, status: 'terminated' }], preAgreements: [{ ...proposal }] };
+const before = JSON.stringify(immutable);
+E.build(immutable, NOW);
+ok(JSON.stringify(immutable) === before, 'le verifiche PA/RLI non chiudono né modificano record');
+
+// Mutazioni mirate: queste prove devono fallire se torna il falso allarme.
+const mutation = (name, from, to, detects) => {
+  const changed = engineSource.replace(from, to);
+  if (changed === engineSource) { ok(false, `mutazione applicabile: ${name}`); return; }
+  const sandbox = { module: { exports: {} } };
+  runInNewContext(changed, sandbox);
+  ok(detects(sandbox.module.exports), `mutante respinto: ${name}`);
+};
+mutation('ignora le relazioni reverse', 'if (link.linked) return;', 'if (pa.contractId) return;',
+  (m) => !!paSignal([{ id: 'contract-1', preAgreementId: 'proposal-1' }], [], {}, m));
+mutation('nasconde contraddizioni reverse', '!conflict && !ambiguous &&', '!ambiguous &&',
+  (m) => !paSignal(conflictRows, [], {}, m));
+mutation('nasconde più contratti', 'linked: !conflict && !ambiguous && (!!forward || candidates.length === 1)', 'linked: !conflict && (!!forward || candidates.length > 0)',
+  (m) => !paSignal(multipleContracts, [], {}, m));
+mutation('inventa la firma da startDate', 'const explicit = c.fullySignedAt || c.signatureDate;', 'const explicit = c.fullySignedAt || c.signatureDate || c.startDate;',
+  (m) => !isArchive(rliSignal(noSignatureDate, m)));
+mutation('porta storico nel lavoro corrente', 'if (evidence.reasons.length) {', "if (evidence.reasons.some((reason) => reason !== 'contract_historical')) {",
+  (m) => !isArchive(rliSignal({ status: 'terminated' }, m)));
+mutation('scarta silenziosamente le verifiche', 'if (evidence.reasons.length) {', 'if (evidence.reasons.length) { return;',
+  (m) => !rliSignal(noSignatureDate, m));
+mutation('data da una sola parte', 'c.tenantSignedAt, c.landlordSignedAt,', 'c.tenantSignedAt,',
+  (m) => !isArchive(rliSignal({ fullySignedAt: undefined, tenantSignedAt: '2026-08-16T10:00:00Z' }, m)));
+mutation('ignora decorrenza anteriore', 'basisAt: startsEarlier ? startAt : signedAt', 'basisAt: signedAt',
+  (m) => rliSignal({ startDate: '2026-08-01' }, m)?.daysLeft !== 12);
 
 // ── 3. Il polso dei soldi fa i conti giusti ────────────────────────────
 ok(r.cash.paidMonth === 1450, `incassato mese = 1450 (trovato ${r.cash.paidMonth})`);
@@ -184,7 +309,7 @@ ok(sw.includes('/js/oggi-engine.js'), 'sw.js: il motore viaggia con gli asset de
 ok(/window\[a\.fn\]/.test(app) && /f\.apply\(window, a\.args/.test(app), 'oggiRun invoca per riferimento, mai per stringa');
 // preAgreements: lazy alla prima apertura (dieta del boot), mai un await sul render
 const opg = app.slice(app.indexOf('function oggiPage'), app.indexOf('function oggiPage') + 1200);
-ok(/preAgreements/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
+ok(/oggiLoadProposals/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
   'oggiPage carica le proposte fire-and-forget: niente await sul percorso di render');
 // Machete #1-2 (Arsenale): il Command Center è un alias di Oggi, Zone
 // Intelligence una lapide che punta alla Centrale — mai due verità di zona.

@@ -78,8 +78,8 @@ export default async function handler(req, res) {
         service: 'SDD_SETUP', contractId,
         tenantId: String(contract.tenantId || auth.uid), email,
       },
-      success_url: 'https://www.boomrome.com/casa?sdd=ok',
-      cancel_url: 'https://www.boomrome.com/casa',
+      success_url: 'https://www.boomrome.com/casa?sdd=ok&contract=' + encodeURIComponent(contractId),
+      cancel_url: 'https://www.boomrome.com/casa?contract=' + encodeURIComponent(contractId),
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     });
     // Il customer si persiste SUBITO (non solo nel webhook): se il cliente

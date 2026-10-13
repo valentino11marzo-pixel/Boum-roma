@@ -24,11 +24,13 @@ function htmlFor(source) {
   const start = source.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
   const end = source.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
   assert(start >= 0 && end > start);
+  const workspace = source.match(/^    const oggiWorkspace = .+;$/m)?.[0];
+  assert(workspace, 'Dichiarazione reale dello stato workspace presente');
   const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener']
     .map(name => source.slice(...functionRange(source, name))).join('\n');
   const result = {};
   vm.runInNewContext(fixtureSource + '\nresult.html = html;', {
-    PROPOSTA, read, ui: source.slice(start, end), listeners, result
+    PROPOSTA, read, ui: workspace + '\n' + source.slice(start, end), listeners, result
   });
   const clock = `<script>window.__now=${NOW};const NativeDate=Date;window.Date=class extends NativeDate{constructor(...args){super(...(args.length?args:[window.__now]))}static now(){return window.__now}};</script>`;
   return result.html.replace('<head>', '<head>' + clock);

@@ -13,6 +13,10 @@ const start = portal.indexOf('    async function loadData()');
 const end = portal.indexOf('    // Dismissed system alerts', start);
 assert.ok(start > 0 && end > start, 'real loader boundaries must exist');
 const loaders = portal.slice(start, end);
+const viewingStart = portal.indexOf('    async function oggiLoadViewings()');
+const viewingEnd = portal.indexOf('    async function oggiLoadProposals(', viewingStart);
+assert.ok(viewingStart > 0 && viewingEnd > viewingStart, 'real viewing loader boundaries must exist');
+const viewingLoader = portal.slice(viewingStart, viewingEnd);
 const CORE_LIMITS = { users: 800, properties: 400, contracts: 800, payments: 3000, maintenance: 600, clients: 1200, documents: 1500, invoices: 1200, rules: 200, ruleExecutions: 50 };
 let checks = 0;
 async function test(label, run) { await run(); checks++; console.log('  ✓ ' + label); }
@@ -54,7 +58,8 @@ function harness({ network = {}, cache = null, failure = '', hold = false, loade
     URL, Date, Intl, JSON, String, Number, Array, Set, Map, Promise,
     console: { log() {}, error() {}, warn() {} }, performance: { now: () => 0 }, isSafariDesktop: false,
     isAdmin: () => S.profile.role === 'admin', isLandlord: () => false,
-    checkAlerts() {}, invalidateRentSnapshot() {}, renderPage() {}, buildNav() {}, toast() {},
+    auth: { currentUser: { uid: 'admin-test' } },
+    checkAlerts() {}, invalidateRentSnapshot() {}, renderPage() {}, buildNav() {}, toast() {}, oggiScheduleUpdate() {},
     setTimeout(callback, delay) { timers.push({ callback, delay }); return timers.length; },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
   });
@@ -63,7 +68,7 @@ function harness({ network = {}, cache = null, failure = '', hold = false, loade
   UI.configure({ state: () => S, render: () => rendered.push(UI.render(S, UI.parseRoute(S.page), UI.load)), navigate() {}, refresh() {}, actions: {} });
   const realSetSource = UI.setSourceState;
   UI.setSourceState = status => { sourceStates.push(status); realSetSource(status); };
-  vm.runInContext(loaderSource, context);
+  vm.runInContext(viewingLoader + '\n' + loaderSource, context);
   return { S, UI, reads, writes, timers, sourceStates, rendered, storage, release,
     run: code => vm.runInContext(code, context), setFailure: value => { failure = value; },
     async timer(delay) { const idx = timers.findIndex(t => t.delay === delay); assert.ok(idx >= 0, 'timer exists: ' + delay); const [timer] = timers.splice(idx, 1); return timer.callback(); }

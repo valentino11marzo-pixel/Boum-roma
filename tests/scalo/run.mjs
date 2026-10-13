@@ -218,12 +218,12 @@ check('idrante: mai una pagina fantasma (un lato vuoto non gira)',
 check('casa: senza contratto (startDate) la rotta non esiste',
   casaSrc.includes("if(!c||!c.startDate)return ''"));
 check('casa: la firma è signatureStatus, non una stima',
-  casaSrc.includes("done:c.signatureStatus==='completed'"));
+  casaSrc.includes("done:window.BOOM_TENANT_ACCESS.stage(c)==='signed'"));
 check('casa: il saldo deposito esiste SOLO se il deal l\'ha spezzato',
   casaSrc.includes('if(depBal)st.push') &&
   casaSrc.includes("done:depBal.status==='paid'"));
-check('casa: chiavi = la decorrenza vera del contratto',
-  casaSrc.includes('done:c.startDate<=todayISO,d:c.startDate'));
+check('casa: le chiavi richiedono il verbale, non il passaggio della data iniziale',
+  casaSrc.includes('done:keysDone,d:keysDone?handedAt:null') && casaSrc.includes('safeReceiptUrl(c.verbaleConsegna.url)') && !casaSrc.includes('done:c.startDate<=todayISO,d:c.startDate'));
 check('casa: il rinnovo è endDate−90 — il T-90 del journey server',
   casaSrc.includes('d.setDate(d.getDate()-90)'));
 check('casa: l\'aereo sta sulla prima tappa NON compiuta',

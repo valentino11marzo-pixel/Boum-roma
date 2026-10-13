@@ -51,7 +51,7 @@ const db={collection(name){
   doc(){testIO.writes++;throw Error('Unexpected Firestore access');}};
 }};
 `;
-const engines = ['oggi-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine']
+const engines = ['oggi-engine', 'oggi-desk-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine']
   .map(name => '<script src="/js/' + name + '.js"></script>').join('');
 const boot = "goTo(location.hash.slice(1)||'properties');";
 assert(propertyHtml.includes(boot));
@@ -88,17 +88,19 @@ try {
     page.on('console', message => { if (message.type() === 'error') consoleErrors.push(message.text()); });
     await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
     const row = id => page.locator('article[data-sg-id="' + id + '"]');
+    const caseDetail = id => row(id).locator('details[data-sg-detail="case-' + id + '"]');
     const propertyButton = id => row(id).locator('[data-sg-action="property"]');
-    const idle = () => page.waitForFunction(() => testCases.loaded && !testCases.loading);
+    const idle = async () => { await page.waitForFunction(() => testCases.loaded && !testCases.loading); };
     let visit = 0;
     const fresh = async () => {
       await page.goto(base + '/portal?case=' + (++visit) + '#oggi'); await idle();
+      await page.locator('#ogQueueArchive > summary').click();
       await page.waitForSelector('article[data-sg-id="' + TARGET + '"]');
       // Existing mobile transformations are debounced by 70ms.
       await page.waitForTimeout(180);
     };
     const details = async id => {
-      const detail = row(id).locator('details');
+      const detail = caseDetail(id);
       if (!(await detail.getAttribute('open'))) {
         if (!(await detail.evaluate(el => el.open))) await detail.locator('summary').click();
       }
@@ -116,8 +118,8 @@ try {
       await page.waitForFunction(({ id, y }) => document.activeElement.dataset.sgAction === 'property'
         && document.activeElement.dataset.sgId === id && Math.abs(scrollY - y) < 4,
       { id: TARGET, y: previousY });
-      assert.equal(await row(TARGET).locator('details').evaluate(el => el.open), true);
-      assert.equal(await row(OTHER).locator('details').evaluate(el => el.open), true);
+      assert.equal(await caseDetail(TARGET).evaluate(el => el.open), true);
+      assert.equal(await caseDetail(OTHER).evaluate(el => el.open), true);
       assert.equal(await page.evaluate(() => testCases.propertyReturn), null);
       assert(page.url().endsWith('#oggi'));
     };
@@ -184,19 +186,19 @@ try {
       });
     }
 
-    await check('closed case is not resurrected; return focuses Segreteria heading', async () => {
+    await check('closed case is not resurrected; return focuses work heading', async () => {
       await fresh(); await readyToOpen();
       await propertyButton(TARGET).click(); await page.waitForSelector('#pdos-title');
       await page.evaluate(id => { apiRows.find(t => t.id === id).status = 'closed'; holdAPI = true; }, TARGET);
       await page.locator('[data-pdos-action="back"]').click();
       await page.waitForFunction(() => heldAPI.length === 1);
       await page.evaluate(() => releaseAPI()); await idle();
-      await page.waitForFunction(() => document.activeElement.matches('#sgFollowPanel h2'));
+      await page.waitForFunction(() => document.activeElement.matches('#ogQueueTitle'));
       assert.equal(await row(TARGET).count(), 0);
-      assert.equal(await row(OTHER).locator('details').evaluate(el => el.open), true);
+      assert.equal(await caseDetail(OTHER).evaluate(el => el.open), true);
       assert.equal(await page.evaluate(id => testCases.rows.find(t => t.id === id)?.status, TARGET), 'closed');
       assert.equal(await page.evaluate(() => testCases.propertyReturn), null);
-      assert((await page.locator('#sgFollowPanel h2').boundingBox()).y >= 0);
+      assert((await page.locator('#ogQueueTitle').boundingBox()).y >= 0);
     });
 
     await check('remaining case without eligible property restores its summary focus', async () => {
@@ -206,7 +208,7 @@ try {
       await page.locator('[data-pdos-action="back"]').click(); await idle();
       await page.waitForFunction(id => document.activeElement.matches('summary') && document.activeElement.closest('article')?.dataset.sgId === id, TARGET);
       assert.equal(await propertyButton(TARGET).count(), 0);
-      assert.equal(await row(TARGET).locator('details').evaluate(el => el.open), true);
+      assert.equal(await caseDetail(TARGET).evaluate(el => el.open), true);
     });
 
     await check('actions wrap within the card without horizontal overflow or overlap', async () => {
