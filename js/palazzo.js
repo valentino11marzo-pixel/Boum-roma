@@ -30,8 +30,10 @@
 
   var GEO = { w: 88, h: 54, d: 66, gx: 12, gz: 16, fh: 66 };
   // I filtri sono i QUATTRO TONI del motore (E.TONES), non gli otto stati.
+  // «Liberi e in arrivo»: il tono conta anche chi arriva, e accanto i numeri
+  // dicono «2 liberi · 1 in arrivo» — la stessa parola con due numeri no.
   var FILTERS = [['all', 'Tutti', null]].concat(E.TONES.map(function (t) {
-    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free', prima: 'before' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi' : t.label, t.states];
+    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free', prima: 'before' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi e in arrivo' : t.label, t.states];
   }));
   var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '', before: '' };
 
@@ -1518,12 +1520,47 @@
     var target = box.querySelector('a[href^="https://wa.me/"]') || box.querySelector('[data-plz="copy-link"]') || box.querySelector('[data-plz="rata"]');
     if (target) try { target.focus({ preventScroll: true }); } catch (_) {}
   }
+  // La rilettura mirata del palazzo aperto (il portal la avvia SUBITO DOPO
+  // aver disegnato) finisce senza ridisegnare quando non cambia niente o
+  // quando fallisce: la vista la segue da sé, così «Rileggo…» si vede, poi
+  // sparisce, e un errore compare subito con Riprova — non al prossimo
+  // cambio di mese, con numeri che intanto sembravano completi.
+  var loadWatch = null;
+  function watchLoad() {
+    if (loadWatch || !adapter || !doc || !root.setInterval || !viewAdmin()) return;
+    var L = adapter.state().palazzoLoad;
+    // Già com'era al disegno: niente da dire. Una lettura fallita (o finita)
+    // prima di questo giro si dice subito.
+    if (!L || !L.key || L.key !== ui.key || L === (last && last.load)) return;
+    if (L.state !== 'loading') return refreshLoad(true);
+    var key = L.key, t0 = Date.now();
+    refreshLoad();
+    loadWatch = root.setInterval(function () {
+      var L2 = adapter && adapter.state().palazzoLoad;
+      var done = !L2 || L2.key !== key || L2.state !== 'loading';
+      if (!done && Date.now() - t0 < 120000) return;
+      root.clearInterval(loadWatch); loadWatch = null;
+      if (done && doc.querySelector('.plz')) refreshLoad(true);
+    }, 300);
+  }
+  // Mentre si scrive in un campo del Palazzo si riscrivono solo l'avviso e
+  // «Da sistemare»: mai un campo sostituito sotto le dita.
+  function refreshLoad(full) {
+    if (!doc.querySelector('.plz')) return;
+    var a = doc.activeElement, typing = a && a.closest && a.closest('.plz') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    if (full && !typing) return patch();
+    var data = compute(); last = data;
+    if (!data.m.building || data.severe) return;
+    var l = doc.getElementById('plz-load'); if (l) l.innerHTML = loadNote(data);
+    var is = doc.getElementById('plz-issues'); if (is) is.innerHTML = issues(data);
+  }
   function mount() {
     if (!doc) return;
     var st = doc.getElementById('plz-stage'), w = world();
     lightsOn();
     syncFacade();
     if (last && last.m.building && !last.severe) { ensureContacts(last.m); ensureDocs(last.m); }
+    if (root.setTimeout) root.setTimeout(watchLoad, 0);
     if (!st || !w) return;
     if (last && last.m.building) ui.intro[last.m.building.key] = true;
     applyView();
@@ -1743,7 +1780,8 @@
       var detail = [];
       if (src) {
         var terms = [src.tipo, src.cedolare === true || src.cedolare === 'si' ? 'cedolare sì' : src.cedolare === false || src.cedolare === 'no' ? 'cedolare no' : '', src.deposito != null ? 'deposito ' + eur(src.deposito) : '',
-          src.locatore ? 'locatore ' + src.locatore : '', src.ibanMasked ? 'IBAN ' + src.ibanMasked + (src.ibanValid === false ? ' (non valido: non lo carico)' : '') : ''].filter(Boolean);
+          // Un IBAN non valido lo dicono già l'avviso della riga e «Dove pagano gli inquilini».
+          src.locatore ? 'locatore ' + src.locatore : '', src.ibanMasked && src.ibanValid !== false ? 'IBAN ' + src.ibanMasked : ''].filter(Boolean);
         if (terms.length) detail.push('<small class="plz-imp-terms">' + esc(terms.join(' · ')) + '</small>');
         (src.diffs || []).forEach(function (d) {
           detail.push('<small class="plz-imp-diff' + (d.locked ? ' is-locked' : '') + '"><b>' + esc(d.label) + '</b>: ' + esc(d.fromText || 'non indicato') + ' → ' + esc(d.toText || '') + (d.rates ? ' · ' + plural(d.rates, 'rata', 'rate') : '') +
@@ -1778,8 +1816,10 @@
     }).join('') + '</ul></div>' : '';
     var od = plan && plan.overdueNow && plan.overdueNow.length ? '<div class="plz-imp-od"><p class="plz-eyebrow">Rate già scadute oggi</p><ul>' + plan.overdueNow.map(function (x) {
       return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + '</li>';
-    }).join('') + '</ul><p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole.</p></div>' : '';
-    var pm = plan ? (plan.messages || []) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
+    }).join('') + '</ul><p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole («Pagato il» nella tabella vale solo per la prima rata di ogni interno).</p></div>' : '';
+    // Le rate già scadute le elenca il riquadro qui sotto: la stessa frase
+    // fra i messaggi sarebbe un doppione proprio dove si decide.
+    var pm = plan ? (plan.messages || []).filter(function (x) { return !(od && /già scadut/.test(x)); }) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
     return '<p class="plz-import-sum"><b>' + plural(P.rows.length + ((P.ignored || []).length), 'riga', 'righe') + '</b> · ' + plural(c.create, 'interno nuovo', 'interni nuovi') + ', ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + plural(c.contracts, 'contratto', 'contratti') + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + (apply ? ' da aggiornare)' : ' da completare)') : '') + ' · ' + plural(c.payments, 'rata', 'rate') + ' da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
       (pm.length ? '<div class="plz-imp-msgs" role="status">' + pm.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</div>' : '') +

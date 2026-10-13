@@ -612,6 +612,10 @@
 .plz-seg button{min-height:40px}
 .plz-btn.plz-sm,.plz-export .plz-btn,.plz-agroup .plz-btn{min-height:40px}
 .plz-close{width:40px;height:40px}
+/* Il tasto principale della proprietaria («Scrivi a BOOM») e le frecce del
+   mese: 44px e 40px, non 36 e 34. */
+.plz-actions .plz-btn{min-height:44px}
+.plz-month .plz-ico{min-width:40px;min-height:40px}
 .plz-ghostbox .plz-f-front small{letter-spacing:.5px!important;white-space:normal;text-align:center;line-height:1.2;padding:0 6px}
 .plz-rrow .plz-pill{white-space:normal;line-height:1.3}
 
@@ -695,6 +699,9 @@
 .plz-import-tab td small.plz-imp-diff.is-locked{color:var(--text-muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.25)}
 .plz-import-tab td small.plz-imp-alert{color:var(--plz-late);font-weight:500}
 .plz-import-tab td small.plz-warn{display:inline-block;margin:3px 0 0}
+/* Su telefono la tabella diventa schede (portal-mobile): l'Esito — verdetto,
+   differenze, avvisi — prende tutta la larghezza, non mezza scheda. */
+body.pm-on .plz-import-tab.pm-cards td:last-child{grid-column:1/-1}
 /* La carta su /rata: data del mandato e nota hanno lo stesso peso (la riga
    dell'aspetto è nome + ultimo piano, 96px; qui la nota tagliava il testo). */
 .plz-card .plz-look-row{grid-template-columns:minmax(150px,200px) minmax(0,1fr)}
