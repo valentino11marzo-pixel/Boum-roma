@@ -11,11 +11,14 @@
 // Response:  200 { ok, role, contract, property, signer, otherParty }
 //            404 { ok:false, error:'invalid_or_used' }
 //            410 { ok:false, error:'already_signed', role }
+//            409 { ok:false, error:'not_signable', reason } — firmato su carta
+//                o segnaposto del Palazzo: niente da firmare in digitale
 //            400 { ok:false, error:'missing_token' }
 
 import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
 import { findContractByToken, mandateCheck, landlordMandateCheck, tenantSideComplete, tenantSideWaiting, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
+import CS from '../../js/contract-state.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -38,6 +41,15 @@ export default async function handler(req, res) {
   if (!hit) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
 
   const { contract, role, coIndex } = hit;
+  // Firmato su carta o segnaposto (contratti presi in carico dal Palazzo):
+  // non c'è niente da firmare in digitale. Si risponde PRIMA di tutto il
+  // resto — prima del timbro «ha aperto», del ping all'operatore e
+  // soprattutto di ensureContractPdf, che su un token coniato prima della
+  // guardia avrebbe impaginato il modello BOOM su un contratto di carta.
+  // Stessa risposta di magic-sign/submit e di /api/sign/links.
+  if (CS.isPaper(contract) || CS.isPlaceholder(contract)) {
+    return res.status(409).json({ ok: false, error: 'not_signable', reason: CS.notSignableReason(contract) });
+  }
   const coT = role === 'cotenant' ? (contract.coTenants || [])[coIndex] || {} : null;
 
   // Sequential signing (BOOM protocol): il LATO CONDUTTORI firma per primo

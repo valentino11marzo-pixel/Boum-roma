@@ -140,7 +140,16 @@ function build(src = SRC0) {
     document: { getElementById: getEl, body: { classList: { add() {}, remove() {} } }, querySelectorAll: () => [] },
     firebase: { firestore: { FieldValue: { serverTimestamp: () => 'TS', delete: () => DEL, arrayUnion: (...v) => ({ __union: v }) } } },
     auth: { currentUser: { uid: 'admin', getIdToken: async () => 'tok' } },
-    fetch: async (url, opts) => { if (String(url).includes('/api/notify/send')) { mails.push(JSON.parse(opts.body)); return { ok: true, json: async () => ({ ok: true }) }; } throw new Error('rete non prevista: ' + url); },
+    fetch: async (url, opts) => {
+      if (String(url).includes('/api/notify/send')) { mails.push(JSON.parse(opts.body)); return { ok: true, json: async () => ({ ok: true }) }; }
+      // Il link della rata (op:'links', solo admin): derivato sul server, qui finto.
+      if (String(url).includes('/api/payments/rata')) {
+        const b = JSON.parse(opts.body), links = {};
+        (b.paymentIds || []).forEach(id => { links[id] = 'https://www.boomrome.com/rata?id=' + id + '&t=prova'; });
+        return { ok: true, json: async () => ({ ok: true, links, skipped: {} }) };
+      }
+      throw new Error('rete non prevista: ' + url);
+    },
     toast: (...a) => toasts.push(a), confirm: msg => { confirms.push(msg); return ctx.__confirmAnswer !== false; },
     logActivity: async (...a) => { activity.push(a); }, refresh: async () => {}, refreshOnly: async () => {}, renderPage() {}, buildNav() {}, checkAlerts() {},
     closeModal() {}, openModal: (type, data) => { getEl('modals').innerHTML = type === 'terminateContract' ? vm.runInContext('terminateContractModal', ctx)(data) : 'modal:' + type; },
@@ -749,9 +758,14 @@ const ARREARS = () => {
     assert.match(T.toasts.at(-1)[1], /segnalato/);
   });
   await T.run("sendPaymentReminder('pay_c8_2026-10')");
-  await check('inquilino senza profilo: niente email del portale, rimando al link della rata dal Palazzo', () => {
+  await check('inquilino senza profilo: niente email del portale, il sollecito è il link della SUA rata (in inglese, da copiare se manca il telefono)', () => {
     assert.equal(T.mails.length, 0);
-    assert.match(T.toasts.at(-1)[2], /link della rata dal Palazzo/);
+    assert.equal(T.writes.length, 0, 'aprire il sollecito non scrive niente: si registra quando parte');
+    const html = T.getEl("modals").innerHTML;
+    assert.match(html, /Hello Mario, this is BOOM\. Your rent for October 2026 \(€1,000\.00, due 5 Oct 2026\) is still open/);
+    assert.ok(html.includes('https://www.boomrome.com/rata?id=pay_c8_2026-10&amp;t=prova&amp;lang=en'), html);
+    assert.match(html, /Nessun telefono in archivio/);
+    assert.ok(!/wa\.me/.test(html), 'senza un numero sicuro niente WhatsApp');
   });
   await check('il livello di sollecito vede le rate rinominate «overdue» in memoria, mai le segnalate', () => {
     const late = new Date(Date.now() - 20 * 864e5);
@@ -808,7 +822,7 @@ await mutant('la data del clic al posto dell’accredito', "status: 'paid', paid
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria'})");
   assert.equal(T.doc('payments/pay_c8_2026-10').paidDate, '2026-10-04');
 });
-await mutant('l’email automatica alla proprietaria', "{ paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true }\n            );\n        }\n        // L'inquilino", "{ paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount }\n            );\n        }\n        // L'inquilino", async T => {
+await mutant('l’email automatica alla proprietaria', "{ paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true, skipOwnerCopy: isAdmin() }\n            );\n        }\n        // L'inquilino", "{ paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount }\n            );\n        }\n        // L'inquilino", async T => {
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria'})");
   assert.ok(!T.mails.some(m => m.to === 'proprietaria@example.invalid'));
 });
@@ -840,7 +854,12 @@ await mutant('l’attestazione annullata riusata', [["&& !d.voided && !!safeUrl(
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
   await T.run("undoIncasso('pay_c8_2026-10')");
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-05',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
-  assert.ok(!T.doc('documents/' + T.doc('payments/pay_c8_2026-10').receiptDocId).voided);
+  // Dal 13/10/2026 anche BOOM_RENT.isReceiptDocument scarta le annullate: col
+  // difetto rimesso la nuova attestazione può mancare del tutto — è la stessa
+  // caduta, detta come asserzione (non come TypeError).
+  const rid = T.doc('payments/pay_c8_2026-10').receiptDocId;
+  assert.ok(rid && T.doc('documents/' + rid), 'nessuna attestazione valida dopo il nuovo incasso');
+  assert.ok(!T.doc('documents/' + rid).voided);
 });
 await mutant('un bonifico segnalato sollecitato', "if (st !== 'overdue' && st !== 'due') return toast('info'", "if (false) return toast('info'", async T => {
   T.S.users.push({ id: 't7', role: 'tenant', name: 'Profilo Sette', email: 'sette@example.invalid' });

@@ -25,6 +25,15 @@
   function day(value) {
     if (value == null || value === '') return '';
     if (typeof value === 'string') {
+      // Un ISTANTE (ora + fuso dichiarato: Z o ±hh:mm) è un momento, non un
+      // giorno: lo si porta al giorno civile di Roma, come i Timestamp. Un
+      // pagamento delle 23:30 UTC del 31/12 è del 1° gennaio a Roma (13/10/2026,
+      // rilievo 73: prima si tagliavano i primi 10 caratteri). Una stringa
+      // senza fuso resta il giorno che dice.
+      if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/i.test(value)) {
+        var instant = new Date(value);
+        if (Number.isFinite(instant.getTime())) return day(instant);
+      }
       var match = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(value);
       if (match) {
         var d = new Date(Date.UTC(+match[1], +match[2] - 1, +match[3]));
@@ -55,8 +64,10 @@
   // da "pagata": torna DA VERIFICARE (mai pagabile da sola, decide un umano).
   // Una contestazione vinta o chiusa senza seguito la lascia pagata; un
   // rimborso parziale (es. la sola commissione) pure. Vale SOLO su una rata
-  // ancora 'paid': se l'operatore la riapre (pending), i segni restano come
-  // storia e non la bloccano più.
+  // 'paid', e su QUALUNQUE incasso la porti a 'paid': per questo il portal,
+  // quando riapre la rata (↩ Riapri la rata, undoIncasso), toglie i segni
+  // dalla rata e li conserva in incassoAnnullato.was.moneyBack — lasciati lì,
+  // il bonifico o la nuova carta registrati dopo tornerebbero «review».
   var DISPUTE_LIVE = ['open', 'lost', 'needs_response', 'under_review', 'warning_needs_response', 'warning_under_review'];
   function moneyBack(payment) {
     var p = payment || {};
@@ -142,8 +153,11 @@
       && amount(p.amount) > 0 && !p.paidDate && !p.bankTxId;
   }
 
+  // Una ricevuta ANNULLATA (incasso registrato per errore e annullato:
+  // voided:true, «[ANNULLATA] …») non è una ricevuta valida per nessuno:
+  // non la mostra /casa, non la apre il portal (13/10/2026).
   function isReceiptDocument(doc, paymentId) {
-    return !!doc && doc.type === 'receipt' && doc.paymentId === paymentId;
+    return !!doc && doc.type === 'receipt' && doc.paymentId === paymentId && doc.voided !== true;
   }
 
   function isRentPayment(payment) {
@@ -167,8 +181,21 @@
 
   // BOOM acts as an agency: principal is separate from earned payment fees.
   // Only recorded settled fees/costs are used; no historical split is inferred.
-  function agencyCollections(payments, year) {
+  // Dal 13/10/2026 commissione, costo e margine di un incasso con carta o
+  // SEPA stanno in paymentCosts/<paymentId> (admin-only: la rata la legge la
+  // proprietaria). `costs` = elenco di quei documenti (id = paymentId, o con
+  // il campo paymentId) oppure un indice { paymentId: doc }. Le rate pagate
+  // prima portano ancora i campi sulla rata: lì vince la rata (nessuna
+  // migrazione).
+  function costIndex(costs) {
+    var idx = Object.create(null);
+    if (Array.isArray(costs)) costs.forEach(function (c) { var id = c && str(c.paymentId || c.id); if (id) idx[id] = c; });
+    else if (costs && typeof costs === 'object') Object.keys(costs).forEach(function (k) { if (costs[k]) idx[k] = costs[k]; });
+    return idx;
+  }
+  function agencyCollections(payments, year, costs) {
     var out = { ownerRent: 0, deposits: 0, otherCharges: 0, fees: 0, cardFees: 0, sepaFees: 0, knownCosts: 0, knownMargin: 0, unknownFeeCount: 0, unknownCostCount: 0 };
+    var byPayment = costIndex(costs);
     function add(name, value) { out[name] = round(out[name] + value); }
     list(payments).forEach(function (p) {
       if (paymentState(p) !== 'paid') return;
@@ -177,7 +204,8 @@
       // Rome, including UTC timestamps in the last hour of December 31.
       var recordedDay = day(typeof raw === 'string' && raw.includes('T') ? new Date(raw) : raw);
       if (!recordedDay || recordedDay.slice(0, 4) !== String(Number(year))) return;
-      var principal = amount(p.amount), fee = amount(p.serviceFeeEur), type = key(p.type);
+      var cst = byPayment[str(p.id)] || {};
+      var principal = amount(p.amount), fee = p.serviceFeeEur != null ? amount(p.serviceFeeEur) : amount(cst.serviceFeeEur), type = key(p.type);
       if (principal != null) add(isRentPayment(p) ? 'ownerRent' : ['deposit', 'deposit-balance'].includes(type) ? 'deposits' : 'otherCharges', principal);
       // sddFeeEur belongs to an attempted charge; serviceFeeEur is recorded
       // by the settled webhook for both card and SEPA.
@@ -185,7 +213,7 @@
       add('fees', fee);
       if (p.paidVia === 'stripe') add('cardFees', fee);
       if (p.paidVia === 'sepa') add('sepaFees', fee);
-      var cost = amount(p.stripeCostEur);
+      var cost = p.stripeCostEur != null ? amount(p.stripeCostEur) : amount(cst.stripeCostEur);
       if (cost == null) { out.unknownCostCount++; return; }
       add('knownCosts', cost); add('knownMargin', fee - cost);
     });

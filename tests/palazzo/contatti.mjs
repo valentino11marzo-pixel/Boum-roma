@@ -106,22 +106,22 @@ await check('la proprietaria: i SUOI contratti, quello di un altro omesso (mai u
 });
 await check('dal profilo: telefono e email ripuliti; mai CF né indirizzo', async () => {
   const r = await call('tok-owner', { contractIds: ['c1'] });
-  assert.deepEqual(r.body.contacts.c1, [{ role: 'tenant', name: 'Inquilina Uno', phone: '3331112222', email: 'uno@example.invalid' }]);
+  assert.deepEqual(r.body.contacts.c1, [{ role: 'tenant', name: 'Inquilina Uno', phone: '3331112222', e164: '+393331112222', wa: '393331112222', phoneKind: 'it', phoneAmbiguous: false, email: 'uno@example.invalid' }]);
   const blob = JSON.stringify(r.body);
   assert.ok(!blob.includes('RSSMRA') && !blob.includes('Segreta'), blob);
 });
 await check('dalla proposta quando contratto e profilo tacciono; i co-conduttori coi loro recapiti', async () => {
   const r = await call('tok-owner', { contractIds: ['c2'] });
   assert.deepEqual(r.body.contacts.c2, [
-    { role: 'tenant', name: 'Inquilino Due', phone: '+39061234567', email: 'due@example.invalid' },
-    { role: 'cotenant', name: 'Coinquilina', phone: '+393470001111', email: 'co@example.invalid' },
-    { role: 'cotenant', name: 'Senza recapiti', phone: '', email: '' }
+    { role: 'tenant', name: 'Inquilino Due', phone: '+39061234567', e164: '+39061234567', wa: '39061234567', phoneKind: 'it', phoneAmbiguous: false, email: 'due@example.invalid' },
+    { role: 'cotenant', name: 'Coinquilina', phone: '+393470001111', e164: '+393470001111', wa: '393470001111', phoneKind: 'it', phoneAmbiguous: false, email: 'co@example.invalid' },
+    { role: 'cotenant', name: 'Senza recapiti', phone: '', e164: null, wa: null, phoneKind: 'empty', phoneAmbiguous: false, email: '' }
   ]);
   assert.ok(!JSON.stringify(r.body).includes('XXXXXX'));
 });
 await check('una nota non diventa un numero, una non-email non diventa un indirizzo', async () => {
   const r = await call('tok-owner', { contractIds: ['c3'] });
-  assert.deepEqual(r.body.contacts.c3, [{ role: 'tenant', name: 'Tre', phone: '', email: '' }]);
+  assert.deepEqual(r.body.contacts.c3, [{ role: 'tenant', name: 'Tre', phone: '', e164: null, wa: null, phoneKind: 'empty', phoneAmbiguous: false, email: '' }]);
   assert.equal(cleanPhone('00 39 333 1234567'), '+393331234567');
   assert.equal(cleanPhone('12'), '');
 });
@@ -143,7 +143,18 @@ await check('un altro proprietario non vede i contratti di questa', async () => 
 });
 await check('contactsOf: il contratto vince sul profilo, il profilo sulla proposta', async () => {
   const out = contactsOf({ tenantName: 'A', tenantPhone: '+39 333 0000001' }, { phone: '333 0000002', email: 'p@example.invalid' }, { tenants: [{ phone: '333 0000003', email: 'q@example.invalid' }] });
-  assert.deepEqual(out, [{ role: 'tenant', name: 'A', phone: '+393330000001', email: 'p@example.invalid' }]);
+  assert.deepEqual(out, [{ role: 'tenant', name: 'A', phone: '+393330000001', e164: '+393330000001', wa: '393330000001', phoneKind: 'it', phoneAmbiguous: false, email: 'p@example.invalid' }]);
+});
+await check('il telefono passa da phoneIntl (UNA copia): tel: ed WhatsApp solo se il numero è chiaro, l\'ambiguo lo dice', async () => {
+  const { phoneOf } = await import('../../api/owners/contatti.js');
+  // fisso o forma nazionale ambigua ('0532…' è Ferrara e anche la Turchia): niente WhatsApp
+  assert.deepEqual(phoneOf('0532 000 00 11'), { phone: '05320000011', e164: '+3905320000011', wa: null, phoneKind: 'it-fixed', phoneAmbiguous: true });
+  // straniero col prefisso: si fida del prefisso
+  assert.deepEqual(phoneOf('00 90 532 000 0011'), { phone: '+905320000011', e164: '+905320000011', wa: '905320000011', phoneKind: 'intl', phoneAmbiguous: false });
+  // cifre senza prefisso né forma italiana: mostrate, mai un link inventato
+  assert.deepEqual(phoneOf('12345678'), { phone: '12345678', e164: null, wa: null, phoneKind: 'unknown', phoneAmbiguous: false });
+  // display e numero da comporre dalla STESSA fonte: la nota del contratto salta al profilo
+  assert.equal(phoneOf('chiamare dopo le 18', '+39 333 000 0012').wa, '393330000012');
 });
 await check('giunzioni: rotta senza regola nuova in vercel.json, portal e vista la usano', async () => {
   const v = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));

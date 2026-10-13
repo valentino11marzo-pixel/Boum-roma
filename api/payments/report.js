@@ -6,6 +6,42 @@ import { fsGetVersioned, fsCommit, readJson } from '../homie/_lib.js';
 import RENT from '../../js/rent-engine.js';
 import { createHash } from 'node:crypto';
 
+// LA SEGNALAZIONE SI TOGLIE TUTTA (13/10/2026). Annullare una segnalazione —
+// l'inquilino che ritira la sua, o l'operatore che revoca quella sbagliata —
+// azzerava solo il segnale (tenantReported) e lasciava sulla rata data, nota,
+// ricevuta ed elenco: una nuova segnalazione fatta da /casa (action 'report',
+// che non riscrive la testa) li ereditava e risultava «con ricevuta» per un
+// bonifico che nessuno aveva provato. Ora si puliscono, come fa /rata, e ciò
+// che c'era resta a parte, come storia (tenantReportWithdrawn). Pura.
+const clip = (v, n) => (v == null ? '' : String(v)).trim().slice(0, n);
+const isoOf = (v) => {
+  if (!v) return null;
+  if (typeof v === 'string') return v;
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v.toDate === 'function') { try { return v.toDate().toISOString(); } catch (_) { return null; } }
+  if (typeof v.seconds === 'number') return new Date(v.seconds * 1000).toISOString();
+  return null;
+};
+export function reportHistory(p) {
+  const pay = p || {};
+  const list = Array.isArray(pay.tenantReports) ? pay.tenantReports.filter(x => x && typeof x === 'object').slice(-6) : [];
+  if (list.length) return list.map(x => ({ at: clip(x.at, 40) || null, date: clip(x.date, 10) || null, note: clip(x.note, 500),
+    proofUrl: clip(x.proofUrl, 1000), proofName: clip(x.proofName, 120), via: clip(x.via, 20) }));
+  if (pay.tenantReported === true || pay.tenantReportDate || pay.proofUrl || pay.tenantNotes) {
+    return [{ at: isoOf(pay.tenantReportedAt), date: clip(pay.tenantReportDate, 10) || null, note: clip(pay.tenantNotes, 500),
+      proofUrl: clip(pay.proofUrl, 1000), proofName: clip(pay.proofName, 120), via: clip(pay.reportedVia, 20) }];
+  }
+  return [];
+}
+export function withdrawFields(p, { by, reason, reviewId } = {}) {
+  return {
+    tenantReported: false, tenantReportedAt: null, tenantReportWithdrawnAt: new Date(),
+    tenantReportDate: null, tenantNotes: null, proofUrl: null, proofName: null, tenantReports: null,
+    tenantReportWithdrawn: { at: new Date().toISOString(), by: by || 'tenant', ...(reason ? { reason: clip(reason, 500) } : {}),
+      ...(reviewId ? { reviewId } : {}), reports: reportHistory(p) },
+  };
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -30,7 +66,7 @@ export default async function handler(req, res) {
       if (!p.tenantReported && ['due','overdue'].includes(state) && p.tenantReportReviewId) return res.status(200).json({ok:true,state,alreadyReviewed:true});
       if (!RENT.canReviewReport(p)) return res.status(409).json({ok:false,error:'state_changed'});
       const auditId = 'rent-report-' + createHash('sha256').update(id + '|' + version.updateTime).digest('hex').slice(0,40);
-      const fields = {tenantReported:false,tenantReportedAt:null,tenantReportReviewId:auditId,
+      const fields = {...withdrawFields(p,{by:'admin',reason,reviewId:auditId}),tenantReportReviewId:auditId,
         ...(String(p.status || '').trim().toLowerCase() === 'reported' ? {status:'pending'} : {})};
       await fsCommit([
         {docPath:'payments/' + id,fields,precondition:{updateTime:version.updateTime}},
@@ -47,7 +83,7 @@ export default async function handler(req, res) {
     if (action === 'withdraw' && (state !== 'reported' || !['pending','due','overdue'].includes(p.status))) return res.status(409).json({ok:false,error:'state_changed'});
     const fields = action === 'report'
       ? {tenantReported:true,tenantReportedAt:new Date()}
-      : {tenantReported:false,tenantReportedAt:null};
+      : withdrawFields(p,{by:'tenant'});
     await fsCommit([{docPath:'payments/' + id,fields,precondition:{updateTime:version.updateTime}}]);
     return res.status(200).json({ok:true,state:RENT.paymentState({...p,...fields})});
   } catch (error) {

@@ -16,7 +16,7 @@
 
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { convertPaToContract } from './convert.js';
+import { convertPaToContract, paOwnerGuard } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 import { askLandlordScheda } from './_askscheda.js';
@@ -72,15 +72,13 @@ export default async function handler(req, res) {
   // proposta deve riguardare un immobile suo (ownerId === uid), e le leve
   // dell'operatore — scegliere un altro immobile, crearne uno dalla
   // proposta, scavalcare la guardia sovrapposizioni — restano all'admin.
+  // Il cancello è UNO (paOwnerGuard, esportato da convert.js e usato anche
+  // da resolve): stessa regola, stesso codice d'errore, una copia sola.
+  // Le leve dell'operatore (b.propertyId, createProperty) per un proprietario
+  // sono già un 403 lì dentro.
   const isAdminCaller = auth.profile.role === 'admin';
-  if (!isAdminCaller) {
-    const ownPropId = pa.propertyId || null;
-    let ownProp = null;
-    if (ownPropId) { try { ownProp = await fsGet('properties/' + ownPropId); } catch (_) { ownProp = null; } }
-    if (!ownProp || !ownProp.ownerId || ownProp.ownerId !== auth.uid) {
-      return res.status(403).json({ ok: false, error: 'not_your_proposal' });
-    }
-  }
+  const deny = await paOwnerGuard(auth, pa, isAdminCaller ? b : { ...b, propertyId: undefined, createProperty: false });
+  if (deny) return res.status(403).json({ ok: false, error: deny });
   if (pa.status !== 'accepted' && pa.status !== 'paid') {
     return res.status(409).json({ ok: false, error: 'not_accepted_yet', status: pa.status });
   }

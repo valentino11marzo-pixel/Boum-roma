@@ -565,7 +565,7 @@ const CS = require('../../js/contract-state.js');
   const sendSign = (await import('../../api/preagreement/send-sign.js')).default;
   const before = DB.size;
   const r1 = await call(sendSign, { headers: { authorization: 'Bearer tok-own2' }, body: { id: 'pa1' } });
-  ok(r1.statusCode === 403 && r1.body.error === 'not_your_proposal' && DB.size === before, 'send-sign: un proprietario sulla proposta di un ALTRO immobile → 403, zero scritture', r1.body);
+  ok(r1.statusCode === 403 && r1.body.error === 'forbidden_property' && DB.size === before, 'send-sign: un proprietario sulla proposta di un ALTRO immobile → 403, zero scritture', r1.body);
   const r2 = await call(sendSign, { headers: { authorization: 'Bearer tok-own1' }, body: { id: 'pa1' } });
   ok(r2.statusCode === 409 && r2.body.error === 'not_accepted_yet', 'send-sign: la proprietaria del SUO immobile passa il controllo (poi le regole di sempre)', r2.body);
   const r3 = await call(sendSign, { headers: { authorization: 'Bearer tok-own1' }, body: { id: 'pa2', createProperty: true } });

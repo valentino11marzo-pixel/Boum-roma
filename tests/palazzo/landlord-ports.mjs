@@ -266,7 +266,7 @@ await check('portal/ingest: la proprietaria (e l\'inquilino) ricevono 403 prima 
   assert.equal(a.statusCode, 500); assert.equal(a.body.error, 'server_missing_anthropic_key', 'oltre il cancello (qui senza chiave: nessuna chiamata al modello)');
 });
 
-// ── send-sign · resolve: NON di questo filone ─────────────────────────────
+// ── send-sign · resolve: il cancello del proprietario (ora vincolante) ─────
 // Le due porte accettano ancora qualunque proprietario su qualunque paId: un
 // 🖊 Magic Sign sulla proposta di un ALTRO crea contratto, token e PDF e
 // manda le email al suo cliente e al suo locatore. La guardia è pronta
@@ -275,7 +275,8 @@ await check('portal/ingest: la proprietaria (e l\'inquilino) ricevono 403 prima 
 // fallire la suite ma lo dice; quando la guardia c'è, si toglie il nome da
 // PENDING_OTHERS e il controllo diventa vincolante. Gira per ULTIMO fra gli
 // handler: se la porta è aperta scrive davvero (contratto, token, email).
-const PENDING_OTHERS = new Set(['send-sign', 'resolve']);
+// Chiuse il 13/10/2026 (filone S9): send-sign e resolve usano paOwnerGuard.
+const PENDING_OTHERS = new Set([]);
 const pending = [];
 for (const [name, h] of [['send-sign', sendSign], ['resolve', resolvePa]]) {
   await check(name + ': la proprietaria sulla proposta di un ALTRO → 403, nessuna scrittura né email' + (PENDING_OTHERS.has(name) ? ' (in attesa del filone preagreement)' : ''), async () => {

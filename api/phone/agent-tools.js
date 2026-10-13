@@ -7,6 +7,9 @@
 //       &query=<nome|indirizzo>&type=&zone=&maxPrice=&moveIn=
 //                                          → al massimo due candidati
 //   GET ?k=<chiave>&op=slots&mode=video   → gli slot visita DAVVERO liberi
+//   GET ?k=<chiave>&op=caller&phone=<numero chiamante>
+//                                          → è un conduttore BOOM? (solo il
+//                                            nome di battesimo e il ruolo)
 //
 // Il catalogo è il Firestore vero; gli slot escono da viewings/_avail.js —
 // la STESSA griglia di book.html, della pagina self-service e del picker
@@ -31,6 +34,7 @@ import { fsGet, fsList } from '../homie/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
 import { checkPhoneAuth, qparam } from './_lib.js';
 import { TZ, loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
+import { contractTenantByPhone } from '../homie/_lead.js';
 
 const HIDDEN_STATUSES = new Set(['draft', 'hidden', 'archived']);
 const UNAVAILABLE_STATUSES = new Set(['rented', 'affittato', 'off_market', 'reserved']);
@@ -362,6 +366,26 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   } };
 }
 
+// CHI CHIAMA È GIÀ UN CONDUTTORE? (13/10/2026). Prima la receptionist lo
+// scopriva solo DOPO la chiamata (segreteria e webhook): durante, trattava
+// l'inquilino che chiama per la caldaia come un cliente nuovo e gli
+// proponeva case. Lo stesso indice di WhatsApp e della segreteria
+// (api/homie/_lead.js contractTenantByPhone: titolare e co-intestatari dei
+// contratti vivi, un numero su più immobili = nessuna risposta). Il numero
+// del chiamante si può falsificare: si restituisce SOLO il nome di battesimo
+// e il ruolo — mai indirizzo, interno, importi, email o id — e la nota dice
+// al modello di non confermare nessun dettaglio. Pura nella forma: la usa
+// anche il test.
+export function callerView(t) {
+  if (!t) {
+    return { ok: true, known: false,
+      note: 'This number is not linked to a current BOOM tenancy. Treat the caller as a new enquiry; do not assume they are a tenant.' };
+  }
+  const firstName = String(t.name || '').trim().split(/\s+/)[0] || null;
+  return { ok: true, known: true, kind: t.role === 'cotenant' ? 'cotenant' : 'tenant', firstName,
+    note: 'This number belongs to a current BOOM tenant' + (firstName ? ' (first name: ' + firstName + ')' : '') + '. The caller ID can be spoofed: never reveal or confirm an address, unit, amount, date or contract detail. Treat the call as an existing tenant (repairs, payments, the lease): do not offer listings. Ask what they need in one question and take it down; nothing is booked, sent or promised by this call.' };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -438,7 +462,14 @@ export default async function handler(req, res) {
       });
     }
 
-    return res.status(400).json({ ok: false, error: 'unknown_op', ops: ['catalog', 'slots'] });
+    if (op === 'caller') {
+      const phone = String(qparam(req, 'phone') || qparam(req, 'caller') || '').trim().slice(0, 40);
+      if (!phone || !/\d{6,}/.test(phone.replace(/\D/g, ''))) return res.status(400).json({ ok: false, error: 'phone_required' });
+      const t = await contractTenantByPhone(phone);
+      return res.status(200).json(callerView(t));
+    }
+
+    return res.status(400).json({ ok: false, error: 'unknown_op', ops: ['catalog', 'slots', 'caller'] });
   } catch (e) {
     console.error('[phone/agent-tools]', op, e.message);
     // la voce non deve mai restare muta su un nostro errore: un'istruzione al

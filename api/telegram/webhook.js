@@ -27,6 +27,8 @@ import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
 import { aiStatusMessage, toggleAi } from '../ai/_status.js';
 import { handoverSegretaria, segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
 import { palazzoMessage } from './_palazzo.js';
+import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -83,6 +85,27 @@ async function fmtSnapshot() {
     `${i + 1}. <b>${(a.kind || 'azione')}</b> · ${(a.summary || '').slice(0, 80)} <i>(${a.id.slice(0, 8)})</i>`
   );
   return `<b>📋 ${pending.length} in attesa</b>\n` + lines.join('\n');
+}
+
+// /snapshot, in una copia pura (si testa senza Telegram). Le stesse letture
+// di api/agent/state.snapshot.js: «da firmare» esclude i contratti firmati
+// su carta e i segnaposto del Palazzo (non c'è una firma digitale da
+// raccogliere: contarli era un falso allarme), e «scaduti» è lo stato di
+// BOOM_RENT — un bonifico SEGNALATO dall'inquilino è da verificare, non in
+// ritardo, e si conta a parte.
+export function snapshotLines({ leads = [], contracts = [], payments = [], pendingActions = [], now = new Date() } = {}) {
+  const newLeads = leads.filter(l => l.status === 'new' || !l.status).length;
+  const activeC = contracts.filter(c => c.status === 'active').length;
+  const unsigned = contracts.filter(c => c.status !== 'draft' && !CS.notSignable(c) && (!c.landlordSignature || !c.tenantSignature)).length;
+  const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue').length;
+  const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported').length;
+  return [
+    '<b>📊 Snapshot BOOM</b>',
+    `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
+    `📄 Contratti attivi: ${activeC} · da firmare: ${unsigned}`,
+    `💶 Pagamenti scaduti: ${overdue}` + (reported ? ` · segnalati da verificare: ${reported}` : ''),
+    `⚡ Azioni in attesa: ${pendingActions.length}`,
+  ];
 }
 
 export default async function handler(req, res) {
@@ -619,18 +642,7 @@ export default async function handler(req, res) {
             fsList('payments', { limit: 100 }),
             fsList('action_queue', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 50 }),
           ]);
-          const newLeads = leads.filter(l => l.status === 'new' || !l.status).length;
-          const activeC = contracts.filter(c => c.status === 'active').length;
-          const unsigned = contracts.filter(c => c.status !== 'draft' && (!c.landlordSignature || !c.tenantSignature)).length;
-          const now = new Date();
-          const overdue = payments.filter(p => p.status === 'pending' && p.dueDate && new Date(p.dueDate) < now).length;
-          await tgSend(chatId, [
-            '<b>📊 Snapshot BOOM</b>',
-            `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
-            `📄 Contratti attivi: ${activeC} · da firmare: ${unsigned}`,
-            `💶 Pagamenti scaduti: ${overdue}`,
-            `⚡ Azioni in attesa: ${pendingActions.length}`,
-          ].join('\n'));
+          await tgSend(chatId, snapshotLines({ leads, contracts, payments, pendingActions, now: new Date() }).join('\n'));
         } catch (e) {
           await tgSend(chatId, '⚠️ Snapshot non disponibile al momento.');
         }

@@ -35,18 +35,17 @@ import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import CANONE from '../../js/canone-engine.js';
 import CS from '../../js/contract-state.js';
+import { wa } from '../_pdfbrand.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 
 // WinAnsi safety: pdf-lib StandardFonts muoiono su caratteri fuori CP1252
 // (→, ✓, − matematico, ☒…). Tutto il testo passa da qui.
-function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[\u2192\u2794\u27A1]/g, '->')
-    .replace(/[\u2713\u2714\u2611\u2612]/g, 'X')
-    .replace(/\u2212/g, '-')
-    .replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2026\u20AC]/g, '');
-}
+// La traslitterazione è UNA, in api/_pdfbrand.js (13/10/2026): la copia
+// locale cancellava le lettere turche e cirilliche invece di traslitterarle
+// («Çağrı Şahin» → «Çar ahin», «Иван» → «») — un nome sparito da un documento che va a
+// un'organizzazione o all'Agenzia delle Entrate.
+
 // Numeri all'italiana DETERMINISTICI: 1.250,00 — mai toLocaleString, che
 // su un runtime con ICU ridotta degrada in silenzio a "1250,00" (la lezione
 // gia' pagata su /executive). Su un foglio che va a un'organizzazione e

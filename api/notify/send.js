@@ -9,7 +9,9 @@
 //
 // Method:   POST { to, params } — params è l'oggetto del vecchio template
 //           EmailJS: heading, subheading, intro, card_title, r1..r4
-//           (icon/label/value), closing, cta_text, portal_link.
+//           (icon/label/value), closing, cta_text, portal_link (≤ 2048
+//           caratteri: un link più lungo è 400 bad_link, mai troncato),
+//           lang? ('it'|'en', il piede; senza, dedotta dal testo).
 // Headers:  Authorization: Bearer <firebase-id-token> (admin/owner/landlord)
 // Response: { ok } | { ok:false, error }
 //
@@ -40,6 +42,28 @@ const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 30;
 const rateOk = (uid) => { const n = Date.now(); const e = RL.get(uid); if (!e || n - e.t >= RL_WINDOW) { RL.set(uid, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; };
 
 const low = (v) => String(v == null ? '' : v).trim().toLowerCase();
+
+// Il bottone porta spesso un link di Storage firmato (token nel query string,
+// percorso codificato): 300 caratteri lo tagliavano e il tasto apriva un 403.
+// Il tetto è ora quello di un URL ragionevole; oltre, la richiesta si
+// RIFIUTA (400 bad_link) invece di spedire un link troncato in silenzio.
+export const PORTAL_LINK_MAX = 2048;
+
+// La lingua dell'email, per il piede: `params.lang` ('it'|'en') vince; senza,
+// la si legge dalle parole del messaggio (i template del portal agli inquilini
+// sono in inglese, quelli all'operatore e ai proprietari in italiano). Pareggio
+// o nessun indizio → italiano, la lingua di sempre del portal. Pura.
+const IT_CUES = /\b(il|lo|la|gli|le|di|del|della|dei|per|con|tuo|tua|nuovo|nuova|pagamento|notifica|scadenza|ricevuto|ricevuta|inquilino|proprietario|immobile|rata|contratto|manutenzione|aggiornamento|apri|è|sono)\b/gi;
+const EN_CUES = /\b(the|your|you|has|been|with|new|payment|notification|maintenance|due|received|tenant|landlord|property|view|update|contract|open|please|is|are)\b/gi;
+export function emailLang(p) {
+  const declared = low(p && p.lang);
+  if (declared === 'it' || declared === 'en') return declared;
+  const text = ['heading', 'subheading', 'intro', 'card_title', 'closing', 'cta_text', 'r1_label', 'r2_label', 'r3_label', 'r4_label']
+    .map(k => String((p && p[k]) || '')).join(' ');
+  const it = (text.match(IT_CUES) || []).length, en = (text.match(EN_CUES) || []).length;
+  return en > it ? 'en' : 'it';
+}
+export const FOOTER = { it: 'Messaggio automatico del BOOM Portal.', en: 'Automated message from the BOOM Portal.' };
 // Il bottone dell'email: l'admin può puntare ovunque (http/https), gli altri
 // solo al sito di BOOM. Pura: si testa senza rete.
 export function linkAllowed(raw, isAdmin) {
@@ -96,7 +120,7 @@ export default async function handler(req, res) {
   const p = (body || {}).params || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'bad_recipient' });
   const isAdmin = auth.profile.role === 'admin';
-  if (p.portal_link && !linkAllowed(p.portal_link, isAdmin)) return res.status(400).json({ ok: false, error: 'bad_link' });
+  if (p.portal_link && (String(p.portal_link).length > PORTAL_LINK_MAX || !linkAllowed(p.portal_link, isAdmin))) return res.status(400).json({ ok: false, error: 'bad_link' });
   if (!isAdmin) {
     let okTo;
     try { okTo = await landlordMayEmail(auth, to); }
@@ -116,8 +140,8 @@ export default async function handler(req, res) {
       ? rule() + rows.map((r) => fine(`${esc(r.icon)} <strong>${esc(r.label)}</strong> — ${esc(r.value)}`)).join('') + rule()
       : '')
     + (p.closing ? para(esc(p.closing).replace(/\n/g, '<br>')) : '')
-    + (p.portal_link && p.cta_text ? btn(clip(p.portal_link, 300), esc(p.cta_text)) : '')
-    + fine('Messaggio automatico del BOOM Portal.');
+    + (p.portal_link && p.cta_text ? btn(String(p.portal_link).trim(), esc(p.cta_text)) : '')
+    + fine(FOOTER[emailLang(p)]);
 
   try {
     await Promise.race([

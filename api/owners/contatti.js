@@ -11,8 +11,16 @@
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>
 // Body:     { contractIds: [<id>, …] }   (≤ 120, id validati)
-// Response: { ok, contacts: { <contractId>: [{ role, name, phone, email }] },
-//             denied, missing }
+// Response: { ok, contacts: { <contractId>: [{ role, name, phone, e164, wa,
+//             phoneKind, phoneAmbiguous, email }] }, denied, missing }
+//   phone       → il numero com'è scritto (cifre, + iniziale), da mostrare;
+//   e164        → il numero per tel: (null se non è chiaramente un numero);
+//   wa          → le cifre per wa.me (null = niente WhatsApp: fisso o forma
+//                 ambigua — '0532…' è Ferrara e anche la Turchia);
+//   phoneKind   → 'it' | 'it-fixed' | 'intl' | 'unknown' | 'empty';
+//   phoneAmbiguous → true quando il numero potrebbe essere di un altro paese.
+//   La normalizzazione è js/contract-state.js phoneIntl (UNA copia: la
+//   stessa del Palazzo e del riconoscimento WhatsApp). Non indovina mai.
 //
 // Regole dure (tests/palazzo/contatti.mjs):
 // - admin: qualunque contratto. landlord/owner: SOLO i contratti il cui
@@ -28,6 +36,7 @@
 
 import { fsGetMany, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import CS from '../../js/contract-state.js';
 
 const ID_RE = /^[\w.-]{1,80}$/;
 const MAX_IDS = 120;
@@ -48,23 +57,37 @@ export function cleanEmail(v) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : '';
 }
 
+// Il primo telefono valido fra le fonti, in ordine, con la sua forma
+// internazionale: { phone, e164, wa, phoneKind, phoneAmbiguous }. Il numero
+// mostrato e quello da comporre vengono dalla STESSA fonte (mai il display
+// del contratto col numero della proposta).
+export function phoneOf(...raws) {
+  for (const raw of raws) {
+    const phone = cleanPhone(raw);
+    if (!phone) continue;
+    const n = CS.phoneIntl(clip(raw, 40));
+    return { phone, e164: n.e164 || null, wa: n.wa || null, phoneKind: n.kind, phoneAmbiguous: n.ambiguous === true };
+  }
+  return { phone: '', e164: null, wa: null, phoneKind: 'empty', phoneAmbiguous: false };
+}
+
 // Il titolare + i co-conduttori di UN contratto, dalle tre fonti in ordine.
 export function contactsOf(contract, user, pa) {
   const c = contract || {}, u = user || {};
   const t0 = pa ? ((Array.isArray(pa.tenants) && pa.tenants[0]) || pa.tenant || {}) : {};
   const out = [];
   const name = clip(c.tenantName || u.name || u.displayName || t0.fullName, 120);
-  const phone = cleanPhone(c.tenantPhone) || cleanPhone(u.phone) || cleanPhone(t0.phone);
+  const ph0 = phoneOf(c.tenantPhone, u.phone, t0.phone);
   const email = cleanEmail(c.tenantEmail) || cleanEmail(u.email) || cleanEmail(t0.email);
-  if (name || phone || email) out.push({ role: 'tenant', name, phone, email });
+  if (name || ph0.phone || email) out.push({ role: 'tenant', name, ...ph0, email });
   const paCo = pa && Array.isArray(pa.tenants) ? pa.tenants.slice(1) : [];
   (Array.isArray(c.coTenants) ? c.coTenants : []).forEach((x, i) => {
     if (!x) return;
     const p = paCo[i] || {};
     const n = clip(x.name || p.fullName, 120);
-    const ph = cleanPhone(x.phone) || cleanPhone(p.phone);
+    const ph = phoneOf(x.phone, p.phone);
     const em = cleanEmail(x.email) || cleanEmail(p.email);
-    if (n || ph || em) out.push({ role: 'cotenant', name: n, phone: ph, email: em });
+    if (n || ph.phone || em) out.push({ role: 'cotenant', name: n, ...ph, email: em });
   });
   return out;
 }

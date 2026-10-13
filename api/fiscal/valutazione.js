@@ -40,17 +40,17 @@ import { requireRole, setCors } from '../_auth.js';
 import CANONE from '../../js/canone-engine.js';
 import { contractTipo, resolveCanoneInput, schedaFacts, schedaGaps } from './fascicolo.js';
 import ME from '../../js/market-engine.js';
-import { brandAssets, masthead, stampFooters, INK, GREY, GOLD, HAIR } from '../_pdfbrand.js';
+import { brandAssets, masthead, stampFooters, INK, GREY, GOLD, HAIR, wa } from '../_pdfbrand.js';
 
 const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
 const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
 
 // WinAnsi-safe, come il Fascicolo (la lezione del certificato FES).
-function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[→➔➡]/g, '->').replace(/[✓✔☑☒]/g, 'X')
-    .replace(/−/g, '-').replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
-}
+// La traslitterazione è UNA, in api/_pdfbrand.js (13/10/2026): la copia
+// locale cancellava le lettere turche e cirilliche invece di traslitterarle
+// («Çağrı Şahin» → «Çar ahin», «Иван» → «») — un nome sparito da un documento che va a
+// un'organizzazione o all'Agenzia delle Entrate.
+
 // Numeri all'italiana deterministici (mai toLocaleString: ICU ridotta = "1250,00").
 function itNum(v, dec = 2) {
   const n = Number(v || 0), neg = n < 0;

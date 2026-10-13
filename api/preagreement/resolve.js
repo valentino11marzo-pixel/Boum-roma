@@ -32,6 +32,7 @@ import { requireRole, setCors } from '../_auth.js';
 import { paidOnRecord, stateVerdict, dueAtSigning } from './_state.js';
 import { acquireLock, confirmLock, unitOf, normUnit } from './_lock.js';
 import { maybeAutoConvert } from './_auto.js';
+import { paOwnerGuard } from './convert.js';
 
 export const config = { maxDuration: 60 };
 
@@ -84,6 +85,19 @@ export default async function handler(req, res) {
   try { pa = await fsGet('preAgreements/' + paId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!pa) return res.status(404).json({ ok: false, error: 'not_found' });
+  // LA PROPRIETÀ, NON SOLO IL RUOLO (13/10/2026): la porta accetta anche
+  // owner/landlord, ma un proprietario poteva «riparare» (dichiarare pagata,
+  // sbloccare la riserva, convertire) la proposta di un immobile ALTRUI con
+  // il solo id. Lo stesso cancello di convert e send-sign, PRIMA di Stripe,
+  // del lucchetto e di qualunque scrittura o email.
+  // Dichiarare l'interno («non è la stessa unità») resta dell'admin, su
+  // qualunque immobile: lo si dice per primo, con la sua parola.
+  const declaresUnit = !!(b && ((typeof b.unit === 'string' && b.unit.trim()) || (typeof b.notSameAs === 'string' && b.notSameAs.trim())));
+  if (declaresUnit && ((auth.profile || {}).role) !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'admin_only' });
+  }
+  const deny = await paOwnerGuard(auth, pa, { createProperty: false });
+  if (deny) return res.status(403).json({ ok: false, error: deny });
 
   const before = stateVerdict(pa);
   const actions = [];

@@ -1,9 +1,18 @@
 // api/documents/ocr.js
-// Server-side OCR + classification for an uploaded document. Admin or
-// landlord calls it with a file URL (or inline base64); the server fetches
-// the bytes, sends them to Claude, and returns extracted text + an inferred
-// category + structured entities (dates, amounts, codice fiscale, IBAN,
-// partita IVA). The Anthropic key stays server-side (never in the browser).
+// Server-side OCR + classification for an uploaded document. The admin
+// calls it with a file URL (or inline base64); the server fetches the bytes,
+// sends them to the model, and returns extracted text + an inferred category
+// + structured entities (dates, amounts, codice fiscale, IBAN, partita IVA).
+// The model key stays server-side (never in the browser).
+//
+// SOLO ADMIN, SOLO IL NOSTRO STORAGE (13/10/2026). Prima la porta ammetteva
+// anche il ruolo landlord e scaricava QUALUNQUE fileUrl: con l'account di una
+// proprietaria esterna era un proxy verso qualsiasi URL (anche interni) e una
+// lettura del modello a spese di BOOM senza tetto. Ora:
+//   - solo admin (il tasto «Analizza con AI» nel portal compare solo
+//     all'admin; la proprietaria carica e sceglie la categoria a mano);
+//   - fileUrl solo https://firebasestorage.googleapis.com/… — mai un altro
+//     host, mai un redirect seguito verso fuori.
 //
 // Method:   POST
 // URL:      /api/documents/ocr
@@ -24,8 +33,18 @@ const CATEGORIES = [
   'f24', 'imu', 'ape', 'visura', 'id_document', 'invoice', 'cin', 'other',
 ];
 
+// Il file si scarica SOLO dal nostro Storage (download URL tokenizzato di
+// Firebase). Pura: si testa senza rete.
+export function storageUrlAllowed(raw) {
+  let u;
+  try { u = new URL(String(raw || '')); } catch { return false; }
+  return u.protocol === 'https:' && u.hostname === 'firebasestorage.googleapis.com'
+    && !u.username && !u.password && !u.port && /^\/v0\/b\/[^/]+\/o\//.test(u.pathname);
+}
+
 async function fetchAsBase64(url) {
-  const r = await fetch(url);
+  if (!storageUrlAllowed(url)) throw new Error('fileUrl_not_allowed');
+  const r = await fetch(url, { redirect: 'error' });
   if (!r.ok) throw new Error('fetch_file_failed_' + r.status);
   const ct = r.headers.get('content-type') || 'application/octet-stream';
   const buf = Buffer.from(await r.arrayBuffer());
@@ -38,7 +57,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   if (!process.env.ANTHROPIC_API_KEY) {

@@ -4061,29 +4061,63 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // several endpoints but was consumed ONLY by the off-repo Mac daemon, so if
     // the Mac was off the admin never saw these. Surface them live in the portal
     // so the operator has full awareness with OR without the Mac running.
+    // LA FINESTRA RECENTE (13/10/2026, la stessa lezione di api/agent/_pending.js):
+    // `status == 'pending' limit 50` SENZA ordine restituisce i primi 50 per
+    // id — oltre 50 card vecchie ancora 'pending', le nuove (payrep_… del
+    // bonifico segnalato, maint_… del guasto) non entravano mai nel feed.
+    // Alla lettura storica si AFFIANCANO gli ultimi 3 giorni per createdAt,
+    // nelle due forme che esistono (stringa ISO e timestamp: Firestore
+    // confronta per tipo). Si uniscono per id, si tengono le 'pending'.
+    function agentFeedTs(v) {
+        if (!v) return 0;
+        if (typeof v.toDate === 'function') { try { return v.toDate().getTime(); } catch (_) { return 0; } }
+        if (typeof v.seconds === 'number') return v.seconds * 1000;
+        const t = Date.parse(v); return Number.isFinite(t) ? t : 0;
+    }
+    function agentFeedMerge(parts) {
+        const byId = new Map();
+        Object.values(parts).forEach(rows => (rows || []).forEach(a => { if (a && a.id && !byId.has(a.id)) byId.set(a.id, a); }));
+        return [...byId.values()].filter(a => a.status === 'pending').sort((a, b) => agentFeedTs(b.createdAt) - agentFeedTs(a.createdAt));
+    }
     function startAgentFeedListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.agentFeedListener) S.agentFeedListener();
         S._agentSeen = new Set((S.agentFeed || []).map(a => a.id));
-        S.agentFeedListener = db.collection('agentNotifications')
-            .where('status', '==', 'pending')
-            .limit(50)
-            .onSnapshot(snapshot => {
-                S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-                    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-                const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
-                const fresh = firstRun ? [] : S.agentFeed.filter(a => !S._agentSeen.has(a.id));
-                S._agentSeen = new Set(S.agentFeed.map(a => a.id));
-                const hot = fresh.filter(a => a.priority === 'urgent' || a.priority === 'high');
-                if (hot.length) {
-                    const top = hot.find(a => a.priority === 'urgent') || hot[0];
-                    toast(top.priority === 'urgent' ? 'error' : 'info', 'Avviso agente', top.summary || top.type || 'Nuovo evento');
-                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
-                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
-                    if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
-                }
-                if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Agent feed listener error:', err));
+        const parts = {}, ready = { legacy: false, iso: false, ts: false };
+        const since = new Date(Date.now() - 3 * 86400000);
+        const col = () => db.collection('agentNotifications');
+        const onPart = (key) => (snapshot) => {
+            parts[key] = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            ready[key] = true;
+            onFeed();
+        };
+        // Una lettura che fallisce (indice, regole) non tiene fermo il feed.
+        const onErr = (key) => (err) => { console.error('Agent feed listener error:', key, err); ready[key] = true; onFeed(); };
+        const unsubs = [
+            col().where('status', '==', 'pending').limit(50).onSnapshot(onPart('legacy'), onErr('legacy')),
+            col().where('createdAt', '>=', since.toISOString()).orderBy('createdAt', 'desc').limit(100).onSnapshot(onPart('iso'), onErr('iso')),
+            col().where('createdAt', '>=', since).orderBy('createdAt', 'desc').limit(100).onSnapshot(onPart('ts'), onErr('ts')),
+        ];
+        S.agentFeedListener = () => unsubs.forEach(u => { try { u(); } catch (_) {} });
+        let primed = false;
+        function onFeed() {
+            S.agentFeed = agentFeedMerge(parts);
+            // don't alert for queued backlog on login: nessun avviso finché
+            // tutte e tre le letture non hanno risposto la prima volta
+            const allReady = ready.legacy && ready.iso && ready.ts;
+            const firstRun = !primed; if (allReady) { primed = true; S._agentInit = true; }
+            const fresh = (firstRun || !allReady) ? [] : S.agentFeed.filter(a => !S._agentSeen.has(a.id));
+            S._agentSeen = new Set(S.agentFeed.map(a => a.id));
+            const hot = fresh.filter(a => a.priority === 'urgent' || a.priority === 'high');
+            if (hot.length) {
+                const top = hot.find(a => a.priority === 'urgent') || hot[0];
+                toast(top.priority === 'urgent' ? 'error' : 'info', 'Avviso agente', top.summary || top.type || 'Nuovo evento');
+                document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
+            }
+            if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
+        }
     }
     function stopAgentFeedListener() {
         if (S.agentFeedListener) { S.agentFeedListener(); S.agentFeedListener = null; }
@@ -4287,8 +4321,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
 
             // ★ OWNER COPY: every notification also reaches the operator (you).
-            // Skip when the recipient already IS the owner (no double send).
-            if (NOTIFY_OWNER.enabled && (!recipientEmail || recipientEmail.toLowerCase() !== NOTIFY_OWNER.email.toLowerCase())) {
+            // Skip when the recipient already IS the owner (no double send),
+            // and when the operator is the one who just did the thing
+            // (data.skipOwnerCopy: «Registra incasso», «Annulla incasso» —
+            // due email a Valentino per ogni incasso che registra lui stesso,
+            // con la riga IBAN del template, 13/10/2026).
+            if (NOTIFY_OWNER.enabled && !data.skipOwnerCopy && (!recipientEmail || recipientEmail.toLowerCase() !== NOTIFY_OWNER.email.toLowerCase())) {
                 forwardNotificationToOwner(type, title, message, data, recipient).catch(e => console.warn('[owner notify]', e));
             }
 
@@ -4685,7 +4723,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 'payment',
                 '💰 Pagamento ricevuto',
                 `${who.name || 'L’inquilino'} ha pagato €${incassoEuro(paymentData.amount)} per ${unit} — ${incassoMonth(paymentData.month) || 'rata'}${paid ? ` (accredito del ${incassoDateIt(paid)})` : ''}`,
-                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true }
+                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true, skipOwnerCopy: isAdmin() }
             );
         }
         // L'inquilino col profilo lo vede in /casa (l'email parte a parte).
@@ -4695,7 +4733,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 'payment',
                 '✅ Payment Confirmed',
                 `Your payment of €${incassoEuro(paymentData.amount, 'en')} for ${unit} (${incassoMonth(paymentData.month, 'en') || 'rent'}) has been confirmed. Thank you!`,
-                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true }
+                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true, skipOwnerCopy: isAdmin() }
             );
         }
     }
@@ -11122,7 +11160,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return window.BOOM_RENT.overview({ payments: S.payments, properties: S.properties, contracts: S.contracts, users: S.users,
             month: paymentFilters.month, status: paymentFilters.kind, search: paymentFilters.search, ...overrides });
     }
-    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Segnalato · da verificare', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
+    // «review» (13/10/2026): una rata pagata con carta su cui c'è una
+    // contestazione aperta o persa, o un rimborso che copre l'importo
+    // (BOOM_RENT.moneyBack). Non è più pagata, non è pagabile: la decide un umano.
+    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Segnalato · da verificare', review:'Rimborso/contestazione', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
     function rentSafeHttpUrl(value) {
         if (typeof value !== 'string' || !value.trim()) return '';
         try { const url = new URL(value.trim()); return ['http:','https:'].includes(url.protocol) ? url.href : ''; }
@@ -11205,7 +11246,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const covered = paymentFilters.month !== 'all' && window.BOOM_RENT.rowsForMonth(complete,paymentFilters.month).some(r => r.isRent && r.month !== paymentFilters.month);
             const chips = timeline.map(cell => {
                 const label = cell.state === 'multiple' ? cell.rows.length + ' rate' : cell.state === 'empty' ? 'Nessuna rata' : rentStateLabel(cell.state);
-                const symbol = ({paid:'✓',due:'Da pagare',overdue:'In ritardo',processing:'In corso',reported:'Segnalato',unknown:'Da verificare',cancelled:'Annullato',empty:'—',multiple:cell.rows.length+' rate'})[cell.state];
+                const symbol = ({paid:'✓',due:'Da pagare',overdue:'In ritardo',processing:'In corso',reported:'Segnalato',review:'! Rimborso',unknown:'Da verificare',cancelled:'Annullato',empty:'—',multiple:cell.rows.length+' rate'})[cell.state];
                 const amount = cell.rows.length === 1 ? ' · ' + rentMoney(cell.rows[0].amount) + (cell.rows[0].payment.coversTo ? ' · rata unica ' + rentMonthLabel(cell.rows[0].month) + ' – ' + rentMonthLabel(cell.rows[0].payment.coversTo) : '') : '';
                 return `<button class="rent-month rent-month-${cell.state}" aria-label="${esc(rentMonthLabel(cell.month) + ' · ' + label + amount)}" onclick="openRentUnit(${unitId},${rentActionArg(cell.month)})"><small>${esc(rentMonthLabel(cell.month,true))}</small><span>${esc(symbol)}</span></button>`;
             }).join('');
@@ -11232,7 +11273,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const monthOptions = `<option value="all" ${paymentFilters.month === 'all' ? 'selected' : ''}>Tutti i periodi</option>` + months.map(m => `<option value="${m}" ${m === paymentFilters.month ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('it-IT', {month:'long',year:'numeric'})}</option>`).join('');
         return `<section class="rent-page"><div class="page-header"><div><div class="rent-eyebrow">GESTIONE LOCAZIONI</div><h1 class="page-title">Canoni per unità</h1><p class="page-subtitle">Chi ha pagato, cosa manca e il prossimo passo per ogni casa.</p></div><div class="page-actions"><button class="btn btn-secondary" onclick="goTo('invoices')">Fatture BOOM ↗</button><button class="btn" onclick="reloadRentPayments()" ${rentLoadState.status === 'loading' ? 'disabled' : ''}>Aggiorna</button></div></div>
             <p class="rent-note">Canoni gestiti per i proprietari · Apri un mese per vedere le rate. La prossima azione considera anche gli arretrati fuori periodo.</p>
-            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Non confermati'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
+            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Non confermati'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['review','Rimborso/contestazione'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
             <div id="rentLoadNotice" class="rent-load" role="status">${rentLoadNotice()}</div><div id="paymentsContainer">${rentUnitsHTML(view)}</div><div class="rent-summary-heading">Riepilogo del periodo selezionato</div><div class="rent-stats" id="rentStats">${rentSummaryHTML(view)}</div><div id="rentScope" class="rent-scope" aria-live="polite">${view.units.length} unità · totali dei canoni nel filtro corrente${view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : ''}</div>
             ${all.totals.overdue > 0 ? `<button class="rent-arrears" onclick="paymentFilters.month='all';document.getElementById('rentMonth').value='all';filterPayments('overdue')">${rentMoney(all.totals.overdue)} di canoni in ritardo su tutti i periodi · Apri arretrati →</button>` : ''}
             <div id="rentUnlinkedReceipts">${rentUnlinkedReceiptsHTML()}</div>
@@ -11476,7 +11517,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
         // Chi è stato preso in carico da tabella non ha un profilo: il suo
         // sollecito è il link della rata su WhatsApp, dal Palazzo.
-        if (!t) return toast('warning', c && (c.tenantPhone || c.tenantEmail || c.tenantName) ? 'Inquilino senza profilo nel portale' : 'Inquilino non trovato', c && (c.tenantPhone || c.tenantEmail || c.tenantName) ? 'Manda il link della rata dal Palazzo: il sollecito email è per chi ha un profilo.' : '');
+        if (!t) {
+            // Preso in carico dalla tabella del Palazzo: niente profilo, niente
+            // email del portal. Il sollecito è il link della SUA rata (/rata).
+            if (c && (c.tenantPhone || c.tenantEmail || c.tenantName)) return openRataReminder(paymentId);
+            return toast('warning', 'Inquilino non trovato', '');
+        }
 
         // Default to the level suggested by days-late
         if (!level) level = suggestedDunningLevel(p) || 1;
@@ -11506,6 +11552,44 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (typeof refreshPaymentsView === 'function') refreshPaymentsView(); else goTo('payments');
     }
 
+    // Il sollecito di chi è stato preso in carico dalla tabella del Palazzo
+    // (nessun profilo nel portal): il link della SUA rata (/rata — carta se
+    // accesa, oppure bonifico con la ricevuta), dal server (token derivato,
+    // solo admin), su WhatsApp in inglese al numero del contratto. Il numero
+    // passa da phoneIntl: niente WhatsApp su un numero ambiguo, si copia il
+    // messaggio. L'invio resta SULLA rata (dunningHistory, palazzoLogSent).
+    async function openRataReminder(paymentId) {
+        if (!isAdmin()) return toast('info', 'Lo fa BOOM', 'I solleciti li manda l’operatore BOOM.');
+        const p = (S.payments || []).find(x => x.id === paymentId);
+        if (!p) return;
+        const c = (S.contracts || []).find(x => x.id === p.contractId) || {};
+        let url = '';
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/payments/rata', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ op: 'links', paymentIds: [paymentId] }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http_' + r.status));
+            url = (j.links || {})[paymentId] || '';
+            if (!url) return toast('warning', 'Link della rata non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(p)));
+        } catch (e) { return toast('error', 'Link della rata non creato', e.message || ''); }
+        const first = String(c.tenantName || '').trim().split(/\s+/)[0] || '';
+        const due = incassoDateEn(p.dueDate);
+        const msg = `Hello${first ? ' ' + first : ''}, this is BOOM. Your rent for ${incassoMonth(p.month, 'en') || 'this month'} (€${incassoEuro(p.amount, 'en')}${due ? ', due ' + due : ''}) is still open. You can pay here, or tell us you paid by bank transfer and attach the receipt: ${url}&lang=en`;
+        const CS = window.BOOM_CONTRACT_STATE;
+        const tel = CS && CS.phoneIntl ? CS.phoneIntl(c.tenantPhone || '') : { wa: null, kind: 'unknown' };
+        const pid = rentActionArg(paymentId), month = rentActionArg(p.month || '');
+        window._rataReminderText = msg;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">Sollecito · link della rata</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body"><p class="rent-note">${esc(c.tenantName || 'L’inquilino')} non ha un profilo nel portal: il sollecito è il link della sua rata (carta, se accesa, o bonifico con la ricevuta). Messaggio in inglese, modificabile su WhatsApp.</p>
+            <div class="form-input" style="white-space:pre-wrap;height:auto;font-size:13px;line-height:1.5">${esc(msg)}</div>
+            ${tel.wa ? '' : `<p class="rent-note" style="color:var(--orange)">${c.tenantPhone ? 'Il numero in archivio (' + esc(c.tenantPhone) + ') non è sicuro per WhatsApp: copia il messaggio e mandalo tu.' : 'Nessun telefono in archivio: copia il messaggio.'}</p>`}</div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="copyToClipboard(window._rataReminderText,'Messaggio copiato')">Copia messaggio</button>
+            ${tel.wa ? `<button class="btn" onclick="window.open('https://wa.me/${tel.wa}?text='+encodeURIComponent(window._rataReminderText),'_blank');palazzoLogSent(${pid},{channel:'whatsapp',kind:'sollecito',month:${month}});closeModal()">WhatsApp</button>` : ''}</div></div></div>`;
+        return true;
+    }
+    window.openRataReminder = openRataReminder;
+
     // Open WhatsApp with the right escalation template for a payment.
     function sendDunningWA(paymentId, level) {
         const p = S.payments.find(x => x.id === paymentId);
@@ -11514,6 +11598,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const c = S.contracts.find(x => x.id === p.contractId);
         const t = c ? S.users.find(x => x.id === c.tenantId) : null;
         const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
+        if (!t && c && (c.tenantPhone || c.tenantEmail || c.tenantName)) return openRataReminder(paymentId);
         if (!t?.phone) return toast('warning', 'Numero WhatsApp inquilino mancante');
         if (!level) level = suggestedDunningLevel(p) || 1;
         const num = t.phone.replace(/[^0-9]/g, '');
@@ -13759,12 +13844,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ─── EGIDI (AZIENDA) — BOOM's own fiscality ─────────────────────────────
     // Company revenue (from invoices + paid PFS) → IVA trimestrale + corporate
     // deadlines, computed by the fiscal engine. Admin-only.
+    // Commissione, costo Stripe e margine di ogni incasso con carta o SEPA
+    // stanno in paymentCosts/<paymentId> (admin-only) dal 13/10/2026 — non più
+    // sulla rata, che legge anche la proprietaria. Si leggono UNA volta, al
+    // primo bisogno, solo per l'admin; le rate storiche portano ancora i campi
+    // e BOOM_RENT.agencyCollections le legge da entrambi i posti.
     function egidiPaymentBreakdown(year) {
-        return window.BOOM_RENT.agencyCollections(S.payments || [], year);
+        return window.BOOM_RENT.agencyCollections(S.payments || [], year, S.paymentCosts || []);
+    }
+    let _paymentCostsLoad = null;
+    function ensurePaymentCosts() {
+        if (!isAdmin()) return Promise.resolve([]);
+        if (Array.isArray(S.paymentCosts)) return Promise.resolve(S.paymentCosts);
+        if (!_paymentCostsLoad) {
+            _paymentCostsLoad = db.collection('paymentCosts').limit(3000).get()
+                .then(snap => { S.paymentCosts = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.paymentCostsError = false; return S.paymentCosts; })
+                .catch(e => { console.warn('[paymentCosts]', e); S.paymentCostsError = true; _paymentCostsLoad = null; return []; });
+        }
+        return _paymentCostsLoad;
     }
     function egidiAgencyFundsBlock(year) {
+        if (!Array.isArray(S.paymentCosts) && !S.paymentCostsError) {
+            // la lettura parte dopo il primo disegno e ridisegna quando arriva;
+            // un errore qui non toglie la pagina (le rate storiche bastano)
+            try { ensurePaymentCosts().then(() => { if (S.page === 'commercialista' && window._cmEgidi) renderPage(); }); }
+            catch (e) { console.warn('[paymentCosts]', e); }
+        }
         const b = egidiPaymentBreakdown(year), euro = window.BOOM_FISCAL.fmtEuro;
-        return `<div class="card" style="margin-bottom:20px"><div class="card-body"><h3>Gestione per conto dei proprietari · ${year}</h3><p class="rent-note">BOOM opera come agenzia. Canoni e depositi cauzionali dei clienti non sono compensi dell’azienda.</p><table style="width:100%;font-size:14px"><tbody><tr><td>Canoni dei proprietari registrati come pagati</td><td style="text-align:right">${euro(b.ownerRent)}</td></tr><tr><td>Depositi cauzionali registrati come pagati</td><td style="text-align:right">${euro(b.deposits)}</td></tr>${b.otherCharges ? `<tr><td>Altri addebiti da classificare</td><td style="text-align:right">${euro(b.otherCharges)}</td></tr>` : ''}</tbody></table><p class="rent-note">Il riepilogo descrive pagamenti registrati; non ricostruisce somme ancora detenute, riversamenti o restituzioni.</p><h3>Compensi sui pagamenti incassati</h3><table style="width:100%;font-size:14px"><tbody><tr><td>Commissioni di servizio registrate</td><td style="text-align:right">${euro(b.fees)}</td></tr><tr><td>Di cui carta / SEPA</td><td style="text-align:right">${euro(b.cardFees)} / ${euro(b.sepaFees)}</td></tr><tr><td>Costi del gestore di pagamento rilevati</td><td style="text-align:right">${euro(b.knownCosts)}</td></tr><tr><td>Residuo sui soli incassi con costo noto</td><td style="text-align:right">${euro(b.knownMargin)}</td></tr></tbody></table><p class="rent-note">Le commissioni sono mostrate separatamente dalle fatture: senza un collegamento contabile certo non vengono sommate una seconda volta ai ricavi o alla stima IVA.${b.unknownFeeCount ? ` ${b.unknownFeeCount} pagamenti elettronici non hanno una commissione registrata.` : ''}${b.unknownCostCount ? ` Il costo manca su ${b.unknownCostCount} incassi: il residuo è parziale.` : ''}</p></div></div>`;
+        return `<div class="card" style="margin-bottom:20px"><div class="card-body"><h3>Gestione per conto dei proprietari · ${year}</h3><p class="rent-note">BOOM opera come agenzia. Canoni e depositi cauzionali dei clienti non sono compensi dell’azienda.</p><table style="width:100%;font-size:14px"><tbody><tr><td>Canoni dei proprietari registrati come pagati</td><td style="text-align:right">${euro(b.ownerRent)}</td></tr><tr><td>Depositi cauzionali registrati come pagati</td><td style="text-align:right">${euro(b.deposits)}</td></tr>${b.otherCharges ? `<tr><td>Altri addebiti da classificare</td><td style="text-align:right">${euro(b.otherCharges)}</td></tr>` : ''}</tbody></table><p class="rent-note">Il riepilogo descrive pagamenti registrati; non ricostruisce somme ancora detenute, riversamenti o restituzioni.</p><h3>Compensi sui pagamenti incassati</h3>${S.paymentCostsError ? '<p class="rent-note">Costi degli incassi non leggibili (paymentCosts): commissioni e costi mostrano solo le rate storiche.</p>' : !Array.isArray(S.paymentCosts) ? '<p class="rent-note">Lettura dei costi degli incassi in corso…</p>' : ''}<table style="width:100%;font-size:14px"><tbody><tr><td>Commissioni di servizio registrate</td><td style="text-align:right">${euro(b.fees)}</td></tr><tr><td>Di cui carta / SEPA</td><td style="text-align:right">${euro(b.cardFees)} / ${euro(b.sepaFees)}</td></tr><tr><td>Costi del gestore di pagamento rilevati</td><td style="text-align:right">${euro(b.knownCosts)}</td></tr><tr><td>Residuo sui soli incassi con costo noto</td><td style="text-align:right">${euro(b.knownMargin)}</td></tr></tbody></table><p class="rent-note">Le commissioni sono mostrate separatamente dalle fatture: senza un collegamento contabile certo non vengono sommate una seconda volta ai ricavi o alla stima IVA.${b.unknownFeeCount ? ` ${b.unknownFeeCount} pagamenti elettronici non hanno una commissione registrata.` : ''}${b.unknownCostCount ? ` Il costo manca su ${b.unknownCostCount} incassi: il residuo è parziale.` : ''}</p></div></div>`;
     }
     function commercialistaEgidiView() {
         const FX = window.BOOM_FISCAL;
@@ -17481,10 +17588,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             body: JSON.stringify({ contractId })
         });
         const j = await r.json().catch(() => null);
-        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        if (!r.ok || !j || !j.ok) {
+            const err = new Error((j && j.error) || ('HTTP ' + r.status));
+            err.code = (j && j.error) || ''; err.reason = (j && j.reason) || ''; err.status = r.status;
+            throw err;
+        }
         return j;
     }
     window.fetchSignLinks = fetchSignLinks;
+    // Un 409 not_signable (carta, segnaposto, già firmato) non è un guasto:
+    // si dice perché non c'è niente da firmare — mai «Link non disponibile»
+    // e mai il modale di firma legacy al suo posto (13/10/2026).
+    function signLinkProblem(e) {
+        const en = typeof isTenant === 'function' && isTenant();
+        if (!e || e.code !== 'not_signable') return { title: en ? 'Signing link not available' : 'Link di firma non disponibile', text: (e && e.message) || '', level: 'error' };
+        const T = en
+            ? { paper: 'This lease was signed on paper: there is nothing to sign online.', contract_missing: 'The lease is not on file yet: there is nothing to sign.', already_signed: 'The lease is already signed by everyone.', '': 'This lease is not signed online.' }
+            : { paper: 'Contratto firmato su carta: non si firma di nuovo in digitale. Dal Palazzo si allega la scansione firmata.', contract_missing: 'Il contratto di questo interno non è ancora in archivio: niente da firmare.', already_signed: 'Il contratto è già firmato da tutte le parti.', '': 'Questo contratto non si firma in digitale.' };
+        return { title: en ? 'Nothing to sign' : 'Niente da firmare', text: T[e.reason] || T[''], level: 'info' };
+    }
 
     // Il PRIMO invito di firma passa da qui: se mancano i dati CRITICI il
     // dialog propone La Scheda (il cliente si auto-compila e il PDF esce
@@ -17878,11 +18000,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function updateInvAmount(sel) { const opt = sel.options[sel.selectedIndex]; document.getElementById('invService').value = opt.dataset.service || ''; document.getElementById('invAmount').value = opt.dataset.price || ''; }
     function fillContractRent(sel) { document.getElementById('cRent').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function fillPayAmount(sel) { document.getElementById('pAmount').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
-    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob) ob.style.display = 'inline-flex'; }
+    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob && isAdmin()) ob.style.display = 'inline-flex'; }
 
     // AI OCR on the selected (not-yet-uploaded) file: reads it as base64,
     // sends to /api/documents/ocr, auto-fills category + fiscalYear.
+    // Solo admin: /api/documents/ocr legge col modello a spese di BOOM (la
+    // proprietaria carica e sceglie la categoria a mano, 13/10/2026).
     async function runDocOCR() {
+        if (!isAdmin()) return;
         if (!selectedFile) { toast('error', 'Seleziona prima un file'); return; }
         const btn = document.getElementById('ocrBtn');
         const out = document.getElementById('ocrResult');
@@ -18731,6 +18856,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) { toast('error', 'Errore', err.message); return false; }
     }
 
+    // I segni che il webhook scrive sulla rata quando i soldi di un pagamento
+    // con carta/SEPA tornano indietro (rimborso, contestazione), più l'istante
+    // e il «tenuto da BOOM» di quel pagamento. Alla riapertura escono dalla
+    // rata e restano nella storia: BOOM_RENT.moneyBack li legge su QUALUNQUE
+    // incasso successivo, quindi lasciarli lì riporterebbe a «review» anche il
+    // bonifico registrato dopo.
+    const MONEY_BACK_KEYS = ['refundedAt', 'refundedAmount', 'refundedFull', 'disputeStatus', 'disputeId', 'disputeAt', 'disputeClosedAt', 'paidAt', 'heldBy'];
+    function moneyBackFields(d) {
+        const history = {};
+        MONEY_BACK_KEYS.forEach(k => { if (d && d[k] != null && d[k] !== '') history[k] = d[k]; });
+        return { history, clear: del => Object.fromEntries(MONEY_BACK_KEYS.map(k => [k, del])) };
+    }
+
     // ↩ L'incasso registrato per errore: la rata torna da pagare (o «segnalata»
     // se l'inquilino l'aveva segnalata), data/canale/fonte/ricevuta puliti,
     // e quello che c'era resta in `incassoAnnullato`. L'attestazione emessa
@@ -18743,11 +18881,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const snap = await ref.get({ source: 'server' });
             if (!snap.exists) { toast('error', 'Rata non trovata'); return false; }
             const p = { ...snap.data(), id: paymentId };
-            if (window.BOOM_RENT.paymentState(p) !== 'paid') { toast('info', 'Niente da annullare', 'La rata non risulta pagata.'); return false; }
-            const automatic = !!(p.stripeSessionId || p.sddPiId || p.bankTxId) || (['stripe', 'sepa', 'bank'].includes(p.paidVia) && !p.paidRecordedBy);
+            const st0 = window.BOOM_RENT.paymentState(p);
+            // «review» (13/10/2026): una rata pagata con carta (o SEPA) poi
+            // RIMBORSATA per intero o con la contestazione PERSA non è più
+            // pagata — i soldi sono tornati indietro. Si riapre da qui (torna
+            // da pagare). Le sessioni Stripe (stripeSessionId, checkoutSessionId)
+            // e il PaymentIntent RESTANO sulla rata: il webhook riconosce la
+            // sessione già registrata e non la ri-segna pagata. I segni
+            // refunded*/dispute* invece ESCONO dalla rata e vanno nella storia
+            // (incassoAnnullato.was.moneyBack): lasciati lì, il prossimo incasso
+            // (bonifico registrato, nuova carta, banca) tornerebbe «review» per
+            // un rimborso che riguardava QUELLO di prima. Con la contestazione
+            // ancora APERTA si aspetta l'esito: se BOOM la vince, l'incasso resta.
+            const back = window.BOOM_RENT.moneyBack ? window.BOOM_RENT.moneyBack(p) : '';
+            const reopenBack = st0 === 'review' && (back === 'refund' || String(p.disputeStatus || '').toLowerCase() === 'lost');
+            if (st0 === 'review' && !reopenBack) { toast('info', 'Contestazione in corso', 'Aspetta l’esito su Stripe: se BOOM la vince, l’incasso resta. Si riapre la rata solo a contestazione persa o a rimborso totale.'); return false; }
+            if (st0 !== 'paid' && !reopenBack) { toast('info', 'Niente da annullare', 'La rata non risulta pagata.'); return false; }
+            // Automatico = l'ULTIMO incasso l'ha scritto la macchina (webhook,
+            // SEPA, banca). paidRecordedBy lo scrive solo «Registra incasso» (e
+            // la presa in carico): con lui l'incasso è dell'operatore anche se
+            // sulla rata restano gli id di un incasso automatico già annullato
+            // (la carta rimborsata e riaperta, un addebito SEPA fallito) — prima
+            // quegli id rendevano «automatico», e quindi non annullabile, un
+            // bonifico registrato a mano dopo la riapertura.
+            const automatic = !reopenBack && !p.paidRecordedBy && (!!(p.stripeSessionId || p.sddPiId || p.bankTxId) || ['stripe', 'sepa', 'bank'].includes(p.paidVia));
             if (automatic) { toast('warning', 'Incasso automatico', 'Carta, SEPA o banca: non si annulla da qui. Un rimborso o una contestazione passano da Stripe o dalla banca.'); return false; }
             const who = incassoParties(p);
-            const msg = `Annullo l’incasso di ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}${incassoDay(p.paidDate) ? ', accredito del ' + incassoDateIt(p.paidDate) : ''})?\n\n`
+            const sepa = p.paidVia === 'sepa' || (!!p.sddPiId && p.paidVia !== 'stripe');
+            const msg = (reopenBack
+                ? `Riapro ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}): ${sepa ? 'l’addebito SEPA' : 'il pagamento con carta'} è stato ${back === 'refund' ? 'rimborsato' : 'contestato e la contestazione è persa'}.\n\n`
+                : `Annullo l’incasso di ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}${incassoDay(p.paidDate) ? ', accredito del ' + incassoDateIt(p.paidDate) : ''})?\n\n`)
                 + 'La rata torna da pagare. L’attestazione già emessa resta in archivio come ANNULLATA.'
                 + (who.property && who.property.ownerId ? '\nLa proprietaria riceve una correzione nel portale.' : '')
                 + (p.tenantConfirmSentAt ? `\n\nAttenzione: il ${incassoDateIt(p.tenantConfirmSentAt)} era partita una conferma a ${p.tenantConfirmTo || 'l’inquilino'}: avvisalo tu.` : '');
@@ -18755,20 +18918,39 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
             const del = firebase.firestore.FieldValue.delete();
             const was = { status: p.status || 'paid', paidDate: p.paidDate || null, paidVia: p.paidVia || null, paidEvidence: p.paidEvidence || null, receiptUrl: p.receiptUrl || null,
-                receiptDocId: p.receiptDocId || null, invoiceId: p.invoiceId || null, paidRecordedAt: p.paidRecordedAt || null, paidRecordedBy: p.paidRecordedBy || null };
+                receiptDocId: p.receiptDocId || null, invoiceId: p.invoiceId || null, paidRecordedAt: p.paidRecordedAt || null, paidRecordedBy: p.paidRecordedBy || null,
+                ...(reopenBack ? { reopenedFor: back === 'refund' ? 'refund' : 'dispute_lost' } : {}) };
             let undone = false;
             await db.runTransaction(async tx => {
                 undone = false;
                 const cur = await tx.get(ref);
                 const d = cur.exists ? cur.data() : null;
                 // Cambiata nel mezzo (altra sessione, webhook): non si tocca.
-                if (!d || window.BOOM_RENT.paymentState(d) !== 'paid' || String(d.paidDate || '') !== String(p.paidDate || '')) return;
+                // Stessa natura di ciò che si è letto: 'paid' resta 'paid', un
+                // rimborso/contestazione persa resta 'review'. Le sessioni Stripe
+                // (stripeSessionId, checkoutSessionId) NON si toccano mai qui.
+                if (!d || window.BOOM_RENT.paymentState(d) !== st0 || String(d.paidDate || '') !== String(p.paidDate || '')) return;
                 const rRef = d.receiptDocId ? db.collection('documents').doc(d.receiptDocId) : db.collection('documents').doc('rent-receipt-' + paymentId);
                 const rSnap = await tx.get(rRef);
                 const iRef = d.invoiceId ? db.collection('invoices').doc(d.invoiceId) : null;
                 const iSnap = iRef ? await tx.get(iRef) : null;
+                // Riapertura dopo un rimborso o una contestazione persa: i segni
+                // dei soldi tornati indietro, l'istante e il «tenuto da BOOM»
+                // del pagamento con carta passano nella storia (letti FRESCHI,
+                // dalla transazione) e lasciano la rata. Un addebito SEPA
+                // rimborsato tiene il suo sddPiId — il collettore non riaddebita
+                // da solo una rata che ha già un addebito — ma non è più «in
+                // corso»: sddStatus 'cancelled', e la rata torna pagabile a mano.
+                const backFields = reopenBack ? moneyBackFields(d) : {};
+                if (reopenBack) {
+                    was.moneyBack = backFields.history;
+                    if (d.sddPiId) was.sdd = { sddPiId: d.sddPiId, sddStatus: d.sddStatus || null };
+                    else delete was.sdd;
+                }
                 tx.update(ref, { status: 'pending', paidDate: del, paidVia: del, paidEvidence: del, paidNote: del, paidRecordedAt: del, paidRecordedBy: del,
                     receiptUrl: del, receiptDocId: del, invoiceId: del, invoiceNumber: del, tenantConfirmSentAt: del, tenantConfirmTo: del,
+                    ...(reopenBack ? backFields.clear(del) : {}),
+                    ...(reopenBack && d.sddPiId ? { sddStatus: 'cancelled' } : {}),
                     incassoAnnullato: { at, by, was } });
                 const rd = rSnap.exists ? rSnap.data() : null;
                 // Il PDF annullato si legge ancora come un'attestazione valida:
@@ -18784,6 +18966,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const local = (S.payments || []).find(x => x.id === paymentId);
             if (local) {
                 ['paidDate', 'paidVia', 'paidEvidence', 'paidNote', 'paidRecordedAt', 'paidRecordedBy', 'receiptUrl', 'receiptDocId', 'invoiceId', 'invoiceNumber', 'tenantConfirmSentAt', 'tenantConfirmTo'].forEach(k => { delete local[k]; });
+                if (reopenBack) { MONEY_BACK_KEYS.forEach(k => { delete local[k]; }); if (local.sddPiId) local.sddStatus = 'cancelled'; }
                 // Come il loader: in memoria una rata scaduta si chiama 'overdue'.
                 local.status = local.dueDate && String(local.dueDate) < incassoRomeDay() ? 'overdue' : 'pending';
                 local.incassoAnnullato = { at, by, was };
@@ -18795,8 +18978,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (landlord) {
                 try {
                     await createNotification(landlord.id, 'payment', '↩ Correzione incasso',
-                        `L’incasso di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} era stato registrato per errore ed è stato annullato: la rata risulta di nuovo da pagare.`,
-                        { paymentId, propertyId: who.property.id, skipEmail: true });
+                        reopenBack
+                            ? `${sepa ? 'L’addebito SEPA' : 'Il pagamento con carta'} di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} è stato ${back === 'refund' ? 'rimborsato' : 'contestato'}: la rata risulta di nuovo da pagare.`
+                            : `L’incasso di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} era stato registrato per errore ed è stato annullato: la rata risulta di nuovo da pagare.`,
+                        { paymentId, propertyId: who.property.id, skipEmail: true, skipOwnerCopy: true });
                 } catch (e) { console.warn('[undoIncasso] notifica', e); }
             }
             toast('success', 'Incasso annullato', 'La rata torna da pagare; l’attestazione resta in archivio come annullata.');
@@ -19102,10 +19287,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 await photoRef.put(photoFile);
                 photoUrl = await photoRef.getDownloadURL();
             }
+            // Il contratto dell'inquilino su QUESTO immobile (prima quello
+            // attivo, poi quello corrente dell'immobile): le rules aprono un
+            // guasto solo a chi abita l'interno, e senza contractId valeva solo
+            // currentContractId — assente su molti immobili (13/10/2026).
+            const prop = (S.properties || []).find(p => p.id === data.propertyId) || {};
+            const mine = (S.contracts || []).filter(c => c.tenantId === S.profile.id && c.propertyId === data.propertyId);
+            const myContract = mine.find(c => c.status === 'active') || mine.find(c => c.id === prop.currentContractId) || null;
             const docRef = await db.collection('maintenance').add({
                 title: data.title, propertyId: data.propertyId, category: data.category || 'other',
                 priority: data.priority || 'medium', description: data.description || '',
                 photoUrl: photoUrl, comments: [],
+                ...(myContract ? { contractId: myContract.id } : {}),
                 userId: S.profile.id, status: 'open', createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
             // Notify landlord
@@ -19471,7 +19664,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // la loro somma), «Annullata» per le rate che non sono più dovute, e
     // l'incasso solo dal suo modulo (e si annulla col suo tasto).
     function editPaymentModal(pay) {
-        const st = window.BOOM_RENT.paymentState(pay), paid = st === 'paid', locked = paid || st === 'processing';
+        const st = window.BOOM_RENT.paymentState(pay), paid = st === 'paid', locked = paid || st === 'processing' || st === 'review';
         const amt = window.BOOM_RENT.amount(pay.amount), rentP = window.BOOM_RENT.amount(pay.rentAmount), oneriP = window.BOOM_RENT.amount(pay.oneriAmount);
         const split = pay.oneriAmount != null || pay.rentAmount != null;
         const dis = locked ? 'disabled' : '';
@@ -19480,12 +19673,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const money = split
             ? `<div class="form-row">${num('rentAmount', 'Canone €', rentP != null ? rentP : (amt != null ? incassoRound(amt - (oneriP || 0)) : ''))}${num('oneriAmount', 'Oneri €', oneriP || 0)}</div><p class="rent-note" style="margin-top:-6px">La rata è la somma di canone e oneri.</p>`
             : `<div class="form-row">${num('amount', 'Importo €', amt)}</div>`;
-        const stSel = paid || st === 'reported' || st === 'processing'
+        const stSel = paid || st === 'reported' || st === 'processing' || st === 'review'
             ? `<div class="form-group"><label class="form-label">Stato</label><div class="form-input" style="opacity:.8">${esc(rentStateLabel(st))}</div></div>`
             : `<div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${st !== 'cancelled' ? 'selected' : ''}>Da pagare</option><option value="cancelled" ${st === 'cancelled' ? 'selected' : ''}>Annullata (non più dovuta)</option></select></div>`;
         const inc = paid ? `<div class="rent-note"><strong>Incasso</strong><br>Accredito ${esc(incassoDateIt(pay.paidDate) || fmtDate(pay.paidDate))}${pay.paidVia ? ' · ' + esc(INCASSO_VIA[pay.paidVia] || pay.paidVia) : ''}${pay.paidEvidence ? ' · verifica: ' + esc(INCASSO_EVIDENCE[pay.paidEvidence] || pay.paidEvidence) : ''}${pay.paidRecordedAt ? ' · registrato il ' + esc(incassoDateIt(pay.paidRecordedAt)) : ''}${pay.paidNote ? '<br>' + esc(pay.paidNote) : ''}</div>` : '';
         const cancelNote = st === 'cancelled' ? `<p class="rent-note">Annullata${pay.cancelledReason ? ' · ' + esc(pay.cancelledReason) : ''}${pay.cancelledAt ? ' · ' + esc(incassoDateIt(pay.cancelledAt)) : ''}. Rimettila «Da pagare» se è di nuovo dovuta.</p>` : '';
         const footerAction = paid ? `<button class="btn btn-secondary" onclick="closeModal();setTimeout(()=>undoIncasso(${arg}),250)">↩ Annulla incasso</button>`
+            : st === 'review' ? `<button class="btn btn-secondary" onclick="closeModal();setTimeout(()=>undoIncasso(${arg}),250)" title="Rimborso totale o contestazione persa: la rata torna da pagare">↩ Riapri la rata</button>`
             : ['due', 'overdue', 'reported'].includes(st) && amt > 0 ? `<button class="btn btn-secondary" onclick="openRecordIncasso(${arg})">Registra incasso</button>` : '';
         return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica rata</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pid}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId" ${dis}>${S.contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${esc(c.id)}" ${pay.contractId === c.id ? 'selected' : ''}>${esc(p?.name || c.id)}${c.tenantName ? ' · ' + esc(c.tenantName) : ''}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${esc(pay.month || '')}" ${dis}></div><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${esc(incassoDay(pay.dueDate))}" ${dis}></div></div>${money}${stSel}${inc}${cancelNote}<div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${esc(pay.notes || '')}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${jsq(pay.id)}','Pagamento ${jsq(pay.month)}')">🗑</button>${footerAction}<button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`;
     }
@@ -20465,7 +20659,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (w) w.location.href = url; else window.location.href = url;
             }).catch(e => {
                 if (w) { try { w.close(); } catch (_) {} }
-                toast('error', 'Link di firma non disponibile', (e && e.message) || '');
+                const why = signLinkProblem(e);
+                toast(why.level, why.title, why.text);
             });
             return;
         }
@@ -22650,7 +22845,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // firma. Senza risposta il pannello lo dice («nessun link»).
         let sl = {};
         try { sl = await fetchSignLinks(contractId); }
-        catch (e) { console.warn('[firmaOra] sign links', e); }
+        catch (e) {
+            // Il server sa meglio della copia in memoria: carta, segnaposto o
+            // già firmato → niente pannello con «nessun link: usa Condividi».
+            if (e && e.code === 'not_signable') { const why = signLinkProblem(e); return toast(why.level, why.title, why.text); }
+            console.warn('[firmaOra] sign links', e);
+        }
         // Il link del conduttore aperto DA QUI porta &delegate=1 quando il
         // mandato è armato: è l'unico modo in cui la firma esce «per
         // mandato». Il link nudo (Share Hub, email) firma come il cliente.
@@ -25537,7 +25737,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const ICON = { ok: '✓', warn: '⚠', missing: '✗' };
         const COL = { ok: 'var(--green)', warn: 'var(--orange)', missing: 'var(--red)' };
         return (items || []).map(i => {
-            const up = ASPI_ALLEGABILI.includes(i.key);
+            // La riga «contratto» di un contratto su CARTA arriva dal server con
+            // allegabile:true e accept:'application/pdf' (la scansione firmata).
+            const up = ASPI_ALLEGABILI.includes(i.key) || i.allegabile === true;
             return `
             <div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border)">
                 <span style="color:${COL[i.state] || 'var(--text-muted)'};font-weight:700;width:16px;flex:none">${ICON[i.state] || '·'}</span>
@@ -25554,13 +25756,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function aspiAllega(key) {
         const st = window._aspiStatus;
         if (!st || !st.contractId) return;
+        const item = [...((st.kinds || {}).registrazione || []), ...((st.kinds || {}).completo || [])].find(x => x && x.key === key) || {};
+        const pdfOnly = item.accept === 'application/pdf';
         const inp = document.createElement('input');
         inp.type = 'file';
-        inp.accept = 'application/pdf,image/jpeg,image/png,image/webp';
+        inp.accept = item.accept || 'application/pdf,image/jpeg,image/png,image/webp';
         inp.onchange = async () => {
             const f = inp.files && inp.files[0];
             if (!f) return;
             if (f.size > 15 * 1024 * 1024) return toast('error', 'File troppo grande (max 15MB)');
+            if (pdfOnly && f.type !== 'application/pdf' && !/\.pdf$/i.test(f.name || '')) return toast('error', 'Serve il PDF', 'Il contratto firmato su carta si allega come PDF (la scansione firmata).');
             const btns = document.querySelectorAll('#aspiChecklist button');
             btns.forEach(b => { b.disabled = true; });
             toast('info', '📎 Carico ' + f.name + '…');

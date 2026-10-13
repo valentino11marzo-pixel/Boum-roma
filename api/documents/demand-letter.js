@@ -24,6 +24,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, logActivity } from '../homie/_lib.js';
+import { wa } from '../_pdfbrand.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -42,13 +43,10 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // WinAnsi safety — la lezione del certificato FES: un solo carattere fuori
 // tabella uccide TUTTE le generazioni, non solo quella riga.
-function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[→➔➡]/g, '->')
-    .replace(/[✓✔☑☒]/g, 'X')
-    .replace(/−/g, '-')
-    .replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
-}
+// La traslitterazione è UNA, in api/_pdfbrand.js (13/10/2026): la copia
+// locale cancellava le lettere turche e cirilliche invece di traslitterarle
+// («Çağrı Şahin» → «Çar ahin», «Иван» → «») — un nome sparito da un documento che va a
+// un'organizzazione o all'Agenzia delle Entrate.
 
 // Formattazione ESPLICITA, non toLocaleString: i build di Node con ICU
 // ridotto accettano 'it-IT' ma non raggruppano le migliaia, quindi lo stesso
