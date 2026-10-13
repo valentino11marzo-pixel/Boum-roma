@@ -883,7 +883,10 @@
     return '€' + String(int).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (cents ? '.' + String(cents).padStart(2, '0') : '');
   }
   function withLang(url, lang) { return url ? url + (url.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + lang : ''; }
-  function privacyLine(lang) { return lang === 'it' ? 'Come BOOM tratta i tuoi dati: ' + BASE + '/privacy-inquilini' : 'How BOOM handles your data: ' + BASE + '/privacy-inquilini?lang=en'; }
+  // Il link porta la lingua del messaggio: senza, la pagina segue il telefono
+  // (un inquilino col telefono in inglese leggeva l'informativa in inglese
+  // sotto un messaggio italiano).
+  function privacyLine(lang) { return lang === 'it' ? 'Come BOOM tratta i tuoi dati: ' + BASE + '/privacy-inquilini?lang=it' : 'How BOOM handles your data: ' + BASE + '/privacy-inquilini?lang=en'; }
   function langToggle() {
     return '<div class="plz-lang" role="group" aria-label="Lingua del messaggio">' + [['en', 'English'], ['it', 'Italiano']].map(function (x) {
       return '<button type="button" data-plz="msg-lang" data-l="' + x[0] + '" aria-pressed="' + (ui.msgLang === x[0]) + '">' + x[1] + '</button>';
@@ -2282,7 +2285,7 @@
     _t: { euroInput: euroInput, fmtPhone: fmtPhone, waNumber: waNumber, punctuality: punctuality, occupiedText: occupiedText, rendOutcome: rendOutcome,
       periodText: periodText, debtNote: debtNote, eurEn: eurEn, withLang: withLang,
       rowKind: rowKind, rowName: rowName, rataText: rataText, amtText: amtText, telOf: telOf, phoneOf: phoneOf, phoneWhy: phoneWhy, cardEffect: cardEffect,
-      impDefaults: impDefaults, exportCsv: exportCsv, last: function () { return last; } } };
+      impDefaults: impDefaults, exportCsv: exportCsv, privacyLine: privacyLine, last: function () { return last; } } };
   if (typeof module === 'object' && module.exports) module.exports = API;
   root.BOOM_PALAZZO_UI = API;
 })(typeof window !== 'undefined' ? window : globalThis);

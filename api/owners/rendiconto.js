@@ -903,7 +903,7 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
       : 'rilancia «Esegui ora» nella Squadra';
     const lines = [`📒 <b>Rendiconti ${esc(label)}</b>`];
     if (counts.sent) lines.push(`✉️ ${counts.sent} inviati ai proprietari · rate pagate ${esc(eur(counts.totalCollected))}`);
-    if (counts.previews) lines.push(`👁 ${counts.previews} anteprime all'operatore (NON inviate): ${results.filter((r) => r.deliverTo === 'admin').map(nameOf).join(', ')}`);
+    if (counts.previews) lines.push(`👁 ${counts.previews === 1 ? '1 anteprima' : counts.previews + ' anteprime'} all'operatore (NON inviat${counts.previews === 1 ? 'a' : 'e'}): ${results.filter((r) => r.deliverTo === 'admin').map(nameOf).join(', ')}`);
     results.filter((r) => r.failed).forEach((r) => lines.push(`⛔ Non partito: ${nameOf(r)} — ${esc(r.failed)} (${again})`));
     results.filter((r) => r.uncertain).forEach((r) => lines.push(`❓ Esito incerto: ${nameOf(r)} — controlla la posta inviata; se non è partito, premi «Rimanda» nel Palazzo`));
     if (counts.deferred) lines.push(`⏳ ${counts.deferred} rimandati per tempo: ${again} (chi l'ha già ricevuto non lo riceve due volte)`);
@@ -912,7 +912,7 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
     if (results.some((r) => r.truncated)) lines.push('⚠️ letture troncate: qualche dato potrebbe mancare');
     if (results.some((r) => r.modeInvalid)) lines.push('⚠️ modalità del rendiconto non valida su qualche proprietario: trattata come anteprima');
     await tgNotify(lines.join('\n'));
-    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} inviati, ${counts.previews} anteprime, ${counts.failed} non partiti`, counts, results: results.slice(0, 20) });
+    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} inviati, ${counts.previews === 1 ? '1 anteprima' : counts.previews + ' anteprime'}, ${counts.failed} non partiti`, counts, results: results.slice(0, 20) });
     await logActivity('Rendiconti mensili', 'employee', counts, EMPLOYEE);
   }
   return { month, label, counts, results, ...(propsRead.truncated ? { truncated: true } : {}) };

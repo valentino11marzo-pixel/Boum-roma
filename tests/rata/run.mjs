@@ -141,6 +141,21 @@ await check('lookup: importo, scadenza, commissione della carta DETTA prima, con
   assert.ok(!raw.includes('Giulia') && !raw.includes('333') && !raw.includes('example.invalid'), 'la pagina non dice chi abita lì');
   assert.equal(r.headers['cache-control'], 'private, no-store');
 });
+await check('la causale dice il TIPO vero (come /casa): saldo deposito, deposito, addebito — mai «canone saldo deposito»', async () => {
+  const { rataView: rv } = await import('../../api/payments/rata.js');
+  const c = { source: 'palazzo-import', landlordIban: 'IT60X0542811101000000123456', landlordName: 'Esempio' };
+  const dep = rv({ id: 'depbal_x', type: 'deposit-balance', month: 'saldo deposito', amount: 1500, status: 'pending', dueDate: '2099-11-01' }, { contract: c });
+  assert.ok(/^BOOM-[2-9A-HJ-NP-Z]{6} saldo deposito cauzionale 2099-11$/.test(dep.bonifico.causale) && dep.kind === 'depbal', dep.bonifico.causale);
+  const d0 = rv({ id: 'dep_x', type: 'deposit', amount: 3000, status: 'pending', dueDate: '2099-11-01' }, { contract: c });
+  assert.ok(/ deposito cauzionale 2099-11$/.test(d0.bonifico.causale) && !/canone/.test(d0.bonifico.causale), d0.bonifico.causale);
+  const r0 = rv({ id: 'pay_x_2099-10', month: '2099-10', amount: 900, status: 'pending', dueDate: '2099-10-05' }, { contract: c });
+  assert.ok(/ canone 2099-10$/.test(r0.bonifico.causale), 'una rata senza tipo (generatori vecchi) resta «canone»: ' + r0.bonifico.causale);
+});
+await check('una rata ANNULLATA: stato «cancelled», niente da pagare né da segnalare', async () => {
+  const { rataView: rv } = await import('../../api/payments/rata.js');
+  const v = rv({ id: 'pay_x_2099-09', type: 'rent', month: '2099-09', amount: 900, status: 'cancelled', cancelledReason: 'mese condonato', dueDate: '2099-09-05' }, { contract: { source: 'palazzo-import' } });
+  assert.deepEqual([v.state, v.canPay, v.canWithdraw, v.card.available], ['cancelled', false, false, false]);
+});
 await check('senza IBAN nel contratto non se ne inventa uno (mai il conto di BOOM al posto di quello pattuito)', async () => {
   const v = (await call({ op: 'lookup', id: 'r2', t: t('r2') })).body.rata;
   assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary], ['', '']);

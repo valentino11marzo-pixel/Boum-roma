@@ -33,6 +33,9 @@ const R = {
   paid: { p: { id: 'paid', ...base, status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe', receiptUrl: 'https://pay.stripe.com/receipts/esempio' }, property: property(), contract },
   rev: { p: { id: 'rev', ...base, status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe', disputeStatus: 'open' }, property: property(), contract },
   half: { p: { id: 'half', ...base }, property: property(), contract },
+  depPaid: { p: { id: 'depPaid', ...base, type: 'deposit-balance', month: 'saldo deposito', amount: 1500, rentAmount: null, oneriAmount: null, status: 'paid', paidDate: '2026-10-04', paidVia: 'bonifico' }, property: property(), contract },
+  dep: { p: { id: 'dep', ...base, type: 'deposit-balance', month: 'saldo deposito', amount: 1500, rentAmount: null, oneriAmount: null }, property: property(), contract },
+  void: { p: { id: 'void', ...base, status: 'cancelled', cancelledReason: 'mese condonato' }, property: property(), contract },
 };
 const calls = [];
 let nextError = null;
@@ -232,7 +235,7 @@ await check('accessibilità: piede leggibile (≥4,5:1) con l\'informativa, tast
   assert.ok(m.h >= 44 && m.w >= 44, JSON.stringify(m));
   assert.deepEqual([m.href, m.group], ['/privacy-inquilini?lang=en', 'Language']);
   await pg.locator('[data-lang="it"]').click();
-  assert.deepEqual([await pg.locator('#foot a').getAttribute('href'), await pg.title(), await pg.locator('.lang').getAttribute('aria-label')], ['/privacy-inquilini', 'La tua rata · BOOM', 'Lingua']);
+  assert.deepEqual([await pg.locator('#foot a').getAttribute('href'), await pg.title(), await pg.locator('.lang').getAttribute('aria-label')], ['/privacy-inquilini?lang=it', 'La tua rata · BOOM', 'Lingua']);
   await ctx.close();
 });
 await check('co-intestatari: la metà segnalata non dice «non pagare di nuovo»; l\'altro telefono non annulla; chi ha segnalato annulla SOLO la sua, dopo la conferma', async () => {
@@ -275,6 +278,26 @@ await check('co-intestatari: la metà segnalata non dice «non pagare di nuovo»
 });
 await check('nessun errore JavaScript in nessuna pagina', async () => { assert.deepEqual(errors, []); });
 
+await check('saldo del deposito: «Il tuo pagamento», causale col tipo vero, e da pagato «Deposit balance paid» — mai «Rent paid»', async () => {
+  let o = await open('dep');
+  assert.equal((await o.pg.locator('.eyebrow').first().innerText()).toLowerCase(), 'your payment');
+  assert.ok(/saldo deposito cauzionale/.test(await o.pg.locator('#app').innerText()) && !/canone saldo deposito/.test(await o.pg.locator('#app').innerText()));
+  await o.ctx.close();
+  o = await open('depPaid');
+  const txt = await o.pg.locator('#app').innerText();
+  assert.ok(/Deposit balance paid/.test(txt) && !/Rent paid/.test(txt), txt);
+  await o.ctx.close();
+});
+await check('rata annullata: «Instalment cancelled», niente bonifico né carta, mai «Instalment to check»', async () => {
+  let o = await open('void');
+  let txt = await o.pg.locator('#app').innerText();
+  assert.ok(/Instalment cancelled/.test(txt) && /nothing is due/.test(txt) && !/Instalment to check/.test(txt) && !/IBAN/.test(txt), txt);
+  await o.ctx.close();
+  o = await open('void', { locale: 'it-IT' });
+  txt = await o.pg.locator('#app').innerText();
+  assert.ok(/Rata annullata/.test(txt) && !/Rata da verificare/.test(txt), txt);
+  await o.ctx.close();
+});
 await browser.close();
 server.close();
 console.log(`\n${passed} check /rata nel browser · ${failed} falliti`);

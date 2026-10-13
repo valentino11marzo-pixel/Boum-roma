@@ -206,6 +206,16 @@ let pdfTxt = '', previewHtml = '';
   check('due locatori diversi: ognuno sulla sua sezione', /Locatore\nAltra Società S\.p\.A\./.test(txt2) && /Locatore\nProva Immobiliare S\.r\.l\./.test(txt2) && !/alla c\.a\./.test(txt2));
 }
 
+// ═══ 7b. Il recap Telegram: «1 anteprima», mai «1 anteprime» ═════════════
+{
+  seed();
+  process.env.TELEGRAM_BOT_TOKEN = 'tg-test'; process.env.TELEGRAM_CHAT_ID = '1';
+  await drive();
+  delete process.env.TELEGRAM_BOT_TOKEN;
+  const t = F.telegrams.join('\n');
+  check('recap Telegram: «1 anteprima all\'operatore (NON inviata)»', /👁 1 anteprima all'operatore \(NON inviata\)/.test(t) && !/1 anteprime/.test(t));
+}
+
 // ═══ 8. La rata del mese ANNULLATA: detta col motivo, mai «in verifica» ════
 // Un mese condonato (o una rata tolta dall'operatore) su un contratto vivo:
 // il motore del Palazzo dà lo stato «waived». Prima il rendiconto stampava

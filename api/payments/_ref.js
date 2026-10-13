@@ -34,11 +34,17 @@ export function payRef(paymentId) {
 
 // La causale suggerita al cliente: il codice più il periodo, così anche un
 // umano che apre l'estratto conto capisce a colpo d'occhio cos'era.
+// Il TIPO vero, come /casa (renderBonifico): un saldo deposito non è un
+// «canone saldo deposito». Il periodo solo se è un mese (YYYY-MM).
 export function payCausale(payment) {
   const p = payment || {};
   const ref = payRef(p.id);
-  const period = p.month || String(p.dueDate || '').slice(0, 7);
-  return [ref, period ? 'canone ' + period : 'canone'].filter(Boolean).join(' ');
+  const type = String(p.type || '').trim().toLowerCase();
+  const kind = type === 'deposit' ? 'deposito cauzionale' : type === 'deposit-balance' ? 'saldo deposito cauzionale'
+    : (!type || ['rent', 'canone', 'rent-installment', 'monthly-rent'].includes(type)) ? 'canone' : 'addebito contrattuale';
+  const m = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+  const period = /^\d{4}-\d{2}$/.test(m) ? m : '';
+  return [ref, kind, period].filter(Boolean).join(' ');
 }
 
 // Normalizza per il confronto: le banche cambiano spaziatura, maiuscole e

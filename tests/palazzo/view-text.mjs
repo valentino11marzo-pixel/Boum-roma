@@ -211,6 +211,10 @@ const scenPriv = viewSrc => {
   assert.ok(/Copia messaggio/.test(html) && /privacy-inquilini/.test(unesc(html.split('data-plz="copy-link"')[1] || '')), 'anche «Copia messaggio»');
 };
 ok('rata: l’informativa privacy arriva al co-intestatario anche dopo il messaggio al titolare (e nel «Copia messaggio»)', () => scenPriv());
+ok('informativa: il link porta la lingua del messaggio (IT → ?lang=it, EN → ?lang=en)', () => {
+  assert.equal(T.privacyLine('it'), 'Come BOOM tratta i tuoi dati: https://www.boomrome.com/privacy-inquilini?lang=it');
+  assert.equal(T.privacyLine('en'), 'How BOOM handles your data: https://www.boomrome.com/privacy-inquilini?lang=en');
+});
 ok('mutazione: l’informativa «solo al primo messaggio del contratto» — il co-intestatario la perde, il controllo cade', () => {
   const src = read('palazzo.js');
   const from = "'. ' + howEn + url + '\\n' + privacyLine('en');";
