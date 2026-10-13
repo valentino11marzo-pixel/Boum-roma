@@ -351,4 +351,13 @@ await test('a same-payment proof or invoice cannot appear as the tenant receipt'
    await f.api.receipt('rent-sep',button);assert.equal(button.disabled,false);assert.match(f.elements.get('receiptFeedback').textContent,/not available/);
  }
 });
+await test('a refunded or disputed card rata (review) never becomes the next payment and never hides the current rent',()=>{
+ const f=fixture();
+ const rows=[payment({id:'rent-mar',month:'2026-03',dueDate:'2026-03-05',status:'paid',paidVia:'stripe',disputeStatus:'open',disputeAt:'2026-09-10T10:00:00Z'}),
+   payment({id:'rent-oct',month:'2026-10',dueDate:'2026-10-05'})];
+ f.render(rows);
+ assert.equal(f.api.next().id,'rent-oct');
+ const refunded=[payment({id:'rent-mar',month:'2026-03',dueDate:'2026-03-05',status:'paid',paidVia:'stripe',refundedAt:'2026-09-10T10:00:00Z',refundedFull:true,refundedAmount:900}),payment({id:'rent-oct',month:'2026-10',dueDate:'2026-10-05'})];
+ f.render(refunded);assert.equal(f.api.next().id,'rent-oct');
+});
 console.log(`\n${passed} tenant payment checks passed. No live network or writes.`);

@@ -810,7 +810,9 @@ function payable(p){
     !!(window.BOOM_RENT&&window.BOOM_RENT.canPay(p,todayISO));
 }
 function nextPending(){
-  var p=homePayments().filter(function(x){return paymentState(x)!=='paid'&&paymentState(x)!=='cancelled'&&window.BOOM_RENT&&window.BOOM_RENT.amount(x.amount)>0});
+  /* Una rata rimborsata o contestata (stato 'review') la segue BOOM: non è
+     il «prossimo pagamento» e non deve nascondere il canone da pagare. */
+  var p=homePayments().filter(function(x){var st=paymentState(x);return st!=='paid'&&st!=='cancelled'&&st!=='review'&&window.BOOM_RENT&&window.BOOM_RENT.amount(x.amount)>0});
   p.sort(function(a,b){return String(a.dueDate||'').localeCompare(String(b.dueDate||''))});
   return p.filter(function(x){return x.id===PAY_RETURN})[0]||p[0]||null;
 }
