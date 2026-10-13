@@ -29,7 +29,7 @@ La routine “alla ricezione” è una regola organizzativa. La fattura immediat
 
 ## Passaggio di studio
 
-Intenzione espressa il 13 ottobre: scelta del nuovo studio dalla settimana successiva, possibile decorrenza 1 gennaio 2027. Decorrenza e incarichi non ancora confermati. Prima del passaggio assegnare per iscritto: chi chiude il 2026, chi cura dichiarazioni e adempimenti successivi relativi al 2026, chi sistema gli scarti e chi comunica importi/scadenze da versare. Preparare consegna di registri, mastrini, fatture/XML/esiti, F24/ricevute, saldi iniziali e questioni aperte.
+Conferma del titolare del 13 ottobre: nuovo studio con decorrenza 1 gennaio 2027; gestione del 2026 ancora da chiarire. L'incarico al nuovo studio non è ancora documentato. Prima del passaggio assegnare per iscritto: chi chiude il 2026, chi cura dichiarazioni e adempimenti successivi relativi al 2026, chi sistema gli scarti e chi comunica importi/scadenze da versare. Preparare consegna di registri, mastrini, fatture/XML/esiti, F24/ricevute, saldi iniziali e questioni aperte.
 
 ## Sequenza di completamento
 
