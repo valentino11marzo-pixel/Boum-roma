@@ -73,6 +73,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
 <div class="wrap">
   <div class="top"><span class="brand">BOOM</span><span class="lang" role="group" aria-label="Language"><button type="button" data-lang="it" aria-pressed="false">IT</button><button type="button" data-lang="en" aria-pressed="true">EN</button></span></div>
   <main id="app"><p class="where">One moment…</p></main>
+  <p id="sr" aria-live="polite" style="position:absolute;width:1px;height:1px;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0"></p>
   <p class="foot" id="foot"></p>
 </div>
 <script>
@@ -369,11 +370,18 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     var sentDate = draft.date || today();
     api({ op: 'report', date: sentDate, note: draft.note, amount: draft.amount !== '' ? draft.amount : defaultAmount(), company: f.company.value, nonce: nonce, another: another, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
       .then(function (j) {
-        if (j.ok) { rememberNonce(nonce, sentDate); after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; nonce = ''; another = false; draft = { date: '', note: '', amount: '' }; return load(); }
+        if (j.ok) { rememberNonce(nonce, sentDate); after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; nonce = ''; another = false; draft = { date: '', note: '', amount: '' }; announce(t('repH')); return load(); }
         btn.disabled = false; btn.textContent = t('report');
         fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'bad_date' ? t('badDate') : j.error === 'bad_amount' ? t('badAmount') : j.error === 'too_many_reports' ? t('tooMany')
           : j.error === 'card_completed' ? t('cardDone') : j.error === 'state_changed' ? t('changed') : j.error === 'invalid_link' ? t('invalid') : t('fail'));
       }, function () { btn.disabled = false; btn.textContent = t('report'); fail(t('fail')); });
+  }
+  // L'esito detto al lettore di schermo: la regione #sr esiste dalla prima
+  // pittura (una regione creata insieme al testo non viene letta), e il
+  // testo si scrive dopo averla svuotata.
+  function announce(text) {
+    var el = document.getElementById('sr'); if (!el) return;
+    el.textContent = ''; setTimeout(function () { el.textContent = text; }, 60);
   }
   function withdraw() {
     var btn = document.getElementById('wd');
@@ -387,7 +395,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     }
     btn.disabled = true;
     api(several ? { op: 'withdraw', nonce: last.n } : { op: 'withdraw' }).then(function (j) {
-      if (j.ok) { if (several) forgetNonce(last.n); after = null; form = false; return load(); }
+      if (j.ok) { if (several) forgetNonce(last.n); after = null; form = false; announce(t('withdrawn')); return load(); }
       if (j.error === 'several_reports' && several) forgetNonce(last.n);
       btn.disabled = false; fail(j.error === 'state_changed' ? t('changed') : j.error === 'several_reports' ? t('severalWd') : t('fail'));
     }, function () { btn.disabled = false; fail(t('fail')); });

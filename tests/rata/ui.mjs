@@ -298,6 +298,19 @@ await check('rata annullata: «Instalment cancelled», niente bonifico né carta
   assert.ok(/Rata annullata/.test(txt) && !/Rata da verificare/.test(txt), txt);
   await o.ctx.close();
 });
+await check('il lettore di schermo sente l’esito: «Transfer reported» dopo la segnalazione, «Report cancelled.» dopo l’annullo', async () => {
+  R.sr = { p: { id: 'sr', ...base }, property: property(), contract };
+  const { pg, ctx } = await open('sr');
+  assert.equal(await pg.locator('#sr').getAttribute('aria-live'), 'polite');
+  await pg.locator('#bank').click();
+  await pg.locator('#dt').fill('2026-10-03');
+  await pg.locator('#send').click();
+  await pg.waitForFunction(() => document.getElementById('sr').textContent === 'Transfer reported');
+  pg.once('dialog', d => d.accept());
+  await pg.locator('#wd').click();
+  await pg.waitForFunction(() => document.getElementById('sr').textContent === 'Report cancelled.');
+  await ctx.close();
+});
 await browser.close();
 server.close();
 console.log(`\n${passed} check /rata nel browser · ${failed} falliti`);
