@@ -1038,6 +1038,44 @@ const ARREARS = () => {
     assert.equal(A.sent.length, n, 'nessuna seconda richiesta di registrazione');
     assert.match(A.toasts.at(-1).join(' '), /già registrato/);
   });
+  // Registrato e attestazione non richiesta: il pannello lo dice e non invia.
+  const N = mkAspi({ registrationStatus: 'registered', rliRegisteredAt: '2026-09-25' }, { kind: null, kinds: {}, notRequired: true, registered: { at: '2026-09-25' } });
+  await N.run("openAspi('cNo')");
+  await check('ASPI registrato e attestazione non richiesta: lo dice, nessuna variante attiva, nessun invio', async () => {
+    const hn = N.modals.innerHTML;
+    assert.ok(hn.includes('l’attestazione di rispondenza non è richiesta per questo contratto'), hn.slice(0, 600));
+    assert.match(hn, /value="asseverazione"[^>]*disabled/);
+    assert.match(hn, /id="aspiSendBtn"[^>]*disabled/);
+    await N.run("sendAspi('cNo')");
+    assert.equal(N.sent.length, 0);
+    assert.match(N.toasts.at(-1).join(' '), /Niente da chiedere ad ASPI/);
+  });
+  // Attestazione già compresa nel completo inviato prima della registrazione.
+  const C = mkAspi({ registrationStatus: 'registered', rliRegisteredAt: '2026-10-01', aspiRequestedAt: '2026-09-02T10:00:00Z', aspiRequestKind: 'completo' },
+    { kind: 'asseverazione', kinds: { asseverazione: [{ key: 'contratto', label: 'Contratto', state: 'ok' }] }, registered: { at: '2026-10-01' },
+      already: { registrazione: { kind: 'completo', at: '2026-09-02T10:00:00Z' }, asseverazione: { kind: 'completo', at: '2026-09-02T10:00:00Z' } } });
+  await C.run("openAspi('cComp')");
+  await check('ASPI: attestazione già richiesta col completo — lo dice con la data, e non promette un’altra fattura', () => {
+    const hc = C.modals.innerHTML;
+    assert.ok(hc.includes('Attestazione già richiesta col completo del 02/09/2026'), hc.slice(0, 900));
+    assert.ok(hc.includes('Solo attestazione di rispondenza · già fatturata col completo') && !hc.includes('Solo attestazione di rispondenza · fattura €189'));
+  });
+  // Il 📎 su un registrato: la voce sta solo in «asseverazione», e il «solo
+  // PDF» del contratto su carta non si perde.
+  {
+    const inputs = [], toasts = [];
+    const actx = vm.createContext({ S: { contracts: [] }, console: { log() {}, warn() {} }, toast: (...a) => toasts.push(a), window: {},
+      document: { createElement: () => { const i = { click() {} }; inputs.push(i); return i; }, querySelectorAll: () => [], querySelector: () => null } });
+    vm.runInContext(fnSrc(SRC0, 'aspiAllega'), actx);
+    actx.window._aspiStatus = { contractId: 'cReg', kind: 'asseverazione', kinds: { asseverazione: [{ key: 'contratto', label: 'Contratto firmato su carta', state: 'missing', allegabile: true, accept: 'application/pdf' }] } };
+    vm.runInContext("aspiAllega('contratto')", actx);
+    await check('ASPI 📎 su un contratto registrato: il file picker accetta solo PDF (la voce trovata in «asseverazione»)', async () => {
+      assert.equal(inputs.at(-1).accept, 'application/pdf');
+      inputs.at(-1).files = [{ name: 'foto.jpg', type: 'image/jpeg', size: 1000 }];
+      await inputs.at(-1).onchange();
+      assert.match(toasts.at(-1).join(' '), /Serve il PDF/);
+    });
+  }
   const B = mkAspi({ registrationStatus: 'pending' });
   await B.run("openAspi('cNew')");
   await check('un contratto non registrato: le tre varianti, il completo di default', () => {

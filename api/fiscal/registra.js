@@ -13,13 +13,20 @@
 //       allegati, stato stampato sul contratto, fattura col markup.
 //       409 already_registered se si chiede la registrazione (o il
 //       completo) su un contratto già registrato: nessuna email, nessuna fattura.
+//       409 not_required su un registrato con requiresAsseverazione false:
+//       l'attestazione non è dovuta, non resta niente da chiedere.
+//       La fattura è per SERVIZIO: un'attestazione già compresa nel completo
+//       non si fattura di nuovo (invoice.coveredBy).
+//   status porta anche notRequired e already: {registrazione, asseverazione}
+//       → {kind, at} della richiesta che li ha già chiesti (il completo copre
+//       entrambi): «attestazione già richiesta col completo del …».
 //
 // maxDuration 60 in vercel.json: gli allegati si scaricano da Storage.
 
 import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import {
-  loadAspiSettings, aspiChecklist, sendAspiRequest, kindFor, registeredAt, kindPrice, kindCost,
+  loadAspiSettings, aspiChecklist, sendAspiRequest, kindFor, registeredAt, kindPrice, kindCost, aspiAlready,
 } from './_aspi.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -46,7 +53,7 @@ export default async function handler(req, res) {
       });
       // already_registered = 409: il contratto è registrato, la richiesta di
       // registrazione non parte (nessuna email, nessuna fattura).
-      return res.status(out.ok ? 200 : out.error === 'contract_not_found' ? 404 : out.error === 'already_registered' ? 409 : 422).json(out);
+      return res.status(out.ok ? 200 : out.error === 'contract_not_found' ? 404 : ['already_registered', 'not_required'].includes(out.error) ? 409 : 422).json(out);
     }
 
     // op:'status' — la fotografia per il pannello.
@@ -57,9 +64,12 @@ export default async function handler(req, res) {
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
     const settings = await loadAspiSettings();
-    // Su un contratto già registrato si offre SOLO l'attestazione.
+    // Su un contratto già registrato si offre SOLO l'attestazione — e
+    // niente, se il contratto la dichiara non richiesta (kindFor null).
     const reg = registeredAt(contract);
-    const kinds = reg
+    const kind = kindFor(contract);
+    const notRequired = !!reg && !kind;
+    const kinds = notRequired ? {} : reg
       ? { asseverazione: aspiChecklist(contract, property, 'asseverazione') }
       : {
         registrazione: aspiChecklist(contract, property, 'registrazione'),
@@ -74,9 +84,11 @@ export default async function handler(req, res) {
         prezzi: { registrazione: kindPrice('registrazione', settings), completo: kindPrice('completo', settings), asseverazione: kindPrice('asseverazione', settings) },
         costi: { registrazione: kindCost('registrazione', settings), completo: kindCost('completo', settings), asseverazione: kindCost('asseverazione', settings) },
       },
-      kind: kindFor(contract),
+      kind,
       kinds,
+      notRequired,
       registered: reg ? { at: reg === true ? null : reg } : null,
+      already: aspiAlready(contract),
       state: {
         aspiRequestedAt: contract.aspiRequestedAt || null,
         aspiRequestKind: contract.aspiRequestKind || null,

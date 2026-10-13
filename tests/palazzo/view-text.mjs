@@ -371,6 +371,13 @@ ok('ASPI: su un contratto registrato la leva dice «solo attestazione»; su uno 
   assert.equal(scenAspi(null, { registrationStatus: 'registered' }), 'Invia ad ASPI · solo attestazione');
   assert.equal(scenAspi(null, {}), 'Invia ad ASPI');
 });
+ok('ASPI: registrato e attestazione NON richiesta (requiresAsseverazione false) → nessuna leva ASPI; non registrato → «Invia ad ASPI»', () => {
+  assert.equal(scenAspi(null, { rliRegisteredAt: MM(-2) + '-20', requiresAsseverazione: false }), '');
+  assert.equal(scenAspi(null, { requiresAsseverazione: false }), 'Invia ad ASPI');
+  const src = read('palazzo.js'), from = "var aspiNone = registered && lease.requiresAsseverazione === false;";
+  assert.ok(src.includes(from));
+  assert.equal(scenAspi(src.replace(from, 'var aspiNone = false;'), { rliRegisteredAt: MM(-2) + '-20', requiresAsseverazione: false }), 'Invia ad ASPI · solo attestazione', 'mutazione: senza la regola la leva propone un servizio non dovuto');
+});
 ok('mutazione: la leva ASPI che non guarda la registrazione — il controllo cade', () => {
   const src = read('palazzo.js'), from = "b('aspi', registered ? 'Invia ad ASPI · solo attestazione' : 'Invia ad ASPI'";
   assert.ok(src.includes(from));

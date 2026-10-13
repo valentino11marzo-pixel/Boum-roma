@@ -26123,7 +26123,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function aspiAllega(key) {
         const st = window._aspiStatus;
         if (!st || !st.contractId) return;
-        const item = [...((st.kinds || {}).registrazione || []), ...((st.kinds || {}).completo || [])].find(x => x && x.key === key) || {};
+        // La voce si cerca in TUTTE le varianti che il server ha mandato: su
+        // un contratto registrato arriva solo «asseverazione», e senza la voce
+        // il 📎 del contratto su carta perdeva il «solo PDF» (e il server
+        // rispondeva pdf_required a una foto).
+        const item = Object.values(st.kinds || {}).flat().find(x => x && x.key === key) || {};
         const pdfOnly = item.accept === 'application/pdf';
         const inp = document.createElement('input');
         inp.type = 'file';
@@ -26211,8 +26215,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
         const reg = _aspiRegistered(st);
-        if (reg) st.kind = 'asseverazione';
+        // Registrato e attestazione dichiarata NON richiesta: niente da
+        // chiedere ad ASPI (il server risponde 409 not_required).
+        const notRequired = st.notRequired === true;
+        if (reg && !notRequired) st.kind = 'asseverazione';
         const regDay = reg && reg !== true ? String(reg).slice(0, 10) : '';
+        // Il completo copre registrazione E attestazione: un'attestazione già
+        // chiesta col completo non si fattura di nuovo (il server lo sa).
+        const alr = (st.already || {}).asseverazione;
+        const alrNote = alr && alr.kind === 'completo' && reg && !notRequired
+            ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">Attestazione già richiesta col completo${alr.at ? ' del ' + esc(incassoDateIt(String(alr.at).slice(0, 10))) : ''}: un nuovo invio la sollecita, senza un’altra fattura.</div>` : '';
         const prezzoAss = (s.prezzi && s.prezzi.asseverazione != null) ? s.prezzi.asseverazione : '';
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
@@ -26225,11 +26237,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
-                ${reg ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato all’AdE${regDay ? ' il ' + esc(incassoDateIt(regDay)) : ''}: si chiede solo l’attestazione di rispondenza (nessuna seconda registrazione).</div>` : ''}
+                ${reg && notRequired ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato all’AdE${regDay ? ' il ' + esc(incassoDateIt(regDay)) : ''}, e l’attestazione di rispondenza non è richiesta per questo contratto: non c’è niente da chiedere ad ASPI.</div>`
+                    : reg ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato all’AdE${regDay ? ' il ' + esc(incassoDateIt(regDay)) : ''}: si chiede solo l’attestazione di rispondenza (nessuna seconda registrazione).</div>` : ''}
+                ${alrNote}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="asseverazione" ${st.kind === 'asseverazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo attestazione di rispondenza${prezzoAss !== '' ? ` · fattura €${prezzoAss}` : ''}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${notRequired ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="asseverazione" ${st.kind === 'asseverazione' ? 'checked' : ''} ${notRequired ? 'disabled' : ''} onchange="_aspiRenderKind()"> Solo attestazione di rispondenza${prezzoAss !== '' ? (alr && alr.kind === 'completo' ? ' · già fatturata col completo' : ` · fattura €${prezzoAss}`) : ''}</label>
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
@@ -26238,7 +26252,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')" ${notRequired ? 'disabled title="Attestazione non richiesta per questo contratto"' : ''}>✉ Invia ad ASPI</button>
             </div>
         </div></div>`;
         _aspiRenderKind();
@@ -26249,6 +26263,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || (st0 && st0.kind) || 'completo';
         // Mai una seconda richiesta di registrazione per un contratto già
         // registrato (anche se una pagina vecchia lascia il radio attivo).
+        if (st0 && st0.notRequired === true) return toast('error', 'Niente da chiedere ad ASPI', 'Contratto registrato e attestazione non richiesta.');
         if (_aspiRegistered(st0) && kind !== 'asseverazione') return toast('error', 'Contratto già registrato all’AdE', 'Ad ASPI si chiede solo l’attestazione di rispondenza.');
         const bill = !!document.getElementById('aspiBill')?.checked;
         const note = document.getElementById('aspiNote')?.value || '';
@@ -26268,10 +26283,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
                     : j && j.error === 'already_registered'
                     ? 'Contratto già registrato' + (j.at ? ' il ' + incassoDateIt(String(j.at).slice(0, 10)) : '') + ': ad ASPI si chiede solo l’attestazione.'
+                    : j && j.error === 'not_required'
+                    ? 'Contratto registrato e attestazione non richiesta: niente da chiedere ad ASPI.'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
-            toast('success', `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${j.invoice ? (j.invoice.created ? ` · fattura €${j.invoice.amount} creata` : ' · fattura già emessa') : ''}`);
+            // La fattura è per SERVIZIO: «già compresa nel completo» non è
+            // «fattura creata», e una parte già fatturata si dice.
+            const inv = j.invoice;
+            const invTxt = !inv ? ''
+                : inv.created ? ` · fattura €${inv.amount} creata${inv.billed && inv.billed !== j.kind ? ` (solo ${inv.billed === 'asseverazione' ? 'l’attestazione' : 'la registrazione'}: il resto era già fatturato)` : ''}`
+                : inv.coveredBy && inv.amount == null ? ` · nessuna nuova fattura: già compresa ${/_completo_/.test(String(inv.id || '')) ? 'nel completo' : 'in una fattura già emessa'}`
+                : ' · fattura già emessa';
+            toast('success', `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${invTxt}`);
             if (Array.isArray(j.missing) && j.missing.length) {
                 toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
             }
@@ -26279,6 +26303,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (lc) {
                 lc.aspiRequestedAt = new Date().toISOString();
                 lc.aspiRequestKind = j.kind; lc.aspiRequestTo = j.to;
+                lc.aspiRequestsAt = { [j.kind]: lc.aspiRequestedAt, ...(lc.aspiRequestsAt || {}) };
                 if (j.kind !== 'asseverazione' && lc.registrationStatus !== 'registered') lc.registrationStatus = 'sent';
             }
             renderPage();

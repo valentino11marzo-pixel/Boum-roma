@@ -804,8 +804,11 @@
       // Già registrato all'AdE: ad ASPI si chiede SOLO l'attestazione (il
       // server risponde 409 already_registered a una seconda registrazione).
       var registered = (reg && reg.status === 'registered') || !!lease.rliRegisteredAt || lease.registrationStatus === 'registered';
+      // Registrato e attestazione dichiarata NON richiesta: niente da chiedere
+      // ad ASPI (il server risponde 409 not_required), la leva non c'è.
+      var aspiNone = registered && lease.requiresAsseverazione === false;
       groups.push(['Registrazione', (reg && reg.status !== 'registered' ? b('rli', '✓ RLI registrato', ' data-id="' + esc(cid) + '"', !!reg.late) : '') +
-        b('aspi', registered ? 'Invia ad ASPI · solo attestazione' : 'Invia ad ASPI', ' data-id="' + esc(cid) + '"' + (registered ? ' title="Contratto già registrato all’AdE: ad ASPI si chiede solo l’attestazione di rispondenza"' : '')) + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
+        (aspiNone ? '' : b('aspi', registered ? 'Invia ad ASPI · solo attestazione' : 'Invia ad ASPI', ' data-id="' + esc(cid) + '"' + (registered ? ' title="Contratto già registrato all’AdE: ad ASPI si chiede solo l’attestazione di rispondenza"' : ''))) + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
         b('arpe', 'Scheda ARPE', ' data-id="' + esc(cid) + '"')]);
     }
     groups.push(['Interno', b('dossier', 'Fascicolo immobile', ' data-id="' + esc(u.id) + '"') + b('edit', 'Modifica interno', ' data-id="' + esc(u.id) + '"') +

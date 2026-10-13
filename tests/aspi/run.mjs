@@ -336,7 +336,7 @@ const regProbe = async (send) => {
   const fs0 = await import('node:fs'), os0 = await import('node:os'), path0 = await import('node:path'), url0 = await import('node:url');
   const fileUrl = new URL('../../api/fiscal/_aspi.js', import.meta.url);
   let src = fs0.readFileSync(fileUrl, 'utf8');
-  const from = "if (reg0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered'";
+  const from = "if (reg0 && kind0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered'";
   check('mutazione «guardia already_registered»: applicabile', src.includes(from));
   src = src.replace(from, "if (false) return { ok: false, error: 'already_registered'")
     .replace(/from '(\.{1,2}\/[^']+)'/g, (m, p) => `from '${new URL(p, fileUrl).href}'`);
@@ -348,6 +348,105 @@ const regProbe = async (send) => {
   store.delete('invoices/aspi_asseverazione_c6r');
   const { clean } = await regProbe(async (id, kind) => M.sendAspiRequest(id, { kind }));
   check('mutazione «guardia already_registered»: il difetto rimesso fa partire email e fattura (il controllo cade)', clean === false);
+}
+
+// ═══ 6c. La fattura è per SERVIZIO, non per variante ═══
+// (13/10/2026) Il completo comprende registrazione e attestazione. Il caso
+// più comune: completo inviato (€278), poi il contratto segnato ✓ RLI
+// registrato → la leva «solo attestazione» non deve creare un'altra fattura
+// da €189. E registrazione → completo fattura solo l'attestazione.
+const invOf = (id) => [...store.keys()].filter(k => k.startsWith('invoices/') && k.endsWith('_' + id)).sort();
+const sendH = async (id, kind) => { const r = mkRes(); await handler(mkReq({ op: 'send', contractId: id, ...(kind ? { kind } : {}) }, { authorization: 'Bearer faketoken' }), r); return r; };
+{
+  store.set('contracts/c7', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  const a = await sendH('c7', 'completo');
+  check('servizio · completo: fattura €278', a.code === 200 && store.get('invoices/aspi_completo_c7').amount === 278);
+  store.set('contracts/c7', { ...store.get('contracts/c7'), rliRegisteredAt: '2026-10-01', registrationStatus: 'registered' });
+  const st = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'c7' }, { authorization: 'Bearer faketoken' }), st);
+  check('servizio · status dopo la registrazione: solo attestazione, «già richiesta col completo» con la data',
+    st.body.kind === 'asseverazione' && Object.keys(st.body.kinds).join() === 'asseverazione'
+    && st.body.already && st.body.already.asseverazione && st.body.already.asseverazione.kind === 'completo'
+    && /^\d{4}-\d{2}-\d{2}T/.test(String(st.body.already.asseverazione.at || '')));
+  const nMail = mails().length;
+  const b = await sendH('c7');
+  check('servizio · completo → registrato → solo attestazione: email sì, UNA fattura sola (nessuna da €189)',
+    b.code === 200 && b.body.kind === 'asseverazione' && mails().length === nMail + 1
+    && invOf('c7').join() === 'invoices/aspi_completo_c7' && b.body.invoice && b.body.invoice.created === false
+    && b.body.invoice.id === 'aspi_completo_c7' && b.body.invoice.coveredBy && b.body.invoice.coveredBy.asseverazione === 'aspi_completo_c7');
+  const c7 = store.get('contracts/c7');
+  check('servizio · le richieste per variante restano (aspiRequestsAt): completo E attestazione, l\'ultima in aspiRequestKind',
+    c7.aspiRequestKind === 'asseverazione' && c7.aspiRequestsAt && !!c7.aspiRequestsAt.completo && !!c7.aspiRequestsAt.asseverazione);
+}
+{
+  store.set('contracts/c8', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  await sendH('c8', 'registrazione');
+  const r = await sendH('c8', 'completo');
+  check('servizio · registrazione → completo: si fattura SOLO l\'attestazione (€89 + €189, mai €89 + €278)',
+    r.code === 200 && invOf('c8').join() === 'invoices/aspi_asseverazione_c8,invoices/aspi_registrazione_c8'
+    && store.get('invoices/aspi_registrazione_c8').amount === 89 && store.get('invoices/aspi_asseverazione_c8').amount === 189
+    && r.body.invoice.created === true && r.body.invoice.billed === 'asseverazione' && r.body.invoice.coveredBy.registrazione === 'aspi_registrazione_c8'
+    && /già fatturata/.test(store.get('invoices/aspi_asseverazione_c8').description));
+  const again = await sendH('c8', 'completo');
+  check('servizio · secondo completo: nessuna fattura nuova', again.code === 200 && invOf('c8').length === 2 && again.body.invoice.created === false);
+  store.set('contracts/c9', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  await sendH('c9', 'asseverazione');
+  await sendH('c9', 'completo');
+  check('servizio · attestazione → completo: si fattura SOLO la registrazione',
+    invOf('c9').join() === 'invoices/aspi_asseverazione_c9,invoices/aspi_registrazione_c9' && store.get('invoices/aspi_registrazione_c9').amount === 89);
+}
+{
+  const { aspiInvoicePlan } = await import('../../api/fiscal/_aspi.js');
+  const P = (k, ex) => JSON.stringify(aspiInvoicePlan(k, ex, 'x'));
+  check('servizio · aspiInvoicePlan pura: niente → tutto; completo copre entrambe; una fattura ANNULLATA non copre',
+    P('completo', {}) === JSON.stringify({ bill: 'completo', covered: {} })
+    && P('asseverazione', { completo: { amount: 278 } }) === JSON.stringify({ bill: null, covered: { A: 'aspi_completo_x' } })
+    && P('registrazione', { completo: { amount: 278 } }) === JSON.stringify({ bill: null, covered: { R: 'aspi_completo_x' } })
+    && P('asseverazione', { completo: { amount: 278, status: 'cancelled' } }) === JSON.stringify({ bill: 'asseverazione', covered: {} })
+    && P('completo', { registrazione: {}, asseverazione: {} }) === JSON.stringify({ bill: null, covered: { R: 'aspi_registrazione_x', A: 'aspi_asseverazione_x' } }));
+}
+{
+  // Mutazione: fatturare per variante (il difetto) rifà la fattura da €189.
+  const fs0 = await import('node:fs'), os0 = await import('node:os'), path0 = await import('node:path'), url0 = await import('node:url');
+  const fileUrl = new URL('../../api/fiscal/_aspi.js', import.meta.url);
+  let src = fs0.readFileSync(fileUrl, 'utf8');
+  const from = 'const plan = aspiInvoicePlan(kind, existing, contractId);';
+  check('mutazione «fattura per variante»: applicabile', src.includes(from));
+  src = src.replace(from, 'const plan = { bill: kind, covered: {} };')
+    .replace(/from '(\.{1,2}\/[^']+)'/g, (m, p) => `from '${new URL(p, fileUrl).href}'`);
+  const dir = fs0.mkdtempSync(path0.join(os0.tmpdir(), 'aspi-mut-'));
+  const out = path0.join(dir, 'm.mjs');
+  fs0.writeFileSync(out, src);
+  const M = await import(url0.pathToFileURL(out).href);
+  fs0.rmSync(dir, { recursive: true, force: true });
+  store.set('contracts/c7m', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  await M.sendAspiRequest('c7m', { kind: 'completo' });
+  store.set('contracts/c7m', { ...store.get('contracts/c7m'), rliRegisteredAt: '2026-10-01' });
+  await M.sendAspiRequest('c7m', {});
+  check('mutazione «fattura per variante»: il difetto rimesso crea la seconda fattura da €189 (il controllo cade)', invOf('c7m').length === 2);
+}
+
+// ═══ 6d. Registrato e attestazione NON richiesta: niente da chiedere ═══
+{
+  const { kindFor } = await import('../../api/fiscal/_aspi.js');
+  check('kindFor: registrato + requiresAsseverazione false → null; non registrato → registrazione',
+    kindFor({ rliRegisteredAt: '2026-09-01', requiresAsseverazione: false }) === null
+    && kindFor({ requiresAsseverazione: false }) === 'registrazione'
+    && kindFor({ rliRegisteredAt: '2026-09-01' }) === 'asseverazione');
+  store.set('contracts/cY', { ...baseContract, requiresAsseverazione: false, rliRegisteredAt: '2026-09-15', propertyId: 'p1', tenantId: 'u1' });
+  const st = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'cY' }, { authorization: 'Bearer faketoken' }), st);
+  check('non richiesta · status: nessuna variante offerta, notRequired', st.code === 200 && st.body.kind === null && Object.keys(st.body.kinds).length === 0 && st.body.notRequired === true);
+  const nMail = mails().length;
+  const out = [await sendH('cY'), await sendH('cY', 'asseverazione'), await sendH('cY', 'completo')];
+  check('non richiesta · send (senza variante, attestazione) → 409 not_required; completo → 409 already_registered; zero email e fatture',
+    out[0].code === 409 && out[0].body.error === 'not_required' && out[1].code === 409 && out[1].body.error === 'not_required'
+    && out[2].code === 409 && out[2].body.error === 'already_registered'
+    && mails().length === nMail && invOf('cY').length === 0 && !store.get('contracts/cY').aspiRequestedAt);
+  const page = fs.readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  check('portal: il pannello sa del «non richiesto» e dell\'attestazione già nel completo, e il 📎 cerca la voce in tutte le varianti',
+    page.includes('st.notRequired === true') && page.includes("error === 'not_required'") && page.includes('Attestazione già richiesta col completo')
+    && page.includes('Object.values(st.kinds || {}).flat().find(x => x && x.key === key)'));
 }
 
 // ═══ 7. L'asseverazione genera la scheda che manca ═══

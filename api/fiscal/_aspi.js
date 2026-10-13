@@ -42,7 +42,12 @@
 //     completo e non lo è;
 //   - la fattura è idempotente per costruzione (fsCreate con id
 //     deterministico aspi_<kind>_<contractId> → 409 al secondo invio):
-//     ripremere Invia rimanda l'email, MAI una seconda fattura;
+//     ripremere Invia rimanda l'email, MAI una seconda fattura. E si
+//     fattura il SERVIZIO, non la variante (13/10/2026): il «completo»
+//     comprende registrazione e attestazione, quindi un'attestazione chiesta
+//     dopo il completo (contratto poi segnato ✓ RLI registrato) non crea
+//     un'altra fattura da €189, e un completo dopo la sola registrazione
+//     fattura solo la parte che manca (aspiInvoicePlan);
 //   - 'registered' non si degrada: registrationStatus passa a 'sent' solo
 //     da pending/assente.
 
@@ -133,8 +138,53 @@ export function registeredAt(contract) {
   if (at) return at;
   return c.registrationStatus === 'registered' ? true : null;
 }
-// La variante proposta: su un registrato, solo l'attestazione.
-export const kindFor = (contract) => (registeredAt(contract) ? 'asseverazione' : defaultKind(contract));
+// La variante proposta: su un registrato, solo l'attestazione — e niente
+// del tutto se il contratto la dichiara non richiesta (requiresAsseverazione
+// false: compliance-rules la dà 'na'). Proporre e fatturare un servizio che
+// il contratto dichiara non dovuto è l'errore che costa (null = nulla da
+// chiedere ad ASPI).
+export const kindFor = (contract) => {
+  if (registeredAt(contract)) return contract && contract.requiresAsseverazione === false ? null : 'asseverazione';
+  return defaultKind(contract);
+};
+
+// Le richieste già fatte, per variante: { completo: '<iso>', … } — la PRIMA
+// volta che ciascuna è partita. aspiRequestKind resta l'ultima (lo leggono
+// il portal e i badge); per i contratti nati prima della mappa vale quella.
+export function aspiRequestsOf(contract) {
+  const c = contract || {}, out = {};
+  const m = c.aspiRequestsAt && typeof c.aspiRequestsAt === 'object' ? c.aspiRequestsAt : {};
+  for (const k of ASPI_KINDS) if (typeof m[k] === 'string' && m[k]) out[k] = m[k];
+  if (ASPI_KINDS.includes(c.aspiRequestKind) && !out[c.aspiRequestKind]) out[c.aspiRequestKind] = String(c.aspiRequestedAt || '') || true;
+  return out;
+}
+// Cosa è già stato chiesto, per SERVIZIO: il completo copre registrazione e
+// attestazione. → { registrazione: {kind, at}|null, asseverazione: {kind, at}|null }
+export function aspiAlready(contract) {
+  const r = aspiRequestsOf(contract);
+  const pick = (own) => r.completo ? { kind: 'completo', at: r.completo === true ? null : r.completo }
+    : r[own] ? { kind: own, at: r[own] === true ? null : r[own] } : null;
+  return { registrazione: pick('registrazione'), asseverazione: pick('asseverazione') };
+}
+
+// LA FATTURA PER SERVIZIO. Dalle fatture ASPI già emesse per il contratto
+// (existing: { registrazione?, completo?, asseverazione? } → il documento),
+// cosa fatturare per la variante chiesta:
+//   → { bill: <variante da fatturare>|null, covered: { R?: '<id>', A?: '<id>' } }
+// Il completo copre entrambe le componenti; una fattura annullata non copre.
+// Pura: si testa senza rete.
+const COMPONENTS = { registrazione: ['R'], asseverazione: ['A'], completo: ['R', 'A'] };
+const voidInvoice = (d) => /^(cancelled|canceled|void|voided)$/i.test(String((d && d.status) || ''));
+export function aspiInvoicePlan(kind, existing, contractId) {
+  const ex = existing || {};
+  const has = (k) => !!(ex[k] && !voidInvoice(ex[k]));
+  const id = (k) => `aspi_${k}_${contractId}`;
+  const coverOf = (comp) => has('completo') ? id('completo') : has(comp === 'R' ? 'registrazione' : 'asseverazione') ? id(comp === 'R' ? 'registrazione' : 'asseverazione') : '';
+  const covered = {}, need = [];
+  for (const comp of COMPONENTS[kind] || []) { const by = coverOf(comp); if (by) covered[comp] = by; else need.push(comp); }
+  const bill = need.length === 2 ? 'completo' : need[0] === 'R' ? 'registrazione' : need[0] === 'A' ? 'asseverazione' : null;
+  return { bill, covered };
+}
 
 // ── La checklist: cosa c'è, cosa manca, cosa blocca ──────────────────────
 // state: 'ok' | 'warn' | 'missing'. blocking=true solo dove inviare senza
@@ -320,7 +370,10 @@ export async function sendAspiRequest(contractId, opts = {}) {
   // fattura, né l'email) — solo l'attestazione si può ancora chiedere.
   const reg0 = registeredAt(contract);
   const kind0 = ASPI_KINDS.includes(opts.kind) ? opts.kind : kindFor(contract);
-  if (reg0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered', at: reg0 === true ? null : reg0, kind: kind0 };
+  if (reg0 && kind0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered', at: reg0 === true ? null : reg0, kind: kind0 };
+  // Registrato e attestazione dichiarata NON richiesta: non resta niente da
+  // chiedere ad ASPI (nessuna email, nessuna fattura), qualunque variante.
+  if (reg0 && (!kind0 || contract.requiresAsseverazione === false)) return { ok: false, error: 'not_required', at: reg0 === true ? null : reg0, kind: kind0 || null };
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
@@ -418,9 +471,17 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const missing = checklistMissing(checklist);
 
   // ── Stato sul contratto (i badge Burocrazia leggono registrationStatus) ─
+  const nowIso = new Date().toISOString();
+  // Le richieste per variante: la prima volta di ciascuna resta (il pannello
+  // dice «attestazione già richiesta col completo del …»).
+  const requests = aspiRequestsOf(contract);
+  const requestsAt = {};
+  for (const k of Object.keys(requests)) if (typeof requests[k] === 'string') requestsAt[k] = requests[k];
+  if (!requestsAt[kind]) requestsAt[kind] = nowIso;
   const patch = {
-    aspiRequestedAt: new Date().toISOString(),
+    aspiRequestedAt: nowIso,
     aspiRequestKind: kind,
+    aspiRequestsAt: requestsAt,
     aspiRequestTo: settings.email,
     aspiRequestMissing: missing,
     aspiRequestCount: (Number(contract.aspiRequestCount) || 0) + 1,
@@ -434,32 +495,54 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;
   let invoice = null;
   if (bill) {
-    const amount = kindPrice(kind, settings);
-    const toTenant = settings.billTo === 'tenant';
-    const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
-    const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
-    const invId = `aspi_${kind}_${contractId}`;
-    const propLabel = property.address || property.name || '';
-    try {
-      await fsCreate('invoices', {
-        number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase(),
-        recipientId, clientId: recipientId,
-        recipientType: toTenant ? 'tenant' : 'landlord',
-        recipientName,
-        service: KIND_LABEL[kind],
-        amount,
-        date: new Date().toISOString().slice(0, 10),
-        description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.`,
-        status: 'pending',
-        source: 'aspi',
-        contractId,
-        createdAt: new Date().toISOString(),
-      }, invId);
-      invoice = { id: invId, amount, created: true };
-    } catch (e) {
-      // 409 = fattura già emessa a un invio precedente: MAI duplicare.
-      invoice = e && e.exists ? { id: invId, amount, created: false } : null;
-      if (!(e && e.exists)) console.warn('[aspi] invoice:', e.message);
+    // Le fatture ASPI già emesse per questo contratto, per variante: si
+    // fattura solo il SERVIZIO che nessuna copre (il completo copre tutto).
+    const existing = {};
+    await Promise.all(ASPI_KINDS.map(async (k) => {
+      const d = await fsGet(`invoices/aspi_${k}_${contractId}`).catch(() => null);
+      if (d) existing[k] = d;
+    }));
+    const plan = aspiInvoicePlan(kind, existing, contractId);
+    const coveredBy = {};
+    if (plan.covered.R) coveredBy.registrazione = plan.covered.R;
+    if (plan.covered.A) coveredBy.asseverazione = plan.covered.A;
+    if (!plan.bill) {
+      // Tutto già fatturato: nessuna fattura nuova. Si dice da quale.
+      const ownId = `aspi_${kind}_${contractId}`;
+      const by = existing[kind] ? ownId : (plan.covered.A || plan.covered.R || ownId);
+      invoice = existing[kind]
+        ? { id: ownId, amount: kindPrice(kind, settings), created: false }
+        : { id: by, amount: null, created: false, coveredBy };
+    } else {
+      const billKind = plan.bill;
+      const amount = kindPrice(billKind, settings);
+      const toTenant = settings.billTo === 'tenant';
+      const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
+      const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
+      const invId = `aspi_${billKind}_${contractId}`;
+      const propLabel = property.address || property.name || '';
+      const part = billKind !== kind ? ` Parte della richiesta «${KIND_LABEL[kind]}»: ${coveredBy.registrazione ? 'la registrazione' : 'l’attestazione'} è già fatturata (${coveredBy.registrazione || coveredBy.asseverazione}).` : '';
+      try {
+        await fsCreate('invoices', {
+          number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase(),
+          recipientId, clientId: recipientId,
+          recipientType: toTenant ? 'tenant' : 'landlord',
+          recipientName,
+          service: KIND_LABEL[billKind],
+          amount,
+          date: new Date().toISOString().slice(0, 10),
+          description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.${part}`,
+          status: 'pending',
+          source: 'aspi',
+          contractId,
+          createdAt: new Date().toISOString(),
+        }, invId);
+        invoice = { id: invId, amount, created: true, ...(billKind !== kind ? { billed: billKind, coveredBy } : {}) };
+      } catch (e) {
+        // 409 = fattura già emessa a un invio precedente: MAI duplicare.
+        invoice = e && e.exists ? { id: invId, amount, created: false } : null;
+        if (!(e && e.exists)) console.warn('[aspi] invoice:', e.message);
+      }
     }
   }
 
