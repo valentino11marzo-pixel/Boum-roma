@@ -18190,7 +18190,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (shifted > 0) {
                     iaNew = shifted;
                     if (Math.abs(incassoRound(oldRent * step) - ia) > 0.01) iaNote = `\nLa rata del contratto comprende altre voci oltre al canone: passa da €${incassoEuro(ia)} a €${incassoEuro(shifted)} (cambia solo la parte del canone).`;
-                } else iaNote = `\nLa rata del contratto${Number.isFinite(ia) ? ' (€' + incassoEuro(ia) + ')' : ''} include voci che non so separare dal canone: non la cambio, verificala dal contratto.`;
+                } else iaNote = `\nLa rata del contratto${Number.isFinite(ia) ? ' (€' + incassoEuro(ia) + ')' : ''} non la cambio: senza il canone di prima non so quanta parte è canone. Verificala dal contratto.`;
             }
             const ov = plan.overdue;
             const msg = `${kind === 'rent' ? 'Nuovo canone' : 'Nuovi oneri accessori'}: €${incassoEuro(value)} al mese${fromMonth ? ' da ' + incassoMonth(fromMonth) : ''}.\n\n`

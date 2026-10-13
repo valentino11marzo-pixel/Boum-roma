@@ -657,7 +657,7 @@ const ENERGY = () => {
   await T.run("applyRentFuture('cN', 950)");
   await check('senza canone di partenza la rata del contratto resta com’è, e si dice', () => {
     assert.equal(T.doc('contracts/cN').installmentAmount, 900); assert.equal(T.doc('contracts/cN').rent, 950);
-    assert.match(T.confirms.at(-1), /La rata del contratto \(€900,00\) include voci che non so separare dal canone: non la cambio/);
+    assert.match(T.confirms.at(-1), /La rata del contratto \(€900,00\) non la cambio: senza il canone di prima non so quanta parte è canone/);
   });
 }
 const ARREARS = () => {
