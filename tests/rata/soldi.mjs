@@ -560,6 +560,18 @@ await check('revisione · ricevuta REVOCATA dall\'operatore: la nuova segnalazio
   eq([v.state, v.hasProof, v.reports], ['reported', false, [{ date: '2026-10-10', hasProof: false }]], 'la pagina');
   return eq([p.tenantReportWithdrawn.reports.length, p.tenantReportWithdrawn.reports[0].proofUrl === revoked, !!p.tenantReportWithdrawn.reviewId, !!p.tenantReportSuperseded], [1, true, true, false], 'storia');
 });
+// La revoca vecchia (prima del 13/10/2026) lasciava proofUrl sulla testa:
+// quelle rate esistono ancora. La nuova segnalazione senza ricevuta deve
+// riscrivere la testa da sé, non contare sulla pulizia della revoca.
+await check('revisione · testa REVOCATA prima del 13/10 (la ricevuta rimasta sulla rata): la nuova segnalazione senza ricevuta non la eredita', async () => {
+  rate('rLeg', 'cImp', 'pImp', { month: '2027-01', dueDate: '2027-01-05' });
+  put('payments/rLeg', { ...store.get('payments/rLeg'), tenantReported: false, tenantReportReviewId: 'rv_vecchia',
+    proofUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/vecchia', proofName: 'vecchia.jpg' });
+  const b = await rata({ op: 'report', id: 'rLeg', t: tk('rLeg'), date: '2026-10-11', note: 'senza ricevuta' });
+  const p = store.get('payments/rLeg');
+  const v = (await rata({ op: 'lookup', id: 'rLeg', t: tk('rLeg') })).body.rata;
+  return eq([b.statusCode, b.body.proof, p.proofUrl, p.proofName, v.hasProof], [200, false, null, null, false]);
+});
 await check('revisione · la ricevuta si legge dall\'elenco delle segnalazioni in corso, non da una testa rimasta indietro (pura)', () => {
   const base = { status: 'pending', amount: 100, dueDate: '2099-01-05', tenantReported: true, tenantReportDate: '2026-10-10' };
   return eq([
