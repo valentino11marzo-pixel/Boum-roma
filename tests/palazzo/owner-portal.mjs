@@ -736,10 +736,14 @@ function fixture() {
     assert.ok(!/IRPEF stimato|cedolare stimata|Cedolare vs IRPEF/.test(html));
     const same = fixture();
     same.contracts[0].landlordName = 'Chiara Demo';
-    same.payments.forEach(p => { p.status = 'paid'; });
+    // Rate con gli oneri dentro (amount = canone + oneri): il reddito stimato
+    // è il SOLO canone.
+    same.payments.forEach(p => { p.status = 'paid'; p.paidDate = '2026-0' + p.month.slice(6) + '-04'; p.rentAmount = 1500; p.oneriAmount = 120; p.amount = 1620; });
     const s = track(makeCtx({ role: 'landlord', profile: OWNER, state: same, defs: { _cmState: { propertyId: 'p7', year: 2026 } } }));
     s.window._cmExpanded = true;
-    assert.ok(s.run('commercialistaLandlordLite(false)').includes('Cedolare vs IRPEF'), 'se il locatore è lei la stima resta');
+    const mine = s.run('commercialistaLandlordLite(false)');
+    assert.ok(mine.includes('Cedolare vs IRPEF'), 'se il locatore è lei la stima resta');
+    assert.ok(mine.includes("Quest'anno hai incassato <strong>" + TP.fmtEuro(4500) + '</strong>') && !mine.includes(TP.fmtEuro(4860)), 'gli oneri non sono reddito');
   });
   await check('58 · una nota interna non porta né il contatto né la proprietaria; un messaggio vero sì', async () => {
     const a = track(makeCtx({ role: 'admin', state: fixture() }));

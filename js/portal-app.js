@@ -13770,7 +13770,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
             const documents = (S.documents || []).filter(d => d.propertyId === p.id);
             const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
-            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            // Il reddito è il CANONE: gli oneri accessori pagati insieme
+            // (rentAmount + oneriAmount = amount) sono rimborsi spese, non si
+            // stimano come imponibile.
+            const taxPayments = payments.map(x => (x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
+                ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
+            const totals = TP.computeTotals({ contract, payments: taxPayments, fiscalYear: year });
             return { p, contract, payments, documents, checklist, totals };
         });
 
@@ -13811,7 +13816,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Plain-language money line (factual, no formula).
         const moneyLine = locatore.other
-            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · pagamenti registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (comprese le eventuali spese pagate insieme al canone)` : ''}. Nessuna stima d'imposta qui: il reddito è ${locatore.company ? 'della società' : 'del locatore'}.`
+            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${locatore.company ? 'della società' : 'del locatore'}.`
             : totals.canoniIncassati
             ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
               (totals.regime !== 'ordinario'
