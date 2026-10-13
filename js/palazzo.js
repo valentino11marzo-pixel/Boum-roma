@@ -1047,6 +1047,33 @@
     var calendar = f.slice(8) === '01' && t.slice(0, 7) === f.slice(0, 7) && +t.slice(8) >= 28;
     return calendar ? '' : 'dal ' + dateIt(f) + ' al ' + dateIt(t);
   }
+  // Le segnalazioni di bonifico ANNULLATE (dall'inquilino da /rata o /casa,
+  // o revocate da BOOM): tenantReportWithdrawn tiene la storia. Si vedono
+  // barrate e dette «annullate», MAI come una segnalazione attiva; e solo se
+  // l'annullo è più recente dell'ultima segnalazione (una storia già superata
+  // da una segnalazione nuova non serve). Rata pagata o annullata: niente.
+  function msOf(v) {
+    if (v == null || v === '') return 0;
+    try {
+      var t = typeof v === 'string' ? Date.parse(v) : v instanceof Date ? v.getTime() : typeof v.toDate === 'function' ? v.toDate().getTime()
+        : typeof v.seconds === 'number' ? v.seconds * 1000 : typeof v._seconds === 'number' ? v._seconds * 1000 : NaN;
+      return isFinite(t) ? t : 0;
+    } catch (_) { return 0; }
+  }
+  function withdrawnLines(p, r, admin) {
+    var wd = p && p.tenantReportWithdrawn;
+    if (!wd || typeof wd !== 'object' || r.state === 'paid' || r.state === 'cancelled') return [];
+    var wMs = msOf(wd.at), rMs = msOf(p.tenantReportedAt);
+    if (!wMs || (r.state === 'reported' && rMs && wMs < rMs)) return [];
+    var list = Array.isArray(wd.reports) ? wd.reports.filter(function (x) { return x && typeof x === 'object'; }) : [];
+    var wDay = dateIt(E.day ? E.day(wd.at) : String(wd.at).slice(0, 10));
+    var who = wd.by && wd.by !== 'tenant' ? (admin ? 'revocata da BOOM' : 'non confermata da BOOM') : 'annullata dall’inquilino';
+    return (list.length ? list.slice(-3) : [{}]).map(function (x) {
+      var d = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || '')) ? x.date : '';
+      return '<s>bonifico segnalato' + (d ? ' del ' + dateIt(d) : '') + '</s> · segnalazione ' + who + (wDay ? ' il ' + wDay : '') +
+        (admin && wd.reason ? ' · «' + esc(String(wd.reason).slice(0, 80)) + '»' : '');
+    });
+  }
   var ROW_STATE = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', review: 'Rimborso/contestazione — da verificare', cancelled: 'Annullata', unknown: 'Da verificare' };
   var ROW_PILL = { overdue: 'late', reported: 'review', processing: 'review', review: 'review', cancelled: 'vacant' };
   // Una rata nella scheda: stato, come e quando è stata pagata e chi l'ha
@@ -1078,6 +1105,7 @@
       var whyC = String(p.cancelledReason || '').trim().slice(0, 120), atC = E.day ? E.day(p.cancelledAt) : '';
       subs.push('annullata' + (atC ? ' il ' + dateIt(atC) : '') + (whyC ? ' · ' + esc(whyC) : '') + ': non è dovuta');
     } else if (r.dueDate) subs.push((r.state === 'overdue' ? 'scaduta il ' : 'scadenza ') + dateIt(r.dueDate) + (r.days ? ' · ' + r.days + (r.days === 1 ? ' giorno' : ' giorni') : ''));
+    withdrawnLines(p, r, admin).forEach(function (x) { subs.push(x); });
     var s = admin ? lastSent(p) : null;
     if (s) subs.push(sentText(s));
     var manual = r.state === 'paid' && !(p.stripeSessionId || p.sddPiId || p.bankTxId) && (['stripe', 'sepa', 'bank'].indexOf(String(p.paidVia || '')) < 0 || !!p.paidRecordedBy);

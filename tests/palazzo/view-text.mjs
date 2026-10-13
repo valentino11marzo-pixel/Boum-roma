@@ -372,4 +372,38 @@ ok('mutazione: la leva ASPI che non guarda la registrazione — il controllo cad
   assert.ok(src.includes(from));
   assert.notEqual(scenAspi(src.replace(from, "b('aspi', 'Invia ad ASPI'"), { rliRegisteredAt: MM(-2) + '-20' }), 'Invia ad ASPI · solo attestazione');
 });
+// 9. La segnalazione di bonifico ANNULLATA: barrata e detta annullata, mai attiva.
+const scenWd = (viewSrc, pay, role = 'admin') => {
+  const base = { id: 'p95', contractId: 'c95', propertyId: 'u95', type: 'rent', month: CUR, amount: 1720, dueDate: CUR + '-01', status: 'pending' };
+  const { html } = draw({ profile: { id: role === 'admin' ? 'adm' : 'o1', role }, properties: [P0('u95')], contracts: [{ id: 'c95', propertyId: 'u95', status: 'active', startDate: MM(-2) + '-01', endDate: MM(9) + '-28', tenantName: 'Wanda Demo', rent: 1720 }],
+    payments: [{ ...base, ...pay }] }, ui => { ui.selected = 'u95'; ui.view = 'simple'; ui.month = CUR; }, viewSrc);
+  const li = (/<li data-pay="p95">([\s\S]*?)<\/li>/.exec(html) || [])[1] || '';
+  return unesc(li.replace(/<(?!\/?s>)[^>]+>/g, ' '));
+};
+const D1 = CUR + '-02', D2 = CUR + '-03';
+ok('segnalazione annullata dall’inquilino (una sola): la rata torna da pagare, la segnalazione si vede BARRATA e annullata', () => {
+  const t = scenWd(null, { tenantReported: false, tenantReportWithdrawnAt: D2 + 'T10:00:00Z', tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', reports: [{ date: D1, amount: 1720 }] } });
+  assert.ok(/<s>bonifico segnalato del [^<]+<\/s> · segnalazione annullata dall’inquilino il /.test(t), t);
+  assert.ok(!/Segnalato · da verificare/.test(t), t);
+});
+ok('due co-intestatari, uno annulla la sua: l’altra resta attiva, quella annullata barrata', () => {
+  const t = scenWd(null, { tenantReported: true, tenantReportedAt: D1 + 'T09:00:00Z', tenantReportDate: D1,
+    tenantReports: [{ at: D1 + 'T09:00:00Z', date: D1, amount: 860 }],
+    tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', reports: [{ at: D1 + 'T09:30:00Z', date: D2, amount: 860 }] } });
+  assert.ok(/Segnalato · da verificare/.test(t) && /(^|[^>])bonifico segnalato del /.test(t.replace(/<s>[^<]*<\/s>/g, '')), 'la segnalazione rimasta è attiva: ' + t);
+  assert.ok(/<s>bonifico segnalato del [^<]+<\/s> · segnalazione annullata dall’inquilino/.test(t), t);
+});
+ok('una segnalazione NUOVA dopo l’annullo: la storia superata non si mostra; revocata da BOOM → alla proprietaria «non confermata da BOOM»', () => {
+  const t = scenWd(null, { tenantReported: true, tenantReportedAt: CUR + '-05T09:00:00Z', tenantReportDate: CUR + '-05', tenantReports: [{ date: CUR + '-05' }],
+    tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', reports: [{ date: D1 }] } });
+  assert.ok(!/<s>/.test(t) && !/annullata/.test(t), t);
+  const o = scenWd(null, { tenantReported: false, tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', by: 'admin', reason: 'nessun accredito', reports: [{ date: D1 }] } }, 'landlord');
+  assert.ok(/segnalazione non confermata da BOOM/.test(o) && !/nessun accredito/.test(o), o);
+});
+ok('mutazione: la storia dell’annullo ignorata — il controllo cade', () => {
+  const src = read('palazzo.js'), from = '    withdrawnLines(p, r, admin).forEach(function (x) { subs.push(x); });\n';
+  assert.ok(src.includes(from));
+  const t = scenWd(src.replace(from, ''), { tenantReported: false, tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', reports: [{ date: D1 }] } });
+  assert.ok(!/annullata dall’inquilino/.test(t));
+});
 console.log(`\n${n} check — le parole del Palazzo, senza browser.`);
