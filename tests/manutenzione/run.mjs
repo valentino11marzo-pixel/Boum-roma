@@ -5,10 +5,13 @@
 // cambio di inquilino il vecchio link risponde 404), la proprietaria segnala
 // e ottiene link solo per i suoi, il guasto si scrive PRIMA del ping, una
 // foto che non sale si DICE, e /casa non chiama più una porta che gli
-// risponde 401 e manda il suo contratto.
+// risponde 401 e manda il suo contratto. In coda: la scheda del guasto che
+// l'OPERATORE apre (viewMaintenance, elenco, modifica) non esegue l'HTML che
+// un inquilino o la proprietaria scrivono nei campi del guasto.
 // Uso: node tests/manutenzione/run.mjs
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 
 process.env.FIREBASE_API_KEY = 'k';
 process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
@@ -323,5 +326,94 @@ await check('giunzioni: /casa manda il SUO contratto e non chiama più /api/agen
   assert.ok(h && h.headers.some(x => x.key === 'Cache-Control' && /no-store/.test(x.value)) && h.headers.some(x => x.key === 'X-Robots-Tag'));
   assert.ok(Object.keys(v.functions || {}).length <= 50);
 });
+
+// ── La scheda dell'operatore: il guasto scritto dal browser è DATO ─────────
+// Le rules lasciano a inquilino e proprietaria categoria, priorità e stato
+// (/casa li scrive col SDK): un «<img onerror>» lì dentro girava nella
+// sessione admin quando l'operatore apriva il guasto dal Palazzo. Si rendono
+// le funzioni VERE di js/portal-app.js e si pretende che nessun tag o
+// attributo esca dal campo, e che gli id negli onclick restino una stringa.
+{
+  const APP = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const fnSrc = (src, name) => {
+    const at = src.indexOf('    function ' + name + '(');
+    if (at < 0) throw new Error('funzione mancante: ' + name);
+    let i = src.indexOf('{', at), depth = 0;
+    for (; i < src.length; i++) { if (src[i] === '{') depth++; else if (src[i] === '}') { depth--; if (!depth) break; } }
+    return src.slice(at, i + 1);
+  };
+  const editLine = APP.split('\n').find(l => l.includes("if (type === 'editMaintenance')"));
+  const build = (src = APP, line = editLine) => {
+    const modals = { innerHTML: '' };
+    const calls = [];
+    const ctx = vm.createContext({
+      S: { maintenance: [], properties: [], users: [] }, window: {}, console,
+      document: { getElementById: id => (id === 'modals' ? modals : { innerHTML: '' }) },
+      isAdmin: () => true, roleLabel: r => r, fmtDate: () => '13/10/2026', daysSince: () => 2,
+      updateMaintStatus: (...a) => calls.push(['updateMaintStatus', ...a]),
+      updateMaintenanceStatus: (...a) => calls.push(['updateMaintenanceStatus', ...a]),
+      viewMaintenance: null, confirmDelete: (...a) => calls.push(['confirmDelete', ...a]),
+      closeModal() {}, setTimeout() {}, openModal() {}, event: { stopPropagation() {} },
+    });
+    vm.runInContext(['esc', 'jsq', 'statusLabel', 'priorityLabel', 'catLabel', 'statusColor', 'priorityColor', 'viewMaintenance', 'maintenancePage']
+      .map(n => fnSrc(src, n)).join('\n') + '\nfunction editModal(type, data) {\n' + line + '\nreturn ""; }', ctx);
+    return { ctx, modals, calls };
+  };
+  const EVIL = '<img src=x onerror="window.__pwned=1">';
+  const ID = "m1');window.__pwned=2;('";
+  const guasto = { id: ID, propertyId: 'p1', userId: 't1', title: '"><svg onload=alert(1)>', description: '<script>x</script>',
+    category: EVIL, priority: '<svg onload=alert(1)>', status: '"><img src=x onerror=alert(2)>', cost: '<b>5</b>', technician: '<i>t</i>',
+    resolutionNotes: '</textarea><img src=x>', createdAt: '2026-10-13' };
+  // Nessun tag che il browser possa creare dal dato: dopo l'escape restano
+  // solo i tag dello stampo (div, span, button, a, p, img delle foto https).
+  const rawTags = html => (html.match(/<(img|svg|script)\b[^>]*>/gi) || []).filter(t => !/^<img src="https:/.test(t));
+  // Ogni onclick, decodificato come fa il browser, deve compilare e passare
+  // l'id INTERO come argomento (mai codice).
+  const decode = s => s.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const runHandlers = (T, html) => {
+    for (const m of html.matchAll(/onclick="([^"]*)"/g)) {
+      const code = decode(m[1]);
+      if (!/updateMaint|viewMaintenance|confirmDelete|updateMaintenanceStatus/.test(code)) continue;
+      vm.runInContext('(function(){' + code + '})()', T.ctx);
+    }
+  };
+  await check('scheda del guasto (operatore): categoria, priorità, stato, costo e tecnico scritti dal browser non diventano HTML', () => {
+    const T = build();
+    T.ctx.S.maintenance = [guasto];
+    T.ctx.S.properties = [{ id: 'p1', name: 'Int. 7' }];
+    T.ctx.viewMaintenance = vm.runInContext('viewMaintenance', T.ctx);
+    vm.runInContext(`viewMaintenance(${JSON.stringify(ID)})`, T.ctx);
+    const html = T.modals.innerHTML;
+    assert.deepEqual(rawTags(html), [], 'tag vivi nella scheda: ' + rawTags(html).join(' '));
+    assert.ok(html.includes('&lt;img src=x onerror=&quot;window.__pwned=1&quot;&gt;'), 'la categoria si legge com’è');
+    assert.ok(html.includes('€&lt;b&gt;5&lt;/b&gt;') && html.includes('&lt;i&gt;t&lt;/i&gt;'), 'costo e tecnico escapati');
+    runHandlers(T, html);
+    assert.equal(T.ctx.window.__pwned, undefined, 'un id con l’apostrofo ha eseguito codice');
+    assert.ok(T.calls.filter(c => c[0] === 'updateMaintStatus').every(c => c[1] === ID) && T.calls.some(c => c[0] === 'confirmDelete' && c[2] === ID));
+  });
+  await check('elenco manutenzioni e modulo «Modifica»: stessi campi, nessun tag vivo né attributo spezzato', () => {
+    const T = build();
+    T.ctx.S.maintenance = [{ ...guasto, status: 'open' }, { ...guasto, id: 'm2', status: 'in_progress' }];
+    T.ctx.S.properties = [{ id: 'p1', name: '<img src=x>' }];
+    T.ctx.S.users = [{ id: 't1', name: '<svg onload=1>' }];
+    const list = vm.runInContext('maintenancePage()', T.ctx);
+    assert.deepEqual(rawTags(list), [], 'elenco: ' + rawTags(list).join(' '));
+    assert.ok(!/data-status="[^"]*"[^ >]/.test(list.replace(/data-status="[^"]*" data-priority="[^"]*"/g, '')), 'data-* spezzato');
+    runHandlers(T, list);
+    assert.equal(T.ctx.window.__pwned, undefined);
+    const edit = vm.runInContext(`editModal('editMaintenance', S.maintenance[0])`, T.ctx);
+    assert.deepEqual(rawTags(edit), [], 'modifica: ' + rawTags(edit).join(' '));
+    assert.ok(!edit.includes('</textarea><img'), 'le note chiudevano la textarea');
+    assert.match(edit, /value="&quot;&gt;&lt;svg onload=alert\(1\)&gt;"/);
+  });
+  await check('mutazione: senza esc() sulla categoria la scheda ESEGUE di nuovo il dato (il controllo morde)', () => {
+    const bad = APP.replace('${esc(catLabel(m.category))}', '${catLabel(m.category)}');
+    assert.notEqual(bad, APP);
+    const T = build(bad);
+    T.ctx.S.maintenance = [guasto];
+    vm.runInContext(`viewMaintenance(${JSON.stringify(ID)})`, T.ctx);
+    assert.ok(rawTags(T.modals.innerHTML).length > 0);
+  });
+}
 
 console.log(`\n${count} check — la porta dei guasti, handler vero su Firestore in memoria.`);
