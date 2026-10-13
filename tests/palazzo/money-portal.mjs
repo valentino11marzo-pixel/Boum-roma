@@ -173,6 +173,8 @@ function build(src = SRC0) {
     region(src, '    async function sendPaymentConfirmEmail(', '    // ═══ 🖊 FIRMA ORA'),
     region(src, '    function _buildReceiptDoc(', '    function downloadInvoicePDF('),
     fnSrc(src, 'esc'), fnSrc(src, 'jsq'), fnSrc(src, 'fmtDate'), fnSrc(src, 'numberToWords'),
+    fnSrc(src, 'updateContract'), fnSrc(src, 'monthsBetween'), fnSrc(src, 'isPaymentLate'), fnSrc(src, 'isPaymentLateLive'), fnSrc(src, 'paymentAfterClose'), fnSrc(src, 'livePaymentsForQueues'),
+    fnSrc(src, 'showPaymentLink'), fnSrc(src, 'paymentLinkFor'),
   ].join('\n');
   vm.runInContext(code, ctx);
   const run = c => vm.runInContext(c, ctx);
@@ -306,7 +308,7 @@ const today = romeDay();
   });
   await check('l’attestazione: locatore, BOOM come gestore, conduttore e cointestatario traslitterati, canone e oneri separati', () => {
     const t = T.texts;
-    for (const s of ['ATTESTAZIONE DI PAGAMENTO', "Data dell'accredito: 03/10/2026", 'Società Esempio S.r.l.', 'Sukru Yilmaz', 'in solido con: Ivan Petrov',
+    for (const s of ['ATTESTAZIONE DI PAGAMENTO', "Data dell'accredito: 03/10/2026", 'Società Esempio S.r.l.', 'Sükrü Yilmaz', 'in solido con: Ivan Petrov',
       'dal 15/10/2026 al 14/11/2026', 'Canone di locazione', 'EUR 1.600,00', 'Oneri accessori (quota fissa, salvo conguaglio)', 'EUR 120,00', 'EUR 1.720,00',
       "Canale: bonifico bancario - verifica dell'accredito: estratto conto del locatore"]) assert.ok(t.includes(s), 'manca: ' + s);
     assert.ok(t.some(s => /tramite Egidi Immobiliare S\.r\.l\. \(BOOM\), che gestisce la locazione per conto del locatore/.test(s)));
@@ -330,16 +332,38 @@ const today = romeDay();
     assert.equal('RIC-' + 'pay_c_plz_test_int7_2026-10-15_2026-10'.slice(-8).toUpperCase(), 'RIC-' + 'pay_c_plz_test_int8_2026-10-15_2026-10'.slice(-8).toUpperCase());
   });
   await check('la traslitterazione: turco e cirillico in latino, le parole WinAnsi intatte, mai un nome vuoto', () => {
-    assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sukru Yilmaz');
+    assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sükrü Yilmaz');
     assert.equal(T.run("pdfLatin('Ayşe Doğan')"), 'Ayse Dogan');
     assert.equal(T.run("pdfLatin('Иван Петров')"), 'Ivan Petrov');
     assert.equal(T.run("pdfLatin('Жанна Щукина')"), 'Zhanna Shchukina');
     assert.equal(T.run("pdfLatin('Nicolò Müller-Lüdenscheidt')"), 'Nicolò Müller-Lüdenscheidt');
-    assert.equal(T.run("pdfLatin('Gülşen Çelik')"), 'Gulsen Celik');
+    assert.equal(T.run("pdfLatin('Gülşen Çelik')"), 'Gülsen Çelik');
     assert.equal(T.run("pdfLatin('王伟')"), '');
     T.texts.length = 0;
     T.run("_buildReceiptDoc({id:'x1',amount:500,type:'rent',month:'2026-10',paidDate:'2026-10-05'},{id:'c',tenantName:'王伟'},{id:'p',name:'Int. 1',address:'Roma'},null)");
     assert.ok(T.texts.includes('Conduttore indicato nel contratto'));
+  });
+  // UNA traslitterazione: l'attestazione del portal (jsPDF) e il rendiconto
+  // del server (pdf-lib, wa() di api/_pdfbrand.js) scrivono lo stesso
+  // inquilino nello stesso modo — prima «Yuliya»/«Iuliia», «Sukru»/«Sükrü».
+  const { wa } = await import('../../api/_pdfbrand.js');
+  await check('stessa traslitterazione del server: russo, turco, greco accentato, azero, serbo, il cinese che non si stampa', () => {
+    const names = ['Юлия Щербакова', 'Şükrü Yılmaz', 'Илья Жуков', 'Αθηνά Παπαδοπούλου', 'Ευάγγελος Μαυρίδης', 'Gülşen Çelik', 'Əli Həsənov', 'Ђорђе Јовановић',
+      'ŁUKASZ Wałęsa', 'Nicolò Müller', 'Zoë Brontë', 'O’Brien – Smith', 'ЖАННА', 'Ayşe  Doğan\n', '王伟', 'Ngozi Ọkọnkwọ'];
+    for (const n of names) {
+      const server = wa(n).replace(/\s+/g, ' ').trim();
+      assert.equal(T.run('pdfLatin(' + JSON.stringify(n) + ')'), server === '(testo in caratteri non stampabili)' ? '' : server, n);
+    }
+    assert.equal(T.run("pdfLatin('Юлия Щербакова')"), 'Iuliia Shcherbakova');
+    assert.equal(T.run("pdfLatin('Αθηνά Παπαδοπούλου')"), 'Athina Papadopoulou', 'le vocali greche accentate non cadono');
+  });
+  await check('le tabelle del portal sono quelle di api/_pdfbrand.js, voce per voce (anti-deriva)', () => {
+    const PB = fs.readFileSync(new URL('../../api/_pdfbrand.js', import.meta.url), 'utf8');
+    const lit = (src, re) => { const m = re.exec(src); if (!m) throw new Error('tabella mancante: ' + re); return vm.runInNewContext('(' + m[1] + ')'); };
+    for (const [srv, cli] of [['LATIN_MAP', 'PDF_LATIN_MAP'], ['CYR', 'PDF_CYR'], ['GREEK', 'PDF_GREEK'], ['GREEK_PAIRS', 'PDF_GREEK_PAIRS'], ['WIN_EXTRA', 'PDF_WIN_EXTRA']]) {
+      const a = lit(PB, new RegExp('const ' + srv + ' = (\\{[\\s\\S]*?\\}|\'[^\']*\');')), b = lit(SRC0, new RegExp('const ' + cli + ' = (\\{[\\s\\S]*?\\}|\'[^\']*\');'));
+      assert.deepEqual(JSON.parse(JSON.stringify(b)), JSON.parse(JSON.stringify(a)), srv);
+    }
   });
   await check('il PDF vero (jsPDF) stampa i nomi traslitterati, non simboli', () => {
     const { jsPDF } = require('jspdf');
@@ -350,7 +374,7 @@ const today = romeDay();
     const r = spawnSync('pdftotext', [out, '-'], { encoding: 'utf8' });
     fs.unlinkSync(out);
     if (r.error) { console.log('  (pdftotext assente: verificato solo il testo passato a jsPDF)'); return; }
-    assert.match(r.stdout, /Sukru Yilmaz/); assert.match(r.stdout, /Ivan Petrov/); assert.match(r.stdout, /Società Esempio S\.r\.l\./);
+    assert.match(r.stdout, /Sükrü Yilmaz/); assert.match(r.stdout, /Ivan Petrov/); assert.match(r.stdout, /Società Esempio S\.r\.l\./);
     assert.ok(!/Y1lmaz|\^ükrü/.test(r.stdout));
   });
 }
@@ -562,6 +586,135 @@ const today = romeDay();
   });
 }
 
+// ═══ 7b. Chiudere da «Modifica contratto» e il deposito che non si inventa ═
+// La tendina Stato offre «Terminato» e «Scaduto»: prima updateContract
+// scriveva stato e data e basta, e le rate dopo l'uscita restavano «da pagare»
+// (badge, Oggi, Gestore, SEPA le leggevano come ritardi dell'ex inquilino).
+const CLOSE_FIX = () => {
+  const f = FIX();
+  const r = (m, extra = {}) => ({ id: 'pay_c8_' + m, contractId: 'c8', propertyId: 'p8', type: 'rent', month: m, amount: 1000, dueDate: m + '-05', periodFrom: m + '-01', status: 'pending', ...extra });
+  f.payments = [r('2026-10', { status: 'paid', paidDate: '2026-10-04' }), r('2026-11'), r('2026-12'), r('2027-01', { tenantReported: true }), r('2027-02')];
+  return f;
+};
+const editForm = over => function () {
+  return Object.entries({ propertyId: 'p8', tenantId: '', startDate: '2026-10-01', endDate: '2027-03-15', rent: '1000', deposit: '', canoneTotal: '', canoneInstallments: '',
+    type: 'transitorio', status: 'active', notes: '', ...over });
+};
+{
+  const T = build(); T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'terminated', endDate: '2026-11-30' });
+  T.ctx.__confirmAnswer = false;
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('«Modifica» → Terminato: il piano si dice PRIMA, e dicendo no non si scrive niente', () => {
+    assert.match(T.confirms.at(-1), /Chiudo il contratto di Mario Prova al 30\/11\/2026/);
+    assert.match(T.confirms.at(-1), /Si annullano 2 rate non pagate/);
+    assert.equal(T.doc('contracts/c8').status, 'active');
+    assert.equal(T.doc('payments/pay_c8_2026-12').status, 'pending');
+  });
+  T.ctx.__confirmAnswer = true;
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  const c = T.doc('contracts/c8');
+  await check('«Modifica» → Terminato: contratto chiuso con la sua data e rate dopo l’uscita annullate nella stessa transazione', () => {
+    assert.equal(c.status, 'terminated'); assert.equal(c.terminatedAt, '2026-11-30'); assert.equal(c.endDate, '2026-11-30');
+    assert.equal(T.doc('payments/pay_c8_2026-12').status, 'cancelled'); assert.equal(T.doc('payments/pay_c8_2026-12').cancelledReason, 'contratto chiuso');
+    assert.equal(T.doc('payments/pay_c8_2027-02').status, 'cancelled');
+    assert.equal(T.doc('payments/pay_c8_2026-11').status, 'pending', 'il mese dentro il contratto resta dovuto');
+    assert.equal(T.doc('payments/pay_c8_2027-01').tenantReported, true, 'la segnalata resta com’era');
+    assert.equal(T.doc('payments/pay_c8_2027-01').status, 'pending');
+    assert.equal(T.doc('payments/pay_c8_2026-10').status, 'paid');
+    assert.ok(T.toasts.some(a => a[0] === 'warning' && /segnalat[ae] o in corso/.test(a.join(' '))), 'la segnalata dopo la chiusura si dice');
+  });
+  await check('dopo la chiusura da «Modifica» il Palazzo non vede un moroso (motore vero)', () => {
+    const Pz = require('../../js/palazzo-engine.js');
+    const read = col => [...T.store.entries()].filter(([k]) => k.startsWith(col + '/')).map(([k, v]) => ({ ...v, id: k.split('/')[1] }));
+    const ctxP = Pz.context({ now: new Date('2027-02-20T10:00:00Z'), properties: read('properties'), contracts: read('contracts'), payments: read('payments'), users: read('users') });
+    const u = Pz.unitMonth(ctxP, read('properties').find(p => p.id === 'p8'), '2027-02');
+    assert.notEqual(u.state, 'late'); assert.ok(!u.occupied);
+  });
+}
+{
+  // «Scaduto» con la Fine accorciata, e un contratto attivo con la Fine accorciata.
+  const T = build(); T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'expired', endDate: '2026-12-31' });
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('«Modifica» → Scaduto: annullate le rate dopo la Fine, nessun terminatedAt', () => {
+    assert.equal(T.doc('contracts/c8').status, 'expired'); assert.equal(T.doc('contracts/c8').terminatedAt, undefined);
+    assert.equal(T.doc('payments/pay_c8_2027-02').status, 'cancelled'); assert.equal(T.doc('payments/pay_c8_2026-12').status, 'pending');
+  });
+  const T2 = build(); T2.seed(CLOSE_FIX());
+  T2.ctx.FormData = editForm({ status: 'active', endDate: '2026-11-30' });
+  await T2.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('Fine accorciata su un contratto attivo: stesso piano, stessa conferma, rate dopo la Fine annullate', () => {
+    assert.match(T2.confirms.at(-1), /Accorcio il contratto di Mario Prova al 30\/11\/2026/);
+    assert.equal(T2.doc('payments/pay_c8_2026-12').status, 'cancelled');
+    assert.equal(T2.doc('contracts/c8').status, 'active');
+  });
+  const T3 = build(); T3.seed(CLOSE_FIX());
+  T3.ctx.FormData = editForm({ status: 'terminated', endDate: '' });
+  await T3.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('Terminato senza data di fine: si chiede la data, niente scritto', () => {
+    assert.equal(T3.doc('contracts/c8').status, 'active');
+    assert.ok(T3.toasts.some(a => /Indica la data di fine/.test(a.join(' '))));
+  });
+  const T4 = build(); T4.seed(CLOSE_FIX());
+  T4.ctx.FormData = editForm({ notes: 'solo una nota' });
+  await T4.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('una modifica che non chiude né accorcia non legge le rate e non chiede niente', () => {
+    assert.equal(T4.confirms.length, 0); assert.equal(T4.doc('contracts/c8').notes, 'solo una nota');
+  });
+}
+{
+  // Dati vecchi: contratto già chiuso con una rata dopo la fine ancora aperta.
+  const T = build(); const f = FIX();
+  f.contracts.push({ id: 'cOld', propertyId: 'p9', status: 'expired', tenantName: 'Ex Inquilina', startDate: '2025-01-01', endDate: '2025-12-31', rent: 900 });
+  f.payments.push({ id: 'pay_cOld_2026-01', contractId: 'cOld', propertyId: 'p9', type: 'rent', month: '2026-01', amount: 900, dueDate: '2026-01-05', status: 'pending' },
+    { id: 'pay_cOld_2025-12', contractId: 'cOld', propertyId: 'p9', type: 'rent', month: '2025-12', amount: 900, dueDate: '2025-12-05', status: 'pending' });
+  T.seed(f);
+  await check('la rata dopo la chiusura non è un ritardo (badge, notifiche, proprietaria); quella dentro il contratto sì', () => {
+    assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='pay_cOld_2026-01'))"), false);
+    assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='pay_cOld_2025-12'))"), true);
+    const ids = T.run('livePaymentsForQueues().map(p=>p.id)');
+    assert.ok(!ids.includes('pay_cOld_2026-01') && ids.includes('pay_cOld_2025-12'), 'Oggi non riceve la rata dopo la chiusura');
+  });
+  await check('Oggi (motore vero) non propone il sollecito all’ex inquilina', () => {
+    const OG = require('../../js/oggi-engine.js');
+    const S0 = { ...T.S, payments: T.run('livePaymentsForQueues()') };
+    const out = OG.build(S0, '2026-02-20T10:00:00Z');
+    assert.ok(!JSON.stringify(out.decisions).includes('pay_cOld_2026-01'));
+    const raw = OG.build({ ...T.S }, '2026-02-20T10:00:00Z');
+    assert.ok(JSON.stringify(raw.decisions).includes('pay_cOld_2026-01'), 'senza il filtro del portal il motore la propone (il controllo morde)');
+  });
+}
+{
+  // Il deposito alla chiusura: i campi nascono vuoti, «non detto» resta non detto.
+  const T = build(); T.seed(CLOSE_FIX());
+  T.S.contracts.find(c => c.id === 'c8').deposit = 2800;
+  T.run("openModal('terminateContract', S.contracts.find(c=>c.id==='c8'))");
+  const h = T.getEl('modals').innerHTML;
+  await check('⛔ Termina: deposito restituito e trattenute vuoti, col deposito pattuito come promemoria e chi lo tiene', () => {
+    assert.match(h, /name="depositReturned" step="0\.01" min="0" value=""/);
+    assert.match(h, /name="depositWithheld" step="0\.01" min="0" value=""/);
+    assert.match(h, /Deposito pattuito: €2\.800,00\./);
+    assert.match(h, /Il deposito lo tiene il locatore/);
+  });
+  T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', terminationNotes: '', depositReturned: '', depositWithheld: '' }); };
+  await T.run("terminateContract({preventDefault(){},target:null},'c8')");
+  await check('chiudere senza toccare il deposito non scrive «restituiti» né «trattenuti»', () => {
+    const c = T.doc('contracts/c8');
+    assert.equal(c.status, 'terminated');
+    assert.ok(!('depositReturned' in c) && !('depositWithheld' in c), JSON.stringify(c));
+    assert.ok(!/Deposito:/.test(T.confirms.at(-1)));
+  });
+  const T2 = build(); T2.seed(CLOSE_FIX());
+  T2.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', terminationNotes: '', depositReturned: '2500', depositWithheld: '' }); };
+  await T2.run("terminateContract({preventDefault(){},target:null},'c8')");
+  await check('un deposito restituito dichiarato si scrive e si dice nella conferma; le trattenute non dette restano non dette', () => {
+    const c = T2.doc('contracts/c8');
+    assert.equal(c.depositReturned, 2500); assert.ok(!('depositWithheld' in c));
+    assert.match(T2.confirms.at(-1), /Deposito: restituiti €2\.500,00 · trattenute non indicate/);
+  });
+}
+
 // ═══ 8. Canone e oneri nuovi sulle rate future ═══════════════════════════
 {
   const T = build();
@@ -762,10 +915,156 @@ const ARREARS = () => {
     assert.equal(T.mails.length, 0);
     assert.equal(T.writes.length, 0, 'aprire il sollecito non scrive niente: si registra quando parte');
     const html = T.getEl("modals").innerHTML;
-    assert.match(html, /Hello Mario, this is BOOM\. Your rent for October 2026 \(€1,000\.00, due 5 Oct 2026\) is still open/);
+    assert.match(html, /Hello Mario, this is BOOM\. A reminder about the October 2026 rent \(unit 8\): €1,000\.00, due on 5 Oct 2026 and we have not received it yet\./);
     assert.ok(html.includes('https://www.boomrome.com/rata?id=pay_c8_2026-10&amp;t=prova&amp;lang=en'), html);
-    assert.match(html, /Nessun telefono in archivio/);
+    assert.ok(html.includes('How BOOM handles your data: https://www.boomrome.com/privacy-inquilini?lang=en'), 'primo messaggio: l’informativa');
+    assert.match(html, /nessun telefono in archivio/);
     assert.ok(!/wa\.me/.test(html), 'senza un numero sicuro niente WhatsApp');
+  });
+}
+// ═══ 9b. Il link della rata da Canoni: le parole e le persone giuste ═══════
+{
+  const T = build();
+  const f = FIX();
+  f.contracts.find(c => c.id === 'c7').coTenants = [{ name: 'Иван Петров', phone: '+7 900 000 0000' }];
+  f.payments.push({ id: 'depbal_c7', contractId: 'c7', propertyId: 'p7', type: 'deposit-balance', amount: 1600, dueDate: '2026-10-01', status: 'pending', source: 'palazzo-import' },
+    { id: 'pay_c7_2026-11', contractId: 'c7', propertyId: 'p7', type: 'rent', month: '2026-11', amount: 1720, dueDate: '2099-11-15', status: 'pending', source: 'palazzo-import' });
+  T.seed(f);
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  const fetches = [];
+  const real = T.ctx.fetch;
+  T.ctx.fetch = async (url, o) => { fetches.push(String(url)); return real(url, o); };
+  await T.run("showPaymentLink('pay','depbal_c7')");
+  const html = T.getEl('modals').innerHTML;
+  await check('«Link pagamento» su una rata del Palazzo: niente link Stripe in italiano, si passa da /rata', () => {
+    assert.ok(!fetches.some(u => u.includes('/api/payments/link-for')), 'mai il link di pagamento «carta e incasso automatico»');
+    assert.ok(fetches.some(u => u.includes('/api/payments/rata')));
+    assert.ok(!/si segna pagata da sola|portale BOOM/.test(html));
+  });
+  await check('il saldo del deposito non è «your rent»; il primo messaggio porta l’informativa; un WhatsApp per ogni intestatario', () => {
+    assert.match(html, /A reminder about the deposit balance \(unit 7\): €1,600\.00/);
+    assert.ok(!/rent for this month|Your rent/.test(html));
+    assert.ok(html.includes('privacy-inquilini?lang=en'));
+    assert.ok(html.includes('wa.me/390000000007') && html.includes('wa.me/79000000000'), 'titolare E co-intestatario');
+    assert.ok(html.includes('WhatsApp: Şükrü') && html.includes('WhatsApp: Иван'));
+    assert.equal(T.run('window._rataReminderFor.length'), 2);
+    assert.match(T.run('window._rataReminderFor[1]'), /^Hello Иван, this is BOOM\./);
+  });
+  // Una rata non ancora scaduta: «Link della rata», registrata come link (non sollecito).
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  await T.run("showPaymentLink('pay','pay_c7_2026-11')");
+  const h2 = T.getEl('modals').innerHTML;
+  await check('una rata non scaduta non è un sollecito: titolo, testo e registrazione «rata-link»', () => {
+    assert.match(h2, /<h3 class="modal-title">Link della rata<\/h3>/);
+    assert.match(h2, /Here is the November 2026 rent \(unit 7\): €1,720\.00, due by/);
+    assert.ok(h2.includes("kind:&quot;rata-link&quot;") || h2.includes('kind:"rata-link"') || /kind:[^,]*rata-link/.test(h2), h2.slice(-600));
+  });
+  await check('Canoni: «Link della rata» sulle righe del Palazzo, una «Prova pagamento» per ogni segnalazione', () => {
+    const pay = { ...T.S.payments.find(p => p.id === 'pay_c7_2026-10'), tenantReports: [{ date: '2026-10-03', proofUrl: 'https://files.example.invalid/a.pdf' }, { date: '2026-10-04', proofUrl: 'https://files.example.invalid/b.pdf' }] };
+    T.ctx.__row = { id: pay.id, payment: pay, state: 'due', amount: 1720, isRent: true, canPay: true, month: '2026-10', tenantName: 'Şükrü Yılmaz' };
+    const r = T.run('rentPaymentRow(__row)');
+    assert.ok(r.includes('>Link della rata</button>'), r);
+    assert.ok(r.includes('Prova pagamento 1') && r.includes('Prova pagamento 2') && r.includes('b.pdf'));
+  });
+}
+{
+  // Il link di pagamento per un contratto normale senza profilo: il numero
+  // dal contratto, e il modale dice la carta solo se c'è.
+  const T = build(); const f = FIX();
+  f.contracts.push({ id: 'cN', propertyId: 'p9', status: 'active', tenantName: 'Lena Prova', tenantPhone: '+90 532 000 0000', rent: 900 });
+  f.payments.push({ id: 'pay_cN', contractId: 'cN', propertyId: 'p9', type: 'rent', month: '2026-10', amount: 900, dueDate: '2099-10-05', status: 'pending' });
+  T.seed(f);
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  const real = T.ctx.fetch;
+  T.ctx.fetch = async (url, o) => String(url).includes('/api/payments/link-for') ? { ok: true, json: async () => ({ ok: true, url: 'https://www.boomrome.com/api/payments/link?k=pay&id=pay_cN&t=x' }) } : real(url, o);
+  await T.run("showPaymentLink('pay','pay_cN')");
+  const h = T.getEl('modals').innerHTML;
+  await check('contratto normale senza profilo: WhatsApp al numero del contratto (+90), nome dal contratto', () => {
+    assert.ok(h.includes('wa.me/905320000000'), h.slice(0, 400));
+    assert.ok(h.includes('Lena Prova') && !h.includes('Nessun telefono in archivio'));
+    assert.ok(h.includes('si segna pagata da sola'), 'qui la carta c’è: si dice com’era');
+  });
+}
+// ═══ 9d. ASPI su un contratto già registrato: solo l'attestazione ═════════
+{
+  const ASPI = region(SRC0, '    const ASPI_ALLEGABILI =', '    async function editAspiSettings(');
+  const mkAspi = (state, extra = {}) => {
+    const modals = { innerHTML: '' }, sent = [], toasts = [];
+    const checkedOf = () => { const m = /value="(\w+)" checked/.exec(modals.innerHTML); return m ? { value: m[1] } : null; };
+    const els = new Map();
+    const ctx = vm.createContext({
+      S: { contracts: [] }, console: { log() {}, warn() {} }, toast: (...a) => toasts.push(a), closeModal() {}, renderPage() {}, window: {},
+      auth: { currentUser: { getIdToken: async () => 'tok' } },
+      document: { getElementById: id => id === 'modals' ? modals : (els.get(id) || (els.set(id, { innerHTML: '', textContent: '', checked: id === 'aspiBill', value: '' }), els.get(id))),
+        querySelector: sel => sel === 'input[name="aspiKind"]:checked' ? checkedOf() : null },
+      fetch: async (url, o) => {
+        const b = JSON.parse(o.body);
+        if (b.op === 'status') return { json: async () => ({ ok: true, kind: 'completo', settings: { email: 'aspi@example.invalid', referente: 'Ref', billTo: 'landlord', autoInvoice: true, prezzi: { completo: 278, registrazione: 89, asseverazione: 189 }, costi: { completo: 137, registrazione: 37, asseverazione: 100 } },
+          kinds: { completo: [{ key: 'contratto', label: 'Contratto', state: 'ok' }], registrazione: [{ key: 'contratto', label: 'Contratto', state: 'ok' }] }, state, ...extra }) };
+        sent.push(b);
+        return { json: async () => ({ ok: true, to: 'aspi@example.invalid', kind: b.kind, attachments: [] }) };
+      },
+    });
+    vm.runInContext(ASPI + '\n' + fnSrc(SRC0, 'esc') + '\n' + fnSrc(SRC0, 'incassoDay') + '\n' + fnSrc(SRC0, 'incassoRomeDay') + '\n' + fnSrc(SRC0, 'incassoDateIt'), ctx);
+    return { ctx, modals, sent, toasts, run: c => vm.runInContext(c, ctx) };
+  };
+  const A = mkAspi({ registrationStatus: 'registered', rliRegisteredAt: '2026-09-25', aspiRequestedAt: null });
+  await A.run("openAspi('cReg')");
+  const h = A.modals.innerHTML;
+  await check('ASPI su un contratto registrato: «solo attestazione» preselezionata, registrazione e completo spenti, la data detta', () => {
+    assert.match(h, /value="asseverazione" checked/);
+    assert.match(h, /value="completo"\s+disabled/);
+    assert.match(h, /value="registrazione"\s+disabled/);
+    assert.ok(h.includes('Registrato all’AdE il 25/09/2026'));
+    assert.ok(h.includes('Solo attestazione di rispondenza · fattura €189'));
+    assert.ok(A.ctx.document.getElementById('aspiBillLbl').textContent.includes('€189'), 'la fattura è quella dell’attestazione');
+  });
+  await A.run("sendAspi('cReg')");
+  await check('l’invio chiede solo l’attestazione; una pagina che lasciasse «completo» acceso non parte', async () => {
+    assert.equal(A.sent.at(-1).kind, 'asseverazione');
+    A.modals.innerHTML = A.modals.innerHTML.replace('value="asseverazione" checked', 'value="asseverazione"').replace('value="completo"  disabled', 'value="completo" checked disabled');
+    const n = A.sent.length;
+    await A.run("sendAspi('cReg')");
+    assert.equal(A.sent.length, n, 'nessuna seconda richiesta di registrazione');
+    assert.match(A.toasts.at(-1).join(' '), /già registrato/);
+  });
+  const B = mkAspi({ registrationStatus: 'pending' });
+  await B.run("openAspi('cNew')");
+  await check('un contratto non registrato: le tre varianti, il completo di default', () => {
+    const hb = B.modals.innerHTML;
+    assert.match(hb, /value="completo" checked/);
+    assert.ok(!/disabled/.test(hb.match(/name="aspiKind"[^>]*>/g).join(' ')));
+    assert.ok(hb.includes('value="asseverazione"'));
+  });
+}
+// ═══ 9e. Da Oggi all'interno del debitore nel Palazzo ══════════════════════
+{
+  const PAL = require('../../js/palazzo-engine.js');
+  const ui = { key: 'altro', selected: '' }, went = [];
+  const ctx = vm.createContext({ S: { properties: [{ id: 'p7', address: 'Piazzale Esempio 42, Roma', interno: '7' }] }, goTo: x => went.push(x),
+    window: { BOOM_PALAZZO: PAL, BOOM_PALAZZO_UI: { ui } } });
+  vm.runInContext(fnSrc(SRC0, 'openPalazzoUnit'), ctx);
+  vm.runInContext("openPalazzoUnit('p7')", ctx);
+  await check('openPalazzoUnit apre il palazzo GIUSTO con la scheda dell’interno (dove «Manda il link della rata» c’è anche in 3D)', () => {
+    assert.equal(ui.key, PAL.buildingKeyOf({ id: 'p7', address: 'Piazzale Esempio 42, Roma', interno: '7' }));
+    assert.equal(ui.selected, 'p7'); assert.deepEqual(went, ['palazzo']);
+  });
+}
+// ═══ 9c. «Registra incasso» con due segnalazioni (co-intestatari) ══════════
+{
+  const T = build(); const f = FIX();
+  const p = f.payments.find(x => x.id === 'pay_c7_2026-10');
+  p.tenantReports = [{ date: '2026-10-03', amount: 860, note: 'Ayse half', proofUrl: 'https://files.example.invalid/ricevuta-A.pdf' },
+    { date: '2026-10-04', amount: 860, note: 'Mehmet half', proofUrl: 'https://files.example.invalid/ricevuta-B.pdf' }];
+  T.seed(f);
+  T.run("openRecordIncasso('pay_c7_2026-10')");
+  const html = T.getEl('modals').innerHTML;
+  await check('il modulo mostra TUTTE le segnalazioni: date, importi, note e ricevute, e chiede di verificare l’importo intero', () => {
+    assert.match(html, /ha segnalato 2 bonifici/);
+    assert.ok(html.includes('ricevuta-A.pdf') && html.includes('ricevuta-B.pdf'), 'la seconda ricevuta dove si decide');
+    assert.ok(html.includes('04/10/2026') && html.includes('Mehmet half'));
+    assert.match(html, /verifica sull’estratto che sia arrivato l’importo intero/);
+    assert.match(html, /id="incDate" value="2026-10-03"/, 'la data proposta resta la prima, ed è detto');
   });
   await check('il livello di sollecito vede le rate rinominate «overdue» in memoria, mai le segnalate', () => {
     const late = new Date(Date.now() - 20 * 864e5);
@@ -831,7 +1130,41 @@ await mutant('parseInt sull’importo della rata', "const a = incassoNum(data.am
   await T.run("updatePayment({preventDefault(){},target:null},'pay_c8_2026-10')");
   assert.equal(T.doc('payments/pay_c8_2026-10').amount, 1234.56);
 });
-await mutant('la chiusura che lascia aperte le rate', "tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);", "void 0;", async T => {
+await mutant('«Modifica» → Terminato che scrive solo lo stato (rate dopo l’uscita aperte)', "            if (_closeDay) {\n                const cRef = db.collection('contracts').doc(id);", "            if (false) {\n                const cRef = db.collection('contracts').doc(id);", async T => {
+  T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'terminated', endDate: '2026-11-30' });
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  assert.equal(T.doc('payments/pay_c8_2026-12').status, 'cancelled');
+});
+await mutant('la rata dopo la chiusura contata come ritardo', "function isPaymentLateLive(p) { return isPaymentLate(p) && !paymentAfterClose(p); }", "function isPaymentLateLive(p) { return isPaymentLate(p); }", async T => {
+  T.S.contracts.push({ id: 'cOld', propertyId: 'p9', status: 'expired', startDate: '2025-01-01', endDate: '2025-12-31' });
+  T.S.payments.push({ id: 'x', contractId: 'cOld', type: 'rent', month: '2026-01', amount: 900, dueDate: '2026-01-05', status: 'pending' });
+  assert.equal(T.run("isPaymentLateLive(S.payments.find(p=>p.id==='x'))"), false);
+});
+await mutant('il deposito «restituito» scritto anche se non detto', "if (depRet != null) cUpd.depositReturned = depRet;", "cUpd.depositReturned = depRet || 0;", async T => {
+  T.seed(CLOSE_FIX());
+  T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', depositReturned: '', depositWithheld: '' }); };
+  await T.run("terminateContract({preventDefault(){},target:null},'c8')");
+  assert.ok(!('depositReturned' in T.doc('contracts/c8')));
+});
+await mutant('«Registra incasso» con la sola prima segnalazione', 'if (reps.length <= 1) {', 'if (true) {', async T => {
+  const p = T.S.payments.find(x => x.id === 'pay_c7_2026-10');
+  p.tenantReports = [{ date: '2026-10-03', proofUrl: 'https://files.example.invalid/ricevuta-A.pdf' }, { date: '2026-10-04', proofUrl: 'https://files.example.invalid/ricevuta-B.pdf' }];
+  T.run("openRecordIncasso('pay_c7_2026-10')");
+  assert.ok(T.getEl('modals').innerHTML.includes('ricevuta-B.pdf'));
+});
+await mutant('il link Stripe in italiano su una rata del Palazzo', "if (!isInv && (doc.source === 'palazzo-import' || (window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(payContract)))) return openRataReminder(id);", '', async T => {
+  T.ctx.window.BOOM_CONTRACT_STATE = require('../../js/contract-state.js');
+  let linkFor = 0; const real = T.ctx.fetch;
+  T.ctx.fetch = async (u, o) => { if (String(u).includes('link-for')) { linkFor++; return { ok: true, json: async () => ({ ok: true, url: 'https://x' }) }; } return real(u, o); };
+  await T.run("showPaymentLink('pay','pay_c8_2026-10')");
+  assert.equal(linkFor, 0);
+});
+await mutant('il saldo del deposito chiamato «rent»', "type === 'deposit-balance' ? 'the deposit balance'", "type === 'deposit-balance' ? 'the ' + (incassoMonth(p.month, 'en') || 'monthly') + ' rent'", async T => {
+  T.S.payments.push({ id: 'dep', contractId: 'c8', propertyId: 'p8', type: 'deposit-balance', amount: 500, dueDate: '2026-10-01', status: 'pending' });
+  assert.match(T.run("rataReminderText(S.payments.find(p=>p.id==='dep'), S.contracts.find(c=>c.id==='c8'), S.properties.find(p=>p.id==='p8'), 'u', 'Mario', false)"), /deposit balance/);
+});
+await mutant('la chiusura che lascia aperte le rate',"tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);", "void 0;", async T => {
   T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-09-30' }); };
   await T.run("terminateContract({preventDefault(){},target:null},'c8')");
   assert.equal(T.doc('payments/pay_c8_2026-10').status, 'cancelled');
@@ -847,8 +1180,8 @@ await mutant('la quota energia cancellata dal canone nuovo', "} else if (rents.l
 await mutant('il numero dalle ultime 8 cifre', "return 'RIC-' + (4294967296", "return 'RIC-' + String(id).slice(-8).toUpperCase() || (4294967296", async T => {
   assert.notEqual(T.run("incassoReceiptNumber('pay_c_a_int7_2026-10')"), T.run("incassoReceiptNumber('pay_c_a_int8_2026-10')"));
 });
-await mutant('i nomi turchi stampati senza traslitterare', ".map(tr).join('')", ".join('')", async T => {
-  assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sukru Yilmaz');
+await mutant('i nomi turchi stampati senza traslitterare', "            out += latinOf(ch, chars[i - 1], chars[i + 1]);", "            out += '';", async T => {
+  assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sükrü Yilmaz');
 });
 await mutant('l’attestazione annullata riusata', [["&& !d.voided && !!safeUrl(d.fileUrl)", "&& !!safeUrl(d.fileUrl)"], ["if (!pay.receiptDocId && existing.exists && (existing.data() || {}).voided) {", "if (false) {"]], async T => {
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})");

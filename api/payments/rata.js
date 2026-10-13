@@ -159,20 +159,34 @@ export function reportsOf(p) {
 // `contractError`: il contratto non si è potuto leggere — non si sa se la
 // carta sia permessa, quindi si spegne (resta il bonifico).
 export function rataView(p, { property, contract, feeStats, today, contractError } = {}) {
-  const pay = p || {}, state = RENT.paymentState(pay, today), amount = RENT.amount(pay.amount);
+  const pay = p || {}, amount = RENT.amount(pay.amount);
+  // Una rata il cui periodo comincia DOPO la chiusura vera del contratto
+  // (BOOM_RENT.afterClose, la regola del Palazzo) non è dovuta: la pagina non
+  // la fa pagare né segnalare, e lo dice. Una già pagata o segnalata resta
+  // com'è (sono soldi, o una dichiarazione, veri).
+  const st0 = RENT.paymentState(pay, today);
+  const closed = !!contract && RENT.afterClose(pay, contract) && ['due', 'overdue', 'unknown'].includes(st0);
+  const state = closed ? 'closed' : st0;
   const blocked = RENT.paymentBlockReason(pay, 'rent');
   const pr = property || {}, c = contract || {};
   const interno = clip(pr.interno || c.unit, 12);
   const building = clip(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name, 120);
   const iban = ibanOk(c.landlordIban);
   const rentPart = RENT.amount(pay.rentAmount), oneriPart = RENT.amount(pay.oneriAmount);
-  const canPay = RENT.canPay(pay, today);
+  const canPay = !closed && RENT.canPay(pay, today);
   const policy = contractError && String(pay.source || '') !== 'palazzo-import'
     ? { available: false, reason: 'unverified', fee: 'none' }
     : RENT.cardPolicy(pay, contract, property);
   const cardAvailable = canPay && amount != null && policy.available;
   const fee = cardAvailable ? feeFor(policy, amount, feeStats || null) : 0;
   const reports = state === 'reported' ? reportsOf(pay) : [];
+  // Quanto dicono di aver pagato le segnalazioni (il campo è facoltativo: una
+  // segnalazione senza importo vale «tutta la rata», come prima). Sotto il
+  // totale la pagina non dice «non pagare di nuovo»: il co-intestatario che
+  // deve ancora la sua metà la legge anche lui.
+  const repAmounts = reports.map(r => RENT.amount(r.amount));
+  const reportedSum = repAmounts.every(a => a != null) ? Math.round(repAmounts.reduce((n, a) => n + a, 0) * 100) / 100 : null;
+  const partial = reports.length > 0 && reportedSum != null && amount != null && reportedSum < amount - 0.005;
   const periodFrom = ymd(pay.periodFrom), periodTo = ymd(pay.periodTo);
   const canWithdraw = pay.tenantReported === true && ['pending', 'due', 'overdue'].includes(String(pay.status || '').toLowerCase());
   const view = {
@@ -205,7 +219,9 @@ export function rataView(p, { property, contract, feeStats, today, contractError
     hasProof: state === 'reported' && (reports.length ? reports.some(r => !!r.proofUrl) : !!pay.proofUrl),
     // Le segnalazioni (date e ricevuta sì, note no: le ha scritte chi
     // segnalava, la pagina la apre anche il co-intestatario).
-    reports: reports.map(r => ({ date: ymd(r.date), hasProof: !!r.proofUrl })),
+    reports: reports.map(r => ({ date: ymd(r.date), hasProof: !!r.proofUrl, ...(RENT.amount(r.amount) != null ? { amount: RENT.amount(r.amount) } : {}) })),
+    reportedSum: reports.length ? reportedSum : null,
+    partial,
     canReportMore: canWithdraw && state === 'reported' && reports.length < MAX_REPORTS,
     canWithdraw,
     cardFee: fee,
@@ -255,22 +271,67 @@ export async function closeOpenCheckout(p) {
   }
 }
 
+// Il ping all'operatore dice CIÒ CHE È STATO SEGNALATO, mai chi ha pagato
+// né quanto, se non lo ha detto chi segnala: il link è condiviso fra i
+// co-intestatari e non porta un'identità. Prima la card diceva «<titolare>
+// dice di aver pagato €1720» anche per la metà di €860 segnalata dal
+// co-intestatario — e l'operatore cercava dal locatore un bonifico che non
+// esisteva (13/10/2026). La nota scritta da chi segnala viaggia nella card.
+const euroIt = n => { const v = Math.round((Number(n) || 0) * 100), int = String(Math.floor(Math.abs(v) / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'), c = Math.abs(v) % 100;
+  return '€' + int + (c ? ',' + String(c).padStart(2, '0') : ''); };
 async function ping(id, r, view, extra) {
-  const who = clip((r.contract && r.contract.tenantName) || '', 80) || 'l\'inquilino';
+  const c = r.contract || {};
+  const who = clip(c.tenantName || '', 80);
+  const co = Array.isArray(c.coTenants) && c.coTenants.some(x => x && x.name);
   const where = [view.where.building, view.where.interno ? 'int. ' + view.where.interno : ''].filter(Boolean).join(' · ');
   const nth = extra.count > 1 ? ' — segnalazione n. ' + extra.count + ' sulla stessa rata' : '';
+  const rataOf = view.amount != null ? 'rata di ' + euroIt(view.amount) + (view.month ? ', ' + view.month : '') : 'rata' + (view.month ? ' ' + view.month : '');
+  const how = extra.amount != null && view.amount != null
+    ? 'segnalati ' + euroIt(extra.amount) + ' su ' + euroIt(view.amount) + (view.month ? ' (' + view.month + ')' : '')
+    : 'segnalato un bonifico (' + rataOf + ')';
   const createdAt = new Date().toISOString();
   await fsCreate('agentNotifications', {
     type: 'payment.reported', status: 'pending', priority: 'high',
-    summary: '💶 ' + (where || 'Rata') + ' — ' + (extra.count > 1 ? 'un co-intestatario o ' + who : who) + ' dice di aver pagato con bonifico ' +
-      (view.amount != null ? '€' + view.amount : '') + (view.month ? ' (' + view.month + ')' : '') +
-      (extra.proof ? ' · ricevuta allegata' : ' · senza ricevuta') + nth + '. Il bonifico va al conto del locatore: verifica con lui l\'accredito, poi premi Registra incasso.',
+    summary: '💶 ' + (where || 'Rata') + ' — ' + how + ' dal link della rata' + (who ? ' (inviato a ' + who + (co ? ' e co-intestatari' : '') + ')' : '') +
+      (extra.note ? ' · nota: «' + clip(extra.note, 140) + '»' : '') +
+      (extra.proof ? ' · ricevuta allegata' : ' · senza ricevuta') + nth + '. Il bonifico va al conto del locatore: verifica con lui cosa è arrivato, poi premi Registra incasso.',
     ref: { collection: 'payments', id }, ownerId: (r.property && r.property.ownerId) || null,
-    payload: { amount: view.amount, month: view.month, proof: !!extra.proof, date: extra.date || '', via: 'rata-link', count: extra.count || 1 },
+    payload: { amount: view.amount, ...(extra.amount != null ? { amountReported: extra.amount } : {}), month: view.month, proof: !!extra.proof, date: extra.date || '', note: clip(extra.note, 500),
+      via: 'rata-link', count: extra.count || 1 },
     // createdAt ISO come gli altri scrittori di agentNotifications: la
     // finestra recente di notify-pending ordina per questo campo.
     actor: 'rata', attempts: 0, dedupKey: 'payrep_' + id + '_' + (extra.count || 1), createdAt
   }, 'payrep_' + id + '_' + Date.now() + '_' + (extra.count || 1));
+}
+
+// L'importo scritto da chi segnala, come lo scrive: «860», «860,50», «1.720»
+// (migliaia all'italiana), «1,720.00». Con entrambi i separatori il decimale
+// è l'ultimo; con uno solo seguito da gruppi di tre cifre sono migliaia.
+export function amountInput(v) {
+  let a = String(v == null ? '' : v).trim().replace(/[\s€]/g, '');
+  if (!a) return '';
+  if (/[.]/.test(a) && /[,]/.test(a)) {
+    const dec = Math.max(a.lastIndexOf('.'), a.lastIndexOf(','));
+    a = a.slice(0, dec).replace(/[.,]/g, '') + '.' + a.slice(dec + 1);
+  } else if (/^\d{1,3}([.,]\d{3})+$/.test(a)) a = a.replace(/[.,]/g, '');
+  else a = a.replace(',', '.');
+  return a;
+}
+
+// L'annullamento di una segnalazione si dice all'operatore: prima la rata
+// tornava «da pagare» in silenzio e il Palazzo offriva «Sollecita» a chi
+// aveva appena caricato la ricevuta.
+async function pingWithdrawn(id, r, view, { date, left }) {
+  const where = [view.where.building, view.where.interno ? 'int. ' + view.where.interno : ''].filter(Boolean).join(' · ');
+  const createdAt = new Date().toISOString();
+  await fsCreate('agentNotifications', {
+    type: 'payment.report_withdrawn', status: 'pending', priority: 'high',
+    summary: '↩️ ' + (where || 'Rata') + ' — annullata dal link della rata la segnalazione del bonifico' + (date ? ' del ' + date : '') +
+      (left ? ' (restano ' + left + ' segnalazion' + (left === 1 ? 'e' : 'i') + ')' : ': la rata torna da pagare') + '. Prima di sollecitare, verifica col locatore cosa è arrivato.',
+    ref: { collection: 'payments', id }, ownerId: (r.property && r.property.ownerId) || null,
+    payload: { month: view.month, date: date || '', left, via: 'rata-link' },
+    actor: 'rata', attempts: 0, dedupKey: 'paywd_' + id + '_' + Date.now(), createdAt
+  }, 'paywd_' + id + '_' + Date.now());
 }
 
 export default async function handler(req, res) {
@@ -319,10 +380,29 @@ export default async function handler(req, res) {
 
   if (op === 'withdraw') {
     if (!view.canWithdraw) return res.status(409).json({ ok: false, error: 'state_changed', state: view.state });
+    const was = reportsOf(r.p);
+    // PIÙ SEGNALAZIONI (13/10/2026): un co-intestatario che annulla la SUA
+    // non cancella quella dell'altro. Si toglie solo la voce col nonce del
+    // modulo che l'ha mandata (lo conserva il telefono di chi l'ha fatta);
+    // senza un nonce che combaci nulla si scrive — si scrive a BOOM.
+    if (was.length > 1) {
+      const nonce = NONCE_RE.test(String(b.nonce || '')) ? String(b.nonce) : '';
+      const at = nonce ? was.findIndex(x => x && x.nonce === nonce) : -1;
+      if (at < 0) return res.status(409).json({ ok: false, error: 'several_reports', count: was.length });
+      const removed = was[at], left = was.filter((_, i) => i !== at), first = left[0];
+      const prevW = r.p.tenantReportWithdrawn && Array.isArray(r.p.tenantReportWithdrawn.reports) ? r.p.tenantReportWithdrawn.reports : [];
+      const fields = { tenantReports: left, tenantReportDate: ymd(first.date) || null, tenantNotes: clip(first.note, 500),
+        proofUrl: first.proofUrl || null, proofName: first.proofUrl ? (first.proofName || null) : null,
+        tenantReportWithdrawn: { at: new Date().toISOString(), reports: prevW.concat([removed]).slice(-MAX_REPORTS) } };
+      if (at === 0) { const t0 = Date.parse(String(first.at || '')); if (Number.isFinite(t0)) fields.tenantReportedAt = new Date(t0); }
+      try { await fsCommit([{ docPath: 'payments/' + id, fields, precondition: { updateTime: r.version.updateTime } }]); }
+      catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }
+      try { await pingWithdrawn(id, r, view, { date: ymd(removed.date), left: left.length }); } catch (e) { console.warn('[rata] ping annullo:', e.message); }
+      return res.status(200).json({ ok: true, state: 'reported', count: left.length });
+    }
     // Annullare pulisce TUTTA la segnalazione (data, nota, ricevuta, elenco):
     // una nuova segnalazione senza ricevuta non deve risultare "con ricevuta"
     // per quella vecchia. Ciò che c'era resta, a parte, come storia.
-    const was = reportsOf(r.p);
     try {
       await fsCommit([{ docPath: 'payments/' + id, fields: {
         tenantReported: false, tenantReportedAt: null, tenantReportWithdrawnAt: new Date(),
@@ -330,6 +410,7 @@ export default async function handler(req, res) {
         tenantReportWithdrawn: { at: new Date().toISOString(), reports: was.slice(0, MAX_REPORTS) }
       }, precondition: { updateTime: r.version.updateTime } }]);
     } catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }
+    try { await pingWithdrawn(id, r, view, { date: ymd(was[0] && was[0].date), left: 0 }); } catch (e) { console.warn('[rata] ping annullo:', e.message); }
     return res.status(200).json({ ok: true, state: RENT.paymentState({ ...r.p, tenantReported: false }) });
   }
 
@@ -345,6 +426,12 @@ export default async function handler(req, res) {
     if (!ext || !buf.length || buf.length > MAX_PROOF) return res.status(400).json({ ok: false, error: 'bad_proof' });
   }
   const proofHash = buf ? crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16) : '';
+  // L'importo bonificato (facoltativo: «la mia metà»). Mai più della rata.
+  const amtRaw = amountInput(b.amount);
+  const amountReported = amtRaw ? RENT.amount(amtRaw) : null;
+  if (amtRaw && (amountReported == null || amountReported <= 0 || (view.amount != null && amountReported > view.amount + 0.005))) {
+    return res.status(400).json({ ok: false, error: 'bad_amount' });
+  }
   const nonce = NONCE_RE.test(String(b.nonce || '')) ? String(b.nonce) : '';
   const prior = view.state === 'reported' ? reportsOf(r.p) : [];
 
@@ -356,12 +443,12 @@ export default async function handler(req, res) {
     // `another` vale il confronto del contenuto di sempre. Così la metà
     // dell'altro co-intestatario, pagata lo stesso giorno e segnalata coi
     // valori proposti, non sparisce più in silenzio.
-    const same = x => ymd(x.date) === reportDate && clip(x.note, 500) === note && String(x.proofHash || '') === proofHash;
+    const same = x => ymd(x.date) === reportDate && clip(x.note, 500) === note && String(x.proofHash || '') === proofHash && (RENT.amount(x.amount) ?? null) === (amountReported ?? null);
     const recent = x => { const t = Date.parse(String(x.at || '')); return Number.isFinite(t) && Date.now() - t < DOUBLE_TAP_MS; };
     const repeat = nonce ? prior.some(x => x && x.nonce === nonce)
       : b.another === true ? prior.some(x => same(x) && recent(x))
       : prior.some(same);
-    const nothingNew = !nonce && b.another !== true && !buf && !note && (!b.date || prior.some(x => ymd(x.date) === reportDate));
+    const nothingNew = !nonce && b.another !== true && !buf && !note && amountReported == null && (!b.date || prior.some(x => ymd(x.date) === reportDate));
     if (repeat || nothingNew) {
       return res.status(200).json({ ok: true, state: 'reported', already: true, proof: view.hasProof, count: prior.length });
     }
@@ -386,7 +473,7 @@ export default async function handler(req, res) {
   }
 
   const entry = { at: new Date().toISOString(), date: reportDate, note, proofUrl, proofName, proofHash: proofUrl ? proofHash : '', via: 'link',
-    ...(nonce ? { nonce } : {}) };
+    ...(nonce ? { nonce } : {}), ...(amountReported != null ? { amount: amountReported } : {}) };
   const reports = [...prior, entry].slice(-MAX_REPORTS);
   let fields;
   if (prior.length) {
@@ -409,7 +496,7 @@ export default async function handler(req, res) {
   }
   try { await fsCommit([{ docPath: 'payments/' + id, fields, precondition: { updateTime: r.version.updateTime } }]); }
   catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }
-  try { await ping(id, r, view, { proof: !!proofUrl, date: reportDate, count: reports.length }); }
+  try { await ping(id, r, view, { proof: !!proofUrl, date: reportDate, count: reports.length, note, amount: amountReported }); }
   catch (e) { console.warn('[rata] ping:', e.message); }
   return res.status(200).json({ ok: true, state: 'reported', proof: !!proofUrl || (prior.length > 0 && view.hasProof), proofFailed, count: reports.length });
 }

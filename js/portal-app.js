@@ -977,13 +977,31 @@ Valentyne - BOOM Rome`
     // arretrati.
     function landlordLatePayments() {
         const props = new Map((S.properties || []).map(p => [p.id, p]));
+        // Il ritardo vero (mai una rata dopo la chiusura del contratto); chi
+        // carica questa funzione senza le sorelle resta sul ritardo nudo.
+        const late = typeof isPaymentLateLive === 'function' ? isPaymentLateLive : isPaymentLate;
         return getMyPayments().filter(p => {
-            if (!isPaymentLate(p)) return false;
+            if (!late(p)) return false;
             const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
             const month = String(p.month || p.dueDate || '').slice(0, 7);
             return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
         });
     }
+    // Da Oggi (o da qualunque elenco) all'interno giusto del Palazzo: il
+    // palazzo di quell'interno e la sua scheda aperta, dove «Manda il link
+    // della rata» c'è in ogni vista — anche nel 3D, che è la vista di
+    // partenza dell'admin su desktop e non ha i pannelli del mese.
+    function openPalazzoUnit(propertyId) {
+        const prop = (S.properties || []).find(p => p.id === propertyId);
+        const UI = window.BOOM_PALAZZO_UI, P = window.BOOM_PALAZZO;
+        if (prop && UI && UI.ui) {
+            const key = P && typeof P.buildingKeyOf === 'function' ? P.buildingKeyOf(prop) : '';
+            if (key) UI.ui.key = key;
+            UI.ui.selected = propertyId;
+        }
+        goTo('palazzo');
+    }
+    window.openPalazzoUnit = openPalazzoUnit;
     function palazzoAdminOnly() {
         if (isAdmin()) return true;
         toast('info', 'Lo fa BOOM', 'Questa operazione la esegue l’operatore BOOM.');
@@ -1714,6 +1732,26 @@ Valentyne - BOOM Rome`
     function isPaymentLate(p) {
         if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue';
         return !!p && (p.status === 'pending' || p.status === 'overdue') && isOverdue(p.dueDate);
+    }
+    // Il ritardo VERO di qualcuno: in ritardo e non dopo la chiusura del suo
+    // contratto. Lo usano la proprietaria (badge «Il Palazzo») e le notifiche.
+    function isPaymentLateLive(p) { return isPaymentLate(p) && !paymentAfterClose(p); }
+    // Una rata il cui periodo comincia DOPO la chiusura vera del suo
+    // contratto (BOOM_RENT.afterClose, la regola del Palazzo) non è un
+    // ritardo di nessuno: va annullata. Prima il Palazzo diceva «libero,
+    // nessun ritardo» e il badge della proprietaria, le notifiche e Oggi la
+    // contavano fra gli arretrati dell'ex inquilino (13/10/2026).
+    function paymentAfterClose(p) {
+        const R = window.BOOM_RENT;
+        if (!R || typeof R.afterClose !== 'function' || !p || !p.contractId) return false;
+        const c = (S.contracts || []).find(x => x.id === p.contractId);
+        return !!c && R.afterClose(p, c);
+    }
+    // Le rate da cui Oggi deve partire: senza quelle APERTE dopo la chiusura
+    // del contratto (le pagate restano: sono soldi veri).
+    function livePaymentsForQueues() {
+        const R = window.BOOM_RENT;
+        return (S.payments || []).filter(p => !(paymentAfterClose(p) && R && ['due', 'overdue', 'unknown'].includes(R.paymentState(p))));
     }
     function isPaymentOpen(p) { return !!p && (p.status === 'pending' || p.status === 'overdue'); }
 
@@ -3662,7 +3700,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         // Overdue payments — per la proprietaria come le conta il Palazzo: mai
         // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
-        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue')).forEach(p => {
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => (typeof isPaymentLateLive === 'function' ? isPaymentLateLive : isPaymentLate)(p))).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -6751,7 +6789,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiDecisionPanel() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return '';
-        const { decisions, cash } = E.build(S, new Date().toISOString());
+        const { decisions, cash } = E.build(typeof livePaymentsForQueues === 'function' ? Object.assign({}, S, { payments: livePaymentsForQueues() }) : S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
@@ -11196,7 +11234,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const p = row.payment, id = rentActionArg(row.id);
         const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
         const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
-        const proof = rentSafeHttpUrl(p.proofUrl);
+        const proofs = (Array.isArray(p.tenantReports) && p.tenantReports.length ? p.tenantReports.map(x => x && rentSafeHttpUrl(x.proofUrl)) : [rentSafeHttpUrl(p.proofUrl)]).filter(Boolean);
+        const rowContract = (S.contracts || []).find(x => x.id === p.contractId);
+        const imported = p.source === 'palazzo-import' || !!(window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(rowContract));
         // Dopo un «Annulla incasso» e un nuovo incasso la rata ha DUE ricevute:
         // quella annullata e quella valida, in ordine di id (cioè a caso). Vale
         // quella collegata alla rata, poi una non annullata; mai l'annullata.
@@ -11209,7 +11249,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
             <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
             <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
-            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proofs.map((u, k) => `<a class="btn btn-sm btn-secondary" href="${esc(u)}" target="_blank" rel="noopener">Prova pagamento${proofs.length > 1 ? ' ' + (k + 1) : ''}</a>`).join('')}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">${imported ? 'Link della rata' : 'Link pagamento'}</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
         </div>`;
     }
     function rentMonthLabel(month, short = false) {
@@ -11458,6 +11498,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const amount = window.BOOM_RENT.amount(p.amount), rentP = window.BOOM_RENT.amount(p.rentAmount), oneriP = window.BOOM_RENT.amount(p.oneriAmount);
         const split = oneriP > 0 && rentP > 0 && Math.abs(rentP + oneriP - amount) < 0.01;
         const proof = rentSafeHttpUrl(p.proofUrl);
+        // TUTTE le segnalazioni (es. due co-intestatari che pagano metà
+        // ciascuno): la seconda ricevuta deve stare dove si decide, non solo
+        // nella scheda del Palazzo. La stessa regola di reportsOf (rata.js).
+        const reps = incassoReports(p);
         const landlord = prop && prop.ownerId ? (S.users || []).find(u => u.id === prop.ownerId) : null;
         const arg = rentActionArg(paymentId);
         const opt = (map, sel) => Object.keys(map).map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(map[k])}</option>`).join('');
@@ -11474,7 +11518,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="incTitle"><div class="modal-header"><h3 class="modal-title" id="incTitle">Registra incasso</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div>
             <form onsubmit="event.preventDefault();submitRecordIncasso(${arg})"><div class="modal-body">
             <p><strong>${esc(who.name || 'Inquilino da collegare')}</strong>${prop ? ' · ' + esc(prop.name || prop.address || '') : ''}<br>${esc(period || rentMonthLabel(p.month))} · ${rentMoney(amount)}${split ? ` <small>(canone ${rentMoney(rentP)} + oneri ${rentMoney(oneriP)})</small>` : ''}${p.dueDate ? ` · scadenza ${esc(incassoDateIt(p.dueDate))}` : ''}</p>
-            ${state === 'reported' ? `<p class="rent-note">L’inquilino ha segnalato un bonifico${rep ? ' del ' + esc(incassoDateIt(rep)) : ''}${proof ? ` · <a href="${esc(proof)}" target="_blank" rel="noopener">vedi la ricevuta</a>` : ' senza ricevuta'}.</p>` : ''}
+            ${state === 'reported' ? incassoReportsHtml(reps, amount, rep, proof) : ''}
             <div class="form-row"><div class="form-group"><label class="form-label" for="incDate">Data dell’accredito</label><input type="date" class="form-input" id="incDate" value="${def}" max="${today}" required></div>
             <div class="form-group"><label class="form-label" for="incVia">Come è arrivato</label><select class="form-select" id="incVia">${opt(INCASSO_VIA, 'bonifico')}</select></div></div>
             <div class="form-group"><label class="form-label" for="incEvidence">Da dove sai che è arrivato</label><select class="form-select" id="incEvidence" required><option value="">Scegli…</option>${opt(INCASSO_EVIDENCE, '')}</select>
@@ -11484,6 +11528,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <p id="incError" role="alert" style="color:var(--red)"></p></div>
             <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" id="incSubmit" type="submit">Registra incasso</button></div></form></div></div>`;
         document.getElementById('incDate')?.focus?.();
+    }
+    function incassoReports(p) {
+        const list = Array.isArray(p && p.tenantReports) ? p.tenantReports.filter(x => x && typeof x === 'object') : [];
+        return list.length ? list : [{ date: p && p.tenantReportDate, note: p && p.tenantNotes, proofUrl: p && p.proofUrl }];
+    }
+    function incassoReportsHtml(reps, amount, firstDay, headProof) {
+        const amt = x => window.BOOM_RENT.amount(x && x.amount);
+        if (reps.length <= 1) {
+            const x = reps[0] || {}, a = amt(x);
+            const proof = rentSafeHttpUrl(x.proofUrl) || headProof;
+            return `<p class="rent-note">L’inquilino ha segnalato un bonifico${firstDay ? ' del ' + esc(incassoDateIt(firstDay)) : ''}${a != null && amount != null && a < amount - 0.005 ? ` di ${rentMoney(a)} su ${rentMoney(amount)}` : ''}${x.note ? ` · nota: «${esc(String(x.note).slice(0, 80))}»` : ''}${proof ? ` · <a href="${esc(proof)}" target="_blank" rel="noopener">vedi la ricevuta</a>` : ' senza ricevuta'}.</p>`;
+        }
+        const known = reps.map(amt), sum = known.every(a => a != null) ? Math.round(known.reduce((n, a) => n + a, 0) * 100) / 100 : null;
+        return `<div class="rent-note">L’inquilino ha segnalato ${reps.length} bonifici${sum != null ? ` (in tutto ${rentMoney(sum)} su ${rentMoney(amount)})` : ''}:<ul style="margin:6px 0 6px 18px;padding:0">${reps.map((x, k) => {
+            const d = incassoDay(x.date), a = amt(x), proof = rentSafeHttpUrl(x.proofUrl);
+            return `<li>${d ? esc(incassoDateIt(d)) : 'data non indicata'}${a != null ? ' · ' + rentMoney(a) : ''}${x.note ? ` · «${esc(String(x.note).slice(0, 80))}»` : ''} · ${proof ? `<a href="${esc(proof)}" target="_blank" rel="noopener">ricevuta ${k + 1} ↗</a>` : 'senza ricevuta'}</li>`;
+        }).join('')}</ul>Più segnalazioni (es. due co-intestatari): verifica sull’estratto che sia arrivato l’importo intero prima di registrare. La data proposta è quella della prima segnalazione.</div>`;
     }
     const incassoBusy = new Set();
     async function submitRecordIncasso(paymentId) {
@@ -11573,20 +11634,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             url = (j.links || {})[paymentId] || '';
             if (!url) return toast('warning', 'Link della rata non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(p)));
         } catch (e) { return toast('error', 'Link della rata non creato', e.message || ''); }
-        const first = String(c.tenantName || '').trim().split(/\s+/)[0] || '';
-        const due = incassoDateEn(p.dueDate);
-        const msg = `Hello${first ? ' ' + first : ''}, this is BOOM. Your rent for ${incassoMonth(p.month, 'en') || 'this month'} (€${incassoEuro(p.amount, 'en')}${due ? ', due ' + due : ''}) is still open. You can pay here, or tell us you paid by bank transfer and attach the receipt: ${url}&lang=en`;
+        // Il testo segue le regole del Palazzo (rataText in js/palazzo.js): il
+        // saldo del deposito non è «your rent», il primo messaggio porta
+        // l'informativa, ogni intestatario riceve il SUO WhatsApp, e si
+        // registra «sollecito» solo su una rata davvero in ritardo.
+        const st = window.BOOM_RENT.paymentState(p);
+        const kind = st === 'overdue' ? 'sollecito' : 'rata-link';
+        const first = !(S.payments || []).some(x => x && x.contractId === p.contractId && Array.isArray(x.dunningHistory) && x.dunningHistory.length);
+        const prop = (S.properties || []).find(x => x.id === (p.propertyId || c.propertyId)) || null;
         const CS = window.BOOM_CONTRACT_STATE;
-        const tel = CS && CS.phoneIntl ? CS.phoneIntl(c.tenantPhone || '') : { wa: null, kind: 'unknown' };
-        const pid = rentActionArg(paymentId), month = rentActionArg(p.month || '');
-        window._rataReminderText = msg;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">Sollecito · link della rata</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body"><p class="rent-note">${esc(c.tenantName || 'L’inquilino')} non ha un profilo nel portal: il sollecito è il link della sua rata (carta, se accesa, o bonifico con la ricevuta). Messaggio in inglese, modificabile su WhatsApp.</p>
-            <div class="form-input" style="white-space:pre-wrap;height:auto;font-size:13px;line-height:1.5">${esc(msg)}</div>
-            ${tel.wa ? '' : `<p class="rent-note" style="color:var(--orange)">${c.tenantPhone ? 'Il numero in archivio (' + esc(c.tenantPhone) + ') non è sicuro per WhatsApp: copia il messaggio e mandalo tu.' : 'Nessun telefono in archivio: copia il messaggio.'}</p>`}</div>
+        const people = [{ name: c.tenantName, phone: c.tenantPhone }].concat(Array.isArray(c.coTenants) ? c.coTenants.filter(x => x && typeof x === 'object') : [])
+            .map(x => ({ name: String(x.name || '').trim(), phone: String(x.phone || '').trim(), tel: CS && CS.phoneIntl ? CS.phoneIntl(x.phone || '') : { wa: null } }));
+        const msgFor = name => rataReminderText(p, c, prop, url + '&lang=en', name, first);
+        const pid = rentActionArg(paymentId), month = rentActionArg(p.month || ''), kindArg = rentActionArg(kind);
+        window._rataReminderText = msgFor(people[0].name);
+        window._rataReminderFor = people.map(x => msgFor(x.name));
+        const withWa = people.map((x, k) => ({ ...x, k })).filter(x => x.tel && x.tel.wa);
+        const noWa = people.filter(x => x.name && !(x.tel && x.tel.wa));
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">${kind === 'sollecito' ? 'Sollecito · link della rata' : 'Link della rata'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body"><p class="rent-note">${esc(c.tenantName || 'L’inquilino')} non ha un profilo nel portal: ${kind === 'sollecito' ? 'il sollecito è' : 'si manda'} il link della sua rata (carta, se accesa, o bonifico con la ricevuta). Messaggio in inglese, modificabile su WhatsApp${first ? ', col link all’informativa privacy (primo messaggio su questo contratto)' : ''}.</p>
+            <div class="form-input" style="white-space:pre-wrap;height:auto;font-size:13px;line-height:1.5">${esc(window._rataReminderText)}</div>
+            ${noWa.length ? `<p class="rent-note" style="color:var(--orange)">${noWa.map(x => x.phone ? esc(x.name) + ': il numero in archivio (' + esc(x.phone) + ') non è sicuro per WhatsApp' : esc(x.name) + ': nessun telefono in archivio').join(' · ')} — copia il messaggio e mandalo tu.</p>` : ''}</div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="copyToClipboard(window._rataReminderText,'Messaggio copiato')">Copia messaggio</button>
-            ${tel.wa ? `<button class="btn" onclick="window.open('https://wa.me/${tel.wa}?text='+encodeURIComponent(window._rataReminderText),'_blank');palazzoLogSent(${pid},{channel:'whatsapp',kind:'sollecito',month:${month}});closeModal()">WhatsApp</button>` : ''}</div></div></div>`;
+            ${withWa.map((x, j) => `<button class="btn${j ? ' btn-secondary' : ''}" onclick="window.open('https://wa.me/${esc(x.tel.wa)}?text='+encodeURIComponent(window._rataReminderFor[${x.k}]),'_blank');palazzoLogSent(${pid},{channel:'whatsapp',kind:${kindArg},month:${month}})">WhatsApp: ${esc(x.name.split(/\s+/)[0] || 'inquilino')}</button>`).join('')}</div></div></div>`;
         return true;
+    }
+    // Il messaggio della rata (inglese), con le parole della rata vera.
+    function rataReminderText(p, c, prop, link, name, first) {
+        const R = window.BOOM_RENT, st = R.paymentState(p), late = st === 'overdue';
+        const who = String(name || '').trim().split(/\s+/)[0] || '';
+        const type = String(p.type || '').toLowerCase();
+        const what = R.isRentPayment(p) ? 'the ' + (incassoMonth(p.month, 'en') || 'monthly') + ' rent'
+            : type === 'deposit-balance' ? 'the deposit balance' : type === 'deposit' ? 'the security deposit' : 'the payment';
+        const unit = prop && prop.interno ? 'unit ' + prop.interno : (prop && (prop.name || prop.address)) || '';
+        const card = typeof R.cardPolicy === 'function' ? R.cardPolicy(p, c, prop).available : false;
+        const how = card ? 'You can pay by card or Apple Pay, or report your bank transfer with a photo of the receipt, here: '
+            : 'Here you find the bank details and can report your transfer with a photo of the receipt: ';
+        const due = incassoDateEn(p.dueDate);
+        return 'Hello' + (who ? ' ' + who : '') + ', this is BOOM. ' + (late ? 'A reminder about ' : 'Here is ') + what + (unit ? ' (' + unit + ')' : '') + ': €' + incassoEuro(p.amount, 'en') +
+            (due ? (late ? ', due on ' : ', due by ') + due : '') + (late ? ' and we have not received it yet' : '') + '. ' + how + link +
+            (first ? '\nHow BOOM handles your data: https://www.boomrome.com/privacy-inquilini?lang=en' : '');
     }
     window.openRataReminder = openRataReminder;
 
@@ -11808,8 +11895,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const oldOpen = open.filter(m => daysSince(m.createdAt) > 7);
 
         // Maintenance row generator
-        const maintenanceRow = (m) => {
-            const p = S.properties.find(x => x.id === m.propertyId);
+        const maintenanceRow = (m0) => {
+            // Categoria, priorità, stato e id li scrive anche il browser di
+            // inquilino e proprietaria: nell'HTML arrivano già resi innocui
+            // (esc per gli attributi, jsq per gli onclick).
+            const m = Object.assign({}, m0, { status: esc(m0.status), priority: esc(m0.priority), id: jsq(m0.id) });
+            const p = S.properties.find(x => x.id === m0.propertyId);
             const u = S.users.find(x => x.id === m.userId);
             const owner = p ? S.users.find(x => x.id === p.ownerId) : null;
             const ageInDays = daysSince(m.createdAt);
@@ -11842,7 +11933,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
+                        <b>${esc(p?.name || 'N/A')}</b><span class="sep">·</span>${esc(u?.name || 'N/A')}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -14144,21 +14235,69 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // società (la presa in carico scrive landlordName = la SRL) mentre
     // l'accesso è della persona che lo segue: allora il reddito NON è suo, e
     // una stima IRPEF o cedolare a suo nome sarebbe un numero falso dato al
-    // commercialista. La stima resta solo quando il locatore è lei (o il
-    // contratto non dice altro).
+    // commercialista. Le prove, in ordine (13/10/2026):
+    //  1. il codice fiscale, quando c'è da entrambe le parti: decide lui;
+    //  2. la società (landlordKind 'giuridica', o S.r.l./S.p.A./… nel nome);
+    //  3. il nome, senza titoli (Sig.ra, Dott.…), con le particelle unite al
+    //     cognome (Di Stefano = distefano) e i diminutivi come prefisso di
+    //     almeno 3 lettere (Gio = Giovanni). Un profilo senza nome non decide.
+    // Quando il «no» viene SOLO dal nome (soft: true) non si toglie niente —
+    // stima e scadenzario restano, con una nota: un nome scritto in due modi
+    // non può nascondere a una locatrice le sue scadenze.
     function commercialistaLocatore(contracts, profile) {
         const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-        const me = norm(profile && profile.name), meTok = me.split(' ').filter(w => w.length > 1);
+        const TITLES = new Set(['sig', 'sigr', 'sigra', 'sign', 'signor', 'signore', 'signora', 'sigg', 'dott', 'dottssa', 'dottor', 'dottore', 'dottoressa', 'dr', 'avv', 'ing', 'arch', 'geom', 'prof', 'profssa', 'rag', 'ra', 'ssa']);
+        const PARTICLES = new Set(['di', 'de', 'del', 'della', 'dello', 'dei', 'degli', 'delle', 'da', 'dal', 'dalla', 'lo', 'la', 'le', 'li', 'van', 'von', 'der', 'mac', 'mc', 'd']);
+        const tokens = name => {
+            const raw = norm(String(name || '').replace(/\b(sig|dott|prof)\s*\.\s*(ra|ssa)\b/gi, '$1$2')).split(' ').filter(w => w && !TITLES.has(w));
+            const out = [];
+            for (let i = 0; i < raw.length; i++) {
+                if (PARTICLES.has(raw[i]) && i + 1 < raw.length) { out.push(raw[i] + raw[i + 1]); i++; } else out.push(raw[i]);
+            }
+            return out.filter(w => w.length > 1);
+        };
+        const tokMatch = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
+        const cfOf = v => String(v || '').replace(/\s+/g, '').toUpperCase();
+        const myCf = cfOf(profile && (profile.codiceFiscale || profile.cf || profile.taxCode));
+        const meTok = tokens(profile && profile.name);
         const COMPANY_RE = /\b(s\s*r\s*l\s*s?|s\s*a\s*s|s\s*p\s*a|s\s*n\s*c|s\s*a\s*p\s*a|soc|societa|immobiliare|holding|srl|spa|sas|snc|ltd|gmbh|sarl)\b/;
+        let soft = null;
         for (const c of contracts || []) {
             const raw = String((c && c.landlordName) || '').trim();
+            const theirCf = cfOf(c && (c.landlordCF || c.landlordCf || c.landlordCodiceFiscale));
+            if (myCf && theirCf) {
+                if (myCf === theirCf) continue;
+                return { name: raw || theirCf, other: true, company: theirCf.length === 11 || !!(c && c.landlordKind === 'giuridica') || (!!raw && COMPANY_RE.test(norm(raw))) };
+            }
             const company = !!(c && c.landlordKind === 'giuridica') || (raw && COMPANY_RE.test(norm(raw)));
-            if (!raw && !company) continue;
-            const n = norm(raw), nTok = n.split(' ').filter(w => w.length > 1);
-            const same = !company && raw && meTok.length && (meTok.every(w => nTok.includes(w)) || nTok.every(w => meTok.includes(w)));
-            if (!same) return { name: raw, other: true, company };
+            if (company) return { name: raw, other: true, company: true };
+            if (!raw || !meTok.length) continue;
+            const nTok = tokens(raw);
+            const [shortT, longT] = meTok.length <= nTok.length ? [meTok, nTok] : [nTok, meTok];
+            const same = shortT.length > 0 && shortT.every(w => longT.some(v => tokMatch(w, v)));
+            if (!same && !soft) soft = { name: raw, other: true, company: false, soft: true };
         }
-        return { name: (profile && profile.name) || '', other: false, company: false };
+        return soft || { name: (profile && profile.name) || '', other: false, company: false };
+    }
+    // I contratti che dicono chi è il locatore di un interno: quelli dello
+    // STESSO palazzo e della stessa proprietaria (un segnaposto senza
+    // landlordName non deve far tornare lo scadenzario personale accanto agli
+    // interni della società).
+    function commercialistaBuildingContracts(prop) {
+        const P = window.BOOM_PALAZZO;
+        const keyOf = p => (P && typeof P.buildingKeyOf === 'function' ? P.buildingKeyOf(p) : '') || '';
+        const k = keyOf(prop);
+        const ids = new Set([prop.id]);
+        if (k) (S.properties || []).forEach(p => { if (p && p.id && p.ownerId === prop.ownerId && keyOf(p) === k) ids.add(p.id); });
+        const own = (S.contracts || []).filter(c => c.propertyId === prop.id);
+        return own.concat((S.contracts || []).filter(c => c.propertyId !== prop.id && ids.has(c.propertyId)));
+    }
+    // Il reddito è il CANONE: gli oneri accessori pagati insieme (rentAmount
+    // + oneriAmount = amount) sono rimborsi spese. Una regola sola per la
+    // pagina della proprietaria, quella dell'operatore e il pacchetto ZIP.
+    function commercialistaTaxPayments(payments) {
+        return (payments || []).map(x => (x && x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
+            ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
     }
 
     // ─── LANDLORD LITE — one property, one question, one action ─────────────
@@ -14186,13 +14325,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
             const documents = (S.documents || []).filter(d => d.propertyId === p.id);
             const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
-            // Il reddito è il CANONE: gli oneri accessori pagati insieme
-            // (rentAmount + oneriAmount = amount) sono rimborsi spese, non si
-            // stimano come imponibile.
-            const taxPayments = payments.map(x => (x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
-                ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
-            const totals = TP.computeTotals({ contract, payments: taxPayments, fiscalYear: year });
-            return { p, contract, payments, documents, checklist, totals };
+            const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+            const viewerP = isPreview ? ((S.users || []).find(u => u.id === p.ownerId) || {}) : S.profile;
+            const loc = commercialistaLocatore(commercialistaBuildingContracts(p), viewerP);
+            return { p, contract, payments, documents, checklist, totals, hardOther: loc.other && !loc.soft };
         });
 
         const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
@@ -14200,18 +14336,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Il locatore è un ALTRO soggetto (es. la società del palazzo)? Allora
         // niente stima d'imposta né scadenzario personale a nome suo.
         const viewer = isPreview ? ((S.users || []).find(u => u.id === prop.ownerId) || {}) : S.profile;
-        const locatore = commercialistaLocatore((S.contracts || []).filter(c => c.propertyId === prop.id), viewer);
+        const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), viewer);
+        // hard: il locatore è un ALTRO soggetto provato (società, codice
+        // fiscale diverso). soft: solo il nome non torna — si avverte, non si
+        // toglie niente.
+        const hardOther = locatore.other && !locatore.soft;
+        const whose = locatore.company ? 'della società' : 'del locatore';
 
         // Scadenzario — computed obligations for THIS property (engine).
         const FX = window.BOOM_FISCAL;
-        const obligations = FX && !locatore.other ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
-        const scadCard = locatore.other
-            ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${locatore.company ? 'della società' : 'del locatore'}: le segue il suo commercialista.</div></div>`
-            : FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
+        const obligations = FX && !hardOther ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
+        const softNote = locatore.soft ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Sul contratto il locatore è <strong style="color:var(--text)">${esc(locatore.name)}</strong>: se non sei tu, le imposte e le scadenze qui sotto sono sue.</div></div>` : '';
+        const scadCard = hardOther
+            ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${whose}: le segue il suo commercialista.</div></div>`
+            : softNote + (FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '');
 
         // Status mapping → calm, human.
         let statusKey, icon, headline, sub, accent;
-        if (checklist.ready) {
+        if (hardOther) {
+            // Gli adempimenti (RLI, imposta di registro, IMU) sono del locatore:
+            // alla persona che segue il palazzo l'archivio si offre, non si
+            // impone — mai «9 documenti da caricare» come se fossero suoi.
+            statusKey = 'archive'; icon = '🗂️'; accent = 'var(--text-muted)';
+            headline = 'Archivio documenti per il commercialista ' + whose;
+            sub = 'Facoltativo: se hai una copia, caricala qui. Gli adempimenti (registrazione RLI, imposta di registro, IMU) sono ' + whose + ' — ' + locatore.name + '.';
+        } else if (checklist.ready) {
             statusKey = 'ready'; icon = '✅'; accent = 'var(--green)';
             headline = 'Sei pronto';
             sub = 'Hai tutti i documenti che servono al commercialista per ' + (prop.name || 'questo immobile') + '.';
@@ -14231,8 +14380,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
 
         // Plain-language money line (factual, no formula).
-        const moneyLine = locatore.other
-            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${locatore.company ? 'della società' : 'del locatore'}.`
+        const moneyLine = hardOther
+            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${whose}.`
             : totals.canoniIncassati
             ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
               (totals.regime !== 'ordinario'
@@ -14245,13 +14394,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:24px">
                 ${portfolio.map(x => {
                     const active = x.p.id === _cmState.propertyId;
-                    const dot = x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
+                    const dot = x.hardOther ? 'var(--text-muted)' : x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
                     return `<div onclick="_cmState.propertyId='${x.p.id}';renderPage()" style="flex:0 0 auto;cursor:pointer;padding:14px 18px;border-radius:14px;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'var(--gold-light)' : 'var(--bg-card)'};min-width:150px;transition:all .2s">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                             <span style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0"></span>
                             <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.p.name || x.p.address || 'Immobile')}</span>
                         </div>
-                        <div style="font-size:11px;color:var(--text-muted)">${x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">${x.hardOther ? 'Archivio' : x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
                     </div>`;
                 }).join('')}
             </div>` : '';
@@ -14260,7 +14409,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const primaryAction = checklist.ready
             ? `<button class="btn btn-lg" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn" style="background:var(--green);color:#000;font-size:15px;padding:16px 32px">📦 Scarica il pacchetto fiscale</button>
                <button class="btn btn-lg btn-secondary" onclick="openCommercialistaShare('${prop.id}', ${year})" style="font-size:15px;padding:16px 28px">🔗 Invia al commercialista</button>`
-            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">📁 Carica i documenti mancanti</button>`;
+            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">${hardOther ? '📁 Carica una copia' : '📁 Carica i documenti mancanti'}</button>`;
 
         // Missing list (calm, actionable — each opens upload prefilled)
         const missingBlock = checklist.missing.length ? `
@@ -14269,7 +14418,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div onclick="openDocUploadForProperty('${prop.id}', ${year}, '${m.key}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
                         <span style="font-size:20px">＋</span>
                         <div style="flex:1"><div style="font-weight:500">${esc(m.label)}</div></div>
-                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">Carica →</span>
+                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">${hardOther ? 'Carica una copia →' : 'Carica →'}</span>
                     </div>`).join('')}
             </div>` : '';
 
@@ -14305,7 +14454,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card" style="margin-top:16px">
                 <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                     <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
-                    ${locatore.other ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
+                    ${hardOther ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
@@ -14412,9 +14561,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const documents = (S.documents || []).filter(d => d.propertyId === prop.id);
 
         const checklist = TP.buildChecklist({ contract, property: prop, documents, payments, fiscalYear: year });
-        const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+        // Il canone senza gli oneri, e il locatore vero: la stessa regola
+        // della pagina della proprietaria (mai una stima IRPEF a nome di chi
+        // non è il locatore, mai 4.860 dove la proprietaria legge 4.500).
+        const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+        const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), (S.users || []).find(u => u.id === prop.ownerId) || {});
+        const hardOther = locatore.other && !locatore.soft;
+        const whose = locatore.company ? 'della società' : 'del locatore';
         const FX_admin = window.BOOM_FISCAL;
-        const adminScad = FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
+        const adminScad = hardOther
+            ? `<div class="card" style="margin-bottom:20px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${whose}: le segue il suo commercialista.</div></div>`
+            : FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
 
         const yearOpts = [];
         const nowY = new Date().getFullYear();
@@ -14450,8 +14607,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card"><div class="stat-label">Canoni incassati ${year}</div><div class="stat-value">${TP.fmtEuro(totals.canoniIncassati)}</div><div class="stat-description">${totals.monthsPaid}/${totals.monthsExpected} mesi · ${TP.fmtEuro(totals.outstanding)} da incassare</div></div>
-                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${esc(regimeLabel)}</div></div>
-                <div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>
+                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${hardOther ? 'del locatore' : esc(regimeLabel)}</div></div>
+                ${hardOther
+                    ? `<div class="stat-card"><div class="stat-label">Locatore</div><div class="stat-value" style="font-size:16px">${esc(locatore.name)}</div><div class="stat-description">nessuna stima d'imposta: il reddito è ${whose}</div></div>`
+                    : `<div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>`}
                 <div class="stat-card ${ready ? '' : 'highlight'}"><div class="stat-label">Completezza</div><div class="stat-value ${ready ? 'green' : 'gold'}">${checklist.completeness}%</div><div class="stat-description">${checklist.presentCount}/${checklist.requiredCount} documenti</div></div>
             </div>
 
@@ -14461,7 +14620,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div style="font-weight:600">${ready ? '✅ Pronto per il commercialista' : '⚠️ Mancano ' + checklist.missing.length + ' documenti'}</div>
                         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(prop.name || prop.address || '')} · Anno ${year}</div>
                     </div>
-                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    ${hardOther ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                     <button class="btn btn-secondary btn-sm" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn">📦 Scarica Tax Pack (zip)</button>
                     <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
@@ -14779,6 +14938,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) throw new Error('jsPDF non caricato');
         const { property, contract, tenant, landlord, totals, checklist, year } = opts;
+        // Il locatore VERO: se è un altro soggetto (la società del palazzo) il
+        // riepilogo stampa lui, non chi segue il palazzo, e non fa stime
+        // d'imposta a nome di nessuno.
+        const loc = opts.locatore || null;
+        const hardOther = !!(loc && loc.other && !loc.soft);
+        const pdfTxt = v => (typeof pdfLatin === 'function' ? pdfLatin(v) : String(v == null ? '' : v));
         const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
         const today = new Date().toLocaleDateString('it-IT');
 
@@ -14810,12 +14975,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         pdf.setFontSize(9); pdf.setTextColor(120);
         pdf.text('LOCATORE', 20, y); pdf.text('CONDUTTORE', 110, y);
         pdf.setTextColor(0); pdf.setFontSize(11);
-        pdf.text(landlord.name || '—', 20, y + 6);
-        pdf.text(tenant.name || '—', 110, y + 6);
+        pdf.text(pdfTxt(hardOther ? loc.name : (landlord.name || contract.landlordName)) || '—', 20, y + 6);
+        pdf.text(pdfTxt(tenant.name || contract.tenantName) || '—', 110, y + 6);
         pdf.setFontSize(9); pdf.setTextColor(80);
-        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 20, y + 11);
-        if (tenant.cf || tenant.codiceFiscale) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale), 110, y + 11);
-        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
+        const llCf = hardOther ? (contract.landlordCF || contract.landlordCf || '') : (landlord.codiceFiscale || landlord.cf || '');
+        if (llCf) pdf.text('CF: ' + llCf, 20, y + 11);
+        if (tenant.cf || tenant.codiceFiscale || contract.tenantCF) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale || contract.tenantCF), 110, y + 11);
+        if (!hardOther && landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
         pdf.setTextColor(0);
         y += 24;
 
@@ -14832,7 +14998,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ['Scadenza', contract.endDate ? new Date(contract.endDate).toLocaleDateString('it-IT') : '—'],
             ['Canone mensile', '€ ' + (Number(contract.rent) || 0).toLocaleString('it-IT')],
             ['Deposito', '€ ' + (Number(contract.deposit) || 0).toLocaleString('it-IT')],
-            ['Regime fiscale', regimeLabel],
+            ['Regime fiscale', hardOther ? 'a cura del locatore' : regimeLabel],
         ];
         rows1.forEach(r => {
             y += 5;
@@ -14843,7 +15009,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Totals block (Quadro RB)
         pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 6;
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + ' (anteprima Quadro RB)', 20, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + (hardOther ? '' : ' (anteprima Quadro RB)'), 20, y); y += 6;
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
         const rows2 = [
             ['Mesi attivi', String(totals.monthsActive)],
@@ -14852,7 +15018,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ['Canoni attesi', '€ ' + (totals.canoniAttesi || 0).toLocaleString('it-IT')],
             ['Da incassare', '€ ' + (totals.outstanding || 0).toLocaleString('it-IT')],
         ];
-        if (totals.regime === 'ordinario') {
+        if (hardOther) {
+            // nessuna stima: il reddito è del locatore (società o altra persona)
+        } else if (totals.regime === 'ordinario') {
             rows2.push(['Imponibile IRPEF (95%)', '€ ' + (totals.irpefImponibile || 0).toLocaleString('it-IT')]);
         } else {
             rows2.push(['Aliquota cedolare', (totals.cedolareRate * 100).toFixed(0) + ' %']);
@@ -14865,7 +15033,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         y += 8;
         pdf.setFontSize(8); pdf.setTextColor(150);
-        pdf.text('Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
+        pdf.text(hardOther
+            ? pdfTxt('Canoni senza gli oneri accessori. Il reddito è ' + (loc.company ? 'della società' : 'del locatore') + ' (' + loc.name + '): nessuna stima d\'imposta qui.')
+            : 'Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
         pdf.setTextColor(0); y += 8;
 
         // Checklist summary
@@ -14926,14 +15096,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
 
             const checklist = TP.buildChecklist({ contract, property: prop, documents: allDocs, payments, fiscalYear: year });
-            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            // Lo stesso canone (senza oneri) e lo stesso locatore della pagina:
+            // il riepilogo per il commercialista non può dire 4.860 e «IRPEF a
+            // nome della persona» dove la pagina dice 4.500 e «della società».
+            const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+            const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), (landlord && landlord.name) ? landlord : ((S.users || []).find(u => u.id === prop.ownerId) || {}));
             const manifest = TP.buildManifest({ contract, property: prop, documents: allDocs, fiscalYear: year, checklist });
 
             const zip = new JSZip();
             const root = zip.folder(manifest.root);
 
             // 1) Riepilogo PDF — first file the accountant opens
-            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year });
+            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year, locatore });
             const summaryBlob = summaryPDF.output('blob');
             root.file(manifest.summaryFile, summaryBlob);
 
@@ -17833,7 +18007,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'addMaintenance') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Nuova Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveMaintenance(event)"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required></div><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required><option value="">Seleziona...</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low">Bassa</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Invia</button></div></div></div>`;
 
-        if (type === 'editMaintenance') { const m = data; if (!m) return ''; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateMaintenance(event,'${m.id}')"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" value="${m.title || ''}" required></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${S.properties.map(p => `<option value="${p.id}" ${m.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing" ${m.category === 'plumbing' ? 'selected' : ''}>Idraulica</option><option value="electrical" ${m.category === 'electrical' ? 'selected' : ''}>Elettricità</option><option value="heating" ${m.category === 'heating' ? 'selected' : ''}>Riscaldamento</option><option value="appliance" ${m.category === 'appliance' ? 'selected' : ''}>Elettrodomestici</option><option value="other" ${m.category === 'other' ? 'selected' : ''}>Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low" ${m.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${m.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${m.priority === 'high' ? 'selected' : ''}>Alta</option><option value="urgent" ${m.priority === 'urgent' ? 'selected' : ''}>Urgente</option></select></div></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="open" ${m.status === 'open' || m.status === 'pending' ? 'selected' : ''}>🟡 Aperto</option><option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>🔵 In Corso</option><option value="resolved" ${m.status === 'resolved' ? 'selected' : ''}>🟢 Risolto</option><option value="closed" ${m.status === 'closed' ? 'selected' : ''}>⚫ Chiuso</option></select></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${m.description || ''}</textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Costo €</label><input type="number" class="form-input" name="cost" value="${m.cost || ''}"></div><div class="form-group"><label class="form-label">Tecnico/Fornitore</label><input type="text" class="form-input" name="technician" value="${m.technician || ''}"></div></div><div class="form-group"><label class="form-label">Note Risoluzione</label><textarea class="form-textarea" name="resolutionNotes" rows="2">${m.resolutionNotes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editMaintenance') { const m = data; if (!m) return ''; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateMaintenance(event,'${jsq(m.id)}')"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" value="${esc(m.title || '')}" required></div><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${S.properties.map(p => `<option value="${esc(p.id)}" ${m.propertyId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing" ${m.category === 'plumbing' ? 'selected' : ''}>Idraulica</option><option value="electrical" ${m.category === 'electrical' ? 'selected' : ''}>Elettricità</option><option value="heating" ${m.category === 'heating' ? 'selected' : ''}>Riscaldamento</option><option value="appliance" ${m.category === 'appliance' ? 'selected' : ''}>Elettrodomestici</option><option value="other" ${m.category === 'other' ? 'selected' : ''}>Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low" ${m.priority === 'low' ? 'selected' : ''}>Bassa</option><option value="medium" ${m.priority === 'medium' ? 'selected' : ''}>Media</option><option value="high" ${m.priority === 'high' ? 'selected' : ''}>Alta</option><option value="urgent" ${m.priority === 'urgent' ? 'selected' : ''}>Urgente</option></select></div></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="open" ${m.status === 'open' || m.status === 'pending' ? 'selected' : ''}>🟡 Aperto</option><option value="in_progress" ${m.status === 'in_progress' ? 'selected' : ''}>🔵 In Corso</option><option value="resolved" ${m.status === 'resolved' ? 'selected' : ''}>🟢 Risolto</option><option value="closed" ${m.status === 'closed' ? 'selected' : ''}>⚫ Chiuso</option></select></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" rows="3">${esc(m.description || '')}</textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Costo €</label><input type="number" class="form-input" name="cost" value="${esc(m.cost || '')}"></div><div class="form-group"><label class="form-label">Tecnico/Fornitore</label><input type="text" class="form-input" name="technician" value="${esc(m.technician || '')}"></div></div><div class="form-group"><label class="form-label">Note Risoluzione</label><textarea class="form-textarea" name="resolutionNotes" rows="2">${esc(m.resolutionNotes || '')}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
         if (type === 'addTenantMaintenance') { const myContract = getMyContracts().find(c => c.status === 'active'); const myProp = myContract ? S.properties.find(p => p.id === myContract.propertyId) : null; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Richiedi Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveTenantMaintenance(event)"><div class="form-group"><label class="form-label">Immobile</label><input type="text" class="form-input" value="${myProp?.name || 'N/A'}" readonly><input type="hidden" name="propertyId" value="${myProp?.id || ''}"></div><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required placeholder="Es: Rubinetto perde"></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="appliance">Elettrodomestici</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Urgenza</label><select class="form-select" name="priority"><option value="low">Non urgente</option><option value="medium" selected>Normale</option><option value="high">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description" placeholder="Descrivi il problema in dettaglio..."></textarea></div><div class="form-group"><label class="form-label">📷 Foto (opzionale)</label><input type="file" class="form-input" id="maintPhoto" accept="image/*" style="padding:8px"></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Invia Richiesta</button></div></div></div>`; }
 
@@ -19385,6 +19559,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 return;
             }
         }
+        // CHIUDERE DA «MODIFICA» (13/10/2026). La tendina Stato offre «Scaduto» e
+        // «Terminato», e una Fine accorciata dice la stessa cosa: prima si
+        // scrivevano stato e data e basta, le rate dopo l'uscita restavano «da
+        // pagare» — badge della proprietaria, Oggi, Gestore e SEPA le leggevano
+        // come ritardi dell'ex inquilino. Ora la chiusura passa dalla stessa
+        // regola di ⛔ Termina: rate rilette dal server, piano detto PRIMA,
+        // contratto e rate annullate in UNA transazione.
+        const _newStatus = String(data.status || '');
+        const _closing = _newStatus === 'terminated' || _newStatus === 'expired';
+        const _newEnd = incassoDay(data.endDate), _oldEnd = incassoDay(_existingContract.endDate);
+        const _keptTerm = _newStatus === 'terminated' ? incassoDay(_existingContract.terminatedAt) : '';
+        const _closeDay = _closing ? (_keptTerm || _newEnd) : (_newEnd && _oldEnd && _newEnd < _oldEnd ? _newEnd : '');
+        if (_closing && !_closeDay) {
+            toast('warning', 'Indica la data di fine', 'Un contratto scaduto o terminato ha bisogno del giorno in cui finisce: dice quali rate non sono più dovute.');
+            return;
+        }
         try {
             const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
             const updatePayload = {
@@ -19426,9 +19616,47 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatePayload['studenti.tipoIscrizione'] = data.studenti_tipoIscrizione || '';
                 updatePayload['studenti.annoAccademico'] = data.studenti_annoAccademico || '';
             }
-            await db.collection('contracts').doc(id).update(updatePayload);
-            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId || null, tenantId: updatePayload.tenantId || _existingContract.tenantId || null, rent: updatePayload.rent ?? _existingContract.rent ?? null });
-            await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
+            // Terminato da qui: la data di chiusura è la Fine scelta (quella già
+            // scritta da ⛔ Termina resta).
+            if (_newStatus === 'terminated' && !_keptTerm && _closeDay) updatePayload.terminatedAt = _closeDay;
+            let cancelled = [], planLines = [];
+            if (_closeDay) {
+                const cRef = db.collection('contracts').doc(id);
+                const cSnap = await cRef.get({ source: 'server' });
+                if (!cSnap.exists) return toast('error', 'Contratto non trovato');
+                const cNow = { ...cSnap.data(), id, startDate: data.startDate || cSnap.data().startDate };
+                const rs = await db.collection('payments').where('contractId', '==', id).get({ source: 'server' });
+                const plan = terminationPlan(cNow, rs.docs.map(d => ({ ...d.data(), id: d.id })), _closeDay);
+                planLines = terminationSummary(plan, _closeDay);
+                if (plan.cancel.length) {
+                    const what = _closing ? `Chiudo il contratto${cNow.tenantName ? ' di ' + cNow.tenantName : ''} al ${incassoDateIt(_closeDay)}` : `Accorcio il contratto${cNow.tenantName ? ' di ' + cNow.tenantName : ''} al ${incassoDateIt(_closeDay)}`;
+                    if (!confirm(`${what}.\n\n${planLines.join('\n')}`)) return;
+                    const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+                    const cancelUpd = { status: 'cancelled', cancelledAt: at, cancelledReason: 'contratto chiuso', cancelledBy: by };
+                    await db.runTransaction(async tx => {
+                        cancelled = [];
+                        const fresh = await Promise.all(plan.cancel.map(p => tx.get(db.collection('payments').doc(p.id))));
+                        const cTx = await tx.get(cRef);
+                        if (!cTx.exists) throw new Error('Contratto non trovato');
+                        tx.update(cRef, updatePayload);
+                        fresh.forEach((s, i) => {
+                            const d = s.exists ? s.data() : null;
+                            if (!d || !['due', 'overdue'].includes(window.BOOM_RENT.paymentState(d))) return;
+                            tx.update(db.collection('payments').doc(plan.cancel[i].id), cancelUpd);
+                            cancelled.push(plan.cancel[i].id);
+                        });
+                    });
+                    cancelled.forEach(pid => { const lp = (S.payments || []).find(x => x.id === pid); if (lp) Object.assign(lp, cancelUpd); });
+                } else await cRef.update(updatePayload);
+            } else await db.collection('contracts').doc(id).update(updatePayload);
+            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId || null, tenantId: updatePayload.tenantId || _existingContract.tenantId || null, rent: updatePayload.rent ?? _existingContract.rent ?? null, ...(_closeDay ? { closeDay: _closeDay, cancelledRates: cancelled.length } : {}) });
+            await refreshOnly('contracts');
+            closeModal();
+            if (cancelled.length) toast('success', 'Contratto aggiornato', `${cancelled.length} ${cancelled.length === 1 ? 'rata annullata' : 'rate annullate'} dopo il ${incassoDateIt(_closeDay)}`);
+            else toast('success', 'Contratto aggiornato!');
+            // Pagate, segnalate o a cavallo della chiusura: restano, e si dice.
+            const rest = planLines.filter(l => !/^Nessuna rata da annullare|^Si annullano/.test(l));
+            if (rest.length) toast('warning', 'Da verificare a mano', rest.join(' '));
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -19597,7 +19825,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const today = incassoRomeDay();
         const cid = jsq(c.id);
         const lines = terminationSummary(terminationPlan(c, S.payments, today), today);
-        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${esc(p?.name || p?.address || 'l’immobile')}</strong> con <strong>${esc(c.tenantName || t?.name || 'l’inquilino')}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${cid}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${today}" required oninput="terminateContractPreview('${cid}',this.value)"></div><div id="termPreview" class="rent-note" style="margin:-4px 0 12px">${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" step="0.01" min="0" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" step="0.01" min="0" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`;
+        // IL DEPOSITO NON SI RESTITUISCE CHIUDENDO (13/10/2026). Il campo
+        // partiva dal deposito pattuito: confermando in fretta il contratto
+        // scriveva «restituiti €2.800, trattenuti €0» anche se nessuno aveva
+        // restituito niente — e sui contratti del Palazzo il deposito lo tiene
+        // il locatore, non BOOM. Ora i due campi nascono vuoti e si scrivono
+        // solo se compilati; sotto, il deposito pattuito come promemoria.
+        const dep = window.BOOM_RENT ? window.BOOM_RENT.amount(c.deposit) : null;
+        const imported = !!(window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(c)) || c.source === 'palazzo-import';
+        const depositNote = esc((dep ? `Deposito pattuito: €${incassoEuro(dep)}.` : 'Deposito pattuito: non in archivio.')
+            + (imported ? ' Il deposito lo tiene il locatore: scrivi qui solo ciò che ha già restituito o trattenuto.' : ' Lascia vuoto se non è ancora stato restituito.'));
+        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${esc(p?.name || p?.address || 'l’immobile')}</strong> con <strong>${esc(c.tenantName || t?.name || 'l’inquilino')}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${cid}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${today}" required oninput="terminateContractPreview('${cid}',this.value)"></div><div id="termPreview" class="rent-note" style="margin:-4px 0 12px">${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito restituito € <span style="font-size:10px;color:var(--text-muted)">(solo se già restituito)</span></label><input type="number" class="form-input" name="depositReturned" step="0.01" min="0" value="" placeholder="—"></div><div class="form-group"><label class="form-label">Trattenute € <span style="font-size:10px;color:var(--text-muted)">(solo se decise)</span></label><input type="number" class="form-input" name="depositWithheld" step="0.01" min="0" value="" placeholder="—"></div></div><div class="rent-note" style="margin:-4px 0 4px">${depositNote}</div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`;
     }
     function terminateContractPreview(id, endDay) {
         const c = (S.contracts || []).find(x => x.id === id), box = document.getElementById('termPreview');
@@ -19626,11 +19864,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const c = { ...cSnap.data(), id };
             const rs = await db.collection('payments').where('contractId', '==', id).get({ source: 'server' });
             const plan = terminationPlan(c, rs.docs.map(d => ({ ...d.data(), id: d.id })), endDay);
-            if (!confirm(`Chiudo il contratto${c.tenantName ? ' di ' + c.tenantName : ''} al ${incassoDateIt(endDay)}.\n\n${terminationSummary(plan, endDay).join('\n')}`)) return;
+            // Il deposito: «non detto» resta non detto (mai «0 trattenute»).
+            const filled = v => String(v == null ? '' : v).trim() !== '';
+            const depRet = filled(data.depositReturned) ? incassoNum(data.depositReturned) : null;
+            const depWith = filled(data.depositWithheld) ? incassoNum(data.depositWithheld) : null;
+            if ((filled(data.depositReturned) && depRet == null) || (filled(data.depositWithheld) && depWith == null)) return toast('warning', 'Importo del deposito non valido');
+            const depLine = depRet != null || depWith != null
+                ? `\nDeposito: ${depRet != null ? 'restituiti €' + incassoEuro(depRet) : 'restituzione non indicata'} · ${depWith != null ? 'trattenuti €' + incassoEuro(depWith) : 'trattenute non indicate'}.` : '';
+            if (!confirm(`Chiudo il contratto${c.tenantName ? ' di ' + c.tenantName : ''} al ${incassoDateIt(endDay)}.\n\n${terminationSummary(plan, endDay).join('\n')}${depLine}`)) return;
             const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
             const cUpd = { status: 'terminated', terminatedAt: endDay, terminationReason: data.terminationReason || 'other', terminationNotes: data.terminationNotes || '',
-                depositReturned: incassoNum(data.depositReturned) || 0, depositWithheld: incassoNum(data.depositWithheld) || 0,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+            if (depRet != null) cUpd.depositReturned = depRet;
+            if (depWith != null) cUpd.depositWithheld = depWith;
             const cancel = { status: 'cancelled', cancelledAt: at, cancelledReason: 'contratto chiuso', cancelledBy: by };
             let cancelled = [];
             // Contratto e rate nella STESSA transazione: una rata pagata o
@@ -20458,27 +20704,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🔧 ${esc(m.title)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div class="detail-badges mb-16"><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span><span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div>
+                <div class="detail-badges mb-16"><span class="badge ${statusColor(m.status)}">${esc(statusLabel(m.status))}</span><span class="badge ${priorityColor(m.priority)}">${esc(priorityLabel(m.priority))}</span></div>
                 <div class="detail-grid">
                     <div><div class="detail-label">Immobile</div><div class="detail-value">${esc(p?.name || 'N/A')}${m.interno && !(p?.name || '').includes(m.interno) ? ' · int. ' + esc(m.interno) : ''}</div></div>
-                    <div><div class="detail-label">Categoria</div><div class="detail-value">${catLabel(m.category)}</div></div>
+                    <div><div class="detail-label">Categoria</div><div class="detail-value">${esc(catLabel(m.category))}</div></div>
                     <div><div class="detail-label">Segnalato da</div><div class="detail-value">${repName ? esc(repName) : 'non indicato'}${repRole ? ` <span style="color:var(--text-muted)">· ${esc(repRole)}</span>` : ''}</div></div>
                     <div><div class="detail-label">Telefono</div><div class="detail-value">${repPhone ? esc(repPhone) + (ph && ph.e164 ? ` <a class="btn btn-xs btn-secondary" href="tel:${esc(ph.e164)}">📞 Chiama</a>` : '') + (ph && ph.wa ? ` <a class="btn btn-xs btn-success" href="https://wa.me/${esc(ph.wa)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : '') : 'non lasciato'}</div></div>
                     ${channel ? `<div><div class="detail-label">Canale</div><div class="detail-value">${channel}</div></div>` : ''}
                     <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(m.createdAt)}</div></div>
-                    ${m.cost ? `<div><div class="detail-label">Costo</div><div class="detail-value text-gold">€${m.cost}</div></div>` : ''}
-                    ${m.technician ? `<div><div class="detail-label">Tecnico</div><div class="detail-value">${m.technician}</div></div>` : ''}
+                    ${m.cost ? `<div><div class="detail-label">Costo</div><div class="detail-value text-gold">€${esc(m.cost)}</div></div>` : ''}
+                    ${m.technician ? `<div><div class="detail-label">Tecnico</div><div class="detail-value">${esc(m.technician)}</div></div>` : ''}
                     ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
                 ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.description)}</p></div>` : ''}
                 ${photos.length ? `<div class="mt-16"><div class="detail-label">Foto</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${photos.map(src => `<a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt="Foto del guasto" loading="lazy" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--border)"></a>`).join('')}</div></div>` : ''}
                 ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.resolutionNotes)}</p></div>` : ''}
-                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
+                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${jsq(m.id)}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${jsq(m.id)}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${jsq(m.id)}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
             <div class="modal-footer">
-                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${jsq(m.title)}')">🗑</button>` : ''}
+                ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${jsq(m.id)}','${jsq(m.title)}')">🗑</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                ${isAdmin() ? `<button class="btn" onclick="const mid='${m.id}';closeModal();setTimeout(()=>openModal('editMaintenance',S.maintenance.find(x=>x.id===mid)),250)">✏️ Modifica</button>` : ''}
+                ${isAdmin() ? `<button class="btn" onclick="const mid='${jsq(m.id)}';closeModal();setTimeout(()=>openModal('editMaintenance',S.maintenance.find(x=>x.id===mid)),250)">✏️ Modifica</button>` : ''}
             </div>
         </div></div>`;
     }
@@ -23559,29 +23805,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // Il font dei PDF del portal (Helvetica di jsPDF) conosce solo WinAnsi:
     // «Şükrü Yılmaz» usciva «^ükrü Y1lmaz», «Иван Петров» una fila di simboli.
-    // Un campo con anche un solo carattere fuori tabella si traslittera TUTTO
-    // in latino, così il nome resta coerente (Sukru Yilmaz, Gulsen Celik,
-    // Ivan Petrov); un campo già scrivibile (Nicolò, Müller, Città) resta com'è.
+    // UNA traslitterazione per portal e server (13/10/2026): l'attestazione
+    // del portal e il rendiconto del server scrivevano lo stesso inquilino in
+    // due modi («Yuliya»/«Iuliia», «Sukru»/«Sükrü») e perdevano lettere greche
+    // accentate («Athin Papadopoloy»). Questa è wa() di api/_pdfbrand.js, riga
+    // per riga (ICAO 9303 per il cirillico, ELOT 743 per il greco, le lettere
+    // Latin-1 restano: jsPDF scrive WinAnsi come pdf-lib). tests/rendiconto/
+    // wa.mjs + tests/palazzo/money-portal.mjs confrontano le due copie.
     // Ciò che non si traslittera (un ideogramma) cade, e se non resta niente
     // torna '': il chiamante mette un'etichetta, mai un nome vuoto o storpiato.
+    const PDF_WIN_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+    const PDF_LATIN_MAP = {
+        'ı': 'i', 'İ': 'I', 'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ħ': 'h', 'Ħ': 'H', 'ŀ': 'l', 'Ŀ': 'L',
+        'ŋ': 'ng', 'Ŋ': 'Ng', 'ĸ': 'k', 'ſ': 's', 'ə': 'e', 'Ə': 'E', 'ɛ': 'e', 'Ɛ': 'E', 'ɔ': 'o', 'Ɔ': 'O',
+        'ƀ': 'b', 'ɓ': 'b', 'ɗ': 'd', 'ƙ': 'k', 'ƴ': 'y', 'ȷ': 'j', 'ĳ': 'ij', 'Ĳ': 'IJ',
+        'ʼ': '’', 'ʻ': '‘', '′': "'", '″': '"', '‐': '-', '‑': '-', '‒': '–', '―': '—', '−': '-',
+        '→': '->', '➔': '->', '➡': '->', '←': '<-', '✓': 'X', '✔': 'X', '☑': 'X', '☒': 'X',
+        '≈': '~', '≤': '<=', '≥': '>=', '≠': '!=', '№': 'N.',
+    };
+    const PDF_CYR = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'i',
+        'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f',
+        'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': 'ie', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'iu', 'я': 'ia',
+        'є': 'ie', 'і': 'i', 'ї': 'i', 'ґ': 'g', 'ў': 'u', 'ђ': 'dj', 'ј': 'j', 'љ': 'lj', 'њ': 'nj', 'ћ': 'c', 'џ': 'dz',
+        'ѓ': 'gj', 'ќ': 'kj', 'ѕ': 'dz',
+    };
+    const PDF_GREEK = {
+        'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l',
+        'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p', 'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f',
+        'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+    };
+    const PDF_GREEK_PAIRS = { 'ου': 'ou', 'αυ': 'av', 'ευ': 'ev', 'γγ': 'ng' };
+    function pdfWa(s0) {
+        const bare = ch => (ch || '').normalize('NFD').charAt(0).toLowerCase();
+        const inWinAnsi = ch => { const c = ch.codePointAt(0); return (c >= 0x20 && c <= 0x7E) || (c >= 0xA0 && c <= 0xFF) || PDF_WIN_EXTRA.includes(ch); };
+        const isUpper = ch => !!ch && ch !== ch.toLowerCase() && ch === ch.toUpperCase();
+        const fromAlphabet = (ch, prev, next) => {
+            const lo = ch.toLowerCase();
+            const t = PDF_CYR[lo] != null ? PDF_CYR[lo] : PDF_GREEK[lo];
+            if (t == null) return null;
+            if (!isUpper(ch) || !t) return t;
+            return (isUpper(prev) || isUpper(next)) ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
+        };
+        const latinOf = (ch, prev, next) => {
+            if (PDF_LATIN_MAP[ch] != null) return PDF_LATIN_MAP[ch];
+            const a = fromAlphabet(ch, prev, next);
+            if (a != null) return a;
+            const d = ch.normalize('NFD');
+            if (d === ch) return '';
+            const chars = [...d], base = chars[0];
+            if (chars.length > 1) { const one = (base + chars[1]).normalize('NFC'); if ([...one].length === 1 && inWinAnsi(one)) return one; }
+            if (inWinAnsi(base)) return base;
+            const b = fromAlphabet(base, prev, next);
+            return b != null ? b : (PDF_LATIN_MAP[base] || '');
+        };
+        const src = String(s0 == null ? '' : s0).normalize('NFC');
+        const chars = [...src];
+        let out = '';
+        for (let i = 0; i < chars.length; i++) {
+            const ch = chars[i], c = ch.codePointAt(0);
+            if (c === 0x09 || c === 0x0A || c === 0x0D) { out += ' '; continue; }
+            if (c < 0x20 || (c >= 0x7F && c <= 0x9F)) continue;
+            if (inWinAnsi(ch)) { out += ch; continue; }
+            if (/\s/u.test(ch)) { out += ' '; continue; }
+            const pair = PDF_GREEK_PAIRS[bare(ch) + bare(chars[i + 1])];
+            if (pair) {
+                out += !isUpper(ch) ? pair : isUpper(chars[i + 1]) ? pair.toUpperCase() : pair.charAt(0).toUpperCase() + pair.slice(1);
+                i++; continue;
+            }
+            out += latinOf(ch, chars[i - 1], chars[i + 1]);
+        }
+        if (/\p{L}/u.test(src) && !/[\p{L}\p{N}]/u.test(out)) return '(testo in caratteri non stampabili)';
+        return out;
+    }
     function pdfLatin(value) {
         const s = String(value == null || value === false ? '' : value).normalize('NFC').replace(/\s+/g, ' ').trim();
         if (!s) return '';
-        const ok = ch => /[\x20-\x7E -ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/.test(ch);
-        const T = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'ґ': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'є': 'ye', 'ж': 'zh', 'з': 'z', 'и': 'i', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k',
-            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ў': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
-            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-            'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
-            'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
-            'ı': 'i', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'ø': 'o', 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ħ': 'h', 'ŧ': 't', 'ŋ': 'ng', 'ĸ': 'k', 'ſ': 's' };
-        const tr = ch => {
-            const low = ch.toLowerCase();
-            if (!Object.prototype.hasOwnProperty.call(T, low)) return ch;
-            const r = T[low];
-            return ch !== low && r ? r.charAt(0).toUpperCase() + r.slice(1) : r;
-        };
-        if ([...s].every(ok)) return s;
-        return [...s].map(tr).join('').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+        const r = pdfWa(s).replace(/\s+/g, ' ').trim();
+        return r === '(testo in caratteri non stampabili)' ? '' : r;
     }
 
     function downloadPaymentReceipt(id) {
@@ -25798,10 +26099,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         inp.click();
     }
     window.aspiAllega = aspiAllega;
+    // Il contratto è GIÀ registrato all'AdE (✓ RLI registrato, o la colonna
+    // «Registrato il» della presa in carico)? Allora ad ASPI si chiede solo
+    // l'attestazione: una seconda richiesta di registrazione con fattura €278
+    // alla società è un errore che costa (13/10/2026). Il server può dirlo
+    // (st.registered); altrimenti lo dice lo stato del contratto.
+    function _aspiRegistered(st) {
+        if (!st) return null;
+        if (st.registered && typeof st.registered === 'object') return st.registered.at || true;
+        const s = st.state || {};
+        return s.registrationStatus === 'registered' || s.rliRegisteredAt ? (s.rliRegisteredAt || true) : null;
+    }
+    function _aspiItems(st, kind) {
+        const k = st.kinds || {};
+        // Le voci dell'attestazione sono quelle del «completo» (il server le
+        // calcola con la stessa regola): si usano finché il server non manda
+        // la variante a sé.
+        return k[kind] || (kind === 'asseverazione' ? k.completo : null) || k.completo || [];
+    }
     function _aspiRenderKind() {
         const st = window._aspiStatus; if (!st) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || st.kind;
-        const items = kind === 'registrazione' ? st.kinds.registrazione : st.kinds.completo;
+        const items = _aspiItems(st, kind);
         const el = document.getElementById('aspiChecklist');
         if (el) el.innerHTML = _aspiChecklistHtml(items);
         const bl = document.getElementById('aspiBillLbl');
@@ -25825,6 +26144,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window._aspiStatus = st;
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
+        const reg = _aspiRegistered(st);
+        if (reg) st.kind = 'asseverazione';
+        const regDay = reg && reg !== true ? String(reg).slice(0, 10) : '';
+        const prezzoAss = (s.prezzi && s.prezzi.asseverazione != null) ? s.prezzi.asseverazione : '';
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
@@ -25836,9 +26159,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
+                ${reg ? `<div style="font-size:12.5px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato all’AdE${regDay ? ' il ' + esc(incassoDateIt(regDay)) : ''}: si chiede solo l’attestazione di rispondenza (nessuna seconda registrazione).</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0;${reg ? 'opacity:.45' : ''}"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} ${reg ? 'disabled' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="asseverazione" ${st.kind === 'asseverazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo attestazione di rispondenza${prezzoAss !== '' ? ` · fattura €${prezzoAss}` : ''}</label>
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
@@ -25854,7 +26179,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.openAspi = openAspi;
     async function sendAspi(contractId) {
-        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
+        const st0 = window._aspiStatus && window._aspiStatus.contractId === contractId ? window._aspiStatus : null;
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || (st0 && st0.kind) || 'completo';
+        // Mai una seconda richiesta di registrazione per un contratto già
+        // registrato (anche se una pagina vecchia lascia il radio attivo).
+        if (_aspiRegistered(st0) && kind !== 'asseverazione') return toast('error', 'Contratto già registrato all’AdE', 'Ad ASPI si chiede solo l’attestazione di rispondenza.');
         const bill = !!document.getElementById('aspiBill')?.checked;
         const note = document.getElementById('aspiNote')?.value || '';
         const btnEl = document.getElementById('aspiSendBtn');
@@ -25871,6 +26200,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
                     ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
+                    : j && j.error === 'already_registered'
+                    ? 'Contratto già registrato' + (j.at ? ' il ' + incassoDateIt(String(j.at).slice(0, 10)) : '') + ': ad ASPI si chiede solo l’attestazione.'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
@@ -33136,6 +33467,12 @@ IBAN: ${l.iban || '-'}`;
         if (doc.status === 'paid') { toast('info', 'Già pagato', 'Apri la ricevuta della rata.'); return; }
         if (isInv && window.BOOM_RENT.paymentBlockReason(doc, 'invoice')) { toast('warning','Fattura non pagabile: aggiorna lo stato.'); return; }
         if (!isInv && !window.BOOM_RENT.canPay(doc)) { toast('warning', 'Link non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(doc))); return; }
+        // Una rata presa in carico dal Palazzo (niente profilo, carta spenta
+        // senza mandato, bonifico al conto del locatore): il link giusto è
+        // /rata, dal server, col messaggio in inglese al numero del contratto —
+        // mai il link di pagamento «carta e incasso automatico» in italiano.
+        const payContract = isInv ? null : (S.contracts || []).find(c => c.id === doc.contractId) || null;
+        if (!isInv && (doc.source === 'palazzo-import' || (window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(payContract)))) return openRataReminder(id);
 
         toast('info', 'Preparo il link…');
         let url;
@@ -33149,11 +33486,20 @@ IBAN: ${l.iban || '-'}`;
                || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
             name = doc.recipientName || who?.name || '';
         } else {
-            const contract = (S.contracts || []).find(c => c.id === doc.contractId);
+            const contract = payContract;
             who = (S.users || []).find(u => u.id === (doc.tenantId || contract?.tenantId));
-            name = who?.name || '';
+            name = who?.name || contract?.tenantName || '';
+            // Senza profilo il numero è quello del contratto, passato da
+            // phoneIntl (niente WhatsApp su un numero ambiguo).
+            if (!who && contract && contract.tenantPhone && window.BOOM_CONTRACT_STATE) {
+                const tel = window.BOOM_CONTRACT_STATE.phoneIntl(contract.tenantPhone);
+                if (tel && tel.wa) who = { phone: tel.wa };
+            }
         }
         phone = String(who?.phone || '').replace(/[^0-9]/g, '');
+        // La carta per questa rata: accesa o no (BOOM_RENT.cardPolicy). Spenta,
+        // il modale non promette «carta e incasso automatico».
+        const cardOn = isInv || !window.BOOM_RENT.cardPolicy || window.BOOM_RENT.cardPolicy(doc, payContract, (S.properties || []).find(x => x.id === (doc.propertyId || payContract?.propertyId))).available;
 
         const what = isInv
             ? `la fattura ${doc.number || ''}`.trim()
@@ -33167,7 +33513,7 @@ IBAN: ${l.iban || '-'}`;
             <div class="modal-body">
               <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
                 ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
-                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. ${cardOn ? `Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.` : 'Carta spenta per questa rata: si paga con bonifico al conto del locatore, e l’incasso lo registri tu.'}
               </div>
               <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap">

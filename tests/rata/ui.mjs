@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
 process.env.HOMIE_SECRET = 'segreto-ui';
-const { rataView } = await import('../../api/payments/rata.js');
+const { rataView, amountInput } = await import('../../api/payments/rata.js');
 
 const chromium = await loadChromium();
 if (!chromium) { console.log('SKIP: playwright non disponibile'); process.exit(0); }
@@ -32,6 +32,7 @@ const R = {
   pro: { p: { id: 'pro', ...base, month: '2027-08', amount: 500, rentAmount: 465, oneriAmount: 35, periodFrom: '2027-08-15', periodTo: '2027-08-31', prorated: true }, property: property(), contract },
   paid: { p: { id: 'paid', ...base, status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe', receiptUrl: 'https://pay.stripe.com/receipts/esempio' }, property: property(), contract },
   rev: { p: { id: 'rev', ...base, status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe', disputeStatus: 'open' }, property: property(), contract },
+  half: { p: { id: 'half', ...base }, property: property(), contract },
 };
 const calls = [];
 let nextError = null;
@@ -46,12 +47,24 @@ const server = createServer(async (req, res) => {
     if (nextError) { const e = nextError; nextError = null; res.statusCode = e.status; res.end(JSON.stringify({ ok: false, error: e.error })); return; }
     if (b.op === 'report') {
       const p = r.p, list = Array.isArray(p.tenantReports) ? p.tenantReports : [];
-      const entry = { date: b.date, note: b.note || '', proofUrl: b.proof ? 'https://firebasestorage.googleapis.com/x.jpg' : '' };
+      const amt = amountInput(b.amount);
+      const entry = { date: b.date, note: b.note || '', proofUrl: b.proof ? 'https://firebasestorage.googleapis.com/x.jpg' : '', nonce: b.nonce, ...(amt ? { amount: Number(amt) } : {}) };
       if (!list.length) Object.assign(p, { tenantReported: true, tenantReportedAt: new Date().toISOString(), tenantReportDate: b.date, tenantNotes: entry.note, proofUrl: entry.proofUrl });
       p.tenantReports = [...list, entry];
       res.end(JSON.stringify({ ok: true, state: 'reported', proof: !!b.proof, count: p.tenantReports.length })); return;
     }
-    if (b.op === 'withdraw') { Object.assign(r.p, { tenantReported: false, tenantReports: null, proofUrl: null, tenantReportDate: null }); res.end('{"ok":true}'); return; }
+    if (b.op === 'withdraw') {
+      // Come la porta vera: con più segnalazioni si toglie solo quella del nonce.
+      const list = Array.isArray(r.p.tenantReports) ? r.p.tenantReports : [];
+      if (list.length > 1) {
+        const at = b.nonce ? list.findIndex(x => x.nonce === b.nonce) : -1;
+        if (at < 0) { res.statusCode = 409; res.end('{"ok":false,"error":"several_reports"}'); return; }
+        r.p.tenantReports = list.filter((_, i) => i !== at);
+        Object.assign(r.p, { tenantReportDate: r.p.tenantReports[0].date });
+        res.end('{"ok":true,"state":"reported"}'); return;
+      }
+      Object.assign(r.p, { tenantReported: false, tenantReports: null, proofUrl: null, tenantReportDate: null }); res.end('{"ok":true}'); return;
+    }
     const view = rataView(r.p, { property: r.property, contract: r.contract });
     res.end(JSON.stringify({ ok: true, rata: view, payUrl: view.card.available ? 'https://www.boomrome.com/api/payments/link?k=pay&id=' + r.p.id + '&t=tok&from=rata' : '' }));
     return;
@@ -221,6 +234,44 @@ await check('accessibilità: piede leggibile (≥4,5:1) con l\'informativa, tast
   await pg.locator('[data-lang="it"]').click();
   assert.deepEqual([await pg.locator('#foot a').getAttribute('href'), await pg.title(), await pg.locator('.lang').getAttribute('aria-label')], ['/privacy-inquilini', 'La tua rata · BOOM', 'Lingua']);
   await ctx.close();
+});
+await check('co-intestatari: la metà segnalata non dice «non pagare di nuovo»; l\'altro telefono non annulla; chi ha segnalato annulla SOLO la sua, dopo la conferma', async () => {
+  const a = await open('half');
+  await a.pg.locator('#bank').click();
+  assert.equal(await a.pg.locator('#am').inputValue(), '1720', 'proposta la rata intera');
+  await a.pg.locator('#am').fill('860');
+  await a.pg.locator('#dt').fill('2026-10-03');
+  await a.pg.locator('#send').click();
+  await a.pg.waitForSelector('.status h2');
+  let txt = await a.pg.locator('#app').innerText();
+  assert.ok(txt.includes('€860 of €1,720 reported so far') && !/Don’t pay again/.test(txt), txt);
+  assert.equal(await a.pg.locator('.kv').count(), 1, 'dove si paga il resto resta in vista');
+  await shot(a.pg, 'half');
+  await a.pg.locator('#more').click();
+  await a.pg.waitForSelector('#f');
+  assert.equal(await a.pg.locator('#am').inputValue(), '860', 'il secondo modulo propone ciò che manca');
+  await a.pg.locator('#dt').fill('2026-10-04');
+  await a.pg.locator('#send').click();
+  await a.pg.waitForFunction(() => document.querySelectorAll('.status ul li').length === 2);
+  txt = await a.pg.locator('.status').innerText();
+  assert.ok(/Don’t pay again/.test(txt) && txt.includes('€860'), txt);
+  // L'altro telefono (nessun nonce suo): niente «annulla», la strada è BOOM.
+  const b = await open('half');
+  assert.equal(await b.pg.locator('#wd').count(), 0);
+  assert.ok((await b.pg.locator('#app').innerText()).includes('to cancel one sent from another phone'));
+  await b.ctx.close();
+  // Chi ha segnalato: conferma con la data, e parte il SUO nonce.
+  let asked = '';
+  a.pg.once('dialog', d => { asked = d.message(); d.accept(); });
+  await a.pg.locator('#wd').click();
+  await a.pg.waitForFunction(() => document.querySelectorAll('.status ul li').length === 1);
+  const sent = calls.filter(c => c.id === 'half' && c.op === 'report');
+  const wd = calls.filter(c => c.id === 'half' && c.op === 'withdraw').at(-1);
+  assert.ok(asked.includes('4 October 2026') && asked.includes('this phone'), asked);
+  assert.equal(wd.nonce, sent.at(-1).nonce, 'annullata solo la seconda segnalazione, quella di questo telefono');
+  assert.equal(R.half.p.tenantReports.length, 1);
+  assert.equal(R.half.p.tenantReports[0].date, '2026-10-03', 'la segnalazione dell\'altro resta');
+  await a.ctx.close();
 });
 await check('nessun errore JavaScript in nessuna pagina', async () => { assert.deepEqual(errors, []); });
 

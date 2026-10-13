@@ -88,6 +88,7 @@ const T = {
     comingH: 'Conferma in arrivo', comingP: 'Stiamo verificando l\'esito del pagamento. Non effettuare un altro pagamento mentre attendi la conferma.',
     comingDone: 'L\'operazione su Stripe è completata. Stiamo aggiornando il portale: non occorre pagare di nuovo.',
     stoppedH: 'Pagamento interrotto', stoppedP: 'Il pagamento non risulta ancora confermato. Puoi riprendere dal punto in cui ti sei fermato.', resume: 'Riprendi il pagamento',
+    closedH: 'Niente da pagare', closedP: 'Questa rata è di un periodo dopo la fine del contratto: non è dovuta. Se hai dubbi, scrivi a BOOM.',
     offH: 'Pagamento con carta non attivo', offP: 'Per questa rata si paga con bonifico, al conto indicato nella pagina della rata. Il bonifico non ha commissioni.', toBank: 'Vai al bonifico',
     unverH: 'Pagamento con carta non disponibile ora', unverP: 'Non riusciamo a verificare adesso se per questa rata si può pagare con carta. Puoi pagare con bonifico dalla pagina della rata, oppure riprovare fra qualche minuto.', retry: 'Riprova',
     unconfH: 'Pagamenti non disponibili', unconfP: 'Il pagamento con carta non è disponibile al momento. Contatta BOOM per assistenza.',
@@ -116,6 +117,7 @@ const T = {
     comingH: 'Confirmation on its way', comingP: 'We’re checking the result of the payment. Please don’t make another payment while you wait.',
     comingDone: 'The operation on Stripe is complete. We’re updating our records: no need to pay again.',
     stoppedH: 'Payment interrupted', stoppedP: 'The payment isn’t confirmed yet. You can pick up where you left off.', resume: 'Resume the payment',
+    closedH: 'Nothing to pay', closedP: 'This instalment is for a period after your lease ended: it is not due. If anything is unclear, message BOOM.',
     offH: 'Card payment not available', offP: 'This instalment is paid by bank transfer, to the account shown on your rent page. A bank transfer has no fees.', toBank: 'Go to the bank transfer',
     unverH: 'Card payment unavailable right now', unverP: 'We can’t check right now whether this instalment can be paid by card. You can pay by bank transfer from your rent page, or try again in a few minutes.', retry: 'Try again',
     unconfH: 'Payments unavailable', unconfP: 'Card payment isn’t available right now. Message BOOM for help.',
@@ -258,6 +260,11 @@ export default async function handler(req, res) {
   }
   if (blocked) {
     return html(res, 200, paymentPage(t.procH, blocked === 'sdd_processing' ? t.procSdd : t.procCard, refreshAction));
+  }
+  // Una rata dopo la chiusura vera del contratto (chiuso da «Modifica», dati
+  // vecchi): non è dovuta, nessuna Checkout — si dice.
+  if (kind === 'pay' && card.contract && RENT.afterClose(doc, card.contract)) {
+    return html(res, 200, paymentPage(t.closedH, t.closedP, { back: backOnly }));
   }
 
   // Il ritorno da Stripe NON deve aprire un'altra sessione: il webhook può

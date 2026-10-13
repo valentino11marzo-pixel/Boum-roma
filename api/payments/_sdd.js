@@ -117,6 +117,10 @@ export async function collectSdd({ cap = 10 } = {}) {
 
     for (const p of pays) {
       if (out.charged >= cap) break;
+      // Una rata il cui periodo comincia DOPO la chiusura vera del contratto
+      // (chiuso da «Modifica», dati vecchi) non è dovuta: mai un addebito
+      // SEPA all'ex inquilino. Si conta, perché qualcuno la annulli.
+      if (RENT.afterClose(p, c)) { out.afterClose = (out.afterClose || 0) + 1; continue; }
       if (!eligibleForCharge(p, c.sdd, todayISO)) continue;
       out.eligible++;
 
