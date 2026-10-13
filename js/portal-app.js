@@ -4074,6 +4074,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Force refresh data (clear cache and reload)
     async function forceRefreshData() {
+        window.portalSearchReset?.();
         localStorage.removeItem('boom_data_cache');
         toast('info', 'Ricaricamento dati...');
         await loadDataFresh(false);
@@ -4653,6 +4654,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         return portalSearchCache;
     }
+    window.portalSearchReset = function() {
+        const session = portalSearchSession();
+        session.generation++; session.hydration.clear(); session.canonical.clear();
+        session.headerRecords = []; session.headerPage = 0;
+        document.getElementById('searchResults')?.remove();
+        session.archive?.reset();
+    };
     function portalSearchReader() {
         const session = portalSearchSession();
         if (!session.archive && isAdmin() && window.BOOM_PORTAL_SEARCH_ARCHIVE) session.archive = window.BOOM_PORTAL_SEARCH_ARCHIVE.create({
@@ -4729,7 +4737,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
         }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
         target.onclick = event => {
-            if (event.target.closest('[data-search-reset]')) { const session = portalSearchSession(); session.generation++; session.hydration.clear(); session.canonical.clear(); reader?.reset(); return; }
+            if (event.target.closest('[data-search-reset]')) { window.portalSearchReset(); return; }
             const button = event.target.closest('[data-search-source]');
             if (button && !button.disabled) portalSearchExtend(button.dataset.searchSource);
         };
@@ -6104,6 +6112,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiWorkspaceShow(record, focus = true) {
         const P = window.BOOM_ACTIONS, E = window.BOOM_PORTAL_SEARCH;
         if (!portalSearchAuthorized() || oggiWorkspace.user !== auth.currentUser?.uid || !E?.recordFor(record.kind, record.id, S)) return;
+        record = E.recordFor(record.kind, record.id, S);
         oggiWorkspace.selected = record;
         const safe = ['viewProperty', 'openPerson', 'viewUserProfile', 'viewUser', 'viewClient', 'viewContract', 'openFascicolo', 'openShareHub', 'viewContractSignatures'];
         oggiWorkspace.actions = P.ACTIONS.filter(a => a.need === record.kind && safe.includes(a.fn));

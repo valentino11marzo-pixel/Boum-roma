@@ -2,11 +2,17 @@
 // navigation IO. No search, hydration, relationship or permission handler mocks.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
+import { readFileSync } from 'node:fs';
 import { html } from '../oggi/home-harness.mjs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
 const chromium = await loadChromium();
 assert(chromium, 'Browser required');
+const portalSource = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+const refreshStart = portalSource.indexOf('    async function forceRefreshData()');
+const refreshEnd = portalSource.indexOf('    function authErr(', refreshStart);
+assert(refreshStart >= 0 && refreshEnd > refreshStart, 'Production refresh boundary exists');
+const refreshSource = portalSource.slice(refreshStart, refreshEnd);
 const server = createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(html);
 });
@@ -166,7 +172,7 @@ try {
       assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewLead', 'same-lead']);
       const before = await page.evaluate(() => testIO.actions.length);
       await page.evaluate(() => document.body.classList.add('modal-open'));
-      await page.locator('[aria-label="Conversazioni collegate"] button').click();
+      await page.locator('[aria-label="Conversazioni collegate"] button').evaluate(button => button.click());
       assert.equal(await page.evaluate(() => testIO.actions.length), before, 'No navigation under an open modal');
       await page.evaluate(() => document.body.classList.remove('modal-open'));
       await page.locator('[aria-label="Conversazioni collegate"] button').click();
@@ -304,6 +310,33 @@ try {
       assert.equal(await page.evaluate(() => testIO.actions.filter(action => action[0] !== 'toast').length), 0);
     });
   }
+  await fresh(page);
+  await check('Aggiorna i dati scarta scansione e copie canoniche prima di caricare i nuovi record', async () => {
+    await completeArchive(page); await page.locator('.ow-result').click();
+    await page.waitForSelector('.ow-selection');
+    assert.equal(await page.locator('.ow-selection h3').innerText(), 'Oltrecaricati canonico');
+    assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 200);
+    await page.evaluate(async source => {
+      window.refreshReads = [];
+      localStorage.setItem('boom_data_cache', 'synthetic stale cache');
+      // Execute the actual refresh handler, binding its network load boundary
+      // and the harness's real home renderer. The reset helper is unchanged.
+      const refresh = new Function('loadDataFresh', 'renderPage', 'toast', 'return (' + source + ')')(
+        async silent => {
+          refreshReads.push({ silent, archived: portalSearchReader().state('document').rows.length, canonical: portalSearchCache.canonical.size });
+          S.documents = [{ id: 'archive-200', name: 'Documento aggiornato dal server' }];
+        }, renderPreview, toast
+      );
+      await refresh();
+    }, refreshSource);
+    assert.deepEqual(await page.evaluate(() => refreshReads), [{ silent: false, archived: 0, canonical: 0 }]);
+    assert.equal(await page.evaluate(() => localStorage.getItem('boom_data_cache')), null);
+    await page.waitForFunction(() => document.querySelector('.ow-selection h3')?.textContent === 'Documento aggiornato dal server');
+    assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 0);
+    assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);
+    assert.deepEqual(await page.evaluate(() => portalSearchRecords('aggiornato dal server', 'document').records.map(row => row.id)), ['archive-200']);
+    assert.equal(await page.evaluate(() => searchIO.pages.length), 2, 'Refresh does not restart an archive scan implicitly');
+  });
   await fresh(page);
   await check('header tenant conserva i propri record e ignora dati admin rimasti in memoria', async () => {
     await page.evaluate(() => {
