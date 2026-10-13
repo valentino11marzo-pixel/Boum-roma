@@ -77,11 +77,15 @@ export async function snapshot(scope) {
     ]);
     const propById = {}; propertiesR.docs.forEach(p => { propById[p.id] = p; });
     const contractById = {}; contractsR.docs.forEach(c => { contractById[c.id] = c; });
-    const payments = paymentsR.docs.filter(p => {
+    const now = new Date();
+    // …e mai una rata dopo la chiusura vera del contratto
+    // (BOOM_RENT.openAfterClose): va annullata, si conta a parte.
+    const payments0 = paymentsR.docs.filter(p => {
       const pc = contractById[p.contractId] || {};
       return !CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId]);
     });
-    const now = new Date();
+    const payments = payments0.filter(p => !RENT.openAfterClose(p, contractById[p.contractId], now));
+    const afterCloseN = payments0.length - payments.length;
     // Lo stato da BOOM_RENT.paymentState (la lettura del Palazzo): un
     // bonifico SEGNALATO dall'inquilino è da verificare, non in ritardo.
     const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue');
@@ -93,6 +97,7 @@ export async function snapshot(scope) {
       overdueAmount: overdue.reduce((s, p) => s + (p.amount || 0), 0),
       reported: reported.length,
       reportedAmount: reported.reduce((s, p) => s + (p.amount || 0), 0),
+      ...(afterCloseN ? { afterClose: afterCloseN } : {}),
     };
   }
 

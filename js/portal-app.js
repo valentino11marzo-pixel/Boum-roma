@@ -6827,7 +6827,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiDecisionPanel() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return '';
-        const { decisions, cash } = E.build(typeof livePaymentsForQueues === 'function' ? Object.assign({}, S, { payments: livePaymentsForQueues() }) : S, new Date().toISOString());
+        // Un motore che conosce la rata dopo la chiusura (E.afterClose) la
+        // toglie da sé e la dice («da annullare»); uno vecchio in cache riceve
+        // le rate già filtrate.
+        const { decisions, cash } = E.build(!E.afterClose && typeof livePaymentsForQueues === 'function' ? Object.assign({}, S, { payments: livePaymentsForQueues() }) : S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }

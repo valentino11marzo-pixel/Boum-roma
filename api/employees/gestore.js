@@ -146,6 +146,7 @@ async function run({ dry }) {
   //     digest porta quel link pronto;
   //   · gli altri → email nella lingua dell'inquilino col modo di pagare.
   let skippedRecent = 0;
+  const afterClose = [];
   for (const p of payments) {
     const c = contractById[p.contractId] || {};
     const property = propById[p.propertyId || c.propertyId] || null;
@@ -153,6 +154,10 @@ async function run({ dry }) {
     // Prima della gestione BOOM: la RATA intera (una trimestrale che arriva
     // dentro la gestione è un arretrato vero, come nel Palazzo).
     if (CS.paymentBeforeGestione(p, property)) continue;
+    // Il periodo comincia DOPO la chiusura vera del contratto
+    // (BOOM_RENT.openAfterClose, la regola del Palazzo): nessun sollecito a
+    // chi è uscito — è una rata da annullare, e lo si dice una volta.
+    if (RENT.openAfterClose(p, contractById[p.contractId], now)) { afterClose.push({ prop, p }); continue; }
     const state = RENT.paymentState(p, now);
     if (state === 'reported') {
       const when = String(p.tenantReportDate || '').slice(0, 10);
@@ -208,6 +213,9 @@ async function run({ dry }) {
       contextHash: `gestore:payrem:${p.id}:${week}`,
     });
     if (r) proposals.push({ type: 'sollecito', ref: p.id, prop, dedupHit: r.dedupHit });
+  }
+  if (afterClose.length) {
+    digest.push(`🧾 ${afterClose.length} rat${afterClose.length === 1 ? 'a' : 'e'} dopo la chiusura del contratto, ancora da pagare: ${afterClose.slice(0, 3).map(x => `${x.prop} ${monthWords(x.p.month, 'it') || x.p.month || ''} ${euro(x.p.amount)}`.replace(/\s+/g, ' ').trim()).join('; ')}${afterClose.length > 3 ? '; …' : ''} — annullale (dal Palazzo, «Da sistemare»), non sono arretrati`);
   }
 
   // ── 2. Firme mancanti (nudge col link Magic Sign) ─────────────────────
@@ -292,6 +300,7 @@ async function run({ dry }) {
     proposals: fresh.length,
     proposalsSkippedDedup: proposals.length - fresh.length,
     remindersSkippedRecent: skippedRecent,
+    paymentsAfterClose: afterClose.length,
     digestItems: digest.length,
     archivePartial: partial.length,
   };

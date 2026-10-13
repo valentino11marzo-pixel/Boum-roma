@@ -90,7 +90,19 @@
             if (CS.paymentBeforeGestione) return CS.paymentBeforeGestione(p, prop);
             return CS.beforeGestione ? CS.beforeGestione(monthOfPay(p), prop) : false;
         };
-        const live = P.filter((p) => !preGestione(p));
+        // Una rata il cui periodo comincia DOPO la chiusura vera del suo
+        // contratto (BOOM_RENT.afterClose, la regola del Palazzo) non è un
+        // ritardo né un incasso in arrivo: va ANNULLATA. Fuori dalle code,
+        // contata a parte in una sola card.
+        const afterClose = (p) => {
+            if (!RENT || !p || !p.contractId) return false;
+            const c = byC(p.contractId);
+            if (!c) return false;
+            if (typeof RENT.openAfterClose === 'function') return RENT.openAfterClose(p, c, nowDate);
+            return typeof RENT.afterClose === 'function' && RENT.afterClose(p, c) && ['due', 'overdue', 'unknown'].includes(stateOf(p));
+        };
+        const closedOpen = P.filter((p) => !preGestione(p) && afterClose(p));
+        const live = P.filter((p) => !preGestione(p) && closedOpen.indexOf(p) < 0);
         // Una rata il cui conduttore NON ha un account: il 📧 Sollecito del
         // portal cerca l'inquilino fra gli utenti e rispondeva «Inquilino non
         // trovato». Per il Palazzo (presa in carico) le azioni sono le sue —
@@ -178,6 +190,21 @@
                         ]
                     });
                 });
+        }
+
+        // ── 3a. Rate dopo la chiusura del contratto: da annullare ───────
+        if (closedOpen.length) {
+            const first = closedOpen[0], c0 = byC(first.contractId);
+            const pid = first.propertyId || (c0 && c0.propertyId) || '';
+            out.push({
+                id: 'afterclose', kind: 'incassi', icon: '🧾', tint: 'gold',
+                title: `${closedOpen.length} rat${closedOpen.length === 1 ? 'a' : 'e'} dopo la chiusura del contratto — da annullare, non da sollecitare`,
+                sub: closedOpen.slice(0, 3).map((p) => [nameOf(byC(p.contractId)) || propName(p.propertyId), p.month || ''].filter(Boolean).join(' · ')).join('; ').slice(0, 160),
+                score: 58,
+                actions: [pid
+                    ? { label: 'Annulla dal Palazzo', fn: 'openPalazzoUnit', args: [pid], primary: true }
+                    : { label: 'Apri Incassi', fn: 'goTo', args: ['payments'], primary: true }]
+            });
         }
 
         // ── 3b. Bonifici SEGNALATI: verificare, non sollecitare ─────────
@@ -399,5 +426,7 @@
         };
     }
 
-    return { version: 'O3', build: build };
+    // afterClose: il motore toglie da sé le rate dopo la chiusura del
+    // contratto (e le dice in una card): il portal non deve pre-filtrarle.
+    return { version: 'O4', afterClose: true, build: build };
 }));

@@ -67,9 +67,12 @@ export default async function handler(req, res) {
       if (c.status === 'active' && !CS.notSignable(c) && (!c.tenantSignature || !c.landlordSignature)) pushRisk('high', `${propLabel(c)} — firma mancante`);
     }
     const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
+    let afterCloseN = 0;
     for (const p of payments) {
       // Lo stato da BOOM_RENT: un bonifico SEGNALATO non è un ritardo, un mese
-      // prima della gestione BOOM non è un arretrato.
+      // prima della gestione BOOM non è un arretrato, una rata dopo la
+      // chiusura del contratto (openAfterClose) va annullata.
+      if (RENT.openAfterClose(p, contractById[p.contractId], new Date(now))) { afterCloseN++; continue; }
       const st = RENT.paymentState(p, new Date(now));
       if (st === 'reported') { pushRisk('med', `${p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`); continue; }
       if (st !== 'overdue') continue;
@@ -78,6 +81,7 @@ export default async function handler(req, res) {
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }
     }
+    if (afterCloseN) pushRisk('med', `${afterCloseN} rat${afterCloseN === 1 ? 'a' : 'e'} dopo la chiusura del contratto: annullale (non sono arretrati)`);
 
     // Bureaucracy / compliance deadlines (same engine as /compliance)
     let buroOverdue = 0, buroSoon = 0;

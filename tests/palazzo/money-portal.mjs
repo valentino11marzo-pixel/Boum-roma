@@ -681,8 +681,13 @@ const editForm = over => function () {
     const S0 = { ...T.S, payments: T.run('livePaymentsForQueues()') };
     const out = OG.build(S0, '2026-02-20T10:00:00Z');
     assert.ok(!JSON.stringify(out.decisions).includes('pay_cOld_2026-01'));
+    // Il motore stesso (13/10): anche senza il filtro del portal la rata dopo
+    // la chiusura non è un ritardo né un sollecito — è UNA card «da annullare».
     const raw = OG.build({ ...T.S }, '2026-02-20T10:00:00Z');
-    assert.ok(JSON.stringify(raw.decisions).includes('pay_cOld_2026-01'), 'senza il filtro del portal il motore la propone (il controllo morde)');
+    assert.ok(!raw.decisions.some(d => d.id === 'pay_pay_cOld_2026-01'), 'il motore non la mette fra i ritardi');
+    const ac = raw.decisions.find(d => d.id === 'afterclose');
+    assert.ok(ac && /1 rata dopo la chiusura del contratto — da annullare/.test(ac.title) && ac.actions[0].fn === 'openPalazzoUnit' && ac.actions[0].args[0] === 'p9', 'e la dice da annullare');
+    assert.ok(raw.decisions.some(d => d.id === 'pay_pay_cOld_2025-12'), 'la rata dentro il contratto resta un ritardo');
   });
 }
 {

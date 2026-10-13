@@ -141,11 +141,18 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // 'review') NON è incassata — il Palazzo e il rendiconto la danno non
   // incassata, e così il Contabile: va nell'atteso e fra le «da verificare».
   let incassatoYtd = 0, attesoYtd = 0;
-  const late = [], reported = [], moneyBack = [];
+  const late = [], reported = [], moneyBack = [], afterClose = [];
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
     const pc = contractById[p.contractId] || {};
     if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
+    // Una rata il cui periodo comincia DOPO la chiusura vera del contratto
+    // (BOOM_RENT.openAfterClose, la regola del Palazzo): né arretrato né
+    // atteso — va annullata, e lo si dice.
+    if (RENT.openAfterClose(p, contractById[p.contractId], now)) {
+      afterClose.push({ paymentId: p.id, property: propLabel(propById, p.propertyId ? p : pc), month: p.month || null, amount: Number(p.amount) || 0 });
+      continue;
+    }
     const st = RENT.paymentState(p, now);
     const inYear = p.month && String(p.month).slice(0, 4) === String(fiscalYear);
     const label = propLabel(propById, p.propertyId ? p : pc);
@@ -195,6 +202,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     paymentsLate: late.length,
     paymentsReported: reported.length,
     paymentsMoneyBack: moneyBack.length,
+    paymentsAfterClose: afterClose.length,
     archivePartial: partial.length,
     incassatoYtd: Math.round(incassatoYtd),
     outstandingYtd: Math.round(attesoYtd - incassatoYtd),
@@ -205,12 +213,13 @@ async function run({ dry, forceMonthly, yearOverride }) {
     `Canoni/depositi per conto dei proprietari YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
     `${counts.paymentsLate} in ritardo` + (reported.length ? ` · ${reported.length} bonifici segnalati da verificare` : '') +
     (moneyBack.length ? ` · ${moneyBack.length} rimborsate/contestate` : '') +
+    (afterClose.length ? ` · ${afterClose.length} dopo la chiusura del contratto (da annullare)` : '') +
     (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '') +
     (partial.length ? ` | ⚠️ archivio letto in parte: ${partial.join(', ')}` : '');
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
-  const actionable = overdue.length || urgentSoon.length || late.length || reported.length || moneyBack.length || banca.toConfirm || banca.consentExpired || partial.length;
+  const actionable = overdue.length || urgentSoon.length || late.length || reported.length || moneyBack.length || afterClose.length || banca.toConfirm || banca.consentExpired || partial.length;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
@@ -220,6 +229,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
     reported.slice(0, 4).forEach(r => lines.push(`💶 ${esc(r.property)} — ${euro(r.amount)} bonifico segnalato: verifica l'incasso`));
     moneyBack.slice(0, 4).forEach(r => lines.push(`↩️ ${esc(r.property)} — ${euro(r.amount)} ${r.why === 'contestazione' ? 'contestato con la carta' : 'rimborsato'}: non è incassato`));
+    afterClose.slice(0, 4).forEach(r => lines.push(`🧾 ${esc(r.property)} — ${euro(r.amount)}${r.month ? ' (' + esc(r.month) + ')' : ''} rata dopo la chiusura del contratto: annullala (non è un arretrato)`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
     if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
@@ -243,6 +253,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
     late: late.slice(0, 15),
     reported: reported.slice(0, 15),
     moneyBack: moneyBack.slice(0, 15),
+    afterClose: afterClose.slice(0, 15),
     partial,
     banca,
     notified,
@@ -270,6 +281,8 @@ export function monthlyCloseFigures({ payments, monthKey, propById, contractById
     if (p.month !== monthKey) continue;
     const pc = contractById[p.contractId] || {};
     if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
+    // Dopo la chiusura del contratto: da annullare, mai «non incassato».
+    if (RENT.openAfterClose(p, contractById[p.contractId], now)) continue;
     const st = RENT.paymentState(p, now);
     if (st === 'cancelled') continue;
     const amt = Number(p.amount) || 0;

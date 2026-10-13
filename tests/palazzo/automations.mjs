@@ -1044,10 +1044,93 @@ function seedBigArchive(n) {
   ok(rs.items.some(i => i.cat === 'Pagamento in ritardo' && i.ref === 'pay_cE_2026-08') && !rs.items.some(i => i.ref === 'pay_cA_2026-07'), 'risk.scan: idem', rs.items.map(i => i.ref));
   const { snapshot } = await import('../../api/agent/state.snapshot.js');
   const sn = await snapshot('payments');
-  // aperte e scadute dopo la gestione: cA_09 (1000), depbal_cB (1500), cC_10 (900), cE_08 (3000)
-  ok(sn.payments.overdue === 4 && sn.payments.overdueAmount === 6400, 'state.snapshot: niente rate tutte prima della gestione (luglio di int. 1 e settembre di int. 4 fuori), la trimestrale dentro', sn.payments);
+  // aperte e scadute dopo la gestione: cA_09 (1000), depbal_cB (1500), cE_08 (3000).
+  // cC_10 (900) NO: il contratto di int. 3 è chiuso il 30/09, la rata di
+  // ottobre comincia dopo — da annullare, contata a parte (afterClose: 2,
+  // con novembre ancora da scadere).
+  ok(sn.payments.overdue === 3 && sn.payments.overdueAmount === 5500 && sn.payments.afterClose === 2, 'state.snapshot: niente rate tutte prima della gestione (luglio di int. 1 e settembre di int. 4 fuori), la trimestrale dentro, le rate dopo la chiusura a parte', sn.payments);
   const MS = await importMutant('api/agent/state.snapshot.js', '      return !CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId]);\n', '      return true;\n');
-  ok((await MS.snapshot('payments')).payments.overdueAmount === 8100, 'mutazione: senza il filtro la fotografia conta luglio di int. 1 e settembre di int. 4 come arretrati (il test lo vede)');
+  ok((await MS.snapshot('payments')).payments.overdueAmount === 7200, 'mutazione: senza il filtro la fotografia conta luglio di int. 1 e settembre di int. 4 come arretrati (il test lo vede)');
+}
+
+// 20c-bis. La rata DOPO la chiusura del contratto: UNA regola
+// (BOOM_RENT.openAfterClose, la stessa del Palazzo) per tutte le superfici.
+// int. 3 (cC) chiuso il 30/09: la rata di ottobre (scaduta) e quella di
+// novembre non sono arretrati di nessuno — sono rate da annullare.
+{
+  const RENT = require('../../js/rent-engine.js');
+  const PE = require('../../js/palazzo-engine.js');
+  seedWorld2();
+  const props = keys('properties').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const cons = keys('contracts').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const pays = keys('payments').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const users = keys('users').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const cC = cons.find(c => c.id === 'cC');
+  const AC = ['pay_cC_2026-10', 'pay_cC_2026-11'];
+  ok(AC.every(id => RENT.openAfterClose(pays.find(p => p.id === id), cC, new Date(NOW))) && !RENT.openAfterClose(pays.find(p => p.id === 'pay_cC_2026-09'), cC, new Date(NOW))
+    && !RENT.openAfterClose(pays.find(p => p.id === 'pay_cA_2026-09'), cons.find(c => c.id === 'cA'), new Date(NOW)),
+    'openAfterClose: ottobre e novembre di int. 3 sì; settembre (pagata, dentro il contratto) e int. 1 (contratto vivo) no');
+  // Il Palazzo (motore): fuori dai debitori, contate fra le «da annullare».
+  const ctx = PE.context({ properties: props, contracts: cons, payments: pays, users, now: new Date(NOW) });
+  const m = PE.model(ctx, PE.buildings(ctx)[0].key, '2026-10', { strip: false });
+  const debt = (m.debtors || []).flatMap(d => d.rows.map(r => r.id));
+  const acIssue = m.issues.find(i => i.code === 'afterClose') || {};
+  ok(!debt.some(id => AC.includes(id)) && AC.every(id => (acIssue.paymentIds || []).includes(id)), 'Palazzo: fuori dai debitori, fra le rate dopo la chiusura da annullare', { debt, acIssue });
+  // Oggi.
+  const O = require('../../js/oggi-engine.js');
+  const oggi = O.build({ payments: pays, contracts: cons, properties: props, users }, NOW);
+  const card = oggi.decisions.find(x => x.id === 'afterclose');
+  ok(!oggi.decisions.some(x => AC.some(id => x.id === 'pay_' + id)) && card && /2 rate dopo la chiusura del contratto — da annullare/.test(card.title)
+    && card.actions[0].fn === 'openPalazzoUnit' && card.actions[0].args[0] === 'pC' && !oggi.cash.overdueTotal.toString().includes('NaN'),
+    'Oggi: nessun «ritardo» di int. 3; UNA card «da annullare» che apre l’interno', oggi.decisions.map(x => x.id));
+  const MO = requireMutant('js/oggi-engine.js', 'const live = P.filter((p) => !preGestione(p) && closedOpen.indexOf(p) < 0);', 'const live = P.filter((p) => !preGestione(p));');
+  ok(oggi.cash.overdueCount === 3, 'Oggi: il polso conta 3 ritardi (non 4: int. 3 è da annullare)', oggi.cash);
+  ok(MO.build({ payments: pays, contracts: cons, properties: props, users }, NOW).cash.overdueCount === 4, 'mutazione: senza la regola Oggi conta int. 3 fra i ritardi (il test lo vede)');
+  // Il badge della proprietaria (funzione vera, col ritardo «vivo» del portal).
+  {
+    const app = readFileSync(path.join(ROOT, 'js/portal-app.js'), 'utf8');
+    const head = '    function landlordLatePayments() {';
+    const at = app.indexOf(head); let d = 0, i = app.indexOf('{', at + head.length - 1);
+    for (; i < app.length; i++) { if (app[i] === '{') d++; else if (app[i] === '}' && --d === 0) break; }
+    const isLate = (p) => RENT.paymentState(p, new Date(NOW)) === 'overdue';
+    const live = (p) => isLate(p) && !RENT.afterClose(p, cons.find(c => c.id === p.contractId));
+    const late = new Function('S', 'getMyPayments', 'isPaymentLate', 'isPaymentLateLive', 'window', app.slice(at, i + 1) + '\nreturn landlordLatePayments;')(
+      { properties: props, contracts: cons }, () => pays, isLate, live, { BOOM_CONTRACT_STATE: CS });
+    ok(!late().some(p => AC.includes(p.id)), 'badge della proprietaria: le rate dopo la chiusura non sono ritardi', late().map(p => p.id));
+  }
+  // Gestore: nessun «in ritardo» per int. 3, UNA riga «annullale».
+  const gestore = (await import('../../api/employees/gestore.js')).default;
+  const g = await call(gestore, { headers: asCron, query: { dry: '1' } });
+  const dg = (g.body && g.body.report && g.body.report.digest) || [];
+  ok(!dg.some(l => /int\. 3/.test(l) && /in ritardo/.test(l)) && dg.some(l => /^🧾 2 rate dopo la chiusura del contratto/.test(l) && /int\. 3/.test(l) && /annullale/.test(l)),
+    'gestore: nessun sollecito a chi è uscito; una riga «annullale»', dg);
+  const MG = await importMutant('api/employees/gestore.js', '    if (RENT.openAfterClose(p, contractById[p.contractId], now)) { afterClose.push({ prop, p }); continue; }\n', '');
+  const gm = await call(MG.default, { headers: asCron, query: { dry: '1' } });
+  ok(((gm.body.report || {}).digest || []).some(l => /int\. 3/.test(l) && /in ritardo/.test(l)), 'mutazione: senza la regola il gestore sollecita l’ex inquilina di int. 3 (il test lo vede)');
+  // Contabile: fuori dai ritardi, nell'elenco «da annullare».
+  const contabile = (await import('../../api/employees/contabile.js')).default;
+  const cb = await call(contabile, { headers: asCron, query: { dry: '1' } });
+  ok(!(cb.body.report.late || []).some(l => AC.includes(l.paymentId)) && AC.every(id => (cb.body.report.afterClose || []).some(x => x.paymentId === id)),
+    'contabile: le rate dopo la chiusura non sono ritardi, sono «da annullare»', { late: cb.body.report.late, afterClose: cb.body.report.afterClose });
+  const MC = await importMutant('api/employees/contabile.js', '    if (RENT.openAfterClose(p, contractById[p.contractId], now)) {\n      afterClose.push(', '    if (false) {\n      afterClose.push(');
+  const cm = await call(MC.default, { headers: asCron, query: { dry: '1' } });
+  ok((cm.body.report.late || []).some(l => l.paymentId === 'pay_cC_2026-10'), 'mutazione: senza la regola il contabile conta int. 3 in ritardo (il test lo vede)');
+  // risk.scan, digest di Homie, Telegram /snapshot.
+  const { scan } = await import('../../api/agent/risk.scan.js');
+  const rs = await scan(60);
+  ok(!rs.items.some(i => i.cat === 'Pagamento in ritardo' && AC.includes(i.ref)) && rs.items.some(i => i.cat === 'Rata dopo la chiusura' && i.ref === 'pay_cC_2026-10'),
+    'risk.scan: «Rata dopo la chiusura · da annullare», mai «Pagamento in ritardo»', rs.items.map(i => i.cat + ' ' + i.ref));
+  const digest = (await import('../../api/agent/digest.js')).default;
+  const dd = await call(digest, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+  ok(dd.statusCode === 200 && /2 rate dopo la chiusura del contratto: annullale/.test(dd.body.text || '') && !/Olga Prova — €900 in ritardo/.test(dd.body.text || ''),
+    'digest di Homie: «annullale», nessun ritardo di €900', dd.body && dd.body.text);
+  const W = await import('../../api/telegram/webhook.js');
+  const lines = W.snapshotLines({ payments: pays, contracts: cons, properties: props, now: new Date(NOW) }).join('\n');
+  ok(/Pagamenti scaduti: 3/.test(lines) && /dopo la chiusura, da annullare: 2/.test(lines), 'Telegram /snapshot: 3 scaduti (non 4), 2 da annullare', lines);
+  // /palazzo su Telegram: lo stesso motore del Palazzo.
+  const T = await import('../../api/telegram/_palazzo.js');
+  const txt = T.palazzoSummary(m);
+  ok(/Rate dopo la chiusura del contratto<\/b>: 2 rate da annullare/.test(txt) && !/Olga Prova[^\n]*giorni/.test(txt), '/palazzo: «2 rate da annullare», int. 3 non fra chi non ha pagato', txt);
 }
 
 // 20d. Rata rimborsata o contestata: non è incassata, né nella chiusura del

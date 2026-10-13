@@ -87,6 +87,12 @@ export async function scan(horizon = 60) {
   const now = Date.now();
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
+    // Dopo la chiusura vera del contratto (BOOM_RENT.openAfterClose): non è
+    // un ritardo, è una rata da annullare — si dice come tale.
+    if (RENT.openAfterClose(p, contractById[p.contractId], new Date(now))) {
+      items.push({ sev: 'med', cat: 'Rata dopo la chiusura', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · da annullare (il contratto è chiuso)`, days: 0, ref: p.id });
+      continue;
+    }
     const st = RENT.paymentState(p, new Date(now));
     if (st === 'reported') {
       items.push({ sev: 'med', cat: 'Bonifico segnalato', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · da verificare`, days: 0, ref: p.id });

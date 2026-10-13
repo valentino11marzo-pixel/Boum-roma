@@ -102,13 +102,17 @@ export function snapshotLines({ leads = [], contracts = [], payments = [], prope
   const propById = {}; properties.forEach(p => { propById[p.id] = p; });
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   payments = payments.filter(p => !CS.paymentBeforeGestione(p, propById[p.propertyId || (contractById[p.contractId] || {}).propertyId]));
+  // …e una rata dopo la chiusura vera del contratto (openAfterClose) va
+  // annullata: non è «scaduta», si conta a parte.
+  const afterClose = payments.filter(p => RENT.openAfterClose(p, contractById[p.contractId], now)).length;
+  payments = payments.filter(p => !RENT.openAfterClose(p, contractById[p.contractId], now));
   const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue').length;
   const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported').length;
   return [
     '<b>📊 Snapshot BOOM</b>',
     `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
     `📄 Contratti attivi: ${activeC} · da firmare: ${unsigned}`,
-    `💶 Pagamenti scaduti: ${overdue}` + (reported ? ` · segnalati da verificare: ${reported}` : ''),
+    `💶 Pagamenti scaduti: ${overdue}` + (reported ? ` · segnalati da verificare: ${reported}` : '') + (afterClose ? ` · dopo la chiusura, da annullare: ${afterClose}` : ''),
     `⚡ Azioni in attesa: ${pendingActions.length}`,
     ...(partial.length ? [`⚠️ archivio letto in parte: ${partial.join(', ')}`] : []),
   ];

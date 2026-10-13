@@ -191,6 +191,16 @@
     var end = contractEnd(contract), ps = periodStart(payment, contract);
     return !!(end && ps && ps > end);
   }
+  // La rata dopo la chiusura ancora APERTA (da pagare, scaduta, illeggibile):
+  // quella che nessuna coda deve contare come ritardo né sollecitare — va
+  // annullata. Una pagata o segnalata resta fra i soldi (sono veri, o da
+  // verificare). UNA regola per Gestore, Contabile, risk, digest, snapshot,
+  // /snapshot su Telegram, Oggi e il portal.
+  function openAfterClose(payment, contract, now) {
+    if (!afterClose(payment, contract)) return false;
+    var st = paymentState(payment, now);
+    return st === 'due' || st === 'overdue' || st === 'unknown';
+  }
 
   function canReviewReport(payment) {
     var p = payment || {};
@@ -407,7 +417,7 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, moneyBack: moneyBack, afterClose: afterClose, contractClosed: contractClosed, contractEnd: contractEnd, periodStart: periodStart, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { amount: amount, moneyBack: moneyBack, afterClose: afterClose, openAfterClose: openAfterClose, contractClosed: contractClosed, contractEnd: contractEnd, periodStart: periodStart, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
