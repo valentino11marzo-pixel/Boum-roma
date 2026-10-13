@@ -48,6 +48,7 @@ check('i caratteri di controllo C1 (che il font non ha) spariscono', wa('a\u0085
 // Mai un nome vuoto.
 check('ideogrammi: un testo con lettere non diventa vuoto', wa('王小明').length > 0 && /non stampabili/.test(wa('王小明')));
 check('misto: la parte latina resta, nessun segnaposto', wa('Ahmed أحمد').trim() === 'Ahmed');
+check('lettere WinAnsi fuori da Latin-1 (Š š Ž ž Œ œ Ÿ): stampabili, mai il segnaposto', wa('Šš') === 'Šš' && wa('Ž. Ž.') === 'Ž. Ž.' && wa('Œ') === 'Œ' && wa('œŸ') === 'œŸ');
 check('vuoto resta vuoto, null è vuoto, solo simboli restano senza segnaposto', wa('') === '' && wa(null) === '' && wa('🔑') === '');
 
 // Nessun testo fa fallire il PDF.

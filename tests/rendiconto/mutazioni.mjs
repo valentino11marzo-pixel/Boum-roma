@@ -142,6 +142,88 @@ await guard('wa() che cancella invece di traslitterare', '_pdfbrand.js',
     ["if (/\\p{L}/u.test(src) && !/[\\p{L}\\p{N}]/u.test(out)) return '(testo in caratteri non stampabili)';", '']],
   async (mod) => mod.wa('Иван Петров') === 'Ivan Petrov' && mod.wa('Şükrü Yılmaz') === 'Sükrü Yilmaz' && mod.wa('王小明') !== '');
 
+// ═══ Revisione del 13/10: i difetti trovati dopo, rimessi ══════════════════
+const vBudget = (total) => { let t = 0; return { tick: (ms) => { t += ms; }, left: () => Math.max(0, total - t), afford: (c) => t + Math.max(0, c || 0) <= total }; };
+function seedMany(n) {
+  F.reset();
+  for (let o = 0; o < n; o++) {
+    const id = String(o).padStart(2, '0');
+    F.put(`users/own${id}`, { role: 'landlord', name: `Proprietaria ${id}`, email: `p${id}@example.invalid` });
+    F.put(`properties/q${id}`, { ownerId: `own${id}`, address: `Via Finta ${o + 1}`, name: `Casa ${id}` });
+    F.put(`contracts/k${id}`, { propertyId: `q${id}`, tenantName: `Inquilino ${id}`, rent: 1000, status: 'active' });
+    F.put(`payments/pay_k${id}_${M}`, { contractId: `k${id}`, propertyId: `q${id}`, amount: 1000, month: M, dueDate: M + '-05', status: 'paid', paidDate: M + '-04', paidVia: 'bonifico' });
+  }
+}
+// Il tempo: 30s prenotati a testa prima di leggere (12 proprietari, Gmail a 3s → 8 partiti).
+await guard('30s prenotati a proprietario prima di cominciare', 'owners/rendiconto.js',
+  [['if (outOfTime || !budget.afford(dry ? 5000 : READ_COST_MS))', 'if (outOfTime || !budget.afford(dry ? 5000 : 30000))']],
+  async (mod) => {
+    seedMany(12);
+    const b = vBudget(54000);
+    globalThis.__mailHook = () => { b.tick(3000); };
+    const out = await mod.run({ budget: b });
+    globalThis.__mailHook = null;
+    return out.counts.sent === 12 && out.counts.deferred === 0;
+  });
+// L'email senza stato d'invio (un 503 sulla creazione): il giro dopo la rimandava.
+await guard('email partita senza stato d\'invio (503 sulla creazione)', 'owners/rendiconto.js',
+  [["      const m = /\\((\\d{3})\\)/.exec(String(e.message || ''));\n      return { go: false, reason: 'state_unavailable', http: m ? Number(m[1]) : 0, error: clip(e.message, 160) };",
+    '      return { go: true, attempts: 1, warn: clip(e.message, 160) };'],
+  ['claimed = true; attempts = c.attempts;', 'claimed = !c.warn; attempts = c.attempts;']],
+  async (mod) => {
+    seed({ mode: 'auto' });
+    let once = true;
+    globalThis.__fsHook = (method, path) => (method === 'POST' && path === 'rendiconti' && once ? (once = false, new Response('{"error":{"code":503}}', { status: 503 })) : null);
+    await mod.run({});
+    globalThis.__fsHook = null;
+    await mod.run({});
+    return mails().filter((m) => m.to === 'chiara@example.invalid').length === 1;
+  });
+// «Nessun arretrato» dalla sola somma (una rata scaduta senza importo = 0 euro).
+const unknownRep = (mod) => mod.ownerReport({
+  ownerId: 'o1', user: { name: 'Prova', email: 'p@example.invalid' }, landlord: null,
+  properties: [{ id: 'u1', ownerId: 'o1', address: 'Via Finta 9', interno: '1' }],
+  contracts: [{ id: 'uc', propertyId: 'u1', tenantName: 'Inquilino', rent: 1000, status: 'active', startDate: M0 + '-01' }],
+  payments: [{ id: 'up', contractId: 'uc', propertyId: 'u1', type: 'rent', amount: null, month: M, dueDate: M + '-05', status: 'pending' }],
+  maintenance: [], users: [], month: M, now: NOW,
+});
+await guard('«Nessun arretrato» deciso dalla somma in euro', 'owners/rendiconto.js',
+  [['if (!totals.arrearsCount) brief.push(`Nessun arretrato', 'if (!totals.arrears) brief.push(`Nessun arretrato'],
+    ['if (!t.arrearsCount) body += fine(`✅', 'if (!t.arrears) body += fine(`✅']],
+  async (mod) => { const rep = unknownRep(mod); return !rep.brief.some((x) => /Nessun arretrato/.test(x)) && !/Nessun arretrato/.test(mod.emailFor(rep, {}).html); });
+// La trimestrale scaduta che copre il mese: solo «Coperto dalla…» in grigio.
+await guard('trimestrale scaduta detta solo «Coperto dalla…»', 'owners/rendiconto.js',
+  [["        if (r.state === 'overdue') {\n          if (!coverLate)", "        if (false) {\n          if (!coverLate)"],
+    ["} else if (r.state === 'paid' || r.state === 'due') {", '} else if (true) {']],
+  async (mod) => {
+    const rep = mod.ownerReport({
+      ownerId: 'o1', user: { name: 'Prova', email: 'p@example.invalid' }, landlord: null,
+      properties: [{ id: 't1', ownerId: 'o1', address: 'Via Finta 9', interno: '1' }],
+      contracts: [{ id: 'tc', propertyId: 't1', tenantName: 'Inquilino', rent: 1000, status: 'active', startDate: M0 + '-01' }],
+      payments: [{ id: 'tq', contractId: 'tc', propertyId: 't1', type: 'rent', amount: 3000, month: M0, coversTo: P.monthAdd(M, 1), installmentMonths: 3, dueDate: M0 + '-05', status: 'pending' }],
+      maintenance: [], users: [], month: M, now: NOW,
+    });
+    return rep.sections[0].lines.some((l) => l.tone === 'late' && /NON PAGATA/.test(l.text) && l.amount === 3000);
+  });
+// La promessa del recap: «riprova domani» anche quando domani non c'è un giro.
+await guard('«riprova domani da solo» col cron che domani non gira', 'owners/rendiconto.js',
+  [['const again = autoRetryTomorrow(now)', 'const again = true']],
+  async (mod) => {
+    process.env.TELEGRAM_BOT_TOKEN = 'tg-test'; process.env.TELEGRAM_CHAT_ID = '1';
+    seed({ mode: 'auto' });
+    const off = (() => { for (let d = 2; d <= 27; d++) if (!mod.CRON_DAYS.includes(d + 1)) return new Date(Date.UTC(2026, 7, d, 8)); return null; })();
+    globalThis.__mailHook = () => { const e = new Error('smtp down'); e.code = 'EAUTH'; throw e; };
+    await mod.run({ monthOverride: M, now: off });
+    globalThis.__mailHook = null;
+    delete process.env.TELEGRAM_BOT_TOKEN;
+    const t = F.telegrams.find((x) => /Non partito/.test(x)) || '';
+    return /Non partito/.test(t) && !/domani/.test(t);
+  });
+// wa(): Š š Ž ž Œ œ Ÿ trattati come «non stampabili».
+await guard('wa() che chiama non stampabile «Šš»', '_pdfbrand.js',
+  [['!/[\\p{L}\\p{N}]/u.test(out)', '!/[A-Za-z0-9\\u00C0-\\u00FF]/.test(out)']],
+  async (mod) => mod.wa('Šš') === 'Šš' && mod.wa('Œ') === 'Œ');
+
 console.log(`\nRendiconto · mutazioni: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }
 process.exit(0);

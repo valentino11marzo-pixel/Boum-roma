@@ -10,7 +10,9 @@
 // arretrato» con un inquilino che non aveva pagato).
 // Le altre suite: palazzo.mjs (la presa in carico, anteprima/automatico,
 // coerenza col Palazzo), invio.mjs (l'invio che non si perde), letture.mjs
-// (letture mirate), wa.mjs (nomi non latini), mutazioni.mjs.
+// (letture mirate), wa.mjs (nomi non latini), tempo.mjs (il tempo del giro e
+// la promessa del recap), revisione.mjs (arretrati senza importo, la rata
+// trimestrale che copre il mese), mutazioni.mjs.
 // Uso: node tests/rendiconto/run.mjs
 import { register } from 'node:module';
 register('./loader.mjs', import.meta.url);
