@@ -156,6 +156,12 @@
         { id: 'tool:newconv', group: 'Strumenti', icon: '📨', label: 'Nuova conversazione (Inbox)',
           keywords: 'conversazione inbox messaggio nuovo contatto',
           fn: 'inboxOpenNewModal', args: [], admin: true },
+        { id: 'tool:inbox-whatsapp', group: 'Strumenti', icon: '💬', label: 'WhatsApp — Inbox',
+          keywords: 'whatsapp inbox conversazioni messaggi',
+          fn: 'oggiOpenInbox', args: ['whatsapp'], admin: true },
+        { id: 'tool:inbox-email', group: 'Strumenti', icon: '✉️', label: 'Email — Inbox',
+          keywords: 'email posta inbox conversazioni messaggi',
+          fn: 'oggiOpenInbox', args: ['email'], admin: true },
         { id: 'tool:rules', group: 'Strumenti', icon: '⚡', label: 'Esegui tutte le automazioni',
           keywords: 'automazioni regole esegui trigger adesso',
           fn: 'runAllRules', args: [], admin: true },
@@ -235,6 +241,7 @@
         ['leads',       '📬', 'Lead',                'lead richieste contatti pipeline'],
         ['clienti',     '👥', 'Clienti',             'clienti crm pfs anagrafiche'],
         ['properties',  '🏠', 'Immobili',            'immobili case appartamenti portafoglio'],
+        ['listings',    '🏢', 'Annunci',             'annunci catalogo vetrina listings portali'],
         ['invoices',    '🧾', 'Fatture',             'fatture fatturazione incassi'],
         ['maintenance', '🔧', 'Manutenzioni',        'manutenzioni guasti interventi'],
         ['documents',   '📁', 'Documenti',           'documenti archivio file caricati'],
@@ -413,49 +420,87 @@
         return true;
     }
 
-    // Six starting points, projected from the same registry. This is only a
+    // Stable starting points, projected from the same registry. This is only a
     // description: the caller checks permissions and opens the real handler.
     var HOME_TOOLS = [
-        ['new-client', 'tool:newclient', 'Nuovo cliente', 'Apri il percorso guidato dal cliente al contratto.'],
-        ['inventory', 'console:/inventario', 'Inventario dal video', 'Scegli immobile o contratto e prepara il rilievo.'],
-        ['document', 'tool:docupload', 'Carica documento', 'Apri il modulo per allegare e collegare un file.'],
-        ['maintenance', 'new:addMaintenance', 'Nuova manutenzione', 'Descrivi il problema e scegli l’immobile.'],
-        ['payment', 'new:addPayment', 'Registra pagamento', 'Scegli contratto, importo e stato del pagamento.'],
-        ['handover', 'console:/verbale', 'Verbale di consegna', 'Scegli il contratto e prepara chiavi, letture e firme.']
+        ['properties', 'go:properties', 'Immobili', 'Apri l’elenco degli immobili e i loro fascicoli.'],
+        ['people', 'go:users', 'Persone', 'Apri le anagrafiche di inquilini e proprietari.'],
+        ['whatsapp', 'tool:inbox-whatsapp', 'WhatsApp', 'Apri le conversazioni WhatsApp presenti in Inbox.'],
+        ['email', 'tool:inbox-email', 'Email', 'Apri le conversazioni email presenti in Inbox.'],
+        ['appointments', 'go:viewings', 'Agenda', 'Apri visite e appuntamenti, con proposte e conferme.'],
+        ['calls', 'console:/chiamate', 'Chiamate', 'Apri audio, trascrizioni salvate e riepiloghi disponibili.'],
+        ['document', 'tool:docupload', 'Documenti', 'Apri il modulo per allegare e collegare un file.'],
+        ['magic-sign', 'tool:magicsign', 'Magic Sign', 'Apri l’editor per preparare un PDF da firmare.'],
+        ['inventory', 'console:/inventario', 'Inventario', 'Scegli immobile o contratto e prepara il rilievo.'],
+        ['handover', 'console:/verbale', 'Consegna', 'Scegli il contratto e prepara chiavi, letture e firme.'],
+        ['maintenance', 'new:addMaintenance', 'Interventi', 'Descrivi un nuovo problema e scegli l’immobile.'],
+        ['payment', 'new:addPayment', 'Incassi', 'Registra un pagamento scegliendo contratto, importo e stato.'],
+        ['invoices', 'go:invoices', 'Fatture', 'Apri le fatture e i relativi strumenti.'],
+        ['listings', 'go:listings', 'Annunci', 'Apri il catalogo degli annunci.'],
+        ['templates', 'go:templates', 'Modelli', 'Scegli un modello di documento.'],
+        ['automations', 'go:rules', 'Automazioni', 'Consulta regole, stato e storico delle esecuzioni.']
     ];
-    function homeTools(record, state, year) {
+    var HOME_NEW_CLIENT = ['new-client', 'tool:newclient', 'Nuovo cliente', 'Apri il percorso guidato dal cliente al contratto.'];
+    function homeTool(spec) {
+        var registered = ACTIONS.find(function (a) { return a.id === spec[1]; });
+        return { id: 'home:' + spec[0], label: spec[2], description: spec[3], icon: registered.icon,
+            fn: registered.fn, args: registered.args.slice() };
+    }
+    function homeContext(record, state) {
         var pools = { property: 'properties', person: 'users', contract: 'contracts', client: 'clients' };
         var list = function (kind) { return state && Array.isArray(state[pools[kind]]) ? state[pools[kind]] : []; };
         var row = null, kind = null;
         if (record !== null && record !== undefined) {
             if (!Object.prototype.hasOwnProperty.call(pools, record.kind)
-                || typeof record.id !== 'string' || !record.id.trim()) return [];
+                || typeof record.id !== 'string' || !record.id.trim()) return null;
             var matches = list(record.kind).filter(function (r) { return r && r.id === record.id; });
-            if (matches.length !== 1) return [];
+            if (matches.length !== 1) return null;
             row = matches[0]; kind = record.kind;
         }
-        var tools = HOME_TOOLS.map(function (spec) {
-            var registered = ACTIONS.find(function (a) { return a.id === spec[1]; });
-            return { id: 'home:' + spec[0], label: spec[2], description: spec[3], icon: registered.icon,
-                fn: registered.fn, args: registered.args.slice() };
-        });
+        return { row: row, kind: kind, list: list };
+    }
+    // The existing wizard stays available as a secondary action, outside the
+    // sixteen tools. It shares the exact same stale/duplicate record guard.
+    function homeNewClient(record, state) {
+        var context = homeContext(record, state);
+        if (!context) return null;
+        var out = homeTool(HOME_NEW_CLIENT);
+        if (context.kind === 'client') {
+            out.args = ['crmClient', context.row.id];
+            out.description = 'Apri il percorso guidato con i dati del cliente scelto.';
+        }
+        return out;
+    }
+    function homeTools(record, state, year) {
+        var context = homeContext(record, state);
+        if (!context) return [];
+        var row = context.row, kind = context.kind, list = context.list;
+        var tools = HOME_TOOLS.map(homeTool);
         if (!row) return tools;
         var tool = function (id) { return tools.find(function (a) { return a.id === 'home:' + id; }); };
         // Reuse the registered contextual function and its argument template.
-        var contextual = function (id, fn, url) {
-            var action = ACTIONS.find(function (a) { return a.need === kind && a.fn === fn && (!url || a.args[0].startsWith(url)); });
+        var contextual = function (id, fn, url, targetKind, targetRow) {
+            targetKind = targetKind || kind; targetRow = targetRow || row;
+            var action = ACTIONS.find(function (a) { return a.need === targetKind && a.fn === fn && (!url || a.args[0].startsWith(url)); });
             var out = tool(id);
             out.fn = action.fn;
             out.args = action.args.map(function (arg) {
-                if (arg === '$id') return row.id;
+                if (arg === '$id') return targetRow.id;
                 if (arg === '$year') return year;
-                return typeof arg === 'string' ? arg.replace('$id', encodeURIComponent(row.id)) : arg;
+                return typeof arg === 'string' ? arg.replace('$id', encodeURIComponent(targetRow.id)) : arg;
             });
             return out;
         };
         if (kind === 'client') {
-            tool('new-client').args = ['crmClient', row.id];
-            tool('new-client').description = 'Apri il percorso guidato con i dati del cliente scelto.';
+            contextual('people', 'viewClient').description = 'Apri la scheda del cliente scelto.';
+        } else if (kind === 'person') {
+            contextual('people', 'openPerson').description = 'Apri la scheda della persona scelta.';
+        }
+        if (kind === 'person' || kind === 'client') {
+            ['whatsapp', 'email'].forEach(function (id) {
+                tool(id).args.push({ kind: kind, id: row.id });
+                tool(id).description = 'Apri le conversazioni ' + (id === 'email' ? 'email' : 'WhatsApp') + ' già collegate al contatto scelto.';
+            });
         }
         if (kind === 'property' || kind === 'contract') {
             contextual('inventory', 'open', '/inventario?').description = 'Apri il rilievo ' + (kind === 'property' ? 'sull’immobile' : 'sul contratto') + ' scelto.';
@@ -475,6 +520,7 @@
             if (houses.length === 1) property = houses[0];
         }
         if (property) {
+            contextual('properties', 'viewProperty', null, 'property', property).description = 'Apri il fascicolo dell’immobile collegato.';
             tool('maintenance').prefill = { field: 'propertyId', value: property.id };
             tool('maintenance').description = 'Descrivi un problema dell’immobile collegato.';
         }
@@ -482,6 +528,7 @@
             var payment = tool('payment');
             if (row.status === 'active') payment.prefill = { field: 'contractId', value: row.id };
             else { payment.disabled = true; payment.reason = 'Il contratto selezionato non è attivo'; }
+            contextual('magic-sign', 'viewContractSignatures').description = 'Consulta lo stato delle firme del contratto scelto.';
             contextual('handover', 'open', '/verbale?').description = 'Apri il verbale del contratto scelto.';
         }
         return tools;
@@ -537,6 +584,7 @@
         fillArgs: fillArgs,
         findRecords: findRecords,
         homeTools: homeTools,
+        homeNewClient: homeNewClient,
         norm: norm
     };
 }));

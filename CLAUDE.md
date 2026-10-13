@@ -2182,6 +2182,13 @@ Un giro solo, otto interventi, 33 suite verdi:
   Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
   Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
   con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
+- **Home strumenti connessi (13/10/2026):** sedici ingressi fissi precedono i
+  riepiloghi richiudibili; il contesto scelto resta visibile e si può togliere.
+  `homeTools` riusa le azioni reali; `homeNewClient` conserva il wizard separato.
+  WhatsApp/email aprono Inbox filtrata per canale e, per persona/cliente, ID
+  verificato: nessuna selezione automatica, scrittura o AI all’apertura.
+  Le relazioni mancanti non vengono indovinate; il filtro si toglie esplicitamente.
+  Prove: `actions`, `oggiquicktoolsui`, `oggihomeui`, `oggideskui`, Inbox.
 - **Ricerca e fonti (13/10/2026):** `portal-search-engine` riunisce 15 fonti già
   presenti in `S`, normalizza parole/telefoni/accenti e conserva gli ID tipizzati.
   Header, home e selettori condividono il motore; risultati a pagine e collegamenti

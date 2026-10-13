@@ -16,11 +16,15 @@ try{
  for(const width of [1440,390,320]){
   const page=await browser.newPage({viewport:{width,height:1000}});page.setDefaultTimeout(4000);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const openDetails=async selector=>{if(!await page.locator(selector).evaluate(e=>e.open))await page.locator(selector+' > summary').click();};
   await page.route('**/*',r=>r.request().url().startsWith(base)?r.continue():r.abort());
   await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
   await check(width+' home utile prima dei pannelli lunghi, senza invii',async()=>{
    assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),false);
    assert.equal(await page.locator('#ogQueueArchive').evaluate(e=>e.open),false);
+   assert.equal(await page.locator('#ogDeskFold').evaluate(e=>e.open),false);
+   assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(),16);
+   assert.equal(await page.locator('#ogQuickTools').evaluate(e=>!!(e.compareDocumentPosition(document.getElementById('ogDeskFold'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
    assert.equal(await page.locator('#ogWorkBriefing').count(),0);
    assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
@@ -64,7 +68,7 @@ try{
    assert.equal(proposal.waiting,false,'una proposta non approvata non eredita l’attesa del seguito precedente');
    assert(proposal.current,'la proposta recente resta raggiungibile tra i casi correnti');
    assert.equal(proposal.current.reason,'Proposta da rivedere');
-   await page.locator('[data-desk-area="contracts"]').click();
+   await openDetails('#ogDeskFold');await page.locator('[data-desk-area="contracts"]').click();
    const deskCase=page.locator('[data-desk-item="'+proposal.current.id+'"]');
    assert(await deskCase.isVisible());assert.match(await deskCase.innerText(),/Proposta da rivedere/);
    assert.match(await deskCase.innerText(),/Rivedi la proposta prima di confermare il seguito/);
@@ -119,6 +123,8 @@ try{
   await check(width+' stesso contesto, caso ambiguo separato e passaggio al contratto',async()=>{
    await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
    assert.deepEqual(await page.evaluate(()=>oggiWorkspace.related.map(r=>r.kind+':'+r.id).sort()),['contract:contratto-demo','maintenance:guasto-demo']);
+   assert.equal(await page.locator('#ogContextDetails').evaluate(e=>e.open),false);
+   await openDetails('#ogContextDetails');
    await page.locator('#ogContextConnections details[data-ow-fold="cases"] > summary').click();
    assert.equal(await page.locator('#ogContextConnections .ow-case').count(),1);
    assert.doesNotMatch(await page.locator('#ogContextConnections').innerText(),/Giuliano/);
@@ -133,11 +139,12 @@ try{
   });
   await check(width+' il fascicolo reale si apre e torna alla lista senza scritture',async()=>{
    await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
+   await openDetails('#ogContextDetails');
    await page.locator('.ow-context-actions button').filter({hasText:"Apri l'immobile"}).click();
    await page.waitForSelector('#pdos-title');assert.equal(await page.locator('#pdos-title').innerText(),'Casa Aurora');
    await page.locator('[data-pdos-tab="contracts"]').click();assert.match(page.url(),/contracts$/);
    await page.locator('[data-pdos-action="back"]').click();await page.waitForFunction(()=>oggiSegretaria.loaded);
-   assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('.ow-selection > div:first-child > h3').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+   assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('#ogContextDetails > summary strong').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
    if(!await page.locator('#ogQueueArchive').evaluate(e=>e.open))await page.locator('#ogQueueArchive > summary').click();
   });
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
@@ -147,6 +154,7 @@ try{
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?p=casa-demo']);
    await page.locator('#ogWorkKind').selectOption('person');await page.locator('#ogWorkQuery').fill('Persona');
    await page.locator('.ow-result').click();assert(await page.locator('.ow-context-actions button').count()>0);
+   await openDetails('#ogContextDetails');
    await page.locator('.ow-context-actions button').first().click();assert.equal(await page.evaluate(()=>testIO.actions.at(-1)[0]),'openPerson');
    await page.locator('#ogWorkKind').selectOption('contract');await page.locator('#ogWorkQuery').fill('Aurora');assert.equal(await page.locator('.ow-result').count(),1);
   });
@@ -157,7 +165,7 @@ try{
    assert.equal(action[2].time,expected);
   });
   await check(width+' aggiornamento e nascondi conservano bozza, ricerca e pannelli',async()=>{
-   await page.getByRole('button',{name:/Prepara una risposta/}).click();await page.locator('#ogOwnerInstruction').fill('Bozza da conservare');
+   await page.getByRole('button',{name:/Chiedi alla segreteria/}).click();await page.locator('#ogOwnerInstruction').fill('Bozza da conservare');
    await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('#ogOwnerTools > summary').click();
    await page.evaluate(()=>{document.getElementById('ogOwnerTools').open=true;oggiDismiss(window.__oggiLast[0].id);});await page.waitForTimeout(220);
    assert.equal(await page.locator('#ogOwnerInstruction').inputValue(),'Bozza da conservare');assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),true);

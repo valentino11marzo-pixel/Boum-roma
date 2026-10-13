@@ -1,10 +1,10 @@
-// Six production launchers and forms; synthetic persistence, native popups.
+// Production launchers and forms; synthetic persistence, native popups.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { quickToolsHtml } from './home-harness.mjs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
-const ids = ['new-client', 'inventory', 'document', 'maintenance', 'payment', 'handover'];
+const ids = ['properties', 'people', 'whatsapp', 'email', 'appointments', 'calls', 'document', 'magic-sign', 'inventory', 'handover', 'maintenance', 'payment', 'invoices', 'listings', 'templates', 'automations'];
 const requests = [];
 const server = createServer((req, res) => {
   requests.push({ method: req.method, url: req.url });
@@ -33,7 +33,10 @@ try {
     const fresh = async () => {
       await page.goto(base);
       await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
-      assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(), 6);
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(), 16);
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool="home:new-client"]').count(), 0);
+      assert.equal(await tool('new-client').count(), 1);
+      assert.equal(await page.locator('#ogDeskFold').evaluate(el => el.open), false);
     };
     const noWrites = async () => {
       assert.deepEqual(await page.evaluate(() => ({ writes: testIO.writes, demoWrites: testIO.demoWrites, responses: testIO.responses })), { writes: [], demoWrites: [], responses: [] });
@@ -49,8 +52,10 @@ try {
       await page.locator('#ogWorkQuery').fill(query);
       const result = page.locator('#ogWorkResults .ow-result').filter({ hasText: text || query });
       assert.equal(await result.count(), 1, 'Select one exact rendered result, not a name-based fallback');
+      const selectedLabel = await result.locator('strong').innerText();
       await result.click();
-      assert.match(await page.locator('#ogQuickContext').innerText(), /Selezionato:/);
+      assert.equal(await page.locator('#ogQuickContext strong').innerText(), selectedLabel);
+      assert.equal(await page.locator('#ogContextDetails').evaluate(el => el.open), false);
     };
     const popup = async (id, pathname, params = {}) => {
       const opened = page.waitForEvent('popup');
@@ -70,9 +75,12 @@ try {
       console.log('PASS ' + width + ' ' + name);
     };
 
-    await check('six visible launchers fit the viewport and open blank native forms', async () => {
+    await check('sixteen visible launchers precede the folded desk and open blank native forms', async () => {
       assert.deepEqual(await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.ogTool)), ids.map(id => 'home:' + id));
       for (const id of ids) assert.equal(await tool(id).isVisible(), true);
+      assert.equal(await page.locator('#ogQuickTools').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('ogDeskFold')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool] svg').count(), 16);
+      assert(await page.locator('#ogQuickTools [data-og-tool] svg').evaluateAll(nodes => nodes.every(node => node.children.length > 0)), 'Every launcher has a drawn icon');
       const boxes = await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => {
         const r = node.getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom };
       }));
@@ -120,6 +128,90 @@ try {
     await check('inventory and handover open real browser destinations without guessed records', async () => {
       await popup('inventory', '/inventario');
       await popup('handover', '/verbale');
+      await popup('calls', '/chiamate');
+    });
+
+    await check('navigation tools reach their exact existing section without executing automations', async () => {
+      for (const [id, destination] of [['properties', 'properties'], ['people', 'users'], ['appointments', 'viewings'], ['invoices', 'invoices'], ['listings', 'listings'], ['templates', 'templates'], ['automations', 'rules']]) {
+        await tool(id).click();
+        assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['goTo', destination]);
+        await page.locator('#toasts button').click();
+      }
+      assert.equal(await page.locator('#modals .modal').count(), 0);
+    });
+
+    await check('Magic Sign opens the real empty editor with creation disabled', async () => {
+      await tool('magic-sign').click();
+      assert(await page.locator('#modals .ms-editor').isVisible());
+      assert.equal(await page.locator('#msTitle').inputValue(), '');
+      assert.equal(await page.locator('#msProperty').inputValue(), '');
+      assert.equal(await page.locator('#msTenant').inputValue(), '');
+      assert(await page.locator('#msSaveBtn').isDisabled());
+      await page.locator('#modals .dash-act').click();
+      await page.waitForFunction(() => !document.querySelector('#modals .modal'));
+      assert.equal(await page.locator('#modals .modal').count(), 0);
+    });
+
+    for (const channel of ['whatsapp', 'email']) {
+      await check(channel + ' opens the real inbox filtered by channel without reading a conversation', async () => {
+        await page.evaluate(() => {
+          testState.conversations = ['whatsapp', 'email'].map(channel => ({ id: 'demo-' + channel, channel, contactId: 'p-seconda', contactType: 'tenant', contactName: 'Persona ' + channel, lastMessagePreview: 'Messaggio ' + channel, unread: 3 }));
+        });
+        await tool(channel).click();
+        assert.equal(await page.getByRole('combobox', { name: 'Canale messaggi' }).inputValue(), channel);
+        assert.match(await page.locator('.inbox-list-pane').innerText(), new RegExp('Messaggio ' + channel));
+        assert.doesNotMatch(await page.locator('.inbox-list-pane').innerText(), new RegExp('Messaggio ' + (channel === 'email' ? 'whatsapp' : 'email')));
+        assert.equal(await page.evaluate(() => _inboxState.convId), null);
+        assert.deepEqual(await page.evaluate(() => testState.conversations.map(c => c.unread)), [3, 3]);
+      });
+
+      await check(channel + ' uses exact contact identity and rejects homonyms and duplicate conversation IDs', async () => {
+        await select('person', 'Persona Seconda');
+        await page.evaluate(channel => {
+          testState.conversations = [
+            { id: 'own', contactId: 'p-seconda', contactType: 'tenant', lastMessagePreview: 'Fonte corretta' },
+            { id: 'homonym', contactId: 'p-demo', contactType: 'tenant', lastMessagePreview: 'Omonimo escluso' },
+            { id: 'wrong-kind', contactId: 'p-seconda', contactType: 'client', lastMessagePreview: 'Tipo escluso' },
+            { id: 'duplicate', contactId: 'p-seconda', contactType: 'tenant', lastMessagePreview: 'Duplicato escluso' },
+            { id: 'duplicate', contactId: 'p-demo', contactType: 'tenant', lastMessagePreview: 'Altro duplicato' }
+          ].map(c => ({ ...c, channel, contactName: 'Persona Seconda', unread: 4 }));
+        }, channel);
+        await tool(channel).click();
+        assert.equal(await page.getByRole('combobox', { name: 'Canale messaggi' }).inputValue(), channel);
+        const list = await page.locator('.inbox-list-pane').innerText();
+        assert.match(list, /Fonte corretta/);assert.doesNotMatch(list, /Omonimo escluso|Tipo escluso|Duplicato escluso|Altro duplicato/);
+        assert.deepEqual(await page.evaluate(() => oggiInboxScope().ids), ['own']);
+        assert.equal(await page.evaluate(() => _inboxState.convId), null);
+        assert.deepEqual(await page.evaluate(() => testState.conversations.map(c => c.unread)), [4, 4, 4, 4, 4]);
+      });
+    }
+
+    await check('compact context keeps icons stable, exposes details and can clear the exact selection', async () => {
+      const icons = await page.locator('#ogQuickTools [data-og-tool] svg').evaluateAll(nodes => nodes.map(node => node.innerHTML));
+      await select('property', 'Casa Segnaposto');
+      assert.deepEqual(await page.locator('#ogQuickTools [data-og-tool] svg').evaluateAll(nodes => nodes.map(node => node.innerHTML)), icons);
+      await page.locator('#ogQuickContext').getByRole('button', { name: 'Cambia', exact: true }).click();
+      assert(await page.locator('#ogWorkQuery').evaluate(el => el === document.activeElement));
+      await page.locator('#ogContextDetails > summary').click();
+      assert(await page.locator('.ow-context-actions').isVisible());
+      await page.locator('#ogQuickContext').getByRole('button', { name: 'Tutti', exact: true }).click();
+      assert.equal(await page.evaluate(() => oggiWorkspace.selected), null);
+      assert.equal(await page.locator('#ogWorkQuery').inputValue(), '');
+      assert.equal(await page.locator('#ogContextDetails').count(), 0);
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(), 16);
+      await tool('maintenance').click();
+      assert.equal(await page.locator('#mForm select[name="propertyId"]').inputValue(), '');
+      await close();
+    });
+
+    await check('an unsupported selected card explicitly keeps the tools general', async () => {
+      await select('maintenance', 'Verificare perdita in cucina');
+      assert.equal(await page.evaluate(() => oggiWorkspace.selected.kind), 'maintenance');
+      assert.equal(await page.locator('#ogQuickContext small').innerText(), 'SCHEDA SELEZIONATA · STRUMENTI GENERALI');
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(), 16);
+      await tool('maintenance').click();
+      assert.equal(await page.locator('#mForm [name="propertyId"]').inputValue(), '', 'A selected maintenance card does not silently assign its property');
+      await close();
     });
 
     await check('typing a name does not select it; explicit property selection targets the exact ID', async () => {
@@ -207,11 +299,15 @@ try {
 
     for (const change of ['role', 'account']) {
       await check('stale ' + change + ' blocks every launcher even through its handler', async () => {
+        const inboxBefore = await page.evaluate(() => structuredClone(_inboxState));
         await page.evaluate(change => {
           if (change === 'role') testState.profile.role = 'tenant';
           else testAuth.currentUser = { uid: 'another-admin' };
         }, change);
-        await page.evaluate(ids => ids.forEach(id => oggiQuickTool('home:' + id)), ids);
+        await page.evaluate(ids => ids.forEach(id => oggiQuickTool('home:' + id)), [...ids, 'new-client']);
+        await page.evaluate(() => { oggiOpenInbox('whatsapp'); oggiOpenInbox('email'); });
+        assert.deepEqual(await page.evaluate(() => _inboxState), inboxBefore, 'Direct channel handlers reject revoked authorization without changing Inbox');
+        assert.equal(await page.evaluate(() => testState.page), 'oggi');
         assert.equal(await page.locator('#modals .modal').count(), 0);
         assert.equal(context.pages().length, 1);
       });

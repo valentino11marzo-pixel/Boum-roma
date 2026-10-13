@@ -15,6 +15,8 @@ const items = page => page.locator('#ogDeskPanel [data-desk-item]');
 const itemIds = page => items(page).evaluateAll(nodes => nodes.map(node => node.dataset.deskItem));
 const fresh = async page => {
   await page.goto(base); await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
+  assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), false);
+  await page.locator('#ogDeskFold > summary').click();
   await page.waitForSelector('#ogDeskPanel [data-desk-area]');
 };
 const archiveOpen = page => page.locator('#ogQueueArchive').evaluate(node => node.open);

@@ -136,10 +136,15 @@ const quickFunctions = [
  'openModal', 'closeModal', 'getModal', 'fillPayAmount',
  'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
  'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
- 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload'
+ 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload', 'openMagicSignEditor',
+ 'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh'
 ].map(namedPortalFunction).join('\n');
+const inboxState = src.match(/^    var _inboxState = .+;$/m)?.[0];
+if (!inboxState) throw Error('Missing production inbox state');
 const quickBoot = `
 let selectedFile = null, listingImageUrl = '', _newClientWizard = null;
+${inboxState}
+${between(src, '    const MS_FIELD_TYPES =', '    // Lazy-load PDF.js')}
 ${quickFunctions}
 S.properties.push({id:'casa-seconda',name:'Casa Aurora',address:'Via Seconda 20',rent:930});
 S.properties.push({id:'casa-$id-demo',name:'Casa Segnaposto',address:'Via Segnaposto 30',rent:800});
@@ -152,4 +157,5 @@ goTo(location.hash.slice(1)||'oggi',true);
 export const quickToolsHtml = html
  .replace("function openModal(...args){demoAction('openModal',...args);}", '')
  .replace('window.open=(...args)=>demoAction(\'open\',...args);', '')
+ .replace("if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);", "if(id==='inbox'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=inboxPage();return;}if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);")
  .replace("goTo(location.hash.slice(1)||'oggi',true);", quickBoot);

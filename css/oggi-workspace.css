@@ -340,3 +340,77 @@
  .ow-home .od-later { grid-template-columns:1fr; }
  .ow-home .od-alert { flex-direction:column; align-items:flex-start; gap:2px; }
 }
+
+/* Home strumenti, 13/10: stable targets first, shared context, details on demand. */
+.ow-home .ow-header { margin:0 0 20px; }
+.ow-home .ow-workbench { padding:0; border:0; background:none; margin-bottom:16px; }
+.ow-home .ow-search { min-height:50px; border-radius:14px; }
+.ow-home .ow-search input { padding:14px 12px; }
+.ow-home .ow-search-sources { margin:8px 0 0; }
+.ow-home .ow-toolbox { padding:22px; background:var(--bg-card); border:1px solid var(--border); border-radius:20px; }
+.ow-home .ow-active-context { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:0 0 18px; margin-bottom:20px; border-bottom:1px solid var(--border); }
+.ow-home .ow-active-context > span { min-width:0; }
+.ow-home .ow-active-context small { display:block; font-size:10px; color:var(--text-secondary); letter-spacing:.7px; margin-bottom:5px; }
+.ow-home .ow-active-context strong { display:block; font-size:15px; font-weight:500; overflow-wrap:anywhere; }
+.ow-home .ow-active-context > div { display:flex; gap:8px; flex-shrink:0; }
+.ow-home .ow-active-context button { min-height:44px; padding:8px 5px; font-size:12px; }
+.ow-home .ow-tools-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:22px; }
+.ow-home .ow-tools-head h2 { font-size:25px; letter-spacing:-.7px; margin:0; font-weight:500; }
+.ow-home .ow-tools-head p { margin:0; font-size:12px; color:var(--text-secondary); }
+.ow-home .ow-tools-grid { display:grid; grid-template-columns:repeat(8,minmax(0,1fr)); gap:12px 8px; }
+.ow-home .ow-tool { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:10px; min-width:0; min-height:94px; padding:8px 3px; border:1px solid transparent; border-radius:14px; background:none; text-align:center; color:var(--text); }
+.ow-home .ow-tool:hover { background:var(--bg-elevated); border-color:var(--border); transform:translateY(-2px); }
+.ow-home .ow-tool:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+.ow-home .ow-tool-icon { display:grid; place-items:center; width:52px; height:52px; flex:none; margin:0; border:1px solid color-mix(in srgb,var(--gold) 22%,transparent); border-radius:16px; background:color-mix(in srgb,var(--gold) 9%,var(--bg-elevated)); color:var(--gold); }
+.ow-home .ow-tool-icon svg { width:24px; height:24px; }
+.ow-home .ow-tool:is([data-og-tool="home:whatsapp"],[data-og-tool="home:email"],[data-og-tool="home:calls"],[data-og-tool="home:people"]) .ow-tool-icon { color:#8fc9b2; background:#8fc9b211; border-color:#8fc9b22b; }
+.ow-home .ow-tool:is([data-og-tool="home:properties"],[data-og-tool="home:inventory"],[data-og-tool="home:listings"],[data-og-tool="home:maintenance"]) .ow-tool-icon { color:#9dbad6; background:#9dbad611; border-color:#9dbad62b; }
+.ow-home .ow-tool-copy { display:block; padding:0; min-width:0; }
+.ow-home .ow-tool-copy strong { display:block; font-size:12px; line-height:1.25; font-weight:500; margin:0; overflow-wrap:anywhere; }
+.ow-home .ow-tool-copy .ow-tool-disabled { display:block; font-size:10px; line-height:1.3; margin-top:5px; color:var(--text-secondary); }
+.ow-home .ow-tool:disabled { opacity:.55; cursor:not-allowed; transform:none; }
+.ow-home .ow-shortcuts { display:flex; flex-wrap:wrap; gap:4px 20px; border-top:1px solid var(--border); padding-top:12px; margin-top:18px; }
+.ow-home .ow-shortcuts :is(button,a) { display:flex; align-items:center; border:0; padding:8px 0; min-height:44px; color:var(--text-secondary); text-decoration:none; font-size:12px; }
+.ow-home .ow-shortcuts :is(button,a):hover { color:var(--gold); }
+.ow-home #ogContextDetails { margin-top:12px; padding:0; border:1px solid var(--border); border-radius:12px; }
+.ow-home #ogContextDetails > summary { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:14px; cursor:pointer; }
+.ow-home #ogContextDetails > summary > span:first-child { min-width:0; }
+.ow-home #ogContextDetails > summary small { display:block; font-size:10px; color:var(--text-secondary); margin-bottom:4px; }
+.ow-home #ogContextDetails > summary strong { display:block; font-size:15px; overflow-wrap:anywhere; }
+.ow-home #ogContextDetails > summary > span:last-child { font-size:11px; color:var(--gold); flex:0 0 90px; text-align:right; }
+.ow-home #ogContextDetails > :not(summary) { margin-left:14px; margin-right:14px; }
+.ow-home #ogDeskFold > summary { align-items:center; }
+.ow-home #ogDeskFold .od-panel { margin:12px 0 0; }
+.inbox-channel-context label { display:flex; align-items:center; gap:8px; color:var(--text-secondary); font-size:12px; }
+.inbox-channel-context select { flex:1; min-width:0; }
+.inbox-channel-context p { font-size:12px; margin:8px 0 0; overflow-wrap:anywhere; }
+@media(max-width:1100px) { .ow-home .ow-tools-grid { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:600px) {
+ .ow-home .ow-header { gap:10px; margin-bottom:16px; }
+ .ow-home .ow-header h1 { font-size:27px; }
+ .ow-home .ow-header .page-actions .btn:first-child { display:none; }
+ .ow-home .ow-search select { max-width:82px; padding:12px 8px; font-size:12px; }
+ .ow-home .ow-search input { font-size:14px; padding:14px 10px; }
+ .ow-home .ow-search > span { margin-right:10px; }
+ .ow-home .ow-toolbox { padding:16px 10px 10px; border-radius:16px; }
+ .ow-home .ow-active-context { padding:0 4px 12px; margin-bottom:15px; gap:8px; }
+ .ow-home .ow-active-context strong { font-size:13px; }
+ .ow-home .ow-active-context > button { max-width:116px; text-align:right; }
+ .ow-home .ow-tools-head { padding:0 4px; margin-bottom:12px; }
+ .ow-home .ow-tools-head h2 { font-size:22px; }
+ .ow-home .ow-tools-head p { display:none; }
+ .ow-home .ow-tools-grid { gap:8px 2px; }
+ .ow-home .ow-tool { min-height:86px; padding:6px 1px; gap:8px; }
+ .ow-home .ow-tool-icon { width:44px; height:44px; border-radius:14px; }
+ .ow-home .ow-tool-copy strong { font-size:11px; }
+ .ow-home .ow-shortcuts { gap:0 14px; padding:8px 4px 0; margin-top:12px; }
+ .ow-home .ow-shortcuts :is(button,a) { font-size:11px; }
+ .ow-home .ow-columns { margin-top:16px; gap:16px; }
+}
+@media(max-width:600px) {
+ .ow-home .ow-header { flex-direction:row; align-items:center; }
+ .ow-home .ow-header .page-actions { width:auto; flex:none; }
+ .ow-home .ow-search-sources > summary > span { display:none; }
+ .ow-home .ow-active-context > button { max-width:132px; }
+ .ow-home .ow-tool { min-height:80px; }
+}
