@@ -135,7 +135,9 @@ export function wa(s) {
   }
   // – — ' ' " " … € NON si toccano: stanno in WinAnsi e sono la
   // punteggiatura vera dei nostri testi.
-  if (/\p{L}/u.test(src) && !/[A-Za-z0-9\u00C0-\u00FF]/.test(out)) return '(testo in caratteri non stampabili)';
+  // Qualunque lettera o cifra rimasta conta, anche le lettere WinAnsi fuori
+  // da Latin-1 (Š š Ž ž Œ œ Ÿ): «Šš» è un nome stampabile, non un segnaposto.
+  if (/\p{L}/u.test(src) && !/[\p{L}\p{N}]/u.test(out)) return '(testo in caratteri non stampabili)';
   return out;
 }
 

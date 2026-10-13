@@ -139,7 +139,7 @@ await guard('canale grezzo («bank», «stripe»)', 'owners/rendiconto.js',
 // ═══ Lacuna 4: i nomi non latini traslitterati, mai vuoti ══════════════════
 await guard('wa() che cancella invece di traslitterare', '_pdfbrand.js',
   [['    out += latinOf(ch, chars[i - 1], chars[i + 1]);', '    out += \'\';'],
-    ["if (/\\p{L}/u.test(src) && !/[A-Za-z0-9\\u00C0-\\u00FF]/.test(out)) return '(testo in caratteri non stampabili)';", '']],
+    ["if (/\\p{L}/u.test(src) && !/[\\p{L}\\p{N}]/u.test(out)) return '(testo in caratteri non stampabili)';", '']],
   async (mod) => mod.wa('Иван Петров') === 'Ivan Petrov' && mod.wa('Şükrü Yılmaz') === 'Sükrü Yilmaz' && mod.wa('王小明') !== '');
 
 console.log(`\nRendiconto · mutazioni: ${passed} passed, ${failed} failed`);

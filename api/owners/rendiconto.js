@@ -49,9 +49,25 @@
 //   sending «vecchio»   la funzione è morta a metà: se stava già spedendo è
 //                       incerto, altrimenti si riprova.
 // Ogni proprietario ha il suo try/catch: un guasto non ferma gli altri. Se
-// il tempo della funzione non basta, i proprietari restanti sono «rimandati»
-// e lo dice il recap (un giro dopo li fa: chi è già `sent` si salta).
+// lo stato d'invio non si riesce a SCRIVERE (Firestore giù, regole, una
+// risposta persa) l'email NON parte: senza lo stato il giro dopo la
+// rispedirebbe (prima si procedeva lo stesso, e un 503 momentaneo bastava
+// per due rendiconti dello stesso mese). È un «non partito» come gli altri.
 // Un'anteprima non conta come invio: passando ad 'auto' il mese parte.
+//
+// IL TEMPO (revisione del 13/10): prima ogni proprietario prenotava il caso
+// peggiore intero (30s) PRIMA di cominciare, e un giro smetteva di prendere
+// proprietari a 24s su 60 — con 12 proprietari e Gmail a 3s ne partivano 8.
+// Ora si chiede il tempo a ogni passo, quando serve: poco per le letture,
+// poi — prima dello stato d'invio e di nuovo subito prima di archivio ed
+// email — quanto basta per l'email (`EMAIL_MS` + margine). Se dopo lo stato
+// il tempo non c'è più, il mese resta `failed` col motivo «tempo» e il giro
+// dopo lo riprende; chi non è nemmeno cominciato è «rimandato», senza stato
+// scritto, e dal primo rimandato in poi non si legge più nessuno (il tempo
+// non torna). L'archivio su Storage ha il tetto di quello che resta oltre
+// l'email (il PDF viaggia comunque in allegato). Il recap dice «riprova
+// domani da solo» SOLO se domani c'è un giro (`CRON_DAYS`, legato a
+// vercel.json da un test).
 //
 // LETTURE MIRATE: prima si leggevano 400 immobili, 800 contratti, 3000 rate
 // e 600 manutenzioni SENZA ordine — oltre il tetto le rate di un palazzo
@@ -87,7 +103,13 @@ const MODES = ['off', 'preview', 'auto'];
 const EMAIL_MS = Number(process.env.RENDICONTO_EMAIL_MS) > 0 ? Number(process.env.RENDICONTO_EMAIL_MS) : 15000;
 const UPLOAD_MS = 10000;
 const STALE_SENDING_MS = 3 * 60 * 1000;   // la funzione vive al più 60s: dopo 3' un 'sending' è morto
-const OWNER_COST_MS = 30000;              // letture + PDF + upload (10s) + email (15s), nel caso peggiore
+const READ_COST_MS = 6000;                // letture mirate di un proprietario + il rendiconto puro
+const SEND_MARGIN_MS = 5000;              // stato + PDF + archivio (col tetto di ciò che resta) + `sent`
+// I giorni del mese in cui il cron gira («10 6 <giorni> * *» in vercel.json).
+// Il recap promette un nuovo tentativo automatico solo se domani è fra
+// questi: tests/rendiconto/tempo.mjs li confronta col file vero, così la
+// frase non può dire «riprova domani» con un cron mensile.
+export const CRON_DAYS = [1];
 const adminEmail = () => process.env.ADMIN_NOTIFY_EMAIL || process.env.GMAIL_USER || 'valentino@boom-rome.com';
 
 const str = (v) => (v == null ? '' : String(v).trim());
@@ -103,6 +125,12 @@ export function eur(n) {
   const v = round2(Number(n) || 0), neg = v < 0;
   const [i, d] = Math.abs(v).toFixed(2).split('.');
   return (neg ? '-' : '') + '€' + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (d === '00' ? '' : ',' + d);
+}
+// Il numero degli arretrati: la somma, «da verificare» quando ci sono rate
+// scadute ma nessun importo leggibile — mai «€0» con una rata non pagata.
+export function arrearsText(t) {
+  if (!t || !t.arrearsCount) return eur(0);
+  return t.arrears > 0 ? eur(t.arrears) : 'da verificare';
 }
 export const itDate = (v) => { const x = PALAZZO.day(v); return x ? `${x.slice(8, 10)}/${x.slice(5, 7)}/${x.slice(0, 4)}` : ''; };
 const dm = (v) => { const x = PALAZZO.day(v); return x ? `${x.slice(8, 10)}/${x.slice(5, 7)}` : ''; };
@@ -167,6 +195,17 @@ function reminderOf(r) {
   // Un link della rata o un sollecito mandato dal Palazzo: in entrambi i casi
   // BOOM ha chiesto il pagamento, e la proprietaria lo deve leggere.
   return d ? ` · pagamento chiesto all'inquilino il ${itDate(d)}` : '';
+}
+// Tutto ciò che non è pagato, scaduto o da pagare: in verifica da BOOM, col
+// perché quando lo si sa (un bonifico segnalato, un pagamento in corso).
+function reviewText(r) {
+  const p = r.payment || {};
+  if (r.state === 'reported') {
+    const d = PALAZZO.day(p.tenantReportDate || p.tenantReportedAt);
+    return `bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}, in verifica da BOOM`;
+  }
+  if (r.state === 'processing') return 'pagamento in corso (carta o addebito SEPA), in verifica da BOOM';
+  return 'in verifica da BOOM';
 }
 function unitNames(p) {
   const interno = PALAZZO.unitOf(p), scala = PALAZZO.scalaOf(p), f = PALAZZO.floorOf(p);
@@ -264,31 +303,38 @@ export function ownerReport(o) {
 
     // ── la rata del mese ──
     const lines = [];
-    let collectedOneri = 0;
+    let collectedOneri = 0, coverLate = null;
     for (const r of um.rows) {
       const p0 = r.payment || {};
       if (r.amount == null) unknownAmounts++;
-      if (r.month !== month) {
-        lines.push({ text: `Coperto dalla ${payLabel(r)}${r.state === 'paid' ? ', pagata' : ''} — importo nel rendiconto di ${mese(r.month)}`, amount: null, tone: 'muted' });
-        continue;
-      }
       const label = cap(payLabel(r)), split = splitOf(r);
       const sub = split ? `canone ${eur(split.rent)} + oneri accessori ${eur(split.oneri)}` : '';
+      if (r.month !== month) {
+        // Una rata di più mesi (trimestrale) nata in un altro mese. Pagata o
+        // ancora da pagare: basta dire dove sta l'importo. Ma se è SCADUTA o
+        // in verifica lo si dice qui come per la rata del mese — prima la
+        // sezione mostrava solo «Coperto dalla rata…» in grigio, mentre il
+        // riepilogo contava €3.000 di arretrati e diceva «non hanno pagato».
+        if (r.state === 'overdue') {
+          if (!coverLate) coverLate = { label: payLabel(r), due: r.dueDate };
+          lines.push({ text: `${label} · NON PAGATA, scaduta il ${itDate(r.dueDate)}${reminderOf(r)}`, amount: r.amount, tone: 'late', sub });
+        } else if (r.state === 'paid' || r.state === 'due') {
+          lines.push({ text: `Coperto dalla ${payLabel(r)}${r.state === 'paid' ? ', pagata' : ''} — importo nel rendiconto di ${mese(r.month)}`, amount: null, tone: 'muted' });
+        } else {
+          lines.push({ text: `${label} · ${reviewText(r)}`, amount: r.amount, tone: 'review', sub });
+        }
+        continue;
+      }
       if (r.state === 'paid') {
         const via = viaText(p0);
         lines.push({ text: `${label} · pagata${r.paidDate ? ' il ' + itDate(r.paidDate) : ''}${via ? ' · ' + via : ''}`, amount: r.amount, tone: 'paid', sub });
         if (split) collectedOneri = round2(collectedOneri + split.oneri);
       } else if (r.state === 'overdue') {
         lines.push({ text: `${label} · NON PAGATA, scaduta il ${itDate(r.dueDate)}${reminderOf(r)}`, amount: r.amount, tone: 'late', sub });
-      } else if (r.state === 'reported') {
-        const d = PALAZZO.day(p0.tenantReportDate || p0.tenantReportedAt);
-        lines.push({ text: `${label} · bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}, in verifica da BOOM`, amount: r.amount, tone: 'review', sub });
-      } else if (r.state === 'processing') {
-        lines.push({ text: `${label} · pagamento in corso (carta o addebito SEPA), in verifica da BOOM`, amount: r.amount, tone: 'review', sub });
       } else if (r.state === 'due') {
         lines.push({ text: `${label} · da pagare${r.dueDate ? ' entro il ' + itDate(r.dueDate) : ''}`, amount: r.amount, tone: 'due', sub });
       } else {
-        lines.push({ text: `${label} · in verifica da BOOM`, amount: r.amount, tone: 'review', sub });
+        lines.push({ text: `${label} · ${reviewText(r)}`, amount: r.amount, tone: 'review', sub });
       }
     }
     if (!um.rows.length && um.occupied && !placeholder) {
@@ -328,13 +374,20 @@ export function ownerReport(o) {
     if (oneriYtd > 0) facts.push({ k: `Oneri accessori versati nel ${yr}`, v: eur(oneriYtd) });
 
     const ar = PALAZZO.arrearsOf(ctx, p);
+    // Una rata scaduta senza importo leggibile è un arretrato lo stesso: conta
+    // nel numero, non nella somma. Serve per non scrivere «Nessun arretrato»
+    // accanto a «non hanno pagato» (il totale in euro, da solo, diceva 0).
+    const arUnknown = rows.filter((r) => r.state === 'overdue' && r.amount == null).length;
     sections.push({
       id: str(p.id), ...names, address: clip(p.address, 90), interno: PALAZZO.unitOf(p),
       state: um.state, placeholder, tenants: um.tenants, landlordName: placeholder ? '' : clip(lease && lease.landlordName, 90),
       rent, oneri, facts, lines,
       expected: um.expected, collected: um.collected, collectedOneri, cashOther,
-      arrears: ar.amount, arrearsCount: ar.count, arrearsOld: round2(ar.amount - (um.lateAmount || 0)),
-      dueDate: (um.rows.find((r) => r.month === month && r.dueDate) || {}).dueDate || '',
+      arrears: ar.amount, arrearsCount: ar.count, arrearsUnknown: arUnknown, arrearsOld: round2(ar.amount - (um.lateAmount || 0)),
+      dueDate: (um.rows.find((r) => r.month === month && r.dueDate) || {}).dueDate || (coverLate && coverLate.due) || '',
+      // Il mese non ha una rata sua ma è coperto da una rata scaduta di più
+      // mesi: nel riepilogo si dice QUALE («rata da settembre a novembre»).
+      lateCover: !um.rows.some((r) => r.month === month && r.state === 'overdue') && coverLate ? coverLate.label : '',
       reportDate: (() => { const r = um.rows.find((x) => x.state === 'reported'); return r ? PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt) : ''; })(),
     });
   }
@@ -369,7 +422,8 @@ export function ownerReport(o) {
   const sum = (k) => round2(sections.reduce((a, s) => a + (s[k] || 0), 0));
   const totals = {
     expected: sum('expected'), collected: sum('collected'), collectedOneri: sum('collectedOneri'),
-    arrears: sum('arrears'), arrearsOld: sum('arrearsOld'), cashIn, cashOther: sum('cashOther'), unknownAmounts,
+    arrears: sum('arrears'), arrearsCount: sum('arrearsCount'), arrearsUnknown: sum('arrearsUnknown'),
+    arrearsOld: sum('arrearsOld'), cashIn, cashOther: sum('cashOther'), unknownAmounts,
     units: sections.length, vacant: vacant.length, before: before.length,
   };
   const pick = (f) => sections.filter(f);
@@ -388,13 +442,18 @@ export function ownerReport(o) {
   const nm = (s) => s.short;
   const brief = [];
   if (lists.paid.length) brief.push(`Hanno pagato: ${lists.paid.map(nm).join(', ')}.`);
-  if (lists.late.length) brief.push(`Non hanno pagato la rata di ${mese(month)}: ${lists.late.map((s) => nm(s) + (s.dueDate ? ` (scaduta il ${itDate(s.dueDate)})` : '')).join(', ')}.`);
+  const lateWhy = (s) => (s.dueDate || s.lateCover ? ` (${[s.lateCover, s.dueDate ? 'scaduta il ' + itDate(s.dueDate) : ''].filter(Boolean).join(', ')})` : '');
+  if (lists.late.length) brief.push(`Non hanno pagato la rata di ${mese(month)}: ${lists.late.map((s) => nm(s) + lateWhy(s)).join(', ')}.`);
   if (lists.review.length) brief.push(`In verifica da BOOM: ${lists.review.map((s) => nm(s) + (s.reportDate ? ` (bonifico segnalato il ${itDate(s.reportDate)})` : '')).join(', ')}.`);
   if (lists.due.length) brief.push(`Da pagare entro la scadenza: ${lists.due.map((s) => nm(s) + (s.dueDate ? ` (entro il ${itDate(s.dueDate)})` : '')).join(', ')}.`);
   if (lists.placeholder.length) brief.push(`Contratto in arrivo da BOOM: ${lists.placeholder.map(nm).join(', ')}.`);
   if (lists.arrearsOld.length) brief.push(`Arretrati di altri mesi: ${eur(totals.arrearsOld)} (${lists.arrearsOld.map(nm).join(', ')}).`);
   if (vacant.length) brief.push(`Liberi nel mese: ${vacant.map((v) => v.short + (v.incoming ? ` (nuovo contratto dal ${itDate(v.incoming)})` : '')).join(', ')}.`);
-  if (!totals.arrears) brief.push(`Nessun arretrato al ${itDate(asOf)}.`);
+  // «Nessun arretrato» si decide dal NUMERO delle rate scadute, mai dalla
+  // somma: una rata scaduta senza importo farebbe 0 euro e una bugia.
+  if (!totals.arrearsCount) brief.push(`Nessun arretrato al ${itDate(asOf)}.`);
+  else if (!totals.arrears) brief.push(`Arretrati al ${itDate(asOf)}: importo da verificare (${totals.arrearsCount === 1 ? 'una rata scaduta' : totals.arrearsCount + ' rate scadute'} senza importo registrato).`);
+  else if (totals.arrearsUnknown) brief.push(`Arretrati al ${itDate(asOf)}: ${eur(totals.arrears)}, più ${totals.arrearsUnknown === 1 ? 'una rata' : totals.arrearsUnknown + ' rate'} con importo da verificare.`);
 
   const notes = [
     `«Rate di ${mese(month)}»: le rate di competenza del mese; un pagamento arrivato in un altro mese è indicato con la sua data.`,
@@ -403,7 +462,7 @@ export function ownerReport(o) {
   if (hasOneri) notes.push(`Gli oneri accessori sono un acconto mensile pagato insieme al canone, salvo conguaglio: non fanno parte del canone. «Oneri accessori versati»: le rate del ${month.slice(0, 4)} fino a ${mese(month)}, già pagate.`);
   if (viaBoom) notes.push('«Tramite BOOM»: il pagamento è arrivato sul conto di BOOM, non su quello del locatore.');
   if (before.length) notes.push(`Interni presi in gestione da BOOM dopo ${mese(month)}, quindi non compresi: ${before.map((b) => b.short).join(', ')}.`);
-  if (unknownAmounts) notes.push(`${unknownAmounts === 1 ? 'Una rata è' : unknownAmounts + ' rate sono'} senza importo registrato: BOOM le sta verificando.`);
+  if (unknownAmounts) notes.push(unknownAmounts === 1 ? 'Una rata è senza importo registrato: BOOM la sta verificando.' : `${unknownAmounts} rate sono senza importo registrato: BOOM le sta verificando.`);
 
   return { ownerId: o.ownerId, ownerName, ownerEmail, landlordLine, month, label: Mese(month), asOf, placesText, groups,
     sections, vacant, before, totals, lists, brief, notes, hasOneri };
@@ -458,10 +517,12 @@ export async function buildPdf(rep) {
   T(`ARRETRATI AL ${itDate(rep.asOf)}`, col[2], y, 7.5, b.bold, GREY); y -= 19;
   T(eur(t.collected), col[0], y, 16, b.bold, GREEN);
   T(eur(t.expected), col[1], y, 16, b.bold, INK);
-  T(eur(t.arrears), col[2], y, 16, b.bold, t.arrears > 0 ? RED : GREY); y -= 14;
+  T(arrearsText(t), col[2], y, 16, b.bold, t.arrearsCount > 0 ? RED : GREY); y -= 14;
+  const subA = [t.arrearsOld > 0 ? `di cui di altri mesi ${eur(t.arrearsOld)}` : '',
+    t.arrears > 0 && t.arrearsUnknown > 0 ? `più ${t.arrearsUnknown === 1 ? 'una rata' : t.arrearsUnknown + ' rate'} da verificare` : ''].filter(Boolean);
   if (t.collectedOneri > 0) T(`di cui oneri accessori ${eur(t.collectedOneri)}`, col[0], y, 7.5, b.font, GREY);
-  if (t.arrearsOld > 0) T(`di cui di altri mesi ${eur(t.arrearsOld)}`, col[2], y, 7.5, b.font, GREY);
-  if (t.collectedOneri > 0 || t.arrearsOld > 0) y -= 12;
+  subA.forEach((x, i) => T(x, col[2], y - i * 10, 7.5, b.font, GREY));
+  if (t.collectedOneri > 0 || subA.length) y -= 12 + Math.max(0, subA.length - 1) * 10;
   if (round2(t.cashIn) !== round2(t.collected)) {
     para0(`Incassi registrati nel mese, per data di pagamento: ${eur(t.cashIn)}${t.cashOther > 0 ? ' (comprese rate di altri mesi)' : ''}.`, 8, GREY);
   }
@@ -563,14 +624,17 @@ export function emailFor(rep, { preview = false, url = '', mode = null, modeSour
     + tiles([
       { k: `Rate di ${mm} pagate`, v: esc(eur(t.collected)), sub: t.collectedOneri > 0 ? `di cui oneri ${esc(eur(t.collectedOneri))}` : '' },
       { k: 'Dovute nel mese', v: esc(eur(t.expected)) },
-      { k: `Arretrati al ${itDate(rep.asOf)}`, v: esc(eur(t.arrears)) },
+      { k: `Arretrati al ${itDate(rep.asOf)}`, v: esc(arrearsText(t)),
+        sub: t.arrears > 0 && t.arrearsUnknown > 0 ? `più ${t.arrearsUnknown === 1 ? 'una rata' : t.arrearsUnknown + ' rate'} da verificare` : '' },
     ]);
   const L = rep.lists;
-  if (L.late.length) body += fine(`⚠️ <strong>Non hanno pagato la rata di ${esc(mm)}</strong> — ${L.late.map((s) => esc(s.short) + (s.dueDate ? ` (scaduta il ${itDate(s.dueDate)})` : '')).join(', ')}`);
+  const lateWhy = (s) => (s.dueDate || s.lateCover ? ` (${[s.lateCover, s.dueDate ? 'scaduta il ' + itDate(s.dueDate) : ''].filter(Boolean).map(esc).join(', ')})` : '');
+  if (L.late.length) body += fine(`⚠️ <strong>Non hanno pagato la rata di ${esc(mm)}</strong> — ${L.late.map((s) => esc(s.short) + lateWhy(s)).join(', ')}`);
   if (L.arrearsOld.length) body += fine(`⚠️ <strong>Arretrati di altri mesi</strong> — ${esc(eur(t.arrearsOld))}: ${short(L.arrearsOld)}`);
   if (L.review.length) body += fine(`🔎 <strong>In verifica da BOOM</strong> — ${L.review.map((s) => esc(s.short) + (s.reportDate ? ` (bonifico segnalato il ${itDate(s.reportDate)})` : '')).join(', ')}`);
   if (L.placeholder.length) body += fine(`📄 <strong>Contratto in arrivo da BOOM</strong> — ${short(L.placeholder)}`);
-  if (!t.arrears) body += fine(`✅ <strong>Nessun arretrato</strong> al ${itDate(rep.asOf)}`);
+  if (!t.arrearsCount) body += fine(`✅ <strong>Nessun arretrato</strong> al ${itDate(rep.asOf)}`);
+  else if (!t.arrears) body += fine(`⚠️ <strong>Arretrati: importo da verificare</strong> — ${t.arrearsCount === 1 ? 'una rata scaduta' : t.arrearsCount + ' rate scadute'} senza importo registrato, BOOM ${t.arrearsCount === 1 ? 'la' : 'le'} sta verificando`);
   body += rule()
     + (url ? btn(url, 'Apri il rendiconto') : '')
     + fine('Il rendiconto arriva il 1° di ogni mese. Per qualsiasi domanda basta rispondere a questa email.');
@@ -632,12 +696,21 @@ async function loadOwner(ownerId, props) {
 // ── Lo stato d'invio del mese ────────────────────────────────────────────
 // → { go:true, attempts } oppure { go:false, reason }. Un doc del vecchio
 // codice (senza status) è un invio fatto: non si rispedisce.
+// Senza stato scritto l'email NON parte (`state_unavailable`): un 503, una
+// rete caduta, regole che rifiutano, o una creazione riuscita la cui risposta
+// si è persa. Prima si procedeva lo stesso («regole non deployate») e il giro
+// dopo — col cron dei giorni 1–5, il giorno dopo da solo — rimandava lo
+// stesso mese. Il caso della risposta persa lascia un `sending` che invecchia
+// e il giro dopo riprende (fase `building`: l'email non era partita).
 async function claim(docId, { mode, force, now }) {
   const base = { ownerId: docId.split('_').slice(0, -1).join('_'), month: docId.split('_').pop() };
   const fields = { ...base, status: 'sending', phase: 'building', mode, startedAt: now.toISOString(), error: null };
   try { await fsCreate('rendiconti', { ...fields, attempts: 1 }, docId); return { go: true, attempts: 1 }; }
   catch (e) {
-    if (!e.exists) return { go: true, attempts: 1, warn: clip(e.message, 160) };   // regole non deployate: si procede, il recap lo dice
+    if (!e.exists) {
+      const m = /\((\d{3})\)/.exec(String(e.message || ''));
+      return { go: false, reason: 'state_unavailable', http: m ? Number(m[1]) : 0, error: clip(e.message, 160) };
+    }
   }
   const cur = await fsGetVersioned('rendiconti/' + docId);
   if (!cur) return { go: false, reason: 'race' };
@@ -668,6 +741,16 @@ async function mark(docId, fields) {
   }
   return false;
 }
+// Il tempo che resta (un budget di prova senza `left` vale «tutto»).
+const budgetLeft = (b) => (b && typeof b.left === 'function' ? b.left() : Infinity);
+// Domani (ora di Roma) è un giorno di cron? Solo allora il recap promette
+// un nuovo tentativo automatico.
+export function autoRetryTomorrow(now = new Date()) {
+  const today = PALAZZO.day(now);
+  if (!today) return false;
+  const t = new Date(today + 'T12:00:00Z'); t.setUTCDate(t.getUTCDate() + 1);
+  return CRON_DAYS.includes(t.getUTCDate());
+}
 const withTimeout = (p, ms, code) => Promise.race([p, new Promise((_, rej) => setTimeout(() => { const e = new Error(code); e.code = code; rej(e); }, ms))]);
 
 // ── Il giro ──────────────────────────────────────────────────────────────
@@ -689,9 +772,12 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
   const counts = { owners: 0, sent: 0, previews: 0, failed: 0, uncertain: 0, deferred: 0, skippedOff: 0, skippedNoEmail: 0,
     skippedNoActivity: 0, alreadySent: 0, inProgress: 0, parked: 0, totalCollected: 0 };
 
+  let outOfTime = false;
   for (const ownerId of [...byOwner.keys()].sort()) {
     counts.owners++;
-    if (!budget.afford(dry ? 5000 : OWNER_COST_MS)) { counts.deferred++; results.push({ ownerId, skipped: 'deferred' }); continue; }
+    // Poco tempo per cominciare: le letture. Il resto si chiede dopo, quando
+    // serve davvero (prima si prenotavano 30s a testa e si fermava a 24s).
+    if (outOfTime || !budget.afford(dry ? 5000 : READ_COST_MS)) { outOfTime = true; counts.deferred++; results.push({ ownerId, skipped: 'deferred' }); continue; }
     const docId = `${ownerId}_${month}`;
     let claimed = false, phase = 'letture', ownerName = clip((byOwner.get(ownerId)[0] || {}).ownerName, 80);
     try {
@@ -719,27 +805,56 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
         continue;
       }
 
+      // Prima di scrivere lo stato: c'è il tempo per l'email? Se no,
+      // rimandato senza stato scritto (il giro dopo lo fa da capo).
+      if (!budget.afford(EMAIL_MS + SEND_MARGIN_MS)) {
+        outOfTime = true; counts.deferred++; results.push({ ...base, skipped: 'deferred' }); continue;
+      }
+
       // Lo stato del mese: un'anteprima chiesta a mano non lo tocca.
-      let idemWarn = null, attempts = 1;
+      let attempts = 1;
       if (!previewOnly) {
         phase = 'stato';
         const c = await claim(docId, { mode, force, now });
+        if (!c.go && c.reason === 'state_unavailable') {
+          // Non scritto = non spedito: è un «non partito», il giro dopo riprova.
+          counts.failed++;
+          results.push({ ...base, failed: `stato: lo stato d'invio non si è potuto scrivere${c.http ? ` (Firestore ${c.http})` : ''}, email non spedita`,
+            stateHttp: c.http || 0, error: c.error });
+          continue;
+        }
         if (!c.go) {
           const key = c.reason === 'already_sent' ? 'alreadySent' : c.reason === 'uncertain' ? 'parked' : 'inProgress';
           counts[key]++;
           results.push({ ...base, skipped: c.reason, ...(c.error ? { error: c.error } : {}) });
           continue;
         }
-        claimed = !c.warn; idemWarn = c.warn || null; attempts = c.attempts;
+        claimed = true; attempts = c.attempts;
       }
 
       phase = 'pdf';
       const pdfBytes = await buildPdf(rep);
+      // Dopo lo stato: se il tempo per l'email non c'è più, il mese resta
+      // `failed` col motivo «tempo» e il giro dopo lo riprende. Mai un'email
+      // avviata a pochi secondi dal kill della piattaforma: sarebbe incerta.
+      if (!budget.afford(EMAIL_MS + SEND_MARGIN_MS)) {
+        outOfTime = true;
+        if (claimed) await mark(docId, { status: 'failed', phase: 'building', error: 'tempo: finito prima dell\'invio, il giro dopo riprova', failedAt: new Date().toISOString() });
+        counts.deferred++;
+        results.push({ ...base, skipped: 'deferred', after: 'stato' });
+        continue;
+      }
       phase = 'archivio';
       let url = null, storageWarn = null;
       const path = mode === 'preview' ? `rendiconti/${ownerId}/anteprima_${month}.pdf` : `rendiconti/${ownerId}/rendiconto_${month}.pdf`;
-      try { url = await withTimeout(storageUpload(path, pdfBytes, 'application/pdf'), UPLOAD_MS, 'storage_timeout'); }
-      catch (e) { storageWarn = clip(e.message, 160); }   // il PDF viaggia comunque in allegato
+      // L'archivio ha il tempo che resta oltre l'email: col giro stretto si
+      // salta (il PDF viaggia comunque in allegato), mai l'email.
+      const upMs = Math.min(UPLOAD_MS, budgetLeft(budget) - EMAIL_MS - 1000);
+      if (upMs < 1000) storageWarn = 'archivio saltato per mancanza di tempo: il PDF è in allegato';
+      else {
+        try { url = await withTimeout(storageUpload(path, pdfBytes, 'application/pdf'), upMs, 'storage_timeout'); }
+        catch (e) { storageWarn = clip(e.message, 160); }   // il PDF viaggia comunque in allegato
+      }
 
       const mail = emailFor(rep, { preview: mode === 'preview', url, mode, modeSource: base.modeSource, ownerEmail: rep.ownerEmail });
       const att = pdfBytes.length < 8 * 1024 * 1024
@@ -752,7 +867,7 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
       if (mode === 'preview') counts.previews++;
       else { counts.sent++; counts.totalCollected = round2(counts.totalCollected + rep.totals.collected); }
       results.push({ ...base, ownerEmail: rep.ownerEmail, to, deliverTo: mode === 'preview' ? 'admin' : 'owner', ...nums, url, attempts,
-        ...(storageWarn ? { storageWarn } : {}), ...(idemWarn ? { idemWarn } : {}) });
+        ...(storageWarn ? { storageWarn } : {}) });
     } catch (e) {
       // Un proprietario che fallisce non ferma gli altri. Un timeout
       // sull'email è un esito INCERTO: si parcheggia, non si ritenta da solo.
@@ -768,14 +883,19 @@ export async function run({ dry = false, monthOverride = null, onlyOwner = null,
   const news = counts.sent + counts.previews + counts.failed + counts.uncertain + counts.deferred;
   if (!dry && news) {
     const nameOf = (r) => esc(r.ownerName || r.ownerId);
+    // Il nuovo tentativo: «domani da solo» solo se domani c'è un giro del
+    // cron; altrimenti è l'operatore che rilancia. Parole, mai parametri.
+    const again = autoRetryTomorrow(now)
+      ? 'riprova domani da solo, o «Esegui ora» nella Squadra'
+      : 'rilancia «Esegui ora» nella Squadra';
     const lines = [`📒 <b>Rendiconti ${esc(label)}</b>`];
     if (counts.sent) lines.push(`✉️ ${counts.sent} inviati ai proprietari · rate pagate ${esc(eur(counts.totalCollected))}`);
     if (counts.previews) lines.push(`👁 ${counts.previews} anteprime all'operatore (NON inviate): ${results.filter((r) => r.deliverTo === 'admin').map(nameOf).join(', ')}`);
-    results.filter((r) => r.failed).forEach((r) => lines.push(`⛔ Non partito: ${nameOf(r)} — ${esc(r.failed)} (il prossimo giro riprova)`));
-    results.filter((r) => r.uncertain).forEach((r) => lines.push(`❓ Esito incerto: ${nameOf(r)} — controlla la posta inviata, poi ?ownerId=…&force=1 solo se non è partito`));
-    if (counts.deferred) lines.push(`⏳ ${counts.deferred} rimandati per tempo: rilancia «Esegui ora» (chi l'ha già ricevuto non lo riceve due volte)`);
+    results.filter((r) => r.failed).forEach((r) => lines.push(`⛔ Non partito: ${nameOf(r)} — ${esc(r.failed)} (${again})`));
+    results.filter((r) => r.uncertain).forEach((r) => lines.push(`❓ Esito incerto: ${nameOf(r)} — controlla la posta inviata; se non è partito, premi «Rimanda» nel Palazzo`));
+    if (counts.deferred) lines.push(`⏳ ${counts.deferred} rimandati per tempo: ${again} (chi l'ha già ricevuto non lo riceve due volte)`);
     if (counts.skippedNoEmail) lines.push(`⚠️ ${counts.skippedNoEmail} senza email: ${results.filter((r) => r.skipped === 'no_email').map(nameOf).join(', ')}`);
-    if (results.some((r) => r.idemWarn)) lines.push('⚠️ stato d\'invio non scritto (deploy rules!): un rerun potrebbe rispedire');
+    if (results.some((r) => r.stateHttp === 403)) lines.push('⚠️ lo stato d\'invio è rifiutato dalle regole Firestore (rendiconti): finché non si sistemano, i rendiconti non partono');
     if (results.some((r) => r.truncated)) lines.push('⚠️ letture troncate: qualche dato potrebbe mancare');
     if (results.some((r) => r.modeInvalid)) lines.push('⚠️ modalità del rendiconto non valida su qualche proprietario: trattata come anteprima');
     await tgNotify(lines.join('\n'));

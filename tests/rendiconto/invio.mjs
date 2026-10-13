@@ -8,6 +8,10 @@
 //  - un errore certo lascia `failed` col motivo e il giro dopo riprova;
 //  - un timeout (l'email può essere partita) lascia `uncertain` e NON si
 //    ritenta da solo: ci vuole ?force=1;
+//  - lo stato che non si riesce a scrivere (403, 503, risposta persa) =
+//    NESSUNA email: senza stato il giro dopo la rimanderebbe;
+//  - il tempo finito prima dello stato = rimandato senza doc; dopo lo
+//    stato = `failed` col motivo «tempo», e il giro dopo lo riprende;
 //  - un proprietario che fallisce non ferma gli altri;
 //  - Storage giù non ferma l'email (il PDF viaggia in allegato);
 //  - un 'sending' fresco è un giro in corso, uno vecchio si riprende (o è
@@ -118,13 +122,51 @@ const to = (o) => mails().filter((m) => m.to === `own${o.toLowerCase()}@example.
   check('doc del vecchio codice (senza stato): è un invio fatto, non si rispedisce', r.body.counts.alreadySent === 1 && to('A').length === 0);
 }
 
-// ═══ 5. Regole non deployate: si procede e si DICE ═══════════════════════
+// ═══ 5. Lo stato non si scrive: l'email NON parte, e lo si DICE ══════════
+// (revisione del 13/10: prima un errore qualsiasi sulla creazione dello
+// stato — un 503 momentaneo — mandava l'email senza stato, e il giro dopo la
+// rimandava: due rendiconti dello stesso mese.)
 {
   seed();
   globalThis.__fsHook = (method, path) => (method === 'POST' && path === 'rendiconti' ? new Response('{"error":{"code":403}}', { status: 403 }) : null);
   const r = await drive({ ownerId: 'ownA' });
   const res = r.body.results[0];
-  check('create 403 sullo stato: l\'invio parte (mai un mese saltato in silenzio) e lo dice', r.body.counts.sent === 1 && /403/.test(res.idemWarn) && F.telegrams.some((t) => /stato d'invio non scritto/.test(t)));
+  check('create 403 sullo stato: NESSUNA email, «non partito» col motivo (mai in silenzio)',
+    r.body.counts.sent === 0 && r.body.counts.failed === 1 && to('A').length === 0 && /stato d'invio non si è potuto scrivere \(Firestore 403\)/.test(res.failed) && res.stateHttp === 403);
+  check('…Telegram dice che le regole rifiutano lo stato, e il battito è rosso',
+    F.telegrams.some((t) => /rifiutato dalle regole Firestore/.test(t) && /Non partito: Proprietaria A/.test(t)) && F.store.get('teamHealth/rendiconto').ok === false);
+}
+{
+  // Un 503 momentaneo, poi un secondo giro: UNA sola email.
+  seed();
+  let once = true;
+  globalThis.__fsHook = (method, path) => (method === 'POST' && path === 'rendiconti' && once ? (once = false, new Response('{"error":{"code":503,"status":"UNAVAILABLE"}}', { status: 503 })) : null);
+  const r1 = await drive({ ownerId: 'ownA' });
+  check('503 sullo stato: non partito, nessuno stato, nessuna email', r1.body.counts.failed === 1 && !doc('A') && to('A').length === 0);
+  const r2 = await drive({ ownerId: 'ownA' });
+  check('…il giro dopo lo manda: una email in tutto, stato sent', r2.body.counts.sent === 1 && to('A').length === 1 && doc('A').status === 'sent');
+  const r3 = await drive({ ownerId: 'ownA' });
+  check('…e il terzo giro non lo rimanda', r3.body.counts.alreadySent === 1 && to('A').length === 1);
+}
+{
+  // La creazione RIUSCITA la cui risposta si è persa: il doc c'è (sending,
+  // fase building), la risposta dice errore. Niente email; il giro subito
+  // dopo vede un giro «in corso»; quando il sending invecchia si riprende.
+  seed();
+  let once = true;
+  globalThis.__fsHook = (method, path, opts) => {
+    if (method !== 'POST' || path !== 'rendiconti' || !once) return null;
+    once = false;
+    F.put(`rendiconti/ownA_${MONTH}`, { ownerId: 'ownA', month: MONTH, status: 'sending', phase: 'building', mode: 'auto', startedAt: new Date().toISOString(), attempts: 1 });
+    return new Response('upstream reset', { status: 502 });
+  };
+  const r1 = await drive({ ownerId: 'ownA' });
+  check('risposta persa sulla creazione: nessuna email', r1.body.counts.failed === 1 && to('A').length === 0 && doc('A').status === 'sending');
+  const r2 = await drive({ ownerId: 'ownA' });
+  check('…il giro subito dopo: in corso, nessuna email', r2.body.counts.inProgress === 1 && to('A').length === 0);
+  F.put(`rendiconti/ownA_${MONTH}`, { ...doc('A'), startedAt: new Date(Date.now() - 10 * 60 * 1000).toISOString() });
+  const r3 = await drive({ ownerId: 'ownA' });
+  check('…invecchiato (fase building: l\'email non era partita) si riprende: una email', r3.body.counts.sent === 1 && to('A').length === 1 && doc('A').attempts === 2);
 }
 
 // ═══ 6. Un proprietario che fallisce nelle LETTURE non ferma gli altri ═══
@@ -143,15 +185,54 @@ const to = (o) => mails().filter((m) => m.to === `own${o.toLowerCase()}@example.
 }
 
 // ═══ 7. Il tempo che manca: rimandati, detti, mai persi ═══════════════════
+// Un orologio finto: le email «costano» il tempo che diciamo (vedi anche
+// tests/rendiconto/tempo.mjs). EMAIL_MS qui è 150: la soglia prima dello
+// stato è 150 + 5000, quella prima delle letture 6000.
+const vBudget = (total) => { let t = 0; return { tick: (ms) => { t += ms; }, left: () => Math.max(0, total - t), afford: (c) => t + Math.max(0, c || 0) <= total }; };
+const contractsOf = (opts, pid) => {
+  try { const sq = JSON.parse(opts.body).structuredQuery; const v = sq.where.fieldFilter.value; return sq.from[0].collectionId === 'contracts' && v.arrayValue.values.some((x) => x.stringValue === pid); }
+  catch { return false; }
+};
 {
+  // Le letture di B sono lente: dopo, il tempo per l'email non c'è più.
+  // Rimandato PRIMA dello stato: nessun doc scritto per lui.
   seed();
-  let calls = 0;
-  const out = await mod.run({ monthOverride: MONTH, budget: { afford: () => calls++ === 0 } });
-  check('budget finito dopo il primo: il secondo è «rimandato», nessuno stato scritto per lui',
-    out.counts.sent === 1 && out.counts.deferred === 1 && out.results.some((x) => x.skipped === 'deferred') && !doc('B'));
-  check('Telegram dice di rilanciare', F.telegrams.some((t) => /1 rimandati per tempo: rilancia/.test(t)));
+  const b = vBudget(20000);
+  globalThis.__mailHook = () => { b.tick(10000); };
+  globalThis.__fsHook = (method, path, opts) => { if (path === ':runQuery' && contractsOf(opts, 'pB')) b.tick(6000); return null; };
+  const out = await mod.run({ monthOverride: MONTH, budget: b, now: new Date('2026-08-03T06:10:00Z') });
+  check('tempo finito dopo il primo: il secondo è «rimandato», nessuno stato scritto per lui',
+    out.counts.sent === 1 && out.counts.deferred === 1 && out.results.some((x) => x.ownerId === 'ownB' && x.skipped === 'deferred' && !x.after) && !doc('B') && to('B').length === 0);
+  check('Telegram dice di rilanciare «Esegui ora» (il cron mensile non riprova da solo)', F.telegrams.some((t) => /1 rimandati per tempo: rilancia «Esegui ora» nella Squadra/.test(t)));
+  globalThis.__mailHook = null; globalThis.__fsHook = null;
   const r = await drive();
   check('il giro dopo fa il rimandato, non il già inviato', r.body.counts.sent === 1 && r.body.counts.alreadySent === 1 && to('A').length === 1 && to('B').length === 1);
+}
+{
+  // Il tempo è finito prima ancora di leggere B: rimandato senza letture.
+  seed();
+  const b = vBudget(20000);
+  globalThis.__mailHook = () => { b.tick(15500); };
+  const out = await mod.run({ monthOverride: MONTH, budget: b, now: new Date('2026-08-03T06:10:00Z') });
+  const readB = F.queries.some((q) => q.filter && Array.isArray(q.filter.value) && q.filter.value.includes('pB'));
+  check('senza tempo per le letture: rimandato, B nemmeno letto', out.counts.sent === 1 && out.counts.deferred === 1 && !readB && !doc('B'));
+  globalThis.__mailHook = null;
+}
+{
+  // Il tempo finisce DOPO lo stato (la scrittura dello stato di B è lenta):
+  // B resta `failed` col motivo «tempo», nessuna email; il giro dopo lo fa.
+  seed();
+  const b = vBudget(30000);
+  globalThis.__mailHook = () => { b.tick(10000); };
+  globalThis.__fsHook = (method, path) => { if (method === 'POST' && path === 'rendiconti' && doc('A') && doc('A').status === 'sent') b.tick(18000); return null; };
+  const out = await mod.run({ monthOverride: MONTH, budget: b, now: new Date('2026-08-03T06:10:00Z') });
+  check('tempo finito dopo lo stato: B failed col motivo «tempo», rimandato, nessuna email',
+    out.counts.sent === 1 && out.counts.deferred === 1 && doc('B').status === 'failed' && /^tempo/.test(doc('B').error) && to('B').length === 0
+    && out.results.some((x) => x.ownerId === 'ownB' && x.skipped === 'deferred' && x.after === 'stato'));
+  globalThis.__mailHook = null; globalThis.__fsHook = null;
+  const r = await drive();
+  check('…il giro dopo riprende B (secondo tentativo), A non riceve un doppione',
+    r.body.counts.sent === 1 && doc('B').status === 'sent' && doc('B').attempts === 2 && to('A').length === 1 && to('B').length === 1);
 }
 
 // ═══ 8. La porta ════════════════════════════════════════════════════════
