@@ -847,6 +847,14 @@ try {
       assert.ok(!txt.includes('trattativa'), 'le proposte restano all\'operatore');
       assert.equal(await pg.locator('#plz-look').count(), 0, 'l\'aspetto lo dichiara l\'operatore');
       assert.equal(await pg.locator('.plz-win[data-pipe="nego"]').count(), 0, 'nessuna luce di trattativa per la proprietaria');
+      // Anche la striscia dei 12 mesi (title e aria-label, che si sentono e
+      // si leggono al passaggio): le parole della proprietaria, mai quelle
+      // dell'operatore.
+      await pg.locator('[data-plz="view"][data-v="list"]').click();
+      await pg.waitForSelector('.plz-strip .plz-dot');
+      const strip = await pg.locator('.plz-strip .plz-dot').evaluateAll(els => els.map(e => e.getAttribute('aria-label') + ' | ' + e.getAttribute('title')));
+      assert.ok(strip.length >= 12 && !strip.some(t => /non registrata|non ancora generata|Contratto da caricare/i.test(t)), strip.filter(t => /non registrata|generata|caricare/i.test(t)).join(' ; '));
+      assert.ok(strip.some(t => /In verifica da BOOM/.test(t)), 'un mese senza rata alla proprietaria è «In verifica da BOOM»');
       await pg.locator('[data-plz="view"][data-v="3d"]').click();
       await pg.waitForSelector('.plz-unit');
     });

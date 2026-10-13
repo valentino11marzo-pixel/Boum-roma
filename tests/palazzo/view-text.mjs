@@ -113,4 +113,57 @@ ok('rendiconto: a chi è partito, o perché non è partito niente — mai un «f
   assert.equal(T.rendOutcome({ ok: false, error: 'forbidden' }, 'preview').msg, 'Non è partito: forbidden. Riprova fra un attimo.');
 });
 
+// ── Revisione del filone S3 (secondo giro) ─────────────────────────────
+const U12 = { interno: '12', name: 'Viale Esempio 12 int. 12', month: { lease: null, incoming: null, tenants: [] }, property: {} };
+const DEP = { id: 'dep12', state: 'overdue', isRent: false, type: 'deposit-balance', month: '2026-09', amount: 400, dueDate: '2026-09-10' };
+const RENT_ROW = { id: 'p12', state: 'overdue', isRent: true, type: 'rent', month: '2026-10', amount: 800, dueDate: '2026-10-07' };
+ok('il saldo del deposito si chiama così: mai «la rata di settembre» nel messaggio né nella riga', () => {
+  assert.equal(T.rowKind(DEP), 'deposit');
+  assert.equal(T.rowKind(RENT_ROW), 'rent');
+  assert.equal(T.rowKind({ isRent: false, type: 'utility' }), 'other');
+  assert.equal(T.rowKind({ month: '2026-10' }), 'rent', 'una rata senza tipo resta canone (come rent-engine)');
+  assert.equal(T.rowName(DEP), 'Saldo deposito');
+  const en = T.rataText(U12, DEP, 'https://www.boomrome.com/rata?id=dep12&t=x&lang=en', 'Lea Demo', 'en', 'sollecito', false);
+  assert.ok(en.includes('a reminder about the deposit balance (unit 12): €400, due on 10 Sep') && !/\brent\b/.test(en), en);
+  const it = T.rataText(U12, DEP, 'https://www.boomrome.com/rata?id=dep12&t=x&lang=it', 'Lea Demo', 'it', 'sollecito', false);
+  assert.ok(it.includes('ti ricordo il saldo del deposito (int. 12): €400, scaduto il 10 set 2026 e non ci risulta ancora arrivato') && !/\brata\b/.test(it.split('/rata?')[0]), it);
+  const rent = T.rataText(U12, RENT_ROW, 'https://x/rata', 'Lea Demo', 'en', 'sollecito', false);
+  assert.ok(rent.includes('a reminder about the October 2026 rent'), rent);
+  assert.equal(T.debtNote({ oldestMonth: '2026-09', oldestDays: 33, count: 2, rows: [DEP, RENT_ROW] }), 'da settembre 2026 · 33 giorni · 1 rata + saldo deposito');
+});
+ok('mutazione: senza rowKind il saldo del deposito torna «the September 2026 rent» — il controllo cade', () => {
+  const M = mutate("if (!r || r.isRent !== false) return 'rent';", "return 'rent';");
+  const en = M.rataText(U12, DEP, 'https://x/rata', 'Lea Demo', 'en', 'sollecito', false);
+  assert.ok(/September 2026 rent/.test(en), en);
+});
+
+ok('un importo che manca non è «€0»', () => {
+  assert.equal(T.amtText(950), '€950');
+  assert.equal(T.amtText(0), 'importo da verificare');
+  assert.equal(T.amtText(null), 'importo da verificare');
+});
+ok('mutazione: amtText che scrive eur(v) — €0 torna, il controllo cade', () => {
+  const M = mutate("function amtText(v) { return Number(v) > 0 ? eur(v) : 'importo da verificare'; }", 'function amtText(v) { return eur(v || 0); }');
+  assert.equal(M.amtText(0), '€0');
+});
+
+ok('numero ambiguo alla proprietaria: niente «fisso», niente telefonata a Ferrara', () => {
+  const ph = T.phoneOf('0532 123 45 67');
+  assert.equal(T.phoneWhy(ph, false), 'numero da verificare con BOOM: niente WhatsApp');
+  assert.ok(/estero senza prefisso/.test(T.phoneWhy(ph, true)), 'all\'operatore cosa fare');
+  assert.equal(T.telOf(ph), '', 'senza adattatore = vista della proprietaria: nessun tel:');
+  assert.equal(T.telOf(T.phoneOf('+90 532 123 4567')), 'tel:+905321234567');
+});
+ok('mutazione: il tel: anche sull\'ambiguo — il controllo cade', () => {
+  const M = mutate("return ph && ph.e164 && !(ph.ambiguous && !viewAdmin()) ? 'tel:' + ph.e164 : '';", "return ph && ph.e164 ? 'tel:' + ph.e164 : '';");
+  assert.equal(M.telOf(M.phoneOf('0532 123 45 67')), 'tel:+3905321234567');
+});
+
+ok('carta su /rata: per i contratti non presi in carico la carta c\'è già, e lo si dice', () => {
+  assert.ok(T.cardEffect({ on: false }, { any: 3, imported: 0, notImported: 3 }).startsWith('Contratti non presi in carico: su /rata la carta c’è già'));
+  const mixed = T.cardEffect({ on: true, mandateAt: '' }, { any: 3, imported: 1, notImported: 2 });
+  assert.ok(mixed.includes('Senza la data del mandato') && mixed.includes('Gli altri 2 interni, non presi in carico, hanno già la carta'), mixed);
+  assert.equal(T.cardEffect({ on: false }, { any: 2, imported: 2, notImported: 0 }), 'Su /rata gli inquilini degli interni presi in carico vedono solo il bonifico al conto del locatore.');
+});
+
 console.log(`\n${n} check — le parole del Palazzo, senza browser.`);

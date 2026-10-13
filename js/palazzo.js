@@ -1211,7 +1211,7 @@
   // contratti NON presi in carico la carta c'è già (incassa BOOM): l'interruttore
   // vale solo per quelli presi in carico dalla tabella, e lo si dice.
   function cardEffect(d, sum) {
-    var other = sum && sum.notImported ? (sum.notImported === 1 ? ' L’interno non preso in carico ha già la carta su /rata (incassa BOOM).' : ' Gli ' + sum.notImported + ' interni non presi in carico hanno già la carta su /rata (incassa BOOM).') : '';
+    var other = sum && sum.notImported ? (sum.notImported === 1 ? ' L’altro interno, non preso in carico, ha già la carta su /rata (incassa BOOM).' : ' Gli altri ' + sum.notImported + ' interni, non presi in carico, hanno già la carta su /rata (incassa BOOM).') : '';
     if (sum && sum.any && !sum.imported) return 'Contratti non presi in carico: su /rata la carta c’è già (incassa BOOM). Questo interruttore vale per gli interni presi in carico dalla tabella.';
     return (!d.on ? 'Su /rata gli inquilini degli interni presi in carico vedono solo il bonifico al conto del locatore.'
       : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.'
@@ -2173,7 +2173,8 @@
   var API = { configure: configure, render: render, mount: mount, patch: patch, ui: ui, eur: eur,
     // Le parole della vista, pure: per i test in Node (tests/palazzo/view*.mjs).
     _t: { euroInput: euroInput, fmtPhone: fmtPhone, waNumber: waNumber, punctuality: punctuality, occupiedText: occupiedText, rendOutcome: rendOutcome,
-      periodText: periodText, debtNote: debtNote, eurEn: eurEn, withLang: withLang } };
+      periodText: periodText, debtNote: debtNote, eurEn: eurEn, withLang: withLang,
+      rowKind: rowKind, rowName: rowName, rataText: rataText, amtText: amtText, telOf: telOf, phoneOf: phoneOf, phoneWhy: phoneWhy, cardEffect: cardEffect } };
   if (typeof module === 'object' && module.exports) module.exports = API;
   root.BOOM_PALAZZO_UI = API;
 })(typeof window !== 'undefined' ? window : globalThis);

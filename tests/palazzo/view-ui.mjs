@@ -20,6 +20,20 @@
 //   8. un numero senza prefisso certo: niente WhatsApp, e lo si dice;
 //   9. la proprietaria con una lettura fallita vede «Riprova», mai un
 //      palazzo «tutto libero».
+// Il secondo giro (revisione):
+//  10. il saldo del deposito si chiama così, nella scheda, nell'elenco dei
+//      link e nel messaggio (mai «the September rent»);
+//  11. un importo che manca è «importo da verificare», mai «€0»; l'Andamento
+//      non scrive «incassato €0 su €0» per un mese senza rate;
+//  12. la tabella cambiata dopo la lettura non carica il piano vecchio;
+//  13. la rilettura mirata che fallisce si dice subito (avviso e Riprova);
+//  14. alla proprietaria: il numero ambiguo è «da verificare con BOOM» senza
+//      telefonata, rimborso e contestazione li segue BOOM, la striscia dei 12
+//      mesi parla la sua lingua, i tasti si toccano col pollice;
+//  15. presa in carico senza doppioni (rate scadute, IBAN) e, su telefono,
+//      l'Esito a tutta larghezza;
+//  e per mutazione: senza la rilettura seguita, o senza l'invalidazione del
+//  piano, il difetto torna.
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
@@ -66,6 +80,8 @@ for (const n of [1, 2]) {
   base0.payments.push({ id: 'pay_cs' + n + '_' + M(0), propertyId: 's' + n, contractId: 'cs' + n, type: 'rent', month: M(0), amount: 800, status: 'paid', dueDate: M(0) + '-05', paidDate: M(0) + '-03', paidVia: 'dichiarato' });
 }
 base0.users[0].rendicontoMode = 'auto';
+// int. 12: un telefono, così il sollecito del saldo del deposito ha il suo WhatsApp
+base0.contracts.find(c => c.id === 'c12').tenantPhone = '+39 000 000 0012';
 const admin = base0;
 const landlord = { ...base0, profile: { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo' },
   properties: base0.properties.filter(p => p.ownerId === 'owner-demo'), users: [base0.users[0]] };
@@ -114,6 +130,9 @@ goTo(${JSON.stringify(hash)});
 }
 
 const rendCalls = [];
+// [da, a]: js/palazzo.js servito mutato (le verifiche per mutazione).
+let mutation = null;
+const VIEW_SRC = readFileSync(new URL('../../js/palazzo.js', import.meta.url), 'utf8');
 let ownerError = '';
 const server = createServer(async (req, res) => {
   try {
@@ -136,7 +155,17 @@ const server = createServer(async (req, res) => {
       res.end(JSON.stringify({ ok: true, label: 'Settembre 2026', counts: { previews: url.searchParams.get('preview') ? 1 : 0, sent: url.searchParams.get('force') ? 1 : 0 },
         results: [{ month: M(-1), to: url.searchParams.get('preview') ? 'valentino@boom-rome.com' : 'owner@example.invalid' }] })); return;
     }
-    if (path === '/api/maintenance/guasto' || path === '/api/payments/rata') { res.end(JSON.stringify({ ok: true, links: {}, skipped: {} })); return; }
+    if (path === '/api/maintenance/guasto') { res.end(JSON.stringify({ ok: true, links: {}, skipped: {} })); return; }
+    if (path === '/api/payments/rata') {
+      const b = await body(), links = {};
+      (b.paymentIds || []).forEach(id => { links[id] = 'https://www.boomrome.com/rata?id=' + id + '&t=demo'; });
+      res.end(JSON.stringify({ ok: true, links, skipped: {} })); return;
+    }
+    if (path === '/js/palazzo.js' && mutation) {
+      if (!VIEW_SRC.includes(mutation[0])) throw Error('mutazione senza la riga: ' + mutation[0]);
+      res.setHeader('Content-Type', 'text/javascript');
+      res.end(VIEW_SRC.replace(mutation[0], mutation[1])); return;
+    }
     if (path === '/admin' || path === '/owner') {
       const st = path === '/admin' ? admin : { ...landlord, scopedLoadError: ownerError || null };
       res.setHeader('Content-Type', 'text/html');
@@ -174,6 +203,17 @@ try {
     // SCREENSHOT_DIR=… salva le schermate dei passaggi (1440 e 390).
     const shot = async (name, full = true) => { if (process.env.SCREENSHOT_DIR) { await pg.waitForTimeout(400); await pg.screenshot({ path: join(process.env.SCREENSHOT_DIR, 'view-' + name + '-' + width + '.png'), fullPage: full }); } };
     const closeUnit = async () => { await pg.locator('[data-plz="deselect"]').first().click(); await pg.waitForFunction(() => !document.getElementById('plz-unit-h')); };
+    // La rilettura mirata del palazzo che fallisce (archivio letto al tetto,
+    // le query «in» che non rispondono), avviata dal portal dopo il disegno.
+    const failReread = () => pg.evaluate(() => {
+      window.__dbc = window.__dbc || db.collection;
+      const c0 = window.__dbc;
+      db.collection = c => { const x = c0(c); const w = x.where; x.where = (...a) => { const q = w(...a); q.get = async () => { throw new Error('rete giù'); }; return q; }; return x; };
+      testState.palazzoTruncated = true; testState._plzRuns = {}; renderPage();
+    });
+    const healReread = () => pg.evaluate(() => { if (window.__dbc) db.collection = window.__dbc; testState.palazzoTruncated = false; });
+    const dal0 = M(0) + '-01', al0 = new Date(Date.UTC(+M(11).slice(0, 4), +M(11).slice(5, 7), 0)).toISOString().slice(0, 10);
+    const oneRow = (canone, extra = '') => ['Interno\tPiano\tInquilino\tCanone\tDal\tAl' + (extra ? '\t' + extra.split('=')[0] : ''), ['1', '2', 'Nuovo Demo', canone, it(dal0), it(al0)].concat(extra ? [extra.split('=')[1]] : []).join('\t')].join('\n');
 
     await pg.goto(base + '/admin');
     await pg.waitForSelector('.plz');
@@ -249,6 +289,57 @@ try {
       assert.ok(/fisso, oppure un cellulare estero senza prefisso/i.test(pt), pt);
       assert.ok(/0532 ?123 ?45 ?67/.test(pt) && !pt.includes('+39'), 'scritto com\'è stato dato, senza un prefisso inventato: ' + pt);
       await closeUnit();
+    });
+
+    await check('il saldo del deposito: «Saldo deposito» nella scheda, «saldo deposito» fra i debiti, «deposit balance» nel messaggio — mai «the September rent»', async () => {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('.plz-scard.is-late');
+      const row = pg.locator('.plz-scard.is-late .plz-srow').filter({ hasText: 'Int. 12' });
+      assert.ok(/1 rata \+ saldo deposito/.test(await row.innerText()), await row.innerText());
+      await row.locator('[data-plz="rata"]').click();
+      const wa = pg.locator('#plz-panel li[data-pay="dep12"] .plz-rshare a[href^="https://wa.me/"]').first();
+      await wa.waitFor();
+      const href = decodeURIComponent(await wa.getAttribute('href'));
+      assert.ok(/a reminder about the deposit balance \(unit 12\): €400/.test(href) && !/\brent\b/.test(href.split('/rata?')[0]), href);
+      assert.ok(href.includes('/rata?id=dep12&t=demo&lang=en'), href);
+      assert.equal((await pg.locator('#plz-panel li[data-pay="dep12"] > span').first().innerText()).trim(), 'Saldo deposito');
+      await pg.locator('#plz-panel [data-plz="msg-lang"][data-l="it"]').first().click();
+      const hrefIt = decodeURIComponent(await pg.locator('#plz-panel li[data-pay="dep12"] .plz-rshare a[href^="https://wa.me/"]').first().getAttribute('href'));
+      assert.ok(hrefIt.includes('ti ricordo il saldo del deposito (int. 12): €400, scaduto il') && !/la rata di/.test(hrefIt), hrefIt);
+      await pg.locator('#plz-panel [data-plz="msg-lang"][data-l="en"]').first().click();
+      await closeUnit();
+      if (width === 1440) {
+        await pg.locator('[data-plz="rata-all"]').first().click();
+        await pg.waitForSelector('#plz-ratalist');
+        const items = await pg.locator('#plz-ratalist .plz-rataitem-h').allInnerTexts();
+        const dep = items.find(t => t.includes('Int. 12') && t.includes('€400'));
+        assert.ok(dep && dep.includes('saldo deposito') && !/settembre|agosto|ottobre/.test(dep), items.join(' | '));
+        await pg.locator('[data-plz="rata-all"]').first().click();
+      }
+    });
+
+    await check('un importo che manca non è «€0»: «importo da verificare» in Semplice e nel 3D; l\'Andamento non scrive «€0 su €0»', async () => {
+      await pg.evaluate(id => { testState.payments.find(p => p.id === id).amount = null; BOOM_PALAZZO_UI.patch(); }, 'p5_' + M(0));
+      const due = await pg.locator('.plz-scard').filter({ hasText: 'Devono ancora pagare' }).innerText();
+      assert.ok(/Int\. 5[\s\S]*importo da verificare/.test(due) && !/€0(?![\d,.])/.test(due), due);
+      await pg.locator('[data-plz="view"][data-v="3d"]').click();
+      await pg.waitForSelector('#plz-panel .plz-block');
+      const blk = await pg.locator('#plz-panel .plz-block').filter({ hasText: 'Devono ancora pagare' }).innerText();
+      assert.ok(/Int\. 5[\s\S]*importo da verificare/.test(blk) && !/€0(?![\d,.])/.test(blk), blk);
+      const tips = await pg.locator('.plz-abar').evaluateAll(els => els.map(e => e.getAttribute('aria-label')));
+      assert.ok(tips.length === 12 && !tips.some(t => /€0 su €0/.test(t)) && tips.some(t => /nessuna rata nel mese/.test(t)), tips.join(' | '));
+      assert.ok((await pg.locator('.plz-filter[data-f="free"]').innerText()).includes('Liberi e in arrivo'), 'il filtro conta anche chi arriva, e lo dice');
+      await pg.evaluate(id => { testState.payments.find(p => p.id === id).amount = 950; BOOM_PALAZZO_UI.patch(); }, 'p5_' + M(0));
+    });
+
+    if (width === 1440) await check('la rilettura mirata che fallisce si dice SUBITO (avviso e Riprova), senza aspettare un cambio di mese', async () => {
+      await failReread();
+      await pg.waitForSelector('#plz-load .plz-alert', { timeout: 3000 });
+      assert.ok((await pg.locator('#plz-load').innerText()).includes('Non sono riuscito a rileggere i dati di questo palazzo'));
+      assert.equal(await pg.locator('.plz-issue[data-issue="partial"]').count(), 1, 'e «Da sistemare» lo conta');
+      await healReread();
+      await pg.locator('#plz-load [data-plz="reload"]').click();
+      await pg.waitForFunction(() => !document.querySelector('#plz-load .plz-alert') && !document.querySelector('.plz-issue[data-issue="partial"]'), null, { timeout: 4000 });
     });
 
     await check('la scheda chiusa riporta il focus su ciò che l\'aveva aperta', async () => {
@@ -356,6 +447,68 @@ try {
       await pg.waitForFunction(() => /Viale Esempio/.test(document.getElementById('plz-h1')?.textContent || ''));
     });
 
+    if (width === 1440) await check('presa in carico: la tabella cambiata dopo la lettura non carica il piano vecchio', async () => {
+      await pg.locator('.plz-otools [data-plz="imp-open"]').click();
+      await pg.waitForSelector('.plz-import');
+      await pg.locator('[data-imp="address"]').fill('Via Stantia 3, Roma');
+      await pg.locator('[data-imp="from"]').fill(M(0));
+      await pg.locator('[data-imp="text"]').fill(oneRow('9000'));
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForFunction(() => !document.querySelector('[data-plz="imp-go"]')?.disabled);
+      // corretto il canone senza rileggere: il tasto del piano vecchio sparisce
+      await pg.locator('[data-imp="text"]').fill(oneRow('900'));
+      assert.equal(await pg.locator('#plz-imp-out [data-plz="imp-go"]').count(), 0);
+      assert.ok((await pg.locator('#plz-imp-out').innerText()).includes('Tabella cambiata'));
+      // rete di sicurezza: il testo cambia senza evento (una corsa) e il tasto si preme
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForFunction(() => !document.querySelector('[data-plz="imp-go"]')?.disabled);
+      const w0 = await pg.evaluate(() => writes.length);
+      await pg.evaluate(() => { BOOM_PALAZZO_UI.ui.imp.text = BOOM_PALAZZO_UI.ui.imp.text.replace('\t900\t', '\t9000\t'); });
+      await pg.locator('[data-plz="imp-go"]').click();
+      await pg.waitForTimeout(250);
+      assert.equal(await pg.evaluate(() => writes.length), w0, 'un piano letto da un\'altra tabella non scrive niente');
+      assert.ok((await pg.locator('#plz-imp-out').innerText()).includes('Tabella cambiata'));
+      await pg.locator('[data-plz="imp-close"]').click();
+    });
+
+    await check('presa in carico: le rate scadute e l\'IBAN sbagliato detti una volta; su telefono l\'Esito prende tutta la scheda', async () => {
+      const from = M(-2), dal = from + '-01';
+      const tab = ['Interno\tPiano\tInquilino\tTelefono\tCanone\tDal\tAl\tLocatore\tIBAN',
+        ['1', '2', 'Avviso Demo', '0532 123 45 67', '700', it(dal), it(al0), 'Locatrice Demo', 'IT00X0000000000000000000000'].join('\t')].join('\n');
+      await pg.locator('.plz-otools [data-plz="imp-open"]').click();
+      await pg.waitForSelector('.plz-import');
+      await pg.locator('[data-imp="address"]').fill('Via Avvisi 5, Roma');
+      await pg.locator('[data-imp="from"]').fill(from);
+      await pg.locator('[data-imp="text"]').fill(tab);
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForSelector('.plz-imp-od');
+      const out = await pg.locator('#plz-imp-out').innerText();
+      assert.ok(!/risultan[oa] già scadut/.test(await pg.locator('.plz-imp-msgs').innerText().catch(() => '')), 'la frase delle scadute non ripete il riquadro');
+      assert.ok(/«Pagato il» nella tabella vale solo per la prima rata/.test(await pg.locator('.plz-imp-od').innerText()));
+      const terms = await pg.locator('.plz-imp-terms').allInnerTexts();
+      assert.ok(terms.length && !terms.some(t => /IBAN/.test(t)), terms.join(' | '));
+      assert.ok(/IBAN non valido: non lo carico/.test(await pg.locator('.plz-imp-acc').innerText()), out);
+      await pg.locator('.plz-import').scrollIntoViewIfNeeded();
+      await shot('import-avvisi', false);
+      if (width === 390) {
+        await pg.waitForSelector('.plz-import-tab.pm-cards');
+        const m = await pg.evaluate(() => { const tr = document.querySelector('.plz-import-tab tbody tr'), td = tr.querySelector('td:last-child'); return { tr: tr.getBoundingClientRect().width, td: td.getBoundingClientRect().width }; });
+        assert.ok(m.td >= m.tr * 0.8, 'Esito a tutta larghezza: ' + JSON.stringify(m));
+      }
+      await pg.locator('[data-plz="imp-close"]').click();
+    });
+
+    if (width === 390) await check('carta su /rata a 390: si legge, e dice che gli interni non presi in carico la carta ce l\'hanno già', async () => {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('#plz-card');
+      await pg.locator('#plz-card summary').click();
+      const eff = await pg.locator('#plz-card-effect').innerText();
+      assert.ok(/Gli altri \d+ interni, non presi in carico, hanno già la carta su \/rata/.test(eff), eff);
+      await pg.locator('#plz-card').scrollIntoViewIfNeeded();
+      await shot('carta', false);
+      await pg.locator('#plz-card summary').click();
+    });
+
     await check('un mese tutto prima della gestione BOOM: una riga sola, mai «tutti in regola» né arretrati', async () => {
       await pg.locator('[data-plz="view"][data-v="simple"]').click();
       const v = await pg.locator('select[data-plz="building"] option').evaluateAll(os => os.find(o => /Via Seconda 7/.test(o.textContent)).value);
@@ -406,6 +559,26 @@ try {
       await pg.locator('[data-plz="share"]').click();
     });
 
+    if (width === 1440) await check('mutazioni: senza la rilettura seguita l\'avviso non arriva; senza l\'invalidazione il tasto del piano vecchio resta', async () => {
+      mutation = ['if (root.setTimeout) root.setTimeout(watchLoad, 0);', ''];
+      await pg.goto(base + '/admin');
+      await pg.waitForSelector('.plz');
+      await failReread();
+      await pg.waitForTimeout(1200);
+      assert.equal(await pg.locator('#plz-load .plz-alert').count(), 0, 'il difetto torna: nessun avviso finché non si cambia mese');
+      mutation = ['      if (ui.imp.parsed || ui.imp.plan) {\n        ui.imp.parsed = null; ui.imp.plan = null;', '      if (false) {'];
+      await pg.goto(base + '/admin');
+      await pg.waitForSelector('.plz');
+      await pg.locator('.plz-otools [data-plz="imp-open"]').first().click();
+      await pg.locator('[data-imp="address"]').fill('Via Stantia 3, Roma');
+      await pg.locator('[data-imp="text"]').fill(oneRow('9000'));
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForFunction(() => !document.querySelector('[data-plz="imp-go"]')?.disabled);
+      await pg.locator('[data-imp="text"]').fill(oneRow('900'));
+      assert.equal(await pg.locator('#plz-imp-out [data-plz="imp-go"]:not([disabled])').count(), 1, 'il difetto torna: il tasto del piano vecchio resta');
+      mutation = null;
+    });
+
     // ── La proprietaria con una lettura fallita ────────────────────────
     ownerError = 'Non sono riuscito a leggere contratti e rate.';
     await pg.goto(base + '/owner?page=');
@@ -432,7 +605,39 @@ try {
       const wa = decodeURIComponent(await pg.evaluate(() => __opened.at(-1)));
       assert.ok(wa.startsWith('https://wa.me/393313251961?text=') && wa.includes('Viale Esempio 12, int. 5'), wa);
       assert.equal(await pg.locator('#plz-card, [data-plz="pwd-link"], [data-plz="rend-mode"], [data-plz="imp-open"], #plz-panel input[data-plz-file]').count(), 0);
+      // i tasti della proprietaria si toccano col pollice
+      const hs = await pg.evaluate(() => ['#plz-panel [data-plz="inbox"]', '[data-plz="prev"]', '[data-plz="next"]'].map(q => { const r = document.querySelector(q).getBoundingClientRect(); return [q, Math.round(r.height), Math.round(r.width)]; }));
+      assert.ok(hs[0][1] >= 44 && hs[1][1] >= 40 && hs[1][2] >= 40 && hs[2][1] >= 40, JSON.stringify(hs));
       await pg.locator('[data-plz="deselect"]').first().click();
+    });
+    await check('proprietaria: numero ambiguo «da verificare con BOOM» e senza telefonata; rimborso e contestazione li segue BOOM; la striscia del segnaposto parla la sua lingua', async () => {
+      await pg.locator('.plz-win[data-id="u6"]').scrollIntoViewIfNeeded();
+      await pg.locator('.plz-win[data-id="u6"]').click();
+      const person = pg.locator('#plz-panel .plz-person').first();
+      await person.waitFor();
+      const pt = await person.innerText();
+      assert.ok(/numero da verificare con BOOM/i.test(pt) && !/fisso/i.test(pt) && /0532 ?123 ?45 ?67/.test(pt), pt);
+      assert.equal(await person.locator('a[href^="tel:"]').count(), 0, 'mai una telefonata a Ferrara');
+      await closeUnit();
+      await pg.evaluate(ids => {
+        Object.assign(testState.payments.find(p => p.id === ids[0]), { refundedAt: new Date().toISOString(), refundedFull: true });
+        testState.payments.find(p => p.id === ids[1]).disputeStatus = 'needs_response';
+        BOOM_PALAZZO_UI.patch();
+      }, ['p1_' + M(0), 'p4_' + M(0)]);
+      for (const [u, want, never] of [['u1', 'pagamento con carta rimborsato: lo sta verificando BOOM', /verifica con l’inquilino/], ['u4', 'contestazione sul pagamento con carta: la segue BOOM', /Stripe/]]) {
+        await pg.locator('.plz-win[data-id="' + u + '"]').scrollIntoViewIfNeeded();
+        await pg.locator('.plz-win[data-id="' + u + '"]').click();
+        await pg.waitForSelector('#plz-unit-h');
+        const rows = await pg.locator('#plz-panel .plz-rows').first().innerText();
+        assert.ok(rows.includes(want) && !never.test(rows), rows);
+        await closeUnit();
+      }
+      await pg.locator('.plz-win[data-id="u14"]').scrollIntoViewIfNeeded();
+      await pg.locator('.plz-win[data-id="u14"]').click();
+      await pg.waitForSelector('#plz-panel .plz-strip .plz-dot');
+      const labs = await pg.locator('#plz-panel .plz-strip .plz-dot').evaluateAll(els => els.map(e => e.getAttribute('aria-label') + ' | ' + e.getAttribute('title')));
+      assert.ok(labs.length === 12 && labs.every(t => /Contratto in arrivo da BOOM/.test(t)) && !labs.some(t => /Rata non registrata/.test(t)), labs.join(' ; '));
+      await closeUnit();
     });
     await context.close();
   }
