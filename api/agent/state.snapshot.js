@@ -29,6 +29,9 @@ export default async function handler(req, res) {
 
 export async function snapshot(scope) {
   const out = { ts: new Date().toISOString() };
+  // I contratti servono a due sezioni: una lettura sola.
+  let contractsP = null;
+  const contractsAll = () => (contractsP = contractsP || fsListAll('contracts'));
 
   if (scope === 'all' || scope === 'leads') {
     const recent = await fsList('leads', { orderBy: { field: 'createdAt', direction: 'DESCENDING' }, limit: 50 });
@@ -48,7 +51,7 @@ export async function snapshot(scope) {
 
   if (scope === 'all' || scope === 'contracts') {
     // Tutti i contratti (a pagine per nome), mai «i primi 100».
-    const contractsR = await fsListAll('contracts');
+    const contractsR = await contractsAll();
     const contracts = contractsR.docs;
     const now = Date.now();
     const exp = (c) => c.endDate ? Math.round((new Date(c.endDate).getTime() - now) / 86400000) : null;
@@ -70,7 +73,7 @@ export async function snapshot(scope) {
     // una rata tutta prima della gestione BOOM (property.gestioneDal): la
     // fotografia per Homie non conta arretrati che il Palazzo non conta.
     const [paymentsR, propertiesR, contractsR] = await Promise.all([
-      fsListOpenPayments(), fsListAll('properties'), fsListAll('contracts'),
+      fsListOpenPayments(), fsListAll('properties'), contractsAll(),
     ]);
     const propById = {}; propertiesR.docs.forEach(p => { propById[p.id] = p; });
     const contractById = {}; contractsR.docs.forEach(c => { contractById[c.id] = c; });
