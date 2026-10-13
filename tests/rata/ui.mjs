@@ -138,12 +138,21 @@ await check('segnalato: testo neutro per i co-intestatari, conto del locatore, e
   await pg.locator('#send').click();
   await pg.waitForSelector('.status h2');
   const txt = await pg.locator('.status').innerText();
-  assert.ok(txt.includes('A bank transfer') && txt.includes('was reported') && txt.includes('landlord') && !/you reported/i.test(txt), txt);
+  assert.ok(txt.includes('A bank transfer made on ') && txt.includes('was reported') && txt.includes('landlord') && !/you reported/i.test(txt), txt);
   await pg.locator('#more').click();
   await pg.waitForSelector('#f');
+  // La seconda metà, coi valori proposti: si manda «another» e un nonce NUOVO
+  // (il server la tiene); un errore e il nuovo invio riusano lo STESSO nonce.
+  nextError = { status: 503, error: 'unavailable' };
+  await pg.locator('#send').click();
+  await pg.waitForFunction(() => document.getElementById('err').textContent.length > 0);
   await pg.locator('#send').click();
   await pg.waitForSelector('.status ul li');
   assert.equal(await pg.locator('.status ul li').count(), 2, 'le due segnalazioni, elencate');
+  const sent = calls.filter(c => c.op === 'report' && c.id === 'off').slice(-3);
+  assert.ok(/^[0-9a-f]{24}$/.test(sent[0].nonce) && sent[0].another === false, 'primo modulo: nonce, non «another»');
+  assert.ok(sent[1].another === true && sent[1].nonce !== sent[0].nonce, 'secondo modulo: «another» e nonce nuovo');
+  assert.equal(sent[2].nonce, sent[1].nonce, 'il nuovo invio dopo un errore riusa lo stesso nonce');
   await shot(pg, 'reported');
   await ctx.close();
 });

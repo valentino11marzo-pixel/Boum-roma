@@ -11,13 +11,18 @@
 //                 mai chi abita lì), se la carta è disponibile e con quale
 //                 commissione (DETTA prima), il conto del contratto per il
 //                 bonifico se il contratto lo porta
-//   op:'report'   { id, t, date?, note?, proof?{base64,type,name}, company }
+//   op:'report'   { id, t, date?, note?, proof?{base64,type,name}, nonce?,
+//                   another?, company }
 //                 → "ho pagato con bonifico": la rata diventa SEGNALATA
 //                 (tenantReported, come da /casa), mai pagata — l'incasso lo
 //                 registra un umano che ha visto i soldi. Una seconda
-//                 segnalazione con contenuto NUOVO (l'altra metà di un
-//                 co-intestatario, la ricevuta mancante) si ACCODA in
-//                 tenantReports; una identica non raddoppia niente
+//                 segnalazione (l'altra metà di un co-intestatario, la
+//                 ricevuta mancante) si ACCODA in tenantReports. Il doppio
+//                 tocco non raddoppia niente: la pagina manda un `nonce` per
+//                 ogni modulo aperto e lo stesso nonce è la stessa
+//                 segnalazione — anche con contenuto identico a un'altra (due
+//                 metà pagate lo stesso giorno, coi valori proposti, sono DUE
+//                 bonifici). Senza nonce vale il confronto del contenuto
 //   op:'withdraw' { id, t }                  → annulla una segnalazione sbagliata
 //   op:'links'    Bearer admin { paymentIds[] } → { links: {id: url}, skipped }
 //
@@ -50,7 +55,7 @@ import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { verifyPayToken, payToken, payLink } from './_token.js';
 import { payCausale } from './_ref.js';
-import { paymentLabel, feeFor } from './pay.js';
+import { paymentLabel, feeFor, checkoutRecorded } from './pay.js';
 import RENT from '../../js/rent-engine.js';
 
 const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
@@ -60,6 +65,11 @@ const PROOF_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'we
 // terzo in più: 3 MB di file sono il tetto onesto (le foto la pagina le
 // riduce prima, un PDF di una ricevuta ci sta largo).
 const MAX_PROOF = 3 * 1024 * 1024;
+// Il nonce del modulo: lo genera la pagina all'apertura, ne vale la forma.
+const NONCE_RE = /^[A-Za-z0-9_-]{8,64}$/;
+// «Segnala un altro bonifico» da una pagina vecchia (senza nonce): due invii
+// identici a meno di due minuti sono un doppio tocco, oltre sono due bonifici.
+const DOUBLE_TAP_MS = 2 * 60_000;
 // Quante segnalazioni sulla stessa rata: due metà, una ricevuta mandata dopo,
 // un errore. Oltre, si parla con BOOM invece di accumulare.
 export const MAX_REPORTS = 6;
@@ -189,7 +199,10 @@ export function rataView(p, { property, contract, feeStats, today, contractError
     paidByCard: state === 'paid' && String(pay.paidVia || '') === 'stripe',
     reportedAt: state === 'reported' ? isoOf(pay.tenantReportedAt) : '',
     reportedDate: state === 'reported' ? ymd(pay.tenantReportDate) : '',
-    hasProof: state === 'reported' && (!!pay.proofUrl || reports.some(r => !!r.proofUrl)),
+    // La ricevuta delle segnalazioni IN CORSO: dall'elenco quando c'è (una
+    // ricevuta rimasta in testa da una segnalazione revocata non conta),
+    // dai campi in testa solo per le segnalazioni senza elenco.
+    hasProof: state === 'reported' && (reports.length ? reports.some(r => !!r.proofUrl) : !!pay.proofUrl),
     // Le segnalazioni (date e ricevuta sì, note no: le ha scritte chi
     // segnalava, la pagina la apre anche il co-intestatario).
     reports: reports.map(r => ({ date: ymd(r.date), hasProof: !!r.proofUrl })),
@@ -222,8 +235,14 @@ async function readRata(id) {
 // incassato, la segnalazione non si scrive (si dice di non pagare ancora).
 // Senza Stripe configurato o con Stripe giù non si blocca nulla: il webhook
 // alza comunque l'allarme di doppio incasso.
+// La sessione salvata è QUELLA che il webhook ha già registrato come incasso
+// (stripeSessionId uguale): se la rata è di nuovo da pagare, l'ha riaperta un
+// umano (incasso annullato dopo un rimborso) e quella Checkout completata non
+// è un pagamento in arrivo — non blocca il bonifico (checkoutRecorded, una
+// copia sola con link.js e pay.js).
 export async function closeOpenCheckout(p) {
   if (!p || !p.checkoutSessionId || !process.env.STRIPE_SECRET_KEY) return 'none';
+  if (checkoutRecorded(p)) return 'none';
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const s = await stripe.checkout.sessions.retrieve(String(p.checkoutSessionId));
@@ -326,14 +345,23 @@ export default async function handler(req, res) {
     if (!ext || !buf.length || buf.length > MAX_PROOF) return res.status(400).json({ ok: false, error: 'bad_proof' });
   }
   const proofHash = buf ? crypto.createHash('sha256').update(buf).digest('hex').slice(0, 16) : '';
+  const nonce = NONCE_RE.test(String(b.nonce || '')) ? String(b.nonce) : '';
   const prior = view.state === 'reported' ? reportsOf(r.p) : [];
 
   if (view.state === 'reported') {
-    // Una seconda segnalazione: identica (doppio tocco, rete lenta) non
-    // raddoppia niente; con contenuto NUOVO si accoda — l'altra metà del
-    // co-intestatario o la ricevuta mandata dopo non spariscono.
-    const repeat = prior.some(x => ymd(x.date) === reportDate && clip(x.note, 500) === note && String(x.proofHash || '') === proofHash);
-    const nothingNew = !buf && !note && (!b.date || prior.some(x => ymd(x.date) === reportDate));
+    // Una seconda segnalazione. Il doppio tocco (rete lenta, risposta persa)
+    // non raddoppia niente: con il nonce del modulo è la stessa segnalazione
+    // solo se il nonce è lo stesso; da una pagina senza nonce, «un altro
+    // bonifico» identico vale doppio tocco solo entro due minuti, e senza
+    // `another` vale il confronto del contenuto di sempre. Così la metà
+    // dell'altro co-intestatario, pagata lo stesso giorno e segnalata coi
+    // valori proposti, non sparisce più in silenzio.
+    const same = x => ymd(x.date) === reportDate && clip(x.note, 500) === note && String(x.proofHash || '') === proofHash;
+    const recent = x => { const t = Date.parse(String(x.at || '')); return Number.isFinite(t) && Date.now() - t < DOUBLE_TAP_MS; };
+    const repeat = nonce ? prior.some(x => x && x.nonce === nonce)
+      : b.another === true ? prior.some(x => same(x) && recent(x))
+      : prior.some(same);
+    const nothingNew = !nonce && b.another !== true && !buf && !note && (!b.date || prior.some(x => ymd(x.date) === reportDate));
     if (repeat || nothingNew) {
       return res.status(200).json({ ok: true, state: 'reported', already: true, proof: view.hasProof, count: prior.length });
     }
@@ -357,7 +385,8 @@ export default async function handler(req, res) {
     if (!proofUrl) proofFailed = true;
   }
 
-  const entry = { at: new Date().toISOString(), date: reportDate, note, proofUrl, proofName, proofHash: proofUrl ? proofHash : '', via: 'link' };
+  const entry = { at: new Date().toISOString(), date: reportDate, note, proofUrl, proofName, proofHash: proofUrl ? proofHash : '', via: 'link',
+    ...(nonce ? { nonce } : {}) };
   const reports = [...prior, entry].slice(-MAX_REPORTS);
   let fields;
   if (prior.length) {
@@ -366,9 +395,17 @@ export default async function handler(req, res) {
     fields = { tenantReports: reports };
     if (proofUrl && !r.p.proofUrl) { fields.proofUrl = proofUrl; fields.proofName = proofName; }
   } else {
+    // La prima segnalazione di un giro nuovo scrive TUTTA la testa, ricevuta
+    // compresa: dopo una revoca dell'operatore (api/payments/report.js,
+    // review_withdraw) ricevuta ed elenco della segnalazione respinta restano
+    // sul documento, e senza questa riga tornavano a valere come prova della
+    // segnalazione nuova. Ciò che c'era resta, a parte, come storia.
     fields = { tenantReported: true, tenantReportedAt: new Date(), tenantReportDate: reportDate,
-      tenantNotes: note, reportedVia: 'link', tenantReports: reports };
-    if (proofUrl) { fields.proofUrl = proofUrl; fields.proofName = proofName; }
+      tenantNotes: note, reportedVia: 'link', tenantReports: reports,
+      proofUrl: proofUrl || null, proofName: proofUrl ? proofName : null };
+    const stale = Array.isArray(r.p.tenantReports) && r.p.tenantReports.length ? r.p.tenantReports.filter(x => x && typeof x === 'object').slice(-MAX_REPORTS)
+      : r.p.proofUrl ? [{ date: ymd(r.p.tenantReportDate), note: clip(r.p.tenantNotes, 500), proofUrl: r.p.proofUrl, proofName: r.p.proofName || '' }] : [];
+    if (stale.length) fields.tenantReportSuperseded = { at: new Date().toISOString(), reviewId: clip(r.p.tenantReportReviewId, 80) || null, reports: stale };
   }
   try { await fsCommit([{ docPath: 'payments/' + id, fields, precondition: { updateTime: r.version.updateTime } }]); }
   catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }

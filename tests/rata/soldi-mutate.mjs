@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 const MUTATIONS = [
   'card-gate', 'fee-line', 'utc-date', 'second-report', 'withdraw-proof', 'receipt-email', 'double-alarm', 'utc-paid',
   'moneyback-patch', 'moneyback-mine', 'pi-metadata', 'return-rata', 'report-rome-default',
+  'revoked-proof', 'proof-from-head', 'recorded-session', 'recorded-session-rata', 'unverified-card', 'nonce-ignored',
+  'double-tap-window', 'pi-lang',
   'engine-moneyback', 'engine-policy', 'engine-review-pay',
 ];
 let failed = 0;

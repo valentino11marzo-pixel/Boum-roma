@@ -28,7 +28,7 @@
 import Stripe from 'stripe';
 import { fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { verifyPayToken, collectionFor } from './_token.js';
-import { rentFee, paymentLabel, payLang, feeFor, intentData, createCheckout, cardContext } from './pay.js';
+import { rentFee, paymentLabel, payLang, feeFor, intentData, createCheckout, cardContext, checkoutRecorded } from './pay.js';
 import RENT from '../../js/rent-engine.js';
 import { existingCheckout } from './_checkout.js';
 
@@ -89,6 +89,7 @@ const T = {
     comingDone: 'L\'operazione su Stripe è completata. Stiamo aggiornando il portale: non occorre pagare di nuovo.',
     stoppedH: 'Pagamento interrotto', stoppedP: 'Il pagamento non risulta ancora confermato. Puoi riprendere dal punto in cui ti sei fermato.', resume: 'Riprendi il pagamento',
     offH: 'Pagamento con carta non attivo', offP: 'Per questa rata si paga con bonifico, al conto indicato nella pagina della rata. Il bonifico non ha commissioni.', toBank: 'Vai al bonifico',
+    unverH: 'Pagamento con carta non disponibile ora', unverP: 'Non riusciamo a verificare adesso se per questa rata si può pagare con carta. Puoi pagare con bonifico dalla pagina della rata, oppure riprovare fra qualche minuto.', retry: 'Riprova',
     unconfH: 'Pagamenti non disponibili', unconfP: 'Il pagamento con carta non è disponibile al momento. Contatta BOOM per assistenza.',
     amountH: 'Importo da verificare', amountP: 'Contatta BOOM per verificare l\'importo prima di effettuare il pagamento.',
     stripeH: 'Pagamento non disponibile', stripeP: 'Non siamo riusciti ad aprire il pagamento. Puoi riprovare più tardi o contattare BOOM.',
@@ -116,6 +117,7 @@ const T = {
     comingDone: 'The operation on Stripe is complete. We’re updating our records: no need to pay again.',
     stoppedH: 'Payment interrupted', stoppedP: 'The payment isn’t confirmed yet. You can pick up where you left off.', resume: 'Resume the payment',
     offH: 'Card payment not available', offP: 'This instalment is paid by bank transfer, to the account shown on your rent page. A bank transfer has no fees.', toBank: 'Go to the bank transfer',
+    unverH: 'Card payment unavailable right now', unverP: 'We can’t check right now whether this instalment can be paid by card. You can pay by bank transfer from your rent page, or try again in a few minutes.', retry: 'Try again',
     unconfH: 'Payments unavailable', unconfP: 'Card payment isn’t available right now. Message BOOM for help.',
     amountH: 'Amount to be checked', amountP: 'Message BOOM to check the amount before paying.',
     stripeH: 'Payment unavailable', stripeP: 'We couldn’t open the payment. You can try again later or message BOOM.',
@@ -155,7 +157,7 @@ function page(lang, title, message, opts = {}) {
   const t = T[lang];
   const href = safeHref(opts.href), context = opts.context, back = safeHref(opts.back);
   const cta = href ? `<a class="action" href="${esc(href)}">${esc(opts.ctaLabel || t.cont)}</a>` : '';
-  const backLink = back && back !== href ? `<a class="back" href="${esc(back)}">${esc(t.back)}</a>` : '';
+  const backLink = back && back !== href ? `<a class="back" href="${esc(back)}">${esc(opts.backLabel || t.back)}</a>` : '';
   const details = context ? `<section class="document" aria-label="${esc(t.details)}">
     <h2>${esc(context.label)}</h2>${context.description ? `<p class="description">${esc(context.description)}</p>` : ''}
     <dl><div><dt>${esc(t.period)}</dt><dd>${esc(context.period || t.unknownPeriod)}</dd></div>
@@ -271,6 +273,12 @@ export default async function handler(req, res) {
   // Carta spenta per questa rata (contratto del Palazzo senza mandato
   // all'incasso): nessuna Checkout, la strada è il bonifico.
   if (!policy.available) {
+    // Contratto illeggibile (guasto momentaneo): niente Checkout, ma nemmeno
+    // «si paga con bonifico» come fosse la regola — si dice che non si sa e
+    // si può riprovare (il link stabile).
+    if (policy.reason === 'unverified') {
+      return html(res, 503, paymentPage(t.unverH, t.unverP, { href: rataUrl, ctaLabel: t.toBank, back: stableUrl, backLabel: t.retry }));
+    }
     return html(res, 200, paymentPage(t.offH, t.offP, { href: rataUrl, ctaLabel: t.toBank }));
   }
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -336,7 +344,9 @@ export default async function handler(req, res) {
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const prior = await existingCheckout(stripe, doc, kind, id, cents + Math.round(fee * 100));
+    // Una Checkout già registrata come incasso su una rata riaperta non è un
+    // pagamento in arrivo (checkoutRecorded): se ne apre una nuova.
+    const prior = checkoutRecorded(doc) ? { state: 'none' } : await existingCheckout(stripe, doc, kind, id, cents + Math.round(fee * 100));
     if (prior.state === 'complete') {
       return html(res, 200, paymentPage(t.comingH, t.comingDone, refreshAction));
     }
@@ -362,7 +372,7 @@ export default async function handler(req, res) {
             month: String(doc.month || ''), amount: String(amount), fee: String(fee), via: fromRata ? 'rata' : 'link',
             feeMode: policy.fee, ...(detected ? { lang } : {}),
           },
-      ...(isInvoice ? {} : { payment_intent_data: intentData(doc, id, { contract: card.contract, property: card.property, via: fromRata ? 'rata' : 'link' }) }),
+      ...(isInvoice ? {} : { payment_intent_data: intentData(doc, id, { contract: card.contract, property: card.property, via: fromRata ? 'rata' : 'link', lang: detected ? lang : '' }) }),
       // Da /rata si torna a /rata (che sa dire pagata, in corso, annullata e
       // tiene il bonifico a portata di mano); dagli altri link, alla pagina
       // di sola lettura qui sopra.

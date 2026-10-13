@@ -27,6 +27,19 @@ const MUTATIONS = {
   'pi-metadata': ['/api/payments/link.js', '...(isInvoice ? {} : { payment_intent_data:', '...(true ? {} : { payment_intent_data:'],
   'return-rata': ['/api/payments/link.js', "success_url: back ? back + '&return=success'", "success_url: false ? back + '&return=success'"],
   'report-rome-default': ['/api/payments/rata.js', 'const reportDate = date || romeDay(new Date());', 'const reportDate = date || new Date().toISOString().slice(0, 10);'],
+  // Dalla revisione: la ricevuta revocata che torna, la testa rimasta indietro,
+  // la Checkout già registrata che blocca, la carta aperta a contratto
+  // illeggibile, il nonce ignorato, la finestra del doppio tocco, la lingua
+  // del PaymentIntent.
+  'revoked-proof': ['/api/payments/rata.js', "tenantReports: reports,\n      proofUrl: proofUrl || null, proofName: proofUrl ? proofName : null };",
+    "tenantReports: reports };\n    if (proofUrl) { fields.proofUrl = proofUrl; fields.proofName = proofName; }"],
+  'proof-from-head': ['/api/payments/rata.js', '(reports.length ? reports.some(r => !!r.proofUrl) : !!pay.proofUrl)', '(!!pay.proofUrl || reports.some(r => !!r.proofUrl))'],
+  'recorded-session': ['/api/payments/pay.js', 'return !!d.checkoutSessionId && !!d.stripeSessionId && String(d.stripeSessionId) === String(d.checkoutSessionId);', 'return false;'],
+  'recorded-session-rata': ['/api/payments/rata.js', "  if (checkoutRecorded(p)) return 'none';\n", ''],
+  'unverified-card': ['/api/payments/pay.js', "if (contractError && String(pay.source || '') !== 'palazzo-import') {", 'if (false) {'],
+  'nonce-ignored': ['/api/payments/rata.js', "const nonce = NONCE_RE.test(String(b.nonce || '')) ? String(b.nonce) : '';", "const nonce = '';"],
+  'double-tap-window': ['/api/payments/rata.js', 'Date.now() - t < DOUBLE_TAP_MS', 'true'],
+  'pi-lang': ['/api/payments/pay.js', 'description: (paymentLabel(payment, lang) + (where', 'description: (paymentLabel(payment) + (where'],
 };
 
 export async function load(url, context, nextLoad) {

@@ -16,6 +16,8 @@
 // Headers:  Authorization: Bearer <firebase-id-token>   (tenant or admin)
 // Body:     { paymentId, lang?: 'en'|'it' }
 // Response: { ok, checkoutUrl, amount, fee, total } | 409 card_not_enabled
+//           | 503 card_unverified (il contratto non si è potuto leggere: non
+//             si sa se la carta sia permessa, quindi non si apre la Checkout)
 
 import Stripe from 'stripe';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
@@ -117,16 +119,19 @@ export function feeFor(policy, amount, stats) {
 // fossero. Un descrittore riconoscibile sull'estratto conto riduce le
 // contestazioni di chi non riconosce l'addebito («CANONE», corto: il
 // prefisso dell'account più il suffisso stanno in 22 caratteri).
-export function intentData(payment, paymentId, { contract, property, via } = {}) {
+// La descrizione segue la lingua della Checkout (`lang`): Stripe la riporta
+// nella ricevuta che arriva a chi paga, e una ricevuta in inglese con la riga
+// in italiano dice che qualcuno si è dimenticato di lui.
+export function intentData(payment, paymentId, { contract, property, via, lang } = {}) {
   const deposit = /^deposit/.test(String(payment.type || '').trim().toLowerCase());
   const pr = property || {}, c = contract || {};
   const building = String(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name || '').trim();
   const interno = String(pr.interno || c.unit || '').trim();
-  const where = [building, interno ? 'int. ' + interno : ''].filter(Boolean).join(' ');
+  const where = [building, interno ? (lang === 'en' ? 'flat ' : 'int. ') + interno : ''].filter(Boolean).join(' ');
   return {
     metadata: { service: 'RENT', paymentId: String(paymentId), contractId: String(payment.contractId || c.id || ''),
       propertyId: String(payment.propertyId || c.propertyId || ''), month: String(payment.month || ''), via: String(via || '') },
-    description: (paymentLabel(payment) + (where ? ' · ' + where : '')).slice(0, 250),
+    description: (paymentLabel(payment, lang) + (where ? ' · ' + where : '')).slice(0, 250),
     statement_descriptor_suffix: deposit ? 'DEPOSITO' : 'CANONE',
   };
 }
@@ -146,13 +151,33 @@ export async function createCheckout(stripe, params) {
 
 // Legge contratto e immobile di una rata per decidere la carta. Una lettura
 // fallita su una rata presa in carico non accende mai la carta: la rata
-// stessa porta source 'palazzo-import' e la regola resta spenta.
+// stessa porta source 'palazzo-import' e la regola resta spenta. Una lettura
+// del contratto FALLITA (non un contratto assente) su una rata senza quel
+// segno — le rate rigenerate dal portale non lo portano — spegne la carta
+// come 'unverified': non si sa se il contratto sia del Palazzo, e aprire la
+// Checkout vorrebbe dire incassare su BOOM senza mandato. Stessa regola di
+// /rata (rataView, contractError).
 export async function cardContext(pay) {
   const ok = id => typeof id === 'string' && /^[\w.-]{1,200}$/.test(id);
-  const contract = ok(pay.contractId) ? await fsGet('contracts/' + pay.contractId).catch(() => null) : null;
+  let contractError = false;
+  const contract = ok(pay.contractId) ? await fsGet('contracts/' + pay.contractId).catch(() => { contractError = true; return null; }) : null;
   const pid = pay.propertyId || (contract && contract.propertyId);
   const property = ok(pid) ? await fsGet('properties/' + pid).catch(() => null) : null;
-  return { contract, property, policy: RENT.cardPolicy(pay, contract, property) };
+  if (contractError && String(pay.source || '') !== 'palazzo-import') {
+    return { contract, property, contractError, policy: { available: false, reason: 'unverified', fee: 'none', imported: false, mandateAt: '' } };
+  }
+  return { contract, property, contractError, policy: RENT.cardPolicy(pay, contract, property) };
+}
+
+// La Checkout salvata sulla rata è QUELLA che il webhook ha già registrato
+// come incasso (stripeSessionId uguale a checkoutSessionId). Se la rata è di
+// nuovo da pagare l'ha riaperta un umano (incasso annullato dopo un rimborso):
+// quella sessione completata non è un pagamento in arrivo, e non deve
+// bloccare né la carta (link.js, pay.js) né il bonifico (rata.js) con un
+// «non pagare di nuovo» falso. La si tratta come nessuna sessione.
+export function checkoutRecorded(doc) {
+  const d = doc || {};
+  return !!d.checkoutSessionId && !!d.stripeSessionId && String(d.stripeSessionId) === String(d.checkoutSessionId);
 }
 
 export default async function handler(req, res) {
@@ -196,7 +221,11 @@ export default async function handler(req, res) {
   // per l'admin al telefono — i soldi finirebbero sul conto di BOOM.
   const lang = payLang(b.lang);
   const ctx = await cardContext(pay);
-  if (!ctx.policy.available) return res.status(409).json({ ok: false, error: 'card_not_enabled', reason: ctx.policy.reason });
+  if (!ctx.policy.available) {
+    // Contratto illeggibile: un guasto momentaneo, non una regola — si riprova.
+    if (ctx.policy.reason === 'unverified') return res.status(503).json({ ok: false, error: 'card_unverified', reason: 'unverified' });
+    return res.status(409).json({ ok: false, error: 'card_not_enabled', reason: ctx.policy.reason });
+  }
 
   // Il costo medio davvero sostenuto sugli incassi passati (settings/
   // rentFeeStats, aggiornato dal webhook). Assente = si parte dal caso
@@ -208,7 +237,7 @@ export default async function handler(req, res) {
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const prior = await existingCheckout(stripe, pay, 'pay', paymentId, cents + Math.round(fee * 100));
+    const prior = checkoutRecorded(pay) ? { state: 'none' } : await existingCheckout(stripe, pay, 'pay', paymentId, cents + Math.round(fee * 100));
     if (prior.state === 'complete') return res.status(409).json({ ok: false, error: 'payment_processing' });
     if (prior.state === 'open') {
       return res.status(200).json({ ok: true, checkoutUrl: prior.session.url, amount, fee, total: eur2(amount + fee) });
@@ -248,7 +277,7 @@ export default async function handler(req, res) {
         month: String(pay.month || ''), amount: String(amount), fee: String(fee),
         feeMode: ctx.policy.fee, ...(lang ? { lang } : {}),
       },
-      payment_intent_data: intentData(pay, paymentId, { contract: ctx.contract, property: ctx.property, via: 'casa' }),
+      payment_intent_data: intentData(pay, paymentId, { contract: ctx.contract, property: ctx.property, via: 'casa', lang }),
       success_url: 'https://www.boomrome.com/casa?paid=' + encodeURIComponent(paymentId),
       cancel_url: 'https://www.boomrome.com/casa',
       // Short expiry: abandoned sessions die in 30 min instead of Stripe's

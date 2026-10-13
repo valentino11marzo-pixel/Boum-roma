@@ -144,6 +144,7 @@ const { default: rataH, rataView, romeDay, latestReportDay } = await import('../
 const { default: linkH } = await import('../../api/payments/link.js');
 const { default: payH, measuredCost } = await import('../../api/payments/pay.js');
 const { default: webhook } = await import('../../api/stripe-webhook.js');
+const { default: reportH } = await import('../../api/payments/report.js');
 const { payToken } = await import('../../api/payments/_token.js');
 const RENT = (await import('../../js/rent-engine.js')).default;
 const stripe = () => globalThis.__rataStripe || (globalThis.__rataStripe = { calls: [], sessions: new Map(), expired: [], intents: new Map(), rejectSuffix: false });
@@ -380,7 +381,8 @@ await check('link · il PaymentIntent porta la rata (metadata), un descrittore r
   const pid = c.payment_intent_data || {};
   eq([pid.metadata && pid.metadata.service, pid.metadata && pid.metadata.paymentId, pid.metadata && pid.metadata.contractId, pid.metadata && pid.metadata.propertyId, pid.metadata && pid.metadata.month],
     ['RENT', 'rImpOn', 'cImpOn', 'pImpOn', '2026-10']);
-  return eq([pid.statement_descriptor_suffix, /int\. 8/.test(pid.description || '')], ['CANONE', true]);
+  // Da /rata in inglese la descrizione è inglese (Stripe la riporta nella ricevuta).
+  return eq([pid.statement_descriptor_suffix, pid.description], ['CANONE', 'Rent — 2026-10 · Piazzale Esempio 42 flat 8']);
 });
 await check('link · la ricevuta va a chi paga: l\'email del contratto quando la rata non la porta', async () =>
   eq(stripe().calls.at(-1).customer_email, 'lena@example.invalid'));
@@ -532,6 +534,144 @@ await check('rata da verificare: /rata lo dice e niente carta; il link mostra "d
   const c0 = stripe().calls.length;
   const l = await link('rW1', { lang: 'en' });
   return eq([v.rata.state, v.rata.canPay, v.payUrl, l.statusCode, l.body.includes('Payment to be checked'), stripe().calls.length - c0], ['review', false, '', 200, true, 0]);
+});
+
+// ═══ 8. Dalla revisione: la ricevuta revocata, la carta rimborsata e
+// riaperta, il contratto illeggibile, le due metà dello stesso giorno ═══════
+async function adminReport(body) {
+  const res = mkRes();
+  await reportH({ method: 'POST', headers: { authorization: 'Bearer tok-admin', 'x-forwarded-for': '10.9.0.' + (++ipN) }, body, query: {} }, res);
+  return res;
+}
+await check('revisione · ricevuta REVOCATA dall\'operatore: la nuova segnalazione senza ricevuta non la eredita (e la vecchia resta come storia)', async () => {
+  rate('rRev', 'cImp', 'pImp', { month: '2026-12', dueDate: '2026-12-05' });
+  const a = await rata({ op: 'report', id: 'rRev', t: tk('rRev'), date: '2026-10-09', note: 'prima', proof: { base64: JPEG, type: 'image/jpeg', name: 'a.jpg' } });
+  const revoked = store.get('payments/rRev').proofUrl;
+  const rv = await adminReport({ paymentId: 'rRev', action: 'review_withdraw', reason: 'ricevuta non corrispondente al conto' });
+  eq([a.statusCode, rv.statusCode, !!revoked, store.get('payments/rRev').proofUrl === revoked], [200, 200, true, true], 'la revoca lascia la ricevuta sul documento');
+  const b = await rata({ op: 'report', id: 'rRev', t: tk('rRev'), date: '2026-10-10', note: 'seconda, senza ricevuta' });
+  const p = store.get('payments/rRev');
+  const v = (await rata({ op: 'lookup', id: 'rRev', t: tk('rRev') })).body.rata;
+  eq([b.statusCode, b.body.proof, p.proofUrl, p.proofName, p.tenantReports.length, p.tenantReportDate], [200, false, null, null, 1, '2026-10-10'], 'testa riscritta');
+  eq([v.state, v.hasProof, v.reports], ['reported', false, [{ date: '2026-10-10', hasProof: false }]], 'la pagina');
+  return eq([p.tenantReportSuperseded.reports.length, p.tenantReportSuperseded.reports[0].proofUrl === revoked, !!p.tenantReportSuperseded.reviewId], [1, true, true], 'storia');
+});
+await check('revisione · la ricevuta si legge dall\'elenco delle segnalazioni in corso, non da una testa rimasta indietro (pura)', () => {
+  const base = { status: 'pending', amount: 100, dueDate: '2099-01-05', tenantReported: true, tenantReportDate: '2026-10-10' };
+  return eq([
+    rataView({ ...base, proofUrl: 'https://firebasestorage.googleapis.com/vecchia', tenantReports: [{ date: '2026-10-10', proofUrl: '' }] }).hasProof,
+    rataView({ ...base, proofUrl: 'https://firebasestorage.googleapis.com/x', tenantReports: [{ date: '2026-10-10', proofUrl: 'https://firebasestorage.googleapis.com/x' }] }).hasProof,
+    rataView({ ...base, proofUrl: 'https://firebasestorage.googleapis.com/legacy' }).hasProof,
+  ], [false, true, true]);
+});
+
+// La rata pagata con carta, rimborsata e riaperta dall'operatore (come
+// undoIncasso: pending, paidDate/paidVia/receiptUrl puliti). La sessione
+// salvata resta quella completata — ed è già registrata come incasso.
+const undone = (id) => {
+  rate(id, 'cImpOn', 'pImpOn', { month: '2027-02', dueDate: '2099-02-05', checkoutSessionId: 'cs_' + id, stripeSessionId: 'cs_' + id,
+    refundedAt: '2026-10-11T10:00:00Z', refundedAmount: 1720, refundedFull: true, incassoAnnullato: { at: '2026-10-11T11:00:00Z', by: 'admin1', was: { status: 'paid', paidVia: 'stripe' } } });
+  stripe().sessions.set('cs_' + id, { id: 'cs_' + id, status: 'complete', payment_status: 'paid', currency: 'eur', amount_total: 172000, url: null,
+    payment_intent: 'pi_' + id, metadata: { service: 'RENT', paymentId: id, amount: '1720' } });
+};
+await check('revisione · carta incassata, rimborsata e riaperta: il bonifico si segnala (non «non pagare di nuovo»)', async () => {
+  rate('rUndo', 'cImpOn', 'pImpOn', { month: '2026-12', dueDate: '2099-12-05' });
+  const l = await link('rUndo', { from: 'rata', lang: 'en' });
+  const sid = store.get('payments/rUndo').checkoutSessionId, sess = stripe().sessions.get(sid);
+  Object.assign(sess, { status: 'complete', payment_status: 'paid', payment_intent: 'pi_undo' });
+  stripe().intents.set('pi_undo', { id: 'pi_undo', metadata: { service: 'RENT', paymentId: 'rUndo' }, latest_charge: null });
+  const w = await hook({ id: 'evt_undo1', type: 'checkout.session.completed', data: { object: { id: sid, payment_intent: 'pi_undo', amount_total: 172000, metadata: sess.metadata, customer_details: { email: 'x@example.invalid' } } } });
+  const rf = await hook(refund('evt_undo2', 'pi_undo', 172000, 172000));
+  const cur = store.get('payments/rUndo');
+  put('payments/rUndo', { ...cur, status: 'pending', paidDate: null, paidVia: null, receiptUrl: null, incassoAnnullato: { at: 'x', by: 'admin1', was: { status: 'paid' } } });
+  eq([l.statusCode, w.body.rent, rf.body.rataState, RENT.paymentState(store.get('payments/rUndo')), RENT.canPay(store.get('payments/rUndo'))], [303, true, 'review', 'due', true], 'giro');
+  const r = await rata({ op: 'report', id: 'rUndo', t: tk('rUndo'), date: '2026-10-10', note: 'pagato con bonifico dopo il rimborso' });
+  return eq([r.statusCode, r.body.state, store.get('payments/rUndo').tenantReported], [200, 'reported', true]);
+});
+await check('revisione · stessa rata riaperta: il link apre una Checkout NUOVA invece di «non serve pagare di nuovo»', async () => {
+  undone('rUndoL');
+  const c0 = stripe().calls.length;
+  const r = await link('rUndoL', { from: 'rata', lang: 'en' });
+  return eq([r.statusCode, stripe().calls.length - c0, store.get('payments/rUndoL').checkoutSessionId !== 'cs_rUndoL'], [303, 1, true]);
+});
+await check('revisione · stessa rata riaperta, dall\'admin al telefono (pay.js): Checkout nuova, non 409 payment_processing', async () => {
+  undone('rUndoP');
+  const r = await pay({ paymentId: 'rUndoP' }, 'tok-admin');
+  return eq([r.statusCode, !!r.body.checkoutUrl, store.get('payments/rUndoP').checkoutSessionId !== 'cs_rUndoP'], [200, true, true]);
+});
+await check('revisione · una Checkout completata MAI registrata (webhook in arrivo) blocca ancora il bonifico', async () => {
+  undone('rUndoW');
+  store.get('payments/rUndoW').stripeSessionId = 'cs_altra_vecchia';
+  const r = await rata({ op: 'report', id: 'rUndoW', t: tk('rUndoW') });
+  return eq([r.statusCode, r.body.error], [409, 'card_completed']);
+});
+
+await check('revisione · contratto illeggibile su una rata rigenerata dal portale (senza source): il link NON apre la Checkout e lo dice', async () => {
+  put('payments/rGen', { contractId: 'cImp', propertyId: 'pImp', type: 'rent', month: '2027-01', amount: 1720, status: 'pending', dueDate: '2099-01-05', autoGenerated: true });
+  failGet.add('contracts/cImp');
+  const c0 = stripe().calls.length;
+  const l = await link('rGen', { lang: 'en' });
+  const pp = await pay({ paymentId: 'rGen' }, 'tok-admin');
+  const v = (await rata({ op: 'lookup', id: 'rGen', t: tk('rGen') })).body;
+  failGet.delete('contracts/cImp');
+  eq([l.statusCode, stripe().calls.length - c0, l.body.includes('Card payment unavailable right now')], [503, 0, true], 'link');
+  ok(l.body.includes('href="https://www.boomrome.com/rata?id=rGen&amp;t=' + tk('rGen') + '&amp;lang=en"') && l.body.includes('>Try again<'), 'bonifico e riprova');
+  eq([pp.statusCode, pp.body.error], [503, 'card_unverified'], 'pay');
+  return eq([v.rata.card.available, v.rata.card.reason, v.payUrl], [false, 'unverified', ''], '/rata, stessa regola');
+});
+await check('revisione · lo stesso link, col contratto leggibile: «carta non attiva» (Palazzo senza mandato), mai Stripe', async () => {
+  const c0 = stripe().calls.length;
+  const l = await link('rGen', { lang: 'en' });
+  return eq([l.statusCode, l.body.includes('Card payment not available'), stripe().calls.length - c0], [200, true, 0]);
+});
+
+await check('revisione · due metà lo STESSO giorno coi valori proposti: due moduli (due nonce) = due segnalazioni e due ping', async () => {
+  rate('rHalf', 'cImp', 'pImp', { month: '2026-11', dueDate: '2099-11-05' });
+  const n0 = notes().length;
+  const a = await rata({ op: 'report', id: 'rHalf', t: tk('rHalf'), date: '2026-10-10', note: '', nonce: 'aaaaaaaaaaaa0001', another: false });
+  const b = await rata({ op: 'report', id: 'rHalf', t: tk('rHalf'), date: '2026-10-10', note: '', nonce: 'bbbbbbbbbbbb0002', another: true });
+  const p = store.get('payments/rHalf');
+  return eq([a.statusCode, b.statusCode, b.body.already, b.body.count, p.tenantReports.length, notes().length - n0, p.tenantReports.map(x => x.nonce)],
+    [200, 200, undefined, 2, 2, 2, ['aaaaaaaaaaaa0001', 'bbbbbbbbbbbb0002']]);
+});
+await check('revisione · il doppio tocco dello stesso modulo (stesso nonce) non raddoppia niente', async () => {
+  const n0 = notes().length, v0 = versions.get('payments/rHalf');
+  const r = await rata({ op: 'report', id: 'rHalf', t: tk('rHalf'), date: '2026-10-10', note: '', nonce: 'bbbbbbbbbbbb0002', another: true });
+  return eq([r.statusCode, r.body.already, r.body.count, notes().length - n0, versions.get('payments/rHalf') === v0], [200, true, 2, 0, true]);
+});
+await check('revisione · una pagina aperta PRIMA della prima segnalazione (modulo suo, senza «another») è un bonifico in più', async () => {
+  const r = await rata({ op: 'report', id: 'rHalf', t: tk('rHalf'), date: '2026-10-10', note: '', nonce: 'cccccccccccc0003' });
+  return eq([r.statusCode, r.body.already, r.body.count], [200, undefined, 3]);
+});
+await check('revisione · pagina vecchia senza nonce: «un altro bonifico» identico è doppio tocco entro 2 minuti, un bonifico dopo', async () => {
+  rate('rHalf2', 'cImp', 'pImp', { month: '2026-11', dueDate: '2099-11-05' });
+  const t0 = RealDate.parse('2026-10-10T09:00:00Z');
+  await at(new RealDate(t0).toISOString(), () => rata({ op: 'report', id: 'rHalf2', t: tk('rHalf2'), date: '2026-10-10' }));
+  const soon = await at(new RealDate(t0 + 60_000).toISOString(), () => rata({ op: 'report', id: 'rHalf2', t: tk('rHalf2'), date: '2026-10-10', another: true }));
+  const later = await at(new RealDate(t0 + 3 * 60_000).toISOString(), () => rata({ op: 'report', id: 'rHalf2', t: tk('rHalf2'), date: '2026-10-10', another: true }));
+  const plain = await at(new RealDate(t0 + 10 * 60_000).toISOString(), () => rata({ op: 'report', id: 'rHalf2', t: tk('rHalf2'), date: '2026-10-10' }));
+  return eq([soon.body.already, later.body.already, later.body.count, plain.body.already, plain.body.count], [true, undefined, 2, true, 2]);
+});
+await check('revisione · un nonce malformato non vale (si ricade sul confronto del contenuto)', async () => {
+  const r = await rata({ op: 'report', id: 'rHalf', t: tk('rHalf'), date: '2026-10-10', nonce: 'x<script>' });
+  return eq([r.body.already, (store.get('payments/rHalf').tenantReports || []).some(x => x.nonce === 'x<script>')], [true, false]);
+});
+
+await check('revisione · la descrizione del PaymentIntent segue la lingua (italiano dal link italiano, inglese da /rata in inglese)', async () => {
+  rate('rLangIt', 'cImpOn', 'pImpOn', { month: '2027-03', dueDate: '2099-03-05' });
+  await link('rLangIt', { lang: 'it', from: 'rata' });
+  const it = stripe().calls.at(-1);
+  rate('rLangEn', 'cImpOn', 'pImpOn', { month: '2027-04', dueDate: '2099-04-05' });
+  await link('rLangEn', { lang: 'en', from: 'rata' });
+  const en = stripe().calls.at(-1);
+  return eq([it.locale, it.payment_intent_data.description, en.locale, en.payment_intent_data.description],
+    ['it', 'Canone di locazione — 2027-03 · Piazzale Esempio 42 int. 8', 'en', 'Rent — 2027-04 · Piazzale Esempio 42 flat 8']);
+});
+await check('revisione · /rata: il modulo manda nonce e «another», e l\'inglese dice «made on» (mai «of» davanti a una data)', () => {
+  const html = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
+  ok(/nonce: nonce, another: another/.test(html), 'il corpo della segnalazione porta nonce e another');
+  ok(/more\.onclick = function \(\) \{ openForm\(true\)/.test(html) && /'bank'\)\.onclick = function \(\) \{ openForm\(false\)/.test(html), 'un nonce per ogni modulo aperto');
+  return ok(html.includes("(d ? ' made on ' + d : '')") && !html.includes("(d ? ' of ' + d : '')"), 'testo inglese');
 });
 
 console.log(`\nRata · soldi: ${passed} passed, ${failed} failed`);

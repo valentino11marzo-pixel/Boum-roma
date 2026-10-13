@@ -134,7 +134,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       invalid: 'This link is not valid or no longer active. Ask BOOM for the link to your rent.',
       paidH: 'Rent paid', paidP: function (d) { return 'The payment is recorded' + (d ? ' on ' + d : '') + '. Nothing else to do.'; },
       paidCard: 'The receipt was emailed to the address you entered when paying.', receipt: 'View the receipt',
-      repH: 'Transfer reported', repP: function (d) { return 'A bank transfer' + (d ? ' of ' + d : '') + ' was reported. The transfer goes to the landlord’s account: BOOM checks with the landlord that it arrived, and once it has, this page shows it as paid. Don’t pay again.'; },
+      repH: 'Transfer reported', repP: function (d) { return 'A bank transfer' + (d ? ' made on ' + d : '') + ' was reported. The transfer goes to the landlord’s account: BOOM checks with the landlord that it arrived, and once it has, this page shows it as paid. Don’t pay again.'; },
       reports: 'Reported transfers:', withProof: 'receipt attached',
       repProof: 'Receipt attached.', repNoProof: 'If you have the receipt, send it to BOOM on WhatsApp: it gets checked sooner.', proofFailed: 'The receipt didn’t arrive: send it to BOOM on WhatsApp.',
       wa: 'Message BOOM on WhatsApp', more: 'Report another transfer (e.g. your half)', withdraw: 'That was a mistake: cancel the report', withdrawn: 'Report cancelled.',
@@ -157,6 +157,17 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
   })();
   var rata = null, payUrl = '', state = 'loading', form = false, proof = null, after = null;
   var draft = { date: '', note: '' };
+  // Ogni modulo aperto ha il suo nonce: il doppio tocco (o una risposta persa
+  // e il nuovo invio) manda lo STESSO nonce e il server non raddoppia; due
+  // moduli diversi sono due bonifici, anche coi valori proposti uguali (le
+  // due metà dei co-intestatari pagate lo stesso giorno). `another`: il
+  // modulo aperto da «Segnala un altro bonifico».
+  var nonce = '', another = false;
+  function openForm(isAnother) {
+    form = true; another = !!isAnother; proof = null; draft = { date: '', note: '' };
+    try { var a = new Uint8Array(12); crypto.getRandomValues(a); nonce = Array.prototype.map.call(a, function (x) { return ('0' + x.toString(16)).slice(-2); }).join(''); }
+    catch (_) { nonce = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^A-Za-z0-9]/g, '').slice(0, 32); }
+  }
   var app = document.getElementById('app');
   function t(k) { return T[lang][k]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -241,7 +252,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       if (r.canWithdraw) html += '<button type="button" class="btn ghost" id="wd">' + esc(t('withdraw')) + '</button>';
       html += '<p class="err" id="err" role="alert"></p>';
       app.innerHTML = html;
-      var more = document.getElementById('more'); if (more) more.onclick = function () { form = true; after = null; render(); };
+      var more = document.getElementById('more'); if (more) more.onclick = function () { openForm(true); after = null; render(); var d = document.getElementById('dt'); if (d) d.focus(); };
       var wd = document.getElementById('wd'); if (wd) wd.onclick = withdraw;
       return;
     }
@@ -275,7 +286,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     if (!form) {
       html += '<button type="button" class="btn ghost" id="bank">' + esc(t('already')) + '</button>';
       app.innerHTML = html; bindCopy();
-      document.getElementById('bank').onclick = function () { form = true; render(); var d = document.getElementById('dt'); if (d) d.focus(); };
+      document.getElementById('bank').onclick = function () { openForm(false); render(); var d = document.getElementById('dt'); if (d) d.focus(); };
       return;
     }
     html += reportForm();
@@ -315,9 +326,9 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
     e.preventDefault();
     var f = e.target, btn = document.getElementById('send');
     btn.disabled = true; btn.textContent = t('sending'); fail('');
-    api({ op: 'report', date: draft.date || today(), note: draft.note, company: f.company.value, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
+    api({ op: 'report', date: draft.date || today(), note: draft.note, company: f.company.value, nonce: nonce, another: another, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
       .then(function (j) {
-        if (j.ok) { after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; draft = { date: '', note: '' }; return load(); }
+        if (j.ok) { after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; nonce = ''; another = false; draft = { date: '', note: '' }; return load(); }
         btn.disabled = false; btn.textContent = t('report');
         fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'bad_date' ? t('badDate') : j.error === 'too_many_reports' ? t('tooMany')
           : j.error === 'card_completed' ? t('cardDone') : j.error === 'state_changed' ? t('changed') : j.error === 'invalid_link' ? t('invalid') : t('fail'));
