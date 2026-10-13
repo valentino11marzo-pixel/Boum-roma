@@ -256,18 +256,44 @@
     if (!sa || !sb) return true;
     return sb <= (ea || '9999-12-31') && sa <= (eb || '9999-12-31');
   }
-  // Il locatore è una società? Dalla forma giuridica nel nome (S.r.l., SPA,
-  // S.a.s., società, coop…) o da una sigla puntata di almeno tre lettere.
-  // Serve a non parlare di IRPEF/cedolare a una società e a dire a nome di
-  // chi è il reddito; un nome di persona resta persona.
-  var COMPANY_RE = /(^|[^a-z])(s\.?\s?r\.?\s?l\.?\s?s?\.?|s\.?\s?p\.?\s?a\.?|s\.\s?a\.\s?p\.\s?a\.|s\.?\s?a\.?\s?s\.?|s\.?\s?n\.?\s?c\.?|s\.\s?s\.|s\.\s?a\.|soc\.|societa|cooperativa|coop\.?|consorzio|fondazione|associazione|holding|immobiliare|ltd\.?|gmbh|llc|inc\.|sarl)(?=$|[^a-z])/;
+  // Il locatore è una società? Due segni, nessuna supposizione:
+  //  - una PAROLA da ente ovunque nel nome (società, cooperativa, consorzio,
+  //    fondazione, associazione, holding, immobiliare);
+  //  - una FORMA giuridica in CODA al nome (dopo «unipersonale», «in
+  //    liquidazione», «a socio unico», che la seguono): S.r.l., SPA, Ltd…
+  //    Le forme che sono anche cognomi o iniziali (sas, sa, ss) valgono solo
+  //    puntate («S.a.s.») o in maiuscolo («ROSSI SAS»): «Maria Sas» e
+  //    «Rosa S. A. Rossi» restano persone.
+  //  - oppure il nome è TUTTO una sigla puntata di almeno tre lettere
+  //    («A.B.C.D.»): un nome con le iniziali davanti al cognome resta persona.
+  // Serve a non parlare di IRPEF/cedolare a una società.
+  var COMPANY_WORD_RE = /(^|[^a-z])(societa|soc\.|cooperativa|coop\.?|consorzio|fondazione|associazione|holding|immobiliare)(?=$|[^a-z])/;
+  var FORM_SURE = { srl: 1, srls: 1, spa: 1, snc: 1, sapa: 1, ltd: 1, gmbh: 1, llc: 1, inc: 1, sarl: 1, scarl: 1, scrl: 1 };
+  var FORM_AMBIG = { sas: 1, sa: 1, ss: 1 };
+  var FORM_TAIL_RE = /[\s,]+(?:unipersonale|in liquidazione|a socio unico|con socio unico)\.?\s*$/i;
   function isCompanyName(name) {
-    var s = norm(name);
+    var raw = str(name).replace(/[()]/g, ' ').trim(), s = norm(raw);
     if (!s) return false;
-    if (COMPANY_RE.test(s)) return true;
-    // Solo sigla puntata (almeno tre lettere, e nient'altro): un nome con le
-    // iniziali puntate davanti al cognome resta una persona.
-    return /^(?:[a-z]\.\s?){3,}$/.test(s);
+    if (COMPANY_WORD_RE.test(s)) return true;
+    if (/^(?:[a-z]\.\s?){3,}$/.test(s)) return true;
+    var body = raw;
+    for (var i = 0; i < 3 && FORM_TAIL_RE.test(body); i++) body = body.replace(FORM_TAIL_RE, '').trim();
+    // La forma in coda: puntata («S.r.l.», «S. p. A.»), oppure una parola sola.
+    var dotted = /(?:^|[\s,])((?:[A-Za-z]\.\s?){2,5})$/.exec(body);
+    if (dotted) {
+      var letters = dotted[1].replace(/[\s.]/g, '').toLowerCase();
+      // La sigla puntata è TUTTO il nome? Allora è una sigla, non una forma
+      // (vale la regola delle tre lettere sopra).
+      if (dotted.index === 0) return false;
+      // «Bianchi & C. S.n.c.»: la forma è la coda della sigla.
+      for (var k = 0; k <= letters.length - 2; k++) { var f = letters.slice(k); if (FORM_SURE[f] || FORM_AMBIG[f]) return true; }
+      return false;
+    }
+    var last = /(?:^|[\s,])([A-Za-z]{2,5})\.?$/.exec(body);
+    if (!last || last.index === 0) return false; // una parola sola non basta
+    var w = last[1].toLowerCase();
+    if (FORM_SURE[w]) return true;
+    return !!(FORM_AMBIG[w] && last[1] === last[1].toUpperCase());
   }
   // ── La fine del contratto: disdetta e rinnovo ──────────────────────────
   // Dai MODELLI (js/contract-pdf.js), non da un'idea: studenti (Allegato C,
@@ -738,7 +764,11 @@
         groups.forEach(function (k) {
           var g = byC[k], c = g[0].contract || (lease && k === str(lease.id) ? lease : null);
           var names = c === lease ? um.tenants : g[0].tenants.length ? g[0].tenants : [];
-          rows.push(line(u, c, names, g, stateOf(aggregate(g.map(function (r) { return r.state; })))));
+          // Soldi veri dopo la chiusura del contratto (o oltre la sua fine, con
+          // il contratto ancora attivo): si scrivono, e si dice perché sono strani.
+          var why = g.every(function (r) { return r.afterClose; }) ? ' · dopo la chiusura del contratto'
+            : g.every(function (r) { return r.beyondEnd; }) ? ' · oltre la scadenza del contratto' : '';
+          rows.push(line(u, c, names, g, stateOf(aggregate(g.map(function (r) { return r.state; }))) + why));
         });
         // L'inquilino di oggi senza una rata sua nel mese (il cambio di
         // contratto a metà mese): c'è, e lo si dice, senza soldi suoi.
@@ -1643,14 +1673,20 @@
       .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, days: u.time.vacantDays, since: u.time.vacantSince, pipeline: u.pipeline }; })
       .sort(function (a, b) { return (b.days || 0) - (a.days || 0); });
     var ser = pastSeries || m.series;
+    var occ = unitMonths && win >= OCC_MIN_MONTHS ? Math.round(occMonths / unitMonths * 100) : null;
+    var occSince = sinces.length && sinces.every(Boolean) ? sinces.slice().sort()[0] : '';
     return {
       paidCount: paid, onTime: onTime, onTimePct: paid ? Math.round(onTime / paid * 100) : null,
       avgDelay: paid ? Math.round(delaySum / paid * 10) / 10 : null,
       // null = campione troppo piccolo (dichiarato da occupancyMonths/
       // occupancyMinMonths): mai "48%" su un palazzo preso in carico ieri.
-      occupancy12: unitMonths && win >= OCC_MIN_MONTHS ? Math.round(occMonths / unitMonths * 100) : null, vacantMonths: unitMonths - occMonths,
+      occupancy12: occ, vacantMonths: unitMonths - occMonths,
       occupancyMonths: win, occupancyUnitMonths: unitMonths, occupancyUnknown: unknownMonths, occupancyMinMonths: OCC_MIN_MONTHS,
-      occupancySince: sinces.length && sinces.every(Boolean) ? sinces.sort()[0] : '',
+      occupancySince: occSince,
+      // Pronto da stampare: la percentuale, oppure perché non c'è ancora
+      // (mai «null%» né «0%» su un palazzo preso in carico ieri).
+      occupancyText: occ != null ? occ + '%' : !unitMonths ? 'non misurabile: nessun mese con un contratto noto'
+        : 'in misura' + (occSince ? ' da ' + monthLabel(occSince).toLowerCase() : '') + ' (servono ' + OCC_MIN_MONTHS + ' mesi)',
       collected12: collectedTotal, expected12: dueTotal, collectionPct: dueTotal ? Math.round(collectedTotal / dueTotal * 100) : null,
       months: ser.map(function (s) { return { month: s.month, expected: s.totals.expected, collected: s.totals.collected, late: s.totals.lateAmount }; }),
       expiries: expiries, vacant: vacant

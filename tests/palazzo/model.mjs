@@ -423,4 +423,207 @@ const TG = await import('../../api/telegram/_palazzo.js');
   ok('Telegram: una lettura che tocca il tetto lo DICE (archivio letto in parte), mai un palazzo «in regola» su dati mancanti', msg.includes('Archivio letto in parte (rate): i numeri possono essere incompleti.'), msg);
 }
 
+// ═══ 13. Revisione del filone S2 (secondo giro) ═══
+// Ogni rilievo della revisione con il suo scenario e la sua mutazione.
+{
+  // 13.1 — il ripiego vale solo per la rata DEL contratto del mese.
+  const scenR1 = E => {
+    const cOld = { id: 'cOld', propertyId: 'u81', status: 'expired', startDate: '2026-09-15', endDate: '2027-08-14', tenantName: 'Vito Vecchio', rent: 1000 };
+    const cNew = { id: 'cNew', propertyId: 'u81', status: 'active', startDate: '2027-08-15', endDate: '2028-08-14', tenantName: 'Nina Nuova', rent: 1100 };
+    const pays = rates('cOld', 'u81', '2026-09', 11, 1000, mm => ({ status: 'paid', paidDate: mm + '-14', dueDate: mm + '-15' }));
+    const m = build(E, { properties: [prop('u81', { gestioneDal: '2026-09' })], contracts: [cOld, cNew], payments: pays }, '2027-08-25T10:00:00Z').model('2027-08');
+    const um = unit(m, 'u81').month;
+    sameQ([um.state, um.carried, um.rows.length, um.tenants, !!code(m, 'norate')], ['norate', false, 0, ['Nina Nuova'], true], 'agosto della nuova');
+    return m;
+  };
+  scenR1(P);
+  ok('cambio inquilino al 15/08: la rata di luglio del VECCHIO non copre agosto della nuova (rata mancante, mai un verde falso)', true);
+  bites('il ripiego torna ad accettare la rata di qualsiasi contratto', scenR1,
+    ".filter(function (r) { return !r.contractId || r.contractId === str(lease.id); })", '');
+
+  // 13.2 — una voce di debito per interno E contratto.
+  const scenR2 = E => {
+    const contracts = [
+      { id: 'cOld', propertyId: 'u82', status: 'expired', startDate: '2026-10-01', endDate: '2027-09-15', tenantName: 'Ivo Vecchio', rent: 1600 },
+      { id: 'cNew', propertyId: 'u82', status: 'active', startDate: '2027-09-16', endDate: '2028-09-15', tenantName: 'Nora Nuova', rent: 1650 }];
+    const payments = [
+      { id: 'pay_cOld_2027-09', contractId: 'cOld', propertyId: 'u82', type: 'rent', amount: 800, month: '2027-09', dueDate: '2027-09-05', status: 'pending' },
+      { id: 'pay_cNew_2027-09', contractId: 'cNew', propertyId: 'u82', type: 'rent', amount: 1650, month: '2027-09', dueDate: '2027-09-16', status: 'pending' }];
+    const m = build(E, { properties: [prop('u82')], contracts, payments }, '2027-09-25T10:00:00Z').model('2027-09');
+    sameQ(m.debtors.map(d => [d.id, d.unitId, d.tenants, d.amount, d.count, d.payRow && d.payRow.id, d.previousContract]),
+      [['u82~cOld', 'u82', ['Ivo Vecchio'], 800, 1, 'pay_cOld_2027-09', true], ['u82~cNew', 'u82', ['Nora Nuova'], 1650, 1, 'pay_cNew_2027-09', false]], 'due voci');
+    sameQ([m.totals.debtors, m.totals.debtorUnits, m.totals.debtorsAmount], [2, 1, 2450], 'totali');
+    return m;
+  };
+  const m2 = scenR2(P);
+  ok('cambio inquilino con DUE ritardi: Ivo €800 e Nora €1.650, ciascuno con la sua rata da sollecitare (mai €2.450 sul nome del vecchio)', true);
+  const s2 = TG.palazzoSummary(m2);
+  ok('Telegram: una riga per contratto, col suo nome e la sua cifra', s2.includes('• int. 82 · Ivo Vecchio · €800 · 20 giorni · contratto precedente\n• int. 82 · Nora Nuova · €1.650 · 9 giorni'), s2);
+  bites('i debitori tornano una voce sola per interno', scenR2, "var k = r.contractId || '-';", "var k = '-';");
+
+  // 13.3 — contratto ancora 'active' oltre la fine: le rate restano dovute.
+  const studAct = { id: 'c83', propertyId: 'u83', status: 'active', type: 'studenti', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Ugo Resta', rent: 1000 };
+  const paysT = rates('c83', 'u83', '2026-09', 14, 1000, mm => mm <= '2027-08' ? { status: 'paid', paidDate: mm + '-04' } : {});
+  const scenR3 = E => {
+    const m = build(E, { properties: [prop('u83', { gestioneDal: '2026-09' })], contracts: [studAct], payments: paysT }, '2027-10-20T10:00:00Z').model('2027-10');
+    const u = unit(m, 'u83'), be = code(m, 'beyondEnd');
+    sameQ([u.month.state, u.month.occupied, u.month.tenants, u.arrears.amount, m.debtors.length], ['late', true, ['Ugo Resta'], 2000, 1], 'ottobre: occupato e in ritardo');
+    sameQ([!!code(m, 'afterClose'), be && be.items.map(x => [x.contractId, x.end, x.count, x.open, x.renews, x.from])], [false, [['c83', '2027-08-31', 2, 2, 'tacito', '2027-09']]], 'rinnovo?');
+    return m;
+  };
+  const m3 = scenR3(P);
+  ok('studenti ancora «attivo» oltre il 31/08 con le rate di settembre e ottobre: occupato, €2.000 di ritardo, «rinnovato?» — mai «da annullare»', true);
+  const s3 = TG.palazzoSummary(m3);
+  ok('Telegram: rate oltre la scadenza come domanda, nessuna rata «da annullare»', s3.includes('🔁 <b>Rate oltre la scadenza</b> (contratto ancora attivo: rinnovato? aggiorna la fine)\n• int. 83 · scaduto il 31/08/2027 · 2 rate dopo (2 aperte)') && !/da annullare/.test(s3), s3);
+  bites('le rate oltre la fine di un contratto attivo tornano «da annullare» (e spariscono dal Palazzo)', scenR3, 'if (closedForReal(contract)) {', 'if (true) {');
+  // Lo stesso con il contratto messo su «Scaduto»: lì sì, chiuso davvero.
+  const exp = build(P, { properties: [prop('u83', { gestioneDal: '2026-09' })], contracts: [{ ...studAct, status: 'expired' }], payments: paysT }, '2027-10-20T10:00:00Z').model('2027-10');
+  same('…con il contratto chiuso davvero («Scaduto»): le rate dopo sono da annullare e l’interno è libero', [unit(exp, 'u83').month.state, code(exp, 'afterClose').open, !!code(exp, 'beyondEnd')], ['vacant', 2, false]);
+
+  // 13.4 — una rata PAGATA dopo la chiusura non tiene occupato l'interno.
+  const scenR4 = E => {
+    const c = { id: 'c84', propertyId: 'u84', status: 'terminated', terminatedAt: '2026-11-30', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Ada Esce', rent: 1500 };
+    const pays = rates('c84', 'u84', '2026-10', 4, 1500, mm => mm <= '2026-12' ? { status: 'paid', paidDate: mm + '-03' } : {});
+    const S = build(E, { properties: [prop('u84')], contracts: [c], payments: pays }, '2027-01-20T10:00:00Z');
+    const dec = S.model('2026-12'), um = unit(dec, 'u84').month;
+    sameQ([um.state, um.occupied, um.tenants, um.collected, dec.totals.collected], ['vacant', false, [], 1500, 1500], 'dicembre libero, i soldi restano');
+    const t = unit(S.model('2027-01'), 'u84').time;
+    sameQ([t.occupiedMonths, t.vacantMonths], [2, 2], 'dicembre non è un mese occupato');
+    const C = x => E.CSV_HEAD.indexOf(x), row = E.csvRows(dec).find(r => r[1] === '84');
+    sameQ([row[C('Inquilino')], row[C('Incassato nel mese')], row[C('Stato')]], ['Ada Esce', '1500,00', 'Pagato · dopo la chiusura del contratto'], 'CSV');
+    return dec;
+  };
+  scenR4(P);
+  ok('chiuso il 30/11, dicembre pagato (SEPA partito prima): dicembre è libero, senza il nome di chi è uscito; i €1.500 restano nell’incassato e nel foglio, dichiarati', true);
+  bites('la rata pagata dopo la chiusura torna a tenere pieno l’interno', scenR4, 'monthRows.some(function (r) { return !r.afterClose; })', 'monthRows.length > 0');
+
+  // 13.5 — il transitorio scaduto cessa da sé.
+  const scenR5 = E => {
+    const m = build(E, { properties: [prop('u85'), prop('u86'), prop('u87')], contracts: [
+      { id: 'c85', propertyId: 'u85', status: 'expired', type: 'transitorio', startDate: '2026-10-01', endDate: '2027-03-31', tenantName: 'Leo Partito', rent: 900 },
+      { id: 'c86', propertyId: 'u86', status: 'expired', type: 'studenti', startDate: '2025-09-01', endDate: '2027-03-31', tenantName: 'Sara Resta', rent: 900 }], payments: [] }, '2027-06-01T10:00:00Z').model('2027-06');
+    const ex = code(m, 'expiredStillIn');
+    sameQ(ex && ex.contracts.map(x => x.id), ['c86'], 'solo lo studenti');
+    return m;
+  };
+  scenR5(P);
+  ok('un transitorio messo su «Scaduto» non resta 400 giorni in Da sistemare; lo studenti (rinnovo tacito) sì', true);
+  bites('il transitorio torna «scaduto senza chiusura»', scenR5, "if (typeKey(c) === 'transitorio') return;", '');
+
+  // 13.6 — in ritardo questo mese E nei mesi prima: la parte vecchia nominata.
+  const scenR6 = E => {
+    const c = (id, pid) => ({ id, propertyId: pid, status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'T ' + pid, rent: 1000 });
+    const pays = [...rates('c11', 'u91', '2026-10', 3, 1000, mm => mm === '2026-10' ? { status: 'paid', paidDate: '2026-10-04' } : {}),
+      ...rates('c12', 'u92', '2026-10', 3, 1000, mm => mm !== '2026-11' ? { status: 'paid', paidDate: mm + '-04' } : {})];
+    const m = build(E, { properties: [prop('u91'), prop('u92')], contracts: [c('c11', 'u91'), c('c12', 'u92')], payments: pays }, '2026-12-10T10:00:00Z').model('2026-12');
+    const b = E.brief(m, { owner: true });
+    sameQ(b.filter(x => /ritardo|Ancora|Arretrati/.test(x)), ['1 è in ritardo per €1.000: int. 91.', 'Ancora da pagare dai mesi precedenti: int. 91 (novembre 2026, €1.000), int. 92 (novembre 2026, €1.000).'], 'la frase');
+    return m;
+  };
+  const m6 = scenR6(P);
+  ok('int. 91 deve dicembre E novembre: novembre è nominato (le cifre dette, €3.000, tornano col totale)', m6.totals.arrears === 3000);
+  bites('chi è in ritardo questo mese torna a nascondere i mesi prima', scenR6, 'var part = nowIds[d.unitId] ? d.older : d;', 'var part = nowIds[d.unitId] ? null : d;');
+
+  // 13.7 — il mese che rientra nella rata precedente non è «€0 di €0».
+  const scenR7 = E => {
+    const S = build(E, { properties: [prop('u31', { gestioneDal: '2026-09' })], contracts: contrD, payments: lease15(false) }, '2027-08-10T10:00:00Z');
+    const m = S.model('2027-08');
+    for (const b of [m.brief, E.brief(m, { owner: true })]) sameQ(b, ['Agosto 2027: 1 interno su 1 è pieno.', 'int. 31: agosto rientra nel periodo della rata di luglio 2027.', 'Nessun ritardo.'], 'agosto');
+    const late = build(E, { properties: [prop('u31', { gestioneDal: '2026-09' })], contracts: contrD,
+      payments: lease15(false).map(p => p.month === '2027-07' ? { ...p, status: 'pending', paidDate: undefined } : p) }, '2027-08-10T10:00:00Z').model('2027-08');
+    sameQ(late.brief.slice(1), ['int. 31: agosto rientra nel periodo della rata di luglio 2027.', 'Ancora da pagare dai mesi precedenti: int. 31 (luglio 2027, €1.000).'], 'luglio non pagato');
+  };
+  scenR7(P);
+  ok('l’ultimo mese di un contratto dal 15: detto com’è, mai «1 ha pagato su 1 (€0 di €0)»; con luglio aperto, luglio è il debito', true);
+  bites('il mese coperto torna fra chi «ha pagato €0»', scenR7, 'var payers = t.paid + t.late + t.due + t.review + t.unknown - carriedU.length;', 'var payers = t.paid + t.late + t.due + t.review + t.unknown;');
+  // Una trimestrale nel suo secondo mese: niente importi del mese, niente «(€0 di €0)».
+  const q = build(P, { properties: [prop('u93')], contracts: [{ id: 'c93', propertyId: 'u93', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Quinto', rent: 1000 }],
+    payments: [{ id: 'pay_c93_2026-10', contractId: 'c93', propertyId: 'u93', type: 'rent', amount: 3000, month: '2026-10', coversTo: '2026-12', dueDate: '2026-10-05', status: 'paid', paidDate: '2026-10-04' }] }, '2026-11-10T10:00:00Z').model('2026-11');
+  same('trimestrale a novembre: «1 ha pagato su 1.» senza la parentesi a zero', q.brief.slice(1, 3), ['1 ha pagato su 1.', 'Nessun ritardo.']);
+
+  // 13.8 — la puntualità conta le rate di CANONE aperte.
+  const scenR8 = E => {
+    const c = { id: 'c94', propertyId: 'u94', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Eva', rent: 1000 };
+    const pays = [
+      { id: 'pay_c94_2026-10', contractId: 'c94', propertyId: 'u94', type: 'rent', amount: 1000, month: '2026-10', dueDate: '2026-10-05', status: 'paid', paidDate: '2026-10-04' },
+      { id: 'depbal_c94', contractId: 'c94', propertyId: 'u94', type: 'deposit-balance', amount: 1000, month: '2026-10', dueDate: '2026-10-01', status: 'pending' }];
+    const t = unit(build(E, { properties: [prop('u94')], contracts: [c], payments: pays }, '2026-10-20T10:00:00Z').model('2026-10'), 'u94').time;
+    sameQ([t.paidCount, t.onTime, t.overdueCount, t.overdueOldest, t.overdueOther], [1, 1, 0, '', 1], 'puntualità');
+  };
+  scenR8(P);
+  ok('un saldo deposito scaduto non rende «non puntuale» chi paga il canone in orario (si conta a parte)', true);
+  bites('il deposito torna fra le rate di canone aperte', scenR8, "var open = all.filter(function (r) { return r.isRent && r.state === 'overdue'; })", "var open = all.filter(function (r) { return r.state === 'overdue'; })");
+
+  // 13.9 — httpsUrl non passa dal costruttore di URL per una stringa vuota.
+  const countUrl = src => {
+    let calls = 0;
+    const CountingURL = function (u, b) { calls++; return new URL(u, b); };
+    const box = { module: { exports: {} }, require: jsRequire, URL: CountingURL, console };
+    vm.runInNewContext(src, box);
+    const E = box.module.exports;
+    const pays = rates('c95', 'u95', '2026-01', 100, 1000);
+    pays[0].receiptUrl = 'https://example.invalid/r.pdf'; pays[1].receiptUrl = 'http://example.invalid/r.pdf'; pays[2].proofUrl = 'not a url';
+    const ctx = E.context({ properties: [prop('u95', { gestioneDal: '' })], contracts: [], payments: pays, now: new Date('2026-10-12T10:00:00Z') });
+    const rows = ctx.paymentsByProperty.u95, r0 = rows.find(r => r.id === 'pay_c95_2026-01'), r1 = rows.find(r => r.id === 'pay_c95_2026-02');
+    return { calls, keep: r0.receiptUrl, drop: r1.receiptUrl };
+  };
+  const real = countUrl(SRC);
+  same('httpsUrl: una sola costruzione (la ricevuta https), l’http scartato senza costruire', [real.calls, real.keep, real.drop], [1, 'https://example.invalid/r.pdf', '']);
+  const HTTPS_NOW = "var s = str(u); if (!/^https:\\/\\//i.test(s)) return ''; try { return new URL(s).href; }";
+  assert.ok(SRC.includes(HTTPS_NOW), 'bersaglio della mutazione httpsUrl');
+  const slow = countUrl(SRC.replace(HTTPS_NOW, "var s = str(u); try { var x = new URL(s); return x.protocol === 'https:' ? x.href : ''; }"));
+  ok('mutazione: il costruttore di URL torna su ogni rata senza ricevuta (200 costruzioni)', slow.calls >= 200, slow.calls);
+
+  // 13.10 — occupazione pronta da stampare.
+  const day1 = build(P, { properties: propsE, contracts: contrE, payments: paysE }, '2026-10-12T10:00:00Z').model('2026-10').analytics;
+  const later = build(P, { properties: propsE, contracts: contrE, payments: paysE }, '2027-01-20T10:00:00Z').model('2027-01').analytics;
+  same('occupancyText: mai «null%»', [day1.occupancyText, later.occupancyText], ['in misura da ottobre 2026 (servono 3 mesi)', '100%']);
+
+  // 13.11 — società o persona: la forma giuridica in coda, mai un cognome.
+  const names = { 'Rosa S. A. Rossi': false, 'Maria Sas': false, 'Luca S.S. Bianchi': false, 'Luca Sa': false, 'Maria J. R.': false,
+    'Rossi SAS': true, 'Rossi S.a.s.': true, 'Esempio S.r.l. unipersonale': true, 'Esempio S.r.l. in liquidazione': true, 'Bianchi & C. S.n.c.': true,
+    'Esempio Ltd.': true, 'Esempio srls': true, 'Mario Rossi (SRL)': true, 'Coop. Esempio': true };
+  same('isCompanyName: i falsi positivi della revisione restano persone, le forme vere società', Object.keys(names).map(P.isCompanyName), Object.values(names));
+  const scenR11 = E => sameQ(['Rosa S. A. Rossi', 'Maria Sas', 'Luca S.S. Bianchi'].map(E.isCompanyName), [false, false, false], 'persone');
+  bites('la forma giuridica torna valida ovunque nel nome', scenR11, 'var dotted = /(?:^|[\\s,])((?:[A-Za-z]\\.\\s?){2,5})$/.exec(body);', 'var dotted = /(?:^|[\\s,])((?:[A-Za-z]\\.\\s?){2,5})/.exec(body);');
+}
+
+// 13.12 — Telegram: una lettura FALLITA si dichiara, mai un elenco vuoto.
+{
+  const props = ['u71', 'u72', 'u73'].map(id => prop(id));
+  const store = { properties: props, contracts: [{ id: 'c71', propertyId: 'u71', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Ola', rent: 900 }], payments: [] };
+  const toFs = v => v === null || v === undefined ? { nullValue: null } : typeof v === 'number' ? { integerValue: String(v) } : typeof v === 'boolean' ? { booleanValue: v } : { stringValue: String(v) };
+  const fromFs = v => v.stringValue !== undefined ? v.stringValue : v.arrayValue ? (v.arrayValue.values || []).map(fromFs) : null;
+  const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
+  const broken = new Set(['maintenance', 'preAgreements']);
+  globalThis.fetch = async (url, opts = {}) => {
+    url = String(url);
+    if (url.includes('identitytoolkit') || url.includes('securetoken')) return json({ idToken: 't', localId: 't', expiresIn: '3600' });
+    if (url.includes(':batchGet')) return json({ error: 'giù' }, 503);
+    if (url.includes('/documents/users/')) return json({ error: 'giù' }, 503);
+    if (url.endsWith(':runQuery')) {
+      const q = JSON.parse(opts.body).structuredQuery, coll = q.from[0].collectionId, ff = q.where && q.where.fieldFilter;
+      if (broken.has(coll)) return json({ error: 'giù' }, 500);
+      let docs = (store[coll] || []).slice();
+      if (ff) { const want = fromFs(ff.value), f = ff.field.fieldPath; docs = docs.filter(d => ff.op === 'IN' ? want.includes(d[f]) : d[f] === want); }
+      return json(docs.slice(0, q.limit || 50).map(d => { const { id, ...rest } = d; const fields = {}; for (const [k, v] of Object.entries(rest)) fields[k] = toFs(v); return { document: { name: 'projects/test-proj/databases/(default)/documents/' + coll + '/' + id, fields } }; }));
+    }
+    throw new Error('rete inattesa: ' + url);
+  };
+  const { msg } = await TG.palazzoMessage('', { now: new Date('2026-10-12T10:00:00Z') });
+  ok('Telegram: proposte, profili e manutenzione non lette sono DICHIARATE (mai «nessuna manutenzione» su una lettura fallita)',
+    msg.includes('Archivio letto in parte (proposte non lette, profili non letti, manutenzione non letta): i numeri possono essere incompleti.'), msg);
+  // Mutazione sul modulo Telegram: il catch torna muto.
+  const tgUrl = new URL('../../api/telegram/_palazzo.js', import.meta.url);
+  const tgSrc = readFileSync(tgUrl, 'utf8');
+  const target = 'const unread = what => () => { cut.add(what); return []; };';
+  assert.ok(tgSrc.includes(target), 'bersaglio della mutazione Telegram');
+  const abs = rel => JSON.stringify(new URL(rel, tgUrl).href);
+  const mutSrc = tgSrc.replace(target, 'const unread = what => () => [];')
+    .replace("'../../js/palazzo-engine.js'", abs('../../js/palazzo-engine.js')).replace("'../homie/_lib.js'", abs('../homie/_lib.js'));
+  const TGm = await import('data:text/javascript;base64,' + Buffer.from(mutSrc).toString('base64'));
+  const mm = (await TGm.palazzoMessage('', { now: new Date('2026-10-12T10:00:00Z') })).msg;
+  ok('mutazione: col catch muto la manutenzione non letta torna invisibile', !mm.includes('manutenzione non letta'), mm);
+}
+
 console.log(`\n${n} check passati — il mese, gli arretrati, i numeri (motore vero, mutazioni, Telegram su Firestore finto).`);
