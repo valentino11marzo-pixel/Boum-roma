@@ -33,9 +33,9 @@
   // «Liberi e in arrivo»: il tono conta anche chi arriva, e accanto i numeri
   // dicono «2 liberi · 1 in arrivo» — la stessa parola con due numeri no.
   var FILTERS = [['all', 'Tutti', null]].concat(E.TONES.map(function (t) {
-    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free', prima: 'before' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi e in arrivo' : t.label, t.states];
+    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free', prima: 'before', annullata: 'waived' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi e in arrivo' : t.label, t.states];
   }));
-  var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '', before: '' };
+  var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '', before: '', waived: '–' };
 
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
@@ -45,7 +45,7 @@
     // La lingua dei messaggi agli inquilini (inglese di default), i documenti
     // condivisi per palazzo, i link /guasto per contratto, il modulo canone/
     // oneri aperto, l'esito dell'ultimo comando del rendiconto, la carta.
-    msgLang: 'en', docs: Object.create(null), linksBy: null, terms: null, rend: null, cardOpen: false, cardDraft: null, opener: '' };
+    msgLang: 'en', docs: Object.create(null), linksBy: null, linksSeat: null, terms: null, rend: null, cardOpen: false, cardDraft: null, opener: '' };
   var adapter = null, last = null, bound = false;
   try {
     var saved = JSON.parse(root.localStorage && root.localStorage.getItem('boom_palazzo') || '{}');
@@ -75,6 +75,7 @@
     if (um.state === 'norate' && um.lease && um.lease.contractMissing === true) return owner ? 'Contratto in arrivo da BOOM' : 'Contratto da caricare';
     if (um.state === 'norate' && owner) return 'In verifica da BOOM';
     if (um.state === 'review' && owner) return 'In verifica da BOOM';
+    if ((um.state === 'review' || um.state === 'unknown') && (um.rows || []).some(function (r) { return r.state === 'review'; })) return 'Rimborso o contestazione da verificare';
     if (um.state === 'norate') return month > currentMonth ? 'Rata non ancora generata' : 'Rata non registrata';
     return E.STATES[um.state] ? E.STATES[um.state].label : 'Da verificare';
   }
@@ -341,14 +342,18 @@
   function kpis(data) {
     var m = data.m, t = m.totals, mon = E.monthLabel(m.month).split(' ')[0].toLowerCase();
     if (m.allBefore) return '<div class="plz-kpis plz-kpis-before"><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></div>';
-    var managed = t.managed != null ? t.managed : t.units, payers = t.paid + t.late + t.due + t.review + t.unknown;
+    // Paganti e chi ha pagato dai totali del motore: l'interno il cui mese
+    // rientra nella rata del mese prima non è un pagante (mai «3/3» sopra la
+    // frase «2 hanno pagato su 2»).
+    var managed = t.managed != null ? t.managed : t.units;
+    var payers = t.payers != null ? t.payers : t.paid + t.late + t.due + t.review + t.unknown, paidN = t.paidPayers != null ? t.paidPayers : t.paid;
     var pct = t.expected ? Math.round(t.collected / t.expected * 100) : 0;
     var dn = t.debtorUnits != null ? t.debtorUnits : t.late, damt = t.debtorsAmount != null ? t.debtorsAmount : t.lateAmount;
     var occNote = [t.vacant ? t.vacant + (t.vacant === 1 ? ' libero' : ' liberi') : 'nessuno libero', t.incoming ? t.incoming + ' in arrivo' : '', t.leaving ? t.leaving + ' in scadenza' : '',
       t.before ? t.before + ' prima di BOOM' : ''].filter(Boolean).join(' · ');
     return '<div class="plz-kpis">' +
       '<div class="plz-kpi">' + ring(t.occupancy) + '<div><span>Pieni</span><strong>' + t.occupied + '<small>/' + managed + '</small></strong><em>' + occNote + '</em></div></div>' +
-      '<div class="plz-kpi"><div class="plz-kpi-grow"><span>Hanno pagato · ' + esc(mon) + '</span><strong>' + t.paid + '<small>/' + payers + '</small></strong><div class="plz-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><em>' + (t.expected ? eur(t.collected) + ' di ' + eur(t.expected) : payers ? 'importi da verificare' : 'nessuna rata nel mese') + '</em></div></div>' +
+      '<div class="plz-kpi"><div class="plz-kpi-grow"><span>Hanno pagato · ' + esc(mon) + '</span><strong>' + paidN + '<small>/' + payers + '</small></strong><div class="plz-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><em>' + (t.expected ? eur(t.collected) + ' di ' + eur(t.expected) : payers ? 'importi da verificare' : t.carried ? esc(mon) + ' rientra nella rata del mese prima' : 'nessuna rata nel mese') + '</em></div></div>' +
       '<div class="plz-kpi' + (dn ? ' is-alert' : '') + '"><div><span>Non hanno pagato</span><strong>' + dn + '</strong><em>' + (dn ? (damt > 0 ? eur(damt) : 'importo da verificare') + (t.debtorsOldest ? ' · dal ' + dateIt(t.debtorsOldest) : '') : t.due ? (t.due === 1 ? '1 deve ancora pagare' : t.due + ' devono ancora pagare') : 'nessun ritardo') + '</em></div></div>' +
       '<div class="plz-kpi' + (t.arrears ? ' is-alert' : '') + '"><div><span>Arretrati totali</span><strong class="plz-num">' + eur(t.arrears) + '</strong><em>' + (t.arrearsCount ? t.arrearsCount + (t.arrearsCount === 1 ? ' rata scaduta' : ' rate scadute') + (t.arrearsOldest ? ', dal ' + dateIt(t.arrearsOldest) : '') : 'nessuna rata scaduta') + '</em></div></div>' +
       '</div>';
@@ -363,16 +368,18 @@
     return '<div class="plz-time"><button type="button" class="plz-ico plz-play" data-plz="play" aria-label="' + (ui.playing ? 'Ferma' : 'Riproduci gli ultimi 12 mesi') + '">' + (ui.playing ? '❚❚' : '▶') + '</button><div class="plz-months" role="group" aria-label="Ultimi 12 mesi">' +
       m.series.map(function (s) {
         var t = s.totals, n = Math.max(1, t.units), seg = function (k, v) { return v ? '<i class="plz-s-' + k + '" style="flex:' + v + '"></i>' : ''; };
-        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0);
+        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0) + seg('waived', t.waived || 0);
         var lab = t.units && (t.before || 0) === t.units ? 'prima della gestione BOOM'
-          : t.paid + (t.paid === 1 ? ' pagato, ' : ' pagati, ') + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ((t.vacant + t.incoming) === 1 ? ' libero' : ' liberi') + (t.before ? ', ' + t.before + ' prima di BOOM' : '');
+          : t.paid + (t.paid === 1 ? ' pagato, ' : ' pagati, ') + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ((t.vacant + t.incoming) === 1 ? ' libero' : ' liberi') + (t.before ? ', ' + t.before + ' prima di BOOM' : '') +
+            (t.waived ? ', ' + t.waived + (t.waived === 1 ? ' rata annullata' : ' rate annullate') : '');
         return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + lab + '" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
       }).join('') + '</div></div>';
   }
 
   function filters(data) {
-    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown, free: t.vacant + t.incoming, before: t.before || 0 };
-    return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.filter(function (f) { return f[0] !== 'before' || count.before || ui.filter === 'before'; }).map(function (f) {
+    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown, free: t.vacant + t.incoming, before: t.before || 0, waived: t.waived || 0 };
+    // «Prima di BOOM» e «Rata annullata» solo quando ci sono (o sono scelti).
+    return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.filter(function (f) { return (f[0] !== 'before' && f[0] !== 'waived') || count[f[0]] || ui.filter === f[0]; }).map(function (f) {
       return '<button type="button" class="plz-filter plz-f-' + f[0] + '" data-plz="filter" data-f="' + f[0] + '" aria-pressed="' + (ui.filter === f[0]) + '"><i aria-hidden="true"></i>' + f[1] + '<b>' + count[f[0]] + '</b></button>';
     }).join('') + '</div>';
   }
@@ -497,6 +504,9 @@
   // Un importo che manca non è «€0»: si dice che è da verificare.
   function amtText(v) { return Number(v) > 0 ? eur(v) : 'importo da verificare'; }
   function paidAmt(u, r) {
+    // Il mese coperto dalla rata del mese prima: l'importo è quello della
+    // rata che lo copre (contato nel SUO mese), mai «importo da verificare».
+    if (u.month.carried && r) return Number(r.amount) > 0 ? eur(r.amount) : amtText(0);
     var multi = r && r.coversTo && r.coversTo !== r.month;
     return multi && !u.month.collected && Number(r.amount) > 0 ? eur(r.amount) : amtText(u.month.collected || u.month.expected);
   }
@@ -532,12 +542,24 @@
     return bits.join(' · ');
   }
   function debtorName(x) { return x.d.tenants && x.d.tenants[0] || x.u.month.tenants[0] || ''; }
+  // L'interno il cui mese rientra nella rata del mese prima (l'ultimo mese di
+  // un contratto dal 15) non sta fra i paganti: ha la sua riga.
+  function isCarried(u) { return !!(u.month.carried && u.month.state !== 'before' && u.month.state !== 'late'); }
+  function carriedNote(u) {
+    var r = u.month.rows[0];
+    return r ? 'rata di ' + E.monthLabel(r.month).toLowerCase() + (r.state === 'paid' ? (r.paidDate ? ' · pagata il ' + dateIt(r.paidDate) : ' · pagata') : r.state === 'due' ? ' · da pagare' : ' · da verificare') : '';
+  }
+  function waivedNote(u) {
+    var r = (u.month.waivedRows || [])[0], p = r && r.payment || {}, why = String(p.cancelledReason || '').trim().slice(0, 80);
+    return 'rata di ' + E.monthLabel(u.month.month).toLowerCase() + ' annullata' + (why ? ' · ' + why : '');
+  }
   function monthPanel(data) {
-    var m = data.m, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
+    var m = data.m, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0 && !isCarried(u); }); };
     // La frase del mese prima di BOOM sta già nei numeri in alto: qui niente.
     if (m.allBefore) return '';
     var debt = debtorsOf(m);
     var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant']), coming = by(['incoming']), paid = by(['paid']);
+    var carried = m.units.filter(isCarried), waived = by(['waived']);
     function line(u, right, note, who) {
       return '<button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + u.month.state + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(who != null ? who : u.month.tenants.length ? u.month.tenants[0] : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>';
     }
@@ -551,6 +573,8 @@
       (check.length ? block('Da verificare', check.length, check.map(function (u) { return line(u, '', stateLabel(u.month, m.month, m.currentMonth)); }), '') : '') +
       block('Liberi', free.length, free.map(function (u) { return line(u, '', freeNote(u)); }), t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') +
       (coming.length ? block('In arrivo', coming.length, coming.map(function (u) { return line(u, '', freeNote(u)); }), '') : '') +
+      (waived.length ? block('Rata annullata', waived.length, waived.map(function (u) { return line(u, '', waivedNote(u)); }), '') : '') +
+      (carried.length ? block('Coperti dalla rata del mese prima', carried.length, carried.map(function (u) { return line(u, paidAmt(u, u.month.rows[0]), carriedNote(u)); }), '') : '') +
       block('Hanno pagato', paid.length, paid.map(function (u) {
         var r = u.month.rows.find(function (x) { return x.paidDate; }) || u.month.rows[0];
         // Una rata che copre più mesi si conta nel mese in cui scade: qui si
@@ -758,9 +782,10 @@
     if (lease && CS.isPlaceholder(lease)) {
       // Il segnaposto: canone e date dalla tabella («Carica il contratto»),
       // la scansione firmata come PDF se c'è già (mai Firma/RLI/ASPI: non
-      // c'è ancora un contratto da firmare o registrare).
+      // c'è ancora un contratto da firmare o registrare). Niente «Da un PDF
+      // (Innesto)»: l'Innesto non crea un contratto dove c'è il segnaposto
+      // (lettura Opus pagata e vicolo cieco). Si completa dalla tabella.
       groups.push(['Contratto', b('load-contract', 'Carica il contratto', ' data-id="' + esc(u.id) + '"', true) +
-        (A.innesto ? b('innesto', 'Da un PDF (Innesto)', ' data-id="' + esc(u.id) + '"') : '') +
         (safeUrl(lease.paperPdfUrl) ? b('pdf', 'Contratto firmato (PDF)', ' data-id="' + esc(cid) + '"') : '') +
         (A.uploadPaperContract ? '<label class="plz-btn plz-file"><input type="file" accept="application/pdf" data-plz-file="paper" data-id="' + esc(cid) + '">' + (lease.paperPdfUrl ? 'Sostituisci la scansione' : 'Allega la scansione firmata (PDF)') + '</label>' : '') +
         b('contract', 'Apri il segnaposto', ' data-id="' + esc(cid) + '"')]);
@@ -830,18 +855,20 @@
       '<label class="plz-mform-wide"><span>Cosa succede</span><textarea name="description" rows="3" maxlength="1200" placeholder="Es. macchia di umidità sul soffitto del bagno, si allarga">' + esc(ui.reportDraft.description) + '</textarea></label>' +
       '<p class="plz-err" id="plz-merr" role="alert"></p>' +
       '<div class="plz-mform-b"><button type="submit" class="plz-btn plz-primary plz-sm" data-plz="maint-send">Invia a BOOM</button><button type="button" class="plz-btn plz-sm" data-plz="maint-cancel">Annulla</button></div></form>' : '';
-    var link = ui.links && ui.links[u.id];
-    var reach2 = link ? tenantShare(u, link) : '';
+    var live = liveToday(u), url0 = live ? guastoUrlFor(u) : '';
+    var reach2 = url0 ? tenantShare(u, url0) : '';
+    var closedNote = u.month.contractId && adapter.links && !live ? '<p class="plz-muted plz-mclosed">Il contratto di questo mese è chiuso: il link per i guasti è di chi abita lì oggi — torna al mese corrente.</p>' : '';
     return '<p class="plz-eyebrow">Manutenzione</p>' + list + done + form +
       (ui.reportFor === u.id ? '' : '<div class="plz-actions plz-mact"><button type="button" class="plz-btn plz-sm" data-plz="maint-new" data-id="' + esc(u.id) + '">🔧 Segnala un guasto</button>' +
-        (u.month.contractId && adapter.links ? '<button type="button" class="plz-btn plz-sm" data-plz="maint-link" data-id="' + esc(u.id) + '">Link per l’inquilino</button>' : '') + '</div>') + reach2;
+        (u.month.contractId && adapter.links && live ? '<button type="button" class="plz-btn plz-sm" data-plz="maint-link" data-id="' + esc(u.id) + '">Link per l’inquilino</button>' : '') + '</div>') + closedNote + reach2;
   }
 
   // ── I messaggi agli inquilini: in inglese di default ──────────────────
   // Gli inquilini dei palazzi sono quasi tutti stranieri: il messaggio parte
   // in inglese (si passa all'italiano con un tocco), il link porta la lingua
-  // (&lang=en|it) e il PRIMO messaggio a un contratto porta l'informativa
-  // privacy per gli inquilini (art. 14 GDPR: chi tratta i loro dati).
+  // (&lang=en|it) e OGNI messaggio porta l'informativa privacy per gli
+  // inquilini (art. 14 GDPR: chi tratta i loro dati) — «solo al primo» la
+  // toglieva al co-intestatario appena partito il messaggio al titolare.
   var BASE = 'https://www.boomrome.com';
   var MON_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
   var MON_EN3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -859,15 +886,29 @@
       return '<button type="button" data-plz="msg-lang" data-l="' + x[0] + '" aria-pressed="' + (ui.msgLang === x[0]) + '">' + x[1] + '</button>';
     }).join('') + '</div>';
   }
-  // Mai mandato niente su questo contratto: il primo messaggio porta l'informativa.
-  function firstMessage(cid) {
-    return !(adapter.state().payments || []).some(function (p) { return p && p.contractId === cid && Array.isArray(p.dunningHistory) && p.dunningHistory.length; });
+  // Il link /guasto apre l'interno per UN contratto vivo (il token è del
+  // posto: api/maintenance/guasto.js). Il link del contratto del mese: il suo
+  // (byContract), oppure il link dell'interno SOLO se il posto di oggi è quel
+  // contratto — mai il link della nuova inquilina mandato a chi è uscito.
+  function seatOfUnit(u) {
+    if (ui.linksSeat && Object.prototype.hasOwnProperty.call(ui.linksSeat, u.id)) return ui.linksSeat[u.id];
+    return u.seats ? u.seats.primary : null;
+  }
+  function liveToday(u) {
+    var cid = u.month.contractId, by = ui.linksBy && ui.linksBy[u.id];
+    return !!(cid && ((by && by[cid]) || (u.seats && u.seats.ids.indexOf(cid) >= 0) || seatOfUnit(u) === cid));
+  }
+  function guastoUrlFor(u) {
+    var cid = u.month.contractId, by = ui.linksBy && ui.linksBy[u.id], link = ui.links && ui.links[u.id];
+    if (!cid) return '';
+    if (by && by[cid]) return by[cid];
+    return link && seatOfUnit(u) === cid ? link : '';
   }
   // Il link del guasto, pronto da mandare: a OGNI conduttore del contratto
-  // col suo WhatsApp (il suo link se il server ne ha uno per contratto).
+  // col suo WhatsApp (il link è già quello del SUO contratto, guastoUrlFor).
   function tenantShare(u, link) {
-    var cid = u.month.contractId, people = contactsOfC(cid) || [], lang = ui.msgLang, by = ui.linksBy && ui.linksBy[u.id];
-    var url = withLang((by && cid && by[cid]) || link, lang);
+    var cid = u.month.contractId, people = contactsOfC(cid) || [], lang = ui.msgLang;
+    var url = withLang(link, lang);
     var msgFor = function (name) {
       var first = firstName(name);
       return lang === 'it'
@@ -894,7 +935,7 @@
     var c = r && r.contract || (u && (u.month.lease || u.month.incoming)) || null;
     return RENT.cardPolicy((r && r.payment) || {}, c, u && u.property);
   }
-  function rataText(u, r, url, name, lang, kind, first) {
+  function rataText(u, r, url, name, lang, kind) {
     var who = firstName(name), card = cardOf(r, u).available;
     var late = r.state === 'overdue', what = rowKind(r), dep = what === 'deposit' && String(r.type || '').toLowerCase() === 'deposit';
     if (lang === 'it') {
@@ -903,12 +944,12 @@
       var fem = what === 'rent';
       var how = card ? 'Puoi pagar' + (fem ? 'la' : 'lo') + ' con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' : 'Da qui trovi i dati per il bonifico e puoi segnalarlo con la foto della ricevuta: ';
       return (who ? 'Ciao ' + who : 'Ciao') + (kind === 'sollecito' && late ? ', ti ricordo ' : ', ecco ') + itWhat + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
-        (r.dueDate ? (late ? (fem ? ', scaduta il ' : ', scaduto il ') : ' entro il ') + dateIt(r.dueDate) : '') + (late && kind === 'sollecito' ? ' e non ci risulta ancora arrivat' + (fem ? 'a' : 'o') : '') + '. ' + how + url + (first ? '\n' + privacyLine('it') : '');
+        (r.dueDate ? (late ? (fem ? ', scaduta il ' : ', scaduto il ') : ' entro il ') + dateIt(r.dueDate) : '') + (late && kind === 'sollecito' ? ' e non ci risulta ancora arrivat' + (fem ? 'a' : 'o') : '') + '. ' + how + url + '\n' + privacyLine('it');
     }
     var enWhat = what === 'rent' ? 'the ' + monthEn(r.month) + ' rent' : what === 'deposit' ? (dep ? 'the security deposit' : 'the deposit balance') : 'the payment';
     var howEn = card ? 'You can pay by card or Apple Pay, or report your bank transfer with a photo of the receipt, here: ' : 'Here you find the bank details and can report your transfer with a photo of the receipt: ';
     return (who ? 'Hi ' + who : 'Hi') + (kind === 'sollecito' && late ? ', a reminder about ' : ', here is ') + enWhat + ' (' + (u.interno ? 'unit ' + u.interno : unitTitle(u)) + '): ' + eurEn(r.amount) +
-      (r.dueDate ? (late ? ', due on ' : ', due by ') + dateEn(r.dueDate) : '') + (late && kind === 'sollecito' ? ' and we have not received it yet' : '') + '. ' + howEn + url + (first ? '\n' + privacyLine('en') : '');
+      (r.dueDate ? (late ? ', due on ' : ', due by ') + dateEn(r.dueDate) : '') + (late && kind === 'sollecito' ? ' and we have not received it yet' : '') + '. ' + howEn + url + '\n' + privacyLine('en');
   }
   var SKIP_WHY = { already_paid: 'risulta già pagata', payment_reported: 'il bonifico è già segnalato', sdd_processing: 'addebito SEPA in corso', payment_processing: 'pagamento in corso',
     payment_cancelled: 'rata annullata', payment_not_payable: 'stato da verificare', not_found: 'rata non trovata', payment_review: 'rimborso o contestazione da verificare' };
@@ -929,20 +970,20 @@
     if (R.skipped[r.id]) return '<p class="plz-note plz-rshare">Link non creato: ' + esc(SKIP_WHY[R.skipped[r.id]] || R.skipped[r.id]) + '.</p>';
     if (!url) return R.failed ? '<p class="plz-note plz-rshare">Link non disponibile ora · <button type="button" class="plz-linkbtn" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(r.contractId || '') + '">riprova</button></p>' : '';
     var lang = ui.msgLang, link = withLang(url, lang), kind = r.state === 'overdue' ? 'sollecito' : 'rata-link';
-    var people = contactsOfC(r.contractId), first = firstMessage(r.contractId);
+    var people = contactsOfC(r.contractId);
     var names = r.tenants && r.tenants.length ? r.tenants : u.month.tenants;
     var phones = (people || []).filter(function (p) { return p.phone; });
     var sent = lastSent(r.payment), local = R.sent[r.id];
     var btns = phones.map(function (p, k) {
       var ph = phoneOf(p.phone);
       if (!ph.wa) return '<span class="plz-warn plz-sm-note">' + esc(firstName(p.name) || 'Inquilino') + ': numero senza prefisso, correggilo</span>';
-      return '<a class="plz-btn' + (k ? '' : ' plz-primary') + ' plz-sm" data-sent="' + esc(r.id) + '" data-kind="' + kind + '" data-month="' + esc(r.month || '') + '" href="https://wa.me/' + esc(ph.wa) + '?text=' + esc(encodeURIComponent(rataText(u, r, link, p.name, lang, kind, first))) + '" target="_blank" rel="noopener">' +
+      return '<a class="plz-btn' + (k ? '' : ' plz-primary') + ' plz-sm" data-sent="' + esc(r.id) + '" data-kind="' + kind + '" data-month="' + esc(r.month || '') + '" href="https://wa.me/' + esc(ph.wa) + '?text=' + esc(encodeURIComponent(rataText(u, r, link, p.name, lang, kind))) + '" target="_blank" rel="noopener">' +
         'WhatsApp: ' + esc(firstName(p.name) || 'inquilino') + '</a>';
     }).join('');
     var status = local === 'error' ? '<p class="plz-note">Messaggio aperto, ma l’invio non è stato segnato sulla rata.</p>' : sent ? '<p class="plz-okline">✓ ' + esc(sentText(sent)) + '</p>' : local ? '<p class="plz-okline">✓ Messaggio aperto: lo segno sulla rata…</p>' : '';
     return '<div class="plz-mlink plz-rshare">' + langToggle() + '<input type="text" readonly value="' + esc(link) + '" aria-label="Link della rata">' +
       (people === undefined ? '<span class="plz-muted plz-loadc">carico i contatti…</span>' : btns || '<span class="plz-muted">Nessun telefono in archivio</span>') +
-      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(rataText(u, r, link, names[0] || '', lang, kind, first)) + '">Copia messaggio</button>' + status + '</div>';
+      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(rataText(u, r, link, names[0] || '', lang, kind)) + '">Copia messaggio</button>' + status + '</div>';
   }
   function fetchRata(ids) {
     var R = ui.rata, need = ids.filter(function (id) { return !R.urls[id] && !R.pending[id]; });
@@ -1030,6 +1071,9 @@
       // Alla proprietaria cosa succede, mai un'istruzione dell'operatore.
       subs.push(admin ? (mb === 'refund' ? 'rimborsata con carta: verifica con l’inquilino' : 'contestazione aperta sulla carta: BOOM risponde a Stripe')
         : (mb === 'refund' ? 'pagamento con carta rimborsato: lo sta verificando BOOM' : 'contestazione sul pagamento con carta: la segue BOOM'));
+    } else if (r.state === 'cancelled') {
+      var whyC = String(p.cancelledReason || '').trim().slice(0, 120), atC = E.day ? E.day(p.cancelledAt) : '';
+      subs.push('annullata' + (atC ? ' il ' + dateIt(atC) : '') + (whyC ? ' · ' + esc(whyC) : '') + ': non è dovuta');
     } else if (r.dueDate) subs.push((r.state === 'overdue' ? 'scaduta il ' : 'scadenza ') + dateIt(r.dueDate) + (r.days ? ' · ' + r.days + (r.days === 1 ? ' giorno' : ' giorni') : ''));
     var s = admin ? lastSent(p) : null;
     if (s) subs.push(sentText(s));
@@ -1082,7 +1126,7 @@
     var m = data.m, um = u.month, admin = data.admin;
     var lease = um.lease || um.incoming;
     var landlord = String(um.landlordName || (lease && lease.landlordName) || '').trim();
-    var rows = um.rows.map(function (r) { return rowHTML(u, r, data, landlord); }).join('');
+    var rows = um.rows.concat(um.waivedRows || []).map(function (r) { return rowHTML(u, r, data, landlord); }).join('');
     var past = (um.pastDue || []).map(function (r) { return rowHTML(u, r, data, (r.contract && r.contract.landlordName) || landlord); }).join('');
     var pdf = pdfUrlOf(lease);
     var actions = admin ? adminActions(u, data)
@@ -1157,7 +1201,7 @@
   // La legenda: i quattro toni, più «Prima di BOOM» SOLO quando nel mese
   // c'è (e si riscrive al cambio mese, insieme alla luce delle finestre).
   function keysHTML(m) {
-    return E.TONES.filter(function (t) { return t.key !== 'prima' || m.totals.before; }).map(function (t) {
+    return E.TONES.filter(function (t) { return t.key === 'prima' ? m.totals.before : t.key === 'annullata' ? m.totals.waived : true; }).map(function (t) {
       return '<span class="plz-key" data-state="' + t.states[0] + '"><i></i>' + t.label + '</span>';
     }).join('');
   }
@@ -1309,9 +1353,10 @@
       (b.length > 1 ? '<p class="plz-rest">' + esc(b.slice(1).join(' ')) + '</p>' : '') + '</div>';
   }
   function cards(data) {
-    var m = data.m, admin = data.admin, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
+    var m = data.m, admin = data.admin, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0 && !isCarried(u); }); };
     var debt = debtorsOf(m), t = m.totals;
     var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant']), coming = by(['incoming']), paid = by(['paid']);
+    var carried = m.units.filter(isCarried), waived = by(['waived']);
     var row = function (u, right, note, action, who, dot) {
       return '<div class="plz-srow"><button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + (dot || u.month.state) + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(who != null ? who : u.month.tenants[0] || '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>' + (action || '') + '</div>';
     };
@@ -1346,6 +1391,8 @@
       mcard +
       card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">' + (t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') + '</p>') +
       (coming.length ? card('', 'In arrivo', coming.length, coming.map(function (u) { return row(u, '', freeNote(u)); }).join('')) : '') +
+      (waived.length ? card('', 'Rata annullata', waived.length, waived.map(function (u) { return row(u, '', waivedNote(u)); }).join('')) : '') +
+      (carried.length ? card('', 'Coperti dalla rata del mese prima', carried.length, carried.map(function (u) { return row(u, paidAmt(u, u.month.rows[0]), carriedNote(u)); }).join('')) : '') +
       (t.before ? '<p class="plz-muted plz-before-note">' + (t.before === 1 ? '1 interno era' : t.before + ' interni erano') + ' prima della gestione BOOM in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': di quel mese non c’è archivio.</p>' : '') +
       '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, paidAmt(u, u.month.rows.find(function (x) { return x.paidDate; }) || u.month.rows[0]), ''); }).join('') + '</details>';
   }
@@ -1729,11 +1776,15 @@
   // contratti e rate (E.parseRentRoll → E.planImport, puri). Si scrive solo
   // dopo l'anteprima, col tasto che dice cosa nasce, e le rate partono da
   // "gestione BOOM dal": mai arretrati inventati prima di BOOM.
-  // «Gestione BOOM dal» parte da quella del palazzo (mai dal mese di oggi:
-  // completare un contratto a novembre lascerebbe ottobre senza rata).
+  // «Gestione BOOM dal» vale SOLO per gli interni nuovi (e per quelli che
+  // non l'hanno scritta): un interno già in archivio tiene sempre la sua
+  // (planImport). Quindi qui si propone il mese di OGGI — l'interno affidato
+  // a BOOM a gennaio non eredita ottobre (quattro rate scadute inventate).
+  // Completare un interno dalla sua scheda (importForUnit) parte invece
+  // dalla SUA gestione.
   function impDefaults(data) {
     var m = data.m, o = m && m.owner;
-    return { address: m && m.building ? m.building.label : '', ownerId: o && o.id || '', from: (m && (m.gestioneDal || m.currentMonth)) || '', text: '', parsed: null, plan: null, applyDiffs: false };
+    return { address: m && m.building ? m.building.label : '', ownerId: o && o.id || '', from: (m && (m.currentMonth || m.gestioneDal)) || '', text: '', parsed: null, plan: null, applyDiffs: false };
   }
   function importPanel(data) {
     var st = ui.imp, S = data.S || {};
@@ -1781,7 +1832,8 @@
         if (src.payments) bits.push(plural(src.payments, 'rata', 'rate'));
         if (src.paid) bits.push('<b>pagato</b>' + (src.paidMarks && src.paidMarks[0] ? ' (rata di ' + esc(E.monthLabel(src.paidMarks[0].month).toLowerCase()) + ')' : ''));
         if (src.overdue) bits.push('<span class="plz-red">' + plural(src.overdue, 'rata già scaduta', 'rate già scadute') + '</span>');
-        if (src.gestioneKept) bits.push('gestione BOOM da ' + esc(E.monthLabel(src.gestioneDal).toLowerCase()));
+        // Da quando partono le rate, per ogni interno: anche per i nuovi.
+        if ((src.gestioneKept || !src.exists) && src.gestioneDal) bits.push('gestione BOOM da ' + esc(E.monthLabel(src.gestioneDal).toLowerCase()));
         verdict = bits.filter(Boolean).join(' · ');
       } else verdict = 'da leggere';
       var detail = [];
@@ -1792,6 +1844,7 @@
         if (terms.length) detail.push('<small class="plz-imp-terms">' + esc(terms.join(' · ')) + '</small>');
         (src.diffs || []).forEach(function (d) {
           detail.push('<small class="plz-imp-diff' + (d.locked ? ' is-locked' : '') + '"><b>' + esc(d.label) + '</b>: ' + esc(d.fromText || 'non indicato') + ' → ' + esc(d.toText || '') + (d.rates ? ' · ' + plural(d.rates, 'rata', 'rate') : '') +
+            (d.ratesKept ? ' (' + (d.ratesKept === 1 ? '1 già scaduta resta com’era' : d.ratesKept + ' già scadute restano com’erano') + ')' : '') +
             (d.locked ? ' — ' + esc(LOCK_WHY[d.lockReason] || 'bloccata') : st.applyDiffs ? ' — si applica' : ' — non applicata') + '</small>');
         });
         (src.alerts || []).forEach(function (a) { detail.push('<small class="plz-imp-alert">⚠ ' + esc(a) + '</small>'); });
@@ -1821,12 +1874,15 @@
       return '<li><b>' + esc(a.locatore || 'Locatore non indicato') + '</b> · <span class="plz-num">' + esc(a.ibanMasked || 'IBAN non indicato') + '</span>' + (a.ibanValid === false ? ' <em class="plz-red">IBAN non valido: non lo carico</em>' : a.ibanValid === true ? ' <em class="plz-ok-i">✓ controllato</em>' : '') +
         '<small>' + (a.interni.length === 1 ? 'interno ' : plural(a.interni.length, 'interno', 'interni') + ': int. ') + esc(a.interni.join(', ')) + '</small></li>';
     }).join('') + '</ul></div>' : '';
-    var od = plan && plan.overdueNow && plan.overdueNow.length ? '<div class="plz-imp-od"><p class="plz-eyebrow">Rate già scadute oggi</p><ul>' + plan.overdueNow.map(function (x) {
-      return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + '</li>';
-    }).join('') + '</ul><p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole («Pagato il» nella tabella vale solo per la prima rata di ogni interno).</p></div>' : '';
+    var ovAll = plan && plan.overdueNow ? plan.overdueNow : [], ovNew = ovAll.filter(function (x) { return x.newUnit; });
+    var od = ovAll.length ? '<div class="plz-imp-od"><p class="plz-eyebrow">Rate già scadute oggi</p><ul>' + ovAll.map(function (x) {
+      return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + (x.newUnit ? ' · <b>interno nuovo</b>' : '') + '</li>';
+    }).join('') + '</ul>' + (ovNew.length < ovAll.length ? '<p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole («Pagato il» nella tabella vale solo per la prima rata di ogni interno).</p>' : '') +
+      (ovNew.length ? '<p class="plz-note">Interni nuovi: le rate partono da «Gestione BOOM dal» (' + esc(E.monthLabel(plan.gestioneDal).toLowerCase()) + '). Se BOOM li gestisce da dopo, cambia la data prima di caricare: dopo il carico non si corregge più.</p>' : '') + '</div>' : '';
     // Le rate già scadute le elenca il riquadro qui sotto: la stessa frase
-    // fra i messaggi sarebbe un doppione proprio dove si decide.
-    var pm = plan ? (plan.messages || []).filter(function (x) { return !(od && /già scadut/.test(x)); }) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
+    // fra i messaggi sarebbe un doppione proprio dove si decide (solo
+    // quella: «restano all'importo di prima» e «interni nuovi» restano).
+    var pm = plan ? (plan.messages || []).filter(function (x) { return !(od && /^\d+ rat[ae] (risulta|risultano) già scadut|^\d+ rat[ae] di (un interno nuovo|interni nuovi)/.test(x)); }) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
     return '<p class="plz-import-sum"><b>' + plural(P.rows.length + ((P.ignored || []).length), 'riga', 'righe') + '</b> · ' + plural(c.create, 'interno nuovo', 'interni nuovi') + ', ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + plural(c.contracts, 'contratto', 'contratti') + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + (apply ? ' da aggiornare)' : ' da completare)') : '') + ' · ' + plural(c.payments, 'rata', 'rate') + ' da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
       (pm.length ? '<div class="plz-imp-msgs" role="status">' + pm.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</div>' : '') +
@@ -1893,7 +1949,17 @@
     if (!year) { rows = E.csvRows(m, { owner: owner }); name = m.month; }
     else {
       var y = m.month.slice(0, 4), endM = y === m.currentMonth.slice(0, 4) ? m.currentMonth : y + '-12';
-      for (var mm = y + '-01'; mm <= endM; mm = E.monthAdd(mm, 1)) {
+      // Dal primo mese di gestione BOOM se TUTTI gli interni la dichiarano
+      // (con un interno senza la data i mesi prima hanno dati veri): al
+      // commercialista non vanno nove mesi di righe vuote.
+      var gds = m.units.map(function (u) { return u.month.gestioneDal || ''; });
+      var gd0 = gds.length && gds.every(Boolean) ? gds.slice().sort()[0] : '';
+      var start = gd0 && gd0 > y + '-01' ? gd0 : y + '-01';
+      if (start > endM) {
+        var note = [y, '', '', ''].concat(E.CSV_HEAD.slice(4, -1).map(function () { return ''; })).concat(['Prima della gestione BOOM (da ' + E.monthLabel(gd0).toLowerCase() + '): nessun mese di ' + y + ' in archivio']);
+        rows = [note];
+      }
+      for (var mm = start; mm <= endM; mm = E.monthAdd(mm, 1)) {
         rows = rows.concat(E.csvRows(E.model(last.ctx, m.building.key, mm, { filter: last.filter, strip: false }), { owner: owner }));
       }
       name = y;
@@ -1986,6 +2052,9 @@
         var links = res && res.links && typeof res.links === 'object' ? res.links : res || {};
         ui.links = Object.assign({}, ui.links || {}, links);
         ui.linksBy = Object.assign({}, ui.linksBy || {}, (res && res.byContract) || {});
+        // Il posto di oggi per interno (il contratto a cui il link apre): se
+        // il server lo dice vince sul motore.
+        if (res && res.seats && typeof res.seats === 'object') ui.linksSeat = Object.assign({}, ui.linksSeat || {}, res.seats);
         el.disabled = false; patch();
       }, function () { el.disabled = false; el.textContent = 'Link non disponibile ora · riprova'; });
     }

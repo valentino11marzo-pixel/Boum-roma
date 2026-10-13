@@ -29,6 +29,19 @@
 .plz-unit[data-state="before"] .plz-face{background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.18)}
 .plz-unit[data-state="before"] .plz-f-front b{color:rgba(255,255,255,.5)}
 .plz-win[data-state="before"]{--hi:#1B1C21;--lo:#111216;--ga:transparent;opacity:.7}
+/* Rata annullata (un mese condonato): abitato, nessuno deve niente — né
+   oro (pagato) né avorio (si aspetta): una luce spenta e tratteggiata */
+.plz{--plz-waived:#8E897D}
+.plz .plz-s-waived{--c:var(--plz-waived)}
+.plz-dot.plz-s-waived{background:transparent;box-shadow:none;border:1px dashed var(--plz-waived)}
+.plz-mbar i.plz-s-waived{background:repeating-linear-gradient(135deg,rgba(142,137,125,.55) 0 3px,transparent 3px 6px)}
+.plz-pill.plz-s-waived{border-style:dashed;color:#C9C3B4}
+.plz-f-waived{--c:var(--plz-waived)}.plz-f-waived i{background:transparent;border:1px dashed var(--plz-waived)}
+.plz-unit[data-state="waived"]{--c:var(--plz-waived)}
+.plz-unit[data-state="waived"] .plz-face{border-style:dashed}
+.plz-chip[data-state="waived"]{--c:var(--plz-waived)}
+.plz-win[data-state="waived"]{--hi:#A8A294;--lo:#6E695E;--ga:transparent;--gr:0px;--gs:0px}
+.plz-key[data-state="waived"]{--hi:#A8A294;--lo:#6E695E}
 .plz-eyebrow{margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold,#D4AF37);font-weight:500}
 .plz-num{font-variant-numeric:tabular-nums}
 .plz-muted{color:var(--text-muted,#666);font-size:13px;margin:6px 0}

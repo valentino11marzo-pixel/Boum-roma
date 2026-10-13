@@ -2249,6 +2249,29 @@
       return !s ? cStatus(c) === 'active' : s <= d && (!e || e >= d);
     }).sort(function (a, b) { return (day(b.startDate) || '').localeCompare(day(a.startDate) || ''); })[0] || null;
   }
+  // I «posti» dell'interno OGGI, con la stessa regola del link /guasto
+  // (api/maintenance/guasto.js, liveSeats + primarySeat): i contratti non
+  // annullati né finiti — un futuro sì (chi arriva), un segnaposto senza date
+  // pure — e il posto di adesso (l'ultimo iniziato, altrimenti il primo in
+  // arrivo). Il link dei guasti apre l'interno a QUEL contratto: chi ha
+  // abitato lì prima non deve riceverlo (la vista lo legge da qui finché il
+  // server non dice i suoi `seats`).
+  var SEAT_DEAD = { cancelled: 1, canceled: 1, rejected: 1, void: 1, draft: 1, deleted: 1, archived: 1 };
+  var SEAT_ENDED = { expired: 1, ended: 1, completed: 1, closed: 1, terminated: 1 };
+  function seatsOf(ctx, p) {
+    var today = ctx.today, live = [];
+    (ctx.contractsByProperty[str(p.id)] || []).forEach(function (c) {
+      var st = cStatus(c);
+      if (!str(c.id) || c.deleted === true || SEAT_DEAD[st]) return;
+      var endD = day(c.endDate), termD = day(c.terminatedAt) || (st === 'terminated' ? day(c.terminationDate) : '');
+      var end = termD && (!endD || termD < endD) ? termD : endD;
+      if (end ? end < today : SEAT_ENDED[st]) return;
+      live.push({ id: str(c.id), start: day(c.startDate) });
+    });
+    var now = live.filter(function (x) { return !x.start || x.start <= today; }).sort(function (a, b) { return (b.start || '').localeCompare(a.start || ''); });
+    var next = live.slice().sort(function (a, b) { return (a.start || '').localeCompare(b.start || ''); });
+    return { ids: live.map(function (x) { return x.id; }), primary: now.length ? now[0].id : next.length ? next[0].id : null };
+  }
   // Un contratto PIÙ RECENTE sullo stesso interno (rinnovo, nuovo inquilino,
   // anche in firma): la fine del vecchio è già decisa.
   function successorOf(ctx, pid, c) {
@@ -2315,7 +2338,7 @@
         paper: um.placeholder ? null : paperOf(um.lease || um.incoming, ctx.today), maintenance: maintOf(ctx, p), utenze: utenzeOf(p),
         oneri: oneriYearOf(ctx, p, m),
         contractKind: um.contractKind, landlordName: um.landlordName, landlordIsCompany: isCompanyName(um.landlordName),
-        current: cur, currentTenants: cur ? tenantNamesOf(cur, ctx.usersById) : [], notice: noticeOf(cur, ctx.today),
+        current: cur, currentTenants: cur ? tenantNamesOf(cur, ctx.usersById) : [], notice: noticeOf(cur, ctx.today), seats: seatsOf(ctx, p),
         strip: opts.strip === false ? [] : strip(ctx, p, m > ctx.month ? m : ctx.month, 12)
       };
     }).sort(function (a, b2) { return natural(a.scala, b2.scala) || natural(a.interno, b2.interno) || natural(a.name, b2.name); });
@@ -2604,7 +2627,7 @@
 
   var API = { day: day, monthOf: monthOf, monthAdd: monthAdd, monthLabel: monthLabel, parseFloor: parseFloor, floorLabel: floorLabel,
     unitOf: unitOf, scalaOf: scalaOf, floorOf: floorOf, streetKey: streetKey, buildingKeyOf: buildingKeyOf, ownerOf: ownerOf,
-    context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model,
+    context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model, seatsOf: seatsOf,
     totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES, TONES: TONES, toneOf: toneOf,
     LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook,
     paperOf: paperOf, cedolareDeclared: cedolareDeclared, csvRows: csvRows, toCsv: toCsv, CSV_HEAD: CSV_HEAD,

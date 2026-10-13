@@ -243,14 +243,12 @@ try {
       await closeUnit();
     });
 
-    await check('il segnaposto: «Carica il contratto» apre la tabella con l\'interno già scritto; mai PDF, Firma, RLI, ASPI, Fascicolo, ARPE', async () => {
+    await check('il segnaposto: «Carica il contratto» apre la tabella con l\'interno già scritto; mai PDF, Firma, RLI, ASPI, Fascicolo, ARPE, né «Da un PDF (Innesto)» (l\'Innesto lì non crea il contratto)', async () => {
       await openUnit('u14');
       const panel = pg.locator('#plz-panel');
       await shot('segnaposto', false);
-      for (const a of ['pdf', 'firma', 'rli', 'aspi', 'fiscale', 'arpe', 'terms', 'terminate']) assert.equal(await panel.locator('[data-plz="' + a + '"]').count(), 0, a);
+      for (const a of ['pdf', 'firma', 'rli', 'aspi', 'fiscale', 'arpe', 'terms', 'terminate', 'innesto']) assert.equal(await panel.locator('[data-plz="' + a + '"]').count(), 0, a);
       assert.ok((await panel.innerText()).includes('Gaia Demo'));
-      await panel.locator('[data-plz="innesto"]').click();
-      assert.deepEqual((await acts(pg, 'innesto')).at(-1), ['innesto', 'property', 'u14']);
       await panel.locator('[data-plz="load-contract"]').click();
       await pg.waitForSelector('.plz-import [data-imp="text"]');
       const t = await pg.locator('[data-imp="text"]').inputValue();
@@ -405,11 +403,11 @@ try {
       // 2) la stessa tabella col canone nuovo: una differenza, e il tasto lo dice
       await pg.locator('.plz-otools [data-plz="imp-open"]').click();
       await pg.waitForSelector('.plz-import');
-      assert.equal(await pg.locator('[data-imp="from"]').inputValue(), M(0), '«gestione BOOM dal» parte da quella del palazzo');
+      assert.equal(await pg.locator('[data-imp="from"]').inputValue(), M(0), '«gestione BOOM dal» propone il mese di oggi (vale per gli interni nuovi: quelli in archivio tengono la loro)');
       await pg.locator('[data-imp="text"]').fill(row('1100'));
       await pg.locator('[data-plz="imp-read"]').click();
       await pg.waitForSelector('.plz-imp-diff');
-      assert.ok(/canone: €1\.000 → €1\.100 · \d+ rate — non applicata/.test(await pg.locator('.plz-imp-diff').first().innerText()), await pg.locator('.plz-imp-diff').first().innerText());
+      assert.ok(/canone: €1\.000 → €1\.100 · \d+ rate( \((1 già scaduta resta com’era|\d+ già scadute restano com’erano)\))? — non applicata/.test(await pg.locator('.plz-imp-diff').first().innerText()), await pg.locator('.plz-imp-diff').first().innerText());
       const btns = await pg.locator('#plz-imp-out .plz-import-b button').allInnerTexts();
       assert.ok(!btns.some(t => /Niente da cambiare/.test(t)), btns.join(' | '));
       assert.ok(btns.some(t => /1 differenza con l’archivio: applicala|Applica anche la differenza/.test(t)), btns.join(' | '));
