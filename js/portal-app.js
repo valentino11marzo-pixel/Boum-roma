@@ -4785,8 +4785,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // contractRegistrationStatus: quello si carica solo aprendo la
         // pagina, quindi al boot la sidebar taceva proprio mentre una
         // registrazione correva verso i 30 giorni.
-        const daRegistrare = (S.contracts || []).filter(c =>
-            (c.signatureStatus === 'complete' || (c.tenantSignature && c.landlordSignature))
+        // Firmato vale anche SU CARTA: quei contratti si registrano come gli
+        // altri, mai un segnaposto senza contratto (contractMissing).
+        const daRegistrare = (S.contracts || []).filter(c => c.contractMissing !== true
+            && (c.signatureStatus === 'complete' || c.signatureStatus === 'paper' || (c.tenantSignature && c.landlordSignature))
             && (c.registrationStatus || 'pending') !== 'registered' && !c.rliRegisteredAt).length;
 
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
