@@ -25,26 +25,134 @@
 //     best-effort e a tempo: se Telegram tace, il lead resta `new` senza
 //     `telegramNotifiedAt` e notify-pending lo recupera entro un minuto.
 //
+// IL CONTO DELLA SUA CASA (13/10/2026). La stessa porta serve /canone: il
+// proprietario che chiede il conto in PDF manda il suo `calc` (zona, metri,
+// dotazioni…). Quarta regola: i numeri del browser NON valgono. Il server
+// rilegge l'input con la lista chiusa del motore (js/conto-engine.js),
+// RICALCOLA il conto con js/canone-engine.js e lo congela in
+// `ownerConti/<id>` — il PDF si stampa da quella foto, mai da un ricalcolo
+// (un link aperto fra sei mesi mostra il conto che il proprietario ha
+// ricevuto). Un `calc` sbagliato non costa il lead: il lead nasce, senza PDF.
+// Lo stesso recapito entro 30 giorni non fa un secondo lead: il conto nuovo
+// si aggiunge a quello esistente (`owner.conti`).
+//
 // Method: POST   Body: { name, contact | email | phone, zone, freeFrom, goal,
 //                        sqm, rooms, furnished, rent, message, lang,
-//                        attribution, company(honeypot) }
-// Response 200: { ok: true, id } | 4xx/5xx: { ok: false, error }
+//                        attribution, sourceRef('owners'|'canone'), calc?,
+//                        company(honeypot) }
+// Response 200: { ok: true, id, ref?, pdfUrl? } | 4xx/5xx: { ok: false, error }
+// Method: GET ?pdf=<contoId>&t=<token> → il PDF del conto (link firmato).
 
-import { fsCreate, fsPatch, logActivity } from './homie/_lib.js';
+import crypto from 'node:crypto';
+import { fsCreate, fsPatch, fsGet, fsList, logActivity } from './homie/_lib.js';
+import { phoneVariants } from './homie/_lead.js';
 import { tgSend } from './telegram/_lib.js';
 import { b2bReplyText } from './_market.js';
+import CONTO from '../js/conto-engine.js';
+import { buildContoPdf } from './owners/_conto-pdf.js';
 
 const HITS = new Map();
+const PDF_HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
 const MAX_PER_WINDOW = 6;
-function rateLimited(ip) {
+function rateLimited(ip, map = HITS, max = MAX_PER_WINDOW) {
   const now = Date.now();
-  const arr = (HITS.get(ip) || []).filter(t => now - t < WINDOW_MS);
+  const arr = (map.get(ip) || []).filter(t => now - t < WINDOW_MS);
   arr.push(now);
-  HITS.set(ip, arr);
-  if (HITS.size > 5000) HITS.clear();
-  return arr.length > MAX_PER_WINDOW;
+  map.set(ip, arr);
+  if (map.size > 5000) map.clear();
+  return arr.length > max;
 }
+
+// ─── Il link del PDF: derivato, non memorizzato ─────────────────────────
+// Stesso schema di api/payments/_token.js: sha256 dell'id + segreto server.
+// Ruotando il segreto si revocano tutti i link in circolazione.
+const SITE = 'https://www.boomrome.com';
+function salt() {
+  return process.env.HOMIE_SECRET || process.env.CRON_SECRET || process.env.STRIPE_WEBHOOK_SECRET || 'boom';
+}
+export function contoToken(id) {
+  return crypto.createHash('sha256').update(`boom-conto:${id}:${salt()}`).digest('hex').slice(0, 24);
+}
+export function verifyContoToken(id, token) {
+  const want = Buffer.from(contoToken(id));
+  const got = Buffer.from(String(token || ''));
+  if (want.length !== got.length) return false;
+  try { return crypto.timingSafeEqual(want, got); } catch (_) { return false; }
+}
+export function contoPdfUrl(id) {
+  return `${SITE}/api/owner-lead?pdf=${encodeURIComponent(id)}&t=${contoToken(id)}`;
+}
+// Il riferimento che il proprietario legge e cita al telefono: corto, senza
+// lettere che si confondono (I/O/0/1), derivato dall'id.
+const REF_ALPHA = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export function contoRef(id) {
+  const h = crypto.createHash('sha256').update('conto-ref:' + id).digest();
+  let out = '';
+  for (let i = 0; i < 6; i++) out += REF_ALPHA[h[i] % REF_ALPHA.length];
+  return 'CNT-' + out;
+}
+const newId = () => crypto.randomBytes(15).toString('base64').replace(/[^A-Za-z0-9]/g, '').slice(0, 20).padEnd(20, '0');
+
+const withTimeout = (p, ms, tag) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error(tag || 'timeout')), ms))]);
+
+/**
+ * Dal `calc` del browser al conto del SERVER. null se l'input non passa la
+ * lista chiusa: il lead nasce lo stesso, senza PDF.
+ */
+export function serverConto(calc) {
+  if (!calc || typeof calc !== 'object') return null;
+  const n = CONTO.normalize(calc);
+  if (!n.ok) return null;
+  const r = CONTO.conto(n.input);
+  return r && r.ok ? r : null;
+}
+
+/** La riga che la card, la risposta e il lead leggono (mai il conto intero). */
+export function contoSummary(r, extra = {}) {
+  return {
+    zone: { cod: r.zone.cod, label: r.zone.label },
+    mq: r.input.mq, sc: r.sc, tipo: r.tipo, declared: r.declared, normale: r.normale,
+    fascia: r.fascia, nP: r.nP, max: r.max, min: r.min,
+    fasce: { A: r.fasce.A ? r.fasce.A.max : null, B: r.fasce.B ? r.fasce.B.max : null, C: r.fasce.C ? r.fasce.C.max : null },
+    ask: r.ask ? { value: r.ask.value, fits: r.ask.fits, excess: r.ask.excess, need: r.ask.need == null ? null : r.ask.need } : null,
+    netto: r.netto || null, pareggioLibero: r.pareggioLibero || null,
+    ...extra,
+  };
+}
+
+/** La riga del Perito per la zona, best-effort e a tempo. */
+async function marketSnapshot(cod) {
+  const slug = CONTO.MARKET_OF[cod];
+  if (!slug) return null;
+  try {
+    const d = await withTimeout(fsGet(`marketStats/${slug}`), 2500, 'market_timeout');
+    if (!d || !d.asked || !d.asked.ok) return null;
+    const name = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    return CONTO.marketFor(cod, { minSample: d.minSample, zones: [{ slug, zone: name, asked: d.asked, updatedAt: d.at || null }] });
+  } catch (_) { return null; }
+}
+
+// Lo stesso proprietario entro 30 giorni (stessa email o stesso numero, in
+// qualunque forma): un lead solo. Fail-open: una lettura che fallisce fa
+// nascere un lead nuovo, mai un rifiuto.
+export const OWNER_DEDUPE_MS = 30 * 86400000;
+async function recentOwnerLead({ email, phone }, now = Date.now()) {
+  const seen = new Map();
+  const probes = [];
+  if (email) probes.push(['email', email]);
+  if (phone) for (const v of phoneVariants(phone)) probes.push(['phone', v]);
+  for (const [field, value] of probes) {
+    try {
+      const rows = await withTimeout(fsList('leads', { filter: { field, op: 'EQUAL', value }, limit: 5 }), 3000, 'dedupe_timeout');
+      for (const r of rows || []) seen.set(r.id, r);
+    } catch (_) { /* fail-open */ }
+  }
+  return [...seen.values()]
+    .filter(r => r.intent === 'owner' && r.leadType === 'landlord' && now - new Date(r.createdAt || 0).getTime() < OWNER_DEDUPE_MS)
+    .sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0))[0] || null;
+}
+const REPING_MS = 12 * 3600000;
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 // «1.450», «1,450» e «1450» sono lo stesso canone: i separatori delle
@@ -117,6 +225,7 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return res.status(204).end();
+  if (req.method === 'GET') return servePdf(req, res);
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
   let body = req.body;
@@ -152,8 +261,52 @@ export default async function handler(req, res) {
     note: clip(body.message, 1000),
     lang: body.lang === 'en' ? 'en' : 'it',
   };
-  const summary = ownerSummary(owner);
+  const sourceRef = body.sourceRef === 'canone' ? 'canone' : 'owners';
 
+  // Il conto: ricalcolato QUI, congelato in ownerConti prima del lead.
+  const r = serverConto(body.calc);
+  let conto = null;
+  if (r) {
+    const contoId = newId();
+    const ref = contoRef(contoId);
+    const market = await marketSnapshot(r.zone.cod);
+    try {
+      await fsCreate('ownerConti', {
+        ref, at: new Date().toISOString(), v: r.v, engine: 'canone-engine', cfg: 'default', sourceRef,
+        input: r.input, result: r, market, prices: CONTO.PRICES,
+      }, contoId);
+      conto = contoSummary(r, { ref, contoId, pdfUrl: contoPdfUrl(contoId), market: market ? { median: market.median, sample: market.sample } : null, at: new Date().toISOString() });
+    } catch (e) {
+      // Senza la foto non c'è PDF: il lead nasce comunque, col solo riassunto.
+      console.warn('[owner-lead] conto non congelato:', e.message);
+      conto = contoSummary(r, { ref: null, contoId: null, pdfUrl: null, market: null, at: new Date().toISOString() });
+    }
+    if (!owner.zone) owner.zone = `${r.zone.label} (${r.zone.cod})`;
+    if (!owner.sqm) owner.sqm = r.input.mq;
+    if (!owner.goal) owner.goal = 'concordato';
+    owner.conto = conto;
+  }
+  const summary = ownerSummary(owner);
+  const reply = { ok: true, ref: conto ? conto.ref : null, pdfUrl: conto ? conto.pdfUrl : null };
+
+  // Lo stesso proprietario entro 30 giorni: si aggiorna il suo lead.
+  const prev = await recentOwnerLead({ email: hasEmail ? email : null, phone: hasPhone ? phone : null });
+  if (prev) {
+    const old = prev.owner || {};
+    const merged = { ...old };
+    for (const [k, v] of Object.entries(owner)) if (v != null && k !== 'conto') merged[k] = v;
+    if (conto) { merged.conto = conto; merged.conti = [conto, ...(Array.isArray(old.conti) ? old.conti : old.conto ? [old.conto] : [])].slice(0, 10); }
+    merged.at = new Date().toISOString();
+    const patch = { owner: merged, message: ownerSummary(merged), notes: ownerSummary(merged), updatedAt: new Date(), lastOwnerContactAt: new Date() };
+    try { await fsPatch(`leads/${prev.id}`, patch); }
+    catch (e) { console.warn('[owner-lead] merge failed:', e.message); }
+    await logActivity('Proprietario: nuovo conto sullo stesso lead', 'lead', { leadId: prev.id, zone: merged.zone, ref: reply.ref }, 'owner-lead').catch(() => {});
+    const last = prev.telegramNotifiedAt ? new Date(prev.telegramNotifiedAt).getTime() : 0;
+    if (last && Date.now() - last > REPING_MS) await pingOwner({ ...prev, ...patch, name: prev.name || name, id: prev.id, sourceRef }, true);
+    return res.status(200).json({ ...reply, id: prev.id, merged: true });
+  }
+
+  const { conto: _c, ...rawOwner } = owner;
   const now = new Date();
   const lead = {
     source: 'web',
@@ -174,13 +327,13 @@ export default async function handler(req, res) {
     status: 'new',
     grade: null,
     ingestedBy: 'owner-lead',
-    sourceRef: 'owners',
+    sourceRef,
     // Da dove arriva (UTM → referrer → diretto), timbrato nel modulo da
     // js/boom-track.js: le campagne proprietari di docs/owner-outreach.md si
     // misurano solo così.
     attribution: clip(body.attribution, 120),
     owner: { ...owner, at: now.toISOString() },
-    raw: { ...owner, ip, ua: clip(req.headers['user-agent'], 300) },
+    raw: { ...rawOwner, ip, ua: clip(req.headers['user-agent'], 300) },
     createdAt: now,
     ingestedAt: now,
   };
@@ -193,26 +346,53 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'internal' });
   }
 
-  await logActivity('Lead proprietario (pagina /owners)', 'lead',
-    { leadId: id, zone: owner.zone, goal: owner.goal }, 'owner-lead').catch(() => {});
+  await logActivity(sourceRef === 'canone' ? 'Lead proprietario (conto /canone)' : 'Lead proprietario (pagina /owners)', 'lead',
+    { leadId: id, zone: owner.zone, goal: owner.goal, ref: reply.ref }, 'owner-lead').catch(() => {});
 
-  // La card, alla porta. Tetto di 5s: una risposta al proprietario non
-  // aspetta Telegram. Se fallisce, notify-pending la recupera al minuto dopo.
+  await pingOwner({ ...lead, id });
+  return res.status(200).json({ ...reply, id });
+}
+
+// La card, alla porta. Tetto di 5s: una risposta al proprietario non
+// aspetta Telegram. Se fallisce, notify-pending la recupera al minuto dopo.
+async function pingOwner(lead, again = false) {
   const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (chatId) {
-    try {
-      const card = ownerCard({ ...lead, id });
-      const mid = await Promise.race([
-        tgSend(chatId, card.text, { reply_markup: { inline_keyboard: card.buttons } }),
-        new Promise((_, rej) => setTimeout(() => rej(new Error('tg_timeout')), 5000)),
-      ]);
-      await fsPatch(`leads/${id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
-    } catch (e) {
-      console.warn('[owner-lead] telegram ping deferred to notify-pending:', e.message);
-    }
+  if (!chatId) return;
+  try {
+    const card = ownerCard(lead, { again });
+    const mid = await withTimeout(tgSend(chatId, card.text, { reply_markup: { inline_keyboard: card.buttons } }), 5000, 'tg_timeout');
+    await fsPatch(`leads/${lead.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
+  } catch (e) {
+    console.warn('[owner-lead] telegram ping deferred to notify-pending:', e.message);
   }
+}
 
-  return res.status(200).json({ ok: true, id });
+// GET ?pdf=<contoId>&t=<token> — il PDF, dalla foto. Il token è la
+// credenziale; un id sconosciuto e un token sbagliato rispondono uguale.
+async function servePdf(req, res) {
+  const q = req.query || Object.fromEntries(new URL(req.url || '/', SITE).searchParams);
+  const id = String(q.pdf || '');
+  if (!/^[A-Za-z0-9]{12,40}$/.test(id) || !verifyContoToken(id, q.t)) {
+    return res.status(404).json({ ok: false, error: 'not_found' });
+  }
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
+  if (rateLimited(ip, PDF_HITS, 30)) return res.status(429).json({ ok: false, error: 'rate_limited' });
+  let snap;
+  try { snap = await fsGet(`ownerConti/${id}`); }
+  catch (e) { console.error('[owner-lead] pdf read:', e.message); return res.status(500).json({ ok: false, error: 'internal' }); }
+  if (!snap || !snap.result || !snap.result.ok) return res.status(404).json({ ok: false, error: 'not_found' });
+  try {
+    const bytes = await buildContoPdf({ ...snap, parametri: CONTO.PARAMETRI, prices: snap.prices || CONTO.PRICES });
+    const name = `BOOM_conto_${String(snap.result.zone && snap.result.zone.cod || 'roma')}_${snap.ref || id}.pdf`.replace(/[^\w.-]/g, '_');
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${name}"`);
+    res.setHeader('Cache-Control', 'private, max-age=0, no-store');
+    res.setHeader('X-Robots-Tag', 'noindex');
+    return res.status(200).send(Buffer.from(bytes));
+  } catch (e) {
+    console.error('[owner-lead] pdf build:', e.message);
+    return res.status(500).json({ ok: false, error: 'pdf_failed' });
+  }
 }
 
 /**
@@ -220,10 +400,13 @@ export default async function handler(req, res) {
  * e il tasto WhatsApp col messaggio già scritto (col Lei — la dottrina delle
  * risposte rapide: il proprietario è il cliente che ci affida un bene).
  */
-export function ownerCard(lead) {
+export function ownerCard(lead, { again = false } = {}) {
   const o = lead.owner || {};
+  const c = o.conto || null;
   const lines = [
-    `🔑 <b>Proprietario: ${esc(lead.name)}</b> · pagina /owners`,
+    `🔑 <b>Proprietario: ${esc(lead.name)}</b> · ${lead.sourceRef === 'canone' ? 'calcolo /canone' : 'pagina /owners'}${again ? ' · <i>è tornato</i>' : ''}`,
+    c ? `🧮 ${esc(contoLine(c))}` : null,
+    c && c.ask ? `💭 ${esc(askLine(c))}` : null,
     o.zone ? `🏠 ${esc(o.zone)}${o.sqm ? ' · ' + Math.round(o.sqm) + ' mq' : ''}${o.rooms && ROOMS[o.rooms] ? ' · ' + ROOMS[o.rooms] : ''}${o.furnished && FURNISHED[o.furnished] ? ' · ' + FURNISHED[o.furnished] : ''}` : null,
     o.freeFrom && FREE_FROM[o.freeFrom] ? `📅 ${FREE_FROM[o.freeFrom]}` : null,
     o.goal && GOALS[o.goal] ? `🎯 ${GOALS[o.goal]}` : null,
@@ -238,5 +421,22 @@ export function ownerCard(lead) {
   // Niente bottone mailto: Telegram accetta solo URL http(s)/tg:// e un
   // bottone invalido fa cadere l'INTERO messaggio. L'email sta nel testo.
   buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
+  if (c && c.pdfUrl && /^https:\/\//.test(c.pdfUrl)) buttons.push([{ text: '📄 Il conto in PDF', url: c.pdfUrl }]);
   return { text: lines.join('\n'), buttons };
+}
+
+const E = n => '€' + fmtEur(n);
+/** «Prati (C40) · 65 mq → max €1.234/mese, fascia B (4/20)» */
+export function contoLine(c) {
+  const head = `${c.zone.label} (${c.zone.cod}) · ${Math.round(c.mq)} mq`;
+  if (c.declared) return `${head} → max ${E(c.max)}/mese, fascia ${c.fascia} (${c.nP}/20 dotazioni)${c.ref ? ' · ' + c.ref : ''}`;
+  const f = c.fasce || {};
+  return `${head} → max A ${E(f.A)}${f.B ? ' · B ' + E(f.B) : ''}${f.C ? ' · C ' + E(f.C) : ''} (dotazioni non dette)${c.ref ? ' · ' + c.ref : ''}`;
+}
+export function askLine(c) {
+  const a = c.ask;
+  if (!a) return '';
+  if (a.fits === true) return `pensava a ${E(a.value)}/mese: rientra`;
+  if (a.fits === false) return `pensava a ${E(a.value)}/mese: supera di ${E(a.excess)} — parlarne prima dell'attestazione`;
+  return `pensava a ${E(a.value)}/mese: servono ${a.need} dotazioni`;
 }

@@ -210,6 +210,12 @@ export function ownerReplyText(lead = {}) {
   // casa si tratta e quando esce l'inquilino. Il prezzo non si scrive qui:
   // un messaggio già pronto non deve impegnare BOOM su una cifra.
   const relet = o.goal === 'relet';
+  // Il proprietario che ha fatto il conto su /canone: la risposta CITA il
+  // conto (zona, metri, massimo, il PDF) e non richiede nulla di ciò che il
+  // conto sa già — né la zona, né i metri, né se è arredata (l'arredo non
+  // alza il massimo concordato). Si chiede solo se la casa è libera, se non
+  // l'ha detto, e si propone la verifica delle dotazioni a voce.
+  if (o.conto && o.conto.zone) return contoReply(o, first, en);
   const missing = [];
   if (!zone) missing.push(relet ? (en ? 'which property it is' : 'di quale immobile si tratta')
     : (en ? 'which area it is in' : 'in che zona si trova'));
@@ -241,5 +247,36 @@ export function ownerReplyText(lead = {}) {
     missing.length ? `Per darle una risposta seria, mi dice ${join(missing, 'e')}?` : null,
     relet ? `Le torno in giornata con il nuovo canone e le condizioni del riaffitto, per iscritto.`
       : `Le torno in giornata con cosa faremmo e i numeri per iscritto.`,
+  ].filter(Boolean).join('\n');
+}
+
+const eurIt = n => '€' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const eurEn = n => '€' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function contoReply(o, first, en) {
+  const c = o.conto;
+  const E = en ? eurEn : eurIt;
+  const where = `${c.zone.label}, ${Math.round(c.mq)} ${en ? 'sqm' : 'mq'}`;
+  let num;
+  if (c.declared) {
+    num = en ? `on the agreed-rent tables the maximum is ${E(c.max)} a month (band ${c.fascia})`
+      : `sulle tabelle dell'Accordo il massimo a canone concordato è ${E(c.max)} al mese (fascia ${c.fascia})`;
+  } else {
+    const hi = c.fasce.C || c.fasce.B || c.fasce.A;
+    num = en ? `on the agreed-rent tables the maximum is between ${E(c.fasce.A)} and ${E(hi)} a month, depending on its features`
+      : `sulle tabelle dell'Accordo il massimo a canone concordato è tra ${E(c.fasce.A)} e ${E(hi)} al mese, secondo le dotazioni`;
+  }
+  const free = o.freeFrom;
+  const ask = !free ? (en ? 'Is the home free at the moment, or already let?' : 'La casa oggi è libera o già affittata?') : null;
+  const next = free === 'rented'
+    ? (en ? 'If the tenant is already there, the concordato is paperwork: lease, attestation and registration. I can tell you exactly what is needed.'
+      : 'Se l\'inquilino c\'è già, il concordato è una questione di carte: contratto, attestazione e registrazione. Le dico esattamente cosa serve.')
+    : (en ? 'If you like, I can call you to go through the features together: they decide the band, and they must hold up at the attestation.'
+      : 'Se vuole, la chiamo per verificare insieme le dotazioni: decidono la fascia, e devono reggere all\'attestazione.');
+  return [
+    en ? `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma. I saw the calculation you ran for your home in ${where}: ${num}.`
+      : `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Ho visto il conto che ha fatto per la sua casa a ${where}: ${num}.`,
+    c.pdfUrl ? (en ? `Here it is in PDF: ${c.pdfUrl}` : `Glielo lascio in PDF: ${c.pdfUrl}`) : null,
+    ask,
+    next,
   ].filter(Boolean).join('\n');
 }

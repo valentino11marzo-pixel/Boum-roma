@@ -90,7 +90,11 @@ export default async function handler(req, res) {
   }
 
   const zone = clip(body.zone, 80) || calc.zona || null;
-  const budget = num(body.budget) || calc.mensile || null;
+  // Il budget è un concetto dell'INQUILINO: sul proprietario del Canone
+  // Check il Lead Brain lo leggeva come capacità di spesa e lo votava come un
+  // inquilino (13/10/2026). Dal 13/10 /canone scrive su /api/owner-lead;
+  // questo ramo resta per le pagine rimaste in cache.
+  const budget = leadType === 'landlord' ? null : (num(body.budget) || calc.mensile || null);
   const extra = body.extra && typeof body.extra === 'object' ? body.extra : null;
 
   const now = new Date();
@@ -118,13 +122,20 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('leads', lead);
-    logActivity(channel === 'match_quiz' ? 'Lead da Match Quiz' : 'Lead da Canone Check', 'lead', { leadId: id, zona: zone, budget }, channel);
+    // Ogni scrittura è ATTESA prima della risposta: su Vercel ciò che parte
+    // dopo res.json può morire in volo (la lezione del 13/09).
+    await logActivity(channel === 'match_quiz' ? 'Lead da Match Quiz' : 'Lead da Canone Check', 'lead', { leadId: id, zona: zone, budget }, channel)
+      .catch(() => {});
 
-    // Fire-and-forget event for the realtime daemon on the Mac Mini.
-    // If notify fails (network blip, secret missing) the lead is already
-    // saved — the regular 15-min pulse will pick it up via the snapshot
-    // fingerprint, just slower. We never block the user response on this.
-    fsCreate('agentNotifications', {
+    // Il proprietario del Canone Check riceve UNA card: quella di
+    // notify-pending (🔑, col messaggio già scritto col Lei). Il vecchio
+    // `lead.new` qui sotto ne mandava una seconda per lo stesso lead.
+    if (channel === 'canone_check') return res.status(200).json({ ok: true, id });
+
+    // Event for the realtime daemon on the Mac Mini. If notify fails
+    // (network blip, secret missing) the lead is already saved — the regular
+    // 15-min pulse will pick it up via the snapshot fingerprint, just slower.
+    await fsCreate('agentNotifications', {
       type: 'lead.new',
       summary: `Lead da ${channel === 'match_quiz' ? 'Match Quiz' : 'Canone Check'} · ${name}${zone ? ' · ' + zone : ''}${budget ? ' · ' + budget + '€' : ''}`,
       priority: 'high',

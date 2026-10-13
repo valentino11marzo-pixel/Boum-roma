@@ -262,10 +262,12 @@ console.log('\n\x1b[1m▸ le guardie stanno dove si spende\x1b[0m');
   ok('il Commerciale tace sui B2B PRIMA di redigere', com.indexOf('if (isB2B(lead)) continue;') > -1
     && com.indexOf('if (isB2B(lead)) continue;') < com.indexOf('proposeFirstReply(lead'));
   const src = read('api/owner-lead.js');
-  const i = src.indexOf("return res.status(200).json({ ok: true, id });");
+  const i = src.indexOf("return res.status(200).json({ ...reply, id });");
   const before = src.slice(0, i);
+  const ping = src.slice(src.indexOf('async function pingOwner('), src.indexOf('async function servePdf('));
   ok('ogni scrittura dell\'endpoint è ATTESA prima della risposta',
-    /await fsCreate\('leads'/.test(before) && /await logActivity\(/.test(before) && /await fsPatch\(`leads\/\$\{id\}`/.test(before));
+    i > 0 && /await fsCreate\('leads'/.test(before) && /await logActivity\(/.test(before) && /await pingOwner\(/.test(before)
+      && /await fsPatch\(`leads\/\$\{lead\.id\}`/.test(ping));
   // Una chiamata a inizio istruzione senza await e' fire-and-forget; dentro
   // Promise.race([...]) e' attesa (la riga prima apre l'array).
   const righe = src.split('\n');
@@ -284,7 +286,7 @@ const vis = html.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\s\S]
   ok('...e non più al modulo partner (zona infilata nel campo dell\'ente)', !/partners\/submit/.test(html));
   const m = html.match(/body:JSON\.stringify\(\{([\s\S]*?)\}\)\}\)/);
   const keys = m ? [...m[1].matchAll(/(?:^|[,{\s])(\w+):/g)].map(x => x[1]) : [];
-  const accepted = ['name', 'contact', 'zone', 'freeFrom', 'goal', 'sqm', 'rooms', 'furnished', 'rent', 'message', 'lang', 'attribution', 'company'];
+  const accepted = ['name', 'contact', 'zone', 'freeFrom', 'goal', 'sqm', 'rooms', 'furnished', 'rent', 'message', 'lang', 'sourceRef', 'calc', 'attribution', 'company'];
   ok('ogni campo che la pagina manda, l\'endpoint lo legge', keys.length >= 10 && keys.every(k => accepted.includes(k)), keys);
   const esrc = read('api/owner-lead.js');
   ok('...e l\'endpoint li legge davvero tutti', accepted.every(k => esrc.includes('body.' + k)), accepted.filter(k => !esrc.includes('body.' + k)));

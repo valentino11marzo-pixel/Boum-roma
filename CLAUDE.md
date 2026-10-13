@@ -58,6 +58,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           consegna⇄riconsegna che non imputa un danno su una
                           condizione mai dichiarata. window.BOOM_INVENTARIO.
                           Vedi "L'inventario dal video".
+  conto-engine.js         Il conto della sua casa (/canone, la porta di
+                          /owners, la barra del Pacchetto): compone SOLO il
+                          motore del canone, lista chiusa, stato nell'URL.
+                          window.BOOM_CONTO. Vedi «Il conto della sua casa».
   ../api/_pdfbrand.js     La testata dei PDF in una copia sola: marchio VERO
                           incorporato, filo d'oro, piede legale su ogni
                           pagina, wa() WinAnsi. Usata da inventario e verbale.
@@ -1188,6 +1192,70 @@ a OGNI nuovo inquilino, non solo al primo riaffitto; massimale/durata della
 solvibilità e modello del mandato su misura (nel repo non esistono);
 moduli d'incarico depositati in CCIAA (L. 39/89) e capitale sociale nel
 footer (art. 2250 c.c.) — da verificare fuori dal codice.
+
+### Il conto della sua casa (`js/conto-engine.js` + `/canone` + `api/owner-lead.js`) — 13/10/2026
+Il magnete dei proprietari: zona dell'Accordo + metri → quanto può chiedere a
+canone concordato, e quanto gli resta. **Il difetto che l'ha fatto nascere**:
+`/canone` aveva un calcolatore suo (91 zone, 27 inventate e 11 mancanti; +15%
+all'arredato già selezionato, +15% al transitorio, tetto a 1,35 volte e il
+punto MEDIO della fascia in grande): misurato in Chromium stampava «€2.262/mese»
+sopra «tetto zona €1.760» — un canone nullo nella parte eccedente (art. 13
+L. 431/98) — e lo passava nella cassa del Pacchetto come `?canone=`.
+- **`js/conto-engine.js`** (UMD → `window.BOOM_CONTO`, `require` del motore
+  vero `js/canone-engine.js` con `DEFAULT_CFG`, mai settings): nessuna
+  aritmetica nuova. `normalize` (lista CHIUSA: un valore fuori lista torna in
+  `errors`, mai aggiustato), `conto` (il numero in grande è il MASSIMO, mai sopra
+  fMax × superficie convenzionale; senza dotazioni dichiarate il massimo di
+  ciascuna fascia A/B/C; il netto con la cedolare; il pareggio col libero solo
+  per il 3+2 = max × 0,90 / 0,79; «quanto vorrebbe chiedere»), `encode/decode`
+  (stato nell'URL `?v=1&z=…&mq=…`, versione esplicita: una versione ignota si
+  RIFIUTA), `shareText` (mai dati personali), `marketFor` (la riga del Perito
+  solo sopra il campione, `MARKET_OF` = coppie certe Accordo → zona mercato),
+  `PRICES` (copie legate dal test ad `ASPI_DEFAULTS` e al catalogo). Le
+  dotazioni non si suggeriscono a euro: una dichiarata e assente fa restituire
+  l'eccedenza all'inquilino.
+- **`canone.html`** rifatta (testa a mano, Lei, `boom-2026.css`): conto
+  subito senza dati, dotazioni/pertinenze/contratto/cifra in mente a
+  scomparsa, condivisione (WhatsApp, commercialista, link), e il PDF dietro
+  nome + recapito (`/api/owner-lead`, `sourceRef:'canone'`). Il banner cookie
+  ha la modalità `data-consent="compact"` (copriva il calcolatore a 390px).
+- **La porta** (`api/owner-lead.js`): il `calc` del browser si RILEGGE con la
+  lista chiusa e si RICALCOLA (un `max` mandato dal browser non vale), si
+  congela in `ownerConti/<id>` (admin-only nelle rules) PRIMA del lead, e il
+  lead porta `owner.conto` (riassunto + `ref` `CNT-XXXXXX` + `pdfUrl`). Un
+  `calc` sbagliato non costa il lead (nasce senza PDF). Lo stesso recapito entro
+  30 giorni (email o numero in ogni forma) aggiorna il lead esistente
+  (`owner.conti`, max 10) e ri-pinga solo dopo 12 ore. `GET
+  ?pdf=<id>&t=<token>` (token derivato da HOMIE_SECRET, confronto a tempo
+  costante) stampa il PDF dalla FOTO (`api/owners/_conto-pdf.js`: il conto, poi
+  la scheda di calcolo riga per riga; su ogni pagina «stima su dati dichiarati…
+  non è l'attestazione né una perizia · Rif.»; nessun dato personale). La card
+  Telegram dice la fonte e cita il conto col bottone 📄; `ownerReplyText` lo
+  cita col PDF e non richiede zona, metri né arredo.
+- **Il Pacchetto** (`pacchetto-concordato.html`): la barra si RICALCOLA dal
+  motore sui soli dati della casa nell'URL (il vecchio `?canone=` non stampa
+  più niente), al Lei, €349 IVA inclusa con la tariffa dell'organizzazione
+  detta a parte, RLI «entro 30 giorni dalla stipula, o dalla decorrenza se
+  prima», tolti «ufficiale», «90+ micro-zone», «60–150 €», «3+2 ordinario» e lo
+  scadenzario promesso; recesso di 14 giorni con la spunta «iniziare subito»
+  (mai pre-selezionata) che arriva all'operatore (`start_now` nei metadata
+  Stripe, solo per `concordato-pack`). Card social `og-canone.png` e
+  `og-pacchetto.png` dal repo.
+- **`/owners`**: zona + metri nella porta mostrano il massimo concordato
+  (la zona la sceglie il proprietario fra le corrispondenze: «Prati» è anche
+  NUOVO SALARIO PRATI FISCALI), il modulo manda `calc:{v,z,mq}`, il «fascicolo
+  aperto» offre il PDF e il volto del fondatore col numero. Riscritte le
+  promesse che il codice non sostiene («documento verificato», «reddito
+  dimostrato… un terzo», «ISTAT» con la cedolare, «com'è davvero»); `--t4` al
+  44% sulla pagina. I tre FAQPage (canone, pacchetto, owners) li GENERA
+  `scripts/owner-faq.mjs` dalle `<details>` visibili, fra i marcatori `FAQLD`.
+- **Aperte, del fondatore**: valori di fascia attuali (ISTAT) e allegato zone
+  dell'Accordo; nome dell'organizzazione firmataria (ASPI/ASPPI); fattura del
+  €349 e rimborso; recensioni («★4.9 · 47»), «risposta in giornata», FAO/WFP/IFAD
+  e la clausola di solvibilità restano come erano.
+Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
+porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
+del browser accettato, regola tolta, `?canone=` ristampato).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0

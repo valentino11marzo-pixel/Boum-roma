@@ -549,13 +549,13 @@ https://www.boomrome.com/owners#costi
 ```
 Il vantaggio è la cedolare al 10% invece del 21%. Il fastidio sono verifica del canone, contratto conforme, attestazione e registrazione RLI.
 
-Ce ne occupiamo noi: €349 una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia.
+Ce ne occupiamo noi: €349 IVA inclusa, una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela dico prima.
 
 https://www.boomrome.com/pacchetto-concordato
 
-Se mi manda i dati glielo calcolo sui suoi numeri, prima di decidere.
+Il conto della sua casa lo vede subito qui, prima di decidere: https://www.boomrome.com/canone
 ```
-<sub>Pronta così com'è — 380 caratteri</sub>
+<sub>Pronta così com'è — 505 caratteri</sub>
 
 ### Aziende ed enti — 1
 

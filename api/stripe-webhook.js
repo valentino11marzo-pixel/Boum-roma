@@ -301,10 +301,10 @@ const SERVICE_META = {
   // concordato buyer is a Rome landlord — same reader-language rule as _lang.js).
   'concordato-pack': {
     title: 'Pacchetto Concordato', emoji: '🏛️', lang: 'it',
-    next1: ['Inviaci i dati dell\'immobile', 'Rispondi a questa email: visura o vecchio contratto'],
-    next2: ['Verifica ufficiale del canone', 'Entro 48h: fascia, massimo asseverabile e bozza contratto'],
-    next3: ['Attestazione di rispondenza', 'Pratica gestita con l\'organizzazione firmataria'],
-    next4: ['Registrazione RLI', 'Da lì in poi cedolare al 10% — fascicolo completo in PDF'],
+    next1: ['Ci mandi i dati dell\'immobile', 'Risponda a questa email: visura o vecchio contratto'],
+    next2: ['Verifica del canone', 'Entro 48 ore dai dati: fascia, massimo e bozza del contratto'],
+    next3: ['Attestazione di rispondenza', 'Pratica seguita con l\'organizzazione firmataria (tariffa a parte, detta prima)'],
+    next4: ['Registrazione RLI', 'Contratto registrato e fascicolo completo in PDF'],
   },
 };
 
@@ -330,7 +330,7 @@ async function handleService(res, session, m) {
     email,
     phone: m.phone || '',
     listingName: m.listing || '',
-    message: `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`,
+    message: `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
     currency: session.currency || 'eur',
