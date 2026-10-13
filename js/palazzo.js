@@ -446,9 +446,13 @@
     }).join('') + '</div>' : '') + '</div>';
   }
 
-  function stripHTML(u, month) {
+  // Le parole della striscia sono quelle del resto della scheda (stateLabel):
+  // alla proprietaria «In verifica da BOOM» o «Contratto in arrivo da BOOM»,
+  // mai «Rata non registrata», che è una parola dell'operatore.
+  function stripHTML(u, month, currentMonth) {
     return '<div class="plz-strip" role="group" aria-label="Ultimi 12 mesi">' + u.strip.map(function (c) {
-      return '<button type="button" class="plz-dot plz-s-' + c.state + (c.month === month ? ' is-on' : '') + '" data-plz="month" data-m="' + c.month + '" title="' + esc(E.monthLabel(c.month) + ' · ' + (E.STATES[c.state] ? E.STATES[c.state].label : '')) + '" aria-label="' + esc(E.monthLabel(c.month) + ': ' + (E.STATES[c.state] ? E.STATES[c.state].label : '')) + '"></button>';
+      var lab = E.monthLabel(c.month) + ': ' + stateLabel({ state: c.state, lease: u.month.lease }, c.month, currentMonth || month);
+      return '<button type="button" class="plz-dot plz-s-' + c.state + (c.month === month ? ' is-on' : '') + '" data-plz="month" data-m="' + c.month + '" title="' + esc(lab) + '" aria-label="' + esc(lab) + '"></button>';
     }).join('') + '</div>';
   }
 
@@ -468,7 +472,7 @@
             '<span role="cell" data-l="Canone" class="plz-num">' + (um.rent != null && um.occupied ? eur(um.rent) : '—') + '</span>' +
             '<span role="cell" data-l="Fino al">' + (um.leaseEnd ? dateIt(um.leaseEnd) + (um.leaving ? ' <em class="plz-warn">' + esc(expiry(um.leaseEnd, m.today)) + '</em>' : '') : '—') + '</span>' +
             '<span role="cell" data-l="Mese"><span class="plz-pill plz-s-' + um.state + '">' + esc(stateLabel(um, m.month, m.currentMonth)) + '</span>' + (um.expected ? ' <small class="plz-num">' + eur(um.expected) + '</small>' : '') + '</span>' +
-            '<span role="cell" data-l="12 mesi">' + stripHTML(u, m.month) + '</span>' +
+            '<span role="cell" data-l="12 mesi">' + stripHTML(u, m.month, m.currentMonth) + '</span>' +
             '<span role="cell" data-l="Arretrati" class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) : '—') + '</span></div>';
         }).join('') + '</div>';
       }).join('') + '</div>';
@@ -488,11 +492,32 @@
     return (m.debtors || []).map(function (d) { return { d: d, u: m.units.find(function (x) { return x.id === d.unitId; }) }; }).filter(function (x) { return x.u; });
   }
   function debtAmount(d) { return d.amount > 0 ? eur(d.amount) + (d.unknownAmounts ? ' + ?' : '') : 'da verificare'; }
+  // Un importo che manca non è «€0»: si dice che è da verificare.
+  function amtText(v) { return Number(v) > 0 ? eur(v) : 'importo da verificare'; }
+  function paidAmt(u, r) {
+    var multi = r && r.coversTo && r.coversTo !== r.month;
+    return multi && !u.month.collected && Number(r.amount) > 0 ? eur(r.amount) : amtText(u.month.collected || u.month.expected);
+  }
+  // Una riga che non è canone (saldo del deposito, altro addebito) si dice
+  // per quello che è: mai «la rata di settembre» per un saldo di deposito.
+  function rowKind(r) {
+    if (!r || r.isRent !== false) return 'rent';
+    return /^deposit(-balance)?$/.test(String(r.type || '').toLowerCase()) ? 'deposit' : 'other';
+  }
+  function rowName(r) {
+    var k = rowKind(r);
+    return k === 'deposit' ? (String(r.type || '').toLowerCase() === 'deposit' ? 'Deposito' : 'Saldo deposito') : k === 'other' ? 'Altro addebito' : '';
+  }
   function debtNote(d) {
     var bits = [];
     if (d.oldestMonth) bits.push('da ' + E.monthLabel(d.oldestMonth).toLowerCase());
     if (d.oldestDays) bits.push(d.oldestDays + (d.oldestDays === 1 ? ' giorno' : ' giorni'));
-    if (d.count > 1) bits.push(d.count + ' rate');
+    var rows = Array.isArray(d.rows) ? d.rows : null, extra = rows ? rows.filter(function (r) { return rowKind(r) !== 'rent'; }) : [];
+    if (extra.length) {
+      var rentN = rows.length - extra.length, names = [];
+      extra.forEach(function (r) { var nm = rowName(r).toLowerCase(); if (names.indexOf(nm) < 0) names.push(nm); });
+      bits.push((rentN ? rentN + (rentN === 1 ? ' rata + ' : ' rate + ') : '') + names.join(' + '));
+    } else if (d.count > 1) bits.push(d.count + ' rate');
     if (d.unknownAmounts) bits.push(d.unknownAmounts === 1 ? 'un importo da verificare' : d.unknownAmounts + ' importi da verificare');
     if (d.previousContract) bits.push('contratto precedente');
     return bits.join(' · ');
@@ -513,7 +538,7 @@
     var t = m.totals;
     return '<div class="plz-pcard"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p>' +
       block('Non hanno pagato', debt.length, debt.map(function (x) { return line(x.u, debtAmount(x.d), debtNote(x.d), debtorName(x)).replace('class="plz-s-' + x.u.month.state + '"', 'class="plz-s-late"'); }), t.before ? 'Nessun ritardo fra gli interni gestiti.' : 'Nessun ritardo.') +
-      (due.length ? block('Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return line(u, eur(u.month.expected), r && r.dueDate ? 'scade il ' + dateIt(r.dueDate) : ''); }), '') : '') +
+      (due.length ? block('Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return line(u, amtText(u.month.expected), r && r.dueDate ? 'scade il ' + dateIt(r.dueDate) : ''); }), '') : '') +
       (check.length ? block('Da verificare', check.length, check.map(function (u) { return line(u, '', stateLabel(u.month, m.month, m.currentMonth)); }), '') : '') +
       block('Liberi', free.length, free.map(function (u) { return line(u, '', freeNote(u)); }), t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') +
       (coming.length ? block('In arrivo', coming.length, coming.map(function (u) { return line(u, '', freeNote(u)); }), '') : '') +
@@ -523,7 +548,7 @@
         // dice che il mese è coperto, con l'importo vero, non "€0".
         var multi = r && r.coversTo && r.coversTo !== r.month;
         var span = multi ? 'rata ' + E.monthLabel(r.month, true) + '–' + E.monthLabel(r.coversTo, true) + ' · ' : '';
-        return line(u, multi && !u.month.collected ? eur(r.amount) : eur(u.month.collected || u.month.expected), span + (r && r.paidDate ? 'pagata il ' + dateIt(r.paidDate) : ''));
+        return line(u, paidAmt(u, r), span + (r && r.paidDate ? 'pagata il ' + dateIt(r.paidDate) : ''));
       }), 'Ancora nessun pagamento registrato questo mese.') +
       '</div>';
   }
@@ -615,6 +640,10 @@
   // certo niente WhatsApp, e lo si dice.
   function phoneOf(phone) { var r = CS.phoneIntl(phone); return r && typeof r === 'object' ? r : { e164: null, wa: null, kind: 'unknown', raw: String(phone || '') }; }
   function waNumber(phone) { return phoneOf(phone).wa || ''; }
+  // Il link per chiamare: alla proprietaria MAI su un numero ambiguo (un
+  // cellulare estero scritto alla nazionale diventerebbe una telefonata a
+  // Ferrara); l'operatore lo tiene, con l'avviso accanto.
+  function telOf(ph) { return ph && ph.e164 && !(ph.ambiguous && !viewAdmin()) ? 'tel:' + ph.e164 : ''; }
   // Prefissi internazionali (ITU): a una cifra 1 e 7, a due cifre questi;
   // tutti gli altri a tre. Serve solo a scrivere il numero leggibile.
   var CC2 = /^(2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])/;
@@ -635,14 +664,14 @@
     var list = um.occupied || um.state === 'incoming' ? contactsOf(um) : undefined;
     var p = Array.isArray(list) && list.find(function (x) { return x.phone; });
     if (!p) return '';
-    var ph = phoneOf(p.phone);
-    return ph.e164 ? '<a class="plz-tel" href="tel:' + esc(ph.e164) + '" aria-label="' + esc('Chiama ' + (p.name || '') + ' ' + fmtPhone(p.phone)) + '">' + esc(fmtPhone(p.phone)) + '</a>'
+    var ph = phoneOf(p.phone), tel = telOf(ph);
+    return tel ? '<a class="plz-tel" href="' + esc(tel) + '" aria-label="' + esc('Chiama ' + (p.name || '') + ' ' + fmtPhone(p.phone)) + '">' + esc(fmtPhone(p.phone)) + '</a>'
       : '<span class="plz-tel plz-muted">' + esc(p.phone) + '</span>';
   }
   function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
   function personHTML(p) {
     var links = [], ph = p.phone ? phoneOf(p.phone) : null, admin = viewAdmin();
-    if (ph && ph.e164) links.push('<a class="plz-btn plz-sm plz-primary" href="tel:' + esc(ph.e164) + '">Chiama</a>');
+    if (telOf(ph)) links.push('<a class="plz-btn plz-sm plz-primary" href="' + esc(telOf(ph)) + '">Chiama</a>');
     if (ph && ph.wa) links.push('<a class="plz-btn plz-sm" href="https://wa.me/' + esc(ph.wa) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if (p.email) links.push('<a class="plz-btn plz-sm" href="mailto:' + esc(p.email) + '">Email</a>');
     var phoneLine = !p.phone ? '<span class="plz-muted">telefono non in archivio</span>'
@@ -654,7 +683,8 @@
   // Perché un numero non ha WhatsApp: all'operatore cosa fare, alla
   // proprietaria cosa succede.
   function phoneWhy(ph, admin) {
-    if (ph.kind === 'it-fixed') return admin ? 'fisso, oppure un cellulare estero senza prefisso: se è estero correggilo (es. +90 …)' : 'numero fisso: niente WhatsApp';
+    // Alla proprietaria non si afferma un fisso che non sappiamo: «da verificare».
+    if (ph.kind === 'it-fixed' || ph.ambiguous) return admin ? 'fisso, oppure un cellulare estero senza prefisso: se è estero correggilo (es. +90 …)' : 'numero da verificare con BOOM: niente WhatsApp';
     return admin ? 'numero senza prefisso internazionale: correggilo nel contratto (es. +44 …)' : 'numero da verificare con BOOM: niente WhatsApp';
   }
   function peopleHTML(u, data) {
@@ -777,7 +807,7 @@
       var r = reporterOf(x), ph = r.phone ? phoneOf(r.phone) : null;
       var label = '<b>' + esc(x.title) + '</b><small>' + esc([PRI_LABEL[x.priority], x.inProgress ? 'in lavorazione' : 'aperto', x.createdAt ? 'dal ' + dateIt(x.createdAt) : '', who(x)].filter(Boolean).join(' · ')) + '</small>';
       var by = r.name || r.phone ? '<p class="plz-mwho">Segnalato da <b>' + esc(r.name || 'chi ha usato il link') + '</b>' + (r.phone ? ' · <span class="plz-num">' + esc(fmtPhone(r.phone)) + '</span>' : '') + (r.via === 'link' ? ' <small>(dal link per i guasti)</small>' : '') + '</p>' : '';
-      var reach = (ph && ph.e164 ? '<a class="plz-btn plz-sm" href="tel:' + esc(ph.e164) + '">Chiama</a>' : '') + (ph && ph.wa ? '<a class="plz-btn plz-sm" href="https://wa.me/' + esc(ph.wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
+      var reach = (telOf(ph) ? '<a class="plz-btn plz-sm" href="' + esc(telOf(ph)) + '">Chiama</a>' : '') + (ph && ph.wa ? '<a class="plz-btn plz-sm" href="https://wa.me/' + esc(ph.wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
         (r.photo ? '<a class="plz-btn plz-sm" href="' + esc(r.photo) + '" target="_blank" rel="noopener">Foto ↗</a>' : '');
       return '<li class="plz-mitem plz-mp-' + x.priority + '">' + (admin && x.id ? '<button type="button" class="plz-mopen" data-plz="maint" data-id="' + esc(x.id) + '">' + label + '</button>' : '<span>' + label + '</span>') +
         (r.description && r.description !== x.title ? '<p class="plz-mdesc">' + esc(r.description) + '</p>' : '') + by + (reach ? '<div class="plz-reach">' + reach + '</div>' : '') + '</li>';
@@ -857,14 +887,18 @@
   }
   function rataText(u, r, url, name, lang, kind, first) {
     var who = firstName(name), card = cardOf(r, u).available;
-    var late = r.state === 'overdue';
+    var late = r.state === 'overdue', what = rowKind(r), dep = what === 'deposit' && String(r.type || '').toLowerCase() === 'deposit';
     if (lang === 'it') {
-      var how = card ? 'Puoi pagarla con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' : 'Da qui trovi i dati per il bonifico e puoi segnalarlo con la foto della ricevuta: ';
-      return (who ? 'Ciao ' + who : 'Ciao') + (kind === 'sollecito' && late ? ', ti ricordo la rata di ' : ', ecco la rata di ') + E.monthLabel(r.month).toLowerCase() + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
-        (r.dueDate ? (late ? ', scaduta il ' : ' entro il ') + dateIt(r.dueDate) : '') + (late && kind === 'sollecito' ? ' e non ci risulta ancora arrivata' : '') + '. ' + how + url + (first ? '\n' + privacyLine('it') : '');
+      // Il saldo del deposito (o un altro addebito) non è «la rata di settembre».
+      var itWhat = what === 'rent' ? 'la rata di ' + E.monthLabel(r.month).toLowerCase() : what === 'deposit' ? (dep ? 'il deposito cauzionale' : 'il saldo del deposito') : 'il pagamento';
+      var fem = what === 'rent';
+      var how = card ? 'Puoi pagar' + (fem ? 'la' : 'lo') + ' con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' : 'Da qui trovi i dati per il bonifico e puoi segnalarlo con la foto della ricevuta: ';
+      return (who ? 'Ciao ' + who : 'Ciao') + (kind === 'sollecito' && late ? ', ti ricordo ' : ', ecco ') + itWhat + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
+        (r.dueDate ? (late ? (fem ? ', scaduta il ' : ', scaduto il ') : ' entro il ') + dateIt(r.dueDate) : '') + (late && kind === 'sollecito' ? ' e non ci risulta ancora arrivat' + (fem ? 'a' : 'o') : '') + '. ' + how + url + (first ? '\n' + privacyLine('it') : '');
     }
+    var enWhat = what === 'rent' ? 'the ' + monthEn(r.month) + ' rent' : what === 'deposit' ? (dep ? 'the security deposit' : 'the deposit balance') : 'the payment';
     var howEn = card ? 'You can pay by card or Apple Pay, or report your bank transfer with a photo of the receipt, here: ' : 'Here you find the bank details and can report your transfer with a photo of the receipt: ';
-    return (who ? 'Hi ' + who : 'Hi') + (kind === 'sollecito' && late ? ', a reminder about the ' : ', here is the ') + monthEn(r.month) + ' rent (' + (u.interno ? 'unit ' + u.interno : unitTitle(u)) + '): ' + eurEn(r.amount) +
+    return (who ? 'Hi ' + who : 'Hi') + (kind === 'sollecito' && late ? ', a reminder about ' : ', here is ') + enWhat + ' (' + (u.interno ? 'unit ' + u.interno : unitTitle(u)) + '): ' + eurEn(r.amount) +
       (r.dueDate ? (late ? ', due on ' : ', due by ') + dateEn(r.dueDate) : '') + (late && kind === 'sollecito' ? ' and we have not received it yet' : '') + '. ' + howEn + url + (first ? '\n' + privacyLine('en') : '');
   }
   var SKIP_WHY = { already_paid: 'risulta già pagata', payment_reported: 'il bonifico è già segnalato', sdd_processing: 'addebito SEPA in corso', payment_processing: 'pagamento in corso',
@@ -941,7 +975,7 @@
       open.map(function (x) {
         var s = lastSent(x.r.payment);
         return '<div class="plz-rataitem' + (s || ui.rata.sent[x.r.id] ? ' is-sent' : '') + '"><p class="plz-rataitem-h"><b>' + esc(unitTitle(x.u)) + '</b> ' + esc((x.r.tenants && x.r.tenants[0]) || x.r.tenantName || x.u.month.tenants[0] || '') +
-          ' · ' + esc(E.monthLabel(x.r.month).toLowerCase()) + ' · <span class="plz-num">' + eur(x.r.amount) + '</span>' + (x.r.state === 'overdue' ? ' · <span class="plz-red">scaduta</span>' : '') + (s ? ' · <small>' + esc(sentText(s)) + '</small>' : '') + '</p>' + rataShare(x.u, x.r) + '</div>';
+          ' · ' + esc(rowKind(x.r) === 'rent' ? E.monthLabel(x.r.month).toLowerCase() : rowName(x.r).toLowerCase()) + ' · <span class="plz-num">' + eur(x.r.amount) + '</span>' + (x.r.state === 'overdue' ? ' · <span class="plz-red">scaduta</span>' : '') + (s ? ' · <small>' + esc(sentText(s)) + '</small>' : '') + '</p>' + rataShare(x.u, x.r) + '</div>';
       }).join('') + '</div>';
   }
   function utenzeFacts(u, admin) {
@@ -968,8 +1002,8 @@
   function rowHTML(u, r, data, landlord) {
     var admin = data.admin, A0 = adapter.actions || {}, p = r.payment || {};
     var st = r.state === 'reported' && !admin ? 'In verifica da BOOM' : ROW_STATE[r.state] || 'Da verificare';
-    var label = r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month);
-    var subs = [], per = periodText(r);
+    var label = rowKind(r) !== 'rent' ? rowName(r) : r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month);
+    var subs = [], per = rowKind(r) === 'rent' ? periodText(r) : '';
     if (per) subs.push(per);
     if (r.state === 'reported') {
       var reps = Array.isArray(p.tenantReports) && p.tenantReports.length ? p.tenantReports : [{ date: p.tenantReportDate, note: p.tenantNotes, proofUrl: p.proofUrl }];
@@ -984,7 +1018,9 @@
       if (p.heldBy === 'boom') subs.push('pagato con carta — incassato da BOOM per conto di ' + esc(landlord || 'il locatore') + ', da riversare');
     } else if (r.state === 'review') {
       var mb = RENT && RENT.moneyBack ? RENT.moneyBack(p) : '';
-      subs.push(mb === 'refund' ? 'rimborsata con carta: verifica con l’inquilino' : 'contestazione aperta sulla carta: BOOM risponde a Stripe');
+      // Alla proprietaria cosa succede, mai un'istruzione dell'operatore.
+      subs.push(admin ? (mb === 'refund' ? 'rimborsata con carta: verifica con l’inquilino' : 'contestazione aperta sulla carta: BOOM risponde a Stripe')
+        : (mb === 'refund' ? 'pagamento con carta rimborsato: lo sta verificando BOOM' : 'contestazione sul pagamento con carta: la segue BOOM'));
     } else if (r.dueDate) subs.push((r.state === 'overdue' ? 'scaduta il ' : 'scadenza ') + dateIt(r.dueDate) + (r.days ? ' · ' + r.days + (r.days === 1 ? ' giorno' : ' giorni') : ''));
     var s = admin ? lastSent(p) : null;
     if (s) subs.push(sentText(s));
@@ -1072,7 +1108,7 @@
       '<div><dt>12 mesi</dt><dd>' + esc(occupiedText(u.time)) + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
       utenzeFacts(u, admin) +
-      '</dl>' + docsHTML(u, data) + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
+      '</dl>' + docsHTML(u, data) + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month, m.currentMonth) +
       '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.state === 'before' ? 'Prima della gestione BOOM (da ' + esc(E.monthLabel(um.gestioneDal).toLowerCase()) + '): i pagamenti di questo mese non sono in archivio.' : placeholder ? (admin ? 'Nessuna rata: arrivano quando carichi il contratto.' : 'Le rate compariranno quando BOOM carica il contratto.') : um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
       (past ? '<p class="plz-eyebrow plz-red-eyebrow">Ancora da pagare dai mesi prima</p><ul class="plz-rows">' + past + '</ul>' : '') +
       '<div class="plz-actions">' + actions + '</div></div>';
@@ -1169,17 +1205,31 @@
     var mixed = cfgs.some(function (c) { return key(c) !== key(cfgs[0]); });
     return { cfg: cfgs.find(Boolean) || null, mixed: mixed };
   }
+  // Cosa vede l'inquilino su /rata con la bozza dell'interruttore. Per i
+  // contratti NON presi in carico la carta c'è già (incassa BOOM): l'interruttore
+  // vale solo per quelli presi in carico dalla tabella, e lo si dice.
+  function cardEffect(d, sum) {
+    var other = sum && sum.notImported ? (sum.notImported === 1 ? ' L’interno non preso in carico ha già la carta su /rata (incassa BOOM).' : ' Gli ' + sum.notImported + ' interni non presi in carico hanno già la carta su /rata (incassa BOOM).') : '';
+    if (sum && sum.any && !sum.imported) return 'Contratti non presi in carico: su /rata la carta c’è già (incassa BOOM). Questo interruttore vale per gli interni presi in carico dalla tabella.';
+    return (!d.on ? 'Su /rata gli inquilini degli interni presi in carico vedono solo il bonifico al conto del locatore.'
+      : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.'
+      : 'Su /rata compare anche la carta (Apple Pay compreso): i soldi arrivano a BOOM, che li riversa al locatore.') + other;
+  }
+  // La carta su /rata del palazzo: TUTTI gli interni con un contratto, non il
+  // primo (un palazzo può avere interni presi in carico e altri no).
+  function cardSummary(m) {
+    var pols = m.units.map(function (u) { var c = u.month.lease || u.month.incoming; return c && RENT && RENT.cardPolicy ? RENT.cardPolicy({}, c, u.property) : null; }).filter(Boolean);
+    var imp = pols.filter(function (p) { return p.imported; });
+    return { any: pols.length, imported: imp.length, notImported: pols.length - imp.length, first: imp[0] || null };
+  }
   function cardPanel(data) {
     var A = adapter.actions || {};
     if (!data.admin || !A.saveRataCard) return '';
     var m = data.m, cur = cardCfgOf(m), c = cur.cfg || {};
     var d = ui.cardDraft && ui.cardDraft.key === m.building.key ? ui.cardDraft : { key: m.building.key, on: c.on === true, mandateAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.mandateAt || '')) ? c.mandateAt : '', note: c.note || '', fee: c.fee === 'surcharge' ? 'surcharge' : 'absorbed' };
-    var sample = m.units.find(function (u) { return u.month.lease || u.month.incoming; });
-    var pol = sample && RENT && RENT.cardPolicy ? RENT.cardPolicy({}, sample.month.lease || sample.month.incoming, sample.property) : null;
-    var state = !pol ? 'nessun contratto' : !pol.imported ? 'accesa (contratti non presi in carico)' : pol.available ? 'accesa' : pol.reason === 'no_mandate' ? 'spenta · manca la data del mandato' : 'spenta';
-    var effect = !d.on ? 'Su /rata gli inquilini vedono solo il bonifico al conto del locatore.'
-      : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.'
-      : 'Su /rata compare anche la carta (Apple Pay compreso): i soldi arrivano a BOOM, che li riversa al locatore.';
+    var sum = cardSummary(m), pol = sum.first;
+    var state = !sum.any ? 'nessun contratto' : !pol ? 'accesa (contratti non presi in carico)' : pol.available ? 'accesa' : pol.reason === 'no_mandate' ? 'spenta · manca la data del mandato' : 'spenta';
+    var effect = cardEffect(d, sum);
     return '<details class="plz-look plz-card" id="plz-card"' + (ui.cardOpen ? ' open' : '') + '><summary>Pagamento con carta su /rata <em class="plz-warn" id="plz-card-badge">' + esc(state) + '</em></summary>' +
       '<p class="plz-look-note">Con la carta i soldi arrivano sul conto Stripe di BOOM, non su quello del locatore: serve un mandato all’incasso scritto e un riversamento registrato. Si salva su tutti gli interni del palazzo.' + (cur.mixed ? ' <b>Oggi gli interni hanno impostazioni diverse.</b>' : '') + '</p>' +
       '<label class="plz-check"><input type="checkbox" data-card="on"' + (d.on ? ' checked' : '') + '> Carta accesa su /rata</label>' +
@@ -1282,13 +1332,13 @@
     if (m.allBefore) return mcard;
     return card('is-late', 'Non hanno pagato', debt.length, debt.length ? debt.map(function (x) { return row(x.u, debtAmount(x.d), debtNote(x.d), sollecita(x), debtorName(x), 'late'); }).join('')
         : '<p class="plz-ok">' + (t.before ? 'Nessun ritardo fra gli interni gestiti.' : 'Tutti in regola.') + '</p>') +
-      (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : '', manda(u)); }).join('')) : '') +
+      (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, amtText(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : '', manda(u)); }).join('')) : '') +
       (check.length ? card('', 'Da verificare', check.length, check.map(function (u) { return row(u, '', stateLabel(u.month, m.month, m.currentMonth)); }).join('')) : '') +
       mcard +
       card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">' + (t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') + '</p>') +
       (coming.length ? card('', 'In arrivo', coming.length, coming.map(function (u) { return row(u, '', freeNote(u)); }).join('')) : '') +
       (t.before ? '<p class="plz-muted plz-before-note">' + (t.before === 1 ? '1 interno era' : t.before + ' interni erano') + ' prima della gestione BOOM in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': di quel mese non c’è archivio.</p>' : '') +
-      '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, eur(u.month.collected || u.month.expected), ''); }).join('') + '</details>';
+      '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, paidAmt(u, u.month.rows.find(function (x) { return x.paidDate; }) || u.month.rows[0]), ''); }).join('') + '</details>';
   }
 
   function simple(data) {
@@ -1327,9 +1377,12 @@
     var max = Math.max.apply(null, A.months.map(function (x) { return Math.max(x.expected, x.collected); }).concat([1]));
     var bars = A.months.map(function (x) {
       var hE = Math.round(x.expected / max * 100), hC = Math.round(x.collected / max * 100), on = x.month === m.month;
-      var tip = E.monthLabel(x.month) + ': incassato ' + eur(x.collected) + ' su ' + eur(x.expected) + (x.late ? ' · in ritardo ' + eur(x.late) : '');
+      // Un mese senza rate non ha «incassato €0 su €0»: non ha dati, e lo si dice.
+      var none = !x.expected && !x.collected;
+      var tip = E.monthLabel(x.month) + ': ' + (none ? (m.gestioneDal && x.month < m.gestioneDal ? 'prima della gestione BOOM' : 'nessuna rata nel mese')
+        : 'incassato ' + eur(x.collected) + ' su ' + eur(x.expected) + (x.late ? ' · in ritardo ' + eur(x.late) : ''));
       return '<button type="button" class="plz-abar' + (on ? ' is-on' : '') + '" data-plz="month" data-m="' + x.month + '" title="' + esc(tip) + '" aria-label="' + esc(tip) + '">' +
-        (on ? '<span class="plz-aval">' + eur(x.collected) + '</span>' : '') + '<span class="plz-atrack" style="height:' + hE + '%"><i style="height:' + (hE ? Math.round(hC / hE * 100) : 0) + '%"></i></span><small>' + E.monthLabel(x.month, true) + '</small></button>';
+        (on ? '<span class="plz-aval">' + (none ? '—' : eur(x.collected)) + '</span>' : '') + '<span class="plz-atrack" style="height:' + hE + '%"><i style="height:' + (hE ? Math.round(hC / hE * 100) : 0) + '%"></i></span><small>' + E.monthLabel(x.month, true) + '</small></button>';
     }).join('');
     var pct = function (v) { return v == null ? '—' : v + '%'; };
     var days = function (v) { return itNum(v) + (Math.abs(v) === 1 ? ' giorno' : ' giorni'); };
@@ -1590,7 +1643,17 @@
   function onInput(e) {
     var el = e.target;
     if (el && el.form && el.form.id === 'plz-mform' && el.name && el.name in ui.reportDraft) { ui.reportDraft[el.name] = el.value; return; }
-    if (el && el.getAttribute && el.getAttribute('data-imp') && ui.imp) { ui.imp[el.getAttribute('data-imp')] = el.value; return; }
+    if (el && el.getAttribute && el.getAttribute('data-imp') && ui.imp) {
+      ui.imp[el.getAttribute('data-imp')] = el.value;
+      // La tabella (o l'indirizzo, la proprietaria, il mese) è cambiata dopo
+      // la lettura: il piano letto non vale più, e il tasto che lo scriverebbe
+      // sparisce finché non si rilegge.
+      if (ui.imp.parsed || ui.imp.plan) {
+        ui.imp.parsed = null; ui.imp.plan = null;
+        var out = doc.getElementById('plz-imp-out'); if (out) out.innerHTML = importStale();
+      }
+      return;
+    }
     if (el && el.getAttribute && el.getAttribute('data-card') && adapter && viewAdmin()) return readCard(el);
     if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !viewAdmin()) return;
     readDraft(el);
@@ -1607,7 +1670,7 @@
     else if (k === 'fee') { if (el.checked) ui.cardDraft.fee = el.value === 'surcharge' ? 'surcharge' : 'absorbed'; }
     else ui.cardDraft[k] = String(el.value || '');
     var d = ui.cardDraft, eff = doc.getElementById('plz-card-effect');
-    if (eff) eff.textContent = !d.on ? 'Su /rata gli inquilini vedono solo il bonifico al conto del locatore.' : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.' : 'Su /rata compare anche la carta (Apple Pay compreso): i soldi arrivano a BOOM, che li riversa al locatore.';
+    if (eff) eff.textContent = cardEffect(d, cardSummary(m));
   }
   function onToggle(e) {
     var el = e.target;
@@ -1726,8 +1789,12 @@
       '<div class="plz-import-wrap"><table class="plz-import-tab"><thead><tr><th>Interno</th><th>Piano</th><th>Inquilino</th><th>Canone</th><th>Contratto</th><th>Esito</th></tr></thead><tbody>' + tr + '</tbody></table></div>' +
       '<div class="plz-import-b">' + mainBtn + extraBtn + '</div>';
   }
+  function importStale() { return '<p class="plz-note" role="status">Tabella cambiata dopo la lettura: premi «Leggi la tabella» per vedere cosa cambia.</p>'; }
+  // Ciò da cui il piano è nato: se cambia, il piano non si scrive.
+  function impSource(st) { return JSON.stringify([st.text, st.address, st.ownerId, st.from, st.applyDiffs === true]); }
   function importRead() {
     var st = ui.imp; if (!st || !last) return;
+    st.planFor = impSource(st);
     st.parsed = E.parseRentRoll(st.text);
     var owner = (last.S.users || []).find(function (u) { return u.id === st.ownerId; });
     var me = last.S.profile && last.S.profile.id || '';
@@ -1935,6 +2002,8 @@
       return Promise.resolve(adapter.rendiconto(ow, kind)).then(function (r) { ui.rend = rendOutcome(r, kind); shareNow(); }, function (err) { ui.rend = { ok: false, msg: 'Non è partito: ' + ((err && err.message) || 'errore') + '. Riprova fra un attimo.' }; shareNow(); });
     }
     if (act === 'imp-go' && ui.imp && ui.imp.plan && A.importRoll) {
+      // Rete di sicurezza: un piano letto da un'altra tabella non parte mai.
+      if (ui.imp.planFor !== impSource(ui.imp)) { ui.imp.plan = null; ui.imp.parsed = null; var o2 = doc.getElementById('plz-imp-out'); if (o2) o2.innerHTML = importStale(); return; }
       var plan = ui.imp.plan; el.disabled = true;
       return Promise.resolve(A.importRoll(plan)).then(function (ok) {
         if (ok) { ui.imp = null; ui.key = plan.buildingKey; ui.selected = ''; persist(); adapter.render(); } else el.disabled = false;
