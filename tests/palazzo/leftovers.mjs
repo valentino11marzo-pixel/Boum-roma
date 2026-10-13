@@ -351,6 +351,20 @@ await check('G · l\'operatore revoca (review_withdraw): stessa pulizia, motivo 
   assert.ok(store.has('activityLog/' + r.body.reviewId));
 });
 
+// ═══ H · una sola traslitterazione nei PDF fiscali ══════════════════════════
+await check('H · fascicolo, valutazione e lettera di diffida usano wa() di _pdfbrand (nessuna copia locale): i nomi non latini restano leggibili', async () => {
+  for (const f of ['api/fiscal/fascicolo.js', 'api/fiscal/valutazione.js', 'api/documents/demand-letter.js']) {
+    const src = read(f);
+    assert.ok(!/function wa\(|const wa = /.test(src), f + ': copia locale di wa()');
+    assert.match(src, /import \{[^}]*\bwa\b[^}]*\} from '\.\.\/_pdfbrand\.js'/, f + ': wa() non viene da _pdfbrand');
+  }
+  const { wa } = await import('../../api/_pdfbrand.js');
+  // il filtro vecchio dava «Çar ahin» e una stringa VUOTA per il cirillico
+  assert.equal(wa('Çağrı Şahin'), 'Çagri Sahin');
+  assert.equal(wa('Иван Петров'), 'Ivan Petrov');
+  assert.equal(wa('€ 1.250,00 — l’unità…'), '€ 1.250,00 — l’unità…');
+});
+
 // ═══ I · il piede dell'email ═════════════════════════════════════════════════
 await check('I · emailLang: lang dichiarata vince; un testo inglese → EN; pareggio o nessun indizio → IT', () => {
   assert.equal(notify.emailLang({ lang: 'en', heading: 'Pagamento ricevuto' }), 'en');
