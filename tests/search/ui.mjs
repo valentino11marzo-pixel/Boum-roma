@@ -26,6 +26,13 @@ const search = async (page, query, kind = 'all') => {
 };
 const ids = page => page.evaluate(() => oggiWorkspace.records.map(r => r.kind + ':' + r.id));
 const source = page => page.locator('[data-search-source="document"]');
+const openSelectedDetails = async page => {
+  const details = page.locator('#ogContextDetails');
+  await details.waitFor({ state: 'visible' });
+  assert.equal(await details.evaluate(node => node.open), false, 'Selected context starts collapsed');
+  await details.locator(':scope > summary').click();
+  assert.equal(await details.evaluate(node => node.open), true, 'The visible summary opens the selected record actions');
+};
 
 async function fresh(page) {
   await page.goto(base); await page.waitForFunction(() => oggiSegretaria.loaded);
@@ -168,6 +175,7 @@ try {
       assert.deepEqual(await page.evaluate(() => oggiWorkspace.related), []);
       assert.equal(await page.locator('[aria-label="Conversazioni collegate"]').count(), 0);
       await search(page, 'Omonimo Unico', 'lead'); await page.locator('.ow-result').click();
+      await openSelectedDetails(page);
       await page.getByRole('button', { name: 'Apri scheda ↗', exact: true }).click();
       assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewLead', 'same-lead']);
       const before = await page.evaluate(() => testIO.actions.length);
@@ -178,6 +186,7 @@ try {
       await page.locator('[aria-label="Conversazioni collegate"] button').click();
       assert.deepEqual(await page.evaluate(() => testIO.actions.slice(-2)), [['goTo', 'inbox'], ['inboxSelect', 'right-lead']]);
       await search(page, 'Omonimo Unico', 'pfsClient'); await page.locator('.ow-result').click();
+      await openSelectedDetails(page);
       await page.getByRole('button', { name: 'Apri scheda ↗', exact: true }).click();
       assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['openPFSClientDetail', 'same-pfs']);
       await page.evaluate(() => { document.getElementById('toasts').replaceChildren(); handleSearch('Omonimo Unico', 'lead'); });
@@ -232,11 +241,12 @@ try {
     assert.equal(await page.locator('.ow-selection').count(), 0);
     await page.evaluate(() => { searchIO.holdDoc = false; searchIO.pending.shift().resolve(); });
     await page.waitForSelector('.ow-selection');
-    assert.equal(await page.locator('.ow-selection h3').innerText(), 'Oltrecaricati canonico');
+    assert.equal(await page.locator('#ogContextDetails > summary strong').innerText(), 'Oltrecaricati canonico');
     assert.equal(await page.evaluate(() => S.documents.find(row => row.id === 'archive-200').canonical), true);
     assert.deepEqual(await page.evaluate(() => oggiWorkspace.related.map(row => row.kind + ':' + row.id)), ['property:house-now']);
     assert.equal(await page.evaluate(() => portalSearchRecords('Casa Corrente', 'document').records[0]?.id), 'archive-200');
     assert.equal(await page.evaluate(() => portalSearchRecords('Casa Prima', 'document').total), 0);
+    await openSelectedDetails(page);
     await page.getByRole('button', { name: 'Apri scheda ↗', exact: true }).click();
     assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewArchiveDoc', 'archive-200']);
     assert((await page.evaluate(() => searchIO.docs)).every(read => read.id === 'archive-200' && read.options.source === 'server'));
@@ -315,7 +325,7 @@ try {
   await check('Aggiorna i dati scarta scansione e copie canoniche prima di caricare i nuovi record', async () => {
     await completeArchive(page); await page.locator('.ow-result').click();
     await page.waitForSelector('.ow-selection');
-    assert.equal(await page.locator('.ow-selection h3').innerText(), 'Oltrecaricati canonico');
+    assert.equal(await page.locator('#ogContextDetails > summary strong').innerText(), 'Oltrecaricati canonico');
     assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 200);
     await page.evaluate(async source => {
       window.refreshReads = [];
@@ -332,7 +342,7 @@ try {
     }, refreshSource);
     assert.deepEqual(await page.evaluate(() => refreshReads), [{ silent: false, archived: 0, canonical: 0 }]);
     assert.equal(await page.evaluate(() => localStorage.getItem('boom_data_cache')), null);
-    await page.waitForFunction(() => document.querySelector('.ow-selection h3')?.textContent === 'Documento aggiornato dal server');
+    await page.waitForFunction(() => document.querySelector('#ogContextDetails > summary strong')?.textContent === 'Documento aggiornato dal server');
     assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 0);
     assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);
     assert.deepEqual(await page.evaluate(() => portalSearchRecords('aggiornato dal server', 'document').records.map(row => row.id)), ['archive-200']);
