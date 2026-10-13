@@ -4062,31 +4062,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         );
     }
     
+    // L'incasso registrato alla proprietaria: SOLO nel portale, nessuna email
+    // automatica (prima ogni «Registra incasso» le mandava un'email con
+    // «Inquilino» al posto del nome, il mese grezzo «2026-10» e l'IBAN di
+    // BOOM, mentre i pagamenti con carta non le arrivavano affatto). Il nome
+    // è quello del contratto: chi è preso in carico da tabella non ha profilo.
     async function notifyPaymentReceived(paymentData) {
-        // Notify landlord
-        const contract = S.contracts.find(c => c.id === paymentData.contractId);
-        if (!contract) return;
-        const property = S.properties.find(p => p.id === contract.propertyId);
+        const who = incassoParties(paymentData), property = who.property;
         if (!property) return;
-        const landlord = S.users.find(u => u.id === property.ownerId);
-        const tenant = S.users.find(u => u.id === contract.tenantId);
-        
+        const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
+        const tenant = who.tenant;
+        const paid = incassoDay(paymentData.paidDate);
+        const unit = property.name || property.address || 'l’immobile';
         if (landlord) {
             await createNotification(
                 landlord.id,
                 'payment',
                 '💰 Pagamento ricevuto',
-                `${tenant?.name || 'Inquilino'} ha pagato €${paymentData.amount} per ${property?.name || 'immobile'} (${paymentData.month})`,
-                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount }
+                `${who.name || 'L’inquilino'} ha pagato €${incassoEuro(paymentData.amount)} per ${unit} — ${incassoMonth(paymentData.month) || 'rata'}${paid ? ` (accredito del ${incassoDateIt(paid)})` : ''}`,
+                { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true }
             );
         }
-        // Also notify TENANT that payment was confirmed (email sent separately via sendPaymentConfirmEmail)
+        // L'inquilino col profilo lo vede in /casa (l'email parte a parte).
         if (tenant) {
             await createNotification(
                 tenant.id,
                 'payment',
                 '✅ Payment Confirmed',
-                `Your payment of €${paymentData.amount} for ${property?.name || 'your apartment'} (${paymentData.month}) has been confirmed. Thank you!`,
+                `Your payment of €${incassoEuro(paymentData.amount, 'en')} for ${unit} (${incassoMonth(paymentData.month, 'en') || 'rent'}) has been confirmed. Thank you!`,
                 { paymentId: paymentData.id, propertyId: property.id, amount: paymentData.amount, skipEmail: true }
             );
         }
@@ -10522,7 +10525,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
         const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
         const proof = rentSafeHttpUrl(p.proofUrl);
-        const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
+        // Dopo un «Annulla incasso» e un nuovo incasso la rata ha DUE ricevute:
+        // quella annullata e quella valida, in ordine di id (cioè a caso). Vale
+        // quella collegata alla rata, poi una non annullata; mai l'annullata.
+        const liveInv = i => i && !i.voided && i.status !== 'cancelled';
+        const invoice = (p.invoiceId ? (S.invoices || []).find(i => i.id === p.invoiceId && liveInv(i)) : null)
+            || (S.invoices || []).find(i => i.paymentId === row.id && liveInv(i));
         const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${!p.receiptDocId && !rentSafeHttpUrl(p.receiptUrl) && isAdmin() ? `<button class="btn btn-sm btn-secondary" onclick="publishRentReceipt(${id},this)">Archivia ricevuta per il cliente</button>` : ''}${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
         return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
             <div><strong>${esc(rentMonthLabel(row.month))}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
@@ -10667,23 +10675,177 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const receiptId = await archivePaymentReceipt({id});
             if (!receiptId) return toast('warning','Ricevuta non archiviata. Verifica pagamento, dati e collegamenti prima di riprovare.');
-            closeModal(); await reloadRentPayments(); toast('success','Ricevuta disponibile nell’archivio del cliente.');
+            // Chi non ha un profilo nel portale non ha un archivio: l'attestazione
+            // sta sotto il contratto, e si dice così.
+            const pay = (S.payments || []).find(x => x.id === id);
+            const profile = !!(pay && incassoParties(pay).hasProfile);
+            closeModal(); await reloadRentPayments(); toast('success', profile ? 'Ricevuta disponibile nell’archivio del cliente.' : 'Attestazione archiviata sotto il contratto: l’inquilino non ha un profilo nel portale.');
         } finally { rentReceiptBusy.delete(id); if (button) button.disabled = false; }
     }
-    async function confirmRentPayment(id) {
-        const p = (S.payments || []).find(p => p.id === id);
-        if (!p || !['due','overdue','reported'].includes(window.BOOM_RENT.paymentState(p)) || !(window.BOOM_RENT.amount(p.amount) > 0)) return toast('warning','Verifica lo stato della rata prima di registrare un incasso.');
-        if (!confirm('Confermi di aver verificato la ricezione di ' + rentMoney(window.BOOM_RENT.amount(p.amount)) + '? Verranno registrati l’incasso e la ricevuta e inviate le conferme previste.')) return;
-        await markPaymentPaid(id);
+    // ═══ L'INCASSO REGISTRATO — data dell'accredito, canale, fonte ═══════
+    // «Registra incasso» scriveva il giorno del CLIC come data di pagamento,
+    // senza canale né fonte: un bonifico partito il 3 e registrato il 12
+    // diventava, per la proprietaria e per il commercialista, un inquilino
+    // in ritardo di una settimana. E BOOM non vede il conto del locatore (in
+    // un palazzo è quello della società): chi registra dice da dove sa che i
+    // soldi sono arrivati. Il clic non è MAI la data dell'accredito.
+    const INCASSO_VIA = { bonifico: 'Bonifico', contanti: 'Contanti', stripe: 'Carta (Stripe)', altro: 'Altro' };
+    const INCASSO_VIA_ALL = ['bonifico', 'contanti', 'stripe', 'sepa', 'bank', 'dichiarato', 'altro'];
+    const INCASSO_EVIDENCE = { 'estratto-conto-locatore': 'Estratto conto del locatore', 'ricevuta-inquilino': 'Ricevuta del bonifico mandata dall’inquilino', 'conferma-proprietaria': 'Conferma della proprietaria', altro: 'Altro (scrivilo nella nota)' };
+    const INCASSO_EVIDENCE_ALL = ['estratto-conto-locatore', 'ricevuta-inquilino', 'conferma-proprietaria', 'stripe', 'banca-boom', 'altro'];
+    const INCASSO_MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+    const INCASSO_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    // Il giorno di calendario a Roma: fra mezzanotte e le 2 il giorno UTC è
+    // ancora quello di prima (e il 31/12 alle 23:30 UTC è già l'anno nuovo).
+    function incassoRomeDay(d) {
+        const date = d == null ? new Date() : d instanceof Date ? d : new Date(d);
+        if (!Number.isFinite(date.getTime())) return '';
+        const p = {};
+        new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date).forEach(x => { p[x.type] = x.value; });
+        return p.year + '-' + p.month + '-' + p.day;
+    }
+    // Una data scritta come giorno resta quel giorno; un istante (Timestamp,
+    // ISO con l'ora) diventa il giorno di Roma. Altro → ''.
+    function incassoDay(v) {
+        if (!v) return '';
+        if (typeof v === 'object') {
+            try { const d = typeof v.toDate === 'function' ? v.toDate() : v instanceof Date ? v : typeof v.seconds === 'number' ? new Date(v.seconds * 1000) : null; return d ? incassoRomeDay(d) : ''; }
+            catch (_) { return ''; }
+        }
+        const s = String(v), m = /^(\d{4})-(\d{2})-(\d{2})(T\d)?/.exec(s);
+        if (!m) return '';
+        if (m[4]) return incassoRomeDay(new Date(s));
+        const d = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+        return d.getUTCMonth() === +m[2] - 1 && d.getUTCDate() === +m[3] ? m[1] + '-' + m[2] + '-' + m[3] : '';
+    }
+    // La prossima scadenza «giorno N del mese dopo», dal calendario di Roma:
+    // new Date(a, m, 5).toISOString() a Roma è il 4 alle 22:00 UTC.
+    function incassoNextDue(day) {
+        const t = incassoRomeDay();
+        let y = +t.slice(0, 4), m = +t.slice(5, 7) + 1;
+        if (m > 12) { m = 1; y++; }
+        const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+        return y + '-' + String(m).padStart(2, '0') + '-' + String(Math.min(day, last)).padStart(2, '0');
+    }
+    function incassoDateIt(d) { const x = incassoDay(d); return x ? x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : ''; }
+    function incassoDateEn(d) { const x = incassoDay(d); return x ? (+x.slice(8, 10)) + ' ' + INCASSO_MONTHS[+x.slice(5, 7) - 1].slice(0, 3) + ' ' + x.slice(0, 4) : ''; }
+    function incassoMonth(m, lang) {
+        const x = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(m || ''));
+        return x ? (lang === 'en' ? INCASSO_MONTHS : INCASSO_MESI)[+x[2] - 1] + ' ' + x[1] : '';
+    }
+    // Importi all'italiana (o all'inglese) senza toLocaleString: con l'ICU
+    // ridotta usciva «1720,00» al posto di «1.720,00».
+    function incassoEuro(n, lang) {
+        const v = Math.round((Number(n) || 0) * 100), a = Math.abs(v);
+        const int = String(Math.floor(a / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, lang === 'en' ? ',' : '.');
+        return (v < 0 ? '-' : '') + int + (lang === 'en' ? '.' : ',') + String(a % 100).padStart(2, '0');
+    }
+    function incassoRound(n) { return Math.round((Number(n) + Number.EPSILON) * 100) / 100; }
+    // Un importo dal modulo: «1720.5», «1720,50». Mai parseInt (troncava i
+    // centesimi delle rate in proporzione); null se non è un importo.
+    function incassoNum(v) {
+        if (typeof v === 'number') return Number.isFinite(v) && v >= 0 ? incassoRound(v) : null;
+        const s = String(v == null ? '' : v).trim().replace(',', '.');
+        return /^\d{1,7}(?:\.\d{1,2})?$/.test(s) ? incassoRound(Number(s)) : null;
+    }
+    function incassoInvalid(o, today) {
+        const t = today || incassoRomeDay(), d = String((o || {}).paidDate || '');
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || incassoDay(d) !== d) return 'Indica la data dell’accredito.';
+        if (d > t) return 'La data dell’accredito non può essere nel futuro.';
+        if (d < '2015-01-01') return 'Data dell’accredito non plausibile.';
+        if (!INCASSO_VIA_ALL.includes(o.paidVia)) return 'Scegli come è arrivato il pagamento.';
+        if (!INCASSO_EVIDENCE_ALL.includes(o.paidEvidence)) return 'Indica da dove sai che i soldi sono arrivati.';
+        if (String(o.note || '').length > 500) return 'La nota supera i 500 caratteri.';
+        return '';
+    }
+    // Chi ha pagato e dove, dalla stessa lettura dei canoni: il nome del
+    // CONTRATTO (un inquilino preso in carico da tabella non ha un profilo),
+    // mai quello di un contratto vecchio rimasto agganciato alla rata.
+    function incassoParties(payment) {
+        const row = rentReceiptContext(payment) || {};
+        const c = row.contract || null, t = row.tenant || null;
+        const stale = !!(c && payment.tenantId && c.tenantId && payment.tenantId !== c.tenantId);
+        const name = String((!stale && c && c.tenantName) || (t && t.name) || payment.tenantName || '').trim();
+        const email = String((t && t.email) || (!stale && c && c.tenantEmail) || '').trim();
+        // L'attestazione nasce solo se archivePaymentReceipt la può davvero
+        // scrivere: un immobile, e il profilo dell'inquilino o il contratto
+        // (mai con un profilo indicato ma introvabile — si promette il vero).
+        const archivable = !!(row.property && row.propertyId && !(row.tenantId && !t) && (t || (c && c.id)));
+        return { contract: c, property: row.property || null, tenant: t, name, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '', hasProfile: !!t, archivable };
+    }
+    // Ogni strada passa dal modulo: Canoni, Palazzo, Oggi, Recupero crediti.
+    async function confirmRentPayment(id) { return openRecordIncasso(id); }
+    function openRecordIncasso(paymentId) {
+        if (!isAdmin()) return;
+        const p = (S.payments || []).find(x => x.id === paymentId);
+        const state = p ? window.BOOM_RENT.paymentState(p) : 'unknown';
+        if (!p || !['due', 'overdue', 'reported'].includes(state) || !(window.BOOM_RENT.amount(p.amount) > 0)) return toast('warning', 'Verifica lo stato della rata prima di registrare un incasso.');
+        const who = incassoParties(p), prop = who.property;
+        const today = incassoRomeDay(), rep = incassoDay(p.tenantReportDate);
+        const def = rep && rep <= today ? rep : today;
+        const amount = window.BOOM_RENT.amount(p.amount), rentP = window.BOOM_RENT.amount(p.rentAmount), oneriP = window.BOOM_RENT.amount(p.oneriAmount);
+        const split = oneriP > 0 && rentP > 0 && Math.abs(rentP + oneriP - amount) < 0.01;
+        const proof = rentSafeHttpUrl(p.proofUrl);
+        const landlord = prop && prop.ownerId ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const arg = rentActionArg(paymentId);
+        const opt = (map, sel) => Object.keys(map).map(k => `<option value="${k}" ${k === sel ? 'selected' : ''}>${esc(map[k])}</option>`).join('');
+        const period = incassoMonth(p.month) + (p.periodFrom && p.periodTo ? ` (dal ${incassoDateIt(p.periodFrom)} al ${incassoDateIt(p.periodTo)})` : '');
+        const effects = [
+            landlord ? `La proprietaria (${esc(landlord.name || landlord.email || 'profilo collegato')}) vede la rata pagata nel portale: una notifica nel portale, nessuna email.` : 'Nessuna proprietaria collegata all’interno: nessuna notifica.',
+            who.archivable ? 'Si archivia un’attestazione di pagamento in PDF, intestata al locatore.' : prop ? 'Nessuna attestazione: l’inquilino indicato sulla rata non ha un profilo leggibile. Verifica il collegamento.' : 'Nessuna attestazione: la rata non è collegata a un immobile.',
+            who.hasProfile ? 'Si registra la ricevuta del canone nell’archivio del portale.' : ''
+        ].filter(Boolean);
+        const mail = who.email
+            ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="incSend" checked> <span>Manda la conferma all’inquilino a <strong>${esc(who.email)}</strong> (in inglese)${who.archivable ? ', con il link all’attestazione' : ''}.</span></label>`
+            : '<p class="rent-note">Nessuna email all’inquilino: non c’è un indirizzo in archivio. Se serve una conferma, scrivigli tu.</p>';
+        document.body?.classList?.add('modal-open');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="incTitle"><div class="modal-header"><h3 class="modal-title" id="incTitle">Registra incasso</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div>
+            <form onsubmit="event.preventDefault();submitRecordIncasso(${arg})"><div class="modal-body">
+            <p><strong>${esc(who.name || 'Inquilino da collegare')}</strong>${prop ? ' · ' + esc(prop.name || prop.address || '') : ''}<br>${esc(period || rentMonthLabel(p.month))} · ${rentMoney(amount)}${split ? ` <small>(canone ${rentMoney(rentP)} + oneri ${rentMoney(oneriP)})</small>` : ''}${p.dueDate ? ` · scadenza ${esc(incassoDateIt(p.dueDate))}` : ''}</p>
+            ${state === 'reported' ? `<p class="rent-note">L’inquilino ha segnalato un bonifico${rep ? ' del ' + esc(incassoDateIt(rep)) : ''}${proof ? ` · <a href="${esc(proof)}" target="_blank" rel="noopener">vedi la ricevuta</a>` : ' senza ricevuta'}.</p>` : ''}
+            <div class="form-row"><div class="form-group"><label class="form-label" for="incDate">Data dell’accredito</label><input type="date" class="form-input" id="incDate" value="${def}" max="${today}" required></div>
+            <div class="form-group"><label class="form-label" for="incVia">Come è arrivato</label><select class="form-select" id="incVia">${opt(INCASSO_VIA, 'bonifico')}</select></div></div>
+            <div class="form-group"><label class="form-label" for="incEvidence">Da dove sai che è arrivato</label><select class="form-select" id="incEvidence" required><option value="">Scegli…</option>${opt(INCASSO_EVIDENCE, '')}</select>
+            <small class="rent-note">BOOM non vede il conto del locatore (in un palazzo è quello della società): indica chi ha visto i soldi arrivare. Una ricevuta di bonifico prova l’ordine, non l’accredito (dall’estero l’importo può arrivare ridotto dalle spese).</small></div>
+            <div class="form-group"><label class="form-label" for="incNote">Nota (facoltativa)</label><textarea class="form-textarea" id="incNote" rows="2" maxlength="500"></textarea></div>
+            <div class="rent-note"><strong>Cosa succede</strong><ul style="margin:6px 0 0 18px;padding:0">${effects.map(x => `<li>${x}</li>`).join('')}</ul>${mail}</div>
+            <p id="incError" role="alert" style="color:var(--red)"></p></div>
+            <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" id="incSubmit" type="submit">Registra incasso</button></div></form></div></div>`;
+        document.getElementById('incDate')?.focus?.();
+    }
+    const incassoBusy = new Set();
+    async function submitRecordIncasso(paymentId) {
+        if (!isAdmin() || incassoBusy.has(paymentId)) return false;
+        const val = id => String(document.getElementById(id)?.value || '').trim();
+        const err = document.getElementById('incError'), btn = document.getElementById('incSubmit');
+        const send = document.getElementById('incSend');
+        const opts = { paidDate: val('incDate'), paidVia: val('incVia'), paidEvidence: val('incEvidence'), note: val('incNote'), notifyTenant: !!(send && send.checked) };
+        const bad = incassoInvalid(opts);
+        if (bad) { if (err) err.textContent = bad; return false; }
+        if (err) err.textContent = '';
+        incassoBusy.add(paymentId); if (btn) btn.disabled = true;
+        try {
+            const ok = await markPaymentPaid(paymentId, opts);
+            if (ok) closeModal();
+            else if (err) err.textContent = 'Incasso non registrato: aggiorna la rata e riprova.';
+            return ok;
+        } finally { incassoBusy.delete(paymentId); if (btn) btn.disabled = false; }
     }
 
     async function sendPaymentReminder(paymentId, level) {
         const p = S.payments.find(x => x.id === paymentId);
         if (!p) return;
+        // Un bonifico segnalato si VERIFICA, non si sollecita (chi aveva
+        // caricato la ricevuta riceveva «risulta ancora da saldare»); un
+        // addebito in corso nemmeno. Lo stato è quello di BOOM_RENT.
+        const st = window.BOOM_RENT.paymentState(p);
+        if (st !== 'overdue' && st !== 'due') return toast('info', st === 'reported' ? 'Pagamento segnalato dall’inquilino' : 'Nessun sollecito', st === 'reported' ? 'Verifica l’incasso e registralo: una rata segnalata non si sollecita.' : rentStateLabel(st));
         const c = S.contracts.find(x => x.id === p.contractId);
         const t = c ? S.users.find(x => x.id === c.tenantId) : null;
         const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-        if (!t) return toast('error', 'Inquilino non trovato');
+        // Chi è stato preso in carico da tabella non ha un profilo: il suo
+        // sollecito è il link della rata su WhatsApp, dal Palazzo.
+        if (!t) return toast('warning', c && (c.tenantPhone || c.tenantEmail || c.tenantName) ? 'Inquilino senza profilo nel portale' : 'Inquilino non trovato', c && (c.tenantPhone || c.tenantEmail || c.tenantName) ? 'Manda il link della rata dal Palazzo: il sollecito email è per chi ha un profilo.' : '');
 
         // Default to the level suggested by days-late
         if (!level) level = suggestedDunningLevel(p) || 1;
@@ -10717,6 +10879,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function sendDunningWA(paymentId, level) {
         const p = S.payments.find(x => x.id === paymentId);
         if (!p) return;
+        if (!['overdue', 'due'].includes(window.BOOM_RENT.paymentState(p))) return toast('info', 'Nessun sollecito', rentStateLabel(window.BOOM_RENT.paymentState(p)));
         const c = S.contracts.find(x => x.id === p.contractId);
         const t = c ? S.users.find(x => x.id === c.tenantId) : null;
         const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -16828,13 +16991,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">🔄 Rinnova</button></div></div></div>`; }
 
-        if (type === 'terminateContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${p?.name}</strong> con <strong>${t?.name}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`; }
+        if (type === 'terminateContract') { const c = data; if (!c) return ''; return terminateContractModal(c); }
 
-        if (type === 'addPayment') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">💳 Registra Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="savePayment(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required onchange="fillPayAmount(this)"><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${new Date().toISOString().slice(0, 7)}"></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="pAmount" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5).toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending">In Attesa</option><option value="paid">Pagato</option></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Registra</button></div></div></div>`; }
+        if (type === 'addPayment') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">💳 Registra Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="savePayment(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required onchange="fillPayAmount(this)"><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${incassoRomeDay().slice(0, 7)}"></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="pAmount" step="0.01" min="0" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${incassoNextDue(5)}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending">Da pagare</option><option value="paid">Già pagata (poi si registra l’incasso)</option></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Registra</button></div></div></div>`; }
 
-        if (type === 'editPayment') { const pay = data; if (!pay) return ''; const contracts = S.contracts; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pay.id}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId">${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}" ${pay.contractId === c.id ? 'selected' : ''}>${p?.name}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${pay.month || ''}"></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${pay.amount || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${pay.dueDate || ''}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${pay.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="paid" ${pay.status === 'paid' ? 'selected' : ''}>Pagato</option></select></div></div><div class="form-group"><label class="form-label">Data Pagamento</label><input type="date" class="form-input" name="paidDate" value="${pay.paidDate ? pay.paidDate.split('T')[0] : ''}"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${pay.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${pay.id}','Pagamento ${jsq(pay.month)}')">🗑</button><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editPayment') { const pay = data; if (!pay) return ''; return editPaymentModal(pay); }
 
-        if (type === 'bulkPayments') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Genera Pagamenti Multipli</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="generateBulkPayments(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Da Mese *</label><input type="month" class="form-input" name="startMonth" value="${new Date().toISOString().slice(0, 7)}" required></div><div class="form-group"><label class="form-label">Numero Mesi *</label><select class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi (1 anno)</option><option value="24">24 mesi (2 anni)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="dueDay" value="5" min="1" max="28"></div><div class="form-group"><label class="form-label">Importo € (vuoto = da contratto)</label><input type="number" class="form-input" name="amount" placeholder="Auto"></div></div></form><div style="background:var(--surface);padding:12px;border-radius:8px;margin-top:16px;font-size:12px;color:var(--text-muted)">💡 Verranno generati pagamenti mensili con stato "In Attesa". I mesi già esistenti verranno saltati.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">📅 Genera</button></div></div></div>`; }
+        if (type === 'bulkPayments') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Genera Pagamenti Multipli</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="generateBulkPayments(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Da Mese *</label><input type="month" class="form-input" name="startMonth" value="${incassoRomeDay().slice(0, 7)}" required></div><div class="form-group"><label class="form-label">Numero Mesi *</label><select class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi (1 anno)</option><option value="24">24 mesi (2 anni)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="dueDay" value="5" min="1" max="28"></div><div class="form-group"><label class="form-label">Importo € (vuoto = da contratto)</label><input type="number" class="form-input" name="amount" step="0.01" min="0" placeholder="Auto"></div></div></form><div style="background:var(--surface);padding:12px;border-radius:8px;margin-top:16px;font-size:12px;color:var(--text-muted)">💡 Verranno generati pagamenti mensili con stato "In Attesa". I mesi già esistenti verranno saltati.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">📅 Genera</button></div></div></div>`; }
 
         if (type === 'addMaintenance') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Nuova Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveMaintenance(event)"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required></div><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required><option value="">Seleziona...</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low">Bassa</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Invia</button></div></div></div>`;
 
@@ -17776,50 +17939,311 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // dall'inquilino né dal proprietario (firestore.rules) e non compare
             // mai in /casa — soldi dovuti, invisibili a chi paga (audit P0.6).
             const _c = (S.contracts || []).find(x => x.id === data.contractId);
+            const amount = incassoNum(data.amount);
+            if (!(amount > 0)) return toast('warning', 'Importo non valido', 'Scrivi l’importo in euro, con i centesimi se servono.');
+            // Una rata nata «pagata» nasceva con la data del clic: nasce da
+            // pagare e si apre subito «Registra incasso» (data, canale, fonte).
             var docRef = await db.collection('payments').add({
                 contractId: data.contractId,
                 tenantId: _c?.tenantId || null, propertyId: _c?.propertyId || null,
-                month: data.month || '', amount: parseInt(data.amount) || 0,
-                dueDate: data.dueDate || null, status: data.status || 'pending',
-                paidDate: data.status === 'paid' ? new Date().toISOString() : null,
+                month: data.month || '', amount,
+                dueDate: data.dueDate || null, status: 'pending', paidDate: null,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            logActivity('payment_created', 'payment', { id: docRef.id, amount: parseInt(data.amount) || 0, status: data.status || 'pending', contractId: data.contractId });
-            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
+            logActivity('payment_created', 'payment', { id: docRef.id, amount, status: 'pending', contractId: data.contractId });
+            await refreshOnly('payments'); closeModal(); toast('success', 'Rata registrata');
+            if (data.status === 'paid') setTimeout(() => openRecordIncasso(docRef.id), 250);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
-    async function markPaymentPaid(id) {
+    // opts = { paidDate (YYYY-MM-DD, l'ACCREDITO), paidVia, paidEvidence,
+    // note?, notifyTenant? }. Senza opts si apre il modulo: Oggi, Recupero
+    // crediti e i tasti ✔ passano da qui, e il clic non è mai la data.
+    // Ritorna true solo se l'incasso è scritto.
+    async function markPaymentPaid(id, opts) {
         try {
-            if (!isAdmin()) return;
-            const snap = await db.collection('payments').doc(id).get({ source:'server' });
-            if (!snap.exists) return toast('error','Rata non trovata');
-            const payment = { ...snap.data(), id };
-            const state = window.BOOM_RENT.paymentState(payment);
-            if (!['due','overdue','reported'].includes(state) || !(window.BOOM_RENT.amount(payment.amount) > 0)) return toast('warning','Incasso non registrato',rentStateLabel(state));
-            await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
-            logActivity('payment_marked_paid', 'payment', { id: id, amount: payment?.amount, contractId: payment?.contractId });
-            // Notify landlord of payment received
-            if (payment) {
-                await notifyPaymentReceived({ id, ...payment });
-                // Send confirmation email to tenant
-                const contract = S.contracts.find(c => c.id === payment.contractId);
-                const tenant = contract ? S.users.find(u => u.id === contract.tenantId) : null;
-                const prop = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
-                if (tenant) await sendPaymentConfirmEmail(tenant, contract, prop, payment);
-                // 🧾 Auto-generate a "ricevuta canone" invoice (idempotent)
-                try { await autoInvoiceForPayment({ id, ...payment }); }
-                catch (e) { console.warn('[autoInvoice]', e); }
-                // 📄 File the receipt PDF in the archive — also lands in the tenant's portal
-                try { await archivePaymentReceipt({ id, ...payment, status: 'paid', paidDate: new Date().toISOString() }); }
-                catch (e) { console.warn('[archiveReceipt]', e); }
+            if (!isAdmin()) return false;
+            if (!opts || typeof opts !== 'object') { openRecordIncasso(id); return false; }
+            const bad = incassoInvalid(opts);
+            if (bad) { toast('warning', 'Incasso non registrato', bad); return false; }
+            const ref = db.collection('payments').doc(id);
+            const fields = { status: 'paid', paidDate: opts.paidDate, paidVia: opts.paidVia, paidEvidence: opts.paidEvidence,
+                paidRecordedAt: new Date().toISOString(), paidRecordedBy: auth.currentUser?.uid || S.profile?.id || '' };
+            const note = String(opts.note || '').trim().slice(0, 500);
+            if (note) fields.paidNote = note;
+            // Lettura e scrittura nella STESSA transazione: un addebito SEPA o
+            // una carta arrivati nel mezzo vincono sul clic dell'operatore.
+            let payment = null, refused = '';
+            await db.runTransaction(async tx => {
+                payment = null; refused = '';
+                const snap = await tx.get(ref);
+                if (!snap.exists) { refused = 'Rata non trovata'; return; }
+                const cur = { ...snap.data(), id };
+                const state = window.BOOM_RENT.paymentState(cur);
+                if (!['due', 'overdue', 'reported'].includes(state) || !(window.BOOM_RENT.amount(cur.amount) > 0)) { refused = rentStateLabel(state); return; }
+                tx.update(ref, fields);
+                payment = { ...cur, ...fields };
+            });
+            if (!payment) { toast('warning', 'Incasso non registrato', refused); return false; }
+            const local = (S.payments || []).find(x => x.id === id);
+            if (local) Object.assign(local, fields);
+            logActivity('payment_marked_paid', 'payment', { id, amount: payment.amount, contractId: payment.contractId, paidDate: fields.paidDate, paidVia: fields.paidVia, paidEvidence: fields.paidEvidence });
+            const who = incassoParties(payment);
+            try { await notifyPaymentReceived(payment); } catch (e) { console.warn('[incasso] notifica', e); }
+            // 🧾 La ricevuta del canone (inquilini col profilo) e l'attestazione
+            // in PDF — PRIMA della conferma all'inquilino, che ne porta il link.
+            try { await autoInvoiceForPayment(payment); } catch (e) { console.warn('[autoInvoice]', e); }
+            let receiptUrl = '';
+            try {
+                const docId = await archivePaymentReceipt(payment);
+                if (docId) {
+                    const d = await db.collection('documents').doc(docId).get();
+                    receiptUrl = d.exists ? rentSafeHttpUrl((d.data() || {}).fileUrl) : '';
+                    // In memoria subito: riga e Palazzo mostrano la ricevuta senza ricaricare.
+                    if (local) { local.receiptDocId = docId; if (!rentSafeHttpUrl(local.receiptUrl) && /^https:/.test(receiptUrl)) local.receiptUrl = receiptUrl; }
+                }
+            } catch (e) { console.warn('[archiveReceipt]', e); }
+            if (!/^https:/.test(receiptUrl)) receiptUrl = '';
+            // La conferma parte DAVVERO (in inglese) a chi ha un indirizzo, anche
+            // senza profilo: il contratto preso in carico ha l'email del conduttore.
+            let mailed = '';
+            if (opts.notifyTenant !== false && who.email) {
+                const sent = await sendPaymentConfirmEmail({ name: who.name, email: who.email }, who.contract, who.property, payment, { receiptUrl, hasProfile: who.hasProfile });
+                if (sent) {
+                    mailed = who.email;
+                    const stamp = { tenantConfirmSentAt: new Date().toISOString(), tenantConfirmTo: who.email };
+                    try { await ref.update(stamp); if (local) Object.assign(local, stamp); } catch (e) { console.warn('[incasso] timbro conferma', e); }
+                }
             }
-            await refresh(); toast('success', 'Pagamento confermato ✔');
-            // Activity log
-            const prop = payment ? S.properties.find(p => { const c = S.contracts.find(x => x.id === payment.contractId); return c && p.id === c.propertyId; }) : null;
-            logActivity('Pagamento confermato', 'payment', { amount: payment?.amount, month: payment?.month, propertyName: prop?.name });
-        } catch (err) { toast('error', 'Errore', err.message); }
+            toast('success', 'Incasso registrato ✔', ['accredito del ' + incassoDateIt(fields.paidDate), receiptUrl ? 'attestazione archiviata' : 'attestazione non archiviata', mailed ? 'conferma inviata a ' + mailed : 'nessuna email all’inquilino'].join(' · '));
+            await refresh();
+            return true;
+        } catch (err) { toast('error', 'Errore', err.message); return false; }
     }
+
+    // ↩ L'incasso registrato per errore: la rata torna da pagare (o «segnalata»
+    // se l'inquilino l'aveva segnalata), data/canale/fonte/ricevuta puliti,
+    // e quello che c'era resta in `incassoAnnullato`. L'attestazione emessa
+    // NON si cancella: resta in archivio con voided:true, mai più valida.
+    // Gli incassi automatici (carta, SEPA, banca) non si annullano da qui.
+    async function undoIncasso(paymentId) {
+        if (!isAdmin()) return false;
+        const ref = db.collection('payments').doc(paymentId);
+        try {
+            const snap = await ref.get({ source: 'server' });
+            if (!snap.exists) { toast('error', 'Rata non trovata'); return false; }
+            const p = { ...snap.data(), id: paymentId };
+            if (window.BOOM_RENT.paymentState(p) !== 'paid') { toast('info', 'Niente da annullare', 'La rata non risulta pagata.'); return false; }
+            const automatic = !!(p.stripeSessionId || p.sddPiId || p.bankTxId) || (['stripe', 'sepa', 'bank'].includes(p.paidVia) && !p.paidRecordedBy);
+            if (automatic) { toast('warning', 'Incasso automatico', 'Carta, SEPA o banca: non si annulla da qui. Un rimborso o una contestazione passano da Stripe o dalla banca.'); return false; }
+            const who = incassoParties(p);
+            const msg = `Annullo l’incasso di ${incassoMonth(p.month) || 'questa rata'} (€${incassoEuro(p.amount)}${incassoDay(p.paidDate) ? ', accredito del ' + incassoDateIt(p.paidDate) : ''})?\n\n`
+                + 'La rata torna da pagare. L’attestazione già emessa resta in archivio come ANNULLATA.'
+                + (who.property && who.property.ownerId ? '\nLa proprietaria riceve una correzione nel portale.' : '')
+                + (p.tenantConfirmSentAt ? `\n\nAttenzione: il ${incassoDateIt(p.tenantConfirmSentAt)} era partita una conferma a ${p.tenantConfirmTo || 'l’inquilino'}: avvisalo tu.` : '');
+            if (!confirm(msg)) return false;
+            const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+            const del = firebase.firestore.FieldValue.delete();
+            const was = { status: p.status || 'paid', paidDate: p.paidDate || null, paidVia: p.paidVia || null, paidEvidence: p.paidEvidence || null, receiptUrl: p.receiptUrl || null,
+                receiptDocId: p.receiptDocId || null, invoiceId: p.invoiceId || null, paidRecordedAt: p.paidRecordedAt || null, paidRecordedBy: p.paidRecordedBy || null };
+            let undone = false;
+            await db.runTransaction(async tx => {
+                undone = false;
+                const cur = await tx.get(ref);
+                const d = cur.exists ? cur.data() : null;
+                // Cambiata nel mezzo (altra sessione, webhook): non si tocca.
+                if (!d || window.BOOM_RENT.paymentState(d) !== 'paid' || String(d.paidDate || '') !== String(p.paidDate || '')) return;
+                const rRef = d.receiptDocId ? db.collection('documents').doc(d.receiptDocId) : db.collection('documents').doc('rent-receipt-' + paymentId);
+                const rSnap = await tx.get(rRef);
+                const iRef = d.invoiceId ? db.collection('invoices').doc(d.invoiceId) : null;
+                const iSnap = iRef ? await tx.get(iRef) : null;
+                tx.update(ref, { status: 'pending', paidDate: del, paidVia: del, paidEvidence: del, paidNote: del, paidRecordedAt: del, paidRecordedBy: del,
+                    receiptUrl: del, receiptDocId: del, invoiceId: del, invoiceNumber: del, tenantConfirmSentAt: del, tenantConfirmTo: del,
+                    incassoAnnullato: { at, by, was } });
+                const rd = rSnap.exists ? rSnap.data() : null;
+                // Il PDF annullato si legge ancora come un'attestazione valida:
+                // esce dall'archivio dell'inquilino (i suoi documenti si leggono
+                // per userId) e dalla condivisione, resta solo all'admin. A chi
+                // era intestato lo dice voidedUserId.
+                if (rd && rd.paymentId === paymentId && !rd.voided) tx.update(rRef, { voided: true, voidedAt: at, voidedBy: by, voidedReason: 'incasso annullato', name: '[ANNULLATA] ' + String(rd.name || 'Ricevuta'),
+                    userId: null, shared: false, voidedUserId: rd.userId || null });
+                if (iSnap && iSnap.exists && (iSnap.data() || {}).paymentId === paymentId) tx.update(iRef, { status: 'cancelled', voided: true, voidedAt: at, voidedBy: by, voidedReason: 'incasso annullato' });
+                undone = true;
+            });
+            if (!undone) { toast('warning', 'Incasso non annullato', 'La rata è cambiata nel frattempo: aggiorna e verifica.'); return false; }
+            const local = (S.payments || []).find(x => x.id === paymentId);
+            if (local) {
+                ['paidDate', 'paidVia', 'paidEvidence', 'paidNote', 'paidRecordedAt', 'paidRecordedBy', 'receiptUrl', 'receiptDocId', 'invoiceId', 'invoiceNumber', 'tenantConfirmSentAt', 'tenantConfirmTo'].forEach(k => { delete local[k]; });
+                // Come il loader: in memoria una rata scaduta si chiama 'overdue'.
+                local.status = local.dueDate && String(local.dueDate) < incassoRomeDay() ? 'overdue' : 'pending';
+                local.incassoAnnullato = { at, by, was };
+            }
+            (S.documents || []).forEach(d => { if (d.paymentId === paymentId && d.type === 'receipt' && !d.voided && d.id === (was.receiptDocId || 'rent-receipt-' + paymentId)) Object.assign(d, { voided: true, voidedAt: at, voidedUserId: d.userId || null, userId: null, shared: false }); });
+            (S.invoices || []).forEach(i => { if (i.paymentId === paymentId && was.invoiceId && i.id === was.invoiceId) Object.assign(i, { status: 'cancelled', voided: true, voidedAt: at }); });
+            logActivity('payment_incasso_undone', 'payment', { id: paymentId, amount: p.amount, contractId: p.contractId, was });
+            const landlord = who.property && who.property.ownerId ? (S.users || []).find(u => u.id === who.property.ownerId) : null;
+            if (landlord) {
+                try {
+                    await createNotification(landlord.id, 'payment', '↩ Correzione incasso',
+                        `L’incasso di ${incassoMonth(p.month) || 'una rata'} per ${who.property.name || who.property.address || 'l’immobile'} era stato registrato per errore ed è stato annullato: la rata risulta di nuovo da pagare.`,
+                        { paymentId, propertyId: who.property.id, skipEmail: true });
+                } catch (e) { console.warn('[undoIncasso] notifica', e); }
+            }
+            toast('success', 'Incasso annullato', 'La rata torna da pagare; l’attestazione resta in archivio come annullata.');
+            await refresh();
+            return true;
+        } catch (err) { toast('error', 'Errore', err.message); return false; }
+    }
+
+    // Un periodo pagato in proporzione (ultimo mese del contratto, inizio a
+    // metà): la stessa frazione della presa in carico — giorni coperti su
+    // giorni del periodo pieno. Senza periodo dichiarato, la rata è intera.
+    function incassoPeriodFactor(p, months) {
+        const a = incassoDay(p.periodFrom), b = incassoDay(p.periodTo);
+        if (!p.prorated || !a || !b) return 1;
+        const y = +a.slice(0, 4), m = +a.slice(5, 7) - 1, d = +a.slice(8, 10), start = Date.UTC(y, m, d);
+        let next = new Date(Date.UTC(y, m + months, d));
+        if (next.getUTCDate() !== d) next = new Date(Date.UTC(y, m + months + 1, 0));
+        const full = (next.getTime() - start) / 864e5;
+        const used = (Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - start) / 864e5 + 1;
+        return full > 0 && used > 0 && used < full ? used / full : 1;
+    }
+    // Le rate da ricalcolare quando cambiano canone o oneri: SOLO quelle da
+    // pagare o in ritardo. Mai una pagata, una segnalata dall'inquilino, un
+    // addebito in corso o un'annullata: lì l'inquilino ha già agito
+    // sull'importo che vedeva. La rata resta canone + oneri, con le due voci.
+    // Una rata di cui non si sa di cosa è fatta (senza le due voci e con un
+    // importo diverso dal canone del contratto: la quota energia di una
+    // proposta, un ritocco a mano) NON si ricalcola: riscriverla col solo
+    // canone nuovo cancellerebbe la parte che non conosciamo. Resta, e si dice.
+    // Le rate GIÀ SCADUTE non pagate sono arretrati: l'inquilino le ha viste
+    // (sul link della rata, nei solleciti) con l'importo di prima, e un canone
+    // nuovo non le rincara all'indietro. Restano, e si elencano a parte —
+    // salvo un mese dichiarato (fromMonth: «dal mese X», anche passato) o
+    // includeOverdue esplicito, che è la scelta dell'operatore.
+    function incassoFuturePlan(contract, payments, kind, value, fromMonth, includeOverdue) {
+        const rows = [], skipped = [], unknown = [], overdue = [];
+        // Un arretrato lasciato all'importo di prima da un canone nuovo vale il
+        // canone di ALLORA: si riconosce anche quello (termsHistory), così una
+        // correzione successiva degli arretrati sa ancora di cosa sono fatti.
+        const rents = [Number(contract.rent)].concat((Array.isArray(contract.termsHistory) ? contract.termsHistory : [])
+            .filter(h => h && h.field === 'rent').map(h => Number(h.from))).filter(r => r > 0);
+        (payments || []).filter(p => p && p.contractId === contract.id && window.BOOM_RENT.isRentPayment(p))
+            .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')))
+            .forEach(p => {
+                if (fromMonth && String(p.month || '') < fromMonth) return;
+                const st = window.BOOM_RENT.paymentState(p);
+                if (st === 'paid' || st === 'cancelled') return;
+                const amt = window.BOOM_RENT.amount(p.amount);
+                if ((st !== 'due' && st !== 'overdue') || amt == null) { skipped.push(p); return; }
+                const months = [1, 2, 3, 6, 12].includes(Number(p.installmentMonths)) ? Number(p.installmentMonths) : 1;
+                const f = incassoPeriodFactor(p, months);
+                const hasRent = window.BOOM_RENT.amount(p.rentAmount) != null, hasOneri = window.BOOM_RENT.amount(p.oneriAmount) != null;
+                const oneriOld = window.BOOM_RENT.amount(p.oneriAmount) || 0;
+                const rentOld = hasRent ? window.BOOM_RENT.amount(p.rentAmount) : incassoRound(amt - oneriOld);
+                if (rentOld < 0) { unknown.push(p); return; }
+                if (hasRent || hasOneri) {
+                    // Le due voci devono tornare col totale, o non sappiamo quale vale.
+                    if (Math.abs(incassoRound(rentOld + oneriOld) - amt) > 0.01) { unknown.push(p); return; }
+                } else if (rents.length && !rents.some(r => Math.abs(incassoRound(r * months * f) - amt) <= 0.01)) { unknown.push(p); return; }
+                const part = incassoRound(value * months * f);
+                const rentNew = kind === 'rent' ? part : rentOld, oneriNew = kind === 'oneri' ? part : oneriOld;
+                const to = incassoRound(rentNew + oneriNew);
+                const split = oneriNew > 0 || p.oneriAmount != null || p.rentAmount != null;
+                if (to === amt && (!split || (rentNew === window.BOOM_RENT.amount(p.rentAmount) && oneriNew === window.BOOM_RENT.amount(p.oneriAmount)))) return;
+                const upd = { amount: to };
+                if (split) { upd.rentAmount = rentNew; upd.oneriAmount = oneriNew; }
+                const row = { id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd };
+                if (st === 'overdue' && !fromMonth && !includeOverdue) { overdue.push(row); return; }
+                rows.push(row);
+            });
+        return { rows, skipped, unknown, overdue };
+    }
+    async function incassoApplyFuture(kind, contractId, raw, opts) {
+        if (!isAdmin()) return false;
+        const value = incassoNum(raw);
+        const what = kind === 'rent' ? 'Canone' : 'Oneri';
+        if (value == null || (kind === 'rent' && !(value > 0))) { toast('warning', what + ' non valido', 'Scrivi l’importo mensile in euro.'); return false; }
+        const fromMonth = /^\d{4}-(0[1-9]|1[0-2])$/.test(String((opts || {}).fromMonth || '')) ? opts.fromMonth : '';
+        const includeOverdue = (opts || {}).includeOverdue === true;
+        const cRef = db.collection('contracts').doc(contractId);
+        try {
+            const cSnap = await cRef.get({ source: 'server' });
+            if (!cSnap.exists) { toast('error', 'Contratto non trovato'); return false; }
+            const contract = { ...cSnap.data(), id: contractId };
+            // Le rate dal SERVER: il carico del portale ha dei tetti.
+            const rs = await db.collection('payments').where('contractId', '==', contractId).get({ source: 'server' });
+            const plan = incassoFuturePlan(contract, rs.docs.map(d => ({ ...d.data(), id: d.id })), kind, value, fromMonth, includeOverdue);
+            const full = plan.rows.find(r => !r.prorated) || plan.rows[0], part = plan.rows.find(r => r.prorated && r !== full);
+            // La rata del contratto (installmentAmount) può contenere più del
+            // canone: la quota energia di una proposta la porta dentro
+            // ((canone + energia) × cadenza), e la leggono il generatore delle
+            // rate, magic-sign e il PDF del contratto. Si sposta della
+            // DIFFERENZA di canone, mai si ricostruisce dal solo canone nuovo
+            // (cancellerebbe la parte che non conosciamo). Senza un canone di
+            // partenza la differenza non si sa: resta com'è, e si dice.
+            let iaNew = null, iaNote = '';
+            const step = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
+            if (kind === 'rent' && contract.installmentAmount != null && contract.installmentAmount !== '') {
+                const ia = Number(contract.installmentAmount), oldRent = Number(contract.rent);
+                const shifted = Number.isFinite(ia) && oldRent > 0 ? incassoRound(ia + (value - oldRent) * step) : NaN;
+                if (shifted > 0) {
+                    iaNew = shifted;
+                    if (Math.abs(incassoRound(oldRent * step) - ia) > 0.01) iaNote = `\nLa rata del contratto comprende altre voci oltre al canone: passa da €${incassoEuro(ia)} a €${incassoEuro(shifted)} (cambia solo la parte del canone).`;
+                } else iaNote = `\nLa rata del contratto${Number.isFinite(ia) ? ' (€' + incassoEuro(ia) + ')' : ''} non la cambio: senza il canone di prima non so quanta parte è canone. Verificala dal contratto.`;
+            }
+            const ov = plan.overdue;
+            const msg = `${kind === 'rent' ? 'Nuovo canone' : 'Nuovi oneri accessori'}: €${incassoEuro(value)} al mese${fromMonth ? ' da ' + incassoMonth(fromMonth) : ''}.\n\n`
+                + (plan.rows.length
+                    ? `Aggiorno il contratto e ${plan.rows.length} ${plan.rows.length === 1 ? 'rata non pagata' : 'rate non pagate'} (${incassoMonth(plan.rows[0].month) || '—'}${plan.rows.length > 1 ? ' – ' + (incassoMonth(plan.rows[plan.rows.length - 1].month) || '—') : ''}): rata nuova €${incassoEuro(full.to)}${part ? `, quella in proporzione €${incassoEuro(part.to)}` : ''}.`
+                    : 'Aggiorno solo il contratto: nessuna rata da pagare da ricalcolare.')
+                + (plan.skipped.length ? `\n${plan.skipped.length} ${plan.skipped.length === 1 ? 'rata segnalata dall’inquilino o in corso resta' : 'rate segnalate dall’inquilino o in corso restano'} come ${plan.skipped.length === 1 ? 'è' : 'sono'}: correggile a mano se serve.` : '')
+                + (plan.unknown.length ? `\n${plan.unknown.length} ${plan.unknown.length === 1 ? 'rata ha un importo che non è solo canone + oneri (per esempio con la quota energia): resta com’è' : 'rate hanno un importo che non è solo canone + oneri (per esempio con la quota energia): restano come sono'}, correggile dal dettaglio.` : '')
+                + (ov.length ? `\n${ov.length} ${ov.length === 1 ? 'rata già scaduta e non pagata' : 'rate già scadute e non pagate'} (${incassoMonth(ov[0].month) || '—'}${ov.length > 1 ? ' – ' + (incassoMonth(ov[ov.length - 1].month) || '—') : ''}) ${ov.length === 1 ? 'resta' : 'restano'} all’importo di prima: ${ov.length === 1 ? 'è un arretrato che l’inquilino ha visto' : 'sono arretrati che l’inquilino ha visto'} così. Se il nuovo importo vale anche per ${ov.length === 1 ? 'lei' : 'loro'}, correggi${ov.length === 1 ? 'la' : 'le'} dal dettaglio.` : '')
+                + iaNote
+                + '\nLe rate già pagate non cambiano.';
+            if (!confirm(msg)) return false;
+            const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+            const cUpd = { updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                termsHistory: firebase.firestore.FieldValue.arrayUnion({ field: kind === 'rent' ? 'rent' : 'oneriQuota', from: kind === 'rent' ? (contract.rent ?? null) : (contract.oneriQuota ?? null), to: value, fromMonth: fromMonth || null, rates: plan.rows.length, overdueKept: ov.length, at, by }) };
+            if (kind === 'rent') {
+                cUpd.rent = value;
+                if (iaNew != null) cUpd.installmentAmount = iaNew;
+                // canone.monthly × installments === total: il portale «aggiusta»
+                // da solo un canone che non torna, e lo farebbe male.
+                if (contract.canone && typeof contract.canone === 'object') { cUpd['canone.monthly'] = value; if (Number(contract.canone.installments) > 0) cUpd['canone.total'] = incassoRound(value * Number(contract.canone.installments)); }
+            } else cUpd.oneriQuota = value;
+            let written = [];
+            await db.runTransaction(async tx => {
+                written = [];
+                const fresh = await Promise.all(plan.rows.map(r => tx.get(db.collection('payments').doc(r.id))));
+                const cNow = await tx.get(cRef);
+                if (!cNow.exists) throw new Error('Contratto non trovato');
+                tx.update(cRef, cUpd);
+                fresh.forEach((s, i) => {
+                    const r = plan.rows[i], d = s.exists ? s.data() : null;
+                    // Pagata, segnalata o cambiata nel mezzo: resta com'è.
+                    if (!d || !['due', 'overdue'].includes(window.BOOM_RENT.paymentState(d)) || window.BOOM_RENT.amount(d.amount) !== r.from) return;
+                    tx.update(db.collection('payments').doc(r.id), { ...r.upd, amountChange: { at, by, was: r.from, why: kind === 'rent' ? 'canone' : 'oneri' } });
+                    written.push(r);
+                });
+            });
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) { if (kind === 'rent') { lc.rent = value; if (cUpd.installmentAmount != null) lc.installmentAmount = cUpd.installmentAmount; if (lc.canone && cUpd['canone.monthly'] != null) { lc.canone.monthly = value; if (cUpd['canone.total'] != null) lc.canone.total = cUpd['canone.total']; } } else lc.oneriQuota = value; }
+            written.forEach(r => { const lp = (S.payments || []).find(x => x.id === r.id); if (lp) Object.assign(lp, r.upd, { amountChange: { at, by, was: r.from, why: kind === 'rent' ? 'canone' : 'oneri' } }); });
+            logActivity(kind === 'rent' ? 'contract_rent_changed' : 'contract_oneri_changed', 'contract', { id: contractId, value, fromMonth: fromMonth || null, rates: written.length });
+            const missed = plan.rows.length - written.length;
+            toast('success', kind === 'rent' ? 'Canone aggiornato' : 'Oneri aggiornati', `${written.length} ${written.length === 1 ? 'rata ricalcolata' : 'rate ricalcolate'}${missed ? ` · ${missed} cambiate nel frattempo, non toccate` : ''}`);
+            await refresh();
+            return true;
+        } catch (err) { toast('error', 'Errore', err.message); return false; }
+    }
+    // Il Palazzo chiama questi due (CONTRACTS §2). opts facoltativo:
+    // { fromMonth: 'YYYY-MM' } = vale da quel mese (arretrati compresi, è una
+    // data dichiarata); { includeOverdue: true } = correggi anche le rate già
+    // scadute. Senza nessuno dei due si toccano solo le rate non ancora scadute.
+    function applyOneriFuture(contractId, oneri, opts) { return incassoApplyFuture('oneri', contractId, oneri, opts); }
+    function applyRentFuture(contractId, rent, opts) { return incassoApplyFuture('rent', contractId, rent, opts); }
 
     // ── Next invoice number, format BOOM-YYYY-NNNN, progressive per calendar year.
     function nextInvoiceNumber() {
@@ -17843,8 +18267,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function autoInvoiceForPayment(payment) {
         if (!payment) return null;
         if (payment.invoiceId) return null; // already linked
-        // Defensive: scan in-memory for a previous auto-invoice
-        const existing = (S.invoices || []).find(i => i.paymentId === payment.id);
+        // Defensive: scan in-memory for a previous auto-invoice (una ricevuta
+        // annullata con l'incasso non conta: il nuovo incasso ne vuole una)
+        const existing = (S.invoices || []).find(i => i.paymentId === payment.id && !i.voided);
         if (existing) return existing;
 
         const context = rentReceiptContext(payment);
@@ -18203,39 +18628,198 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
+    // ═══ CHIUSURA DEL CONTRATTO — le rate dopo l'uscita si annullano ═══════
+    // Chiudere un contratto scriveva solo stato e data: le rate dei mesi dopo
+    // restavano «da pagare», l'interno risultava pieno e moroso a chi se n'era
+    // andato, gli arretrati crescevano ogni mese e il Gestore proponeva
+    // solleciti. Ora le rate da pagare il cui periodo INIZIA dopo la data di
+    // termine si annullano nella stessa scrittura del contratto; pagate,
+    // segnalate e in corso non si toccano mai (e si dice quante sono).
+    function ratePeriodStart(p, c) {
+        const pf = incassoDay(p && p.periodFrom);
+        if (pf) return pf;
+        const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String((p && p.month) || ''));
+        if (!m) return '';
+        // Mesi di CONTRATTO: il periodo di ottobre di un contratto dal 15/09
+        // inizia il 15/10 (fine mese tenuta, come i generatori).
+        const sd = incassoDay(c && c.startDate), want = sd ? +sd.slice(8, 10) : 1;
+        const last = new Date(Date.UTC(+m[1], +m[2], 0)).getUTCDate();
+        return m[1] + '-' + m[2] + '-' + String(Math.min(want, last)).padStart(2, '0');
+    }
+    function ratePeriodEnd(p, c) {
+        const pt = incassoDay(p && p.periodTo);
+        if (pt) return pt;
+        const ps = ratePeriodStart(p, c);
+        if (!ps) return '';
+        const n = [1, 2, 3, 6, 12].includes(Number(p.installmentMonths)) ? Number(p.installmentMonths) : 1;
+        const sd = incassoDay(c && c.startDate), want = sd ? +sd.slice(8, 10) : +ps.slice(8, 10);
+        const y = +ps.slice(0, 4), mo = +ps.slice(5, 7) - 1 + n;
+        const last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+        const next = Date.UTC(y, mo, Math.min(want, last));
+        return new Date(next - 864e5).toISOString().slice(0, 10);
+    }
+    function terminationPlan(c, payments, endDay) {
+        const out = { cancel: [], keep: [], straddle: null, total: 0 };
+        if (!c || !incassoDay(endDay)) return out;
+        (payments || []).filter(p => p && p.contractId === c.id && window.BOOM_RENT.isRentPayment(p)).forEach(p => {
+            const ps = ratePeriodStart(p, c);
+            if (!ps) return;
+            const st = window.BOOM_RENT.paymentState(p);
+            if (st === 'cancelled') return;
+            if (ps > endDay) {
+                if (st === 'due' || st === 'overdue') { out.cancel.push(p); out.total = incassoRound(out.total + (window.BOOM_RENT.amount(p.amount) || 0)); }
+                else out.keep.push(p);
+            } else if (ratePeriodEnd(p, c) > endDay) out.straddle = p;
+        });
+        out.cancel.sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')));
+        return out;
+    }
+    function terminationSummary(plan, endDay) {
+        const n = plan.cancel.length, first = n ? incassoMonth(plan.cancel[0].month) : '', last = n ? incassoMonth(plan.cancel[n - 1].month) : '';
+        return [
+            n ? `Si annullano ${n} ${n === 1 ? 'rata non pagata' : 'rate non pagate'} con il periodo dopo il ${incassoDateIt(endDay)} (${first}${n > 1 ? ' – ' + last : ''} · €${incassoEuro(plan.total)}): restano in archivio come «Annullata · contratto chiuso».` : `Nessuna rata da annullare dopo il ${incassoDateIt(endDay)}.`,
+            plan.keep.length ? `${plan.keep.length} ${plan.keep.length === 1 ? 'rata dopo la chiusura è pagata, segnalata o in corso: resta' : 'rate dopo la chiusura sono pagate, segnalate o in corso: restano'} come ${plan.keep.length === 1 ? 'è' : 'sono'}, verificale a mano.` : '',
+            plan.straddle ? `La rata di ${incassoMonth(plan.straddle.month) || 'un periodo'} copre anche giorni dopo la chiusura: resta intera, correggila dal dettaglio se va ridotta.` : ''
+        ].filter(Boolean);
+    }
+    function terminateContractModal(c) {
+        const p = S.properties.find(x => x.id === c.propertyId);
+        const t = S.users.find(x => x.id === c.tenantId);
+        const today = incassoRomeDay();
+        const cid = jsq(c.id);
+        const lines = terminationSummary(terminationPlan(c, S.payments, today), today);
+        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${esc(p?.name || p?.address || 'l’immobile')}</strong> con <strong>${esc(c.tenantName || t?.name || 'l’inquilino')}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${cid}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${today}" required oninput="terminateContractPreview('${cid}',this.value)"></div><div id="termPreview" class="rent-note" style="margin:-4px 0 12px">${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" step="0.01" min="0" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" step="0.01" min="0" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`;
+    }
+    function terminateContractPreview(id, endDay) {
+        const c = (S.contracts || []).find(x => x.id === id), box = document.getElementById('termPreview');
+        if (!c || !box) return;
+        const d = incassoDay(endDay);
+        box.innerHTML = d ? terminationSummary(terminationPlan(c, S.payments, d), d).map(l => `<div>${esc(l)}</div>`).join('') : '';
+    }
+    // Dal Palazzo (actions.terminate) arriva solo l'id: si apre il modulo, che
+    // fa vedere quante rate si annullano PRIMA di confermare.
     async function terminateContract(e, id) {
+        if (typeof e === 'string') {
+            const c = (S.contracts || []).find(x => x.id === e);
+            if (!c) return toast('error', 'Contratto non trovato');
+            return openModal('terminateContract', c);
+        }
         e.preventDefault();
+        if (!isAdmin()) return;
         const data = Object.fromEntries(new FormData(e.target));
+        const endDay = incassoDay(data.terminationDate);
+        if (!endDay || endDay !== String(data.terminationDate)) return toast('warning', 'Data di termine non valida');
+        const cRef = db.collection('contracts').doc(id);
         try {
-            await db.collection('contracts').doc(id).update({
-                status: 'terminated',
-                terminatedAt: data.terminationDate,
-                terminationReason: data.terminationReason || 'other',
-                terminationNotes: data.terminationNotes || '',
-                depositReturned: parseInt(data.depositReturned) || 0,
-                depositWithheld: parseInt(data.depositWithheld) || 0,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            // Le rate dal SERVER, non dal carico del portale (che ha dei tetti).
+            const cSnap = await cRef.get({ source: 'server' });
+            if (!cSnap.exists) return toast('error', 'Contratto non trovato');
+            const c = { ...cSnap.data(), id };
+            const rs = await db.collection('payments').where('contractId', '==', id).get({ source: 'server' });
+            const plan = terminationPlan(c, rs.docs.map(d => ({ ...d.data(), id: d.id })), endDay);
+            if (!confirm(`Chiudo il contratto${c.tenantName ? ' di ' + c.tenantName : ''} al ${incassoDateIt(endDay)}.\n\n${terminationSummary(plan, endDay).join('\n')}`)) return;
+            const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+            const cUpd = { status: 'terminated', terminatedAt: endDay, terminationReason: data.terminationReason || 'other', terminationNotes: data.terminationNotes || '',
+                depositReturned: incassoNum(data.depositReturned) || 0, depositWithheld: incassoNum(data.depositWithheld) || 0,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+            const cancel = { status: 'cancelled', cancelledAt: at, cancelledReason: 'contratto chiuso', cancelledBy: by };
+            let cancelled = [];
+            // Contratto e rate nella STESSA transazione: una rata pagata o
+            // segnalata nel frattempo si rilegge e resta com'è.
+            await db.runTransaction(async tx => {
+                cancelled = [];
+                const fresh = await Promise.all(plan.cancel.map(p => tx.get(db.collection('payments').doc(p.id))));
+                const cNow = await tx.get(cRef);
+                if (!cNow.exists) throw new Error('Contratto non trovato');
+                tx.update(cRef, cUpd);
+                fresh.forEach((s, i) => {
+                    const d = s.exists ? s.data() : null;
+                    if (!d || !['due', 'overdue'].includes(window.BOOM_RENT.paymentState(d))) return;
+                    tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);
+                    cancelled.push(plan.cancel[i].id);
+                });
             });
-            closeModal(); await refresh(); toast('success', 'Contratto terminato');
+            const lc = (S.contracts || []).find(x => x.id === id);
+            if (lc) Object.assign(lc, cUpd, { updatedAt: at });
+            cancelled.forEach(pid => { const lp = (S.payments || []).find(x => x.id === pid); if (lp) Object.assign(lp, cancel); });
+            logActivity('contract_terminated', 'contract', { id, terminatedAt: endDay, cancelledRates: cancelled.length, keptRates: plan.keep.length });
+            closeModal(); await refresh();
+            toast('success', 'Contratto terminato', `${cancelled.length} ${cancelled.length === 1 ? 'rata annullata' : 'rate annullate'}${plan.keep.length ? ` · ${plan.keep.length} da verificare a mano` : ''}`);
         } catch (err) { toast('error', 'Errore', err.message); }
+    }
+
+    // ✏️ IL DETTAGLIO DELLA RATA. L'importo era un campo intero (parseInt
+    // troncava i centesimi; senza step il modulo rifiutava una rata in
+    // proporzione) e «Pagato» da qui scriveva la data del clic. Ora: euro coi
+    // centesimi, canone e oneri separati quando la rata li ha (il totale resta
+    // la loro somma), «Annullata» per le rate che non sono più dovute, e
+    // l'incasso solo dal suo modulo (e si annulla col suo tasto).
+    function editPaymentModal(pay) {
+        const st = window.BOOM_RENT.paymentState(pay), paid = st === 'paid', locked = paid || st === 'processing';
+        const amt = window.BOOM_RENT.amount(pay.amount), rentP = window.BOOM_RENT.amount(pay.rentAmount), oneriP = window.BOOM_RENT.amount(pay.oneriAmount);
+        const split = pay.oneriAmount != null || pay.rentAmount != null;
+        const dis = locked ? 'disabled' : '';
+        const pid = jsq(pay.id), arg = rentActionArg(pay.id);
+        const num = (name, label, v) => `<div class="form-group"><label class="form-label">${label}</label><input type="number" class="form-input" name="${name}" step="0.01" min="0" value="${v == null ? '' : v}" ${dis}></div>`;
+        const money = split
+            ? `<div class="form-row">${num('rentAmount', 'Canone €', rentP != null ? rentP : (amt != null ? incassoRound(amt - (oneriP || 0)) : ''))}${num('oneriAmount', 'Oneri €', oneriP || 0)}</div><p class="rent-note" style="margin-top:-6px">La rata è la somma di canone e oneri.</p>`
+            : `<div class="form-row">${num('amount', 'Importo €', amt)}</div>`;
+        const stSel = paid || st === 'reported' || st === 'processing'
+            ? `<div class="form-group"><label class="form-label">Stato</label><div class="form-input" style="opacity:.8">${esc(rentStateLabel(st))}</div></div>`
+            : `<div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${st !== 'cancelled' ? 'selected' : ''}>Da pagare</option><option value="cancelled" ${st === 'cancelled' ? 'selected' : ''}>Annullata (non più dovuta)</option></select></div>`;
+        const inc = paid ? `<div class="rent-note"><strong>Incasso</strong><br>Accredito ${esc(incassoDateIt(pay.paidDate) || fmtDate(pay.paidDate))}${pay.paidVia ? ' · ' + esc(INCASSO_VIA[pay.paidVia] || pay.paidVia) : ''}${pay.paidEvidence ? ' · verifica: ' + esc(INCASSO_EVIDENCE[pay.paidEvidence] || pay.paidEvidence) : ''}${pay.paidRecordedAt ? ' · registrato il ' + esc(incassoDateIt(pay.paidRecordedAt)) : ''}${pay.paidNote ? '<br>' + esc(pay.paidNote) : ''}</div>` : '';
+        const cancelNote = st === 'cancelled' ? `<p class="rent-note">Annullata${pay.cancelledReason ? ' · ' + esc(pay.cancelledReason) : ''}${pay.cancelledAt ? ' · ' + esc(incassoDateIt(pay.cancelledAt)) : ''}. Rimettila «Da pagare» se è di nuovo dovuta.</p>` : '';
+        const footerAction = paid ? `<button class="btn btn-secondary" onclick="closeModal();setTimeout(()=>undoIncasso(${arg}),250)">↩ Annulla incasso</button>`
+            : ['due', 'overdue', 'reported'].includes(st) && amt > 0 ? `<button class="btn btn-secondary" onclick="openRecordIncasso(${arg})">Registra incasso</button>` : '';
+        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica rata</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pid}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId" ${dis}>${S.contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${esc(c.id)}" ${pay.contractId === c.id ? 'selected' : ''}>${esc(p?.name || c.id)}${c.tenantName ? ' · ' + esc(c.tenantName) : ''}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${esc(pay.month || '')}" ${dis}></div><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${esc(incassoDay(pay.dueDate))}" ${dis}></div></div>${money}${stSel}${inc}${cancelNote}<div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${esc(pay.notes || '')}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${jsq(pay.id)}','Pagamento ${jsq(pay.month)}')">🗑</button>${footerAction}<button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`;
     }
 
     async function updatePayment(e, id) {
         e.preventDefault();
+        if (!isAdmin()) return;
         const data = Object.fromEntries(new FormData(e.target));
+        const ref = db.collection('payments').doc(id);
+        const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+        const del = firebase.firestore.FieldValue.delete();
         try {
-            await db.collection('payments').doc(id).update({
-                contractId: data.contractId,
-                month: data.month || '',
-                amount: parseInt(data.amount) || 0,
-                dueDate: data.dueDate || null,
-                status: data.status,
-                paidDate: data.status === 'paid' && data.paidDate ? data.paidDate : (data.status === 'paid' ? new Date().toISOString() : null),
-                notes: data.notes || '',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            let upd = null, refused = '';
+            await db.runTransaction(async tx => {
+                upd = null; refused = '';
+                const snap = await tx.get(ref);
+                if (!snap.exists) { refused = 'Rata non trovata'; return; }
+                const cur = { ...snap.data(), id }, st = window.BOOM_RENT.paymentState(cur);
+                const u = { notes: String(data.notes || '').slice(0, 2000), updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+                // Pagata o con un addebito in corso: si correggono solo le note.
+                // L'incasso si annulla col suo tasto, mai cambiando un campo.
+                if (st !== 'paid' && st !== 'processing') {
+                    if (data.contractId) u.contractId = data.contractId;
+                    if ('month' in data) u.month = data.month || '';
+                    if ('dueDate' in data) { const dd = incassoDay(data.dueDate); if (data.dueDate && dd !== data.dueDate) { refused = 'Scadenza non valida.'; return; } u.dueDate = dd || null; }
+                    if ('rentAmount' in data || 'oneriAmount' in data) {
+                        const r = incassoNum(data.rentAmount), o = incassoNum(data.oneriAmount || '0');
+                        if (!(r > 0) || o == null) { refused = 'Scrivi canone e oneri in euro (coi centesimi se servono).'; return; }
+                        Object.assign(u, { rentAmount: r, oneriAmount: o, amount: incassoRound(r + o) });
+                    } else if ('amount' in data) {
+                        const a = incassoNum(data.amount);
+                        if (!(a > 0)) { refused = 'Scrivi l’importo in euro (coi centesimi se servono).'; return; }
+                        u.amount = a;
+                    }
+                    if (data.status === 'cancelled' && st !== 'cancelled') {
+                        // Mai su una rata segnalata dall'inquilino: lì si verifica.
+                        if (st === 'reported') { refused = 'Rata segnalata dall’inquilino: verifica l’incasso prima di annullarla.'; return; }
+                        Object.assign(u, { status: 'cancelled', cancelledAt: at, cancelledReason: 'annullata a mano', cancelledBy: by });
+                    } else if (data.status === 'pending' && st === 'cancelled') {
+                        Object.assign(u, { status: 'pending', cancelledAt: del, cancelledReason: del, cancelledBy: del, reopenedAt: at, reopenedBy: by });
+                    }
+                }
+                tx.update(ref, u);
+                upd = u;
             });
-            logActivity('payment_updated', 'payment', { id: id, amount: parseInt(data.amount) || 0, status: data.status, contractId: data.contractId });
-            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento aggiornato!');
+            if (!upd) return toast('warning', 'Rata non aggiornata', refused);
+            const local = (S.payments || []).find(x => x.id === id);
+            if (local) Object.keys(upd).forEach(k => { if (k === 'updatedAt') return; if (upd[k] === del) delete local[k]; else local[k] = upd[k]; });
+            logActivity('payment_updated', 'payment', { id, amount: upd.amount ?? null, status: upd.status || null, contractId: upd.contractId || null });
+            await refreshOnly('payments'); closeModal(); toast('success', 'Rata aggiornata');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -18245,11 +18829,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const contract = S.contracts.find(c => c.id === data.contractId);
         if (!contract) return toast('error', 'Contratto non trovato');
         
-        const amount = data.amount ? parseInt(data.amount) : contract.rent;
-        const dueDay = parseInt(data.dueDay) || 5;
+        // Euro coi centesimi (mai parseInt) e date fatte di cifre: new Date(a, m, 5)
+        // .toISOString() a Roma è il 4 alle 22:00 UTC — ogni rata generata
+        // in blocco scadeva un giorno prima di quanto scritto nel modulo.
+        const amount = data.amount ? incassoNum(data.amount) : contract.rent;
+        if (!(amount > 0)) return toast('warning', 'Importo non valido', 'Scrivi l’importo in euro, coi centesimi se servono.');
+        const dueDay = Math.min(31, Math.max(1, parseInt(data.dueDay) || 5));
         const numMonths = parseInt(data.numMonths) || 12;
-        const startMonth = new Date(data.startMonth + '-01');
-        
+        const sm = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(data.startMonth || ''));
+        if (!sm) return toast('warning', 'Mese di partenza non valido');
+
         const existingMonths = S.payments
             .filter(p => p.contractId === data.contractId)
             .map(p => p.month);
@@ -18261,23 +18850,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         try {
             for (let i = 0; i < numMonths; i++) {
-                const payMonth = new Date(startMonth);
-                payMonth.setMonth(payMonth.getMonth() + i);
-                const monthStr = payMonth.toISOString().slice(0, 7);
-                
+                const y = +sm[1], m0 = +sm[2] - 1 + i;
+                const monthStr = new Date(Date.UTC(y, m0, 1)).toISOString().slice(0, 7);
+
                 if (existingMonths.includes(monthStr)) {
                     skipped++;
                     continue;
                 }
-                
-                const dueDate = new Date(payMonth.getFullYear(), payMonth.getMonth(), dueDay);
-                
+
+                const monthLen = new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
+
                 await db.collection('payments').add({
                     contractId: data.contractId,
                     tenantId: _bc?.tenantId || null, propertyId: _bc?.propertyId || null,
                     month: monthStr,
                     amount: amount,
-                    dueDate: dueDate.toISOString().split('T')[0],
+                    dueDate: monthStr + '-' + String(Math.min(dueDay, monthLen)).padStart(2, '0'),
                     status: 'pending',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp()
                 });
@@ -19500,8 +20088,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     //  · same LEASE-month arithmetic and instalment cadence
     //    (contract.installmentMonths 1|2|3|6|12), last period prorated
     async function generateMonthlyPayments(contractId, contract) {
-        const start = new Date(contract.startDate);
-        const end = new Date(contract.endDate);
+        // Le date del contratto sono GIORNI di calendario: new Date('2026-09-15')
+        // è la mezzanotte UTC, che in un browser a ovest di Greenwich cade il
+        // 14 — il periodo partiva un giorno prima e la rata poteva scadere
+        // prima del suo periodo. Si leggono le cifre, a mezzanotte locale.
+        const civil = v => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || '')); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(v); };
+        const start = civil(contract.startDate);
+        const end = civil(contract.endDate);
+        if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime())) { console.warn('[BOOM] schedule: date del contratto non leggibili', contractId); return 0; }
         const payDay = parseInt(contract.paymentDay, 10) || 5;
         const step = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths))
             ? Number(contract.installmentMonths) : 1;
@@ -19528,23 +20122,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         let batch = db.batch();
         let count = 0;
+        const pad = n => String(n).padStart(2, '0');
+        const ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
         for (let i = 0; i < monthsTotal; i += step) {
             const periodStart = addMonths(start, i);
             const covered = Math.min(step, monthsTotal - i);
-            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), payDay);
+            // Il giorno di pagamento nel mese del periodo (un 31 a febbraio è
+            // l'ultimo di febbraio, mai il 3 marzo), MAI prima che il periodo
+            // inizi: un contratto dal 15 paga ogni periodo dal 15.
+            const monthLen = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0).getDate();
+            let due = new Date(periodStart.getFullYear(), periodStart.getMonth(), Math.min(payDay, monthLen));
             if (due < periodStart) due = periodStart;
-            const pad = n => String(n).padStart(2, '0');
             const month = `${periodStart.getFullYear()}-${pad(periodStart.getMonth() + 1)}`;
             const lastCovered = addMonths(start, i + covered - 1);
             const coversTo = `${lastCovered.getFullYear()}-${pad(lastCovered.getMonth() + 1)}`;
+            const nextStart = addMonths(start, i + covered);
+            const periodEnd = new Date(nextStart.getFullYear(), nextStart.getMonth(), nextStart.getDate() - 1);
             batch.set(db.collection('payments').doc('pay_' + contractId + '_' + month), {
                 contractId,
-                tenantId: contract.tenantId,
-                propertyId: contract.propertyId,
+                tenantId: contract.tenantId || null,
+                propertyId: contract.propertyId || null,
                 amount: Math.round(perMonth * covered * 100) / 100,
-                dueDate: `${due.getFullYear()}-${pad(due.getMonth() + 1)}-${pad(due.getDate())}`,
+                dueDate: ymd(due),
                 month,
                 coversTo,
+                periodFrom: ymd(periodStart),
+                periodTo: ymd(periodEnd < end ? periodEnd : end),
                 installmentMonths: covered,
                 monthIndex: count,
                 status: 'pending',
@@ -21144,7 +21747,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Compute the dunning level we *should* be at for an overdue payment,
     // based on days late. Used to suggest the next action in the recovery dashboard.
     function suggestedDunningLevel(payment) {
-        if (!payment || payment.status !== 'pending') return 0;
+        // Il loader rinomina in memoria le rate scadute in 'overdue': il vecchio
+        // `status !== 'pending'` dava livello 0 proprio a loro. Segnalate e in
+        // corso restano fuori (si verificano, non si sollecitano).
+        if (!payment || !['overdue', 'due'].includes(window.BOOM_RENT.paymentState(payment))) return 0;
         const days = daysSince(payment.dueDate);
         if (days >= 30) return 3;
         if (days >= 15) return 2;
@@ -21176,22 +21782,37 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `Ciao ${firstName}, ti ricordiamo che il canone ${amount} di ${propName} è scaduto il ${due} (${days}gg di ritardo). Se hai già pagato ignora pure!${companyIbanMissing() ? '' : ' IBAN: ' + COMPANY.iban + '.'} Grazie — BOOM Roma`;
     }
     
-    async function sendPaymentConfirmEmail(tenant, contract, property, payment) {
+    // La conferma all'inquilino, in inglese. extra = { receiptUrl, hasProfile }:
+    // promette SOLO ciò che c'è — il link all'attestazione se è stata
+    // archiviata, «La tua casa BOOM» solo a chi ha un profilo (gli inquilini
+    // presi in carico da tabella non ce l'hanno), altrimenti nessun tasto.
+    async function sendPaymentConfirmEmail(tenant, contract, property, payment, extra) {
         if (!tenant?.email) return false;
+        const x = extra || {};
+        // Il bottone dell'email porta al massimo 300 caratteri (/api/notify/send
+        // taglia oltre): un link più lungo arriverebbe rotto, quindi non si usa.
+        const receipt = /^https:\/\//.test(String(x.receiptUrl || '')) && String(x.receiptUrl).length <= 300 ? String(x.receiptUrl) : '';
+        const home = x.hasProfile !== false ? window.location.origin + '/casa' : '';
+        const where = property ? [property.address || property.name, property.interno ? 'flat ' + property.interno : ''].filter(Boolean).join(', ') : '';
+        const period = payment.periodFrom && payment.periodTo ? `${incassoDateEn(payment.periodFrom)} – ${incassoDateEn(payment.periodTo)}` : (incassoMonth(payment.month, 'en') || payment.month || '');
+        const paid = incassoDateEn(payment.paidDate);
         return sendBoomEmail(EMAILJS_CONFIG.templates.notification, tenant.email, {
-            heading: 'Payment confirmed.',
-            subheading: (payment.month || '') + ' — all sorted',
+            heading: 'Payment received.',
+            subheading: (incassoMonth(payment.month, 'en') || 'Rent') + ' — thank you',
             name: (tenant.name || '').split(' ')[0],
-            intro: 'Your rent payment has been confirmed.',
+            intro: `We have recorded your rent payment${where ? ' for ' + where : ''}.`,
             card_title: 'PAYMENT RECEIPT',
             card_color: '#22C55E',
-            r1_icon: '💰', r1_label: 'Amount', r1_value: '€' + (payment.amount || 0).toLocaleString('it-IT'),
-            r2_icon: '📅', r2_label: 'Month', r2_value: payment.month || '',
-            r3_icon: '✓', r3_label: 'Status', r3_value: 'Confirmed',
-            r4_icon: '📄', r4_label: 'Receipt', r4_value: 'Available in your portal',
-            closing: '',
-            cta_text: 'View receipt →',
-            portal_link: window.location.origin + window.location.pathname
+            r1_icon: '💰', r1_label: 'Amount', r1_value: '€' + incassoEuro(payment.amount, 'en'),
+            r2_icon: '📅', r2_label: 'Period', r2_value: period,
+            r3_icon: '✓', r3_label: 'Received on', r3_value: paid,
+            r4_icon: '📄', r4_label: receipt ? 'Receipt' : '', r4_value: receipt ? 'Download it with the button below (PDF)' : '',
+            closing: receipt || home ? '' : 'Keep this email as your confirmation of payment.',
+            cta_text: receipt ? 'View receipt →' : home ? 'Open your BOOM home →' : '',
+            portal_link: receipt || home,
+            // La riga di chiusura la aggiunge /api/notify/send: con lang la
+            // scrive in inglese (finché il ponte non lo legge, è ignorato).
+            lang: 'en'
         });
     }
 
@@ -21810,51 +22431,133 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // L'ATTESTAZIONE DI PAGAMENTO. Era una «RICEVUTA» intestata a BOOM, senza
+    // locatore, con un importo unico e il numero preso dalle ultime 8 cifre
+    // dell'id (sul Palazzo «_2026-10»: lo stesso numero per ogni interno).
+    // Ora: intestata al locatore del contratto, BOOM che la rilascia come
+    // gestore per suo conto, il conduttore DEL CONTRATTO, canone e oneri su
+    // righe separate (servono al conguaglio), il periodo vero, il canale e
+    // la data dell'accredito, un numero da tutto l'id. Non è una fattura.
     function _buildReceiptDoc(pay, c, p, t) {
         const received = window.BOOM_RENT.amount(pay.amount);
         if (!(received > 0)) throw new Error('Importo ricevuta da verificare');
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
+        const wrap = (s, w) => { const r = typeof doc.splitTextToSize === 'function' ? doc.splitTextToSize(s, w) : null; return Array.isArray(r) && r.length ? r : [s]; };
+        const users = typeof S !== 'undefined' && S && Array.isArray(S.users) ? S.users : [];
+        // Un contratto vecchio rimasto agganciato alla rata non presta il nome.
+        const stale = !!(c && pay.tenantId && c.tenantId && pay.tenantId !== c.tenantId);
+        const tenantName = pdfLatin(!stale && c && c.tenantName) || pdfLatin(t && t.name) || pdfLatin(pay.tenantName) || 'Conduttore indicato nel contratto';
+        const owner = p && p.ownerId ? users.find(u => u.id === p.ownerId) : null;
+        const landlordName = pdfLatin(c && c.landlordName) || pdfLatin(owner && owner.name);
+        const coNames = (c && !stale && Array.isArray(c.coTenants) ? c.coTenants : []).map(x => pdfLatin(x && x.name)).filter(Boolean);
+        const rentP = window.BOOM_RENT.amount(pay.rentAmount), oneriP = window.BOOM_RENT.amount(pay.oneriAmount);
+        const split = oneriP > 0 && rentP > 0 && Math.abs(rentP + oneriP - received) < 0.01;
+        const paidDay = incassoDateIt(pay.paidDate) || fmtDate(pay.paidDate);
+        const pf = incassoDateIt(pay.periodFrom), pt = incassoDateIt(pay.periodTo);
+        const period = pf && pt ? `dal ${pf} al ${pt}` : (incassoMonth(pay.month) ? incassoMonth(pay.month) + (pay.coversTo && pay.coversTo !== pay.month && incassoMonth(pay.coversTo) ? ' - ' + incassoMonth(pay.coversTo) : '') : (pay.month || 'N/A'));
 
         doc.setFillColor(0, 0, 0); doc.rect(0, 0, 210, 35, 'F');
         doc.setTextColor(212, 175, 55); doc.setFontSize(28); doc.setFont('helvetica', 'bold'); doc.text('BOOM', 20, 22);
-        doc.setTextColor(255); doc.setFontSize(14); doc.text('RICEVUTA DI PAGAMENTO', 190, 22, { align: 'right' });
+        doc.setTextColor(255); doc.setFontSize(14); doc.text('ATTESTAZIONE DI PAGAMENTO', 190, 22, { align: 'right' });
 
-        let y = 50;
+        let y = 48;
         doc.setTextColor(0);
-        doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 18, 'F');
-        doc.setFontSize(10); doc.text(`Data: ${fmtDate(pay.paidDate)}`, 20, y + 5);
-        doc.text(`N°: RIC-${pay.id.slice(-8).toUpperCase()}`, 150, y + 5);
+        doc.setFillColor(245, 245, 245); doc.rect(15, y - 5, 180, 16, 'F');
+        doc.setFontSize(10); doc.setFont('helvetica', 'normal'); doc.text(`Data dell'accredito: ${paidDay}`, 20, y + 4);
+        doc.text(`N°: ${incassoReceiptNumber(pay.id)}`, 190, y + 4, { align: 'right' });
 
-        y += 30;
-        doc.setFont('helvetica', 'bold'); doc.text('RICEVUTO DA:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(t?.name || 'Inquilino', 20, y);
+        y += 24;
+        doc.setFont('helvetica', 'bold'); doc.text('LOCATORE:', 20, y);
+        doc.setFont('helvetica', 'normal'); y += 6; doc.text(landlordName || 'Il locatore indicato nel contratto', 20, y);
+        y += 5; doc.setFontSize(8); doc.text(`tramite ${COMPANY.legal} (BOOM), che gestisce la locazione per conto del locatore`, 20, y); doc.setFontSize(10);
 
-        y += 15;
+        y += 11;
+        doc.setFont('helvetica', 'bold'); doc.text('CONDUTTORE:', 20, y);
+        doc.setFont('helvetica', 'normal'); y += 6; doc.text(tenantName, 20, y);
+        if (coNames.length) {
+            y += 5; doc.setFontSize(8);
+            const co = wrap('in solido con: ' + coNames.join(', '), 170);
+            co.forEach((l, i) => doc.text(l, 20, y + i * 4)); y += 4 * (co.length - 1); doc.setFontSize(10);
+        }
+
+        y += 11;
         doc.setFont('helvetica', 'bold'); doc.text('IMMOBILE:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(p?.name || 'N/A', 20, y);
-        y += 5; doc.text(p?.address || 'Roma', 20, y);
+        doc.setFont('helvetica', 'normal'); y += 6; doc.text(pdfLatin(p && p.name) || 'N/A', 20, y);
+        y += 5; doc.text(pdfLatin(p && p.address) || 'Roma', 20, y);
 
-        y += 15;
+        y += 11;
         doc.setFont('helvetica', 'bold'); doc.text('PERIODO:', 20, y);
-        doc.setFont('helvetica', 'normal'); y += 7; doc.text(pay.month || 'N/A', 20, y);
+        doc.setFont('helvetica', 'normal'); y += 6; doc.text(period, 20, y);
 
-        y += 20;
-        doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
+        if (split) {
+            y += 11;
+            doc.setDrawColor(200); doc.line(20, y - 4, 190, y - 4);
+            doc.text('Canone di locazione', 20, y); doc.text(`EUR ${incassoEuro(rentP)}`, 190, y, { align: 'right' });
+            y += 6; doc.text('Oneri accessori (quota fissa, salvo conguaglio)', 20, y); doc.text(`EUR ${incassoEuro(oneriP)}`, 190, y, { align: 'right' });
+        }
+
+        y += 14;
+        doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 22, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
-        doc.setFontSize(20); doc.text(`EUR ${received.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})}`, 190, y + 8, { align: 'right' });
+        doc.setFontSize(20); doc.text(`EUR ${incassoEuro(received)}`, 190, y + 8, { align: 'right' });
 
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
-        y += 35;
+        y += 30;
         doc.text(`(Euro ${numberToWords(Math.floor(received))}/${String(Math.round(received * 100) % 100).padStart(2, '0')})`, 20, y);
 
-        y += 20;
+        y += 10;
         doc.text(pay.type === 'deposit-balance' ? 'Pagamento del saldo deposito cauzionale.' : pay.type === 'deposit' ? 'Pagamento del deposito cauzionale.' : window.BOOM_RENT.isRentPayment(pay) ? 'Pagamento per canone di locazione.' : 'Pagamento per altro addebito contrattuale.', 20, y);
+        const via = { bonifico: 'bonifico bancario', contanti: 'contanti', stripe: 'carta (Stripe)', sepa: 'addebito SEPA', bank: 'bonifico bancario', dichiarato: 'dichiarato dalla proprietaria', altro: 'altro' }[pay.paidVia];
+        const ev = { 'estratto-conto-locatore': "estratto conto del locatore", 'ricevuta-inquilino': "ricevuta del bonifico dell'inquilino", 'conferma-proprietaria': 'conferma della proprietaria', stripe: 'Stripe', 'banca-boom': 'conto BOOM', altro: 'altro' }[pay.paidEvidence];
+        if (via || ev) { y += 7; doc.text([via ? 'Canale: ' + via : '', ev ? "verifica dell'accredito: " + ev : ''].filter(Boolean).join(' - '), 20, y); }
+
+        y += 12; doc.setFontSize(8); doc.setTextColor(90);
+        wrap(`Attestazione rilasciata da ${COMPANY.legal} (BOOM), che gestisce la locazione per conto del locatore: attesta che il pagamento indicato sopra risulta ricevuto alla data dell'accredito, secondo la verifica indicata. Non è una fattura e non sostituisce la quietanza del locatore.`, 170).forEach((l, i) => doc.text(l, 20, y + i * 4));
 
         doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
         return doc;
+    }
+
+    // Il numero dell'attestazione da TUTTO l'id (cyrb53, 53 bit): le rate del
+    // Palazzo finiscono tutte per «_2026-10», e le ultime 8 cifre davano lo
+    // stesso numero a ogni interno dello stesso mese.
+    function incassoReceiptNumber(id) {
+        let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+        const s = String(id || '');
+        for (let i = 0; i < s.length; i++) { const ch = s.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+        h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+        h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+        return 'RIC-' + (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36).toUpperCase().padStart(11, '0');
+    }
+
+    // Il font dei PDF del portal (Helvetica di jsPDF) conosce solo WinAnsi:
+    // «Şükrü Yılmaz» usciva «^ükrü Y1lmaz», «Иван Петров» una fila di simboli.
+    // Un campo con anche un solo carattere fuori tabella si traslittera TUTTO
+    // in latino, così il nome resta coerente (Sukru Yilmaz, Gulsen Celik,
+    // Ivan Petrov); un campo già scrivibile (Nicolò, Müller, Città) resta com'è.
+    // Ciò che non si traslittera (un ideogramma) cade, e se non resta niente
+    // torna '': il chiamante mette un'etichetta, mai un nome vuoto o storpiato.
+    function pdfLatin(value) {
+        const s = String(value == null || value === false ? '' : value).normalize('NFC').replace(/\s+/g, ' ').trim();
+        if (!s) return '';
+        const ok = ch => /[\x20-\x7E -ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/.test(ch);
+        const T = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'ґ': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'є': 'ye', 'ж': 'zh', 'з': 'z', 'и': 'i', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k',
+            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ў': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
+            'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
+            'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+            'ı': 'i', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'ø': 'o', 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ħ': 'h', 'ŧ': 't', 'ŋ': 'ng', 'ĸ': 'k', 'ſ': 's' };
+        const tr = ch => {
+            const low = ch.toLowerCase();
+            if (!Object.prototype.hasOwnProperty.call(T, low)) return ch;
+            const r = T[low];
+            return ch !== low && r ? r.charAt(0).toUpperCase() + r.slice(1) : r;
+        };
+        if ([...s].every(ok)) return s;
+        return [...s].map(tr).join('').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
     }
 
     function downloadPaymentReceipt(id) {
@@ -21879,7 +22582,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const paidAt = pay.paidDate?.toDate ? pay.paidDate.toDate() : new Date(pay.paidDate);
             if (!Number.isFinite(paidAt.getTime())) return null;
             const safeUrl = value => { try {const u=new URL(value);return u.protocol==='https:'?u.href:'';} catch (_) {return '';} };
-            const validDoc = d => window.BOOM_RENT.isReceiptDocument(d,pay.id) && !!safeUrl(d.fileUrl);
+            // Un'attestazione ANNULLATA (incasso registrato per errore, undoIncasso)
+            // resta in archivio ma non vale più: mai riusata, mai rimostrata.
+            const validDoc = d => window.BOOM_RENT.isReceiptDocument(d,pay.id) && !d.voided && !!safeUrl(d.fileUrl);
             const fingerprint = p => JSON.stringify([p.status,p.amount,p.paidDate,p.type,p.month,p.coversTo,p.contractId,p.propertyId,p.tenantId]);
             const expected = fingerprint(pay);
             const deterministicId = 'rent-receipt-' + pay.id;
@@ -21887,28 +22592,49 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let docRef = db.collection('documents').doc(docId);
             let existing = await docRef.get({source:'server'});
             if (pay.receiptDocId && (!existing.exists || !validDoc(existing.data()))) return null;
+            // Dopo un annullamento l'id deterministico è della ricevuta annullata:
+            // quella nuova ne prende uno per QUESTO incasso (i retry convergono).
+            if (!pay.receiptDocId && existing.exists && (existing.data() || {}).voided) {
+                docId = deterministicId + '-' + String(pay.paidRecordedAt || pay.paidDate || '').replace(/[^0-9A-Za-z]/g, '').slice(0, 24);
+                docRef = db.collection('documents').doc(docId);
+                existing = await docRef.get({source:'server'});
+            }
             if (!existing.exists) {
-                const legacy = await db.collection('documents').where('paymentId','==',pay.id).where('type','==','receipt').limit(2).get({source:'server'});
-                if (legacy.docs.length > 1) return null; // Ambiguous archive requires review.
-                if (legacy.docs.length === 1) {
-                    docId=legacy.docs[0].id;docRef=db.collection('documents').doc(docId);existing=legacy.docs[0];
+                const legacy = await db.collection('documents').where('paymentId','==',pay.id).where('type','==','receipt').limit(6).get({source:'server'});
+                const live = legacy.docs.filter(d => !(d.data() || {}).voided);
+                if (live.length > 1) return null; // Ambiguous archive requires review.
+                if (live.length === 1) {
+                    docId=live[0].id;docRef=db.collection('documents').doc(docId);existing=live[0];
                 }
             }
             if (existing.exists && !validDoc(existing.data())) return null;
             let receipt = existing.exists ? existing.data() : null;
             if (!receipt) {
                 const context=rentReceiptContext(pay), c=context.contract, p=context.property, tenant=context.tenant;
-                if (!context.tenantId || !context.propertyId || !tenant || !p) return null;
-                const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
-                const hash = await generateDocHash(expected+'|'+(tenant.name||'')+'|'+(p.name||'')+'|'+(p.address||''));
+                // Chi è preso in carico da tabella non ha un profilo: l'attestazione
+                // nasce dal CONTRATTO e si archivia sotto di lui (contracts/<id>/,
+                // admin) invece di uscire senza ricevuta. Un profilo indicato ma
+                // non trovato resta un dubbio da verificare, non un nome inventato.
+                if (!context.propertyId || !p || (context.tenantId && !tenant) || (!tenant && !c?.id)) return null;
+                const ref = incassoReceiptNumber(pay.id);
+                // Nell'impronta anche QUANDO l'incasso è stato registrato: dopo un
+                // «Annulla incasso» lo stesso accredito ri-registrato non deve
+                // riscrivere il file dell'attestazione annullata (il suo link
+                // resterebbe a un documento diverso da quello che dice di essere).
+                const hash = await generateDocHash(expected+'|'+(tenant?.name||c?.tenantName||'')+'|'+(p.name||'')+'|'+(p.address||'')+(pay.paidRecordedAt ? '|'+pay.paidRecordedAt : ''));
                 const blob = _buildReceiptDoc(pay,c,p,tenant).output('blob');
-                const path = `documents/${context.tenantId}/archive/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`;
+                // Sotto il contratto il nome del file è il NUMERO dell'attestazione:
+                // l'id della rata ripete quello del contratto e il link di download
+                // superava i 300 caratteri che /api/notify/send tiene nel bottone
+                // dell'email — l'inquilino avrebbe ricevuto un link troncato.
+                const path = tenant ? `documents/${context.tenantId}/archive/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`
+                    : `contracts/${c.id}/ricevute/${ref}_${hash}.pdf`;
                 const upload = await storage.ref(path).put(blob,{contentType:'application/pdf'});
                 const fileUrl = safeUrl(await upload.ref.getDownloadURL());
                 if (!fileUrl) return null;
-                receipt = {name:`Ricevuta ${rentChargeLabel(pay).toLowerCase()} — ${p.name || tenant.name || ''} ${pay.month || ''}`.trim(),
-                    type:'receipt',category:'ricevuta',source:'generated',templateType:'ricevuta_pigione',refCode:ref,lang:'IT',version:1,hash,
-                    userId:context.tenantId,tenantId:context.tenantId,propertyId:context.propertyId,contractId:c?.id || null,paymentId:pay.id,
+                receipt = {name:`Ricevuta ${rentChargeLabel(pay).toLowerCase()} — ${p.name || tenant?.name || c?.tenantName || ''} ${pay.month || ''}`.trim(),
+                    type:'receipt',category:'ricevuta',source:'generated',templateType:'ricevuta_pigione',refCode:ref,lang:'IT',version:2,hash,
+                    userId:context.tenantId || null,tenantId:context.tenantId || null,propertyId:context.propertyId,contractId:c?.id || null,paymentId:pay.id,
                     shared:false,fileUrl,fileName:`${ref}.pdf`,fileSize:blob.size,uploadedBy:S.profile?.id || 'admin',
                     createdAt:firebase.firestore.FieldValue.serverTimestamp()};
             }
