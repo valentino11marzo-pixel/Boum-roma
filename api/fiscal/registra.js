@@ -2,20 +2,24 @@
 //
 // POST · Authorization: Bearer <firebase-id-token> (admin)
 //   { op:'status', contractId }
-//     → { ok, settings, kind, kinds:{registrazione[],completo[]}, state }
+//     → { ok, settings, kind, kinds:{registrazione[],completo[],asseverazione[]}, registered, state }
+//       Su un contratto GIÀ registrato (rliRegisteredAt / 'registered'):
+//       kinds:{asseverazione[]} soltanto, kind 'asseverazione', registered:{at}.
 //       La checklist per ENTRAMBE le varianti + le manopole in vigore: il
 //       pannello del portal disegna DA QUI, mai da una copia locale (la
 //       console non può mostrare una regola diversa da quella applicata).
 //   { op:'send', contractId, kind?, note?, bill? }
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
+//       409 already_registered se si chiede la registrazione (o il
+//       completo) su un contratto già registrato: nessuna email, nessuna fattura.
 //
 // maxDuration 60 in vercel.json: gli allegati si scaricano da Storage.
 
 import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import {
-  loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
+  loadAspiSettings, aspiChecklist, sendAspiRequest, kindFor, registeredAt, kindPrice, kindCost,
 } from './_aspi.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -40,7 +44,9 @@ export default async function handler(req, res) {
         note: b.note,
         bill: b.bill,
       });
-      return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 422)).json(out);
+      // already_registered = 409: il contratto è registrato, la richiesta di
+      // registrazione non parte (nessuna email, nessuna fattura).
+      return res.status(out.ok ? 200 : out.error === 'contract_not_found' ? 404 : out.error === 'already_registered' ? 409 : 422).json(out);
     }
 
     // op:'status' — la fotografia per il pannello.
@@ -51,6 +57,15 @@ export default async function handler(req, res) {
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
     const settings = await loadAspiSettings();
+    // Su un contratto già registrato si offre SOLO l'attestazione.
+    const reg = registeredAt(contract);
+    const kinds = reg
+      ? { asseverazione: aspiChecklist(contract, property, 'asseverazione') }
+      : {
+        registrazione: aspiChecklist(contract, property, 'registrazione'),
+        completo: aspiChecklist(contract, property, 'completo'),
+        asseverazione: aspiChecklist(contract, property, 'asseverazione'),
+      };
     return res.status(200).json({
       ok: true,
       settings: {
@@ -59,11 +74,9 @@ export default async function handler(req, res) {
         prezzi: { registrazione: kindPrice('registrazione', settings), completo: kindPrice('completo', settings), asseverazione: kindPrice('asseverazione', settings) },
         costi: { registrazione: kindCost('registrazione', settings), completo: kindCost('completo', settings), asseverazione: kindCost('asseverazione', settings) },
       },
-      kind: defaultKind(contract),
-      kinds: {
-        registrazione: aspiChecklist(contract, property, 'registrazione'),
-        completo: aspiChecklist(contract, property, 'completo'),
-      },
+      kind: kindFor(contract),
+      kinds,
+      registered: reg ? { at: reg === true ? null : reg } : null,
       state: {
         aspiRequestedAt: contract.aspiRequestedAt || null,
         aspiRequestKind: contract.aspiRequestKind || null,

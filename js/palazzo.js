@@ -800,8 +800,11 @@
         (live && started && A.applyOneri ? b('terms', 'Cambia oneri', ' data-id="' + esc(cid) + '" data-f="oneri"') : '') +
         (live && started && A.terminate ? b('terminate', 'Chiudi contratto', ' data-id="' + esc(cid) + '"') : '') +
         (ui.terms && ui.terms.cid === cid ? termsForm(lease) : '')]);
+      // Già registrato all'AdE: ad ASPI si chiede SOLO l'attestazione (il
+      // server risponde 409 already_registered a una seconda registrazione).
+      var registered = (reg && reg.status === 'registered') || !!lease.rliRegisteredAt || lease.registrationStatus === 'registered';
       groups.push(['Registrazione', (reg && reg.status !== 'registered' ? b('rli', '✓ RLI registrato', ' data-id="' + esc(cid) + '"', !!reg.late) : '') +
-        b('aspi', 'Invia ad ASPI', ' data-id="' + esc(cid) + '"') + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
+        b('aspi', registered ? 'Invia ad ASPI · solo attestazione' : 'Invia ad ASPI', ' data-id="' + esc(cid) + '"' + (registered ? ' title="Contratto già registrato all’AdE: ad ASPI si chiede solo l’attestazione di rispondenza"' : '')) + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
         b('arpe', 'Scheda ARPE', ' data-id="' + esc(cid) + '"')]);
     }
     groups.push(['Interno', b('dossier', 'Fascicolo immobile', ' data-id="' + esc(u.id) + '"') + b('edit', 'Modifica interno', ' data-id="' + esc(u.id) + '"') +

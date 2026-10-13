@@ -355,4 +355,21 @@ ok('presa in carico: interno nuovo con rate già scadute — «interno nuovo» n
   assert.ok(/gestione BOOM da [a-z]+ \d{4}/.test(html), 'gestione per l’interno nuovo');
   assert.ok(/⚠ interno nuovo: le rate partono da/.test(html), 'l’avviso sulla riga');
 });
+// 8. ASPI su un contratto già registrato: la leva dice «solo attestazione».
+const scenAspi = (viewSrc, reg) => {
+  const c = { id: 'c91', propertyId: 'u91', status: 'active', startDate: MM(-3) + '-01', endDate: MM(9) + '-28', tenantName: 'Reg Demo', rent: 900, ...reg };
+  const { html } = draw({ properties: [P0('u91')], contracts: [c], payments: [] }, ui => { ui.selected = 'u91'; ui.view = 'simple'; ui.month = CUR; }, viewSrc);
+  const m = /data-plz="aspi"[^>]*>([^<]+)</.exec(html);
+  return m ? m[1] : '';
+};
+ok('ASPI: su un contratto registrato la leva dice «solo attestazione»; su uno da registrare resta «Invia ad ASPI»', () => {
+  assert.equal(scenAspi(null, { rliRegisteredAt: MM(-2) + '-20' }), 'Invia ad ASPI · solo attestazione');
+  assert.equal(scenAspi(null, { registrationStatus: 'registered' }), 'Invia ad ASPI · solo attestazione');
+  assert.equal(scenAspi(null, {}), 'Invia ad ASPI');
+});
+ok('mutazione: la leva ASPI che non guarda la registrazione — il controllo cade', () => {
+  const src = read('palazzo.js'), from = "b('aspi', registered ? 'Invia ad ASPI · solo attestazione' : 'Invia ad ASPI'";
+  assert.ok(src.includes(from));
+  assert.notEqual(scenAspi(src.replace(from, "b('aspi', 'Invia ad ASPI'"), { rliRegisteredAt: MM(-2) + '-20' }), 'Invia ad ASPI · solo attestazione');
+});
 console.log(`\n${n} check — le parole del Palazzo, senza browser.`);

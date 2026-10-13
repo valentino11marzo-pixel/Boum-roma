@@ -290,9 +290,64 @@ store.set('users/own1', { name: 'Mario Bianchi' });
 
   store.set('contracts/c4', { ...baseContract, propertyId: 'p1', registrationStatus: 'registered' });
   const r4 = mkRes();
-  await handler(mkReq({ op: 'send', contractId: 'c4', kind: 'completo' }, { authorization: 'Bearer faketoken' }), r4);
-  check('già registrato: l\'invio (es. asseverazione tardiva) NON degrada registrationStatus',
-    r4.code === 200 && store.get('contracts/c4').registrationStatus === 'registered');
+  await handler(mkReq({ op: 'send', contractId: 'c4', kind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r4);
+  check('già registrato: l\'asseverazione tardiva parte e NON degrada registrationStatus',
+    r4.code === 200 && r4.body.kind === 'asseverazione' && store.get('contracts/c4').registrationStatus === 'registered');
+}
+
+// ═══ 6b. Già registrato all'AdE: mai una seconda registrazione ═══
+// (13/10/2026) Un contratto importato con «Registrato il», o segnato con
+// ✓ RLI registrato: la richiesta di registrazione (o il completo, €278) non
+// parte — 409 already_registered, nessuna email, nessuna fattura, nessuno
+// stato; lo status offre SOLO l'attestazione.
+const regProbe = async (send) => {
+  store.set('contracts/c6r', { ...baseContract, propertyId: 'p1', tenantId: 'u1', rliRegisteredAt: '2026-09-20', registrationStatus: 'registered' });
+  const nMail = mails().length;
+  const out = [];
+  for (const kind of ['registrazione', 'completo']) out.push(await send('c6r', kind));
+  const clean = mails().length === nMail && !store.has('invoices/aspi_registrazione_c6r') && !store.has('invoices/aspi_completo_c6r')
+    && !store.get('contracts/c6r').aspiRequestedAt;
+  return { out, clean };
+};
+{
+  const { out, clean } = await regProbe(async (id, kind) => { const r = mkRes(); await handler(mkReq({ op: 'send', contractId: id, kind }, { authorization: 'Bearer faketoken' }), r); return r; });
+  check('registrato: registrazione e completo → 409 already_registered con la data', out.every(r => r.code === 409 && r.body.error === 'already_registered' && r.body.at === '2026-09-20'));
+  check('registrato: …zero email, zero fatture, nessuno stato stampato', clean);
+  const r3 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c6r' }, { authorization: 'Bearer faketoken' }), r3);
+  check('registrato: senza kind la variante è l\'attestazione (parte, 200)', r3.code === 200 && r3.body.kind === 'asseverazione' && store.has('invoices/aspi_asseverazione_c6r'));
+  const st = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'c6r' }, { authorization: 'Bearer faketoken' }), st);
+  check('status su un registrato: solo «asseverazione», kind asseverazione, registered.at',
+    st.code === 200 && st.body.kind === 'asseverazione' && Object.keys(st.body.kinds).join() === 'asseverazione'
+    && Array.isArray(st.body.kinds.asseverazione) && st.body.registered && st.body.registered.at === '2026-09-20');
+  store.set('contracts/c6s', { ...baseContract, propertyId: 'p1' });
+  const st2 = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'c6s' }, { authorization: 'Bearer faketoken' }), st2);
+  check('status su un da registrare: tre varianti, registered null', st2.body.kind === 'completo' && st2.body.registered === null
+    && ['registrazione', 'completo', 'asseverazione'].every(k => Array.isArray(st2.body.kinds[k])));
+  store.set('settings/registrazione', { auto: true });
+  const au = await maybeAutoAspi({ ...store.get('contracts/c6r'), id: 'c6r' });
+  store.delete('settings/registrazione');
+  check('registrato: lo zero tap (auto acceso) non parte da solo', au && au.skipped === 'already_registered');
+}
+{
+  // Mutazione: senza la guardia, la registrazione su un registrato parte.
+  const fs0 = await import('node:fs'), os0 = await import('node:os'), path0 = await import('node:path'), url0 = await import('node:url');
+  const fileUrl = new URL('../../api/fiscal/_aspi.js', import.meta.url);
+  let src = fs0.readFileSync(fileUrl, 'utf8');
+  const from = "if (reg0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered'";
+  check('mutazione «guardia already_registered»: applicabile', src.includes(from));
+  src = src.replace(from, "if (false) return { ok: false, error: 'already_registered'")
+    .replace(/from '(\.{1,2}\/[^']+)'/g, (m, p) => `from '${new URL(p, fileUrl).href}'`);
+  const dir = fs0.mkdtempSync(path0.join(os0.tmpdir(), 'aspi-mut-'));
+  const out = path0.join(dir, 'm.mjs');
+  fs0.writeFileSync(out, src);
+  const M = await import(url0.pathToFileURL(out).href);
+  fs0.rmSync(dir, { recursive: true, force: true });
+  store.delete('invoices/aspi_asseverazione_c6r');
+  const { clean } = await regProbe(async (id, kind) => M.sendAspiRequest(id, { kind }));
+  check('mutazione «guardia already_registered»: il difetto rimesso fa partire email e fattura (il controllo cade)', clean === false);
 }
 
 // ═══ 7. L'asseverazione genera la scheda che manca ═══

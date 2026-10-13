@@ -25,7 +25,7 @@
 //
 // Method:   POST · Authorization: Bearer <firebase-id-token> (admin)
 // Body:     { contractId, key, base64, name?, contentType? }
-// Response: { ok, key, url, kinds:{registrazione[],completo[]} } | { ok:false, error }
+// Response: { ok, key, url, kinds:{registrazione[],completo[],asseverazione[]} } | { ok:false, error }
 
 import { getAdminToken, fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -143,6 +143,8 @@ export default async function handler(req, res) {
       kinds: {
         registrazione: aspiChecklist(contract, property, 'registrazione'),
         completo: aspiChecklist(contract, property, 'completo'),
+        // La sola attestazione (l'unica offerta su un contratto già registrato).
+        asseverazione: aspiChecklist(contract, property, 'asseverazione'),
       },
     });
   } catch (e) {

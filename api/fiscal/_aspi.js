@@ -122,6 +122,20 @@ export const kindCost = (kind, s) =>
 export const defaultKind = (contract) =>
   (contract && contract.requiresAsseverazione === false) ? 'registrazione' : 'completo';
 
+// Il contratto è GIÀ registrato all'AdE? (✓ RLI registrato, la colonna
+// «Registrato il» della presa in carico, o lo stato 'registered'.) Allora ad
+// ASPI si chiede SOLO l'attestazione: una seconda richiesta di registrazione
+// (con la sua fattura) è un errore che costa. Ritorna la data se c'è, true
+// se lo dice solo lo stato, null altrimenti.
+export function registeredAt(contract) {
+  const c = contract || {};
+  const at = String(c.rliRegisteredAt || '').trim();
+  if (at) return at;
+  return c.registrationStatus === 'registered' ? true : null;
+}
+// La variante proposta: su un registrato, solo l'attestazione.
+export const kindFor = (contract) => (registeredAt(contract) ? 'asseverazione' : defaultKind(contract));
+
 // ── La checklist: cosa c'è, cosa manca, cosa blocca ──────────────────────
 // state: 'ok' | 'warn' | 'missing'. blocking=true solo dove inviare senza
 // sarebbe rumore (il contratto stesso). Tutto il resto avverte, non blocca
@@ -302,6 +316,11 @@ export async function sendAspiRequest(contractId, opts = {}) {
   // Un segnaposto non si registra: non c'è un contratto da mandare (né un
   // fascicolo da generare sui puntini). Lo si dice, non si spedisce niente.
   if (CS.isPlaceholder(contract)) return { ok: false, error: 'contract_missing' };
+  // Già registrato: mai una seconda richiesta di registrazione (né la sua
+  // fattura, né l'email) — solo l'attestazione si può ancora chiedere.
+  const reg0 = registeredAt(contract);
+  const kind0 = ASPI_KINDS.includes(opts.kind) ? opts.kind : kindFor(contract);
+  if (reg0 && kind0 !== 'asseverazione') return { ok: false, error: 'already_registered', at: reg0 === true ? null : reg0, kind: kind0 };
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
@@ -328,7 +347,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
     Object.assign(contract, FIELDS.hydrateParties(contract, tU, { ...(lR || {}), ...(lU || {}) }, property));
   } catch (_) {}
 
-  const kind = ASPI_KINDS.includes(opts.kind) ? opts.kind : defaultKind(contract);
+  const kind = kind0;
   const wantsAss = kind !== 'registrazione';
 
   // Per l'asseverazione la scheda di calcolo È il fascicolo fiscale: se
@@ -460,6 +479,9 @@ export async function maybeAutoAspi(contract, overrides = {}) {
   try {
     const settings = await loadAspiSettings();
     if (!settings.auto) return { skipped: 'off' };
+    // Un contratto già registrato non riparte da solo (nemmeno per la sola
+    // attestazione): è una decisione dell'operatore dal pannello.
+    if (registeredAt(contract)) return { skipped: 'already_registered' };
     return await sendAspiRequest(contract.id, {
       settings, overrides,
       preloaded: { contract },
