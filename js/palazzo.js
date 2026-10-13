@@ -14,7 +14,18 @@
  */
 (function (root) {
   'use strict';
-  var E = typeof module === 'object' && module.exports ? require('./palazzo-engine.js') : root.BOOM_PALAZZO;
+  var NODE = typeof module === 'object' && module.exports;
+  var E = NODE ? require('./palazzo-engine.js') : root.BOOM_PALAZZO;
+  var RENT = NODE ? require('./rent-engine.js') : root.BOOM_RENT;
+  // Che contratto è (carta, segnaposto) e com'è scritto il telefono: UNA
+  // copia, js/contract-state.js. Senza il modulo (una pagina che non lo
+  // carica) le regole minime sono le sue, e il telefono non si indovina mai.
+  var CS = (NODE ? require('./contract-state.js') : root.BOOM_CONTRACT_STATE) || {
+    isPaper: function (c) { return !!(c && String(c.signatureStatus || '').trim() === 'paper'); },
+    isPlaceholder: function (c) { return !!(c && c.contractMissing === true); },
+    notSignable: function (c) { return !c || c.contractMissing === true || /^(paper|complete)$/.test(String(c.signatureStatus || '').trim()); },
+    phoneIntl: function (raw) { var s = String(raw || '').trim(), d = s.replace(/\D/g, ''); return s.charAt(0) === '+' && d.length >= 8 ? { e164: '+' + d, wa: d, kind: d.indexOf('39') === 0 ? 'it' : 'intl', raw: s } : { e164: null, wa: null, kind: s ? 'unknown' : 'empty', raw: s }; }
+  };
   var doc = root.document;
 
   var GEO = { w: 88, h: 54, d: 66, gx: 12, gz: 16, fh: 66 };
@@ -49,7 +60,7 @@
   function unitWhere(u) {
     var parts = [];
     if (u.scala) parts.push('Scala ' + u.scala);
-    parts.push(u.floor == null ? 'piano da indicare' : u.floorTop ? 'Attico' : E.floorLabel(u.floor));
+    parts.push(u.floor == null ? (viewAdmin() ? 'piano da indicare' : 'piano in verifica da BOOM') : u.floorTop ? 'Attico' : E.floorLabel(u.floor));
     return parts.join(' · ');
   }
   function surname(name) { var s = String(name || '').trim().split(/\s+/); return s.length > 1 ? s[s.length - 1] : s[0] || ''; }
@@ -81,7 +92,15 @@
     // L'anteprima dell'aspetto (solo admin, prima di salvare) usa lo stesso
     // motore: l'ultimo piano entra nel modello, i colori sopra m.look.
     var d = admin && ui.draft && ui.draft.key === ui.key ? ui.draft : null;
-    var m = E.model(ctx, ui.key, ui.month, { filter: filter, topFloor: d && d.ultimoPiano > 0 ? +d.ultimoPiano : undefined });
+    // Archivio letto a metà: il modello lo DICHIARA invece di contare come
+    // assente ciò che non ha letto. Admin: archivi letti al tetto finché il
+    // palazzo aperto non è stato riletto mirato. Proprietaria: una lettura
+    // fallita (documenti, manutenzioni) che non tocca contratti e rate.
+    var L = S.palazzoLoad, loaded = !!(L && L.state === 'ready' && L.key && L.key === ui.key);
+    var err = !realAdmin && S.scopedLoadError ? String(S.scopedLoadError) : '';
+    var severe = !!err && /immobili|contratti|rate/i.test(err);
+    var partial = admin ? ((S.palazzoTruncated && !loaded) || (L && L.state === 'error' && L.key === ui.key) ? true : false) : !!err;
+    var m = E.model(ctx, ui.key, ui.month, { filter: filter, partial: partial, topFloor: d && d.ultimoPiano > 0 ? +d.ultimoPiano : undefined });
     if (m.building && d) {
       m.lookView = Object.assign({}, m.look, d.intonaco ? { intonaco: d.intonaco } : {}, d.persiane ? { persiane: d.persiane } : {}, d.nome != null ? { name: String(d.nome).trim() } : {});
       if (d.ultimoPiano > 0 && d.ultimoPiano <= 40) m.lookView.topFloor = +d.ultimoPiano;
@@ -90,7 +109,19 @@
     if (m.building && m.building.key !== ui.key) { ui.key = m.building.key; }
     if (ui.selected && !m.units.some(function (u) { return u.id === ui.selected; })) ui.selected = '';
     var pv = preview ? (S.users || []).find(function (u) { return u.id === preview; }) || { id: preview } : null;
-    return { ctx: ctx, m: m, admin: admin, realAdmin: realAdmin, preview: pv, S: S, filter: filter };
+    return { ctx: ctx, m: m, admin: admin, realAdmin: realAdmin, preview: pv, S: S, filter: filter, loadError: err, severe: severe, load: L && L.key === ui.key ? L : null };
+  }
+  // Ciò che il Palazzo sa di NON sapere, detto in testa: la lettura fallita
+  // (con «Riprova»), l'archivio letto a metà, la rilettura in corso.
+  function loadNote(data) {
+    var A = adapter.actions || {}, out = '';
+    if (data.loadError) {
+      out += '<div class="plz-alert" role="alert"><p>' + esc(data.severe ? 'Non sono riuscito a leggere tutti i dati del tuo palazzo: per non mostrarti numeri sbagliati, il mese resta nascosto finché non tocchi Riprova.' : data.loadError) + '</p>' +
+        (A.reload ? '<button type="button" class="plz-btn plz-sm plz-primary" data-plz="reload">Riprova</button>' : '') + '</div>';
+    }
+    if (data.admin && data.load && data.load.state === 'loading') out += '<p class="plz-muted plz-loadline" role="status">Rileggo contratti, rate e manutenzioni di questo palazzo…</p>';
+    if (data.admin && data.load && data.load.state === 'error') out += '<div class="plz-alert" role="alert"><p>' + esc(data.load.error || 'Rilettura del palazzo non riuscita: i numeri potrebbero essere incompleti.') + '</p>' + (A.reload ? '<button type="button" class="plz-btn plz-sm" data-plz="reload">Riprova</button>' : '') + '</div>';
+    return out;
   }
 
   // ── Disegno ───────────────────────────────────────────────────────────
@@ -98,19 +129,20 @@
     if (!adapter) return '';
     var data = compute(); last = data;
     var m = data.m;
-    if (!m.building) {
-      return '<div class="plz">' + previewBar(data) + '<header class="plz-head"><div><p class="plz-eyebrow">Il Palazzo</p><h1>' + (data.admin ? 'Nessun immobile in archivio' : 'Nessun interno collegato al tuo profilo') + '</h1><p class="plz-sub">' +
-        (data.admin ? 'Carica il palazzo da una tabella, oppure aggiungi gli immobili da Immobili o dall’Innesto: ogni interno allo stesso civico diventa un piano del palazzo.' : 'BOOM sta collegando i tuoi immobili. Appena pronti li vedrai qui, interno per interno.') + '</p>' +
-        (data.admin ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="imp-open">＋ Carica da tabella</button></div>' : '') + '</div></header>' +
+    if (!m.building || data.severe) {
+      var h1 = data.loadError ? 'Il tuo palazzo non è arrivato' : data.admin ? 'Nessun immobile in archivio' : 'Nessun interno collegato al tuo profilo';
+      var sub = data.loadError ? '' : data.admin ? 'Carica il palazzo da una tabella, oppure aggiungi gli immobili da Immobili o dall’Innesto: ogni interno allo stesso civico diventa un piano del palazzo.' : 'BOOM sta collegando i tuoi immobili. Appena pronti li vedrai qui, interno per interno.';
+      return '<div class="plz">' + previewBar(data) + '<header class="plz-head"><div><p class="plz-eyebrow">Il Palazzo</p><h1>' + h1 + '</h1>' + (sub ? '<p class="plz-sub">' + sub + '</p>' : '') +
+        (data.admin ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="imp-open">＋ Carica da tabella</button></div>' : '') + '</div></header>' + loadNote(data) +
         '<div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div></div>';
     }
     if (ui.view === 'simple') {
-      return '<div class="plz" data-view="simple">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div>' +
+      return '<div class="plz" data-view="simple">' + previewBar(data) + header(data) + '<div id="plz-load">' + loadNote(data) + '</div><div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div>' +
         '<div class="plz-body plz-body-simple"><div class="plz-main" id="plz-simple">' + simple(data) + '</div>' +
         '<aside class="plz-panel" id="plz-panel" aria-live="polite">' + (ui.selected ? panel(data) : '') + '</aside></div>' +
         '<div class="plz-tip" id="plz-tip" hidden></div></div>';
     }
-    return '<div class="plz" data-view="' + ui.view + '">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
+    return '<div class="plz" data-view="' + ui.view + '">' + previewBar(data) + header(data) + '<div id="plz-load">' + loadNote(data) + '</div><div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
       '<div id="plz-timeline">' + timeline(data) + '</div>' +
       '<div class="plz-body"><div class="plz-main">' + filters(data) +
       (ui.view === '3d' ? scene(data) : '<div id="plz-roll">' + roll(data) + exportBar(data) + '</div>') + tray(data) +
@@ -130,24 +162,48 @@
   function shareText(data) {
     var o = data.m.owner || {}, first = String(o.name || '').trim().split(/\s+/)[0];
     return (first ? 'Buongiorno ' + first + ',' : 'Buongiorno,') + ' il suo Palazzo su BOOM è pronto (' + data.m.building.label + '): ogni mese vede quali interni sono occupati, chi ha pagato e chi no; toccando un interno trova l’inquilino con telefono, la scadenza del contratto e i pagamenti.\n\n' +
-      'Si entra da qui con la sua email: ' + LOGIN_URL + '\nLa prima volta, se non ha ancora una password, scriva la sua email e tocchi «Forgot?»: le arriva il link per sceglierla.\n\nValentino · BOOM';
+      'Si entra da qui con la sua email: ' + LOGIN_URL + '\nLa prima volta le arriva un’email da BOOM con il link per scegliere la password; se non la trova, nella pagina d’accesso scriva la sua email e tocchi «Password dimenticata?».\n\nValentino · BOOM';
   }
   function shareBox(data) {
-    var o = data.m.owner || {}, u = o.user || {}, txt = shareText(data);
+    var o = data.m.owner || {}, u = o.user || {}, txt = shareText(data), A = adapter.actions || {};
     var phone = u.phone ? waNumber(u.phone) : '';
     return '<div class="plz-share"><p class="plz-eyebrow">Il messaggio per ' + esc(o.name || o.email || 'la proprietaria') + '</p><textarea class="plz-share-t" id="plz-share-t" rows="7" aria-label="Messaggio da inviare">' + esc(txt) + '</textarea>' +
       '<div class="plz-share-b">' +
       (phone ? '<a class="plz-btn plz-primary plz-sm" href="https://wa.me/' + esc(phone) + '?text=' + esc(encodeURIComponent(txt)) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
       (o.email ? '<a class="plz-btn plz-sm" href="mailto:' + esc(o.email) + '?subject=' + esc(encodeURIComponent('Il suo Palazzo su BOOM')) + '&body=' + esc(encodeURIComponent(txt)) + '">Email</a>' : '') +
       '<button type="button" class="plz-btn plz-sm" data-plz="share-copy">Copia</button>' +
-      (!phone && !o.email ? '<span class="plz-muted">Nel suo profilo non ci sono telefono né email: copia il messaggio.</span>' : !phone ? '<span class="plz-muted">Telefono non in archivio: WhatsApp da aggiungere in Utenti.</span>' : '') +
-      '</div><p class="plz-muted plz-share-n">Prima di inviarlo: «👁 Come la vede» mostra esattamente la sua pagina.</p></div>';
+      (A.sendPasswordLink && o.id ? '<button type="button" class="plz-btn plz-sm" data-plz="pwd-link" data-owner="' + esc(o.id) + '"' + (o.email ? '' : ' disabled') + '>Manda il link per la password</button>' : '') +
+      (!phone && !o.email ? '<span class="plz-muted">Nel suo profilo non ci sono telefono né email: copia il messaggio.</span>' : !phone ? '<span class="plz-muted">Telefono non in archivio (o senza prefisso): WhatsApp da aggiungere in Utenti.</span>' : '') +
+      '</div><p class="plz-muted plz-share-n">Prima di inviarlo: «👁 Come la vede» mostra esattamente la sua pagina. Il link per la password le arriva per email, in italiano, e la riporta qui.</p>' +
+      rendicontoBox(data) + '</div>';
+  }
+  // Il rendiconto del 1° del mese a questa proprietaria: spento, anteprima
+  // (il PDF arriva SOLO a BOOM) o automatico. Senza una scelta scritta vale
+  // l'anteprima per chi ha interni presi in carico dalla tabella (la regola
+  // del server, api/owners/rendiconto.js), e lo si dice.
+  var REND_MODES = [['off', 'Spento'], ['preview', 'Anteprima a BOOM'], ['auto', 'Automatico a lei']];
+  function rendicontoBox(data) {
+    var o = data.m.owner || {}, u = o.user || {}, A = adapter.actions || {};
+    if (!o.id || !A.setRendiconto) return '';
+    var raw = String(u.rendicontoMode || ''), known = raw === 'off' || raw === 'preview' || raw === 'auto';
+    var imported = data.m.units.some(function (x) { return (x.property && x.property.source === 'palazzo-import') || (x.month.lease && x.month.lease.source === 'palazzo-import'); });
+    var mode = known ? raw : raw ? 'preview' : imported ? 'preview' : 'auto';
+    var note = known ? '' : raw ? ' (valore non valido in archivio: vale l’anteprima)' : imported ? ' (predefinito: interni presi in carico dalla tabella)' : ' (predefinito)';
+    var R = ui.rend || {};
+    return '<div class="plz-rend"><p class="plz-eyebrow">Rendiconto del 1° del mese</p>' +
+      '<div class="plz-seg plz-rend-seg" role="group" aria-label="Rendiconto mensile">' + REND_MODES.map(function (x) {
+        return '<button type="button" data-plz="rend-mode" data-mode="' + x[0] + '" data-owner="' + esc(o.id) + '" aria-pressed="' + (mode === x[0]) + '">' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      '<p class="plz-muted">' + esc({ off: 'Non parte niente, né a lei né a BOOM.', preview: 'Il PDF arriva solo a BOOM, con «ANTEPRIMA» nell’oggetto: lei non riceve niente.', auto: 'Il 1° del mese il PDF del mese chiuso arriva a lei per email.' }[mode] + note) + '</p>' +
+      (adapter.rendiconto ? '<div class="plz-share-b"><button type="button" class="plz-btn plz-sm" data-plz="rend-run" data-kind="preview" data-owner="' + esc(o.id) + '">Mandami l’anteprima</button>' +
+        '<button type="button" class="plz-btn plz-sm" data-plz="rend-run" data-kind="force" data-owner="' + esc(o.id) + '">Rimanda il mese scorso</button></div>' : '') +
+      (R.msg ? '<p class="' + (R.ok ? 'plz-okline' : 'plz-note') + '" role="status">' + esc(R.msg) + '</p>' : '') + '</div>';
   }
   function header(data) {
     var m = data.m, b = m.building, o = m.owner;
     var sub = data.admin ? (o ? 'Proprietà di ' + esc(o.name || o.email || 'proprietario da collegare') : 'Proprietario da collegare') + ' · ' + b.units + (b.units === 1 ? ' interno' : ' interni')
       : b.units + (b.units === 1 ? ' interno gestito' : ' interni gestiti') + ' da BOOM';
-    if (m.gestioneDal) sub += ' · gestione dal ' + esc(E.monthLabel(m.gestioneDal).toLowerCase());
+    if (m.gestioneDal) sub += ' · gestione BOOM da ' + esc(E.monthLabel(m.gestioneDal).toLowerCase());
     var picker = m.buildings.length > 1 ? '<label class="plz-pick"><span>Palazzo</span><select data-plz="building">' + m.buildings.map(function (x) {
       return '<option value="' + esc(x.key) + '"' + (x.key === b.key ? ' selected' : '') + '>' + esc(x.label) + ' · ' + x.units + (data.admin && x.owner ? ' · ' + esc(x.owner.name || x.owner.email || '') : '') + '</option>';
     }).join('') + '</select></label>' : '';
@@ -167,29 +223,96 @@
       '</div></header>';
   }
 
+  // «Da sistemare» (solo admin): UNA riga per ogni voce del motore, e il
+  // numero nel titolo conta le righe disegnate — mai una voce contata e
+  // non mostrata. Ogni riga dice cosa e porta UNA mossa.
   function issues(data) {
-    var noPhone = data.admin ? withoutPhone(data.m) : [];
-    if (!data.admin || (!data.m.issues.length && !noPhone.length)) return '';
-    var m = data.m, o = m.owner, S = data.S;
-    var rows = m.issues.map(function (i) {
-      if (i.code === 'unplaced') return row('Piano', i.count + (i.count === 1 ? ' interno senza piano' : ' interni senza piano') + ': restano nel cortile, fuori dalla vista 3D.', '<button type="button" class="plz-btn" data-plz="edit" data-id="' + esc(i.ids[0]) + '">Indica il piano</button>');
-      if (i.code === 'owner' && o && o.id) return row('Accesso', i.count + (i.count === 1 ? ' interno non collegato' : ' interni non collegati') + ' a ' + esc(o.name || o.email) + ': dal suo accesso non ' + (i.count === 1 ? 'lo vede' : 'li vede') + '.', '<button type="button" class="plz-btn" data-plz="link" data-owner="' + esc(o.id) + '" data-ids="' + esc(i.ids.join(',')) + '">Collega a ' + esc(o.name || 'lei') + '</button>');
-      if (i.code === 'ownerProfile') {
-        var cand = (S.users || []).find(function (u) { return u.role === 'landlord' && o && ((o.email && String(u.email || '').toLowerCase() === o.email) || (o.name && String(u.name || '').trim().toLowerCase() === o.name.trim().toLowerCase())); });
-        return row('Accesso', 'Nessun interno è collegato al profilo di ' + esc(o && (o.name || o.email) || 'un proprietario') + ': ' + (cand ? 'il profilo esiste.' : 'crea il suo accesso in Utenti (ruolo Locatore), poi collegalo da qui.'),
-          cand ? '<button type="button" class="plz-btn" data-plz="link" data-owner="' + esc(cand.id) + '" data-ids="' + esc(i.ids.join(',')) + '">Collega a ' + esc(cand.name || cand.email) + '</button>' : '<button type="button" class="plz-btn" data-plz="users">Apri Utenti</button>');
+    if (!data.admin) return '';
+    var m = data.m, o = m.owner, S = data.S, ctx = data.ctx, out = [];
+    var noPhone = withoutPhone(m);
+    var name = function (uid) { var u = m.units.find(function (x) { return x.id === uid; }); return u ? unitTitle(u) : 'Interno'; };
+    var tenantOfC = function (cid) { var c = ctx.contractById[cid]; return c ? String(c.tenantName || '').trim() : ''; };
+    var plural = function (n, one, many) { return n + ' ' + (n === 1 ? one : many); };
+    var btn = function (act, label, attrs) { return '<button type="button" class="plz-btn" data-plz="' + act + '"' + (attrs || '') + '>' + label + '</button>'; };
+    var openC = function (cid, label) { return cid ? btn('contract', label || 'Apri contratto', ' data-id="' + esc(cid) + '"') : ''; };
+    var row = function (tag, text, action, code) { out.push('<div class="plz-issue" data-issue="' + esc(code) + '"><span class="plz-tag">' + tag + '</span><p>' + text + '</p>' + (action || '') + '</div>'); };
+    var renewsText = function (r) { return r === 'tacito' ? 'senza disdetta si rinnova da solo' : r === 'proroga' ? 'si proroga di diritto' : r === 'rinnovo' ? 'si rinnova' : ''; };
+    m.issues.forEach(function (i) {
+      switch (i.code) {
+        case 'unplaced': return row('Piano', plural(i.count, 'interno senza piano', 'interni senza piano') + ': restano fuori dalla facciata e dal 3D.', btn('edit', 'Indica il piano', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'owner':
+          if (o && o.id) return row('Accesso', plural(i.count, 'interno non collegato', 'interni non collegati') + ' a ' + esc(o.name || o.email) + ': dal suo accesso non ' + (i.count === 1 ? 'lo vede' : 'li vede') + '.', btn('link', 'Collega a ' + esc(o.name || 'lei'), ' data-owner="' + esc(o.id) + '" data-ids="' + esc(i.ids.join(',')) + '"'), i.code);
+          return row('Accesso', plural(i.count, 'interno ha', 'interni hanno') + ' un proprietario diverso dagli altri del palazzo.', btn('select', 'Vedi', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'ownerProfile': {
+          var cand = (S.users || []).find(function (u) { return u.role === 'landlord' && o && ((o.email && String(u.email || '').toLowerCase() === o.email) || (o.name && String(u.name || '').trim().toLowerCase() === o.name.trim().toLowerCase())); });
+          return row('Accesso', 'Nessun interno è collegato al profilo di ' + esc(o && (o.name || o.email) || 'un proprietario') + ': ' + (cand ? 'il profilo esiste.' : 'crea il suo accesso in Utenti (ruolo Locatore), poi collegalo da qui.'),
+            cand ? btn('link', 'Collega a ' + esc(cand.name || cand.email), ' data-owner="' + esc(cand.id) + '" data-ids="' + esc(i.ids.join(',')) + '"') : btn('users', 'Apri Utenti'), i.code);
+        }
+        case 'staleActive': {
+          var it0 = (i.items || [])[0] || {};
+          return row('Contratti', plural(i.count, 'contratto risulta attivo ma è scaduto', 'contratti risultano attivi ma sono scaduti') + (it0.unitId ? ' (' + esc(name(it0.unitId)) + (it0.end ? ', fine ' + dateIt(it0.end) : '') + (it0.renews ? ': ' + renewsText(it0.renews) : '') + ')' : '') + ': per le date l’interno è libero. Aggiorna la fine o chiudilo.', openC(it0.id || i.ids[0]), i.code);
+        }
+        case 'expiredStillIn': {
+          var c0 = (i.contracts || [])[0] || {};
+          var who0 = tenantOfC(c0.id);
+          return row('Fine contratto', plural(i.count, 'contratto è scaduto', 'contratti sono scaduti') + ' senza una chiusura scritta' + (c0.unitId ? ' (' + esc(name(c0.unitId)) + (who0 ? ', ' + esc(who0) : '') + (c0.end ? ', fine ' + dateIt(c0.end) : '') + ')' : '') + (c0.renews ? ': ' + renewsText(c0.renews) + ' se nessuno ha dato disdetta' : '') + '. L’inquilino è ancora dentro? Rinnova o chiudi.', openC(c0.id), i.code);
+        }
+        case 'overlap': {
+          var uid = i.ids[0], live = ((ctx.contractsByProperty[uid] || []).filter(function (c) { return E.covers(c, m.month) && !/^(terminated|cancelled|canceled|closed|ended)$/.test(String(c.status || '')); })
+            .sort(function (a, b) { return String(a.startDate || '').localeCompare(String(b.startDate || '')); }));
+          var older = live[0];
+          return row('Contratti', plural(i.count, 'interno ha', 'interni hanno') + ' due contratti con giorni in comune (' + esc(name(uid)) + (older ? ': quello di ' + esc(older.tenantName || 'chi c’era prima') + ' va chiuso' : '') + ').', older ? openC(older.id, 'Apri quello da chiudere') : btn('select', 'Vedi', ' data-id="' + esc(uid) + '"'), i.code);
+        }
+        case 'preBoom': return row('Rate', plural(i.count, 'rata aperta', 'rate aperte') + ' di mesi prima della gestione BOOM: nel Palazzo non contano (non sono arretrati di BOOM), ma in Canoni restano scadute. Chiudile se non servono.', btn('rent', 'Apri canoni', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'afterClose': {
+          var parts = [];
+          if (i.open) parts.push(plural(i.open, 'aperta da annullare', 'aperte da annullare'));
+          if (i.paid) parts.push(plural(i.paid, 'pagata da verificare (rimborso, o la data di chiusura è sbagliata)', 'pagate da verificare (rimborso, o la data di chiusura è sbagliata)'));
+          var acts = (i.open && (adapter.actions || {}).cancelRates ? btn('cancel-rates', 'Annulla ' + (i.open === 1 ? 'la rata aperta' : 'le ' + i.open + ' rate aperte'), ' data-ids="' + esc((i.paymentIds || []).join(',')) + '"') : '') +
+            (i.paid ? btn('rent', 'Verifica in Canoni', ' data-id="' + esc(i.ids[0]) + '"') : '');
+          return row('Rate', plural(i.count, 'rata cade', 'rate cadono') + ' dopo la chiusura del contratto (' + esc(i.ids.map(name).join(', ')) + '): ' + parts.join(', ') + '.', acts, i.code);
+        }
+        case 'beyondEnd': {
+          var b0 = (i.items || [])[0] || {};
+          return row('Fine contratto', plural(i.count, 'contratto ha', 'contratti hanno') + ' rate dopo la fine scritta (' + esc(name(b0.unitId)) + (b0.end ? ', fine ' + dateIt(b0.end) : '') + (b0.from ? ', rate da ' + esc(E.monthLabel(b0.from).toLowerCase()) : '') + '): rinnovo tacito o una data da aggiornare. Le rate restano dovute.', openC(b0.contractId), i.code);
+        }
+        case 'unregistered': return row('Registrazione', plural(i.count, 'contratto in corso senza registrazione segnata', 'contratti in corso senza registrazione segnata') + ' oltre 30 giorni dalla decorrenza: segnala con ✓ RLI registrato o invia ad ASPI. Alla proprietaria risulta “in verifica da BOOM”.', btn('select', 'Vedi', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'nocontract': return row('Contratti', plural(i.count, 'interno occupato senza contratto in archivio', 'interni occupati senza contratto in archivio') + ': canone, date e rate arrivano col contratto. Alla proprietaria risulta “contratto in arrivo da BOOM”.', btn('load-contract', 'Carica il contratto', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'norate': return row('Rate', plural(i.count, 'interno occupato senza rata', 'interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', btn('rent', 'Verifica rate', ' data-id="' + esc(i.ids[0]) + '"'), i.code);
+        case 'noticeDue': {
+          var n0 = (i.items || [])[0] || {};
+          var when = n0.passed ? 'termine per la disdetta passato il ' + dateIt(n0.by) + (n0.renews ? ': ' + renewsText(n0.renews) : '') : 'disdetta entro il ' + dateIt(n0.by);
+          return row('Disdetta', plural(i.count, 'contratto finisce', 'contratti finiscono') + ' presto (' + esc(name(n0.unitId)) + (n0.tenants && n0.tenants[0] ? ', ' + esc(n0.tenants[0]) : '') + ', fine ' + dateIt(n0.end) + '): ' + when + (n0.assumed ? ' — termine ipotizzato, verifica sul contratto' : '') + '. Chiedi all’inquilino se resta.', openC(n0.contractId), i.code);
+        }
+        case 'listingLive': {
+          var l0 = (i.items || [])[0] || {}, lu = m.units.find(function (x) { return x.id === l0.unitId; }), url = lu && lu.pipeline.listing ? lu.pipeline.listing.url : '';
+          var why = { now: 'è pubblicato come libero adesso', nodate: 'è pubblicato senza data di disponibilità', noend: 'è pubblicato ma il contratto non ha una fine', early: 'è pubblicato con una data prima della fine del contratto' }[l0.why] || 'è ancora pubblicato';
+          return row('Annunci', plural(i.count, 'interno abitato ha', 'interni abitati hanno') + ' l’annuncio in vetrina (' + esc(name(l0.unitId)) + ': ' + why + '): porta lead per una casa che non c’è. Toglilo, o mettilo in lista d’attesa con la data in cui si libera.', url ? '<a class="plz-btn" href="' + esc(url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '', i.code);
+        }
+        case 'lookMissing': {
+          var labels = { ultimoPiano: 'ultimo piano', intonaco: 'intonaco', persiane: 'persiane' }, miss = i.missing || [];
+          return row('Facciata', 'Prima di mandarla alla proprietaria: ' + miss.map(function (k) { return labels[k] || k; }).join(', ') + ' non ' + (miss.length === 1 ? 'è dichiarato' : 'sono dichiarati') + ', la facciata resta neutra. Indicali da una foto o dal sopralluogo.', btn('look-open', 'Aspetto del palazzo'), i.code);
+        }
+        case 'partial': return row('Dati', 'Archivio letto in parte' + (i.collections && i.collections.length ? ' (' + esc(i.collections.join(', ')) + ')' : '') + ': i numeri di questo palazzo possono essere incompleti finché non lo rileggo.', (adapter.actions || {}).reload ? btn('reload', 'Rileggi') : '', i.code);
+        default: return row('Da verificare', 'Voce «' + esc(i.code) + '»: ' + plural(i.count || 0, 'elemento', 'elementi') + '.', i.ids && i.ids[0] ? btn('select', 'Vedi', ' data-id="' + esc(i.ids[0]) + '"') : '', i.code);
       }
-      if (i.code === 'staleActive') return row('Contratti', i.count + (i.count === 1 ? ' contratto risulta attivo ma è scaduto' : ' contratti risultano attivi ma sono scaduti') + ': per le date, l’interno è libero.', '<button type="button" class="plz-btn" data-plz="contracts">Apri contratti</button>');
-      if (i.code === 'overlap') return row('Contratti', i.count + (i.count === 1 ? ' interno ha due contratti' : ' interni hanno due contratti') + ' nello stesso mese.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
-      if (i.code === 'preBoom') return row('Rate', i.count + (i.count === 1 ? ' rata aperta' : ' rate aperte') + ' di mesi prima della gestione BOOM: nel Palazzo non contano (non sono arretrati di BOOM), ma in Canoni restano scadute. Chiudile se non servono.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Apri canoni</button>');
-      if (i.code === 'unregistered') return row('Registrazione', i.count + (i.count === 1 ? ' contratto in corso senza registrazione segnata' : ' contratti in corso senza registrazione segnata') + ' oltre 30 giorni dalla decorrenza: segnala con ✓ RLI registrato o invia ad ASPI. Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
-      if (i.code === 'nocontract') return row('Contratti', i.count + (i.count === 1 ? ' interno occupato senza contratto in archivio' : ' interni occupati senza contratto in archivio') + ': canone, date e rate arrivano col contratto (reincolla la riga completa, o caricalo dall’Innesto). Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
-      if (i.code === 'norate') return row('Rate', i.count + (i.count === 1 ? ' interno occupato senza rata' : ' interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Verifica rate</button>');
-      return '';
-    }).join('') + (noPhone.length ? row('Contatti', noPhone.length + (noPhone.length === 1 ? ' inquilino senza telefono' : ' inquilini senza telefono') + ' in archivio: dalla sua scheda la proprietaria non ' + (noPhone.length === 1 ? 'lo può' : 'li può') + ' chiamare.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(noPhone[0].id) + '">Vedi</button>') : '');
-    var n = m.issues.length + (noPhone.length ? 1 : 0);
-    return rows ? '<details class="plz-issues"' + (m.issues.some(function (i) { return i.code !== 'norate'; }) || noPhone.length ? ' open' : '') + '><summary>Da sistemare · ' + n + '</summary>' + rows + '</details>' : '';
-    function row(tag, text, action) { return '<div class="plz-issue"><span class="plz-tag">' + tag + '</span><p>' + text + '</p>' + action + '</div>'; }
+    });
+    if (noPhone.length) row('Contatti', plural(noPhone.length, 'inquilino senza telefono', 'inquilini senza telefono') + ' in archivio: dalla sua scheda la proprietaria non ' + (noPhone.length === 1 ? 'lo può' : 'li può') + ' chiamare.', btn('select', 'Vedi', ' data-id="' + esc(noPhone[0].id) + '"'), 'phone');
+    var badWa = waMissing(m);
+    if (badWa.length) row('Contatti', plural(badWa.length, 'inquilino ha', 'inquilini hanno') + ' un numero senza prefisso internazionale (' + esc(badWa.map(function (x) { return unitTitle(x.u); }).join(', ')) + '): niente WhatsApp finché non lo correggi (es. +90 …).', btn('select', 'Vedi', ' data-id="' + esc(badWa[0].u.id) + '"'), 'wa');
+    if (!out.length) return '';
+    var quiet = m.issues.every(function (i) { return i.code === 'norate'; }) && !noPhone.length && !badWa.length;
+    return '<details class="plz-issues"' + (quiet ? '' : ' open') + '><summary>Da sistemare · ' + out.length + '</summary>' + out.join('') + '</details>';
+  }
+  // Inquilini col telefono ma senza un numero buono per WhatsApp.
+  function waMissing(m) {
+    var out = [];
+    m.units.forEach(function (u) {
+      var list = u.month.occupied ? contactsOf(u.month) : undefined;
+      if (!Array.isArray(list)) return;
+      list.forEach(function (p) { if (p.phone && !phoneOf(p.phone).wa) out.push({ u: u, p: p }); });
+    });
+    return out;
   }
 
   function ring(pct) {
@@ -197,15 +320,23 @@
     return '<svg class="plz-ring" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="' + r + '" class="plz-ring-bg"/><circle cx="28" cy="28" r="' + r + '" class="plz-ring-fg" stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '"/></svg>';
   }
   function kpis(data) {
-    var t = data.m.totals, mon = E.monthLabel(data.m.month).split(' ')[0].toLowerCase();
-    var occ = t.occupied, payers = t.paid + t.late + t.due + t.review + t.unknown;
+    var m = data.m, t = m.totals, mon = E.monthLabel(m.month).split(' ')[0].toLowerCase();
+    if (m.allBefore) return '<div class="plz-kpis plz-kpis-before"><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></div>';
+    var managed = t.managed != null ? t.managed : t.units, payers = t.paid + t.late + t.due + t.review + t.unknown;
     var pct = t.expected ? Math.round(t.collected / t.expected * 100) : 0;
+    var dn = t.debtorUnits != null ? t.debtorUnits : t.late, damt = t.debtorsAmount != null ? t.debtorsAmount : t.lateAmount;
+    var occNote = [t.vacant ? t.vacant + (t.vacant === 1 ? ' libero' : ' liberi') : 'nessuno libero', t.incoming ? t.incoming + ' in arrivo' : '', t.leaving ? t.leaving + ' in scadenza' : '',
+      t.before ? t.before + ' prima di BOOM' : ''].filter(Boolean).join(' · ');
     return '<div class="plz-kpis">' +
-      '<div class="plz-kpi">' + ring(t.occupancy) + '<div><span>Pieni</span><strong>' + occ + '<small>/' + t.units + '</small></strong><em>' + (t.vacant ? t.vacant + (t.vacant === 1 ? ' libero' : ' liberi') : 'nessuno libero') + (t.incoming ? ' · ' + t.incoming + ' in arrivo' : '') + (t.leaving ? ' · ' + t.leaving + ' in scadenza' : '') + '</em></div></div>' +
-      '<div class="plz-kpi"><div class="plz-kpi-grow"><span>Hanno pagato · ' + esc(mon) + '</span><strong>' + t.paid + '<small>/' + payers + '</small></strong><div class="plz-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><em>' + eur(t.collected) + ' di ' + eur(t.expected) + '</em></div></div>' +
-      '<div class="plz-kpi' + (t.late ? ' is-alert' : '') + '"><div><span>Non hanno pagato</span><strong>' + t.late + '</strong><em>' + (t.late ? eur(t.lateAmount) + ' in ritardo' : t.due ? t.due + ' devono ancora pagare' : 'nessun ritardo') + '</em></div></div>' +
+      '<div class="plz-kpi">' + ring(t.occupancy) + '<div><span>Pieni</span><strong>' + t.occupied + '<small>/' + managed + '</small></strong><em>' + occNote + '</em></div></div>' +
+      '<div class="plz-kpi"><div class="plz-kpi-grow"><span>Hanno pagato · ' + esc(mon) + '</span><strong>' + t.paid + '<small>/' + payers + '</small></strong><div class="plz-bar" aria-hidden="true"><i style="width:' + pct + '%"></i></div><em>' + (t.expected ? eur(t.collected) + ' di ' + eur(t.expected) : payers ? 'importi da verificare' : 'nessuna rata nel mese') + '</em></div></div>' +
+      '<div class="plz-kpi' + (dn ? ' is-alert' : '') + '"><div><span>Non hanno pagato</span><strong>' + dn + '</strong><em>' + (dn ? (damt > 0 ? eur(damt) : 'importo da verificare') + (t.debtorsOldest ? ' · dal ' + dateIt(t.debtorsOldest) : '') : t.due ? (t.due === 1 ? '1 deve ancora pagare' : t.due + ' devono ancora pagare') : 'nessun ritardo') + '</em></div></div>' +
       '<div class="plz-kpi' + (t.arrears ? ' is-alert' : '') + '"><div><span>Arretrati totali</span><strong class="plz-num">' + eur(t.arrears) + '</strong><em>' + (t.arrearsCount ? t.arrearsCount + (t.arrearsCount === 1 ? ' rata scaduta' : ' rate scadute') + (t.arrearsOldest ? ', dal ' + dateIt(t.arrearsOldest) : '') : 'nessuna rata scaduta') + '</em></div></div>' +
       '</div>';
+  }
+  // Un mese tutto prima della gestione: una riga, mai «tutti in regola».
+  function beforeLine(m) {
+    return 'Prima della gestione BOOM' + (m.gestioneDal ? ' (da ' + E.monthLabel(m.gestioneDal).toLowerCase() + ')' : '') + ': pagamenti e occupazione di ' + E.monthLabel(m.month).toLowerCase() + ' non sono in archivio.';
   }
 
   function timeline(data) {
@@ -214,7 +345,9 @@
       m.series.map(function (s) {
         var t = s.totals, n = Math.max(1, t.units), seg = function (k, v) { return v ? '<i class="plz-s-' + k + '" style="flex:' + v + '"></i>' : ''; };
         var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0);
-        return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + t.paid + ' pagati, ' + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ' liberi" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
+        var lab = t.units && (t.before || 0) === t.units ? 'prima della gestione BOOM'
+          : t.paid + (t.paid === 1 ? ' pagato, ' : ' pagati, ') + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ((t.vacant + t.incoming) === 1 ? ' libero' : ' liberi') + (t.before ? ', ' + t.before + ' prima di BOOM' : '');
+        return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + lab + '" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
       }).join('') + '</div></div>';
   }
 
@@ -291,7 +424,7 @@
   function tray(data) {
     var un = data.m.unplaced;
     if (!un.length) return '';
-    return '<div class="plz-tray"><p class="plz-eyebrow">' + (ui.view === '3d' ? 'Nel cortile · piano da indicare' : '') + '</p>' + (ui.view === '3d' ? '<div class="plz-tray-row">' + un.map(function (u) {
+    return '<div class="plz-tray"><p class="plz-eyebrow">' + (ui.view === '3d' ? (data.admin ? 'Nel cortile · piano da indicare' : 'Posizione sul piano in verifica da BOOM') : '') + '</p>' + (ui.view === '3d' ? '<div class="plz-tray-row">' + un.map(function (u) {
       return '<button type="button" class="plz-chip" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + u.month.state + '"><i aria-hidden="true"></i>' + esc(unitTitle(u)) + '<small>' + esc(stateLabel(u.month, data.m.month, data.m.currentMonth)) + '</small></button>';
     }).join('') + '</div>' : '') + '</div>';
   }
@@ -304,7 +437,7 @@
 
   function roll(data) {
     var m = data.m;
-    var floorsDesc = m.floors.slice().reverse().concat(m.unplaced.length ? [{ label: 'Piano da indicare', units: m.unplaced }] : []);
+    var floorsDesc = m.floors.slice().reverse().concat(m.unplaced.length ? [{ label: data.admin ? 'Piano da indicare' : 'Piano in verifica da BOOM', units: m.unplaced }] : []);
     return '<div class="plz-roll" role="table" aria-label="Interni del palazzo"><div class="plz-rrow plz-rhead" role="row"><span role="columnheader">Interno</span><span role="columnheader">Inquilino</span><span role="columnheader">Canone</span><span role="columnheader">Contratto fino al</span><span role="columnheader">' + esc(E.monthLabel(m.month)) + '</span><span role="columnheader">Ultimi 12 mesi</span><span role="columnheader">Arretrati</span></div>' +
       floorsDesc.map(function (f) {
         var units = f.units.filter(function (u) { return matches(ui.filter, u.month.state); });
@@ -330,31 +463,53 @@
     var enter = ui.shown !== u.id; ui.shown = u.id;
     return unitPanel(u, data, enter);
   }
+  // Chi non ha pagato: i DEBITORI del motore (m.debtors), una voce per
+  // interno E contratto — anche i mesi prima ancora aperti, col totale e il
+  // mese da cui decorre il ritardo. Nel mese del cambio inquilino il debito
+  // del vecchio resta col SUO nome.
+  function debtorsOf(m) {
+    return (m.debtors || []).map(function (d) { return { d: d, u: m.units.find(function (x) { return x.id === d.unitId; }) }; }).filter(function (x) { return x.u; });
+  }
+  function debtAmount(d) { return d.amount > 0 ? eur(d.amount) + (d.unknownAmounts ? ' + ?' : '') : 'da verificare'; }
+  function debtNote(d) {
+    var bits = [];
+    if (d.oldestMonth) bits.push('da ' + E.monthLabel(d.oldestMonth).toLowerCase());
+    if (d.oldestDays) bits.push(d.oldestDays + (d.oldestDays === 1 ? ' giorno' : ' giorni'));
+    if (d.count > 1) bits.push(d.count + ' rate');
+    if (d.unknownAmounts) bits.push(d.unknownAmounts === 1 ? 'un importo da verificare' : d.unknownAmounts + ' importi da verificare');
+    if (d.previousContract) bits.push('contratto precedente');
+    return bits.join(' · ');
+  }
+  function debtorName(x) { return x.d.tenants && x.d.tenants[0] || x.u.month.tenants[0] || ''; }
   function monthPanel(data) {
     var m = data.m, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
-    var late = by(['late']).sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
-    var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant', 'incoming']), paid = by(['paid']);
-    function line(u, right, note) {
-      return '<button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + u.month.state + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(u.month.tenants.length ? u.month.tenants[0] : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>';
+    if (m.allBefore) return '<div class="plz-pcard"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></div>';
+    var debt = debtorsOf(m);
+    var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant']), coming = by(['incoming']), paid = by(['paid']);
+    function line(u, right, note, who) {
+      return '<button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + u.month.state + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(who != null ? who : u.month.tenants.length ? u.month.tenants[0] : '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>';
     }
-    function block(title, units, fn, empty) {
-      return '<section class="plz-block"><h3>' + title + ' <b>' + units.length + '</b></h3>' + (units.length ? units.map(fn).join('') : '<p class="plz-muted">' + empty + '</p>') + '</section>';
+    function block(title, n, items, empty) {
+      return '<section class="plz-block"><h3>' + title + ' <b>' + n + '</b></h3>' + (items.length ? items.join('') : '<p class="plz-muted">' + empty + '</p>') + '</section>';
     }
+    var t = m.totals;
     return '<div class="plz-pcard"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p>' +
-      block('Non hanno pagato', late, function (u) { return line(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto'); }, 'Nessun ritardo.') +
-      (due.length ? block('Devono ancora pagare', due, function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return line(u, eur(u.month.expected), r && r.dueDate ? 'scade il ' + dateIt(r.dueDate) : ''); }, '') : '') +
-      (check.length ? block('Da verificare', check, function (u) { return line(u, '', stateLabel(u.month, m.month, m.currentMonth)); }, '') : '') +
-      block('Liberi', free, function (u) { return line(u, '', freeNote(u)); }, 'Tutto pieno.') +
-      block('Hanno pagato', paid, function (u) {
+      block('Non hanno pagato', debt.length, debt.map(function (x) { return line(x.u, debtAmount(x.d), debtNote(x.d), debtorName(x)).replace('class="plz-s-' + x.u.month.state + '"', 'class="plz-s-late"'); }), t.before ? 'Nessun ritardo fra gli interni gestiti.' : 'Nessun ritardo.') +
+      (due.length ? block('Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return line(u, eur(u.month.expected), r && r.dueDate ? 'scade il ' + dateIt(r.dueDate) : ''); }), '') : '') +
+      (check.length ? block('Da verificare', check.length, check.map(function (u) { return line(u, '', stateLabel(u.month, m.month, m.currentMonth)); }), '') : '') +
+      block('Liberi', free.length, free.map(function (u) { return line(u, '', freeNote(u)); }), t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') +
+      (coming.length ? block('In arrivo', coming.length, coming.map(function (u) { return line(u, '', freeNote(u)); }), '') : '') +
+      block('Hanno pagato', paid.length, paid.map(function (u) {
         var r = u.month.rows.find(function (x) { return x.paidDate; }) || u.month.rows[0];
         // Una rata che copre più mesi si conta nel mese in cui scade: qui si
         // dice che il mese è coperto, con l'importo vero, non "€0".
         var multi = r && r.coversTo && r.coversTo !== r.month;
         var span = multi ? 'rata ' + E.monthLabel(r.month, true) + '–' + E.monthLabel(r.coversTo, true) + ' · ' : '';
         return line(u, multi && !u.month.collected ? eur(r.amount) : eur(u.month.collected || u.month.expected), span + (r && r.paidDate ? 'pagata il ' + dateIt(r.paidDate) : ''));
-      }, 'Ancora nessun pagamento registrato questo mese.') +
+      }), 'Ancora nessun pagamento registrato questo mese.') +
       '</div>';
   }
+
   // Un interno libero in una riga: chi arriva, chi tratta, se è sul sito, da quanto.
   function freeNote(u) {
     var pr = u.pipeline && u.pipeline.proposal, ls = u.pipeline && u.pipeline.listing, um = u.month, bits = [];
@@ -364,10 +519,30 @@
     if (um.state === 'vacant' && u.time && u.time.vacantDays != null) bits.push('libero da ' + u.time.vacantDays + (u.time.vacantDays === 1 ? ' giorno' : ' giorni'));
     return bits.join(' · ') || unitWhere(u);
   }
+  // La puntualità detta onesta: chi ha rate aperte non è «puntuale» perché
+  // le pagate erano in orario, e «nessuna rata ancora prevista» non è «non
+  // paga». Dalla gestione BOOM, se è iniziata dentro i 12 mesi.
   function punctuality(t) {
-    if (!t || !t.paidCount) return t && t.since ? 'Nessuna rata ancora pagata da ' + E.monthLabel(t.since).toLowerCase() + ' (gestione BOOM)' : 'Nessuna rata pagata negli ultimi 12 mesi';
-    var d = t.avgDelay, when = d < -0.4 ? itNum(Math.abs(d)) + (Math.abs(d) === 1 ? ' giorno prima' : ' giorni prima') : d > 0.4 ? itNum(d) + (d === 1 ? ' giorno dopo' : ' giorni dopo') : 'il giorno della scadenza';
-    return 'Paga in media ' + when + ' · ' + t.onTime + ' rate su ' + t.paidCount + ' puntuali';
+    if (!t) return '—';
+    var since = t.since ? ' da ' + E.monthLabel(t.since).toLowerCase() : '';
+    var open = t.overdueCount ? (t.overdueCount === 1 ? '1 rata aperta' : t.overdueCount + ' rate aperte') + (t.overdueOldest ? ', la più vecchia scaduta il ' + dateIt(t.overdueOldest) : '') : '';
+    if (!t.paidCount) {
+      if (open) return open;
+      if (t.expectedCount === 0) return 'Nessuna rata ancora in scadenza' + since;
+      return 'Nessuna rata pagata' + (since || ' negli ultimi 12 mesi');
+    }
+    var d = t.avgDelay, ad = Math.abs(d);
+    var when = d < -0.4 ? itNum(ad) + (ad === 1 ? ' giorno prima' : ' giorni prima') : d > 0.4 ? itNum(d) + (d === 1 ? ' giorno dopo' : ' giorni dopo') : 'il giorno della scadenza';
+    var base = 'Paga in media ' + when + ' · ' + t.onTime + ' su ' + t.paidCount + (t.paidCount === 1 ? ' rata puntuale' : ' rate puntuali') + since;
+    return open ? base + ' · ' + open : base;
+  }
+  // I mesi occupati: solo quelli misurati (dalla gestione BOOM, con un
+  // contratto noto). Il segnaposto non dà «12 su 12»: dà «—».
+  function occupiedText(t) {
+    if (!t) return '—';
+    if (!t.measuredMonths) return t.unknownMonths ? '— (contratto non ancora in archivio)' : '—';
+    return 'occupato ' + t.occupiedMonths + ' ' + (t.occupiedMonths === 1 ? 'mese' : 'mesi') + ' su ' + t.measuredMonths + (t.since ? ' (da ' + E.monthLabel(t.since).toLowerCase() + ')' : '') +
+      (t.unknownMonths ? ' · ' + t.unknownMonths + (t.unknownMonths === 1 ? ' mese' : ' mesi') + ' senza contratto in archivio' : '');
   }
   function pipelineText(u) {
     var pr = u.pipeline.proposal, ls = u.pipeline.listing, out = [];
@@ -407,34 +582,51 @@
       return Array.isArray(list) && !list.some(function (p) { return p.phone; });
     });
   }
-  // WhatsApp vuole il prefisso: un cellulare italiano scritto senza +39 lo riceve.
-  function waNumber(phone) {
-    var d = String(phone || '').replace(/\D/g, '');
-    if (String(phone).charAt(0) !== '+' && /^3\d{8,9}$/.test(d)) d = '39' + d;
-    return d;
+  // Il telefono passa SEMPRE da BOOM_CONTRACT_STATE.phoneIntl: un numero
+  // straniero scritto alla nazionale ('0532 123 45 67', '532 123 4567') non
+  // diventa un WhatsApp per Cuba o una telefonata a Ferrara. Senza prefisso
+  // certo niente WhatsApp, e lo si dice.
+  function phoneOf(phone) { var r = CS.phoneIntl(phone); return r && typeof r === 'object' ? r : { e164: null, wa: null, kind: 'unknown', raw: String(phone || '') }; }
+  function waNumber(phone) { return phoneOf(phone).wa || ''; }
+  // Prefissi internazionali (ITU): a una cifra 1 e 7, a due cifre questi;
+  // tutti gli altri a tre. Serve solo a scrivere il numero leggibile.
+  var CC2 = /^(2[07]|3[0-469]|4[013-9]|5[1-8]|6[0-6]|8[1246]|9[0-58])/;
+  function groupDigits(x) {
+    if (x.length === 10) return x.slice(0, 3) + ' ' + x.slice(3, 6) + ' ' + x.slice(6);
+    if (x.length === 9) return x.slice(0, 3) + ' ' + x.slice(3, 6) + ' ' + x.slice(6);
+    return x.replace(/(\d{3})(?=\d{4,})/g, '$1 ');
   }
   function fmtPhone(phone) {
-    var s = String(phone || ''), d = s.replace(/\D/g, '');
-    var g = function (x) { return x.length === 10 ? x.slice(0, 3) + ' ' + x.slice(3, 6) + ' ' + x.slice(6) : x; };
-    if (/^\+39\d{9,10}$/.test(s)) return '+39 ' + g(d.slice(2));
-    if (/^3\d{9}$/.test(s)) return g(s);
-    return s;
+    var r = phoneOf(phone);
+    if (!r.e164) return String(phone || '').trim();
+    var d = r.e164.slice(1), cl = /^[17]/.test(d) ? 1 : CC2.test(d) ? 2 : 3;
+    return '+' + d.slice(0, cl) + ' ' + groupDigits(d.slice(cl));
   }
   function rollPhone(um) {
     var list = um.occupied || um.state === 'incoming' ? contactsOf(um) : undefined;
     var p = Array.isArray(list) && list.find(function (x) { return x.phone; });
-    return p ? '<a class="plz-tel" href="tel:' + esc(p.phone) + '" aria-label="' + esc('Chiama ' + (p.name || '') + ' ' + fmtPhone(p.phone)) + '">' + esc(fmtPhone(p.phone)) + '</a>' : '';
+    if (!p) return '';
+    var ph = phoneOf(p.phone);
+    return ph.e164 ? '<a class="plz-tel" href="tel:' + esc(ph.e164) + '" aria-label="' + esc('Chiama ' + (p.name || '') + ' ' + fmtPhone(p.phone)) + '">' + esc(fmtPhone(p.phone)) + '</a>'
+      : '<span class="plz-tel plz-muted">' + esc(p.phone) + '</span>';
   }
+  function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
   function personHTML(p) {
-    var links = [];
-    if (p.phone) {
-      links.push('<a class="plz-btn plz-sm plz-primary" href="tel:' + esc(p.phone) + '">Chiama</a>');
-      links.push('<a class="plz-btn plz-sm" href="https://wa.me/' + esc(waNumber(p.phone)) + '" target="_blank" rel="noopener">WhatsApp</a>');
-    }
+    var links = [], ph = p.phone ? phoneOf(p.phone) : null, admin = viewAdmin();
+    if (ph && ph.e164) links.push('<a class="plz-btn plz-sm plz-primary" href="tel:' + esc(ph.e164) + '">Chiama</a>');
+    if (ph && ph.wa) links.push('<a class="plz-btn plz-sm" href="https://wa.me/' + esc(ph.wa) + '" target="_blank" rel="noopener">WhatsApp</a>');
     if (p.email) links.push('<a class="plz-btn plz-sm" href="mailto:' + esc(p.email) + '">Email</a>');
+    var phoneLine = !p.phone ? '<span class="plz-muted">telefono non in archivio</span>'
+      : '<span class="plz-num">' + esc(fmtPhone(p.phone)) + '</span>' + (ph.wa ? '' : '<small class="plz-warn">' + esc(phoneWhy(ph, admin)) + '</small>');
     return '<li class="plz-person"><p class="plz-person-n"><b>' + esc(p.name || 'Senza nome') + '</b>' + (p.role === 'cotenant' ? '<small>co-intestatario</small>' : '') + '</p>' +
-      '<p class="plz-person-c">' + (p.phone ? '<span class="plz-num">' + esc(fmtPhone(p.phone)) + '</span>' : '<span class="plz-muted">telefono non in archivio</span>') + (p.email ? '<span>' + esc(p.email) + '</span>' : '') + '</p>' +
+      '<p class="plz-person-c">' + phoneLine + (p.email ? '<span>' + esc(p.email) + '</span>' : '') + '</p>' +
       (links.length ? '<div class="plz-reach">' + links.join('') + '</div>' : '') + '</li>';
+  }
+  // Perché un numero non ha WhatsApp: all'operatore cosa fare, alla
+  // proprietaria cosa succede.
+  function phoneWhy(ph, admin) {
+    if (ph.kind === 'it-fixed') return admin ? 'fisso, oppure un cellulare estero senza prefisso: se è estero correggilo (es. +90 …)' : 'numero fisso: niente WhatsApp';
+    return admin ? 'numero senza prefisso internazionale: correggilo nel contratto (es. +44 …)' : 'numero da verificare con BOOM: niente WhatsApp';
   }
   function peopleHTML(u, data) {
     var um = u.month;
@@ -648,7 +840,7 @@
       (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +
       '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
       '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
-      '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' : '—') + '</dd></div>' +
+      '<div><dt>12 mesi</dt><dd>' + esc(occupiedText(u.time)) + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
       utenzeFacts(u, admin) +
       '</dl>' + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
@@ -679,6 +871,13 @@
     var P = E.LOOKS.persiane[look.persiane] || E.LOOKS.persiane[E.LOOK_DEFAULT.persiane];
     return '--wall:' + I[1] + ';--shut:' + P[1];
   }
+  // La legenda: i quattro toni, più «Prima di BOOM» SOLO quando nel mese
+  // c'è (e si riscrive al cambio mese, insieme alla luce delle finestre).
+  function keysHTML(m) {
+    return E.TONES.filter(function (t) { return t.key !== 'prima' || m.totals.before; }).map(function (t) {
+      return '<span class="plz-key" data-state="' + t.states[0] + '"><i></i>' + t.label + '</span>';
+    }).join('');
+  }
   function facade(data) {
     var m = data.m, look = m.lookView || m.look, floors = m.floors;
     var isAttic = function (f) { return f.label === 'Attico'; };
@@ -700,7 +899,6 @@
     };
     var regular = floors.filter(function (f) { return f !== attic; }).slice().reverse();
     var intro = !ui.facIntro[m.building.key] && !ui.draft;
-    var keys = E.TONES.filter(function (t) { return t.key !== 'prima' || m.totals.before; }).map(function (t) { return [t.states[0], t.label]; });
     // Il volume: la facciata è la faccia davanti di un palazzo vero — fianchi,
     // tetto a terrazza, attico arretrato, la strada come piano. I fianchi sono
     // CIECHI di proposito: dove stanno le finestre laterali non lo sappiamo.
@@ -714,8 +912,8 @@
       regular.map(row).join('') + sides + '</div>' +
       '<div class="plz-fac-ground" aria-hidden="true"></div>' +
       '</div></div></div>' +
-      (m.unplaced.length ? '<div class="plz-fac-yard"><p>Senza piano · indicalo dalla scheda</p><div class="plz-fac-bays" style="--cols:' + Math.min(6, Math.max(2, m.unplaced.length)) + '">' + m.unplaced.map(function (u, k) { return win(u, k); }).join('') + '</div></div>' : '') +
-      '<figcaption class="plz-fac-cap"><span class="plz-keys">' + keys.map(function (k) { return '<span class="plz-key" data-state="' + k[0] + '"><i></i>' + k[1] + '</span>'; }).join('') + '</span>' +
+      (m.unplaced.length ? '<div class="plz-fac-yard"><p>' + (data.admin ? 'Senza piano · indicalo dalla scheda' : 'Posizione sul piano in verifica da BOOM') + '</p><div class="plz-fac-bays" style="--cols:' + Math.min(6, Math.max(2, m.unplaced.length)) + '">' + m.unplaced.map(function (u, k) { return win(u, k); }).join('') + '</div></div>' : '') +
+      '<figcaption class="plz-fac-cap"><span class="plz-keys" id="plz-keys">' + keysHTML(m) + '</span>' +
       '<small>Una finestra per interno; la posizione sul piano è schematica e i fianchi sono ciechi. Finestre senza numero: interni non gestiti da BOOM. Trascina per girare il palazzo.' +
       (data.admin && !(look.declared.intonaco || look.declared.persiane) && !ui.draft ? ' Aspetto neutro: imposta intonaco e persiane veri qui sotto.' : '') + '</small></figcaption></figure>';
   }
@@ -774,19 +972,22 @@
   }
   function cards(data) {
     var m = data.m, admin = data.admin, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
-    var late = by(['late']).sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
-    var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant', 'incoming']), paid = by(['paid']);
-    var row = function (u, right, note, action) {
-      return '<div class="plz-srow"><button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + u.month.state + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(u.month.tenants[0] || '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>' + (action || '') + '</div>';
+    var debt = debtorsOf(m), t = m.totals;
+    var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant']), coming = by(['incoming']), paid = by(['paid']);
+    var row = function (u, right, note, action, who, dot) {
+      return '<div class="plz-srow"><button type="button" class="plz-line" data-plz="select" data-id="' + esc(u.id) + '"><i class="plz-s-' + (dot || u.month.state) + '" aria-hidden="true"></i><span><b>' + esc(unitTitle(u)) + '</b> ' + esc(who != null ? who : u.month.tenants[0] || '') + (note ? '<small>' + esc(note) + '</small>' : '') + '</span><em>' + right + '</em></button>' + (action || '') + '</div>';
     };
-    var sollecita = function (u) {
-      var r = u.month.rows.find(function (x) { return x.state === 'overdue'; });
-      return admin && r ? (adapter.rataLinks ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Sollecita</button>'
-        : '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>') : '';
+    // Sollecita: la rata scaduta più vecchia CON importo (payRow) del
+    // contratto del debito, mandata a chi la deve (data-cid).
+    var sollecita = function (x) {
+      var r = x.d.payRow;
+      if (!admin || !r) return '';
+      return adapter.rataLinks ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="rata" data-kind="sollecito" data-pay="' + esc(r.id) + '" data-id="' + esc(x.u.id) + '" data-cid="' + esc(x.d.contractId || '') + '">Sollecita</button>'
+        : '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>';
     };
     var manda = function (u) {
       var r = u.month.rows.find(function (x) { return x.state === 'due'; });
-      return admin && r && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Manda il link</button>' : '';
+      return admin && r && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(r.contractId || '') + '">Manda il link</button>' : '';
     };
     var card = function (cls, title, n, body) { return '<section class="plz-scard ' + cls + '"><h3>' + title + ' <b>' + n + '</b></h3>' + body + '</section>'; };
     var broken = m.units.filter(function (u) { return u.maintenance && u.maintenance.open.length; })
@@ -797,13 +998,20 @@
       return row(u, '<span class="plz-mpri plz-mp-' + top.priority + '">' + esc(PRI_LABEL[top.priority] || '') + '</span>', top.category + (top.createdAt ? ' · dal ' + dateIt(top.createdAt) : '') + (u.maintenance.open.length > 1 ? ' · +' + (u.maintenance.open.length - 1) : ''))
         .replace('<i class="plz-s-' + u.month.state + '"', '<i class="plz-mdot plz-mp-' + top.priority + '"');
     }).join('')) : '';
-    return card('is-late', 'Non hanno pagato', late.length, late.length ? late.map(function (u) { return row(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto', sollecita(u)); }).join('') : '<p class="plz-ok">Tutti in regola.</p>') +
+    // Un mese tutto prima della gestione: una riga sola, mai «tutti in
+    // regola» o «tutto pieno» di un mese di cui BOOM non sa niente.
+    if (m.allBefore) return '<section class="plz-scard plz-before"><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></section>' + mcard;
+    return card('is-late', 'Non hanno pagato', debt.length, debt.length ? debt.map(function (x) { return row(x.u, debtAmount(x.d), debtNote(x.d), sollecita(x), debtorName(x), 'late'); }).join('')
+        : '<p class="plz-ok">' + (t.before ? 'Nessun ritardo fra gli interni gestiti.' : 'Tutti in regola.') + '</p>') +
       (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : '', manda(u)); }).join('')) : '') +
       (check.length ? card('', 'Da verificare', check.length, check.map(function (u) { return row(u, '', stateLabel(u.month, m.month, m.currentMonth)); }).join('')) : '') +
       mcard +
-      card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">Tutto pieno.</p>') +
+      card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">' + (t.before ? 'Nessun libero fra gli interni gestiti.' : 'Tutto pieno.') + '</p>') +
+      (coming.length ? card('', 'In arrivo', coming.length, coming.map(function (u) { return row(u, '', freeNote(u)); }).join('')) : '') +
+      (t.before ? '<p class="plz-muted plz-before-note">' + (t.before === 1 ? '1 interno era' : t.before + ' interni erano') + ' prima della gestione BOOM in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': di quel mese non c’è archivio.</p>' : '') +
       '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, eur(u.month.collected || u.month.expected), ''); }).join('') + '</details>';
   }
+
   function simple(data) {
     return '<div id="plz-sbrief">' + briefHTML(data) + '</div>' +
       '<div class="plz-sgrid"><div class="plz-scol">' + facade(data) + (data.admin ? lookPanel(data) : '') + '</div>' +
@@ -828,6 +1036,7 @@
       el.classList.toggle('is-sel', u.id === ui.selected);
       var em = el.querySelector('.plz-win-plate em'); if (em) em.textContent = GLYPH[s] || '';
     });
+    var keys = doc.getElementById('plz-keys'); if (keys) keys.innerHTML = keysHTML(data.m);
   }
 
   // ── L'andamento: 12 mesi di soldi, puntualità, sfitto, scadenze ────────
@@ -844,14 +1053,20 @@
         (on ? '<span class="plz-aval">' + eur(x.collected) + '</span>' : '') + '<span class="plz-atrack" style="height:' + hE + '%"><i style="height:' + (hE ? Math.round(hC / hE * 100) : 0) + '%"></i></span><small>' + E.monthLabel(x.month, true) + '</small></button>';
     }).join('');
     var pct = function (v) { return v == null ? '—' : v + '%'; };
-    var delay = A.avgDelay == null ? 'nessun dato' : A.avgDelay < -0.4 ? 'in media ' + itNum(Math.abs(A.avgDelay)) + ' giorni prima' : A.avgDelay > 0.4 ? 'in media ' + itNum(A.avgDelay) + ' giorni dopo la scadenza' : 'in media alla scadenza';
+    var days = function (v) { return itNum(v) + (Math.abs(v) === 1 ? ' giorno' : ' giorni'); };
+    var delay = A.avgDelay == null ? 'nessun dato' : A.avgDelay < -0.4 ? 'in media ' + days(Math.abs(A.avgDelay)) + ' prima' : A.avgDelay > 0.4 ? 'in media ' + days(A.avgDelay) + ' dopo la scadenza' : 'in media alla scadenza';
+    // L'occupazione sotto i 3 mesi di gestione non è un andamento: il motore
+    // dà null, e qui si dice da quando si misura (mai «null%» né «0%»).
+    var occ = A.occupancy12 != null ? A.occupancy12 + '%' : '—';
+    var occNote = A.occupancy12 != null ? A.vacantMonths + (A.vacantMonths === 1 ? ' mese' : ' mesi') + ' di sfitto in tutto il palazzo'
+      : A.occupancyText ? (/^in misura/.test(A.occupancyText) ? 'dati ' + A.occupancyText.replace(/^in misura\s*/, '') : A.occupancyText) : 'dati da ' + (A.occupancySince ? E.monthLabel(A.occupancySince).toLowerCase() : 'pochi mesi');
     var EXP_MAX = 5, more = A.expiries.length - EXP_MAX;
     var exp = A.expiries.length ? A.expiries.slice(0, EXP_MAX).map(function (e) { return '<li><b>' + esc(e.interno ? 'Int. ' + e.interno : e.name) + '</b> ' + esc(e.tenants[0] || '') + '<em>' + dateIt(e.date) + (e.next ? ' · ' + (e.next.kind === 'reserved' ? 'nuovo inquilino pronto' : 'in trattativa') : '') + '</em></li>'; }).join('') + (more > 0 ? '<li class="plz-muted">e altri ' + more + ' · vedi Elenco</li>' : '') : '<li class="plz-muted">Nessun contratto finisce nei prossimi 12 mesi.</li>';
     return '<div class="plz-ahead"><p class="plz-eyebrow">Andamento · ultimi 12 mesi</p></div><div class="plz-agrid">' +
       '<div class="plz-acard plz-achart"><h3>Incassato su atteso, per mese</h3><div class="plz-abars" role="group" aria-label="Incassato su atteso, per mese">' + bars + '</div></div>' +
-      '<div class="plz-acard"><span>Incassato su scaduto</span><strong>' + pct(A.collectionPct) + '</strong><em>' + eur(A.collected12) + ' di ' + eur(A.expected12) + '</em></div>' +
-      '<div class="plz-acard"><span>Puntualità</span><strong>' + pct(A.onTimePct) + '</strong><em>' + A.onTime + ' rate su ' + A.paidCount + ' entro la scadenza · ' + delay + '</em></div>' +
-      '<div class="plz-acard"><span>Occupazione 12 mesi</span><strong>' + A.occupancy12 + '%</strong><em>' + A.vacantMonths + (A.vacantMonths === 1 ? ' mese' : ' mesi') + ' di sfitto in tutto il palazzo</em></div>' +
+      '<div class="plz-acard"><span>Incassato su scaduto</span><strong>' + pct(A.collectionPct) + '</strong><em>' + (A.expected12 ? eur(A.collected12) + ' di ' + eur(A.expected12) : 'nessuna rata ancora scaduta') + '</em></div>' +
+      '<div class="plz-acard"><span>Puntualità</span><strong>' + pct(A.onTimePct) + '</strong><em>' + (A.paidCount ? A.onTime + ' su ' + A.paidCount + (A.paidCount === 1 ? ' rata' : ' rate') + ' entro la scadenza · ' + delay : 'nessuna rata ancora pagata') + '</em></div>' +
+      '<div class="plz-acard"><span>Occupazione 12 mesi</span><strong>' + occ + '</strong><em>' + esc(occNote) + '</em></div>' +
       '<div class="plz-acard plz-alist"><span>Contratti che finiscono entro un anno</span><ul>' + exp + '</ul></div>' +
       '</div>';
   }
