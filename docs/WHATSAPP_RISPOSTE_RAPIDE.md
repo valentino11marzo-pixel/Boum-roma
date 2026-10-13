@@ -519,9 +519,9 @@ Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale
 
 Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. https://www.boomrome.com/canone
+Mi dica zona e metri quadri: le scrivo quanto rende. Il concordato lo calcola qui: https://www.boomrome.com/canone
 ```
-<sub>Da riempire: [NOME] — 505 caratteri</sub>
+<sub>Da riempire: [NOME] — 507 caratteri</sub>
 
 #### `/prriaffitto` · Riaffitto (mezza mensilità) ⭐
 

@@ -229,15 +229,21 @@ export async function buildContoPdf(snap) {
 
   kicker('4 · Il calcolo');
   if (r.declared) {
-    para(`${dec(r.sc)} mq convenzionali × ${dec(r.fMax)} € (massimo della fascia ${r.fascia}) = ${eur(r.fMax * r.sc)} al mese.`, 9.5);
+    para(`${dec(r.sc)} mq convenzionali × ${dec(r.fMax)} € (massimo della fascia ${r.fascia}) = ${eur(Math.floor(r.fMax * r.sc + 1e-9))} al mese.`, 9.5);
+    if (r.pct < 0) para(`Con le riduzioni (${Math.abs(r.pct)}% in meno): ${eur(r.max)} al mese.`, 9.5);
     if (r.note && r.note.length) para(`Variazioni dichiarate: ${r.note.join(', ')}.`, 9.5);
     if (r.capApplied || r.pct > 0) para('Gli aumenti si fermano al massimo di fascia: è la regola dell\'Accordo.', 9.5, GREY);
     para(`Massimo: ${eur(r.max)} al mese · minimo di fascia: ${eur(r.min)} al mese.`, 10, INK, bold);
   } else {
+    // Con una riduzione dichiarata il massimo NON è sc × fMax: si scrive il
+    // passaggio, altrimenti la riga stampa un conto che non torna.
+    const red = r.pct < 0 ? ` × (1 − ${Math.abs(r.pct)}%)` : '';
     for (const f of ['A', 'B', 'C']) {
       const v = r.fasce[f];
-      if (v) para(`Fascia ${f}: ${dec(r.sc)} mq × ${dec(v.fMax)} € = ${eur(v.max)} al mese.`, 9.5);
+      if (v) para(`Fascia ${f}: ${dec(r.sc)} mq × ${dec(v.fMax)} €${red} = ${eur(v.max)} al mese.`, 9.5);
     }
+    if (r.pct < 0) para(`Variazioni dichiarate: ${(r.note || []).join(', ')}.`, 9, GREY);
+    else if (r.pct > 0) para('Le maggiorazioni dichiarate non superano il massimo di fascia: è la regola dell\'Accordo.', 9, GREY);
   }
   if (r.sameAcrossTipi) para('Lo stesso massimo vale per il 3+2, il transitorio e il contratto per studenti: le maggiorazioni non superano il massimo di fascia.', 8.5, GREY);
   else para(`Per tipo di contratto: 3+2 ${eur(r.perTipo['32'])} · transitorio ${eur(r.perTipo.trans)} · studenti ${eur(r.perTipo.stud)} al mese.`, 8.5, GREY);

@@ -112,9 +112,24 @@
   var SOGLIE = { B: CANONE.DEFAULT_CFG.sMed, C: CANONE.DEFAULT_CFG.sMax };
 
   // ─── L'input: lista chiusa, mai un aggiustamento silenzioso ─────────────
+  /** Un numero scritto da una persona o letto da un URL. Il punto è
+   *  ambiguo: «45.5» (decimale, come lo scrive encode e un input type=number)
+   *  e «1.200» (migliaia all'italiana) sono entrambi veri. Regola: con la
+   *  virgola, i punti sono migliaia e la virgola il decimale; senza virgola,
+   *  il punto è migliaia SOLO se separa gruppi di tre cifre («1.200»,
+   *  «12.500»), altrimenti è il decimale. Prima ogni punto si toglieva, e
+   *  45,5 mq passati nell'URL diventavano 455 (massimo dieci volte più alto). */
+  function parseNum(v) {
+    if (typeof v === 'number') return v;
+    var t = String(v).trim().replace(/\s+/g, '').replace(/€/g, '');
+    if (!/^[+-]?[\d.,]+$/.test(t)) return NaN;
+    if (t.indexOf(',') !== -1) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, '');
+    return Number(t);
+  }
   function numIn(v, lo, hi) {
     if (v == null || v === '') return null;
-    var n = typeof v === 'number' ? v : parseFloat(String(v).replace(/\./g, '').replace(',', '.'));
+    var n = parseNum(v);
     if (!isFinite(n)) return NaN;
     if (n < lo || n > hi) return NaN;
     return Math.round(n * 100) / 100;
@@ -155,7 +170,8 @@
     }
     if (mag.indexOf('clA') !== -1 && mag.indexOf('clD') !== -1) errors.push('m');
     var t = raw.t == null || raw.t === '' ? '32' : String(raw.t);
-    if (!TIPI[t]) errors.push('t');
+    var tipoOk = Object.prototype.hasOwnProperty.call(TIPI, t);
+    if (!tipoOk) errors.push('t');
     var ask = numIn(raw.ask, 1, 50000); if (isNaN(ask)) { errors.push('ask'); ask = null; }
     var imu = numIn(raw.imu, 1, 100000); if (isNaN(imu)) { errors.push('imu'); imu = null; }
     var n0 = raw.n === 0 || raw.n === '0' || raw.n === false || raw.n === 'false';
@@ -164,7 +180,7 @@
       // `bp` nell'URL, `boxPre` nell'input già normalizzato (quello che la
       // pagina manda al server): le due forme valgono uguale.
       boxPre: [raw.bp, raw.boxPre].some(function (x) { return x === 1 || x === '1' || x === true; }),
-      pc: acc.pc, sc: acc.sc, ve: acc.ve, p: p, n: !n0, m: mag, t: TIPI[t] ? t : '32', ask: ask, imu: imu,
+      pc: acc.pc, sc: acc.sc, ve: acc.ve, p: p, n: !n0, m: mag, t: tipoOk ? t : '32', ask: ask, imu: imu,
     };
     return { ok: errors.length === 0, input: input, errors: errors };
   }
@@ -183,8 +199,11 @@
   }
 
   // Si arrotonda il mensile all'euro PRIMA e tutto il resto deriva da lì:
-  // schermo e PDF non possono differire di un centesimo.
-  function euro(n) { return Math.round(n); }
+  // schermo e PDF non possono differire di un centesimo. Il MASSIMO si
+  // arrotonda per difetto (mai un euro sopra il tetto di legge: €1.435,60 è
+  // €1.435, non €1.436), il minimo per eccesso.
+  function euro(n) { return Math.floor(n + 1e-9); }
+  function euroSu(n) { return Math.ceil(n - 1e-9); }
 
   /** Il conto. `inp` è l'input normalizzato. */
   function conto(inp) {
@@ -200,12 +219,12 @@
     var fasce = {};
     [['A', 0], ['B', SOGLIE.B], ['C', SOGLIE.C]].forEach(function (f) {
       var r = CANONE.computeCanone(engineInput(inp, f[1]));
-      fasce[f[0]] = { max: euro(r.cMax), min: euro(r.cMin), fMin: r.fMin, fMax: r.fMax };
+      fasce[f[0]] = { max: euro(r.cMax), min: euroSu(r.cMin), fMin: r.fMin, fMax: r.fMax };
     });
     if (!inp.n) { fasce.B = null; fasce.C = null; }
 
     var max = declared ? euro(calc.cMax) : null;
-    var min = declared ? euro(calc.cMin) : null;
+    var min = declared ? euroSu(calc.cMin) : null;
 
     // Per tipo di contratto: di norma lo stesso (gli aumenti si fermano al
     // massimo di fascia); cambia solo quando una riduzione è dichiarata.
@@ -330,11 +349,15 @@
       head = en
         ? 'My home in ' + where + ': agreed rent (canone concordato) up to ' + fmtEur(r.max, lang) + ' a month, band ' + r.fascia + ' (' + r.nP + ' of 20 features).'
         : 'Il conto della casa a ' + where + ': a canone concordato fino a ' + fmtEur(r.max, lang) + ' al mese, fascia ' + r.fascia + ' (' + r.nP + ' dotazioni su 20).';
-    } else {
-      var hi = r.fasce.C ? r.fasce.C.max : r.fasce.A.max;
+    } else if (!r.fasce.C) {
+      // Impianti non tutti funzionanti: l'Accordo applica la fascia A, un numero solo.
       head = en
-        ? 'My home in ' + where + ': agreed rent (canone concordato) with a maximum between ' + fmtEur(r.fasce.A.max, lang) + ' and ' + fmtEur(hi, lang) + ' a month, depending on its features.'
-        : 'Il conto della casa a ' + where + ': a canone concordato il massimo è tra ' + fmtEur(r.fasce.A.max, lang) + ' e ' + fmtEur(hi, lang) + ' al mese, secondo le dotazioni.';
+        ? 'My home in ' + where + ': agreed rent (canone concordato) up to ' + fmtEur(r.fasce.A.max, lang) + ' a month (band A).'
+        : 'Il conto della casa a ' + where + ': a canone concordato fino a ' + fmtEur(r.fasce.A.max, lang) + ' al mese (fascia A).';
+    } else {
+      head = en
+        ? 'My home in ' + where + ': agreed rent (canone concordato) with a maximum between ' + fmtEur(r.fasce.A.max, lang) + ' and ' + fmtEur(r.fasce.C.max, lang) + ' a month, depending on its features.'
+        : 'Il conto della casa a ' + where + ': a canone concordato il massimo è tra ' + fmtEur(r.fasce.A.max, lang) + ' e ' + fmtEur(r.fasce.C.max, lang) + ' al mese, secondo le dotazioni.';
     }
     var lines = [head];
     if (r.declared && r.pareggioLibero) {
@@ -345,6 +368,15 @@
     lines.push(en ? 'Rome territorial agreement tables (2023). Estimate, not the attestation.' : 'Tabelle dell\'Accordo territoriale di Roma (2023). Stima, non è l\'attestazione.');
     if (url) lines.push(url);
     return lines.join('\n');
+  }
+
+  /** Il massimo in una riga: «€1.288» se c'è un numero solo (dotazioni
+   *  dette, o fascia A obbligata), «tra €896 e €1.540» altrimenti. */
+  function rangeText(r, lang) {
+    if (!r || !r.ok) return '';
+    if (r.declared) return fmtEur(r.max, lang);
+    if (!r.fasce.C) return fmtEur(r.fasce.A.max, lang);
+    return (lang === 'en' ? 'between ' : 'tra ') + fmtEur(r.fasce.A.max, lang) + (lang === 'en' ? ' and ' : ' e ') + fmtEur(r.fasce.C.max, lang);
   }
 
   // ─── Il mercato (il Perito): solo coppie certe zona Accordo → zona mercato ─
@@ -388,7 +420,7 @@
     VERSION: VERSION, ZONES: ZONES, PARAMETRI: CANONE.PARAMETRI, MAG_PUBLIC: MAG_PUBLIC, TIPI: TIPI,
     PRICES: PRICES, SOGLIE: SOGLIE, MARKET_OF: MARKET_OF,
     searchZones: searchZones, normalize: normalize, conto: conto, encode: encode, decode: decode,
-    shareText: shareText, marketFor: marketFor, fmtEur: fmtEur, fmtNum: fmtNum, fold: fold,
+    shareText: shareText, rangeText: rangeText, marketFor: marketFor, fmtEur: fmtEur, fmtNum: fmtNum, fold: fold,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

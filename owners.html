@@ -316,6 +316,7 @@ body{--t4:rgba(255,255,255,.44)}
 .zline b{color:#FFD700;font-weight:600}
 .zline a{color:var(--t1);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .sent .pdf{display:inline-block;margin-top:12px;color:var(--t1);text-decoration:underline;text-underline-offset:3px}
+.sent .pdf[hidden]{display:none}
 .fhint:empty{margin:0;padding:0;border:0}
 .tax{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap;margin-top:14px;padding:14px 18px;border:1px solid var(--line-soft);border-radius:14px;background:var(--gold-faint);font-size:12.5px;color:var(--t2);line-height:1.6}
 .tax .mono{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3)}
@@ -551,7 +552,7 @@ html {
           </div>
           <div class="frow two">
             <div class="fld"><label for="fZone"><span class="l-it">Zona o indirizzo</span><span class="l-en">Area or address</span></label><input id="fZone" autocomplete="street-address" placeholder="Prati, via Cola di Rienzo…"></div>
-            <div class="fld"><label for="fSqm"><span class="l-it">Metri quadri</span><span class="l-en">Size (sqm)</span></label><input id="fSqm" inputmode="numeric" placeholder="65"></div>
+            <div class="fld"><label for="fSqm"><span class="l-it">Metri quadri calpestabili</span><span class="l-en">Walkable size (sqm)</span></label><input id="fSqm" inputmode="decimal" placeholder="65"></div>
           </div>
           <!-- il conto nella porta: una zona dell'Accordo e i metri bastano per
                il massimo a canone concordato (js/conto-engine.js). La zona la
@@ -1031,7 +1032,9 @@ function zoneMatches(t){
   var head=String(t).split(/[,;·–—]| - /)[0].trim();
   return head&&head!==t.trim()?C.searchZones(head,3):[];
 }
-function zoneMq(){var n=parseFloat((document.getElementById('fSqm').value||'').replace(/\./g,'').replace(',','.'));return n>=10&&n<=600?n:null;}
+// I metri si leggono col motore (decimali col punto o con la virgola):
+// «45.5» non diventa 455.
+function zoneMq(){var C=window.BOOM_CONTO;if(!C)return null;var n=C.normalize({z:'C40',mq:document.getElementById('fSqm').value});return n.errors.indexOf('mq')===-1?n.input.mq:null;}
 function renderConto(){
   var C=window.BOOM_CONTO,box=document.getElementById('zConto');
   if(!C||!box)return;
@@ -1047,11 +1050,11 @@ function renderConto(){
   var mq=zoneMq(),r=null;
   if(ZC.cod&&mq){var n=C.normalize({z:ZC.cod,mq:mq});if(n.ok)r=C.conto(n.input);}
   if(r&&r.ok){
-    var E=function(v){return C.fmtEur(v,en?'en':'it')},hi=(r.fasce.C||r.fasce.A).max;
+    var E=function(v){return C.fmtEur(v,en?'en':'it')};
     var href='/canone?'+C.encode(r.input);
     line.innerHTML=en
-      ?'On agreed rent (canone concordato), for <b>'+r.zone.label+'</b> and '+C.fmtNum(mq,0,'en')+' sqm the maximum is between <b>'+E(r.fasce.A.max)+'</b> and <b>'+E(hi)+'</b> a month, depending on its features. <a href="'+href+'">Full calculation →</a>'
-      :'A canone concordato, per <b>'+r.zone.label+'</b> e '+C.fmtNum(mq,0,'it')+' mq il massimo è tra <b>'+E(r.fasce.A.max)+'</b> e <b>'+E(hi)+'</b> al mese, secondo le dotazioni. <a href="'+href+'">Il conto completo →</a>';
+      ?'On agreed rent (canone concordato), for <b>'+r.zone.label+'</b> and '+C.fmtNum(mq,mq%1?1:0,'en')+' sqm (walkable) the maximum is between <b>'+E(r.fasce.A.max)+'</b> and <b>'+E(r.fasce.C.max)+'</b> a month, depending on its features. <a href="'+href+'">Full calculation →</a>'
+      :'A canone concordato, per <b>'+r.zone.label+'</b> e '+C.fmtNum(mq,mq%1?1:0,'it')+' mq calpestabili il massimo è tra <b>'+E(r.fasce.A.max)+'</b> e <b>'+E(r.fasce.C.max)+'</b> al mese, secondo le dotazioni. <a href="'+href+'">Il conto completo →</a>';
     line.hidden=false;
     if(!ZC.seen){ZC.seen=true;boomTrack('conto_result',{zone:r.zone.cod,source_page:'owners'});}
   }else line.hidden=true;

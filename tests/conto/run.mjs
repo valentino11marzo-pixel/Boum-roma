@@ -49,9 +49,10 @@ section('il motore: il massimo non supera mai la fascia, su tutte le zone');
     n++;
     for (const f of ['A', 'B', 'C']) {
       const v = r.fasce[f];
-      if (v && v.max > Math.round(v.fMax * r.sc) + 0.5) over.push([z.cod, mq, f, v.max, v.fMax, r.sc]);
+      // Stretto: nemmeno un euro di arrotondamento sopra il tetto (era Math.round).
+      if (v && v.max > v.fMax * r.sc + 1e-9) over.push([z.cod, mq, f, v.max, v.fMax, r.sc]);
     }
-    if (r.declared && r.max > Math.round(r.fMax * r.sc) + 0.5) over.push([z.cod, mq, 'decl', r.max]);
+    if (r.declared && r.max > r.fMax * r.sc + 1e-9) over.push([z.cod, mq, 'decl', r.max]);
     if (r.declared && (r.max < r.min)) incoh.push([z.cod, mq, 'max<min']);
     if (!r.declared && !(r.fasce.A.max <= r.fasce.B.max && r.fasce.B.max <= r.fasce.C.max)) incoh.push([z.cod, mq, 'fasce non crescenti']);
   }
@@ -103,12 +104,22 @@ section('il motore: il massimo non supera mai la fascia, su tutte le zone');
   const drift = inputs.filter(raw => { const a = CONTO.normalize(raw).input; const b = CONTO.normalize(a); return !b.ok || JSON.stringify(b.input) !== JSON.stringify(a); });
   ok('normalize è idempotente: il server rilegge l\'input della pagina senza perdere nulla', drift.length === 0, drift);
   ok('una versione sconosciuta si rifiuta, non si reinterpreta', CONTO.decode('v=2&z=C40&mq=60').error === 'versione');
+  // Il difetto più caro trovato dalla revisione: ogni punto si toglieva, e
+  // 45,5 mq nell'URL diventavano 455 (massimo dieci volte più alto).
+  const nums = [['45.5', 45.5], ['45,5', 45.5], ['65', 65], ['600', 600]].filter(([v, want]) => CONTO.normalize({ z: 'C40', mq: v }).input.mq !== want);
+  const imus = [['1.200', 1200], ['12.500', 12500], ['1.200,50', 1200.5], ['850.5', 850.5]].filter(([v, want]) => CONTO.normalize({ z: 'C40', mq: 60, imu: v }).input.imu !== want);
+  ok('i decimali col punto restano decimali, le migliaia all\'italiana restano migliaia', nums.length === 0 && imus.length === 0, { nums, imus });
+  ok('45,5 mq passano dall\'URL e tornano 45,5', CONTO.decode(CONTO.encode(CONTO.normalize({ z: 'C40', mq: 45.5 }).input)).input.mq === 45.5);
+  ok('un tipo che è una chiave di Object.prototype si rifiuta', ['constructor', '__proto__', 'toString'].every(t => CONTO.normalize({ z: 'C40', mq: 60, t }).errors.includes('t')));
   ok('senza zona: niente conto, niente errore', CONTO.decode('?zona=Prati&mq=65&canone=2262').empty === true);
 }
 {
   const r = CONTO.conto(CONTO.normalize({ z: 'C40', mq: 65, p: [0, 3, 6] }).input);
   const t = CONTO.shareText(r, 'it', 'https://www.boomrome.com/canone?' + CONTO.encode(r.input));
   ok('il testo da condividere: zona, metri, numero e link — nessun dato personale', /Prati/.test(t) && /65 mq/.test(t) && t.includes(CONTO.fmtEur(r.max, 'it')) && !/@|\+39|\b3\d{9}\b/.test(t) && /Stima, non è l'attestazione/.test(t));
+  const a0 = CONTO.conto(CONTO.normalize({ z: 'C40', mq: 65, n: 0 }).input);
+  const t0 = CONTO.shareText(a0, 'it');
+  ok('impianti non a norma e dotazioni non dette: un numero solo, mai «tra €X e €X»', !/tra (€[\d.]+) e \1/.test(t0) && /fino a €/.test(t0) && CONTO.rangeText(a0, 'it') === CONTO.fmtEur(a0.fasce.A.max, 'it'), t0);
   ok('migliaia deterministiche (mai toLocaleString)', CONTO.fmtEur(1288, 'it') === '€1.288' && CONTO.fmtEur(1288, 'en') === '€1,288');
 }
 {
@@ -226,9 +237,39 @@ let first;
   const r = await post({ ...BASE, calc: { v: 1, z: 'B14', mq: 42 } });
   const after = [...store.keys()].filter(k => k.startsWith('leads/')).length;
   const lead = docJs([...store.keys()].find(k => k.startsWith('leads/') && docJs(k).phone === '+39 333 123 4567'));
-  ok('lo stesso numero entro 30 giorni: nessun lead nuovo, il conto si aggiunge', r.code === 200 && r.payload.merged === true && after === before, { before, after });
+  ok('lo stesso numero entro 30 giorni: nessun lead nuovo, il conto si aggiunge', r.code === 200 && after === before, { before, after });
+  ok('...e la risposta è uguale a quella di un lead nuovo (non dice che il lead esisteva)', !('merged' in r.payload) && !('id' in r.payload) && Object.keys(r.payload).sort().join() === 'ok,pdfUrl,ref', r.payload);
+  ok('...l\'unione RIEMPIE, non sovrascrive: zona e metri restano quelli della prima casa', lead.owner.zone === 'Prati (C40)' && lead.owner.sqm === 65, lead.owner);
   ok('...l\'ultimo conto in testa, lo storico in owner.conti', lead.owner.conto.zone.cod === 'B14' && lead.owner.conti.length === 2 && lead.owner.conti[1].zone.cod === 'C40');
   ok('...e niente seconda card a pochi minuti dalla prima', !calls.some(c => c.u.includes('sendMessage')));
+}
+{
+  // Lo stesso numero scritto in un altro modo, con l'email in più: stesso
+  // lead, l'email si aggiunge, la nota si accoda.
+  const r = await post({ ...BASE, contact: 'giulia@example.it 3331234567', freeFrom: 'rented', message: 'libera da gennaio', calc: { v: 1, z: 'C40', mq: 70 } });
+  const leads = [...store.keys()].filter(k => k.startsWith('leads/')).map(k => [k, docJs(k)]);
+  const mine = leads.filter(([, l]) => l.phoneNorm === '+393331234567' || l.phone === '+39 333 123 4567');
+  ok('«3331234567» è lo stesso proprietario di «+39 333 123 4567»: un lead solo', r.code === 200 && mine.length === 1, mine.map(([k]) => k));
+  ok('...l\'email che prima mancava si aggiunge, e la nota si accoda', mine[0] && mine[0][1].email === 'giulia@example.it' && /libera da gennaio/.test(mine[0][1].owner.note || ''), mine[0] && mine[0][1]);
+  ok('...e una risposta già data non si sovrascrive da un invio non verificato («libera» resta «libera»)', mine[0] && mine[0][1].owner.freeFrom === 'now', mine[0] && mine[0][1].owner.freeFrom);
+}
+{
+  // Una scrittura dell'unione che fallisce non perde il proprietario.
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts = {}) => (String(url).includes('firestore') && (opts.method || 'GET') === 'PATCH')
+    ? { ok: false, status: 503, text: async () => 'down', json: async () => ({}) } : origFetch(url, opts);
+  const before = [...store.keys()].filter(k => k.startsWith('leads/')).length;
+  const r = await post({ ...BASE, calc: { v: 1, z: 'B14', mq: 42 } });
+  globalThis.fetch = origFetch;
+  const after = [...store.keys()].filter(k => k.startsWith('leads/')).length;
+  ok('unione fallita: nasce un lead nuovo, mai un 200 su un dato perso', r.code === 200 && after === before + 1, { before, after });
+}
+{
+  const { ownerReplyText } = await import('../../api/_market.js');
+  const c = mod.contoSummary(mod.serverConto({ z: 'C40', mq: 65 }), { pdfUrl: 'https://www.boomrome.com/api/owner-lead?pdf=x&t=y' });
+  const relet = ownerReplyText({ name: 'Anna', owner: { lang: 'it', goal: 'relet', zone: 'Prati', conto: c } });
+  const full = ownerReplyText({ name: 'Anna', owner: { lang: 'it', goal: 'full', zone: 'Prati', conto: c } });
+  ok('chi chiede di riaffittare o di farla gestire riceve la risposta del SUO passo, col conto in una riga', /riaffittare/.test(relet) && /Ho visto anche il conto/.test(relet) && /Ho visto anche il conto/.test(full) && !/Ho visto il conto che ha fatto per la sua casa/.test(full), { relet, full });
 }
 {
   const id = new URL(first.pdfUrl).searchParams.get('pdf');
@@ -254,6 +295,16 @@ let first;
   ok('il PDF stampa il massimo del motore e la fonte (Accordo, protocollo)', txt.includes('\x80' + String(engine.max).replace(/\B(?=(\d{3})+(?!\d))/g, '.')) && txt.includes('RA/2023/0044852'), txt.slice(0, 300));
   ok('...dice cosa NON è, su ogni pagina, col riferimento', (txt.match(/non è l'attestazione di rispondenza né una perizia/g) || []).length >= 2 && txt.includes(first.ref));
   ok('...e non porta nome né recapiti', !/Giulia|Rossi|333 123/.test(txt));
+  {
+    // Pagina 2 con dotazioni non dette e una riduzione: il passaggio si scrive.
+    const { buildContoPdf } = await import('../../api/owners/_conto-pdf.js');
+    const rr = CONTO.conto(CONTO.normalize({ z: 'D29', mq: 95, m: ['asc'] }).input);
+    const b2 = Buffer.from(await buildContoPdf({ ref: 'CNT-AAAAAA', at: '2026-10-13T09:00:00Z', result: rr, prices: CONTO.PRICES, parametri: CONTO.PARAMETRI }));
+    const bin2 = b2.toString('latin1'); let pl2 = '';
+    for (const m of bin2.matchAll(/stream\r?\n/g)) { const st = m.index + m[0].length; try { pl2 += zlib.inflateSync(b2.subarray(st, bin2.indexOf('endstream', st))).toString('latin1'); } catch {} }
+    const t2 = [...pl2.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)].map(m => Buffer.from(m[1], 'hex').toString('latin1')).join(' ');
+    ok('PDF: con una riduzione dichiarata la scheda scrive «× (1 − 10%)», il conto torna', /× \(1 [−-] 10%\) = \x80/.test(t2.replace(/\xd7/g, '×')) || /\xd7 \(1 . 10%\)/.test(t2), t2.slice(t2.indexOf('Fascia A:'), t2.indexOf('Fascia A:') + 80));
+  }
   ok('...e i prezzi sono quelli del codice, IVA inclusa', txt.includes('\x80' + CONTO.PRICES.pacchetto + ' IVA inclusa') && txt.includes('\x80' + CONTO.PRICES.primaLocazione + ' IVA inclusa'));
 }
 {
@@ -286,6 +337,10 @@ const strip = h => h.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\
   const vp = strip(pack);
   ok('Pacchetto: €349 IVA inclusa, e la tariffa dell\'organizzazione detta a parte', /€349 IVA inclusa/.test(vp) && /tariffa dell'organizzazione firmataria per l'attestazione è a parte/.test(vp));
   ok('Pacchetto: la scadenza RLI giusta (30 giorni dalla stipula o dalla decorrenza se prima)', /30 giorni dalla stipula, o dalla decorrenza se viene prima/.test(vp));
+  ok('Pacchetto: la spunta contiene la presa d\'atto della perdita del recesso (art. 59 Cod. cons.) e il modo di recedere', /prendo atto che a pratica completata il recesso non sarà più possibile/.test(vp) && /con una email a hello@boom-rome\.com/.test(vp));
+  ok('Pacchetto: le 48 ore partono dalla pratica, non dal pagamento', /da quando la pratica parte/.test(vp) && !/Verifica del canone<\/b><span>[^<]*entro 48 ore dai dati\.<\/span>/.test(pack));
+  ok('Pacchetto: il registro senza cedolare non è detto «tutto a suo carico»', !/restano a suo carico/.test(vp));
+  ok('Pacchetto: il proprietario si tratta col Lei anche nell\'email di conferma', !/rispondi a questa email|scrivici su WhatsApp — risponde/.test(read('api/stripe-webhook.js')) && /Per recedere entro 14 giorni basta una email/.test(read('api/stripe-webhook.js')));
   ok('Pacchetto: il recesso è detto, e l\'inizio immediato è una spunta SUA, mai pre-selezionata',
     /Recesso: 14 giorni/.test(vp) && /<input type="checkbox" id="sStart">/.test(pack) && /startNow:startNow/.test(pack));
   const sc = read('api/service-checkout.js'), wh = read('api/stripe-webhook.js');
@@ -372,6 +427,28 @@ if (!chromium) {
       ok('/owners: il modulo manda la zona e i metri, mai un numero calcolato', s && s.calc && s.calc.z === 'C40' && s.calc.mq === 65 && !('max' in s.calc) && s.sourceRef === 'owners', s && s.calc);
       ok('/owners: il PDF del conto compare nel «fascicolo aperto»', await pg.isVisible('#fPdf') && errs.length === 0, errs);
       await pg.close();
+    }
+    {
+      // Senza conto (zona fuori dall'Accordo) il server non dà un PDF: il link
+      // NON deve comparire (la classe vinceva sull'attributo hidden).
+      const { pg } = await page('/owners');
+      await pg.route('**/api/owner-lead', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"ref":null,"pdfUrl":null}' }));
+      await pg.fill('#fName', 'Giulia Rossi'); await pg.fill('#fContact', '+39 333 123 4567'); await pg.fill('#fZone', 'Fiumicino');
+      await pg.click('#fGo'); await pg.waitForTimeout(250);
+      ok('/owners senza conto: nessun link a un PDF che non esiste', (await pg.isVisible('#fDone')) && !(await pg.isVisible('#fPdf')));
+      await pg.close();
+    }
+    {
+      const { pg } = await page('/canone?v=1&z=C40&mq=65');
+      await pg.route('**/api/owner-lead', r => r.fulfill({ status: 200, contentType: 'application/json', body: '{"ok":true,"ref":null,"pdfUrl":null}' }));
+      await pg.fill('#gName', 'Giulia Rossi'); await pg.fill('#gContact', '+39 333 123 4567');
+      await pg.click('#gGo'); await pg.waitForTimeout(250);
+      ok('/canone senza PDF dal server: niente bottone «Apra il PDF» verso «#»', (await pg.isVisible('#done')) && !(await pg.isVisible('#dPdf')));
+      const { pg: p2 } = await page('/canone?v=1&z=C40&mq=45.5');
+      const big = await p2.textContent('#rBig');
+      const e455 = CONTO.conto(CONTO.normalize({ z: 'C40', mq: 45.5 }).input);
+      ok('/canone con 45,5 mq nell\'indirizzo: il numero è quello di 45,5 mq, non di 455', big.includes(CONTO.fmtEur(e455.fasce.A.max, 'it')) && e455.input.mq === 45.5, big);
+      await pg.close(); await p2.close();
     }
   } finally {
     await br.close(); srv.close();

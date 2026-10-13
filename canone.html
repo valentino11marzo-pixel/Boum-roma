@@ -196,6 +196,7 @@ section[id]{scroll-margin-top:150px}
 .gate select.inp{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);background-position:calc(100% - 19px) 22px,calc(100% - 14px) 22px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 .go{display:flex;width:100%;justify-content:center;align-items:center;gap:8px;margin-top:12px;background:linear-gradient(135deg,var(--gold),#d9b400);color:#1a1407;font-weight:600;border-radius:100px;padding:15px 20px;font-size:15px;transition:transform .25s var(--ease),opacity .25s}
 .go:hover{transform:translateY(-1px)}
+.go[hidden]{display:none}
 .go[disabled]{opacity:.6;cursor:wait}
 .consent{font-size:12px;color:var(--t3);margin-top:10px;line-height:1.55;text-align:center}
 .consent a{color:var(--t2);text-decoration:underline}
@@ -799,7 +800,7 @@ html {
 
     var notes = [];
     if (!r.sameAcrossTipi) {
-      notes.push('<p class="note">Con le riduzioni indicate il massimo cambia col contratto: 3+2 ' + E(r.perTipo['32']) + ' · transitorio ' + E(r.perTipo.trans) + ' · studenti ' + E(r.perTipo.stud) + '.</p>');
+      notes.push('<p class="note">Con le riduzioni indicate il massimo cambia col contratto' + (r.declared ? '' : ' (qui in fascia A)') + ': 3+2 ' + E(r.perTipo['32']) + ' · transitorio ' + E(r.perTipo.trans) + ' · studenti ' + E(r.perTipo.stud) + '.</p>');
     } else {
       notes.push('<p class="note">Uguale per 3+2, transitorio e studenti: gli aumenti si fermano al massimo di fascia.</p>');
     }
@@ -873,7 +874,10 @@ html {
   var lastQs = '';
   function update() {
     var nn = C.normalize(raw());
-    var r = state.z && nn.input.mq && nn.errors.filter(function (e) { return e !== 'zona' && e !== 'mq'; }).length === 0
+    // Un campo FACOLTATIVO sbagliato (IMU, cifra in mente, pertinenze) non
+    // spegne il conto: quel valore non si conta e lo si dice sotto il numero.
+    var bad = nn.errors.filter(function (e) { return e !== 'zona' && e !== 'mq'; });
+    var r = state.z && nn.input.mq && nn.errors.indexOf('zona') === -1 && nn.errors.indexOf('mq') === -1
       ? C.conto(nn.input) : null;
     var nP = state.p ? state.p.length : 0;
     $('stP').innerHTML = state.p ? '<b>' + nP + '</b> su 20' + (r && r.declared ? ' · fascia <b>' + r.fascia + '</b>' : '') : 'non dichiarate';
@@ -893,6 +897,11 @@ html {
     }
     last = r;
     render(r);
+    if (bad.length) {
+      var LBL = { bal: 'balconi e cantine', box: 'box', pc: 'posto auto comune', sc: 'giardino', ve: 'verde condominiale', ask: 'canone in mente', imu: 'IMU annua', p: 'dotazioni', m: 'caratteristiche', t: 'tipo di contratto' };
+      $('rNotes').insertAdjacentHTML('afterbegin', '<p class="note warn">Questo valore non è valido e non è stato contato: ' +
+        bad.map(function (k) { return LBL[k] || k; }).join(', ') + '. Lo controlli.</p>');
+    }
     $('act').hidden = false;
     var qs = C.encode(r.input);
     if (qs !== lastQs) {

@@ -262,7 +262,7 @@ console.log('\n\x1b[1m▸ le guardie stanno dove si spende\x1b[0m');
   ok('il Commerciale tace sui B2B PRIMA di redigere', com.indexOf('if (isB2B(lead)) continue;') > -1
     && com.indexOf('if (isB2B(lead)) continue;') < com.indexOf('proposeFirstReply(lead'));
   const src = read('api/owner-lead.js');
-  const i = src.indexOf("return res.status(200).json({ ...reply, id });");
+  const i = src.lastIndexOf("return res.status(200).json(reply);");
   const before = src.slice(0, i);
   const ping = src.slice(src.indexOf('async function pingOwner('), src.indexOf('async function servePdf('));
   ok('ogni scrittura dell\'endpoint è ATTESA prima della risposta',

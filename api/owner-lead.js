@@ -45,7 +45,7 @@
 
 import crypto from 'node:crypto';
 import { fsCreate, fsPatch, fsGet, fsList, logActivity } from './homie/_lib.js';
-import { phoneVariants } from './homie/_lead.js';
+import { phoneVariants, normalizePhone } from './homie/_lead.js';
 import { tgSend } from './telegram/_lib.js';
 import { b2bReplyText } from './_market.js';
 import CONTO from '../js/conto-engine.js';
@@ -141,7 +141,14 @@ async function recentOwnerLead({ email, phone }, now = Date.now()) {
   const seen = new Map();
   const probes = [];
   if (email) probes.push(['email', email]);
-  if (phone) for (const v of phoneVariants(phone)) probes.push(['phone', v]);
+  if (phone) {
+    // `phoneNorm` è la forma unica scritta alla porta: «+39 333 123 4567» e
+    // «3331234567» sono lo stesso proprietario. Le varianti coprono i lead
+    // nati prima, salvati così come erano stati scritti.
+    const norm = normalizePhone(phone);
+    if (norm) probes.push(['phoneNorm', norm]);
+    for (const v of phoneVariants(phone)) probes.push(['phone', v]);
+  }
   for (const [field, value] of probes) {
     try {
       const rows = await withTimeout(fsList('leads', { filter: { field, op: 'EQUAL', value }, limit: 5 }), 3000, 'dedupe_timeout');
@@ -262,6 +269,10 @@ export default async function handler(req, res) {
     lang: body.lang === 'en' ? 'en' : 'it',
   };
   const sourceRef = body.sourceRef === 'canone' ? 'canone' : 'owners';
+  // Ciò che il proprietario ha SCRITTO in questo invio, prima che il conto
+  // riempia zona, metri e richiesta per un lead nuovo: in un'unione si usa
+  // solo questo, e mai per sovrascrivere.
+  const provided = { ...owner };
 
   // Il conto: ricalcolato QUI, congelato in ownerConti prima del lead.
   const r = serverConto(body.calc);
@@ -287,23 +298,41 @@ export default async function handler(req, res) {
     owner.conto = conto;
   }
   const summary = ownerSummary(owner);
+  // La risposta è la STESSA per un lead nuovo e per un'unione: chi conosce
+  // l'email di un altro non deve poter sapere se quel proprietario ci ha già
+  // scritto.
   const reply = { ok: true, ref: conto ? conto.ref : null, pdfUrl: conto ? conto.pdfUrl : null };
 
-  // Lo stesso proprietario entro 30 giorni: si aggiorna il suo lead.
+  // Lo stesso proprietario entro 30 giorni: si aggiunge al suo lead, senza
+  // togliere niente. Il recapito non è verificato, quindi un'unione può solo
+  // RIEMPIRE ciò che manca (una risposta già data non si sovrascrive), le note
+  // si accodano e i conti si aggiungono allo storico. Se la scrittura fallisce
+  // nasce un lead nuovo: un proprietario non si perde mai per un'unione.
   const prev = await recentOwnerLead({ email: hasEmail ? email : null, phone: hasPhone ? phone : null });
   if (prev) {
     const old = prev.owner || {};
     const merged = { ...old };
-    for (const [k, v] of Object.entries(owner)) if (v != null && k !== 'conto') merged[k] = v;
+    for (const [k, v] of Object.entries(provided)) {
+      if (v == null || k === 'conto' || k === 'note' || k === 'lang') continue;
+      if (merged[k] == null || merged[k] === '') merged[k] = v;
+    }
+    if (provided.note && provided.note !== old.note) merged.note = [old.note, provided.note].filter(Boolean).join(' · ').slice(0, 1000);
+    if (!merged.zone && conto) merged.zone = `${conto.zone.label} (${conto.zone.cod})`;
+    if (!merged.sqm && conto) merged.sqm = conto.mq;
     if (conto) { merged.conto = conto; merged.conti = [conto, ...(Array.isArray(old.conti) ? old.conti : old.conto ? [old.conto] : [])].slice(0, 10); }
     merged.at = new Date().toISOString();
     const patch = { owner: merged, message: ownerSummary(merged), notes: ownerSummary(merged), updatedAt: new Date(), lastOwnerContactAt: new Date() };
-    try { await fsPatch(`leads/${prev.id}`, patch); }
-    catch (e) { console.warn('[owner-lead] merge failed:', e.message); }
-    await logActivity('Proprietario: nuovo conto sullo stesso lead', 'lead', { leadId: prev.id, zone: merged.zone, ref: reply.ref }, 'owner-lead').catch(() => {});
-    const last = prev.telegramNotifiedAt ? new Date(prev.telegramNotifiedAt).getTime() : 0;
-    if (last && Date.now() - last > REPING_MS) await pingOwner({ ...prev, ...patch, name: prev.name || name, id: prev.id, sourceRef }, true);
-    return res.status(200).json({ ...reply, id: prev.id, merged: true });
+    if (!prev.email && hasEmail) patch.email = email;
+    if (!prev.phone && hasPhone) { patch.phone = phone; patch.phoneNorm = normalizePhone(phone) || null; }
+    let mergedOk = false;
+    try { await fsPatch(`leads/${prev.id}`, patch); mergedOk = true; }
+    catch (e) { console.warn('[owner-lead] merge failed, nuovo lead:', e.message); }
+    if (mergedOk) {
+      await logActivity('Proprietario: nuovo conto sullo stesso lead', 'lead', { leadId: prev.id, zone: merged.zone, ref: reply.ref }, 'owner-lead').catch(() => {});
+      const last = prev.telegramNotifiedAt ? new Date(prev.telegramNotifiedAt).getTime() : 0;
+      if (last && Date.now() - last > REPING_MS) await pingOwner({ ...prev, ...patch, name: prev.name || name, id: prev.id, sourceRef }, true);
+      return res.status(200).json(reply);
+    }
   }
 
   const { conto: _c, ...rawOwner } = owner;
@@ -315,6 +344,7 @@ export default async function handler(req, res) {
     leadType: 'landlord',          // offre una casa — NON cerca casa
     intent: 'owner',
     name, email: hasEmail ? email : null, phone: hasPhone ? phone : null,
+    phoneNorm: hasPhone ? (normalizePhone(phone) || null) : null,
     message: summary,
     notes: summary,
     // La pagina è italiana col suo interruttore inglese: la scelta del
@@ -350,7 +380,7 @@ export default async function handler(req, res) {
     { leadId: id, zone: owner.zone, goal: owner.goal, ref: reply.ref }, 'owner-lead').catch(() => {});
 
   await pingOwner({ ...lead, id });
-  return res.status(200).json({ ...reply, id });
+  return res.status(200).json(reply);
 }
 
 // La card, alla porta. Tetto di 5s: una risposta al proprietario non

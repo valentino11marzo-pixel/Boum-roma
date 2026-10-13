@@ -302,7 +302,7 @@ const SERVICE_META = {
   'concordato-pack': {
     title: 'Pacchetto Concordato', emoji: '🏛️', lang: 'it',
     next1: ['Ci mandi i dati dell\'immobile', 'Risponda a questa email: visura o vecchio contratto'],
-    next2: ['Verifica del canone', 'Entro 48 ore dai dati: fascia, massimo e bozza del contratto'],
+    next2: ['Verifica del canone', 'Entro 48 ore dai dati, da quando la pratica parte: fascia, massimo e bozza del contratto'],
     next3: ['Attestazione di rispondenza', 'Pratica seguita con l\'organizzazione firmataria (tariffa a parte, detta prima)'],
     next4: ['Registrazione RLI', 'Contratto registrato e fascicolo completo in PDF'],
   },
@@ -387,7 +387,14 @@ async function handleService(res, session, m) {
       r3_icon: '✓', r3_label: (meta.next3 || ['—'])[0], r3_value: (meta.next3 || ['', ''])[1],
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
       closing: it
-        ? 'Per qualsiasi cosa rispondi a questa email o scrivici su WhatsApp — risponde una persona, entro 2 ore.'
+        ? (m.kind === 'concordato-pack'
+          // Codice del consumo: chi NON ha chiesto di iniziare subito aspetta i
+          // 14 giorni del recesso; a tutti si dice come recedere.
+          ? (m.start_now === '1'
+            ? 'Ci ha chiesto di iniziare subito: partiamo appena riceviamo i dati. '
+            : 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso; se preferisce anticipare, ce lo scriva. ')
+            + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp: risponde una persona.'
+          : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp: risponde una persona.')
         : 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
       cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',

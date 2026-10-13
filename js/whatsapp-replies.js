@@ -264,7 +264,7 @@ Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale
 
 Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. ${SITE}/canone`,
+Mi dica zona e metri quadri: le scrivo quanto rende. Il concordato lo calcola qui: ${SITE}/canone`,
     },
 
     {
