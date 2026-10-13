@@ -152,6 +152,22 @@ async function patchDoc(path, data) {
   if (!r.ok) throw new Error(`Firestore patch failed: ${r.status} ${await r.text()}`);
 }
 
+// I CONTI DELLA CARTA STANNO FUORI DALLA RATA (13/10/2026). La rata la legge
+// anche la proprietaria (rules: ownsProperty): commissione chiesta
+// all'inquilino, costo Stripe, margine di BOOM, paese e circuito della carta
+// erano lì, alla sua portata con l'SDK. Ora vivono in paymentCosts/<paymentId>
+// (admin-only in firestore.rules); sulla rata restano solo i fatti del
+// pagamento (stato, data, via, ricevuta). Upsert idempotente (PATCH): un
+// retry dello stesso evento riscrive gli stessi valori. Le rate pagate PRIMA
+// portano ancora quei campi: nessuna migrazione automatica — BOOM_RENT li
+// legge da entrambi i posti (la rata storica vince). Best-effort: un conto
+// non scritto non ferma mai l'incasso.
+export const COST_FIELDS = ['serviceFeeEur', 'stripeCostEur', 'marginEur', 'cardCountry', 'cardBrand'];
+async function writePaymentCosts(paymentId, data) {
+  try { await patchDoc('paymentCosts/' + paymentId, { paymentId, ...data, recordedAt: new Date().toISOString() }); return true; }
+  catch (e) { console.error('[costs] paymentCosts/' + paymentId + ':', e.message); return false; }
+}
+
 // DEPOSIT — deposit-at-signature: the tenant paid the security deposit from
 // the /sign success screen. Marks the contract, records the payment, wakes the
 // operator (agentNotifications → portal feed + Telegram cron), confirms by email.
@@ -698,21 +714,26 @@ async function handleRent(res, session, m) {
     }
   } catch (e) { console.error('[rent] costo reale non leggibile:', e.message); }
 
+  // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
+  // costato, cosa ci resta. Con il paese della carta, che è la ragione per
+  // cui lo stesso incasso costa il doppio. In paymentCosts, MAI sulla rata
+  // (la legge la proprietaria): vedi writePaymentCosts.
+  await writePaymentCosts(paymentId, {
+    paidVia: 'stripe', stripeSessionId: session.id,
+    contractId: okId(pay.contractId) ? pay.contractId : null, propertyId: okId(propId) ? propId : null,
+    amountEur: amount, serviceFeeEur: fee, stripeCostEur, cardCountry, cardBrand,
+    marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+  });
   try {
     await patchDoc(`payments/${paymentId}`, {
       status: 'paid', paidAt: now, paidDate: romeDay(now),
       paidVia: 'stripe', stripeSessionId: session.id,
       // Il PaymentIntent lega rimborsi e contestazioni a QUESTO incasso.
       stripePaymentIntentId: session.payment_intent ? String(session.payment_intent) : null,
-      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      receiptUrl: receiptUrl || '',
       // La carta incassa sul conto Stripe di BOOM: questi soldi sono tenuti
       // da BOOM per conto del locatore finché non vengono girati.
       heldBy: 'boom',
-      // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
-      // costato, cosa ci resta. Con il paese della carta, che è la ragione per
-      // cui lo stesso incasso costa il doppio.
-      stripeCostEur, cardCountry, cardBrand,
-      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
       ...(reported ? { doublePaymentSuspect: true } : {}),
     });
   } catch (err) {
@@ -1173,13 +1194,19 @@ export async function handleSddPaid(res, pi) {
     }
   } catch (e) { console.error('[sdd] costo reale non leggibile:', e.message); }
 
+  // Commissione, costo e margine in paymentCosts (admin-only), mai sulla
+  // rata che legge la proprietaria — come la carta.
+  await writePaymentCosts(paymentId, {
+    paidVia: 'sepa', stripePaymentIntentId: String(pi.id || ''),
+    contractId: okId(pay.contractId) ? pay.contractId : null, propertyId: okId(pay.propertyId) ? pay.propertyId : null,
+    amountEur: amount, serviceFeeEur: fee, stripeCostEur,
+    marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+  });
   try {
     await patchDoc('payments/' + paymentId, {
       status: 'paid', paidAt: now, paidDate: romeDay(now),
       paidVia: 'sepa', sddStatus: 'succeeded',
-      serviceFeeEur: fee, receiptUrl: receiptUrl || '',
-      stripeCostEur,
-      marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+      receiptUrl: receiptUrl || '',
     });
   } catch (err) {
     console.error('[sdd] payment patch:', err.message);

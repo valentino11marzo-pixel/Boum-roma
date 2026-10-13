@@ -172,7 +172,12 @@ const paidEvt = { id: 'evt_pi1', type: 'payment_intent.succeeded', data: { objec
 r = mkRes();
 await webhook(whReq(paidEvt), r);
 const p1 = store.get('payments/p1');
-check('succeeded → rata paid · sepa con fee e costo reale', r.body.sdd === true && p1.status === 'paid' && p1.paidVia === 'sepa' && p1.serviceFeeEur === 2 && p1.stripeCostEur === 0.35 && p1.marginEur === 1.65);
+// Commissione, costo e margine stanno in paymentCosts/<id> (admin-only), mai
+// sulla rata che legge anche la proprietaria (13/10/2026).
+const c1 = store.get('paymentCosts/p1') || {};
+check('succeeded → rata paid · sepa; fee e costo reale in paymentCosts, non sulla rata', r.body.sdd === true && p1.status === 'paid' && p1.paidVia === 'sepa'
+  && c1.serviceFeeEur === 2 && c1.stripeCostEur === 0.35 && c1.marginEur === 1.65 && c1.paidVia === 'sepa'
+  && !('serviceFeeEur' in p1) && !('stripeCostEur' in p1) && !('marginEur' in p1));
 check('la statistica costi si aggiorna (media per addebito)', store.get('settings/sddFeeStats').count === 1 && store.get('settings/sddFeeStats').costEur === 0.35);
 r = mkRes();
 await webhook(whReq(paidEvt), r);
