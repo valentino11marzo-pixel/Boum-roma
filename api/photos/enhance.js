@@ -2,7 +2,7 @@
 // THE unified photo brain: AI curation + enhancement for the catalog.
 // One pipeline, three doors:
 //   1. photo-lab.html console → Authorization: Bearer <Firebase ID token>
-//      (role admin/owner/landlord)
+//      (role admin; owner/landlord only on their OWN listings, never sweep)
 //   2. the Telegram listing wizard bot → X-Wizard-Secret (same shared secret
 //      as every other wizard→server call; X-Homie-Secret accepted too)
 //   3. the nightly sweep cron → GET ?mode=sweep with Bearer CRON_SECRET —
@@ -37,7 +37,7 @@
 
 import sharp from 'sharp';
 import crypto from 'node:crypto';
-import { getAdminToken, FS_BASE, fsPatch, fsList, readJson, fsValToJs, secretEqual } from '../homie/_lib.js';
+import { getAdminToken, FS_BASE, fsGet, fsPatch, fsList, readJson, fsValToJs, secretEqual } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { ai as askModel } from '../_ai.js';
 
@@ -60,7 +60,28 @@ async function authAny(req, res) {
   }
 
   const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']); // writes 401/403 itself
-  return auth ? { actor: 'admin:' + (auth.email || auth.uid) } : null;
+  if (!auth) return null;
+  const admin = auth.profile.role === 'admin';
+  return { actor: (admin ? 'admin:' : 'owner:') + (auth.email || auth.uid), admin, uid: auth.uid };
+}
+
+// UN PROPRIETARIO TOCCA SOLO I SUOI ANNUNCI (12/10/2026). Con il ruolo
+// bastava un listingId — e gli id sono pubblici in /listing/:id — per
+// riscrivere image/images di un annuncio di chiunque e consumare la lettura
+// delle foto col modello. L'annuncio è suo se porta il suo ownerId, o se
+// è agganciato (listing.propertyId, oppure property.listingId) a un suo
+// immobile. Lo sweep notturno resta di cron e admin.
+export async function ownsListing(uid, listingId) {
+  if (!uid || !/^[\w.-]{1,120}$/.test(String(listingId || ''))) return false;
+  const l = await fsGet('listings/' + listingId).catch(() => null);
+  if (!l) return false;
+  if (l.ownerId && l.ownerId === uid) return true;
+  if (l.propertyId) {
+    const p = await fsGet('properties/' + String(l.propertyId).slice(0, 120)).catch(() => null);
+    if (p && p.ownerId === uid) return true;
+  }
+  const props = await fsList('properties', { filter: { field: 'listingId', op: 'EQUAL', value: String(listingId) }, limit: 5 }).catch(() => []);
+  return (props || []).some(p => p && p.ownerId === uid);
 }
 
 // ── pure helpers (exported for tests) ───────────────────────────────────────
@@ -427,6 +448,10 @@ export default async function handler(req, res) {
 
   const b = isSweepGet ? q : ((await readJson(req)) || {});
   const mode = b.mode === 'apply' ? 'apply' : b.mode === 'sweep' ? 'sweep' : 'audit';
+  if (who.admin === false) {
+    if (mode === 'sweep') return res.status(403).json({ ok: false, error: 'forbidden' });
+    if (!(await ownsListing(who.uid, String(b.listingId || '').trim()))) return res.status(403).json({ ok: false, error: 'forbidden_listing' });
+  }
 
   try {
     const token = await getAdminToken();

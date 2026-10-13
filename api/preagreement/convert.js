@@ -786,6 +786,15 @@ export default async function handler(req, res) {
   try { pa = await fsGet('preAgreements/' + paId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!pa) return res.status(404).json({ ok: false, error: 'not_found' });
+  // Un proprietario converte SOLO una proposta dei suoi immobili, verso un
+  // suo immobile, e non crea immobili (nascerebbero senza ownerId, fuori dal
+  // suo stesso portale): prima bastava il ruolo, su qualunque paId.
+  if (auth.profile.role !== 'admin') {
+    const pids = [...new Set([clip(pa.propertyId, 80), clip(b.propertyId, 80)].filter(Boolean))];
+    if (b.createProperty === true || !pids.length) return res.status(403).json({ ok: false, error: 'forbidden_property' });
+    const own = await Promise.all(pids.map(pid => fsGet('properties/' + pid).then(p => !!p && p.deleted !== true && p.ownerId === auth.uid, () => false)));
+    if (own.some(x => !x)) return res.status(403).json({ ok: false, error: 'forbidden_property' });
+  }
 
   const out = await convertPaToContract({
     pa, paId,

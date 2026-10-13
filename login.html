@@ -172,6 +172,11 @@
       font-size:13px;font-weight:500;transition:color .3s var(--ease)}
     .home svg{transition:transform .3s var(--ease)}
     .home:hover{color:var(--text)} .home:hover svg{transform:translateX(-3px)}
+    /* A 390px «BOOM ROMA» e «Torna al sito» si accavallavano: sul telefono
+       resta la freccia (col nome per il lettore di schermo) e il marchio
+       perde «ROMA». */
+    @media(max-width:480px){.marchio .roma{display:none}.home span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+      .home{min-width:44px;min-height:44px;justify-content:center}}
 
     /* ── Hero ── */
     .hero{position:relative;display:flex;flex-direction:column;justify-content:center;
@@ -214,6 +219,7 @@
 
     .a-title{font-family:var(--display);font-size:26px;font-weight:300;letter-spacing:-.01em}
     .a-sub{margin-top:6px;font-size:13.5px;color:var(--text-3)}
+    .a-first{margin:12px 0 0;padding:10px 12px;border:1px solid rgba(212,175,55,.3);border-radius:12px;font-size:13px;line-height:1.5;color:var(--text-2)}
 
     .msg{display:none;align-items:flex-start;gap:9px;padding:11px 13px;border-radius:10px;font-size:12.5px;line-height:1.5;margin-top:18px;animation:fade .3s var(--ease)}
     .msg.show{display:flex}
@@ -491,13 +497,48 @@
   </div>
 
   <script>
+    // ── IN ITALIANO PER LA PROPRIETARIA (12/10/2026) ───────────────────────
+    // Il primo passo di una signora italiana verso il suo Palazzo era una
+    // pagina in inglese con un trucco («Forgot?») per creare la password.
+    // Quando la destinazione è il Palazzo (next=/portal#palazzo, il link che
+    // «Invia a lei» manda) — o con ?lang=it — la pagina parla italiano,
+    // anche nei messaggi e nell'email di Firebase per la password.
+    const BOOM_IT=(()=>{ try{ const q=new URLSearchParams(location.search);
+      return q.get('lang')==='it' || /palazzo/i.test(q.get('next')||''); }catch{ return false; } })();
+    const L=(en,it)=>BOOM_IT?it:en;
+    if(BOOM_IT){
+      document.documentElement.lang='it';
+      document.title='Accedi — BOOM Roma';
+      const set=(sel,html)=>{ const el=document.querySelector(sel); if(el) el.innerHTML=html; };
+      set('.home span','Torna al sito');
+      set('.hero .eyebrow','<span class="pip"></span> Gestione affitti · Roma');
+      set('.hero .h1','Roma è tua.<br>Gestiscila <span class="grad">con eleganza</span>.');
+      set('.hero .lede','Annunci, contratti, documenti e affitti — tutto in un posto solo, per inquilini, proprietari e amministratori. Accedi e riprendi da dove avevi lasciato.');
+      const F=[['Annunci e visite','Pubblica, programma e segui ogni immobile.'],['Contratti e firma','Contratti italiani a norma, firmati in pochi minuti.'],['Documenti','Ordinati e pronti per gli adempimenti.'],['Wallet','Chiavi e pass su Apple Wallet.']];
+      document.querySelectorAll('.feat').forEach((f,i)=>{ if(!F[i]) return; const h=f.querySelector('h3'), p=f.querySelector('p'); if(h) h.textContent=F[i][0]; if(p) p.textContent=F[i][1]; });
+      set('.trust','<span class="ln"></span> boomrome.com · Scelta dai proprietari di Roma');
+      set('.mhead h2','Roma è tua.<br>Gestiscila <span class="grad">con eleganza</span>.');
+      set('.mhead p','Il tuo palazzo, i tuoi inquilini, i canoni del mese — in un posto solo.');
+      set('.a-title','Accedi');
+      set('.a-sub','Entra nel tuo portale BOOM.');
+      const sub=document.querySelector('.a-sub');
+      if(sub){ const first=document.createElement('p'); first.className='a-first';
+        first.textContent='Prima volta? Scrivi la tua email qui sotto e tocca «Password dimenticata?»: ti arriva un’email per creare la password, poi torni qui.';
+        sub.after(first); }
+      set('#forgotBtn','Password dimenticata?');
+      const rv=document.getElementById('revealBtn'); if(rv){ rv.textContent='Mostra'; rv.setAttribute('aria-label','Mostra la password'); }
+      set('#capsHint','⇪ Maiuscole attive');
+      set('#submitBtn .t','Accedi');
+      const alt=document.querySelectorAll('.alt a'); if(alt[0]) alt[0].textContent='Vedi gli appartamenti'; if(alt[1]) alt[1].textContent='Assistenza su WhatsApp';
+      const ft=document.querySelector('.foot'); if(ft && ft.lastChild) ft.lastChild.textContent=' Connessione cifrata · Firebase Auth';
+    }
     document.addEventListener('DOMContentLoaded',()=>{
       // Resilience: if the auth SDK couldn't load (offline / blocked / flaky
       // connection), fail gracefully instead of throwing.
       if(typeof firebase==='undefined'){
         const m=document.getElementById('message');
         if(m){ m.className='msg show error';
-          m.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Couldn’t reach the sign-in service. Check your connection and refresh.</span>'; }
+          m.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>'+L('Couldn’t reach the sign-in service. Check your connection and refresh.','Il servizio di accesso non risponde. Controlla la connessione e ricarica la pagina.')+'</span>'; }
         return;
       }
       firebase.initializeApp({
@@ -597,9 +638,9 @@
       revealBtn.addEventListener('click',()=>{
         const show=pwInput.type==='password';
         pwInput.type=show?'text':'password';
-        revealBtn.textContent=show?'Hide':'Show';
+        revealBtn.textContent=show?L('Hide','Nascondi'):L('Show','Mostra');
         revealBtn.setAttribute('aria-pressed',String(show));
-        revealBtn.setAttribute('aria-label',show?'Hide password':'Show password');
+        revealBtn.setAttribute('aria-label',show?L('Hide password','Nascondi la password'):L('Show password','Mostra la password'));
         pwInput.focus();
       });
 
@@ -615,7 +656,7 @@
         e.preventDefault();
         const email=emailInput.value.trim();
         const password=pwInput.value;
-        if(!email||!password){ showMessage('Please enter your email and password.','error'); return; }
+        if(!email||!password){ showMessage(L('Please enter your email and password.','Scrivi email e password.'),'error'); return; }
         setLoading(true); clearMessage();
         try{
           // Tetto sul sign-in. Su WebKit incastrato (IndexedDB/WebChannel)
@@ -628,28 +669,40 @@
             auth.signInWithEmailAndPassword(email,password),
             new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),20000))
           ]);
-          showMessage('Welcome back — signing you in…','success');
+          showMessage(L('Welcome back — signing you in…','Accesso in corso…'),'success');
           setTimeout(()=>{ window.location.href=NEXT_DEST; }, isSafari?500:120);
         }catch(err){
-          let msg='Incorrect email or password. Please try again.';
-          if(err && err.message==='boom/timeout') msg='Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.';
-          else if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
-          else if(err.code==='auth/network-request-failed') msg='Network error. Check your connection and try again.';
-          else if(err.code==='auth/user-disabled') msg='This account has been disabled. Contact support.';
+          let msg=L('Incorrect email or password. Please try again.','Email o password non corretti. Riprova.');
+          if(err && err.message==='boom/timeout') msg=L('Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.','L’accesso ci mette troppo: il browser potrebbe essersi bloccato. Ricarica la pagina o prova da una finestra privata.');
+          else if(err.code==='auth/too-many-requests') msg=L('Too many attempts. Please wait a moment and try again.','Troppi tentativi. Aspetta un momento e riprova.');
+          else if(err.code==='auth/network-request-failed') msg=L('Network error. Check your connection and try again.','Problema di rete. Controlla la connessione e riprova.');
+          else if(err.code==='auth/user-disabled') msg=L('This account has been disabled. Contact support.','Questo account è stato disattivato. Scrivi a BOOM.');
           showMessage(msg,'error'); setLoading(false); pwInput.focus(); pwInput.select();
         }
       });
 
+      // Il link nell'email di Firebase riporta QUI, con la stessa
+      // destinazione (/login?next=/portal#palazzo): finita la password, la
+      // proprietaria non deve cercare a mano la strada per il suo Palazzo.
+      // Se il dominio non fosse autorizzato su Firebase la richiesta con
+      // continueUrl verrebbe rifiutata: si riprova senza, l'email parte
+      // comunque (solo senza il ritorno automatico).
+      if(BOOM_IT) auth.languageCode='it';
       forgotBtn.addEventListener('click',async()=>{
         const email=emailInput.value.trim();
-        if(!email){ showMessage('Enter your email above, then tap “Forgot?” again.','error'); emailInput.focus(); return; }
+        if(!email){ showMessage(L('Enter your email above, then tap “Forgot?” again.','Scrivi la tua email qui sopra, poi tocca di nuovo «Password dimenticata?».'),'error'); emailInput.focus(); return; }
         forgotBtn.disabled=true;
-        try{ await auth.sendPasswordResetEmail(email); }
-        catch(err){
-          if(err.code==='auth/invalid-email'){ showMessage('That doesn’t look like a valid email address.','error'); forgotBtn.disabled=false; return; }
-          if(err.code==='auth/too-many-requests'){ showMessage('Too many requests. Please wait a moment.','error'); forgotBtn.disabled=false; return; }
+        const back={ url: location.origin+'/login?next='+encodeURIComponent(NEXT_DEST) };
+        try{ await auth.sendPasswordResetEmail(email,back); }
+        catch(err0){
+          let err=err0;
+          if(/continue-uri|unauthorized-domain/.test(String(err&&err.code||''))){
+            try{ await auth.sendPasswordResetEmail(email); err=null; }catch(e2){ err=e2; }
+          }
+          if(err&&err.code==='auth/invalid-email'){ showMessage(L('That doesn’t look like a valid email address.','Questa email non sembra valida.'),'error'); forgotBtn.disabled=false; return; }
+          if(err&&err.code==='auth/too-many-requests'){ showMessage(L('Too many requests. Please wait a moment.','Troppe richieste. Aspetta un momento.'),'error'); forgotBtn.disabled=false; return; }
         }
-        showMessage('If an account exists for that email, a reset link is on its way.','success');
+        showMessage(L('If an account exists for that email, a reset link is on its way.','Se esiste un account con questa email, ti stiamo mandando il link per impostare la password. Controlla anche lo spam.'),'success');
         setTimeout(()=>{ forgotBtn.disabled=false; },4000);
       });
 
