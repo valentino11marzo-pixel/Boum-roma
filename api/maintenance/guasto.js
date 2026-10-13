@@ -16,6 +16,8 @@
 //                (un link per contratto quando i vivi sono più d'uno) }
 //   lookup/report col link: 404 se il link non è più vivo, 503 se
 //   l'archivio dei contratti non risponde (mai "link falso" per un guasto).
+//   lookup e report col link hanno un tetto per IP (429), e un token che non
+//   ha la forma giusta non arriva nemmeno a leggere i contratti.
 //   op:'notify'  Bearer { id }  → il ping all'operatore per una segnalazione
 //                scritta dal browser (/casa): prima /casa chiamava
 //                /api/agent/notify SENZA credenziale e riceveva 401 a ogni
@@ -82,12 +84,15 @@ export function guastoLink(propertyId, seat) {
   return t ? BASE + '/guasto?t=' + encodeURIComponent(propertyId + '.' + t) : '';
 }
 // "<propertyId>.<token>" → { pid, tok } oppure null (solo la forma).
+// Il token ha SEMPRE 22 caratteri base64url (le due formule tagliano lì):
+// qualunque altra forma muore qui, prima di leggere un solo contratto.
+const TOK_RE = /^[A-Za-z0-9_-]{22}$/;
 export function parseToken(raw) {
   const s = String(raw || '');
   const i = s.lastIndexOf('.');
   if (i <= 0) return null;
   const pid = s.slice(0, i), tok = s.slice(i + 1);
-  return ID_RE.test(pid) && tok ? { pid, tok } : null;
+  return ID_RE.test(pid) && TOK_RE.test(tok) ? { pid, tok } : null;
 }
 function sameToken(a, b) {
   return !!a && !!b && a.length === b.length && crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -226,6 +231,11 @@ export default async function handler(req, res) {
   const op = String(b.op || '');
 
   if (op === 'lookup') {
+    // Una porta anonima che legge i contratti PRIMA di sapere se il link è
+    // vero: senza tetto chiunque consuma letture Firestore a volontà
+    // (gli id degli interni importati si indovinano). Tetto per IP, più
+    // largo di report — una pagina aperta e ricaricata qualche volta passa.
+    if (!rateOk('lookup:' + clientIp(req), 30)) return res.status(429).json({ ok: false, error: 'rate_limited' });
     let seat;
     try { seat = await resolveToken(b.t); }
     catch (e) { console.warn('[guasto] lookup:', e.status || e.message); return res.status(503).json({ ok: false, error: 'unavailable' }); }

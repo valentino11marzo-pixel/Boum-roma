@@ -73,7 +73,9 @@ service cloud.firestore {
     match /settings/{x}  {
       // Il ramo pubblico viene PRIMA: una lettura anonima di 'video' non
       // deve passare da get(users/…) (che per una sessione anonima non esiste).
-      allow read: if (!(x in ['company', 'canoneAccordo', 'registrazione', 'ai']) && !settingsInternal(x))
+      // (La lista dei tre documenti mai pubblici resta scritta così:
+      // tests/ai la cerca letterale. canoneAccordo sta a parte.)
+      allow read: if (!(x in ['company', 'registrazione', 'ai']) && x != 'canoneAccordo' && !settingsInternal(x))
                   || (x in ['company', 'canoneAccordo'] && isSignedIn() && !isAnon())
                   || isAdmin();
       allow write: if isAdmin();
@@ -150,7 +152,11 @@ service cloud.firestore {
     // Il COSTO di un incasso con carta (commissione Stripe misurata, margine
     // BOOM, paese e circuito della carta): dati di BOOM, non della rata. Una
     // rata la legge anche la proprietaria e Firestore non nasconde un campo:
-    // il webhook li scrive qui, paymentCosts/<paymentId>, admin-only.
+    // il loro posto è paymentCosts/<paymentId>, admin-only. La collection è
+    // PRONTA ma oggi non la scrive nessuno: api/stripe-webhook.js mette
+    // ancora serviceFeeEur/stripeCostEur/marginEur/cardCountry/cardBrand
+    // SULLA RATA, che la proprietaria legge. Spostarli (e bonificare le rate
+    // storiche) spetta al filone dei soldi.
     match /paymentCosts/{x} { allow read, write: if isAdmin(); }
 
     // ─── payments ─────────────────────────────────────────────────────
@@ -171,12 +177,39 @@ service cloud.firestore {
     // proprio quell'immobile; senza contratto indicato, quello corrente.
     // `.get(…)` e `is string`: un campo assente (un immobile senza
     // currentContractId, un contractId null) è un "no", mai un errore.
+    //
+    // E IL CONTRATTO DEV'ESSERE VIVO (13/10/2026). Prima bastava che fosse
+    // dell'inquilino e di quell'interno: un EX inquilino, col suo account,
+    // apriva ancora guasti sull'interno che aveva lasciato passando il
+    // vecchio contractId — la stessa revoca al cambio di inquilino che
+    // /guasto fa coi link. Vivo = non chiuso (stato, fine, chiusura
+    // anticipata: le date YYYY-MM-DD si confrontano col giorno di oggi in
+    // UTC, al più un giorno di tolleranza) E il contratto corrente
+    // dell'immobile oppure 'active' (due stanze nello stesso immobile: il
+    // corrente è uno solo, l'altro inquilino è vivo lo stesso).
+    function todayYmd() {
+      let m = request.time.month();
+      let d = request.time.day();
+      return string(request.time.year()) + '-' + (m < 10 ? '0' : '') + string(m) + '-' + (d < 10 ? '0' : '') + string(d);
+    }
+    function notPast(v) {
+      return !(v is string) || v == '' || v >= todayYmd();
+    }
+    function contractOpen(cid) {
+      let c = contractData(cid);
+      return !(c.get('status', '') in ['expired', 'ended', 'terminated', 'completed', 'closed',
+                                       'cancelled', 'canceled', 'rejected', 'void', 'draft', 'deleted', 'archived'])
+          && notPast(c.get('endDate', '')) && notPast(c.get('terminatedAt', ''));
+    }
     function tenantOfUnit(pid, cid) {
       return (cid is string && cid != '')
-        ? (contractData(cid).get('tenantId', '') == uid() && contractData(cid).get('propertyId', '') == pid)
+        ? (contractData(cid).get('tenantId', '') == uid() && contractData(cid).get('propertyId', '') == pid
+           && contractOpen(cid)
+           && (propertyData(pid).get('currentContractId', '') == cid || contractData(cid).get('status', '') == 'active'))
         : (propertyData(pid).get('currentContractId', '') is string
            && propertyData(pid).get('currentContractId', '') != ''
-           && contractData(propertyData(pid).get('currentContractId', '')).get('tenantId', '') == uid());
+           && contractData(propertyData(pid).get('currentContractId', '')).get('tenantId', '') == uid()
+           && contractOpen(propertyData(pid).get('currentContractId', '')));
     }
     match /maintenance/{mId} {
       allow read:   if isAdmin()

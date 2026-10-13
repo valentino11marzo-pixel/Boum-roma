@@ -92,6 +92,23 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     await setDoc(doc(db, 'maintenance/mC_' + i), { userId: 'tC' + i, propertyId: p, title: 'Guasto ' + i });
     await setDoc(doc(db, 'documents/dC_' + i), { userId: 'adminUid', propertyId: p, shared: true, name: 'Doc ' + i });
   }
+  // Il cambio di inquilino (13/10/2026): l'interno propX ha un contratto
+  // corrente nuovo; il vecchio è finito (per stato, per data o per chiusura
+  // anticipata) o resta 'active' per dimenticanza ma con la fine passata.
+  // Una seconda stanza viva sullo stesso immobile, non corrente.
+  for (const u of ['tOld', 'tOld2', 'tOld3', 'tOld4', 'tNew', 'tRoom', 'tTerm', 'tNext'])
+    await setDoc(doc(db, 'users/' + u), { role: 'tenant', name: 'Inquilino ' + u });
+  await setDoc(doc(db, 'properties/propX'), { ownerId: 'llA', currentContractId: 'cNew', name: 'Int. X' });
+  await setDoc(doc(db, 'contracts/cNew'), { tenantId: 'tNew', propertyId: 'propX', status: 'active', startDate: '2026-07-01', endDate: '2099-06-30' });
+  await setDoc(doc(db, 'contracts/cOld'), { tenantId: 'tOld', propertyId: 'propX', status: 'ended', endDate: '2025-06-30' });
+  await setDoc(doc(db, 'contracts/cOld2'), { tenantId: 'tOld2', propertyId: 'propX', status: 'expired' });
+  await setDoc(doc(db, 'contracts/cOld3'), { tenantId: 'tOld3', propertyId: 'propX', status: 'active', endDate: '2025-06-30' });
+  await setDoc(doc(db, 'contracts/cOld4'), { tenantId: 'tOld4', propertyId: 'propX', status: 'active', endDate: '2099-06-30', terminatedAt: '2025-12-31' });
+  await setDoc(doc(db, 'contracts/cRoom'), { tenantId: 'tRoom', propertyId: 'propX', status: 'active', unit: 'B', endDate: '2099-06-30' });
+  await setDoc(doc(db, 'contracts/cNext'), { tenantId: 'tNext', propertyId: 'propX', status: 'pending', startDate: '2099-01-01' });
+  // Un interno il cui contratto CORRENTE è stato chiuso e nessuno è subentrato.
+  await setDoc(doc(db, 'properties/propY'), { ownerId: 'llA', currentContractId: 'cTerm', name: 'Int. Y' });
+  await setDoc(doc(db, 'contracts/cTerm'), { tenantId: 'tTerm', propertyId: 'propY', status: 'terminated', terminatedAt: '2025-12-31' });
 });
 
 // Auth contexts
@@ -318,6 +335,34 @@ await check('contractId null counts as «not given»: tenant B still CANNOT open
   assertFails(setDoc(doc(tB, 'maintenance/casaB7'), { userId: 'tB', propertyId: 'propA', contractId: null, title: 'x' })));
 await check('tenant A CANNOT open with a contractId that does not exist',
   assertFails(setDoc(doc(tA, 'maintenance/casaA8'), { userId: 'tA', propertyId: 'propA', contractId: 'nope', title: 'x' })));
+// Il cambio di inquilino: chi è uscito non apre più guasti sull'interno,
+// nemmeno col SUO vecchio contractId (la revoca che /guasto fa coi link).
+{
+  const tOld = env.authenticatedContext('tOld').firestore(), tOld2 = env.authenticatedContext('tOld2').firestore();
+  const tOld3 = env.authenticatedContext('tOld3').firestore(), tOld4 = env.authenticatedContext('tOld4').firestore();
+  const tNew = env.authenticatedContext('tNew').firestore(), tRoom = env.authenticatedContext('tRoom').firestore();
+  const tTerm = env.authenticatedContext('tTerm').firestore(), tNext = env.authenticatedContext('tNext').firestore();
+  await check('EX tenant (contract ended) CANNOT open a ticket on the unit he left, with his old contractId',
+    assertFails(setDoc(doc(tOld, 'maintenance/exOld'), { userId: 'tOld', propertyId: 'propX', contractId: 'cOld', title: 'FUGA DI GAS', priority: 'urgent' })));
+  await check('EX tenant (contract expired) CANNOT either',
+    assertFails(setDoc(doc(tOld2, 'maintenance/exOld2'), { userId: 'tOld2', propertyId: 'propX', contractId: 'cOld2', title: 'x' })));
+  await check('EX tenant whose contract is still «active» by mistake but whose END DATE is past CANNOT either',
+    assertFails(setDoc(doc(tOld3, 'maintenance/exOld3'), { userId: 'tOld3', propertyId: 'propX', contractId: 'cOld3', title: 'x' })));
+  await check('EX tenant closed early (terminatedAt past) CANNOT either',
+    assertFails(setDoc(doc(tOld4, 'maintenance/exOld4'), { userId: 'tOld4', propertyId: 'propX', contractId: 'cOld4', title: 'x' })));
+  await check('the NEW tenant (current contract) opens a ticket, with or without contractId',
+    assertSucceeds(Promise.all([
+      setDoc(doc(tNew, 'maintenance/newX1'), { userId: 'tNew', propertyId: 'propX', contractId: 'cNew', title: 'Caldaia' }),
+      setDoc(doc(tNew, 'maintenance/newX2'), { userId: 'tNew', propertyId: 'propX', title: 'Caldaia' })])));
+  await check('a SECOND ROOM (active, not the current contract) still opens a ticket',
+    assertSucceeds(setDoc(doc(tRoom, 'maintenance/roomX'), { userId: 'tRoom', propertyId: 'propX', contractId: 'cRoom', title: 'Serratura' })));
+  await check('an INCOMING tenant (pending, not current) does not open tickets yet',
+    assertFails(setDoc(doc(tNext, 'maintenance/nextX'), { userId: 'tNext', propertyId: 'propX', contractId: 'cNext', title: 'x' })));
+  await check('the CURRENT contract closed with nobody after: its tenant CANNOT open, with or without contractId',
+    assertFails(setDoc(doc(tTerm, 'maintenance/termY1'), { userId: 'tTerm', propertyId: 'propY', contractId: 'cTerm', title: 'x' })));
+  await check('…without contractId either',
+    assertFails(setDoc(doc(tTerm, 'maintenance/termY2'), { userId: 'tTerm', propertyId: 'propY', title: 'x' })));
+}
 await check('landlord A opens a ticket on OWN property',
   assertSucceeds(setDoc(doc(llA, 'maintenance/llA1'), { userId: 'llA', propertyId: 'propA', title: 'Umidità' })));
 await check('landlord A CANNOT open a ticket on landlord B property',

@@ -20,7 +20,7 @@ let count = 0;
 const check = async (name, fn) => { await fn(); count++; console.log('✓ ' + name); };
 
 const store = new Map(), uploads = [];
-let auto = 0, storageDown = false, queryDown = false;
+let auto = 0, storageDown = false, queryDown = false, queries = 0;
 const okJson = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
 function toFs(v) {
   if (v === null || v === undefined) return { nullValue: null };
@@ -53,6 +53,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const after = url.slice(url.indexOf('/documents') + 10);
     if (after.startsWith(':runQuery')) {
+      queries++;
       if (queryDown) return okJson({ error: { code: 503 } }, 503);
       const q = JSON.parse(opts.body).structuredQuery, coll = q.from[0].collectionId, ff = q.where && q.where.fieldFilter;
       const val = ff ? fromFs(ff.value) : null;
@@ -206,6 +207,31 @@ await check('dal link, troppe segnalazioni dallo stesso IP: 429', async () => {
   let last;
   for (let i = 0; i < 8; i++) last = await call({ op: 'report', t: t1, description: 'Segnalazione ripetuta numero ' + i }, null, '9.9.9.9');
   assert.equal(last.statusCode, 429);
+});
+await check('lookup: un token senza la forma giusta (22 caratteri base64url) è 404 SENZA leggere un contratto', async () => {
+  assert.equal(parseToken('p1.corto'), null);
+  assert.equal(parseToken('p1.' + 'x'.repeat(23)), null);
+  assert.equal(parseToken('p1.' + 'x'.repeat(21) + '!'), null);
+  const q0 = queries;
+  for (const t of ['p1.corto', 'plz_esempio_7.' + 'x'.repeat(40), 'p1.' + 'x'.repeat(21) + '/', 'p1.'])
+    assert.equal((await call({ op: 'lookup', t })).statusCode, 404, t);
+  assert.equal(queries, q0, 'nessuna lettura dei contratti per un token malformato');
+});
+await check('lookup: dallo stesso IP oltre 30 aperture in 10 minuti → 429, e le letture si fermano', async () => {
+  let last, q = 0;
+  for (let i = 0; i < 30; i++) { last = await call({ op: 'lookup', t: 'p1.' + 'y'.repeat(22) }, null, '7.7.7.7'); }
+  assert.equal(last.statusCode, 404, 'le prime 30 passano (qui: link falso)');
+  q = queries;
+  last = await call({ op: 'lookup', t: t1 }, null, '7.7.7.7');
+  assert.equal(last.statusCode, 429); assert.equal(last.body.error, 'rate_limited');
+  assert.equal(queries, q, 'oltre il tetto nessuna lettura');
+  assert.equal((await call({ op: 'lookup', t: t1 }, null, '7.7.7.8')).statusCode, 200, 'un altro indirizzo non paga per questo');
+  // il tetto di lookup non mangia quello di report (chiavi diverse)
+  assert.equal((await call({ op: 'report', t: t1, description: 'Perde il rubinetto del bagno' }, null, '7.7.7.7')).statusCode, 200);
+});
+await check('/guasto dice «troppe aperture» su un 429, non «controlla la connessione»', async () => {
+  const page = readFileSync(new URL('../../guasto.html', import.meta.url), 'utf8');
+  assert.ok(/offKey = j\.status === 429 \? 'rate' : 'fail'/.test(page) && /esc\(t\(offKey\)\)/.test(page));
 });
 await check('la proprietaria segnala dalla scheda: sui suoi interni sì, su quello di un altro 403 (niente scritto)', async () => {
   const ok = await call({ op: 'report', propertyId: 'p2', category: 'leaks', priority: 'high', description: 'Macchia di umidità sul soffitto del bagno' }, 'tok-owner');

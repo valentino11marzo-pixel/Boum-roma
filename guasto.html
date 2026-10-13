@@ -110,7 +110,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.45}
       pris: { medium: 'Normal', high: 'Urgent', urgent: 'Emergency' } }
   };
   var qs = new URLSearchParams(location.search);
-  var lang = 'en', unit = null, state = 'form', photo = null, photoLost = false, sentUrgent = false,
+  var lang = 'en', unit = null, state = 'form', offKey = 'fail', photo = null, photoLost = false, sentUrgent = false,
     draft = { category: 'plumbing', priority: 'medium', description: '', name: '', phone: '' };
   var ql = String(qs.get('lang') || '').toLowerCase();
   if (ql === 'it' || ql === 'en') lang = ql;
@@ -149,7 +149,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.45}
   function paintSos() { var h = document.getElementById('sosTop'); if (h) h.innerHTML = draft.priority === 'urgent' ? sosTop() : ''; }
   function render() {
     if (state === 'invalid') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('invalid')) + '</p><a class="sosbtn wa" href="' + esc(waHref('')) + '" target="_blank" rel="noopener">' + esc(t('waFoot')) + '</a>'; return; }
-    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('fail')) + '</p><button type="button" class="send" id="retry" aria-label="' + esc(t('retry')) + '">↻ ' + esc(t('retry')) + '</button>';
+    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t(offKey)) + '</p><button type="button" class="send" id="retry" aria-label="' + esc(t('retry')) + '">↻ ' + esc(t('retry')) + '</button>';
       document.getElementById('retry').onclick = function () { location.reload(); }; return; }
     if (!unit) { app.innerHTML = '<p class="where">' + esc(t('loading')) + '</p>'; return; }
     var where = esc(whereText());
@@ -229,7 +229,9 @@ textarea{min-height:120px;resize:vertical;line-height:1.45}
   if (!token) { state = 'invalid'; setLang(lang); return; }
   setLang(lang);
   api({ op: 'lookup', t: token }).then(function (j) {
-    if (!j.ok) { state = j.status === 404 ? 'invalid' : 'offline'; render(); return; }
+    // 429: troppe aperture dallo stesso indirizzo — si dice così, non
+    // «controlla la connessione».
+    if (!j.ok) { state = j.status === 404 ? 'invalid' : 'offline'; offKey = j.status === 429 ? 'rate' : 'fail'; render(); return; }
     unit = j.unit; render();
   }, function () { state = 'offline'; render(); });
 })();
