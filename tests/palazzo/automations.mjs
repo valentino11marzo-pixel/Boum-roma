@@ -11,7 +11,7 @@
 // Storage, Telegram, Twilio) e nodemailer — e per le regole importanti si
 // rimette il difetto in una copia del file: il test deve cadere.
 //
-// Dati inventati: nomi di fantasia, telefoni +39 000…/+90 000…, email
+// Dati inventati: nomi di fantasia, telefoni +39 000 000 00xx, email
 // @example.invalid, IBAN di prova.
 //
 // Uso: node tests/palazzo/automations.mjs
@@ -249,15 +249,15 @@ function seedWorld() {
   seed('properties/pN', { name: 'Via Normale 1', address: 'Via Normale 1, Roma', ownerId: 'own2' });
   seed('properties/pM', { name: 'Via Normale 2', address: 'Via Normale 2, Roma', ownerId: 'own2' });
   seed('contracts/c7', { propertyId: 'plz7', status: 'active', source: 'palazzo-import', signatureStatus: 'paper',
-    tenantName: 'Ada Uno', tenantPhone: '+90 000 000 0001', tenantEmail: 'ada@example.invalid', coTenants: [{ name: 'Bea Due', phone: '+39 000 000 0012' }],
+    tenantName: 'Ada Uno', tenantPhone: '+39 000 000 0001', tenantEmail: 'ada@example.invalid', coTenants: [{ name: 'Bea Due', phone: '+39 000 000 0012' }],
     startDate: '2026-09-15', endDate: '2027-08-14', rent: 1600, deposit: 3200, type: 'studenti', cedolareSecca: 'no',
     rliRegisteredAt: '2026-09-20', registrationStatus: 'registered', paymentsFrom: '2026-10', createdAt: '2026-10-01T08:00:00Z',
     landlordName: 'Esempio S.r.l.', landlordIban: 'IT60X0542811101000000123456' });
   seed('contracts/c11', { propertyId: 'plz11', status: 'active', source: 'palazzo-import', signatureStatus: 'paper',
-    tenantName: 'Carlo Tre', tenantPhone: '+7 000 000 0002', startDate: '2026-10-01', endDate: '2027-08-31', rent: 1500, deposit: 3000,
+    tenantName: 'Carlo Tre', tenantPhone: '+39 000 000 0002', startDate: '2026-10-01', endDate: '2027-08-31', rent: 1500, deposit: 3000,
     type: 'studenti', cedolareSecca: 'no', paymentsFrom: '2026-10', createdAt: '2026-10-01T08:00:00Z' });
   seed('contracts/c14', { propertyId: 'plz14', status: 'active', source: 'palazzo-import', contractMissing: true,
-    tenantName: 'Elsa Sei', tenantPhone: '+7 000 000 0003', createdAt: '2026-10-01T08:00:00Z' });
+    tenantName: 'Elsa Sei', tenantPhone: '+39 000 000 0003', createdAt: '2026-10-01T08:00:00Z' });
   seed('contracts/cN', { propertyId: 'pN', status: 'active', tenantId: 't9', tenantName: 'Nora Nove', startDate: '2026-01-01', endDate: '2027-12-31',
     rent: 900, deposit: 1800, type: 'transitorio', signatureStatus: 'complete', createdAt: '2026-01-01T08:00:00Z' });
   seed('contracts/cM', { propertyId: 'pM', status: 'active', tenantId: 't10', tenantName: 'Ivo Dieci', startDate: '2026-01-01', endDate: '2027-12-31',
@@ -675,16 +675,16 @@ const CS = require('../../js/contract-state.js');
   seedWorld();
   const LEAD = await import('../../api/homie/_lead.js');
   LEAD.resetTenantIndex();
-  ok(LEAD.phoneKeys('905330000001').includes('+905330000001') && LEAD.phoneKeys('+39 333 123 4567').includes('+393331234567'),
+  ok(LEAD.phoneKeys('390000000044').includes('+390000000044') && LEAD.phoneKeys('+39 000 000 0045').includes('+390000000045'),
     'phoneKeys: il JID senza «+» e la forma con gli spazi trovano la stessa chiave');
   const idx = LEAD.buildTenantIndex([read('contracts/c7') && { id: 'c7', ...read('contracts/c7') }, { id: 'cOld', status: 'expired', endDate: '2024-01-31', tenantPhone: '+39 000 000 0099' }], RealDate.parse(NOW));
-  ok(idx.has('+900000000001') && idx.has('+390000000012') && !idx.has('+390000000099'), 'indice: titolare e co-intestatario dei contratti vivi; un contratto finito da anni no');
-  const hit = await LEAD.contractTenantByPhone('+900000000001');
+  ok(idx.has('+390000000001') && idx.has('+390000000012') && !idx.has('+390000000099'), 'indice: titolare e co-intestatario dei contratti vivi; un contratto finito da anni no');
+  const hit = await LEAD.contractTenantByPhone('+390000000001');
   ok(hit && hit.contractId === 'c7' && hit.propertyLabel === 'Piazzale Esempio 42 int. 7' && hit.role === 'tenant', 'contractTenantByPhone: il conduttore con l\'interno nel contesto', hit);
   const message = (await import('../../api/homie/message.js')).default;
   const wa = (phone, text, id) => call(message, { headers: { 'x-homie-secret': 'homie-test' }, body: { direction: 'in', channel: 'whatsapp', phone, body: text, messageId: id } });
-  const m1 = await wa('+900000000001', 'I made the bank transfer for October, receipt attached', 'wa1');
-  const conv = read('conversations/conv_whatsapp_900000000001') || {};
+  const m1 = await wa('+390000000001', 'I made the bank transfer for October, receipt attached', 'wa1');
+  const conv = read('conversations/conv_whatsapp_390000000001') || {};
   ok(m1.statusCode === 200 && !keys('leads').length && m1.body.tenant === true && conv.contactRole === 'tenant'
     && conv.tenantContractId === 'c7' && conv.tenantPropertyLabel === 'Piazzale Esempio 42 int. 7' && conv.contactName === 'Ada Uno',
     'WhatsApp: «ho fatto il bonifico» dal numero del contratto → nessun lead, la chat dice inquilina di int. 7', { body: m1.body, conv });
@@ -696,28 +696,48 @@ const CS = require('../../js/contract-state.js');
   LEAD.resetTenantIndex();
   const MM = await importMutant('api/homie/message.js', 'try { tenantMatch = await contractTenantByPhone(body.phone || contactPhone); }', 'try { tenantMatch = null; }');
   const leadsBefore = keys('leads').length;
-  await call(MM.default, { headers: { 'x-homie-secret': 'homie-test' }, body: { direction: 'in', channel: 'whatsapp', phone: '+900000000001', body: 'Also: the heating is off since yesterday', messageId: 'wa4' } });
+  await call(MM.default, { headers: { 'x-homie-secret': 'homie-test' }, body: { direction: 'in', channel: 'whatsapp', phone: '+390000000001', body: 'Also: the heating is off since yesterday', messageId: 'wa4' } });
   ok(keys('leads').length === leadsBefore + 1, 'mutazione: senza il riconoscimento l\'inquilina diventa un lead (il test lo vede)');
 
   // telefono: la segreteria (handler VERO) — inbound poi registrazione
   seedWorld();
   LEAD.resetTenantIndex();
   const P = await import('../../api/phone/_lib.js');
-  const res = await P.resolveCaller('+900000000001');
-  ok(res && res.type === 'tenant' && res.entity._contract && P.callerLabel(res, '+900000000001') === 'Ada Uno — inquilino di Piazzale Esempio 42 int. 7',
+  const res = await P.resolveCaller('+390000000001');
+  ok(res && res.type === 'tenant' && res.entity._contract && P.callerLabel(res, '+390000000001') === 'Ada Uno — inquilino di Piazzale Esempio 42 int. 7',
     'telefono: resolveCaller riconosce l\'inquilina del contratto, col suo interno', res);
-  const card = P.tgCallCard({ callerName: P.callerLabel(res), callerType: 'tenant', from: '+900000000001', durationSec: 10, analysis: P.fallbackAnalysis(''), transcript: null });
+  const card = P.tgCallCard({ callerName: P.callerLabel(res), callerType: 'tenant', from: '+390000000001', durationSec: 10, analysis: P.fallbackAnalysis(''), transcript: null });
   ok(/inquilino di Piazzale Esempio 42 int\. 7/.test(card) && !/🏠 inquilino/.test(card) && !/lead creato/.test(card), 'telefono: la card dice «inquilino di … int. 7», senza badge doppio');
   const inbound = (await import('../../api/phone/inbound.js')).default;
   const recording = (await import('../../api/phone/recording.js')).default;
   const KEY = P.phoneKey('homie-test');
-  await call(inbound, { query: { k: KEY }, headers: { host: 'boomrome.com' }, body: { CallSid: 'CA7', From: '+90 000 000 0001', To: '+390600000000' } });
+  await call(inbound, { query: { k: KEY }, headers: { host: 'boomrome.com' }, body: { CallSid: 'CA7', From: '+39 000 000 0001', To: '+390600000000' } });
   TG.length = 0;
   const rc = await call(recording, { query: { k: KEY }, body: { CallSid: 'CA7', RecordingStatus: 'completed', RecordingDuration: '20', RecordingUrl: 'https://api.twilio.com/x/Recordings/RE7' } });
   const pc = read('phoneCalls/CA7') || {};
   ok(rc.statusCode === 200 && !keys('leads').length && pc.callerType === 'tenant' && /inquilino di Piazzale Esempio 42 int\. 7/.test(pc.callerName || '')
     && TG.some(t => /inquilino di Piazzale Esempio 42 int\. 7/.test(t) && !/lead creato/.test(t)),
     'segreteria (handler vero): la telefonata dell\'inquilina NON crea un lead e la card dice chi è', { pc: { callerType: pc.callerType, callerName: pc.callerName }, out: rc.body });
+}
+
+// ═══ 18. La scala della fiducia: il sollecito nuovo riparte da zero ══════════
+// Il testo di gestore:payrem è cambiato (lingua, link, mai al segnalato):
+// i sì dati al testo vecchio non provano quello nuovo. Senza la data di
+// taglio, 40 approvazioni d'agosto basterebbero a farlo partire da solo.
+{
+  const FID = require('../../js/fiducia-engine.js');
+  const old = Array.from({ length: 40 }, (_, i) => ({ contextHash: 'gestore:payrem:p' + i + ':2026-W33', status: 'approved', createdAt: '2026-08-1' + (i % 9) + 'T09:00:00Z' }));
+  const fresh = Array.from({ length: 3 }, (_, i) => ({ contextHash: 'gestore:payrem:q' + i + ':2026-W42', status: 'approved', createdAt: { seconds: RealDate.parse('2026-10-12T10:00:00Z') / 1000 } }));
+  const noDate = [{ contextHash: 'gestore:payrem:z:2026-W40', status: 'approved' }];
+  const follow = Array.from({ length: 5 }, (_, i) => ({ contextHash: 'commerciale:followup:l' + i, status: 'approved', createdAt: '2026-08-10T09:00:00Z' }));
+  const st = FID.statsFor(old.concat(fresh, noDate, follow));
+  ok(st['gestore:payrem'].decided === 3 && st['commerciale:followup'].decided === 5,
+    'fiducia: per il sollecito contano solo le decisioni sul testo NUOVO (le altre categorie come prima)', st);
+  const cfg = FID.mergeConfig({ enabled: true, categories: { 'gestore:payrem': true } }).cfg;
+  const v = FID.autoVerdict({ action: { contextHash: 'gestore:payrem:x:2026-W42', payload: { to: 'nora@example.invalid' } }, stats: FID.statsFor(old.concat(fresh)), cfg, now: RealDate.parse(NOW) });
+  ok(v.auto === false && /campione insufficiente/.test(v.why), 'fiducia: 40 sì al testo vecchio non bastano a mandare da solo il sollecito nuovo', v);
+  const MF = requireMutant('js/fiducia-engine.js', "      if (SINCE[key] && msOf(a && a.createdAt) < SINCE[key]) return;\n", '');
+  ok(MF.statsFor(old.concat(fresh))['gestore:payrem'].decided === 43, 'mutazione: senza la data di taglio il testo vecchio fa da campione (il test lo vede)');
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

@@ -166,8 +166,8 @@ export async function recentLeadByPhone(phone, now = Date.now()) {
 // diventava un LEAD NUOVO: Brain, card «ti ha scritto su WhatsApp», bozza
 // del Commerciale che risponde come a uno che cerca casa (12/10/2026).
 //
-// Il numero nella tabella è scritto come capita ('+90 533 000 0001',
-// '333 123 4567'): un'uguaglianza su Firestore non lo trova. Quindi un
+// Il numero nella tabella è scritto come capita (col prefisso estero e gli
+// spazi, nazionale senza +39): un'uguaglianza su Firestore non lo trova. Quindi un
 // indice in memoria, costruito da UNA lettura dei contratti e tenuto per
 // 10 minuti nell'istanza calda (zero letture nei giri successivi), con le
 // chiavi normalizzate da normalizePhone. Un numero ambiguo (forma
