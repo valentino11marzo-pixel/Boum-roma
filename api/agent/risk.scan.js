@@ -103,7 +103,7 @@ export async function scan(horizon = 60) {
     // Segnalato (o in corso, o da verificare) su una rata dopo la chiusura:
     // non è un incasso da registrare — verifica, poi rimborsa o annulla.
     if (RENT.reportedAfterClose(p, contractById[p.contractId], new Date(now))) {
-      items.push({ sev: 'med', cat: 'Rata dopo la chiusura', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · pagamento segnalato dopo la chiusura: verifica, poi rimborsa o annulla`, days: 0, ref: p.id });
+      items.push({ sev: 'med', cat: 'Rata dopo la chiusura', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · ${st === 'processing' ? 'pagamento in corso' : st === 'review' ? 'rimborso o contestazione' : 'pagamento segnalato'} dopo la chiusura: verifica, poi rimborsa o annulla`, days: 0, ref: p.id });
       continue;
     }
     if (st === 'reported') {

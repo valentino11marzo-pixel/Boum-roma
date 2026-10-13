@@ -80,7 +80,7 @@ export default async function handler(req, res) {
       const st = RENT.paymentState(p, new Date(now));
       const who = p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento';
       // Segnalato su una rata dopo la chiusura: verifica, poi rimborsa o annulla.
-      if (RENT.reportedAfterClose(p, contractById[p.contractId], new Date(now))) { pushRisk('med', `${who} — pagamento segnalato su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla`); continue; }
+      if (RENT.reportedAfterClose(p, contractById[p.contractId], new Date(now))) { pushRisk('med', `${who} — ${st === 'processing' ? 'pagamento in corso' : st === 'review' ? 'rimborso o contestazione' : 'pagamento segnalato'} su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla`); continue; }
       if (st === 'reported') {
         const rs = RENT.reportSummary(p);
         pushRisk('med', rs.partial
