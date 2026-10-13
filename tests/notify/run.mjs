@@ -703,11 +703,16 @@ IP = '9.1.1.2';
   r = mkRes();
   await sendLink(mkReq({ contractId: 'ctrS', role: 'tenant' }, { authorization: 'Bearer x' }), r);
   const c = store.get('contracts/ctrS');
-  check('send-link tenant: 200, token backfillato, invito partito', r.code === 200 && r.body.sent === true
-    && !!c.tenantSignToken && r.body.url.includes(c.tenantSignToken));
+  const st = store.get('signTokens/ctrS') || {};
+  check('send-link tenant: 200, token coniato nel DEPOSITO (signTokens), invito partito', r.code === 200 && r.body.sent === true
+    && !!st.tenant && r.body.url.includes(st.tenant));
+  // LE CHIAVI DI FIRMA FUORI DAL CONTRATTO (1/10/2026): il contratto lo
+  // leggono inquilino e proprietario — non deve portare nessuno dei due token.
+  check('send-link: il contratto NON porta i token (né il suo né quello del locatore, coniato insieme)',
+    !('tenantSignToken' in c) && !('landlordSignToken' in c) && !!st.landlord && !JSON.stringify(c).includes(st.landlord) && !JSON.stringify(c).includes(st.tenant));
   const invite = mails().slice(before).find(m => m.to === 'anna@expat.com');
   check('invito tenant: inglese, CTA firma, link giusto', !!invite
-    && /ready to sign/i.test(invite.subject) && invite.html.includes('/sign?sign=' + c.tenantSignToken));
+    && /ready to sign/i.test(invite.subject) && invite.html.includes('/sign?sign=' + st.tenant));
   check('send-link: stamp signInviteTenantAt sul contratto', !!store.get('contracts/ctrS').signInviteTenantAt);
 
   r = mkRes();
@@ -717,6 +722,26 @@ IP = '9.1.1.2';
   r = mkRes();
   await sendLink(mkReq({ contractId: 'ctrF', role: 'tenant' }, { authorization: 'Bearer x' }), r);
   check('send-link su parte già firmata → 409 already_signed', r.code === 409 && r.body.error === 'already_signed');
+
+  // Il PROPRIETARIO che sollecita il suo inquilino: l'email parte, ma il link
+  // dell'inquilino NON torna nella risposta (sarebbe la firma dell'altro in
+  // mano sua). Il SUO link sì, quando tocca a lui.
+  store.set('users/caller1', { role: 'landlord' });
+  store.set('properties/propOwn', { ownerId: 'caller1', name: 'Casa del chiamante', address: 'Via Test 1' });
+  store.set('contracts/ctrO', { propertyId: 'propOwn', tenantId: 't1', tenantName: 'Anna Expat', rent: 900, startDate: '2026-10-01', endDate: '2027-03-31', signingOrder: 'sequential' });
+  r = mkRes();
+  await sendLink(mkReq({ contractId: 'ctrO', role: 'tenant' }, { authorization: 'Bearer x' }), r);
+  const stO = store.get('signTokens/ctrO') || {};
+  check('send-link chiamato dal PROPRIETARIO per l\'inquilino: email partita, MA nessun url in risposta (né il token in nessun campo)',
+    r.code === 200 && r.body.sent === true && !('url' in r.body) && !!stO.tenant && !JSON.stringify(r.body).includes(stO.tenant));
+  store.get('contracts/ctrO').tenantSignature = 'data:image/png;base64,AAAA';
+  r = mkRes();
+  await sendLink(mkReq({ contractId: 'ctrO', role: 'landlord' }, { authorization: 'Bearer x' }), r);
+  check('send-link chiamato dal PROPRIETARIO per SÉ (a inquilino firmato): il SUO link torna',
+    // (il proprietario del test non ha email: 409 no_email, ma col SUO link)
+    (r.code === 200 || (r.code === 409 && r.body.error === 'no_email'))
+    && r.body.url === 'https://www.boomrome.com/sign?sign=' + encodeURIComponent(stO.landlord));
+  store.set('users/caller1', { role: 'admin' });
 }
 
 // ═══ 3b. /api/fiscal/pack: rigenerazione on-demand (admin) ═══

@@ -2,7 +2,7 @@
 // Server-side Magic Sign invitation for ANY contract — the replacement for
 // the portal's EmailJS sendSignatureEmail, which only fired while the admin
 // had the portal open, with a third-party template and no record. One POST:
-// resolves the party, backfills a missing sign token (legacy contracts),
+// resolves the party, mints a missing sign token in the signTokens store,
 // sends the invitation on the shared design system in the reader's language,
 // stamps the send on the contract.
 //
@@ -10,7 +10,8 @@
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord;
 //           owners only for their own property's contracts)
 // Body:     { contractId, role?: 'tenant'|'landlord' (default 'tenant') }
-// Response: 200 { ok, url, sent }
+// Response: 200 { ok, url?, sent } — url only to admins, or to the owner
+//           for their OWN (landlord) link: never the other party's credential
 //           409 { error:'already_signed' | 'awaiting_tenant' }
 //           404/403/400 on the usual failures
 //
@@ -19,8 +20,8 @@
 // awaiting the tenant is refused here with a clear 409 — the partial-signature
 // stage email delivers it automatically at the right moment.
 
-import crypto from 'node:crypto';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { ensureSignTokens } from './_tokens.js';
 import { requireRole, setCors } from '../_auth.js';
 import { sendSignInvite } from './_notify.js';
 import { ensureContractPdf } from './_contractpdf.js';
@@ -56,23 +57,52 @@ export default async function handler(req, res) {
   }
 
   const signed = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
-  if (signed) return res.status(409).json({ ok: false, error: 'already_signed' });
+  if (signed) {
+    // Il titolare ha firmato ma il lato conduttori NON è completo: il
+    // promemoria del portal tocca ai co-conduttori che mancano (prima
+    // rispondeva 409 already_signed e il promemoria non raggiungeva mai
+    // chi bloccava davvero il contratto — review del 3/10/2026).
+    if (role === 'tenant') {
+      const { inviteCoTenants } = await import('./_cosign.js');
+      let co = null;
+      try { co = await inviteCoTenants({ contractId, contract, property, resend: true }); }
+      catch (e) { console.warn('[send-link] co-tenants:', e.message); }
+      if (co && co.pending.length) {
+        if (co.emailed.length) await logActivity('sign_invite_sent', 'contract', { contractId, role: 'cotenant', to: co.emailed, resend: true }, auth.email || auth.uid).catch(() => {});
+        return res.status(200).json({
+          ok: true, primarySigned: true, sent: co.emailed.length > 0,
+          coInvited: co.emailed.length, coNoEmail: co.noEmail, coRecent: co.recent,
+          // il link di un co-conduttore è la SUA credenziale di firma: solo
+          // l'admin lo vede (stessa regola dei token nel deposito) — un
+          // proprietario che sollecita fa partire l'email, il link no
+          coTenants: co.pending.map(x => ({ name: x.name, phone: x.phone, hasEmail: !!x.email, ...(auth.profile.role === 'admin' ? { url: x.url } : {}) })),
+        });
+      }
+    }
+    return res.status(409).json({ ok: false, error: 'already_signed' });
+  }
   // Sequenziale: il locatore controfirma solo a lato-conduttori COMPLETO
-  // (principale + tutti i co-conduttori).
-  const { tenantSideComplete, cosignRef } = await import('../magic-sign/_shared.js');
+  // (principale + tutti i co-conduttori). CHI manca, per nome.
+  const { tenantSideComplete, tenantSideWaiting } = await import('../magic-sign/_shared.js');
   if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
-    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant', waitingFor: tenantSideWaiting(contract) });
   }
 
-  // Token backfill for legacy contracts created before the wizard.
-  const tokenField = role === 'tenant' ? 'tenantSignToken' : 'landlordSignToken';
-  let token = contract[tokenField];
-  if (!token) {
-    token = crypto.randomUUID();
-    try { await fsPatch('contracts/' + contractId, { [tokenField]: token }); }
-    catch (e) { return res.status(500).json({ ok: false, error: 'token_backfill_failed' }); }
-  }
+  // Il token dal deposito (signTokens, admin-only): coniato qui se manca —
+  // anche quello della controparte non firmata, così il "Tocca a Lei" alla
+  // prima firma ha già il suo link. Il contratto non lo porta più.
+  let toks;
+  try { toks = await ensureSignTokens(contractId, contract); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'token_backfill_failed' }); }
+  const token = toks[role];
+  if (!token) return res.status(500).json({ ok: false, error: 'token_backfill_failed' });
   const url = `${BASE}/sign?sign=${encodeURIComponent(token)}`;
+  // Il link è la credenziale di firma di QUELLA parte: torna nella risposta
+  // solo all'admin o al proprietario per il SUO link. Un proprietario che
+  // sollecita l'inquilino fa partire l'email, ma il link non lo vede —
+  // altrimenti potrebbe firmare al suo posto.
+  const mayEchoUrl = auth.profile.role === 'admin' || role === 'landlord';
+  const echo = mayEchoUrl ? { url } : {};
 
   // PDF backfill, stessa cintura di preagreement/send-sign: l'invito non
   // parte senza che il contratto abbia il suo PDF (il portal lo rigenera
@@ -101,7 +131,7 @@ export default async function handler(req, res) {
     to = (u && u.email) || (ll && ll.email) || contract.landlordEmail || '';
     name = contract.landlordName || (u && u.name) || (ll && ll.name) || '';
   }
-  if (!to) return res.status(409).json({ ok: false, error: 'no_email', url });
+  if (!to) return res.status(409).json({ ok: false, error: 'no_email', ...echo });
 
   const stampField = role === 'tenant' ? 'signInviteTenantAt' : 'signInviteLandlordAt';
   const resend = !!contract[stampField];
@@ -114,19 +144,16 @@ export default async function handler(req, res) {
   }
 
   // CO-FIRMA: l'invito lato-conduttori raggiunge ANCHE i co-conduttori,
-  // ciascuno col suo link derivato (cosignRef — niente token da coniare).
-  let coInvited = 0;
-  if (role === 'tenant' && Array.isArray(contract.coTenants)) {
-    for (let i = 0; i < contract.coTenants.length; i++) {
-      const cv = contract.coTenants[i];
-      if (!cv || !cv.name || cv.signature || !cv.email) continue;
-      try {
-        const coUrl = `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`;
-        const r = await sendSignInvite({ contract, property, role: 'tenant', to: cv.email, name: cv.name, url: coUrl, resend });
-        if (r && r.ok) coInvited++;
-      } catch (e) { console.warn('[send-link] co-tenant invite', i, e.message); }
-    }
+  // ciascuno col suo link derivato — la copia unica in _cosign.js (la
+  // stessa del 🖊 della console, del promemoria del cron e di sign-for).
+  let coInvited = 0, coNoEmail = [];
+  if (role === 'tenant') {
+    try {
+      const { inviteCoTenants } = await import('./_cosign.js');
+      const co = await inviteCoTenants({ contractId, contract, property, resend });
+      coInvited = co.emailed.length; coNoEmail = co.noEmail;
+    } catch (e) { console.warn('[send-link] co-tenants:', e.message); }
   }
 
-  return res.status(200).json({ ok: true, url, sent: !!sent.ok, resend, ...(coInvited ? { coInvited } : {}) });
+  return res.status(200).json({ ok: true, ...echo, sent: !!sent.ok, resend, ...(coInvited ? { coInvited } : {}), ...(coNoEmail.length ? { coNoEmail } : {}) });
 }

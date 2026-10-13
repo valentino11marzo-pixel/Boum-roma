@@ -25,6 +25,7 @@ export async function fsGetWithTime(docPath) {
 // ?sign= come "<contractId>.c<idx>.<token>".
 import crypto from 'node:crypto';
 import MANDATO from '../../js/mandato-engine.js';
+import { findSignTokenHolder } from '../sign/_tokens.js';
 
 export function cosignToken(contractId, idx) {
   const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
@@ -43,8 +44,9 @@ export function parseCoSignRef(token) {
   return { contractId: m[1], idx };
 }
 
-// Look up a contract by tenantSignToken, landlordSignToken or a derived
-// co-sign ref. Returns { contract, role, coIndex? } or null.
+// Look up a contract by the tenant/landlord sign token (signTokens store,
+// legacy plaintext as transition fallback) or a derived co-sign ref.
+// Returns { contract, role, coIndex? } or null.
 export async function findContractByToken(token) {
   if (!token || typeof token !== 'string' || token.length < 8) return null;
 
@@ -59,20 +61,16 @@ export async function findContractByToken(token) {
     return { contract: { ...contract, id: co.contractId }, role: 'cotenant', coIndex: co.idx };
   }
 
-  // tenantSignToken first (most common path)
-  let hits = await fsList('contracts', {
-    filter: { field: 'tenantSignToken', op: 'EQUAL', value: token },
-    limit: 2,
-  });
-  if (hits.length === 1) return { contract: hits[0], role: 'tenant' };
-  if (hits.length > 1) return null; // ambiguous → reject
-
-  hits = await fsList('contracts', {
-    filter: { field: 'landlordSignToken', op: 'EQUAL', value: token },
-    limit: 2,
-  });
-  if (hits.length === 1) return { contract: hits[0], role: 'landlord' };
-  return null;
+  // Conduttore / locatore: i token stanno in signTokens/{contractId}
+  // (admin-only), MAI più sul contratto che le parti leggono — vedi
+  // api/sign/_tokens.js. Il ramo legacy (token ancora in chiaro, prima della
+  // migrazione) vive dentro findSignTokenHolder.
+  const h = await findSignTokenHolder(token);
+  if (!h) return null;
+  const { fsGet } = await import('../homie/_lib.js');
+  const contract = h.contract || await fsGet('contracts/' + h.contractId);
+  if (!contract) return null;
+  return { contract: { ...contract, id: h.contractId }, role: h.role };
 }
 
 // L'impronta dei termini ECONOMICI del contratto: la usa la firma (terms
@@ -106,12 +104,16 @@ export function mandateTermsHash(terms) {
 //    presa all'accettazione; il diff dice cosa è cambiato (portal, sign.html);
 //  · legacy v1 (mandati nati prima della v2): resta il confronto
 //    termsFingerprint — versionato, non rotto.
+// L'immobile nato dalla STESSA proposta (prop_pa_<paId>) vale come
+// l'indirizzo su cui il mandato è stato dato quando la foto non aveva un
+// immobile collegato (termsForMandate, 12/10/2026): prima ogni proposta
+// senza immobile collegato produceva un mandato mai spendibile.
 // Una copia sola: submit (409), lookup (avviso), convert (registrazione).
 export function mandateCheck(contract) {
   const m = contract && contract.tenantMandate;
   if (!m || m.given !== true || !m.termsHash) return { ok: false, version: 0, reason: 'mandate_missing', diff: [] };
   if (Number(m.termsVersion) >= 2) {
-    const current = MANDATO.termsFromContract(contract);
+    const current = MANDATO.termsForMandate(contract, m);
     const ok = mandateTermsHash(current) === m.termsHash;
     const diff = ok ? [] : MANDATO.diffTerms(m.terms || {}, current);
     return { ok, version: 2, reason: ok ? null : 'mandate_terms_changed', diff, current };
@@ -140,6 +142,18 @@ export function tenantSideComplete(contract) {
   if (!contract || !contract.tenantSignature) return false;
   const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];
   return list.filter(x => x && x.name).every(x => !!x.signature);
+}
+
+// Chi manca sul lato conduttori, per nome e ruolo — quello che il
+// proprietario (e la console) devono leggere invece di «non è il tuo turno».
+export function tenantSideWaiting(contract) {
+  if (!contract) return [];
+  const out = [];
+  if (!contract.tenantSignature) out.push({ name: String(contract.tenantName || '').trim() || null, role: 'tenant' });
+  (Array.isArray(contract.coTenants) ? contract.coTenants : []).forEach(x => {
+    if (x && String(x.name || '').trim() && !x.signature) out.push({ name: String(x.name).trim(), role: 'cotenant' });
+  });
+  return out;
 }
 
 // Apply server-side timestamp via a Firestore field transform. The plain

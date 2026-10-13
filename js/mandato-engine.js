@@ -155,6 +155,42 @@
     };
   }
 
+  // L'IMMOBILE NATO DALLA PROPOSTA (12/10/2026 — Via dei Latini 76).
+  // Una proposta accettata senza immobile collegato fotografa propertyId
+  // null: il cliente ha dato il mandato su un INDIRIZZO, quello della
+  // proposta. Il contratto però nasce sempre su un record di `properties`,
+  // e quando nel portal la casa non c'era convert lo crea DALLA STESSA
+  // proposta (createProperty → prop_pa_<paId>, indirizzo e interno copiati
+  // da lei). Contare quel record come «immobile cambiato» rendeva il
+  // mandato inservibile per costruzione su OGNI proposta senza immobile
+  // collegato: nel backup del 12/10 BOOM-MUMY744I aveva termsDiff
+  // ['propertyId'] e nient'altro, e altre tre proposte pagate col mandato
+  // aspettavano lo stesso destino. Qui, e solo qui, il record nato dalla
+  // proposta del mandato vale come l'indirizzo approvato. Un immobile
+  // DIVERSO, scelto a mano dopo l'accettazione (anche allo stesso civico:
+  // in un palazzo ci sono più interni), resta un cambio di condizioni.
+  const PA_PROPERTY_PREFIX = 'prop_pa_';
+  function proposalPropertyId(paId) {
+    const s = String(paId == null ? '' : paId).trim();
+    return s ? PA_PROPERTY_PREFIX + s : null;
+  }
+  function alignPropertyToSnapshot(snapshot, current, paId) {
+    if (!snapshot || !current) return current;
+    if (snapshot.propertyId != null && snapshot.propertyId !== '') return current;
+    const born = proposalPropertyId(paId);
+    if (!born || current.propertyId !== born) return current;
+    return Object.assign({}, current, { propertyId: null });
+  }
+  // Le condizioni di ADESSO lette dal contratto, nella forma in cui si
+  // confrontano con la foto del mandato del CONDUTTORE (la proposta su cui
+  // è stato dato: m.paId, o quella da cui il contratto è nato). Una copia
+  // sola per server (mandateCheck, tenantMandateFor) e portal (🖊 Firma ora).
+  function termsForMandate(contract, mandate) {
+    const m = mandate || {};
+    const c = contract || {};
+    return alignPropertyToSnapshot(m.terms, termsFromContract(c), m.paId || c.preAgreementId);
+  }
+
   // La forma che si HASHA (server) e si confronta (browser): chiavi in
   // ordine fisso, l'indirizzo escluso (è un dato della proposta che il
   // contratto non porta — entra nel diff SOLO se entrambi i lati lo hanno).
@@ -190,7 +226,7 @@
       : d.label + ': ' + fmt(d.from) + ' → ' + fmt(d.to)).join(' · ');
   }
 
-  const API = { VERSION, LABELS, normText, normClauses, modelOfLease, modelOfContract, termsFromProposal, termsFromContract, canonical, diffTerms, describeDiff };
+  const API = { VERSION, LABELS, normText, normClauses, modelOfLease, modelOfContract, termsFromProposal, termsFromContract, proposalPropertyId, alignPropertyToSnapshot, termsForMandate, canonical, diffTerms, describeDiff };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_MANDATO = API;
 })(typeof window !== 'undefined' ? window : this);

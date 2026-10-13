@@ -551,6 +551,9 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
       for (const lang of ['it', 'en']) {
         const pg = await br.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
         const errs = []; pg.on('pageerror', e => errs.push(e.message));
+        // boom-track timbra la fonte SOLO dopo il consenso analitico (main,
+        // ottobre 2026): qui il visitatore ha accettato.
+        await pg.addInitScript(() => { try { localStorage.setItem('boom:consent', 'all:' + Date.now()); } catch (e) {} });
         let sent = null;
         await pg.route('**/*', async r => {
           const u = r.request().url();
@@ -603,6 +606,7 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
         await pg.fill('#fName', 'Laura Bianchi'); await pg.fill('#fContact', '+39 333 765 4321');
         await pg.click('#fGo'); await pg.waitForTimeout(250);
         ok('[it] il riaffitto arriva alla porta come goal:relet', sent && sent.goal === 'relet' && sent.freeFrom === 'rented', sent);
+        ok('[it] senza consenso analitico il modulo parte lo stesso, ma senza fonte timbrata', sent && sent.attribution === '', sent && sent.attribution);
         const wide = await pg.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
         ok('[it] a 390px niente scorrimento laterale, nessun errore JS', wide <= 0 && errs.length === 0, { wide, errs });
         await pg.close();

@@ -20,7 +20,7 @@
 // Everything is best-effort and time-boxed; this module never throws, so it
 // can never block or fail a signature.
 
-import { fsGet } from '../homie/_lib.js';
+import { fsGet, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine, tiles, timeline, includes, rule, row } from '../preagreement/_notify.js';
 // Il pass Wallet del contratto è servito LIVE da /api/my-pass (ricostruito
@@ -97,7 +97,7 @@ export async function gather(contract, property) {
 // ── The invitation to sign ────────────────────────────────────────────────
 // One party, their /sign link, in their language. Used by api/sign/send-link
 // (the portal's "invia invito/promemoria") and re-usable anywhere.
-export async function sendSignInvite({ contract, property, role, to, name, url, resend = false }) {
+export async function sendSignInvite({ contract, property, role, to, name, url, resend = false, coOf = '', updated = false }) {
   try {
     if (!to || !url) return { ok: false, error: 'no_recipient_or_url' };
     const g = await gather(contract, property);
@@ -108,10 +108,12 @@ export async function sendSignInvite({ contract, property, role, to, name, url, 
 
     let subject, html, preheader;
     if (role === 'landlord') {
-      subject = `${resend ? 'Promemoria — ' : ''}✍️ Contratto pronto per la Sua firma — ${g.propLabel}`;
+      subject = updated
+        ? `✍️ Contratto aggiornato — firmi la nuova versione — ${g.propLabel}`
+        : `${resend ? 'Promemoria — ' : ''}✍️ Contratto pronto per la Sua firma — ${g.propLabel}`;
       preheader = 'Firma digitale dal telefono, due minuti — copia e certificato inclusi.';
       html = shell(
-        para(`Gentile ${esc(first)},<br>il contratto di locazione per <b>${esc(g.propLabel)}</b> è pronto per la Sua firma digitale come locatore. Due minuti, direttamente dal telefono:`)
+        para(`Gentile ${esc(first)},<br>il contratto di locazione per <b>${esc(g.propLabel)}</b> ${updated ? 'è stato <b>aggiornato</b>: la versione precedente non vale più, ed è' : 'è'} pronto per la Sua firma digitale come locatore. Due minuti, direttamente dal telefono:`)
         + tiles([
           { k: 'Canone', v: eur(contract.rent) + '<span style="font-size:12px;color:#6E6A60"> /mese</span>' },
           { k: 'Periodo', v: `${fmtIT(contract.startDate)} → ${fmtIT(contract.endDate)}`, sub: months ? months + ' mesi' : null },
@@ -121,10 +123,15 @@ export async function sendSignInvite({ contract, property, role, to, name, url, 
         + fine(`Firma Elettronica Semplice ai sensi dell'art. 21 CAD, registrata con certificato. ${contract.signingOrder !== 'any' && !contract.tenantSignature ? 'Il link si attiva dopo la firma dell’inquilino — Le arriverà conferma.' : ''} Link personale monouso: non inoltrarlo.`, 'margin-top:20px;text-align:center'),
         preheader);
     } else {
-      subject = `${resend ? 'Reminder — ' : ''}✍️ Your rental contract is ready to sign — ${g.propLabel}`;
-      preheader = 'Sign digitally from your phone in about two minutes.';
+      // coOf: l'invito al CO-CONDUTTORE dice con chi firma (prima arrivava
+      // come se fosse il titolare). updated: una versione corretta del
+      // contratto sostituisce quella mandata prima — lo si dice in testa.
+      subject = updated
+        ? `✍️ Updated contract — please review and sign the new version — ${g.propLabel}`
+        : `${resend ? 'Reminder — ' : ''}✍️ Your rental contract is ready to sign — ${g.propLabel}`;
+      preheader = updated ? 'We corrected your contract — this link opens the new version.' : 'Sign digitally from your phone in about two minutes.';
       html = shell(
-        para(`Ciao ${esc(first)} — your rental contract for <b>${esc(g.propLabel)}</b> is ready for your digital signature. It takes about two minutes, straight from your phone:`)
+        para(`Ciao ${esc(first)} — ${updated ? 'we’ve <b>updated</b> your' : 'your'} rental contract for <b>${esc(g.propLabel)}</b>${coOf ? `, which you sign as <b>co-tenant</b> together with ${esc(coOf)},` : ''} ${updated ? 'and it is ready for your signature again. The previous version is no longer valid —' : 'is ready for your digital signature.'} It takes about two minutes, straight from your phone:`)
         + tiles([
           { k: 'Monthly rent', v: eur(contract.rent) },
           { k: 'Period', v: `${fmtEN(contract.startDate)} → ${fmtEN(contract.endDate)}`, sub: months ? months + ' months' : null },
@@ -159,8 +166,27 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
     const signerName  = (isCo ? coT.name : (signerIsTenant ? g.tenantName : g.landlordName)) || 'there';
     const otherEmail  = (signerIsTenant ? (sideDone ? g.landlordEmail : '') : g.tenantEmail);
     const otherName   = (signerIsTenant ? g.landlordName : g.tenantName) || 'there';
-    const otherToken  = signerIsTenant ? contract.landlordSignToken : contract.tenantSignToken;
+    // Il link della controparte dal deposito dei token (signTokens): il
+    // contratto non li porta più. Si conia solo per chi non ha firmato.
+    let toks = {};
+    if (otherEmail && contract.id) {
+      try {
+        const { ensureSignTokens } = await import('./_tokens.js');
+        toks = await ensureSignTokens(contract.id, contract, { mint: [signerIsTenant ? 'landlord' : 'tenant'] });
+      } catch (e) { console.warn('[sign/notify] sign tokens:', e.message); }
+    }
+    const otherToken  = signerIsTenant ? toks.landlord : toks.tenant;
     const link = otherToken ? `${BASE}/sign?sign=${encodeURIComponent(otherToken)}` : '';
+
+    // CHI MANCA SUL LATO CONDUTTORI (3/10/2026): il titolare e/o i
+    // co-conduttori non ancora firmati. Il locatore aspetta TUTTI loro — e
+    // prima nessuno li sollecitava: il titolare firmava, il «tocca a Lei»
+    // al locatore (giustamente) non partiva, e i co-conduttori restavano
+    // senza link per sempre.
+    const { pendingCoSigners, inviteCoTenants } = await import('./_cosign.js');
+    const coPend = signerIsTenant && !sideDone ? pendingCoSigners(contract.id, contract) : [];
+    const primaryPending = signerIsTenant && !sideDone && !contract.tenantSignature;
+    const waitNames = [primaryPending ? (g.tenantName || 'the main tenant') : null, ...coPend.map(x => x.name)].filter(Boolean);
 
     const jobs = [];
     if (signerEmail && !opts.nudgeOnly) {
@@ -170,10 +196,11 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
           para(`Hi ${esc(String(signerName).split(' ')[0])},<br>thank you — your signature for <b>${esc(g.propLabel)}</b> is recorded.`)
           + timeline([
             { title: 'Your signature', note: 'Recorded with FES certificate (Art. 21 CAD)' },
-            { title: 'Landlord countersigns', note: 'We’ve sent them their link — nothing to do on your side' },
+            ...(waitNames.length ? [{ title: 'The other tenants sign', note: `${waitNames.join(', ')} — each with their own link (we’ve sent it)` }] : []),
+            { title: 'Landlord countersigns', note: waitNames.length ? 'Right after the last tenant signature — nothing to do on your side' : 'We’ve sent them their link — nothing to do on your side' },
             { title: 'Contract active', note: 'You’ll get your welcome email with portal access' },
           ]),
-          'Your signature is recorded — we’re on the landlord now.')));
+          waitNames.length ? `Your signature is recorded — waiting for ${waitNames.join(', ')}.` : 'Your signature is recorded — we’re on the landlord now.')));
       } else {
         jobs.push(trySend(signerEmail, '✓ Firma registrata', shell(
           para(`Gentile ${esc(String(signerName).split(' ')[0])},<br>grazie — la Sua firma per <b>${esc(g.propLabel)}</b> è registrata con certificato (art. 21 CAD). Le confermeremo il perfezionamento del contratto.`),
@@ -197,8 +224,50 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
           `${signerName} signed — your signature completes the contract.`)));
       }
     }
+    // Il lato conduttori non è completo: i link a chi manca. Alla firma vera
+    // solo a chi non ha MAI ricevuto un invito (gli altri l'hanno già, e il
+    // promemoria del cron arriva dopo 48h); col promemoria (nudgeOnly) a
+    // tutti quelli che mancano.
+    let coRes = null, primaryNudged = false;
+    if (signerIsTenant && !sideDone) {
+      const prevCo = (contract.coSignInviteAt && typeof contract.coSignInviteAt === 'object') ? contract.coSignInviteAt : {};
+      const toInvite = opts.nudgeOnly ? coPend : coPend.filter(x => !prevCo[String(x.idx)]);
+      if (toInvite.length) {
+        // il promemoria del cron ha già il suo passo (48h ferme, 24h fra un
+        // sollecito e l'altro): qui niente cooldown, lo decide il cron
+        jobs.push(inviteCoTenants({ contractId: contract.id, contract, property: g.prop, resend: !!opts.nudgeOnly, only: toInvite.map(x => x.idx), ...(opts.nudgeOnly ? { cooldownMs: 0 } : {}) })
+          .then(r => { coRes = r; }).catch(e => console.warn('[sign/notify] co invite:', e.message)));
+      }
+      // Il titolare manca ancora: il SUO link dal deposito (signTokens) —
+      // solo se ne ha già uno, mai coniato da qui. Se non era mai stato
+      // invitato riceve il suo PRIMO invito (non un «Reminder»), e l'invito
+      // si stampa: prima ogni firma di un co-conduttore glielo rimandava,
+      // perché nessuno scriveva signInviteTenantAt (review del 3/10/2026).
+      let primaryToken = null;
+      if (primaryPending && g.tenantEmail && contract.id && (opts.nudgeOnly || !contract.signInviteTenantAt)) {
+        try {
+          const { readSignTokens } = await import('./_tokens.js');
+          primaryToken = (await readSignTokens(contract.id, contract)).tenant;
+        } catch (e) { console.warn('[sign/notify] primary token:', e.message); }
+      }
+      if (primaryToken) {
+        jobs.push(sendSignInvite({
+          contract, property: g.prop, role: 'tenant', to: g.tenantEmail, name: g.tenantName,
+          url: `${BASE}/sign?sign=${encodeURIComponent(primaryToken)}`, resend: !!contract.signInviteTenantAt,
+        }).then(async r => {
+          primaryNudged = !!(r && r.ok);
+          if (primaryNudged && !contract.signInviteTenantAt && contract.id) {
+            try { await fsPatch('contracts/' + contract.id, { signInviteTenantAt: new Date().toISOString() }); }
+            catch (e) { console.warn('[sign/notify] stamp primary invite:', e.message); }
+          }
+        }).catch(() => {}));
+      }
+    }
     await Promise.all(jobs);
-    return { ok: true, signer: !!signerEmail, counterparty: !!(otherEmail && link) };
+    return {
+      ok: true, signer: !!signerEmail, counterparty: !!(otherEmail && link),
+      waitingFor: waitNames, coEmailed: coRes ? coRes.emailed : [], coNoEmail: coRes ? coRes.noEmail : [], primaryNudged,
+    };
   } catch (e) { console.warn('[sign/notify] partial:', e.message); return { ok: false, error: e.message }; }
 }
 

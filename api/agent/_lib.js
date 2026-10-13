@@ -99,13 +99,16 @@ async function getMailer() {
 }
 
 // Send a single email. Returns { messageId }.
-export async function sendEmail({ to, subject, html, text, from, attachments, icalEvent, cc }) {
+export async function sendEmail({ to, subject, html, text, from, attachments, icalEvent, cc, replyTo }) {
   if (!to || !subject || (!html && !text)) throw new Error('to, subject and html|text required');
   const m = await getMailer();
   const info = await m.sendMail({
     from: from || `BOOM Rome <${process.env.GMAIL_USER}>`,
     to, subject, html, text,
     ...(cc ? { cc } : {}),
+    // "Rispondi" dalla casella dell'operatore arriva a chi ha scritto
+    // (la notifica di candidatura: il mittente è BOOM, il cliente no).
+    ...(replyTo ? { replyTo } : {}),
     // nodemailer attachment objects: [{ filename, content(Buffer), contentType }]
     ...(Array.isArray(attachments) && attachments.length ? { attachments } : {}),
     // icalEvent: { method:'REQUEST'|'CANCEL', filename, content } — nodemailer

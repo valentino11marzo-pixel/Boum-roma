@@ -26,7 +26,7 @@ const mkEl = (id) => els[id] || (els[id] = {
   id, innerHTML: '', textContent: '', style: {}, value: '',
   classList: { toggle() {}, add() {}, remove() {} },
   querySelectorAll: () => [], querySelector: () => ({ textContent: '' }),
-  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; },
+  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; }, remove() {},
 });
 const chipI = {};
 const chips = ['all', 'open', 'close', 'paid', 'signed', 'nocontract', 'reserve', 'revoked'].map(f => ({
@@ -78,6 +78,10 @@ paApply(snap([
   { ...base, id: 'F', contractId: undefined, propertyId: null, signSentAt: null, paidAt: new Date(Date.now() - 40 * 86400000).toISOString() },
   /* G · accettata NON pagata (la proposta di prova che restava lì per sempre) */
   { ...base, id: 'G', status: 'accepted', paidEur: null, paidAt: null, contractId: undefined, propertyId: null, signSentAt: null },
+  /* H · titolare firmato, CO-CONDUTTORE mancante (3/10/2026): il proprietario non può ancora firmare */
+  { ...base, id: 'H', contractId: 'pa_H', tenants: [{ fullName: 'Ines Test' }, { fullName: 'Marco Rossi' }] },
+  /* I · versione CORRETTA caricata dall'operatore (v2), nessuna firma */
+  { ...base, id: 'I', contractId: 'pa_I' },
 ]));
 const before = els.paRows.innerHTML;
 cWatch['pa_A']({ exists: true, data: () => ({ signatureStatus: 'none', generatedPDF: 'https://st/contracts/pa_A/contract.pdf' }) });
@@ -86,6 +90,8 @@ cWatch['pa_C']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSign
 cWatch['pa_E']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-08-14T09:00:00Z', landlordSignedAt: '2026-08-14T10:00:00Z', fullySignedAt: '2026-08-14T10:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/lea.pdf', finalizedAt: 'x' }) });
 cWatch['pa_F']({ exists: false, data: () => null });
 cWatch['pa_G']({ exists: false, data: () => null });
+cWatch['pa_H']({ exists: true, data: () => ({ tenantSignature: 'x', tenantSignedAt: '2026-09-02T09:00:00Z', signatureStatus: 'partial', coTenants: [{ name: 'Marco Rossi' }] }) });
+cWatch['pa_I']({ exists: true, data: () => ({ signatureStatus: 'none', generatedPDF: 'https://st/contracts/pa_I/contract-v2.pdf', pdfSource: 'upload', contractVersion: 2, contractRevisedAt: '2026-10-03T09:00:00Z', pdfUploadNote: 'piano 2, int. 14' }) });
 await new Promise(r => setTimeout(r, 200));   // scheduleRender è debounced
 
 const rows = els.paRows.innerHTML.split('<div class="parow').slice(1);
@@ -93,8 +99,8 @@ const has = (i, re) => re.test(rows[i] || '');
 let pass = 0, fail = 0;
 const ok = (c, n) => { if (c) { pass++; console.log('PASS ' + n); } else { fail++; console.log('✗ FAIL ' + n); } };
 
-ok(rows.length === 7 && Object.keys(cWatch).length === 7, 'sette deal renderizzati, sette contratti in ascolto (anche pa_<id> per chi non ha contractId)');
-ok(before.split('<div class="parow').length === 8 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
+ok(rows.length === 9 && Object.keys(cWatch).length === 9, 'nove deal renderizzati, nove contratti in ascolto (anche pa_<id> per chi non ha contractId)');
+ok(before.split('<div class="parow').length === 10 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
   'PRIMA che i contratti arrivino la lista è intera e il ripiego (stampa sulla proposta) già parla');
 ok(has(0, /Reinvia Magic Sign/) && has(0, /Firma su WhatsApp/) && !has(0, /chip sign/),
   'A · nessuna firma: 🖊 Reinvia Magic Sign + Firma su WhatsApp, nessun chip firma');
@@ -125,7 +131,7 @@ ok(has(5, /contratto NON ancora creato nel sistema/) && has(5, /40 giorni fa/) &
 ok(has(6, /Revoca</) && has(6, /Pagamento ancora in sospeso/) && !has(6, /contratto NON ancora creato/),
   'G · accettato non pagato: Revoca disponibile, nessun allarme «senza contratto» (non ha pagato)');
 ok(!has(0, /Revoca</) && !has(2, /Revoca</), 'A e C (pagati/contrattualizzati): mai Revoca');
-ok(/^2 <small>\/ 5 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 2 contratti firmati su 5 creati (E adottato conta)');
+ok(/^2 <small>\/ 7 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 2 contratti firmati su 7 creati (E adottato conta)');
 ok(chipI.signed.textContent === 2 || chipI.signed.textContent === '2', 'chip Firmati conta 2');
 ok(chipI.nocontract.textContent === 1 || chipI.nocontract.textContent === '1', 'chip Da contratto conta 1 (solo F)');
 ctx.setFilter('nocontract', chips.find(c => c.getAttribute() === 'nocontract'));
@@ -136,6 +142,138 @@ ok(onlyNo.length === 1 && /contratto NON ancora creato/.test(onlyNo[0]), 'filtro
 ctx.setFilter('signed', chips.find(c => c.getAttribute() === 'signed'));
 const onlySigned = els.paRows.innerHTML.split('<div class="parow').slice(1);
 ok(onlySigned.length === 2 && onlySigned.every(r => /chip signed/.test(r)), 'filtro Firmati → restano C ed E, i due firmati da entrambi');
+
+/* 👥 H: il proprietario aspetta il CO-CONDUTTORE — la riga lo dice e dà i suoi link */
+ok(has(7, /class="pbtn prim" onclick="coLinksFor\('H',this\)"[^>]*>👥 Link co-conduttori \(1\)/) && !has(7, /Firma proprietario/) && !has(7, /Copia link firma proprietario/)
+  && has(7, /mancano i <b>co-conduttori<\/b> \(Marco Rossi\)/) && !has(7, /manca la firma del proprietario/),
+  'H · titolare firmato, co-conduttore mancante: 👥 Link co-conduttori PRIMARIO, il link del proprietario (che direbbe «non è il tuo turno») nascosto');
+/* 📤 I: la versione corretta caricata */
+ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · «piano 2, int\. 14»/) && has(8, /📄 Contratto v2 \(PDF, non firmato\)/)
+  && has(8, /onclick="uploadRevision\('I',this\)"/) && has(8, /onclick="reviseTemplate\('I',this\)"[^>]*>↺ Modello BOOM/),
+  'I · versione caricata: la riga dice quale versione gira e perché, con 📤 e ↺ Modello BOOM');
+ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
+  'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
+
+/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso Chiara Tavolieri,
+   Via dei Latini 76: pagata da venti giorni, nessun contratto, nessun modo
+   di mandare la Scheda al proprietario se non dentro la richiesta del mandato) */
+ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietario/) && has(5, /onclick="askLandlordMandateFor\('F'\)"/)
+  && has(5, /<b>📋 Scheda proprietario<\/b> crea il contratto/) && has(5, /non esistono la Scheda né i link di firma delle parti/) && !has(2, /sendLandlordScheda/),
+  'F · pagato senza contratto: 📋 Scheda proprietario sulla riga, e la riga dice PERCHÉ Scheda e link non esistono ancora; C · firmato da entrambi: niente 📋');
+{
+  let lastBody = null;
+  ctx.fetch = async (u, o) => { lastBody = JSON.parse(o.body); return { json: async () => ({
+    ok: true, contractId: 'pa_F', created: true, propertyCreated: true, url: 'https://www.boomrome.com/scheda?t=pa_F.l.x',
+    message: 'Gentile Giulia,\nper preparare il contratto ci mancano ancora: codice fiscale.\nDue minuti qui, dal telefono: https://www.boomrome.com/scheda?t=pa_F.l.x\n\n— BOOM Roma',
+    missing: [{ key: 'landlordCF', label: 'codice fiscale' }], phone: '+39334', email: null, emailed: false, locked: false }) }; };
+  await ctx.sendLandlordScheda('F', null);
+  const ovl = Object.values(els).find(e => /📋 Scheda del proprietario/.test(e.innerHTML || ''));
+  ok(!!lastBody && lastBody.op === 'landlord-scheda' && lastBody.id === 'F' && lastBody.createProperty === true
+    && !!ovl && /<a class="pbtn prim wa" href="https:\/\/wa\.me\/39334\?text=Gentile%20Giulia/.test(ovl.innerHTML)
+    && /Contratto creato adesso insieme all’immobile/.test(ovl.innerHTML) && /gli mancano 1 dati per il contratto: codice fiscale/.test(ovl.innerHTML) && /Nessuna email in archivio/.test(ovl.innerHTML),
+    '📋 il tap: op landlord-scheda con createProperty (proposta non collegata), finestra con WhatsApp come LINK vero, contratto e immobile appena nati detti, i dati mancanti nominati');
+  /* ✍️ Firmo io sul giro vero della console: piano → firma → tocca al
+     proprietario, e il SUO link firma esce subito in una finestra */
+  const ops = [];
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); ops.push(bd.op); return { json: async () => (bd.op === 'status'
+    ? { ok: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, contractVersion: 1, coTenantsPending: [] } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L2', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sl = Object.values(els).find(e => /🖊 Firma del proprietario/.test(e.innerHTML || ''));
+  ok(ops.join() === 'status,sign' && !!sl && /href="https:\/\/wa\.me\/39334\?text=Ciao%20Giulia!/.test(sl.innerHTML) && /sign%3Fsign%3DL2/.test(sl.innerHTML)
+    && /🏠 Chiedi invece il mandato/.test(sl.innerHTML) && !/Nessuna email in archivio/.test(sl.innerHTML),
+    'dopo ✍️ (conduttore firmato per mandato): il link FIRMA del proprietario subito in una finestra, WhatsApp col suo numero, e l’alternativa del mandato');
+
+  /* ✍️ premuto PER PRIMO su una proposta senza contratto né immobile: il
+     server dice hasContract:false → UNA conferma che annuncia la nascita del
+     contratto e dell'immobile, e la firma parte con createProperty (prima
+     moriva su no_property DOPO il «Procedere?») */
+  const asked = [], bodies = [];
+  const stNoContract = { ok: true, hasContract: false, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, coTenantsPending: [] } };
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? stNoContract
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L3', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sb = bodies.find(b => b.op === 'sign');
+  ok(bodies.map(b => b.op).join() === 'status,sign' && !!sb && sb.createProperty === true && !('propertyId' in sb)
+    && /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso, insieme all’immobile «Viale Angelico 9»/.test(asked[0] || '')
+    && /Firmi TU per il conduttore Ines Test/.test(asked[0] || ''),
+    '✍️ per primo, senza contratto né immobile: UNA conferma che dice che nascono contratto e immobile, e la firma parte con createProperty');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return false; };
+  await ctx.signFor('F', null);
+  ok(bodies.map(b => b.op).join() === 'status' && asked.length === 1, '… annullata la conferma: nessuna firma, nessun contratto creato');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? { ...stNoContract, hasContract: true, plan: { ...stNoContract.plan, needsContract: undefined } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L4', askLandlordMandate: false, contractId: 'pa_A' }) }; };
+  await ctx.signFor('A', null);
+  const sa = bodies.find(b => b.op === 'sign');
+  ok(!!sa && !('createProperty' in sa) && !('propertyId' in sa) && !/non esiste ancora/.test(asked[0] || ''),
+    '✍️ con il contratto già nato: nessun annuncio di nascita, nessun createProperty');
+
+  delete ctx.confirm;
+}
+
+/* ── L'IMMOBILE C'È GIÀ (Viale Angelico 9, 12/10/2026) ──
+   Una SECONDA console montata, con il portal che ha già le case: la proposta
+   non è collegata ma l'appartamento è nel portal (con un contratto vivo).
+   Prima di far nascere un doppione 📋 🏠 ✍️ lo DICONO, con lo stesso
+   abbinamento con cui → Contratto preseleziona (propGuess, una copia). */
+{
+  let paApply2 = null;
+  const propsDocs = [
+    { id: 'W0lE1', name: 'Angelico 9', address: 'Viale Angelico 9' },
+    { id: 'prop_pa_K', name: 'Via dei Latini 76 int. 1', address: 'Via dei Latini 76' },
+    { id: 'pX', name: 'Altro', address: 'Via Roma 1' },
+  ];
+  const asked2 = [], bodies2 = [];
+  const stNo = { ok: true, hasContract: false, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, coTenantsPending: [] } };
+  const fs2 = () => ({ collection: (name) => ({
+    orderBy: () => ({ limit: () => ({ onSnapshot: (fn) => { paApply2 = fn; }, get: async () => { throw new Error('offline'); } }) }),
+    doc: () => ({ onSnapshot() {}, get: async () => { throw new Error('offline'); }, update: async () => {} }),
+    limit: () => ({ get: async () => ({ forEach: (fn) => (name === 'properties' ? propsDocs : []).forEach(p => fn({ id: p.id, data: () => p })) }) }),
+  }) });
+  const ctx2 = {
+    ...ctx, firebase: { firestore: fs2 },
+    confirm: (m) => { asked2.push(m); return false; },
+    fetch: async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status' ? stNo : { ok: true }) }; },
+  };
+  ctx2.window = ctx2; ctx2.self = ctx2;
+  vm.createContext(ctx2);
+  for (const s of scripts) vm.runInContext(s, ctx2);
+  const pa2 = (id, addr) => ({ ...base, id, contractId: undefined, propertyId: null, signSentAt: null, property: { address: addr } });
+  paApply2(snap([pa2('F', 'Viale Angelico 9'), pa2('K', 'Via dei Latini 76'), pa2('L', 'Via Nuova 5')]));
+  const warnRe = /⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «Angelico 9 — Viale Angelico 9»\. Se è la stessa casa, ANNULLA e usa → Contratto per collegarla/;
+  const reset = () => { asked2.length = 0; bodies2.length = 0; };
+
+  await ctx2.signFor('F', null);
+  ok(warnRe.test(asked2[0] || '') && /doppione/.test(asked2[0] || '') && /sovrapposizioni/.test(asked2[0] || '') && bodies2.map(b => b.op).join() === 'status',
+    '✍️ su proposta non collegata con la casa GIÀ nel portal: la conferma lo dice (nome, indirizzo, doppione, sovrapposizioni, → Contratto) e, annullata, non firma');
+  reset(); await ctx2.sendLandlordScheda('F', null);
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 0, '📋 sulla stessa proposta: lo stesso avviso, e annullato non parte nessuna chiamata');
+  reset(); await ctx2.askLandlordMandateFor('F');
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 0, '🏠 sulla stessa proposta: lo stesso avviso, e annullato non parte nessuna chiamata');
+  reset(); await ctx2.sendLandlordScheda('K', null);
+  ok(asked2.length === 1 && !/GIÀ un immobile/.test(asked2[0]) && /annulla e usa → Contratto per sceglierla/.test(asked2[0]),
+    'K · l’unica casa allo stesso indirizzo è quella nata da QUESTA proposta (prop_pa_K): non è un doppione, nessun avviso');
+  reset(); await ctx2.sendLandlordScheda('L', null);
+  ok(asked2.length === 1 && !/GIÀ un immobile/.test(asked2[0]) && /insieme all’immobile «Via Nuova 5»/.test(asked2[0]),
+    'L · nessuna casa a quell’indirizzo nel portal: la conferma di sempre, nessun avviso');
+  reset(); ctx2.confirm = (m) => { asked2.push(m); return true; };
+  await ctx2.sendLandlordScheda('F', null);
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 1 && bodies2[0].op === 'landlord-scheda' && bodies2[0].createProperty === true,
+    '… se l’operatore conferma che è un’altra casa (es. un altro interno), si procede: l’avviso non blocca');
+  /* → Contratto preseleziona ancora con la STESSA regola (il riordino non l'ha cambiata) */
+  const lastConv = () => Object.values(els).filter(e => /Converti in contratto/.test(e.innerHTML || '')).pop();
+  await ctx2.convertPA('F');
+  const cvF = lastConv();
+  await ctx2.convertPA('L');
+  const cvL = lastConv();
+  ok(!!cvF && /<option value="W0lE1" selected>/.test(cvF.innerHTML) && !/value="__new__" selected/.test(cvF.innerHTML)
+    && !!cvL && /<option value="__new__" selected>/.test(cvL.innerHTML) && !/<option value="W0lE1" selected>/.test(cvL.innerHTML),
+    '→ Contratto: con la casa nel portal preseleziona QUELLA, senza preseleziona «＋ Crea l’immobile» (stesso abbinamento, una copia)');
+}
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

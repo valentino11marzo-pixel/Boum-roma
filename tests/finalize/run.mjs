@@ -89,7 +89,8 @@ globalThis.fetch = async (url, opts = {}) => {
     return okJson({ downloadTokens: 'dltok' });
   }
   if (url.includes('firestore.googleapis.com')) {
-    const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
+    // la PRIMA occorrenza: una collection chiamata «documents» spezzerebbe split()
+    const path = url.slice(url.indexOf('/documents') + 10).replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
     if (path.startsWith(':runQuery')) {
       const sq = (JSON.parse(opts.body || '{}') || {}).structuredQuery || {};
@@ -273,6 +274,107 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
     .filter(d => d.linkedContractId === 'ctrS' && d.title === TARI2.title);
   check('refinalize: i doppioni post-finalize spariscono, resta la copia lavorata',
     r.body.dedupeRemoved >= 2 && tari2.length === 1 && tari2[0].status === 'done');
+}
+
+// ═══ 3b. La copia FIRMATA nell'archivio di chi ha firmato (4/10/2026) ═══
+// Il portal di proprietario e inquilino legge `documents where userId == uid`:
+// senza questa riga il contratto firmato esisteva solo come link nell'email,
+// e l'unico documento «contratto» era quello dell'attivazione, sul PDF
+// SENZA firme. Il finalize ora scrive una copia per parte con un profilo,
+// ripara quella dell'attivazione invece di affiancarla, e non duplica mai.
+{
+  const ARC = await import('../../api/sign/_archive.js');
+  const docsOf = (cid) => [...store.keys()].filter(k => k.startsWith('documents/') && (store.get(k) || {}).contractId === cid);
+
+  store.set('users/c1', { email: 'coco@expat.com', name: 'Coco Expat', role: 'tenant' });
+  const C = { ...BASE_CONTRACT, id: 'ctrA', coTenants: [{ name: 'Coco Expat', userId: 'c1', signedAt: '2026-09-01T10:00:00Z', signature: SIG }] };
+  store.set('contracts/ctrA', { ...C });
+  // il documento nato all'attivazione (browser), sul PDF SENZA firme
+  store.set('documents/act_t1', { name: 'Contract (signed copy in preparation) — Trastevere Loft', type: 'contract', contractId: 'ctrA', propertyId: 'prop1', userId: 't1', shared: true, fileUrl: 'https://storage.example/contract.pdf', note: ARC.ACTIVATION_NOTE, createdAt: '2026-09-01T13:20:00Z' });
+  // un documento dello stesso contratto che NON è una copia del contratto
+  store.set('documents/verb1', { name: 'Verbale di consegna', type: 'legal', category: 'verbale', contractId: 'ctrA', userId: 't1', fileUrl: 'https://storage.example/verbale.pdf', source: 'verbale' });
+
+  const out = await finalizeContract({ ...C });
+  const signedUrl = (store.get('contracts/ctrA') || {}).signedPdfUrl;
+  check('archivio: finalize ok e la copia firmata esiste', out.ok === true && out.signedPdf === true && !!signedUrl);
+  const act = store.get('documents/act_t1') || {};
+  check('archivio: il documento dell\'attivazione è RIPARATO sul posto — ora punta alla copia firmata',
+    act.fileUrl === signedUrl && act.source === 'finalize' && /^Signed contract — Trastevere Loft$/.test(act.name));
+  check('archivio: riparato, non affiancato — nessun contract-signed_ctrA_tenant in più',
+    !store.has('documents/contract-signed_ctrA_tenant'));
+  check('archivio: shared e createdAt dell\'attivazione restano quelli che la parte vede',
+    act.shared === true && act.createdAt === '2026-09-01T13:20:00Z');
+  const ll = store.get('documents/contract-signed_ctrA_landlord') || {};
+  check('archivio: il PROPRIETARIO ha la sua copia (userId = ownerId), in italiano, col certificato',
+    ll.userId === 'own1' && ll.fileUrl === signedUrl && ll.lang === 'it' && /^Contratto firmato — /.test(ll.name)
+    && !!ll.certificateUrl && ll.type === 'contract' && ll.uploadedBy === 'boom' && ll.shared === false);
+  const co = store.get('documents/contract-signed_ctrA_co0') || {};
+  check('archivio: il co-conduttore col profilo ha la sua copia', co.userId === 'c1' && co.fileUrl === signedUrl && co.lang === 'en');
+  check('archivio: il risultato del finalize conta le copie scritte', out.archived === 3);
+  check('archivio: il verbale dello stesso contratto non si tocca',
+    (store.get('documents/verb1') || {}).fileUrl === 'https://storage.example/verbale.pdf' && !(store.get('documents/verb1') || {}).signedAt);
+  check('archivio: categoria e tag che il pacchetto commercialista riconosce (contrat…)',
+    /contrat/i.test(ll.category) && ll.tags.includes('02_Contratti'));
+
+  // Rerun (watchdog, 🔄 Rifinalizza, un secondo finalize morto a metà):
+  // nessuna riga nuova, nemmeno sulla copia adottata.
+  const before = docsOf('ctrA').length;
+  const again = await ARC.archiveSignedContract(store.get('contracts/ctrA'), store.get('properties/prop1'),
+    { signedPdfUrl: signedUrl, certUrl: 'https://cert' });
+  check('archivio, rerun: zero documenti in più, e la copia adottata resta l\'unica dell\'inquilino',
+    again.ok === true && docsOf('ctrA').length === before
+    && docsOf('ctrA').filter(k => (store.get(k) || {}).userId === 't1' && (store.get(k) || {}).type === 'contract').length === 1);
+
+  // L'attivazione ri-premuta DOPO il finalize (🚀 Ri-attiva onboarding) scrive
+  // sull'id deterministico: il server lo adotta invece di affiancarlo.
+  store.set('documents/contract-signed_ctrB_tenant', { name: 'Signed Contract — X', type: 'contract', contractId: 'ctrB', userId: 't1', shared: true, fileUrl: 'https://storage.example/contract.pdf', note: ARC.ACTIVATION_NOTE });
+  const w = ARC.planArchive(ARC.signedContractDocs({ id: 'ctrB', tenantId: 't1', propertyId: 'prop1' }, { ownerId: 'own1' }, { signedPdfUrl: 'https://s/f.pdf' }),
+    [{ id: 'contract-signed_ctrB_tenant', ...store.get('documents/contract-signed_ctrB_tenant') }], 'ctrB');
+  check('archivio: il doc d\'attivazione sull\'id deterministico si adotta (una riga), il proprietario nasce',
+    w.length === 2 && w.find(x => x.who === 'tenant').id === 'contract-signed_ctrB_tenant' && w.find(x => x.who === 'tenant').mode === 'adopt'
+    && w.find(x => x.who === 'landlord').mode === 'create');
+
+  // Le regole pure
+  check('archivio: senza copia firmata NESSUN documento (un PDF senza firme col nome «firmato» è il difetto)',
+    ARC.signedContractDocs({ id: 'x', tenantId: 't1' }, { ownerId: 'o' }, { signedPdfUrl: '' }).length === 0);
+  check('archivio: la stessa persona in due ruoli riceve UNA copia',
+    ARC.signedContractDocs({ id: 'x', tenantId: 'u1' }, { ownerId: 'u1' }, { signedPdfUrl: 'https://s' }).length === 1);
+  check('archivio: una parte senza profilo non riceve un documento orfano',
+    ARC.signedContractDocs({ id: 'x', tenantId: '' }, {}, { signedPdfUrl: 'https://s' }).length === 0);
+  check('archivio: un documento caricato a mano dall\'operatore non si adotta mai',
+    !ARC.isAdoptable({ id: 'd', contractId: 'x', type: 'contract', userId: 't1', uploadedBy: 'op1' }, 'x')
+    && !ARC.isAdoptable({ id: 'd', contractId: 'y', type: 'contract', note: ARC.ACTIVATION_NOTE }, 'x'));
+
+  // 🔄 Rifinalizza su un contratto firmato PRIMA di questo rilascio: è
+  // finalizzato (finalize esce subito) ma l'archivio è vuoto → sanato.
+  store.set('contracts/ctrOld', { ...BASE_CONTRACT, id: 'ctrOld', finalizedAt: '2026-08-01T00:00:00Z', signedPdfUrl: 'https://storage.example/old-signed.pdf', signingCertificateUrl: 'https://storage.example/old-cert.pdf' });
+  const { default: refinalize } = await import('../../api/sign/refinalize.js');
+  const res = { code: 0, body: null, setHeader() {}, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, end() { return this; } };
+  await refinalize({ method: 'POST', headers: { 'x-homie-secret': 'test-secret-finalize' }, body: { contractId: 'ctrOld' } }, res);
+  const oldT = store.get('documents/contract-signed_ctrOld_tenant') || {};
+  check('🔄 Rifinalizza: un contratto firmato prima del rilascio riceve la copia firmata in archivio (inquilino e proprietario)',
+    res.code === 200 && res.body.result.skipped === true && res.body.archive && res.body.archive.written === 2
+    && oldT.fileUrl === 'https://storage.example/old-signed.pdf'
+    && (store.get('documents/contract-signed_ctrOld_landlord') || {}).userId === 'own1');
+
+  // Le giunzioni, sulla SORGENTE
+  const fin = readFileSync(new URL('../../api/sign/_finalize.js', import.meta.url), 'utf8');
+  const upAt = fin.indexOf("contracts/${contract.id}/contratto-firmato.pdf");
+  const arcAt = fin.indexOf('archiveSignedContract(contract, property');
+  const markAt = fin.indexOf('finalizedAt: now }');
+  check('sorgente: il finalize archivia DOPO aver caricato la copia firmata e PRIMA del semaforo finalizedAt',
+    upAt > -1 && arcAt > upAt && markAt > arcAt);
+  const pa = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const actSrc = pa.slice(pa.indexOf('async function activateContract('), pa.indexOf('async function generateMonthlyPayments('));
+  check('sorgente portal: l\'attivazione scrive sugli id del server e non tocca la copia del finalize',
+    actSrc.includes("doc('contract-signed_' + contractId + '_' + who)") && actSrc.includes("source === 'finalize'")
+    && actSrc.includes("uploadedBy: 'boom'") && !/collection\('documents'\)\.add\(/.test(actSrc));
+  const archAt = pa.indexOf('async function archiveDeal('); const arch = pa.slice(archAt, pa.indexOf('dealArchived: true', archAt));
+  check('sorgente portal: l\'archivio del deal copia la copia FIRMATA quando c\'è (non il PDF senza firme col nome «firmato»)',
+    arch.includes('contract.signedPdfUrl || contract.generatedPDF') && arch.includes("contract.signedPdfUrl ? 'Contratto firmato - '"));
+  const casa = readFileSync(new URL('../../tenant.html', import.meta.url), 'utf8');
+  check('sorgente /casa: l\'inquilino vede il contratto FIRMATO e il certificato, non solo il PDF da firmare',
+    casa.includes('c.signedPdfUrl') && casa.includes('c.signingCertificateUrl') && casa.includes("signedDoc:'Signed contract'"));
 }
 
 // ═══ 4. Le giunzioni, asserite sulla SORGENTE ═══

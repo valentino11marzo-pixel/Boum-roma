@@ -3230,6 +3230,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
     }
 
+    // Real-time leads listener — LA LEZIONE DEL 30 SETTEMBRE 2026: i lead si
+    // leggevano UNA volta, nel carico pigro del boot. Chi candidava dal sito
+    // mentre il portal era aperto finiva in Firestore e non compariva in
+    // Lead né in Oggi fino a un ricaricamento — e sembrava non essere mai
+    // arrivato. Stessa query del boot (più recenti prima, 100), ora viva:
+    // toast + notifica del browser sul lead nuovo, badge e Oggi aggiornati.
+    function startLeadsListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.leadsListener) S.leadsListener();
+        S._leadsSeen = new Set((S.leads || []).map(l => l.id));
+        S._leadsInit = false;
+        S.leadsListener = db.collection('leads').orderBy('createdAt', 'desc').limit(100)
+            .onSnapshot(snapshot => {
+                S.leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const firstRun = !S._leadsInit; S._leadsInit = true;   // niente avvisi per l'arretrato al login
+                const fresh = firstRun ? [] : S.leads.filter(l => !S._leadsSeen.has(l.id)
+                    && (l.status === 'new' || !l.status));
+                S._leadsSeen = new Set(S.leads.map(l => l.id));
+                if (fresh.length) {
+                    const top = fresh[0];
+                    const sub = (top.name || 'Senza nome') + (top.propertyTitle ? ' → ' + top.propertyTitle : '');
+                    toast('info', 'Nuovo lead' + (fresh.length > 1 ? ' (' + fresh.length + ')' : ''), sub);
+                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                    if (document.hidden) sendBrowserNotification('📬 Nuovo lead', sub);
+                }
+                buildNav();
+                oggiScheduleUpdate();
+                if (S.page === 'leads') renderPage();
+            }, err => console.error('Leads listener error:', err));
+    }
+    function stopLeadsListener() {
+        if (S.leadsListener) { S.leadsListener(); S.leadsListener = null; }
+    }
+
     // Real-time agent-event feed — the agentNotifications queue (lead.new,
     // contract.signed, maintenance.opened, concierge emergencies) is written by
     // several endpoints but was consumed ONLY by the off-repo Mac daemon, so if
@@ -4027,6 +4062,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopRadarListener();
             stopInboxListener();
             stopMaintenanceListener();
+            stopLeadsListener();
             stopAgentFeedListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
@@ -4076,6 +4112,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startInboxListener();
         startHeartbeatListener();
         startMaintenanceListener();
+        startLeadsListener();
         startAgentFeedListener();
 
         // Notifications and review / referral campaigns must be explicit
@@ -4168,6 +4205,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
                     <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+                    <div class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
@@ -8660,8 +8698,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     signatureStatus: 'none',
                     signingOrder: 'sequential',
                     requiresAsseverazione: true,
-                    tenantSignToken: newToken(),
-                    landlordSignToken: newToken(),
+                    // Niente token di firma qui: il contratto lo leggono
+                    // inquilino e proprietario. Li conia il server in
+                    // signTokens (admin-only) — vedi fetchSignLinks.
                     paymentsGenerated: false,
                     welcomeEmailSent: false,
                     linkedLeadId: w.sourceKind === 'lead' ? w.sourceId : null,
@@ -8718,7 +8757,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // dell'inquilino (stage email di magic-sign) — mai i due link
             // insieme. Ri-premere qui = re-invio (send-link è idempotente).
             progress('4/4 · Invio l’invito di firma…');
-            const tenantLink = `${window.location.origin}/sign?sign=${ctrData.tenantSignToken}`;
+            let tenantLink = '';
+            try { tenantLink = (await fetchSignLinks(contractId)).tenant || ''; }
+            catch (e) { console.warn('[wizard] sign link', e); }
             const property = (S.properties || []).find(p => p.id === w.propertyId) || {};
             const landlord = property.ownerId ? (S.users || []).find(u => u.id === property.ownerId) : null;
             let inviteSent = false;
@@ -9934,7 +9975,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const linkedContract = S.contracts.find(c => ownedProps.some(p => p.id === c.propertyId));
         const c = landlordCompleteness(u);
         const url = linkedContract
-            ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}${linkedContract.landlordSignToken ? '&t=' + encodeURIComponent(linkedContract.landlordSignToken) : ''}`
+            ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}`
             : `${window.location.origin}/form-landlord.html?landlord=${encodeURIComponent(userId)}`;
         const name = (u.name || '').split(' ')[0] || 'gentile';
         const msg = `Gentile ${name}, per completare il Suo profilo BOOM ci servono ancora ${c.missing.length} dati (${c.missing.slice(0,4).join(', ')}${c.missing.length > 4 ? '…' : ''}). Li può inserire qui in 2 minuti:\n\n${url}\n\nGrazie,\nBOOM Roma`;
@@ -9969,7 +10010,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const ownedProps = S.properties.filter(p => p.ownerId === u.id);
             const linkedContract = S.contracts.find(c => ownedProps.some(p => p.id === c.propertyId));
             const url = linkedContract
-                ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}${linkedContract.landlordSignToken ? '&t=' + encodeURIComponent(linkedContract.landlordSignToken) : ''}`
+                ? `${window.location.origin}/form-landlord.html?contract=${encodeURIComponent(linkedContract.id)}`
                 : `${window.location.origin}/form-landlord.html?landlord=${encodeURIComponent(u.id)}`;
             const name = (u.name || '').split(' ')[0] || 'gentile';
             const c = landlordCompleteness(u);
@@ -16350,6 +16391,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
     }
 
+    // I LINK DI FIRMA vengono dal server (1/10/2026). I token non stanno più
+    // sul contratto: lo leggono inquilino E proprietario, e ciascuno vi
+    // trovava il link dell'altro — cioè la sua firma. /api/sign/links li
+    // tiene nel deposito signTokens (admin-only), li conia se mancano e
+    // risponde col SOLO link che spetta a chi chiede: admin entrambi (+
+    // co-conduttori), proprietario il suo, inquilino il suo.
+    async function fetchSignLinks(contractId) {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/sign/links', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+            body: JSON.stringify({ contractId })
+        });
+        const j = await r.json().catch(() => null);
+        if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+        return j;
+    }
+    window.fetchSignLinks = fetchSignLinks;
+
     // Il PRIMO invito di firma passa da qui: se mancano i dati CRITICI il
     // dialog propone La Scheda (il cliente si auto-compila e il PDF esce
     // completo); se è tutto in ordine e nessuno ha ancora firmato, il PDF
@@ -17087,8 +17147,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 linkedViewingId: data.linkedViewingId || '',
                 status: 'active',
                 signatureStatus: 'none',
-                tenantSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
-                landlordSignToken: crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)),
+                // I token di firma li conia il server in signTokens
+                // (admin-only) al primo invito o alla prima richiesta del
+                // link: sul contratto ogni parte leggerebbe quello dell'altra.
                 paymentsGenerated: false,
                 welcomeEmailSent: false,
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -17853,7 +17914,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 // vecchio resta agli atti come 'renewed' e rate/journey/PDF
                 // ripartono puliti dal nuovo giro di Magic Sign.
                 const newStart = (() => { const d = new Date(contract.endDate); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
-                const newToken = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
                 const clone = { ...contract };
                 delete clone.id;
                 ['tenantSignature', 'landlordSignature', 'tenantSignedAt', 'landlordSignedAt', 'tenantSignedIP', 'landlordSignedIP',
@@ -17863,10 +17923,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  'registrationPackMissing', 'registrationPackAt', 'fascicoloFiscaleUrl', 'schedaCanoneUrl', 'schedaCanoneAt', 'canoneScheda', 'journey',
                  'signInviteTenantAt', 'signInviteLandlordAt', 'signViewedTenantAt', 'signViewedLandlordAt',
                  'tenantSignTokenUsedAt', 'landlordSignTokenUsedAt', 'rliRegisteredAt', 'magicLinkId', 'generatedPDF', 'pdfHash',
+                 // i token in chiaro di un contratto vecchio non si copiano MAI:
+                 // il nuovo contratto avrà i suoi, coniati dal server
+                 'tenantSignToken', 'landlordSignToken',
                  'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
                  // mandato e deleghe sono atti su QUEL contratto: un rinnovo non li eredita
                  'tenantMandate', 'tenantDelegate', 'tenantSignedByDelegate', 'landlordSignedByDelegate', 'paAcceptance',
+                 'landlordMandate', 'askLandlordMandate',
+                 // la versione del documento è di QUEL contratto: un rinnovo
+                 // nasce dal modello, mai «caricato a mano» (prima ereditava
+                 // pdfSource:'upload' e nessuna rigenerazione partiva più)
+                 'pdfSource', 'pdfPath', 'pdfFileName', 'pdfPages', 'pdfSha256', 'pdfSizeKB', 'pdfUploadNote', 'pdfUploadedAt', 'pdfUploadedBy',
+                 'pdfGeneratedAt', 'pdfGeneratedBy', 'sigAnchors', 'contractVersion', 'contractVersions', 'contractRevisedAt', 'contractRevisedBy', 'pdfCheck',
+                 'coSignInviteAt', 'viewNudgedTenantAt', 'viewNudgedLandlordAt', 'autoNudgeCount',
                  'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
+                Object.keys(clone).forEach(k => { if (/^(signViewedCo|viewNudgedCo)\d+At$/.test(k)) delete clone[k]; });
+                // le firme dei co-conduttori vivono DENTRO coTenants[]: il
+                // rinnovo tiene le persone, mai le loro firme sul contratto vecchio
+                if (Array.isArray(clone.coTenants)) clone.coTenants = clone.coTenants.map(x => {
+                    if (!x || typeof x !== 'object') return x;
+                    const y = { ...x };
+                    ['signature', 'signedAt', 'signedIP', 'signedUA', 'consentText', 'consentHash', 'consentAt'].forEach(f => delete y[f]);
+                    return y;
+                });
+                // una delega del locatore nata DAL suo mandato scritto vale solo
+                // per le condizioni di quel mandato: sul rinnovo non c'è
+                if (clone.landlordDelegate && (clone.landlordDelegate.basisKind === 'mandate' || clone.landlordDelegate.mandateHash)) delete clone.landlordDelegate;
                 const _inst = (contract.canone && contract.canone.installments) || 12;
                 Object.assign(clone, {
                     startDate: newStart,
@@ -17876,8 +17958,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     durata: { startDate: newStart, endDate: data.newEndDate, text: monthsBetween(newStart, data.newEndDate).text || `${newStart} → ${data.newEndDate}` },
                     status: 'active',
                     signatureStatus: 'none',
-                    tenantSignToken: newToken(),
-                    landlordSignToken: newToken(),
                     paymentsGenerated: false,
                     renewalOf: id,
                     notes: (data.renewalNotes ? data.renewalNotes + ' · ' : '') + 'Rinnovo del contratto ' + id,
@@ -18795,7 +18875,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (signaturePad) signaturePad.clear();
     }
     
-    function openSignContractModal(contractId, role) {
+    function openSignContractModal(contractId, role, mode) {
         const contract = S.contracts.find(c => c.id === contractId);
         if (!contract) return toast('error', 'Contratto non trovato');
         const property = S.properties.find(p => p.id === contract.propertyId);
@@ -18806,11 +18886,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (role === 'landlord' ? contract.landlordSignature : contract.tenantSignature) {
             return toast('info', 'Already signed', signerName + ' has already signed this contract');
         }
-        // Unified signing: open the premium /sign page for this role's token —
-        // same experience the client gets. Falls back to the legacy in-portal
-        // modal only if the contract has no signing token.
-        var _signTok = role === 'landlord' ? contract.landlordSignToken : contract.tenantSignToken;
-        if (_signTok) { window.open('/sign?sign=' + encodeURIComponent(_signTok), '_blank', 'noopener'); return; }
+        // Unified signing: open the premium /sign page for this role's link —
+        // same experience the client gets. The link comes from the server
+        // (/api/sign/links): the contract no longer carries sign tokens, and
+        // each caller only ever receives their OWN link. The tab is opened
+        // synchronously (popup blockers) and pointed at the link once known.
+        // The legacy in-portal modal stays only for a direct call with
+        // `legacy:true` — never as a silent fallback that would bypass the
+        // server-side guards of /api/magic-sign/submit.
+        if (mode !== 'legacy') {
+            const w = window.open('', '_blank');
+            if (w) { try { w.opener = null; } catch (_) {} }
+            fetchSignLinks(contractId).then(j => {
+                const url = j && j[role === 'landlord' ? 'landlord' : 'tenant'];
+                if (!url) throw new Error('no_link');
+                if (w) w.location.href = url; else window.location.href = url;
+            }).catch(e => {
+                if (w) { try { w.close(); } catch (_) {} }
+                toast('error', 'Link di firma non disponibile', (e && e.message) || '');
+            });
+            return;
+        }
         const vh = 'BOOM-' + btoa(contractId + (contract.startDate||'') + contract.rent).substring(0,12).toUpperCase();
         const LOGO = 'data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDI0IDEwMjQiIHdpZHRoPSIxMDI0IiBoZWlnaHQ9IjEwMjQiPgogIDxkZWZzPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJnb2xkR3JhZGllbnQiIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iI0ZGRDU0RiIvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiNGNUE2MjMiLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CiAgPC9kZWZzPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDAsMTAyNCkgc2NhbGUoMC4xLC0wLjEpIiBmaWxsPSJ1cmwoI2dvbGRHcmFkaWVudCkiPgogICAgPHBhdGggZD0iTTQ4NjAgODc0OSBjLTUwOSAtMjkgLTk3NiAtMTYxIC0xNDEzIC00MDEgLTU4MCAtMzE3IC0xMDU3IC04MDYgLTEzNTAgLTEzODMgLTE0OCAtMjkyIC0yMjkgLTUzMiAtMjkxIC04NTkgLTg5IC00NjUgLTY5IC0xMDA1IDU0IC0xNDYxIDE4NCAtNjg4IDYxNiAtMTMwOCAxMjMyIC0xNzY5IDQ5MiAtMzY4IDExNzIgLTYwOSAxNzk0IC02MzUgNTQ2IC0yMiA5ODcgNTcgMTQ4OSAyNjcgNTAzIDIxMSA5NzkgNTg5IDEzMjcgMTA1MyAzNDAgNDUzIDU1NyA5OTQgNjMwIDE1NjkgMTcgMTM1IDE3IDYzMCAwIDc2MCAtOTMgNzE2IC0zOTYgMTM0MSAtOTAwIDE4NjEgLTI4MCAyODkgLTU2OSA0OTggLTkyMiA2NjcgLTQxNiAyMDAgLTgxMyAzMDMgLTEyODUgMzMyIC0xNjUgMTAgLTE3MCAxMCAtMzY1IC0xeiBtNjEwIC0xNDQgYzc0MyAtMTAzIDE0MzYgLTQ1OSAxOTE5IC05ODUgMzM4IC0zNjcgNTYyIC03NTEgNzA0IC0xMjA1IDI3NiAtODc5IDEzMiAtMTg1OCAtMzg4IC0yNjQwIC0yNDIgLTM2NCAtNDkzIC02MTUgLTkwMCAtOTAwIGwtNzAgLTQ5IDEwOSAxMDQgYzQxMyAzOTYgNjc5IDkxOSA3NjcgMTUwNSAzMyAyMTcgMzMgNTU4IDAgNzY1IC03NSA0NzYgLTI1NyA4OTYgLTU0OSAxMjY1IC0xMjcgMTYxIC0zNjMgMzgwIC01NDkgNTExIC0zMDAgMjExIC02ODkgMzYzIC0xMDc5IDQyMCAtMTcyIDI2IC02MDQgMjYgLTc2NCAwIC0yOTYgLTQ3IC01NDUgLTEyOCAtODA4IC0yNjIgLTIzNiAtMTIyIC00NDAgLTI3MSAtNjMyIC00NjQgLTQ4NiAtNDg1IC03NDkgLTExMjEgLTc1MSAtMTgxNSAtMSAtNjExIDE3MCAtMTE0OCA1MTUgLTE2MDggMTAwIC0xMzQgMjg2IC0zMzUgMzgyIC00MTMgMzMgLTI3IC04IC0yIC05MSA1NSAtNTEzIDM1MSAtOTA0IDgwNSAtMTE0MyAxMzMxIC03MSAxNTYgLTEzNiAzMzYgLTE2OCA0NjUgLTkgMzMgLTE5IDc2IC0yNCA5NSAtNSAxOSAtMjAgMTAwIC0zNCAxODAgLTU5IDM0MyAtNjAgNzQwIDAgMTA3MCA4MSA0NTYgMjI5IDgyNiA0NzkgMTIwMCAyNDYgMzY4IDU1OCA2NjkgOTQ5IDkxNyAzODYgMjQ1IDg4MSA0MTggMTMyMSA0NjIgNjEgNiAxMjQgMTMgMTQwIDE1IDczIDEwIDU1NiAtNCA2NjUgLTE5eiBtLTYwIC0xMzI5IGMxMDUgLTE2IDI1OCAtNDkgMzM1IC03MiA4MiAtMjYgMTk3IC02NiAyNDAgLTg0IDE0OSAtNjUgMTkwIC04NCAyNjYgLTEyNiA2NzcgLTM3OSAxMTI5IC0xMDQ5IDEyNDYgLTE4NDkgMjcgLTE4MiAyNCAtNTE3IC01IC02OTUgLTc1IC00NTggLTIyNSAtODEzIC01MDAgLTExNzkgLTExNiAtMTU0IC0zNDAgLTM2OSAtNTI3IC01MDYgLTQ0IC0zMiAtODcgLTYzIC05NSAtNjkgLTggLTYgMzUgMzkgOTYgOTkgMTc4IDE3NyAyODMgMzIxIDM5NyA1NTAgMTYxIDMyMiAyMzEgNjc2IDIwNSAxMDQ1IC0zMiA0NjcgLTIyMyA5MDIgLTU0MiAxMjM3IC0yMzkgMjUxIC01MjEgNDI2IC04NzMgNTQyIC03OSAyNiAtMjczIDY3IC0zODMgODEgLTEwOCAxMyAtMzQ5IDEzIC00NjUgMCAtMjc2IC0zMiAtNTk3IC0xNDUgLTgzNCAtMjkzIC0yMjQgLTE0MCAtNDY2IC0zNzggLTYxMyAtNjAyIC0zMDcgLTQ3MCAtNDA3IC0xMDU1IC0yNzMgLTE1OTkgODAgLTMyNyAyMTcgLTU4OSA0NTQgLTg3MSA3MSAtODQgNzMgLTg4IDMxIC01NiAtMjkzIDIyNSAtNTQ3IDUzNSAtNzE4IDg3NyAtMzQgNjggLTY1IDE0MyAtMTIyIDI5NCAtNDIgMTEyIC0xMDEgMzgzIC0xMjAgNTU1IC0xNCAxMjcgLTE0IDQwMSAwIDUzNCA1MSA0ODIgMjIzIDkxMiA1MTYgMTI4OCAyNjkgMzQ0IDY1NCA2MjAgMTA4NSA3NzggMTYwIDU5IDQwMCAxMTUgNTc0IDEzNCAxMjEgMTMgNTA4IDUgNjI1IC0xM3ogbS0zMCAtMTE2NSBjNDAxIC04MSA3MjEgLTI0MiA5OTIgLTQ5OSA2NDMgLTYxMiA3NjkgLTE2MDcgMzAwIC0yMzY3IC0xMTggLTE5MCAtMjkxIC0zODYgLTQ2MyAtNTI0IC0xMzcgLTExMSAtMTQ4IC0xMTMgLTQ5IC0xMiAxMTAgMTEyIDIwNiAyNDggMjc1IDM4NiA2NyAxMzcgOTggMjIyIDEzMiAzNjcgMjQgMTAzIDI2IDEzMiAyNyAzMjMgMCAxODIgLTMgMjI0IC0yMiAzMTAgLTQ3IDIxMSAtMTI2IDM5NCAtMjQ1IDU2OSAtMTI2IDE4NiAtMzU4IDM4NyAtNTY0IDQ5MCAtMzg0IDE5MSAtODIzIDIyNSAtMTIxOCA5NSAtNDgyIC0xNjAgLTg1NCAtNTQxIC0xMDA0IC0xMDI5IC0xMTcgLTM3OSAtODEgLTgxMCA5NiAtMTE2NSAzNyAtNzIgMTMwIC0yMTUgMTY2IC0yNTIgMTcgLTE4IDI2IC0zMyAyMCAtMzMgLTYgMCAtNjEgNTIgLTEyMSAxMTYgLTI1OSAyNzIgLTQyNCA1NzUgLTUxMSA5MzQgLTExMSA0NTkgLTE4IDEwMDYgMjQ1IDE0MzAgMjk4IDQ4MyA3OTEgNzk3IDEzNzkgODgwIDExMCAxNiA0NDggNCA1NjUgLTE5eiBtLTIzOSAtOTExIGMzNjAgLTI4IDY4MCAtMTcxIDkyNSAtNDE1IDE5NCAtMTkzIDMxNyAtNDE1IDM4MiAtNjg4IDI0IC0xMDIgMjYgLTEzMCAyNiAtMzEyIDAgLTE5MSAtMSAtMjA1IC0zMCAtMzIwIC01MyAtMjA1IC0xMzIgLTM3MiAtMjUxIC01MzUgLTU4IC03OSAtMjYzIC0yODggLTMyMyAtMzMwIC0zMSAtMjIgLTI5IC0xOCAxOCAzNSAxOTUgMjIwIDMxMiA1MTkgMzEyIDc5NSAwIDMyNSAtMTIxIDYxNCAtMzUwIDg0MSAtMzY5IDM2NCAtOTI2IDQ1MyAtMTM4NSAyMjIgLTMzNiAtMTcwIC01NzggLTQ5OSAtNjM2IC04NjUgLTE5IC0xMjYgLTcgLTM3MSAyNSAtNDkwIDQ0IC0xNjIgOTcgLTI4NCAxNzMgLTM5OCA5IC0xNCAtNCAtNSAtMzAgMjAgLTI2IDI0IC00NSA1MSAtNDIgNTggMiA3IDEgMTEgLTQgNyAtMTEgLTYgLTU4IDUxIC0xMTggMTQwIC0xMDkgMTYzIC0xODMgMzQ3IC0yMTkgNTQ1IC0yMyAxMjcgLTIzIDM1MSAtMSA0ODkgNTUgMzM1IDI0OCA2NzcgNDkyIDg3MSAyNjEgMjA4IDUzMCAzMTEgODgxIDMzOCAxMSAxIDgxIC0zIDE1NSAtOHogbTI5IC03MTQgYzQ1OSAtNzQgODIzIC00MjggODk1IC04NjkgNTggLTM1OCAtNjAgLTY5NiAtMzQ1IC05ODcgbC0zNCAtMzUgMjIgMzUgYzExNSAxODIgMTc5IDQwMyAxNjggNTc1IC0xNCAyMzUgLTEwNCA0MzMgLTI2OCA1OTEgLTEzNyAxMzQgLTI4NyAyMDkgLTQ3MiAyMzkgLTExNSAxOSAtMTg3IDE5IC0zMDMgMCAtMzM3IC01NSAtNjEyIC0zMDIgLTcwNCAtNjM1IC0zMiAtMTEzIC0zNCAtMzI1IC01IC00NDAgMjMgLTkyIDcwIC0yMTMgOTggLTI1NCBsMjEgLTMxIC0zMSAyOSBjLTM5IDM2IC0xMjAgMTUyIC0xNTUgMjIxIC0zNSA3MSAtODEgMjE1IC0xMDIgMzE5IC0yNSAxMzAgLTE3IDM1NyAxNyA0NzYgMTAyIDM1NCAzNTcgNjE4IDcwNiA3MzAgMTUyIDQ5IDMzMSA2MiA0OTIgMzZ6IG0tNzMgLTU2NyBjMTc4IC0yNCAzMjcgLTEwMSA0NTQgLTIzNiAxMzcgLTE0MyAxOTkgLTMwMyAyMDEgLTUxMyAxIC0xNjIgLTQyIC0zMDkgLTEzNSAtNDUzIC01MiAtODIgLTczIC05NyAtMzggLTI4IDUxIDk5IDY3IDI5MCAzNiA0MTIgLTU3IDIxOSAtMjUxIDQxMyAtNDY2IDQ2NCAtNzUgMTcgLTIzNiAyMCAtMzExIDQgLTIxMyAtNDQgLTQyMiAtMjQ3IC00NzMgLTQ2MCAtMzEgLTEzMyAtMTMgLTMyNSA0MSAtNDMxIDM1IC03MCA4IC00NyAtNTIgNDMgLTU4IDg4IC05MCAxNjcgLTExNCAyODYgLTI1IDEyMSAtMjUgMjIwIC0xIDMzMSAzMyAxNDYgODQgMjQzIDE4NiAzNTEgMTcxIDE4MyA0MTMgMjY2IDY3MiAyMzB6IG0xNSAtNDcwIGM4MCAtMTcgMTg2IC03NiAyNDggLTEzOSAxMDYgLTEwNyAxNTggLTI0OCAxNDcgLTM5OCAtNiAtOTIgLTI1IC0xNTIgLTc5IC0yNTAgLTQ1IC04MiAtNjAgLTkxIC0yNyAtMTcgMTggNDEgMjEgNjIgMTcgMTQ5IC00IDg5IC04IDEwOCAtMzUgMTYyIC00MyA4MiAtMTI2IDE2NSAtMjA5IDIwNSAtNTggMjkgLTgwIDM0IC0xNTggMzcgLTExMiA1IC0xODQgLTEyIC0yNTkgLTYyIC0xODIgLTEyMSAtMjUxIC0zMjMgLTE3MSAtNTA2IGwyNCAtNTUgLTI1IDMwIGMtMzYgNDQgLTkyIDE2MiAtMTA0IDIyMyAtMzkgMTg5IDE0IDM2OSAxNDYgNDkyIDEwNSA5OSAyMDQgMTM5IDM0NSAxMzkgNDggMSAxMTEgLTQgMTQwIC0xMHoiLz4KICA8L2c+Cjwvc3ZnPgo=';
         var transHtml = contract.transitionalReason ? '<div class="ms-party" style="margin-top:4px"><div><div class="ms-stat-l">Transitional reason</div><div style="font-size:12px;color:var(--text);margin-top:3px">' + contract.transitionalReason + '</div></div></div>' : '';
@@ -18896,7 +18992,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="ms-check" onclick="msToggle(this)"><div class="ms-cb" id="msC2"></div><div class="ms-check-txt">This digital signature is legally valid (FES \u2014 Art. 21 CAD, D.Lgs. 82/2005).</div></div>
                 </div>
                 <div class="ms-row">
-                    <button class="ms-cta2" style="flex:1" onclick="openSignContractModal('${contractId}','${role}')">Back</button>
+                    <button class="ms-cta2" style="flex:1" onclick="openSignContractModal('${contractId}','${role}','legacy')">Back</button>
                     <button class="ms-cta" style="flex:2" id="msS2Btn" disabled onclick="msValidateStep2('${contractId}','${role}')">Proceed to signature</button>
                 </div>
             </div>
@@ -19100,32 +19196,38 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
             
             // 3.5. Create document entry visible to tenant
-            try {
-                await db.collection('documents').add({
-                    name: 'Signed Contract \u2014 ' + (property?.name || 'Lease'),
+            // Il documento «firmato» punta alla copia FIRMATA (signedPdfUrl,
+            // prodotta dal server al finalize) — mai al PDF senza firme
+            // etichettato «Signed Contract». Finché la copia firmata non c'è,
+            // il nome dice la verità (review del 3/10/2026).
+            // Stessi id del server (api/sign/_archive.js signedDocId): il
+            // «Ri-attiva onboarding» non raddoppia più la riga, e la copia
+            // scritta dal finalize (source:'finalize') non si tocca mai —
+            // quando arriva, è lei che ripara questa.
+            const _docUrl = contract.signedPdfUrl || contract.generatedPDF || '';
+            const _docName = (contract.signedPdfUrl ? 'Signed Contract \u2014 ' : 'Contract (signed copy in preparation) \u2014 ') + (property?.name || 'Lease');
+            const _writeContractDoc = async (who, userId) => {
+                if (!userId) return;
+                const ref = db.collection('documents').doc('contract-signed_' + contractId + '_' + who);
+                const cur = await ref.get().catch(() => null);
+                if (cur && cur.exists && cur.data().source === 'finalize') return;
+                await ref.set({
+                    name: _docName,
                     type: 'contract',
                     contractId: contractId,
                     propertyId: property?.id || '',
-                    userId: tenant?.id || '',
+                    userId: userId,
                     shared: true,
-                    fileUrl: contract.generatedPDF || '',
+                    fileUrl: _docUrl,
+                    uploadedBy: 'boom',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: 'Auto-generated upon contract activation via Magic Sign'
-                });
+                }, { merge: true });
+            };
+            try {
+                await _writeContractDoc('tenant', tenant?.id || '');
                 // Also add landlord copy
-                if (landlord) {
-                    await db.collection('documents').add({
-                        name: 'Signed Contract \u2014 ' + (property?.name || 'Lease'),
-                        type: 'contract',
-                        contractId: contractId,
-                        propertyId: property?.id || '',
-                        userId: landlord?.id || property?.ownerId || '',
-                        shared: true,
-                        fileUrl: contract.generatedPDF || '',
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        note: 'Auto-generated upon contract activation via Magic Sign'
-                    });
-                }
+                if (landlord || property?.ownerId) await _writeContractDoc('landlord', landlord?.id || property?.ownerId || '');
             } catch(docErr) { console.error('Document creation:', docErr); }
             
             // 3.6. Generate RLI draft (pre-compiled registration data)
@@ -19810,6 +19912,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const contract = S.contracts.find(c => c.id === contractId);
             if (!contract) return false;
+            // Le stesse due guardie del server (ensureContractPdf): la versione
+            // CARICATA dall'operatore è il documento (si torna al modello solo
+            // con ↺ dalla console/🔄 qui, che passa da /api/contracts/revise),
+            // e sotto una firma viva il documento è congelato.
+            if (contract.pdfSource === 'upload' && contract.generatedPDF) { console.warn('[BOOM] PDF caricato a mano: non si rigenera', contractId); return false; }
+            if (contract.tenantSignature || contract.landlordSignature || (Array.isArray(contract.coTenants) && contract.coTenants.some(x => x && x.signature))) { console.warn('[BOOM] firma viva: PDF congelato', contractId); return false; }
             const property = S.properties.find(p => p.id === contract.propertyId);
             const tenant = S.users.find(u => u.id === contract.tenantId);
             const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
@@ -19823,7 +19931,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const hash = await generateDocHash(built.hashSeed);
             const pdfBlob = built.doc.output('blob');
 
-            const pdfRef = firebase.storage().ref().child(`contracts/${contractId}/contract.pdf`);
+            // il path della versione corrente (dopo una revisione: contract-v<N>.pdf)
+            const pdfPath = (contract.pdfPath && String(contract.pdfPath).indexOf('contracts/' + contractId + '/') === 0) ? contract.pdfPath : `contracts/${contractId}/contract.pdf`;
+            const pdfRef = firebase.storage().ref().child(pdfPath);
             await pdfRef.put(pdfBlob, {
                 contentType: 'application/pdf',
                 contentDisposition: 'inline; filename="contract.pdf"',
@@ -20899,22 +21009,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     //    lo dichiarano.
     // Quello che NON si fa, e il pannello lo dice: firmare al posto del
     // conduttore SENZA mandato. Quella non è una delega, è una firma falsa.
-    function openFirmaOra(contractId) {
+    async function openFirmaOra(contractId) {
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const p = (S.properties || []).find(x => x.id === c.propertyId);
         const t = (S.users || []).find(u => u.id === c.tenantId);
         const ll = p ? (S.users || []).find(u => u.id === p.ownerId) : null;
-        const base = window.location.origin;
+        // I link VERI di ciascuna parte dal server (/api/sign/links → deposito
+        // signTokens, admin-only): il contratto non porta più le chiavi di
+        // firma. Senza risposta il pannello lo dice («nessun link»).
+        let sl = {};
+        try { sl = await fetchSignLinks(contractId); }
+        catch (e) { console.warn('[firmaOra] sign links', e); }
         // Il link del conduttore aperto DA QUI porta &delegate=1 quando il
         // mandato è armato: è l'unico modo in cui la firma esce «per
         // mandato». Il link nudo (Share Hub, email) firma come il cliente.
-        const tLink = c.tenantSignToken ? `${base}/sign?sign=${c.tenantSignToken}${(c.tenantDelegate && c.tenantDelegate.name) ? '&delegate=1' : ''}` : '';
+        const tLink = sl.tenant ? `${sl.tenant}${(c.tenantDelegate && c.tenantDelegate.name) ? '&delegate=1' : ''}` : '';
         const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;
         // Stessa regola per il locatore (23/09/2026): il link aperto DA QUI
         // porta &delegate=1 quando la delega è armata — solo così submit
         // stampa «per delega/per mandato»; il link nudo firma come il locatore.
-        const lLink = c.landlordSignToken ? `${base}/sign?sign=${c.landlordSignToken}${dele ? '&delegate=1' : ''}` : '';
+        const lLink = sl.landlord ? `${sl.landlord}${dele ? '&delegate=1' : ''}` : '';
         const tDone = !!c.tenantSignature, lDone = !!c.landlordSignature;
         // Il MANDATO del proprietario (dato da lui sulla sua Scheda): la base
         // vera della controfirma per suo conto — verificata sulle condizioni.
@@ -20927,7 +21042,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // tentativo — il server resta l'ultimo giudice (409). Senza motore
         // caricato o su un mandato v1 non si finge un verdetto.
         const ME = window.BOOM_MANDATO;
-        const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsFromContract(c)) : null;
+        const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsForMandate ? ME.termsForMandate(c, mand) : ME.termsFromContract(c)) : null;
         const mandBroken = !!(mandDiff && mandDiff.length);
         const lmDiff = (lmand && ME) ? ME.diffTerms(lmand.terms || {}, ME.termsFromContract(c)) : null;
         const lmBroken = !!(lmDiff && lmDiff.length);
@@ -21062,8 +21177,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (c.tenantSignature) return toast('error', 'Il conduttore ha già firmato');
         if (on && !(c.tenantMandate && c.tenantMandate.given === true)) return toast('error', 'Nessun mandato scritto: il conduttore firma col suo link');
         if (on && window.BOOM_MANDATO && Number(c.tenantMandate.termsVersion) >= 2) {
-            const d = window.BOOM_MANDATO.diffTerms(c.tenantMandate.terms || {}, window.BOOM_MANDATO.termsFromContract(c));
-            if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato: ' + window.BOOM_MANDATO.describeDiff(d));
+            const ME = window.BOOM_MANDATO;
+            // l'immobile nato dalla proposta vale come l'indirizzo approvato (termsForMandate)
+            const d = ME.diffTerms(c.tenantMandate.terms || {}, ME.termsForMandate ? ME.termsForMandate(c, c.tenantMandate) : ME.termsFromContract(c));
+            if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato: ' + ME.describeDiff(d));
         }
         const t = (S.users || []).find(u => u.id === c.tenantId);
         try {
@@ -21163,11 +21280,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         const property = S.properties.find(p => p.id === contract.propertyId);
         let sent = 0;
-        const genToken = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
-        const tokenUpdates = {};
-        if (!contract.landlordSignature && !contract.landlordSignToken) { tokenUpdates.landlordSignToken = genToken(); contract.landlordSignToken = tokenUpdates.landlordSignToken; }
-        if (!contract.tenantSignature && !contract.tenantSignToken) { tokenUpdates.tenantSignToken = genToken(); contract.tenantSignToken = tokenUpdates.tenantSignToken; }
-        if (Object.keys(tokenUpdates).length) await db.collection('contracts').doc(contractId).update(tokenUpdates);
+        // Il token mancante lo conia send-link nel deposito signTokens
+        // (server): il contratto non porta più le chiavi di firma.
         // Promemoria via api/sign/send-link (server-side, design system,
         // lingua del lettore). Il lato locatore su contratto sequenziale non
         // ancora firmato dall'inquilino risponde 409 awaiting_tenant — giusto
@@ -21195,6 +21309,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!contract.tenantSignature && contract.tenantId) {
             if (await remind('tenant', contract.tenantId)) sent++;
+        } else if (contract.tenantSignature && (contract.coTenants || []).some(x => x && x.name && !x.signature)) {
+            // Il titolare ha firmato, mancano i co-conduttori: il promemoria è
+            // per LORO (send-link li raggiunge col link di ciascuno).
+            if (await remind('tenant', null)) sent++;
         }
         if (sent) { try { await db.collection('contracts').doc(contractId).update({ lastReminderAt: firebase.firestore.FieldValue.serverTimestamp() }); contract.lastReminderAt = new Date(); } catch (e) {} }
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
@@ -21322,6 +21440,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             toast('error', '🔒 Contratto firmato da entrambe le parti', 'Il PDF firmato fa fede e non si rigenera. Per nuovi termini: rinnovo/duplica → nuovo giro di firme.');
             return;
         }
+        // UNA FIRMA GIÀ MESSA, o un PDF CARICATO A MANO (3/10/2026): qui
+        // rigenerare in silenzio sovrascriveva il documento sotto la firma di
+        // qualcuno (o la versione corretta dell'operatore). Ora passa dalla
+        // revisione: nuova versione col modello BOOM, la firma già messa
+        // archiviata e richiesta di nuovo — detto prima, coi nomi.
+        const liveSigs = [contract.tenantSignature ? (contract.tenantName || 'inquilino') : null,
+            ...(Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.signature).map(x => x.name || 'co-conduttore') : []),
+            contract.landlordSignature ? (contract.landlordName || 'proprietario') : null].filter(Boolean);
+        if (liveSigs.length || contract.pdfSource === 'upload') {
+            const msg = (contract.pdfSource === 'upload' ? 'Questo contratto usa il PDF che hai CARICATO (versione ' + (contract.contractVersion || 2) + '). Rigenerare lo sostituisce col modello BOOM, rifatto dai dati di adesso.\n\n' : '')
+                + (liveSigs.length ? 'Hanno già firmato: ' + liveSigs.join(', ') + '. Le loro firme vengono ARCHIVIATE e dovranno firmare la nuova versione (riceveranno il link).\n\n' : '')
+                + 'Procedere con una nuova versione del contratto?';
+            if (!confirm(msg)) return;
+            try {
+                const tok = await firebase.auth().currentUser.getIdToken();
+                const r = await fetch('/api/contracts/revise', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ op: 'template', contractId: id, voidSignatures: liveSigs.length > 0, note: 'rigenerato dal portal' }) });
+                const j = await r.json().catch(() => null);
+                if (!j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+                await refreshOnly('contracts');
+                toast('success', 'Versione ' + j.version + ' del contratto', (j.voided && j.voided.length ? 'Firme archiviate: ' + j.voided.map(x => x.name || x.role).join(', ') + '. ' : '') + (j.notified && j.notified.tenant ? 'Link della nuova versione inviato.' : ''));
+            } catch (e) { toast('error', 'Nuova versione non creata', String(e.message || e)); }
+            return;
+        }
 
         // Self-healing: detect and offer to fix stale canone math before regenerating PDF
         const monthly = (contract.canone && contract.canone.monthly) || contract.rent || 0;
@@ -21396,10 +21538,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             var viewing = contract.linkedViewingId ? (S.viewingRequests || []).find(function(v) { return v.id === contract.linkedViewingId; }) : null;
             var basePath = 'deals/' + contractId + '/';
             var savedUrls = {};
-            // 1. Upload signed PDF
-            if (contract.generatedPDF) {
+            // 1. Upload signed PDF — la copia FIRMATA (signedPdfUrl, con la
+            // pagina delle firme) quando c'è: archiviare il PDF senza firme
+            // sotto il nome «Contratto firmato» era il difetto del 4/10/2026.
+            var _contractSrc = contract.signedPdfUrl || contract.generatedPDF || '';
+            if (_contractSrc) {
                 try {
-                    var pdfBlob = await fetch(contract.generatedPDF).then(function(r) { return r.blob(); });
+                    var pdfBlob = await fetch(_contractSrc).then(function(r) { return r.blob(); });
                     var pdfRef = firebase.storage().ref(basePath + 'contratto-firmato.pdf');
                     await pdfRef.put(pdfBlob, { contentType: 'application/pdf' });
                     savedUrls.contractPdf = await pdfRef.getDownloadURL();
@@ -21441,7 +21586,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // 5. Create documents in Firestore for each file
             var batch = db.batch();
             var propName = property?.name || 'Immobile';
-            if (savedUrls.contractPdf) batch.set(db.collection('documents').doc(), { name: 'Contratto firmato - ' + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.contractPdf, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            if (savedUrls.contractPdf) batch.set(db.collection('documents').doc(), { name: (contract.signedPdfUrl ? 'Contratto firmato - ' : 'Contratto (senza pagina firme) - ') + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.contractPdf, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.landlordSig) batch.set(db.collection('documents').doc(), { name: 'Firma locatore - ' + propName, type: 'deal-archive', contractId: contractId, userId: property?.ownerId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.landlordSig, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.tenantSig) batch.set(db.collection('documents').doc(), { name: 'Firma conduttore - ' + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.tenantSig, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.summary) batch.set(db.collection('documents').doc(), { name: 'Deal Summary - ' + propName, type: 'deal-archive', contractId: contractId, fileUrl: savedUrls.summary, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
@@ -23456,6 +23601,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             const j = await r.json().catch(() => null);
             if (j && j.ok) {
+                // Il link della Scheda dell'inquilino è una SUA credenziale:
+                // al proprietario il server non lo dà (lo manda BOOM).
+                if (isTenant && !j.tenantUrl && j.tenantLinkVia === 'admin') return toast('info', 'Lo manda BOOM', 'Il link della Scheda dell\u2019inquilino gli permette di scrivere i suoi dati: lo inviamo noi. Scrivici e lo facciamo subito.');
                 url = isTenant ? j.tenantUrl : j.landlordUrl;
                 // Il messaggio NOMINA ciò che manca, nella lingua della parte, col
                 // link dentro: lo scrive il dizionario sul server (una copia).
@@ -23970,8 +24118,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const prop = (S.properties || []).find(p => p.id === c.propertyId);
-        const tenant = (S.users || []).find(u => u.id === c.tenantId);
-        const landlord = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
+        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        // I CONTATTI DAL CONTRATTO quando manca il profilo (12/10/2026): un
+        // immobile nato da una proposta non ha ownerId, e i bottoni WhatsApp
+        // ed email del locatore restavano spenti («Manca il telefono») col
+        // numero scritto sul contratto (landlordPhone, dalla proposta). Il
+        // profilo vince campo per campo; l'accesso al portale resta solo a
+        // chi un profilo ce l'ha (landlordUser).
+        const partyOf = (user, name, phone, email) => {
+            const base = { name: name || '', phone: phone || '', email: email || '' };
+            if (!user) return (base.name || base.phone || base.email) ? base : null;
+            return { ...user, name: user.name || base.name, phone: user.phone || base.phone, email: user.email || base.email };
+        };
+        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
+        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
 
         // Mount a placeholder immediately so the modal is visible while the
         // Firestore backfill is in flight. If a previous closeModal() is still
@@ -23985,15 +24146,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div>Preparazione link…</div>
             </div></div></div>`;
 
-        // Backfill any missing token in a single Firestore write
-        const mk = () => (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join(''));
-        const updates = {};
-        if (!c.tenantSignToken && !c.tenantSignature)   { updates.tenantSignToken   = mk(); c.tenantSignToken   = updates.tenantSignToken; }
-        if (!c.landlordSignToken && !c.landlordSignature) { updates.landlordSignToken = mk(); c.landlordSignToken = updates.landlordSignToken; }
-        if (Object.keys(updates).length) {
-            try { await db.collection('contracts').doc(contractId).update(updates); }
-            catch (e) { console.warn('[shareHub backfill]', e); }
-        }
+        // I link di firma dal server (/api/sign/links): coniati nel deposito
+        // signTokens se mancano, e SOLO quelli che spettano a chi chiede
+        // (admin entrambi, il proprietario il suo). Il contratto non li porta.
+        let signLinks = {};
+        try { signLinks = await fetchSignLinks(contractId); }
+        catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
 
         // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
         // browser non può calcolarli) — una POST restituisce entrambi i link.
@@ -24015,11 +24173,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const links = [];
 
         // Tenant: magic-sign
-        if (!c.tenantSignature && c.tenantSignToken) {
+        if (!c.tenantSignature && signLinks.tenant) {
             links.push({
                 audience: 'tenant', icon: '🖋️', title: 'Firma il contratto',
                 subtitle: 'Magic Sign — firma da telefono, accetta termini, genera PDF',
-                url: `${base}/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+                url: signLinks.tenant,
                 target: tenant,
                 waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione per ${prop?.name || 'l\'immobile'}. Si firma direttamente dal telefono: {URL}\n\n— BOOM Roma`,
                 emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
@@ -24103,11 +24261,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // /api/sign/send-link fa rispettare (409 awaiting_tenant). La pagina
         // /sign comunque lo parcheggerebbe ("Not your turn yet"), ma il link
         // giusto al momento giusto evita la confusione.
-        if (!c.landlordSignature && c.landlordSignToken && (c.tenantSignature || c.signingOrder === 'any')) {
+        if (!c.landlordSignature && signLinks.landlord && (c.tenantSignature || c.signingOrder === 'any')) {
             links.push({
                 audience: 'landlord', icon: '🖋️', title: 'Firma il contratto',
                 subtitle: 'Firma da telefono come locatore',
-                url: `${base}/sign?sign=${encodeURIComponent(c.landlordSignToken)}`,
+                url: signLinks.landlord,
                 target: landlord,
                 waText: (n) => `Ciao ${n}, ecco il link per firmare il contratto di locazione di ${prop?.name || 'l\'immobile'} come proprietario. Si firma dal telefono: {URL}\n\n— BOOM Roma`,
                 emailSubj: `BOOM · Firma contratto ${prop?.name || ''}`.trim(),
@@ -24140,16 +24298,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Gentile ${n},\n\necco il pass digitale BOOM proprietario. Lo apra dal Suo iPhone per aggiungerlo al Wallet:\n\n{URL}\n\nBOOM Roma`
             });
         }
-        // Landlord: portal access
-        if (landlord) {
+        // Landlord: portal access — solo a chi ha davvero un profilo per entrare
+        if (landlordUser) {
             links.push({
                 audience: 'landlord', icon: '📊', title: 'Accedi al portale proprietari',
                 subtitle: 'Dashboard incassi, contratti, manutenzioni',
                 url: `${base}/portal.html`,
                 target: landlord,
-                waText: (n) => `Gentile ${n}, può accedere al portale BOOM proprietari qui (login con email ${landlord.email || ''}): {URL}`,
+                waText: (n) => `Gentile ${n}, può accedere al portale BOOM proprietari qui (login con email ${landlordUser.email || ''}): {URL}`,
                 emailSubj: 'BOOM · Accesso portale proprietari',
-                emailBody: (n) => `Gentile ${n},\n\npuò accedere al portale BOOM proprietari per vedere incassi, contratti e manutenzioni:\n\n{URL}\n\nLogin con la Sua email: ${landlord.email || ''}\n\nBOOM Roma`
+                emailBody: (n) => `Gentile ${n},\n\npuò accedere al portale BOOM proprietari per vedere incassi, contratti e manutenzioni:\n\n{URL}\n\nLogin con la Sua email: ${landlordUser.email || ''}\n\nBOOM Roma`
             });
         }
 
@@ -30665,7 +30823,7 @@ IBAN: ${l.iban || '-'}`;
                     coTenants: coRows,
                     notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto' + (c.signatureDate ? ' (firmato il ' + c.signatureDate + ')' : ''),
                     status: 'active', signatureStatus: 'none',
-                    tenantSignToken: uuid(), landlordSignToken: uuid(),
+                    // i token di firma li conia il server (signTokens, admin-only)
                     requiresAsseverazione: true,
                     paymentsGenerated: false, welcomeEmailSent: false,
                     source: 'innesto', createdAt: now

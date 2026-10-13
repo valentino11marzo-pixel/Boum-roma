@@ -26,6 +26,7 @@ import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
 import { maybeAutoAspi } from '../fiscal/_aspi.js';
+import { archiveSignedContract } from './_archive.js';
 // Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
 // guardavano SOLO i campi del contratto mentre il PDF risale la catena
 // users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
@@ -238,6 +239,20 @@ export async function finalizeContract(contract){
     }
   } catch(e){ console.warn('[finalize] signed pdf failed:', e.message); }
 
+  // ── La copia firmata nell'archivio di ciascuna parte ──
+  // Il portal di proprietario e inquilino legge `documents` per userId: senza
+  // questa riga il contratto firmato esisteva solo come link nell'email, e
+  // il documento nato all'attivazione restava sul PDF senza firme. Id
+  // deterministici + adozione dei documenti d'attivazione: un retry non
+  // duplica. Time-box: l'archivio non allunga mai la firma.
+  let archive = null;
+  if (signedPdfUrl) {
+    archive = await Promise.race([
+      archiveSignedContract(contract, property, { signedPdfUrl, certUrl, now }),
+      new Promise(resolve => setTimeout(() => resolve({ ok: false, error: 'timeout' }), 8000)),
+    ]);
+  }
+
   // ── Server-issued tenant magic link (single-use, 72h) ──
   let magicId = '';
   try {
@@ -318,7 +333,7 @@ export async function finalizeContract(contract){
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──

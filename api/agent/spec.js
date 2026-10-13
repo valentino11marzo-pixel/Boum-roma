@@ -87,15 +87,15 @@ export default async function handler(req, res) {
       },
       {
         name: 'state.snapshot', method: 'POST', path: '/state.snapshot',
-        tier: 1, side_effects: 'none (read-only)',
-        input: { scope: 'all|leads|contracts|payments|agenda?' },
-        output: { ts: 'iso', leads: 'object?', contracts: 'object?', payments: 'object?', agenda: 'object?', actionQueue: 'object?' },
+        tier: 1, side_effects: 'none on business data (caches its own snapshot in heartbeat/ for 10 min)',
+        input: { scope: 'all|leads|contracts|payments|agenda?', fresh: 'boolean? (true = skip the 10-min snapshot)' },
+        output: { ts: 'iso (when computed)', cached: 'boolean', cachedAt: 'iso|null', leads: 'object?', contracts: 'object?', payments: 'object?', agenda: 'object?', actionQueue: 'object?' },
       },
       {
         name: 'risk.scan', method: 'POST', path: '/risk.scan',
-        tier: 1, side_effects: 'none (read-only)',
-        input: { window: 'number? (days-ahead horizon, default 60)' },
-        output: { generatedAt: 'iso', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
+        tier: 1, side_effects: 'none on business data (caches its own scan in heartbeat/ for 10 min)',
+        input: { window: 'number? (days-ahead horizon, default 60)', fresh: 'boolean? (true = skip the 10-min snapshot)' },
+        output: { generatedAt: 'iso (when computed)', cached: 'boolean', cachedAt: 'iso|null', counts: '{high,med,total}', items: 'array<{sev,cat,title,detail,days,ref}>' },
       },
       {
         name: 'compliance.scan', method: 'POST', path: '/compliance.scan',
