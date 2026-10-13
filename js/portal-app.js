@@ -20015,214 +20015,349 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (window._pdfJsLoading) return window._pdfJsLoading;
         window._pdfJsLoading = new Promise((resolve, reject) => {
             const s = document.createElement('script');
+            const fail = error => { clearTimeout(timer); window._pdfJsLoading = null; reject(error); };
+            const timer = setTimeout(() => { s.remove(); fail(new Error('PDF.js load timeout')); }, 20000);
             s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
             s.onload = () => {
                 try {
                     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-                    resolve(window.pdfjsLib);
-                } catch (e) { reject(e); }
+                    clearTimeout(timer); resolve(window.pdfjsLib);
+                } catch (e) { fail(e); }
             };
-            s.onerror = () => reject(new Error('PDF.js load failed'));
+            s.onerror = () => fail(new Error('PDF.js load failed'));
             document.head.appendChild(s);
         });
         return window._pdfJsLoading;
     }
 
-    // ── Editor ──────────────────────────────────────────────────────────────
-    function openMagicSignEditor() {
-        _msEdit = { pdfBytes: null, fileName: '', pageCount: 0, fields: [], propertyId: '', title: '' };
-        const tenants = S.users.filter(u => u.role === 'tenant');
-        const landlords = S.users.filter(u => u.role === 'landlord');
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✨ Magic Sign — Contratto personalizzato</div>
-                    <div class="ms-ed-sub">Carica un PDF, trascina i campi firma, invia a inquilino e locatore.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">Titolo</label>
-                    <input class="ms-ed-input" id="msTitle" placeholder="Es. Contratto comodato Via Veneto" oninput="_msEdit.title=this.value">
-                    <label class="ms-ed-label">Immobile (opzionale)</label>
-                    <select class="ms-ed-input" id="msProperty" onchange="_msEdit.propertyId=this.value">
-                        <option value="">— Nessuno —</option>
-                        ${S.properties.map(p => `<option value="${p.id}">${esc(p.name || 'Immobile')}</option>`).join('')}
-                    </select>
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Inquilino</label>
-                    <select class="ms-ed-input" id="msTenant">
-                        <option value="">— Email manuale —</option>
-                        ${tenants.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msTenantEmail" placeholder="email inquilino" style="margin-top:6px">
-                    <label class="ms-ed-label">Locatore</label>
-                    <select class="ms-ed-input" id="msLandlord">
-                        <option value="">— Email manuale —</option>
-                        ${landlords.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msLandlordEmail" placeholder="email locatore" style="margin-top:6px">
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Campi — trascina sul documento</label>
-                    <div class="ms-palette">
-                        ${Object.entries(MS_FIELD_TYPES).map(([k, t]) => `
-                            <div class="ms-chip" draggable="true" data-fieldtype="${k}" ondragstart="_msDragStart(event,'${k}')">
-                                <span>${t.icon}</span> ${t.label}
-                            </div>`).join('')}
-                    </div>
-                    <div class="ms-ed-hint">Suggerimento: clicca un campo posizionato per eliminarlo.</div>
-                    <button class="ms-cta" id="msSaveBtn" disabled onclick="saveMagicSignRequest()">Crea richiesta di firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap" id="msCanvasWrap">
-                    <div class="ms-drop" id="msDrop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="_msFileDrop(event)">
-                        <div class="ms-drop-icon">📄</div>
-                        <div class="ms-drop-title">Trascina qui il PDF del contratto</div>
-                        <div class="ms-drop-sub">oppure</div>
-                        <label class="btn"><input type="file" accept="application/pdf" style="display:none" onchange="_msFileInput(event)"> Scegli file</label>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>`;
-        // Pre-fill manual email when a user is picked
-        setTimeout(() => {
-            const tSel = document.getElementById('msTenant'), lSel = document.getElementById('msLandlord');
-            tSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === tSel.value); if (u) document.getElementById('msTenantEmail').value = u.email || ''; });
-            lSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === lSel.value); if (u) document.getElementById('msLandlordEmail').value = u.email || ''; });
-        }, 50);
+    // ── Editor: ephemeral draft; creation and signing stay server-side. ───────
+    function openMagicSignEditor(context) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return toast('error', 'Accedi come amministratore');
+        if (_msEdit && document.getElementById('msStudio')) return;
+        const propertyId = context?.propertyId && S.properties.some(p => p.id === context.propertyId) ? context.propertyId : '';
+        _msEdit = { uid: auth.currentUser.uid, step: 'choose', pdfBytes: null, pdfDoc: null, fileName: '', pageCount: 0,
+            fields: [], propertyId, title: '', page: 1, selectedType: 'sig_tenant', selectedFieldId: null, undo: [],
+            signers: { tenant: { enabled: true, userId: '', name: '', email: '' }, landlord: { enabled: true, userId: '', name: '', email: '' } },
+            dirty: false, busy: false, loading: false, renderGeneration: 0, submission: null, returnFocus: document.activeElement };
+        window.addEventListener('beforeunload', _msBeforeUnload);
+        _msStudioRender();
     }
-
-    function _msFileInput(e) { const f = e.target.files?.[0]; if (f) _msLoadFile(f); }
-    function _msFileDrop(e) {
-        e.preventDefault();
-        document.getElementById('msDrop')?.classList.remove('over');
-        const f = e.dataTransfer.files?.[0];
-        if (f) _msLoadFile(f);
+    function _msCurrent(state = _msEdit) {
+        return !!state && state === _msEdit && auth.currentUser?.uid === state.uid && S.profile?.id === state.uid && isAdmin();
     }
-
+    function _msBeforeUnload(event) {
+        if (!_msEdit?.dirty) return;
+        event.preventDefault(); event.returnValue = '';
+    }
+    function _msRoleLabel(role) { return role === 'tenant' ? 'Inquilino' : 'Locatore'; }
+    function _msEnabledRoles() { return Object.keys(_msEdit.signers).filter(role => _msEdit.signers[role].enabled); }
+    function _msDirty() { if (_msEdit && !_msEdit.submission) _msEdit.dirty = true; }
+    function _msExit() {
+        const state = _msEdit;
+        if (state?.busy) return;
+        state?.renderTask?.cancel();
+        state?.pdfDoc?.destroy().catch(() => {});
+        _msEdit = null;
+        window.removeEventListener('beforeunload', _msBeforeUnload);
+        document.getElementById('modals').innerHTML = '';
+        document.body.classList.remove('modal-open');
+        if (state?.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
+    }
+    function _msRequestClose() {
+        if (!_msEdit || _msEdit.busy) return;
+        if (!_msEdit.dirty) return _msExit();
+        if (document.getElementById('msDiscard')) return;
+        document.getElementById('msStudio').insertAdjacentHTML('beforeend', `<div class="ms-discard" id="msDiscard" role="alertdialog" aria-modal="true" aria-labelledby="msDiscardTitle"><div><h3 id="msDiscardTitle">Chiudere la preparazione?</h3><p>${_msEdit.submission ? 'La creazione potrebbe essere già riuscita. Puoi riprovare con la stessa richiesta oppure controllare le richieste nella sezione Contratti.' : 'Il PDF e i campi di questa bozza non saranno conservati.'}</p><div class="ms-actions"><button type="button" class="ms-primary" onclick="document.getElementById('msDiscard').remove();document.getElementById('msClose').focus()">Continua a lavorare</button><button type="button" class="ms-secondary" onclick="_msExit()">Chiudi preparazione</button></div></div></div>`);
+        document.querySelector('#msDiscard button').focus();
+    }
+    function _msStudioKeys(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault(); event.stopPropagation();
+            const discard = document.getElementById('msDiscard');
+            if (discard) { discard.remove(); document.getElementById('msClose')?.focus(); } else _msRequestClose();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const root = document.getElementById('msDiscard') || document.getElementById('msStudio');
+        const items = [...root.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length);
+        if (!items.length) return;
+        if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    }
+    function _msStudioRender() {
+        const state = _msEdit;
+        if (!_msCurrent(state)) return;
+        const steps = ['document', 'signers', 'fields', 'review'], labels = ['Documento', 'Firmatari', 'Campi', 'Riepilogo'];
+        const index = steps.indexOf(state.step), title = { choose: 'Che cosa vuoi far firmare?', boom: 'Scegli il contratto BOOM.', document: 'Parti dal documento.', signers: 'Chi deve firmare?', fields: 'Metti le firme al posto giusto.', review: 'Tutto pronto per la firma.' }[state.step];
+        const sub = { choose: 'Apri una pratica esistente o prepara un PDF personalizzato.', boom: 'Ritrovi le parti, il documento e le firme già presenti.', document: 'Carica il PDF definitivo e dagli un nome riconoscibile.', signers: 'Ogni persona riceverà il proprio link personale.', fields: 'Scegli un campo, poi tocca il punto sul PDF.', review: 'Controlla documento, persone e posizione dei campi.' }[state.step];
+        document.body.classList.add('modal-open');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)">
+          <header class="ms-studio-head"><div><p class="ms-kicker">BOOM <span>/</span> MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">${title}</h2><p class="ms-subtitle">${sub}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msRequestClose()" ${state.busy ? 'disabled' : ''}>×</button></header>
+          ${index >= 0 ? `<nav class="ms-steps" aria-label="Preparazione della firma">${steps.map((step, i) => `<button type="button" onclick="_msGo('${step}')" ${i > index || state.submission || state.busy ? 'disabled' : ''} ${i === index ? 'aria-current="step"' : ''}><span>${i < index ? '✓' : i + 1}</span>${labels[i]}</button>`).join('')}</nav>` : ''}
+          <div class="ms-studio-body" id="msStudioBody">${_msStudioContent()}</div>
+          <div class="ms-status" id="msStatus" role="status" aria-live="polite"></div>
+          ${index >= 0 ? `<footer class="ms-studio-footer"><button type="button" class="ms-secondary" onclick="_msGo('${index === 0 ? 'choose' : steps[index - 1]}')" ${state.busy || state.submission ? 'disabled' : ''}>Indietro</button><p>${index === 3 ? 'Crea i link. La condivisione è il passo successivo.' : state.fileName ? esc(state.fileName) : 'La bozza resta aperta finché lavori qui.'}</p>${index === 3 ? `<button type="button" class="ms-primary" id="msSaveBtn" onclick="saveMagicSignRequest()" ${state.busy ? 'disabled' : ''}>${state.busy ? 'Creazione in corso…' : state.submission ? 'Riprova creazione link' : 'Crea link di firma'}</button>` : `<button type="button" class="ms-primary" id="msNext" onclick="_msNext()" ${state.loading ? 'disabled' : ''}>${state.loading ? 'Leggo il PDF…' : index === 2 ? 'Vai al riepilogo' : 'Continua'} <span aria-hidden="true">→</span></button>`}</footer>` : ''}
+        </section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
+        if (['document', 'fields', 'review'].includes(state.step) && state.pdfDoc) _msRenderEditor();
+    }
+    function _msStudioContent() {
+        const state = _msEdit;
+        if (state.step === 'choose') return `<div class="ms-choices"><button type="button" class="ms-choice" onclick="_msGo('boom')"><span class="ms-choice-symbol" aria-hidden="true">↗</span><span class="ms-kicker">PRATICA ESISTENTE</span><strong>Contratto BOOM</strong><span>Apri Firma ora sul contratto già in archivio.</span><b>Trova contratto <span aria-hidden="true">→</span></b></button><button type="button" class="ms-choice" onclick="_msGo('document')"><span class="ms-choice-symbol" aria-hidden="true">＋</span><span class="ms-kicker">UN ALTRO DOCUMENTO</span><strong>PDF personalizzato</strong><span>Carica un PDF e indica dove devono firmare.</span><b>Prepara PDF <span aria-hidden="true">→</span></b></button></div><p class="ms-footnote">I contratti BOOM conservano il loro percorso di firma e i collegamenti alla pratica.</p>`;
+        if (state.step === 'boom') {
+            const contracts = (S.contracts || []).filter(c => !state.propertyId || c.propertyId === state.propertyId);
+            return `<div class="ms-narrow"><label class="ms-label" for="msBoomContract">Contratto in archivio</label><select class="ms-input" id="msBoomContract"><option value="">Scegli un contratto</option>${contracts.map(c => { const p = S.properties.find(p => p.id === c.propertyId), u = S.users.find(u => u.id === c.tenantId); return `<option value="${esc(c.id)}">${esc(p?.name || p?.address || c.propertyName || 'Immobile')} · ${esc(u?.name || c.tenantName || c.id)}${c.signatureStatus === 'complete' ? ' · già firmato' : ''}</option>`; }).join('')}</select><p class="ms-help">${contracts.length ? 'Apri il pannello con il documento e le parti già collegati.' : 'Nessun contratto caricato in questo contesto. Apri la sezione Contratti per trovare la pratica.'}</p><div class="ms-actions"><button type="button" class="ms-secondary" onclick="_msGo('choose')">Indietro</button><button type="button" class="ms-primary" onclick="_msOpenBoom()">Apri Firma ora</button></div></div>`;
+        }
+        if (state.step === 'document') return `<div class="ms-document-layout"><div class="ms-form-column"><div class="ms-upload ${state.pdfDoc ? 'ms-upload-ready' : ''}" id="msDrop" ondragover="event.preventDefault()" ondrop="_msFileDrop(event)"><span class="ms-upload-icon" aria-hidden="true">${state.pdfDoc ? '✓' : '↑'}</span><strong>${state.pdfDoc ? esc(state.fileName) : 'Il tuo PDF, pronto da firmare'}</strong><p>${state.pdfDoc ? state.pageCount + (state.pageCount === 1 ? ' pagina' : ' pagine') + ' · documento caricato' : 'Scegli il file oppure trascinalo qui. PDF fino a 15 MB.'}</p><label class="ms-secondary ms-file-label">${state.pdfDoc ? 'Sostituisci PDF' : 'Scegli PDF'}<input id="msFile" type="file" accept="application/pdf,.pdf" onchange="_msFileInput(event)" ${state.loading ? 'disabled' : ''}></label></div><label class="ms-label" for="msTitle">Nome del documento</label><input class="ms-input" id="msTitle" maxlength="180" value="${esc(state.title)}" placeholder="Es. Accordo di consegna · Via Roma" oninput="_msEdit.title=this.value;_msDirty()"><label class="ms-label" for="msProperty">Immobile <span>facoltativo</span></label><select class="ms-input" id="msProperty" onchange="_msEdit.propertyId=this.value;_msDirty()"><option value="">Nessun immobile collegato</option>${S.properties.map(p => `<option value="${esc(p.id)}" ${p.id === state.propertyId ? 'selected' : ''}>${esc(p.name || p.address || 'Immobile')}</option>`).join('')}</select></div>${_msViewer()}</div>`;
+        if (state.step === 'signers') return `<div class="ms-recipient-intro"><span class="ms-doc-badge">PDF</span><div><strong>${esc(state.title || state.fileName)}</strong><p>${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'} · scegli le parti richieste</p></div></div><div class="ms-signers">${['tenant', 'landlord'].map(role => _msSignerCard(role)).join('')}</div><p class="ms-footnote">Un contatto in archivio mantiene la propria email. Per usare un indirizzo diverso, scegli “Contatto manuale”.</p>`;
+        if (state.step === 'fields') return `<div class="ms-fields-layout"><aside class="ms-fields-sidebar"><p class="ms-label">Aggiungi un campo</p><div class="ms-palette-v2">${Object.entries(MS_FIELD_TYPES).filter(([, meta]) => state.signers[meta.role].enabled).map(([type, meta]) => `<button type="button" draggable="true" data-ms-type="${type}" class="ms-palette-button ms-role-${meta.role}" aria-pressed="${state.selectedType === type}" onclick="_msChooseField('${type}')" ondragstart="_msDragStart(event,'${type}')"><strong>${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'}</strong><span>${_msRoleLabel(meta.role)}</span></button>`).join('')}</div><p class="ms-help" id="msPlacementHint">Scegli un campo, poi tocca il PDF. Da tastiera: Invio sul documento aggiunge al centro; le frecce spostano il campo selezionato.</p><div id="msFieldTools">${_msFieldTools()}</div></aside>${_msViewer()}</div>`;
+        const prop = S.properties.find(p => p.id === state.propertyId);
+        return `<div class="ms-review-layout"><div class="ms-review-summary"><p class="ms-kicker">DOCUMENTO</p><h3>${esc(state.title || state.fileName)}</h3><p class="ms-help">${esc(state.fileName)} · ${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'}${prop ? '<br>' + esc(prop.name || prop.address) : ''}</p><div class="ms-review-people">${_msEnabledRoles().map(role => { const person = state.signers[role], fields = state.fields.filter(f => f.role === role); return `<article class="ms-review-person ms-role-${role}"><span class="ms-kicker">${_msRoleLabel(role)}</span><strong>${esc(person.name)}</strong><span>${esc(person.email)}</span><p>${fields.filter(f => f.kind === 'signature').length} ${fields.filter(f => f.kind === 'signature').length === 1 ? 'firma' : 'firme'} · ${fields.length} ${fields.length === 1 ? 'campo' : 'campi'} · ${[...new Set(fields.map(f => f.page))].sort((a,b) => a-b).map(p => 'pag. ' + p).join(', ')}</p></article>`; }).join('')}</div><p class="ms-review-note">Ogni link apre questo documento con i campi della persona indicata. Dopo la creazione puoi copiarlo o aprire WhatsApp ed email per condividerlo.</p></div>${_msViewer()}</div>`;
+    }
+    function _msSignerCard(role) {
+        const person = _msEdit.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+        const users = S.users.filter(u => u.role === role);
+        return `<section class="ms-signer-card ms-role-${role} ${person.enabled ? '' : 'ms-signer-off'}"><label class="ms-signer-toggle"><input type="checkbox" id="${prefix}Enabled" ${person.enabled ? 'checked' : ''} onchange="_msToggleSigner('${role}',this.checked)"><span>${_msRoleLabel(role)}</span><small>${person.enabled ? 'Firma richiesta' : 'Non richiesto'}</small></label>${person.enabled ? `<label class="ms-label" for="${prefix}">Persona</label><select class="ms-input" id="${prefix}" onchange="_msPickSigner('${role}',this.value)"><option value="">Contatto manuale</option>${users.map(u => `<option value="${esc(u.id)}" ${u.id === person.userId ? 'selected' : ''}>${esc(u.name || u.email || u.id)}</option>`).join('')}</select><label class="ms-label" for="${prefix}Name">Nome e cognome</label><input class="ms-input" id="${prefix}Name" autocomplete="name" maxlength="140" value="${esc(person.name)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.name=this.value;_msDirty()"><label class="ms-label" for="${prefix}Email">Email</label><input type="email" class="ms-input" id="${prefix}Email" autocomplete="email" inputmode="email" maxlength="254" value="${esc(person.email)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.email=this.value;_msDirty()">${person.userId ? `<button type="button" class="ms-text-button" onclick="_msManualSigner('${role}')">Usa un contatto manuale</button>` : '<p class="ms-help">Controlla l’indirizzo prima di creare il link.</p>'}` : '<p class="ms-help">Nessun campo né link verrà creato per questa parte.</p>'}</section>`;
+    }
+    function _msPickSigner(role, id) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const user = S.users.find(u => u.id === id && u.role === role);
+        Object.assign(_msEdit.signers[role], { userId: user?.id || '', name: user?.name || '', email: user?.email || '' });
+        _msDirty(); _msStudioRender();
+    }
+    function _msManualSigner(role) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        _msEdit.signers[role].userId = ''; _msDirty(); _msStudioRender();
+        document.getElementById(role === 'tenant' ? 'msTenantEmail' : 'msLandlordEmail')?.focus();
+    }
+    function _msToggleSigner(role, enabled) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!enabled && _msEdit.fields.some(f => f.role === role) && !confirm('Rimuovere questa parte e i suoi campi dal PDF?')) { _msStudioRender(); return; }
+        _msEdit.signers[role].enabled = enabled;
+        if (!enabled) { _msEdit.fields = _msEdit.fields.filter(f => f.role !== role); _msEdit.undo = []; }
+        if (!enabled && MS_FIELD_TYPES[_msEdit.selectedType]?.role === role) _msEdit.selectedType = 'sig_' + (_msEnabledRoles()[0] || 'tenant');
+        _msDirty(); _msStudioRender();
+    }
+    function _msShowError(message, inputId) {
+        const target = document.getElementById('msStatus');
+        if (target) { target.textContent = message; target.classList.add('ms-status-error'); }
+        const input = inputId && document.getElementById(inputId);
+        if (input) { input.setAttribute('aria-invalid', 'true'); input.focus(); }
+        return false;
+    }
+    function _msValidate(step) {
+        const state = _msEdit;
+        if (step === 'document') {
+            if (!state.pdfBytes || !state.pdfDoc || !state.pageCount) return _msShowError('Scegli un PDF leggibile per continuare.', 'msFile');
+            if (!state.title.trim()) return _msShowError('Dai un nome al documento.', 'msTitle');
+        }
+        if (step === 'signers') {
+            if (!_msEnabledRoles().length) return _msShowError('Scegli almeno una persona che deve firmare.');
+            for (const role of _msEnabledRoles()) {
+                const person = state.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+                if (!person.name.trim()) return _msShowError('Inserisci il nome del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Name');
+                const input = document.createElement('input'); input.type = 'email'; input.required = true; input.value = person.email.trim();
+                if (!input.checkValidity() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) return _msShowError('Controlla l’email del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Email');
+                if (person.userId) {
+                    const canonical = S.users.find(u => u.id === person.userId && u.role === role);
+                    if (!canonical || canonical.email !== person.email || canonical.name !== person.name) return _msShowError('Il contatto è cambiato. Selezionalo di nuovo oppure usa un contatto manuale.', prefix);
+                }
+            }
+        }
+        if (step === 'fields') {
+            for (const role of _msEnabledRoles()) if (!state.fields.some(f => f.role === role && f.kind === 'signature')) return _msShowError('Aggiungi almeno una firma per ' + _msRoleLabel(role).toLowerCase() + '. Data e sigla non sostituiscono la firma.');
+        }
+        return true;
+    }
+    function _msGo(step) {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading || _msEdit.submission) return;
+        _msEdit.step = step; _msStudioRender();
+    }
+    function _msNext() {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading) return;
+        if (!_msValidate(_msEdit.step)) return;
+        _msGo({ document: 'signers', signers: 'fields', fields: 'review' }[_msEdit.step]);
+    }
+    function _msOpenBoom() {
+        if (!_msCurrent()) return;
+        const id = document.getElementById('msBoomContract')?.value;
+        if (!(S.contracts || []).some(c => c.id === id)) return _msShowError('Scegli il contratto da aprire.', 'msBoomContract');
+        if (_msEdit.dirty && !confirm('Lasciare la bozza PDF e aprire il contratto BOOM?')) return;
+        _msExit(); openFirmaOra(id);
+    }
+    function _msFileInput(event) { const file = event.target.files?.[0]; if (file) _msLoadFile(file); }
+    function _msFileDrop(event) { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file) _msLoadFile(file); }
     async function _msLoadFile(file) {
-        if (file.type !== 'application/pdf') return toast('error', 'File non valido', 'Serve un PDF');
-        if (file.size > 15 * 1024 * 1024) return toast('error', 'PDF troppo grande', 'Max 15MB');
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.loading || state.busy || state.submission) return;
+        if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return _msShowError('Scegli un file PDF.');
+        if (file.size > 15 * 1024 * 1024) return _msShowError('Il PDF supera 15 MB. Riduci il file e riprova.');
+        if (state.fields.length && !confirm('Sostituire il PDF? I campi già posizionati verranno rimossi.')) return;
+        state.loading = true; _msStudioRender();
+        let doc;
         try {
-            toast('info', 'Caricamento PDF…');
-            const buf = await file.arrayBuffer();
-            _msEdit.pdfBytes = new Uint8Array(buf);
-            _msEdit.fileName = file.name;
-            _msEdit.fields = [];
-            await _msRenderEditor();
-            document.getElementById('msSaveBtn').disabled = false;
-        } catch (e) { toast('error', 'Errore lettura PDF', e.message); }
-    }
-
-    async function _msRenderEditor() {
-        const pdfjs = await ensurePdfJs();
-        // PDF.js consumes the buffer — give it a copy so _msEdit.pdfBytes stays intact for upload.
-        const doc = await pdfjs.getDocument({ data: _msEdit.pdfBytes.slice() }).promise;
-        _msEdit.pageCount = doc.numPages;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        wrap.classList.add('loaded');
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page';
-            pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            pageDiv.ondragover = (ev) => ev.preventDefault();
-            pageDiv.ondrop = (ev) => _msDropOnPage(ev, i);
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const bytes = new Uint8Array(await file.arrayBuffer()), pdfjs = await ensurePdfJs();
+            doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+            for (let index = 1; index <= doc.numPages; index++) {
+                const page = await doc.getPage(index);
+                if (page.rotate % 360) { await doc.destroy(); throw new Error('unsupported_pdf_geometry'); }
+            }
+            if (!_msCurrent(state)) { doc.destroy(); return; }
+            if (!doc.numPages) throw new Error('PDF senza pagine');
+            state.pdfDoc?.destroy().catch(() => {});
+            Object.assign(state, { pdfBytes: bytes, pdfDoc: doc, fileName: file.name, pageCount: doc.numPages, page: 1, fields: [], undo: [], selectedFieldId: null });
+            if (!state.title) state.title = file.name.replace(/\.pdf$/i, '');
+            _msDirty(); state.loading = false; _msStudioRender();
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.loading = false; _msStudioRender(); _msShowError(error.message === 'unsupported_pdf_geometry' ? 'Questo PDF contiene pagine ruotate. Esportalo nuovamente con le pagine già orientate, poi carica la nuova copia.' : 'Non riesco a leggere questo PDF. Verifica che non sia protetto da password e scegli un file valido.');
         }
     }
-
-    function _msDragStart(e, fieldType) { e.dataTransfer.setData('text/plain', fieldType); }
-
-    function _msDropOnPage(e, pageNum) {
-        e.preventDefault();
-        const fieldType = e.dataTransfer.getData('text/plain');
-        const meta = MS_FIELD_TYPES[fieldType];
-        if (!meta) return;
-        const pageDiv = e.currentTarget;
-        const rect = pageDiv.getBoundingClientRect();
-        const xr = (e.clientX - rect.left) / rect.width;
-        const yr = (e.clientY - rect.top) / rect.height;
-        const field = {
-            id: 'f' + Date.now() + Math.floor(Math.random() * 1000),
-            page: pageNum, type: fieldType, kind: meta.kind, role: meta.role,
-            xr: Math.max(0, Math.min(xr - meta.w / 2, 1 - meta.w)),
-            yr: Math.max(0, Math.min(yr - meta.h / 2, 1 - meta.h)),
-            wr: meta.w, hr: meta.h
-        };
-        _msEdit.fields.push(field);
-        _msRenderFieldMarker(field, pageDiv);
+    function _msViewer() {
+        const state = _msEdit;
+        if (!state.pdfDoc) return '<div class="ms-preview-empty"><span aria-hidden="true">PDF</span><strong>Qui vedrai il documento.</strong><p>Controlla il PDF prima di preparare le firme.</p></div>';
+        return `<section class="ms-viewer" aria-label="Anteprima del documento"><div class="ms-page-toolbar"><span id="msPageLabel">Pagina ${state.page} di ${state.pageCount}</span><div><button type="button" class="ms-icon-button" aria-label="Pagina precedente" onclick="_msPage(-1)" ${state.page <= 1 ? 'disabled' : ''}>←</button><button type="button" class="ms-icon-button" aria-label="Pagina successiva" onclick="_msPage(1)" ${state.page >= state.pageCount ? 'disabled' : ''}>→</button></div></div><div class="ms-canvas-wrap" id="msCanvasWrap"><p class="ms-help">Preparo l’anteprima…</p></div></section>`;
     }
-
-    function _msRenderFieldMarker(field, pageDiv) {
-        const meta = MS_FIELD_TYPES[field.type];
-        const el = document.createElement('div');
-        el.className = 'ms-field ms-field-' + meta.role;
-        el.dataset.fieldId = field.id;
-        el.style.left = (field.xr * 100) + '%';
-        el.style.top = (field.yr * 100) + '%';
-        el.style.width = (field.wr * 100) + '%';
-        el.style.height = (field.hr * 100) + '%';
-        el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-        el.title = 'Clicca per eliminare';
-        el.onclick = (ev) => { ev.stopPropagation(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== field.id); el.remove(); };
-        pageDiv.appendChild(el);
-    }
-
-    async function saveMagicSignRequest() {
-        if (!_msEdit?.pdfBytes) return toast('error', 'Carica un PDF');
-        if (_msEdit.fields.length === 0) return toast('error', 'Aggiungi almeno un campo firma');
-        const title = (document.getElementById('msTitle').value || '').trim() || _msEdit.fileName || 'Contratto';
-        const tenantId = document.getElementById('msTenant').value || null;
-        const landlordId = document.getElementById('msLandlord').value || null;
-        const tenantEmail = (document.getElementById('msTenantEmail').value || '').trim();
-        const landlordEmail = (document.getElementById('msLandlordEmail').value || '').trim();
-        const roles = new Set(_msEdit.fields.map(f => f.role));
-        if (roles.has('tenant') && !tenantId && !tenantEmail) return toast('error', 'Manca l\'inquilino', 'Hai campi inquilino ma nessun firmatario');
-        if (roles.has('landlord') && !landlordId && !landlordEmail) return toast('error', 'Manca il locatore', 'Hai campi locatore ma nessun firmatario');
-
-        const btn = document.getElementById('msSaveBtn');
-        btn.disabled = true; btn.textContent = 'Caricamento…';
+    async function _msRenderEditor() {
+        const state = _msEdit, wrap = document.getElementById('msCanvasWrap');
+        if (!_msCurrent(state) || !state.pdfDoc || !wrap) return;
+        const generation = ++state.renderGeneration; state.renderTask?.cancel();
         try {
-            const reqId = 'sr' + Date.now();
-            const path = `signRequests/${reqId}/original.pdf`;
-            await storage.ref(path).put(new Blob([_msEdit.pdfBytes], { type: 'application/pdf' }));
-            const originalPdfUrl = await storage.ref(path).getDownloadURL();
-            const tUser = tenantId ? S.users.find(u => u.id === tenantId) : null;
-            const lUser = landlordId ? S.users.find(u => u.id === landlordId) : null;
-            const signers = {};
-            if (roles.has('tenant')) signers.tenant = { name: tUser?.name || 'Inquilino', email: tUser?.email || tenantEmail, userId: tenantId, token: _msToken(), signatureImg: null, signedAt: null };
-            if (roles.has('landlord')) signers.landlord = { name: lUser?.name || 'Locatore', email: lUser?.email || landlordEmail, userId: landlordId, token: _msToken(), signatureImg: null, signedAt: null };
-
-            await db.collection('signRequests').doc(reqId).set({
-                title, propertyId: _msEdit.propertyId || null,
-                originalPdfUrl, originalPdfPath: path,
-                pageCount: _msEdit.pageCount,
-                fields: _msEdit.fields,
-                signers,
-                requiredRoles: [...roles],
-                signedPdfUrl: null, signedPdfPath: null,
-                status: 'sent',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: S.profile.id
-            });
-            logActivity('Magic Sign richiesta creata', 'contract', { reqId, title, roles: [...roles] });
-            toast('success', 'Richiesta creata');
-            _msShowSendPanel(reqId, title, signers);
-        } catch (e) {
-            console.error(e); btn.disabled = false; btn.textContent = 'Crea richiesta di firma';
-            toast('error', 'Errore', e.message);
+            const page = await state.pdfDoc.getPage(state.page);
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !wrap.isConnected) return;
+            const base = page.getViewport({ scale: 1 }), width = Math.min(850, Math.max(220, wrap.clientWidth - 24));
+            const viewport = page.getViewport({ scale: width / base.width * Math.min(window.devicePixelRatio || 1, 2) });
+            const pageDiv = document.createElement('div'); pageDiv.className = 'ms-page'; pageDiv.dataset.page = state.page;
+            pageDiv.style.width = width + 'px'; pageDiv.style.aspectRatio = base.width + ' / ' + base.height;
+            const canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+            canvas.setAttribute('aria-hidden', 'true'); pageDiv.appendChild(canvas); wrap.replaceChildren(pageDiv);
+            if (state.step === 'fields') {
+                pageDiv.tabIndex = 0; pageDiv.setAttribute('role', 'group'); pageDiv.setAttribute('aria-label', 'Pagina ' + state.page + '. Tocca per aggiungere il campo selezionato; Invio lo aggiunge al centro.');
+                pageDiv.onclick = event => _msPlaceField(state.selectedType, state.page, event.clientX, event.clientY, pageDiv);
+                pageDiv.ondragover = event => event.preventDefault(); pageDiv.ondrop = event => _msDropOnPage(event, state.page);
+                pageDiv.onkeydown = event => { if (event.target === pageDiv && ['Enter', ' '].includes(event.key)) { event.preventDefault(); _msAddField(state.selectedType, state.page, .5, .5); } };
+            }
+            state.renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+            await state.renderTask.promise;
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !pageDiv.isConnected) return;
+            pageDiv.querySelectorAll('.ms-field').forEach(el => el.remove());
+            state.fields.filter(f => f.page === state.page).forEach(field => _msRenderFieldMarker(field, pageDiv));
+        } catch (error) { if (error?.name !== 'RenderingCancelledException' && _msCurrent(state) && generation === state.renderGeneration) _msShowError('Anteprima non disponibile. Torna al documento e riprova.'); }
+    }
+    function _msPage(delta) {
+        if (!_msCurrent() || _msEdit.busy) return;
+        const page = _msEdit.page + delta; if (page < 1 || page > _msEdit.pageCount) return;
+        _msEdit.page = page;
+        const viewer = document.querySelector('#msStudio .ms-viewer'); if (viewer) viewer.outerHTML = _msViewer();
+        _msRenderEditor();
+    }
+    function _msChooseField(type) {
+        if (!_msCurrent() || !MS_FIELD_TYPES[type] || !_msEdit.signers[MS_FIELD_TYPES[type].role].enabled) return;
+        _msEdit.selectedType = type;
+        document.querySelectorAll('[data-ms-type]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.msType === type)));
+        const status = document.getElementById('msStatus'); if (status) { status.textContent = MS_FIELD_TYPES[type].label + ': tocca il punto sul PDF.'; status.classList.remove('ms-status-error'); }
+    }
+    function _msDragStart(event, type) { _msChooseField(type); event.dataTransfer.setData('text/plain', type); }
+    function _msDropOnPage(event, pageNum) { event.preventDefault(); _msPlaceField(event.dataTransfer.getData('text/plain'), pageNum, event.clientX, event.clientY, event.currentTarget); }
+    function _msPlaceField(type, page, x, y, element) { const rect = element.getBoundingClientRect(); _msAddField(type, page, (x - rect.left) / rect.width, (y - rect.top) / rect.height); }
+    function _msRememberFields() { _msEdit.undo.push(_msEdit.fields.map(f => ({ ...f }))); if (_msEdit.undo.length > 30) _msEdit.undo.shift(); }
+    function _msAddField(type, page, x, y) {
+        const meta = MS_FIELD_TYPES[type];
+        if (!_msCurrent() || _msEdit.step !== 'fields' || _msEdit.submission || !meta || !_msEdit.signers[meta.role].enabled) return;
+        if (_msEdit.fields.length >= 100) return _msShowError('Hai raggiunto 100 campi per documento.');
+        _msRememberFields();
+        const field = { id: 'f' + _msToken(), page, type, kind: meta.kind, role: meta.role, xr: Math.max(0, Math.min(x - meta.w / 2, 1 - meta.w)), yr: Math.max(0, Math.min(y - meta.h / 2, 1 - meta.h)), wr: meta.w, hr: meta.h };
+        _msEdit.fields.push(field); _msEdit.selectedFieldId = field.id; _msDirty(); _msRefreshFields();
+        document.getElementById('msStatus').textContent = meta.label + ' aggiunta a pagina ' + page + '.';
+    }
+    function _msRenderFieldMarker(field, pageDiv) {
+        const meta = MS_FIELD_TYPES[field.type], editable = _msEdit?.step === 'fields';
+        const element = document.createElement(editable ? 'button' : 'div');
+        if (editable) element.type = 'button';
+        element.className = 'ms-field ms-field-' + field.role + (field.id === _msEdit?.selectedFieldId ? ' ms-field-selected' : '');
+        element.dataset.fieldId = field.id;
+        Object.assign(element.style, { left: field.xr * 100 + '%', top: field.yr * 100 + '%', width: field.wr * 100 + '%', height: field.hr * 100 + '%' });
+        element.innerHTML = `<span class="ms-field-tag">${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'} · ${_msRoleLabel(field.role)}</span>`;
+        element.setAttribute('aria-label', meta.label + ', pagina ' + field.page + '. Seleziona per modificare.');
+        if (editable) { element.onclick = event => { event.stopPropagation(); _msSelectField(field.id); }; element.onkeydown = event => _msFieldKeys(event, field.id); }
+        pageDiv.appendChild(element);
+    }
+    function _msFieldTools() {
+        const state = _msEdit, selected = state.fields.find(f => f.id === state.selectedFieldId);
+        return `<div class="ms-field-summary"><strong>${state.fields.length} ${state.fields.length === 1 ? 'campo posizionato' : 'campi posizionati'}</strong><button type="button" class="ms-text-button" onclick="_msUndo()" ${state.undo.length ? '' : 'disabled'}>Annulla ultima modifica</button></div>${selected ? `<div class="ms-selected-field"><p>${MS_FIELD_TYPES[selected.type].label} <span>· pagina ${selected.page}</span></p><div class="ms-move-controls" aria-label="Sposta il campo selezionato"><button type="button" aria-label="Sposta a sinistra" onclick="_msMoveField(-.01,0)">←</button><button type="button" aria-label="Sposta in alto" onclick="_msMoveField(0,-.01)">↑</button><button type="button" aria-label="Sposta in basso" onclick="_msMoveField(0,.01)">↓</button><button type="button" aria-label="Sposta a destra" onclick="_msMoveField(.01,0)">→</button><button type="button" class="ms-remove" onclick="_msRemoveField()">Rimuovi</button></div></div>` : ''}<div class="ms-field-list" aria-label="Campi del documento">${state.fields.map((field, i) => `<button type="button" data-ms-field="${field.id}" aria-pressed="${field.id === state.selectedFieldId}" onclick="_msSelectField('${field.id}',true)"><span>${i + 1}</span>${MS_FIELD_TYPES[field.type].label}<small>Pag. ${field.page}</small></button>`).join('')}</div>`;
+    }
+    function _msRefreshFields() {
+        const tools = document.getElementById('msFieldTools'); if (tools) tools.innerHTML = _msFieldTools();
+        const page = document.querySelector('#msCanvasWrap .ms-page');
+        if (page) { page.querySelectorAll('.ms-field').forEach(el => el.remove()); _msEdit.fields.filter(f => f.page === _msEdit.page).forEach(field => _msRenderFieldMarker(field, page)); }
+    }
+    function _msSelectField(id, reveal) {
+        if (!_msCurrent()) return;
+        const field = _msEdit.fields.find(f => f.id === id); if (!field) return;
+        _msEdit.selectedFieldId = id;
+        if (reveal && _msEdit.page !== field.page) { _msEdit.page = field.page; _msStudioRender(); }
+        else _msRefreshFields();
+        if (!reveal) document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msFieldKeys(event, id) {
+        if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Delete','Backspace'].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation(); _msEdit.selectedFieldId = id;
+        if (event.key === 'Delete' || event.key === 'Backspace') return _msRemoveField();
+        const d = event.shiftKey ? .02 : .005;
+        _msMoveField(event.key === 'ArrowLeft' ? -d : event.key === 'ArrowRight' ? d : 0, event.key === 'ArrowUp' ? -d : event.key === 'ArrowDown' ? d : 0);
+        document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msMoveField(dx, dy) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const field = _msEdit.fields.find(f => f.id === _msEdit.selectedFieldId); if (!field) return;
+        _msRememberFields(); field.xr = Math.max(0, Math.min(1 - field.wr, field.xr + dx)); field.yr = Math.max(0, Math.min(1 - field.hr, field.yr + dy)); _msDirty(); _msRefreshFields();
+    }
+    function _msRemoveField() {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!_msEdit.fields.some(f => f.id === _msEdit.selectedFieldId)) return;
+        _msRememberFields(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== _msEdit.selectedFieldId); _msEdit.selectedFieldId = null; _msDirty(); _msRefreshFields();
+        document.querySelector('#msFieldTools .ms-text-button')?.focus();
+    }
+    function _msUndo() {
+        if (!_msCurrent() || _msEdit.submission || !_msEdit.undo.length) return;
+        _msEdit.fields = _msEdit.undo.pop(); _msEdit.selectedFieldId = _msEdit.fields.at(-1)?.id || null; _msDirty(); _msRefreshFields();
+    }
+    async function saveMagicSignRequest() {
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.busy || state.loading) return;
+        if (!state.submission) for (const step of ['document', 'signers', 'fields']) {
+            if (!_msValidate(step)) { state.step = step; _msStudioRender(); _msValidate(step); return; }
+        }
+        if (state.step !== 'review') { state.step = 'review'; _msStudioRender(); return; }
+        if (!state.submission) {
+            const reqId = 'sr-' + crypto.randomUUID();
+            const signers = Object.fromEntries(_msEnabledRoles().map(role => { const person = state.signers[role]; return [role, { name: person.name.trim(), email: person.email.trim(), userId: person.userId || null }]; }));
+            state.submission = { reqId, title: state.title.trim(), propertyId: state.propertyId || null, originalPdfPath: `signRequests/${reqId}/original.pdf`, pageCount: state.pageCount, fields: state.fields.map(f => ({ ...f })), signers, requiredRoles: _msEnabledRoles() };
+        }
+        state.busy = true; _msStudioRender();
+        try {
+            const token = await auth.currentUser.getIdToken(); if (!_msCurrent(state)) throw new Error('session_changed');
+            if (!state.submission.originalPdfUrl) {
+                const ref = storage.ref(state.submission.originalPdfPath);
+                if (!state.uploadComplete) { await ref.put(new Blob([state.pdfBytes], { type: 'application/pdf' })); state.uploadComplete = true; }
+                state.submission.originalPdfUrl = await ref.getDownloadURL();
+            }
+            if (!_msCurrent(state)) throw new Error('session_changed');
+            const result = await _msCreateRequest(state.submission, token);
+            if (!result.ok || !state.submission.requiredRoles.every(role => result.signers?.[role]?.token)) throw new Error(result.error || 'creation_unconfirmed');
+            if (!_msCurrent(state)) return;
+            state.busy = false; state.dirty = false;
+            window.removeEventListener('beforeunload', _msBeforeUnload);
+            _msShowSendPanel(result.reqId || state.submission.reqId, state.submission.title, result.signers);
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.busy = false;
+            if (error.message === 'unsupported_pdf_geometry') {
+                state.submission = null; state.uploadComplete = false; state.step = 'document'; _msStudioRender();
+                _msShowError('Il PDF ha pagine ruotate o ritagliate. Esporta una nuova copia con pagine già orientate e senza ritagli, poi sostituisci il PDF. La bozza resta disponibile.'); return;
+            }
+            _msStudioRender();
+            _msShowError(error.message === 'session_changed' ? 'La sessione è cambiata. Accedi di nuovo e verifica le richieste in Contratti.' : 'Non ho conferma della creazione. La bozza è conservata: Riprova usa la stessa richiesta e non crea nuovi link.');
         }
     }
 
@@ -20242,218 +20377,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else { try { document.execCommand('copy'); done(); } catch (_) {} }
     }
     function _msShowSendPanel(reqId, title, signers) {
-        const card = (role, label, s) => {
-            if (!s) return '';
-            const link = _msSignLink(reqId, role, s.token);
-            const user = s.userId ? S.users.find(u => u.id === s.userId) : null;
-            const phone = String((user && (user.phone || user.telefono)) || '').replace(/\D/g, '');
-            const who = esc(s.name || label) + (s.email ? ' · ' + esc(s.email) : '');
-            const waMsg = encodeURIComponent(`Ciao ${s.name || ''}, ecco il link per firmare "${title}" dal tuo telefono: ${link}`);
-            const wa = phone ? `https://wa.me/${phone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
-            const mailto = `mailto:${encodeURIComponent(s.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent('Apri questo link per firmare dal telefono:\n\n' + link)}`;
-            return `
-            <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg-elevated)">
-                <div style="font-size:13px;margin-bottom:8px">${role === 'tenant' ? '👤' : '🏠'} <b>${label}</b> · <span style="color:var(--text-secondary)">${who}</span></div>
-                <input class="ms-ed-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()" style="font-size:12px">
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="_msCopyLink('mslink-${role}')">📋 Copia link</button>
-                    <a class="btn btn-sm btn-secondary" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>
-                    <a class="btn btn-sm btn-secondary" href="${esc(mailto)}">✉️ Email</a>
-                </div>
-            </div>`;
+        const card = (role, signer) => {
+            const link = _msSignLink(reqId, role, signer.token);
+            const user = signer.userId ? S.users.find(u => u.id === signer.userId) : null;
+            const phone = String(user?.phone || user?.telefono || '').replace(/\D/g, '');
+            const text = `Ciao ${signer.name || ''}, ecco il link personale per firmare “${title}”: ${link}`;
+            const wa = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+            const mailto = `mailto:${encodeURIComponent(signer.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent(text)}`;
+            return `<article class="ms-link-card ms-role-${role}"><p class="ms-kicker">${_msRoleLabel(role)}</p><h3>${esc(signer.name || _msRoleLabel(role))}</h3><p class="ms-help">${esc(signer.email || '')}</p><label class="ms-label" for="mslink-${role}">Link personale</label><input class="ms-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()"><div class="ms-actions"><button type="button" class="ms-primary" onclick="_msCopyLink('mslink-${role}')">Copia link</button><a class="ms-secondary" href="${esc(link)}" target="_blank" rel="noopener">Apri firma ↗</a></div><div class="ms-share-options"><a href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Prepara WhatsApp ↗</a><a href="${esc(mailto)}">Prepara email ↗</a></div></article>`;
         };
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal" style="max-width:560px">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✅ Richiesta di firma creata</div>
-                    <div class="ms-ed-sub">${esc(title)} — invia il link a ciascuna parte: ognuno firma dal proprio telefono.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;max-height:70vh;overflow:auto">
-                ${card('tenant', 'Inquilino', signers.tenant)}
-                ${card('landlord', 'Locatore', signers.landlord)}
-                <div style="font-size:11px;color:var(--text-muted)">Puoi ritrovare e re-inviare questi link quando vuoi dalla lista delle richieste di firma.</div>
-                <button class="btn" onclick="closeModal()">Fatto</button>
-            </div>
-          </div>
-        </div>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio ms-studio-success" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)"><header class="ms-studio-head"><div><p class="ms-kicker">BOOM / MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">I link sono pronti.</h2><p class="ms-subtitle">${esc(title)}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msExit()">×</button></header><div class="ms-studio-body"><p class="ms-success-notice"><span aria-hidden="true">✓</span> Richiesta creata. Nessun messaggio inviato.</p><p class="ms-help">Condividi il link personale con ciascun firmatario, oppure apri la firma se la persona è qui con te.</p><div class="ms-ready-links">${Object.entries(signers).filter(([role, signer]) => ['tenant','landlord'].includes(role) && signer?.token).map(([role, signer]) => card(role, signer)).join('')}</div><p class="ms-footnote">Ritrovi questi link e lo stato delle firme nella sezione Contratti → Magic Sign.</p></div><footer class="ms-studio-footer"><p>Documento e campi sono fissati a questa richiesta.</p><button type="button" class="ms-primary" onclick="_msExit()">Fatto</button></footer></section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
     }
 
     // ── Sign flow ─────────────────────────────────────────────────────────────
     async function openMagicSignRequest(reqId, role) {
+        if (!['tenant', 'landlord'].includes(role)) return toast('error', 'Firmatario non previsto');
         const req = S.signRequests.find(r => r.id === reqId) || (await db.collection('signRequests').doc(reqId).get()).data();
-        if (!req) return toast('error', 'Richiesta non trovata');
-        if (!req.signers?.[role]) return toast('error', 'Ruolo non previsto per questa firma');
-        if (req.signers[role].signedAt) return toast('info', 'Già firmato', req.signers[role].name + ' ha già firmato');
-        // Unified signing: open the premium /sign page (tailored-PDF mode) for
-        // this role's token instead of the legacy in-portal editor.
-        var _ctok = req.signers[role] && req.signers[role].token;
-        if (_ctok) { window.open('/sign?csign=' + encodeURIComponent(reqId) + '&role=' + role + '&t=' + encodeURIComponent(_ctok), '_blank', 'noopener'); return; }
-        _msSign = { reqId, role, req, signatureImg: null };
-        const roleFields = (req.fields || []).filter(f => f.role === role);
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✍ Firma — ${esc(req.title || 'Contratto')}</div>
-                    <div class="ms-ed-sub">Firmi come <strong style="color:var(--gold)">${role === 'tenant' ? 'Inquilino' : 'Locatore'}</strong> · ${roleFields.length} camp${roleFields.length === 1 ? 'o' : 'i'} da apporre</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">La tua firma</label>
-                    <div class="ms-pad-wrap signing-pad">
-                        <canvas id="msCustomPad" class="ms-pad"></canvas>
-                    </div>
-                    <div style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn btn-secondary btn-sm" onclick="_msPad&&_msPad.clear()">Pulisci</button>
-                        <button class="btn btn-sm" onclick="_msApplySignature()">Apponi su documento</button>
-                    </div>
-                    <div class="ms-ed-hint">Disegna la firma, poi premi “Apponi”. Comparirà in tutti i tuoi campi. Le date si compilano da sole.</div>
-                    <button class="ms-cta" id="msConfirmBtn" disabled onclick="confirmMagicSignRole()">Conferma e firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap loaded" id="msCanvasWrap"></div>
-            </div>
-          </div>
-        </div>`;
-        try {
-            const buf = await fetch(req.originalPdfUrl).then(r => r.arrayBuffer());
-            _msSign.pdfBytes = new Uint8Array(buf);
-            await _msRenderSignView(role);
-            const canvas = document.getElementById('msCustomPad');
-            if (canvas) _msPad = new SignaturePadCanvas(canvas);
-        } catch (e) { toast('error', 'Errore caricamento PDF', e.message); }
+        if (!req?.signers?.[role]) return toast('error', 'Richiesta o firmatario non disponibile');
+        if (req.signers[role].signedAt && !['finalization_pending', 'finalizing', 'finalization_failed'].includes(req.status)) return toast('info', 'Firma già registrata');
+        const token = req.signers[role].token;
+        if (!token) return toast('error', 'Link di firma non disponibile', 'Verifica la richiesta in Contratti. Non è possibile firmare questa copia dal portale.');
+        if (!req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta in Contratti prima di firmare.');
+        window.open(_msSignLink(reqId, role, token), '_blank', 'noopener');
     }
 
     async function _msRenderSignView(role) {
-        const pdfjs = await ensurePdfJs();
-        const doc = await pdfjs.getDocument({ data: _msSign.pdfBytes.slice() }).promise;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page'; pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-            // Overlay this role's field placeholders
-            (_msSign.req.fields || []).filter(f => f.page === i && f.role === role).forEach(f => {
-                const el = document.createElement('div');
-                el.className = 'ms-field ms-field-' + role + ' ms-field-todo';
-                el.dataset.fieldId = f.id;
-                el.style.left = (f.xr * 100) + '%'; el.style.top = (f.yr * 100) + '%';
-                el.style.width = (f.wr * 100) + '%'; el.style.height = (f.hr * 100) + '%';
-                const meta = MS_FIELD_TYPES[f.type];
-                el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-                pageDiv.appendChild(el);
-            });
-        }
+        if (_msSign?.reqId) return openMagicSignRequest(_msSign.reqId, role || _msSign.role);
+        return toast('error', 'Apri il link personale dalla richiesta di firma');
     }
-
-    function _msApplySignature() {
-        if (!_msPad || _msPad.isEmpty()) return toast('error', 'Disegna prima la firma');
-        _msSign.signatureImg = _msPad.toDataURL();
-        const today = new Date().toLocaleDateString('it-IT');
-        document.querySelectorAll('#msCanvasWrap .ms-field-todo').forEach(el => {
-            const f = _msSign.req.fields.find(x => x.id === el.dataset.fieldId);
-            const meta = MS_FIELD_TYPES[f.type];
-            el.classList.remove('ms-field-todo'); el.classList.add('ms-field-done');
-            if (meta.kind === 'date') el.innerHTML = `<span class="ms-field-fill">${today}</span>`;
-            else el.innerHTML = `<img src="${_msSign.signatureImg}" style="width:100%;height:100%;object-fit:contain">`;
-        });
-        document.getElementById('msConfirmBtn').disabled = false;
-        toast('success', 'Firma applicata', 'Controlla e conferma');
-    }
-
+    function _msApplySignature() { return toast('error', 'Usa il link personale per apporre la firma'); }
     async function confirmMagicSignRole() {
-        const { reqId, role, signatureImg } = _msSign;
-        if (!signatureImg) return toast('error', 'Apponi prima la firma');
-        const btn = document.getElementById('msConfirmBtn');
-        btn.disabled = true; btn.textContent = 'Firma in corso…';
-        try {
-            const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip).catch(() => 'unknown');
-            const update = {};
-            update[`signers.${role}.signatureImg`] = signatureImg;
-            update[`signers.${role}.signedAt`] = firebase.firestore.FieldValue.serverTimestamp();
-            update[`signers.${role}.signIP`] = ip;
-            update[`signers.${role}.signUA`] = navigator.userAgent;
-            await db.collection('signRequests').doc(reqId).update(update);
-
-            // Recompute completion against the freshest doc
-            const fresh = (await db.collection('signRequests').doc(reqId).get()).data();
-            const required = fresh.requiredRoles || Object.keys(fresh.signers || {});
-            const allSigned = required.every(r => fresh.signers?.[r]?.signedAt || (r === role));
-            if (allSigned) {
-                toast('info', 'Generazione PDF firmato…');
-                const signedUrl = await _buildSignedPdf(reqId, fresh, role, signatureImg);
-                await db.collection('signRequests').doc(reqId).update({ status: 'complete', signedPdfUrl: signedUrl, fullySignedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                logActivity('Magic Sign completato', 'contract', { reqId, title: fresh.title });
-            } else {
-                await db.collection('signRequests').doc(reqId).update({ status: 'partial' });
-                logActivity('Magic Sign firmato (parziale)', 'contract', { reqId, role });
-            }
-            _msPad = null; _msSign = null;
-            closeModal();
-            toast('success', allSigned ? 'Contratto firmato da tutti' : 'Firma registrata', allSigned ? 'PDF firmato disponibile' : 'In attesa dell\'altra parte');
-        } catch (e) { console.error(e); btn.disabled = false; btn.textContent = 'Conferma e firma'; toast('error', 'Errore', e.message); }
+        // Compatibility for old buttons: only the version-bound /sign flow
+        // may collect a signature. No client Firestore or signed-PDF write.
+        if (!_msSign?.reqId || !_msSign?.role) return toast('error', 'Apri il link personale dalla richiesta di firma');
+        return openMagicSignRequest(_msSign.reqId, _msSign.role);
     }
-
-    // Embed every signed role's signature/date/initials into the original PDF.
-    // `justSignedRole`/`justSignedImg` cover the role that signed in this session,
-    // whose serverTimestamp may not yet be readable on the fetched doc.
-    async function _buildSignedPdf(reqId, req, justSignedRole, justSignedImg) {
-        const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
-        const srcBytes = _msSign?.pdfBytes || new Uint8Array(await fetch(req.originalPdfUrl).then(r => r.arrayBuffer()));
-        const pdf = await PDFDocument.load(srcBytes);
-        const font = await pdf.embedFont(StandardFonts.Helvetica);
-        const pages = pdf.getPages();
-        // Cache embedded PNGs per role
-        const pngCache = {};
-        for (const f of (req.fields || [])) {
-            const page = pages[f.page - 1];
-            if (!page) continue;
-            const pw = page.getWidth(), ph = page.getHeight();
-            const x = f.xr * pw;
-            const w = f.wr * pw, h = f.hr * ph;
-            const yTop = f.yr * ph;
-            const y = ph - yTop - h; // top-left ratio → pdf-lib bottom-left
-            const meta = MS_FIELD_TYPES[f.type];
-            const signer = req.signers?.[f.role] || {};
-            const sigImg = f.role === justSignedRole ? justSignedImg : signer.signatureImg;
-            if (meta.kind === 'date') {
-                const dateStr = new Date().toLocaleDateString('it-IT');
-                page.drawText(dateStr, { x, y: y + h * 0.3, size: Math.max(8, h * 0.6), font, color: rgb(0.05, 0.05, 0.05) });
-            } else if (sigImg) {
-                if (!pngCache[f.role + '_' + (sigImg.length)]) {
-                    pngCache[f.role + '_' + (sigImg.length)] = await pdf.embedPng(sigImg);
-                }
-                const png = pngCache[f.role + '_' + (sigImg.length)];
-                page.drawImage(png, { x, y, width: w, height: h });
-            }
-        }
-        const out = await pdf.save();
-        const path = `signRequests/${reqId}/signed.pdf`;
-        await storage.ref(path).put(new Blob([out], { type: 'application/pdf' }));
-        return await storage.ref(path).getDownloadURL();
-    }
+    async function _buildSignedPdf() { throw new Error('La finalizzazione della firma avviene dal link personale.'); }
 
     function copyMagicSignLink(reqId, role) {
         const req = S.signRequests.find(r => r.id === reqId);
-        const token = req?.signers?.[role]?.token || '';
-        const url = `https://boomrome.com/sign?csign=${reqId}&role=${role}&t=${token}`;
-        navigator.clipboard.writeText(url);
-        toast('success', 'Link copiato', `Firma ${role === 'tenant' ? 'inquilino' : 'locatore'}`);
+        const token = req?.signers?.[role]?.token;
+        if (!token || !req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta prima di condividerli.');
+        navigator.clipboard.writeText(_msSignLink(reqId, role, token)).then(() => toast('success', 'Link copiato', _msRoleLabel(role))).catch(() => toast('error', 'Copia non riuscita', 'Apri il link personale dalla richiesta.'));
+    }
+
+    async function _msCreateRequest(payload, token) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 65000);
+        try {
+            const response = await fetch('/api/sign/custom/create', { method: 'POST', signal: controller.signal,
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'creation_unconfirmed');
+            return result;
+        } finally { clearTimeout(timer); }
+    }
+    const _msLegacyBusy = new Set();
+    async function _msPrepareLegacy(reqId) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid || _msLegacyBusy.has(reqId)) return;
+        const req = (S.signRequests || []).find(r => r.id === reqId), user = auth.currentUser;
+        if (!req) return toast('error', 'Richiesta non disponibile');
+        if (Object.values(req.signers || {}).some(signer => signer.signedAt)) return toast('warning', 'Firme già presenti: serve una verifica', 'Questa richiesta non viene modificata.');
+        _msLegacyBusy.add(reqId);
+        const button = [...document.querySelectorAll('[data-ms-prepare]')].find(el => el.dataset.msPrepare === reqId);
+        if (button) { button.disabled = true; button.textContent = 'Preparazione…'; }
+        try {
+            const token = await user.getIdToken();
+            const result = await _msCreateRequest({ reqId, title: req.title, propertyId: req.propertyId || null, contractId: req.contractId || null, leadId: req.leadId || null,
+                originalPdfUrl: req.originalPdfUrl, originalPdfPath: req.originalPdfPath, pageCount: req.pageCount,
+                fields: req.fields, signers: req.signers, requiredRoles: req.requiredRoles || Object.keys(req.signers || {}), migrateLegacy: true }, token);
+            if (auth.currentUser !== user || !isAdmin()) return;
+            Object.assign(req, { signers: result.signers, documentVersion: result.documentVersion, documentHash: result.documentHash, status: result.status || 'ready' });
+            // Existing globals are retained; this panel only shares prepared links.
+            _msEdit = { uid: user.uid, dirty: false, busy: false, returnFocus: button };
+            document.body.classList.add('modal-open');
+            _msShowSendPanel(reqId, req.title, result.signers);
+        } catch (error) {
+            toast('error', 'Preparazione non confermata', error.message === 'legacy_signed_review_required' ? 'La richiesta contiene firme e richiede una verifica.' : 'Riprova dalla stessa richiesta. Se il PDF non è leggibile, prepara una nuova richiesta.');
+        } finally { _msLegacyBusy.delete(reqId); if (button?.isConnected) { button.disabled = false; button.textContent = 'Prepara i link'; } }
     }
 
     async function deleteSignRequest(reqId) {
@@ -20499,9 +20500,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderSignRequestsSection() {
         const reqs = S.signRequests || [];
         if (reqs.length === 0) return '';
-        const statusMeta = { sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, finalization_failed: { c: 'red', t: 'Firme raccolte · PDF da completare' }, complete: { c: 'green', t: 'Completo' } };
+        const statusMeta = { ready: { c: 'orange', t: 'Link pronti' }, sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, finalization_pending: { c: 'orange', t: 'Firme raccolte · PDF da completare' }, finalizing: { c: 'blue', t: 'Firme raccolte · PDF in preparazione' }, finalization_failed: { c: 'red', t: 'Firme raccolte · PDF da completare' }, complete: { c: 'green', t: 'Completo' } };
         return `<details class="dash-extras" style="margin:0 0 16px;border:1px solid var(--border);border-radius:12px;padding:14px 16px" open>
-            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">contratti personalizzati con firma drag-and-drop</span></summary>
+            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">documenti personalizzati e link personali</span></summary>
             <div class="dash-list" style="margin-top:12px">
                 ${reqs.slice(0, 12).map(r => {
                     const sm = statusMeta[r.status] || statusMeta.sent;
@@ -20510,9 +20511,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         const done = !!s.signedAt;
                         return `<span class="badge ${done ? 'green' : 'gray'}" style="font-size:9px">${role === 'tenant' ? 'Inq.' : 'Loc.'} ${done ? '✓' : '○'}</span>`;
                     }).join(' ');
-                    const signBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const legacy = !r.documentVersion || !r.documentHash;
+                    const hasSignatures = Object.values(r.signers || {}).some(signer => signer.signedAt);
+                    const recoveryRole = !legacy && ['finalization_pending', 'finalizing', 'finalization_failed'].includes(r.status) && Object.keys(r.signers || {}).find(role => r.signers[role]?.signedAt && r.signers[role]?.token);
+                    const recoveryBtn = recoveryRole ? `<button class="dash-act dash-act-primary" data-ms-recover="${esc(r.id)}" onclick="openMagicSignRequest(${jsq(r.id)},${jsq(recoveryRole)})">Recupera PDF</button>` : '';
+                    const signBtns = legacy ? (hasSignatures ? '<span class="badge orange">Preparazione da verificare</span>' : `<button class="dash-act dash-act-primary" data-ms-prepare="${esc(r.id)}" onclick="_msPrepareLegacy(${jsq(r.id)})">Prepara i link</button>`) : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="openMagicSignRequest('${r.id}','${role}')" title="Firma come ${role}">✍ ${role === 'tenant' ? 'Inq.' : 'Loc.'}</button>`).join('');
-                    const linkBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const linkBtns = legacy ? '' : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="copyMagicSignLink('${r.id}','${role}')" title="Copia link firma ${role}">🔗</button>`).join('');
                     return `<div class="dash-row" data-tone="${sm.c === 'green' ? 'gold' : sm.c === 'blue' ? 'blue' : 'orange'}">
                         <span class="dash-row-icon">📝</span>
@@ -20521,7 +20526,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div class="dash-row-secondary">${prop ? '🏠 ' + esc(prop.name) + ' · ' : ''}${(r.fields || []).length} campi</div>
                         </div>
                         <div class="dash-row-actions">
-                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : signBtns + linkBtns}
+                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : recoveryBtn || signBtns + linkBtns}
                             <button class="dash-act dash-act-danger" onclick="deleteSignRequest('${r.id}')">✕</button>
                         </div>
                     </div>`;
@@ -21698,12 +21703,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${extra || ''}
             </div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-            <div class="modal"><div class="modal-header"><h3 class="modal-title">🖊 Firma ora</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal ms-firma-panel"><div class="modal-header"><h3 class="modal-title">Magic Sign</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">Apri il link su <b>questo</b> dispositivo e fai firmare col dito. La firma resta quella della persona che firma — data, ora e dispositivo finiscono nel certificato come sempre.</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px"><strong>${esc((p && (p.address || p.name)) || c.propertyAddress || 'Contratto BOOM')}</strong><br>Scegli chi deve firmare. Se è con te, apri la firma su questo dispositivo.</div>
                 ${row('👤', tdele ? 'Conduttore — firmi TU per mandato' : 'Conduttore', tdele ? `per conto di ${(t && t.name) || c.tenantName || ''}` : ((t && t.name) || c.tenantName), tDone, tLink)}
                 ${row('🏠', dele ? 'Locatore — firmi TU per delega' : 'Locatore', dele ? `per conto di ${dele.onBehalfOf || (ll && ll.name) || ''}` : ((ll && ll.name) || c.landlordName), lDone, lLink)}
-                <div class="card" style="margin-top:14px"><div class="card-body" style="padding:12px 14px">
+                <button class="btn btn-secondary" style="margin-top:14px" data-contract-id="${esc(c.id)}" onclick="openShareHub(this.dataset.contractId)">Condividi i link</button>
+                <details class="ms-deleghe" style="margin-top:20px" ${mandBroken || lmBroken ? 'open' : ''}>
+                <summary style="cursor:pointer;font-size:13px;padding:12px 0">Mandati e deleghe${mandBroken || lmBroken ? ' · condizioni da verificare' : dele || tdele ? ' · delega attiva' : ''}</summary>
+                <div class="card" style="margin-top:6px"><div class="card-body" style="padding:12px 14px">
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato / delega del proprietario</div>
                     ${lDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il locatore ha già firmato' + (c.landlordSignedByDelegate ? ' — per ' + (c.landlordSignedByDelegate.mandateHash ? 'mandato' : 'delega') + ', da ' + esc(c.landlordSignedByDelegate.name || '') : '') + ': la delega non si tocca più.</div>'
                         : lmand && lmBroken
@@ -21736,6 +21744,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${coNote}
                 </div></div>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Senza mandato scritto, al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
+                </details>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
     }
