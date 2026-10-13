@@ -1091,6 +1091,14 @@ dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
 `og-meteo.png`, headless_shell 1200×630). Test: `node tests/scalo/run.mjs`.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
+**13/10 — stesso importo, anche al secondo tentativo.** `_checkout.js`
+congela `paymentTerms` in centesimi all'accettazione (add-on inclusi);
+submit/pay/lookup e il riepilogo usano quella foto. Checkout fallito non
+converte; errori propagati del lucchetto sospendono l'accettazione. Restano
+aperti retry su lucchetto scaduto e catch permissivi interni a `_lock.js`:
+non è una certificazione della disponibilità globale. Prove: `pacheckout`
+(handler e mutazioni), `paconsenso` (errori e importi nel browser).
+
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
@@ -2374,6 +2382,13 @@ conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
 
+**13/10 — una firma dichiarata deve comparire sul PDF.** Nomi vuoti e
+immagini di firma vuote/corrotte bloccano il verbale prima di Storage,
+archivio e notifiche; una foto accessoria resta best-effort. La pagina
+chiede di correggere il nome o riapporre la firma, senza suggerire un retry
+cieco. Il decoder PDF è reale nei test `verbale`; `verbalemutations`
+ripristina i due difetti e deve far cadere le verifiche.
+
 ### L'inventario dal video (`POST /api/contracts/inventario` + `/inventario`)
 Il verbale rinviava agli arredi con UNA riga: *"completa degli arredi e delle
 dotazioni pattuite"* (`verbale.js`). Vera e inservibile: alla riconsegna, un
@@ -2903,6 +2918,11 @@ Test: `node tests/firma/run.mjs` (32 check) + `node tests/firma/ui.mjs`
 nessuno dica il tipo** nasce comunque Allegato C.
 
 ### 🖊 Firma ora (riga contratto → `openFirmaOra`)
+**13/10 — prima la firma, poi le opzioni.** Il pannello mostra immobile,
+parti e link; mandati/deleghe restano in un dettaglio aperto automaticamente
+se le condizioni divergono. Logica di firma e titolarità invariata;
+`firmastudio` prova desktop/telefono e il conflitto sempre visibile.
+
 Firmare, non solo sollecitare: il pannello apre il link VERO della parte
 (`/sign?sign=<token>`) sul dispositivo dell'operatore — il cliente firma
 col dito davanti a lui, e data/ora/dispositivo finiscono nel certificato
@@ -2913,6 +2933,16 @@ schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
 il documento dice «firma X per conto di Y». **Al posto del conduttore non
 si firma mai SENZA MANDATO SCRITTO** — quella non è una delega, è una firma
 falsa, e la riga è scritta nel pannello, non lasciata al buonsenso.
+
+### Magic Sign personalizzato — studio guidato (13/10/2026)
+Documento → firmatari → campi con tap/tastiera → riepilogo; contratti BOOM
+rimandano alla firma esistente. Crea link non invia messaggi; retry e bozza
+mantengono la stessa richiesta. Creazione admin solo dal server, originale
+congelato e impronta verificata su get/submit; firme con CAS, finalizzazione
+con lease e recupero senza rifirmare. Legacy parziali senza impronta richiedono
+revisione; PDF ruotati/ritagliati fuori standard vengono rifiutati esplicitamente.
+Test `magicsigncustom`, `magicsigncustommutations`, `magicsigncustomui` e
+`magicsigncustomsigner` (pagina+handler reali, IO sintetico; dopo ui per cache PDF.js).
 
 ### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
 Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
