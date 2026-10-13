@@ -1276,8 +1276,18 @@ Valentyne - BOOM Rome`
                 if (p.exists) ops.push(['update', 'properties', p.id, { ...p.data, palazzoImportAt: ts, palazzoImportBy: by }]);
                 else if (!propHave.has(p.id)) ops.push(['set', 'properties', p.id, { ...p.data, createdAt: ts, palazzoImportBy: by }]);
             });
+            // Canone e oneri cambiati dalla tabella («Applica le differenze»):
+            // la storia dei termini sul contratto, come «Cambia canone/oneri»
+            // (termsHistory), con le rate ricalcolate e le scadute tenute.
+            const termsAt = new Date().toISOString();
+            const termsOf = c => !plan.applyDiffs || !c.exists ? [] : (plan.diffs || [])
+                .filter(d => d && d.contractId === c.id && !d.locked && (d.field === 'rent' || d.field === 'oneriQuota') && d.field in (c.data || {}))
+                .map(d => ({ field: d.field, from: d.from ?? null, to: c.data[d.field], rates: Number(d.rates) || 0, overdueKept: Number(d.ratesKept) || 0, source: 'palazzo-import', at: termsAt, by }));
+            const termsById = {};
             C.forEach(c => {
-                if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by }]);
+                const th = termsOf(c);
+                if (th.length) termsById[c.id] = th;
+                if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by, ...(th.length ? { termsHistory: firebase.firestore.FieldValue.arrayUnion(...th) } : {}) }]);
                 else if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]);
             });
             // Chi ha registrato l'incasso dichiarato dalla tabella: l'operatore.
@@ -1299,8 +1309,10 @@ Valentyne - BOOM Rome`
             ops.forEach(([kind, col, id, data]) => {
                 const arr = S[col] = S[col] || [];
                 const clean = { ...data }; ['createdAt', 'palazzoImportAt'].forEach(k => { if (clean[k] === ts) delete clean[k]; });
+                delete clean.termsHistory;
                 const cur = arr.find(x => x.id === id);
                 if (cur) Object.assign(cur, clean); else arr.push({ id, ...clean });
+                if (col === 'contracts' && termsById[id]) { const o = cur || arr[arr.length - 1]; o.termsHistory = (Array.isArray(o.termsHistory) ? o.termsHistory : []).concat(termsById[id]); }
             });
             // Le rate GIÀ in archivio che il piano ricalcola o annulla (solo con
             // «Applica le differenze»): ognuna si rilegge dal server in una

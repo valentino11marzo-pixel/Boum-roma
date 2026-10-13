@@ -119,6 +119,11 @@ function build(src = SRC0) {
         },
       };
     },
+    batch() {
+      const ops = [];
+      return { update: (r, d) => ops.push(['update', r.path, d]), set: (r, d) => ops.push(['set', r.path, d]),
+        async commit() { for (const [k, p, d] of ops) { if (k === 'update') { if (!store.has(p)) throw new Error('not_found ' + p); store.set(p, apply(store.get(p), d)); } else store.set(p, apply({}, d)); writes.push([k, p, d]); } } };
+    },
     async runTransaction(fn) {
       if (hooks.beforeTx) { const h = hooks.beforeTx; hooks.beforeTx = null; h(); }
       const staged = [];
@@ -1116,6 +1121,20 @@ const importProbe = async T => {
   assert.equal(T.doc('payments/imp_late_due').dueDate, '2020-03-15', '…ma la scadenza corretta passa (stessa regola del motore)');
   assert.equal(T.doc('payments/imp_inc').amount, 1100, 'includeOverdue (il piano la vedeva scaduta): si ricalcola');
 };
+const termsProbe = async T2 => {
+  seedImport(T2);
+  const plan = importPlan();
+  plan.contracts = [{ id: 'c8', exists: true, data: { rent: 1100 } }];
+  plan.diffs = [{ contractId: 'c8', interno: '8', field: 'rent', from: 1000, to: 1100, locked: false, rates: 2, ratesKept: 1 }];
+  assert.equal(await T2.run('palazzoImport')(plan), true);
+  const c8 = T2.doc('contracts/c8');
+  assert.equal(c8.rent, 1100);
+  assert.ok(Array.isArray(c8.termsHistory) && c8.termsHistory.length === 1, JSON.stringify(c8.termsHistory));
+  const h = c8.termsHistory[0];
+  assert.deepEqual([h.field, h.from, h.to, h.rates, h.overdueKept, h.source, h.by], ['rent', 1000, 1100, 2, 1, 'palazzo-import', 'admin']);
+  const mem = T2.S.contracts.find(c => c.id === 'c8');
+  assert.ok(Array.isArray(mem.termsHistory) && mem.termsHistory[0].to === 1100 && mem.rent === 1100, 'in memoria la storia è un elenco, mai un FieldValue');
+};
 {
   const T = build();
   await check('presa in carico: la rata scaduta nel frattempo NON si ricalcola, la scelta esplicita sì', () => importProbe(T));
@@ -1124,7 +1143,9 @@ const importProbe = async T => {
     assert.match(msg, /1 rata già scaduta resta all’importo di prima \(l’inquilino l’ha vista così\): int\. 7 · settembre 2026 a €1\.720, sollecitata il 12\/10\/2026\. Se va corretta, da Gestisci canoni\./);
     assert.match(msg, /rate nuove da ottobre 2026/);
   });
+  await check('canone cambiato dalla tabella: la storia dei termini sul contratto (termsHistory), con le scadute tenute', () => termsProbe(build()));
   await check('il riepilogo dice le rate scadute nel frattempo', () => {
+
     const t = T.toasts.find(x => x[1] === 'Palazzo caricato') || [];
     assert.equal(t[0], 'warning');
     assert.match(String(t[2]), /2 rate sono scadute nel frattempo: restano all’importo di prima/);
@@ -1277,6 +1298,7 @@ await mutant('la rata del contratto ricostruita dal solo canone (quota energia p
   assert.equal(T.doc('contracts/cE').installmentAmount, 1150);
 });
 await mutant('la presa in carico che rincara una rata scaduta nel frattempo', "if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data)) {", 'if (false) {', importProbe);
+await mutant('il canone cambiato dalla tabella senza storia dei termini', "...(th.length ? { termsHistory: firebase.firestore.FieldValue.arrayUnion(...th) } : {}) }]);", "}]);", termsProbe);
 await mutant('la conferma della presa in carico che tace le scadute tenute', "const kept = plan.applyDiffs ? (plan.overdueKept || []) : [];", 'const kept = [];', async T => {
   await importProbe(T);
   assert.match(T.confirms[T.confirms.length - 1] || '', /rata già scaduta resta all’importo di prima/);
