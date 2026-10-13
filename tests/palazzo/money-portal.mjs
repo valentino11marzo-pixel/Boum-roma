@@ -141,7 +141,7 @@ function build(src = SRC0) {
     toast: (...a) => toasts.push(a), confirm: msg => { confirms.push(msg); return ctx.__confirmAnswer !== false; },
     logActivity: async (...a) => { activity.push(a); }, refresh: async () => {}, refreshOnly: async () => {}, renderPage() {}, buildNav() {}, checkAlerts() {},
     closeModal() {}, openModal: (type, data) => { getEl('modals').innerHTML = type === 'terminateContract' ? vm.runInContext('terminateContractModal', ctx)(data) : 'modal:' + type; },
-    isAdmin: () => true, generateDocHash: async () => 'hash0001', sendBrowserNotification() {},
+    isAdmin: () => true, generateDocHash: async v => require('node:crypto').createHash('sha256').update(String(v)).digest('hex').slice(0, 16), sendBrowserNotification() {},
     daysSince: d => Math.round((Date.now() - new Date(d).getTime()) / 864e5), goTo() {},
     COMPANY: { name: 'BOOM', legal: 'Egidi Immobiliare S.r.l.', website: 'boomrome.com', email: 'info@example.invalid', phone: '+39 000 000 0000', iban: 'IT00X0000000000000000000000' },
     NOTIFY_OWNER: { enabled: false, email: 'operatore@example.invalid', phone: '390000000000' }, EMAILJS_CONFIG: { templates: { notification: 'tpl' } },
@@ -268,7 +268,8 @@ const today = romeDay();
   await check('l’attestazione è archiviata sotto il contratto (inquilino senza profilo) e collegata alla rata', () => {
     const d = T.doc('documents/rent-receipt-pay_c7_2026-10');
     assert.ok(d); assert.equal(d.type, 'receipt'); assert.equal(d.userId, null); assert.equal(d.contractId, 'c7'); assert.equal(d.paymentId, 'pay_c7_2026-10');
-    assert.ok(T.puts.some(p => p.path.startsWith('contracts/c7/ricevute/')));
+    assert.ok(T.puts.some(p => /^contracts\/c7\/ricevute\/RIC-[0-9A-Z]{11}_[0-9a-f]{16}\.pdf$/.test(p.path)));
+    assert.equal(d.fileName, T.run("incassoReceiptNumber('pay_c7_2026-10')") + '.pdf');
     assert.equal(pay.receiptDocId, 'rent-receipt-pay_c7_2026-10'); assert.match(pay.receiptUrl, /^https:\/\/firebasestorage/);
   });
   await check('l’inquilino senza profilo riceve DAVVERO la conferma, in inglese, col link all’attestazione', () => {
@@ -357,6 +358,29 @@ const today = romeDay();
   });
 }
 
+// ═══ 4b. Il link nell'email: mai troncato ═══════════════════════════════════
+{
+  const T = build(); T.seed(FIX());
+  await check('il link del PDF sotto un contratto dall’id lungo sta nei 300 caratteri del bottone (bucket vero)', () => {
+    const cid = 'c_plz_piazzale-della-lungaretta-di-santa-cecilia-142_int-17_2026-09-15';
+    const path = `contracts/${cid}/ricevute/${T.run("incassoReceiptNumber('pay_" + cid + "_2026-10')")}_0123456789abcdef.pdf`;
+    const url = 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/' + encodeURIComponent(path) + '?alt=media&token=' + '0'.repeat(8) + '-0000-0000-0000-' + '0'.repeat(12);
+    assert.ok(url.length <= 300, 'link di ' + url.length + ' caratteri');
+    // Con il vecchio nome (receipt_<id della rata>) non ci stava.
+    const old = 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/' + encodeURIComponent(`contracts/${cid}/ricevute/receipt_pay_${cid}_2026-10_0123456789abcdef.pdf`) + '?alt=media&token=' + '0'.repeat(36);
+    assert.ok(old.length > 300);
+  });
+  const long = 'https://firebasestorage.googleapis.com/v0/b/x/o/' + 'a'.repeat(300) + '?alt=media&token=t';
+  await T.run(`sendPaymentConfirmEmail({name:'Mario Prova',email:'mario@example.invalid'},null,null,{amount:1000,month:'2026-10',paidDate:'2026-10-04'},{receiptUrl:'${long}',hasProfile:false})`);
+  await check('un link più lungo di 300 caratteri non entra nell’email (arriverebbe troncato): niente tasto, la conferma resta', () => {
+    const m = T.mails.at(-1);
+    assert.equal(m.to, 'mario@example.invalid');
+    assert.ok(!JSON.stringify(m).includes(long));
+    assert.equal(m.params.portal_link, '');
+    assert.match(m.params.closing, /Keep this email/);
+  });
+}
+
 // ═══ 5. Annulla incasso, poi registralo di nuovo ═════════════════════════
 {
   const T = build(); T.seed(FIX());
@@ -384,6 +408,17 @@ const today = romeDay();
     assert.ok(p2.receiptDocId.startsWith('rent-receipt-pay_c7_2026-10-'));
     assert.ok(!T.doc('documents/' + p2.receiptDocId).voided);
     assert.equal(T.doc('documents/rent-receipt-pay_c7_2026-10').voided, true);
+    // Il file dell'attestazione annullata non si riscrive: un altro percorso.
+    assert.notEqual(T.doc('documents/' + p2.receiptDocId).fileUrl, T.doc('documents/rent-receipt-pay_c7_2026-10').fileUrl);
+    assert.equal(new Set(T.puts.map(x => x.path)).size, T.puts.length, 'nessun file caricato due volte sullo stesso percorso');
+  });
+  // Stesso accredito ri-registrato (stessa data): ancora un file diverso.
+  await new Promise(r => setTimeout(r, 5));
+  await T.run("undoIncasso('pay_c7_2026-10')");
+  await T.run("markPaymentPaid('pay_c7_2026-10',{paidDate:'2026-10-05',paidVia:'bonifico',paidEvidence:'estratto-conto-locatore',notifyTenant:false})");
+  await check('la stessa data ri-registrata dopo un annullamento non sovrascrive il file annullato', () => {
+    assert.equal(new Set(T.puts.map(x => x.path)).size, T.puts.length);
+    assert.equal(T.puts.length, 3);
   });
   // Un incasso con carta non si annulla da qui.
   T.store.set('payments/pay_c8_2026-10', { ...T.doc('payments/pay_c8_2026-10'), status: 'paid', paidDate: '2026-10-04', paidVia: 'stripe', stripeSessionId: 'cs_test' });
@@ -632,6 +667,20 @@ await mutant('un bonifico segnalato sollecitato', "if (st !== 'overdue' && st !=
   T.S.contracts.find(c => c.id === 'c7').tenantId = 't7';
   await T.run("sendPaymentReminder('pay_c7_2026-10')");
   assert.equal(T.mails.length, 0);
+});
+await mutant('il link troncato nel bottone dell’email', "&& String(x.receiptUrl).length <= 300 ?", "?", async T => {
+  const long = 'https://firebasestorage.googleapis.com/v0/b/x/o/' + 'a'.repeat(300);
+  await T.run(`sendPaymentConfirmEmail({name:'Mario Prova',email:'mario@example.invalid'},null,null,{amount:1000,month:'2026-10'},{receiptUrl:'${long}',hasProfile:false})`);
+  assert.equal(T.mails.at(-1).params.portal_link, '');
+});
+await mutant('il file dell’attestazione annullata riscritto dallo stesso accredito', "+(pay.paidRecordedAt ? '|'+pay.paidRecordedAt : '')", "", async T => {
+  const go = () => T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})");
+  await go();
+  // registrato in un altro istante (l'operatore riprova il giorno dopo)
+  await new Promise(r => setTimeout(r, 5));
+  await T.run("undoIncasso('pay_c8_2026-10')");
+  await go();
+  assert.equal(new Set(T.puts.map(x => x.path)).size, T.puts.length);
 });
 {
   const r = gen('America/Los_Angeles', 'old');

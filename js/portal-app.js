@@ -10749,7 +10749,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const stale = !!(c && payment.tenantId && c.tenantId && payment.tenantId !== c.tenantId);
         const name = String((!stale && c && c.tenantName) || (t && t.name) || payment.tenantName || '').trim();
         const email = String((t && t.email) || (!stale && c && c.tenantEmail) || '').trim();
-        return { contract: c, property: row.property || null, tenant: t, name, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '', hasProfile: !!t };
+        // L'attestazione nasce solo se archivePaymentReceipt la può davvero
+        // scrivere: un immobile, e il profilo dell'inquilino o il contratto
+        // (mai con un profilo indicato ma introvabile — si promette il vero).
+        const archivable = !!(row.property && row.propertyId && !(row.tenantId && !t) && (t || (c && c.id)));
+        return { contract: c, property: row.property || null, tenant: t, name, email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : '', hasProfile: !!t, archivable };
     }
     // Ogni strada passa dal modulo: Canoni, Palazzo, Oggi, Recupero crediti.
     async function confirmRentPayment(id) { return openRecordIncasso(id); }
@@ -10770,11 +10774,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const period = incassoMonth(p.month) + (p.periodFrom && p.periodTo ? ` (dal ${incassoDateIt(p.periodFrom)} al ${incassoDateIt(p.periodTo)})` : '');
         const effects = [
             landlord ? `La proprietaria (${esc(landlord.name || landlord.email || 'profilo collegato')}) vede la rata pagata nel portale: una notifica nel portale, nessuna email.` : 'Nessuna proprietaria collegata all’interno: nessuna notifica.',
-            prop ? 'Si archivia un’attestazione di pagamento in PDF, intestata al locatore.' : 'Nessuna attestazione: la rata non è collegata a un immobile.',
+            who.archivable ? 'Si archivia un’attestazione di pagamento in PDF, intestata al locatore.' : prop ? 'Nessuna attestazione: l’inquilino indicato sulla rata non ha un profilo leggibile. Verifica il collegamento.' : 'Nessuna attestazione: la rata non è collegata a un immobile.',
             who.hasProfile ? 'Si registra la ricevuta del canone nell’archivio del portale.' : ''
         ].filter(Boolean);
         const mail = who.email
-            ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="incSend" checked> <span>Manda la conferma all’inquilino a <strong>${esc(who.email)}</strong> (in inglese)${prop ? ', con il link all’attestazione' : ''}.</span></label>`
+            ? `<label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input type="checkbox" id="incSend" checked> <span>Manda la conferma all’inquilino a <strong>${esc(who.email)}</strong> (in inglese)${who.archivable ? ', con il link all’attestazione' : ''}.</span></label>`
             : '<p class="rent-note">Nessuna email all’inquilino: non c’è un indirizzo in archivio. Se serve una conferma, scrivigli tu.</p>';
         document.body?.classList?.add('modal-open');
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="incTitle"><div class="modal-header"><h3 class="modal-title" id="incTitle">Registra incasso</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div>
@@ -10784,7 +10788,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="form-row"><div class="form-group"><label class="form-label" for="incDate">Data dell’accredito</label><input type="date" class="form-input" id="incDate" value="${def}" max="${today}" required></div>
             <div class="form-group"><label class="form-label" for="incVia">Come è arrivato</label><select class="form-select" id="incVia">${opt(INCASSO_VIA, 'bonifico')}</select></div></div>
             <div class="form-group"><label class="form-label" for="incEvidence">Da dove sai che è arrivato</label><select class="form-select" id="incEvidence" required><option value="">Scegli…</option>${opt(INCASSO_EVIDENCE, '')}</select>
-            <small class="rent-note">BOOM non vede il conto del locatore: indica chi ha visto i soldi arrivare. Una ricevuta di bonifico prova l’ordine, non l’accredito (dall’estero l’importo può arrivare ridotto dalle spese).</small></div>
+            <small class="rent-note">BOOM non vede il conto del locatore (in un palazzo è quello della società): indica chi ha visto i soldi arrivare. Una ricevuta di bonifico prova l’ordine, non l’accredito (dall’estero l’importo può arrivare ridotto dalle spese).</small></div>
             <div class="form-group"><label class="form-label" for="incNote">Nota (facoltativa)</label><textarea class="form-textarea" id="incNote" rows="2" maxlength="500"></textarea></div>
             <div class="rent-note"><strong>Cosa succede</strong><ul style="margin:6px 0 0 18px;padding:0">${effects.map(x => `<li>${x}</li>`).join('')}</ul>${mail}</div>
             <p id="incError" role="alert" style="color:var(--red)"></p></div>
@@ -21717,7 +21721,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function sendPaymentConfirmEmail(tenant, contract, property, payment, extra) {
         if (!tenant?.email) return false;
         const x = extra || {};
-        const receipt = /^https:\/\//.test(String(x.receiptUrl || '')) ? String(x.receiptUrl) : '';
+        // Il bottone dell'email porta al massimo 300 caratteri (/api/notify/send
+        // taglia oltre): un link più lungo arriverebbe rotto, quindi non si usa.
+        const receipt = /^https:\/\//.test(String(x.receiptUrl || '')) && String(x.receiptUrl).length <= 300 ? String(x.receiptUrl) : '';
         const home = x.hasProfile !== false ? window.location.origin + '/casa' : '';
         const where = property ? [property.address || property.name, property.interno ? 'flat ' + property.interno : ''].filter(Boolean).join(', ') : '';
         const period = payment.periodFrom && payment.periodTo ? `${incassoDateEn(payment.periodFrom)} – ${incassoDateEn(payment.periodTo)}` : (incassoMonth(payment.month, 'en') || payment.month || '');
@@ -22540,10 +22546,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 // non trovato resta un dubbio da verificare, non un nome inventato.
                 if (!context.propertyId || !p || (context.tenantId && !tenant) || (!tenant && !c?.id)) return null;
                 const ref = incassoReceiptNumber(pay.id);
-                const hash = await generateDocHash(expected+'|'+(tenant?.name||c?.tenantName||'')+'|'+(p.name||'')+'|'+(p.address||''));
+                // Nell'impronta anche QUANDO l'incasso è stato registrato: dopo un
+                // «Annulla incasso» lo stesso accredito ri-registrato non deve
+                // riscrivere il file dell'attestazione annullata (il suo link
+                // resterebbe a un documento diverso da quello che dice di essere).
+                const hash = await generateDocHash(expected+'|'+(tenant?.name||c?.tenantName||'')+'|'+(p.name||'')+'|'+(p.address||'')+(pay.paidRecordedAt ? '|'+pay.paidRecordedAt : ''));
                 const blob = _buildReceiptDoc(pay,c,p,tenant).output('blob');
+                // Sotto il contratto il nome del file è il NUMERO dell'attestazione:
+                // l'id della rata ripete quello del contratto e il link di download
+                // superava i 300 caratteri che /api/notify/send tiene nel bottone
+                // dell'email — l'inquilino avrebbe ricevuto un link troncato.
                 const path = tenant ? `documents/${context.tenantId}/archive/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`
-                    : `contracts/${c.id}/ricevute/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`;
+                    : `contracts/${c.id}/ricevute/${ref}_${hash}.pdf`;
                 const upload = await storage.ref(path).put(blob,{contentType:'application/pdf'});
                 const fileUrl = safeUrl(await upload.ref.getDownloadURL());
                 if (!fileUrl) return null;
