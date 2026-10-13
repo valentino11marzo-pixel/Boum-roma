@@ -1,5 +1,8 @@
 // api/documents/qa.js
-// AI Q&A across the caller's document archive. Admin or landlord asks a
+// AI Q&A across the document archive. SOLO ADMIN (13/10/2026): la porta
+// ammetteva anche il ruolo landlord e ogni domanda spendeva il modello a
+// spese di BOOM senza tetto; il riquadro «Chiedi all'archivio» sta solo
+// nella vista admin del Commercialista. The admin asks a
 // natural-language question; the server gathers the relevant documents'
 // metadata + ocrText (already extracted by /api/documents/ocr at upload
 // time), packages them with the question, sends to Claude, returns the
@@ -45,7 +48,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'server_missing_anthropic_key' });

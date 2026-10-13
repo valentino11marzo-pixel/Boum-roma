@@ -17782,11 +17782,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function updateInvAmount(sel) { const opt = sel.options[sel.selectedIndex]; document.getElementById('invService').value = opt.dataset.service || ''; document.getElementById('invAmount').value = opt.dataset.price || ''; }
     function fillContractRent(sel) { document.getElementById('cRent').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
     function fillPayAmount(sel) { document.getElementById('pAmount').value = sel.options[sel.selectedIndex].dataset.rent || ''; }
-    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob) ob.style.display = 'inline-flex'; }
+    function handleFile(input) { const file = input.files[0]; if (!file) return; if (file.size > 10*1024*1024) { toast('error', 'File troppo grande (max 10MB)'); return; } selectedFile = file; document.getElementById('filePreview').innerHTML = `<div class="file-preview"><span>📄</span><div style="flex:1"><div>${esc(file.name)}</div><div style="font-size:11px;color:var(--text-muted)">${(file.size/1024).toFixed(1)} KB</div></div></div>`; const ob = document.getElementById('ocrBtn'); if (ob && isAdmin()) ob.style.display = 'inline-flex'; }
 
     // AI OCR on the selected (not-yet-uploaded) file: reads it as base64,
     // sends to /api/documents/ocr, auto-fills category + fiscalYear.
+    // Solo admin: /api/documents/ocr legge col modello a spese di BOOM (la
+    // proprietaria carica e sceglie la categoria a mano, 13/10/2026).
     async function runDocOCR() {
+        if (!isAdmin()) return;
         if (!selectedFile) { toast('error', 'Seleziona prima un file'); return; }
         const btn = document.getElementById('ocrBtn');
         const out = document.getElementById('ocrResult');
