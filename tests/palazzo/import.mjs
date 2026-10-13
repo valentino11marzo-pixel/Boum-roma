@@ -570,6 +570,13 @@ const loaded = loadedFrom(first);
   ok('applica le differenze: la rata scaduta e sollecitata resta a €1.600 e lo si dice, le 11 da pagare cambiano', keepCheck(P));
   const inc = P.planImport(P.parseRentRoll(t).rows, P.context({ now: NOW, ...loaded, payments: sol }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true, includeOverdue: true });
   ok('…solo con includeOverdue (scelta esplicita) la scaduta si ricalcola', inc.paymentUpdates.some(x => x.interno === '11' && x.month === '2026-10' && x.data.amount === 1650) && !inc.overdueKept.length);
+  // Il portal rifiuta di ricalcolare una rata scaduta nel frattempo se il
+  // piano la vedeva ancora da pagare: per saperlo, ogni aggiornamento porta
+  // lo stato visto dal piano.
+  const ap0 = P.planImport(P.parseRentRoll(t).rows, P.context({ now: NOW, ...loaded, payments: sol }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
+  ok('ogni aggiornamento porta lo stato visto dal piano (expect.state): da pagare, e «overdue» solo con includeOverdue',
+    ap0.paymentUpdates.length > 0 && ap0.paymentUpdates.every(x => x.expect && x.expect.state === 'due')
+    && inc.paymentUpdates.some(x => x.interno === '11' && x.month === '2026-10' && x.expect.state === 'overdue'));
   mutation('la scaduta torna a essere ricalcolata', "} else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0)) {", "} else if (false) {", keepCheck);
 
   // 22.2 — un interno NUOVO che eredita la gestione del palazzo mesi dopo.

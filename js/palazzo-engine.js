@@ -1650,7 +1650,10 @@
               d0 = { dueDate: u.data.dueDate };
             }
             plan.paymentUpdates.push({ id: u.x.id, interno: r.interno, contractId: str(c.id), month: u.x.month, data: d0, why: ratesChange ? u.why : ['due'],
-              expect: { status: str(u.x.payment && u.x.payment.status), amount: u.x.amount } });
+              // Lo stato visto dal piano: il portal rifiuta di ricalcolare una
+              // rata che nel frattempo è SCADUTA se il piano non l'ha messa
+              // fra quelle da ricalcolare (stessa regola di keepOver).
+              expect: { status: str(u.x.payment && u.x.payment.status), amount: u.x.amount, state: u.x.state } });
           });
           if (ratesChange) recA.cancels.forEach(function (x) {
             plan.paymentUpdates.push({ id: x.id, interno: r.interno, contractId: str(c.id), month: x.month, cancel: true,

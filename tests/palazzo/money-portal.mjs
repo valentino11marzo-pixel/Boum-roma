@@ -174,7 +174,7 @@ function build(src = SRC0) {
     region(src, '    function _buildReceiptDoc(', '    function downloadInvoicePDF('),
     fnSrc(src, 'esc'), fnSrc(src, 'jsq'), fnSrc(src, 'fmtDate'), fnSrc(src, 'numberToWords'),
     fnSrc(src, 'updateContract'), fnSrc(src, 'monthsBetween'), fnSrc(src, 'isPaymentLate'), fnSrc(src, 'isPaymentLateLive'), fnSrc(src, 'paymentAfterClose'), fnSrc(src, 'livePaymentsForQueues'),
-    fnSrc(src, 'showPaymentLink'), fnSrc(src, 'paymentLinkFor'),
+    fnSrc(src, 'showPaymentLink'), fnSrc(src, 'paymentLinkFor'), fnSrc(src, 'palazzoImport'),
   ].join('\n');
   vm.runInContext(code, ctx);
   const run = c => vm.runInContext(c, ctx);
@@ -1074,6 +1074,58 @@ const ARREARS = () => {
   });
 }
 
+// ═══ 9f. Presa in carico con «Applica le differenze»: gli arretrati restano ═
+// Il piano (planImport) tiene all'importo di prima le rate già SCADUTE. Fra
+// l'anteprima e la conferma una rata può scadere: la transazione del portal la
+// rilegge e, se il piano la vedeva ancora da pagare, non la ricalcola (passa
+// solo la scadenza corretta). La conferma elenca le scadute tenute.
+const importPlan = () => ({
+  label: 'Piazzale Esempio 42, Roma', properties: [], contracts: [], payments: [], applyDiffs: true, gestioneDal: '2026-10',
+  counts: { diffsApplicable: 1, paymentUpdatesOverdue: 1 },
+  overdueKept: [{ interno: '7', paymentId: 'pay_c7_2026-10', month: '2026-09', from: 1720, to: 1820, remindedAt: '2026-10-12' }],
+  paymentUpdates: [
+    { id: 'imp_due', interno: '8', contractId: 'c8', month: '2099-01', data: { amount: 1100, rentAmount: 1100 }, why: ['amount'], expect: { status: 'pending', amount: 1000, state: 'due' } },
+    { id: 'imp_late', interno: '8', contractId: 'c8', month: '2020-01', data: { amount: 1100, rentAmount: 1100 }, why: ['amount'], expect: { status: 'pending', amount: 1000, state: 'due' } },
+    { id: 'imp_late_due', interno: '8', contractId: 'c8', month: '2020-03', data: { amount: 1100, dueDate: '2020-03-15' }, why: ['amount', 'due'], expect: { status: 'pending', amount: 1000, state: 'due' } },
+    { id: 'imp_inc', interno: '9', contractId: 'c9', month: '2020-02', data: { amount: 1100 }, why: ['amount'], expect: { status: 'pending', amount: 1000, state: 'overdue' } },
+  ],
+});
+const seedImport = T => {
+  const fx = FIX();
+  fx.payments.push(
+    { id: 'imp_due', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2099-01', amount: 1000, dueDate: '2099-01-05', status: 'pending', source: 'palazzo-import' },
+    { id: 'imp_late', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2020-01', amount: 1000, dueDate: '2020-01-05', status: 'pending', source: 'palazzo-import' },
+    { id: 'imp_late_due', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2020-03', amount: 1000, dueDate: '2020-03-01', status: 'pending', source: 'palazzo-import' },
+    { id: 'imp_inc', contractId: 'c9', propertyId: 'p9', type: 'rent', month: '2020-02', amount: 1000, dueDate: '2020-02-05', status: 'pending', source: 'palazzo-import' });
+  T.seed(fx);
+  T.ctx.window.BOOM_PALAZZO = require('../../js/palazzo-engine.js');
+};
+const importProbe = async T => {
+  seedImport(T);
+  const ok = await T.run('palazzoImport')(importPlan());
+  assert.equal(ok, true);
+  assert.equal(T.doc('payments/imp_due').amount, 1100, 'la rata ancora da pagare si ricalcola');
+  assert.equal(T.doc('payments/imp_late').amount, 1000, 'la rata scaduta nel frattempo resta all’importo di prima');
+  assert.equal(T.doc('payments/imp_late').rentAmount, undefined);
+  assert.equal(T.doc('payments/imp_late_due').amount, 1000, 'scaduta nel frattempo: importo di prima…');
+  assert.equal(T.doc('payments/imp_late_due').dueDate, '2020-03-15', '…ma la scadenza corretta passa (stessa regola del motore)');
+  assert.equal(T.doc('payments/imp_inc').amount, 1100, 'includeOverdue (il piano la vedeva scaduta): si ricalcola');
+};
+{
+  const T = build();
+  await check('presa in carico: la rata scaduta nel frattempo NON si ricalcola, la scelta esplicita sì', () => importProbe(T));
+  await check('la conferma elenca le rate scadute tenute all’importo di prima, col sollecito', () => {
+    const msg = T.confirms[T.confirms.length - 1] || '';
+    assert.match(msg, /1 rata già scaduta resta all’importo di prima \(l’inquilino l’ha vista così\): int\. 7 · settembre 2026 a €1\.720, sollecitata il 12\/10\/2026\. Se va corretta, da Gestisci canoni\./);
+    assert.match(msg, /rate nuove da ottobre 2026/);
+  });
+  await check('il riepilogo dice le rate scadute nel frattempo', () => {
+    const t = T.toasts.find(x => x[1] === 'Palazzo caricato') || [];
+    assert.equal(t[0], 'warning');
+    assert.match(String(t[2]), /2 rate sono scadute nel frattempo: restano all’importo di prima/);
+  });
+}
+
 // ═══ 10. Una rata nata «pagata» passa dal modulo ═════════════════════════
 {
   const T = build(); T.seed(FIX());
@@ -1218,6 +1270,11 @@ await mutant('la rata del contratto ricostruita dal solo canone (quota energia p
   T.seed(ENERGY());
   await T.run("applyRentFuture('cE', 1050)");
   assert.equal(T.doc('contracts/cE').installmentAmount, 1150);
+});
+await mutant('la presa in carico che rincara una rata scaduta nel frattempo', "if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data)) {", 'if (false) {', importProbe);
+await mutant('la conferma della presa in carico che tace le scadute tenute', "const kept = plan.applyDiffs ? (plan.overdueKept || []) : [];", 'const kept = [];', async T => {
+  await importProbe(T);
+  assert.match(T.confirms[T.confirms.length - 1] || '', /rata già scaduta resta all’importo di prima/);
 });
 await mutant('l’arretrato rincarato da un canone nuovo senza mese', "if (st === 'overdue' && !fromMonth && !includeOverdue) { overdue.push(row); return; }", "", async T => {
   const A = ARREARS(); T.seed(A.f);

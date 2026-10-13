@@ -1301,10 +1301,19 @@ Valentyne - BOOM Rome`
             // «Applica le differenze»): ognuna si rilegge dal server in una
             // transazione e si scrive SOLO se è ancora da pagare (mai segnalata,
             // in corso o pagata) e ha ancora l'importo che il piano ha visto.
-            let uDone = 0, uKept = 0;
+            // Una rata SCADUTA non si rincara all'indietro (l'inquilino l'ha vista
+            // così, magari in un sollecito): se il piano non l'ha messa fra
+            // quelle da ricalcolare (la vedeva ancora da pagare), importo e
+            // periodo restano quelli di prima e passa solo l'eventuale scadenza
+            // corretta — la stessa regola del motore (keepOver) e di «Cambia
+            // canone/oneri» (applyRentFuture/applyOneriFuture).
+            const REPRICE = ['amount', 'rentAmount', 'oneriAmount', 'periodFrom', 'periodTo', 'prorated', 'coversTo'];
+            let uDone = 0, uKept = 0, uOverdue = 0;
             for (const u of U) {
+                let overdueHeld = false;
                 try {
                     const ok = await db.runTransaction(async tx => {
+                        overdueHeld = false;
                         const ref = db.collection('payments').doc(u.id), snap = await tx.get(ref);
                         if (!snap.exists) return false;
                         const cur = { ...snap.data(), id: u.id };
@@ -1314,18 +1323,24 @@ Valentyne - BOOM Rome`
                         const amt = window.BOOM_RENT.amount(cur.amount), want = u.expect && u.expect.amount != null ? window.BOOM_RENT.amount(u.expect.amount) : amt;
                         if (amt !== want) return false;
                         const data = { ...u.data };
+                        if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data)) {
+                            REPRICE.forEach(k => { delete data[k]; });
+                            overdueHeld = true;
+                            if (!Object.keys(data).length) return false;
+                        }
                         if (!u.cancel) data.amountChange = { at: new Date().toISOString(), by, was: amt, why: 'tabella del palazzo' };
                         else data.cancelledBy = by;
                         tx.update(ref, data);
                         return data;
                     });
-                    if (ok) { uDone++; const lp = (S.payments || []).find(p => p.id === u.id); if (lp) Object.assign(lp, ok); } else uKept++;
+                    if (overdueHeld) uOverdue++;
+                    if (ok) { uDone++; const lp = (S.payments || []).find(p => p.id === u.id); if (lp) Object.assign(lp, ok); } else if (!overdueHeld) uKept++;
                 } catch (err) { uKept++; console.warn('[palazzo import] rata', u.id, err && err.message); }
             }
             if (uDone && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
             const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
-            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped, applyDiffs: !!plan.applyDiffs, paymentUpdates: uDone, paymentUpdatesKept: uKept });
-            toast(uKept ? 'warning' : 'success', 'Palazzo caricato', `${n(newP, 'interno', 'interni')} · ${n(newC, 'contratto', 'contratti')}${updC ? ` (+${updC} aggiornati)` : ''} · ${n(R.length, 'rata', 'rate')}${uDone ? ` · ${n(uDone, 'rata ricalcolata o annullata', 'rate ricalcolate o annullate')}` : ''}${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}${uKept ? ` · ${n(uKept, 'rata era cambiata nel frattempo (pagata, segnalata o con un altro importo): non toccata', 'rate erano cambiate nel frattempo (pagate, segnalate o con un altro importo): non toccate')}` : ''}`);
+            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped, applyDiffs: !!plan.applyDiffs, paymentUpdates: uDone, paymentUpdatesKept: uKept, paymentUpdatesOverdueKept: uOverdue + ((plan.overdueKept || []).length) });
+            toast(uKept || uOverdue ? 'warning' : 'success', 'Palazzo caricato', `${n(newP, 'interno', 'interni')} · ${n(newC, 'contratto', 'contratti')}${updC ? ` (+${updC} aggiornati)` : ''} · ${n(R.length, 'rata', 'rate')}${uDone ? ` · ${n(uDone, 'rata ricalcolata o annullata', 'rate ricalcolate o annullate')}` : ''}${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}${uKept ? ` · ${n(uKept, 'rata era cambiata nel frattempo (pagata, segnalata o con un altro importo): non toccata', 'rate erano cambiate nel frattempo (pagate, segnalate o con un altro importo): non toccate')}` : ''}${uOverdue ? ` · ${n(uOverdue, 'rata è scaduta nel frattempo: resta all’importo di prima', 'rate sono scadute nel frattempo: restano all’importo di prima')}` : ''}`);
             return true;
         } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
         // Le righe della conferma: cosa nasce, cosa si aggiorna e come, cosa
@@ -1340,6 +1355,18 @@ Valentyne - BOOM Rome`
             if (nU) lines.push(`${n(nU, 'rata da pagare ricalcolata', 'rate da pagare ricalcolate')} (rilette una per una: una pagata o segnalata nel frattempo non si tocca)`);
             if (nX) lines.push(`${n(nX, 'rata da pagare annullata', 'rate da pagare annullate')} (fine del contratto anticipata)`);
             if (!plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio NON applicata', 'differenze con l’archivio NON applicate')}`);
+            // Le rate già SCADUTE che il piano tiene all'importo di prima: si
+            // elencano, perché «applica le differenze» non le tocca.
+            const kept = plan.applyDiffs ? (plan.overdueKept || []) : [];
+            if (kept.length) {
+                // Euro all'italiana senza toLocaleString (l'ICU ridotta: «1720»).
+                const eur = v => { if (v == null || !Number.isFinite(Number(v))) return 'importo da verificare'; const c = Math.round(Number(v) * 100), i = String(Math.floor(Math.abs(c) / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'), d = Math.abs(c) % 100; return '€' + (c < 0 ? '-' : '') + i + (d ? ',' + String(d).padStart(2, '0') : ''); };
+                const mm = m => (window.BOOM_PALAZZO?.monthLabel ? window.BOOM_PALAZZO.monthLabel(m).toLowerCase() : m);
+                const dd = d => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '');
+                lines.push(`${n(kept.length, 'rata già scaduta resta', 'rate già scadute restano')} all’importo di prima (l’inquilino l’ha vista così): `
+                    + kept.slice(0, 8).map(x => `int. ${x.interno} · ${mm(x.month)} a ${eur(x.from)}${x.remindedAt ? `, sollecitata il ${dd(x.remindedAt)}` : ''}`).join('; ')
+                    + (kept.length > 8 ? `; e altre ${kept.length - 8}` : '') + '. Se va corretta, da Gestisci canoni.');
+            }
             return lines;
         }
     }
