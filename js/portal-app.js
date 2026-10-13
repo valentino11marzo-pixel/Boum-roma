@@ -1320,10 +1320,11 @@ Valentyne - BOOM Rome`
             // in corso o pagata) e ha ancora l'importo che il piano ha visto.
             // Una rata SCADUTA non si rincara all'indietro (l'inquilino l'ha vista
             // così, magari in un sollecito): se il piano non l'ha messa fra
-            // quelle da ricalcolare (la vedeva ancora da pagare), importo e
-            // periodo restano quelli di prima e passa solo l'eventuale scadenza
-            // corretta — la stessa regola del motore (keepOver) e di «Cambia
-            // canone/oneri» (applyRentFuture/applyOneriFuture).
+            // quelle da ricalcolare (la vedeva ancora da pagare) e il ricalcolo
+            // la RINCARA, importo e periodo restano quelli di prima e passa solo
+            // l'eventuale scadenza corretta — la stessa regola del motore
+            // (keepOver con rrRaises). Un ribasso (fine anticipata, canone
+            // corretto al ribasso) passa: tenerlo lascerebbe un debito che non c'è.
             const REPRICE = ['amount', 'rentAmount', 'oneriAmount', 'periodFrom', 'periodTo', 'prorated', 'coversTo'];
             let uDone = 0, uKept = 0, uOverdue = 0;
             for (const u of U) {
@@ -1340,18 +1341,25 @@ Valentyne - BOOM Rome`
                         const amt = window.BOOM_RENT.amount(cur.amount), want = u.expect && u.expect.amount != null ? window.BOOM_RENT.amount(u.expect.amount) : amt;
                         if (amt !== want) return false;
                         const data = { ...u.data };
-                        if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data)) {
+                        const newAmt = 'amount' in data ? window.BOOM_RENT.amount(data.amount) : amt;
+                        const raises = newAmt != null && (amt == null || newAmt > amt + 0.005);
+                        if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data) && raises) {
                             REPRICE.forEach(k => { delete data[k]; });
                             overdueHeld = true;
                             if (!Object.keys(data).length) return false;
                         }
-                        if (!u.cancel) data.amountChange = { at: new Date().toISOString(), by, was: amt, why: 'tabella del palazzo' };
-                        else data.cancelledBy = by;
+                        // La storia dell'importo solo quando l'importo cambia
+                        // davvero (una scadenza corretta non è un «cambio importo»).
+                        if (u.cancel) data.cancelledBy = by;
+                        else if ('amount' in data && window.BOOM_RENT.amount(data.amount) !== amt) data.amountChange = { at: new Date().toISOString(), by, was: amt, why: 'tabella del palazzo' };
                         tx.update(ref, data);
                         return data;
                     });
+                    // Una rata tenuta all'importo di prima conta UNA volta, fra
+                    // le scadute nel frattempo (anche se la sua scadenza è stata
+                    // corretta), mai anche fra quelle ricalcolate.
                     if (overdueHeld) uOverdue++;
-                    if (ok) { uDone++; const lp = (S.payments || []).find(p => p.id === u.id); if (lp) Object.assign(lp, ok); } else if (!overdueHeld) uKept++;
+                    if (ok) { if (!overdueHeld) uDone++; const lp = (S.payments || []).find(p => p.id === u.id); if (lp) Object.assign(lp, ok); } else if (!overdueHeld) uKept++;
                 } catch (err) { uKept++; console.warn('[palazzo import] rata', u.id, err && err.message); }
             }
             if (uDone && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
@@ -1381,7 +1389,7 @@ Valentyne - BOOM Rome`
                 const mm = m => (window.BOOM_PALAZZO?.monthLabel ? window.BOOM_PALAZZO.monthLabel(m).toLowerCase() : m);
                 const dd = d => (d ? `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}` : '');
                 lines.push(`${n(kept.length, 'rata già scaduta resta', 'rate già scadute restano')} all’importo di prima (l’inquilino l’ha vista così): `
-                    + kept.slice(0, 8).map(x => `int. ${x.interno} · ${mm(x.month)} a ${eur(x.from)}${x.remindedAt ? `, sollecitata il ${dd(x.remindedAt)}` : ''}`).join('; ')
+                    + kept.slice(0, 8).map(x => `int. ${x.interno} · ${mm(x.month)} a ${eur(x.from)}${x.to != null && Number.isFinite(Number(x.to)) && Math.abs(Number(x.to) - Number(x.from)) >= 0.005 ? ` (col nuovo calcolo ${eur(x.to)})` : ''}${x.remindedAt ? `, sollecitata il ${dd(x.remindedAt)}` : ''}`).join('; ')
                     + (kept.length > 8 ? `; e altre ${kept.length - 8}` : '') + '. Se va corretta, da Gestisci canoni.');
             }
             return lines;
@@ -19288,7 +19296,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (to === amt && (!split || (rentNew === window.BOOM_RENT.amount(p.rentAmount) && oneriNew === window.BOOM_RENT.amount(p.oneriAmount)))) return;
                 const upd = { amount: to };
                 if (split) { upd.rentAmount = rentNew; upd.oneriAmount = oneriNew; }
-                const row = { id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd };
+                // Lo stato VISTO dal piano: una rata da pagare che diventa scaduta
+                // fra il piano e la conferma non si rincara (la transazione lo rilegge).
+                const row = { id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd, state: st };
                 if (st === 'overdue' && !fromMonth && !includeOverdue) { overdue.push(row); return; }
                 rows.push(row);
             });
@@ -19348,9 +19358,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 // da solo un canone che non torna, e lo farebbe male.
                 if (contract.canone && typeof contract.canone === 'object') { cUpd['canone.monthly'] = value; if (Number(contract.canone.installments) > 0) cUpd['canone.total'] = incassoRound(value * Number(contract.canone.installments)); }
             } else cUpd.oneriQuota = value;
-            let written = [];
+            let written = [], becameOverdue = [];
             await db.runTransaction(async tx => {
-                written = [];
+                written = []; becameOverdue = [];
                 const fresh = await Promise.all(plan.rows.map(r => tx.get(db.collection('payments').doc(r.id))));
                 const cNow = await tx.get(cRef);
                 if (!cNow.exists) throw new Error('Contratto non trovato');
@@ -19358,7 +19368,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 fresh.forEach((s, i) => {
                     const r = plan.rows[i], d = s.exists ? s.data() : null;
                     // Pagata, segnalata o cambiata nel mezzo: resta com'è.
-                    if (!d || !['due', 'overdue'].includes(window.BOOM_RENT.paymentState(d)) || window.BOOM_RENT.amount(d.amount) !== r.from) return;
+                    const stNow = d ? window.BOOM_RENT.paymentState(d) : '';
+                    if (!d || !['due', 'overdue'].includes(stNow) || window.BOOM_RENT.amount(d.amount) !== r.from) return;
+                    // Scaduta nel frattempo (il piano la vedeva da pagare): è un
+                    // arretrato che l'inquilino ha visto così — resta, come le
+                    // scadute del piano (salvo un mese dichiarato o la scelta esplicita).
+                    if (stNow === 'overdue' && r.state !== 'overdue' && !fromMonth && !includeOverdue) { becameOverdue.push(r); return; }
                     tx.update(db.collection('payments').doc(r.id), { ...r.upd, amountChange: { at, by, was: r.from, why: kind === 'rent' ? 'canone' : 'oneri' } });
                     written.push(r);
                 });
@@ -19367,8 +19382,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (lc) { if (kind === 'rent') { lc.rent = value; if (cUpd.installmentAmount != null) lc.installmentAmount = cUpd.installmentAmount; if (lc.canone && cUpd['canone.monthly'] != null) { lc.canone.monthly = value; if (cUpd['canone.total'] != null) lc.canone.total = cUpd['canone.total']; } } else lc.oneriQuota = value; }
             written.forEach(r => { const lp = (S.payments || []).find(x => x.id === r.id); if (lp) Object.assign(lp, r.upd, { amountChange: { at, by, was: r.from, why: kind === 'rent' ? 'canone' : 'oneri' } }); });
             logActivity(kind === 'rent' ? 'contract_rent_changed' : 'contract_oneri_changed', 'contract', { id: contractId, value, fromMonth: fromMonth || null, rates: written.length });
-            const missed = plan.rows.length - written.length;
-            toast('success', kind === 'rent' ? 'Canone aggiornato' : 'Oneri aggiornati', `${written.length} ${written.length === 1 ? 'rata ricalcolata' : 'rate ricalcolate'}${missed ? ` · ${missed} cambiate nel frattempo, non toccate` : ''}`);
+            const missed = plan.rows.length - written.length - becameOverdue.length;
+            toast('success', kind === 'rent' ? 'Canone aggiornato' : 'Oneri aggiornati', `${written.length} ${written.length === 1 ? 'rata ricalcolata' : 'rate ricalcolate'}${missed ? ` · ${missed} cambiate nel frattempo, non toccate` : ''}${becameOverdue.length ? ` · ${becameOverdue.length} ${becameOverdue.length === 1 ? 'rata è scaduta nel frattempo: resta all’importo di prima' : 'rate sono scadute nel frattempo: restano all’importo di prima'}` : ''}`);
             await refresh();
             return true;
         } catch (err) { toast('error', 'Errore', err.message); return false; }

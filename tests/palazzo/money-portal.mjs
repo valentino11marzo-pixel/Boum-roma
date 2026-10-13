@@ -866,6 +866,23 @@ const ARREARS = () => {
   await check('oneri nuovi senza mese: anche qui l’arretrato non cambia', () => {
     assert.equal(T.doc('payments/' + C.past).amount, 1000); assert.equal(T.doc('payments/' + C.soon).amount, 1050);
   });
+  // Fra il piano e la conferma una rata da pagare diventa SCADUTA: il piano
+  // la vedeva «due», la transazione la rilegge e non la rincara.
+  const D = ARREARS(); T.seed(D.f);
+  T.hooks.beforeTx = () => T.store.set('payments/' + D.soon, { ...T.doc('payments/' + D.soon), dueDate: dayFromNow(-1) });
+  await T.run("applyRentFuture('c8', 1100)");
+  await check('canone nuovo: la rata scaduta fra il piano e la conferma resta all’importo di prima, e lo si dice', () => {
+    assert.equal(T.doc('payments/' + D.soon).amount, 1000, 'rincarata all’indietro');
+    assert.equal(T.doc('payments/' + D.later).amount, 1100);
+    const t = T.toasts.filter(x => x[1] === 'Canone aggiornato').at(-1) || [];
+    assert.match(String(t[2]), /^1 rata ricalcolata · 1 rata è scaduta nel frattempo: resta all’importo di prima$/, String(t[2]));
+  });
+  const E2 = ARREARS(); T.seed(E2.f);
+  T.hooks.beforeTx = () => T.store.set('payments/' + E2.soon, { ...T.doc('payments/' + E2.soon), dueDate: dayFromNow(-1) });
+  await T.run("applyRentFuture('c8', 1200, {includeOverdue:true})");
+  await check('…con includeOverdue (scelta esplicita) si ricalcola lo stesso', () => {
+    assert.equal(T.doc('payments/' + E2.soon).amount, 1200);
+  });
 }
 
 // ═══ 8c. Dopo «Annulla incasso» e un nuovo incasso: due ricevute ══════════
@@ -1136,6 +1153,9 @@ const importPlan = () => ({
     { id: 'imp_late', interno: '8', contractId: 'c8', month: '2020-01', data: { amount: 1100, rentAmount: 1100 }, why: ['amount'], expect: { status: 'pending', amount: 1000, state: 'due' } },
     { id: 'imp_late_due', interno: '8', contractId: 'c8', month: '2020-03', data: { amount: 1100, dueDate: '2020-03-15' }, why: ['amount', 'due'], expect: { status: 'pending', amount: 1000, state: 'due' } },
     { id: 'imp_inc', interno: '9', contractId: 'c9', month: '2020-02', data: { amount: 1100 }, why: ['amount'], expect: { status: 'pending', amount: 1000, state: 'overdue' } },
+    // Scaduta nel frattempo, ma il ricalcolo la ABBASSA (fine anticipata in
+    // proporzione): passa — tenerla lascerebbe un debito che non c'è.
+    { id: 'imp_late_down', interno: '8', contractId: 'c8', month: '2020-04', data: { amount: 774.19, periodTo: '2020-04-15', prorated: true }, why: ['amount', 'period'], expect: { status: 'pending', amount: 1000, state: 'due' } },
   ],
 });
 const seedImport = T => {
@@ -1144,7 +1164,8 @@ const seedImport = T => {
     { id: 'imp_due', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2099-01', amount: 1000, dueDate: '2099-01-05', status: 'pending', source: 'palazzo-import' },
     { id: 'imp_late', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2020-01', amount: 1000, dueDate: '2020-01-05', status: 'pending', source: 'palazzo-import' },
     { id: 'imp_late_due', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2020-03', amount: 1000, dueDate: '2020-03-01', status: 'pending', source: 'palazzo-import' },
-    { id: 'imp_inc', contractId: 'c9', propertyId: 'p9', type: 'rent', month: '2020-02', amount: 1000, dueDate: '2020-02-05', status: 'pending', source: 'palazzo-import' });
+    { id: 'imp_inc', contractId: 'c9', propertyId: 'p9', type: 'rent', month: '2020-02', amount: 1000, dueDate: '2020-02-05', status: 'pending', source: 'palazzo-import' },
+    { id: 'imp_late_down', contractId: 'c8', propertyId: 'p8', type: 'rent', month: '2020-04', amount: 1000, dueDate: '2020-04-05', periodFrom: '2020-04-01', periodTo: '2020-04-30', status: 'pending', source: 'palazzo-import' });
   T.seed(fx);
   T.ctx.window.BOOM_PALAZZO = require('../../js/palazzo-engine.js');
 };
@@ -1158,6 +1179,9 @@ const importProbe = async T => {
   assert.equal(T.doc('payments/imp_late_due').amount, 1000, 'scaduta nel frattempo: importo di prima…');
   assert.equal(T.doc('payments/imp_late_due').dueDate, '2020-03-15', '…ma la scadenza corretta passa (stessa regola del motore)');
   assert.equal(T.doc('payments/imp_inc').amount, 1100, 'includeOverdue (il piano la vedeva scaduta): si ricalcola');
+  assert.equal(T.doc('payments/imp_late_due').amountChange, undefined, 'una scadenza corretta non è un «cambio importo»: nessuna storia dell’importo');
+  const down = T.doc('payments/imp_late_down');
+  assert.deepEqual([down.amount, down.periodTo, down.amountChange && down.amountChange.was], [774.19, '2020-04-15', 1000], 'scaduta nel frattempo ma il ricalcolo la abbassa: passa, con la storia');
 };
 const termsProbe = async T2 => {
   seedImport(T2);
@@ -1178,7 +1202,7 @@ const termsProbe = async T2 => {
   await check('presa in carico: la rata scaduta nel frattempo NON si ricalcola, la scelta esplicita sì', () => importProbe(T));
   await check('la conferma elenca le rate scadute tenute all’importo di prima, col sollecito', () => {
     const msg = T.confirms[T.confirms.length - 1] || '';
-    assert.match(msg, /1 rata già scaduta resta all’importo di prima \(l’inquilino l’ha vista così\): int\. 7 · settembre 2026 a €1\.720, sollecitata il 12\/10\/2026\. Se va corretta, da Gestisci canoni\./);
+    assert.match(msg, /1 rata già scaduta resta all’importo di prima \(l’inquilino l’ha vista così\): int\. 7 · settembre 2026 a €1\.720 \(col nuovo calcolo €1\.820\), sollecitata il 12\/10\/2026\. Se va corretta, da Gestisci canoni\./);
     assert.match(msg, /rate nuove da ottobre 2026/);
   });
   await check('canone cambiato dalla tabella: la storia dei termini sul contratto (termsHistory), con le scadute tenute', () => termsProbe(build()));
@@ -1187,6 +1211,9 @@ const termsProbe = async T2 => {
     const t = T.toasts.find(x => x[1] === 'Palazzo caricato') || [];
     assert.equal(t[0], 'warning');
     assert.match(String(t[2]), /2 rate sono scadute nel frattempo: restano all’importo di prima/);
+    // imp_due, imp_inc e imp_late_down ricalcolate; imp_late_due (tenuta, con
+    // la sola scadenza corretta) conta UNA volta, fra le scadute.
+    assert.match(String(t[2]), / · 3 rate ricalcolate o annullate · /, String(t[2]));
   });
 }
 
@@ -1335,7 +1362,14 @@ await mutant('la rata del contratto ricostruita dal solo canone (quota energia p
   await T.run("applyRentFuture('cE', 1050)");
   assert.equal(T.doc('contracts/cE').installmentAmount, 1150);
 });
-await mutant('la presa in carico che rincara una rata scaduta nel frattempo', "if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data)) {", 'if (false) {', importProbe);
+await mutant('la presa in carico che rincara una rata scaduta nel frattempo', "if (st === 'overdue' && !u.cancel && !(u.expect && u.expect.state === 'overdue') && REPRICE.some(k => k in data) && raises) {", 'if (false) {', importProbe);
+await mutant('la presa in carico che tiene anche il RIBASSO di una scaduta', "REPRICE.some(k => k in data) && raises) {", 'REPRICE.some(k => k in data)) {', importProbe);
+await mutant('il canone nuovo che rincara una rata scaduta fra il piano e la conferma', "if (stNow === 'overdue' && r.state !== 'overdue' && !fromMonth && !includeOverdue) { becameOverdue.push(r); return; }", '', async T => {
+  const D = ARREARS(); T.seed(D.f);
+  T.hooks.beforeTx = () => T.store.set('payments/' + D.soon, { ...T.doc('payments/' + D.soon), dueDate: dayFromNow(-1) });
+  await T.run("applyRentFuture('c8', 1100)");
+  assert.equal(T.doc('payments/' + D.soon).amount, 1000);
+});
 await mutant('il canone cambiato dalla tabella senza storia dei termini', "...(th.length ? { termsHistory: firebase.firestore.FieldValue.arrayUnion(...th) } : {}) }]);", "}]);", termsProbe);
 await mutant('la conferma della presa in carico che tace le scadute tenute', "const kept = plan.applyDiffs ? (plan.overdueKept || []) : [];", 'const kept = [];', async T => {
   await importProbe(T);

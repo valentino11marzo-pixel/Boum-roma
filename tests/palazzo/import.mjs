@@ -564,7 +564,7 @@ const loaded = loadedFrom(first);
     const ap = E.planImport(E.parseRentRoll(t).rows, E.context({ now: NOW, ...loaded, payments: sol }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
     const oct = ap.paymentUpdates.find(x => x.interno === '11' && x.month === '2026-10');
     return !oct && ap.counts.paymentUpdates === 11 && ap.counts.paymentUpdatesOverdue === 1 &&
-      ap.messages.some(m => m === '1 rata già scaduta resta all’importo di prima (int. 11 · ottobre 2026, sollecitata il 09/10/2026 a €1.600): è un arretrato che l’inquilino ha visto così. Se va corretto, da Gestisci canoni.') &&
+      ap.messages.some(m => m === '1 rata già scaduta resta all’importo di prima (int. 11 · ottobre 2026, sollecitata il 09/10/2026 a €1.600, col nuovo calcolo €1.650): è un arretrato che l’inquilino ha visto così, e il nuovo calcolo lo rincarerebbe. Se va corretto, da Gestisci canoni.') &&
       ap.messages.some(m => /11 rate da pagare cambiano/.test(m));
   };
   ok('applica le differenze: la rata scaduta e sollecitata resta a €1.600 e lo si dice, le 11 da pagare cambiano', keepCheck(P));
@@ -577,7 +577,23 @@ const loaded = loadedFrom(first);
   ok('ogni aggiornamento porta lo stato visto dal piano (expect.state): da pagare, e «overdue» solo con includeOverdue',
     ap0.paymentUpdates.length > 0 && ap0.paymentUpdates.every(x => x.expect && x.expect.state === 'due')
     && inc.paymentUpdates.some(x => x.interno === '11' && x.month === '2026-10' && x.expect.state === 'overdue'));
-  mutation('la scaduta torna a essere ricalcolata', "} else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0)) {", "} else if (false) {", keepCheck);
+  mutation('la scaduta torna a essere ricalcolata', "} else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0) && rrRaises(u.x.amount, u.data.amount != null ? u.data.amount : u.x.amount)) {", "} else if (false) {", keepCheck);
+  // 22.1-bis — un RIBASSO della scaduta passa (13/10/2026): con la fine
+  // anticipata al 15/10 ottobre vale €774,19 (non €1.600), e un canone
+  // corretto al ribasso abbassa anche l'arretrato. Tenerli lascerebbe
+  // l'inquilino debitore di un importo che il contratto non dice.
+  const lowCheck = E => {
+    const ctx = E.context({ now: NOW, ...loaded, payments: sol });
+    const early = E.planImport(E.parseRentRoll(base.replace('\t01/10/2026\t30/09/2027\t', '\t01/10/2026\t15/10/2026\t')).rows, ctx, { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
+    const oEarly = early.paymentUpdates.find(x => x.interno === '11' && x.month === '2026-10');
+    const low = E.planImport(E.parseRentRoll(base.replace('\t1600\t', '\t1060\t')).rows, ctx, { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10', applyDiffs: true });
+    const oLow = low.paymentUpdates.find(x => x.interno === '11' && x.month === '2026-10');
+    return !early.overdueKept.length && oEarly && oEarly.data.amount === 774.19 && oEarly.data.periodTo === '2026-10-15' && oEarly.expect.state === 'overdue'
+      && early.paymentUpdates.filter(x => x.interno === '11' && x.cancel).length === 11
+      && !low.overdueKept.length && oLow && oLow.data.amount === 1060 && !low.messages.some(m => /resta all’importo di prima/.test(m));
+  };
+  ok('applica le differenze: la scaduta che SCENDE (fine anticipata in proporzione, canone corretto al ribasso) si ricalcola, mai tenuta al vecchio importo', lowCheck(P));
+  mutation('la scaduta in ribasso torna a essere tenuta', " && rrRaises(u.x.amount, u.data.amount != null ? u.data.amount : u.x.amount)) {", ') {', lowCheck);
 
   // 22.2 — un interno NUOVO che eredita la gestione del palazzo mesi dopo.
   const now2 = new Date('2027-01-20T10:00:00Z');

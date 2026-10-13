@@ -1368,6 +1368,14 @@
   // cambierebbero importo, quali scadono prima del loro periodo, quali
   // cadono dopo una fine anticipata. Mai una rata pagata, segnalata o in
   // corso (lo stato viene da BOOM_RENT, come in tutto il Palazzo).
+  // Il ricalcolo RINCARA la rata? (importo di prima ignoto = sì: non si sa
+  // che cosa l'inquilino abbia visto, si tiene.) Una copia per il motore e,
+  // con la stessa forma, per la transazione del portal.
+  function rrRaises(was, now) {
+    var a = money(was), b = money(now);
+    if (b == null) return false;
+    return a == null || b > a + 0.005;
+  }
   function rrReconcile(ctx, pid, cid, terms) {
     var byMonth = Object.create(null);
     rrSchedule(terms.start, terms.end, terms.rent, terms.oneri, terms.day).forEach(function (e) { byMonth[e.month] = e; });
@@ -1397,7 +1405,10 @@
       if (from && !!p.prorated !== (e.f < 1)) data.prorated = e.f < 1;
       if (from && x.dueDate && x.dueDate < from) { data.dueDate = e.due; why.push('due'); }
       if (!why.length) return;
-      if (why.indexOf('amount') >= 0) { res.amount++; if (x.state === 'overdue') res.amountOverdue++; }
+      // Fra le scadute si TENGONO all'importo di prima solo quelle che il
+      // ricalcolo RINCARA (amountOverdue): un ribasso — fine anticipata con
+      // l'ultimo periodo in proporzione, canone corretto al ribasso — passa.
+      if (why.indexOf('amount') >= 0) { res.amount++; if (x.state === 'overdue' && rrRaises(x.amount, data.amount)) res.amountOverdue++; }
       if (why.indexOf('due') >= 0) res.due++;
       if (why.indexOf('period') >= 0) res.period++;
       res.updates.push({ x: x, data: data, why: why });
@@ -1610,10 +1621,12 @@
         var tAll = { start: terms.start, end: full.endDate || terms.end, rent: full.rent != null ? full.rent : terms.rent,
           oneri: full.oneriQuota != null ? full.oneriQuota : terms.oneri, day: terms.day };
         var rec = rrReconcile(ctx, pid, str(c.id), tAll);
-        // Le rate già SCADUTE restano all'importo di prima (l'inquilino le ha
-        // viste così, magari in un sollecito): le stesse regole della leva
-        // «Cambia canone» del Palazzo. Si dicono a parte, mai contate fra
-        // quelle che cambiano.
+        // Le rate già SCADUTE non si RINCARANO all'indietro (l'inquilino le ha
+        // viste così, magari in un sollecito): restano all'importo di prima e
+        // si dicono a parte, mai contate fra quelle che cambiano. Un RIBASSO
+        // invece passa (13/10/2026): con la fine anticipata al 15/10 ottobre
+        // vale €774,19, non €1.600 — tenerlo lascerebbe l'inquilino uscito
+        // debitore di un mese intero nel Palazzo, nel rendiconto e nel link.
         var keepOver = !opts.includeOverdue, recN = keepOver ? rec.amount - rec.amountOverdue : rec.amount;
         cmp.diffs.forEach(function (d) {
           if (d.field === 'rent' || d.field === 'oneriQuota') { d.rates = recN; if (keepOver && rec.amountOverdue) d.ratesKept = rec.amountOverdue; }
@@ -1640,7 +1653,7 @@
             if (!ratesChange) {
               if (u.why.indexOf('due') < 0) return;
               d0 = { dueDate: u.data.dueDate };
-            } else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0)) {
+            } else if (keepOver && u.x.state === 'overdue' && (u.why.indexOf('amount') >= 0 || u.why.indexOf('period') >= 0) && rrRaises(u.x.amount, u.data.amount != null ? u.data.amount : u.x.amount)) {
               // Scaduta: importo e periodo restano quelli che l'inquilino ha
               // visto. Si dice (con l'eventuale sollecito già mandato).
               var p0 = u.x.payment || {}, hist = list(p0.dunningHistory).filter(function (h) { return h && h.at; }).map(function (h) { return day(h.at); }).filter(Boolean).sort();
@@ -1937,8 +1950,9 @@
     if (out.overdueKept.length) {
       var kk = out.overdueKept;
       M.push(rrPlural(kk.length, 'rata già scaduta resta', 'rate già scadute restano') + ' all’importo di prima (' + kk.slice(0, 6).map(function (x) {
-        return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + (x.remindedAt ? ', sollecitata il ' + rrIt(x.remindedAt) : '') + ' a ' + rrEur(x.from);
-      }).join('; ') + (kk.length > 6 ? '; …' : '') + '): è un arretrato che l’inquilino ha visto così. Se va corretto, da Gestisci canoni.');
+        return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + (x.remindedAt ? ', sollecitata il ' + rrIt(x.remindedAt) : '') + ' a ' + rrEur(x.from) +
+          (x.to != null && Math.abs(x.to - x.from) >= 0.005 ? ', col nuovo calcolo ' + rrEur(x.to) : '');
+      }).join('; ') + (kk.length > 6 ? '; …' : '') + '): è un arretrato che l’inquilino ha visto così, e il nuovo calcolo lo rincarerebbe. Se va corretto, da Gestisci canoni.');
     }
     var noList = listings.filter(function (l) { return streetKey(l.address) === skey && !unitKey(unitOf(l)) && !linkedListing[str(l.id)] && !str(l.propertyId); });
     if (noList.length) M.push(rrPlural(noList.length, 'annuncio', 'annunci') + ' allo stesso civico senza interno (' + rrList(noList.map(function (l) { return '«' + (str(l.name || l.title) || l.id) + '»'; })) + '): ' + (noList.length === 1 ? 'agganciarlo' : 'agganciarli') + ' a mano dalla scheda dell’interno.');
