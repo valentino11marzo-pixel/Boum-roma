@@ -200,7 +200,7 @@ eq('senza attico basta il piano più alto gestito', [P.validateLook({ ultimoPian
 eq('«P.le» è Piazzale: lo stesso palazzo comunque sia scritto', ['P.le Prenestino 42, int. 3', 'Piazzale Prenestino, 42 - 00177 Roma', 'p.zale Prenestino 42 scala A'].map(P.streetKey), Array(3).fill(P.streetKey('Piazzale Prenestino 42')));
 ok('…e non si confonde con piazza', P.streetKey('P.za Prenestino 42') !== P.streetKey('P.le Prenestino 42'));
 // §10 I quattro toni: otto stati del motore, quattro colori in pagina.
-eq('i toni sono quattro, in quest\'ordine (+ «Prima di BOOM», solo nei mesi prima della gestione)', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero', 'prima']);
+eq('i toni sono quattro, in quest\'ordine (+ «Prima di BOOM» e «Rata annullata», solo quando ci sono)', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero', 'prima', 'annullata']);
 ok('ogni stato sta in UN tono e uno solo', Object.keys(P.STATES).every(s => P.TONES.filter(t => t.states.includes(s)).length === 1));
 eq('toneOf: in verifica e senza rata sono «in attesa», in arrivo è «libero»', ['paid', 'late', 'review', 'norate', 'incoming', 'vacant'].map(P.toneOf), ['pagato', 'ritardo', 'attesa', 'attesa', 'libero', 'libero']);
 eq('model espone la data di oggi (la scadenza si conta da qui)', m.today, F.today);
@@ -265,7 +265,7 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('toneOf: before ha il suo tono', P.toneOf('before'), 'prima');
   const csvPast = P.csvRows(past).find(r => r[1] === '3');
   const ci = n => P.CSV_HEAD.indexOf(n);
-  eq('CSV: un mese prima di BOOM non ha importi', [csvPast[ci('Dovuto nel mese')], csvPast[ci('Incassato nel mese')], csvPast[ci('Stato')]], ['', '', 'Prima della gestione BOOM']);
+  eq('CSV: un mese prima di BOOM non ha importi', [csvPast[ci('Dovuto nel mese')], csvPast[ci('Incassato nel mese')], csvPast[ci('Stato')]], ['', '', 'Prima della gestione BOOM (da ' + P.monthLabel(GD).toLowerCase() + ')']);
 }
 
 // ── 12. La presa in carico: il palazzo da una tabella ──────────────────

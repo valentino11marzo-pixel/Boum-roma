@@ -281,9 +281,15 @@
   // da aggiornare, e le rate dei mesi dopo restano dovute.
   var ENDED = { terminated: 1, expired: 1, closed: 1, ended: 1, completed: 1, renewed: 1, cancelled: 1, canceled: 1 };
   function closedForReal(c) { return !!(c && (ENDED[cStatus(c)] || day(c.terminatedAt))); }
+  // Senza inizio: un contratto attivo copre tutto (dichiarato, segnalato a
+  // parte); uno CHIUSO con una data (il segnaposto «contratto da caricare»
+  // chiuso con ⛔ Termina il 10/11) copre i mesi fino alla chiusura — chi è
+  // uscito il 10 novembre ci ha abitato a ottobre e a novembre. I mesi prima
+  // di «gestione BOOM dal» restano «Prima di BOOM» (unitMonth li maschera):
+  // nessuna data d'inizio inventata.
   function covers(c, month) {
     var start = day(c.startDate), end = effectiveEnd(c);
-    if (!start) return cStatus(c) === 'active'; // attivo senza data: dichiarato, segnalato a parte
+    if (!start) { if (cStatus(c) === 'active') return true; return !!end && end >= monthStart(month); }
     return start <= monthEnd(month) && (!end || end >= monthStart(month));
   }
   function contractRent(c) {
@@ -311,9 +317,14 @@
   // I giorni di due contratti si toccano davvero? (Non lo stesso MESE: un
   // cambio inquilino al 15 non è una sovrapposizione.) Senza inizio il
   // contratto è dichiarato in corso: copre tutto, e lo si dice.
+  // Senza inizio da una parte sola: si toccano se l'altro comincia prima che
+  // quello senza inizio finisca (un segnaposto chiuso il 10/11 e il contratto
+  // nuovo dal 15/11 non si sovrappongono).
   function daysOverlap(a, b) {
     var sa = day(a.startDate), sb = day(b.startDate), ea = effectiveEnd(a), eb = effectiveEnd(b);
-    if (!sa || !sb) return true;
+    if (!sa && !sb) return true;
+    if (!sa) return !ea || sb <= ea;
+    if (!sb) return !eb || sa <= eb;
     return sb <= (ea || '9999-12-31') && sa <= (eb || '9999-12-31');
   }
   // Il locatore è una società? Due segni, nessuna supposizione:
@@ -582,7 +593,11 @@
     { key: 'libero', label: 'Libero', states: ['vacant', 'incoming'] },
     // Solo nei mesi prima della gestione BOOM: la vista lo mostra soltanto
     // quando c'è, quindi oggi i toni a schermo restano quattro.
-    { key: 'prima', label: 'Prima di BOOM', states: ['before'] }
+    { key: 'prima', label: 'Prima di BOOM', states: ['before'] },
+    // Una rata annullata a mano su un contratto in corso (un mese condonato):
+    // l'interno è abitato, nessuno deve niente — né pagato, né in attesa, né
+    // libero. Anche questo tono compare solo quando c'è.
+    { key: 'annullata', label: 'Rata annullata', states: ['waived'] }
   ];
   function toneOf(state) {
     for (var i = 0; i < TONES.length; i++) if (TONES[i].states.indexOf(state) >= 0) return TONES[i].key;
@@ -597,12 +612,15 @@
     unknown: { label: 'Da verificare', short: 'Verifica' },
     incoming: { label: 'In arrivo', short: 'In arrivo' },
     vacant: { label: 'Libero', short: 'Libero' },
-    before: { label: 'Prima di BOOM', short: 'Prima' }
+    before: { label: 'Prima di BOOM', short: 'Prima' },
+    waived: { label: 'Rata annullata', short: 'Annullata' }
   };
   function aggregate(states) {
     if (!states.length) return '';
     if (states.indexOf('overdue') >= 0) return 'late';
-    if (states.indexOf('reported') >= 0 || states.indexOf('processing') >= 0) return 'review';
+    // Bonifico segnalato, pagamento in corso, rimborso o contestazione: tutto
+    // «in verifica», mai un «ignoto» che la frase del mese non conta.
+    if (states.indexOf('reported') >= 0 || states.indexOf('processing') >= 0 || states.indexOf('review') >= 0) return 'review';
     if (states.indexOf('due') >= 0) return 'due';
     if (states.every(function (s) { return s === 'paid'; })) return 'paid';
     return 'unknown';
@@ -652,7 +670,13 @@
         .sort(function (a, b) { return day(a.startDate).localeCompare(day(b.startDate)); })[0] || null;
     }
     var pay = aggregate(monthRows.map(function (r) { return r.state; }));
-    var state = !occupied ? (incoming ? 'incoming' : 'vacant') : !monthRows.length ? 'norate' : pay;
+    // Abitato, senza rate vive nel mese, ma con la rata del mese ANNULLATA
+    // dall'operatore (un mese condonato): non è «rata non registrata» né «in
+    // verifica da BOOM» — la rata c'era ed è stata tolta, e lo si dice.
+    var waivedRows = occupied && lease && !monthRows.length && !CS.isPlaceholder(lease) ? rows.filter(function (r) {
+      return r.isRent && r.state === 'cancelled' && r.month === month && (!r.contractId || r.contractId === str(lease.id));
+    }) : [];
+    var state = !occupied ? (incoming ? 'incoming' : 'vacant') : !monthRows.length ? (waivedRows.length ? 'waived' : 'norate') : pay;
     var expected = 0, collected = 0, lateAmount = 0, unknownAmounts = 0, lateUnknown = 0;
     var split = { er: 0, eo: 0, cr: 0, co: 0, ok: true };
     ownRows.forEach(function (r) {
@@ -688,6 +712,7 @@
       leaseStart: lease ? day(lease.startDate) : incoming ? day(incoming.startDate) : '', leaseEnd: leaseEnd,
       leaving: !!(leaseEnd && leaseEnd >= ref && leaseEnd <= dayAdd(ref, 90)),
       rows: monthRows, carried: carried, beyondEnd: beyond, pastDue: pastDue, overdueUpTo: overdueUpTo,
+      waivedRows: state === 'waived' ? waivedRows : [],
       expected: expected, collected: collected, lateAmount: lateAmount, unknownAmounts: unknownAmounts, lateUnknown: lateUnknown,
       // Canone e oneri separati (null se una rata non si divide con certezza).
       expectedRent: split.ok ? split.er : null, expectedOneri: split.ok ? split.eo : null,
@@ -768,7 +793,7 @@
   var CSV_HEAD = ['Mese', 'Interno', 'Piano', 'Inquilino', 'Locatore', 'Contratto', 'Dal', 'Al', 'Cedolare secca', 'Registrazione',
     'Canone mensile', 'Oneri mensili', 'Dovuto nel mese', 'Incassato canone', 'Incassato oneri', 'Incassato nel mese', 'Pagato il', 'Modalità', 'Fonte prova', 'Stato'];
   var CSV_STATE = { paid: 'Pagato', late: 'Non ha pagato', due: 'Da pagare', review: 'In verifica', norate: 'In verifica da BOOM',
-    unknown: 'In verifica', incoming: 'In arrivo', vacant: 'Libero', before: 'Prima della gestione BOOM' };
+    unknown: 'In verifica', incoming: 'In arrivo', vacant: 'Libero', before: 'Prima della gestione BOOM', waived: 'Rata annullata' };
   var TYPE_LABEL = { transitorio: 'Transitorio', studenti: 'Studenti universitari', '3+2': '3+2 canone concordato', '4+4': '4+4 canone libero' };
   // Come è arrivato il pagamento (payments.paidVia) e chi ha visto i soldi
   // arrivare (payments.paidEvidence): BOOM non vede il conto del locatore.
@@ -823,7 +848,22 @@
     m.units.slice().sort(function (a, b) { return (a.floor == null ? 999 : a.floor) - (b.floor == null ? 999 : b.floor) || natural(a.interno, b.interno); })
       .forEach(function (u) {
         var um = u.month, lease = um.lease || um.incoming;
-        var own = um.state === 'before' ? [] : um.rows.filter(function (r) { return r.month === m.month; });
+        // Un mese PRIMA della gestione BOOM: solo il contratto che in quel mese
+        // c'era davvero (mai quello «in arrivo» mesi dopo, mai un segnaposto
+        // senza date), altrimenti la riga dice soltanto che BOOM non c'era —
+        // al commercialista non va un inquilino né un canone che allora non
+        // esistevano.
+        if (um.state === 'before') {
+          var was = um.lease && !(CS.isPlaceholder(um.lease) && !day(um.lease.startDate)) ? um.lease : null;
+          var stB = CSV_STATE.before + (um.gestioneDal ? ' (da ' + monthLabel(um.gestioneDal).toLowerCase() + ')' : '');
+          if (was) { rows.push(line(u, was, um.tenants, null, stB)); return; }
+          var blank = [m.month, u.interno || u.name, floorOfUnit(u)];
+          while (blank.length < CSV_HEAD.length - 1) blank.push('');
+          blank.push(stB);
+          rows.push(blank);
+          return;
+        }
+        var own = um.rows.filter(function (r) { return r.month === m.month; });
         var stateOf = function (st) {
           if (lease && CS.isPlaceholder(lease) && st === 'norate') return owner ? 'Contratto in arrivo da BOOM' : 'Contratto da caricare';
           return st === 'norate' && !owner ? 'Senza rata' : CSV_STATE[st] || '';
@@ -832,8 +872,9 @@
           // Mese senza rate proprie: coperto da una rata di un altro mese
           // (trimestrale, o i giorni dopo l'ultima rata di un contratto dal 15),
           // senza rata, libero, in arrivo, o prima di BOOM.
-          var cover = um.state !== 'before' && um.rows.length ? um.rows[0] : null;
-          var st = stateOf(um.state) + (cover ? ' · coperto dalla rata di ' + monthLabel(cover.month).toLowerCase() : '');
+          var cover = um.rows.length ? um.rows[0] : null;
+          var why0 = um.state === 'waived' && um.waivedRows[0] ? str(um.waivedRows[0].payment && um.waivedRows[0].payment.cancelledReason).slice(0, 80) : '';
+          var st = stateOf(um.state) + (cover ? ' · coperto dalla rata di ' + monthLabel(cover.month).toLowerCase() : '') + (why0 ? ' (' + why0 + ')' : '');
           rows.push(line(u, lease, um.tenants, null, st));
           return;
         }
@@ -1988,8 +2029,10 @@
     // conta fra chi "ha pagato €0", lo si dice a parte. E una frase senza
     // importi del mese (solo rate trimestrali in corso) non stampa «€0 di €0».
     var carriedU = m.units.filter(function (u) { return u.month.carried && u.month.state !== 'before'; });
-    var payers = t.paid + t.late + t.due + t.review + t.unknown - carriedU.length;
-    var paidN = t.paid - carriedU.filter(function (u) { return u.month.state === 'paid'; }).length;
+    // I paganti del mese e chi ha pagato, dai totali del motore (una copia
+    // sola: le schede in alto leggono gli stessi due numeri).
+    var payers = t.payers != null ? t.payers : t.paid + t.late + t.due + t.review + t.unknown - carriedU.length;
+    var paidN = t.paidPayers != null ? t.paidPayers : t.paid - carriedU.filter(function (u) { return u.month.state === 'paid'; }).length;
     if (payers > 0) out.push(n(paidN, 'ha pagato', 'hanno pagato') + ' su ' + payers + (!t.expected && !t.unknownAmounts ? '' : ' (' + (!t.expected ? 'importi da verificare'
       : eur(t.collected) + ' di ' + eur(t.expected) + (t.unknownAmounts ? ', più ' + n(t.unknownAmounts, 'rata', 'rate') + ' con l’importo da verificare' : '')) + ')') + '.');
     if (carriedU.length) {
@@ -2039,13 +2082,29 @@
     }
     // Al proprietario si dice cosa sta facendo BOOM, non il nome del
     // problema interno: "rata non registrata" è un lavoro dell'operatore.
+    // «Da verificare» = in verifica (bonifico segnalato, in corso, rimborso,
+    // contestazione) + stato ignoto: la frase conta gli STESSI interni della
+    // scheda «Da verificare» (e del rendiconto), mai uno sparisce.
+    var unk = t.unknown || 0;
+    var waivedU = m.units.filter(function (u) { return u.month.state === 'waived'; });
+    var monthName = monthLabel(m.month).split(' ')[0].toLowerCase();
     if (owner) {
-      if (t.review + t.norate) out.push(n(t.review + t.norate, 'pagamento è', 'pagamenti sono') + ' in verifica da BOOM.');
+      if (t.review + t.norate + unk) out.push(n(t.review + t.norate + unk, 'pagamento è', 'pagamenti sono') + ' in verifica da BOOM.');
       if (t.nocontract) out.push(n(t.nocontract, 'interno ha', 'interni hanno') + ' il contratto in arrivo da BOOM.');
+      if (waivedU.length) out.push(waivedU.length === 1 ? 'La rata di ' + monthName + (waivedU[0].interno ? ' dell’int. ' + waivedU[0].interno : ' di ' + waivedU[0].name) + ' è stata annullata.'
+        : 'Le rate di ' + monthName + ' di ' + waivedU.map(name).join(', ') + ' sono state annullate.');
     } else {
-      if (t.review) out.push(n(t.review, 'pagamento è', 'pagamenti sono') + ' da verificare.');
+      // Rimborsi e contestazioni si nominano: sono soldi tornati indietro.
+      var mb = m.units.filter(function (u) { return (u.month.state === 'review' || u.month.state === 'unknown') && u.month.rows.some(function (r) { return r.state === 'review'; }); });
+      if (mb.length) out.push('Da verificare: ' + mb.map(function (u) {
+        var r = u.month.rows.find(function (x) { return x.state === 'review'; }), why = RENT && RENT.moneyBack ? RENT.moneyBack(r.payment) : '';
+        return name(u) + ': ' + (why === 'dispute' ? 'contestazione aperta' : why === 'refund' ? 'rimborso' : 'rimborso o contestazione');
+      }).join('; ') + '.');
+      var other = t.review + unk - mb.length;
+      if (other > 0) out.push(n(other, 'pagamento è', 'pagamenti sono') + ' da verificare.');
       if (t.norate) out.push(n(t.norate, 'interno occupato non ha', 'interni occupati non hanno') + ' la rata registrata.');
       if (t.nocontract) out.push(n(t.nocontract, 'interno occupato non ha', 'interni occupati non hanno') + ' il contratto in archivio.');
+      if (waivedU.length) out.push(n(waivedU.length, 'rata annullata', 'rate annullate') + ' in ' + monthName + ' (' + waivedU.map(name).join(', ') + ').');
     }
     if (t.maintOpen) out.push(n(t.maintOpen, 'segnalazione di manutenzione aperta', 'segnalazioni di manutenzione aperte') + (t.maintUrgent ? ' (' + t.maintUrgent + ' urgent' + (t.maintUrgent === 1 ? 'e' : 'i') + ')' : '') + '.');
     if (t.before) out.push(n(t.before, 'interno era', 'interni erano') + ' prima della gestione BOOM: i pagamenti di quel mese non sono in archivio.');
@@ -2462,8 +2521,9 @@
   // (un mese prima di BOOM non è né pieno né libero: `before`), e `managed`
   // è il denominatore giusto ("3 su 4 gestiti").
   function totalsOf(units) {
-    var t = { units: units.length, managed: 0, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, maintOpen: 0, maintUrgent: 0,
-      expected: 0, collected: 0, lateAmount: 0, unknownAmounts: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0, nocontract: 0 };
+    var t = { units: units.length, managed: 0, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, waived: 0, maintOpen: 0, maintUrgent: 0,
+      expected: 0, collected: 0, lateAmount: 0, unknownAmounts: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0, nocontract: 0,
+      carried: 0, carriedPaid: 0, payers: 0, paidPayers: 0 };
     units.forEach(function (u) {
       var um = u.month;
       if (um.state !== 'before') { t.managed++; if (um.occupied) t.occupied++; }
@@ -2471,6 +2531,10 @@
       // Occupato col contratto non ancora in archivio: è una cosa diversa da
       // una rata mancante, e alla proprietaria si dice com'è.
       if (um.state === 'norate' && um.lease && um.lease.contractMissing === true) { t.nocontract++; t.norate--; }
+      // L'ultimo mese di un contratto dal 15 (agosto, coperto dal periodo
+      // della rata di luglio): non è un pagante del mese — una copia sola,
+      // letta dalla frase E dalle schede (mai «3/3» sopra «2 su 2»).
+      if (um.carried && um.state !== 'before') { t.carried++; if (um.state === 'paid') t.carriedPaid++; }
       if (um.leaving) t.leaving++;
       t.expected = round(t.expected + um.expected);
       t.collected = round(t.collected + um.collected);
@@ -2484,6 +2548,8 @@
       }
     });
     t.occupancy = t.managed ? Math.round(t.occupied / t.managed * 100) : 0;
+    t.payers = t.paid + t.late + t.due + t.review + t.unknown - t.carried;
+    t.paidPayers = t.paid - t.carriedPaid;
     return t;
   }
 

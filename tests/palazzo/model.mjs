@@ -548,7 +548,7 @@ const TG = await import('../../api/telegram/_palazzo.js');
   };
   scenR7(P);
   ok('l’ultimo mese di un contratto dal 15: detto com’è, mai «1 ha pagato su 1 (€0 di €0)»; con luglio aperto, luglio è il debito', true);
-  bites('il mese coperto torna fra chi «ha pagato €0»', scenR7, 'var payers = t.paid + t.late + t.due + t.review + t.unknown - carriedU.length;', 'var payers = t.paid + t.late + t.due + t.review + t.unknown;');
+  bites('il mese coperto torna fra chi «ha pagato €0»', scenR7, 't.payers = t.paid + t.late + t.due + t.review + t.unknown - t.carried;', 't.payers = t.paid + t.late + t.due + t.review + t.unknown;');
   // Una trimestrale nel suo secondo mese: niente importi del mese, niente «(€0 di €0)».
   const q = build(P, { properties: [prop('u93')], contracts: [{ id: 'c93', propertyId: 'u93', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Quinto', rent: 1000 }],
     payments: [{ id: 'pay_c93_2026-10', contractId: 'c93', propertyId: 'u93', type: 'rent', amount: 3000, month: '2026-10', coversTo: '2026-12', dueDate: '2026-10-05', status: 'paid', paidDate: '2026-10-04' }] }, '2026-11-10T10:00:00Z').model('2026-11');
@@ -599,6 +599,118 @@ const TG = await import('../../api/telegram/_palazzo.js');
   same('isCompanyName: i falsi positivi della revisione restano persone, le forme vere società', Object.keys(names).map(P.isCompanyName), Object.values(names));
   const scenR11 = E => sameQ(['Rosa S. A. Rossi', 'Maria Sas', 'Luca S.S. Bianchi'].map(E.isCompanyName), [false, false, false], 'persone');
   bites('la forma giuridica torna valida ovunque nel nome', scenR11, 'var dotted = /(?:^|[\\s,])((?:[A-Za-z]\\.\\s?){2,5})$/.exec(body);', 'var dotted = /(?:^|[\\s,])((?:[A-Za-z]\\.\\s?){2,5})/.exec(body);');
+}
+
+// ═══ 14. Correttore finale (vista + motore) ═══
+{
+  // 14.1 — il segnaposto chiuso con ⛔ Termina non cancella la storia.
+  const ph = { id: 'c41_da-caricare', propertyId: 'u41', status: 'terminated', terminatedAt: '2026-11-10', contractMissing: true, signatureStatus: 'paper',
+    source: 'palazzo-import', tenantName: 'Olga Prova' };
+  const next = { id: 'c42', propertyId: 'u41', status: 'active', startDate: '2026-11-15', endDate: '2027-11-14', tenantName: 'Nina Nuova', rent: 1300, type: 'transitorio' };
+  const scenPh = E => {
+    const S = build(E, { properties: [prop('u41'), prop('u43')], contracts: [ph, next, { id: 'c43', propertyId: 'u43', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Ezio', rent: 900 }],
+      payments: [...rates('c42', 'u41', '2026-11', 2, 1300, { status: 'paid', paidDate: '2026-11-20' }), ...rates('c43', 'u43', '2026-10', 3, 900, { status: 'paid', paidDate: '2026-10-04' })] }, '2026-12-20T10:00:00Z');
+    const oct = S.model('2026-10'), nov = S.model('2026-11'), dec = S.model('2026-12');
+    sameQ([unit(oct, 'u41').month.state, unit(oct, 'u41').month.occupied, unit(oct, 'u41').month.tenants], ['norate', true, ['Olga Prova']], 'ottobre: Olga c’era');
+    sameQ([unit(nov, 'u41').month.occupied, unit(nov, 'u41').month.tenants], [true, ['Nina Nuova']], 'novembre: occupato (dal 15 la nuova)');
+    sameQ([unit(dec, 'u41').month.occupied, unit(dec, 'u41').month.tenants], [true, ['Nina Nuova']], 'dicembre: la nuova');
+    sameQ(!!code(nov, 'overlap'), false, 'chiuso il 10/11 e nuovo dal 15/11: nessuna sovrapposizione');
+    const own = E.brief(oct, { owner: true }).join(' ');
+    sameQ(/libero|liberi/i.test(own), false, 'ottobre per la proprietaria: nessun «libero»');
+    const csv = E.csvRows(oct, { owner: true }).find(r => r[1] === '41');
+    sameQ(csv[E.CSV_HEAD.indexOf('Stato')], 'Contratto in arrivo da BOOM', 'CSV di ottobre');
+    // Senza contratto nuovo, dicembre torna libero.
+    const alone = build(E, { properties: [prop('u41')], contracts: [ph], payments: [] }, '2026-12-20T10:00:00Z');
+    sameQ(['2026-10', '2026-11', '2026-12'].map(mm => unit(alone.model(mm), 'u41').month.occupied), [true, true, false], 'ottobre e novembre pieni, dicembre libero');
+    return oct;
+  };
+  scenPh(P);
+  ok('il segnaposto chiuso al 10/11 tiene ottobre e novembre occupati: chi ci ha abitato non sparisce dalla storia', true);
+  bites('il segnaposto chiuso torna a non coprire nessun mese', scenPh,
+    "if (!start) { if (cStatus(c) === 'active') return true; return !!end && end >= monthStart(month); }", "if (!start) return cStatus(c) === 'active';");
+  bites('senza inizio torna a sovrapporsi a tutto', scenPh,
+    "if (!sa && !sb) return true;\n    if (!sa) return !ea || sb <= ea;\n    if (!sb) return !eb || sa <= eb;", 'if (!sa || !sb) return true;');
+
+  // 14.2 — la rata annullata a mano su un contratto in corso.
+  const c51 = { id: 'c51', propertyId: 'u51', status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Ada Annullata', rent: 1000, type: 'transitorio' };
+  const scenW = E => {
+    const pays = rates('c51', 'u51', '2026-09', 4, 1000, mm => mm === '2026-09' ? { status: 'cancelled', cancelledAt: '2026-09-02', cancelledReason: 'mese condonato per il guasto' } : mm === '2026-10' ? { status: 'paid', paidDate: '2026-10-04' } : {});
+    const S = build(E, { properties: [prop('u51', { gestioneDal: '2026-09' })], contracts: [c51], payments: pays }, '2026-10-20T10:00:00Z');
+    const m = S.model('2026-09'), u = unit(m, 'u51');
+    sameQ([u.month.state, u.month.occupied, E.toneOf('waived')], ['waived', true, 'annullata'], 'settembre: rata annullata, abitato');
+    sameQ(!!code(m, 'norate'), false, 'non è «rata non registrata»');
+    const own = E.brief(m, { owner: true });
+    sameQ([own.some(x => /in verifica/.test(x)), own.includes('La rata di settembre dell’int. 51 è stata annullata.')], [false, true], 'la frase per la proprietaria');
+    sameQ(m.brief.includes('1 rata annullata in settembre (int. 51).'), true, 'la frase per l’operatore');
+    const csv = E.csvRows(m).find(r => r[1] === '51');
+    sameQ(csv[E.CSV_HEAD.indexOf('Stato')], 'Rata annullata (mese condonato per il guasto)', 'CSV');
+    sameQ(m.totals.waived, 1, 'totale');
+    return m;
+  };
+  scenW(P);
+  ok('una rata annullata su un contratto in corso è «Rata annullata»: mai «in verifica da BOOM» per sempre', true);
+  bites('la rata annullata torna «rata non registrata»', scenW, "(waivedRows.length ? 'waived' : 'norate')", "'norate'");
+
+  // 14.3 — rimborso, contestazione e stato ignoto: la frase li conta.
+  const cV = (id, pid) => ({ id, propertyId: pid, status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Inq ' + pid, rent: 900 });
+  const scenV = E => {
+    const pays = [
+      ...rates('c61', 'u61', '2026-09', 1, 900, { status: 'paid', paidDate: '2026-09-04', refundedAt: '2026-09-20', refundedFull: true }),
+      ...rates('c62', 'u62', '2026-09', 1, 900, { status: 'paid', paidDate: '2026-09-04', disputeStatus: 'needs_response' }),
+      ...rates('c65', 'u65', '2026-09', 1, 900, { status: 'sospesa' }),
+      ...rates('c64', 'u64', '2026-09', 1, 900, { status: 'paid', paidDate: '2026-09-04' })];
+    const props = ['u61', 'u62', 'u63', 'u64', 'u65'].map(id => prop(id, { gestioneDal: '2026-09' }));
+    const S = build(E, { properties: props, contracts: ['u61', 'u62', 'u63', 'u64', 'u65'].map(pid => cV('c' + pid.slice(1), pid)), payments: pays }, '2026-09-25T10:00:00Z');
+    const m = S.model('2026-09');
+    sameQ(['u61', 'u62', 'u63', 'u64', 'u65'].map(id => unit(m, id).month.state), ['review', 'review', 'norate', 'paid', 'unknown'], 'gli stati');
+    const verify = m.units.filter(u => ['review', 'norate', 'unknown'].includes(u.month.state)).length;
+    const own = E.brief(m, { owner: true });
+    sameQ(own.includes(verify + ' pagamenti sono in verifica da BOOM.'), true, 'proprietaria: stesso numero della scheda «Da verificare» (' + verify + ')');
+    sameQ(m.brief.includes('Da verificare: int. 61: rimborso; int. 62: contestazione aperta.'), true, 'operatore: rimborso e contestazione nominati');
+    sameQ(m.brief.includes('1 pagamento è da verificare.'), true, 'operatore: lo stato ignoto contato');
+    sameQ(m.brief[1], '1 ha pagato su 4 (€900 di €3.600).', 'paganti');
+    return m;
+  };
+  scenV(P);
+  ok('rimborso, contestazione e stato ignoto: la frase conta gli stessi interni della scheda «Da verificare» e li nomina all’operatore', true);
+  bites('la proprietaria torna a non contare lo stato ignoto', scenV, 'if (t.review + t.norate + unk) out.push(n(t.review + t.norate + unk,', 'if (t.review + t.norate) out.push(n(t.review + t.norate,');
+  bites('il rimborso torna «ignoto»', scenV, " || states.indexOf('review') >= 0) return 'review';", ") return 'review';");
+
+  // 14.4 — CSV di un mese prima della gestione: niente inquilini né canoni di contratti che allora non c'erano.
+  const scenB = E => {
+    const props = [prop('u71'), prop('u72'), prop('u73')];
+    const contracts = [
+      { id: 'c71', propertyId: 'u71', status: 'active', startDate: '2026-09-15', endDate: '2027-08-14', tenantName: 'Ada Uno', rent: 1500, type: 'studenti', landlordName: 'Esempio Immobiliare S.r.l.', signatureStatus: 'paper' },
+      { id: 'c72_da-caricare', propertyId: 'u72', status: 'active', contractMissing: true, tenantName: 'Olga Due', signatureStatus: 'paper' },
+      { id: 'c73', propertyId: 'u73', status: 'active', startDate: '2026-10-01', endDate: '2027-09-30', tenantName: 'Carlo Tre', rent: 1600, landlordName: 'Esempio Immobiliare S.r.l.' }];
+    const S = build(E, { properties: props, contracts, payments: [] }, '2027-01-20T10:00:00Z');
+    const H = n => E.CSV_HEAD.indexOf(n);
+    const mar = E.csvRows(S.model('2026-03'));
+    sameQ(mar.map(r => [r[H('Inquilino')], r[H('Locatore')], r[H('Contratto')], r[H('Canone mensile')], r[H('Stato')]]),
+      Array(3).fill(['', '', '', '', 'Prima della gestione BOOM (da ottobre 2026)']), 'marzo 2026: righe vuote');
+    sameQ(mar.every(r => r.length === E.CSV_HEAD.length), true, 'righe lunghe quanto l’intestazione');
+    const sep = E.csvRows(S.model('2026-09'));
+    sameQ(sep.find(r => r[1] === '71')[H('Inquilino')], 'Ada Uno', 'settembre: il contratto dal 15/09 c’era davvero');
+    sameQ([sep.find(r => r[1] === '72')[H('Inquilino')], sep.find(r => r[1] === '73')[H('Inquilino')]], ['', ''], 'settembre: segnaposto e contratto futuro no');
+    return mar;
+  };
+  scenB(P);
+  ok('CSV prima della gestione: solo mese, interno, piano e stato — mai un inquilino o un canone che allora non c’erano', true);
+  bites('il CSV torna ad attribuire ai mesi prima di BOOM l’inquilino in arrivo', scenB, "if (um.state === 'before') {\n          var was", "if (false) {\n          var was");
+
+  // 14.5 — i paganti del mese sono una copia sola (frase e schede).
+  const scenC = E => {
+    const props = [prop('u31', { gestioneDal: '2026-09' }), prop('u32', { gestioneDal: '2026-09' }), prop('u33', { gestioneDal: '2026-09' })];
+    const others = ['u32', 'u33'].map(pid => ({ id: 'c' + pid, propertyId: pid, status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Inq ' + pid, rent: 750 }));
+    const pays = [...lease15(false), ...others.flatMap(c => rates(c.id, c.propertyId, '2026-09', 12, 750, mm => ({ status: 'paid', paidDate: mm + '-03' })))];
+    const m = build(E, { properties: props, contracts: [...contrD, ...others], payments: pays }, '2027-08-10T10:00:00Z').model('2027-08');
+    sameQ([m.totals.carried, m.totals.payers, m.totals.paidPayers], [1, 2, 2], 'totali');
+    sameQ(m.brief[1], '2 hanno pagato su 2 (€1.500 di €1.500).', 'la frase');
+    return m;
+  };
+  scenC(P);
+  ok('agosto coperto dalla rata di luglio: i totali dicono 2 paganti su 2, gli stessi della frase', true);
+  bites('il mese coperto torna fra chi ha pagato nei totali', scenC, 't.paidPayers = t.paid - t.carriedPaid;', 't.paidPayers = t.paid;');
 }
 
 // 13.12 — Telegram: una lettura FALLITA si dichiara, mai un elenco vuoto.
