@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#08080A">
-<title>Segnala un guasto · BOOM</title>
+<title>Report a problem · BOOM</title>
 <link rel="icon" href="/favicon.ico">
 <style>
 :root{--bg:#08080A;--card:#0F0F12;--line:rgba(255,255,255,.09);--text:#fff;--muted:#8E8E93;--gold:#D4AF37;--red:#FF4D5A;--ok:#3DDC84}
@@ -15,118 +15,180 @@ body{min-height:100vh;padding:max(18px,env(safe-area-inset-top)) 16px max(28px,e
 .wrap{max-width:560px;margin:0 auto}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
 .brand{font-weight:300;letter-spacing:6px;font-size:15px}
-.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}
-.lang button{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;padding:5px 10px;border-radius:999px;cursor:pointer}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px}
+.lang button{background:none;border:0;color:#B8B8BD;font:inherit;font-size:13px;min-width:44px;min-height:44px;padding:0 12px;border-radius:999px;cursor:pointer}
 .lang button[aria-pressed="true"]{background:var(--gold);color:#000;font-weight:600}
+.lang button:focus-visible,.send:focus-visible,.sosbtn:focus-visible,a:focus-visible{outline:2px solid #fff;outline-offset:2px}
 .eyebrow{margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
 h1{margin:0 0 6px;font-weight:300;font-size:30px;letter-spacing:.5px}
 .where{margin:0 0 22px;color:var(--muted);font-size:14px}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
 .lab{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
-.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;border:0;margin:0;padding:0;min-width:0}
 .chip{position:relative}
 .chip input{position:absolute;opacity:0;pointer-events:none}
-.chip span{display:inline-block;padding:10px 14px;border:1px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;background:#141417;transition:border-color .2s,background .2s}
+.chip span{display:inline-block;padding:11px 14px;border:1px solid var(--line);border-radius:999px;font-size:14px;cursor:pointer;background:#141417;transition:border-color .2s,background .2s}
 .chip input:checked+span{border-color:var(--gold);background:rgba(212,175,55,.14);color:var(--gold)}
 .chip input:focus-visible+span{outline:2px solid #fff;outline-offset:2px}
 .chip.is-urgent input:checked+span{border-color:var(--red);background:rgba(255,77,90,.14);color:#FF8F97}
 textarea,input[type=text],input[type=tel]{width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:#141417;color:var(--text);font:inherit;font-size:16px}
+textarea:focus-visible,input[type=text]:focus-visible,input[type=tel]:focus-visible{outline:2px solid #fff;outline-offset:1px}
 textarea{min-height:120px;resize:vertical;line-height:1.45}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .hint{margin:8px 0 0;font-size:12px;color:var(--muted);line-height:1.45}
 .photo{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.photo label{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px dashed rgba(255,255,255,.25);border-radius:14px;cursor:pointer;font-size:14px}
+.photo label{display:inline-flex;align-items:center;gap:8px;padding:12px 15px;min-height:44px;border:1px dashed rgba(255,255,255,.3);border-radius:14px;cursor:pointer;font-size:14px}
+.photo label:focus-within{outline:2px solid #fff;outline-offset:2px}
 .photo input{position:absolute;opacity:0;width:1px;height:1px}
 .photo img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .send{width:100%;padding:16px;border:0;border-radius:16px;background:var(--gold);color:#000;font:inherit;font-size:16px;font-weight:600;letter-spacing:.5px;cursor:pointer;margin-top:6px}
 .send[disabled]{opacity:.5;cursor:wait}
-.err{color:#FF8F97;font-size:13px;margin:10px 0 0;min-height:1em}
+.err{color:#FF9AA2;font-size:13px;margin:10px 0 0;min-height:1em}
 .sos{border-color:rgba(255,77,90,.35)}
-.sos p{margin:0;font-size:13px;line-height:1.5;color:#E5B4B8}
+.sos p{margin:0;font-size:13px;line-height:1.5;color:#F0C4C8}
+.sos.sostop{border-width:2px;background:rgba(255,77,90,.08)}
+.sos h2{margin:0 0 8px;font-size:16px;font-weight:600;color:#FFB3B9}
+.sosrow{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.sosbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 16px;border-radius:14px;font-size:14px;font-weight:600;text-decoration:none}
+.sosbtn.wa{background:#25D366;color:#04210F}
+.sosbtn.call{background:#FF4D5A;color:#1A0003}
+.warn{border-color:rgba(255,190,90,.4)}
+.warn p{margin:0;font-size:13px;line-height:1.5;color:#F6D9A8}
+.warn a{color:#FFD58A}
 .done{text-align:center;padding:30px 18px}
 .done .tick{width:62px;height:62px;border-radius:50%;margin:0 auto 16px;display:grid;place-items:center;background:rgba(212,175,55,.14);color:var(--gold);font-size:28px}
 .done h2{font-weight:300;margin:0 0 8px}
-.done p{color:var(--muted);margin:0 0 6px;line-height:1.5}
+.done p{color:#B8B8BD;margin:0 0 6px;line-height:1.5}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.foot{margin-top:22px;text-align:center;font-size:11px;color:#5A5A60;line-height:1.5}
+.foot{margin-top:22px;text-align:center;font-size:12px;color:var(--muted);line-height:1.6}
+.foot a{color:#C9C9CE}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><span class="brand">BOOM</span><span class="lang" role="group" aria-label="Lingua"><button type="button" data-lang="it" aria-pressed="true">IT</button><button type="button" data-lang="en" aria-pressed="false">EN</button></span></div>
-  <main id="app"><p class="where" data-t="loading">Un attimo…</p></main>
-  <p class="foot" data-t="foot">Segnalazione per BOOM Property Management · i dati servono solo a risolvere il guasto.</p>
+  <div class="top"><span class="brand">BOOM</span><span class="lang" role="group" aria-label="Language"><button type="button" data-lang="it" aria-pressed="false" lang="it">IT</button><button type="button" data-lang="en" aria-pressed="true" lang="en">EN</button></span></div>
+  <main id="app"><p class="where" data-t="loading">One moment…</p></main>
+  <p class="foot"><span data-t="foot">Report for BOOM Property Management · your details are only used to fix the problem.</span><br><a href="/privacy-inquilini" data-t="privacy">Privacy notice for tenants</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener" data-t="waFoot">Write to BOOM on WhatsApp</a></p>
 </div>
 <script>
 (function () {
+  // L'inquilino di un palazzo gestito è quasi sempre straniero: la pagina
+  // parte in INGLESE, salvo ?lang=it|en, la scelta già fatta su questo
+  // telefono o un browser in italiano (la stessa regola di /rata).
+  var BOOM_WA = '393313251961';
   var T = {
-    it: { loading: 'Un attimo…', eyebrow: 'Segnala un guasto', h1: 'Cosa non va in casa?', what: 'Di cosa si tratta', urg: 'Quanto è urgente', desc: 'Raccontaci il problema',
-      descPh: 'Es. la caldaia non parte da stamattina, sul display c’è E01', photo: 'Aggiungi una foto', photoChange: 'Cambia foto', photoHint: 'Facoltativa, ma aiuta il tecnico a capire subito.',
+    it: { title: 'Segnala un guasto · BOOM', langGroup: 'Lingua', loading: 'Un attimo…', eyebrow: 'Segnala un guasto', h1: 'Cosa non va in casa?', what: 'Di cosa si tratta', urg: 'Quanto è urgente', desc: 'Raccontaci il problema',
+      descPh: 'Es. la caldaia non parte da stamattina, sul display c’è E01', photo: 'Aggiungi una foto', photoChange: 'Cambia foto', photoHint: 'Facoltativa, ma aiuta il tecnico a capire subito. Puoi scattarla o sceglierla dalla galleria.',
+      photoAlt: 'Anteprima della foto scelta',
       name: 'Il tuo nome', phone: 'Telefono', phoneHint: 'Per richiamarti e fissare l’intervento.', send: 'Invia la segnalazione', sending: 'Invio…',
       short: 'Scrivi almeno una frase: cosa succede e dove.', fail: 'Non è partita. Controlla la connessione e riprova.', rate: 'Troppe segnalazioni in poco tempo: riprova fra qualche minuto.',
-      invalid: 'Questo link non è valido o non è più attivo. Chiedi a BOOM un link nuovo.', sos: 'Fuga di gas, fumo o pericolo per le persone? Esci di casa e chiama subito il 112.',
+      invalid: 'Questo link non è valido o non è più attivo (ad esempio dopo un cambio di inquilino). Chiedi a BOOM un link nuovo.', retry: 'Riprova',
+      sos: 'Fuga di gas, fumo o pericolo per le persone? Esci di casa e chiama subito il 112.',
+      sosH: 'È un’emergenza?', sosP: 'Manda la segnalazione, ma scrivi SUBITO anche a BOOM su WhatsApp. Gas, fuoco o persone in pericolo: chiama il 112 prima di tutto.',
+      sosWa: 'WhatsApp a BOOM', sos112: 'Chiama il 112', waText: 'EMERGENZA — ',
       doneH: 'Segnalazione inviata', doneP: 'BOOM l’ha ricevuta adesso e ti contatta per organizzare l’intervento.', doneP2: 'Se cambia qualcosa, puoi mandarne un’altra da questo stesso link.',
-      another: 'Segnala un altro guasto', foot: 'Segnalazione per BOOM Property Management · i dati servono solo a risolvere il guasto.', photoBad: 'Questa foto non si legge: invia senza, o scegline un’altra.',
+      photoLost: 'La foto non è arrivata (la segnalazione sì). Mandala a BOOM su WhatsApp:', photoLostWa: 'invia la foto',
+      another: 'Segnala un altro guasto', foot: 'Segnalazione per BOOM Property Management · i dati servono solo a risolvere il guasto.', privacy: 'Informativa privacy per gli inquilini', waFoot: 'Scrivi a BOOM su WhatsApp',
+      photoBad: 'Questa foto non si legge: invia senza, o scegline un’altra.',
       cats: { plumbing: 'Acqua / scarichi', heating: 'Caldaia / riscaldamento', electrical: 'Luce / prese', appliance: 'Elettrodomestici', locks: 'Porta / serratura', leaks: 'Infiltrazioni / umidità', common: 'Parti comuni', other: 'Altro' },
       pris: { medium: 'Normale', high: 'Urgente', urgent: 'Emergenza' } },
-    en: { loading: 'One moment…', eyebrow: 'Report a problem', h1: 'What’s wrong at home?', what: 'What is it about', urg: 'How urgent is it', desc: 'Tell us what happened',
-      descPh: 'E.g. the boiler hasn’t started since this morning, the display shows E01', photo: 'Add a photo', photoChange: 'Change photo', photoHint: 'Optional, but it helps the technician understand right away.',
+    en: { title: 'Report a problem · BOOM', langGroup: 'Language', loading: 'One moment…', eyebrow: 'Report a problem', h1: 'What’s wrong at home?', what: 'What is it about', urg: 'How urgent is it', desc: 'Tell us what happened',
+      descPh: 'E.g. the boiler hasn’t started since this morning, the display shows E01', photo: 'Add a photo', photoChange: 'Change photo', photoHint: 'Optional, but it helps the technician understand right away. Take one or pick it from your gallery.',
+      photoAlt: 'Preview of the chosen photo',
       name: 'Your name', phone: 'Phone', phoneHint: 'So we can call you back and book the repair.', send: 'Send the report', sending: 'Sending…',
       short: 'Write at least one sentence: what is happening and where.', fail: 'It didn’t go through. Check your connection and try again.', rate: 'Too many reports in a short time: please try again in a few minutes.',
-      invalid: 'This link is not valid or no longer active. Ask BOOM for a new one.', sos: 'Gas leak, smoke or danger to people? Leave the flat and call 112 now.',
+      invalid: 'This link is not valid or no longer active (for example after a change of tenant). Ask BOOM for a new one.', retry: 'Try again',
+      sos: 'Gas leak, smoke or danger to people? Leave the flat and call 112 now.',
+      sosH: 'Is it an emergency?', sosP: 'Send the report, but ALSO message BOOM on WhatsApp right now. Gas, fire or people in danger: call 112 first.',
+      sosWa: 'WhatsApp BOOM', sos112: 'Call 112', waText: 'EMERGENCY — ',
       doneH: 'Report sent', doneP: 'BOOM has just received it and will contact you to arrange the repair.', doneP2: 'If anything changes, you can send another one from this same link.',
-      another: 'Report another problem', foot: 'Report for BOOM Property Management · your details are only used to fix the problem.', photoBad: 'This photo can’t be read: send without it, or pick another.',
+      photoLost: 'The photo didn’t arrive (the report did). Please send it to BOOM on WhatsApp:', photoLostWa: 'send the photo',
+      another: 'Report another problem', foot: 'Report for BOOM Property Management · your details are only used to fix the problem.', privacy: 'Privacy notice for tenants', waFoot: 'Write to BOOM on WhatsApp',
+      photoBad: 'This photo can’t be read: send without it, or pick another.',
       cats: { plumbing: 'Water / drains', heating: 'Boiler / heating', electrical: 'Lights / sockets', appliance: 'Appliances', locks: 'Door / lock', leaks: 'Leaks / damp', common: 'Shared areas', other: 'Other' },
       pris: { medium: 'Normal', high: 'Urgent', urgent: 'Emergency' } }
   };
-  var lang = 'it', unit = null, state = 'form', photo = null, draft = { category: 'plumbing', priority: 'medium', description: '', name: '', phone: '' };
-  try { var sl = localStorage.getItem('boom_guasto_lang'); if (sl === 'en' || sl === 'it') lang = sl; } catch (_) {}
-  var token = new URLSearchParams(location.search).get('t') || '';
+  var qs = new URLSearchParams(location.search);
+  var lang = 'en', unit = null, state = 'form', photo = null, photoLost = false, sentUrgent = false,
+    draft = { category: 'plumbing', priority: 'medium', description: '', name: '', phone: '' };
+  var ql = String(qs.get('lang') || '').toLowerCase();
+  if (ql === 'it' || ql === 'en') lang = ql;
+  else {
+    var sl = null; try { sl = localStorage.getItem('boom_guasto_lang'); } catch (_) {}
+    if (sl === 'en' || sl === 'it') lang = sl;
+    else lang = /^it\b/i.test(String(navigator.language || '')) ? 'it' : 'en';
+  }
+  var token = qs.get('t') || '';
   var app = document.getElementById('app');
   function t(k) { return T[lang][k]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function whereText() { return unit ? unit.building + (unit.label ? ' · ' + unit.label : '') : ''; }
+  function waHref(prefix) { return 'https://wa.me/' + BOOM_WA + '?text=' + encodeURIComponent((prefix || '') + whereText() + (whereText() ? ': ' : '')); }
   function setLang(l) {
     lang = l; try { localStorage.setItem('boom_guasto_lang', l); } catch (_) {}
     document.documentElement.lang = l;
+    document.title = t('title');
+    document.querySelector('.lang').setAttribute('aria-label', t('langGroup'));
     [].forEach.call(document.querySelectorAll('[data-lang]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === l)); });
-    document.querySelector('[data-t="foot"]').textContent = t('foot');
+    [].forEach.call(document.querySelectorAll('.foot [data-t]'), function (el) { el.textContent = t(el.getAttribute('data-t')); });
     render();
   }
   function api(body) {
     return fetch('/api/maintenance/guasto', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().catch(function () { return {}; }).then(function (j) { j.status = r.status; return j; }); });
   }
+  // Il riquadro dell'emergenza, IN ALTO: compare appena si sceglie
+  // «Emergenza» (prima c'era solo «chiama il 112», in fondo, dopo tutto il
+  // modulo — e nessun numero per un tubo rotto di notte).
+  function sosTop() {
+    return '<section class="card sos sostop" role="alert" aria-labelledby="sosH"><h2 id="sosH">' + esc(t('sosH')) + '</h2><p>' + esc(t('sosP')) + '</p>' +
+      '<div class="sosrow"><a class="sosbtn wa" href="' + esc(waHref(t('waText'))) + '" target="_blank" rel="noopener">' + esc(t('sosWa')) + ' · +39 331 325 1961</a>' +
+      '<a class="sosbtn call" href="tel:112">' + esc(t('sos112')) + '</a></div></section>';
+  }
+  function paintSos() { var h = document.getElementById('sosTop'); if (h) h.innerHTML = draft.priority === 'urgent' ? sosTop() : ''; }
   function render() {
-    if (state === 'invalid') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('invalid')) + '</p>'; return; }
-    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('fail')) + '</p><button type="button" class="send" onclick="location.reload()">↻</button>'; return; }
+    if (state === 'invalid') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('invalid')) + '</p><a class="sosbtn wa" href="' + esc(waHref('')) + '" target="_blank" rel="noopener">' + esc(t('waFoot')) + '</a>'; return; }
+    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('fail')) + '</p><button type="button" class="send" id="retry" aria-label="' + esc(t('retry')) + '">↻ ' + esc(t('retry')) + '</button>';
+      document.getElementById('retry').onclick = function () { location.reload(); }; return; }
     if (!unit) { app.innerHTML = '<p class="where">' + esc(t('loading')) + '</p>'; return; }
-    var where = esc(unit.building) + (unit.label ? ' · ' + esc(unit.label) : '');
+    var where = esc(whereText());
     if (state === 'done') {
-      app.innerHTML = '<div class="card done"><div class="tick">✓</div><h2>' + esc(t('doneH')) + '</h2><p>' + esc(t('doneP')) + '</p><p>' + esc(t('doneP2')) + '</p></div>' +
+      app.innerHTML = (sentUrgent ? sosTop() : '') +
+        '<div class="card done" role="status"><div class="tick" aria-hidden="true">✓</div><h2>' + esc(t('doneH')) + '</h2><p>' + esc(t('doneP')) + '</p><p>' + esc(t('doneP2')) + '</p></div>' +
+        (photoLost ? '<div class="card warn" role="alert"><p>' + esc(t('photoLost')) + ' <a href="' + esc(waHref('')) + '" target="_blank" rel="noopener">' + esc(t('photoLostWa')) + '</a></p></div>' : '') +
         '<div class="card sos"><p>' + esc(t('sos')) + '</p></div><button type="button" class="send" id="again">' + esc(t('another')) + '</button>';
-      document.getElementById('again').onclick = function () { state = 'form'; photo = null; draft.description = ''; render(); };
+      document.getElementById('again').onclick = function () { state = 'form'; photo = null; photoLost = false; sentUrgent = false; draft.description = ''; render(); };
       return;
     }
     var cats = T[lang].cats, pris = T[lang].pris;
     app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>' + esc(t('h1')) + '</h1><p class="where">' + where + '</p>' +
+      '<div id="sosTop"></div>' +
       '<form id="f" novalidate>' +
-      '<div class="card"><span class="lab">' + esc(t('what')) + '</span><div class="chips">' + Object.keys(cats).map(function (k) {
+      '<div class="card"><fieldset class="chips"><legend class="lab">' + esc(t('what')) + '</legend>' + Object.keys(cats).map(function (k) {
         return '<label class="chip"><input type="radio" name="category" value="' + k + '"' + (draft.category === k ? ' checked' : '') + '><span>' + esc(cats[k]) + '</span></label>';
-      }).join('') + '</div></div>' +
-      '<div class="card"><span class="lab">' + esc(t('urg')) + '</span><div class="chips">' + Object.keys(pris).map(function (k) {
+      }).join('') + '</fieldset></div>' +
+      '<div class="card"><fieldset class="chips"><legend class="lab">' + esc(t('urg')) + '</legend>' + Object.keys(pris).map(function (k) {
         return '<label class="chip' + (k !== 'medium' ? ' is-urgent' : '') + '"><input type="radio" name="priority" value="' + k + '"' + (draft.priority === k ? ' checked' : '') + '><span>' + esc(pris[k]) + '</span></label>';
-      }).join('') + '</div></div>' +
+      }).join('') + '</fieldset></div>' +
       '<div class="card"><label class="lab" for="desc">' + esc(t('desc')) + '</label><textarea id="desc" name="description" maxlength="1200" placeholder="' + esc(t('descPh')) + '">' + esc(draft.description) + '</textarea>' +
-      '<div class="photo" style="margin-top:12px"><label><input type="file" id="ph" accept="image/*" capture="environment"><span>📷 ' + esc(photo ? t('photoChange') : t('photo')) + '</span></label>' + (photo ? '<img alt="" src="' + photo.preview + '">' : '') + '</div>' +
-      '<p class="hint">' + esc(t('photoHint')) + '</p></div>' +
+      // Niente capture="environment": aprirebbe SOLO la fotocamera, e uno
+      // screenshot del codice d'errore della caldaia non si potrebbe allegare.
+      '<div class="photo" style="margin-top:12px"><label><input type="file" id="ph" accept="image/*" aria-describedby="phHint"><span>📷 ' + esc(photo ? t('photoChange') : t('photo')) + '</span></label>' + (photo ? '<img alt="' + esc(t('photoAlt')) + '" src="' + photo.preview + '">' : '') + '</div>' +
+      '<p class="hint" id="phHint">' + esc(t('photoHint')) + '</p></div>' +
       '<div class="card"><div class="row"><div><label class="lab" for="nm">' + esc(t('name')) + '</label><input type="text" id="nm" name="name" autocomplete="name" value="' + esc(draft.name) + '"></div>' +
-      '<div><label class="lab" for="tel">' + esc(t('phone')) + '</label><input type="tel" id="tel" name="phone" autocomplete="tel" inputmode="tel" value="' + esc(draft.phone) + '"></div></div><p class="hint">' + esc(t('phoneHint')) + '</p></div>' +
+      '<div><label class="lab" for="tel">' + esc(t('phone')) + '</label><input type="tel" id="tel" name="phone" autocomplete="tel" inputmode="tel" aria-describedby="telHint" value="' + esc(draft.phone) + '"></div></div><p class="hint" id="telHint">' + esc(t('phoneHint')) + '</p></div>' +
       '<div class="hp" aria-hidden="true"><input type="text" name="company" tabindex="-1" autocomplete="off"></div>' +
       '<div class="card sos"><p>' + esc(t('sos')) + '</p></div>' +
       '<button type="submit" class="send" id="send">' + esc(t('send')) + '</button><p class="err" id="err" role="alert"></p></form>';
+    paintSos();
     var f = document.getElementById('f');
-    f.addEventListener('input', function (e) { if (e.target.name && e.target.name in draft) draft[e.target.name] = e.target.value; });
-    f.addEventListener('change', function (e) { if (e.target.name && e.target.name in draft) draft[e.target.name] = e.target.value; });
+    function take(e) {
+      if (e.target.name && e.target.name in draft) draft[e.target.name] = e.target.value;
+      if (e.target.name === 'priority') paintSos();
+    }
+    f.addEventListener('input', take);
+    f.addEventListener('change', take);
     document.getElementById('ph').addEventListener('change', function (e) { var file = e.target.files && e.target.files[0]; if (file) shrink(file); });
     f.addEventListener('submit', submit);
   }
@@ -152,10 +214,13 @@ textarea{min-height:120px;resize:vertical;line-height:1.45}
     var f = e.target, err = document.getElementById('err'), btn = document.getElementById('send');
     if ((draft.description || '').trim().length < 8) { err.textContent = t('short'); document.getElementById('desc').focus(); return; }
     btn.disabled = true; btn.textContent = t('sending'); err.textContent = '';
+    var hadPhoto = !!photo;
     api({ op: 'report', t: token, category: draft.category, priority: draft.priority, description: draft.description, name: draft.name, phone: draft.phone,
       company: f.company.value, photo: photo ? { base64: photo.base64, type: photo.type } : null })
       .then(function (j) {
-        if (j.ok) { state = 'done'; photo = null; render(); window.scrollTo(0, 0); return; }
+        // photo:false = la foto c'era e non è salita: la segnalazione è
+        // partita lo stesso, ma lo si DICE (prima risultava solo "inviata").
+        if (j.ok) { state = 'done'; photoLost = hadPhoto && j.photo === false; sentUrgent = draft.priority === 'urgent'; photo = null; render(); window.scrollTo(0, 0); return; }
         btn.disabled = false; btn.textContent = t('send');
         err.textContent = j.status === 429 ? t('rate') : j.error === 'description_short' ? t('short') : j.error === 'invalid_link' ? t('invalid') : t('fail');
       }, function () { btn.disabled = false; btn.textContent = t('send'); err.textContent = t('fail'); });
