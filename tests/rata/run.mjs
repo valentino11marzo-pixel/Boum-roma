@@ -246,7 +246,9 @@ await check('giunzioni: la pagina parla con questa porta, dice la commissione, �
   const vercel = readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8');
   assert.ok(vercel.includes('|rata|rata.html)(.*)'));
   const portal = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
-  assert.ok(portal.includes("body: JSON.stringify({ op: 'links', paymentIds })") && portal.includes('record: id => confirmRentPayment(id)'));
+  // «Registra incasso» dal Palazzo: il modale dell'incasso (data dell'accredito,
+  // canale, prova) quando c'è, altrimenti il percorso di prima — solo admin.
+  assert.ok(portal.includes("body: JSON.stringify({ op: 'links', paymentIds })") && /record: id => palazzoAdminOnly\(\) && [^\n]*openRecordIncasso\(id\)[^\n]*confirmRentPayment\(id\)/.test(portal));
   const view = readFileSync(new URL('../../js/palazzo.js', import.meta.url), 'utf8');
   assert.ok(view.includes('data-plz="rata"') && view.includes("act === 'rata-all'"));
 });

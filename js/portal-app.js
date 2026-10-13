@@ -3494,8 +3494,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.notifications.push({ type: 'warning', title: 'Contratto in scadenza', text: `${S.properties.find(p => p.id === c.propertyId)?.name || 'Immobile'} - ${days} giorni`, id: c.id });
             }
         });
-        // Overdue payments
-        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
+        // Overdue payments — per la proprietaria come le conta il Palazzo: mai
+        // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue')).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -30736,16 +30737,16 @@ IBAN: ${l.iban || '-'}`;
         // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
         // scopriva giorni dopo, controllando l'archivio. Una gamba vale
         // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
-        const contractLegs = [];
-        const wantContract = p.contract && !_innesto.skipContract;
-        if (wantContract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
-        if (wantContract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
         // L'interno ha già un contratto vivo o il segnaposto «da caricare»:
         // il contratto NON nasce da qui (innestoApply lo rifiuta) e si dice
         // prima del tasto, con la strada giusta.
-        const clashRec = wantContract ? innestoLinkFor('property', p.property, pools.property, 'property', _innesto.links).record : null;
+        const clashRec = p.contract && !_innesto.skipContract ? innestoLinkFor('property', p.property, pools.property, 'property', _innesto.links).record : null;
         const clash = clashRec ? pools.liveContract(clashRec.id, p.contract) : null;
-        if (wantContract && !contractLegs.length && !clash) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
+        const contractLegs = [];
+        const wantContract = p.contract && !_innesto.skipContract && !clash;
+        if (wantContract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
+        if (wantContract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
+        if (wantContract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
         if (p.lead && _innesto.create.lead !== false && !innestoLeadDup(p.lead)) willCreate.push('lead');
         if (p.preagreement && _innesto.create.preagreement === true && !(_innesto.pa && _innesto.pa.found)) willCreate.push('proposta nel console');
         const docsN = _innesto.readDocs.length;
