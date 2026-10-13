@@ -996,6 +996,20 @@ function seedBigArchive(n) {
   const oggi = O.build({ payments: pays, contracts: cons, properties: props, users }, NOW);
   ok(oggi.decisions.some(x => x.id === 'pay_pay_cE_2026-08') && !oggi.decisions.some(x => x.id === 'pay_pay_cA_2026-07'),
     'Oggi: la trimestrale che arriva dentro la gestione è un ritardo; il luglio prima della gestione no', oggi.decisions.map(x => x.id));
+  // il badge della proprietaria nel portal (landlordLatePayments), la
+  // funzione VERA estratta da js/portal-app.js
+  {
+    const app = readFileSync(path.join(ROOT, 'js/portal-app.js'), 'utf8');
+    const head = '    function landlordLatePayments() {';
+    const at = app.indexOf(head); let d = 0, i = app.indexOf('{', at + head.length - 1);
+    for (; i < app.length; i++) { if (app[i] === '{') d++; else if (app[i] === '}' && --d === 0) break; }
+    const RENT = require('../../js/rent-engine.js');
+    const late = new Function('S', 'getMyPayments', 'isPaymentLate', 'window', app.slice(at, i + 1) + '\nreturn landlordLatePayments;')(
+      { properties: props, contracts: cons }, () => pays, (p) => RENT.paymentState(p, new Date(NOW)) === 'overdue', { BOOM_CONTRACT_STATE: CS });
+    const ids = late().map(p => p.id);
+    ok(ids.includes('pay_cE_2026-08') && !ids.includes('pay_cA_2026-07') && !ids.includes('pay_cD_2026-09'),
+      'badge della proprietaria: la trimestrale che arriva dentro la gestione c\'è, i mesi tutti prima no (anche risalendo dal contratto)', ids);
+  }
   const gestore = (await import('../../api/employees/gestore.js')).default;
   const g = await call(gestore, { headers: asCron, query: { dry: '1' } });
   const dg = (g.body && g.body.report && g.body.report.digest) || [];
