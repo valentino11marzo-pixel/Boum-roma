@@ -178,6 +178,7 @@ const SUITES = [
   { name: 'oggiworkspace', file: 'tests/oggi/workspace.mjs', what: 'Agenda Roma: fonti data, proposte/conferme, fusi e mutazioni' },
   { name: 'oggihomeui', file: 'tests/oggi/home-ui.mjs', what: 'Home reale: ricerca contestuale, errori, aggiornamenti, zero invii e layout mobile' },
   { name: 'oggimessageui', file: 'tests/oggi/message-ui.mjs', what: 'Messaggio manuale: contesto verificato, copia, ambiguità e nessun invio o AI' },
+  { name: 'oggiquicktoolsui', file: 'tests/oggi/quick-tools-ui.mjs', what: 'Sei launcher Home: moduli reali, contesto esatto, ruoli, selezioni obsolete e zero scritture' },
   { name: 'hometrial', file: 'tests/oggi/home-trial.mjs', what: 'Percorso dimostrativo: conferma e chiusura attraverso il vero updateFollowUp, IO in memoria' },
   { name: 'oggi',     file: 'tests/oggi/run.mjs',         what: 'Oggi: la coda delle decisioni ordina per costo del ritardo, ogni azione dichiarata esiste, il polso dei soldi fa i conti giusti' },
   { name: 'scrivano', file: 'tests/scrivano/run.mjs',     what: 'lo Scrivano, la porta dal telefono: un contratto mandato al bot è archiviato con id deterministico e la risposta porta il bottone 🌱; il tap mette in CODA (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell\'Innesto e manda la card col link #innesto=<docId>; un secondo tap non legge due volte, i guasti deterministici si chiudono col rimedio, i momentanei si riprovano una volta; le porte di Codex ereditano l\'offerta' },

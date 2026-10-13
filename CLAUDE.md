@@ -2156,6 +2156,13 @@ Un giro solo, otto interventi, 33 suite verdi:
   Bozza preservata nei conflitti; cambio pratica, fonte o contesto impone ricontrollo.
   Prove `oggimessageui`, `hometrial`: renderer e updateFollowUp reali, IO dimostrativo
   solo in memoria, con verifica per mutazione della guardia sull’ultimo messaggio.
+- **Prontuario / strumenti home (13/10/2026):** `homeTools(record, state, year)`
+  descrive sei ingressi reali: cliente, inventario, documento, manutenzione,
+  pagamento e verbale. Riusa il registro; un contesto assente apre il selettore,
+  un ID obsoleto/duplicato non produce azioni. Collegamenti solo per ID univoci.
+  Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
+  Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
+  con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

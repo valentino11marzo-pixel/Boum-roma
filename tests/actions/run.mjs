@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+import { runInNewContext } from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -228,6 +230,140 @@ for (const a of P.ACTIONS.filter((x) => x.fn === 'open' && !x.need)) {
   const why = servedOk(a.args[0]);
   ok(!why, `"${a.label}" apre una pagina servita in produzione${why ? ' — ' + why : ''}`);
 }
+
+// ── 15. La home apre gli strumenti veri, senza indovinare il contesto ──
+const homeCheck = (name, fn) => {
+  try { fn(); ok(true, 'home: ' + name); } catch (error) { ok(false, 'home: ' + name); console.error(error.message); }
+};
+const homeState = {
+  properties: [{ id: 'p1', name: 'Casa comune' }, { id: 'p2', name: 'Casa comune' }],
+  contracts: [{ id: 'c1', propertyId: 'p1', propertyName: 'Casa comune', status: 'active' },
+    { id: 'closed', propertyId: 'p2', status: 'completed' }],
+  users: [{ id: 'u1', name: 'Persona comune' }], clients: [{ id: 'crm1', name: 'Persona comune' }]
+};
+const home = (kind, id, state = homeState, api = P) => api.homeTools({ kind, id }, state, 2027);
+const homeAction = (rows, id) => rows.find(a => a.id === 'home:' + id);
+const bare = P.homeTools(null, {}, 2027);
+homeCheck('sei ingressi globali senza scelta implicita', () => {
+  assert.deepEqual(bare.map(a => a.id), ['home:new-client', 'home:inventory', 'home:document', 'home:maintenance', 'home:payment', 'home:handover']);
+  assert.deepEqual(bare.map(a => [a.fn, a.args]), [
+    ['openNewClientWizard', []], ['open', ['/inventario']], ['openDocUploadModal', []],
+    ['openModal', ['addMaintenance']], ['openModal', ['addPayment']], ['open', ['/verbale']]
+  ]);
+  assert(bare.every(a => a.label && a.description && a.icon && !a.prefill && !a.disabled));
+  assert.deepEqual(P.homeTools(undefined, undefined, 2027), bare);
+});
+homeCheck('un cliente CRM precompila il wizard, una persona omonima non lo fa', () => {
+  assert.deepEqual(homeAction(home('client', 'crm1'), 'new-client').args, ['crmClient', 'crm1']);
+  assert.deepEqual(homeAction(home('person', 'u1'), 'new-client').args, []);
+  assert.deepEqual(homeAction(home('client', 'crm1'), 'document').args, []);
+});
+homeCheck('immobile: inventario, documento e manutenzione sullo stesso ID', () => {
+  const rows = home('property', 'p1');
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario?p=p1']);
+  assert.deepEqual([homeAction(rows, 'document').fn, homeAction(rows, 'document').args], ['openDocUploadForProperty', ['p1', 2027]]);
+  assert.deepEqual(homeAction(rows, 'maintenance').prefill, { field: 'propertyId', value: 'p1' });
+  assert.equal(homeAction(rows, 'payment').prefill, undefined);
+  assert.deepEqual(homeAction(rows, 'handover').args, ['/verbale']);
+});
+homeCheck('documento persona usa users, senza attribuirle contratti o case', () => {
+  const rows = home('person', 'u1');
+  assert.deepEqual([homeAction(rows, 'document').fn, homeAction(rows, 'document').args], ['openUserDocUpload', ['u1']]);
+  assert.equal(homeAction(rows, 'maintenance').prefill, undefined);
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario']);
+});
+homeCheck('contratto: verbale, inventario e pagamento esatti; casa tramite ID', () => {
+  const rows = home('contract', 'c1');
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario?c=c1']);
+  assert.deepEqual(homeAction(rows, 'handover').args, ['/verbale?c=c1']);
+  assert.deepEqual(homeAction(rows, 'payment').prefill, { field: 'contractId', value: 'c1' });
+  assert.deepEqual(homeAction(rows, 'maintenance').prefill, { field: 'propertyId', value: 'p1' });
+  assert.equal(homeAction(rows, 'document').fn, 'openDocUploadModal');
+});
+homeCheck('contratto non attivo: pagamento disabilitato con motivo, nessun ripiego', () => {
+  const a = homeAction(home('contract', 'closed'), 'payment');
+  assert.equal(a.disabled, true); assert.equal(a.reason, 'Il contratto selezionato non è attivo'); assert.equal(a.prefill, undefined);
+});
+homeCheck('record obsoleto, tipo errato, ID vuoto o duplicato non diventano strumenti globali', () => {
+  for (const rec of [{}, { kind: 'lead', id: 'c1' }, { kind: 'contract', id: 'p1' }, { kind: 'property', id: 'gone' },
+    { kind: 'property', id: '' }, { kind: 'property', id: '  ' }, { kind: 'property', id: 1 }, { kind: 'toString', id: 'p1' }]) {
+    assert.deepEqual(P.homeTools(rec, homeState, 2027), []);
+  }
+  assert.deepEqual(home('property', 'p1', { ...homeState, properties: [...homeState.properties, { id: 'p1' }] }), []);
+  assert.deepEqual(home('person', 'u1', { ...homeState, users: null }), []);
+});
+homeCheck('casa mancante, duplicata o indicata solo per nome non precompila la manutenzione', () => {
+  for (const state of [
+    { ...homeState, properties: homeState.properties.filter(p => p.id !== 'p1') },
+    { ...homeState, properties: [...homeState.properties, { id: 'p1' }] },
+    { ...homeState, contracts: [{ id: 'c1', propertyName: 'Casa comune', status: 'active' }] }
+  ]) assert.equal(homeAction(home('contract', 'c1', state), 'maintenance').prefill, undefined);
+});
+homeCheck('gli ID nei link restano dati e non aggiungono parametri', () => {
+  const id = 'c&x=#/ spazio';
+  const rows = home('contract', id, { contracts: [{ id, status: 'active' }] });
+  for (const key of ['inventory', 'handover']) {
+    const url = new URL(homeAction(rows, key).args[0], 'https://example.invalid');
+    assert.equal(url.searchParams.get('c'), id); assert.equal([...url.searchParams].length, 1); assert.equal(url.hash, '');
+  }
+});
+homeCheck('anno esplicito e indipendenza da ruoli, clock e stato mutabile', () => {
+  const freeze = value => { Object.values(value).forEach(v => { if (v && typeof v === 'object') freeze(v); }); return Object.freeze(value); };
+  const frozen = freeze(structuredClone(homeState));
+  const registryBefore = JSON.stringify(P.ACTIONS);
+  const first = P.homeTools({ kind: 'property', id: 'p1' }, frozen, 2028);
+  assert.deepEqual(homeAction(first, 'document').args, ['p1', 2028]);
+  first[0].args.push('mutated');
+  assert.deepEqual(homeAction(P.homeTools({ kind: 'property', id: 'p1' }, { ...frozen, profile: { role: 'tenant' } }, 2027), 'new-client').args, []);
+  assert.equal(JSON.stringify(P.ACTIONS), registryBefore);
+  assert.equal(homeAction(P.homeTools({ kind: 'property', id: 'p1' }, frozen), 'document').disabled, true);
+});
+homeCheck('ogni funzione, pagina e campo di prefill corrisponde al prodotto', () => {
+  const rows = [...bare, ...home('property', 'p1'), ...home('person', 'u1'), ...home('contract', 'c1'), ...home('client', 'crm1')];
+  for (const a of rows) {
+    assert(NATIVE.has(a.fn) || new RegExp(`function ${a.fn}\\s*\\(|window\\.${a.fn}\\s*=`).test(app));
+    assert(P.ACTIONS.some(registered => registered.fn === a.fn));
+    if (a.fn === 'open') assert.equal(servedOk(a.args[0]), null);
+    if (a.prefill) {
+      assert.equal(a.fn, 'openModal');
+      const start = app.indexOf(`if (type === '${a.args[0]}')`), end = app.indexOf('\n', start);
+      assert(app.slice(start, end).includes(`name="${a.prefill.field}"`));
+    }
+  }
+});
+homeCheck('mutazioni: unicità record, relazione per ID e contratto attivo sono necessarie', () => {
+  const source = read('js/portal-actions.js');
+  const mutated = (from, to) => {
+    assert(source.includes(from)); const sandbox = { module: { exports: {} } };
+    runInNewContext(source.replace(from, to), sandbox); return sandbox.module.exports;
+  };
+  const duplicated = { ...homeState, properties: [...homeState.properties, { id: 'p1' }] };
+  const checkUnique = api => assert.equal(home('property', 'p1', duplicated, api).length, 0);
+  checkUnique(P); assert.throws(() => checkUnique(mutated('matches.length !== 1', 'matches.length === 0')), assert.AssertionError);
+  const checkHouse = api => assert.equal(homeAction(home('contract', 'c1', homeState, api), 'maintenance').prefill?.value, 'p1');
+  checkHouse(P); assert.throws(() => checkHouse(mutated('p.id === row.propertyId', 'p.name === row.propertyName')), assert.AssertionError);
+  const checkActive = api => assert.equal(homeAction(home('contract', 'closed', homeState, api), 'payment').disabled, true);
+  checkActive(P); assert.throws(() => checkActive(mutated("row.status === 'active'", 'true')), assert.AssertionError);
+});
+
+// Run the actual satellite boot: even a single contract waits for a choice.
+const verbale = read('verbale.html');
+const boot = verbale.slice(verbale.indexOf('BoomPortal.requireAuth('), verbale.indexOf('function loadContract('));
+const nodes = {}, opened = [], reads = [];
+await runInNewContext(boot, {
+  BoomPortal: { requireAuth: async () => ({ user: {}, profile: { role: 'admin' } }) },
+  $: id => nodes[id] ||= { style: {} }, URLSearchParams, location: { search: '' },
+  firebase: { firestore: () => ({ collection: name => ({ limit: count => ({ get: async () => {
+    reads.push([name, count]); return { forEach: cb => cb({ id: 'one-contract', data: () => ({ status: 'active' }) }) };
+  } }) }) }) },
+  esc: String, dIT: String, loadContract: (_db, id) => opened.push(id), showErr: message => { throw Error(message); }
+});
+homeCheck('il vero /verbale senza ID aspetta il selettore, anche con un solo contratto', () => {
+  assert.deepEqual(reads, [['contracts', 200]]); assert.deepEqual(opened, []);
+  assert(nodes.fContract.innerHTML.startsWith('<option value="">Scegli…</option>'));
+  nodes.fContract.onchange.call({ value: '' }); assert.deepEqual(opened, []);
+  nodes.fContract.onchange.call({ value: 'one-contract' }); assert.deepEqual(opened, ['one-contract']);
+});
 
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Niente più funzioni sepolte — ${pass} passed, 0 failed`);

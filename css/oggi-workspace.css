@@ -208,3 +208,73 @@
 .ow-home #sgFollowPanel .sg-intake-timing :is(strong,p) { color:var(--text-secondary); }
 .ow-home #sgFollowPanel .ow-service:has(> .ow-status-warning) { order:-1; margin:0 0 12px; }
 .ow-home .ow-header .page-actions > button:last-child { flex:0 0 42px; }
+/* Everyday actions: one shared search, six real forms, one decision queue. */
+.ow-home .ow-header { margin-bottom:24px; }
+.ow-home .ow-eyebrow { font-size:11px; letter-spacing:1.3px; }
+.ow-home .ow-workbench { padding:24px; border-top:1px solid var(--border); border-radius:14px; }
+.ow-home .ow-workbench-head { margin-bottom:18px; }
+.ow-home .ow-workbench h2 { font-size:24px; letter-spacing:-.6px; }
+.ow-home .ow-workbench-head .ow-eyebrow { margin-bottom:10px; }
+.ow-home .ow-workbench-head > .ow-link { white-space:nowrap; }
+.ow-home .ow-search { background:var(--bg); min-height:60px; }
+.ow-home .ow-search select { background:transparent; min-height:52px; }
+.ow-home .ow-search input { font-size:16px; }
+.ow-home .ow-results { grid-template-columns:repeat(2,minmax(0,1fr)); }
+.ow-home .ow-result .ow-result-kind { color:var(--gold); font-size:11px; margin:0 0 5px; }
+.ow-home .ow-toolbox { margin:24px 0 30px; }
+.ow-home .ow-tools-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin:0 0 14px; }
+.ow-home .ow-tools-head h2 { font-size:19px; font-weight:500; letter-spacing:-.3px; margin:0; flex-shrink:0; }
+.ow-home .ow-tools-head p { font-size:12px; color:var(--text-secondary); line-height:1.5; margin:0; overflow-wrap:anywhere; }
+.ow-home .ow-tools-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.ow-home .ow-tool { display:flex; align-items:flex-start; text-align:left; gap:14px; position:relative; min-width:0; min-height:120px; padding:20px; border:1px solid var(--border); border-radius:12px; background:var(--bg-card); color:var(--text); font:inherit; cursor:pointer; transition:border-color .15s,background .15s; }
+.ow-home .ow-tool:hover:not(:disabled) { border-color:var(--gold); background:var(--bg-elevated); }
+.ow-home .ow-tool-icon { flex:0 0 28px; color:var(--gold); margin-top:1px; }
+.ow-home .ow-tool-icon svg { width:26px; height:26px; }
+.ow-home .ow-tool-copy { min-width:0; padding-right:8px; }
+.ow-home .ow-tool-copy strong { display:block; font-size:15px; font-weight:600; line-height:1.35; margin:0 0 8px; }
+.ow-home .ow-tool-copy > span { display:block; color:var(--text-secondary); font-size:12px; line-height:1.55; }
+.ow-home .ow-tool-arrow { position:absolute; right:13px; top:12px; font-size:14px; color:var(--text-secondary); }
+.ow-home .ow-tool:disabled { cursor:not-allowed; border-style:dashed; }
+.ow-home .ow-tool:disabled .ow-tool-icon { color:var(--text-secondary); }
+.ow-home .ow-tool:disabled .ow-tool-copy > span { color:var(--orange); }
+.ow-home .ow-shortcuts { display:flex; justify-content:flex-start; gap:10px 26px; flex-wrap:wrap; margin:12px 0 0; }
+.ow-home .ow-shortcuts :is(button,a) { font:inherit; font-size:13px; min-height:44px; padding:8px 0; border:0; line-height:1.4; color:var(--text-secondary); }
+.ow-home .ow-shortcuts :is(button,a):hover { color:var(--text); }
+.ow-home .ow-hint { font-size:12px; }
+.ow-home .ow-link { min-height:44px; font-size:13px; display:inline-flex; align-items:center; }
+.ow-home .ow-agenda-time span,.ow-home .ow-status { font-size:12px; }
+.ow-home .ow-related :is(small,span),.ow-home .ow-library-grid span { font-size:12px; }
+.ow-home .ow-filters button { min-height:44px; }
+.ow-home .ow-columns { padding-top:24px; border-top:1px solid var(--border); margin-top:18px; }
+.ow-home .ow-section-head { margin-bottom:12px; flex-wrap:wrap; gap:4px 16px; }
+.ow-home .ow-section-head h2 { font-size:20px; }
+.ow-home .ow-agenda-panel .ow-section-head { display:block; }
+.ow-home .ow-agenda-panel .ow-section-head > .ow-link { padding-bottom:0; }
+.ow-home #sgFollowPanel .sg-primary,.ow-home #sgFollowPanel .sg-case-action > .btn-secondary { min-height:44px; font-size:13px; }
+.ow-home .ow-context-actions .btn,.ow-home .og-actions .btn { min-height:44px; font-size:13px; }
+@media(max-width:1100px) {
+ .ow-home .ow-tool { padding:18px 14px; gap:10px; }
+ .ow-home .ow-tool-icon { flex-basis:24px; }
+ .ow-home .ow-tool-icon svg { width:23px; height:23px; }
+}
+@media(max-width:600px) {
+ .ow-home .ow-header h1 { font-size:30px; }
+ .ow-home .ow-workbench { padding:18px; }
+ .ow-home .ow-workbench-head { align-items:flex-start; flex-wrap:wrap; gap:4px 14px; }
+ .ow-home .ow-workbench h2 { font-size:23px; }
+ .ow-home .ow-workbench-head .ow-eyebrow { font-size:10px; }
+ .ow-home .ow-search select { max-width:95px; font-size:13px; padding:12px 6px; }
+ .ow-home .ow-results { grid-template-columns:1fr; }
+ .ow-home .ow-tools-head { display:block; }
+ .ow-home .ow-tools-head p { margin-top:6px; }
+ .ow-home .ow-tools-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+ .ow-home .ow-tool { display:block; min-height:155px; padding:16px 12px; }
+ .ow-home .ow-tool-icon { display:block; margin:0 0 10px; }
+ .ow-home .ow-tool-copy { padding:0; }
+ .ow-home .ow-tool-copy strong { font-size:14px; margin-bottom:6px; }
+ .ow-home .ow-tool-copy > span { font-size:12px; line-height:1.45; }
+ .ow-home .ow-shortcuts { display:grid; grid-template-columns:1fr 1fr; gap:0 12px; }
+ .ow-home .ow-shortcuts :is(button,a) { font-size:12px; min-height:48px; padding:8px 0!important; border-bottom:1px solid var(--border); }
+ .ow-home .ow-section-head h2 { font-size:20px; }
+}
+@media(prefers-reduced-motion:reduce) { .ow-home .ow-tool { transition:none; } }

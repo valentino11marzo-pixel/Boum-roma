@@ -22,6 +22,18 @@ try{
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
    assert(await page.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible());
   });
+  await check(width+' ricerca unica trova clienti, immobili e contratti senza una categoria iniziale',async()=>{
+   assert.equal(await page.locator('#ogWorkKind').inputValue(),'all');
+   await page.locator('#ogWorkQuery').fill('Aurora');
+   const kinds=await page.evaluate(()=>oggiWorkspace.records.map(r=>r.kind));
+   assert(kinds.includes('client'));assert(kinds.includes('property'));assert(kinds.includes('contract'));
+   assert.equal(kinds.filter(k=>k==='client').length,3);
+   assert.match(await page.locator('#ogWorkResults').innerText(),/Primi 3 risultati/);
+   await page.locator('#ogWorkKind').selectOption('client');
+   assert((await page.locator('.ow-result').count())>3);
+   await page.locator('#ogWorkQuery').fill('');await page.locator('#ogWorkKind').selectOption('all');
+   assert.equal(await page.evaluate(()=>testIO.actions.length),0);
+  });
   await check(width+' decisioni, fonte telefonica e review usano il caso esistente senza AI',async()=>{
    assert.equal(await page.locator('#sgFollowPanel .sg-case').count(),2);
    assert.equal(await page.locator('#sgFollowPanel a[href="/chiamate?call=demo-call"]').count(),1);
@@ -97,7 +109,7 @@ try{
    assert.equal(await page.locator('#ogContextConnections details').evaluate(e=>e.open),true);
    await page.locator('.ow-related button').filter({hasText:'Contratto'}).click();
    assert.equal(await page.evaluate(()=>oggiWorkspace.selected.id),'contratto-demo');
-   await page.locator('.ow-context-actions').getByRole('button',{name:'Inventario dal video',exact:true}).click();
+   await page.locator('[data-og-tool="home:inventory"]').click();
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?c=contratto-demo']);
    await page.evaluate(()=>{testIO.actions.length=0;});
    await page.locator('#ogWorkKind').selectOption('property');
@@ -113,7 +125,7 @@ try{
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');
    assert.equal(await page.locator('.ow-result').count(),1);assert.equal(await page.evaluate(()=>testIO.actions.length),0);
-   await page.locator('.ow-result').click();await page.getByRole('button',{name:'Inventario dal video',exact:true}).click();
+   await page.locator('.ow-result').click();await page.locator('[data-og-tool="home:inventory"]').click();
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?p=casa-demo']);
    await page.locator('#ogWorkKind').selectOption('person');await page.locator('#ogWorkQuery').fill('Persona');
    await page.locator('.ow-result').click();assert(await page.locator('.ow-context-actions button').count()>0);

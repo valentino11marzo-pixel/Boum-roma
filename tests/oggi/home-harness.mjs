@@ -117,3 +117,35 @@ ${dossierConfig}
 BOOM_PROPERTY_DOSSIER.setSourceState('ready');BOOM_PROPERTY_DOSSIER.setTasksSourceState('ready');
 goTo(location.hash.slice(1)||'oggi',true);
 </script></body></html>`;
+
+// The quick-tools fixture opens production forms, rather than the legacy
+// preview's explanatory toasts. Only persistence/network remain synthetic.
+const namedPortalFunction = name => {
+ const match = new RegExp('^    (?:async )?function ' + name + '\\(', 'm').exec(src);
+ if (!match) throw Error('Missing production function: ' + name);
+ const after = src.slice(match.index + 5);
+ const next = after.search(/^    (?:async )?function /m);
+ if (next < 0) throw Error('Missing function boundary: ' + name);
+ return src.slice(match.index, match.index + 5 + next);
+};
+const quickFunctions = [
+ 'openModal', 'closeModal', 'getModal', 'fillPayAmount',
+ 'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
+ 'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
+ 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload'
+].map(namedPortalFunction).join('\n');
+const quickBoot = `
+let selectedFile = null, listingImageUrl = '', _newClientWizard = null;
+${quickFunctions}
+S.properties.push({id:'casa-seconda',name:'Casa Aurora',address:'Via Seconda 20',rent:930});
+S.properties.push({id:'casa-$id-demo',name:'Casa Segnaposto',address:'Via Segnaposto 30',rent:800});
+S.users.push({id:'p-seconda',role:'tenant',name:'Persona Seconda',email:'seconda@example.invalid'});
+S.contracts.push({id:'contratto-secondo',ref:'BOOM-SECONDO',propertyId:'casa-seconda',tenantId:'p-seconda',status:'active',rent:930},
+ {id:'contratto-chiuso',ref:'BOOM-CHIUSO',propertyId:'casa-seconda',tenantId:'p-seconda',status:'terminated',rent:700});
+Object.assign(S.clients[0],{email:'cliente0@example.invalid',phone:'+39000000000'});
+goTo(location.hash.slice(1)||'oggi',true);
+`;
+export const quickToolsHtml = html
+ .replace("function openModal(...args){demoAction('openModal',...args);}", '')
+ .replace('window.open=(...args)=>demoAction(\'open\',...args);', '')
+ .replace("goTo(location.hash.slice(1)||'oggi',true);", quickBoot);

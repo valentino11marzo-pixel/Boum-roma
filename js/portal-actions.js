@@ -268,7 +268,8 @@
         ['/salute',  '🩺', 'Console — Salute sistema', 'salute sistema errori heartbeat stato'],
         ['/scheda-canone', '📐', 'Console — Scheda canone', 'canone concordato scheda calcolo fasce arpe'],
         ['/pre-agreement-admin', '🖋️', 'Console — Pre-agreement', 'preagreement proposta deal atto magic sign'],
-        ['/inventario', '📋', 'Console — Inventario dal video', 'inventario arredi stanze video consegna riconsegna deposito stato dei luoghi']
+        ['/inventario', '📋', 'Console — Inventario dal video', 'inventario arredi stanze video consegna riconsegna deposito stato dei luoghi'],
+        ['/verbale', '🔑', 'Console — Verbale di consegna', 'verbale consegna chiavi contatori firme']
     ].forEach(function (c) {
         ACTIONS.push({
             id: 'console:' + c[0], group: 'Console', icon: c[1], label: c[2],
@@ -412,6 +413,80 @@
         return true;
     }
 
+    // Six starting points, projected from the same registry. This is only a
+    // description: the caller checks permissions and opens the real handler.
+    var HOME_TOOLS = [
+        ['new-client', 'tool:newclient', 'Nuovo cliente', 'Apri il percorso guidato dal cliente al contratto.'],
+        ['inventory', 'console:/inventario', 'Inventario dal video', 'Scegli immobile o contratto e prepara il rilievo.'],
+        ['document', 'tool:docupload', 'Carica documento', 'Apri il modulo per allegare e collegare un file.'],
+        ['maintenance', 'new:addMaintenance', 'Nuova manutenzione', 'Descrivi il problema e scegli l’immobile.'],
+        ['payment', 'new:addPayment', 'Registra pagamento', 'Scegli contratto, importo e stato del pagamento.'],
+        ['handover', 'console:/verbale', 'Verbale di consegna', 'Scegli il contratto e prepara chiavi, letture e firme.']
+    ];
+    function homeTools(record, state, year) {
+        var pools = { property: 'properties', person: 'users', contract: 'contracts', client: 'clients' };
+        var list = function (kind) { return state && Array.isArray(state[pools[kind]]) ? state[pools[kind]] : []; };
+        var row = null, kind = null;
+        if (record !== null && record !== undefined) {
+            if (!Object.prototype.hasOwnProperty.call(pools, record.kind)
+                || typeof record.id !== 'string' || !record.id.trim()) return [];
+            var matches = list(record.kind).filter(function (r) { return r && r.id === record.id; });
+            if (matches.length !== 1) return [];
+            row = matches[0]; kind = record.kind;
+        }
+        var tools = HOME_TOOLS.map(function (spec) {
+            var registered = ACTIONS.find(function (a) { return a.id === spec[1]; });
+            return { id: 'home:' + spec[0], label: spec[2], description: spec[3], icon: registered.icon,
+                fn: registered.fn, args: registered.args.slice() };
+        });
+        if (!row) return tools;
+        var tool = function (id) { return tools.find(function (a) { return a.id === 'home:' + id; }); };
+        // Reuse the registered contextual function and its argument template.
+        var contextual = function (id, fn, url) {
+            var action = ACTIONS.find(function (a) { return a.need === kind && a.fn === fn && (!url || a.args[0].startsWith(url)); });
+            var out = tool(id);
+            out.fn = action.fn;
+            out.args = action.args.map(function (arg) {
+                if (arg === '$id') return row.id;
+                if (arg === '$year') return year;
+                return typeof arg === 'string' ? arg.replace('$id', encodeURIComponent(row.id)) : arg;
+            });
+            return out;
+        };
+        if (kind === 'client') {
+            tool('new-client').args = ['crmClient', row.id];
+            tool('new-client').description = 'Apri il percorso guidato con i dati del cliente scelto.';
+        }
+        if (kind === 'property' || kind === 'contract') {
+            contextual('inventory', 'open', '/inventario?').description = 'Apri il rilievo ' + (kind === 'property' ? 'sull’immobile' : 'sul contratto') + ' scelto.';
+        }
+        if (kind === 'property') {
+            var document = contextual('document', 'openDocUploadForProperty');
+            document.description = 'Allega un file all’immobile scelto.';
+            if (!Number.isInteger(year) || year < 2015 || year > 2099) {
+                document.disabled = true; document.reason = 'Anno del documento non disponibile'; document.args = [];
+            }
+        } else if (kind === 'person') {
+            contextual('document', 'openUserDocUpload').description = 'Allega un file alla persona scelta.';
+        }
+        var property = kind === 'property' ? row : null;
+        if (kind === 'contract' && typeof row.propertyId === 'string' && row.propertyId) {
+            var houses = list('property').filter(function (p) { return p && p.id === row.propertyId; });
+            if (houses.length === 1) property = houses[0];
+        }
+        if (property) {
+            tool('maintenance').prefill = { field: 'propertyId', value: property.id };
+            tool('maintenance').description = 'Descrivi un problema dell’immobile collegato.';
+        }
+        if (kind === 'contract') {
+            var payment = tool('payment');
+            if (row.status === 'active') payment.prefill = { field: 'contractId', value: row.id };
+            else { payment.disabled = true; payment.reason = 'Il contratto selezionato non è attivo'; }
+            contextual('handover', 'open', '/verbale?').description = 'Apri il verbale del contratto scelto.';
+        }
+        return tools;
+    }
+
     // ── Trovare il record: si guida la ricerca VERA del portale ─────────
     // `handleSearch` disegna il suo menu a tendina in `#searchResults`; qui
     // lo si invoca, si leggono le righe, si tiene solo ciò che è del tipo
@@ -460,6 +535,7 @@
         run: run,
         fillArgs: fillArgs,
         findRecords: findRecords,
+        homeTools: homeTools,
         norm: norm
     };
 }));
