@@ -39,7 +39,11 @@
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
   var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false, imp: null, reportFor: '', reportDone: '', reportDraft: { category: 'plumbing', priority: 'medium', description: '' }, links: null, linksOpen: false, linksErr: false,
     rata: { urls: Object.create(null), skipped: Object.create(null), pending: Object.create(null), sent: Object.create(null), open: '', failed: '' }, rataOpen: false,
-    contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
+    contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) },
+    // La lingua dei messaggi agli inquilini (inglese di default), i documenti
+    // condivisi per palazzo, i link /guasto per contratto, il modulo canone/
+    // oneri aperto, l'esito dell'ultimo comando del rendiconto, la carta.
+    msgLang: 'en', docs: Object.create(null), linksBy: null, terms: null, rend: null, cardOpen: false, cardDraft: null, opener: '' };
   var adapter = null, last = null, bound = false;
   try {
     var saved = JSON.parse(root.localStorage && root.localStorage.getItem('boom_palazzo') || '{}');
@@ -148,6 +152,7 @@
       (ui.view === '3d' ? scene(data) : '<div id="plz-roll">' + roll(data) + exportBar(data) + '</div>') + tray(data) +
       '</div><aside class="plz-panel" id="plz-panel" aria-live="polite">' + panel(data) + '</aside></div>' +
       '<section class="plz-analytics" id="plz-analytics" aria-label="Andamento degli ultimi 12 mesi">' + analytics(data) + '</section>' +
+      (data.admin ? '<div class="plz-below">' + cardPanel(data) + '</div>' : '') +
       '<div class="plz-tip" id="plz-tip" hidden></div></div>';
   }
 
@@ -182,6 +187,18 @@
   // l'anteprima per chi ha interni presi in carico dalla tabella (la regola
   // del server, api/owners/rendiconto.js), e lo si dice.
   var REND_MODES = [['off', 'Spento'], ['preview', 'Anteprima a BOOM'], ['auto', 'Automatico a lei']];
+  // La risposta di /api/owners/rendiconto in una frase: cosa è partito e a chi.
+  function rendOutcome(r, kind) {
+    if (!r || r.ok === false) return { ok: false, msg: 'Non è partito: ' + ((r && r.error) || 'errore') + '. Riprova fra un attimo.' };
+    var c = r.counts || {}, x = (r.results || [])[0] || {}, mon = r.label || (x.month ? E.monthLabel(x.month) : 'il mese scorso');
+    var why = { off: 'il rendiconto è spento per lei', no_email: 'nel suo profilo non c’è un’email', no_activity: 'nel mese non ci sono movimenti', before_management: 'il mese è prima della gestione BOOM',
+      already_sent: 'era già stato inviato', in_progress: 'un invio è già in corso', deferred: 'il server non ha fatto in tempo: riprova fra un minuto', parked: 'l’invio è fermo dopo troppi tentativi' };
+    if (c.failed || c.uncertain || x.failed || x.uncertain) return { ok: false, msg: 'Invio di ' + mon + ' non riuscito: ' + (x.failed || x.uncertain || 'errore') + '. Controlla la posta inviata prima di riprovare.' };
+    if (x.skipped) return { ok: false, msg: 'Niente di partito per ' + mon + ': ' + (why[x.skipped] || x.skipped) + '.' };
+    if (c.previews) return { ok: true, msg: 'Anteprima di ' + mon + ' mandata a BOOM' + (x.to ? ' (' + x.to + ')' : '') + ': lei non riceve niente.' };
+    if (c.sent) return { ok: true, msg: 'Rendiconto di ' + mon + ' mandato a ' + (x.to || 'lei') + '.' };
+    return { ok: false, msg: kind === 'preview' ? 'Nessuna anteprima prodotta per ' + mon + '.' : 'Niente di partito per ' + mon + '.' };
+  }
   function rendicontoBox(data) {
     var o = data.m.owner || {}, u = o.user || {}, A = adapter.actions || {};
     if (!o.id || !A.setRendiconto) return '';
@@ -556,11 +573,20 @@
   // proposta non porta il telefono: li ricompone /api/owners/contatti, solo
   // per i contratti dei SUOI immobili. Un guasto non riprova da solo (niente
   // giri a vuoto): la scheda offre «Riprova».
+  // Tutti i contratti che il mese mostra: chi abita, chi deve una rata (anche
+  // il contratto PRIMA, nel mese del cambio inquilino), le rate in elenco.
   function contactIdsOf(m) {
     var seen = Object.create(null), out = [];
-    (m && m.units || []).forEach(function (u) { var id = u.month.contractId; if (id && !seen[id]) { seen[id] = 1; out.push(id); } });
+    var add = function (id) { if (id && !seen[id]) { seen[id] = 1; out.push(id); } };
+    (m && m.units || []).forEach(function (u) {
+      add(u.month.contractId); add(u.month.lateContractId);
+      (u.month.rows || []).forEach(function (r) { add(r.contractId); });
+      (u.month.pastDue || []).forEach(function (r) { add(r.contractId); });
+    });
+    (m && m.debtors || []).forEach(function (d) { add(d.contractId); });
     return out;
   }
+  function contactsOfC(cid) { return cid ? ui.contacts.byId[cid] : undefined; }
   function ensureContacts(m) {
     if (!adapter || typeof adapter.contacts !== 'function' || !m || !m.building) return;
     var C = ui.contacts;
@@ -677,16 +703,30 @@
   }
   // Le leve dell'operatore sull'interno, raggruppate per mestiere: ogni tasto
   // è una funzione del portal che esiste già (nessuna seconda strada).
+  // Un contratto NON firmabile (carta, segnaposto, già firmato) non offre
+  // «Firma ora»; un segnaposto non offre PDF, firma, RLI, ASPI, fascicolo
+  // né scheda ARPE: non c'è un contratto da cui farli — si CARICA.
   function adminActions(u, data) {
-    var um = u.month, cid = um.contractId, reg = u.paper && u.paper.registration;
+    var um = u.month, lease = um.lease || um.incoming, cid = um.contractId, reg = u.paper && u.paper.registration, A = adapter.actions || {};
     var b = function (act, label, extra, primary) { return '<button type="button" class="plz-btn' + (primary ? ' plz-primary' : '') + '" data-plz="' + act + '"' + (extra || '') + '>' + label + '</button>'; };
-    var open = um.rows.filter(function (r) { return r.state === 'overdue' || r.state === 'due'; })[0];
+    var open = firstPayable(u);
     var groups = [];
     groups.push(['Soldi', b('rent', 'Gestisci canoni', ' data-id="' + esc(u.id) + '"', true) +
-      (open && open.id && adapter.rataLinks ? b('rata', 'Manda il link della rata', ' data-pay="' + esc(open.id) + '" data-id="' + esc(u.id) + '"') : open && open.id ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
-    if (cid) {
-      groups.push(['Contratto', b('contract', 'Apri contratto', ' data-id="' + esc(cid) + '"') + b('pdf', 'PDF', ' data-id="' + esc(cid) + '"') +
-        b('firma', 'Firma ora', ' data-id="' + esc(cid) + '"')]);
+      (open && adapter.rataLinks ? b('rata', 'Manda il link della rata', ' data-pay="' + esc(open.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(open.contractId || '') + '"') : open ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
+    if (lease && CS.isPlaceholder(lease)) {
+      groups.push(['Contratto', b('load-contract', 'Carica il contratto', ' data-id="' + esc(u.id) + '"', true) +
+        (A.innesto ? b('innesto', 'Da un PDF (Innesto)', ' data-id="' + esc(u.id) + '"') : '') + b('contract', 'Apri il segnaposto', ' data-id="' + esc(cid) + '"')]);
+    } else if (cid && lease) {
+      var paper = CS.isPaper(lease), live = !/^(terminated|cancelled|canceled|closed|ended|completed|renewed)$/.test(String(lease.status || '')), started = um.lease === lease;
+      var hasPdf = !!(safeUrl(lease.paperPdfUrl) || safeUrl(lease.signedPdfUrl) || safeUrl(lease.generatedPDF)) || !paper;
+      groups.push(['Contratto', b('contract', 'Apri contratto', ' data-id="' + esc(cid) + '"') +
+        (hasPdf ? b('pdf', paper && lease.paperPdfUrl ? 'Contratto firmato (PDF)' : 'PDF', ' data-id="' + esc(cid) + '"') : '') +
+        (CS.notSignable(lease) ? '' : b('firma', 'Firma ora', ' data-id="' + esc(cid) + '"')) +
+        (paper && A.uploadPaperContract ? '<label class="plz-btn plz-file"><input type="file" accept="application/pdf" data-plz-file="paper" data-id="' + esc(cid) + '">' + (lease.paperPdfUrl ? 'Sostituisci la scansione' : 'Allega contratto firmato (PDF)') + '</label>' : '') +
+        (live && started && A.setRent ? b('terms', 'Cambia canone', ' data-id="' + esc(cid) + '" data-f="rent"') : '') +
+        (live && started && A.applyOneri ? b('terms', 'Cambia oneri', ' data-id="' + esc(cid) + '" data-f="oneri"') : '') +
+        (live && started && A.terminate ? b('terminate', 'Chiudi contratto', ' data-id="' + esc(cid) + '"') : '') +
+        (ui.terms && ui.terms.cid === cid ? termsForm(lease) : '')]);
       groups.push(['Registrazione', (reg && reg.status !== 'registered' ? b('rli', '✓ RLI registrato', ' data-id="' + esc(cid) + '"', !!reg.late) : '') +
         b('aspi', 'Invia ad ASPI', ' data-id="' + esc(cid) + '"') + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
         b('arpe', 'Scheda ARPE', ' data-id="' + esc(cid) + '"')]);
@@ -696,18 +736,42 @@
       (u.pipeline.listing ? '<a class="plz-btn" href="' + esc(u.pipeline.listing.url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '')]);
     return groups.map(function (g) { return '<div class="plz-agroup"><p class="plz-agroup-l">' + g[0] + '</p><div class="plz-agroup-b">' + g[1] + '</div></div>'; }).join('');
   }
+  // Canone o oneri dalle rate da pagare in poi: il portal (applyRentFuture /
+  // applyOneriFuture) rilegge contratto e rate dal server, dice cosa cambia
+  // e chiede conferma. Le rate pagate non cambiano mai.
+  function termsForm(lease) {
+    var f = ui.terms.f, cur = f === 'rent' ? lease.rent : lease.oneriQuota;
+    return '<form class="plz-terms" id="plz-terms" data-id="' + esc(ui.terms.cid) + '" data-f="' + f + '"><label><span>' + (f === 'rent' ? 'Nuovo canone mensile' : 'Nuovi oneri mensili') + ' (€)</span>' +
+      '<input type="text" inputmode="decimal" name="v" value="' + esc(cur != null ? String(cur).replace('.', ',') : '') + '" autocomplete="off"></label>' +
+      '<p class="plz-muted">Vale per le rate ancora da pagare: le pagate e le segnalate restano come sono. Prima di scrivere il portale ti dice quali rate cambiano.</p>' +
+      '<div class="plz-mform-b"><button type="submit" class="plz-btn plz-primary plz-sm">Applica</button><button type="button" class="plz-btn plz-sm" data-plz="terms-cancel">Annulla</button></div></form>';
+  }
   var PRI_LABEL = { urgent: 'Emergenza', high: 'Urgente', medium: 'Normale', low: 'Non urgente' };
   var CAT_OPTS = [['plumbing', 'Acqua / scarichi'], ['heating', 'Caldaia / riscaldamento'], ['electrical', 'Luce / prese'], ['appliance', 'Elettrodomestici'],
     ['locks', 'Porta / serratura'], ['leaks', 'Infiltrazioni / umidità'], ['common', 'Parti comuni'], ['other', 'Altro']];
+  // Chi ha segnalato il guasto: nome, telefono e foto dal documento vero
+  // (il motore porta solo il ruolo). Dal link /guasto arrivano nome e
+  // telefono DIGITATI da chi scrive: si mostrano come tali.
+  function reporterOf(x) {
+    var raw = (adapter.state().maintenance || []).find(function (mt) { return String(mt.id) === x.id; }) || {};
+    var rp = raw.reporter && typeof raw.reporter === 'object' ? raw.reporter : {};
+    return { name: String(rp.name || raw.tenantName || '').trim().slice(0, 80), phone: String(rp.phone || '').trim().slice(0, 40), via: rp.via || '',
+      photo: safeUrl(raw.photoUrl || x.photoUrl), description: String(raw.description || x.description || '').trim().slice(0, 400) };
+  }
   // La manutenzione dell'interno: ciò che è aperto (urgente prima), la
   // segnalazione dalla scheda e il link per l'inquilino. Il guasto si scrive
   // sul server (/api/maintenance/guasto): così parte anche il ping all'operatore.
   function maintHTML(u, data) {
     var mt = u.maintenance || { open: [], recentClosed: [] }, admin = data.admin;
-    var who = function (x) { return x.reporter === 'owner' ? 'da te' : x.reporter === 'admin' ? 'da BOOM' : x.reporter === 'tenant' ? 'dall’inquilino' : ''; };
+    var who = function (x) { return x.reporter === 'owner' ? (admin ? 'dalla proprietaria' : 'da te') : x.reporter === 'admin' ? 'da BOOM' : x.reporter === 'tenant' ? 'dall’inquilino' : ''; };
     var item = function (x) {
-      var label = (admin ? '' : '') + '<b>' + esc(x.title) + '</b><small>' + esc([PRI_LABEL[x.priority], x.inProgress ? 'in lavorazione' : 'aperto', x.createdAt ? 'dal ' + dateIt(x.createdAt) : '', admin ? (x.reporter === 'owner' ? 'dalla proprietaria' : x.reporter === 'admin' ? 'da BOOM' : x.reporter === 'tenant' ? 'dall’inquilino' : '') : who(x)].filter(Boolean).join(' · ')) + '</small>';
-      return '<li class="plz-mitem plz-mp-' + x.priority + '">' + (admin && x.id ? '<button type="button" class="plz-mopen" data-plz="maint" data-id="' + esc(x.id) + '">' + label + '</button>' : '<span>' + label + '</span>') + '</li>';
+      var r = reporterOf(x), ph = r.phone ? phoneOf(r.phone) : null;
+      var label = '<b>' + esc(x.title) + '</b><small>' + esc([PRI_LABEL[x.priority], x.inProgress ? 'in lavorazione' : 'aperto', x.createdAt ? 'dal ' + dateIt(x.createdAt) : '', who(x)].filter(Boolean).join(' · ')) + '</small>';
+      var by = r.name || r.phone ? '<p class="plz-mwho">Segnalato da <b>' + esc(r.name || 'chi ha usato il link') + '</b>' + (r.phone ? ' · <span class="plz-num">' + esc(fmtPhone(r.phone)) + '</span>' : '') + (r.via === 'link' ? ' <small>(dal link per i guasti)</small>' : '') + '</p>' : '';
+      var reach = (ph && ph.e164 ? '<a class="plz-btn plz-sm" href="tel:' + esc(ph.e164) + '">Chiama</a>' : '') + (ph && ph.wa ? '<a class="plz-btn plz-sm" href="https://wa.me/' + esc(ph.wa) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
+        (r.photo ? '<a class="plz-btn plz-sm" href="' + esc(r.photo) + '" target="_blank" rel="noopener">Foto ↗</a>' : '');
+      return '<li class="plz-mitem plz-mp-' + x.priority + '">' + (admin && x.id ? '<button type="button" class="plz-mopen" data-plz="maint" data-id="' + esc(x.id) + '">' + label + '</button>' : '<span>' + label + '</span>') +
+        (r.description && r.description !== x.title ? '<p class="plz-mdesc">' + esc(r.description) + '</p>' : '') + by + (reach ? '<div class="plz-reach">' + reach + '</div>' : '') + '</li>';
     };
     var list = mt.open.length ? '<ul class="plz-mlist">' + mt.open.map(item).join('') + '</ul>'
       : '<p class="plz-muted">Nessun guasto aperto' + (mt.recentClosed[0] ? ' · l’ultimo, «' + esc(mt.recentClosed[0].title) + '», è chiuso' + (mt.recentClosed[0].resolvedAt ? ' dal ' + dateIt(mt.recentClosed[0].resolvedAt) : '') : '') + '.</p>';
@@ -719,47 +783,114 @@
       '<p class="plz-err" id="plz-merr" role="alert"></p>' +
       '<div class="plz-mform-b"><button type="submit" class="plz-btn plz-primary plz-sm" data-plz="maint-send">Invia a BOOM</button><button type="button" class="plz-btn plz-sm" data-plz="maint-cancel">Annulla</button></div></form>' : '';
     var link = ui.links && ui.links[u.id];
-    var reach = link ? tenantShare(u, link) : '';
+    var reach2 = link ? tenantShare(u, link) : '';
     return '<p class="plz-eyebrow">Manutenzione</p>' + list + done + form +
       (ui.reportFor === u.id ? '' : '<div class="plz-actions plz-mact"><button type="button" class="plz-btn plz-sm" data-plz="maint-new" data-id="' + esc(u.id) + '">🔧 Segnala un guasto</button>' +
-        (u.month.contractId && adapter.links ? '<button type="button" class="plz-btn plz-sm" data-plz="maint-link" data-id="' + esc(u.id) + '">Link per l’inquilino</button>' : '') + '</div>') + reach;
+        (u.month.contractId && adapter.links ? '<button type="button" class="plz-btn plz-sm" data-plz="maint-link" data-id="' + esc(u.id) + '">Link per l’inquilino</button>' : '') + '</div>') + reach2;
   }
-  // Il link del guasto, pronto da mandare all'inquilino: WhatsApp col suo
-  // numero (dai contatti già caricati), altrimenti da copiare.
+
+  // ── I messaggi agli inquilini: in inglese di default ──────────────────
+  // Gli inquilini dei palazzi sono quasi tutti stranieri: il messaggio parte
+  // in inglese (si passa all'italiano con un tocco), il link porta la lingua
+  // (&lang=en|it) e il PRIMO messaggio a un contratto porta l'informativa
+  // privacy per gli inquilini (art. 14 GDPR: chi tratta i loro dati).
+  var BASE = 'https://www.boomrome.com';
+  var MON_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var MON_EN3 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function monthEn(m) { return /^\d{4}-\d{2}$/.test(m || '') ? MON_EN[+m.slice(5, 7) - 1] + ' ' + m.slice(0, 4) : ''; }
+  function dateEn(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? (+d.slice(8, 10)) + ' ' + MON_EN3[+d.slice(5, 7) - 1] : ''; }
+  function eurEn(v) {
+    if (v == null || !Number.isFinite(Number(v))) return '';
+    var n = Math.round(Number(v) * 100) / 100, int = Math.trunc(n), cents = Math.round((n - int) * 100);
+    return '€' + String(int).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + (cents ? '.' + String(cents).padStart(2, '0') : '');
+  }
+  function withLang(url, lang) { return url ? url + (url.indexOf('?') >= 0 ? '&' : '?') + 'lang=' + lang : ''; }
+  function privacyLine(lang) { return lang === 'it' ? 'Come BOOM tratta i tuoi dati: ' + BASE + '/privacy-inquilini' : 'How BOOM handles your data: ' + BASE + '/privacy-inquilini?lang=en'; }
+  function langToggle() {
+    return '<div class="plz-lang" role="group" aria-label="Lingua del messaggio">' + [['en', 'English'], ['it', 'Italiano']].map(function (x) {
+      return '<button type="button" data-plz="msg-lang" data-l="' + x[0] + '" aria-pressed="' + (ui.msgLang === x[0]) + '">' + x[1] + '</button>';
+    }).join('') + '</div>';
+  }
+  // Mai mandato niente su questo contratto: il primo messaggio porta l'informativa.
+  function firstMessage(cid) {
+    return !(adapter.state().payments || []).some(function (p) { return p && p.contractId === cid && Array.isArray(p.dunningHistory) && p.dunningHistory.length; });
+  }
+  // Il link del guasto, pronto da mandare: a OGNI conduttore del contratto
+  // col suo WhatsApp (il suo link se il server ne ha uno per contratto).
   function tenantShare(u, link) {
-    var list = contactsOf(u.month) || [], p = list.find(function (x) { return x.role === 'tenant' && x.phone; }) || list.find(function (x) { return x.phone; });
-    var first = String((p && p.name) || u.month.tenants[0] || '').trim().split(/\s+/)[0];
-    var txt = (first ? 'Ciao ' + first + ', ' : 'Ciao, ') + 'per segnalare un guasto in casa (' + unitTitle(u).toLowerCase() + ') usa questo link: ' + link + ' — arriva subito a BOOM, che organizza l’intervento.';
-    return '<div class="plz-mlink"><input type="text" readonly value="' + esc(link) + '" aria-label="Link per segnalare un guasto">' +
-      (p ? '<a class="plz-btn plz-primary plz-sm" href="https://wa.me/' + esc(waNumber(p.phone)) + '?text=' + esc(encodeURIComponent(txt)) + '" target="_blank" rel="noopener">WhatsApp a ' + esc(first || 'inquilino') + '</a>' : '') +
-      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(txt) + '">Copia messaggio</button></div>';
+    var cid = u.month.contractId, people = contactsOfC(cid) || [], lang = ui.msgLang, by = ui.linksBy && ui.linksBy[u.id];
+    var url = withLang((by && cid && by[cid]) || link, lang);
+    var msgFor = function (name) {
+      var first = firstName(name);
+      return lang === 'it'
+        ? (first ? 'Ciao ' + first + ', ' : 'Ciao, ') + 'per segnalare un guasto in casa (' + unitTitle(u).toLowerCase() + ') usa questo link: ' + url + ' — arriva subito a BOOM, che organizza l’intervento. In caso di pericolo chiama il 112.\n' + privacyLine('it')
+        : (first ? 'Hi ' + first + ', ' : 'Hi, ') + 'to report a problem in your flat (' + (u.interno ? 'unit ' + u.interno : unitTitle(u)) + ') use this link: ' + url + ' — it goes straight to BOOM, who arranges the repair. In an emergency call 112.\n' + privacyLine('en');
+    };
+    var withWa = people.filter(function (p) { return p.phone && phoneOf(p.phone).wa; });
+    return '<div class="plz-mlink">' + langToggle() + '<input type="text" readonly value="' + esc(url) + '" aria-label="Link per segnalare un guasto">' +
+      withWa.map(function (p, k) { return '<a class="plz-btn' + (k ? '' : ' plz-primary') + ' plz-sm" href="https://wa.me/' + esc(phoneOf(p.phone).wa) + '?text=' + esc(encodeURIComponent(msgFor(p.name))) + '" target="_blank" rel="noopener">WhatsApp: ' + esc(firstName(p.name) || 'inquilino') + '</a>'; }).join('') +
+      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(msgFor((people[0] || {}).name || u.month.tenants[0] || '')) + '">Copia messaggio</button></div>';
   }
   // ── La rata in tasca all'inquilino ─────────────────────────────────────
-  // UN link per rata (/rata, api/payments/rata.js): carta o Apple Pay, oppure
-  // "ho fatto il bonifico" con la foto della ricevuta. Il link lo calcola il
-  // server (il token è derivato da un segreto); qui si compone il messaggio
-  // col nome e il numero dell'inquilino, dai contatti già caricati.
+  // UN link per rata (/rata, api/payments/rata.js): bonifico con la foto
+  // della ricevuta, e la carta SOLO dove il palazzo ha il mandato all'incasso
+  // (BOOM_RENT.cardPolicy). Il link lo calcola il server; il messaggio va a
+  // chi DEVE quella rata (il contratto della RIGA), a ciascun intestatario.
   function payable(r) { return r && (r.state === 'due' || r.state === 'overdue') && r.amount != null && r.amount > 0 && !/^missing-id:/.test(r.id); }
-  function rataMessage(u, r, url) {
-    var list = contactsOf(u.month) || [], p = list.find(function (x) { return x.role === 'tenant' && x.phone; }) || list.find(function (x) { return x.phone; });
-    var first = String((p && p.name) || r.tenantName || u.month.tenants[0] || '').trim().split(/\s+/)[0];
+  function firstPayable(u) {
+    var all = (u.month.pastDue || []).concat(u.month.rows || []).filter(payable);
+    return all.sort(function (a, b) { return String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')); })[0] || null;
+  }
+  function cardOf(r, u) {
+    if (!RENT || typeof RENT.cardPolicy !== 'function') return { available: false, reason: 'card_off' };
+    var c = r && r.contract || (u && (u.month.lease || u.month.incoming)) || null;
+    return RENT.cardPolicy((r && r.payment) || {}, c, u && u.property);
+  }
+  function rataText(u, r, url, name, lang, kind, first) {
+    var who = firstName(name), card = cardOf(r, u).available;
     var late = r.state === 'overdue';
-    var txt = (first ? 'Ciao ' + first : 'Ciao') + ', ecco la rata di ' + E.monthLabel(r.month).toLowerCase() + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
-      (r.dueDate ? (late ? ', scaduta il ' : ' entro il ') + dateIt(r.dueDate) : '') +
-      '. Puoi pagarla con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' + url;
-    return { txt: txt, phone: p ? p.phone : '', first: first };
+    if (lang === 'it') {
+      var how = card ? 'Puoi pagarla con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' : 'Da qui trovi i dati per il bonifico e puoi segnalarlo con la foto della ricevuta: ';
+      return (who ? 'Ciao ' + who : 'Ciao') + (kind === 'sollecito' && late ? ', ti ricordo la rata di ' : ', ecco la rata di ') + E.monthLabel(r.month).toLowerCase() + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
+        (r.dueDate ? (late ? ', scaduta il ' : ' entro il ') + dateIt(r.dueDate) : '') + (late && kind === 'sollecito' ? ' e non ci risulta ancora arrivata' : '') + '. ' + how + url + (first ? '\n' + privacyLine('it') : '');
+    }
+    var howEn = card ? 'You can pay by card or Apple Pay, or report your bank transfer with a photo of the receipt, here: ' : 'Here you find the bank details and can report your transfer with a photo of the receipt: ';
+    return (who ? 'Hi ' + who : 'Hi') + (kind === 'sollecito' && late ? ', a reminder about the ' : ', here is the ') + monthEn(r.month) + ' rent (' + (u.interno ? 'unit ' + u.interno : unitTitle(u)) + '): ' + eurEn(r.amount) +
+      (r.dueDate ? (late ? ', due on ' : ', due by ') + dateEn(r.dueDate) : '') + (late && kind === 'sollecito' ? ' and we have not received it yet' : '') + '. ' + howEn + url + (first ? '\n' + privacyLine('en') : '');
   }
   var SKIP_WHY = { already_paid: 'risulta già pagata', payment_reported: 'il bonifico è già segnalato', sdd_processing: 'addebito SEPA in corso', payment_processing: 'pagamento in corso',
-    payment_cancelled: 'rata annullata', payment_not_payable: 'stato da verificare', not_found: 'rata non trovata' };
+    payment_cancelled: 'rata annullata', payment_not_payable: 'stato da verificare', not_found: 'rata non trovata', payment_review: 'rimborso o contestazione da verificare' };
+  // L'ultimo invio registrato sulla rata (dunningHistory, scritto da
+  // palazzoLogSent): lo stato «inviato» viene da lì, non dalla sessione.
+  function lastSent(p) {
+    var h = p && Array.isArray(p.dunningHistory) ? p.dunningHistory.filter(function (x) { return x && x.at; }) : [];
+    return h.length ? h.slice().sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); })[0] : null;
+  }
+  function sentText(s) {
+    if (!s) return '';
+    var d = E.day ? E.day(s.at) : String(s.at).slice(0, 10);
+    return (s.kind === 'sollecito' ? 'sollecito' : 'link') + ' mandato il ' + dateIt(d) + (s.channel && s.channel !== 'whatsapp' ? ' (' + s.channel + ')' : '');
+  }
   function rataShare(u, r) {
     var R = ui.rata, url = R.urls[r.id];
     if (R.pending[r.id]) return '<p class="plz-muted plz-rshare">Preparo il link…</p>';
     if (R.skipped[r.id]) return '<p class="plz-note plz-rshare">Link non creato: ' + esc(SKIP_WHY[R.skipped[r.id]] || R.skipped[r.id]) + '.</p>';
-    if (!url) return R.failed ? '<p class="plz-note plz-rshare">Link non disponibile ora · <button type="button" class="plz-linkbtn" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">riprova</button></p>' : '';
-    var msg = rataMessage(u, r, url), sent = R.sent[r.id];
-    return '<div class="plz-mlink plz-rshare"><input type="text" readonly value="' + esc(url) + '" aria-label="Link della rata">' +
-      (msg.phone ? '<a class="plz-btn plz-primary plz-sm" data-sent="' + esc(r.id) + '" href="https://wa.me/' + esc(waNumber(msg.phone)) + '?text=' + esc(encodeURIComponent(msg.txt)) + '" target="_blank" rel="noopener">' + (sent ? '✓ Inviato · di nuovo' : 'WhatsApp a ' + esc(msg.first || 'inquilino')) + '</a>' : '<span class="plz-muted">Nessun telefono in archivio</span>') +
-      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(msg.txt) + '">Copia messaggio</button></div>';
+    if (!url) return R.failed ? '<p class="plz-note plz-rshare">Link non disponibile ora · <button type="button" class="plz-linkbtn" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(r.contractId || '') + '">riprova</button></p>' : '';
+    var lang = ui.msgLang, link = withLang(url, lang), kind = r.state === 'overdue' ? 'sollecito' : 'rata-link';
+    var people = contactsOfC(r.contractId), first = firstMessage(r.contractId);
+    var names = r.tenants && r.tenants.length ? r.tenants : u.month.tenants;
+    var phones = (people || []).filter(function (p) { return p.phone; });
+    var sent = lastSent(r.payment), local = R.sent[r.id];
+    var btns = phones.map(function (p, k) {
+      var ph = phoneOf(p.phone);
+      if (!ph.wa) return '<span class="plz-warn plz-sm-note">' + esc(firstName(p.name) || 'Inquilino') + ': numero senza prefisso, correggilo</span>';
+      return '<a class="plz-btn' + (k ? '' : ' plz-primary') + ' plz-sm" data-sent="' + esc(r.id) + '" data-kind="' + kind + '" data-month="' + esc(r.month || '') + '" href="https://wa.me/' + esc(ph.wa) + '?text=' + esc(encodeURIComponent(rataText(u, r, link, p.name, lang, kind, first))) + '" target="_blank" rel="noopener">' +
+        'WhatsApp: ' + esc(firstName(p.name) || 'inquilino') + '</a>';
+    }).join('');
+    var status = local === 'error' ? '<p class="plz-note">Messaggio aperto, ma l’invio non è stato segnato sulla rata.</p>' : sent ? '<p class="plz-okline">✓ ' + esc(sentText(sent)) + '</p>' : local ? '<p class="plz-okline">✓ Messaggio aperto: lo segno sulla rata…</p>' : '';
+    return '<div class="plz-mlink plz-rshare">' + langToggle() + '<input type="text" readonly value="' + esc(link) + '" aria-label="Link della rata">' +
+      (people === undefined ? '<span class="plz-muted plz-loadc">carico i contatti…</span>' : btns || '<span class="plz-muted">Nessun telefono in archivio</span>') +
+      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(rataText(u, r, link, names[0] || '', lang, kind, first)) + '">Copia messaggio</button>' + status + '</div>';
   }
   function fetchRata(ids) {
     var R = ui.rata, need = ids.filter(function (id) { return !R.urls[id] && !R.pending[id]; });
@@ -777,20 +908,31 @@
       if (doc && doc.querySelector('.plz')) patch();
     });
   }
-  // Tutte le rate aperte del mese, una riga per inquilino: un tap a testa.
+  // Tutte le rate aperte del mese E quelle ancora scadute dei mesi prima:
+  // una riga per rata, un tap a testa.
+  function openRates(m) {
+    var open = [], seen = Object.create(null);
+    m.units.forEach(function (u) {
+      (u.month.pastDue || []).concat(u.month.rows || []).forEach(function (r) {
+        if (!payable(r) || seen[r.id] || (r.month && r.month > m.month)) return;
+        seen[r.id] = 1; open.push({ u: u, r: r });
+      });
+    });
+    return open.sort(function (a, b) { return (b.r.state === 'overdue') - (a.r.state === 'overdue') || String(a.u.interno || a.u.name).localeCompare(String(b.u.interno || b.u.name), 'it', { numeric: true }) || String(a.r.month).localeCompare(String(b.r.month)); });
+  }
   function rataBar(data) {
     if (!data.admin || typeof adapter.rataLinks !== 'function') return '';
-    var open = [];
-    data.m.units.forEach(function (u) { u.month.rows.forEach(function (r) { if (payable(r) && r.month === data.m.month) open.push({ u: u, r: r }); }); });
-    var head = '<div class="plz-export plz-ratabar"><p>Rate del mese</p><button type="button" class="plz-btn plz-sm' + (ui.rataOpen ? '' : ' plz-primary') + '" data-plz="rata-all" aria-expanded="' + (ui.rataOpen ? 'true' : 'false') + '"' + (open.length ? '' : ' disabled') + '>' +
-      (open.length ? '📨 Manda i link di ' + esc(E.monthLabel(data.m.month).toLowerCase()) + ' · ' + open.length : 'Nessuna rata aperta in ' + esc(E.monthLabel(data.m.month).toLowerCase())) + '</button></div>';
+    var open = openRates(data.m), mon = E.monthLabel(data.m.month).toLowerCase();
+    var head = '<div class="plz-export plz-ratabar"><p>Rate da pagare</p><button type="button" class="plz-btn plz-sm' + (ui.rataOpen ? '' : ' plz-primary') + '" data-plz="rata-all" aria-expanded="' + (ui.rataOpen ? 'true' : 'false') + '"' + (open.length ? '' : ' disabled') + '>' +
+      (open.length ? '📨 Manda i link di ' + esc(mon) + ' · ' + open.length : 'Nessuna rata aperta in ' + esc(mon)) + '</button></div>';
     if (!ui.rataOpen || !open.length) return head;
-    open.sort(function (a, b) { return (b.r.state === 'overdue') - (a.r.state === 'overdue') || String(a.u.interno || a.u.name).localeCompare(String(b.u.interno || b.u.name), 'it', { numeric: true }); });
-    var sent = open.filter(function (x) { return ui.rata.sent[x.r.id]; }).length;
-    return head + '<div class="plz-ratalist" id="plz-ratalist"><p class="plz-muted">Ogni messaggio porta il link della SUA rata: carta o Apple Pay, oppure il bonifico con la ricevuta. Chi segnala il bonifico passa in «In attesa» finché non premi Registra incasso. Inviati in questa sessione: ' + sent + ' di ' + open.length + '.</p>' +
+    var sent = open.filter(function (x) { return lastSent(x.r.payment) || ui.rata.sent[x.r.id]; }).length;
+    var card = open.some(function (x) { return cardOf(x.r, x.u).available; });
+    return head + '<div class="plz-ratalist" id="plz-ratalist"><p class="plz-muted">Ogni messaggio porta il link della SUA rata: ' + (card ? 'carta o Apple Pay, oppure il bonifico con la ricevuta' : 'i dati per il bonifico e la segnalazione con la ricevuta (la carta è spenta finché non c’è il mandato all’incasso)') + '. Le rate scadute dei mesi prima sono in cima. Chi segnala il bonifico passa in «In attesa» finché non premi Registra incasso. Già mandati: ' + sent + ' di ' + open.length + '.</p>' +
       open.map(function (x) {
-        return '<div class="plz-rataitem' + (ui.rata.sent[x.r.id] ? ' is-sent' : '') + '"><p class="plz-rataitem-h"><b>' + esc(unitTitle(x.u)) + '</b> ' + esc(x.r.tenantName || x.u.month.tenants[0] || '') +
-          ' · <span class="plz-num">' + eur(x.r.amount) + '</span>' + (x.r.state === 'overdue' ? ' · <span class="plz-red">scaduta</span>' : '') + '</p>' + rataShare(x.u, x.r) + '</div>';
+        var s = lastSent(x.r.payment);
+        return '<div class="plz-rataitem' + (s || ui.rata.sent[x.r.id] ? ' is-sent' : '') + '"><p class="plz-rataitem-h"><b>' + esc(unitTitle(x.u)) + '</b> ' + esc((x.r.tenants && x.r.tenants[0]) || x.r.tenantName || x.u.month.tenants[0] || '') +
+          ' · ' + esc(E.monthLabel(x.r.month).toLowerCase()) + ' · <span class="plz-num">' + eur(x.r.amount) + '</span>' + (x.r.state === 'overdue' ? ' · <span class="plz-red">scaduta</span>' : '') + (s ? ' · <small>' + esc(sentText(s)) + '</small>' : '') + '</p>' + rataShare(x.u, x.r) + '</div>';
       }).join('') + '</div>';
   }
   function utenzeFacts(u, admin) {
@@ -801,51 +943,139 @@
     return row('POD luce', ut.pod, ut.podOk) + row('PDR gas', ut.pdr, ut.pdrOk);
   }
   function safeUrl(url) { try { var x = new URL(String(url || '')); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } }
+  // Il periodo della rata quando non è un mese di calendario (contratto dal
+  // 15: la rata di settembre va dal 15/9 al 14/10).
+  function periodText(r) {
+    var f = r.periodFrom, t = r.periodTo;
+    if (!f || !t) return '';
+    var calendar = f.slice(8) === '01' && t.slice(0, 7) === f.slice(0, 7) && +t.slice(8) >= 28;
+    return calendar ? '' : 'dal ' + dateIt(f) + ' al ' + dateIt(t);
+  }
+  var ROW_STATE = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', review: 'Rimborso/contestazione — da verificare', cancelled: 'Annullata', unknown: 'Da verificare' };
+  var ROW_PILL = { overdue: 'late', reported: 'review', processing: 'review', review: 'review', cancelled: 'vacant' };
+  // Una rata nella scheda: stato, come e quando è stata pagata e chi l'ha
+  // visto (paidVia/paidEvidence), le segnalazioni dell'inquilino con le loro
+  // ricevute, l'ultimo link mandato, e le mosse dell'operatore.
+  function rowHTML(u, r, data, landlord) {
+    var admin = data.admin, A0 = adapter.actions || {}, p = r.payment || {};
+    var st = r.state === 'reported' && !admin ? 'In verifica da BOOM' : ROW_STATE[r.state] || 'Da verificare';
+    var label = r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month);
+    var subs = [], per = periodText(r);
+    if (per) subs.push(per);
+    if (r.state === 'reported') {
+      var reps = Array.isArray(p.tenantReports) && p.tenantReports.length ? p.tenantReports : [{ date: p.tenantReportDate, note: p.tenantNotes, proofUrl: p.proofUrl }];
+      reps.forEach(function (x, k) {
+        var d = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || '')) ? x.date : '';
+        var pr = safeUrl(x.proofUrl);
+        subs.push('bonifico segnalato' + (d ? ' del ' + dateIt(d) : '') + (x.note && admin ? ' · «' + esc(String(x.note).slice(0, 80)) + '»' : '') + (pr ? ' · <a href="' + esc(pr) + '" target="_blank" rel="noopener">ricevuta ' + (reps.length > 1 ? k + 1 + ' ' : '') + '↗</a>' : ''));
+      });
+    } else if (r.state === 'paid') {
+      var how = [E.paidViaLabel ? E.paidViaLabel(r) : '', E.evidenceLabel && r.paidEvidence ? 'prova: ' + E.evidenceLabel(r).toLowerCase() : ''].filter(Boolean).join(' · ');
+      subs.push((r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : 'pagato') + (how ? ' · ' + esc(how) : ''));
+      if (p.heldBy === 'boom') subs.push('pagato con carta — incassato da BOOM per conto di ' + esc(landlord || 'il locatore') + ', da riversare');
+    } else if (r.state === 'review') {
+      var mb = RENT && RENT.moneyBack ? RENT.moneyBack(p) : '';
+      subs.push(mb === 'refund' ? 'rimborsata con carta: verifica con l’inquilino' : 'contestazione aperta sulla carta: BOOM risponde a Stripe');
+    } else if (r.dueDate) subs.push((r.state === 'overdue' ? 'scaduta il ' : 'scadenza ') + dateIt(r.dueDate) + (r.days ? ' · ' + r.days + (r.days === 1 ? ' giorno' : ' giorni') : ''));
+    var s = admin ? lastSent(p) : null;
+    if (s) subs.push(sentText(s));
+    var manual = r.state === 'paid' && !(p.stripeSessionId || p.sddPiId || p.bankTxId) && (['stripe', 'sepa', 'bank'].indexOf(String(p.paidVia || '')) < 0 || !!p.paidRecordedBy);
+    var acts = (safeUrl(r.receiptUrl) ? '<a class="plz-btn plz-sm" href="' + esc(safeUrl(r.receiptUrl)) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
+      (r.state === 'reported' && safeUrl(r.proofUrl) && !(Array.isArray(p.tenantReports) && p.tenantReports.length) ? '<a class="plz-btn plz-sm" href="' + esc(safeUrl(r.proofUrl)) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
+      (admin && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm' + (r.state === 'overdue' ? ' plz-primary' : '') + '" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(r.contractId || '') + '">Manda il link</button>' : '') +
+      (admin && (payable(r) || r.state === 'reported') && A0.record ? '<button type="button" class="plz-btn plz-sm" data-plz="record" data-pay="' + esc(r.id) + '">Registra incasso</button>' : '') +
+      (admin && manual && A0.undoRecord ? '<button type="button" class="plz-btn plz-sm" data-plz="undo-record" data-pay="' + esc(r.id) + '">Annulla incasso</button>' : '');
+    return '<li data-pay="' + esc(r.id) + '"><span>' + esc(label) + '</span><b class="plz-num">' + eur(r.amount) + (Number(p.oneriAmount) > 0 ? '<small>di cui oneri ' + eur(Number(p.oneriAmount)) + '</small>' : '') + '</b><em class="plz-pill plz-s-' + (ROW_PILL[r.state] || r.state) + '">' + esc(st) + '</em>' +
+      (subs.length ? '<small>' + subs.join('<br>') + '</small>' : '') +
+      (acts ? '<div class="plz-rowact">' + acts + '</div>' : '') + (admin && ui.rata.open === r.id ? rataShare(u, r) : '') + '</li>';
+  }
+  // I documenti CONDIVISI degli interni (scansione del contratto, ricevuta
+  // RLI…): letti una volta per palazzo (adapter.documents), mai uno non
+  // condiviso alla proprietaria.
+  function ensureDocs(m) {
+    if (!adapter || typeof adapter.documents !== 'function' || !m || !m.building) return;
+    var key = m.building.key, D = ui.docs;
+    if (D[key] || D['~' + key]) return;
+    D['~' + key] = 'pending';
+    Promise.resolve().then(function () { return adapter.documents(m.building.propertyIds.slice()); }).then(function (rows) {
+      D[key] = Array.isArray(rows) ? rows : []; delete D['~' + key];
+      if (doc && doc.querySelector('.plz')) patch();
+    }, function () { D[key] = 'error'; delete D['~' + key]; if (doc && doc.querySelector('.plz')) patch(); });
+  }
+  function docsHTML(u, data) {
+    var key = data.m.building.key, all = ui.docs[key];
+    if (all === 'error') return '<p class="plz-eyebrow">Documenti</p><p class="plz-muted">Documenti non raggiungibili ora. <button type="button" class="plz-link" data-plz="docs-retry">Riprova</button></p>';
+    if (!Array.isArray(all)) return typeof adapter.documents === 'function' ? '<p class="plz-eyebrow">Documenti</p><p class="plz-muted plz-loading">carico i documenti…</p>' : '';
+    var mine = all.filter(function (d) { return d.propertyId === u.id && safeUrl(d.fileUrl || d.url); });
+    if (!mine.length) return '';
+    return '<p class="plz-eyebrow">Documenti condivisi da BOOM</p><ul class="plz-docs">' + mine.slice(0, 8).map(function (d) {
+      var at = E.day ? E.day(d.createdAt || d.uploadedAt || d.date) : '';
+      return '<li><a href="' + esc(safeUrl(d.fileUrl || d.url)) + '" target="_blank" rel="noopener">' + esc(String(d.name || d.fileName || 'Documento').slice(0, 80)) + ' ↗</a>' + (at ? '<small>' + dateIt(at) + '</small>' : '') + '</li>';
+    }).join('') + '</ul>';
+  }
+  function pdfUrlOf(lease) {
+    if (!lease || CS.isPlaceholder(lease)) return '';
+    return safeUrl(lease.paperPdfUrl) || safeUrl(lease.signedPdfUrl) || safeUrl(lease.generatedPDF);
+  }
+  // La carta su /rata per questo interno, in parole (solo admin).
+  function cardText(u, lease) {
+    var c = RENT && RENT.cardPolicy ? RENT.cardPolicy({}, lease, u.property) : null;
+    if (!c) return '';
+    if (!c.imported) return 'accesa (contratto non preso in carico: incassa BOOM)';
+    if (c.available) return 'accesa · mandato del ' + dateIt(c.mandateAt) + (c.fee === 'surcharge' ? ' · commissione all’inquilino' : ' · commissione a carico di BOOM');
+    return c.reason === 'no_mandate' ? 'spenta: manca la data del mandato all’incasso' : 'spenta: l’inquilino vede solo il bonifico al locatore';
+  }
   function unitPanel(u, data, enter) {
-    var m = data.m, um = u.month, admin = data.admin, A0 = (adapter && adapter.actions) || {};
+    var m = data.m, um = u.month, admin = data.admin;
     var lease = um.lease || um.incoming;
-    var rows = um.rows.map(function (r) {
-      var st = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', unknown: 'Da verificare' }[r.state] || 'Da verificare';
-      var p = r.payment || {}, proof = r.state === 'reported' ? safeUrl(p.proofUrl) : '';
-      var rep = r.state === 'reported' ? 'bonifico segnalato' + (/^\d{4}-\d{2}-\d{2}$/.test(String(p.tenantReportDate || '')) ? ' del ' + dateIt(p.tenantReportDate) : '') + (p.tenantNotes ? ' · «' + String(p.tenantNotes).slice(0, 80) + '»' : '') : '';
-      var acts = (proof ? '<a class="plz-btn plz-sm" href="' + esc(proof) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
-        (admin && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm' + (r.state === 'overdue' ? ' plz-primary' : '') + '" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Manda il link</button>' : '') +
-        (admin && (payable(r) || r.state === 'reported') && A0.record ? '<button type="button" class="plz-btn plz-sm" data-plz="record" data-pay="' + esc(r.id) + '">Registra incasso</button>' : '');
-      return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + (Number(p.oneriAmount) > 0 ? '<small>di cui oneri ' + eur(Number(p.oneriAmount)) + '</small>' : '') + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + esc(rep || (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '')) + '</small>' +
-        (acts ? '<div class="plz-rowact">' + acts + '</div>' : '') + (admin && ui.rata.open === r.id ? rataShare(u, r) : '') + '</li>';
-    }).join('');
-    var pdf = lease && (lease.signedPdfUrl || lease.generatedPDF);
-    var safe = function (url) { try { var x = new URL(url); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } };
-    var actions = admin ? adminActions(u, data) : (safe(pdf) ? '<a class="plz-btn" href="' + esc(safe(pdf)) + '" target="_blank" rel="noopener">Contratto (PDF) ↗</a>' : '') + '<button type="button" class="plz-btn" data-plz="inbox">Scrivi a BOOM</button>';
+    var landlord = String(um.landlordName || (lease && lease.landlordName) || '').trim();
+    var rows = um.rows.map(function (r) { return rowHTML(u, r, data, landlord); }).join('');
+    var past = (um.pastDue || []).map(function (r) { return rowHTML(u, r, data, (r.contract && r.contract.landlordName) || landlord); }).join('');
+    var pdf = pdfUrlOf(lease);
+    var actions = admin ? adminActions(u, data)
+      : (pdf ? '<a class="plz-btn" href="' + esc(pdf) + '" target="_blank" rel="noopener">Contratto (PDF) ↗</a>' : '') +
+        '<button type="button" class="plz-btn plz-primary" data-plz="inbox" data-id="' + esc(u.id) + '">Scrivi a BOOM su WhatsApp</button>' +
+        '<button type="button" class="plz-btn" data-plz="inbox" data-ch="email" data-id="' + esc(u.id) + '">Email a BOOM</button>';
     var pp = u.paper, reg = pp && pp.registration;
     var exp = um.leaseEnd ? expiry(um.leaseEnd, m.today) : um.state === 'incoming' && um.leaseStart ? startsIn(um.leaseStart, m.today) : '';
     var kind = leaseType(lease), dep = depositOf(lease);
     var oneri = lease && Number(lease.oneriQuota) > 0 ? Number(lease.oneriQuota) : 0;
     var iban = lease ? String(lease.landlordIban || '').replace(/\s+/g, '').toUpperCase() : '';
     iban = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) ? iban.replace(/(.{4})/g, '$1 ').trim() : '';
-    return '<div class="plz-pcard plz-unitcard' + (enter ? ' is-enter' : '') + '"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi">×</button>' +
+    var placeholder = lease && CS.isPlaceholder(lease);
+    return '<div class="plz-pcard plz-unitcard' + (enter ? ' is-enter' : '') + '"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi la scheda">×</button>' +
       '<p class="plz-eyebrow">' + esc(unitWhere(u)) + '</p><h2 id="plz-unit-h" tabindex="-1">' + esc(unitTitle(u)) + '</h2>' +
       '<span class="plz-pill plz-s-' + um.state + ' plz-big">' + esc(stateLabel(um, m.month, m.currentMonth)) + ' · ' + esc(E.monthLabel(m.month).toLowerCase()) + '</span>' +
       (u.ownerMismatch && admin ? '<p class="plz-note">Non collegato al profilo di ' + esc(m.owner && (m.owner.name || m.owner.email) || 'proprietaria') + ': dal suo accesso non lo vede.</p>' : '') +
-      (um.contractId ? peopleHTML(u, data) : '<p class="plz-people-names plz-muted">' + (um.state === 'vacant' ? 'Libero' + (u.time && u.time.vacantDays != null ? ' da ' + u.time.vacantDays + (u.time.vacantDays === 1 ? ' giorno' : ' giorni') : '') : esc(um.tenants.join(' · ') || '—')) + '</p>') +
-      (lease && lease.contractMissing === true ? '<p class="plz-note">' + (admin ? 'Contratto non ancora in archivio: canone, date e rate arrivano quando lo carichi.' : 'Contratto in arrivo da BOOM: canone e scadenze compariranno qui.') + '</p>' : '') +
-      (um.leaseStart || um.leaseEnd ? '<div class="plz-term' + (um.leaving ? ' is-leaving' : '') + '"><p class="plz-term-k">' + esc(kind || 'Contratto') + '</p><p class="plz-term-d">' + esc((um.leaseStart ? 'dal ' + dateIt(um.leaseStart) : '') + (um.leaseEnd ? ' al ' + dateIt(um.leaseEnd) : '')) + '</p>' + (exp ? '<p class="plz-term-x">' + esc(exp) + '</p>' : '') + '</div>' : '') +
+      (um.contractId ? peopleHTML(u, data) : '<p class="plz-people-names plz-muted">' + (um.state === 'vacant' ? 'Libero' + (u.time && u.time.vacantDays != null ? ' da ' + u.time.vacantDays + (u.time.vacantDays === 1 ? ' giorno' : ' giorni') : '') : um.state === 'before' ? 'Prima della gestione BOOM' : esc(um.tenants.join(' · ') || '—')) + '</p>') +
+      (placeholder ? '<p class="plz-note">' + (admin ? 'Contratto non ancora in archivio: canone, date e rate arrivano quando lo carichi.' : 'Contratto in arrivo da BOOM: canone e scadenze compariranno qui.') + '</p>' : '') +
+      (um.leaseStart || um.leaseEnd ? '<div class="plz-term' + (um.leaving ? ' is-leaving' : '') + '"><p class="plz-term-k">' + esc(kind || 'Contratto') + (lease && CS.isPaper(lease) ? ' · firmato su carta' : '') + '</p><p class="plz-term-d">' + esc((um.leaseStart ? 'dal ' + dateIt(um.leaseStart) : '') + (um.leaseEnd ? ' al ' + dateIt(um.leaseEnd) : '')) + '</p>' + (exp ? '<p class="plz-term-x">' + esc(exp) + '</p>' : '') + noticeText(u, admin) + '</div>' : '') +
       '<dl class="plz-facts">' +
-      '<div><dt>Canone</dt><dd class="plz-num">' + (um.rent != null ? eur(um.rent) + ' / mese' : '—') + '</dd></div>' +
+      '<div><dt>Canone</dt><dd class="plz-num">' + (um.rent != null ? eur(um.rent) + ' / mese' : placeholder ? '<span class="plz-muted">' + (admin ? 'da caricare col contratto' : 'in arrivo col contratto') + '</span>' : '—') + '</dd></div>' +
       (oneri ? '<div><dt>Oneri accessori</dt><dd class="plz-num">' + eur(oneri) + ' / mese <small>insieme al canone</small></dd></div>' : '') +
       (dep ? '<div><dt>Deposito</dt><dd class="plz-num">' + esc(dep) + '</dd></div>' : '') +
-      (lease && String(lease.landlordName || '').trim() ? '<div><dt>Locatore</dt><dd>' + esc(String(lease.landlordName).slice(0, 120)) + '</dd></div>' : '') +
+      (landlord ? '<div><dt>Locatore</dt><dd>' + esc(landlord.slice(0, 120)) + '</dd></div>' : '') +
       (admin && lease ? '<div><dt>Conto per il bonifico</dt><dd' + (iban ? ' class="plz-num">' + esc(iban) : ' class="plz-muted">non in archivio: la pagina della rata dice «il conto di sempre»') + '</dd></div>' : '') +
+      (admin && lease ? '<div><dt>Carta su /rata</dt><dd>' + esc(cardText(u, lease)) + '</dd></div>' : '') +
       (reg ? '<div><dt>Registrazione</dt><dd class="' + (admin && reg.late ? 'plz-red' : '') + '">' + esc(regText(reg, admin)) + '</dd></div>' : '') +
       (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +
-      '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
-      '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
+      '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.count ? (u.arrears.amount ? eur(u.arrears.amount) : 'importo da verificare') + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
+      '<div><dt>Puntualità</dt><dd>' + esc(placeholder && !(u.time && (u.time.paidCount || u.time.overdueCount)) ? '—' : punctuality(u.time)) + '</dd></div>' +
       '<div><dt>12 mesi</dt><dd>' + esc(occupiedText(u.time)) + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
       utenzeFacts(u, admin) +
-      '</dl>' + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
-      '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.state === 'before' ? 'Prima della gestione BOOM (dal ' + esc(E.monthLabel(um.gestioneDal).toLowerCase()) + '): i pagamenti di questo mese non sono in archivio.' : um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
+      '</dl>' + docsHTML(u, data) + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
+      '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.state === 'before' ? 'Prima della gestione BOOM (da ' + esc(E.monthLabel(um.gestioneDal).toLowerCase()) + '): i pagamenti di questo mese non sono in archivio.' : placeholder ? (admin ? 'Nessuna rata: arrivano quando carichi il contratto.' : 'Le rate compariranno quando BOOM carica il contratto.') : um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
+      (past ? '<p class="plz-eyebrow plz-red-eyebrow">Ancora da pagare dai mesi prima</p><ul class="plz-rows">' + past + '</ul>' : '') +
       '<div class="plz-actions">' + actions + '</div></div>';
+  }
+  // La disdetta del contratto in corso, quando il termine si avvicina.
+  function noticeText(u, admin) {
+    var n = u.notice;
+    if (!n || !n.by || n.terminated || n.received || !u.month.leaving) return '';
+    var t = n.passed ? 'termine per la disdetta passato il ' + dateIt(n.by) : 'disdetta entro il ' + dateIt(n.by);
+    var r = n.renews === 'tacito' ? ': senza disdetta si rinnova da solo' : n.renews === 'proroga' ? ': si proroga di diritto' : n.renews === 'rinnovo' ? ': si rinnova' : '';
+    return '<p class="plz-term-n">' + esc(t + r + (admin && n.assumed ? ' (termine ipotizzato, verifica sul contratto)' : '')) + '</p>';
   }
 
   // ── Semplice: il mese in una schermata ───────────────────────────────
@@ -916,6 +1146,43 @@
       '<figcaption class="plz-fac-cap"><span class="plz-keys" id="plz-keys">' + keysHTML(m) + '</span>' +
       '<small>Una finestra per interno; la posizione sul piano è schematica e i fianchi sono ciechi. Finestre senza numero: interni non gestiti da BOOM. Trascina per girare il palazzo.' +
       (data.admin && !(look.declared.intonaco || look.declared.persiane) && !ui.draft ? ' Aspetto neutro: imposta intonaco e persiane veri qui sotto.' : '') + '</small></figcaption></figure>';
+  }
+
+  // ── La carta su /rata, per palazzo (solo admin) ───────────────────────
+  // Con la carta i soldi arrivano sul conto Stripe di BOOM, non su quello
+  // del locatore: per gli interni presi in carico la carta resta SPENTA
+  // finché non c'è un mandato all'incasso con la sua data (la regola è
+  // BOOM_RENT.cardPolicy, la stessa di /rata e del link di pagamento).
+  // La commissione di default è a carico di BOOM: il sovrapprezzo verso un
+  // consumatore è vietato (art. 62 Cod. consumo) salvo parere legale.
+  function cardCfgOf(m) {
+    var cfgs = m.units.map(function (u) { return u.property && u.property.rataCard && typeof u.property.rataCard === 'object' ? u.property.rataCard : null; });
+    var key = function (c) { return c ? [c.on === true, c.mandateAt || '', c.fee || 'absorbed', c.note || ''].join('|') : '-'; };
+    var mixed = cfgs.some(function (c) { return key(c) !== key(cfgs[0]); });
+    return { cfg: cfgs.find(Boolean) || null, mixed: mixed };
+  }
+  function cardPanel(data) {
+    var A = adapter.actions || {};
+    if (!data.admin || !A.saveRataCard) return '';
+    var m = data.m, cur = cardCfgOf(m), c = cur.cfg || {};
+    var d = ui.cardDraft && ui.cardDraft.key === m.building.key ? ui.cardDraft : { key: m.building.key, on: c.on === true, mandateAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.mandateAt || '')) ? c.mandateAt : '', note: c.note || '', fee: c.fee === 'surcharge' ? 'surcharge' : 'absorbed' };
+    var sample = m.units.find(function (u) { return u.month.lease || u.month.incoming; });
+    var pol = sample && RENT && RENT.cardPolicy ? RENT.cardPolicy({}, sample.month.lease || sample.month.incoming, sample.property) : null;
+    var state = !pol ? 'nessun contratto' : !pol.imported ? 'accesa (contratti non presi in carico)' : pol.available ? 'accesa' : pol.reason === 'no_mandate' ? 'spenta · manca la data del mandato' : 'spenta';
+    var effect = !d.on ? 'Su /rata gli inquilini vedono solo il bonifico al conto del locatore.'
+      : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.'
+      : 'Su /rata compare anche la carta (Apple Pay compreso): i soldi arrivano a BOOM, che li riversa al locatore.';
+    return '<details class="plz-look plz-card" id="plz-card"' + (ui.cardOpen ? ' open' : '') + '><summary>Pagamento con carta su /rata <em class="plz-warn" id="plz-card-badge">' + esc(state) + '</em></summary>' +
+      '<p class="plz-look-note">Con la carta i soldi arrivano sul conto Stripe di BOOM, non su quello del locatore: serve un mandato all’incasso scritto e un riversamento registrato. Si salva su tutti gli interni del palazzo.' + (cur.mixed ? ' <b>Oggi gli interni hanno impostazioni diverse.</b>' : '') + '</p>' +
+      '<label class="plz-check"><input type="checkbox" data-card="on"' + (d.on ? ' checked' : '') + '> Carta accesa su /rata</label>' +
+      '<div class="plz-look-row"><label class="plz-look-f"><span>Mandato all’incasso firmato il</span><input type="date" data-card="mandateAt" value="' + esc(d.mandateAt) + '"></label>' +
+      '<label class="plz-look-f"><span>Nota (riferimento del mandato)</span><input type="text" maxlength="200" data-card="note" value="' + esc(d.note) + '"></label></div>' +
+      '<fieldset class="plz-look-sw plz-fee"><legend>Commissione della carta</legend>' +
+      '<label><input type="radio" name="plz-card-fee" value="absorbed" data-card="fee"' + (d.fee !== 'surcharge' ? ' checked' : '') + '> A carico di BOOM (consigliato): l’inquilino paga solo la rata</label>' +
+      '<label><input type="radio" name="plz-card-fee" value="surcharge" data-card="fee"' + (d.fee === 'surcharge' ? ' checked' : '') + '> All’inquilino</label>' +
+      '<p class="plz-note">Il sovrapprezzo sui pagamenti verso i consumatori è vietato (art. 62 Codice del consumo; art. 3 c. 4 d.lgs. 11/2010): sceglilo solo dopo un parere legale.</p></fieldset>' +
+      '<p class="plz-muted" id="plz-card-effect">' + esc(effect) + '</p>' +
+      '<div class="plz-look-act"><button type="button" class="plz-btn plz-primary plz-sm" data-plz="card-save">Salva sul palazzo</button>' + (ui.cardDraft ? '<button type="button" class="plz-btn plz-sm" data-plz="card-cancel">Annulla</button>' : '') + '</div></details>';
   }
 
   // L'aspetto del palazzo, solo admin: si dichiara ciò che si è visto (foto,
@@ -1014,7 +1281,7 @@
 
   function simple(data) {
     return '<div id="plz-sbrief">' + briefHTML(data) + '</div>' +
-      '<div class="plz-sgrid"><div class="plz-scol">' + facade(data) + (data.admin ? lookPanel(data) : '') + '</div>' +
+      '<div class="plz-sgrid"><div class="plz-scol">' + facade(data) + (data.admin ? lookPanel(data) + cardPanel(data) : '') + '</div>' +
       '<div class="plz-scards" id="plz-scards">' + cards(data) + exportBar(data) + '</div></div>';
   }
   // Cambiare mese (o riprodurre l'anno) non ridisegna la facciata: cambia
@@ -1077,13 +1344,16 @@
   function patch() {
     if (!adapter || !doc || !doc.querySelector('.plz')) return;
     var data = compute(); last = data;
-    ensureContacts(data.m);
+    if (!data.m.building || data.severe) return;
+    ensureContacts(data.m); ensureDocs(data.m);
     var m = data.m, set = function (id, html) { var el = doc.getElementById(id); if (el) el.innerHTML = html; };
+    set('plz-load', loadNote(data));
     if (ui.view === 'simple') {
       set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data) + exportBar(data)); set('plz-panel', ui.selected ? panel(data) : '');
       if (doc.getElementById('plz-fac')) patchFacade(data); else { set('plz-simple', simple(data)); syncFacade(); }
       var lab0 = doc.getElementById('plz-month-label'); if (lab0) lab0.textContent = E.monthLabel(m.month);
       toggleToday(m);
+      focusRata();
       return;
     }
     set('plz-issues', issues(data)); set('plz-kpis', kpis(data)); set('plz-timeline', timeline(data)); set('plz-panel', panel(data)); set('plz-analytics', analytics(data)); scrollTimeline();
@@ -1105,6 +1375,7 @@
       });
       var trayEl = doc.querySelector('.plz-tray'); if (trayEl) trayEl.outerHTML = tray(data);
     }
+    focusRata();
   }
   function toggleToday(m) {
     var today = doc.querySelector('[data-plz="today"]');
@@ -1140,21 +1411,54 @@
   }
   function stopPlay() { if (ui.playing) { root.clearInterval(ui.playing); ui.playing = null; } }
   function setMonth(mm) { if (!E.monthOf(mm)) return; ui.month = mm; patch(); }
-  function select(id) {
+  function narrow() { return !!(root.matchMedia && root.matchMedia('(max-width: 920px)').matches); }
+  // Chi ha aperto la scheda (finestra, cubo, riga, voce di una card): alla
+  // chiusura il focus e lo scorrimento tornano lì, non in cima alla pagina.
+  function opener(el) {
+    if (!el || !el.getAttribute) return '';
+    var host = el.closest('.plz-win, .plz-unit, .plz-rrow, .plz-line, .plz-chip, .plz-btn');
+    if (!host) return '';
+    var kind = host.classList.contains('plz-win') ? '.plz-win' : host.classList.contains('plz-unit') ? '.plz-unit' : host.classList.contains('plz-rrow') ? '.plz-rrow' : host.classList.contains('plz-chip') ? '.plz-chip' : host.classList.contains('plz-line') ? '.plz-line' : '.plz-btn';
+    var id = host.getAttribute('data-id') || el.getAttribute('data-id') || '';
+    return id ? kind + '[data-id="' + String(id).replace(/["\\]/g, '') + '"]' : '';
+  }
+  function select(id, from) {
     ui.selected = ui.selected === id ? '' : id;
+    if (ui.selected) ui.opener = opener(from) || ui.opener;
     patch();
     if (ui.selected) {
       var h = doc.getElementById('plz-unit-h'); if (h) h.focus({ preventScroll: true });
       var p = doc.getElementById('plz-panel');
-      if (p && root.matchMedia && root.matchMedia('(max-width: 920px)').matches) p.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
+      if (p && narrow()) p.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    } else restoreFocus();
+  }
+  function closeCard() { ui.selected = ''; ui.rata.open = ''; ui.terms = null; patch(); restoreFocus(); }
+  function restoreFocus() {
+    var sel = ui.opener; ui.opener = '';
+    var el = sel && doc.querySelector('.plz ' + sel);
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch (_) {}
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (_) {}
+  }
+  // Sollecita / Manda il link: la scheda in vista e il focus sul tasto
+  // WhatsApp appena il link è pronto (su telefono la scheda sta più giù).
+  function focusRata() {
+    var id = ui.rata.focus; if (!id || ui.rata.pending[id]) return;
+    ui.rata.focus = '';
+    var box = doc.querySelector('#plz-panel li[data-pay="' + String(id).replace(/["\\]/g, '') + '"] .plz-rshare') || doc.getElementById('plz-panel');
+    if (!box) return;
+    // I contatti stanno arrivando: si aspetta il loro giro (patch → qui).
+    if (box.querySelector('.plz-loadc') && Object.keys(ui.contacts.pending).length) { ui.rata.focus = id; return; }
+    try { box.scrollIntoView({ block: narrow() ? 'center' : 'nearest', behavior: 'smooth' }); } catch (_) {}
+    var target = box.querySelector('a[href^="https://wa.me/"]') || box.querySelector('[data-plz="copy-link"]') || box.querySelector('[data-plz="rata"]');
+    if (target) try { target.focus({ preventScroll: true }); } catch (_) {}
   }
   function mount() {
     if (!doc) return;
     var st = doc.getElementById('plz-stage'), w = world();
     lightsOn();
     syncFacade();
-    if (last) ensureContacts(last.m);
+    if (last && last.m.building && !last.severe) { ensureContacts(last.m); ensureDocs(last.m); }
     if (!st || !w) return;
     if (last && last.m.building) ui.intro[last.m.building.key] = true;
     applyView();
@@ -1275,13 +1579,29 @@
     var el = e.target;
     if (el && el.form && el.form.id === 'plz-mform' && el.name && el.name in ui.reportDraft) { ui.reportDraft[el.name] = el.value; return; }
     if (el && el.getAttribute && el.getAttribute('data-imp') && ui.imp) { ui.imp[el.getAttribute('data-imp')] = el.value; return; }
+    if (el && el.getAttribute && el.getAttribute('data-card') && adapter && viewAdmin()) return readCard(el);
     if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !viewAdmin()) return;
     readDraft(el);
+  }
+  // La bozza della carta: solo in memoria finché non si salva.
+  function readCard(el) {
+    if (!last || !last.m.building) return;
+    var k = el.getAttribute('data-card'), m = last.m;
+    if (!ui.cardDraft || ui.cardDraft.key !== m.building.key) {
+      var c = cardCfgOf(m).cfg || {};
+      ui.cardDraft = { key: m.building.key, on: c.on === true, mandateAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.mandateAt || '')) ? c.mandateAt : '', note: c.note || '', fee: c.fee === 'surcharge' ? 'surcharge' : 'absorbed' };
+    }
+    if (k === 'on') ui.cardDraft.on = !!el.checked;
+    else if (k === 'fee') { if (el.checked) ui.cardDraft.fee = el.value === 'surcharge' ? 'surcharge' : 'absorbed'; }
+    else ui.cardDraft[k] = String(el.value || '');
+    var d = ui.cardDraft, eff = doc.getElementById('plz-card-effect');
+    if (eff) eff.textContent = !d.on ? 'Su /rata gli inquilini vedono solo il bonifico al conto del locatore.' : !d.mandateAt ? 'Senza la data del mandato la carta resta SPENTA anche con l’interruttore acceso.' : 'Su /rata compare anche la carta (Apple Pay compreso): i soldi arrivano a BOOM, che li riversa al locatore.';
   }
   function onToggle(e) {
     var el = e.target;
     if (!el || !el.classList) return;
     if (el.id === 'plz-look') ui.lookOpen = el.open;
+    if (el.id === 'plz-card') ui.cardOpen = el.open;
     if (el.classList.contains('plz-paidcard')) ui.paidOpen = el.open;
   }
 
@@ -1290,70 +1610,132 @@
   // contratti e rate (E.parseRentRoll → E.planImport, puri). Si scrive solo
   // dopo l'anteprima, col tasto che dice cosa nasce, e le rate partono da
   // "gestione BOOM dal": mai arretrati inventati prima di BOOM.
+  // «Gestione BOOM dal» parte da quella del palazzo (mai dal mese di oggi:
+  // completare un contratto a novembre lascerebbe ottobre senza rata).
   function impDefaults(data) {
     var m = data.m, o = m && m.owner;
-    return { address: m && m.building ? m.building.label : '', ownerId: o && o.id || '', from: (m && m.currentMonth) || '', text: '', parsed: null, plan: null };
+    return { address: m && m.building ? m.building.label : '', ownerId: o && o.id || '', from: (m && (m.gestioneDal || m.currentMonth)) || '', text: '', parsed: null, plan: null, applyDiffs: false };
   }
   function importPanel(data) {
     var st = ui.imp, S = data.S || {};
     var owners = (S.users || []).filter(function (u) { return u.role === 'landlord' || u.role === 'owner'; })
       .sort(function (a, b) { return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'it'); });
     return '<section class="plz-import" aria-labelledby="plz-imp-h"><p class="plz-eyebrow" id="plz-imp-h">Carica il palazzo da una tabella</p>' +
-      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Co-intestatari · Telefono · Email · Canone · Oneri · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il · Locatore · IBAN · Mq · POD · PDR. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. Gli oneri fissi entrano nella rata insieme al canone; l’IBAN è il conto che l’inquilino vede per il bonifico. «Pagato il» vale per il primo mese di gestione.</p>' +
-      '<div class="plz-import-f"><label><span>Indirizzo del palazzo</span><input type="text" data-imp="address" value="' + esc(st.address) + '" placeholder="Piazzale Prenestino 42, Roma" autocomplete="off"></label>' +
+      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Co-intestatari · Telefono · Email · Canone · Oneri · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il · Locatore · IBAN · Mq · POD · PDR. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. Gli oneri fissi entrano nella rata insieme al canone; l’IBAN è il conto che l’inquilino vede per il bonifico. «Pagato il» vale per il primo mese di gestione. I telefoni stranieri vanno scritti col prefisso (+44, +90…).</p>' +
+      '<div class="plz-import-f"><label><span>Indirizzo del palazzo</span><input type="text" data-imp="address" value="' + esc(st.address) + '" placeholder="Via Esempio 12, Roma" autocomplete="off"></label>' +
       '<label><span>Proprietaria</span><select data-imp="ownerId"><option value="">Scegli…</option>' + owners.map(function (u) {
         return '<option value="' + esc(u.id) + '"' + (u.id === st.ownerId ? ' selected' : '') + '>' + esc(u.name || u.email || u.id) + '</option>';
       }).join('') + '</select></label>' +
       '<label><span>Gestione BOOM dal</span><input type="month" data-imp="from" value="' + esc(st.from) + '"></label></div>' +
       (owners.length ? '' : '<p class="plz-note">Nessun profilo Locatore: crealo in Utenti (ruolo Locatore), poi torna qui.</p>') +
       '<textarea class="plz-import-t" data-imp="text" rows="7" spellcheck="false" aria-label="Tabella degli interni" placeholder="Interno\tPiano\tInquilino\tTelefono\tCanone\tDal\tAl\tTipo\tPagato il">' + esc(st.text) + '</textarea>' +
+      '<label class="plz-check"><input type="checkbox" data-imp-flag="applyDiffs"' + (st.applyDiffs ? ' checked' : '') + '> Applica le differenze con l’archivio (canone, oneri, fine, nomi, contatti, conto: anche sulle rate ancora da pagare)</label>' +
       '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary plz-sm" data-plz="imp-read">Leggi la tabella</button>' +
       '<button type="button" class="plz-btn plz-sm" data-plz="imp-template">Scarica il modello</button>' +
       '<button type="button" class="plz-btn plz-sm" data-plz="imp-close">Chiudi</button></div>' +
       '<div id="plz-imp-out" aria-live="polite">' + importResult() + '</div></section>';
   }
+  var IMP_ACTION = { 'contract-new': 'contratto nuovo', 'contract-same': 'contratto già in archivio', 'contract-update': 'contratto in archivio, da aggiornare',
+    'placeholder-new': 'occupato · contratto da caricare', 'placeholder-complete': 'completa il contratto da caricare', 'placeholder-hold': 'contratto da caricare a nome di un’altra persona',
+    contacts: 'aggiorna i contatti del contratto', free: 'libero', property: 'aggiorna l’interno', none: 'niente da cambiare' };
+  var LOCK_WHY = { firmato: 'contratto firmato digitalmente: si corregge dal contratto', cofirmato: 'co-intestatario che ha firmato: si corregge dal contratto', persona: 'contratto di un’altra persona: non si tocca da qui' };
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
   function importResult() {
     var st = ui.imp; if (!st || !st.parsed) return '';
     var P = st.parsed, plan = st.plan;
     if (P.errors.indexOf('vuota') >= 0) return '<p class="plz-note">La tabella è vuota.</p>';
     if (P.errors.indexOf('senza_interno') >= 0) return '<p class="plz-note">Nella prima riga manca il titolo «Interno»: è l’unica colonna obbligatoria.</p>';
-    var bad = P.rows.filter(function (r) { return r.errors.length; }), warn = P.rows.filter(function (r) { return r.warnings.length; });
     var planErr = plan ? plan.errors : [];
     var msgs = [];
     if (planErr.indexOf('indirizzo') >= 0) msgs.push('Scrivi l’indirizzo del palazzo (via e civico).');
     if (planErr.indexOf('proprietaria') >= 0) msgs.push('Scegli la proprietaria.');
     planErr.filter(function (e) { return /^owner:/.test(e); }).forEach(function (e) { msgs.push('L’interno ' + esc(e.slice(6)) + ' è già in archivio a nome di un altro proprietario: non lo sposto da qui.'); });
-    var byLine = Object.create(null); (plan ? plan.payments : []).forEach(function (x) { byLine[x.interno] = (byLine[x.interno] || 0) + 1; });
-    var rows = P.rows.map(function (r) {
-      var ex = plan && plan.properties.find(function (x) { return x.interno === r.interno; });
-      var verdict = r.errors.length ? '<em class="plz-red">' + esc(r.errors.join(' · ')) + '</em>'
-        : (ex && ex.exists ? 'già in archivio' : 'nuovo') + (r.senzaContratto ? ' · occupato · contratto da caricare' : r.inquilino ? ' · contratto · ' + (byLine[r.interno] || 0) + ' rate' : ' · libero') + (r.pagatoSi ? ' · pagato' : '');
-      return '<tr' + (r.errors.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc(r.piano || '—') + '</td><td>' + esc(r.inquilino ? [r.inquilino].concat(r.coinquilini || []).join(' + ') : '—') + '</td><td class="plz-num">' + (r.canone != null ? eur(r.canone) + (r.oneri ? '<small>+ ' + eur(r.oneri) + ' oneri</small>' : '') : '—') + '</td><td>' +
-        esc(r.dal ? dateIt(r.dal) + ' → ' + dateIt(r.al) : '—') + '</td><td>' + verdict + (r.warnings.length ? '<small>' + esc(r.warnings.join(' · ')) + '</small>' : '') + '</td></tr>';
+    (plan ? plan.notes : []).filter(function (n) { return /^oneri:/.test(n); }).forEach(function (n) { msgs.push('Interno ' + esc(n.slice(6)) + ': gli oneri entrano nel contratto, ma le rate già in archivio restano col solo canone finché non applichi le differenze (o le correggi da Gestisci canoni).'); });
+    var rows = plan && plan.rows && plan.rows.length ? plan.rows : null;
+    var bad = rows ? rows.filter(function (r) { return r.errors && r.errors.length; }) : P.rows.filter(function (r) { return r.errors.length; });
+    var tr = (rows || P.rows).map(function (r) {
+      var errs = r.errors || [], src = rows ? r : null;
+      var verdict;
+      if (errs.length) verdict = '<em class="plz-red">' + esc(errs.join(' · ')) + '</em>';
+      else if (src) {
+        var bits = [src.exists ? 'già in archivio' + (src.existsAs ? ' come «' + esc(String(src.existsAs).slice(0, 60)) + '»' : '') : 'nuovo', esc(IMP_ACTION[src.action] || src.action || '')];
+        if (src.payments) bits.push(plural(src.payments, 'rata', 'rate'));
+        if (src.paid) bits.push('<b>pagato</b>' + (src.paidMarks && src.paidMarks[0] ? ' (rata di ' + esc(E.monthLabel(src.paidMarks[0].month).toLowerCase()) + ')' : ''));
+        if (src.overdue) bits.push('<span class="plz-red">' + plural(src.overdue, 'rata già scaduta', 'rate già scadute') + '</span>');
+        if (src.gestioneKept) bits.push('gestione da ' + esc(E.monthLabel(src.gestioneDal).toLowerCase()));
+        verdict = bits.filter(Boolean).join(' · ');
+      } else verdict = 'da leggere';
+      var detail = [];
+      if (src) {
+        var terms = [src.tipo, src.cedolare === true || src.cedolare === 'si' ? 'cedolare sì' : src.cedolare === false || src.cedolare === 'no' ? 'cedolare no' : '', src.deposito != null ? 'deposito ' + eur(src.deposito) : '',
+          src.locatore ? 'locatore ' + src.locatore : '', src.ibanMasked ? 'IBAN ' + src.ibanMasked + (src.ibanValid === false ? ' (non valido: non lo carico)' : '') : ''].filter(Boolean);
+        if (terms.length) detail.push('<small class="plz-imp-terms">' + esc(terms.join(' · ')) + '</small>');
+        (src.diffs || []).forEach(function (d) {
+          detail.push('<small class="plz-imp-diff' + (d.locked ? ' is-locked' : '') + '"><b>' + esc(d.label) + '</b>: ' + esc(d.fromText || 'non indicato') + ' → ' + esc(d.toText || '') + (d.rates ? ' · ' + plural(d.rates, 'rata', 'rate') : '') +
+            (d.locked ? ' — ' + esc(LOCK_WHY[d.lockReason] || 'bloccata') : st.applyDiffs ? ' — si applica' : ' — non applicata') + '</small>');
+        });
+        (src.alerts || []).forEach(function (a) { detail.push('<small class="plz-imp-alert">⚠ ' + esc(a) + '</small>'); });
+        (src.warnings || []).filter(function (w) { return (src.alerts || []).indexOf(w) < 0; }).forEach(function (w) { detail.push('<small>' + esc(w) + '</small>'); });
+        (src.notes || []).forEach(function (n) { detail.push('<small class="plz-muted">' + esc(n) + '</small>'); });
+      } else if (r.warnings && r.warnings.length) detail.push('<small>' + esc(r.warnings.join(' · ')) + '</small>');
+      var tenant = src ? [src.tenant].concat(src.coTenants || []).filter(Boolean).join(' + ') : [r.inquilino].concat(r.coinquilini || []).filter(Boolean).join(' + ');
+      var canone = src ? src.canone : r.canone, oneri = src ? src.oneri : r.oneri, dal = src ? src.dal : r.dal, al = src ? src.al : r.al;
+      return '<tr' + (errs.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc((src ? src.floor : r.piano) || '—') + (src && src.floorMissing ? '<small class="plz-warn">piano mancante</small>' : '') + '</td><td>' + esc(tenant || '—') + '</td><td class="plz-num">' + (canone != null ? eur(canone) + (oneri ? '<small>+ ' + eur(oneri) + ' oneri</small>' : '') : '—') + '</td><td>' +
+        esc(dal ? dateIt(dal) + ' → ' + dateIt(al) : '—') + '</td><td>' + verdict + detail.join('') + '</td></tr>';
     }).join('');
-    var c = plan ? plan.counts : { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, payments: 0, paid: 0 };
-    var cu = c.contractUpdates || 0;
-    var can = plan && !bad.length && !planErr.length && (c.create + c.update + c.contracts + cu + c.payments) > 0;
-    var go = [c.create ? 'crea ' + c.create + (c.create === 1 ? ' interno' : ' interni') : '', c.update ? 'aggiorna ' + c.update + (c.update === 1 ? ' interno' : ' interni') : '',
-      c.contracts ? c.contracts + (c.contracts === 1 ? ' contratto' : ' contratti') : '', cu ? 'completa ' + cu + (cu === 1 ? ' contratto' : ' contratti') : '',
-      c.payments ? c.payments + (c.payments === 1 ? ' rata' : ' rate') : ''].filter(Boolean).join(', ');
-    (plan ? plan.notes : []).filter(function (n) { return /^oneri:/.test(n); }).forEach(function (n) { msgs.push('Interno ' + esc(n.slice(6)) + ': gli oneri entrano nel contratto, ma le rate già in archivio restano col solo canone — correggile da Gestisci canoni.'); });
-    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + c.contracts + ' contratti' + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + ' da completare)' : '') + ' · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
+    var c = plan ? plan.counts : { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, payments: 0, paid: 0, diffsApplicable: 0, paymentUpdates: 0, paymentCancels: 0, rowErrors: 0 };
+    var cu = c.contractUpdates || 0, apply = !!(plan && plan.applyDiffs);
+    var blocked = !plan || bad.length || planErr.length;
+    var writes = c.create + c.update + c.contracts + cu + c.payments + (apply ? (c.paymentUpdates || 0) + (c.paymentCancels || 0) : 0);
+    var go = [c.create ? 'crea ' + plural(c.create, 'interno', 'interni') : '', c.update ? 'aggiorna ' + plural(c.update, 'interno', 'interni') : '',
+      c.contracts ? plural(c.contracts, 'contratto', 'contratti') : '', cu ? 'completa ' + plural(cu, 'contratto', 'contratti') : '',
+      c.payments ? plural(c.payments, 'rata', 'rate') : '', apply && c.paymentUpdates ? 'ricalcola ' + plural(c.paymentUpdates, 'rata', 'rate') : '', apply && c.paymentCancels ? 'annulla ' + plural(c.paymentCancels, 'rata', 'rate') : ''].filter(Boolean).join(', ');
+    var da = c.diffsApplicable || 0;
+    var mainBtn, extraBtn = '';
+    if (blocked) mainBtn = '<button type="button" class="plz-btn plz-primary" data-plz="imp-go" disabled>' + (bad.length ? 'Correggi le righe in rosso' : 'Completa i dati sopra') + '</button>';
+    else if (writes > 0) mainBtn = '<button type="button" class="plz-btn plz-primary" data-plz="imp-go">' + esc(go.charAt(0).toUpperCase() + go.slice(1)) + '</button>';
+    else if (!apply && da > 0) mainBtn = '<button type="button" class="plz-btn plz-primary" data-plz="imp-apply">' + plural(da, 'differenza', 'differenze') + ' con l’archivio: applica' + (da === 1 ? 'la' : 'le') + '</button>';
+    else mainBtn = '<button type="button" class="plz-btn plz-primary" data-plz="imp-go" disabled>Niente da cambiare</button>';
+    if (!blocked && writes > 0 && !apply && da > 0) extraBtn = '<button type="button" class="plz-btn" data-plz="imp-apply">Applica anche ' + (da === 1 ? 'la differenza' : 'le ' + da + ' differenze') + '</button>';
+    var accounts = plan && plan.accounts && plan.accounts.length ? '<div class="plz-imp-acc"><p class="plz-eyebrow">Dove pagano gli inquilini</p><ul>' + plan.accounts.map(function (a) {
+      return '<li><b>' + esc(a.locatore || 'Locatore non indicato') + '</b> · <span class="plz-num">' + esc(a.ibanMasked || 'IBAN non indicato') + '</span>' + (a.ibanValid === false ? ' <em class="plz-red">IBAN non valido: non lo carico</em>' : a.ibanValid === true ? ' <em class="plz-ok-i">✓ controllato</em>' : '') +
+        '<small>' + plural(a.interni.length, 'interno', 'interni') + ': ' + esc(a.interni.join(', ')) + '</small></li>';
+    }).join('') + '</ul></div>' : '';
+    var od = plan && plan.overdueNow && plan.overdueNow.length ? '<div class="plz-imp-od"><p class="plz-eyebrow">Rate già scadute oggi</p><ul>' + plan.overdueNow.map(function (x) {
+      return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + '</li>';
+    }).join('') + '</ul><p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole.</p></div>' : '';
+    var pm = plan ? (plan.messages || []) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
+    return '<p class="plz-import-sum"><b>' + plural(P.rows.length + ((P.ignored || []).length), 'riga', 'righe') + '</b> · ' + plural(c.create, 'interno nuovo', 'interni nuovi') + ', ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + plural(c.contracts, 'contratto', 'contratti') + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + ' da completare)' : '') + ' · ' + plural(c.payments, 'rata', 'rate') + ' da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
-      (P.unknown.length ? '<p class="plz-muted">Colonne ignorate: ' + esc(P.unknown.join(', ')) + '.</p>' : '') +
+      (pm.length ? '<div class="plz-imp-msgs" role="status">' + pm.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</div>' : '') +
       (msgs.length ? '<p class="plz-note">' + msgs.join(' ') + '</p>' : '') +
-      (bad.length ? '<p class="plz-note">' + bad.length + (bad.length === 1 ? ' riga da correggere' : ' righe da correggere') + ' (in rosso): sistemale nella tabella e rileggi. Non si carica niente a metà.</p>' : '') +
-      (warn.length ? '<p class="plz-muted">' + warn.length + (warn.length === 1 ? ' riga ha' : ' righe hanno') + ' un avviso: si carica lo stesso, il dato non letto resta vuoto.</p>' : '') +
-      '<div class="plz-import-wrap"><table class="plz-import-tab"><thead><tr><th>Interno</th><th>Piano</th><th>Inquilino</th><th>Canone</th><th>Contratto</th><th>Esito</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary" data-plz="imp-go"' + (can ? '' : ' disabled') + '>' + (go ? go.charAt(0).toUpperCase() + go.slice(1) : 'Niente da cambiare') + '</button></div>';
+      (bad.length ? '<p class="plz-note">' + plural(bad.length, 'riga da correggere', 'righe da correggere') + ' (in rosso): sistemale nella tabella e rileggi. Non si carica niente a metà.</p>' : '') +
+      accounts + od +
+      '<div class="plz-import-wrap"><table class="plz-import-tab"><thead><tr><th>Interno</th><th>Piano</th><th>Inquilino</th><th>Canone</th><th>Contratto</th><th>Esito</th></tr></thead><tbody>' + tr + '</tbody></table></div>' +
+      '<div class="plz-import-b">' + mainBtn + extraBtn + '</div>';
   }
   function importRead() {
     var st = ui.imp; if (!st || !last) return;
     st.parsed = E.parseRentRoll(st.text);
     var owner = (last.S.users || []).find(function (u) { return u.id === st.ownerId; });
-    st.plan = st.parsed.rows.length ? E.planImport(st.parsed.rows, last.ctx, { address: st.address, ownerId: st.ownerId, ownerName: owner ? (owner.name || owner.email || '') : '', gestioneDal: st.from }) : null;
+    var me = last.S.profile && last.S.profile.id || '';
+    st.plan = st.parsed.rows.length ? E.planImport(st.parsed.rows, last.ctx, { address: st.address, ownerId: st.ownerId, ownerName: owner ? (owner.name || owner.email || '') : '', gestioneDal: st.from,
+      applyDiffs: st.applyDiffs === true, listings: last.S.listings || [], by: me }) : null;
     var out = doc.getElementById('plz-imp-out'); if (out) out.innerHTML = importResult();
   }
+  // «Carica il contratto» di un interno da caricare: l'import già pronto con
+  // la riga di quell'interno (Interno, Piano, Inquilino) e le colonne da
+  // riempire. Si scrive solo dopo l'anteprima, come sempre.
+  function importForUnit(u) {
+    var data = last || compute(), st = ui.imp = impDefaults(data);
+    var lease = u.month.lease || {}, co = (lease.coTenants || []).map(function (t) { return t && (t.name || t.fullName) || ''; }).filter(Boolean).join(' / ');
+    var cells = [u.interno || '', u.property && u.property.floor || '', lease.tenantName || u.month.tenants[0] || '', co, lease.tenantPhone || '', '', '', '', '', '', lease.landlordName || ''];
+    st.text = ['Interno', 'Piano', 'Inquilino', 'Co-intestatari', 'Telefono', 'Canone', 'Oneri', 'Dal', 'Al', 'Tipo', 'Locatore'].join('\t') + '\n' + cells.join('\t');
+    if (u.property && u.property.gestioneDal) st.from = String(u.property.gestioneDal);
+    var box = doc.getElementById('plz-import');
+    if (box) { box.innerHTML = importPanel(data); var ta = box.querySelector('[data-imp="text"]'); if (ta) { ta.focus(); try { box.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {} } }
+  }
+
   function copyText(text, el) {
     var done = function () { if (el) { var t0 = el.textContent; el.textContent = 'Copiato ✓'; root.setTimeout(function () { el.textContent = t0; }, 1600); } };
     try { if (root.navigator.clipboard && root.isSecureContext) { root.navigator.clipboard.writeText(text).then(done, function () { root.prompt('Copia il messaggio', text); }); return; } } catch (_) {}
@@ -1398,8 +1780,16 @@
   function onClick(e) {
     var a = e.target.closest && e.target.closest('a[href]');
     if (a) {   // chiama/scrivi: il link fa il suo lavoro
+      // Il messaggio della rata aperto su WhatsApp resta SULLA RATA
+      // (dunningHistory): «inviato» si legge da lì, anche domani.
       var sentId = a.getAttribute('data-sent');
-      if (sentId) { ui.rata.sent[sentId] = true; root.setTimeout(function () { if (doc.querySelector('.plz')) patch(); }, 0); }
+      if (sentId) {
+        ui.rata.sent[sentId] = true;
+        var A1 = adapter && adapter.actions || {};
+        if (A1.logRataSent) Promise.resolve(A1.logRataSent(sentId, { channel: 'whatsapp', kind: a.getAttribute('data-kind') === 'sollecito' ? 'sollecito' : 'rata-link', month: a.getAttribute('data-month') || '' }))
+          .then(function (ok) { if (ok === false) ui.rata.sent[sentId] = 'error'; if (doc.querySelector('.plz')) patch(); }, function () { ui.rata.sent[sentId] = 'error'; if (doc.querySelector('.plz')) patch(); });
+        root.setTimeout(function () { if (doc.querySelector('.plz')) patch(); }, 0);
+      }
       return;
     }
     var el = e.target.closest && e.target.closest('[data-plz]');
@@ -1407,9 +1797,12 @@
     var act = el.getAttribute('data-plz'), id = el.getAttribute('data-id') || '';
     var st = doc.getElementById('plz-stage');
     var fst = doc.getElementById('plz-fac-stage');
-    if (act === 'select') { if ((st && st.dataset.justDragged) || (fst && fst.dataset.justDragged)) return; select(id); return; }
-    if (act === 'deselect') { ui.selected = ''; patch(); return; }
+    if (act === 'select') { if ((st && st.dataset.justDragged) || (fst && fst.dataset.justDragged)) return; select(id, el); return; }
+    if (act === 'deselect') { closeCard(); return; }
     if (act === 'contacts-retry') { ui.contacts.failed = Object.create(null); patch(); return; }
+    if (act === 'docs-retry' && last && last.m.building) { delete ui.docs[last.m.building.key]; patch(); return; }
+    if (act === 'msg-lang') { ui.msgLang = el.getAttribute('data-l') === 'it' ? 'it' : 'en'; patch(); return; }
+    if (act === 'reload') { var Ar = adapter.actions || {}; if (Ar.reload) { el.disabled = true; el.textContent = 'Rileggo…'; return Promise.resolve(Ar.reload()).then(function () { el.disabled = false; el.textContent = 'Riprova'; }, function () { el.disabled = false; el.textContent = 'Riprova'; }); } return; }
     if (act === 'month') { stopPlay(); setMonth(el.getAttribute('data-m')); return; }
     if (act === 'prev' || act === 'next') { stopPlay(); setMonth(E.monthAdd(ui.month || last.m.month, act === 'prev' ? -1 : 1)); return; }
     if (act === 'today') { stopPlay(); setMonth(last.m.currentMonth); return; }
@@ -1432,35 +1825,42 @@
     }
     var A = adapter.actions || {}, admin = viewAdmin();
     var unit = last && last.m.units.find(function (u) { return u.id === id; });
-    if (act === 'inbox' && A.inbox) return A.inbox();
+    // «Scrivi a BOOM»: con l'interno, così chi risponde sa di cosa si parla.
+    if (act === 'inbox' && A.inbox) return A.inbox(id || ui.selected || '', el.getAttribute('data-ch') === 'email' ? 'email' : undefined);
     if (act === 'csv') { var span = el.getAttribute('data-span'); return exportCsv(span === 'year' ? true : span === 'utenze' ? 'utenze' : false); }
     if (act === 'maint-new') { ui.reportFor = id; ui.reportDone = ''; patch(); var ta = doc.querySelector('#plz-mform textarea'); if (ta) ta.focus(); return; }
     if (act === 'maint-cancel') { ui.reportFor = ''; patch(); return; }
     if (act === 'copy-link') { copyText(el.getAttribute('data-text') || '', el); return; }
+    // Sollecita / Manda il link: la scheda dell'interno si apre sulla rata,
+    // il link si chiede al server, e su telefono la scheda viene IN VISTA col
+    // focus sul tasto WhatsApp (prima restava 1.000px più giù, fuori schermo).
     if (act === 'rata' && admin) {
       var payId = el.getAttribute('data-pay');
-      if (id && ui.selected !== id) ui.selected = id;
-      ui.rata.open = payId;
+      if (id && ui.selected !== id) { ui.opener = opener(el) || ui.opener; ui.selected = id; }
+      ui.rata.open = payId; ui.rata.focus = payId;
       fetchRata([payId]);
       patch();
       return;
     }
     if (act === 'rata-all' && admin && last) {
       ui.rataOpen = !ui.rataOpen;
-      if (ui.rataOpen) {
-        var ids = [];
-        last.m.units.forEach(function (u) { u.month.rows.forEach(function (r) { if (payable(r) && r.month === last.m.month) ids.push(r.id); }); });
-        fetchRata(ids);
-      }
+      if (ui.rataOpen) fetchRata(openRates(last.m).map(function (x) { return x.r.id; }));
       patch();
       return;
     }
     if (act === 'record' && admin && A.record) return A.record(el.getAttribute('data-pay'));
+    if (act === 'undo-record' && admin && A.undoRecord) return Promise.resolve(A.undoRecord(el.getAttribute('data-pay'))).then(function (ok) { if (ok) patch(); });
     if (act === 'maint-link' && adapter.links && last) {
       var occ = last.m.units.filter(function (x) { return x.month.contractId; }).map(function (x) { return x.id; });
       el.disabled = true;
-      return Promise.resolve(adapter.links(occ.length ? occ : [id])).then(function (links) { ui.links = Object.assign({}, ui.links || {}, links || {}); el.disabled = false; patch(); },
-        function () { el.disabled = false; el.textContent = 'Link non disponibile ora · riprova'; });
+      // Il server può dare un link PER CONTRATTO (più contratti vivi sullo
+      // stesso interno): ognuno riceve il suo.
+      return Promise.resolve(adapter.links(occ.length ? occ : [id])).then(function (res) {
+        var links = res && res.links && typeof res.links === 'object' ? res.links : res || {};
+        ui.links = Object.assign({}, ui.links || {}, links);
+        ui.linksBy = Object.assign({}, ui.linksBy || {}, (res && res.byContract) || {});
+        el.disabled = false; patch();
+      }, function () { el.disabled = false; el.textContent = 'Link non disponibile ora · riprova'; });
     }
     if (act === 'as-owner' && adapter.isAdmin()) { ui.asOwner = el.getAttribute('data-owner') || ''; ui.selected = ''; ui.shareOpen = false; ui.draft = null; rerender(); return; }
     if (act === 'share' && adapter.isAdmin()) {
@@ -1480,6 +1880,47 @@
     if (act === 'imp-close') { ui.imp = null; var box3 = doc.getElementById('plz-import'); if (box3) box3.innerHTML = ''; return; }
     if (act === 'imp-template') return downloadText('BOOM_modello_palazzo.csv', '﻿' + E.RR_TEMPLATE);
     if (act === 'imp-read') return importRead();
+    // Le differenze con l'archivio si applicano solo se lo chiedi: il piano
+    // si ricalcola (cambiano anche le rate da pagare) e il tasto lo dice.
+    if (act === 'imp-apply' && ui.imp) { ui.imp.applyDiffs = true; var cb = doc.querySelector('[data-imp-flag="applyDiffs"]'); if (cb) cb.checked = true; return importRead(); }
+    if (act === 'load-contract' && unit) return importForUnit(unit);
+    if (act === 'innesto' && unit && A.innesto) return A.innesto(unit.id);
+    if (act === 'terms' && id) { ui.terms = { cid: id, f: el.getAttribute('data-f') === 'oneri' ? 'oneri' : 'rent' }; patch(); var tin = doc.querySelector('#plz-terms input'); if (tin) tin.focus(); return; }
+    if (act === 'terms-cancel') { ui.terms = null; patch(); return; }
+    if (act === 'terminate' && id && A.terminate) return A.terminate(id);
+    if (act === 'cancel-rates' && A.cancelRates) {
+      var pids = (el.getAttribute('data-ids') || '').split(',').filter(Boolean);
+      if (!pids.length) return;
+      el.disabled = true;
+      return Promise.resolve(A.cancelRates(pids, 'contratto chiuso')).then(function () { el.disabled = false; patch(); }, function () { el.disabled = false; });
+    }
+    if (act === 'look-open') {
+      ui.lookOpen = true;
+      if (ui.view !== 'simple') { ui.view = 'simple'; persist(); rerender(); }
+      var lk = doc.getElementById('plz-look'); if (lk) { lk.open = true; try { lk.scrollIntoView({ block: 'start', behavior: 'smooth' }); } catch (_) {} }
+      return;
+    }
+    if (act === 'card-cancel') { ui.cardDraft = null; adapter.render(); return; }
+    if (act === 'card-save' && A.saveRataCard && last && last.m.building) {
+      var cd = ui.cardDraft && ui.cardDraft.key === last.m.building.key ? ui.cardDraft : null;
+      if (!cd) { var c0 = cardCfgOf(last.m).cfg || {}; cd = { on: c0.on === true, mandateAt: c0.mandateAt || '', note: c0.note || '', fee: c0.fee === 'surcharge' ? 'surcharge' : 'absorbed' }; }
+      el.disabled = true;
+      return Promise.resolve(A.saveRataCard(last.m.building.propertyIds.slice(), { on: !!cd.on, mandateAt: /^\d{4}-\d{2}-\d{2}$/.test(cd.mandateAt || '') ? cd.mandateAt : null, note: cd.note || '', fee: cd.fee === 'surcharge' ? 'surcharge' : 'absorbed' }))
+        .then(function (ok) { if (ok) { ui.cardDraft = null; ui.cardOpen = true; adapter.render(); } else el.disabled = false; }, function () { el.disabled = false; });
+    }
+    if (act === 'pwd-link' && A.sendPasswordLink) { el.disabled = true; return Promise.resolve(A.sendPasswordLink(el.getAttribute('data-owner'))).then(function (ok) { el.disabled = false; if (ok) el.textContent = '✓ Link per la password inviato'; }, function () { el.disabled = false; }); }
+    if (act === 'rend-mode' && A.setRendiconto) {
+      return Promise.resolve(A.setRendiconto(el.getAttribute('data-owner'), el.getAttribute('data-mode'))).then(function (ok) {
+        if (ok) { ui.rend = null; var sb = doc.getElementById('plz-share'); if (sb && last) { last = compute(); sb.innerHTML = ui.shareOpen ? shareBox(last) : ''; } }
+      });
+    }
+    if (act === 'rend-run' && adapter.rendiconto) {
+      var kind = el.getAttribute('data-kind') === 'force' ? 'force' : 'preview', ow = el.getAttribute('data-owner');
+      if (kind === 'force' && root.confirm && !root.confirm('Rimandare il rendiconto del mese scorso?\n\nCon la modalità «Automatico a lei» le arriva di nuovo, anche se l’aveva già ricevuto. Con «Anteprima» arriva solo a BOOM.')) return;
+      el.disabled = true;
+      var shareNow = function () { var sb = doc.getElementById('plz-share'); if (sb && last) sb.innerHTML = ui.shareOpen ? shareBox(last) : ''; };
+      return Promise.resolve(adapter.rendiconto(ow, kind)).then(function (r) { ui.rend = rendOutcome(r, kind); shareNow(); }, function (err) { ui.rend = { ok: false, msg: 'Non è partito: ' + ((err && err.message) || 'errore') + '. Riprova fra un attimo.' }; shareNow(); });
+    }
     if (act === 'imp-go' && ui.imp && ui.imp.plan && A.importRoll) {
       var plan = ui.imp.plan; el.disabled = true;
       return Promise.resolve(A.importRoll(plan)).then(function (ok) {
@@ -1517,14 +1958,41 @@
   }
   function onChange(e) {
     var el = e.target;
+    if (el && el.getAttribute && el.getAttribute('data-imp-flag') && ui.imp) { ui.imp[el.getAttribute('data-imp-flag')] = !!el.checked; if (ui.imp.parsed) importRead(); return; }
+    if (el && el.getAttribute && el.getAttribute('data-card')) return onInput(e);
+    // La scansione del contratto firmato su carta (solo admin): solo PDF, la
+    // controlla e la carica il portal (palazzoUploadPaper).
+    if (el && el.getAttribute && el.getAttribute('data-plz-file') === 'paper' && el.files && el.files[0] && adapter && viewAdmin()) {
+      var A = adapter.actions || {}, cid = el.getAttribute('data-id'), f = el.files[0], lab = el.closest('label');
+      if (!A.uploadPaperContract) return;
+      if (lab) lab.classList.add('is-busy');
+      return Promise.resolve(A.uploadPaperContract(cid, f)).then(function (url) { el.value = ''; if (lab) lab.classList.remove('is-busy'); if (url) patch(); }, function () { el.value = ''; if (lab) lab.classList.remove('is-busy'); });
+    }
     if (el && el.getAttribute && (el.getAttribute('data-look') && el.type === 'radio' || el.getAttribute('data-imp') || (el.form && el.form.id === 'plz-mform'))) return onInput(e);
     if (!el || el.getAttribute('data-plz') !== 'building' || !adapter) return;
     stopPlay(); ui.key = el.value; ui.selected = ''; ui.draft = null; persist(); rerender();
   }
   // La segnalazione dalla scheda: si valida qui (una frase, almeno), si
   // scrive sul server. Il testo resta in ui.reportDraft finché non parte.
+  // Un importo scritto come lo scrive una persona: «1.250», «1250,50»,
+  // «1.250,50», «1250.50». Ambiguo o non numero → NaN (mai indovinato).
+  function euroInput(v) {
+    var t = String(v == null ? '' : v).trim().replace(/[\s€]/g, '');
+    if (/^\d{1,3}(\.\d{3})+(,\d{1,2})?$/.test(t)) t = t.replace(/\./g, '').replace(',', '.');
+    else if (/^\d+(,\d{1,2})?$/.test(t)) t = t.replace(',', '.');
+    else if (!/^\d+(\.\d{1,2})?$/.test(t)) return NaN;
+    return Math.round(Number(t) * 100) / 100;
+  }
   function onSubmit(e) {
     var f = e.target;
+    // Canone / oneri dalle rate da pagare in poi: il portal chiede conferma.
+    if (f && f.id === 'plz-terms' && adapter) {
+      e.preventDefault();
+      var A = adapter.actions || {}, cid = f.getAttribute('data-id'), kind = f.getAttribute('data-f');
+      var v = euroInput(f.v.value), fn = kind === 'oneri' ? A.applyOneri : A.setRent;
+      if (!fn || !isFinite(v) || v < 0 || (kind === 'rent' && !(v > 0))) { f.v.focus(); return; }
+      return Promise.resolve(fn(cid, v)).then(function (ok) { if (ok) { ui.terms = null; patch(); } });
+    }
     if (!f || f.id !== 'plz-mform' || !adapter) return;
     e.preventDefault();
     var pid = f.getAttribute('data-id'), err = doc.getElementById('plz-merr'), btn = f.querySelector('[data-plz="maint-send"]');
@@ -1541,7 +2009,7 @@
   function onKey(e) {
     var el = e.target;
     if ((e.key === 'Enter' || e.key === ' ') && el && el.getAttribute && el.getAttribute('data-plz') === 'select' && el.getAttribute('role')) {
-      e.preventDefault(); select(el.getAttribute('data-id'));
+      e.preventDefault(); select(el.getAttribute('data-id'), el);
     }
     if (el && el.id === 'plz-fac-stage' && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
       e.preventDefault();
@@ -1549,7 +2017,7 @@
       else ui.fx = clampN(ui.fx + (e.key === 'ArrowUp' ? -4 : 4), -22, 2);
       setFacAngles();
     }
-    if (e.key === 'Escape' && ui.selected && doc.querySelector('.plz')) { ui.selected = ''; patch(); }
+    if (e.key === 'Escape' && ui.selected && doc.querySelector('.plz')) closeCard();
   }
   function onOver(e) {
     var tip = doc.getElementById('plz-tip'), el = e.target.closest && e.target.closest('.plz-unit, .plz-win[data-id]');

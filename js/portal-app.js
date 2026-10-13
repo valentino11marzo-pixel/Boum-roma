@@ -852,7 +852,52 @@ Valentyne - BOOM Rome`
             sendPasswordLink: ownerId => palazzoSendPasswordLink(ownerId),
             loadBuilding: propertyIds => palazzoLoadBuilding(propertyIds),
             reload: () => palazzoReload(),
-            saveLook: (ids, fields) => palazzoAdminOnly() && palazzoSaveLook(ids, fields) },
+            saveLook: (ids, fields) => palazzoAdminOnly() && palazzoSaveLook(ids, fields),
+            // «Carica il contratto» di un interno da caricare, da un PDF.
+            innesto: propertyId => palazzoAdminOnly() && typeof innestoOpenFor === 'function' && innestoOpenFor('property', propertyId),
+            // Le rate rimaste APERTE dopo la chiusura del contratto («Da
+            // sistemare»): si annullano rileggendo ognuna dal server, mai una
+            // pagata, segnalata o in corso. Una transazione per rata: una che
+            // cambia nel mezzo resta com'è, e il toast lo dice.
+            cancelRates: async (paymentIds, reason) => {
+                if (!palazzoAdminOnly()) return false;
+                const ids = [...new Set((paymentIds || []).filter(Boolean))];
+                if (!ids.length) return false;
+                if (!confirm(`Annullare ${ids.length} ${ids.length === 1 ? 'rata aperta' : 'rate aperte'} dopo la chiusura del contratto?\n\nLe rate pagate o segnalate non si toccano. Chi le ha già ricevute col link vedrà «rata annullata».`)) return false;
+                const by = S.profile?.id || '', at = new Date().toISOString();
+                let done = 0, kept = 0;
+                for (const id of ids) {
+                    try {
+                        const ok = await db.runTransaction(async tx => {
+                            const ref = db.collection('payments').doc(id), snap = await tx.get(ref);
+                            if (!snap.exists) return false;
+                            const st = window.BOOM_RENT.paymentState({ ...snap.data(), id });
+                            if (st !== 'due' && st !== 'overdue') return false;
+                            tx.update(ref, { status: 'cancelled', cancelledAt: at, cancelledReason: reason || 'contratto chiuso', cancelledBy: by });
+                            return true;
+                        });
+                        if (ok) { done++; const lp = (S.payments || []).find(p => p.id === id); if (lp) Object.assign(lp, { status: 'cancelled', cancelledAt: at, cancelledReason: reason || 'contratto chiuso', cancelledBy: by }); }
+                        else kept++;
+                    } catch (err) { kept++; console.warn('[palazzo] annulla rata', id, err && err.message); }
+                }
+                if (done) { logActivity('palazzo_rates_cancelled', 'payment', { ids, done, reason: reason || 'contratto chiuso' }); if (typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot(); }
+                toast(done ? 'success' : 'info', done ? `${done} ${done === 1 ? 'rata annullata' : 'rate annullate'}` : 'Nessuna rata annullata', kept ? `${kept} ${kept === 1 ? 'era già cambiata (pagata, segnalata o annullata): non toccata' : 'erano già cambiate (pagate, segnalate o annullate): non toccate'}` : '');
+                if (S.page === 'palazzo') renderPage();
+                return done > 0;
+            } },
+        // Il rendiconto di una proprietaria, su richiesta dell'operatore:
+        // l'anteprima solo a BOOM, oppure il mese scorso rimandato (force).
+        rendiconto: async (ownerId, kind) => {
+            if (!isAdmin()) return { ok: false, error: 'solo admin' };
+            const user = firebase.auth().currentUser;
+            if (!user) throw new Error('no_session');
+            const token = await user.getIdToken();
+            const q = 'ownerId=' + encodeURIComponent(ownerId) + (kind === 'force' ? '&force=1' : '&preview=1');
+            const r = await fetch('/api/owners/rendiconto?' + q, { method: 'POST', headers: { Authorization: 'Bearer ' + token } });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j) throw new Error((j && j.error) || ('http_' + r.status));
+            return j;
+        },
         // Recapiti di BOOM per la proprietaria («Scrivi a BOOM»).
         company: () => palazzoCompany(),
         // I documenti CONDIVISI degli interni (mai uno non condiviso alla
@@ -886,10 +931,12 @@ Valentyne - BOOM Rome`
         },
         // I link /guasto degli interni: derivati sul server (il segreto non
         // scende mai nel browser), solo per gli interni di chi chiede.
+        // byContract: un link per contratto quando l'interno ne ha più d'uno
+        // vivo (ognuno manda il SUO).
         links: async (propertyIds) => {
             const r = await palazzoGuasto({ op: 'links', propertyIds });
             if (!r || !r.ok) throw new Error((r && r.error) || 'links_failed');
-            return r.links || {};
+            return { links: r.links || {}, byContract: r.byContract || {} };
         },
         // I link /rata (carta o Apple Pay, oppure bonifico con la ricevuta):
         // il token è derivato sul server, solo l'admin li chiede.
@@ -1173,10 +1220,23 @@ Valentyne - BOOM Rome`
     // rata pagata tornerebbe "da pagare". Solo properties/contracts/payments.
     async function palazzoImport(plan) {
         if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
+        // Un piano con righe ferme non si carica, nemmeno a metà.
+        if ((plan.errors || []).length) { toast('warning', 'Tabella da correggere', 'Ci sono righe in rosso: sistemale e rileggi.'); return false; }
         const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
+        const U = plan.applyDiffs ? (plan.paymentUpdates || []) : [];
+        const cnt = plan.counts || {}, nU = U.filter(u => !u.cancel).length, nX = U.filter(u => u.cancel).length;
+        const n = (x, one, many) => `${x} ${x === 1 ? one : many}`;
         const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
         const newC = C.filter(c => !c.exists).length, updC = C.length - newC;
-        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${newC} contratti${updC ? `, ${updC} già in archivio (solo i campi vuoti)` : ''}\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
+        const how = plan.applyDiffs ? 'campi vuoti e differenze applicate' : 'solo i campi vuoti';
+        const lines = [`${n(newP, 'interno nuovo', 'interni nuovi')}${updP ? `, ${updP} già in archivio (${how})` : ''}`,
+            `${n(newC, 'contratto', 'contratti')}${updC ? `, ${updC} già in archivio (${how})` : ''}`,
+            `${n(R.length, 'rata nuova', 'rate nuove')} da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}`];
+        if (plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio applicata', 'differenze con l’archivio applicate')}`);
+        if (nU) lines.push(`${n(nU, 'rata da pagare ricalcolata', 'rate da pagare ricalcolate')} (rilette una per una: una pagata o segnalata nel frattempo non si tocca)`);
+        if (nX) lines.push(`${n(nX, 'rata da pagare annullata', 'rate da pagare annullate')} (fine del contratto anticipata)`);
+        if (!plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio NON applicata', 'differenze con l’archivio NON applicate')}`);
+        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${lines.join('\n')}\n\nNessuna email parte agli inquilini.`)) return false;
         try {
             const exists = async (col, ids) => {
                 const out = new Set();
@@ -1201,7 +1261,13 @@ Valentyne - BOOM Rome`
                 if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by }]);
                 else if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]);
             });
-            R.forEach(r => { if (!payHave.has(r.id)) ops.push(['set', 'payments', r.id, { ...r.data, createdAt: ts }]); });
+            // Chi ha registrato l'incasso dichiarato dalla tabella: l'operatore.
+            R.forEach(r => {
+                if (payHave.has(r.id)) return;
+                const d = { ...r.data, createdAt: ts };
+                if (d.status === 'paid' && !d.paidRecordedBy) d.paidRecordedBy = by;
+                ops.push(['set', 'payments', r.id, d]);
+            });
             for (let i = 0; i < ops.length; i += 400) {
                 const batch = db.batch();
                 ops.slice(i, i + 400).forEach(([kind, col, id, data]) => {
@@ -1217,9 +1283,35 @@ Valentyne - BOOM Rome`
                 const cur = arr.find(x => x.id === id);
                 if (cur) Object.assign(cur, clean); else arr.push({ id, ...clean });
             });
+            // Le rate GIÀ in archivio che il piano ricalcola o annulla (solo con
+            // «Applica le differenze»): ognuna si rilegge dal server in una
+            // transazione e si scrive SOLO se è ancora da pagare (mai segnalata,
+            // in corso o pagata) e ha ancora l'importo che il piano ha visto.
+            let uDone = 0, uKept = 0;
+            for (const u of U) {
+                try {
+                    const ok = await db.runTransaction(async tx => {
+                        const ref = db.collection('payments').doc(u.id), snap = await tx.get(ref);
+                        if (!snap.exists) return false;
+                        const cur = { ...snap.data(), id: u.id };
+                        const st = window.BOOM_RENT.paymentState(cur);
+                        if (st !== 'due' && st !== 'overdue') return false;
+                        if (cur.tenantReported === true) return false;
+                        const amt = window.BOOM_RENT.amount(cur.amount), want = u.expect && u.expect.amount != null ? window.BOOM_RENT.amount(u.expect.amount) : amt;
+                        if (amt !== want) return false;
+                        const data = { ...u.data };
+                        if (!u.cancel) data.amountChange = { at: new Date().toISOString(), by, was: amt, why: 'tabella del palazzo' };
+                        else data.cancelledBy = by;
+                        tx.update(ref, data);
+                        return data;
+                    });
+                    if (ok) { uDone++; const lp = (S.payments || []).find(p => p.id === u.id); if (lp) Object.assign(lp, ok); } else uKept++;
+                } catch (err) { uKept++; console.warn('[palazzo import] rata', u.id, err && err.message); }
+            }
+            if (uDone && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
             const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
-            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped });
-            toast('success', 'Palazzo caricato', `${newP} interni · ${newC} contratti${updC ? ` (+${updC} completati)` : ''} · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
+            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped, applyDiffs: !!plan.applyDiffs, paymentUpdates: uDone, paymentUpdatesKept: uKept });
+            toast(uKept ? 'warning' : 'success', 'Palazzo caricato', `${n(newP, 'interno', 'interni')} · ${n(newC, 'contratto', 'contratti')}${updC ? ` (+${updC} aggiornati)` : ''} · ${n(R.length, 'rata', 'rate')}${uDone ? ` · ${n(uDone, 'rata ricalcolata o annullata', 'rate ricalcolate o annullate')}` : ''}${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}${uKept ? ` · ${n(uKept, 'rata era cambiata nel frattempo (pagata, segnalata o con un altro importo): non toccata', 'rate erano cambiate nel frattempo (pagate, segnalate o con un altro importo): non toccate')}` : ''}`);
             return true;
         } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
     }
