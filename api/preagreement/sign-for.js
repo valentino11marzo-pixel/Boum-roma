@@ -39,6 +39,11 @@
 //   { op:'ask-landlord-mandate', id, propertyId?, createProperty? }
 //                                arma la richiesta sulla Scheda del locatore
 //                                (contratto creato se manca) → { url, message }
+//   { op:'landlord-scheda', id, propertyId?, createProperty? }
+//                                la Scheda del locatore per i SUOI DATI (12/10/
+//                                2026): contratto creato se manca, cosa gli
+//                                manca, link e messaggio dal dizionario, email
+//                                se c'è → { url, message, missing, phone, email }
 //   { op:'sign', id, landlordDelegate?, landlordBasis?, propertyId?,
 //     createProperty?, force? }  firma (conduttore per mandato → locatore per
 //                                mandato, o per delega dichiarata)
@@ -52,6 +57,8 @@ import { mandateCheck, landlordMandateCheck } from '../magic-sign/_shared.js';
 import msSubmit, { MS_CONSENT_TEXT } from '../magic-sign/submit.js';
 import { signatureState } from './send-sign.js';
 import { schedaUrl } from '../profile/_scheda.js';
+import { landlordGaps, askLandlordScheda } from './_askscheda.js';
+import FIELDS from '../../js/contract-fields.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
@@ -226,6 +233,60 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan, landlordMandateUrl: contract ? landlordMandateUrl(contractId) : null });
   }
 
+  // Il contratto nasce qui se manca (idempotente, come 🖊): la Scheda del
+  // locatore è del CONTRATTO. Una copia per 🏠 mandato e 📋 Scheda. Restituisce
+  // null se il contratto c'è, altrimenti la risposta d'errore della conversione.
+  let created = false, propertyCreated = false;
+  const convertIfMissing = async () => {
+    if (contract) return null;
+    const out = await convertPaToContract({
+      pa, paId, propertyId: b.propertyId || pa.propertyId,
+      actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
+    });
+    if (!out.ok) {
+      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+      return { code, body: { ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) } };
+    }
+    contractId = out.contractId;
+    created = !out.already;
+    propertyCreated = !!out.propertyCreated;
+    try { contract = await fsGet('contracts/' + contractId); } catch (_) { contract = null; }
+    if (!contract) return { code: 500, body: { ok: false, error: 'contract_missing' } };
+    return null;
+  };
+
+  // ── 📋 LA SCHEDA DEL PROPRIETARIO, PER I SUOI DATI (12/10/2026) ───────
+  // «Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i
+  // suoi dati»: la proposta pagata (BOOM-MUCHJ6LC) non aveva contratto, e la
+  // console non offriva nessun modo di mandare la Scheda al proprietario se
+  // non DENTRO la richiesta del mandato. Qui: contratto creato se manca,
+  // cosa gli manca letto come lo legge il PDF (landlordGaps), link e
+  // messaggio dal dizionario (missingMessage, IT), email se c'è (la stessa
+  // di 🖊, askLandlordScheda). Nessun mandato armato: è un'altra domanda.
+  if (op === 'landlord-scheda') {
+    const fail = await convertIfMissing();
+    if (fail) return res.status(fail.code).json(fail.body);
+    const { missing, property } = await landlordGaps(contractId, contract);
+    const url = schedaUrl(contractId, 'landlord');
+    const propLabel = (property && (property.name || property.address)) || ((pa.property || {}).address) || '';
+    const name = contract.landlordName || ((pa.landlord || {}).name) || (property && property.ownerName) || '';
+    const message = FIELDS.missingMessage('landlord', missing, { name, url, propLabel });
+    const email = String(contract.landlordEmail || ((pa.landlord || {}).email) || '').trim();
+    const phone = String(contract.landlordPhone || ((pa.landlord || {}).phone) || '').trim();
+    const locked = !!contract.landlordSignature;
+    let emailed = false;
+    if (!locked && missing.length && email && EMAIL_RE.test(email)) {
+      try { emailed = !!(await askLandlordScheda({ contractId, contract, pa, actor: auth.email || auth.uid })).asked; }
+      catch (e) { console.warn('[pa/sign-for] landlord scheda email:', e.message); }
+    }
+    await logActivity('preagreement_landlord_scheda', 'contract', { paId, contractId, created, missing: missing.length, emailed }, auth.email || 'admin');
+    return res.status(200).json({
+      ok: true, contractId, created, propertyCreated, url, message, locked,
+      missing: missing.map(m => ({ key: m.key, label: m.label })),
+      phone: phone || null, email: email || null, emailed,
+    });
+  }
+
   // ── 🏠 CHIEDI IL MANDATO AL PROPRIETARIO ─────────────────────────────
   // Arma la card sulla Scheda del locatore (askLandlordMandate — mai un
   // mandato che nessuno ha offerto) e restituisce il link e il messaggio
@@ -233,19 +294,8 @@ export default async function handler(req, res) {
   // contratto nasce qui se manca (idempotente, come 🖊): la Scheda è del
   // contratto, e il mandato copre le condizioni di QUEL contratto.
   if (op === 'ask-landlord-mandate') {
-    if (!contract) {
-      const out = await convertPaToContract({
-        pa, paId, propertyId: b.propertyId || pa.propertyId,
-        actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
-      });
-      if (!out.ok) {
-        const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
-        return res.status(code).json({ ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
-      }
-      contractId = out.contractId;
-      try { contract = await fsGet('contracts/' + contractId); } catch (_) { contract = null; }
-      if (!contract) return res.status(500).json({ ok: false, error: 'contract_missing' });
-    }
+    const fail = await convertIfMissing();
+    if (fail) return res.status(fail.code).json(fail.body);
     if (contract.landlordSignature) return res.status(410).json({ ok: false, error: 'already_signed', contractId });
     const already = !!(contract.landlordMandate && contract.landlordMandate.given === true);
     if (!already && contract.askLandlordMandate !== true) {
@@ -274,7 +324,7 @@ export default async function handler(req, res) {
       } catch (e) { console.warn('[pa/sign-for] ask landlord mandate email:', e.message); }
     }
     await logActivity('preagreement_ask_landlord_mandate', 'contract', { paId, contractId, emailed, already }, auth.email || 'admin');
-    return res.status(200).json({ ok: true, contractId, url, message, phone: phone || null, email: email || null, emailed, already, at: already ? (contract.landlordMandate.at || null) : null });
+    return res.status(200).json({ ok: true, contractId, created, propertyCreated, url, message, phone: phone || null, email: email || null, emailed, already, at: already ? (contract.landlordMandate.at || null) : null });
   }
   if (op !== 'sign') return res.status(400).json({ ok: false, error: 'bad_op' });
 

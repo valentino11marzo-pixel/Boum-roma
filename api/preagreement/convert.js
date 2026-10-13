@@ -157,7 +157,9 @@ export function propertyFromPa({ pa, paId, actor = 'system' }) {
     createdBy: 'preagreement_convert:' + actor,
   };
 }
-export const propertyIdForPa = (paId) => 'prop_pa_' + paId;
+// L'id dell'immobile nato dalla proposta in UNA copia: il motore del mandato
+// lo riconosce come l'indirizzo approvato (termsForMandate).
+export const propertyIdForPa = (paId) => MANDATO.proposalPropertyId(paId);
 
 // La scheda `users` del conduttore, nella forma che i lettori (Allegato,
 // Scheda, dizionario) conoscono. UNA copia: la usa il bootstrap vero e il
@@ -280,7 +282,8 @@ export function tenantMandateFor(pa, paId, contract) {
   const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
   const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
   const termsHash = snap ? snap.hash : mandateTermsHash(terms);
-  const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
+  // l'immobile creato DA questa proposta è l'indirizzo approvato (termsForMandate)
+  const diff = MANDATO.diffTerms(terms, MANDATO.termsForMandate(contract, { terms, paId }));
   return {
     given: true,
     at: pa.mandate.at || null,

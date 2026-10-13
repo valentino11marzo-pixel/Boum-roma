@@ -4205,6 +4205,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
                     <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+                    <div class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
                     <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Sistema</div>
@@ -20926,7 +20927,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // tentativo — il server resta l'ultimo giudice (409). Senza motore
         // caricato o su un mandato v1 non si finge un verdetto.
         const ME = window.BOOM_MANDATO;
-        const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsFromContract(c)) : null;
+        const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsForMandate ? ME.termsForMandate(c, mand) : ME.termsFromContract(c)) : null;
         const mandBroken = !!(mandDiff && mandDiff.length);
         const lmDiff = (lmand && ME) ? ME.diffTerms(lmand.terms || {}, ME.termsFromContract(c)) : null;
         const lmBroken = !!(lmDiff && lmDiff.length);
@@ -21061,8 +21062,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (c.tenantSignature) return toast('error', 'Il conduttore ha già firmato');
         if (on && !(c.tenantMandate && c.tenantMandate.given === true)) return toast('error', 'Nessun mandato scritto: il conduttore firma col suo link');
         if (on && window.BOOM_MANDATO && Number(c.tenantMandate.termsVersion) >= 2) {
-            const d = window.BOOM_MANDATO.diffTerms(c.tenantMandate.terms || {}, window.BOOM_MANDATO.termsFromContract(c));
-            if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato: ' + window.BOOM_MANDATO.describeDiff(d));
+            const ME = window.BOOM_MANDATO;
+            // l'immobile nato dalla proposta vale come l'indirizzo approvato (termsForMandate)
+            const d = ME.diffTerms(c.tenantMandate.terms || {}, ME.termsForMandate ? ME.termsForMandate(c, c.tenantMandate) : ME.termsFromContract(c));
+            if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato: ' + ME.describeDiff(d));
         }
         const t = (S.users || []).find(u => u.id === c.tenantId);
         try {
@@ -23902,8 +23905,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const prop = (S.properties || []).find(p => p.id === c.propertyId);
-        const tenant = (S.users || []).find(u => u.id === c.tenantId);
-        const landlord = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
+        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        // I CONTATTI DAL CONTRATTO quando manca il profilo (12/10/2026): un
+        // immobile nato da una proposta non ha ownerId, e i bottoni WhatsApp
+        // ed email del locatore restavano spenti («Manca il telefono») col
+        // numero scritto sul contratto (landlordPhone, dalla proposta). Il
+        // profilo vince campo per campo; l'accesso al portale resta solo a
+        // chi un profilo ce l'ha (landlordUser).
+        const partyOf = (user, name, phone, email) => {
+            const base = { name: name || '', phone: phone || '', email: email || '' };
+            if (!user) return (base.name || base.phone || base.email) ? base : null;
+            return { ...user, name: user.name || base.name, phone: user.phone || base.phone, email: user.email || base.email };
+        };
+        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
+        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
 
         // Mount a placeholder immediately so the modal is visible while the
         // Firestore backfill is in flight. If a previous closeModal() is still
@@ -24069,16 +24085,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 emailBody: (n) => `Gentile ${n},\n\necco il pass digitale BOOM proprietario. Lo apra dal Suo iPhone per aggiungerlo al Wallet:\n\n{URL}\n\nBOOM Roma`
             });
         }
-        // Landlord: portal access
-        if (landlord) {
+        // Landlord: portal access — solo a chi ha davvero un profilo per entrare
+        if (landlordUser) {
             links.push({
                 audience: 'landlord', icon: '📊', title: 'Accedi al portale proprietari',
                 subtitle: 'Dashboard incassi, contratti, manutenzioni',
                 url: `${base}/portal.html`,
                 target: landlord,
-                waText: (n) => `Gentile ${n}, può accedere al portale BOOM proprietari qui (login con email ${landlord.email || ''}): {URL}`,
+                waText: (n) => `Gentile ${n}, può accedere al portale BOOM proprietari qui (login con email ${landlordUser.email || ''}): {URL}`,
                 emailSubj: 'BOOM · Accesso portale proprietari',
-                emailBody: (n) => `Gentile ${n},\n\npuò accedere al portale BOOM proprietari per vedere incassi, contratti e manutenzioni:\n\n{URL}\n\nLogin con la Sua email: ${landlord.email || ''}\n\nBOOM Roma`
+                emailBody: (n) => `Gentile ${n},\n\npuò accedere al portale BOOM proprietari per vedere incassi, contratti e manutenzioni:\n\n{URL}\n\nLogin con la Sua email: ${landlordUser.email || ''}\n\nBOOM Roma`
             });
         }
 
