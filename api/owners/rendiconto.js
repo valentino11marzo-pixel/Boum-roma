@@ -109,7 +109,7 @@ const SEND_MARGIN_MS = 5000;              // stato + PDF + archivio (col tetto d
 // Il recap promette un nuovo tentativo automatico solo se domani è fra
 // questi: tests/rendiconto/tempo.mjs li confronta col file vero, così la
 // frase non può dire «riprova domani» con un cron mensile.
-export const CRON_DAYS = [1];
+export const CRON_DAYS = [1, 2, 3, 4, 5];
 const adminEmail = () => process.env.ADMIN_NOTIFY_EMAIL || process.env.GMAIL_USER || 'valentino@boom-rome.com';
 
 const str = (v) => (v == null ? '' : String(v).trim());

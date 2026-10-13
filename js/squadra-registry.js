@@ -424,17 +424,18 @@
     },
     {
       key: 'rendiconto', emoji: '📊', name: 'Il Rendiconto', reparto: 'Amministrazione',
-      role: 'Il 1° del mese, il PDF a ogni proprietario',
+      role: 'Dal 1° al 5 del mese, il PDF a ogni proprietario',
       hired: 'Il mandato si rinnova quando il proprietario VEDE il lavoro. Un PDF puntuale vale più di una telefonata.',
       mandate: [
         'Per ogni proprietario e ogni suo immobile: canoni incassati con data, rate ancora aperte, arretrati, manutenzioni',
         'Un PDF nel design BOOM, email in italiano',
+        'Gira dal 1° al 5 del mese: chi non è partito il primo giorno riparte da solo il giorno dopo',
         'Idempotente per proprietario e mese: un rerun non rispedisce'
       ],
       autonomy: {
-        solo:  ['MANDA IL PDF AL PROPRIETARIO, senza che tu tocchi niente'],
-        porta: ['Il recap Telegram di quanti sono partiti'],
-        mai:   ['Non manda due volte lo stesso mese']
+        solo:  ['MANDA IL PDF ai proprietari in modalità automatica, senza che tu tocchi niente'],
+        porta: ['L\'anteprima all\'operatore per chi ha interni presi in carico (modalità anteprima)', 'Il recap Telegram di quanti sono partiti'],
+        mai:   ['Non manda due volte lo stesso mese', 'Un invio incerto (email partita, risposta persa) non si ritenta da solo']
       },
       reach: ['clienti', 'archivio', 'file', 'soldi'],
       approval: 'mai',

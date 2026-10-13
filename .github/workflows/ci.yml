@@ -78,6 +78,17 @@ jobs:
           cd tests/rules
           cp ../../firestore.rules ./firestore.rules
           npx firebase emulators:exec --only firestore --project demo-boom-rules 'node runner.mjs'
+      # Le regole di Storage (13/10/2026): documents/, maintenance/,
+      # payment-proofs/ e contracts/ non si elencano né si scaricano da un
+      # account proprietario. Le legge storage.mjs con le regole VERE (le
+      # regole Storage leggono il ruolo da Firestore: servono entrambi gli
+      # emulatori). La copia di storage.rules vive solo nel runner.
+      - name: Test storage.rules contro emulatore
+        run: |
+          cd tests/rules
+          cp ../../firestore.rules ./firestore.rules
+          cp ../../storage.rules ./storage.rules
+          npx firebase emulators:exec --only firestore,storage --project demo-boom-rules 'node storage.mjs'
 
   smoke:
     runs-on: ubuntu-latest

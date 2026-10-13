@@ -200,10 +200,12 @@ const contractsOf = (opts, pid) => {
   const b = vBudget(20000);
   globalThis.__mailHook = () => { b.tick(10000); };
   globalThis.__fsHook = (method, path, opts) => { if (path === ':runQuery' && contractsOf(opts, 'pB')) b.tick(6000); return null; };
-  const out = await mod.run({ monthOverride: MONTH, budget: b, now: new Date('2026-08-03T06:10:00Z') });
+  // Il 5 è l'ultimo giorno del cron («10 6 1-5 * *», 13/10/2026): domani
+  // nessun giro, quindi il recap chiede di rilanciare a mano.
+  const out = await mod.run({ monthOverride: MONTH, budget: b, now: new Date('2026-08-05T06:10:00Z') });
   check('tempo finito dopo il primo: il secondo è «rimandato», nessuno stato scritto per lui',
     out.counts.sent === 1 && out.counts.deferred === 1 && out.results.some((x) => x.ownerId === 'ownB' && x.skipped === 'deferred' && !x.after) && !doc('B') && to('B').length === 0);
-  check('Telegram dice di rilanciare «Esegui ora» (il cron mensile non riprova da solo)', F.telegrams.some((t) => /1 rimandati per tempo: rilancia «Esegui ora» nella Squadra/.test(t)));
+  check('Telegram dice di rilanciare «Esegui ora» (l\'ultimo giorno del cron non riprova da solo)', F.telegrams.some((t) => /1 rimandati per tempo: rilancia «Esegui ora» nella Squadra/.test(t)));
   globalThis.__mailHook = null; globalThis.__fsHook = null;
   const r = await drive();
   check('il giro dopo fa il rimandato, non il già inviato', r.body.counts.sent === 1 && r.body.counts.alreadySent === 1 && to('A').length === 1 && to('B').length === 1);

@@ -68,7 +68,10 @@ function seed(n) {
   check('email a 16s: 3 partiti, 3 rimandati', out.counts.sent === 3 && out.counts.deferred === 3);
   check('…i rimandati dopo il primo non sono nemmeno letti, e nessuno stato scritto per loro',
     deferred.length === 3 && deferred.slice(1).every((o) => !readOf('p' + o.slice(3))) && deferred.every((o) => !F.store.has(`rendiconti/${o}_${MONTH}`)));
-  check('…il recap li conta, a parole', F.telegrams.some((t) => /⏳ 3 rimandati per tempo: rilancia «Esegui ora» nella Squadra/.test(t)));
+  // Il giro di domani dipende dal cron VERO (dal 13/10/2026 «10 6 1-5 * *»):
+  // il 3 agosto domani c'è un giro, l'ultimo giorno no — il recap lo dice.
+  const againWords = mod.autoRetryTomorrow(NOW) ? 'riprova domani da solo' : 'rilancia «Esegui ora» nella Squadra';
+  check('…il recap li conta, a parole', F.telegrams.some((t) => t.includes('⏳ 3 rimandati per tempo: ' + againWords)));
   globalThis.__mailHook = null;
 }
 
