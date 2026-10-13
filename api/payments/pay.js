@@ -221,6 +221,9 @@ export default async function handler(req, res) {
   // per l'admin al telefono — i soldi finirebbero sul conto di BOOM.
   const lang = payLang(b.lang);
   const ctx = await cardContext(pay);
+  // Una rata il cui periodo comincia dopo la chiusura vera del contratto non
+  // è dovuta (BOOM_RENT.afterClose, la regola del Palazzo): nessuna Checkout.
+  if (ctx.contract && RENT.afterClose(pay, ctx.contract)) return res.status(409).json({ ok: false, error: 'payment_after_close' });
   if (!ctx.policy.available) {
     // Contratto illeggibile: un guasto momentaneo, non una regola — si riprova.
     if (ctx.policy.reason === 'unverified') return res.status(503).json({ ok: false, error: 'card_unverified', reason: 'unverified' });

@@ -10,6 +10,7 @@ const MUTATIONS = [
   'moneyback-patch', 'moneyback-mine', 'pi-metadata', 'return-rata', 'report-rome-default',
   'revoked-proof', 'proof-from-head', 'recorded-session', 'recorded-session-rata', 'unverified-card', 'nonce-ignored',
   'double-tap-window', 'pi-lang', 'redelivery-reopened',
+  'afterclose-sdd', 'afterclose-rata', 'afterclose-pay', 'afterclose-link',
   'engine-moneyback', 'engine-policy', 'engine-review-pay',
 ];
 let failed = 0;

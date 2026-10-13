@@ -147,6 +147,51 @@
     return { available: true, reason: '', fee: key(cfg.fee) === 'surcharge' ? 'surcharge' : 'absorbed', imported: true, mandateAt: mandateAt };
   }
 
+  // ── LA RATA DOPO LA CHIUSURA DEL CONTRATTO — la regola del Palazzo, una
+  // copia per chi legge i ritardi (portal, Oggi, server, SEPA, /rata). Un
+  // contratto chiuso DAVVERO (terminato, scaduto, chiuso: closedForReal di
+  // js/palazzo-engine.js) non deve più niente per i periodi che cominciano
+  // DOPO la sua fine effettiva (terminatedAt per un terminato, endDate per gli
+  // altri). Una rata così rimasta «da pagare» (chiusura fatta da «Modifica
+  // contratto», dati vecchi) non è un ritardo, non si sollecita, non si
+  // addebita: va annullata, e il Palazzo la conta a parte. Un contratto ancora
+  // 'active' oltre la sua fine NON è chiuso (rinnovo tacito): lì la rata resta
+  // dovuta. Il periodo è quello scritto (periodFrom), o il mese di LOCAZIONE
+  // ricavato dal giorno di decorrenza come fanno i generatori, o l'inizio del
+  // mese della rata. tests/rata/run.mjs verifica la parità col motore.
+  var CLOSED = ['terminated', 'expired', 'closed', 'ended', 'completed', 'renewed', 'cancelled', 'canceled'];
+  function contractEnd(contract) {
+    var c = contract || {};
+    if (key(c.status) === 'terminated') return day(c.terminatedAt) || day(c.terminationDate) || day(c.endDate);
+    return day(c.endDate);
+  }
+  function contractClosed(contract) {
+    var c = contract || null;
+    return !!(c && (CLOSED.includes(key(c.status)) || day(c.terminatedAt)));
+  }
+  function leaseDay(start, k) {
+    var y = +start.slice(0, 4), mo = +start.slice(5, 7) - 1 + k, dd = +start.slice(8, 10);
+    var last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+    return new Date(Date.UTC(y, mo, Math.min(dd, last))).toISOString().slice(0, 10);
+  }
+  function periodStart(payment, contract) {
+    var p = payment || {}, pf = day(p.periodFrom);
+    if (pf) return pf;
+    var month = monthOf(p.month) || day(p.dueDate).slice(0, 7);
+    if (!month) return '';
+    var start = day(contract && contract.startDate);
+    if (start) {
+      var k = (+month.slice(0, 4) - +start.slice(0, 4)) * 12 + (+month.slice(5, 7) - +start.slice(5, 7));
+      if (k >= 0) return leaseDay(start, k);
+    }
+    return month + '-01';
+  }
+  function afterClose(payment, contract) {
+    if (!contractClosed(contract)) return false;
+    var end = contractEnd(contract), ps = periodStart(payment, contract);
+    return !!(end && ps && ps > end);
+  }
+
   function canReviewReport(payment) {
     var p = payment || {};
     return paymentState(p) === 'reported' && ['pending','due','overdue','reported'].includes(key(p.status))
@@ -362,7 +407,7 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, moneyBack: moneyBack, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { amount: amount, moneyBack: moneyBack, afterClose: afterClose, contractClosed: contractClosed, contractEnd: contractEnd, periodStart: periodStart, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

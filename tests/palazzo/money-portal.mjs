@@ -173,6 +173,7 @@ function build(src = SRC0) {
     region(src, '    async function sendPaymentConfirmEmail(', '    // ═══ 🖊 FIRMA ORA'),
     region(src, '    function _buildReceiptDoc(', '    function downloadInvoicePDF('),
     fnSrc(src, 'esc'), fnSrc(src, 'jsq'), fnSrc(src, 'fmtDate'), fnSrc(src, 'numberToWords'),
+    fnSrc(src, 'updateContract'), fnSrc(src, 'monthsBetween'), fnSrc(src, 'isPaymentLate'), fnSrc(src, 'paymentAfterClose'), fnSrc(src, 'livePaymentsForQueues'),
   ].join('\n');
   vm.runInContext(code, ctx);
   const run = c => vm.runInContext(c, ctx);
@@ -562,6 +563,135 @@ const today = romeDay();
   });
 }
 
+// ═══ 7b. Chiudere da «Modifica contratto» e il deposito che non si inventa ═
+// La tendina Stato offre «Terminato» e «Scaduto»: prima updateContract
+// scriveva stato e data e basta, e le rate dopo l'uscita restavano «da pagare»
+// (badge, Oggi, Gestore, SEPA le leggevano come ritardi dell'ex inquilino).
+const CLOSE_FIX = () => {
+  const f = FIX();
+  const r = (m, extra = {}) => ({ id: 'pay_c8_' + m, contractId: 'c8', propertyId: 'p8', type: 'rent', month: m, amount: 1000, dueDate: m + '-05', periodFrom: m + '-01', status: 'pending', ...extra });
+  f.payments = [r('2026-10', { status: 'paid', paidDate: '2026-10-04' }), r('2026-11'), r('2026-12'), r('2027-01', { tenantReported: true }), r('2027-02')];
+  return f;
+};
+const editForm = over => function () {
+  return Object.entries({ propertyId: 'p8', tenantId: '', startDate: '2026-10-01', endDate: '2027-03-15', rent: '1000', deposit: '', canoneTotal: '', canoneInstallments: '',
+    type: 'transitorio', status: 'active', notes: '', ...over });
+};
+{
+  const T = build(); T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'terminated', endDate: '2026-11-30' });
+  T.ctx.__confirmAnswer = false;
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('«Modifica» → Terminato: il piano si dice PRIMA, e dicendo no non si scrive niente', () => {
+    assert.match(T.confirms.at(-1), /Chiudo il contratto di Mario Prova al 30\/11\/2026/);
+    assert.match(T.confirms.at(-1), /Si annullano 2 rate non pagate/);
+    assert.equal(T.doc('contracts/c8').status, 'active');
+    assert.equal(T.doc('payments/pay_c8_2026-12').status, 'pending');
+  });
+  T.ctx.__confirmAnswer = true;
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  const c = T.doc('contracts/c8');
+  await check('«Modifica» → Terminato: contratto chiuso con la sua data e rate dopo l’uscita annullate nella stessa transazione', () => {
+    assert.equal(c.status, 'terminated'); assert.equal(c.terminatedAt, '2026-11-30'); assert.equal(c.endDate, '2026-11-30');
+    assert.equal(T.doc('payments/pay_c8_2026-12').status, 'cancelled'); assert.equal(T.doc('payments/pay_c8_2026-12').cancelledReason, 'contratto chiuso');
+    assert.equal(T.doc('payments/pay_c8_2027-02').status, 'cancelled');
+    assert.equal(T.doc('payments/pay_c8_2026-11').status, 'pending', 'il mese dentro il contratto resta dovuto');
+    assert.equal(T.doc('payments/pay_c8_2027-01').tenantReported, true, 'la segnalata resta com’era');
+    assert.equal(T.doc('payments/pay_c8_2027-01').status, 'pending');
+    assert.equal(T.doc('payments/pay_c8_2026-10').status, 'paid');
+    assert.ok(T.toasts.some(a => a[0] === 'warning' && /segnalat[ae] o in corso/.test(a.join(' '))), 'la segnalata dopo la chiusura si dice');
+  });
+  await check('dopo la chiusura da «Modifica» il Palazzo non vede un moroso (motore vero)', () => {
+    const Pz = require('../../js/palazzo-engine.js');
+    const read = col => [...T.store.entries()].filter(([k]) => k.startsWith(col + '/')).map(([k, v]) => ({ ...v, id: k.split('/')[1] }));
+    const ctxP = Pz.context({ now: new Date('2027-02-20T10:00:00Z'), properties: read('properties'), contracts: read('contracts'), payments: read('payments'), users: read('users') });
+    const u = Pz.unitMonth(ctxP, read('properties').find(p => p.id === 'p8'), '2027-02');
+    assert.notEqual(u.state, 'late'); assert.ok(!u.occupied);
+  });
+}
+{
+  // «Scaduto» con la Fine accorciata, e un contratto attivo con la Fine accorciata.
+  const T = build(); T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'expired', endDate: '2026-12-31' });
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('«Modifica» → Scaduto: annullate le rate dopo la Fine, nessun terminatedAt', () => {
+    assert.equal(T.doc('contracts/c8').status, 'expired'); assert.equal(T.doc('contracts/c8').terminatedAt, undefined);
+    assert.equal(T.doc('payments/pay_c8_2027-02').status, 'cancelled'); assert.equal(T.doc('payments/pay_c8_2026-12').status, 'pending');
+  });
+  const T2 = build(); T2.seed(CLOSE_FIX());
+  T2.ctx.FormData = editForm({ status: 'active', endDate: '2026-11-30' });
+  await T2.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('Fine accorciata su un contratto attivo: stesso piano, stessa conferma, rate dopo la Fine annullate', () => {
+    assert.match(T2.confirms.at(-1), /Accorcio il contratto di Mario Prova al 30\/11\/2026/);
+    assert.equal(T2.doc('payments/pay_c8_2026-12').status, 'cancelled');
+    assert.equal(T2.doc('contracts/c8').status, 'active');
+  });
+  const T3 = build(); T3.seed(CLOSE_FIX());
+  T3.ctx.FormData = editForm({ status: 'terminated', endDate: '' });
+  await T3.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('Terminato senza data di fine: si chiede la data, niente scritto', () => {
+    assert.equal(T3.doc('contracts/c8').status, 'active');
+    assert.ok(T3.toasts.some(a => /Indica la data di fine/.test(a.join(' '))));
+  });
+  const T4 = build(); T4.seed(CLOSE_FIX());
+  T4.ctx.FormData = editForm({ notes: 'solo una nota' });
+  await T4.run("updateContract({preventDefault(){},target:null},'c8')");
+  await check('una modifica che non chiude né accorcia non legge le rate e non chiede niente', () => {
+    assert.equal(T4.confirms.length, 0); assert.equal(T4.doc('contracts/c8').notes, 'solo una nota');
+  });
+}
+{
+  // Dati vecchi: contratto già chiuso con una rata dopo la fine ancora aperta.
+  const T = build(); const f = FIX();
+  f.contracts.push({ id: 'cOld', propertyId: 'p9', status: 'expired', tenantName: 'Ex Inquilina', startDate: '2025-01-01', endDate: '2025-12-31', rent: 900 });
+  f.payments.push({ id: 'pay_cOld_2026-01', contractId: 'cOld', propertyId: 'p9', type: 'rent', month: '2026-01', amount: 900, dueDate: '2026-01-05', status: 'pending' },
+    { id: 'pay_cOld_2025-12', contractId: 'cOld', propertyId: 'p9', type: 'rent', month: '2025-12', amount: 900, dueDate: '2025-12-05', status: 'pending' });
+  T.seed(f);
+  await check('la rata dopo la chiusura non è un ritardo (badge, notifiche, proprietaria); quella dentro il contratto sì', () => {
+    assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='pay_cOld_2026-01'))"), false);
+    assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='pay_cOld_2025-12'))"), true);
+    const ids = T.run('livePaymentsForQueues().map(p=>p.id)');
+    assert.ok(!ids.includes('pay_cOld_2026-01') && ids.includes('pay_cOld_2025-12'), 'Oggi non riceve la rata dopo la chiusura');
+  });
+  await check('Oggi (motore vero) non propone il sollecito all’ex inquilina', () => {
+    const OG = require('../../js/oggi-engine.js');
+    const S0 = { ...T.S, payments: T.run('livePaymentsForQueues()') };
+    const out = OG.build(S0, '2026-02-20T10:00:00Z');
+    assert.ok(!JSON.stringify(out.decisions).includes('pay_cOld_2026-01'));
+    const raw = OG.build({ ...T.S }, '2026-02-20T10:00:00Z');
+    assert.ok(JSON.stringify(raw.decisions).includes('pay_cOld_2026-01'), 'senza il filtro del portal il motore la propone (il controllo morde)');
+  });
+}
+{
+  // Il deposito alla chiusura: i campi nascono vuoti, «non detto» resta non detto.
+  const T = build(); T.seed(CLOSE_FIX());
+  T.S.contracts.find(c => c.id === 'c8').deposit = 2800;
+  T.run("openModal('terminateContract', S.contracts.find(c=>c.id==='c8'))");
+  const h = T.getEl('modals').innerHTML;
+  await check('⛔ Termina: deposito restituito e trattenute vuoti, col deposito pattuito come promemoria e chi lo tiene', () => {
+    assert.match(h, /name="depositReturned" step="0\.01" min="0" value=""/);
+    assert.match(h, /name="depositWithheld" step="0\.01" min="0" value=""/);
+    assert.match(h, /Deposito pattuito: €2\.800,00\./);
+    assert.match(h, /Il deposito lo tiene il locatore/);
+  });
+  T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', terminationNotes: '', depositReturned: '', depositWithheld: '' }); };
+  await T.run("terminateContract({preventDefault(){},target:null},'c8')");
+  await check('chiudere senza toccare il deposito non scrive «restituiti» né «trattenuti»', () => {
+    const c = T.doc('contracts/c8');
+    assert.equal(c.status, 'terminated');
+    assert.ok(!('depositReturned' in c) && !('depositWithheld' in c), JSON.stringify(c));
+    assert.ok(!/Deposito:/.test(T.confirms.at(-1)));
+  });
+  const T2 = build(); T2.seed(CLOSE_FIX());
+  T2.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', terminationNotes: '', depositReturned: '2500', depositWithheld: '' }); };
+  await T2.run("terminateContract({preventDefault(){},target:null},'c8')");
+  await check('un deposito restituito dichiarato si scrive e si dice nella conferma; le trattenute non dette restano non dette', () => {
+    const c = T2.doc('contracts/c8');
+    assert.equal(c.depositReturned, 2500); assert.ok(!('depositWithheld' in c));
+    assert.match(T2.confirms.at(-1), /Deposito: restituiti €2\.500,00 · trattenute non indicate/);
+  });
+}
+
 // ═══ 8. Canone e oneri nuovi sulle rate future ═══════════════════════════
 {
   const T = build();
@@ -831,7 +961,24 @@ await mutant('parseInt sull’importo della rata', "const a = incassoNum(data.am
   await T.run("updatePayment({preventDefault(){},target:null},'pay_c8_2026-10')");
   assert.equal(T.doc('payments/pay_c8_2026-10').amount, 1234.56);
 });
-await mutant('la chiusura che lascia aperte le rate', "tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);", "void 0;", async T => {
+await mutant('«Modifica» → Terminato che scrive solo lo stato (rate dopo l’uscita aperte)', "            if (_closeDay) {\n                const cRef = db.collection('contracts').doc(id);", "            if (false) {\n                const cRef = db.collection('contracts').doc(id);", async T => {
+  T.seed(CLOSE_FIX());
+  T.ctx.FormData = editForm({ status: 'terminated', endDate: '2026-11-30' });
+  await T.run("updateContract({preventDefault(){},target:null},'c8')");
+  assert.equal(T.doc('payments/pay_c8_2026-12').status, 'cancelled');
+});
+await mutant('la rata dopo la chiusura contata come ritardo', "return window.BOOM_RENT.paymentState(p) === 'overdue' && !paymentAfterClose(p);", "return window.BOOM_RENT.paymentState(p) === 'overdue';", async T => {
+  T.S.contracts.push({ id: 'cOld', propertyId: 'p9', status: 'expired', startDate: '2025-01-01', endDate: '2025-12-31' });
+  T.S.payments.push({ id: 'x', contractId: 'cOld', type: 'rent', month: '2026-01', amount: 900, dueDate: '2026-01-05', status: 'pending' });
+  assert.equal(T.run("isPaymentLate(S.payments.find(p=>p.id==='x'))"), false);
+});
+await mutant('il deposito «restituito» scritto anche se non detto', "if (depRet != null) cUpd.depositReturned = depRet;", "cUpd.depositReturned = depRet || 0;", async T => {
+  T.seed(CLOSE_FIX());
+  T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-11-30', terminationReason: 'mutual', depositReturned: '', depositWithheld: '' }); };
+  await T.run("terminateContract({preventDefault(){},target:null},'c8')");
+  assert.ok(!('depositReturned' in T.doc('contracts/c8')));
+});
+await mutant('la chiusura che lascia aperte le rate',"tx.update(db.collection('payments').doc(plan.cancel[i].id), cancel);", "void 0;", async T => {
   T.ctx.FormData = function () { return Object.entries({ terminationDate: '2026-09-30' }); };
   await T.run("terminateContract({preventDefault(){},target:null},'c8')");
   assert.equal(T.doc('payments/pay_c8_2026-10').status, 'cancelled');

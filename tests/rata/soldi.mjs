@@ -74,6 +74,16 @@ globalThis.fetch = async (input, opts = {}) => {
     const docs = JSON.parse(opts.body || '{}').documents || [];
     return json(docs.map(n => { const k = n.split('/documents/')[1]; return store.has(k) ? { found: { name: n, fields: toFields(store.get(k)), updateTime: ut(k) } } : { missing: n }; }));
   }
+  if (after.startsWith(':runQuery')) {
+    // Il minimo per fsList (api/payments/_sdd.js): una collezione, un filtro
+    // EQUAL anche su un campo annidato (sdd.status), un tetto.
+    const q = JSON.parse(opts.body || '{}').structuredQuery || {}, coll = q.from[0].collectionId;
+    const ff = q.where && q.where.fieldFilter, want = ff ? fromFs(ff.value) : null;
+    const get = (o, p) => p.split('.').reduce((x, k) => (x == null ? undefined : x[k]), o);
+    const rows = [...store.entries()].filter(([k]) => k.startsWith(coll + '/') && k.split('/').length === 2)
+      .filter(([, d]) => !ff || get(d, ff.field.fieldPath) === want).slice(0, q.limit || 50);
+    return json(rows.map(([k, d]) => ({ document: { name: 'projects/test-proj/databases/(default)/documents/' + k, fields: toFields(d), updateTime: ut(k) } })));
+  }
   if (after.startsWith(':commit')) {
     const writes = JSON.parse(opts.body).writes;
     for (const w of writes) {
@@ -694,6 +704,74 @@ await check('revisione · /rata: il modulo manda nonce e «another», e l\'ingle
   ok(/more\.onclick = function \(\) \{ openForm\(true\)/.test(html) && /'bank'\)\.onclick = function \(\) \{ openForm\(false\)/.test(html), 'un nonce per ogni modulo aperto');
   return ok(html.includes("(d ? ' made on ' + d : '')") && !html.includes("(d ? ' of ' + d : '')"), 'testo inglese');
 });
+
+// ═══ La rata DOPO la chiusura del contratto (13/10/2026) ═══════════════════
+// Un contratto chiuso da «Modifica» (o dati vecchi) lasciava «da pagare» le
+// rate dei mesi dopo l'uscita: il Palazzo diceva «libero», ma /rata le faceva
+// pagare, il link apriva una Checkout e il SEPA le addebitava all'ex inquilino.
+// La regola è UNA (BOOM_RENT.afterClose) e combacia col motore del Palazzo.
+{
+  const { createRequire } = await import('node:module');
+  const req = createRequire(import.meta.url);
+  const Pz = req('../../js/palazzo-engine.js');
+  const R = req('../../js/rent-engine.js');
+  await check('afterClose · la regola del server è QUELLA del Palazzo (terminato, scaduto, attivo oltre la fine, periodo scritto o dedotto)', () => {
+    const properties = ['pa', 'pb', 'pc', 'pd'].map(id => ({ id, address: 'Via Prova 1, Roma', interno: id }));
+    const contracts = [
+      { id: 'ca', propertyId: 'pa', status: 'terminated', terminatedAt: '2026-11-30', startDate: '2026-09-15', endDate: '2027-08-14' },
+      { id: 'cb', propertyId: 'pb', status: 'expired', startDate: '2025-01-01', endDate: '2025-12-31' },
+      { id: 'cc', propertyId: 'pc', status: 'active', startDate: '2025-01-01', endDate: '2025-06-30' },
+      { id: 'cd', propertyId: 'pd', status: 'terminated', startDate: '2026-01-10', endDate: '2026-05-31' },
+    ];
+    const pays = [];
+    const add = (c, m, extra = {}) => pays.push({ id: c + '_' + m + (extra.tag || ''), contractId: c, type: 'rent', month: m, amount: 900, dueDate: m + '-05', status: 'pending', ...extra });
+    ['2026-10', '2026-11', '2026-12', '2027-01'].forEach(m => add('ca', m));
+    add('ca', '2026-12', { tag: 'p', status: 'paid', paidDate: '2026-12-03' });
+    ['2025-12', '2026-01'].forEach(m => add('cb', m));
+    add('cb', '2026-01', { tag: 'pf', periodFrom: '2025-12-31' });
+    ['2025-06', '2025-07', '2025-08'].forEach(m => add('cc', m));
+    ['2026-05', '2026-06'].forEach(m => add('cd', m));
+    add('cd', '2026-06', { tag: 'd', month: '', dueDate: '2026-06-12' });
+    const ctx = Pz.context({ now: new Date('2027-03-01T10:00:00Z'), properties, contracts, payments: pays, users: [] });
+    const engine = new Set();
+    Object.values(ctx.afterClose).forEach(a => [...a.open, ...a.paid].forEach(r => engine.add(r.id)));
+    const byId = Object.fromEntries(contracts.map(c => [c.id, c]));
+    const mine = new Set(pays.filter(p => R.afterClose(p, byId[p.contractId])).map(p => p.id));
+    return eq([...mine].sort(), [...engine].sort(), 'rate dopo la chiusura') && ok(mine.has('ca_2026-12') && mine.has('cb_2026-01') && !mine.has('cb_2026-01pf') && !mine.has('cc_2025-08') && mine.has('cd_2026-06d'));
+  });
+  put('properties/pClosed', { ownerId: 'own1', address: 'Piazzale Esempio 42, Roma', interno: '11', source: 'palazzo-import', rataCard: { on: true, mandateAt: '2026-01-01', fee: 'absorbed' } });
+  put('contracts/cClosed', { ...imported, propertyId: 'pClosed', tenantName: 'Ex Inquilina', status: 'terminated', terminatedAt: '2026-09-30', startDate: '2026-01-01', endDate: '2026-12-31' });
+  rate('rAfter', 'cClosed', 'pClosed', { month: '2026-10', dueDate: '2026-10-05', periodFrom: '2026-10-01' });
+  rate('rBefore', 'cClosed', 'pClosed', { month: '2026-09', dueDate: '2026-09-05', periodFrom: '2026-09-01' });
+  await check('afterClose · /rata: la rata dopo la chiusura dice «niente da pagare», senza carta né bonifico, e una segnalazione non passa', async () => {
+    const l = await rata({ op: 'lookup', id: 'rAfter', t: tk('rAfter') });
+    const before = await rata({ op: 'lookup', id: 'rBefore', t: tk('rBefore') });
+    const r = await rata({ op: 'report', id: 'rAfter', t: tk('rAfter'), date: '2026-10-03' });
+    return eq([l.body.rata.state, l.body.rata.canPay, l.body.rata.card.available, l.body.payUrl, before.body.rata.canPay, r.statusCode, store.get('payments/rAfter').tenantReported],
+      ['closed', false, false, '', true, 409, undefined]);
+  });
+  await check('afterClose · il link di pagamento non apre una Checkout e dice perché; /api/payments/pay risponde 409', async () => {
+    const n0 = stripe().calls.length;
+    const l = await link('rAfter', { lang: 'en' });
+    const p = await pay({ paymentId: 'rAfter' }, 'tok-admin');
+    return eq([stripe().calls.length - n0, /Nothing to pay/.test(String(l.body)), p.statusCode, p.body.error], [0, true, 409, 'payment_after_close']);
+  });
+  await check('afterClose · /rata in browser ha la sua scheda «Nothing to pay» (IT ed EN)', () => {
+    const html = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
+    return ok(/if \(r\.state === 'closed'\)/.test(html) && html.includes("closedH: 'Nothing to pay'") && html.includes("closedH: 'Niente da pagare'"));
+  });
+  await check('afterClose · il SEPA non addebita la rata dopo la chiusura e la conta; quella dentro il contratto parte', async () => {
+    const { collectSdd } = await import('../../api/payments/_sdd.js');
+    put('contracts/cSdd', { propertyId: 'pStd', tenantName: 'Ex Sepa', status: 'expired', startDate: '2026-01-01', endDate: '2026-09-30',
+      sdd: { status: 'active', customerId: 'cus_x', paymentMethodId: 'pm_x', activatedAt: '2026-01-01' } });
+    put('payments/rSddIn', { contractId: 'cSdd', type: 'rent', month: '2026-09', amount: 900, status: 'pending', dueDate: '2026-09-30' });
+    put('payments/rSddAfter', { contractId: 'cSdd', type: 'rent', month: '2026-10', amount: 900, status: 'pending', dueDate: '2026-10-01' });
+    const n0 = (stripe().piCreated || []).length;
+    const out = await at('2026-09-28T09:00:00Z', () => collectSdd({ cap: 10 }));
+    const made = (stripe().piCreated || []).slice(n0).map(x => x.metadata.paymentId);
+    return eq([made, out.afterClose, store.get('payments/rSddAfter').sddPiId], [['rSddIn'], 1, undefined]);
+  });
+}
 
 console.log(`\nRata · soldi: ${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

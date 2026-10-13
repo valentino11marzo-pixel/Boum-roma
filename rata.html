@@ -111,6 +111,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       procH: 'Pagamento in corso', procP: 'Un pagamento per questa rata è già in elaborazione. Non pagare di nuovo: lo stato si aggiorna da solo.',
       reviewH: 'Pagamento da verificare', reviewP: 'Su questo pagamento c’è un rimborso o una contestazione: BOOM lo sta verificando. Non pagare di nuovo finché BOOM non ti scrive.',
       otherH: 'Rata da verificare', otherP: 'Questa rata non si può pagare da qui. Scrivi a BOOM per capire cosa fare.',
+      closedH: 'Niente da pagare', closedP: 'Questa rata è di un periodo dopo la fine del contratto: non è dovuta. Se hai dubbi, scrivi a BOOM.',
       backH: 'Conferma in arrivo', backP: 'Stiamo verificando il pagamento con carta. Non pagare di nuovo: fra poco questa pagina lo mostra come pagato.', refresh: 'Aggiorna',
       cancelled: 'Il pagamento con carta non è stato completato. Puoi riprovare, oppure pagare con bonifico qui sotto.',
       foot: 'Pagamento gestito da BOOM Property Management (Egidi Immobiliare S.r.l.). Il link vale solo per questa rata.', privacy: 'Informativa privacy' },
@@ -141,6 +142,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       procH: 'Payment in progress', procP: 'A payment for this instalment is already being processed. Don’t pay again: the status updates by itself.',
       reviewH: 'Payment being checked', reviewP: 'There is a refund or a dispute on this payment and BOOM is checking it. Don’t pay again until BOOM contacts you.',
       otherH: 'Instalment to check', otherP: 'This instalment can’t be paid from here. Message BOOM to sort it out.',
+      closedH: 'Nothing to pay', closedP: 'This instalment is for a period after your lease ended: it is not due. If anything is unclear, message BOOM.',
       backH: 'Confirmation on its way', backP: 'We’re checking your card payment. Don’t pay again: in a moment this page shows it as paid.', refresh: 'Refresh',
       cancelled: 'The card payment wasn’t completed. You can try again, or pay by bank transfer below.',
       foot: 'Payment managed by BOOM Property Management (Egidi Immobiliare S.r.l.). This link is only for this instalment.', privacy: 'Privacy notice' }
@@ -257,6 +259,7 @@ button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;
       return;
     }
     if (r.state === 'processing') { app.innerHTML = html + status('', '…', t('procH'), [t('procP')]); return; }
+    if (r.state === 'closed') { app.innerHTML = html + status('is-paid', '✓', t('closedH'), [t('closedP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
     if (r.state === 'review') { app.innerHTML = html + status('', '?', t('reviewH'), [t('reviewP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
     if (!r.canPay) { app.innerHTML = html + status('', '?', t('otherH'), [t('otherP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
     // Di ritorno da Stripe ma il pagamento non risulta ancora: niente carta

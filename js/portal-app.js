@@ -1712,8 +1712,25 @@ Valentyne - BOOM Rome`
     // (che dopo il rinomino non trovava più niente — il proprietario non
     // vedeva un solo arretrato). Segnalate e in corso non sono ritardi.
     function isPaymentLate(p) {
-        if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue';
+        if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue' && !paymentAfterClose(p);
         return !!p && (p.status === 'pending' || p.status === 'overdue') && isOverdue(p.dueDate);
+    }
+    // Una rata il cui periodo comincia DOPO la chiusura vera del suo
+    // contratto (BOOM_RENT.afterClose, la regola del Palazzo) non è un
+    // ritardo di nessuno: va annullata. Prima il Palazzo diceva «libero,
+    // nessun ritardo» e il badge della proprietaria, le notifiche e Oggi la
+    // contavano fra gli arretrati dell'ex inquilino (13/10/2026).
+    function paymentAfterClose(p) {
+        const R = window.BOOM_RENT;
+        if (!R || typeof R.afterClose !== 'function' || !p || !p.contractId) return false;
+        const c = (S.contracts || []).find(x => x.id === p.contractId);
+        return !!c && R.afterClose(p, c);
+    }
+    // Le rate da cui Oggi deve partire: senza quelle APERTE dopo la chiusura
+    // del contratto (le pagate restano: sono soldi veri).
+    function livePaymentsForQueues() {
+        const R = window.BOOM_RENT;
+        return (S.payments || []).filter(p => !(paymentAfterClose(p) && R && ['due', 'overdue', 'unknown'].includes(R.paymentState(p))));
     }
     function isPaymentOpen(p) { return !!p && (p.status === 'pending' || p.status === 'overdue'); }
 
@@ -3662,7 +3679,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         // Overdue payments — per la proprietaria come le conta il Palazzo: mai
         // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
-        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue')).forEach(p => {
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => isPaymentLate(p))).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -6751,7 +6768,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiDecisionPanel() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return '';
-        const { decisions, cash } = E.build(S, new Date().toISOString());
+        const { decisions, cash } = E.build(Object.assign({}, S, { payments: livePaymentsForQueues() }), new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
@@ -19385,6 +19402,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 return;
             }
         }
+        // CHIUDERE DA «MODIFICA» (13/10/2026). La tendina Stato offre «Scaduto» e
+        // «Terminato», e una Fine accorciata dice la stessa cosa: prima si
+        // scrivevano stato e data e basta, le rate dopo l'uscita restavano «da
+        // pagare» — badge della proprietaria, Oggi, Gestore e SEPA le leggevano
+        // come ritardi dell'ex inquilino. Ora la chiusura passa dalla stessa
+        // regola di ⛔ Termina: rate rilette dal server, piano detto PRIMA,
+        // contratto e rate annullate in UNA transazione.
+        const _newStatus = String(data.status || '');
+        const _closing = _newStatus === 'terminated' || _newStatus === 'expired';
+        const _newEnd = incassoDay(data.endDate), _oldEnd = incassoDay(_existingContract.endDate);
+        const _keptTerm = _newStatus === 'terminated' ? incassoDay(_existingContract.terminatedAt) : '';
+        const _closeDay = _closing ? (_keptTerm || _newEnd) : (_newEnd && _oldEnd && _newEnd < _oldEnd ? _newEnd : '');
+        if (_closing && !_closeDay) {
+            toast('warning', 'Indica la data di fine', 'Un contratto scaduto o terminato ha bisogno del giorno in cui finisce: dice quali rate non sono più dovute.');
+            return;
+        }
         try {
             const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
             const updatePayload = {
@@ -19426,9 +19459,47 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatePayload['studenti.tipoIscrizione'] = data.studenti_tipoIscrizione || '';
                 updatePayload['studenti.annoAccademico'] = data.studenti_annoAccademico || '';
             }
-            await db.collection('contracts').doc(id).update(updatePayload);
-            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId || null, tenantId: updatePayload.tenantId || _existingContract.tenantId || null, rent: updatePayload.rent ?? _existingContract.rent ?? null });
-            await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
+            // Terminato da qui: la data di chiusura è la Fine scelta (quella già
+            // scritta da ⛔ Termina resta).
+            if (_newStatus === 'terminated' && !_keptTerm && _closeDay) updatePayload.terminatedAt = _closeDay;
+            let cancelled = [], planLines = [];
+            if (_closeDay) {
+                const cRef = db.collection('contracts').doc(id);
+                const cSnap = await cRef.get({ source: 'server' });
+                if (!cSnap.exists) return toast('error', 'Contratto non trovato');
+                const cNow = { ...cSnap.data(), id, startDate: data.startDate || cSnap.data().startDate };
+                const rs = await db.collection('payments').where('contractId', '==', id).get({ source: 'server' });
+                const plan = terminationPlan(cNow, rs.docs.map(d => ({ ...d.data(), id: d.id })), _closeDay);
+                planLines = terminationSummary(plan, _closeDay);
+                if (plan.cancel.length) {
+                    const what = _closing ? `Chiudo il contratto${cNow.tenantName ? ' di ' + cNow.tenantName : ''} al ${incassoDateIt(_closeDay)}` : `Accorcio il contratto${cNow.tenantName ? ' di ' + cNow.tenantName : ''} al ${incassoDateIt(_closeDay)}`;
+                    if (!confirm(`${what}.\n\n${planLines.join('\n')}`)) return;
+                    const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
+                    const cancelUpd = { status: 'cancelled', cancelledAt: at, cancelledReason: 'contratto chiuso', cancelledBy: by };
+                    await db.runTransaction(async tx => {
+                        cancelled = [];
+                        const fresh = await Promise.all(plan.cancel.map(p => tx.get(db.collection('payments').doc(p.id))));
+                        const cTx = await tx.get(cRef);
+                        if (!cTx.exists) throw new Error('Contratto non trovato');
+                        tx.update(cRef, updatePayload);
+                        fresh.forEach((s, i) => {
+                            const d = s.exists ? s.data() : null;
+                            if (!d || !['due', 'overdue'].includes(window.BOOM_RENT.paymentState(d))) return;
+                            tx.update(db.collection('payments').doc(plan.cancel[i].id), cancelUpd);
+                            cancelled.push(plan.cancel[i].id);
+                        });
+                    });
+                    cancelled.forEach(pid => { const lp = (S.payments || []).find(x => x.id === pid); if (lp) Object.assign(lp, cancelUpd); });
+                } else await cRef.update(updatePayload);
+            } else await db.collection('contracts').doc(id).update(updatePayload);
+            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId || null, tenantId: updatePayload.tenantId || _existingContract.tenantId || null, rent: updatePayload.rent ?? _existingContract.rent ?? null, ...(_closeDay ? { closeDay: _closeDay, cancelledRates: cancelled.length } : {}) });
+            await refreshOnly('contracts');
+            closeModal();
+            if (cancelled.length) toast('success', 'Contratto aggiornato', `${cancelled.length} ${cancelled.length === 1 ? 'rata annullata' : 'rate annullate'} dopo il ${incassoDateIt(_closeDay)}`);
+            else toast('success', 'Contratto aggiornato!');
+            // Pagate, segnalate o a cavallo della chiusura: restano, e si dice.
+            const rest = planLines.filter(l => !/^Nessuna rata da annullare|^Si annullano/.test(l));
+            if (rest.length) toast('warning', 'Da verificare a mano', rest.join(' '));
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -19597,7 +19668,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const today = incassoRomeDay();
         const cid = jsq(c.id);
         const lines = terminationSummary(terminationPlan(c, S.payments, today), today);
-        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${esc(p?.name || p?.address || 'l’immobile')}</strong> con <strong>${esc(c.tenantName || t?.name || 'l’inquilino')}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${cid}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${today}" required oninput="terminateContractPreview('${cid}',this.value)"></div><div id="termPreview" class="rent-note" style="margin:-4px 0 12px">${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" step="0.01" min="0" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" step="0.01" min="0" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`;
+        // IL DEPOSITO NON SI RESTITUISCE CHIUDENDO (13/10/2026). Il campo
+        // partiva dal deposito pattuito: confermando in fretta il contratto
+        // scriveva «restituiti €2.800, trattenuti €0» anche se nessuno aveva
+        // restituito niente — e sui contratti del Palazzo il deposito lo tiene
+        // il locatore, non BOOM. Ora i due campi nascono vuoti e si scrivono
+        // solo se compilati; sotto, il deposito pattuito come promemoria.
+        const dep = window.BOOM_RENT ? window.BOOM_RENT.amount(c.deposit) : null;
+        const imported = !!(window.BOOM_CONTRACT_STATE && window.BOOM_CONTRACT_STATE.isImported(c)) || c.source === 'palazzo-import';
+        const depositNote = esc((dep ? `Deposito pattuito: €${incassoEuro(dep)}.` : 'Deposito pattuito: non in archivio.')
+            + (imported ? ' Il deposito lo tiene il locatore: scrivi qui solo ciò che ha già restituito o trattenuto.' : ' Lascia vuoto se non è ancora stato restituito.'));
+        return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${esc(p?.name || p?.address || 'l’immobile')}</strong> con <strong>${esc(c.tenantName || t?.name || 'l’inquilino')}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${cid}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${today}" required oninput="terminateContractPreview('${cid}',this.value)"></div><div id="termPreview" class="rent-note" style="margin:-4px 0 12px">${lines.map(l => `<div>${esc(l)}</div>`).join('')}</div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito restituito € <span style="font-size:10px;color:var(--text-muted)">(solo se già restituito)</span></label><input type="number" class="form-input" name="depositReturned" step="0.01" min="0" value="" placeholder="—"></div><div class="form-group"><label class="form-label">Trattenute € <span style="font-size:10px;color:var(--text-muted)">(solo se decise)</span></label><input type="number" class="form-input" name="depositWithheld" step="0.01" min="0" value="" placeholder="—"></div></div><div class="rent-note" style="margin:-4px 0 4px">${depositNote}</div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`;
     }
     function terminateContractPreview(id, endDay) {
         const c = (S.contracts || []).find(x => x.id === id), box = document.getElementById('termPreview');
@@ -19626,11 +19707,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const c = { ...cSnap.data(), id };
             const rs = await db.collection('payments').where('contractId', '==', id).get({ source: 'server' });
             const plan = terminationPlan(c, rs.docs.map(d => ({ ...d.data(), id: d.id })), endDay);
-            if (!confirm(`Chiudo il contratto${c.tenantName ? ' di ' + c.tenantName : ''} al ${incassoDateIt(endDay)}.\n\n${terminationSummary(plan, endDay).join('\n')}`)) return;
+            // Il deposito: «non detto» resta non detto (mai «0 trattenute»).
+            const filled = v => String(v == null ? '' : v).trim() !== '';
+            const depRet = filled(data.depositReturned) ? incassoNum(data.depositReturned) : null;
+            const depWith = filled(data.depositWithheld) ? incassoNum(data.depositWithheld) : null;
+            if ((filled(data.depositReturned) && depRet == null) || (filled(data.depositWithheld) && depWith == null)) return toast('warning', 'Importo del deposito non valido');
+            const depLine = depRet != null || depWith != null
+                ? `\nDeposito: ${depRet != null ? 'restituiti €' + incassoEuro(depRet) : 'restituzione non indicata'} · ${depWith != null ? 'trattenuti €' + incassoEuro(depWith) : 'trattenute non indicate'}.` : '';
+            if (!confirm(`Chiudo il contratto${c.tenantName ? ' di ' + c.tenantName : ''} al ${incassoDateIt(endDay)}.\n\n${terminationSummary(plan, endDay).join('\n')}${depLine}`)) return;
             const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
             const cUpd = { status: 'terminated', terminatedAt: endDay, terminationReason: data.terminationReason || 'other', terminationNotes: data.terminationNotes || '',
-                depositReturned: incassoNum(data.depositReturned) || 0, depositWithheld: incassoNum(data.depositWithheld) || 0,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+            if (depRet != null) cUpd.depositReturned = depRet;
+            if (depWith != null) cUpd.depositWithheld = depWith;
             const cancel = { status: 'cancelled', cancelledAt: at, cancelledReason: 'contratto chiuso', cancelledBy: by };
             let cancelled = [];
             // Contratto e rate nella STESSA transazione: una rata pagata o

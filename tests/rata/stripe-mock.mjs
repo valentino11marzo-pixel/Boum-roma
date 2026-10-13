@@ -34,6 +34,12 @@ export default class Stripe {
       list: async ({ payment_intent } = {}) => ({ data: [...S().sessions.values()].filter(s => s.payment_intent && s.payment_intent === payment_intent), has_more: false }),
     } };
     this.paymentIntents = {
+      // L'addebito SEPA (api/payments/_sdd.js): si registra, non parte niente.
+      create: async (opts) => {
+        const st = S();
+        (st.piCreated ||= []).push(opts);
+        return { id: 'pi_sdd_' + st.piCreated.length, status: 'processing', metadata: opts.metadata };
+      },
       retrieve: async (id) => {
         const pi = S().intents.get(id);
         if (!pi) throw Object.assign(new Error('No such payment_intent'), { code: 'resource_missing' });

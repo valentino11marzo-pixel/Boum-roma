@@ -41,6 +41,11 @@ const MUTATIONS = {
   'double-tap-window': ['/api/payments/rata.js', 'Date.now() - t < DOUBLE_TAP_MS', 'true'],
   'pi-lang': ['/api/payments/pay.js', 'description: (paymentLabel(payment, lang) + (where', 'description: (paymentLabel(payment) + (where'],
   'redelivery-reopened': ['/api/stripe-webhook.js', "if (pay.status !== 'paid' && pay.stripeSessionId === session.id) {", 'if (false) {'],
+  // La rata dopo la chiusura del contratto (13/10/2026): addebitata, pagabile.
+  'afterclose-sdd': ['/api/payments/_sdd.js', 'if (RENT.afterClose(p, c)) {', 'if (false) {'],
+  'afterclose-rata': ['/api/payments/rata.js', "const closed = !!contract && RENT.afterClose(pay, contract)", 'const closed = false'],
+  'afterclose-pay': ['/api/payments/pay.js', 'if (ctx.contract && RENT.afterClose(pay, ctx.contract))', 'if (false)'],
+  'afterclose-link': ['/api/payments/link.js', "if (kind === 'pay' && card.contract && RENT.afterClose(doc, card.contract)) {", 'if (false) {'],
 };
 
 export async function load(url, context, nextLoad) {

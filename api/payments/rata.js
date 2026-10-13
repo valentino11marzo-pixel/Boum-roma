@@ -159,14 +159,21 @@ export function reportsOf(p) {
 // `contractError`: il contratto non si è potuto leggere — non si sa se la
 // carta sia permessa, quindi si spegne (resta il bonifico).
 export function rataView(p, { property, contract, feeStats, today, contractError } = {}) {
-  const pay = p || {}, state = RENT.paymentState(pay, today), amount = RENT.amount(pay.amount);
+  const pay = p || {}, amount = RENT.amount(pay.amount);
+  // Una rata il cui periodo comincia DOPO la chiusura vera del contratto
+  // (BOOM_RENT.afterClose, la regola del Palazzo) non è dovuta: la pagina non
+  // la fa pagare né segnalare, e lo dice. Una già pagata o segnalata resta
+  // com'è (sono soldi, o una dichiarazione, veri).
+  const st0 = RENT.paymentState(pay, today);
+  const closed = !!contract && RENT.afterClose(pay, contract) && ['due', 'overdue', 'unknown'].includes(st0);
+  const state = closed ? 'closed' : st0;
   const blocked = RENT.paymentBlockReason(pay, 'rent');
   const pr = property || {}, c = contract || {};
   const interno = clip(pr.interno || c.unit, 12);
   const building = clip(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name, 120);
   const iban = ibanOk(c.landlordIban);
   const rentPart = RENT.amount(pay.rentAmount), oneriPart = RENT.amount(pay.oneriAmount);
-  const canPay = RENT.canPay(pay, today);
+  const canPay = !closed && RENT.canPay(pay, today);
   const policy = contractError && String(pay.source || '') !== 'palazzo-import'
     ? { available: false, reason: 'unverified', fee: 'none' }
     : RENT.cardPolicy(pay, contract, property);
