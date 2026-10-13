@@ -549,6 +549,10 @@ window.createPA=async function(){
   var err=$('fErr');err.style.display='none';
   var body=readForm();
   if(!body.property.address||!body.landlord.name||!body.lease.startDate||body.money.rent<=0){err.textContent='Servono indirizzo, proprietario, data di inizio e canone.';err.style.display='block';return;}
+  /* Un PROPRIETARIO crea proposte solo sui SUOI immobili del portal: il
+     server risponde 403 forbidden_property senza (12/10/2026). Lo si dice
+     qui, prima di mandare, e il campo resta quello dell'immobile. */
+  if(ROLE!=='admin'&&!body.propertyId){err.textContent='Scegli il tuo immobile nel campo «Proprietà nel portal»: un proprietario crea proposte solo sui propri immobili.';err.style.display='block';try{$('fProp').focus();}catch(e){}return;}
   var btn=$('goBtn');btn.disabled=true;btn.textContent=EDIT_ID?'Salvo…':'Creo…';
   try{
     if(EDIT_ID){
@@ -576,8 +580,12 @@ window.createPA=async function(){
       delete payload.property.type;delete payload.property.use;delete payload.lease.endDate;delete payload.lease.lawRef;
       payload.money=payload.knobs;delete payload.knobs;   // server derives the rest
       var r=await fetch('/api/preagreement/create',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(payload)});
-      var j=await r.json();
-      if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      var j=await r.json().catch(function(){return null;});
+      if(!j||!j.ok){
+        var code=(j&&j.error)||('http_'+r.status);
+        if(code==='forbidden_property')throw new Error('l’immobile scelto non risulta tuo nel portal (solo i tuoi immobili). Se è tuo, chiedi a BOOM di collegarlo al tuo profilo');
+        throw new Error(code);
+      }
       showLink(location.origin+j.url,body);
     }
   }catch(e){err.textContent='Salvataggio non riuscito — '+(e.message||'riprova')+'.';err.style.display='block';}
@@ -1376,7 +1384,12 @@ async function loadProps(){
   if(PROPS)return PROPS;
   PROPS=[];
   try{
-    var snap=await firebase.firestore().collection('properties').limit(200).get();
+    /* Il proprietario legge SOLO i suoi immobili (rules: ownerId == uid): la
+       query senza filtro gli veniva rifiutata per intero e la tendina restava
+       vuota — quindi nessuna proposta possibile. */
+    var q=firebase.firestore().collection('properties');
+    if(ROLE!=='admin'&&USER&&USER.uid)q=q.where('ownerId','==',USER.uid);
+    var snap=await q.limit(200).get();
     snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||'',
       sqm:+v.sqm||0,furnished:!!v.furnished,energyClass:v.energyClass||'',floor:v.floor||'',canoneZonaCod:v.canoneZonaCod||'',
       features:(Array.isArray(v.features)?v.features:[]).concat(Array.isArray(v.amenities)?v.amenities:[])});});
@@ -1873,8 +1886,13 @@ BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(fu
   watchPAs();
   var d=new Date();d.setDate(d.getDate()+14);$('fStart').value=d.toISOString().slice(0,10);
   loadProps().then(function(props){
-    $('fProp').innerHTML='<option value="">— nessuna (converto dopo a mano) —</option>'
+    var owner=ROLE!=='admin';
+    $('fProp').innerHTML=(owner?'<option value="">— scegli il tuo immobile (obbligatorio) —</option>':'<option value="">— nessuna (converto dopo a mano) —</option>')
       +props.map(function(p){return '<option value="'+p.id+'">'+esc(p.name)+(p.zone?' · '+p.zone:'')+'</option>'}).join('');
+    if(owner){
+      try{var lab=$('fProp').closest('label').querySelector('span');if(lab)lab.textContent='Il tuo immobile nel portal — obbligatorio';}catch(e){}
+      if(!props.length){var err=$('fErr');if(err){err.textContent='Nessun tuo immobile risulta nel portal: chiedi a BOOM di collegarlo al tuo profilo prima di creare una proposta.';err.style.display='block';}}
+    }
   });
   try{
     firebase.firestore().collection('listings').limit(100).get().then(function(snap){
