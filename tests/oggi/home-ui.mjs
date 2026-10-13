@@ -57,10 +57,18 @@ try{
    assert.equal(await page.evaluate(()=>document.activeElement.dataset.sgId),'sg_'+'a'.repeat(32));
   });
   await check(width+' una nuova proposta non eredita il badge Confermato del seguito precedente',async()=>{
-   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];window.oldCheck=t.followUp.checkAt;t.followUp.checkAt=new Date(Date.now()+3600000).toISOString();t.preparation={version:BOOM_PROPOSTA.VERSION,coverage:{version:BOOM_PROPOSTA.CONTEXT_VERSION},revision:'demo-revision',messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,status:'ready',summary:'Nuova proposta di accesso',recommendation:'Da valutare',sources:[],nextAction:{text:'Proporre un altro orario',waitingLabel:'Valentino',checkAt:t.followUp.checkAt}};oggiSegretariaRender();});
+   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];window.oldCheck=t.followUp.checkAt;window.oldInbound=t.followUp.lastInboundAt;t.followUp.checkAt=new Date(Date.now()+3600000).toISOString();t.followUp.lastInboundAt=new Date(Date.now()-60000).toISOString();t.preparation={version:BOOM_PROPOSTA.VERSION,coverage:{version:BOOM_PROPOSTA.CONTEXT_VERSION},revision:'demo-revision',messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,status:'ready',summary:'Nuova proposta di accesso',recommendation:'Da valutare',sources:[],nextAction:{text:'Proporre un altro orario',waitingLabel:'Valentino',checkAt:t.followUp.checkAt}};oggiSegretariaRender();});
    const text=await page.locator('#sgFollowPanel .sg-case').filter({hasText:'Proporre un altro orario'}).innerText();
    assert.match(text,/Proposta da rivedere/i);assert.doesNotMatch(text,/Confermato/i);
-   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;oggiSegretariaRender();});
+   const proposal=await page.evaluate(()=>{const model=oggiDeskModel(),id=oggiSegretaria.rows[0].id;return{current:model.currentItems.find(item=>item.caseIds.includes(id)),waiting:model.waiting.some(item=>item.caseIds.includes(id))};});
+   assert.equal(proposal.waiting,false,'una proposta non approvata non eredita l’attesa del seguito precedente');
+   assert(proposal.current,'la proposta recente resta raggiungibile tra i casi correnti');
+   assert.equal(proposal.current.reason,'Proposta da rivedere');
+   await page.locator('[data-desk-area="contracts"]').click();
+   const deskCase=page.locator('[data-desk-item="'+proposal.current.id+'"]');
+   assert(await deskCase.isVisible());assert.match(await deskCase.innerText(),/Proposta da rivedere/);
+   assert.match(await deskCase.innerText(),/Rivedi la proposta prima di confermare il seguito/);
+   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;t.followUp.lastInboundAt=oldInbound;oggiSegretariaRender();});
   });
   await check(width+' filtri separano preparazione e attesa senza duplicare casi né generare AI',async()=>{
    await page.evaluate(()=>{

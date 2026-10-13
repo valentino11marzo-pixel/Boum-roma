@@ -146,9 +146,12 @@
         if (r.delivery === 'needs_review') return ['whatsapp_delivery_needs_review', 'whatsapp_delivery_expired'].includes(r.error) ? 'failed' : 'unknown';
         return ['sent', 'queued', 'pending_execution', 'follow_up_only'].includes(r.delivery) ? r.delivery : 'unknown';
     }
-    function build({ state = {}, signals = [], rows = [], nowISO } = {}) {
+    function build({ state = {}, signals = [], rows = [], pendingProposalIds = [], nowISO } = {}) {
         const now = instant(nowISO);
         if (now === null) throw new TypeError('build requires an explicit current ISO instant with timezone');
+        // The caller uses the existing preparation validator. Raw preparation
+        // content cannot promote a case or override the previous follow-up.
+        const pendingProposals = new Set(list(pendingProposalIds).filter(caseOK));
         const entries = [], unknownCaseIds = [], newUnlinkedCaseIds = [], recordVerificationSignalIds = [], seenSignals = new Set(), seenCases = new Set();
         function push(entry) { entries.push(entry); }
         list(signals).forEach(signal => {
@@ -185,18 +188,25 @@
             const at = instant(f.checkAt), inbound = instant(f.lastInboundAt);
             if (!record && inbound !== null && inbound <= now && now - inbound <= 7 * DAY) newUnlinkedCaseIds.push(task.id);
             const old = inbound === null || now - inbound > 7 * DAY;
+            const pending = pendingProposals.has(task.id), recent = inbound !== null && inbound <= now && !old;
             let bucket, reason;
             if (!record) { bucket = 'history'; reason = 'Collegamento da verificare'; }
             else if (delivery === 'failed' || (at !== null && at <= now)) { bucket = 'current'; reason = delivery === 'failed' ? 'Invio non completato' : 'Ricontrollo dovuto'; }
+            else if (pending) {
+                bucket = recent ? 'current' : 'history';
+                reason = recent ? 'Proposta da rivedere' : inbound === null ? 'Data della fonte non disponibile'
+                    : old ? 'Fonte oltre 7 giorni' : 'Data della fonte da verificare';
+            }
             else if (delivery === 'unknown') { bucket = 'history'; reason = 'Esito dell’invio non disponibile'; }
             else if (at !== null && at > now) { bucket = 'waiting'; reason = 'Ricontrollo futuro'; }
             else if (old) { bucket = 'history'; reason = inbound === null ? 'Data della fonte non disponibile' : 'Fonte oltre 7 giorni'; }
             else { bucket = 'current'; reason = 'Ricontrollo da impostare'; }
             push({ key: record ? record.kind + ':' + record.id : 'case:' + task.id, area: areaFor(source?.kind),
                 bucket, record, title: !record ? 'Seguito · collegamento da verificare' : 'Seguito della pratica',
-                nextAction: !record ? 'Verifica il collegamento alla pratica' : text(f.nextAction) || 'Verifica il prossimo passo',
+                nextAction: !record ? 'Verifica il collegamento alla pratica'
+                    : reason === 'Proposta da rivedere' ? 'Rivedi la proposta prima di confermare il seguito' : text(f.nextAction) || 'Verifica il prossimo passo',
                 action: navigation(record, state, '', task.id), signal: null, caseId: task.id,
-                reason, score: delivery === 'failed' ? 96 : bucket === 'current' ? 90 : 20, urgent: false });
+                reason, score: delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : bucket === 'current' ? 90 : 20, urgent: false });
         });
         const today = romeDay(now), last = new Date(Date.parse(today + 'T00:00:00Z') + 6 * DAY).toISOString().slice(0, 10);
         list(state.contracts).forEach(contract => {

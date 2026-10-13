@@ -2193,8 +2193,9 @@ Un giro solo, otto interventi, 33 suite verdi:
 - **Home per risultato (13/10/2026):** `oggi-desk-engine` raggruppa per riferimenti
   univoci i segnali esistenti in cinque percorsi, con apertura del passo successivo.
   Proposte vecchie, date mancanti e collegamenti incerti restano nelle verifiche;
+  una nuova proposta valida non eredita l’attesa futura del seguito precedente.
   urgenze, nuove richieste non collegate ed errori di lettura rimangono visibili.
-  La coda originale resta apribile e filtrabile; nessuna chiusura, invio o AI in lettura.
+  Coda originale apribile/filtrabile, senza chiusure, invii o AI in lettura.
   Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
   senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
   `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.

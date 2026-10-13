@@ -6200,7 +6200,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     // A deterministic work surface over existing records, never another task store.
     function oggiDeskModel() {
-        return window.BOOM_OGGI_DESK?.build({ state: S, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: oggiSegretaria.rows, nowISO: new Date().toISOString() });
+        return window.BOOM_OGGI_DESK?.build({ state: S, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: oggiSegretaria.rows, pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
     }
     function oggiDeskItems(model) {
         return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || [])];

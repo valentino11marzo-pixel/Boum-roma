@@ -98,6 +98,45 @@ check('confirmed due work stays current despite old source; future check waits; 
     assert.equal(result.counts.total, 2);
 });
 
+check('validated new proposal overrides the old future follow-up; approved and stale preparations do not', () => {
+    const future = { checkAt: '2026-11-01T00:00:00Z' };
+    const proposed = task(1, future, { preparation: { status: 'ready', summary: 'Raw text is not the readiness proof' } });
+    const approved = withDelivery(task(2, future), '', 'sent');
+    const stale = task(3, future, { preparation: { status: 'ready', messageId: 'an-old-message', summary: 'Old preparation' } });
+    const result = build({ rows: [proposed, approved, stale], pendingProposalIds: [caseId(1)] });
+    assert.deepEqual(result.currentItems.flatMap(x => x.caseIds), [caseId(1)]);
+    assert.equal(result.currentItems[0].reason, 'Proposta da rivedere');
+    assert.equal(result.currentItems[0].nextAction, 'Rivedi la proposta prima di confermare il seguito');
+    assert.deepEqual(new Set(result.waiting.flatMap(x => x.caseIds)), new Set([caseId(2), caseId(3)]));
+    assert.equal(result.history.length, 0);
+});
+
+check('an old pending proposal cannot hide the confirmed human check already due', () => {
+    const row = task(1, { lastInboundAt: '2026-09-01T10:00:00Z', nextAction: 'Ricontattare il responsabile' });
+    const result = build({ rows: [row], pendingProposalIds: [row.id] });
+    assert.equal(result.history.length, 0);
+    assert.equal(result.currentItems.length, 1);
+    assert.equal(result.currentItems[0].reason, 'Ricontrollo dovuto');
+    assert.equal(result.currentItems[0].nextAction, 'Ricontattare il responsabile');
+});
+
+check('pending proposal with old, missing or future source stays recovery; unlinked proposal stays redacted', () => {
+    const rows = [task(1, { checkAt: '2026-11-01T00:00:00Z', lastInboundAt: '2026-10-01T10:00:00Z' }),
+        task(2, { checkAt: '2026-11-01T00:00:00Z', lastInboundAt: '' }),
+        task(3, { checkAt: '2026-11-01T00:00:00Z', lastInboundAt: '2026-10-14T10:00:00Z' }),
+        task(4, { confirmed: false, nextAction: 'PRIVATE', preview: 'PRIVATE' })];
+    for (const row of rows) {
+        const result = build({ rows: [row], pendingProposalIds: [row.id] });
+        assert.equal(result.currentItems.length, 0);
+        assert.equal(result.waiting.length, 0);
+        assert.equal(result.history.length, 1);
+        assert.equal(result.history[0].reason, ({ [caseId(1)]: 'Fonte oltre 7 giorni',
+            [caseId(2)]: 'Data della fonte non disponibile', [caseId(3)]: 'Data della fonte da verificare',
+            [caseId(4)]: 'Collegamento da verificare' })[row.id]);
+        assert(!JSON.stringify(result).includes('PRIVATE'));
+    }
+});
+
 check('unconfirmed old or undated proposals are recovery work, never resolved', () => {
     const result = build({ rows: [task(1, { confirmed: false, lastInboundAt: '2026-09-01T00:00:00Z' }),
         task(2, { confirmed: false, lastInboundAt: '' }), task(3, { checkAt: '', lastInboundAt: '' }),
