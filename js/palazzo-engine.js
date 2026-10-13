@@ -215,6 +215,12 @@
     if (cStatus(c) === 'terminated') return day(c.terminatedAt) || day(c.terminationDate) || day(c.endDate);
     return day(c.endDate);
   }
+  // Chiuso DAVVERO: terminato (o con la data di chiusura scritta), oppure
+  // scaduto/chiuso/rinnovato per stato. Un contratto ancora 'active' (o
+  // 'signed') oltre la sua fine NON è chiuso: è un rinnovo tacito o una data
+  // da aggiornare, e le rate dei mesi dopo restano dovute.
+  var ENDED = { terminated: 1, expired: 1, closed: 1, ended: 1, completed: 1, renewed: 1, cancelled: 1, canceled: 1 };
+  function closedForReal(c) { return !!(c && (ENDED[cStatus(c)] || day(c.terminatedAt))); }
   function covers(c, month) {
     var start = day(c.startDate), end = effectiveEnd(c);
     if (!start) return cStatus(c) === 'active'; // attivo senza data: dichiarato, segnalato a parte
@@ -331,7 +337,10 @@
     return { pod: pod, pdr: pdr, podOk: pod ? podOk(pod) : null, pdrOk: pdr ? pdrOk(pdr) : null };
   }
 
-  function httpsUrl(u) { try { var x = new URL(str(u)); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } }
+  // Solo https, e senza lanciare: una rata senza ricevuta (la norma) non
+  // passa dal costruttore di URL (che su '' lancia, e costava ~7 volte il
+  // contesto su un archivio grande).
+  function httpsUrl(u) { var s = str(u); if (!/^https:\/\//i.test(s)) return ''; try { return new URL(s).href; } catch (_) { return ''; } }
   // Canone e oneri di una rata: dalle due voci scritte sulla rata (la presa in
   // carico le scrive), oppure dal contratto quando il totale torna ESATTO con
   // canone + oneri. Altrimenti null: non si divide a occhio un incasso.
@@ -364,7 +373,7 @@
       if (!pid || !propIds[pid]) return;
       (byProperty[pid] = byProperty[pid] || []).push(c);
     });
-    var paymentsByProperty = Object.create(null), preBoomOpen = Object.create(null), afterClose = Object.create(null);
+    var paymentsByProperty = Object.create(null), preBoomOpen = Object.create(null), afterClose = Object.create(null), beyondEnd = Object.create(null);
     list(o.payments).forEach(function (p, i) {
       var contract = contractById[str(p.contractId)] || null;
       var pid = str(p.propertyId) || str(contract && contract.propertyId);
@@ -394,7 +403,9 @@
       if ((!pf || !pt) && cs && row.month && monthsDiff(cs.slice(0, 7), row.month) >= 0) {
         var k0 = monthsDiff(cs.slice(0, 7), row.month), k1 = monthsDiff(cs.slice(0, 7), row.coversTo && row.coversTo > row.month ? row.coversTo : row.month) + 1;
         if (!pf) pf = leaseMonth(cs, k0);
-        if (!pt) { pt = dayAdd(leaseMonth(cs, k1), -1); var ce = effectiveEnd(contract); if (ce && pt > ce) pt = ce; }
+        // Il periodo si chiude alla fine del contratto, ma solo per la rata
+        // che la contiene: una rata che comincia DOPO la fine tiene il suo.
+        if (!pt) { pt = dayAdd(leaseMonth(cs, k1), -1); var ce = effectiveEnd(contract); if (ce && pt > ce && pf <= ce) pt = ce; }
         row.periodDerived = true;
       }
       row.periodFrom = pf; row.periodTo = pt;
@@ -407,17 +418,27 @@
         if (row.state === 'overdue' || row.state === 'due') preBoomOpen[pid] = (preBoomOpen[pid] || 0) + 1;
         return;
       }
-      // Una rata il cui periodo comincia DOPO la fine del suo contratto
-      // (chiuso in anticipo, rate future rimaste aperte): non tiene occupato
-      // l'interno e non è un ritardo. Aperta, si toglie dal Palazzo e si conta
-      // per l'operatore (va annullata); pagata resta (sono soldi veri) ma si
-      // dichiara, perché il contratto dice che lì non c'era più nessuno.
+      // Una rata il cui periodo comincia DOPO la fine del suo contratto.
+      // Contratto chiuso DAVVERO (terminato, scaduto, chiuso): la rata non
+      // tiene occupato l'interno e non è un ritardo. Aperta, si toglie dal
+      // Palazzo e si conta per l'operatore (va annullata); pagata resta fra i
+      // soldi (sono veri) ma si dichiara, perché il contratto dice che lì non
+      // c'era più nessuno. Contratto ancora 'active' oltre la fine (rinnovo
+      // tacito, una data da aggiornare): la rata resta dovuta — tiene occupato
+      // l'interno, conta come ritardo — e si segnala a parte («rinnovo?»),
+      // mai «da annullare».
       var cEnd = contract ? effectiveEnd(contract) : '', pStart = pf || (row.month ? monthStart(row.month) : '');
       if (cEnd && pStart && pStart > cEnd) {
-        row.afterClose = true;
-        var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [] };
-        if (row.state === 'overdue' || row.state === 'due' || row.state === 'unknown') { ac.open.push(row); return; }
-        if (row.state === 'paid') ac.paid.push(row);
+        if (closedForReal(contract)) {
+          row.afterClose = true;
+          var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [] };
+          if (row.state === 'overdue' || row.state === 'due' || row.state === 'unknown') { ac.open.push(row); return; }
+          if (row.state === 'paid') ac.paid.push(row);
+        } else if (row.state !== 'cancelled') {
+          row.beyondEnd = true;
+          var be = beyondEnd[pid] = beyondEnd[pid] || [];
+          be.push(row);
+        }
       }
       (paymentsByProperty[pid] = paymentsByProperty[pid] || []).push(row);
     });
@@ -445,7 +466,7 @@
       if (l) listingsByProperty[str(p.id)] = l;
     });
     return { now: now, today: today, month: today.slice(0, 7), properties: properties, usersById: usersById,
-      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty, preBoomOpen: preBoomOpen, afterClose: afterClose,
+      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty, preBoomOpen: preBoomOpen, afterClose: afterClose, beyondEnd: beyondEnd,
       proposalsByProperty: proposalsByProperty, listingsByProperty: listingsByProperty, contractById: contractById,
       maintenanceByProperty: maintenanceByProperty };
   }
@@ -509,9 +530,18 @@
     var lease = contracts.filter(function (c) { return LIVE[cStatus(c)] && covers(c, month); })
       .sort(function (a, b) { return (day(b.startDate) || '').localeCompare(day(a.startDate) || ''); })[0] || null;
     var monthRows = rowsForMonth(rows, month), carried = false;
-    if (!monthRows.length && lease) { var cr = carriedRows(rows, month); if (cr.length) { monthRows = cr; carried = true; } }
+    // Il ripiego vale solo per la rata DEL CONTRATTO del mese: nel mese del
+    // cambio inquilino la rata di luglio del vecchio non copre agosto del
+    // nuovo (sarebbe un verde falso su una rata che manca).
+    if (!monthRows.length && lease) {
+      var cr = carriedRows(rows, month).filter(function (r) { return !r.contractId || r.contractId === str(lease.id); });
+      if (cr.length) { monthRows = cr; carried = true; }
+    }
     var ownRows = monthRows.filter(function (r) { return r.month === month; });
-    var occupied = !!lease || monthRows.length > 0;
+    // Una rata dopo la chiusura del contratto (anche pagata) non dice che lì
+    // c'è qualcuno: senza un contratto in corso l'interno è libero, e la rata
+    // resta visibile fra i soldi del mese.
+    var occupied = !!lease || monthRows.some(function (r) { return !r.afterClose; });
     var incoming = null;
     if (!occupied) {
       incoming = contracts.filter(function (c) { return (LIVE[cStatus(c)] || SIGNING[cStatus(c)]) && day(c.startDate) > monthEnd(month); })
@@ -532,7 +562,7 @@
     });
     var who = lease || incoming;
     var tenants = who ? tenantNamesOf(who, ctx.usersById) : [];
-    if (!tenants.length) monthRows.forEach(function (r) { if (r.tenantName && tenants.indexOf(r.tenantName) < 0) tenants.push(r.tenantName); });
+    if (!tenants.length && occupied) monthRows.forEach(function (r) { if (!r.afterClose && r.tenantName && tenants.indexOf(r.tenantName) < 0) tenants.push(r.tenantName); });
     var leaseEnd = lease ? effectiveEnd(lease) : '';
     var ref = ctx.today > monthStart(month) ? ctx.today : monthStart(month);
     var gd = monthOf(p.gestioneDal);
@@ -1095,7 +1125,11 @@
     // "nessuna rata ancora prevista" non è "non paga", e chi ha due rate
     // aperte non è "puntuale" perché le pagate erano in orario.
     var expectedRows = all.filter(function (r) { return r.isRent && r.state !== 'cancelled' && r.dueDate && r.dueDate <= ctx.today && r.month >= start && r.month <= end; });
-    var open = all.filter(function (r) { return r.state === 'overdue'; }).sort(byDue);
+    // Le rate di CANONE aperte (anche più vecchie della finestra: un debito
+    // resta un debito). Un saldo deposito scaduto non è puntualità sul
+    // canone: si conta a parte (overdueOther).
+    var open = all.filter(function (r) { return r.isRent && r.state === 'overdue'; }).sort(byDue);
+    var openOther = all.filter(function (r) { return !r.isRent && r.state === 'overdue'; });
     // Libero da quando: la fine dell'ultimo contratto già chiuso.
     var ends = (ctx.contractsByProperty[str(p.id)] || []).filter(function (c) { return LIVE[cStatus(c)]; })
       .map(effectiveEnd).filter(function (d) { return d && d < ctx.today; }).sort();
@@ -1109,7 +1143,7 @@
       avgDelay: delays.length ? Math.round(delays.reduce(function (a, b) { return a + b; }, 0) / delays.length * 10) / 10 : null,
       onTime: delays.filter(function (d) { return d <= 0; }).length,
       expectedCount: expectedRows.length,
-      overdueCount: open.length, overdueOldest: open.length ? open[0].dueDate : '',
+      overdueCount: open.length, overdueOldest: open.length ? open[0].dueDate : '', overdueOther: openOther.length,
       windowMonths: window, measuredMonths: measured, unknownMonths: unknown,
       occupiedMonths: occupied, vacantMonths: vacant,
       occupancy: measured && window >= OCC_MIN_MONTHS ? Math.round(occupied / measured * 100) : null,
@@ -1154,9 +1188,20 @@
     var managed = t.managed != null ? t.managed : t.units, part = managed !== t.units;
     out.push(mon + ': ' + (t.occupied === 1 ? '1 interno' : t.occupied + ' interni') + ' su ' + managed + (part ? (managed === 1 ? ' gestito' : ' gestiti') + ' da BOOM' : '') +
       (t.occupied === 1 ? ' è pieno' : ' sono pieni') + (t.vacant ? ', ' + n(t.vacant, 'libero', 'liberi') : '') + (t.incoming ? ', ' + t.incoming + ' in arrivo' : '') + '.');
-    var payers = t.paid + t.late + t.due + t.review + t.unknown;
-    if (payers) out.push(n(t.paid, 'ha pagato', 'hanno pagato') + ' su ' + payers + ' (' + (!t.expected && t.unknownAmounts ? 'importi da verificare'
-      : eur(t.collected) + ' di ' + eur(t.expected) + (t.unknownAmounts ? ', più ' + n(t.unknownAmounts, 'rata', 'rate') + ' con l’importo da verificare' : '')) + ').');
+    // Un interno il cui mese rientra nel periodo della rata del mese prima
+    // (l'ultimo mese di un contratto dal 15) non ha una rata sua: non lo si
+    // conta fra chi "ha pagato €0", lo si dice a parte. E una frase senza
+    // importi del mese (solo rate trimestrali in corso) non stampa «€0 di €0».
+    var carriedU = m.units.filter(function (u) { return u.month.carried && u.month.state !== 'before'; });
+    var payers = t.paid + t.late + t.due + t.review + t.unknown - carriedU.length;
+    var paidN = t.paid - carriedU.filter(function (u) { return u.month.state === 'paid'; }).length;
+    if (payers > 0) out.push(n(paidN, 'ha pagato', 'hanno pagato') + ' su ' + payers + (!t.expected && !t.unknownAmounts ? '' : ' (' + (!t.expected ? 'importi da verificare'
+      : eur(t.collected) + ' di ' + eur(t.expected) + (t.unknownAmounts ? ', più ' + n(t.unknownAmounts, 'rata', 'rate') + ' con l’importo da verificare' : '')) + ')') + '.');
+    if (carriedU.length) {
+      var mname = monthLabel(m.month).split(' ')[0].toLowerCase(), prevOf = function (u) { var r = u.month.rows[0]; return r && r.month ? monthLabel(r.month).toLowerCase() : 'del mese prima'; };
+      out.push(carriedU.length === 1 ? name(carriedU[0]) + ': ' + mname + ' rientra nel periodo della rata di ' + prevOf(carriedU[0]) + '.'
+        : mname.charAt(0).toUpperCase() + mname.slice(1) + ' rientra nel periodo della rata del mese prima: ' + carriedU.map(function (u) { return name(u) + ' (rata di ' + prevOf(u) + ')'; }).join(', ') + '.');
+    }
     // In ritardo con una rata DI QUESTO MESE (la cifra è quella del mese)…
     var lateNow = m.units.filter(function (u) { return u.month.state === 'late' && (u.month.lateAmount > 0 || u.month.lateUnknown > 0); })
       .sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
@@ -1167,16 +1212,30 @@
       out.push(n(lateNow.length, 'è in ritardo', 'sono in ritardo') + ' per ' + (shown > 0 ? eur(shown) + (unk ? ' più un importo da verificare' : '') : 'un importo da verificare') + ': ' + lateNow.map(name).join(', ') + '.');
     }
     // …e chi deve ancora mesi PRECEDENTI (a dicembre, chi non ha pagato
-    // novembre è ancora in ritardo: non sparisce dalla frase).
-    var older = (m.debtors || []).filter(function (d) { return !nowIds[d.id]; });
-    if (older.length) {
-      out.push('Ancora da pagare dai mesi precedenti: ' + older.map(function (d) {
-        shown = round(shown + d.amount);
-        var when = d.oldestMonth ? (d.count === 1 ? monthLabel(d.oldestMonth).toLowerCase() : d.count + ' rate da ' + monthLabel(d.oldestMonth).toLowerCase()) : n(d.count, 'rata', 'rate');
-        return (d.interno ? 'int. ' + d.interno : d.name) + ' (' + when + ', ' + (d.amount > 0 ? eur(d.amount) + (d.unknownAmounts ? ' più un importo da verificare' : '') : 'importo da verificare') + ')';
-      }).join(', ') + '.');
-    }
-    if (!lateNow.length && !older.length && payers) out.push('Nessun ritardo.');
+    // novembre è ancora in ritardo: non sparisce dalla frase). Anche chi è in
+    // ritardo questo mese, se deve pure i mesi prima: si nomina la sola parte
+    // vecchia (la cifra del mese è già detta sopra, mai contata due volte).
+    // Un interno con due contratti in debito (il cambio inquilino) porta il
+    // nome di chi deve: la stessa cifra non va sul nome sbagliato.
+    var debts = m.debtors || [];
+    var perUnit = Object.create(null);
+    debts.forEach(function (d) { perUnit[d.unitId] = (perUnit[d.unitId] || 0) + 1; });
+    var olderParts = [];
+    debts.forEach(function (d) {
+      var part = nowIds[d.unitId] ? d.older : d;
+      if (!part || !part.count) return;
+      var amt = part.amount, unkN = part.unknownAmounts, om = nowIds[d.unitId] ? part.oldestMonth : d.oldestMonth;
+      shown = round(shown + amt);
+      // Un saldo deposito non è un canone: lo si chiama col suo nome.
+      var partRows = nowIds[d.unitId] ? d.rows.filter(function (r) { return r.month !== m.month; }) : d.rows;
+      var what = partRows.length && partRows.every(function (r) { return !r.isRent; }) ? (partRows.every(function (r) { return /deposit/.test(r.type); }) ? 'saldo deposito' : 'altri addebiti') : '';
+      var when = what ? what + (om ? ' di ' + monthLabel(om).toLowerCase() : '')
+        : om ? (part.count === 1 ? monthLabel(om).toLowerCase() : part.count + ' rate da ' + monthLabel(om).toLowerCase()) : n(part.count, 'rata', 'rate');
+      var who = (d.interno ? 'int. ' + d.interno : d.name) + (perUnit[d.unitId] > 1 && d.tenants.length ? ' · ' + d.tenants[0] : '');
+      olderParts.push(who + ' (' + when + ', ' + (amt > 0 ? eur(amt) + (unkN ? ' più un importo da verificare' : '') : 'importo da verificare') + ')');
+    });
+    if (olderParts.length) out.push('Ancora da pagare dai mesi precedenti: ' + olderParts.join(', ') + '.');
+    if (!lateNow.length && !olderParts.length && (payers > 0 || carriedU.length)) out.push('Nessun ritardo.');
     var due = m.units.filter(function (u) { return u.month.state === 'due'; });
     if (due.length) {
       var dates = due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return r && r.dueDate; }).filter(Boolean).sort();
@@ -1396,19 +1455,33 @@
     var pastSeries = m > ctx.month ? seriesOf(ctx.month) : series;
 
     // Chi non ha pagato, a oggi, fino a questo mese: anche i mesi precedenti.
-    // Il nome e il contratto sono quelli della rata più vecchia (nel mese del
-    // cambio inquilino il ritardo del vecchio resta del vecchio).
-    var debtors = units.filter(function (u) { return u.debt.count; }).map(function (u) {
-      var d = u.debt, first = d.rows[0];
-      var pay = d.rows.find(function (r) { return r.amount != null && r.amount > 0 && !/^missing-id:/.test(r.id); }) || null;
-      var mine = d.rows.filter(function (r) { return r.month === m; });
-      return { id: u.id, interno: u.interno, name: u.name, amount: d.amount, count: d.count, unknownAmounts: d.unknownAmounts,
-        oldest: d.oldest, oldestDays: d.oldestDays, oldestMonth: d.oldestMonth, rows: d.rows, row: first, payRow: pay,
-        contractId: first.contractId, tenants: first.tenants.slice(),
-        previousContract: !!(first.contractId && u.month.contractId && first.contractId !== u.month.contractId),
-        thisMonth: { count: mine.length, amount: mine.reduce(function (a, r) { return r.amount != null ? round(a + r.amount) : a; }, 0) },
-        older: { count: d.count - mine.length, amount: round(d.amount - mine.reduce(function (a, r) { return r.amount != null ? round(a + r.amount) : a; }, 0)) } };
-    }).sort(function (a, b2) { return b2.oldestDays - a.oldestDays || natural(a.interno, b2.interno); });
+    // UNA voce per interno E contratto: nel mese del cambio inquilino il
+    // debito del vecchio resta del vecchio e quello della nuova della nuova —
+    // nome, importo, rata più vecchia e rata da sollecitare (payRow) vengono
+    // solo dalle rate di QUEL contratto. `id` è univoco (interno~contratto),
+    // `unitId` è l'interno.
+    var sumRows = function (rs) { return rs.reduce(function (a, r) { return r.amount != null ? round(a + r.amount) : a; }, 0); };
+    var debtors = [];
+    units.forEach(function (u) {
+      var d = u.debt;
+      if (!d.count) return;
+      var keys = [], byC = Object.create(null);
+      d.rows.forEach(function (r) { var k = r.contractId || '-'; if (!byC[k]) { byC[k] = []; keys.push(k); } byC[k].push(r); });
+      keys.forEach(function (k) {
+        var rs = byC[k], first = rs[0], dated = rs.find(function (r) { return r.dueDate; }) || null;
+        var pay = rs.find(function (r) { return r.amount != null && r.amount > 0 && !/^missing-id:/.test(r.id); }) || null;
+        var mine = rs.filter(function (r) { return r.month === m; }), old = rs.filter(function (r) { return r.month !== m; });
+        var oldDated = old.find(function (r) { return r.month; }) || null;
+        debtors.push({ id: u.id + '~' + k, unitId: u.id, interno: u.interno, name: u.name,
+          amount: sumRows(rs), count: rs.length, unknownAmounts: rs.filter(function (r) { return r.amount == null; }).length,
+          oldest: dated ? dated.dueDate : '', oldestDays: dated ? dated.days || 0 : 0, oldestMonth: dated ? dated.month : '',
+          rows: rs, row: first, payRow: pay, contractId: first.contractId, tenants: first.tenants.slice(),
+          previousContract: !!(first.contractId && u.month.contractId && first.contractId !== u.month.contractId),
+          thisMonth: { count: mine.length, amount: sumRows(mine) },
+          older: { count: old.length, amount: sumRows(old), unknownAmounts: old.filter(function (r) { return r.amount == null; }).length, oldestMonth: oldDated ? oldDated.month : '' } });
+      });
+    });
+    debtors.sort(function (a, b2) { return b2.oldestDays - a.oldestDays || natural(a.interno, b2.interno) || natural(a.oldest, b2.oldest); });
 
     var issues = [];
     if (unplaced.length) issues.push({ code: 'unplaced', count: unplaced.length, ids: unplaced.map(function (u) { return u.id; }) });
@@ -1429,6 +1502,9 @@
         var item = { id: str(c.id), unitId: pid, end: end, status: st, type: typeKey(c) || null, renews: nt && !next ? nt.renews : '', successor: next };
         if (st === 'active') { stale.push(str(c.id)); staleItems.push(item); return; }
         if (CLOSED[st] || !LIVE[st] || day(c.terminatedAt) || next || end < dayAdd(ctx.today, -400)) return;
+        // Il transitorio cessa da sé alla scadenza (Allegato B, art. 1): uno
+        // scaduto è la fine normale, non un dubbio da tenere aperto 400 giorni.
+        if (typeKey(c) === 'transitorio') return;
         expired.push(item);
       });
     });
@@ -1453,6 +1529,27 @@
       acU.forEach(function (u) { ctx.afterClose[u.id].open.forEach(function (r) { acOpen.push(r.id); }); ctx.afterClose[u.id].paid.forEach(function (r) { acPaid.push(r.id); }); });
       issues.push({ code: 'afterClose', count: acOpen.length + acPaid.length, open: acOpen.length, paid: acPaid.length, ids: acU.map(function (u) { return u.id; }), paymentIds: acOpen, paidIds: acPaid });
     }
+    // Rate oltre la fine di un contratto ancora 'attivo': sono dovute (tengono
+    // occupato l'interno, contano come ritardo). Rinnovo tacito o una data da
+    // aggiornare: si chiede, mai «da annullare».
+    var beItems = [];
+    units.forEach(function (u) {
+      var rs = (ctx.beyondEnd && ctx.beyondEnd[u.id]) || [];
+      var seen = Object.create(null);
+      rs.forEach(function (r) {
+        var k = r.contractId || '-', it = seen[k];
+        if (!it) {
+          var c = r.contract, nt = c ? noticeOf(c, ctx.today) : null;
+          it = seen[k] = { unitId: u.id, contractId: r.contractId, end: c ? effectiveEnd(c) : '', type: c ? typeKey(c) || null : null,
+            renews: nt ? nt.renews : '', from: r.month, count: 0, open: 0, paid: 0, paymentIds: [] };
+          beItems.push(it);
+        }
+        it.count++; it.paymentIds.push(r.id);
+        if (r.state === 'paid') it.paid++; else it.open++;
+        if (r.month && (!it.from || r.month < it.from)) it.from = r.month;
+      });
+    });
+    if (beItems.length) issues.push({ code: 'beyondEnd', count: beItems.length, ids: uniq(beItems.map(function (x) { return x.unitId; })), items: beItems });
     var unreg = units.filter(function (u) { return u.month.lease && u.paper && u.paper.registration.late; });
     if (unreg.length) issues.push({ code: 'unregistered', count: unreg.length, ids: unreg.map(function (u) { return u.id; }) });
     var missingC = units.filter(function (u) { return u.month.lease && u.month.lease.contractMissing === true; });
@@ -1498,6 +1595,7 @@
     if (partial) issues.push({ code: 'partial', count: 1, ids: [], collections: Array.isArray(partial) ? partial : [] });
     var totals = totalsOf(units);
     totals.debtors = debtors.length;
+    totals.debtorUnits = uniq(debtors.map(function (d) { return d.unitId; })).length;
     totals.debtorsAmount = debtors.reduce(function (a, d) { return round(a + d.amount); }, 0);
     totals.debtorsOldest = debtors.map(function (d) { return d.oldest; }).filter(Boolean).sort()[0] || '';
     var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, today: ctx.today, floors: floors, unplaced: unplaced, units: units,

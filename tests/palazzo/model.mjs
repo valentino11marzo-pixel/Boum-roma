@@ -110,13 +110,13 @@ const scenB = E => {
   same('il ritardo è del contratto della rata', [u.month.lateContractId, u.month.lateTenants, u.month.lateFromPrevious], ['cA', ['Bea Esempio'], false]);
   same('totali dei debitori nel modello', [m.totals.debtors, m.totals.debtorsAmount, m.totals.debtorsOldest, m.debtorsRef], [1, 1600, '2026-11-05', '2026-12-03']);
   same('la puntualità sa che c’è una rata aperta (mai «puntuale» con due mesi aperti)', [u.time.overdueCount, u.time.overdueOldest, u.time.expectedCount], [1, '2026-11-05', 2]);
-  bites('«Nessun ritardo» torna anche con novembre aperto', scenB, "if (!lateNow.length && !older.length && payers) out.push('Nessun ritardo.');", "if (!lateNow.length && payers) out.push('Nessun ritardo.');");
+  bites('«Nessun ritardo» torna anche con novembre aperto', scenB, "if (!lateNow.length && !olderParts.length && (payers > 0 || carriedU.length)) out.push('Nessun ritardo.');", "if (!lateNow.length && (payers > 0 || carriedU.length)) out.push('Nessun ritardo.');");
   // Dopo la scadenza di dicembre: in ritardo questo mese, e il totale dice tutto.
   const S2 = build(P, { properties: propsB, contracts: contrB, payments: paysB(true) }, '2026-12-08T10:00:00Z');
   const d = S2.model('2026-12');
-  same('a dicembre scaduto: la cifra del mese nella frase, il totale degli arretrati sotto', d.brief.filter(x => /ritardo|Arretrati|Ancora/.test(x)),
-    ['1 è in ritardo per €1.600: int. 11.', 'Arretrati di tutti i mesi: €3.200.']);
-  same('il debitore porta il totale e la rata più vecchia', [d.debtors[0].amount, d.debtors[0].count, d.debtors[0].oldestMonth, d.debtors[0].thisMonth, d.debtors[0].older], [3200, 2, '2026-11', { count: 1, amount: 1600 }, { count: 1, amount: 1600 }]);
+  same('a dicembre scaduto: la cifra del mese nella frase, e novembre dello STESSO interno detto a parte (mai sparito, mai contato due volte)', d.brief.filter(x => /ritardo|Arretrati|Ancora/.test(x)),
+    ['1 è in ritardo per €1.600: int. 11.', 'Ancora da pagare dai mesi precedenti: int. 11 (novembre 2026, €1.600).']);
+  same('il debitore porta il totale e la rata più vecchia', [d.debtors[0].amount, d.debtors[0].count, d.debtors[0].oldestMonth, d.debtors[0].thisMonth, d.debtors[0].older], [3200, 2, '2026-11', { count: 1, amount: 1600 }, { count: 1, amount: 1600, unknownAmounts: 0, oldestMonth: '2026-11' }]);
   const scenPast = E => {
     const S = build(E, { properties: propsB, contracts: contrB, payments: paysB(true) }, '2026-12-08T10:00:00Z');
     const nov = S.model('2026-11');
@@ -175,7 +175,7 @@ const scenD = E => {
   same('CSV di agosto: coperto dalla rata di luglio, nessun importo contato due volte', [row[C('Dovuto nel mese')], row[C('Stato')]], ['', 'Pagato · coperto dalla rata di luglio 2027']);
   same('il periodo ricavato dal giorno di decorrenza', [m.units[0].month.rows[0].periodFrom, m.units[0].month.rows[0].periodTo, m.units[0].month.rows[0].periodDerived], ['2027-07-15', '2027-08-14', true]);
   ok('alla proprietaria nessun pagamento «in verifica» inventato', !P.brief(m, { owner: true }).some(x => /in verifica/.test(x)), P.brief(m, { owner: true }));
-  bites('agosto torna «rata non registrata»', scenD, 'if (!monthRows.length && lease) { var cr = carriedRows(rows, month);', 'if (false) { var cr = carriedRows(rows, month);');
+  bites('agosto torna «rata non registrata»', scenD, 'if (!monthRows.length && lease) {\n      var cr = carriedRows(rows, month)', 'if (false) {\n      var cr = carriedRows(rows, month)');
 }
 
 // ═══ 5. Rilievo 6 — occupazione solo sui mesi di BOOM, segnaposto = non noto ═══
@@ -394,7 +394,7 @@ const TG = await import('../../api/telegram/_palazzo.js');
     { id: 'c57', propertyId: 'u57', status: 'expired', startDate: '2025-09-01', endDate: '2027-04-10', tenantName: 'T57', rent: 1000, type: 'studenti' }], payments: [] }, '2027-05-01T10:00:00Z').model('2027-05');
   const s9 = TG.palazzoSummary(m9);
   ok('Telegram: la disdetta con la data e cosa succede senza', s9.includes('📅 <b>Disdetta</b>\n• int. 51 · entro il 14/05/2027 · scade il 14/08/2027 · senza disdetta si rinnova per uguale periodo'), s9);
-  ok('Telegram: lo scaduto senza chiusura', s9.includes('⚠️ <b>Scaduti senza chiusura</b> (l’inquilino è ancora dentro? rinnovo tacito?): int. 57'), s9);
+  ok('Telegram: lo scaduto senza chiusura, con la domanda del SUO modello', s9.includes('⚠️ <b>Scaduti senza chiusura</b> (l’inquilino è ancora dentro?)\n• int. 57 · scaduto il 10/04/2027 · studenti: senza disdetta si è rinnovato da solo?'), s9);
   ok('Telegram: mai un recapito', !/\+39|@/.test(sA + sC + s9));
 }
 {
@@ -409,7 +409,7 @@ const TG = await import('../../api/telegram/_palazzo.js');
   globalThis.fetch = async (url, opts = {}) => {
     url = String(url);
     if (url.includes('identitytoolkit') || url.includes('securetoken')) return json({ idToken: 't', localId: 't', expiresIn: '3600' });
-    if (url.includes(':batchGet')) return json([]);
+    if (url.includes(':batchGet')) return json(JSON.parse(opts.body).documents.map(d => ({ missing: d })));
     if (url.endsWith(':runQuery')) {
       const q = JSON.parse(opts.body).structuredQuery, coll = q.from[0].collectionId, ff = q.where && q.where.fieldFilter;
       let docs = (store[coll] || []).slice();

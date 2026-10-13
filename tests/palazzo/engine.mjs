@@ -115,11 +115,13 @@ eq('il mese in parole, dai numeri', m.brief, [
   'Ottobre 2026: 10 interni su 13 sono pieni, 1 libero, 2 in arrivo.',
   '5 hanno pagato su 9 (€5.000 di €8.950).',
   '2 sono in ritardo per €1.800: int. 12, int. 3.',
+  // Chi è in ritardo questo mese e deve anche i mesi prima: la parte vecchia
+  // nominata (S2, rilievo 3), così le cifre dette tornano col totale.
+  'Ancora da pagare dai mesi precedenti: int. 3 (2 rate da agosto 2026, €2.000), int. 12 (saldo deposito di settembre 2026, €400).',
   "1 deve ancora pagare, entro l'11 ottobre.",
   '1 pagamento è da verificare.',
   '1 interno occupato non ha la rata registrata.',
-  '2 segnalazioni di manutenzione aperte (1 urgente).',
-  'Arretrati di tutti i mesi: €4.200.']);
+  '2 segnalazioni di manutenzione aperte (1 urgente).']);
 
 ok('per la proprietaria: "in verifica da BOOM", mai il nome del problema interno', P.brief(m, { owner: true }).includes('2 pagamenti sono in verifica da BOOM.') && !P.brief(m, { owner: true }).some(x => /registrata|da verificare/.test(x)));
 

@@ -51,8 +51,9 @@ export function palazzoSummary(m) {
   const lines = ['🏛 <b>' + esc(m.building.label) + '</b>' + (m.owner && m.owner.name ? ' · ' + esc(m.owner.name) : '')];
   PALAZZO.brief(m).forEach(s => lines.push(esc(s)));
   // Chi non ha pagato: TUTTE le rate scadute fino a questo mese (anche i
-  // mesi prima), il totale e il ritardo più vecchio. Il nome è quello del
-  // contratto della rata: il debito del vecchio inquilino non va sul nuovo.
+  // mesi prima), il totale e il ritardo più vecchio. Una riga per interno E
+  // contratto: nel mese del cambio inquilino il vecchio e la nuova hanno
+  // ciascuno la SUA cifra, col suo nome (il debito di uno non va sull'altro).
   const debt = m.debtors || [];
   if (debt.length) {
     lines.push('', '🔴 <b>Non hanno pagato</b>');
@@ -74,13 +75,26 @@ export function palazzoSummary(m) {
     notice.items.forEach(x => { const u = byId(x.unitId); lines.push('• ' + esc(u ? unitName(u) : x.unitId) + ' · ' + (x.passed ? 'termine passato il ' : 'entro il ') + itDate(x.by) +
       ' · scade il ' + itDate(x.end) + (RENEW[x.renews] ? ' · ' + RENEW[x.renews] : '') + (x.assumed ? ' (termine ipotizzato: tipo di contratto non indicato)' : '')); });
   }
+  // Scaduto senza una chiusura scritta: la domanda dipende dal modello (il
+  // transitorio cessa da sé e qui non arriva; lo studenti si rinnova da solo
+  // senza disdetta; il 3+2 si proroga di diritto).
   const exp = m.issues.find(i => i.code === 'expiredStillIn');
   if (exp) {
-    const names = exp.ids.map(byId).filter(Boolean).map(unitName);
-    lines.push('', '⚠️ <b>Scaduti senza chiusura</b> (l’inquilino è ancora dentro? rinnovo tacito?): ' + esc(names.join(', ')));
+    const ASK = { tacito: 'studenti: senza disdetta si è rinnovato da solo?', proroga: '3+2: prorogato di due anni?', rinnovo: '4+4: rinnovato di quattro anni?' };
+    lines.push('', '⚠️ <b>Scaduti senza chiusura</b> (l’inquilino è ancora dentro?)');
+    exp.contracts.forEach(x => { const u = byId(x.unitId); lines.push('• ' + esc(u ? unitName(u) : x.unitId) + ' · scaduto il ' + itDate(x.end) +
+      (ASK[x.renews] ? ' · ' + ASK[x.renews] : !x.type ? ' · tipo di contratto non indicato: segna la chiusura o il rinnovo' : ' · segna la chiusura o il rinnovo')); });
   }
   const after = m.issues.find(i => i.code === 'afterClose');
   if (after && after.open) lines.push('', '🧾 <b>Rate dopo la chiusura del contratto</b>: ' + after.open + (after.open === 1 ? ' rata da annullare' : ' rate da annullare') + ' (' + esc(after.ids.map(byId).filter(Boolean).map(unitName).join(', ')) + ')');
+  // Rate oltre la fine di un contratto ancora attivo: DOVUTE (sono fra i
+  // ritardi sopra), mai «da annullare» — si chiede del rinnovo.
+  const beyond = m.issues.find(i => i.code === 'beyondEnd');
+  if (beyond) {
+    lines.push('', '🔁 <b>Rate oltre la scadenza</b> (contratto ancora attivo: rinnovato? aggiorna la fine)');
+    beyond.items.forEach(x => { const u = byId(x.unitId); lines.push('• ' + esc(u ? unitName(u) : x.unitId) + ' · scaduto il ' + itDate(x.end) + ' · ' +
+      x.count + (x.count === 1 ? ' rata dopo' : ' rate dopo') + (x.open ? ' (' + x.open + (x.open === 1 ? ' aperta' : ' aperte') + ')' : '')); });
+  }
   const broken = m.units.filter(u => u.maintenance && u.maintenance.open.length).sort((a, b) => b.maintenance.urgent - a.maintenance.urgent);
   if (broken.length) {
     lines.push('', '🔧 <b>Manutenzione aperta</b>');
@@ -92,7 +106,7 @@ export function palazzoSummary(m) {
     const names = unreg.ids.map(byId).filter(Boolean).map(unitName);
     lines.push('', '📄 <b>Registrazione da segnare</b> (oltre 30 giorni dalla decorrenza): ' + esc(names.join(', ')));
   }
-  const SHOWN = { unregistered: 1, noticeDue: 1, expiredStillIn: 1, afterClose: 1, partial: 1 };
+  const SHOWN = { unregistered: 1, noticeDue: 1, expiredStillIn: 1, afterClose: 1, beyondEnd: 1, partial: 1 };
   const other = m.issues.filter(i => !SHOWN[i.code] || (i.code === 'afterClose' && !i.open)).length;
   if (other) lines.push('', '🧰 Da sistemare nel portal: ' + other + (other === 1 ? ' voce' : ' voci') + '.');
   return lines.join('\n');
@@ -122,12 +136,16 @@ export async function palazzoMessage(query, { now } = {}) {
     for (const p of [...byProp, ...byContract]) { if (!seen.has(p.id)) { seen.add(p.id); payments.push(p); } }
     // Le proposte fanno di un libero un "in arrivo" (come nella pagina
     // dell'operatore); i profili danno i nomi di proprietaria e inquilini.
-    const preAgreements = await listIn('preAgreements', 'propertyId', ids, LIMITS.preAgreements, cut).catch(() => []);
+    // Una lettura FALLITA non è un elenco vuoto: "nessuna manutenzione" o
+    // "libero" invece di "in trattativa" non si distinguono da un errore, quindi
+    // la si dichiara (opts.partial del motore) e si va avanti.
+    const unread = what => () => { cut.add(what); return []; };
+    const preAgreements = await listIn('preAgreements', 'propertyId', ids, LIMITS.preAgreements, cut).catch(unread('proposte non lette'));
     const userIds = [...new Set([...ids.map(id => (properties.find(p => p.id === id) || {}).ownerId), ...contracts.map(c => c.tenantId)]
       .filter(x => typeof x === 'string' && /^[\w.-]{1,80}$/.test(x)))];
-    const uMap = userIds.length ? await fsGetMany(userIds.map(u => 'users/' + u)).catch(() => new Map()) : new Map();
+    const uMap = userIds.length ? await fsGetMany(userIds.map(u => 'users/' + u)).catch(() => { cut.add('profili non letti'); return new Map(); }) : new Map();
     const users = [...uMap.entries()].filter(([, d]) => d).map(([k, d]) => ({ ...d, id: k.split('/')[1] }));
-    const maintenance = await listIn('maintenance', 'propertyId', ids, LIMITS.maintenance, cut).catch(() => []);
+    const maintenance = await listIn('maintenance', 'propertyId', ids, LIMITS.maintenance, cut).catch(unread('manutenzione non letta'));
     const ctx = PALAZZO.context({ properties, contracts, payments, users, preAgreements, maintenance, now });
     blocks.push(palazzoSummary(PALAZZO.model(ctx, b.key, ctx.month, { strip: false, partial: cut.size ? [...cut] : false })));
   }
