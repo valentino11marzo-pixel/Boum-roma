@@ -200,9 +200,10 @@ try {
     assert.equal(await page.evaluate(() => searchIO.pages.length), 0);
     assert.match(await page.locator('#ogSearchSources').innerText(), /Completezza non verificata/);
     await page.evaluate(() => { searchIO.holdPage = true; });
-    await source(page).evaluate(button => { button.click(); button.click(); });
+    await source(page).dblclick();
     await page.waitForFunction(() => searchIO.pending.length === 1);
     assert.equal(await page.evaluate(() => searchIO.pages.length), 1);
+    await page.waitForFunction(() => document.querySelector('[data-search-source="document"]')?.disabled);
     assert(await source(page).isDisabled());
     await page.evaluate(() => { searchIO.holdPage = false; searchIO.pending.shift().resolve(); });
     await page.waitForFunction(() => document.querySelector('[data-search-source="document"]').textContent === 'Leggi i prossimi 200');

@@ -1,12 +1,15 @@
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdir } from 'node:fs/promises';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { html } from './home-harness.mjs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 const chromium=await loadChromium();assert(chromium,'Browser required');
 const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html);});
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
+const artifactsDir=await mkdtemp(join(tmpdir(),'boom-home-ui-'));
 let browser,checks=0;const check=async(name,fn)=>{await fn();console.log('PASS '+name);checks++;};
 try{
  browser=await chromium.launch(launchOptions({headless:true}));
@@ -163,7 +166,7 @@ try{
    await page.evaluate(()=>{S.profile.role='admin';});assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>testIO.writes.length),0);
   });
   await page.evaluate(()=>{document.getElementById('ogOwnerTools').open=false;document.getElementById('toasts').textContent='';document.activeElement.blur();document.getElementById('ogWorkQuery').value='';oggiWorkspaceSearch('');});
-  await mkdir('tests/oggi/artifacts',{recursive:true});await page.screenshot({path:'tests/oggi/artifacts/home-'+width+'.png',fullPage:true});
+  await page.screenshot({path:join(artifactsDir,'home-'+width+'.png'),fullPage:true});
   await page.close();
  }
  const page=await browser.newPage();await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
@@ -175,5 +178,5 @@ try{
   await page.evaluate(async()=>{testIO.holdViewings=false;testIO.pendingReads.shift()();await oldRead;});
   assert.doesNotMatch(await page.locator('#ogAgendaPanel').innerText(),/Casa Aurora/);
  });
- console.log(checks+' verifiche home superate.');
+ console.log(checks+' verifiche home superate. Screenshot diagnostici: '+artifactsDir);
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
