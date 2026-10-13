@@ -13,7 +13,10 @@ const portal = read('js/portal-app.js');
 const begin = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(begin > 0 && end > begin);
-const ui = portal.slice(begin, end);
+// The standalone panel uses the home workspace filter; load its real state too.
+const workspace = portal.match(/^    const oggiWorkspace = .+;$/m)?.[0];
+assert.ok(workspace, 'Dichiarazione reale dello stato workspace presente');
+const ui = workspace + '\n' + portal.slice(begin, end);
 const listener = name => {
   const start = portal.indexOf('    function ' + name + '(');
   assert(start >= 0, 'Listener reale presente: ' + name);

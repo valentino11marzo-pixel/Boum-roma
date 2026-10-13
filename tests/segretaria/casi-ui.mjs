@@ -206,6 +206,10 @@ const start = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(start > 0 && end > start);
 const ui = portal.slice(start, end);
+// The standalone panel also reads the home archive filter. Mount the real
+// state declaration that lives just beyond the extracted Segreteria block.
+const workspace = portal.match(/^    const oggiWorkspace = .*;$/m)?.[0];
+assert.ok(workspace, 'Stato reale della home presente per il filtro della coda');
 const listener = name => {
   const begin = portal.indexOf('    function ' + name + '(');
   assert(begin >= 0, 'Listener reale presente: ' + name);
@@ -299,7 +303,7 @@ try {
     function inboxSelect(id){const c=S.conversations.find(c=>c.id===id);if(!c)throw Error('empty Inbox: conversation absent');c.unread=0;window.__selectedConversation=id;window.__read=true}
   ` });
   await page.addScriptTag({ content: read('js/segretaria-casi-engine.js') });
-  await page.addScriptTag({ content: ui + '\n' + listeners });
+  await page.addScriptTag({ content: workspace + '\n' + ui + '\n' + listeners });
   await page.evaluate(() => { startInboxListener(); goTo('oggi'); });
   await page.waitForSelector('[data-sg-id]');
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
