@@ -615,6 +615,9 @@
 /* Il tasto principale della proprietaria («Scrivi a BOOM») e le frecce del
    mese: 44px e 40px, non 36 e 34. */
 .plz-actions .plz-btn{min-height:44px}
+/* L'avviso sul telefono è una frase, non un'etichetta: va a capo nella
+   scheda invece di uscire dal riquadro (a 390px usciva tagliato). */
+.plz-person-c .plz-warn{white-space:normal;margin-left:0;text-transform:none;letter-spacing:0;font-size:12px;line-height:1.35;border-radius:10px;padding:2px 8px}
 .plz-month .plz-ico{min-width:40px;min-height:40px}
 .plz-ghostbox .plz-f-front small{letter-spacing:.5px!important;white-space:normal;text-align:center;line-height:1.2;padding:0 6px}
 .plz-rrow .plz-pill{white-space:normal;line-height:1.3}

@@ -510,16 +510,23 @@
     var k = rowKind(r);
     return k === 'deposit' ? (String(r.type || '').toLowerCase() === 'deposit' ? 'Deposito' : 'Saldo deposito') : k === 'other' ? 'Altro addebito' : '';
   }
+  // Quante righe e di che tipo, quando non sono tutte canone: «1 rata + saldo
+  // deposito» invece di «2 rate». '' se sono tutte canone.
+  function itemsText(rows) {
+    if (!Array.isArray(rows)) return '';
+    var extra = rows.filter(function (r) { return rowKind(r) !== 'rent'; });
+    if (!extra.length) return '';
+    var rentN = rows.length - extra.length, names = [];
+    extra.forEach(function (r) { var nm = rowName(r).toLowerCase(); if (names.indexOf(nm) < 0) names.push(nm); });
+    return (rentN ? rentN + (rentN === 1 ? ' rata + ' : ' rate + ') : '') + names.join(' + ');
+  }
   function debtNote(d) {
     var bits = [];
     if (d.oldestMonth) bits.push('da ' + E.monthLabel(d.oldestMonth).toLowerCase());
     if (d.oldestDays) bits.push(d.oldestDays + (d.oldestDays === 1 ? ' giorno' : ' giorni'));
-    var rows = Array.isArray(d.rows) ? d.rows : null, extra = rows ? rows.filter(function (r) { return rowKind(r) !== 'rent'; }) : [];
-    if (extra.length) {
-      var rentN = rows.length - extra.length, names = [];
-      extra.forEach(function (r) { var nm = rowName(r).toLowerCase(); if (names.indexOf(nm) < 0) names.push(nm); });
-      bits.push((rentN ? rentN + (rentN === 1 ? ' rata + ' : ' rate + ') : '') + names.join(' + '));
-    } else if (d.count > 1) bits.push(d.count + ' rate');
+    var mix = itemsText(d.rows);
+    if (mix) bits.push(mix);
+    else if (d.count > 1) bits.push(d.count + ' rate');
     if (d.unknownAmounts) bits.push(d.unknownAmounts === 1 ? 'un importo da verificare' : d.unknownAmounts + ' importi da verificare');
     if (d.previousContract) bits.push('contratto precedente');
     return bits.join(' · ');
@@ -1105,7 +1112,7 @@
       (admin && lease ? '<div><dt>Carta su /rata</dt><dd>' + esc(cardText(u, lease)) + '</dd></div>' : '') +
       (reg ? '<div><dt>Registrazione</dt><dd class="' + (admin && reg.late ? 'plz-red' : '') + '">' + esc(regText(reg, admin)) + '</dd></div>' : '') +
       (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +
-      '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.count ? (u.arrears.amount ? eur(u.arrears.amount) : 'importo da verificare') + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
+      '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.count ? (u.arrears.amount ? eur(u.arrears.amount) : 'importo da verificare') + ' · ' + (itemsText(u.arrears.rows) || u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate')) + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
       '<div><dt>Puntualità</dt><dd>' + esc(placeholder && !(u.time && (u.time.paidCount || u.time.overdueCount)) ? '—' : punctuality(u.time)) + '</dd></div>' +
       '<div><dt>12 mesi</dt><dd>' + esc(occupiedText(u.time)) + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
@@ -1230,7 +1237,7 @@
     var m = data.m, cur = cardCfgOf(m), c = cur.cfg || {};
     var d = ui.cardDraft && ui.cardDraft.key === m.building.key ? ui.cardDraft : { key: m.building.key, on: c.on === true, mandateAt: /^\d{4}-\d{2}-\d{2}$/.test(String(c.mandateAt || '')) ? c.mandateAt : '', note: c.note || '', fee: c.fee === 'surcharge' ? 'surcharge' : 'absorbed' };
     var sum = cardSummary(m), pol = sum.first;
-    var state = !sum.any ? 'nessun contratto' : !pol ? 'accesa (contratti non presi in carico)' : pol.available ? 'accesa' : pol.reason === 'no_mandate' ? 'spenta · manca la data del mandato' : 'spenta';
+    var state = !sum.any ? 'nessun contratto' : !pol ? 'accesa (contratti non presi in carico)' : (pol.available ? 'accesa' : pol.reason === 'no_mandate' ? 'spenta · manca la data del mandato' : 'spenta') + (sum.notImported ? ' per i presi in carico' : '');
     var effect = cardEffect(d, sum);
     return '<details class="plz-look plz-card" id="plz-card"' + (ui.cardOpen ? ' open' : '') + '><summary>Pagamento con carta su /rata <em class="plz-warn" id="plz-card-badge">' + esc(state) + '</em></summary>' +
       '<p class="plz-look-note">Con la carta i soldi arrivano sul conto Stripe di BOOM, non su quello del locatore: serve un mandato all’incasso scritto e un riversamento registrato. Si salva su tutti gli interni del palazzo.' + (cur.mixed ? ' <b>Oggi gli interni hanno impostazioni diverse.</b>' : '') + '</p>' +
@@ -1812,7 +1819,7 @@
     if (!blocked && writes > 0 && !apply && da > 0) extraBtn = '<button type="button" class="plz-btn" data-plz="imp-apply">Applica anche ' + (da === 1 ? 'la differenza' : 'le ' + da + ' differenze') + '</button>';
     var accounts = plan && plan.accounts && plan.accounts.length ? '<div class="plz-imp-acc"><p class="plz-eyebrow">Dove pagano gli inquilini</p><ul>' + plan.accounts.map(function (a) {
       return '<li><b>' + esc(a.locatore || 'Locatore non indicato') + '</b> · <span class="plz-num">' + esc(a.ibanMasked || 'IBAN non indicato') + '</span>' + (a.ibanValid === false ? ' <em class="plz-red">IBAN non valido: non lo carico</em>' : a.ibanValid === true ? ' <em class="plz-ok-i">✓ controllato</em>' : '') +
-        '<small>' + plural(a.interni.length, 'interno', 'interni') + ': ' + esc(a.interni.join(', ')) + '</small></li>';
+        '<small>' + (a.interni.length === 1 ? 'interno ' : plural(a.interni.length, 'interno', 'interni') + ': int. ') + esc(a.interni.join(', ')) + '</small></li>';
     }).join('') + '</ul></div>' : '';
     var od = plan && plan.overdueNow && plan.overdueNow.length ? '<div class="plz-imp-od"><p class="plz-eyebrow">Rate già scadute oggi</p><ul>' + plan.overdueNow.map(function (x) {
       return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + '</li>';
