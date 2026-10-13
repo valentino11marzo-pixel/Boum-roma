@@ -10,6 +10,8 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'cities', file: 'tests/cities/run.mjs', what: 'pagine città da dati (BOOM_CITIES_BRIEF): la pagina committata È il build, nessun token irrisolto, live:true rifiutato con segnaposto/config finta/statistiche senza fonte, waitlist rifiutata finché non esiste, FAQ schema = FAQ visibile, mai sovrascrivere una pagina non generata' },
+  { name: 'citiesui', file: 'tests/cities/ui.mjs', what: 'la pagina città in Chromium: leggibile senza JS, reveal con JS, 390px senza scroll laterale, modulo inviato una volta con chiave e città, errore detto e bottone restituito' },
   { name: 'behavior', file: 'tests/behavior/run.mjs', what: 'Behavior Intelligence: consenso, minimizzazione PII, copertura canonica, percorsi/sezioni/uscite, dashboard admin e retention' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },

@@ -1,0 +1,206 @@
+{
+  "slug": "amsterdam",
+  "city": "Amsterdam",
+  "live": false,
+  "mode": "deposit",
+
+  "config": {
+    "STRIPE_DEPOSIT_URL": "https://buy.stripe.com/REPLACE_ME",
+    "WEB3FORMS_KEY": "REPLACE_WITH_WEB3FORMS_ACCESS_KEY",
+    "WHATSAPP": "39XXXXXXXXXX",
+    "SPOTS_TOTAL": 10,
+    "SPOTS_LEFT": 10,
+    "META_PIXEL_ID": "",
+    "DEPOSIT_EUR": 99,
+    "WA_MESSAGE": "Hi BOOM, I'm moving to Amsterdam and want to know more about the founding cohort."
+  },
+
+  "meta": {
+    "title": "BOOM Amsterdam — Your apartment. Weeks, not months.",
+    "description": "A rental agent in Amsterdam who works only for you. Dutch-format dossier in 24 hours, applications within the hour, a local BOOM person at every viewing. Founding cohort: 10 spots.",
+    "ogTitle": "BOOM Amsterdam — Your apartment. Weeks, not months.",
+    "ogDescription": "Tenant-side rental search for internationals moving to Amsterdam. Founding cohort, 10 spots."
+  },
+
+  "service": {
+    "name": "BOOM Amsterdam — tenant-side rental search (aanhuurmakelaar)",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Internationals relocating to Amsterdam"
+  },
+
+  "nav": { "cta": "Reserve a founding spot" },
+
+  "hero": {
+    "eyebrow": "BOOM · Amsterdam · Founding cohort",
+    "h1": "Your Amsterdam apartment. Weeks, not months.",
+    "lead": "A rental agent who works only for you. Dutch-format dossier in 24 hours, applications within the hour, a local BOOM person at the viewing. Built by the team that housed 500+ internationals in Rome.",
+    "ctaPrimary": "Reserve a founding spot — €99, refundable",
+    "ctaWhatsapp": "Talk on WhatsApp",
+    "spotsSuffix": "founding spots remaining · founding prices locked for life"
+  },
+
+  "problem": {
+    "eyebrow": "Why internationals lose in Amsterdam",
+    "h2": "It isn't the market. It's the first 60 minutes.",
+    "lead": "A good listing in Amsterdam gets dozens of applications before lunch. Landlords shortlist from the complete dossiers that arrived first. If yours is in English, incomplete, or three hours late, you were never in the race.",
+    "stats": [
+      { "n": "3–4×", "l": "the monthly rent in gross income most landlords require — and expect to see proven on page one.", "source": null },
+      { "n": "<1 h", "l": "how fast a complete application has to land to be considered on a competitive listing.", "source": null },
+      { "n": "Months", "l": "the typical search for an international applying alone, from abroad, with the wrong paperwork.", "source": null }
+    ]
+  },
+
+  "agent": {
+    "eyebrow": "What BOOM is",
+    "h2": "Not an agency. Your agent.",
+    "leadHtml": "In the Netherlands this role has a name: <em>aanhuurmakelaar</em>, an agent hired by the tenant and paid only by the tenant. We don't list apartments, we don't represent landlords, and we don't take a cent from the other side of the table. We find, we apply, we negotiate, and we read the contract before you sign it.",
+    "legalHtml": [
+      "<strong>We work exclusively for you.</strong> BOOM Amsterdam never accepts fees, commissions or referrals from landlords, their agents, or listing platforms. Dutch law forbids an agent from charging both sides of a rental, and we agree with it: an agent paid by the landlord cannot negotiate your rent down.",
+      "<strong>You pay for the work, not the outcome of a game we rigged.</strong> Our fee covers search, dossier, applications, viewings and contract review. Your €99 founding deposit is refundable before work starts and is deducted from your service fee."
+    ]
+  },
+
+  "how": {
+    "eyebrow": "How it works",
+    "h2": "Five steps. One person. Your phone.",
+    "steps": [
+      { "title": "Brief", "text": "A 20-minute call. Budget, move-in date, neighbourhoods, who's moving, and what your income situation looks like on paper. We tell you honestly what your budget buys in Amsterdam today." },
+      { "title": "Dossier, in 24 hours", "text": "Your application pack in the format Dutch landlords and agents expect: income proof, employer statement, ID, references and a motivation letter in Dutch and English. Done once, used on every application." },
+      { "title": "Hunt and apply", "text": "We monitor Pararius, Funda, agency networks and off-market contacts daily and apply within the hour of a listing going live. You get a shortlist, not a flood of links." },
+      { "title": "Viewings, attended", "text": "Your BOOM person in Amsterdam attends in your place or with you. Live video walkthrough, a written report on light, noise, damp, neighbours and commute, and a straight recommendation." },
+      { "title": "Negotiate, check, sign", "text": "Rent, deposit, service costs, contract type and notice terms, all checked against Dutch law before you sign. Then keys, registration, and a person to call when the boiler breaks in week two." }
+    ]
+  },
+
+  "pricing": {
+    "eyebrow": "Services · founding prices",
+    "h2": "Flat fees. No percentage of your rent.",
+    "lead": "Amsterdam search agents typically charge a full month's rent. We charge for the work. Founding cohort prices are locked for every BOOM service you ever use, in any city.",
+    "plans": [
+      {
+        "name": "Application Pack",
+        "tag": "Application Pack",
+        "title": "You search. We make you win.",
+        "sub": "For people who want to run their own search but keep losing on paperwork and speed.",
+        "price": 199,
+        "note": "one-time · incl. VAT · founding price",
+        "items": [
+          "Dutch-format dossier in 24 hours",
+          "Motivation letter, Dutch + English",
+          "Income and guarantor strategy",
+          "Application templates for Pararius, Funda and agencies",
+          "Contract review before you sign"
+        ],
+        "cta": { "label": "Reserve · €99 deposit", "style": "ghost" },
+        "offerDescription": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review."
+      },
+      {
+        "name": "Full Search",
+        "tag": "Full Search · most chosen",
+        "featured": true,
+        "title": "We find it. You move in.",
+        "sub": "End-to-end: search, dossier, applications, attended viewings, negotiation and contract check.",
+        "price": 500,
+        "note": "one-time · incl. VAT · founding price · a fraction of the month's rent most agents charge",
+        "items": [
+          "Everything in the Application Pack",
+          "Daily hunt across platforms, agencies and off-market",
+          "Applications within the hour of listing",
+          "One attended viewing with live video and report (extra viewings €149)",
+          "Rent and deposit negotiation",
+          "Registration (BRP) and first-month support"
+        ],
+        "cta": { "label": "Reserve · €99 deposit", "style": "gold" },
+        "offerDescription": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract review."
+      },
+      {
+        "name": "Attended Viewing",
+        "tag": "Attended Viewing",
+        "title": "Eyes on the ground.",
+        "sub": "You found it, you're abroad. We go, we film, we tell you the truth.",
+        "price": 149,
+        "per": "per viewing",
+        "note": "incl. VAT · same-week scheduling",
+        "items": [
+          "BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "Honest recommendation, no upsell"
+        ],
+        "cta": { "label": "Book a viewing", "style": "ghost" },
+        "offerDescription": "A local BOOM person attends the viewing in your place with live video and a written report."
+      }
+    ]
+  },
+
+  "checks": {
+    "eyebrow": "Before you sign",
+    "h2": "Six things most internationals discover after signing.",
+    "items": [
+      { "title": "The deposit cap", "text": "Dutch law caps the deposit at two months' rent. Agents still ask for three. We don't let them." },
+      { "title": "Registration", "text": "A landlord cannot forbid you from registering at the address (BRP). No registration means no BSN, no bank, no healthcare. We confirm it in writing before you pay." },
+      { "title": "The points system", "text": "Many Amsterdam apartments fall under rent regulation by the points system (WWS). If the asking rent is above the legal maximum, you have leverage. We run the check." },
+      { "title": "Service costs", "text": "\"Rent €1,800 + €250 service costs\" often hides unlawful charges. We separate what's legitimate from what's padding." },
+      { "title": "Contract type", "text": "Since 2024 the default rental contract in the Netherlands is indefinite. Fixed-term offers are the exception and have conditions. We check which one you're being handed." },
+      { "title": "Income rules", "text": "Starting a new job, freelancing, or paid in a non-euro currency? There's a right way to present each of these. We write it so it reads as safe to a Dutch landlord." }
+    ]
+  },
+
+  "person": {
+    "eyebrow": "Your BOOM person in Amsterdam",
+    "h2": "A name, a face, a WhatsApp number.",
+    "avatarHtml": "[PHOTO OF<br>LOCAL OPERATOR]",
+    "name": "[Name], [nationality]",
+    "paragraphs": [
+      "[Two sentences: how long they've lived in Amsterdam, which neighbourhoods they know, what they do. Real person, real photo. No stock imagery.]",
+      "Backed from Rome by Valentino Egidi, founder of BOOM: six years in rental markets built against internationals, 500+ clients housed, and a portal that keeps every application, viewing and contract in one place."
+    ]
+  },
+
+  "proof": {
+    "eyebrow": "Track record",
+    "h2": "Built in the hardest rental market in Europe.",
+    "lead": "BOOM started in Rome, where listings are fake, fees are hidden and agents work for whoever pays most. Five hundred internationals and a 98% success rate later, we're bringing the same rules to Amsterdam: transparent fees, one side of the table, keys in weeks.",
+    "testimonials": [
+      { "placeholder": true, "quote": "[Real quote from a Rome client who has since moved to another city. Name, nationality, employer or university if they agree.]", "by": "[NAME], [COUNTRY] · housed in Rome, [YEAR]" },
+      { "placeholder": true, "quote": "[Second real quote. Prefer one that mentions speed or the dossier.]", "by": "[NAME], [COUNTRY] · housed in Rome, [YEAR]" }
+    ]
+  },
+
+  "faq": {
+    "eyebrow": "Questions",
+    "h2": "Straight answers.",
+    "items": [
+      { "q": "Isn't it illegal for agents to charge tenants in the Netherlands?", "a": "It's illegal for an agent to charge you when they also act for the landlord, which is what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. That is exactly what we are, and it's the only reason we can negotiate on your side." },
+      { "q": "How fast will I have an apartment?", "a": "With a complete dossier and applications inside the hour, most of our searches should close in two to six weeks depending on budget and move-in date. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else." },
+      { "q": "What is the €99 deposit?", "a": "It reserves one of the ten founding spots and locks the founding price for life. It's refundable any time before we start working, and it's deducted from your fee once we do." },
+      { "q": "What if you don't find anything?", "a": "Then we talk. The fee pays for a defined amount of work, and we'll be honest in the first call if your budget and timeline don't fit the market. We'd rather refund your deposit than take a search we don't believe in." },
+      { "q": "Why only ten clients?", "a": "Because we can serve ten properly. BOOM Amsterdam is one local person and one portal, not a call centre. The cap is what makes the speed real." },
+      { "q": "I'm moving from Rome with BOOM. Does this work for me?", "a": "Especially for you. Your dossier is already in the portal. Message us and we'll convert it to the Dutch format the same day." }
+    ]
+  },
+
+  "reserve": {
+    "eyebrow": "Founding cohort",
+    "h2": "Reserve your spot. Two minutes.",
+    "lead": "Tell us the basics, pay the refundable €99 deposit, and your BOOM person calls you within 24 hours.",
+    "phonePlaceholder": "+31 / +39 / +1 …",
+    "serviceOptions": ["Full Search", "Application Pack", "Attended Viewing"],
+    "budgetOptions": ["Under €1,500", "€1,500 – €2,000", "€2,000 – €2,500", "€2,500 – €3,500", "€3,500+"],
+    "situationPlaceholder": "e.g. Couple, relocating with employer, start date 1 Feb",
+    "subject": "BOOM Amsterdam — founding cohort reservation",
+    "fromName": "boomrome.com/amsterdam",
+    "submit": "Continue to €99 deposit",
+    "fine": "Deposit is refundable before work starts and deducted from your fee. Payment is processed by Stripe. By continuing you agree to be contacted about your reservation. No newsletters.",
+    "error": "Something went wrong. Message us on WhatsApp and we'll reserve your spot by hand.",
+    "successTitle": "Spot held. One last step.",
+    "successText": "Your details are in. Pay the refundable €99 deposit to lock the founding price, and your BOOM person will message you on WhatsApp within 24 hours.",
+    "successCta": "Pay the €99 deposit"
+  },
+
+  "footer": {
+    "tenantSide": "BOOM Amsterdam acts solely as a tenant-side search agent (aanhuurmakelaar). We do not list properties, represent landlords, or receive remuneration from landlords or their agents."
+  },
+
+  "sticky": { "cta": "Reserve · €99" }
+}

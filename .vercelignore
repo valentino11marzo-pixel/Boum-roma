@@ -14,3 +14,9 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+# Pagine città (BOOM_CITIES_BRIEF.md): si deployano solo le pagine GENERATE
+# alla radice. Template con i {{token}}, dati, script di build e il brief
+# interno (budget, zone grigie legali) restano fuori dal sito.
+cities/
+build-cities.mjs
+BOOM_CITIES_BRIEF.md

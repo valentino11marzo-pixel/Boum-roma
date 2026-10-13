@@ -1,0 +1,19 @@
+{
+  "_comment": "Shared by every city page. siteUrl is the ONE place the domain lives: moving the city pages off boomrome.com is this line plus a rebuild (BOOM_CITIES_BRIEF.md §0/§2). The entity block is printed identically in every footer and Organization schema (§8).",
+  "siteUrl": "https://www.boomrome.com",
+  "entity": {
+    "legalName": "Egidi Immobiliare S.r.l.",
+    "address": "Via dei Coronari 181/184, 00186 Rome, Italy",
+    "vat": "17322991005",
+    "trademark": "BOOM® is a registered EU trade mark."
+  },
+  "organization": {
+    "name": "BOOM",
+    "legalName": "Egidi Immobiliare S.r.l.",
+    "founder": { "@type": "Person", "name": "Valentino Egidi" },
+    "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressCountry": "IT" },
+    "vatID": "IT17322991005",
+    "description": "Tenant-side rental search and relocation service for internationals. Founded in Rome, expanding to Amsterdam.",
+    "areaServed": ["Rome", "Amsterdam"]
+  }
+}

@@ -1039,6 +1039,47 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
 
+### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `BOOM_CITIES_BRIEF.md`) — 13/10/2026
+Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi), lato inquilino,
+in inglese. Il contratto è `BOOM_CITIES_BRIEF.md` (fuori dal deploy:
+budget e zone grigie legali sono interni). **Fase 1 fatta**: la pagina
+Amsterdam scritta a mano è diventata template + dati, e la pagina generata è
+**identica pixel per pixel** all'originale (Chromium, pagina intera e stato
+dopo l'invio, 390 e 1440px).
+- `cities/_template.html` (`{{a.b}}` = valore escapato, `{{{a.b}}}` = HTML
+  grezzo; nel JSON un campo che finisce in `Html` è markup fidato, tutto il
+  resto si escapa) · `cities/_shared.json` (**l'unico posto del dominio**,
+  `siteUrl`, + l'entità legale, stampata uguale in ogni footer e
+  Organization) · `cities/<città>.json` · `assets/boom-city.css` e
+  `assets/boom-city.js` condivisi, linkati con `?v=<hash>` del contenuto.
+- `npm run build:cities` scrive `/<slug>.html` (committata: Vercel serve il
+  repo così com'è); `--check` esce 1 se una pagina committata non è ciò che
+  i dati costruiscono. **Il build rifiuta invece di stampare il falso**:
+  token senza valore (mai una stringa vuota), `live:true` con segnaposto
+  (testo tra parentesi quadre visibile, config `REPLACE_ME`/`39XXXXXXXXXX`,
+  statistica senza `source {url, date}` — §5.3), `mode:"waitlist"` finché la
+  Fase 3 non la costruisce (il template stampa prezzi e Stripe), e
+  sovrascrivere una pagina alla radice senza il marchio GENERATED (uno slug
+  `index` avrebbe sostituito la home).
+- Differenze volute dall'originale, invisibili con JS acceso: host
+  `www.boomrome.com` (l'apex reindirizza; il vecchio `@id` apex era
+  un'organizzazione diversa da quella del sito); `noindex` finché
+  `live:false` (la regola 8 di `tests/seo` lo pretende per una pagina fuori
+  sitemap); il reveal nasconde SOLO con la classe `js` (senza JS
+  l'originale lasciava invisibili per sempre statistiche, piani e controlli)
+  e rispetta `prefers-reduced-motion`; i link WhatsApp/Stripe sono href al
+  build; lo schema FAQ ripete le risposte VISIBILI (l'originale le parafrasava).
+- **Aperto, non deciso qui**: Web3Forms contro la pipeline `leads` (la
+  lezione di `api/leads/web.js` — servirebbe la guardia mercato di
+  `api/_market.js`, o il Commerciale risponde con Roma), Payment Link non
+  legato al lead, contatore «posti rimasti» (reale o da togliere), oro
+  `#D4AF37` contro il `#FFD700` del sito pubblico, Organization «BOOM»
+  sullo stesso `@id` di «BOOM Rome», frasi senza fonte nella pagina
+  («98% success rate», «most chosen» su un servizio senza clienti, «agents
+  typically charge a full month's rent»).
+- Test: `node tests/cities/run.mjs` (39) + `node tests/cities/ui.mjs` (17,
+  Chromium: leggibile senza JS, modulo dall'invio all'errore).
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
