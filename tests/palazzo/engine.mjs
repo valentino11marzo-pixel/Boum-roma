@@ -115,11 +115,13 @@ eq('il mese in parole, dai numeri', m.brief, [
   'Ottobre 2026: 10 interni su 13 sono pieni, 1 libero, 2 in arrivo.',
   '5 hanno pagato su 9 (€5.000 di €8.950).',
   '2 sono in ritardo per €1.800: int. 12, int. 3.',
+  // Chi è in ritardo questo mese e deve anche i mesi prima: la parte vecchia
+  // nominata (S2, rilievo 3), così le cifre dette tornano col totale.
+  'Ancora da pagare dai mesi precedenti: int. 3 (2 rate da agosto 2026, €2.000), int. 12 (saldo deposito di settembre 2026, €400).',
   "1 deve ancora pagare, entro l'11 ottobre.",
   '1 pagamento è da verificare.',
   '1 interno occupato non ha la rata registrata.',
-  '2 segnalazioni di manutenzione aperte (1 urgente).',
-  'Arretrati di tutti i mesi: €4.200.']);
+  '2 segnalazioni di manutenzione aperte (1 urgente).']);
 
 ok('per la proprietaria: "in verifica da BOOM", mai il nome del problema interno', P.brief(m, { owner: true }).includes('2 pagamenti sono in verifica da BOOM.') && !P.brief(m, { owner: true }).some(x => /registrata|da verificare/.test(x)));
 
@@ -223,17 +225,23 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('Da sistemare: i contratti IN CORSO senza registrazione segnata oltre 30 giorni (mai un futuro, mai uno registrato)', un, ['u5', 'u8']);
 }
 {
+  // Le colonne si leggono per NOME: il foglio ha canone e oneri separati,
+  // locatore, modalità e fonte della prova (rilievo 18).
+  const C = n => { const i = P.CSV_HEAD.indexOf(n); assert.ok(i >= 0, 'colonna ' + n); return i; };
   const rows = P.csvRows(m), byInt = Object.fromEntries(rows.map(r => [r[1], r]));
-  eq('CSV: una riga per interno, intestazione fissa', [rows.length, P.CSV_HEAD.length, rows.every(r => r.length === P.CSV_HEAD.length)], [m.units.length, 14, true]);
-  eq('CSV: la riga di un interno pagato, all\'italiana', byInt['1'].slice(2), ['Piano terra', 'Inquilino 1 Demo', 'transitorio', '01/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4),
-    byInt['1'][6], 'Sì', 'Registrato il 20/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4), '900,00', '900,00', '900,00', byInt['1'][12], 'Pagato']);
-  ok('CSV: il libero non ha importi (non 0,00)', byInt['2'][10] === '' && byInt['2'][11] === '' && byInt['2'][13] === 'Libero');
-  const sum = rows.reduce((a, r) => a + (r[11] ? Number(r[11].replace(',', '.')) : 0), 0);
+  eq('CSV: una riga per interno, intestazione fissa', [rows.length, P.CSV_HEAD.length, rows.every(r => r.length === P.CSV_HEAD.length)], [m.units.length, 20, true]);
+  const pick = (r, names) => names.map(x => r[C(x)]);
+  eq('CSV: la riga di un interno pagato, all\'italiana', pick(byInt['1'], ['Piano', 'Inquilino', 'Contratto', 'Dal', 'Cedolare secca', 'Registrazione', 'Canone mensile', 'Oneri mensili', 'Dovuto nel mese', 'Incassato canone', 'Incassato oneri', 'Incassato nel mese', 'Stato']),
+    ['Piano terra', 'Inquilino 1 Demo', 'Transitorio', '01/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4), 'Sì', 'Registrato il 20/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4),
+      '900,00', '', '900,00', '900,00', '', '900,00', 'Pagato']);
+  ok('CSV: il libero non ha importi (non 0,00)', byInt['2'][C('Dovuto nel mese')] === '' && byInt['2'][C('Incassato nel mese')] === '' && byInt['2'][C('Stato')] === 'Libero');
+  const sum = rows.reduce((a, r) => a + (r[C('Incassato nel mese')] ? Number(r[C('Incassato nel mese')].replace(',', '.')) : 0), 0);
   eq('CSV: la somma dell\'incassato è quella della pagina (un foglio solo, un motore solo)', Math.round(sum * 100) / 100, m.totals.collected);
   const own = P.csvRows(m, { owner: true }), byO = Object.fromEntries(own.map(r => [r[1], r]));
-  eq('CSV della proprietaria: la sua lingua (mai "Non segnata" né "Senza rata")', [byO['5'][8], byO['8'][13], byInt['5'][8], byInt['8'][13]], ['In verifica da BOOM', 'In verifica da BOOM', 'Non segnata', 'Senza rata']);
+  eq('CSV della proprietaria: la sua lingua (mai "Non segnata" né "Senza rata")', [byO['5'][C('Registrazione')], byO['8'][C('Stato')], byInt['5'][C('Registrazione')], byInt['8'][C('Stato')]], ['In verifica da BOOM', 'In verifica da BOOM', 'Non segnata', 'Senza rata']);
+  eq('CSV: la trimestrale si legge nei mesi che copre, senza contare di nuovo i soldi', pick(byInt['10'], ['Dovuto nel mese', 'Stato']), ['', 'Pagato · coperto dalla rata di ' + P.monthLabel(F.M(-1)).toLowerCase()]);
   const csv = P.toCsv([['a;b', 'x"y', 'ok']]);
-  ok('toCsv: BOM, punto e virgola, CRLF, virgolette dove servono', csv.startsWith('\ufeffMese;Interno;') && csv.includes('\r\n"a;b";"x""y";ok\r\n'));
+  ok('toCsv: BOM, punto e virgola, CRLF, virgolette dove servono', csv.startsWith('﻿Mese;Interno;') && csv.includes('\r\n"a;b";"x""y";ok\r\n'));
 }
 
 // ── 11. Gestione BOOM dal: prima non è storia di BOOM ──────────────────
@@ -256,7 +264,8 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('il modello dichiara da quando gestisce', gm.gestioneDal, GD);
   eq('toneOf: before ha il suo tono', P.toneOf('before'), 'prima');
   const csvPast = P.csvRows(past).find(r => r[1] === '3');
-  eq('CSV: un mese prima di BOOM non ha importi', [csvPast[10], csvPast[11], csvPast[13]], ['', '', 'Prima della gestione BOOM']);
+  const ci = n => P.CSV_HEAD.indexOf(n);
+  eq('CSV: un mese prima di BOOM non ha importi', [csvPast[ci('Dovuto nel mese')], csvPast[ci('Incassato nel mese')], csvPast[ci('Stato')]], ['', '', 'Prima della gestione BOOM']);
 }
 
 // ── 12. La presa in carico: il palazzo da una tabella ──────────────────

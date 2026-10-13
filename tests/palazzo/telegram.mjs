@@ -68,7 +68,10 @@ await check('/palazzo: i palazzi con almeno 3 interni (Via Altra, 2 interni, res
 await check('il mese dallo STESSO motore della pagina: la frase, chi non ha pagato, scadenze, registrazioni', async () => {
   const { msg } = await palazzoMessage('', { now: NOW });
   assert.ok(msg.includes('10 interni su 13 sono pieni, 1 libero, 2 in arrivo.'), msg);
-  assert.ok(/🔴 <b>Non hanno pagato<\/b>\n• int\. 12 · Inquilino 12 Demo · €800 · \d+ giorni\n• int\. 3 · Inquilino 3 Demo · €1\.000/.test(msg), msg);
+  // Chi non ha pagato: TUTTE le rate scadute fino al mese (anche i mesi
+  // prima), col totale e il ritardo più vecchio (rilievo 3) — int. 3 ne ha
+  // tre da €1.000, int. 12 la rata del mese e il saldo del deposito.
+  assert.ok(/🔴 <b>Non hanno pagato<\/b>\n• int\. 3 · Inquilino 3 Demo · €3\.000 · 3 rate, la più vecchia da \d+ giorni\n• int\. 12 · Inquilino 12 Demo · €1\.200 · 2 rate, la più vecchia da \d+ giorni/.test(msg), msg);
   assert.ok(/⌛ <b>In scadenza entro 90 giorni<\/b>\n• int\. 7 · tra 60 giorni/.test(msg), msg);
   assert.ok(msg.includes('📄 <b>Registrazione da segnare</b> (oltre 30 giorni dalla decorrenza): int. 5, int. 8'), msg);
   assert.ok(/🧰 Da sistemare nel portal: \d+ voci\./.test(msg), msg);
