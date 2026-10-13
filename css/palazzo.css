@@ -695,3 +695,7 @@
 .plz-import-tab td small.plz-imp-diff.is-locked{color:var(--text-muted);text-decoration:line-through;text-decoration-color:rgba(255,255,255,.25)}
 .plz-import-tab td small.plz-imp-alert{color:var(--plz-late);font-weight:500}
 .plz-import-tab td small.plz-warn{display:inline-block;margin:3px 0 0}
+/* La carta su /rata: data del mandato e nota hanno lo stesso peso (la riga
+   dell'aspetto è nome + ultimo piano, 96px; qui la nota tagliava il testo). */
+.plz-card .plz-look-row{grid-template-columns:minmax(150px,200px) minmax(0,1fr)}
+@media (max-width:600px){.plz-card .plz-look-row{grid-template-columns:minmax(0,1fr)}}

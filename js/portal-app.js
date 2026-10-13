@@ -1222,21 +1222,11 @@ Valentyne - BOOM Rome`
         if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
         // Un piano con righe ferme non si carica, nemmeno a metà.
         if ((plan.errors || []).length) { toast('warning', 'Tabella da correggere', 'Ci sono righe in rosso: sistemale e rileggi.'); return false; }
-        const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
-        const U = plan.applyDiffs ? (plan.paymentUpdates || []) : [];
-        const cnt = plan.counts || {}, nU = U.filter(u => !u.cancel).length, nX = U.filter(u => u.cancel).length;
+        const P = plan.properties, C = plan.contracts || [], R = plan.payments || [], U = plan.applyDiffs ? (plan.paymentUpdates || []) : [];
         const n = (x, one, many) => `${x} ${x === 1 ? one : many}`;
-        const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
-        const newC = C.filter(c => !c.exists).length, updC = C.length - newC;
-        const how = plan.applyDiffs ? 'campi vuoti e differenze applicate' : 'solo i campi vuoti';
-        const lines = [`${n(newP, 'interno nuovo', 'interni nuovi')}${updP ? `, ${updP} già in archivio (${how})` : ''}`,
-            `${n(newC, 'contratto', 'contratti')}${updC ? `, ${updC} già in archivio (${how})` : ''}`,
-            `${n(R.length, 'rata nuova', 'rate nuove')} da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}`];
-        if (plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio applicata', 'differenze con l’archivio applicate')}`);
-        if (nU) lines.push(`${n(nU, 'rata da pagare ricalcolata', 'rate da pagare ricalcolate')} (rilette una per una: una pagata o segnalata nel frattempo non si tocca)`);
-        if (nX) lines.push(`${n(nX, 'rata da pagare annullata', 'rate da pagare annullate')} (fine del contratto anticipata)`);
-        if (!plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio NON applicata', 'differenze con l’archivio NON applicate')}`);
-        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${lines.join('\n')}\n\nNessuna email parte agli inquilini.`)) return false;
+        const newP = P.filter(p => !p.exists).length, newC = C.filter(c => !c.exists).length, updC = C.length - newC;
+        // Il riepilogo (importImpact, in fondo) dice anche differenze e rate ricalcolate.
+        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${importImpact().join('\n')}\n\nNessuna email parte agli inquilini.`)) return false;
         try {
             const exists = async (col, ids) => {
                 const out = new Set();
@@ -1314,6 +1304,20 @@ Valentyne - BOOM Rome`
             toast(uKept ? 'warning' : 'success', 'Palazzo caricato', `${n(newP, 'interno', 'interni')} · ${n(newC, 'contratto', 'contratti')}${updC ? ` (+${updC} aggiornati)` : ''} · ${n(R.length, 'rata', 'rate')}${uDone ? ` · ${n(uDone, 'rata ricalcolata o annullata', 'rate ricalcolate o annullate')}` : ''}${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}${uKept ? ` · ${n(uKept, 'rata era cambiata nel frattempo (pagata, segnalata o con un altro importo): non toccata', 'rate erano cambiate nel frattempo (pagate, segnalate o con un altro importo): non toccate')}` : ''}`);
             return true;
         } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
+        // Le righe della conferma: cosa nasce, cosa si aggiorna e come, cosa
+        // cambia nelle rate già in archivio (dichiarazione: sollevata in cima).
+        function importImpact() {
+            const cnt = plan.counts || {}, nU = U.filter(u => !u.cancel).length, nX = U.filter(u => u.cancel).length, updP = P.length - newP;
+            const how = plan.applyDiffs ? 'campi vuoti e differenze applicate' : 'solo i campi vuoti';
+            const lines = [`${n(newP, 'interno nuovo', 'interni nuovi')}${updP ? `, ${updP} già in archivio (${how})` : ''}`,
+                `${n(newC, 'contratto', 'contratti')}${updC ? `, ${updC} già in archivio (${how})` : ''}`,
+                `${n(R.length, 'rata nuova', 'rate nuove')} da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}`];
+            if (plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio applicata', 'differenze con l’archivio applicate')}`);
+            if (nU) lines.push(`${n(nU, 'rata da pagare ricalcolata', 'rate da pagare ricalcolate')} (rilette una per una: una pagata o segnalata nel frattempo non si tocca)`);
+            if (nX) lines.push(`${n(nX, 'rata da pagare annullata', 'rate da pagare annullate')} (fine del contratto anticipata)`);
+            if (!plan.applyDiffs && cnt.diffsApplicable) lines.push(`${n(cnt.diffsApplicable, 'differenza con l’archivio NON applicata', 'differenze con l’archivio NON applicate')}`);
+            return lines;
+        }
     }
 
     async function palazzoSaveLook(ids, fields) {

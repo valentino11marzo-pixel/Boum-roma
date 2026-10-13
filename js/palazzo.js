@@ -500,7 +500,8 @@
   function debtorName(x) { return x.d.tenants && x.d.tenants[0] || x.u.month.tenants[0] || ''; }
   function monthPanel(data) {
     var m = data.m, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
-    if (m.allBefore) return '<div class="plz-pcard"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></div>';
+    // La frase del mese prima di BOOM sta già nei numeri in alto: qui niente.
+    if (m.allBefore) return '';
     var debt = debtorsOf(m);
     var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant']), coming = by(['incoming']), paid = by(['paid']);
     function line(u, right, note, who) {
@@ -929,7 +930,7 @@
     return open.sort(function (a, b) { return (b.r.state === 'overdue') - (a.r.state === 'overdue') || String(a.u.interno || a.u.name).localeCompare(String(b.u.interno || b.u.name), 'it', { numeric: true }) || String(a.r.month).localeCompare(String(b.r.month)); });
   }
   function rataBar(data) {
-    if (!data.admin || typeof adapter.rataLinks !== 'function') return '';
+    if (!data.admin || typeof adapter.rataLinks !== 'function' || data.m.allBefore) return '';
     var open = openRates(data.m), mon = E.monthLabel(data.m.month).toLowerCase();
     var head = '<div class="plz-export plz-ratabar"><p>Rate da pagare</p><button type="button" class="plz-btn plz-sm' + (ui.rataOpen ? '' : ' plz-primary') + '" data-plz="rata-all" aria-expanded="' + (ui.rataOpen ? 'true' : 'false') + '"' + (open.length ? '' : ' disabled') + '>' +
       (open.length ? '📨 Manda i link di ' + esc(mon) + ' · ' + open.length : 'Nessuna rata aperta in ' + esc(mon)) + '</button></div>';
@@ -1241,7 +1242,11 @@
 
   function briefHTML(data) {
     var m = data.m, b = m.brief || [];
-    return '<div class="plz-brief"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-lead">' + esc((b[0] || '').replace(/^[^:]+:\s*/, '')) + '</p>' +
+    // Un mese tutto prima della gestione: la frase è UNA, qui (le schede
+    // sotto non la ripetono).
+    if (m.allBefore) return '<div class="plz-brief"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-lead plz-before-line">' + esc(beforeLine(m)) + '</p></div>';
+    var lead = (b[0] || '').replace(/^[^:]+:\s*/, '');
+    return '<div class="plz-brief"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-lead">' + esc(lead.charAt(0).toUpperCase() + lead.slice(1)) + '</p>' +
       (b.length > 1 ? '<p class="plz-rest">' + esc(b.slice(1).join(' ')) + '</p>' : '') + '</div>';
   }
   function cards(data) {
@@ -1274,7 +1279,7 @@
     }).join('')) : '';
     // Un mese tutto prima della gestione: una riga sola, mai «tutti in
     // regola» o «tutto pieno» di un mese di cui BOOM non sa niente.
-    if (m.allBefore) return '<section class="plz-scard plz-before"><p class="plz-before-line">' + esc(beforeLine(m)) + '</p></section>' + mcard;
+    if (m.allBefore) return mcard;
     return card('is-late', 'Non hanno pagato', debt.length, debt.length ? debt.map(function (x) { return row(x.u, debtAmount(x.d), debtNote(x.d), sollecita(x), debtorName(x), 'late'); }).join('')
         : '<p class="plz-ok">' + (t.before ? 'Nessun ritardo fra gli interni gestiti.' : 'Tutti in regola.') + '</p>') +
       (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : '', manda(u)); }).join('')) : '') +
@@ -1695,7 +1700,7 @@
     var blocked = !plan || bad.length || planErr.length;
     var writes = c.create + c.update + c.contracts + cu + c.payments + (apply ? (c.paymentUpdates || 0) + (c.paymentCancels || 0) : 0);
     var go = [c.create ? 'crea ' + plural(c.create, 'interno', 'interni') : '', c.update ? 'aggiorna ' + plural(c.update, 'interno', 'interni') : '',
-      c.contracts ? plural(c.contracts, 'contratto', 'contratti') : '', cu ? 'completa ' + plural(cu, 'contratto', 'contratti') : '',
+      c.contracts ? plural(c.contracts, 'contratto', 'contratti') : '', cu ? (apply ? 'aggiorna ' : 'completa ') + plural(cu, 'contratto', 'contratti') : '',
       c.payments ? plural(c.payments, 'rata', 'rate') : '', apply && c.paymentUpdates ? 'ricalcola ' + plural(c.paymentUpdates, 'rata', 'rate') : '', apply && c.paymentCancels ? 'annulla ' + plural(c.paymentCancels, 'rata', 'rate') : ''].filter(Boolean).join(', ');
     var da = c.diffsApplicable || 0;
     var mainBtn, extraBtn = '';
@@ -1712,7 +1717,7 @@
       return '<li>Int. ' + esc(x.interno) + ' · ' + esc(E.monthLabel(x.month).toLowerCase()) + ' · ' + eur(x.amount) + ' · scadenza ' + dateIt(x.dueDate) + '</li>';
     }).join('') + '</ul><p class="plz-muted">Se sono state pagate, registra l’incasso dopo il carico: non diventano pagate da sole.</p></div>' : '';
     var pm = plan ? (plan.messages || []) : P.unknown.length ? ['Colonne non riconosciute: ' + P.unknown.join(', ') + '.'] : [];
-    return '<p class="plz-import-sum"><b>' + plural(P.rows.length + ((P.ignored || []).length), 'riga', 'righe') + '</b> · ' + plural(c.create, 'interno nuovo', 'interni nuovi') + ', ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + plural(c.contracts, 'contratto', 'contratti') + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + ' da completare)' : '') + ' · ' + plural(c.payments, 'rata', 'rate') + ' da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
+    return '<p class="plz-import-sum"><b>' + plural(P.rows.length + ((P.ignored || []).length), 'riga', 'righe') + '</b> · ' + plural(c.create, 'interno nuovo', 'interni nuovi') + ', ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + plural(c.contracts, 'contratto', 'contratti') + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + (apply ? ' da aggiornare)' : ' da completare)') : '') + ' · ' + plural(c.payments, 'rata', 'rate') + ' da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
       (pm.length ? '<div class="plz-imp-msgs" role="status">' + pm.map(function (x) { return '<p>' + esc(x) + '</p>'; }).join('') + '</div>' : '') +
       (msgs.length ? '<p class="plz-note">' + msgs.join(' ') + '</p>' : '') +

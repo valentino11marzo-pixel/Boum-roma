@@ -24,7 +24,7 @@ import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
-import { extname, resolve } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { buildFixture } from './fixture.mjs';
@@ -171,10 +171,18 @@ try {
       await pg.locator('.plz-unit[data-id="' + id + '"]').click({ force: true });
       await pg.waitForSelector('#plz-unit-h');
     };
+    // SCREENSHOT_DIR=… salva le schermate dei passaggi (1440 e 390).
+    const shot = async (name, full = true) => { if (process.env.SCREENSHOT_DIR) { await pg.waitForTimeout(400); await pg.screenshot({ path: join(process.env.SCREENSHOT_DIR, 'view-' + name + '-' + width + '.png'), fullPage: full }); } };
     const closeUnit = async () => { await pg.locator('[data-plz="deselect"]').first().click(); await pg.waitForFunction(() => !document.getElementById('plz-unit-h')); };
 
     await pg.goto(base + '/admin');
     await pg.waitForSelector('.plz');
+    if (process.env.SCREENSHOT_DIR) {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('.plz-facade');
+      await pg.waitForTimeout(1800);
+      await shot('semplice');
+    }
 
     await check('contratto su carta: niente «Firma ora», la scansione firmata si allega come PDF', async () => {
       await openUnit('u4');
@@ -198,6 +206,7 @@ try {
     await check('il segnaposto: «Carica il contratto» apre la tabella con l\'interno già scritto; mai PDF, Firma, RLI, ASPI, Fascicolo, ARPE', async () => {
       await openUnit('u14');
       const panel = pg.locator('#plz-panel');
+      await shot('segnaposto', false);
       for (const a of ['pdf', 'firma', 'rli', 'aspi', 'fiscale', 'arpe', 'terms', 'terminate']) assert.equal(await panel.locator('[data-plz="' + a + '"]').count(), 0, a);
       assert.ok((await panel.innerText()).includes('Gaia Demo'));
       await panel.locator('[data-plz="innesto"]').click();
@@ -215,6 +224,7 @@ try {
       const panel = pg.locator('#plz-panel');
       await panel.locator('[data-plz="terms"][data-f="rent"]').click();
       await pg.locator('#plz-terms input[name="v"]').fill('1.050');
+      await shot('scheda-3d');
       await pg.locator('#plz-terms button[type="submit"]').click();
       await pg.waitForFunction(() => demoActions.some(a => a[0] === 'setRent'));
       assert.deepEqual((await acts(pg, 'setRent')).at(-1), ['setRent', 'c3', 1050]);
@@ -254,6 +264,7 @@ try {
     await check('Elenco: la tabella sta nella pagina, nessuno scorrimento orizzontale', async () => {
       await pg.locator('[data-plz="view"][data-v="list"]').click();
       await pg.waitForSelector('.plz-roll');
+      await shot('elenco');
       for (const w of width === 1440 ? [1440, 1024] : [390]) {
         await pg.setViewportSize({ width: w, height: 1000 });
         await pg.waitForTimeout(120);
@@ -273,6 +284,8 @@ try {
       assert.ok((await pg.locator('#plz-card-effect').innerText()).includes('Senza la data del mandato la carta resta SPENTA'));
       await card.locator('input[data-card="mandateAt"]').fill(D(-3));
       await card.locator('input[data-card="note"]').fill('Mandato prot. demo');
+      await card.scrollIntoViewIfNeeded();
+      await shot('carta', false);
       const w0 = await pg.evaluate(() => writes.length);
       await card.locator('[data-plz="card-save"]').click();
       await pg.waitForFunction(n => writes.length > n, w0);
@@ -310,10 +323,13 @@ try {
       assert.ok(!btns.some(t => /Niente da cambiare/.test(t)), btns.join(' | '));
       assert.ok(btns.some(t => /1 differenza con l’archivio: applicala|Applica anche la differenza/.test(t)), btns.join(' | '));
       assert.ok((await pg.locator('.plz-imp-msgs').innerText()).includes('differenza con l’archivio'));
+      await pg.locator('.plz-import').scrollIntoViewIfNeeded();
+      await shot('import-differenze', false);
       // 3) applica: il piano si ricalcola e il tasto dice quante rate cambiano
       await pg.locator('[data-plz="imp-apply"]').first().click();
       await pg.waitForFunction(() => /ricalcola \d+ rat/i.test(document.querySelector('[data-plz="imp-go"]')?.textContent || ''));
       assert.ok(await pg.locator('input[data-imp-flag="applyDiffs"]').isChecked());
+      await shot('import-applica', false);
       const plan = await pg.evaluate(() => BOOM_PALAZZO_UI.ui.imp.plan.paymentUpdates.map(u => ({ id: u.id, amount: u.data.amount, expect: u.expect.amount })));
       assert.ok(plan.length >= 10 && plan.every(u => u.amount === 1100 && u.expect === 1000), JSON.stringify(plan));
       // nel frattempo l'inquilino segnala il bonifico di una rata: quella non si tocca
@@ -347,10 +363,19 @@ try {
       await pg.waitForFunction(() => /Via Seconda 7/.test(document.getElementById('plz-h1')?.textContent || ''));
       await pg.locator('[data-plz="prev"]').click();
       await pg.waitForSelector('.plz-before-line');
+      await shot('prima-di-boom');
       const txt = await pg.locator('.plz').innerText();
       assert.ok(/Prima della gestione BOOM \(da \w+ \d{4}\)/.test(await pg.locator('.plz-before-line').innerText()), await pg.locator('.plz-before-line').innerText());
       assert.ok(!/non hanno pagato|in regola|tutto pieno/i.test(txt.replace(/Prima della gestione BOOM[^\n]*/g, '')), txt);
-      assert.equal(await pg.locator('.plz-scard:not(.plz-before)').count(), 0, 'nessuna scheda del mese, solo la riga');
+      assert.equal(await pg.locator('.plz-scard').count(), 0, 'nessuna scheda del mese');
+      assert.equal(await pg.locator('.plz-before-line').count(), 1, 'la frase UNA volta');
+      assert.equal(await pg.locator('[data-plz="rata-all"]').count(), 0, 'nessun «manda i link» per un mese di cui BOOM non sa niente');
+      // anche nel 3D: una riga al posto dei numeri, nessun «in breve» ripetuto accanto
+      await pg.locator('[data-plz="view"][data-v="3d"]').click();
+      await pg.waitForSelector('#plz-kpis .plz-before-line');
+      assert.equal(await pg.locator('.plz-before-line').count(), 1);
+      assert.ok(/Prima di BOOM/.test(await pg.locator('.plz-legend, .plz-filters, .plz').first().innerText()), 'la legenda dice «Prima di BOOM»');
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
       await pg.locator('[data-plz="today"]').click();
       const v0 = await pg.locator('select[data-plz="building"] option').evaluateAll(os => os.find(o => /Viale Esempio/.test(o.textContent)).value);
       await pg.locator('select[data-plz="building"]').selectOption(v0);
@@ -376,6 +401,8 @@ try {
       await pg.waitForFunction(() => /Anteprima di/.test(document.querySelector('.plz-rend')?.textContent || ''));
       assert.ok(rendCalls.at(-1).q.includes('ownerId=owner-demo') && rendCalls.at(-1).q.includes('preview=1'), rendCalls.at(-1).q);
       assert.ok((await pg.locator('.plz-rend').innerText()).includes('lei non riceve niente'));
+      await pg.locator('.plz-share').scrollIntoViewIfNeeded();
+      await shot('invia-proprietaria', false);
       await pg.locator('[data-plz="share"]').click();
     });
 
@@ -384,6 +411,7 @@ try {
     await pg.goto(base + '/owner?page=');
     await pg.waitForSelector('.plz');
     await check('proprietaria con una lettura fallita: «Riprova», mai un palazzo che sembra tutto libero', async () => {
+      await shot('proprietaria-riprova', false);
       const txt = await pg.locator('.plz').innerText();
       assert.ok(txt.includes('Il tuo palazzo non è arrivato') && txt.includes('Riprova'), txt);
       assert.equal(await pg.locator('.plz-win, .plz-unit, .plz-scard').count(), 0, 'il mese resta nascosto');
@@ -398,6 +426,7 @@ try {
       await pg.locator('.plz-win[data-id="u5"]').scrollIntoViewIfNeeded();
       await pg.locator('.plz-win[data-id="u5"]').click();
       await pg.waitForSelector('#plz-unit-h');
+      await shot('proprietaria-scheda');
       await pg.evaluate(() => { window.__opened = []; window.open = (u) => { __opened.push(u); return {}; }; });
       await pg.locator('#plz-panel [data-plz="inbox"]:not([data-ch])').click();
       const wa = decodeURIComponent(await pg.evaluate(() => __opened.at(-1)));
