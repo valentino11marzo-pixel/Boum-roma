@@ -59,19 +59,22 @@ service cloud.firestore {
     // gli interruttori degli agenti. Ora sono dell'admin, in lettura come in
     // scrittura; i server leggono con credenziali admin. 'company' resta
     // per gli account veri (il portal la carica al boot per ogni ruolo), mai
-    // per l'anonimo. Il resto (es. 'video', letto dal sito pubblico) resta
+    // per l'anonimo; così 'canoneAccordo' (i parametri dell'accordo, non un
+    // segreto): la console proposte, aperta anche a un proprietario, deve
+    // dare lo stesso verdetto di fascia che dà all'admin. Il resto (es.
+    // 'video', letto dal sito pubblico) resta
     // pubblico. Un nuovo documento di sola configurazione interna va
     // aggiunto a settingsInternal: tests/rules lo verifica per ruolo.
     function settingsInternal(x) {
       return x in ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability',
                    'squadra', 'fiducia', 'segretaria', 'publisher', 'outreach', 'cockpit',
-                   'canoneAccordo', 'general', 'mediaRehost', 'marketBenchmarks'];
+                   'general', 'mediaRehost', 'marketBenchmarks'];
     }
     match /settings/{x}  {
       // Il ramo pubblico viene PRIMA: una lettura anonima di 'video' non
       // deve passare da get(users/…) (che per una sessione anonima non esiste).
-      allow read: if (!(x in ['company', 'registrazione', 'ai']) && !settingsInternal(x))
-                  || (x == 'company' && isSignedIn() && !isAnon())
+      allow read: if (!(x in ['company', 'canoneAccordo', 'registrazione', 'ai']) && !settingsInternal(x))
+                  || (x in ['company', 'canoneAccordo'] && isSignedIn() && !isAnon())
                   || isAdmin();
       allow write: if isAdmin();
     }

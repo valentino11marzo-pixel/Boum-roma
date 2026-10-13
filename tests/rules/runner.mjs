@@ -70,10 +70,12 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   // ── Palazzo (12/10/2026): le porte del ruolo landlord ──────────────────
   // Le manopole interne in settings, e quelle che il pubblico legge.
-  for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria'])
+  for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria',
+       'fiducia', 'publisher', 'outreach', 'cockpit', 'general', 'mediaRehost', 'marketBenchmarks'])
     await setDoc(doc(db, 'settings/' + x), { secret: 'interno-' + x });
   await setDoc(doc(db, 'settings/company'), { iban: 'IT60X0542811101000000123456' });
   await setDoc(doc(db, 'settings/video'), { url: 'https://example.invalid/v.mp4' });
+  await setDoc(doc(db, 'settings/canoneAccordo'), { pArr: 0.1 });
   // Inbox: una conversazione assegnata alla proprietaria A, con l'analisi
   // AI; un messaggio del contatto e una NOTA INTERNA.
   await setDoc(doc(db, 'conversations/conv1'), { contactUid: 'tA', assignedLandlordId: 'llA', aiSummary: 'analisi interna', suggestedReply: 'bozza' });
@@ -264,7 +266,8 @@ await check('nobody writes clientErrors from the browser',
 // ── PALAZZO (12/10/2026): le porte che l'account della proprietaria apre ──
 console.log('\nsettings — le manopole interne sono dell\'admin');
 const llC = env.authenticatedContext('llC').firestore();
-for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria']) {
+for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria',
+       'fiducia', 'publisher', 'outreach', 'cockpit', 'general', 'mediaRehost', 'marketBenchmarks']) {
   await check('landlord CANNOT read settings/' + x, assertFails(getDoc(doc(llA, 'settings/' + x))));
   await check('tenant CANNOT read settings/' + x, assertFails(getDoc(doc(tA, 'settings/' + x))));
 }
@@ -278,6 +281,11 @@ await check('anon-provider session CANNOT read settings/company', assertFails(ge
 await check('anonymous STILL reads settings/video (sito pubblico)', assertSucceeds(getDoc(doc(anon, 'settings/video'))));
 await check('anon-provider session reads settings/video', assertSucceeds(getDoc(doc(anonProv, 'settings/video'))));
 await check('landlord CANNOT write settings/company', assertFails(setDoc(doc(llA, 'settings/company'), { iban: 'x' })));
+// I parametri dell'accordo non sono un segreto: la console proposte (aperta
+// anche a un proprietario) deve dare lo stesso verdetto di fascia dell'admin.
+await check('landlord reads settings/canoneAccordo', assertSucceeds(getDoc(doc(llA, 'settings/canoneAccordo'))));
+await check('anonymous CANNOT read settings/canoneAccordo', assertFails(getDoc(doc(anon, 'settings/canoneAccordo'))));
+await check('landlord CANNOT write settings/canoneAccordo', assertFails(setDoc(doc(llA, 'settings/canoneAccordo'), { pArr: 0.5 })));
 
 console.log('\nmaintenance — un guasto solo sul proprio interno, mai anonimo');
 await check('anon-provider session CANNOT open a fake leak on propA',

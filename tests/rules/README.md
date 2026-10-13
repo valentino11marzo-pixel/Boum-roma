@@ -25,7 +25,8 @@ nothing in production.
 - **Default-deny** catch-all blocks any undeclared collection.
 - **Palazzo — le porte del ruolo landlord** (12/10/2026): le manopole interne
   di `settings` (registrazione, ai, costi carta/SEPA, calendario, agenti) sono
-  solo dell'admin, `company` solo per account veri, `video` resta pubblico;
+  solo dell'admin, `company` e `canoneAccordo` solo per account veri,
+  `video` resta pubblico;
   un guasto si apre solo sul proprio interno (mai anonimo, mai `reporter`/
   `source` dal browser); la proprietaria non legge Inbox, note interne né
   analisi AI; il suo loader a blocchi di 9 interni passa, un blocco con un
@@ -61,7 +62,7 @@ Requires: Node 18+, Java 17+ (for the emulator), and `firebase-tools`
 Expected output ends with:
 
 ```
-Result: 140 passed, 0 failed
+Result: 157 passed, 0 failed
 All rules behave as intended.
 ```
 
