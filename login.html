@@ -450,7 +450,7 @@
         </div>
 
         <h1 class="a-title">Sign in</h1>
-        <p class="a-sub">Welcome back. Access your account to continue.</p>
+        <p class="a-sub">Sign in with the email you gave BOOM. On your first visit, use “First access / reset password” to choose your password by email.</p>
 
         <div class="msg" id="message" role="alert" aria-live="assertive"></div>
 
@@ -462,7 +462,7 @@
 
           <div class="labelrow">
             <label class="label" for="password">Password</label>
-            <button type="button" class="link" id="forgotBtn">Forgot?</button>
+            <button type="button" class="link" id="forgotBtn">First access / reset password</button>
           </div>
           <div class="field">
             <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
@@ -570,7 +570,7 @@
         }catch(e){/* storage bloccato: niente da fare, ma nessun crash */}
       }
 
-      auth.onAuthStateChanged(u=>{ if(u) window.location.href=NEXT_DEST; });
+      auth.onAuthStateChanged(u=>{ if(u && !u.isAnonymous) window.location.href=NEXT_DEST; });
 
       const form=document.getElementById('loginForm');
       const emailInput=document.getElementById('email');
@@ -642,14 +642,15 @@
 
       forgotBtn.addEventListener('click',async()=>{
         const email=emailInput.value.trim();
-        if(!email){ showMessage('Enter your email above, then tap “Forgot?” again.','error'); emailInput.focus(); return; }
+        if(!email){ showMessage('Enter the email you gave BOOM, then select “First access / reset password”.','error'); emailInput.focus(); return; }
         forgotBtn.disabled=true;
-        try{ await auth.sendPasswordResetEmail(email); }
+        try{ await auth.sendPasswordResetEmail(email, {url:'https://www.boomrome.com/login?next='+encodeURIComponent(NEXT_DEST)}); }
         catch(err){
           if(err.code==='auth/invalid-email'){ showMessage('That doesn’t look like a valid email address.','error'); forgotBtn.disabled=false; return; }
           if(err.code==='auth/too-many-requests'){ showMessage('Too many requests. Please wait a moment.','error'); forgotBtn.disabled=false; return; }
+          if(err.code!=='auth/user-not-found'){ showMessage('We could not request your access email. Check your connection and try again, or contact BOOM.','error'); forgotBtn.disabled=false; return; }
         }
-        showMessage('If an account exists for that email, a reset link is on its way.','success');
+        showMessage('If an account exists for that email, you will receive a link to choose your password. Check spam too. If no email arrives, contact BOOM to check your access.','success');
         setTimeout(()=>{ forgotBtn.disabled=false; },4000);
       });
 

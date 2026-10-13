@@ -7,6 +7,7 @@ import { webcrypto } from 'node:crypto';
 
 const html = readFileSync(new URL('../../tenant.html', import.meta.url), 'utf8');
 const engine = readFileSync(new URL('../../js/rent-engine.js', import.meta.url), 'utf8');
+const accessEngine = readFileSync(new URL('../../js/tenant-access-engine.js', import.meta.url), 'utf8');
 const inline = html.match(/<script>\s*(\(function\(\)\{\s*'use strict';[\s\S]*?)<\/script>/)?.[1];
 assert.ok(inline, 'real tenant inline script found');
 new vm.Script(inline); // also parse the unchanged boot path
@@ -16,12 +17,13 @@ const controller = inline.slice(0, inline.indexOf(marker));
 const bridge = `
 window.testTenant = { render:render, refresh:refreshPayments, confirm:confirmPaymentReturn,
   retry:retryPayments, row:payRow, rows:historyRows, next:nextPending, choose:selectPaymentMethod,
-  returnState:paymentReturnState, notice:paymentNotice, report:reportTransfer, receipt:loadPaymentReceipt,
+  returnState:paymentReturnState, notice:paymentNotice, report:reportTransfer, receipt:loadPaymentReceipt, openContract:openOwnContract,
   set:function(o){
     if('payments' in o)PAYMENTS=o.payments;if('contract' in o)CONTRACT=o.contract;
     if('load' in o)PAY_LOAD=o.load;if('returnId' in o)PAY_RETURN=o.returnId;
     if('checking' in o)RETURN_CHECKING=o.checking;if('appReady' in o)APP_READY=o.appReady;
     if('lang' in o)LANG=o.lang;if('payout' in o)PAYOUT=o.payout;
+    if('contractLoad' in o)CONTRACT_LOAD=o.contractLoad;if('contracts' in o)CONTRACTS=o.contracts;
     if('viewAs' in o)VIEW_AS=o.viewAs;if('sddReturn' in o)SDD_RETURN=o.sddReturn;
   },
   state:function(){return {payments:PAYMENTS,load:PAY_LOAD,checking:RETURN_CHECKING,busy:PAY_BUSY,returnId:PAY_RETURN,limited:PAY_LIMIT,today:todayISO}}
@@ -77,7 +79,7 @@ function fixture({query='',mutate,now}={}){
     BoomPortal:{withTimeout(p,ms){return new Promise((resolve,reject)=>{const id=timeout(()=>reject(new Error('timeout')),ms);Promise.resolve(p).then(v=>{clear(id);resolve(v)},e=>{clear(id);reject(e)})})}},
     fetch(url,options){requests.push({url,options});return Promise.resolve({json:()=>Promise.resolve(ctx.response||{ok:true,checkoutUrl:'https://checkout.stripe.com/synthetic'})})},
   };
-  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(engine,ctx);
+  ctx.window=ctx;vm.createContext(ctx);vm.runInContext(engine,ctx);vm.runInContext(accessEngine,ctx);
   vm.runInContext((mutate?mutate(controller):controller)+(now?bridge.replace("todayISO='2026-09-17';",''):bridge),ctx);
   const api=ctx.testTenant;
   return {api,ctx,reads,requests,queues,elements,get markup(){return markup},
@@ -91,6 +93,53 @@ async function test(name,run){await run();passed++;console.log('✓ '+name)}
 function noPay(h){assert.doesNotMatch(h,/id="(?:payBtn|payDock|bfx)"/)}
 function noPaid(h){assert.doesNotMatch(h,/class="paidband"/)}
 
+await test('workspace controller receives the selected home and authenticated tenant',()=>{
+  const f=fixture(),mounted=[];f.ctx.BOOM_TENANT_WORKSPACE_UI={mount(opts){mounted.push(opts)}};
+  const h=f.render([]);assert.match(h,/id="tenantTickets"/);assert.match(h,/id="tenantArchive"/);
+  assert.equal(mounted[0].contract.id,'contract-test');assert.equal(mounted[0].user.uid,'tenant-test');
+  f.render([],{contract:{id:'future',propertyId:'future-home'}});assert.equal(mounted[1].contract.id,'future');
+});
+await test('lease start never claims delivered keys and handover file is accessible',()=>{
+  const f=fixture(),c={id:'contract-test',propertyId:'home-test',startDate:'2026-09-01',endDate:'2026-12-31',signatureStatus:'completed'};
+  let h=f.render([],{contract:c});assert.match(h,/<div class="rc-st"><i><\/i><b>Keys<\/b>/);assert.match(h,/Contract signed/);
+  h=f.render([],{contract:{...c,verbaleConsegna:{at:'2026-09-02T10:00:00Z',url:'https://files.example.test/handover'}}});
+  assert.match(h,/<div class="rc-st fatta"><i><\/i><b>Keys<\/b>/);assert.match(h,/Handover report/);
+  h=f.render([],{contract:{...c,verbaleConsegna:{at:'2026-10-01T10:00:00Z',url:'https://files.example.test/handover'}}});assert.match(h,/<div class="rc-st"><i><\/i><b>Keys<\/b>/);
+});
+await test('pending owner signature welcomes the tenant without asking them to sign again',()=>{
+  const f=fixture(),h=f.render([],{contract:{id:'contract-test',signatureStatus:'partial',tenantSignature:'recorded',generatedPDF:'https://files.example.test/lease'}});
+  assert.match(h,/Your signature is recorded/);assert.match(h,/owner’s signature is still pending/);assert.doesNotMatch(h,/id="reviewContractBtn"/);
+});
+await test('live complete and legacy completed signature states both display a signed contract',()=>{
+  const f=fixture();for(const signatureStatus of ['complete','completed']){const h=f.render([],{contract:{id:'contract-test',signatureStatus}});assert.match(h,/Contract signed/);assert.doesNotMatch(h,/id="homeWelcomeTitle"/)}
+});
+await test('review action obtains only the authenticated tenant link on an explicit click',async()=>{
+  const f=fixture();f.render([],{contract:{id:'contract-test',generatedPDF:'https://files.example.test/lease'}});assert.equal(f.requests.length,0);
+  f.ctx.response={ok:true,scope:'tenant',tenant:'https://www.boomrome.com/sign?sign=synthetic',tenantSigned:false};
+  await f.api.openContract();assert.equal(f.requests.length,1);assert.equal(f.requests[0].url,'/api/sign/links');assert.equal(JSON.parse(f.requests[0].options.body).contractId,'contract-test');assert.equal(f.ctx.location.href,'https://www.boomrome.com/sign?sign=synthetic');
+});
+await test('review action rejects wrong audience, foreign URL and already-signed response',async()=>{
+  for(const response of [{ok:true,scope:'admin',tenant:'https://www.boomrome.com/sign?sign=synthetic'},{ok:true,scope:'tenant',tenant:'https://other.example/sign?sign=synthetic'},{ok:true,scope:'tenant',tenantSigned:true,tenant:'https://www.boomrome.com/sign?sign=synthetic'}]){
+    const f=fixture();f.render([],{contract:{id:'contract-test',generatedPDF:'https://files.example.test/lease'}});f.ctx.response=response;await f.api.openContract();assert.equal(f.ctx.location.href,'/casa');assert.equal(f.elements.get('reviewContractBtn').disabled,false);assert.match(f.elements.get('reviewContractMessage').textContent,/couldn’t open/);
+  }
+});
+await test('admin preview cannot request a tenant signing session from the welcome panel',async()=>{
+  const f=fixture(),h=f.render([],{viewAs:'contract-test',contract:{id:'contract-test',generatedPDF:'https://files.example.test/lease'}});assert.doesNotMatch(h,/id="reviewContractBtn"/);await f.api.openContract();assert.equal(f.requests.length,0);
+});
+await test('failed contract lookup shows recovery and no payment controls',()=>{
+  const f=fixture();const h=f.render([payment()],{contractLoad:'error',contract:null});
+  assert.match(h,/could not load your contract/);noPay(h);assert.ok(f.elements.get('retryHome'));
+});
+await test('unlinked home shows support instead of an empty ready dashboard',()=>{
+  const f=fixture();const h=f.render([],{contractLoad:'ready',contract:null});
+  assert.match(h,/not available for your account/);noPay(h);assert.doesNotMatch(h,/All paid|All good/);
+});
+await test('home selector uses explicit contract navigation and preserves payment guards',()=>{
+  const f=fixture();f.render([payment()],{contracts:[{id:'contract-test',startDate:'2026-09-01'},{id:'future',startDate:'2027-01-01'}]});
+  const select=f.elements.get('homeContract');assert.ok(select);select.value='future';select.onchange();
+  assert.equal(f.ctx.location.href,'/casa?contract=future');assert.equal(f.requests.length,0);
+});
+
 await test('URL ?paid requests confirmation and never writes status, date or method',()=>{
   const f=fixture({query:'?paid=rent-sep'}),p=payment();const before=JSON.stringify(p);
   const h=f.render([p],{checking:true});
@@ -101,7 +150,7 @@ await test('unknown payment IDs and a different home never display paid',()=>{
   const f=fixture({query:'?paid=another-home'});
   let h=f.render([payment({id:'another-home',contractId:'contract-other',status:'paid'})]);
   noPaid(h);noPay(h);assert.equal(f.api.returnState(),'missing');assert.match(h,/could not be found/);
-  h=f.render([]);assert.match(h,/No instalments are recorded/);assert.doesNotMatch(h,/all clear|you are all set/);
+  h=f.render([]);assert.match(h,/payment schedule is not available/);assert.doesNotMatch(h,/all clear|you are all set|No open payments/);
 });
 await test('server paid snapshot confirms and displays receipt, leaving the next real instalment payable',async()=>{
   const f=fixture({query:'?paid=rent-sep'});
@@ -130,7 +179,7 @@ await test('read failure is an explicit retry state, never zero debt or old paid
   const f=fixture({query:'?paid=rent-sep'});f.render([payment({status:'paid'})],{appReady:true});
   f.queues.payments.push(new Error('network unavailable'));await f.api.confirm(0);
   assert.equal(f.api.state().load,'error');assert.equal(f.api.state().checking,false);
-  assert.match(f.markup,/could not verify/);assert.doesNotMatch(f.markup,/all clear|you are all set/);noPaid(f.markup);noPay(f.markup);
+  assert.match(f.markup,/could not verify/);assert.doesNotMatch(f.markup,/all clear|you are all set|No open payments/);noPaid(f.markup);noPay(f.markup);
 });
 await test('hung read leaves visible loading then a bounded error; a retry restores the real balance',async()=>{
   const f=fixture();f.api.set({appReady:true});f.queues.payments.push(()=>new Promise(()=>{}));
@@ -151,7 +200,7 @@ await test('failed SDD restores card, Apple Pay, bank and dock; deposit balance 
 });
 await test('cancelled/unknown amounts never produce a pay button or invented all-clear',()=>{
   const f=fixture();noPay(f.render([payment({status:'cancelled'})]));
-  const h=f.render([payment({amount:'not-money',status:'unknown'})]);noPay(h);assert.doesNotMatch(h,/all clear|you are all set/);assert.match(h,/To verify/);
+  const h=f.render([payment({amount:'not-money',status:'unknown'})]);noPay(h);assert.doesNotMatch(h,/all clear|you are all set|No open payments/);assert.match(h,/To verify/);
 });
 await test('list is scoped to the home and keeps due, paid receipts and cancelled records distinct',()=>{
   const f=fixture(),h=f.render([payment(),payment({id:'rent-paid',status:'paid',month:'2026-08',paidVia:'sepa'}),payment({id:'void',status:'cancelled',month:'2026-07'}),payment({id:'other',contractId:'another',month:'2099-12'})]);
@@ -196,7 +245,7 @@ await test('Rome civil date controls overdue even while UTC is still on the prio
 await test('a capped paid-only snapshot does not claim that every instalment is settled',async()=>{
   const f=fixture();f.api.set({appReady:true});
   f.queues.payments.push(Array.from({length:120},(_,i)=>payment({id:'paid-'+i,status:'paid'})));await f.api.refresh();
-  assert.match(f.markup,/first 120 records/);assert.doesNotMatch(f.markup,/all clear|you are all set/);
+  assert.match(f.markup,/first 120 records/);assert.doesNotMatch(f.markup,/all clear|you are all set|No open payments/);
 });
 await test('payment_not_payable refreshes authoritative state instead of leaving a stale pay action',async()=>{
   const f=fixture();f.ctx.response={ok:false,error:'payment_not_payable'};f.render([payment()],{appReady:true});
@@ -212,17 +261,18 @@ await test('method choice reveals one payment path and never initiates a payment
   f.elements.get('payMethodCard').onclick();assert.equal(f.elements.get('payCardPanel').hidden,false);assert.equal(f.elements.get('payBankPanel').hidden,true);
 });
 await test('method switching preserves other home drafts and the existing payment section',()=>{
-  const f=fixture();f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});
-  const draft=f.elements.get('mDesc'),card=f.elements.get('s-pay');draft.value='Unsaved maintenance details';
+  const f=fixture();f.ctx.BOOM_TENANT_WORKSPACE_UI={mount(){f.elements.get('tenantTickets').innerHTML='<textarea id="workspace-draft"></textarea>'}};
+  f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});
+  const draft=f.elements.get('workspace-draft'),card=f.elements.get('s-pay');draft.value='Unsaved maintenance details';
   f.elements.get('payMethodBank').onclick();f.elements.get('payMethodCard').onclick();
-  assert.equal(f.elements.get('mDesc'),draft);assert.equal(draft.value,'Unsaved maintenance details');assert.equal(f.elements.get('s-pay'),card);
+  assert.equal(f.elements.get('workspace-draft'),draft);assert.equal(draft.value,'Unsaved maintenance details');assert.equal(f.elements.get('s-pay'),card);
 });
 await test('principal, estimated fee and estimated total are explicit before the short action',()=>{
   const f=fixture(),h=f.render([payment()]);
   assert.match(h,/Instalment<\/dt><dd>€900/);assert.match(h,/Estimated card fee<\/dt><dd>€30/);
   assert.match(h,/Estimated total<\/dt><dd>€930/);assert.match(h,/exact fee and total are shown in Stripe before you confirm/);
   assert.match(h,/id="payBtn"[^>]*>Continue to payment/);assert.doesNotMatch(h,/max service fee|settle it now/);
-  assert.match(h,/<details class="pay-auto"><summary>Automatic payments for future rent/);
+  assert.doesNotMatch(h,/id="sddBtn"|Automatic payments for future rent/);
   assert.match(h,/id="payDockBtn">View payment/);
 });
 await test('method choice survives language changes with correct Italian money formatting',()=>{
