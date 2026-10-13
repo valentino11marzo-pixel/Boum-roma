@@ -313,7 +313,12 @@
         }
         case 'lookMissing': {
           var labels = { ultimoPiano: 'ultimo piano', intonaco: 'intonaco', persiane: 'persiane' }, miss = i.missing || [];
-          return row('Facciata', 'Prima di mandarla alla proprietaria: ' + miss.map(function (k) { return labels[k] || k; }).join(', ') + ' non ' + (miss.length === 1 ? 'è dichiarato' : 'sono dichiarati') + ', la facciata resta neutra. Indicali da una foto o dal sopralluogo.', btn('look-open', 'Aspetto del palazzo'), i.code);
+          // L'effetto si dice per quello che manca davvero: senza colori la
+          // facciata è neutra, senza ultimo piano il palazzo si ferma
+          // all'ultimo piano gestito (mai «neutra» con i colori già scritti).
+          var colors = miss.filter(function (k) { return k !== 'ultimoPiano'; }).length, top = miss.indexOf('ultimoPiano') >= 0;
+          var effect = [colors ? 'la facciata resta neutra' : '', top ? 'il palazzo si ferma all’ultimo piano gestito' : ''].filter(Boolean).join(' e ');
+          return row('Facciata', 'Prima di mandarla alla proprietaria: ' + miss.map(function (k) { return labels[k] || k; }).join(', ') + ' non ' + (miss.length === 1 ? (miss[0] === 'persiane' ? 'sono dichiarate' : 'è dichiarato') : 'sono dichiarati') + ', ' + effect + '. Indicali da una foto o dal sopralluogo.', btn('look-open', 'Aspetto del palazzo'), i.code);
         }
         case 'partial': return row('Dati', 'Archivio letto in parte' + (i.collections && i.collections.length ? ' (' + esc(i.collections.join(', ')) + ')' : '') + ': i numeri di questo palazzo possono essere incompleti finché non lo rileggo.', (adapter.actions || {}).reload ? btn('reload', 'Rileggi') : '', i.code);
         default: return row('Da verificare', 'Voce «' + esc(i.code) + '»: ' + plural(i.count || 0, 'elemento', 'elementi') + '.', i.ids && i.ids[0] ? btn('select', 'Vedi', ' data-id="' + esc(i.ids[0]) + '"') : '', i.code);
