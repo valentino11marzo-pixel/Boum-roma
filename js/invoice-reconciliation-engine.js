@@ -49,6 +49,12 @@
     if(out.settlements.some(r=>r.bankNetCents!==null&&!r.bankRef))fail('settlements.bankReferenceRequired');
     out.costs=rows('costs',(r,p)=>{if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(r.period||''))fail(p+'.period');return {id:id(r.id,p+'.id'),period:r.period||'',amountCents:amount(r.amountCents,p+'.amountCents'),cardFeeCents:amount(r.cardFeeCents,p+'.cardFeeCents'),otherFeeCents:amount(r.otherFeeCents,p+'.otherFeeCents'),vatCents:amount(r.vatCents,p+'.vatCents'),sourceId:source(r.sourceId,p+'.sourceId')};});
     out.cases=rows('cases',(r,p)=>({id:id(r.id,p+'.id'),invoiceId:invoice(r.invoiceId,p+'.invoiceId'),party:text(r.party,p+'.party',180),issue:text(r.issue,p+'.issue',1200),nextAction:text(r.nextAction,p+'.nextAction',1500),evidence:text(r.evidence,p+'.evidence',1800),sourceId:source(r.sourceId,p+'.sourceId')}));
+    // Optional extensions preserve the canonical digest of existing v1 snapshots.
+    if(raw?.ledger!==undefined)out.ledger=rows('ledger',(r,p)=>({id:id(r.id,p+'.id'),date:date(r.date,p+'.date'),description:text(r.description,p+'.description',1000),debitCents:amount(r.debitCents,p+'.debitCents'),creditCents:amount(r.creditCents,p+'.creditCents'),feeCents:amount(r.feeCents,p+'.feeCents',false,true),classification:text(r.classification,p+'.classification',250),note:text(r.note,p+'.note',3000),reference:text(r.reference,p+'.reference',1200),draftReference:text(r.draftReference,p+'.draftReference',800,true),sourceId:source(r.sourceId,p+'.sourceId')}));
+    if(raw?.drafts!==undefined)out.drafts=rows('drafts',(r,p)=>({id:id(r.id,p+'.id'),number:text(r.number,p+'.number',80),date:date(r.date,p+'.date'),receiptDate:date(r.receiptDate,p+'.receiptDate'),party:text(r.party,p+'.party',180),amountCents:amount(r.amountCents,p+'.amountCents'),status:choice(r.status,['draft'],p+'.status'),note:text(r.note,p+'.note',2500),reference:text(r.reference,p+'.reference',1500),sourceId:source(r.sourceId,p+'.sourceId')}));
+    if(raw?.outgoings!==undefined)out.outgoings=rows('outgoings',(r,p)=>({id:id(r.id,p+'.id'),party:text(r.party,p+'.party',180),description:text(r.description,p+'.description',600),dueDate:r.dueDate===null?null:date(r.dueDate,p+'.dueDate'),amountCents:amount(r.amountCents,p+'.amountCents',false,true),status:choice(r.status,['expected','confirmed','paid','cancelled'],p+'.status'),note:text(r.note,p+'.note',1800),sourceId:source(r.sourceId,p+'.sourceId')}));
+    if(raw?.coverage!==undefined)out.coverage=rows('coverage',(r,p)=>{const x={id:id(r.id,p+'.id'),label:text(r.label,p+'.label',180),through:r.through===null?null:date(r.through,p+'.through'),mode:choice(r.mode,['manual','verified_feed','not_connected'],p+'.mode'),note:text(r.note,p+'.note',1200),sourceId:source(r.sourceId,p+'.sourceId')};if(x.through&&x.through>out.asOf)fail(p+'.futureCoverage');return x;});
+    if(out.sources.some(r=>r.checkedOn>out.asOf))fail('sources.futureObservation');
     if(JSON.stringify(out).length>500000)fail('payloadTooLarge');
     return {ok:errors.length===0,errors,data:out};
   }
@@ -57,9 +63,21 @@
     const rejected=d.invoices.filter(r=>r.status==='rejected'), p=d.payments.filter(r=>r.date>=d.periodStart&&r.date<=d.periodEnd), captured=p.filter(r=>r.captured), settlements=d.settlements.filter(r=>r.date>=d.periodStart&&r.date<=d.periodEnd), matched=settlements.filter(r=>r.bankNetCents!==null&&r.bankRef&&r.netCents===r.bankNetCents);
     return {invoiceCount:d.invoices.length,rejectedCount:rejected.length,rejectedCents:sum(rejected,'amountCents'),undeliveredCount:d.invoices.filter(r=>r.status==='undelivered').length,caseCount:d.cases.length,capturedCount:captured.length,attemptCount:p.length,grossCents:sum(captured,'amountCents'),refundCents:sum(captured,'refundCents'),feeCents:sum(captured,'feeCents'),unknownFeeCount:captured.filter(r=>r.feeCents===null).length,settlementCount:settlements.length,matchedCount:matched.length,settlementNetCents:sum(settlements,'netCents'),bankNetCents:sum(settlements,'bankNetCents'),unmatchedCount:settlements.length-matched.length,costCents:sum(d.costs,'amountCents'),costDifferenceCents:d.costs.reduce((n,r)=>n+r.amountCents-r.cardFeeCents-r.otherFeeCents-r.vatCents,0)};
   }
+  function workflow(d,today=day(new Date())) {
+    const due=(d.outgoings||[]).filter(r=>!['paid','cancelled'].includes(r.status));
+    const horizon=new Date(today+'T12:00:00Z');horizon.setUTCDate(horizon.getUTCDate()+30);const until=horizon.toISOString().slice(0,10);
+    const within=due.filter(r=>r.dueDate&&r.dueDate<=until);
+    const confirmed=within.filter(r=>r.status==='confirmed'&&r.amountCents!==null);
+    const estimates=within.filter(r=>r.status==='expected'&&r.amountCents!==null);
+    return {draftCount:d.drafts?d.drafts.length:null,draftCents:d.drafts?sum(d.drafts,'amountCents'):null,ledgerCount:d.ledger?d.ledger.length:null,
+      confirmedDueCents:d.outgoings?sum(confirmed,'amountCents'):null,estimatedDueCents:d.outgoings?sum(estimates,'amountCents'):null,
+      unknownCount:d.outgoings?due.filter(r=>r.dueDate===null||r.amountCents===null).length:null,
+      overdueCount:due.filter(r=>r.dueDate&&r.dueDate<today).length,
+      due:due.slice().sort((a,b)=>(a.dueDate||'9999').localeCompare(b.dueDate||'9999')),today,until};
+  }
   function legacyIssues(rows) {
     const counts=new Map();rows.forEach(r=>{if(r.number)counts.set(r.number,(counts.get(r.number)||0)+1);});
     return rows.map(r=>({id:r.id,issues:[!r.number&&'Numero mancante',counts.get(r.number)>1&&'Numero ripetuto: verificare',!day(r.date||r.createdAt)&&'Data da verificare'].filter(Boolean)}));
   }
-  return {normalize,summary,day,legacyIssues,fiscalLabels,paymentLabels};
+  return {normalize,summary,workflow,day,legacyIssues,fiscalLabels,paymentLabels};
 });

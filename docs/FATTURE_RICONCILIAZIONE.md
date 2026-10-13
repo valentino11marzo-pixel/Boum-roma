@@ -21,3 +21,11 @@ Anteprima desktop con soli dati sintetici: resa visiva, filtro scartate e ricerc
 ## Limiti contabili espliciti
 
 Gli incassi fuori periodo e i tentativi non acquisiti restano ispezionabili ma non entrano nel lordo del periodo. Rimborsi cumulativi dell’export distinti dalle commissioni. Payout e incassi non vengono sommati. Una corrispondenza di importo/data/causale banca non certifica l’identificativo payout nel testo Sella. Un candidato fattura non equivale a pagamento riconciliato. La classificazione di compensi, canoni e depositi resta esplicita, mai dedotta automaticamente dal solo nominativo.
+
+## Estensione 13 ottobre
+
+Dieci viste, inclusa Da fare, con mastrini, bozze e uscite previste. Schema v1 retrocompatibile: nuove sezioni opzionali, vecchi digest immutati. Il prospetto privato del 13/10 integra i riscontri del 12/10; non è un nuovo accesso live ai gestionali. Le 104 righe mastrino restano distinte dai pagamenti Stripe; 25 bozze per 16.197 euro non diventano nuove fatture emesse.
+
+Cinque suite pertinenti verdi, con 62 verifiche della riconciliazione. Le estensioni usano lo stesso handler, autorizzazioni e archivio: nessuna nuova collection, dipendenza o segreto. La roadmap operativa e le integrazioni ancora da verificare sono in [FATTURE_WORKFLOW.md](FATTURE_WORKFLOW.md).
+
+Anteprima sintetica del 13/10 verificata in Chrome desktop e mobile 390 px: navigazione Da fare/Uscite/Mastrini, ricerca senza risultati e nessuno overflow della pagina. Non è una prova di import autenticato in produzione.

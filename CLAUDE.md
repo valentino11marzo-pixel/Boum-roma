@@ -3836,6 +3836,11 @@ La pagina `invoices` mostra il prospetto importato (Zucchetti, Stripe, Sella e c
 `invoice-workspace.js` offre sei viste, ricerca, export JSON e recupero da errore. La data di lettura non rinnova la data delle fonti; incassi e trasferimenti non vengono sommati due volte.
 Test `invoicereconciliation`: handler reale con rete simulata, ruoli, errori, import ripetuto/concorrente, totali, escaping, mutazioni e rendering delle registrazioni legacy.
 
+**13 ottobre — lavoro quotidiano e uscite:** la vista iniziale deriva bozze, scarti, verifiche e uscite confermate/stimate, con data Roma e orizzonte di 30 giorni incluse le scadute. Le voci senza importo/data sono contate, mai trattate come zero certo.
+Lo schema v1 ammette `ledger`, `drafts`, `outgoings`, `coverage` opzionali: i vecchi digest restano identici. Mastrini Dare/Avere, bozze e costi futuri non incrementano il lordo Stripe e non attestano IVA dovuta o saldo banca.
+Le date di composizione, controllo e copertura sono distinte; riaprire il portale non aggiorna le fonti. `/banca` riusa il percorso esistente, senza avviare sync o registrare incassi.
+Test `invoicereconciliation`: schema retrocompatibile, dati sconosciuti, previsioni senza costi già pagati, escaping, import reale/idempotente delle estensioni e mutazione anti doppio conteggio. Percorso e limiti in `docs/FATTURE_WORKFLOW.md`.
+
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA o carta in corso/stato sconosciuto.
 `_checkout.js` riusa una sessione aperta della stessa rata/fattura; un completamento attende il webhook.

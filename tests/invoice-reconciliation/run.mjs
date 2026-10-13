@@ -30,6 +30,8 @@ globalThis.fetch=async(_url,options)=>{
 };
 const uiClick=action=>events.click({target:{closest:selector=>selector==='[data-fi]'?{dataset:{fi:action}}:null}});
 await UI.mount(host,{authorized:()=>uiAllowed,token:async()=> 'synthetic-admin'});
+check('controller starts on operational overview',()=>assert(host.innerHTML.includes('La prossima azione')));
+await events.click({target:{closest:selector=>selector==='[data-fi-tab]'?{dataset:{fiTab:'invoices'}}:null}});
 check('controller loads evidence without writes',()=>{assert(host.innerHTML.includes('Example client'));assert.equal(uiWrites,0);});
 uiFail=true;await uiClick('refresh');
 check('controller retains prior evidence after failed refresh',()=>{assert(host.innerHTML.includes('Lettura non riuscita'));assert(host.innerHTML.includes('Example client'));assert(host.innerHTML.includes('06/10/2026'));});
@@ -105,4 +107,24 @@ const url=new URL('../../api/accounting/reconciliation.js',import.meta.url),hand
 const mutant=handlerSource.replace("['admin']","['admin','tenant']").replace(/from (['"])(\.[^'"]+)\1/g,(_m,_q,s)=>'from '+JSON.stringify(new URL(s,url).href));
 const mutantHandler=(await import('data:text/javascript;base64,'+Buffer.from(mutant).toString('base64'))).default;
 r=await call('GET',null,'tenant',mutantHandler);check('mutation catches private data exposed to tenant',()=>assert.throws(()=>assert.equal(r.code,403)));
+// Operational evidence: real handler stores extensions without extra collections or fiscal writes.
+const extended=clone(data);
+extended.ledger=[{id:'CLI-1',date:'2026-09-01',description:'Deposit for a third party',debitCents:0,creditCents:100000,feeCents:null,classification:'Unresolved',note:'Do not infer revenue',reference:'source page 1',draftReference:'',sourceId:'s'}];
+extended.drafts=[{id:'draft-1',number:'1',date:'2026-09-30',receiptDate:'2026-09-01',party:'Example',amountCents:35000,status:'draft',note:'Not issued',reference:'source row 1',sourceId:'s'}];
+const outgoing=(id,amount,due,status)=>({id,party:'Example supplier',description:'Service',dueDate:due,amountCents:amount,status,note:'Synthetic evidence',sourceId:'s'});
+extended.outgoings=[outgoing('due',12000,'2026-10-20','confirmed'),outgoing('past',1000,'2026-10-01','confirmed'),outgoing('estimate',4500,'2026-10-25','expected'),outgoing('paid',50000,'2026-10-15','paid'),outgoing('cancelled',50000,'2026-10-15','cancelled'),outgoing('unknown',null,null,'expected'),outgoing('later',30000,'2026-12-01','confirmed'),outgoing('undated',22000,null,'confirmed')];
+extended.coverage=[{id:'bank',label:'Bank source',through:'2026-09-30',mode:'manual',note:'Not a current balance',sourceId:'s'}];
+check('old snapshot canonical form is unchanged by optional extension',()=>{assert.deepEqual(E.normalize(data).data,data);});
+check('missing optional sections never imply zero costs or drafts',()=>{const w=E.workflow(data,'2026-10-13');assert.equal(w.draftCount,null);assert.equal(w.confirmedDueCents,null);assert.equal(w.unknownCount,null);assert(UI.content(data,'outgoings','','all').includes('non è presente'));});
+check('forecast separates confirmed, estimated, paid, unknown and outside horizon',()=>{const w=E.workflow(extended,'2026-10-13');assert.equal(w.confirmedDueCents,13000);assert.equal(w.estimatedDueCents,4500);assert.equal(w.unknownCount,2);assert.equal(w.overdueCount,1);assert.equal(w.draftCents,35000);assert.equal(E.summary(extended).grossCents,E.summary(data).grossCents);});
+for(const [name,change] of [['duplicate ledger',d=>d.ledger.push({...d.ledger[0]})],['negative cost',d=>d.outgoings[0].amountCents=-1],['future coverage',d=>d.coverage[0].through='2026-12-01'],['future observation',d=>d.sources[0].checkedOn='2026-12-01'],['issued draft',d=>d.drafts[0].status='issued'],['missing expense source',d=>d.outgoings[0].sourceId='missing']])check('extended schema rejects '+name,()=>{const d=clone(extended);change(d);assert.equal(E.normalize(d).ok,false)});
+check('coverage and incomplete forecast remain explicit in all new views',()=>{const d=clone(extended);d.ledger[0].note='<img onerror=evil>';d.outgoings[0].description='<script>evil</script>';for(const tab of ['overview','ledger','drafts','outgoings','sources']){const h=UI.render({...state,snapshot:{data:d},tab});assert(!h.includes('<img'));assert(!h.includes('<script>evil'));}assert(UI.content(d,'ledger','','all').includes('Non disponibile'));assert(UI.content(d,'sources','','all').includes('30/09/2026'));assert(UI.content(d,'outgoings','','all').includes('zero non significa assenza di costi'));});
+r=await call('POST',{action:'preview',data:extended});const extPreview=r.body;
+check('real handler preview preserves all new evidence',()=>{assert.equal(r.code,200);assert.equal(extPreview.data.ledger[0].feeCents,null);assert.equal(extPreview.data.outgoings.length,8);assert.equal(extPreview.data.drafts.length,1);});
+r=await call('POST',{action:'import',data:extended,digest:extPreview.digest,confirmed:true});
+check('real handler imports extensions in same private snapshot',()=>{assert.equal(r.code,201);assert.equal(r.body.snapshot.data.coverage[0].mode,'manual');assert.equal(writes,2);});
+r=await call('POST',{action:'import',data:extended,digest:extPreview.digest,confirmed:true});
+check('extended snapshot retry still idempotent',()=>{assert.equal(r.code,200);assert.equal(writes,2);});
+const forecastMutant=vm.createContext({module:{exports:{}},Intl,Date});vm.runInContext(engineSource.replace("!['paid','cancelled'].includes(r.status)",'true').replace("r.status==='confirmed'&&r.amountCents!==null","r.status!=='expected'&&r.amountCents!==null"),forecastMutant);
+check('mutation catches double-counting paid expenses',()=>assert.throws(()=>assert.equal(forecastMutant.module.exports.workflow(extended,'2026-10-13').confirmedDueCents+forecastMutant.module.exports.workflow(extended,'2026-10-13').unknownCount,13002)));
 console.log(`${count} invoice reconciliation checks passed; no live services or writes.`);
