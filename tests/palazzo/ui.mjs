@@ -36,7 +36,7 @@ function page(state, hash) {
   return `<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Il Palazzo · anteprima BOOM</title>
 <link rel="stylesheet" href="/css/portal.css"><link rel="stylesheet" href="/css/portal-finish.css"><link rel="stylesheet" href="/css/palazzo.css"><link rel="stylesheet" href="/css/portal-mobile.css"><link rel="stylesheet" href="/css/portal-desktop.css"></head><body>
 <div class="app active" id="app"><header class="header"><div class="header-left"><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button><span class="logo-text">BOOM</span></div><span style="color:var(--text-secondary);font-size:11px">ANTEPRIMA LOCALE · DATI DEMO</span><span id="headerName">Demo</span></header><div class="layout"><aside class="sidebar" id="sidebar"></aside><div class="sidebar-overlay" id="sidebarOverlay"></div><main class="main" id="main"></main></div><div id="modals"></div><div id="toasts"></div></div>
-<script src="/js/rent-engine.js"></script><script src="/js/palazzo-engine.js"></script><script src="/js/palazzo.js"></script><script>
+<script src="/js/contract-state.js"></script><script src="/js/rent-engine.js"></script><script src="/js/palazzo-engine.js"></script><script src="/js/palazzo.js"></script><script>
 const S=${JSON.stringify(state)}; Object.assign(S,{page:'',_paLoaded:true,invoices:[],maintenance:S.maintenance||[],conversations:[],viewingRequests:[],actionQueue:[],deadlines:[],leads:[],notifications:[],documents:[]}); window.testState=S;
 window.demoActions=[]; window.writes=[];
 function toast(...a){demoActions.push(['toast',...a]);}
@@ -721,14 +721,14 @@ try {
       const p5 = F.state.payments.find(p => p.propertyId === 'u5' && p.status === 'pending');
       const g = await context.newPage();
       g.on('pageerror', e => errors.push(e.message));
-      await g.goto(base + '/rata.html?id=' + p5.id + '&t=demo');
+      await g.goto(base + '/rata.html?id=' + p5.id + '&t=demo&lang=it');
       await g.waitForSelector('.amount');
       assert.equal(await g.locator('.amount').innerText(), '€950');
       assert.ok((await g.locator('h1').innerText()).startsWith('Canone · '));
       assert.equal(await g.locator('.where').innerText(), 'Viale Esempio 12 · int. 5');
       const card = g.locator('#card');
-      assert.equal(await card.getAttribute('href'), 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p5.id + '&t=demo');
-      assert.ok(/€950 \+ €[\d,]+ di commissione per il pagamento con carta\. Il bonifico non costa niente\./.test(await g.locator('.hint').first().innerText()));
+      assert.equal(await card.getAttribute('href'), 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p5.id + '&t=demo&lang=it');
+      assert.ok(/€950 \+ €[\d,]+ di commissione per il pagamento con carta\. Il bonifico non ha commissioni\./.test(await g.locator('.hint').first().innerText()));
       await g.locator('#bank').click();
       assert.ok((await g.locator('.kv').innerText()).includes('IT60 X054 2811 1010 0000 0123 456'));
       assert.ok(/BOOM-[2-9A-HJ-NP-Z]{6} canone \d{4}-\d{2}/.test(await g.locator('.kv').innerText()));
@@ -754,7 +754,7 @@ try {
     if (width === 390) await check('/guasto dal telefono dell\'inquilino: senza login, l\'interno giusto, la segnalazione parte e lo dice', async () => {
       const g = await context.newPage();
       g.on('pageerror', e => errors.push(e.message));
-      await g.goto(base + '/guasto.html?t=u7.demo');
+      await g.goto(base + '/guasto.html?t=u7.demo&lang=it');
       await g.waitForSelector('#f');
       assert.ok((await g.locator('.where').innerText()).includes('Int. 7'));
       await g.locator('label.chip:has(input[value="heating"])').click();

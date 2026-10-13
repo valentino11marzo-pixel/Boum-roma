@@ -893,9 +893,11 @@
   // deterministici: reincollare la stessa tabella non raddoppia, e ciò che
   // in archivio è DIVERSO dalla tabella si dice (plan.diffs) e si scrive solo
   // se l'operatore lo chiede (opts.applyDiffs).
-  var CS = (typeof module === 'object' && module.exports) ? require('./contract-state.js') : null;
+  // Il CS è quello dichiarato in testa al file: qui NON si ridichiara (un
+  // secondo `var CS = … : null` lo azzerava nel browser e il Palazzo cadeva
+  // al primo contratto — integrazione del 13/10/2026).
   function phoneOf(v) {
-    var cs = CS || (root && root.BOOM_CONTRACT_STATE);
+    var cs = CS && typeof CS.phoneIntl === 'function' ? CS : (root && root.BOOM_CONTRACT_STATE);
     return cs && typeof cs.phoneIntl === 'function' ? cs.phoneIntl(v) : null;
   }
   var RR_COLS = {
