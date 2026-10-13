@@ -975,14 +975,20 @@ Valentyne - BOOM Rome`
     // Le rate non pagate della proprietaria, come le conta il Palazzo: mai
     // quelle dei mesi PRIMA della gestione BOOM (gestioneDal), che non sono
     // arretrati.
+    // La RATA intera, non il suo mese: una trimestrale che arriva dentro la
+    // gestione è un arretrato (la regola del Palazzo, in contract-state.js).
     function landlordLatePayments() {
         const props = new Map((S.properties || []).map(p => [p.id, p]));
+        const cons = new Map((S.contracts || []).map(c => [c.id, c]));
+        const CS = window.BOOM_CONTRACT_STATE;
         // Il ritardo vero (mai una rata dopo la chiusura del contratto); chi
         // carica questa funzione senza le sorelle resta sul ritardo nudo.
         const late = typeof isPaymentLateLive === 'function' ? isPaymentLateLive : isPaymentLate;
         return getMyPayments().filter(p => {
             if (!late(p)) return false;
-            const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
+            const prop = props.get(p.propertyId || (cons.get(p.contractId) || {}).propertyId) || {};
+            if (CS && CS.paymentBeforeGestione) return !CS.paymentBeforeGestione(p, prop);
+            const gd = String(prop.gestioneDal || '');
             const month = String(p.month || p.dueDate || '').slice(0, 7);
             return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
         });
@@ -16444,8 +16450,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div class="list-subtitle">${fmtDate(d.createdAt)}${d.fileName ? ' · ' + esc(d.fileName) : ''}${d.fileSize ? ' · ' + (d.fileSize/1024).toFixed(0) + ' KB' : ''}</div>
                         </div>
                         <div style="display:flex;gap:6px">
-                            ${isImage && d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();previewImage('${d.fileUrl}')" title="Preview">👁</button>` : ''}
-                            ${d.fileUrl ? `<a href="${d.fileUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="${isEN ? 'Download' : 'Scarica'}">📥</a>` : ''}
+                            ${isImage && docSafeUrl(d.fileUrl) ? `<button class="btn btn-xs btn-secondary" data-url="${esc(docSafeUrl(d.fileUrl))}" onclick="event.stopPropagation();previewImage(this.dataset.url)" title="Preview">👁</button>` : ''}
+                            ${docSafeUrl(d.fileUrl) ? `<a href="${esc(docSafeUrl(d.fileUrl))}" target="_blank" rel="noopener" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="${isEN ? 'Download' : 'Scarica'}">📥</a>` : ''}
                         </div>
                     </div>`;
                 }).join('') : `<div class="empty-state" style="padding:50px 20px">
@@ -16457,10 +16463,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div></div>`;
     }
 
+    // L'indirizzo di un documento come si può aprire DA UNA PAGINA: https (lo
+    // Storage, i PDF del server) o un'immagine/PDF incorporati; nient'altro
+    // (javascript:, data:text/html, un URL con virgolette che esce
+    // dall'attributo). Il nome del file è un dato di chi l'ha caricato: si
+    // scrive sempre attraverso esc() e mai dentro una stringa JS inline.
+    function docSafeUrl(value) {
+        if (typeof value !== 'string' || !value.trim()) return '';
+        const v = value.trim();
+        if (/^data:(image\/(png|jpe?g|gif|webp)|application\/pdf)[;,]/i.test(v)) return v;
+        try { const u = new URL(v); return u.protocol === 'https:' ? u.href : ''; } catch (_) { return ''; }
+    }
     function previewImage(url) {
+        const src = docSafeUrl(url);
+        if (!src) { toast('error', 'Anteprima non disponibile'); return; }
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="closeModal()"><div class="modal" style="max-width:700px" onclick="event.stopPropagation()">
             <div class="modal-header"><h3 class="modal-title">👁 Preview</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body" style="padding:8px;text-align:center"><img src="${url}" style="max-width:100%;max-height:60vh;border-radius:8px" onerror="this.innerHTML='Impossibile caricare'"></div>
+            <div class="modal-body" style="padding:8px;text-align:center"><img src="${esc(src)}" style="max-width:100%;max-height:60vh;border-radius:8px" onerror="this.innerHTML='Impossibile caricare'"></div>
         </div></div>`;
     }
 

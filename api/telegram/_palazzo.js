@@ -35,6 +35,34 @@ const days = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 const itDate = d => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : '';
 const giorni = n => n + (n === 1 ? ' giorno' : ' giorni');
 
+// Che cosa è una riga del debito: canone, deposito/saldo deposito, altro
+// addebito. La STESSA regola di rowKind/itemsText in js/palazzo.js (la
+// scheda del portal): dal telefono il saldo del deposito non deve sembrare
+// un canone non pagato («2 rate» quando una è il deposito). Esportate: il
+// test le confronta con quelle della pagina.
+export function rowKind(r) {
+  if (!r || r.isRent !== false) return 'rent';
+  return /^deposit(-balance)?$/.test(String(r.type || '').toLowerCase()) ? 'deposit' : 'other';
+}
+export function rowName(r) {
+  const k = rowKind(r);
+  return k === 'deposit' ? (String(r.type || '').toLowerCase() === 'deposit' ? 'Deposito' : 'Saldo deposito') : k === 'other' ? 'Altro addebito' : '';
+}
+export function itemsText(rows) {
+  if (!Array.isArray(rows)) return '';
+  const extra = rows.filter(r => rowKind(r) !== 'rent');
+  if (!extra.length) return '';
+  const rentN = rows.length - extra.length, names = [];
+  extra.forEach(r => { const nm = rowName(r).toLowerCase(); if (names.indexOf(nm) < 0) names.push(nm); });
+  return (rentN ? rentN + (rentN === 1 ? ' rata + ' : ' rate + ') : '') + names.join(' + ');
+}
+// Il pezzo «che cosa e da quanto» di una riga di chi non ha pagato.
+function debtWhat(d) {
+  const label = itemsText(d.rows) || (d.count > 1 ? d.count + ' rate' : '');
+  const age = d.count > 1 && d.oldestDays ? ', la più vecchia da ' + giorni(d.oldestDays) : d.oldestDays ? ' · ' + giorni(d.oldestDays) : '';
+  return label ? ' · ' + label + age : age;
+}
+
 async function listIn(collection, field, values, limit, cut) {
   const out = [];
   for (const part of chunk(values.filter(Boolean), 30)) {
@@ -59,8 +87,7 @@ export function palazzoSummary(m) {
     lines.push('', '🔴 <b>Non hanno pagato</b>');
     debt.forEach(d => lines.push('• ' + esc(unitName(d)) + (d.tenants.length ? ' · ' + esc(d.tenants[0]) : '') + ' · ' +
       (d.amount > 0 ? eur(d.amount) + (d.unknownAmounts ? ' più un importo da verificare' : '') : 'importo da verificare') +
-      (d.count > 1 ? ' · ' + d.count + ' rate, la più vecchia da ' + giorni(d.oldestDays) : d.oldestDays ? ' · ' + giorni(d.oldestDays) : '') +
-      (d.previousContract ? ' · contratto precedente' : '')));
+      debtWhat(d) + (d.previousContract ? ' · contratto precedente' : '')));
   }
   const leaving = m.units.filter(u => u.month.leaving && u.month.leaseEnd).sort((a, b) => a.month.leaseEnd.localeCompare(b.month.leaseEnd));
   if (leaving.length) {

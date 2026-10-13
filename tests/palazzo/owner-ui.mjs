@@ -31,7 +31,7 @@ function extract(name) {
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'jsq', 'fmtDate',
   'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentLateLive', 'paymentAfterClose', 'isPaymentOpen', 'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'getMyDocuments',
-  'boomBusinessInvoices', 'closeModal', 'roleLabel', 'settingsPage', 'companySettingsCard', 'myDocumentsPage', 'docIcon', 'viewContract', 'viewContractLandlord',
+  'boomBusinessInvoices', 'closeModal', 'roleLabel', 'settingsPage', 'companySettingsCard', 'myDocumentsPage', 'docSafeUrl', 'previewImage', 'docIcon', 'viewContract', 'viewContractLandlord',
   'contractIsPaper', 'contractIsPlaceholder', 'contractNotSignable', 'contractSigned', 'awaitingDigitalSignature', 'contractSignBlock', 'contractTenantName'];
 const functions = names.map(extract).join('\n');
 const cfgStart = src.indexOf('    window.BOOM_PALAZZO_UI?.configure({');

@@ -115,6 +115,19 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   // Un interno il cui contratto CORRENTE è stato chiuso e nessuno è subentrato.
   await setDoc(doc(db, 'properties/propY'), { ownerId: 'llA', currentContractId: 'cTerm', name: 'Int. Y' });
   await setDoc(doc(db, 'contracts/cTerm'), { tenantId: 'tTerm', propertyId: 'propY', status: 'terminated', terminatedAt: '2025-12-31' });
+  // «Chiudi contratto» con la data di uscita FUTURA (13/10/2026): il portal
+  // scrive subito status 'terminated' + terminatedAt; fino a quel giorno
+  // l'inquilino abita lì. Interni propZ* col contratto corrente chiuso così.
+  const dayOff = (n) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+  for (const [k, ta] of [['Fut', dayOff(48)], ['Today', dayOff(0)], ['Past', dayOff(-10)], ['NoDate', null]]) {
+    await setDoc(doc(db, 'users/tT' + k), { role: 'tenant', name: 'Inquilino ' + k });
+    await setDoc(doc(db, 'properties/propZ' + k), { ownerId: 'llA', currentContractId: 'cT' + k, name: 'Int. Z' + k });
+    await setDoc(doc(db, 'contracts/cT' + k), { tenantId: 'tT' + k, propertyId: 'propZ' + k, status: 'terminated', endDate: '2099-08-31',
+      ...(ta ? { terminatedAt: ta } : {}) });
+  }
+  // Una seconda stanza (non corrente) chiusa con la data futura.
+  await setDoc(doc(db, 'users/tRoomT'), { role: 'tenant', name: 'Stanza chiusa a fine mese' });
+  await setDoc(doc(db, 'contracts/cRoomT'), { tenantId: 'tRoomT', propertyId: 'propX', status: 'terminated', unit: 'C', endDate: '2099-06-30', terminatedAt: dayOff(48) });
 });
 
 // Auth contexts
@@ -235,8 +248,20 @@ await check('admin reads a documentShare', assertSucceeds(getDoc(doc(admin, 'doc
 await check('landlord A reads OWN documentShare', assertSucceeds(getDoc(doc(llA, 'documentShares/share1'))));
 await check('landlord B CANNOT read A documentShare', assertFails(getDoc(doc(llB, 'documentShares/share1'))));
 await check('tenant CANNOT read documentShares', assertFails(getDoc(doc(tA, 'documentShares/share1'))));
-await check('landlord A creates a share for SELF', assertSucceeds(setDoc(doc(llA, 'documentShares/share2'), { token:'t2', ownerId:'llA', docIds:['d1'], revoked:false })));
+// Le condivisioni nascono SOLO dal server (/api/documents/share controlla
+// che ogni documento sia del proprietario): dal browser nessuna creazione, e
+// il proprietario non riscrive i docIds di una sua — può solo revocarla.
+await check('landlord A CANNOT create a share from the browser (only the server does, after checking the documents)',
+  assertFails(setDoc(doc(llA, 'documentShares/share2'), { token:'t2', ownerId:'llA', docIds:['rent-receipt-pay_c_plz_altra-via_9_2026-09'], revoked:false })));
 await check('landlord A CANNOT create a share owned by B', assertFails(setDoc(doc(llA, 'documentShares/share3'), { token:'t3', ownerId:'llB', docIds:['d1'] })));
+await check('landlord A CANNOT rewrite the docIds of her own share to point at someone else\'s documents',
+  assertFails(updateDoc(doc(llA, 'documentShares/share1'), { docIds: ['contract-signed_cB_tenant'] })));
+await check('landlord A CAN revoke her own share (only `revoked`)',
+  assertSucceeds(updateDoc(doc(llA, 'documentShares/share1'), { revoked: true })));
+await check('landlord B CANNOT revoke A\'s share', assertFails(updateDoc(doc(llB, 'documentShares/share1'), { revoked: false })));
+await check('admin (the server) creates a share', assertSucceeds(setDoc(doc(admin, 'documentShares/shareSrv'), { token:'tsrv', ownerId:'llA', docIds:['docA'], revoked:false })));
+await check('landlord A CANNOT create a taxPack from the browser', assertFails(setDoc(doc(llA, 'taxPacks/pack2'), { ownerId:'llA', fiscalYear: 2026 })));
+await check('landlord A CANNOT rewrite her taxPack (only revoke)', assertFails(updateDoc(doc(llA, 'taxPacks/pack1'), { propertyId: 'propB' })));
 await check('landlord A reads OWN taxPack', assertSucceeds(getDoc(doc(llA, 'taxPacks/pack1'))));
 await check('landlord B CANNOT read A taxPack', assertFails(getDoc(doc(llB, 'taxPacks/pack1'))));
 
@@ -248,6 +273,41 @@ await check('tenant still creates a document only for SELF',
   assertSucceeds(setDoc(doc(tA, 'documents/docSelf'), { userId: 'tA', name: 'My upload' })));
 await check('tenant CANNOT create a document for ANOTHER user',
   assertFails(setDoc(doc(tA, 'documents/docSpoof'), { userId: 'tB', name: 'Spoof' })));
+// Condiviso e «DA BOOM» li decide SOLO l'admin (13/10/2026): prima chiunque
+// avesse una sessione infilava un documento falso nel Palazzo di un'altra
+// proprietaria (userId suo, shared:true, uploadedBy 'admin', propertyId di
+// un interno altrui — gli id si deducono dall'indirizzo).
+{
+  const evil = { shared: true, propertyId: 'propA', uploadedBy: 'admin', name: 'Contratto aggiornato — firma entro oggi', fileUrl: 'https://phish.example.invalid/x' };
+  await check('ANONYMOUS session (/sign) CANNOT create a shared document on someone else\'s unit',
+    assertFails(setDoc(doc(anonProv, 'documents/evilAnon'), { ...evil, userId: 'anonSess' })));
+  await check('a tenant of ANOTHER building CANNOT create a shared document on propA',
+    assertFails(setDoc(doc(tB, 'documents/evilTen'), { ...evil, userId: 'tB' })));
+  await check('another LANDLORD CANNOT create a shared document on propA',
+    assertFails(setDoc(doc(llB, 'documents/evilLL'), { ...evil, userId: 'llB' })));
+  await check('…not even with shared as the string \'true\'',
+    assertFails(setDoc(doc(llB, 'documents/evilLL2'), { ...evil, userId: 'llB', shared: 'true', uploadedBy: 'llB' })));
+  await check('a non-admin CANNOT pose as BOOM (uploadedBy someone else) even unshared',
+    assertFails(setDoc(doc(tB, 'documents/evilTen2'), { userId: 'tB', name: 'x', uploadedBy: 'admin', shared: false })));
+  await check('ANONYMOUS session CANNOT create any document',
+    assertFails(setDoc(doc(anonProv, 'documents/anonPlain'), { userId: 'anonSess', name: 'x' })));
+  await check('create-unshared-then-share is blocked: tenant B creates own unshared doc…',
+    assertSucceeds(setDoc(doc(tB, 'documents/flipB'), { userId: 'tB', name: 'Mio', shared: false, uploadedBy: 'tB' })));
+  await check('…and CANNOT turn it shared',
+    assertFails(updateDoc(doc(tB, 'documents/flipB'), { shared: true })));
+  await check('…nor move it onto someone else\'s unit', assertFails(updateDoc(doc(tB, 'documents/flipB'), { propertyId: 'propA' })));
+  await check('…nor relabel it as BOOM\'s', assertFails(updateDoc(doc(tB, 'documents/flipB'), { uploadedBy: 'admin' })));
+  await check('…nor give it to someone else', assertFails(updateDoc(doc(tB, 'documents/flipB'), { userId: 'tA' })));
+  await check('…but CAN rename it (non-sensitive field)',
+    assertSucceeds(updateDoc(doc(tB, 'documents/flipB'), { name: 'Passaporto' })));
+  await check('the owner\'s OWN upload (unshared, uploadedBy herself) still works',
+    assertSucceeds(setDoc(doc(llA, 'documents/llAown'), { userId: 'llA', name: 'Visura', shared: false, propertyId: 'propA', uploadedBy: 'llA' })));
+  await check('admin (BOOM) shares a document on propA',
+    assertSucceeds(setDoc(doc(admin, 'documents/boomShared'), { userId: 'adminUid', name: 'Regolamento condominio', shared: true, propertyId: 'propA', uploadedBy: 'adminUid' })));
+  const seen = await getDocs(query(collection(llA, 'documents'), where('shared', '==', true), where('propertyId', '==', 'propA')));
+  await check('landlord A sees only the real shared document of her unit (no forged ones)',
+    seen.docs.map(d => d.id).join() === 'boomShared' ? Promise.resolve() : Promise.reject(new Error('visti: ' + seen.docs.map(d => d.id).join())));
+}
 
 // ── Sessioni anonime: niente notifiche né audit log ─────────────────────
 console.log('\nAnonymous PROVIDER session (magic-link/intake)');
@@ -370,6 +430,21 @@ await check('tenant A CANNOT open with a contractId that does not exist',
     assertFails(setDoc(doc(tTerm, 'maintenance/termY1'), { userId: 'tTerm', propertyId: 'propY', contractId: 'cTerm', title: 'x' })));
   await check('…without contractId either',
     assertFails(setDoc(doc(tTerm, 'maintenance/termY2'), { userId: 'tTerm', propertyId: 'propY', title: 'x' })));
+  // «Chiudi contratto» con la data di uscita FUTURA: fino a quel giorno
+  // l'inquilino abita lì e i guasti li segnala (come /guasto e il Palazzo).
+  const ctx = (u) => env.authenticatedContext(u).firestore();
+  await check('a contract CLOSED with a FUTURE exit date (terminated, terminatedAt +48d): its tenant still opens a ticket, with contractId',
+    assertSucceeds(setDoc(doc(ctx('tTFut'), 'maintenance/tfut1'), { userId: 'tTFut', propertyId: 'propZFut', contractId: 'cTFut', title: 'Caldaia' })));
+  await check('…and without contractId (the current contract of the unit)',
+    assertSucceeds(setDoc(doc(ctx('tTFut'), 'maintenance/tfut2'), { userId: 'tTFut', propertyId: 'propZFut', title: 'Caldaia' })));
+  await check('…on the exit day itself too (terminatedAt = today)',
+    assertSucceeds(setDoc(doc(ctx('tTToday'), 'maintenance/ttoday'), { userId: 'tTToday', propertyId: 'propZToday', contractId: 'cTToday', title: 'x' })));
+  await check('closed 10 days ago (terminated, past date): NO more tickets — no 60-day grace for a written closure',
+    assertFails(setDoc(doc(ctx('tTPast'), 'maintenance/tpast'), { userId: 'tTPast', propertyId: 'propZPast', contractId: 'cTPast', title: 'x' })));
+  await check('closed with NO date: closed now',
+    assertFails(setDoc(doc(ctx('tTNoDate'), 'maintenance/tnodate'), { userId: 'tTNoDate', propertyId: 'propZNoDate', contractId: 'cTNoDate', title: 'x' })));
+  await check('a SECOND ROOM closed with a future exit date (not the current contract) still opens a ticket',
+    assertSucceeds(setDoc(doc(ctx('tRoomT'), 'maintenance/roomT'), { userId: 'tRoomT', propertyId: 'propX', contractId: 'cRoomT', title: 'Serratura' })));
 }
 await check('landlord A opens a ticket on OWN property',
   assertSucceeds(setDoc(doc(llA, 'maintenance/llA1'), { userId: 'llA', propertyId: 'propA', title: 'Umidità' })));

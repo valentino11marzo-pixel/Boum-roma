@@ -73,7 +73,10 @@ globalThis.fetch = async (url, opts = {}) => {
       const rows = [];
       for (const [k] of store) {
         if (!k.startsWith(col + '/') || k.slice(col.length + 1).includes('/')) continue;
-        if (ff && (store.get(k) || {})[ff.field.fieldPath] !== fromFs(ff.value)) continue;
+        if (ff) {   // EQUAL e IN, come Firestore (IN: lista di valori)
+          const v = (store.get(k) || {})[ff.field.fieldPath], want = fromFs(ff.value);
+          if (ff.op === 'IN' ? !(Array.isArray(want) && want.includes(v)) : v !== want) continue;
+        }
         rows.push({ document: { name: docName(k), fields: toFsFields(store.get(k)), updateTime: '2026-01-01T00:00:00Z' } });
         if (sq.limit && rows.length >= sq.limit) break;
       }

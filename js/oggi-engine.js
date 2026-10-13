@@ -79,10 +79,16 @@
             return p.dueDate && new Date(p.dueDate).getTime() < now ? 'overdue' : 'due';
         };
         const monthOfPay = (p) => /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
+        // La RATA intera prima della gestione (paymentBeforeGestione legge
+        // anche coversTo: una trimestrale che arriva dentro la gestione è un
+        // arretrato vero, come nel Palazzo). Un contract-state vecchio in
+        // cache ricade sulla regola del solo mese.
         const preGestione = (p) => {
-            if (!CS || !CS.beforeGestione) return false;
+            if (!CS) return false;
             const c = byC(p.contractId);
-            return CS.beforeGestione(monthOfPay(p), propOf(p.propertyId || (c && c.propertyId)));
+            const prop = propOf(p.propertyId || (c && c.propertyId));
+            if (CS.paymentBeforeGestione) return CS.paymentBeforeGestione(p, prop);
+            return CS.beforeGestione ? CS.beforeGestione(monthOfPay(p), prop) : false;
         };
         const live = P.filter((p) => !preGestione(p));
         // Una rata il cui conduttore NON ha un account: il 📧 Sollecito del

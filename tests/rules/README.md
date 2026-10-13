@@ -36,6 +36,15 @@ nothing in production.
   note interne né analisi AI; il suo loader a blocchi di 9 interni passa, un
   blocco con un immobile non suo no; `paymentCosts` admin-only (la
   collection è pronta: i campi di costo li sposta lì il webhook, filone soldi).
+- **Documenti e condivisioni** (13/10/2026): un non-admin (mai anonimo) crea
+  solo documenti suoi, non condivisi e caricati da lui, e non li accende
+  dopo (`shared`, `uploadedBy`, `propertyId`, `userId` fermi) — prima un
+  documento falso «DA BOOM» finiva nel Palazzo di un'altra proprietaria;
+  `documentShares`/`taxPacks` nascono solo dal server, il proprietario li
+  legge e li revoca soltanto. Un contratto chiuso con la data di uscita
+  futura (`terminated` + `terminatedAt`) lascia segnalare guasti fino a quel
+  giorno, anche alla seconda stanza; chiuso nel passato o senza data no.
+  Con le regole di prima cadono 20 controlli.
 
 ### Storage (`storage.mjs`)
 

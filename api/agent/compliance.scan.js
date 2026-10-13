@@ -12,7 +12,7 @@
 // Body: { window?: number }   days-ahead horizon for "due soon" (default 14)
 // Output: { generatedAt, counts:{high,med,total}, items:[{sev,cat,title,detail,days,ref,code,owner}] }
 
-import { fsList, guardPost, okJson, errJson } from './_lib.js';
+import { fsList, fsListAll, guardPost, okJson, errJson } from './_lib.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
 
 const ACTIVE = c => {
@@ -26,12 +26,16 @@ export default async function handler(req, res) {
   const today = new Date();
 
   try {
-    const [contracts, users, properties, stateDocs] = await Promise.all([
-      fsList('contracts', { limit: 300 }),
+    // Contratti e immobili fino in fondo (a pagine per nome), mai «i primi
+    // 300»: un tetto scattato si DICE nella risposta (partial).
+    const [contractsR, users, propertiesR, stateDocs] = await Promise.all([
+      fsListAll('contracts'),
       fsList('users', { limit: 1000 }),
-      fsList('properties', { limit: 300 }),
+      fsListAll('properties'),
       fsList('complianceState', { limit: 500 }).catch(() => []),
     ]);
+    const contracts = contractsR.docs, properties = propertiesR.docs;
+    const partial = [[contractsR, 'contratti'], [propertiesR, 'immobili']].filter(([r]) => r.truncated).map(([, n]) => n);
     const userById = {}; users.forEach(u => { userById[u.id] = u; });
     const propById = {}; properties.forEach(p => { propById[p.id] = p; });
     const stateById = {}; stateDocs.forEach(d => { stateById[d.id] = d.items || {}; });
@@ -45,7 +49,11 @@ export default async function handler(req, res) {
       const prop = propById[c.propertyId || c.property] || {};
       const label = prop.title || prop.name || prop.address || c.propertyName || c.propertyAddress || ('Contratto ' + String(c.id).slice(0, 5));
       const doneMap = stateById[c.id] || {};
-      const obligations = COMPLIANCE.obligationsFor(c, { tenant, today });
+      // L'immobile serve: con property.gestioneDal gli adempimenti di PRIMA
+      // della gestione BOOM (imposta di registro, APE, decisione di rinnovo
+      // di un contratto preso in carico) sono «na», come per Gestore, digest
+      // e risk.scan — senza, il radar di Homie li gridava SCADUTI ogni giorno.
+      const obligations = COMPLIANCE.obligationsFor(c, { tenant, today, property: prop });
 
       for (const it of obligations) {
         const st = COMPLIANCE.statusOf(it, doneMap, today, soonDays);
@@ -72,6 +80,7 @@ export default async function handler(req, res) {
       generatedAt: new Date().toISOString(),
       counts: { high: items.filter(i => i.sev === 'high').length, med: items.filter(i => i.sev === 'med').length, total: items.length },
       items,
+      ...(partial.length ? { partial } : {}),
     });
   } catch (e) { return errJson(res, 500, e.message); }
 }

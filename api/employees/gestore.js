@@ -26,7 +26,7 @@ import { real } from '../_demo.js';
 import { knobs, rejectedLine } from '../_squadra.js';
 import { readSignTokens } from '../sign/_tokens.js';
 import {
-  requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
+  requireCronOrAdmin, fsList, fsListAll, fsListOpenPayments, logActivity, tgNotify, proposeAction,
   reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, euroFor, esc, propLabel,
 } from './_lib.js';
 
@@ -105,14 +105,21 @@ async function run({ dry }) {
   const now = new Date();
   const week = isoWeek(now);
 
-  const [contracts, payments, properties, users, maintenance, stateDocs] = await Promise.all([
-    fsList('contracts', { limit: 300 }).then(real),
-    fsList('payments', { limit: 600 }).then(real),
-    fsList('properties', { limit: 200 }),
+  // Contratti, immobili e rate APERTE letti fino in fondo (a pagine per
+  // nome), mai «i primi N»: oltre 600 rate in archivio la vecchia lettura
+  // perdeva i ritardi e i bonifici segnalati del Palazzo (id `pay_c_plz_…`,
+  // in fondo all'ordine per nome) che il Palazzo invece mostrava. Il
+  // Gestore sollecita solo rate aperte: le pagate non servono.
+  const [contractsR, paymentsR, propertiesR, users, maintenance, stateDocs] = await Promise.all([
+    fsListAll('contracts'),
+    fsListOpenPayments(),
+    fsListAll('properties'),
     fsList('users', { limit: 1000 }).catch(() => []),
     fsList('maintenance', { limit: 150 }).catch(() => []),
     fsList('complianceState', { limit: 500 }).catch(() => []),
   ]);
+  const contracts = real(contractsR.docs), payments = real(paymentsR.docs), properties = propertiesR.docs;
+  const partial = [[contractsR, 'contratti'], [paymentsR, 'rate'], [propertiesR, 'immobili']].filter(([r]) => r.truncated).map(([, n]) => n);
   const propById = {}; properties.forEach(p => { propById[p.id] = p; });
   const userById = {}; users.forEach(u => { userById[u.id] = u; });
   const stateById = {}; stateDocs.forEach(d => { stateById[d.id] = d.items || {}; });
@@ -143,8 +150,9 @@ async function run({ dry }) {
     const c = contractById[p.contractId] || {};
     const property = propById[p.propertyId || c.propertyId] || null;
     const prop = propLabel(propById, p.propertyId ? p : c);
-    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
-    if (CS.beforeGestione(month, property)) continue;
+    // Prima della gestione BOOM: la RATA intera (una trimestrale che arriva
+    // dentro la gestione è un arretrato vero, come nel Palazzo).
+    if (CS.paymentBeforeGestione(p, property)) continue;
     const state = RENT.paymentState(p, now);
     if (state === 'reported') {
       const when = String(p.tenantReportDate || '').slice(0, 10);
@@ -276,12 +284,16 @@ async function run({ dry }) {
     }
   }
 
+  // Un tetto di sicurezza scattato non è «tutto l'archivio»: si DICE.
+  if (partial.length) digest.unshift(`⚠️ archivio letto in parte: ${partial.join(', ')} — solleciti e ritardi qui sotto possono non essere tutti`);
+
   const fresh = proposals.filter(p => !p.dedupHit);
   const counts = {
     proposals: fresh.length,
     proposalsSkippedDedup: proposals.length - fresh.length,
     remindersSkippedRecent: skippedRecent,
     digestItems: digest.length,
+    archivePartial: partial.length,
   };
   const summary = [`${fresh.length} proposte in coda (solleciti/firme) · ${digest.length} punti d'attenzione`, rejectedLine(rejected)].filter(Boolean).join(' — ');
 
@@ -296,7 +308,7 @@ async function run({ dry }) {
     notified = await tgNotify(lines.join('\n'));
   }
 
-  const report = { summary, counts, proposals: proposals.slice(0, 20), digest: digest.slice(0, 30), notified };
+  const report = { summary, counts, proposals: proposals.slice(0, 20), digest: digest.slice(0, 30), partial, notified };
   if (!dry) {
     await saveReport(EMPLOYEE, report);
     await logActivity('Gestore: run completato', 'employee', counts, EMPLOYEE);

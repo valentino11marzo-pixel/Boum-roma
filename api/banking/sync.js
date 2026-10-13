@@ -23,7 +23,7 @@ import {
   gc, gcConfigured, normalizeTx, txDocId, reconcile, applyMatch, markLandlordDirect,
   listLinkedAccounts, batchExists, fsPatch, fsList,
 } from './_lib.js';
-import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
+import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify, fsListAll, fsListOpenPayments } from '../employees/_lib.js';
 
 const EMPLOYEE = 'banca';
 const DEFAULT_WINDOW_DAYS = 35;
@@ -63,12 +63,19 @@ async function run({ dry, windowDays }) {
   // Le rate che si pagano sul conto del LOCATORE (palazzo preso in carico)
   // restano candidate — un pari importo resta ambiguo — ma non vengono MAI
   // segnate pagate da sole: solo suggerite.
-  const [payments, users, contracts] = await Promise.all([
-    fsList('payments', { limit: 600 }),
+  // TUTTE le rate aperte (a pagine per nome), mai «le prime 600»: oltre quel
+  // numero la riconciliazione non vedeva le rate più nuove, e il controllo
+  // «importo unico fra le aperte» poteva dire unico un importo che non lo è
+  // (un abbinamento sbagliato segna pagata la rata di un altro). Un tetto di
+  // sicurezza scattato si DICE nel sommario.
+  const [paymentsR, users, contractsR] = await Promise.all([
+    fsListOpenPayments(),
     fsList('users', { limit: 1000 }).catch(() => []),
-    fsList('contracts', { limit: 1000 }).catch(() => []),
+    fsListAll('contracts').catch(() => ({ docs: [], truncated: true })),
   ]);
-  const pending = markLandlordDirect(payments.filter(p => !['paid', 'cancelled'].includes(p.status)), contracts);
+  const contracts = contractsR.docs;
+  const partial = [[paymentsR, 'rate'], [contractsR, 'contratti']].filter(([r]) => r.truncated).map(([, n]) => n);
+  const pending = markLandlordDirect(paymentsR.docs.filter(p => !['paid', 'cancelled'].includes(p.status)), contracts);
   const tenantNameById = {};
   users.forEach(u => { tenantNameById[u.id] = u.name || ''; });
 
@@ -163,10 +170,11 @@ async function run({ dry, windowDays }) {
     );
   }
 
-  const counts = { accounts: accounts.length, txNew, txSeen, matched, suggested, consentWarnings: consentWarnings.length };
-  const summary = `${txNew} nuovi movimenti su ${accounts.length} conti · ${matched} canoni riconciliati · ${suggested} da confermare`;
+  const counts = { accounts: accounts.length, txNew, txSeen, matched, suggested, consentWarnings: consentWarnings.length, archivePartial: partial.length };
+  const summary = `${txNew} nuovi movimenti su ${accounts.length} conti · ${matched} canoni riconciliati · ${suggested} da confermare` +
+    (partial.length ? ` · ⚠️ archivio letto in parte: ${partial.join(', ')}` : '');
 
-  if (!dry && (txNew || matched || suggested || consentWarnings.length)) {
+  if (!dry && (txNew || matched || suggested || consentWarnings.length || partial.length)) {
     await saveReport(EMPLOYEE, { summary, counts, perAccount: perAccount.slice(0, 10) });
   }
   return { counts, summary, perAccount };

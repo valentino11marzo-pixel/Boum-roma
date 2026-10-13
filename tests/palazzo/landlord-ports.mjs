@@ -294,6 +294,124 @@ for (const [name, h] of [['send-sign', sendSign], ['resolve', resolvePa]]) {
   });
 }
 
+// ── documents/share + share/lookup: la condivisione per il commercialista
+// porta SOLO documenti della proprietaria (13/10/2026). Gli id sono
+// deducibili dall'indirizzo di un palazzo (ricevute `rent-receipt-pay_…`,
+// contratti firmati `contract-signed_…`): prima un proprietario poteva farsi
+// consegnare da /share.html quelli dell'inquilino di un ALTRO palazzo.
+{
+  const shareH = (await import('../../api/documents/share.js')).default;
+  const lookupH = (await import('../../api/share/lookup.js')).default;
+  const FOREIGN = 'rent-receipt-pay_c_plz_altra-via_9_2026-09';
+  put('documents/doc_mine_receipt', { userId: 't1', propertyId: 'plz_esempio_7', name: 'Ricevuta int. 7', fileUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/mia.pdf?alt=media&token=MIO' });
+  put('documents/doc_own_upload', { userId: 'owner1', name: 'Visura', fileUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/visura.pdf?alt=media&token=MIA' });
+  put('documents/' + FOREIGN, { userId: 'tX', propertyId: 'p_altrui', name: 'Ricevuta canone settembre', fileUrl: 'https://firebasestorage.googleapis.com/v0/b/x/o/r.pdf?alt=media&token=SECRET-TOKEN-ALTRUI' });
+  const shareCreates = () => writes.filter(w => w.startsWith('create:documentShares/'));
+
+  await check('documents/share: la proprietaria con l\'id del documento di un ALTRO → 403 foreign_document, nessuna condivisione creata', async () => {
+    const c0 = shareCreates().length;
+    const r = await call(shareH, 'tok-chiara', { ownerId: 'owner1', propertyId: 'plz_esempio_7', docIds: ['doc_mine_receipt', FOREIGN] });
+    assert.equal(r.statusCode, 403); assert.equal(r.body.error, 'foreign_document');
+    assert.equal(shareCreates().length, c0);
+  });
+  await check('documents/share: un documento che non esiste non passa (403), un id con «/» nemmeno (400)', async () => {
+    const r1 = await call(shareH, 'tok-chiara', { ownerId: 'owner1', docIds: ['doc_mine_receipt', 'non-esiste'] });
+    assert.equal(r1.statusCode, 403);
+    const r2 = await call(shareH, 'tok-chiara', { ownerId: 'owner1', docIds: ['../users/admin1'] });
+    assert.equal(r2.statusCode, 400); assert.equal(r2.body.error, 'invalid_document_id');
+  });
+  await check('documents/share: l\'immobile della condivisione dev\'essere suo (403 foreign_property)', async () => {
+    const r = await call(shareH, 'tok-chiara', { ownerId: 'owner1', propertyId: 'p_altrui', docIds: ['doc_own_upload'] });
+    assert.equal(r.statusCode, 403); assert.equal(r.body.error, 'foreign_property');
+  });
+  let goodToken = '';
+  await check('documents/share: i SUOI documenti (suoi o di un suo immobile) → 200, condivisione emessa «landlord»', async () => {
+    const r = await call(shareH, 'tok-chiara', { ownerId: 'owner1', propertyId: 'plz_esempio_7', docIds: ['doc_mine_receipt', 'doc_own_upload'] });
+    assert.equal(r.statusCode, 200, JSON.stringify(r.body));
+    goodToken = r.body.token;
+    const sh = store.get('documentShares/' + r.body.shareId);
+    assert.equal(sh.issuedBy, 'landlord'); assert.deepEqual(sh.docIds, ['doc_mine_receipt', 'doc_own_upload']);
+    const l = await call(lookupH, null, { token: goodToken });
+    assert.equal(l.statusCode, 200); assert.deepEqual(l.body.documents.map(d => d.id).sort(), ['doc_mine_receipt', 'doc_own_upload']);
+    assert.equal(l.body.property.address, 'Piazza Esempio 42');
+  });
+  // Una condivisione scritta A MANO (le regole vecchie lo permettevano a un
+  // proprietario, e chi ne aveva una poteva riscriverne i docIds).
+  put('documentShares/forged', { token: 'f'.repeat(48), ownerId: 'owner1', propertyId: 'p_altrui', docIds: ['doc_mine_receipt', FOREIGN], revoked: false, views: [] });
+  await check('share/lookup: una condivisione con l\'id di un documento ALTRUI non lo consegna — né l\'URL firmato né l\'immobile', async () => {
+    const r = await call(lookupH, null, { token: 'f'.repeat(48) });
+    assert.equal(r.statusCode, 200);
+    assert.deepEqual(r.body.documents.map(d => d.id), ['doc_mine_receipt']);
+    assert.ok(!JSON.stringify(r.body).includes('SECRET-TOKEN-ALTRUI'));
+    assert.equal(r.body.property, null);
+  });
+  await check('share/lookup: «emessa da un admin» vale solo se chi l\'ha creata È admin (issuedBy da solo non basta)', async () => {
+    put('documentShares/adm', { token: 'a'.repeat(48), ownerId: 'owner1', docIds: [FOREIGN], revoked: false, issuedBy: 'admin', createdBy: 'admin1', views: [] });
+    put('documentShares/finto', { token: 'e'.repeat(48), ownerId: 'owner1', docIds: [FOREIGN], revoked: false, issuedBy: 'admin', createdBy: 'owner1', views: [] });
+    const a = await call(lookupH, null, { token: 'a'.repeat(48) });
+    assert.deepEqual(a.body.documents.map(d => d.id), [FOREIGN]);
+    const f = await call(lookupH, null, { token: 'e'.repeat(48) });
+    assert.deepEqual(f.body.documents, []);
+  });
+  await check('mutazione: senza il controllo di proprietà la porta consegna di nuovo la ricevuta altrui (il test lo vede)', async () => {
+    const { readFileSync, writeFileSync, unlinkSync } = await import('node:fs');
+    const src = new URL('../../api/share/lookup.js', import.meta.url);
+    const code = readFileSync(src, 'utf8');
+    const from = "      if (d && own && !own.owned.has(id)) { omitted++; continue; }\n";
+    assert.ok(code.includes(from));
+    const mut = new URL('../../api/share/.mut-lookup.js', import.meta.url);
+    writeFileSync(mut, code.replace(from, ''));
+    try {
+      const M = (await import(mut.href + '?m=1')).default;
+      const r = await call(M, null, { token: 'f'.repeat(48) });
+      assert.ok(JSON.stringify(r.body).includes('SECRET-TOKEN-ALTRUI'));
+    } finally { unlinkSync(mut); }
+  });
+}
+
+// ── «I miei documenti» (portal): l'indirizzo di un documento è un DATO di
+// chi l'ha caricato. Prima finiva crudo in href="…" e dentro una stringa JS
+// inline (previewImage('…')): un fileUrl con «"» o «'» usciva
+// dall'attributo, uno «javascript:» diventava un link eseguibile. Ora passa
+// da docSafeUrl (https, o immagine/PDF incorporati) e sempre da esc().
+{
+  const { readFileSync } = await import('node:fs');
+  const app = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const grab = (head) => { const at = app.indexOf(head); assert.ok(at > 0, head); let d = 0, i = app.indexOf('{', at + head.length - 1);
+    for (; i < app.length; i++) { if (app[i] === '{') d++; else if (app[i] === '}' && --d === 0) break; } return app.slice(at, i + 1); };
+  const src = [grab('    function esc(str)'), grab('    function docSafeUrl(value)'), grab('    function previewImage(url)'), grab('    function myDocumentsPage()')].join('\n');
+  const mount = (docs) => {
+    const modals = { innerHTML: '' }, toasts = [];
+    const env = new Function('S', 'getMyDocuments', 'isTenant', 'fmtDate', 'docIcon', 'document', 'toast',
+      src + '\nreturn { myDocumentsPage, previewImage, docSafeUrl };');
+    const S = { profile: { id: 'owner1' }, myDocFilter: 'all' };
+    return { api: env(S, () => docs, () => false, () => '13/10/2026', () => '📄', { getElementById: () => modals }, (...a) => toasts.push(a)), modals, toasts };
+  };
+  await check('I miei documenti: un fileUrl con virgolette non aggiunge attributi; javascript: non diventa un link; l\'anteprima passa da un data-attribute', async () => {
+    const evil = 'https://phish.example.invalid/x.png" onmouseover="alert(1)';
+    const { api } = mount([
+      { id: 'd1', name: 'Contratto <b>aggiornato</b>', fileName: 'x.png', fileUrl: evil, shared: true, uploadedBy: 'admin', userId: 'owner1' },
+      { id: 'd2', name: 'Link', fileName: 'y.pdf', fileUrl: 'javascript:alert(2)', userId: 'owner1' },
+      { id: 'd3', name: "Ca' d'Oro.png", fileName: "Ca' d'Oro.png", fileUrl: "https://firebasestorage.googleapis.com/v0/b/x/o/ca'doro.png?alt=media", userId: 'owner1' },
+    ]);
+    const html = api.myDocumentsPage();
+    assert.ok(!/onmouseover="alert/.test(html), 'attributo iniettato');
+    assert.ok(!html.includes('javascript:'), 'link javascript:');
+    assert.ok(!/previewImage\('/.test(html), 'URL dentro una stringa JS inline');
+    assert.ok(html.includes('data-url="https://firebasestorage.googleapis.com/v0/b/x/o/ca&#39;doro.png?alt=media"'), 'il link vero resta, escapato');
+    assert.ok(html.includes('Contratto &lt;b&gt;aggiornato&lt;/b&gt;'));
+  });
+  await check('previewImage: solo https o un\'immagine incorporata; il resto non apre niente', async () => {
+    const { api, modals, toasts } = mount([]);
+    api.previewImage('javascript:alert(1)');
+    assert.equal(modals.innerHTML, ''); assert.equal(toasts.length, 1);
+    api.previewImage('https://firebasestorage.googleapis.com/v0/b/x/o/a.png?alt=media&token=1');
+    assert.ok(modals.innerHTML.includes('src="https://firebasestorage.googleapis.com/v0/b/x/o/a.png?alt=media&amp;token=1"'));
+    assert.equal(api.docSafeUrl('data:text/html,<script>alert(1)</script>'), '');
+    assert.ok(api.docSafeUrl('data:application/pdf;base64,JVBERi0=').startsWith('data:application/pdf'));
+  });
+}
+
 // ── La porta d'ingresso: /login in italiano per il Palazzo (Chromium) ────
 const { loadChromium, launchOptions } = await import('../_browser.mjs');
 const chromium = await loadChromium();

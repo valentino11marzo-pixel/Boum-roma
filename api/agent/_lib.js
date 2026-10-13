@@ -20,7 +20,7 @@
 // import guarantees the tracer bundles it for every function using this lib.
 
 export {
-  FS_BASE, getAdminToken, fsCreate, fsPatch, fsGet, fsList,
+  FS_BASE, getAdminToken, fsCreate, fsPatch, fsGet, fsList, fsListAll, fsListOpenPayments,
   fsValToJs, fsDocToJs, toFsValue, toFsFields, requireSecret,
   readJson, logActivity,
 } from '../homie/_lib.js';
