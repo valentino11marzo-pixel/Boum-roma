@@ -624,7 +624,9 @@
   }
   function fmtPhone(phone) {
     var r = phoneOf(phone);
-    if (!r.e164) return String(phone || '').trim();
+    // Un numero ambiguo (fisso italiano o estero senza prefisso) si scrive
+    // com'è stato dato: «+39 053…» affermerebbe un prefisso che non sappiamo.
+    if (!r.e164 || r.ambiguous) return String(phone || '').trim();
     var d = r.e164.slice(1), cl = /^[17]/.test(d) ? 1 : CC2.test(d) ? 2 : 3;
     return '+' + d.slice(0, cl) + ' ' + groupDigits(d.slice(cl));
   }
@@ -714,8 +716,14 @@
     groups.push(['Soldi', b('rent', 'Gestisci canoni', ' data-id="' + esc(u.id) + '"', true) +
       (open && adapter.rataLinks ? b('rata', 'Manda il link della rata', ' data-pay="' + esc(open.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(open.contractId || '') + '"') : open ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
     if (lease && CS.isPlaceholder(lease)) {
+      // Il segnaposto: canone e date dalla tabella («Carica il contratto»),
+      // la scansione firmata come PDF se c'è già (mai Firma/RLI/ASPI: non
+      // c'è ancora un contratto da firmare o registrare).
       groups.push(['Contratto', b('load-contract', 'Carica il contratto', ' data-id="' + esc(u.id) + '"', true) +
-        (A.innesto ? b('innesto', 'Da un PDF (Innesto)', ' data-id="' + esc(u.id) + '"') : '') + b('contract', 'Apri il segnaposto', ' data-id="' + esc(cid) + '"')]);
+        (A.innesto ? b('innesto', 'Da un PDF (Innesto)', ' data-id="' + esc(u.id) + '"') : '') +
+        (safeUrl(lease.paperPdfUrl) ? b('pdf', 'Contratto firmato (PDF)', ' data-id="' + esc(cid) + '"') : '') +
+        (A.uploadPaperContract ? '<label class="plz-btn plz-file"><input type="file" accept="application/pdf" data-plz-file="paper" data-id="' + esc(cid) + '">' + (lease.paperPdfUrl ? 'Sostituisci la scansione' : 'Allega la scansione firmata (PDF)') + '</label>' : '') +
+        b('contract', 'Apri il segnaposto', ' data-id="' + esc(cid) + '"')]);
     } else if (cid && lease) {
       var paper = CS.isPaper(lease), live = !/^(terminated|cancelled|canceled|closed|ended|completed|renewed)$/.test(String(lease.status || '')), started = um.lease === lease;
       var hasPdf = !!(safeUrl(lease.paperPdfUrl) || safeUrl(lease.signedPdfUrl) || safeUrl(lease.generatedPDF)) || !paper;
