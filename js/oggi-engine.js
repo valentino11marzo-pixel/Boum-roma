@@ -160,8 +160,13 @@
                         title: `€${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || p.month || 'rata'}`,
                         sub: [(palazzo || bare) && who ? propName(c && c.propertyId) : '', `${p.month || ''} · ${Math.round(late)}gg di ritardo`].filter(Boolean).join(' · '),
                         score: 74 + ageBoost(late, 1.5, 12) + Math.min(8, num(p.amount) / 300),
+                        // Il Palazzo sull'INTERNO del debitore (la scheda ha
+                        // «Manda il link della rata» in ogni vista), non il
+                        // 3D generico da cui ritrovarlo a mano.
                         actions: palazzo ? [
-                            { label: '🏛 Manda il link dal Palazzo', fn: 'goTo', args: ['palazzo'], primary: true },
+                            (c && c.propertyId
+                                ? { label: '🏛 Manda il link dal Palazzo', fn: 'openPalazzoUnit', args: [c.propertyId], primary: true }
+                                : { label: '🏛 Manda il link dal Palazzo', fn: 'goTo', args: ['palazzo'], primary: true }),
                             { label: '✓ Registra incasso', fn: 'confirmRentPayment', args: [p.id] }
                         ] : bare ? [
                             { label: '💳 Link di pagamento', fn: 'showPaymentLink', args: ['pay', p.id], primary: true },
@@ -187,12 +192,37 @@
             .forEach(({ p, age }) => {
                 const c = byC(p.contractId);
                 const who = nameOf(c);
-                const when = String(p.tenantReportDate || (p.tenantReported && p.tenantReported.date) || '').slice(0, 10);
-                const proof = !!(p.tenantReportProofUrl || p.proofUrl || (p.tenantReported && p.tenantReported.proofUrl));
+                // TUTTE le segnalazioni (due co-intestatari che pagano metà
+                // ciascuno): prima la card mostrava solo la prima, e chi
+                // registrava l'incasso vedeva €860 dove c'erano due bonifici.
+                const reps = Array.isArray(p.tenantReports) ? p.tenantReports.filter((x) => x && typeof x === 'object') : [];
+                const amtOf = (x) => (x && x.amount != null && isFinite(parseFloat(x.amount)) ? parseFloat(x.amount) : null);
+                // Euro all'italiana deterministici (toLocaleString non raggruppa
+                // le migliaia sotto 10.000 in it-IT, e con l'ICU ridotta peggio).
+                const eurIt = (v) => { const c = Math.round(v * 100), i = String(Math.floor(Math.abs(c) / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.'), d = Math.abs(c) % 100; return '€' + (c < 0 ? '-' : '') + i + (d ? ',' + String(d).padStart(2, '0') : ''); };
+                let title, sub;
+                if (reps.length > 1) {
+                    const amts = reps.map(amtOf), all = amts.every((a) => a != null);
+                    const sum = all ? Math.round(amts.reduce((t, a) => t + a, 0) * 100) / 100 : null;
+                    const proofs = reps.filter((x) => x.proofUrl).length;
+                    title = `${reps.length} bonifici segnalati — verifica · €${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || 'rata'}`;
+                    sub = [who ? propName(c && c.propertyId) : '', p.month || '',
+                        reps.map((x) => [amtOf(x) != null ? eurIt(amtOf(x)) : 'importo non detto', x.date ? 'il ' + String(x.date).slice(0, 10) : ''].filter(Boolean).join(' ')).join(' + ')
+                            + (sum != null ? ` = ${eurIt(sum)} su ${eurIt(num(p.amount))}` : ''),
+                        proofs === reps.length ? 'ricevute allegate' : proofs ? `${proofs} ricevut${proofs === 1 ? 'a' : 'e'} su ${reps.length}` : 'senza ricevute'].filter(Boolean).join(' · ').slice(0, 200);
+                } else {
+                    const one = reps[0] || null, a1 = amtOf(one);
+                    const when = String((one && one.date) || p.tenantReportDate || (p.tenantReported && p.tenantReported.date) || '').slice(0, 10);
+                    const proof = !!((one && one.proofUrl) || p.tenantReportProofUrl || p.proofUrl || (p.tenantReported && p.tenantReported.proofUrl));
+                    title = `Bonifico segnalato — verifica · €${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || 'rata'}`;
+                    sub = [who ? propName(c && c.propertyId) : '', p.month || '', when ? 'pagato il ' + when : '',
+                        a1 != null && a1 < num(p.amount) - 0.005 ? `${eurIt(a1)} su ${eurIt(num(p.amount))}` : '',
+                        proof ? 'ricevuta allegata' : 'senza ricevuta'].filter(Boolean).join(' · ').slice(0, 160);
+                }
                 out.push({
                     id: 'rep_' + p.id, kind: 'incassi', icon: '💶', tint: 'gold',
-                    title: `Bonifico segnalato — verifica · €${num(p.amount).toLocaleString('it-IT')} — ${who || propName(c && c.propertyId) || 'rata'}`,
-                    sub: [who ? propName(c && c.propertyId) : '', p.month || '', when ? 'pagato il ' + when : '', proof ? 'ricevuta allegata' : 'senza ricevuta'].filter(Boolean).join(' · ').slice(0, 120),
+                    title,
+                    sub,
                     score: 72 + ageBoost(age, 2, 12),
                     actions: [
                         { label: '✓ Registra incasso', fn: 'confirmRentPayment', args: [p.id], primary: true },

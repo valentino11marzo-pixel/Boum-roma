@@ -385,9 +385,25 @@ const CS = require('../../js/contract-state.js');
   ok(rep && rep.actions[0].fn === 'confirmRentPayment' && /Bonifico segnalato/.test(rep.title) && !ids.includes('pay_rep'),
     'Oggi: il bonifico segnalato è una card «verifica» con Registra incasso, MAI fra i ritardi col 📧 Sollecito', ids);
   const imp = r.decisions.find(d => d.id === 'pay_imp');
-  ok(imp && imp.actions[0].fn === 'goTo' && imp.actions[0].args[0] === 'palazzo' && imp.actions.some(a => a.fn === 'confirmRentPayment')
+  ok(imp && imp.actions[0].fn === 'openPalazzoUnit' && imp.actions[0].args[0] === 'plz11' && imp.actions.some(a => a.fn === 'confirmRentPayment')
     && !imp.actions.some(a => a.fn === 'sendPaymentReminder'),
-    'Oggi: la rata del Palazzo (nessun account) porta al Palazzo e a Registra incasso, mai al Sollecito che dava «Inquilino non trovato»', imp && imp.actions);
+    'Oggi: la rata del Palazzo (nessun account) apre il Palazzo sull’INTERNO del debitore (openPalazzoUnit) e Registra incasso, mai il Sollecito che dava «Inquilino non trovato»', imp && imp.actions);
+  // Due co-intestatari che segnalano metà ciascuno: la card dice ENTRAMBI i
+  // bonifici e la somma, non solo il primo.
+  const S2 = { ...S, payments: [{ id: 'rep2', contractId: 'c7', propertyId: 'plz7', amount: 1720, month: '2026-10', dueDate: '2026-10-05', status: 'pending', tenantReported: true, tenantReportDate: '2026-10-04',
+    tenantReports: [{ date: '2026-10-04', amount: 860, proofUrl: 'https://x/1', nonce: 'a' }, { date: '2026-10-06', amount: 860, nonce: 'b' }] }] };
+  const rep2 = O.build(S2, NOW).decisions.find(d => d.id === 'rep_rep2');
+  ok(rep2 && /^2 bonifici segnalati — verifica/.test(rep2.title) && /€860 il 2026-10-04 \+ €860 il 2026-10-06 = €1\.720 su €1\.720/.test(rep2.sub) && /1 ricevuta su 2/.test(rep2.sub),
+    'Oggi: con due segnalazioni la card le dice tutte e due, con la somma e le ricevute', rep2 && [rep2.title, rep2.sub]);
+  const S3 = { ...S, payments: [{ id: 'rep3', contractId: 'c7', propertyId: 'plz7', amount: 1720, month: '2026-10', dueDate: '2026-10-05', status: 'pending', tenantReported: true, tenantReportDate: '2026-10-04',
+    tenantReports: [{ date: '2026-10-04', amount: 860 }] }] };
+  const rep3 = O.build(S3, NOW).decisions.find(d => d.id === 'rep_rep3');
+  ok(rep3 && /€860 su €1\.720/.test(rep3.sub), 'Oggi: una sola segnalazione parziale dice «€860 su €1.720»', rep3 && rep3.sub);
+  const MO2 = requireMutant('js/oggi-engine.js', 'if (reps.length > 1) {', 'if (false) {');
+  const m2 = MO2.build(S2, NOW).decisions.find(d => d.id === 'rep_rep2');
+  ok(!(m2 && /2 bonifici segnalati/.test(m2.title)), 'mutazione: la card della sola prima segnalazione (il test lo vede)');
+  const MO3 = requireMutant('js/oggi-engine.js', "fn: 'openPalazzoUnit', args: [c.propertyId]", "fn: 'goTo', args: ['palazzo']");
+  ok(MO3.build(S, NOW).decisions.find(d => d.id === 'pay_imp').actions[0].fn !== 'openPalazzoUnit', 'mutazione: «Manda il link dal Palazzo» che porta al 3D generico (il test lo vede)');
   ok(!ids.includes('pay_pre') && r.cash.overdueCount === 2 && r.cash.reportedCount === 1 && r.cash.overdueTotal === 2520,
     'Oggi: il mese prima della gestione BOOM non è un arretrato; il polso conta 2 ritardi e 1 segnalato a parte', r.cash);
   const fns = new Set(r.decisions.flatMap(d => d.actions.map(a => a.fn)));
