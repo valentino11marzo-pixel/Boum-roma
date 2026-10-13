@@ -14,7 +14,9 @@
 //  E · OCR e Q&A: solo admin, e mai un URL fuori dal nostro Storage
 //  F · i conti della carta in paymentCosts, mai sulla rata
 //  G · una segnalazione ritirata o revocata si toglie tutta (e resta storia)
+//  H · una sola traslitterazione (wa di _pdfbrand) nei PDF fiscali
 //  I · il piede dell'email nella sua lingua, link lunghi interi
+//  (J · i telefoni normalizzati dei contatti: tests/palazzo/contatti.mjs)
 //  K · il rendiconto dal 1° al 5, la Squadra lo dice, la CI prova Storage
 //  L · il portal fuori dal Palazzo (review, copia a Valentino, feed, rate
 //      29-31, ASPI su carta, guasto col contratto, sollecito senza profilo,
