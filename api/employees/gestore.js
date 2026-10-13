@@ -21,6 +21,7 @@
 import COMPLIANCE from '../../js/compliance-rules.js';
 import { real } from '../_demo.js';
 import { knobs, rejectedLine } from '../_squadra.js';
+import { readSignTokens } from '../sign/_tokens.js';
 import {
   requireCronOrAdmin, fsList, logActivity, tgNotify, proposeAction,
   reportEmployeeHealth, saveReport, daysUntil, isoWeek, euro, esc, propLabel,
@@ -119,14 +120,20 @@ async function run({ dry }) {
     if (!liveContract(c)) continue;
     const created = Date.parse(c.createdAt || c.startDate || 0);
     if (created && (now - created) < k.unsignedAfterDays * 86400000) continue;
+    if (c.tenantSignature && c.landlordSignature) continue;
+    // Il link di firma dal deposito dei token (signTokens, admin-only): il
+    // contratto non lo porta più. Solo chi HA già un link riceve il
+    // sollecito — qui non si conia nulla (decidere di avviare la firma
+    // digitale resta un gesto dell'operatore).
+    const toks = await readSignTokens(c.id, c).catch(() => ({}));
     const targets = [];
-    if (!c.tenantSignature && c.tenantSignToken) {
+    if (!c.tenantSignature && toks.tenant) {
       const t = tenantOf(c);
-      targets.push({ role: 'inquilino', to: t.email || c.tenantEmail, name: t.name || c.tenantName, token: c.tenantSignToken });
+      targets.push({ role: 'inquilino', to: t.email || c.tenantEmail, name: t.name || c.tenantName, token: toks.tenant });
     }
-    if (!c.landlordSignature && c.landlordSignToken) {
+    if (!c.landlordSignature && toks.landlord) {
       const l = userById[c.landlordId] || {};
-      targets.push({ role: 'proprietario', to: c.landlordEmail || l.email, name: c.landlordName || l.name, token: c.landlordSignToken });
+      targets.push({ role: 'proprietario', to: c.landlordEmail || l.email, name: c.landlordName || l.name, token: toks.landlord });
     }
     for (const t of targets) {
       const prop = propLabel(propById, c);

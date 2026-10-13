@@ -10,6 +10,9 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'behavior', file: 'tests/behavior/run.mjs', what: 'Behavior Intelligence: consenso, minimizzazione PII, copertura canonica, percorsi/sezioni/uscite, dashboard admin e retention' },
+  { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
+  { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },
   { name: 'vercelfunctions', file: 'tests/vercel-functions/run.mjs', what: 'limite 50 regole, corrispondenza esatta degli handler, impostazioni e mutazioni' },
   { name: 'propertymodel', file: 'tests/property-dossier/engine.mjs', what: 'fascicolo derivato, riferimenti certi, stati e cronologia; mutazioni' },
   { name: 'propertyload', file: 'tests/property-dossier/loader.mjs', what: 'cache, aggiornamento, errore e archivio parziale sulle letture reali' },
@@ -48,6 +51,7 @@ const SUITES = [
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },
   { name: 'lock',     file: 'tests/lock/run.mjs',         what: 'lucchetto immobile: due candidati non chiudono lo stesso' },
   { name: 'pastate',  file: 'tests/preagreement/state.mjs', what: 'stato proposta: un deal pagato non torna mai indietro, e la riserva si sblocca' },
+  { name: 'paconsenso', file: 'tests/preagreement/consent-ui.mjs', what: 'l\'accettazione naturale (browser a 390px): una riga grande da toccare, il testo legale integro a un tocco, il bottone mai spento ma che senza spunta non firma, il mandato a parte e mai pre-spuntato, un solo invio' },
   { name: 'bonifico', file: 'tests/bonifico/run.mjs',     what: 'bonifico gratuito: causale, abbinamento certo' },
   { name: 'fee',      file: 'tests/bonifico/fee.mjs',     what: 'commissione misurata sul costo reale Stripe' },
   { name: 'parity',   file: 'tests/bonifico/parity.mjs',  what: 'la causale mostrata = quella che la banca riconosce' },
@@ -63,6 +67,7 @@ const SUITES = [
   { name: 'parser',   file: 'tests/parser/run.mjs',      what: 'Doc Parser: si apre con l\'ID token dell\'admin (mai un segreto nel browser), e un non-admin non spende un token' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },
+  { name: 'signtokens', file: 'tests/signtokens/run.mjs', what: 'le chiavi di firma fuori dal contratto: deposito admin-only, nessuna parte riceve il link dell\'altra (né dal documento né da una porta HTTP), migrazione che conserva i link spediti; mutazioni' },
   { name: 'verbatim', file: 'tests/contractpdf/verbatim.mjs', what: 'le clausole dei modelli A (3+2) e C (studenti, con e senza cedolare) sono quelle dei .doc dell\'associazione in reference/, frase per frase (lettore .doc senza dipendenze; refusi normalizzati elencati)' },
   { name: 'contratto', file: 'tests/contratto/run.mjs',   what: 'il dizionario del contratto: ogni lettura dei modelli è dichiarata (anti-deriva), la Scheda chiede SOLO ciò che manca a quella parte, un token pubblico scrive solo i campi del suo owner, e a firma completa partono il fascicolo completo E il foglio di registrazione pulito' },
   { name: 'mandato',  file: 'tests/mandato/run.mjs',      what: 'il mandato a firmare (spunta a parte sulla proposta, mai dedotta): al posto del conduttore SOLO col mandato scritto (403) e SOLO agli stessi termini (409), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE; il consenso della proposta firma anche la scheda 2/B (pagina == server); la Valutazione BOOM esce dall\'immobile con la scheda di calcolo brandizzata a pagina 2' },
@@ -101,6 +106,7 @@ const SUITES = [
   { name: 'rendiconto', file: 'tests/rendiconto/run.mjs', what: 'rendiconto proprietario: solo il mese giusto nei numeri, PDF in allegato, un rerun non rispedisce, senza email mai perso in silenzio' },
   { name: 'conservazione', file: 'tests/conservazione/run.mjs', what: 'archivio fuori piattaforma: lo ZIP contiene i byte veri, il mancante finisce nell\'INDICE, un rerun non rispedisce' },
   { name: 'reunion',  file: 'tests/reunion/run.mjs',      what: 'BOOM La Réunion: il lead dice sempre da che parte sta (proprietario o inquilino), e la macchina romana TACE invece di rispondere in inglese su Roma a chi scrive dall\'isola' },
+  { name: 'apply',    file: 'tests/apply/run.mjs',        what: 'chi fa APPLY dal sito arriva all\'operatore: email a BOOM con Reply-To sul candidato, reddito/garante/firmatari dichiarati non si perdono, Brain e Telegram vedono SEMPRE il lead appena arrivato (la finestra a caso riprodotta), e il portal lo mostra senza ricaricare' },
   { name: 'executive', file: 'tests/executive/run.mjs',   what: 'BOOM Executive: il professionista in trasferta è un TENANT (macchina piena), il datore dichiarato non è un honeypot, e la voce B2B tace col tenant e parla con l\'ente — prima della spesa' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
@@ -154,6 +160,7 @@ const SUITES = [
   { name: 'listen',   file: 'tests/listen/run.mjs',      what: 'il canale muto: BoomPortal.listen consegna una one-shot dopo 6s di silenzio — le console (pfs-command ×7 canali) non restano mai vuote senza un segnale' },
   { name: 'segnala',  file: 'tests/segnala/run.mjs',     what: '🐞 Segnala: la segnalazione porta il contesto da sola (pagina, dispositivo, errori), il testo non passa mai da innerHTML, il ping Telegram suona una volta, rules admin-only' },
   { name: 'firma',    file: 'tests/firma/run.mjs',       what: 'il modello giusto (il tipo studenti arriva dalla console fino all\'Allegato C, e un contratto sbagliato si corregge) + la firma in prima persona: in presenza o per delega del proprietario, MAI al posto del conduttore' },
+  { name: 'revisione', file: 'tests/revise/run.mjs', what: '«ok, mettiamolo a posto»: i co-conduttori ricevono il LORO link (email + WhatsApp) e il proprietario non è chiamato finché manca uno di loro — il suo link dice chi; la versione corretta caricata è ciò che si firma, nessuna rigenerazione la sovrascrive, una firma sulla versione sbagliata si archivia e si rifirma, il firmato da tutti non si revisiona' },
   { name: 'paconsole', file: 'tests/firma/console.mjs',  what: 'la console pre-agreement MONTATA (DOM minimo, Firestore finto) rende lo stato VERO della firma: Reinvia Magic Sign solo a inquilino non firmato, link del proprietario dopo, PDF firmato a firme complete, ripiego sulla stampa della proposta' },
   { name: 'rete',     file: 'tests/rete/run.mjs',        what: 'la rete che non risponde non ferma la pagina: ogni navigazione (login compreso) ha il tetto della shell del portale, la copia offline che prima non esisteva mai, e oltre il limite duro una pagina che parla invece del vuoto' },
   { name: 'misura',   file: 'tests/misura/run.mjs',      what: 'il portale MISURATO sui formati veri (375→1440, Firebase finto solo ai confini): l\'azione primaria di ogni pagina sta dentro lo schermo, niente fuori quadro e irraggiungibile, e la corsia che continua lo dichiara' },

@@ -202,10 +202,10 @@ const PAGES = {
 
   'deal-assistance.html': {
     path: '/deal-assistance',
-    title: 'Deal Assistance Rome — Contract Review & Negotiation €249 | BOOM',
+    title: 'Rome Rental Contract Review in English — €249 | BOOM',
     description:
-      'Found an apartment in Rome? We close the deal safely. Contract review, negotiation, legal registration, end-to-end support for €249. BOOM-protected.',
-    keywords: ['Rome rental contract review', 'apartment deal assistance Rome', 'lease negotiation Rome', 'BOOM deal service'],
+      'Found a Rome apartment? We review the Italian rental contract in English, verify the landlord and negotiate before you sign. €249; first review in 24 hours.',
+    keywords: ['Rome rental contract review', 'Italian lease review English', 'landlord verification Rome', 'rental negotiation Rome'],
     type: 'website',
     priority: 0.75,
     changefreq: 'monthly',
@@ -218,10 +218,10 @@ const PAGES = {
 
   'property-finding.html': {
     path: '/property-finding',
-    title: 'Property Finding Service Rome — We Find Your Apartment €350 | BOOM',
+    title: 'Property Finder Rome — Apartment Search Service €350 | BOOM',
     description:
-      'Tell us what you need. BOOM\'s local team finds, vets and negotiates your Rome apartment for €350 — refundable if no match. 7-day average move-in.',
-    keywords: ['property finder Rome', 'apartment finding service Rome', 'BOOM property finder', 'apartment search Rome'],
+      'Need an apartment in Rome? A local property finder searches every portal and off-market homes, vets matches and negotiates. €350, refunded if we miss.',
+    keywords: ['property finder Rome', 'property finder Roma', 'apartment finding service Rome', 'apartment search service Rome'],
     type: 'website',
     priority: 0.8,
     changefreq: 'monthly',
@@ -234,10 +234,10 @@ const PAGES = {
 
   'virtual-viewing.html': {
     path: '/virtual-viewing',
-    title: 'Virtual Apartment Viewings Rome — Live Video Tours | BOOM',
+    title: 'Virtual Apartment Viewing Rome — Live Video Tour €89 | BOOM',
     description:
-      'Can\'t visit Rome? We\'ll be your eyes. Live video viewings of apartments with professional verification, honest feedback, and live Q&A.',
-    keywords: ['virtual viewing Rome', 'remote apartment viewing', 'video apartment tour Rome', 'BOOM virtual viewing'],
+      'Tour any Rome apartment remotely: a BOOM agent walks it live on video, checks red flags and sends HD photos plus an honest report. €89, within 48 hours.',
+    keywords: ['virtual apartment viewing Rome', 'Rome live apartment tour', 'apartment video tour Rome', 'remote apartment viewing'],
     type: 'website',
     priority: 0.7,
     changefreq: 'monthly',
@@ -281,6 +281,7 @@ const PAGES = {
 
   'booking.html': {
     path: '/booking',
+    robots: 'noindex, follow',
     title: 'Apply for a Rome Apartment — Secure Application Form | BOOM',
     description:
       'Apply for a BOOM-verified Rome apartment. Secure form, document upload, fast review. We respond within 24 hours.',
@@ -394,12 +395,12 @@ const PAGES = {
 
   'blog-contract-types.html': blogPost({
     slug: 'blog-contract-types',
-    title: 'Transitorio vs 4+4 — Which Italian Rental Contract Is Right for You? | BOOM',
+    title: '4+4 Contract Italy: Transitorio, 3+2 & Lease Guide | BOOM',
     description:
-      'Complete guide to Italian rental contracts: transitorio, 4+4, cedolare secca, uso foresteria. What each means, who it\'s for, what landlords won\'t explain.',
-    keywords: ['contratto transitorio', 'contratto 4+4', 'cedolare secca', 'Italian rental contract types'],
+      'What is a 4+4 contract in Italy? Compare 4+4, transitorio, 3+2, student and foresteria leases: duration, renewal, rent caps, notice and tax.',
+    keywords: ['4+4 contract Italy', 'what is 4+4 contract in Italy', 'contratto transitorio', 'Italian rental contract', '3+2 contract'],
     datePublished: '2026-03-21',
-    dateModified: '2026-04-19',
+    dateModified: '2026-10-05',
   }),
 
   'blog-cost-calculator.html': blogPost({

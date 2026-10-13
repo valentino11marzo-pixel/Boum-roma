@@ -20,14 +20,17 @@
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
-// Body:     { id }                                     // preAgreements doc id
-// Response: { ok, verdict, actions[], status, paid, blocked?, contractId? }
+// Body:     { id, unit?, notSameAs? }                  // preAgreements doc id
+//           unit + notSameAs (solo admin, solo su una riserva): «NON è la
+//           stessa unità» — l'operatore dichiara l'interno di QUESTA proposta
+//           e che la proposta `notSameAs` (quella che tiene) è un'altra unità.
+// Response: { ok, verdict, actions[], status, paid, blocked?, unit?, contractId? }
 
 import Stripe from 'stripe';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { paidOnRecord, stateVerdict, dueAtSigning } from './_state.js';
-import { acquireLock, confirmLock } from './_lock.js';
+import { acquireLock, confirmLock, unitOf, normUnit } from './_lock.js';
 import { maybeAutoConvert } from './_auto.js';
 
 export const config = { maxDuration: 60 };
@@ -146,20 +149,59 @@ export default async function handler(req, res) {
   // la riserva torna in corsa con la firma e i documenti che ha già dato.
   if (pa.status === 'reserve') {
     const due = dueAtSigning(pa);
+    // «NON È LA STESSA UNITÀ» (30/09/2026). Il lucchetto non guardava
+    // l'interno, quindi una stanza diversa della stessa casa restava in
+    // riserva per sempre. L'operatore dichiara l'interno di QUESTA proposta
+    // (e, se la proposta che tiene non ne ha uno, che è un'altra unità):
+    // il lucchetto si prende SOLO su quell'interno — chiunque altro lo
+    // chieda resta bloccato. Admin-only: è una dichiarazione su un documento
+    // firmato, e resta scritta (chi, quando, cosa c'era prima).
+    const rawUnit = b && typeof b.unit === 'string' ? b.unit.trim().slice(0, 40) : '';
+    const notSameAs = b && typeof b.notSameAs === 'string' ? b.notSameAs.trim().slice(0, 80) : '';
+    const declaring = !!(rawUnit || notSameAs);
+    let target = pa;
+    if (declaring) {
+      if (((auth.profile || {}).role) !== 'admin') {
+        return res.status(403).json({ ok: false, error: 'admin_only' });
+      }
+      if (!normUnit(rawUnit)) return res.status(400).json({ ok: false, error: 'unit_required' });
+      if (notSameAs && notSameAs === paId) return res.status(400).json({ ok: false, error: 'not_same_as_self' });
+      target = { ...pa, property: { ...(pa.property || {}), unit: rawUnit } };
+    }
     let lock;
-    try { lock = await acquireLock({ pa, paId, firm: due <= 0 }); }
+    try { lock = await acquireLock({ pa: target, paId, firm: due <= 0, allow: declaring && notSameAs ? [notSameAs] : [] }); }
     catch (e) {
       console.error('[pa/resolve] lucchetto non verificabile:', e.message);
       return res.status(503).json({ ok: false, error: 'lock_unavailable' });
     }
     if (lock && lock.ok === false && lock.reason === 'held') {
-      // Ancora di un altro: nessuna scrittura, e si dice DI CHI.
+      // Ancora di un altro: nessuna scrittura, e si dice DI CHI — e quale
+      // interno ha dichiarato, così l'operatore sa se è davvero la stessa
+      // unità o se basta dichiarare la propria. Le prese nate prima del
+      // 30/09 non portano l'interno: si legge dalla proposta che tiene.
+      let holderUnitRaw = null;
+      if (lock.by) {
+        try { const hp = await fsGet('preAgreements/' + lock.by); holderUnitRaw = ((hp || {}).property || {}).unit || null; } catch (_) {}
+      }
+      if (!lock.unit && holderUnitRaw) lock.unit = unitOf({ property: { unit: holderUnitRaw } }) || null;
       return res.status(200).json({
         ok: true, verdict: 'still_held', actions: ['no_change'], status: 'reserve', paid: false,
-        blocked: { by: lock.by || null, byRef: lock.byRef || null, until: lock.until || null },
+        unit: ((target.property || {}).unit) || null,
+        blocked: {
+          by: lock.by || null, byRef: lock.byRef || null, until: lock.until || null,
+          unit: holderUnitRaw || lock.unit || null, level: lock.level || null, sameUnit: !!lock.sameUnit,
+        },
       });
     }
+    if (lock && lock.ok === false && lock.reason === 'unlockable') actions.push('lock_skipped_unlockable');
     const ref = pa.ref || ('BOOM-' + Date.now().toString(36).toUpperCase());
+    const unitPatch = declaring ? {
+      property: target.property,
+      unitDeclaredAt: now,
+      unitDeclaredBy: auth.email || auth.uid || 'console',
+      unitWas: ((pa.property || {}).unit) || null,
+      ...(notSameAs ? { lockOverride: { notSameAs, unit: rawUnit, by: auth.email || auth.uid || 'console', at: now } } : {}),
+    } : {};
     try {
       await fsPatch(`preAgreements/${paId}`, {
         status: 'accepted', ref,
@@ -167,12 +209,14 @@ export default async function handler(req, res) {
         reserveReleasedAt: now,
         reserveOf: null,
         statusRepairedBy: auth.email || auth.uid || 'console',
+        ...unitPatch,
       });
     } catch (e) {
       console.error('[pa/resolve] promozione fallita:', e.message);
       return res.status(500).json({ ok: false, error: 'promote_failed' });
     }
     actions.push('reserve_promoted');
+    if (declaring) actions.push('unit_declared');
 
     // Niente da pagare → il deal è chiuso davvero: contratto come su submit.
     // C'è un dovuto → resta un'accettazione in attesa di pagamento, e il
@@ -180,18 +224,19 @@ export default async function handler(req, res) {
     let contractId = pa.contractId || null;
     if (due <= 0) {
       try {
-        const out = await maybeAutoConvert({ pa: { ...pa, status: 'accepted', ref }, paId });
+        const out = await maybeAutoConvert({ pa: { ...target, ...unitPatch, status: 'accepted', ref }, paId });
         if (out && out.contractId) { contractId = out.contractId; actions.push('contract_ready'); }
       } catch (e) { console.error('[pa/resolve] convert:', e.message); }
     }
 
     await logActivity('preagreement_reserve_released', 'preagreement', {
       id: paId, ref, tenant: (pa.tenant || {}).fullName || null, by: auth.email || null,
+      ...(declaring ? { unit: rawUnit, unitWas: unitPatch.unitWas, notSameAs: notSameAs || null } : {}),
     }, 'console').catch(() => {});
 
     return res.status(200).json({
       ok: true, verdict: 'reserve_promoted', actions, status: 'accepted', paid: false,
-      ref, due, contractId,
+      ref, due, contractId, unit: ((target.property || {}).unit) || null,
     });
   }
 

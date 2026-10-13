@@ -106,7 +106,8 @@ ok(/const _isStudenti = \(data\.type \|\| _existingContract\.type\) === 'student
 // la finestra copre l'intera funzione, fino a setDelega.
 const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('async function setDelega'));
 ok(fo.length > 500 && /window\.openFirmaOra/.test(app), 'il pannello 🖊 Firma ora esiste ed è globale');
-ok(/tenantSignToken/.test(fo) && /landlordSignToken/.test(fo), 'apre il link VERO di ciascuna parte (firma in presenza)');
+ok(/await fetchSignLinks\(contractId\)/.test(fo) && /sl\.tenant/.test(fo) && /sl\.landlord/.test(fo) && !/SignToken/.test(fo),
+  'apre il link VERO di ciascuna parte (firma in presenza) — dal server (/api/sign/links), mai dai token sul contratto');
 ok(/boomOpen\(/.test(fo), 'usa la consegna unica (niente window.open crudo)');
 ok(/non si firma mai/.test(fo) && /firma falsa/.test(fo), 'la riga rossa è SCRITTA nel pannello: al posto del conduttore non si firma');
 ok(/🖊 Firma ora/.test(app), 'il bottone è sulla riga contratto');
@@ -172,7 +173,7 @@ for (const f of railFiles) {
 }
 ok(railFiles.length > 20, 'la scansione copre i tre rail (preagreement, magic-sign, sign)');
 ok(loose.length === 0, 'nessuna scrittura/ping fire-and-forget a inizio istruzione nei rail' + (loose.length ? ' — ' + loose.join(', ') : ''));
-ok(/async function backlinkPa\(/.test(conv) && /await backlinkPa\(\{ paId, pa, contractId, tenantSignToken: c\.tenantSignToken/.test(conv),
+ok(/async function backlinkPa\(/.test(conv) && /const links = await signLinks\(contractId, c\);\s*await backlinkPa\(\{ paId, pa, contractId, links,/.test(conv),
   'convert: il ramo «contratto esiste già» ricuce il back-link della proposta orfana (atteso)');
 ok(/match \/viewings\/\{x\}/.test(src('firestore.rules')), 'firestore.rules: `viewings` ha una regola (prima: default-deny → 403 anche per l\'admin)');
 ok(/fsList\('viewingRequests', \{ limit: 600 \}\)/.test(src('api/leads/_richiamo.js')) && /fsList\('viewingRequests', \{ limit: 2000 \}\)/.test(src('api/homie/miniera.js')),
@@ -191,7 +192,11 @@ ok(/!gotMoney&&!cid&&st!=='paid'\?'<button class="pbtn warn" onclick="revokePA/.
 // 1.1 l'immobile dalla proposta, 1.2 la guardia sovrapposizioni, 1.3 «per
 // mandato» esplicito, 2.3 il cliente firma dalla sua pagina, 3.3 il preflight.
 const convS = src('api/preagreement/convert.js');
-ok(/export function propertyFromPa\(/.test(convS) && /export const propertyIdForPa = \(paId\) => 'prop_pa_' \+ paId;/.test(convS) && /createProperty === true && canCreate/.test(convS),
+// l'id deterministico vive nel motore del mandato (12/10/2026: il mandato lo
+// riconosce come l'indirizzo approvato) — convert lo usa da lì, una copia sola
+const mandE = src('js/mandato-engine.js');
+ok(/export function propertyFromPa\(/.test(convS) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(convS)
+  && /const PA_PROPERTY_PREFIX = 'prop_pa_';/.test(mandE) && /return s \? PA_PROPERTY_PREFIX \+ s : null;/.test(mandE) && /createProperty === true && canCreate/.test(convS),
   '1.1 convert: l\'immobile nasce dalla proposta con id deterministico, solo su richiesta esplicita (createProperty) e solo con un indirizzo');
 ok(/error: 'no_property', canCreate/.test(convS) && /\.\.\.\(propertyId \? \{ propertyId \} : \{\}\)/.test(convS),
   '1.1 convert: no_property dichiara canCreate; il back-link riporta propertyId sulla proposta');
@@ -213,7 +218,9 @@ ok(/const asDelegate = body\.asDelegate === true;/.test(src('api/magic-sign/subm
 ok(/&delegate=1/.test(app) && /qs\.get\('delegate'\) === '1'/.test(src('sign.html')), '1.3: il flag nasce dal link del pannello Firma ora e sign.html lo legge dall\'URL');
 const lookS = src('api/preagreement/lookup.js');
 ok(/export async function contractStatus\(/.test(lookS) && /const unlocked = paidOnRecord\(data\) \|\| dueAtSigning\(data\) === 0;/.test(lookS)
-  && /tenantSignUrl: \(unlocked && !tenantSigned && c\.tenantSignToken\)/.test(lookS) && !/landlordSignToken/.test(lookS),
+  && /if \(unlocked && !tenantSigned\) \{\s*try \{ tenantSignUrl = signUrl\(\(await readSignTokens\(cid, c\)\)\.tenant\)/.test(lookS)
+  && !/landlordSignToken/.test(lookS)
+  && !/\.landlord\b/.test(lookS.slice(lookS.indexOf('export async function contractStatus('), lookS.indexOf('export function paExpired('))),
   '2.3 lookup: il link di firma del conduttore SOLO a soldi ricevuti (o dovuto zero) e SOLO se non ha firmato; il token del locatore non esce mai');
 ok(/id="ctcard"/.test(src('pre-agreement.html')) && /Sign your contract now/.test(src('pre-agreement.html')), '2.3 pagina: la card «Sign your contract now» esiste');
 ok(/dryRun: b\.dryRun === true/.test(convS) && convS.indexOf('if (dryRun) {') < convS.indexOf("await fsCreate('contracts', contract, contractId);") && /if \(!dryRun\) try \{/.test(convS),
@@ -235,9 +242,9 @@ ok(/export async function resolveLandlord\(/.test(cpS) && /landlord = await reso
   && cpS.indexOf('opts && opts.force') < cpS.indexOf('if (hasAnySignature(contract)) return contract.generatedPDF || null;'),
   'puntini: il PDF risolve il locatore da users+landlords (anche per email) e accetta force — la firma viva vince sempre (guardia dopo il force)');
 const ps = src('api/profile/submit.js');
-ok(/if \(!hasAnySignature\(contract\)\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
+ok(/if \(!hasAnySignature\(contract\)( && !pdfUploaded)?\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
 const ms = src('api/magic-sign/submit.js');
-ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3. Re-read FRESH') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
+ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3+4. Rilettura FRESCA') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
   'puntini: prima della PRIMA firma il PDF si rifà con la SOLA identità dichiarata, poi si rilegge (precondizione intatta)');
 const fin = src('api/sign/_finalize.js');
 ok(/identityLines\('tenant', c\)/.test(fin) && /identityLines\('landlord', c\)/.test(fin) && /import \{ wa \} from '\.\.\/_pdfbrand\.js';/.test(fin), 'puntini: la pagina delle firme stampa nascita/residenza/documento dichiarati, WinAnsi-safe');

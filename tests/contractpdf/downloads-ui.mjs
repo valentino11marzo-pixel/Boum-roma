@@ -37,8 +37,12 @@ try {
  assert.match(await page.locator('#status').innerText(),/connessione.*riprova/);count++;
  const pending2=context.waitForEvent('page');await page.locator('#preview').click();const legacyPopup=await pending2;
  const legacyDownload=page.waitForEvent('download',{timeout:5000});
+ // window.close() di un'altra finestra è asincrono: sul runner il download può
+ // arrivare PRIMA dell'evento close. Si aspetta la chiusura (registrata prima del
+ // click), come per la prima anteprima: se il codice non chiudesse, scade a 5s.
+ const legacyClosed=legacyPopup.waitForEvent('close',{timeout:5000});
  await page.evaluate(()=>{record={generatedPDF:'data:application/pdf;base64,JVBERi0='};completeRead(true);});
  const legacy=await legacyDownload;assert.equal(legacy.suggestedFilename(),'Contratto.pdf');count++;
- assert(legacyPopup.isClosed());count++;
+ await legacyClosed;assert(legacyPopup.isClosed());count++;
  console.log(`${count} passed, 0 failed`);
 } finally {await browser.close();}

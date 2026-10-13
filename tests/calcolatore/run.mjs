@@ -58,8 +58,13 @@ const SERVICES = read('services.html');
   ok('nessuna maggiorazione scritta a mano (+15)', !/mod\s*\+=\s*15/.test(CANONE));
   ok('nessuna subfascia scelta dallo «stato dell\'immobile»', !/id="fascia"/.test(CANONE));
   for (const [f, s] of [['canone.html', CANONE], ['pacchetto-concordato.html', PACK], ['services.html', SERVICES]]) {
-    ok(`${f}: nessun «90+» zone non verificate`, !/90\+/.test(s));
+    ok(`${f}: nessun «90+» / «oltre 90 zone» non verificate`, !/90\+|oltre 90 zone/i.test(s));
   }
+  // La risposta breve (blocco GEO, 5/10) descrive il metodo VERO: subfascia
+  // dai parametri, massimo che le maggiorazioni non superano.
+  const qa = (CANONE.match(/<section class="quick-answer"[\s\S]*?<\/section>/) || [''])[0];
+  ok('risposta breve: la subfascia la decidono i parametri', /subfascia[\s\S]*parametri/.test(qa), qa.slice(0, 120));
+  ok('risposta breve: le maggiorazioni non superano il massimo', /non lo superano/.test(qa));
   ok('pacchetto: mai «canone in fascia»', !/canone in fascia/i.test(PACK));
   ok('pacchetto: mai il vecchio «risparmio stimato»', !/risparmio stimato/i.test(PACK));
 }

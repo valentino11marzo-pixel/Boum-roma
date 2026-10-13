@@ -35,7 +35,7 @@ function harness(text = source, role = 'admin', hash = '') {
     sendPassWhatsApp:(...args)=>effects.push(['whatsapp',...args])
   });
   for (const name of ['checkStripeReturn','loadCompanySettings','startNotificationListener','startContractsListener','startActionQueueListener',
-    'startSignRequestsListener','startRadarListener','startInboxListener','startHeartbeatListener','startMaintenanceListener','startAgentFeedListener','buildNav']) ctx[name]=()=>ui.push(name);
+    'startSignRequestsListener','startRadarListener','startInboxListener','startHeartbeatListener','startMaintenanceListener','startLeadsListener','startAgentFeedListener','buildNav']) ctx[name]=()=>ui.push(name);
   const fragments = [
     part(text,'    function setupApp() {','    function buildNav()'),
     part(text,'    async function checkContractExpiry() {','    function updateNotifBadge()'),
