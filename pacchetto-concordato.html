@@ -90,7 +90,9 @@
    /canone e /owners. La barra del conto si ricalcola dal motore. ═══ */
 :root{--t4:rgba(255,255,255,.5)}
 .fam{top:76px}
-main{padding-top:150px;max-width:1120px}
+main{padding-top:150px}
+/* le ancore atterrano sotto la striscia di famiglia, non sotto la barra soltanto */
+section[id],#pdf,#pacchetto{scroll-margin-top:36px}
 @media(max-width:640px){main{padding-top:140px}}
 section{margin-top:84px}
 section[id]{scroll-margin-top:150px}
@@ -147,7 +149,7 @@ section[id]{scroll-margin-top:150px}
 .person{display:flex;gap:12px;align-items:center;margin-top:16px}
 .person img{width:44px;height:44px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line-gold)}
 .person p{font-size:13px;color:var(--t2);line-height:1.5}
-.person a{color:var(--gold)}
+.person a{color:var(--gold);white-space:nowrap;display:inline-block;padding:10px 0;margin:-10px 0}
 
 .lead{font-size:15px;color:var(--t2);max-width:64ch;margin-top:14px;line-height:1.6}
 .lead a{color:var(--gold)}
@@ -201,9 +203,15 @@ section[id]{scroll-margin-top:150px}
 .sheet .sconto{margin-top:12px;font-size:13px;color:var(--t2);border-left:2px solid var(--line-gold);padding:2px 0 2px 10px;line-height:1.5}
 .sheet .sconto[hidden]{display:none}
 .fld .opt{text-transform:none;letter-spacing:0;color:var(--t4);font-size:11.5px;margin-left:4px}
+.sheet .fld label{font-size:12px;letter-spacing:1.2px;color:var(--t2)}
 .startnow{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--t2);line-height:1.5;margin-top:16px;cursor:pointer}
 .startnow input{margin-top:3px;accent-color:#FFD700;width:18px;height:18px;flex:none}
 .recesso{font-size:12px;color:var(--t3);line-height:1.55;margin-top:8px}
+.snh{margin-top:16px;font-size:13px;color:var(--t2);line-height:1.5}
+.snh b{color:var(--t1);font-weight:400}
+.snh+.startnow{margin-top:8px}
+/* il banner dei cookie (compatto, in basso) si alza quando c'è la barra di pagamento */
+@media(max-width:879px){html[data-consent=compact].pb-on .boomcst{bottom:calc(84px + env(safe-area-inset-bottom,0px))}}
 .sheet .paybtn[disabled]{opacity:.65;cursor:wait}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
 /* la barra mobile non copre il piede legale */
@@ -212,7 +220,7 @@ section[id]{scroll-margin-top:150px}
 .skip{position:absolute;left:-9999px;top:0;z-index:10002;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
 .skip:focus{left:0}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.sheet{animation:none}}
 @media (pointer:coarse){input:not([type=checkbox]):not([type=radio]),select{font-size:16px!important}}
 </style>
 <script defer src="/js/boom-consent.js"></script>
@@ -358,7 +366,7 @@ html {
 <div class="fam" aria-label="BOOM Proprietari">
   <a href="/owners">Proprietari</a>
   <a href="/canone">Calcola il canone</a>
-  <a class="on" href="/pacchetto-concordato" aria-current="page">Canone concordato</a>
+  <a class="on" href="/pacchetto-concordato" aria-current="page">Pacchetto concordato</a>
   <a href="/login">Area proprietario</a>
 </div>
 
@@ -407,7 +415,7 @@ html {
         <p class="safe">Se dopo la verifica la casa <b>non può rientrare in fascia</b>: rimborso integrale. La tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto. Recesso entro 14 giorni dall'acquisto.</p>
         <div class="person sm">
           <img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="44" height="44" loading="lazy">
-          <p>Preferisce parlarne prima? <a href="tel:+393313251961">+39 331 325 1961</a> · <a href="https://wa.me/393313251961?text=Buongiorno%2C%20vorrei%20informazioni%20sul%20Pacchetto%20canone%20concordato" target="_blank" rel="noopener" data-analytics-label="pack-wa-plate">WhatsApp</a></p>
+          <p><b>Valentino</b>, fondatore di BOOM · Egidi Immobiliare S.r.l. Preferisce parlarne prima? <a href="tel:+393313251961">+39 331 325 1961</a> · <a href="https://wa.me/393313251961?text=Buongiorno%2C%20vorrei%20informazioni%20sul%20Pacchetto%20canone%20concordato" target="_blank" rel="noopener" data-analytics-label="pack-wa-plate">WhatsApp</a></p>
         </div>
       </div>
     </div>
@@ -415,7 +423,7 @@ html {
 
   <!-- ═══ COSA LE CAMBIA ═══ -->
   <section id="vantaggi" data-analytics-section="vantaggi">
-    <div class="sec-h"><span class="num">01</span><h2>Un canone più basso, tre agevolazioni</h2></div>
+    <div class="sec-h"><span class="num">01 — IL CONCORDATO</span><h2>Un canone più basso, tre agevolazioni</h2></div>
     <p class="lead">Il concordato chiede un canone entro le tabelle dell'Accordo e in cambio dà tre agevolazioni. Se le conviene, lo dice il <a href="/canone">conto della sua casa</a>, prima di pagare.</p>
     <div class="steps4">
       <div class="st4"><div class="n">10%</div><b>Cedolare secca</b><p>Invece del 21% del libero, per il locatore persona fisica: 11 punti in meno ogni anno, su tutto il canone.</p></div>
@@ -435,7 +443,7 @@ html {
 
   <!-- ═══ COME FUNZIONA ═══ -->
   <section id="come" data-analytics-section="come-funziona">
-    <div class="sec-h"><span class="num">02</span><h2>Come funziona</h2></div>
+    <div class="sec-h"><span class="num">02 — IL PERCORSO</span><h2>Come funziona</h2></div>
     <ol class="flowl">
       <li><span class="n">1</span><div><b>Attivi il pacchetto</b><p>€349 IVA inclusa, via Stripe. Poi ci manda indirizzo, metri e, se li ha, visura o vecchio contratto. Basta una foto.</p></div></li>
       <li><span class="n">2</span><div><b>Verifica in 48 ore</b><p>Dai dati, da quando la pratica parte: fascia, canone massimo e bozza del contratto. Se la casa non rientra in fascia: rimborso integrale.</p></div></li>
@@ -455,7 +463,7 @@ html {
 
   <!-- ═══ FAQ ═══ -->
   <section id="faq" data-analytics-section="faq">
-    <div class="sec-h"><span class="num">03</span><h2>Domande frequenti</h2></div>
+    <div class="sec-h"><span class="num">03 — DOMANDE</span><h2>Domande frequenti</h2></div>
     <div class="faq">
       <details><summary>Conviene davvero il concordato?</summary><div class="a">Dipende dalla casa. Con la cedolare al 10% invece del 21%, l'IMU ridotta del 25% e niente registro né bollo, il concordato rende di più del libero finché il canone libero non supera di circa il 14% il massimo concordato, a parità di altri costi. Il <a href="/canone">conto della sua casa</a> glielo dice, prima di pagare.</div></details>
       <details><summary>Quanto tempo ci vuole?</summary><div class="a">La verifica entro 48 ore dai dati. Contratto e attestazione in genere una o due settimane. La registrazione va fatta entro 30 giorni dalla stipula, o dalla decorrenza se viene prima: la facciamo noi.</div></details>
@@ -540,19 +548,20 @@ html {
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="sTitle" aria-hidden="true">
   <div class="sheet">
     <div class="sh"><h3 id="sTitle">Attivi il pacchetto</h3><button type="button" class="x" id="sClose" aria-label="Chiudi">×</button></div>
-    <p class="note">€349 IVA inclusa, una tantum · verifica entro 48 ore da quando la pratica parte · pagamento Stripe. Dopo il pagamento risponda all'email di conferma con visura o vecchio contratto (basta una foto).</p>
+    <p class="note">€349 IVA inclusa, una tantum · verifica entro 48 ore da quando la pratica parte · pagamento Stripe. La tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto. Dopo il pagamento risponda all'email di conferma con visura o vecchio contratto (basta una foto).</p>
     <p class="sconto" id="sConto" hidden></p>
-    <div class="fld"><label for="sName">Nome e cognome</label><input id="sName" autocomplete="name" placeholder="Mario Rossi"></div>
-    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="mario@email.it"></div>
+    <div class="fld"><label for="sName">Nome e cognome</label><input id="sName" autocomplete="name" placeholder="Es. Mario Rossi"></div>
+    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="Es. nome@email.it"></div>
     <div class="fld"><label for="sPhone">Telefono / WhatsApp</label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+39 …"></div>
-    <div class="fld"><label for="sListing">Indirizzo dell'immobile <span class="opt">via e zona bastano</span></label><input id="sListing" autocomplete="street-address" placeholder="Via Ostiense 42, Roma"></div>
+    <div class="fld"><label for="sListing">Indirizzo dell'immobile <span class="opt">facoltativo · via e zona bastano</span></label><input id="sListing" autocomplete="street-address" placeholder="Es. Via Ostiense 42, Roma"></div>
     <input id="sCompany" type="text" tabindex="-1" autocomplete="off" class="hp" aria-hidden="true">
+    <p class="snh"><b>Ha l'inquilino che aspetta?</b> Con la spunta qui sotto la pratica parte subito e la verifica arriva entro 48 ore. Senza, cominciamo allo scadere dei 14 giorni per il recesso.</p>
     <label class="startnow"><input type="checkbox" id="sStart"><span>Chiedo di iniziare subito, prima che scadano i 14 giorni per il recesso, e prendo atto che a pratica completata il recesso non sarà più possibile.</span></label>
     <p class="recesso">Recesso: 14 giorni dall'acquisto, con una email a <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>. Se inizia subito e poi recede, le rimborsiamo il pacchetto meno il lavoro già svolto. Senza la spunta, cominciamo allo scadere dei 14 giorni.</p>
     <div class="ferr" id="sErr" role="alert"></div>
     <button type="button" class="paybtn" id="sGo">
       <span class="lk" aria-hidden="true">€</span>
-      <span class="tx"><b id="sGoTx">Paga €349 e attivi</b><small>Pagamento sicuro Stripe</small></span>
+      <span class="tx"><b id="sGoTx">Paghi €349 · si parte tra 14 giorni</b><small>Pagamento sicuro Stripe</small></span>
     </button>
     <p class="alt">Preferisce parlarne prima? <a href="https://wa.me/393313251961?text=Buongiorno%2C%20vorrei%20attivare%20il%20Pacchetto%20canone%20concordato" target="_blank" rel="noopener" data-analytics-label="pack-wa-sheet">Ci scriva su WhatsApp →</a></p>
   </div>
@@ -621,10 +630,14 @@ document.addEventListener('keydown',function(e){
   }
 });
 document.querySelectorAll('#ov input:not([type=checkbox])').forEach(function(el){el.addEventListener('keydown',function(e){if(e.key==='Enter')paySheet()})});
-function err(m,id){var e=$('sErr');e.textContent=m;e.classList.add('on');if(id)try{$(id).focus()}catch(x){}}
+function goLabel(){$('sGoTx').textContent=$('sStart').checked?'Paghi €349 e si parte subito':'Paghi €349 · si parte tra 14 giorni';}
+$('sStart').addEventListener('change',goLabel);goLabel();
+function err(m,id){var e=$('sErr'),f=id&&$(id);if(f)f.parentNode.insertAdjacentElement('afterend',e);else $('sGo').insertAdjacentElement('beforebegin',e);
+  e.textContent=m;e.classList.add('on');if(f){f.setAttribute('aria-invalid','true');f.setAttribute('aria-describedby','sErr');try{f.focus()}catch(x){}}}
 function paySheet(){
   var n=$('sName').value.trim(),em=$('sEmail').value.trim(),ph=$('sPhone').value.trim(),li=$('sListing').value.trim();
   $('sErr').classList.remove('on');
+  ['sName','sEmail','sPhone'].forEach(function(k){$(k).removeAttribute('aria-invalid');$(k).removeAttribute('aria-describedby')});
   if(n.length<2)return err('Il suo nome, per intestare la pratica.','sName');
   if(!/^\S+@\S+\.\S+$/.test(em))return err('Un\'email valida: verifica e documenti arrivano lì.','sEmail');
   if(ph.replace(/\D/g,'').length<6)return err('Un numero di telefono: coordiniamo tutto su WhatsApp.','sPhone');
@@ -640,8 +653,9 @@ function paySheet(){
     throw new Error((j&&j.error)||'failed');
   })
   .catch(function(){
-    go.disabled=false;$('sGoTx').textContent='Paga €349 e attivi';
+    go.disabled=false;goLabel();
     err('Il pagamento non è partito: riprovi, oppure ci scriva su WhatsApp e le mandiamo il link diretto.');
+    try{go.focus()}catch(x){}
   });
 }
 
@@ -651,12 +665,16 @@ function paySheet(){
   addEventListener('scroll',function(){nav.classList.toggle('scrolled',scrollY>30);},{passive:true});
   var t=$('navToggle'),m=$('mobileMenu');
   t.addEventListener('click',function(){var on=!m.classList.contains('active');t.classList.toggle('active',on);m.classList.toggle('active',on);t.setAttribute('aria-expanded',on);document.body.style.overflow=on?'hidden':'';});
-  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){t.classList.remove('active');m.classList.remove('active');t.setAttribute('aria-expanded','false');document.body.style.overflow='';});});
+  function shut(){t.classList.remove('active');m.classList.remove('active');t.setAttribute('aria-expanded','false');document.body.style.overflow='';}
+  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',shut);});
+  addEventListener('keydown',function(e){if(e.key==='Escape'&&m.classList.contains('active')){shut();t.focus();}});
+  try{var fam=document.querySelector('.fam'),fon=document.querySelector('.fam .on');if(fam&&fon)fam.scrollLeft=Math.max(0,fon.offsetLeft-(fam.clientWidth-fon.offsetWidth)/2);}catch(e){}
   var bar=$('paybar'),hero=document.querySelector('.chero'),plate=document.querySelector('.price');
   function upd(){
     var past=hero.getBoundingClientRect().bottom<0;
     var r=plate.getBoundingClientRect(),seen=r.top<innerHeight&&r.bottom>0;
     bar.classList.toggle('on',past&&!seen);
+    document.documentElement.classList.toggle('pb-on',past&&!seen);
   }
   addEventListener('scroll',upd,{passive:true});upd();
 })();

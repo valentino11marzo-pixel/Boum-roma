@@ -153,8 +153,8 @@ body::before{content:'';position:fixed;inset:0;opacity:.012;pointer-events:none;
 .lang button:hover{color:var(--t2)}
 
 .fam{top:76px}
-main{padding-top:172px}
-@media(max-width:640px){main{padding-top:162px}}
+main{padding-top:150px}
+@media(max-width:640px){main{padding-top:140px}}
 section{margin-top:96px}
 section[id],#contact{scroll-margin-top:150px}
 /* sul telefono il numero di sezione sta SOPRA il titolo: accanto, il
@@ -186,7 +186,7 @@ section[id],#contact{scroll-margin-top:150px}
 .refline b{color:var(--gold);font-weight:400}
 .fq{font-weight:200;font-size:21px;line-height:1.3;margin-top:4px}
 .fq em{font-style:normal;color:var(--gold);font-weight:300}
-.frow{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
+.frow{display:grid;column-gap:12px;row-gap:0;grid-template-columns:minmax(0,1fr)}
 @media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .filecard .fld{margin-top:12px}
 .fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;
@@ -303,12 +303,26 @@ a.pc:hover{border-color:var(--line-gold);transform:translateY(-2px)}
 /* La scritta più tenue del sistema (--t4, bianco al 26%) sta sotto il
    contrasto leggibile sul nero: su questa pagina porta prezzi, condizioni e
    note che il proprietario DEVE poter leggere. Qui sale al 44%. */
-body{--t4:rgba(255,255,255,.44)}
+body{--t4:rgba(255,255,255,.5)}
+/* la soglia di lettura (audit 13/10): niente sotto i 10,5px, il corpo delle
+   etichette del modulo a 11px, e la riga a due campi allineata in basso
+   (un'etichetta lunga va a capo senza spostare il campo accanto) */
+.machine,.side .lbl,.crw .k,.lm-h,.pc .se,.chead,.esign,.tax .mono,.enbref dt,.guar .gh{font-size:11px;letter-spacing:1.2px}
+.refline{font-size:10px;letter-spacing:1.4px}
+.consent a{color:var(--t2);display:inline-block;padding:12px 2px;margin:-12px 0}
+.sent h3:focus{outline:none}
+.ours li .tg,.flow b .at,.enbref h2 .ref{font-size:10.5px;letter-spacing:1px}
+.serving{font-size:11px}
+.consent{font-size:12px}
+.fld label{font-size:12px;letter-spacing:1px;color:var(--t2)}
+.frow.two{align-items:end}
+/* sul telefono la riga «per chi lavoriamo» è detta due volte più giù: via, e il modulo entra nella prima schermata */
+@media(max-width:919px){.serving{display:none}}
 /* Il conto nella porta: zona dell'Accordo + metri → il massimo concordato. */
 .zconto{margin-top:10px}
 .zconto[hidden]{display:none}
 .zchips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11px;color:var(--t3)}
-.zchips button{font-size:11.5px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:6px 11px;background:transparent;cursor:pointer;transition:.2s}
+.zchips button{font-size:13.5px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:9px 14px;min-height:40px;background:transparent;cursor:pointer;transition:.2s}
 .zchips button.on,.zchips button:hover{border-color:var(--line-gold);color:var(--t1)}
 .zchips button.on{background:rgba(255,215,0,.08)}
 .zline{margin-top:10px;font-size:13px;line-height:1.55;color:var(--t2);border-left:2px solid var(--line-gold);padding:2px 0 2px 10px}
@@ -492,7 +506,7 @@ html {
       </span>
       <a href="#contact" class="nav-cta"><span class="l-it">Valutazione gratuita</span><span class="l-en">Free valuation</span></a>
     </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
   </div>
 </nav>
 
@@ -514,7 +528,7 @@ html {
 <div class="fam" aria-label="BOOM Proprietari">
   <a class="on" href="/owners"><span class="l-it">Proprietari</span><span class="l-en">Owners</span></a>
   <a href="/canone"><span class="l-it">Calcola il canone</span><span class="l-en">Rent calculator</span></a>
-  <a href="/pacchetto-concordato"><span class="l-it">Canone concordato</span><span class="l-en">Canone concordato</span></a>
+  <a href="/pacchetto-concordato"><span class="l-it">Pacchetto concordato</span><span class="l-en">Agreed-rent package</span></a>
   <a href="/login"><span class="l-it">Area proprietario</span><span class="l-en">Owner login</span></a>
 </div>
 
@@ -547,19 +561,19 @@ html {
         <p class="fq"><span class="l-it">Quanto rende <em>davvero</em> la sua casa?</span><span class="l-en">What does your home <em>really</em> earn?</span></p>
         <form id="owForm" novalidate>
           <div class="frow two">
-            <div class="fld"><label for="fName"><span class="l-it">Nome e cognome</span><span class="l-en">Your name</span></label><input id="fName" autocomplete="name" placeholder="Giulia Rossi"></div>
-            <div class="fld"><label for="fContact"><span class="l-it">Telefono o email</span><span class="l-en">Phone or email</span></label><input id="fContact" autocomplete="tel" inputmode="text" placeholder="+39 333 123 4567"></div>
-          </div>
-          <div class="frow two">
-            <div class="fld"><label for="fZone"><span class="l-it">Zona o indirizzo</span><span class="l-en">Area or address</span></label><input id="fZone" autocomplete="street-address" placeholder="Prati, via Cola di Rienzo…"></div>
-            <div class="fld"><label for="fSqm"><span class="l-it">Metri quadri calpestabili</span><span class="l-en">Walkable size (sqm)</span></label><input id="fSqm" inputmode="decimal" placeholder="65"></div>
+            <div class="fld"><label for="fZone"><span class="l-it">Zona o indirizzo</span><span class="l-en">Area or address</span></label><input id="fZone" autocomplete="street-address" placeholder="Es. Prati, via Cola di Rienzo…"></div>
+            <div class="fld"><label for="fSqm"><span class="l-it">Metri quadri calpestabili</span><span class="l-en">Walkable size (sqm)</span></label><input id="fSqm" inputmode="decimal" placeholder="Es. 65"></div>
           </div>
           <!-- il conto nella porta: una zona dell'Accordo e i metri bastano per
                il massimo a canone concordato (js/conto-engine.js). La zona la
                sceglie LUI fra le corrispondenze: il conto non indovina. -->
           <div class="zconto" id="zConto" hidden>
-            <div class="zchips" id="zChips"></div>
+            <div class="zchips" id="zChips" role="group" aria-labelledby="zChipsLbl"></div>
             <p class="zline" id="zLine" aria-live="polite" hidden></p>
+          </div>
+          <div class="frow two">
+            <div class="fld"><label for="fName"><span class="l-it">Nome e cognome</span><span class="l-en">Your name</span></label><input id="fName" autocomplete="name" placeholder="Es. Giulia Rossi"></div>
+            <div class="fld"><label for="fContact"><span class="l-it">Telefono o email</span><span class="l-en">Phone or email</span></label><input id="fContact" autocomplete="tel" inputmode="text" placeholder="Es. +39 333 123 4567"></div>
           </div>
           <div class="frow two">
             <div class="fld"><label for="fFree"><span class="l-it">Da quando è libera?</span><span class="l-en">When is it free?</span></label>
@@ -581,7 +595,7 @@ html {
                 <div class="fld"><label for="fFurn"><span class="l-it">Arredata?</span><span class="l-en">Furnished?</span></label>
                   <select id="fFurn"><option value="">—</option><option value="yes">Arredata</option><option value="partial">In parte</option><option value="no">Vuota</option></select></div>
               </div>
-              <div class="fld"><label for="fRent"><span class="l-it">Canone che ha in mente (€/mese)</span><span class="l-en">Rent you have in mind (€/month)</span></label><input id="fRent" inputmode="numeric" placeholder="1400"></div>
+              <div class="fld"><label for="fRent"><span class="l-it">Canone che ha in mente (€/mese)</span><span class="l-en">Rent you have in mind (€/month)</span></label><input id="fRent" inputmode="numeric" placeholder="Es. 1400"></div>
               <div class="fld"><label for="fMsg"><span class="l-it">Altro</span><span class="l-en">Anything else</span></label><textarea id="fMsg" rows="2" placeholder="Bilocale al terzo piano con ascensore, libero da novembre."></textarea></div>
             </div>
           </details>
@@ -594,12 +608,12 @@ html {
             <span class="tx"><b><span class="l-it">Valutazione gratuita</span><span class="l-en">Free valuation</span></b><small><span class="l-it">i numeri per iscritto, in giornata · senza impegno</span><span class="l-en">the numbers in writing, same day · no commitment</span></small></span>
             <span class="amt">→</span>
           </button>
-          <p class="consent"><span class="l-it">Usati solo per risponderle — <a href="/privacy">privacy</a>. Preferisce parlarne? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp +39 331 325 1961</a></span><span class="l-en">Used only to reply to you — <a href="/privacy">privacy</a>. Rather talk? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp +39 331 325 1961</a></span></p>
+          <p class="consent"><span class="l-it">Usati solo per risponderle — <a href="/privacy">privacy</a>. Preferisce parlarne? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp <span class="nw">+39 331 325 1961</span></a></span><span class="l-en">Used only to reply to you — <a href="/privacy">privacy</a>. Rather talk? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp <span class="nw">+39 331 325 1961</span></a></span></p>
         </form>
 
         <div class="sent" id="fDone">
           <div class="tick">✓</div>
-          <h3><span class="l-it">Il suo fascicolo è <em>aperto.</em></span><span class="l-en">Your file is <em>open.</em></span></h3>
+          <h3 id="fDoneH" tabindex="-1"><span class="l-it">Il suo fascicolo è <em>aperto.</em></span><span class="l-en">Your file is <em>open.</em></span></h3>
           <a class="pdf" id="fPdf" href="#" target="_blank" rel="noopener" hidden><span class="l-it">Il conto della sua casa, in PDF</span><span class="l-en">Your home's calculation, as a PDF</span> →</a>
           <p><span class="l-it">Valentino o il team la ricontatta <b>in giornata lavorativa</b> — su WhatsApp se ha lasciato un numero, altrimenti per email. Niente entro domani? Scriva a <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</span><span class="l-en">Valentino or the team gets back to you <b>the same working day</b> — on WhatsApp if you left a number, otherwise by email. Nothing by tomorrow? Write to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</span></p>
           <div class="who"><img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="48" height="48" loading="lazy"><span><span class="l-it"><b>Valentino</b>, fondatore. Se preferisce, mi chiami:</span><span class="l-en"><b>Valentino</b>, founder. If you prefer, call me:</span> <a href="tel:+393313251961">+39 331 325 1961</a></span></div>
@@ -793,7 +807,7 @@ html {
         <dd><span class="l-it">In giornata lavorativa, nella stragrande maggioranza dei casi.</span><span class="l-en">The same working day, in the vast majority of cases.</span></dd>
 
         <dt><span class="l-it">Contatto</span><span class="l-en">Contact</span></dt>
-        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp +39 331 325 1961</a> · <a href="https://www.boomrome.com/owners" style="color:var(--t2)">boomrome.com/owners</a></dd>
+        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp <span class="nw">+39 331 325 1961</span></a> · <a href="https://www.boomrome.com/owners" style="color:var(--t2)">boomrome.com/owners</a></dd>
       </dl>
     </div>
   </section>
@@ -933,13 +947,13 @@ function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',nam
    e' la lingua della pagina (canonical it): MAI dedotta dal browser, perche'
    il crawler deve vedere cio' che la canonical dichiara. ?lang=en vince. */
 var PH={
-  it:{fName:'Giulia Rossi',fContact:'+39 333 123 4567',fZone:'Prati, via Cola di Rienzo…',fSqm:'65',fRent:'1400',
+  it:{fName:'Es. Giulia Rossi',fContact:'Es. +39 333 123 4567',fZone:'Es. Prati, via Cola di Rienzo…',fSqm:'Es. 65',fRent:'Es. 1400',
       fMsg:'Bilocale al terzo piano con ascensore, libero da novembre.',
       fFree:[['','Scelga'],['now','Libera da subito'],['soon','Entro 3 mesi'],['later','Più avanti'],['rented','Oggi è affittata']],
       fGoal:[['','Scelga'],['full','Affittarla e farla gestire'],['find','Solo trovare l\'inquilino'],['relet','Riaffittarla: sono già cliente BOOM'],['value','Sapere quanto rende'],['concordato','Canone concordato (cedolare 10%)']],
       fRooms:[['','—'],['studio','Monolocale'],['2','Bilocale'],['3','Trilocale'],['4','4 locali'],['5+','5 o più']],
       fFurn:[['','—'],['yes','Arredata'],['partial','In parte'],['no','Vuota']]},
-  en:{fName:'Giulia Rossi',fContact:'+44 7700 900123 or email',fZone:'Prati, via Cola di Rienzo…',fSqm:'65',fRent:'1400',
+  en:{fName:'e.g. Giulia Rossi',fContact:'e.g. +44 7700 900123 or email',fZone:'e.g. Prati, via Cola di Rienzo…',fSqm:'e.g. 65',fRent:'e.g. 1400',
       fMsg:'Two-bed on the third floor with a lift, free from November.',
       fFree:[['','Choose'],['now','Free now'],['soon','Within 3 months'],['later','Later on'],['rented','Currently let']],
       fGoal:[['','Choose'],['full','Let it and have it managed'],['find','Just find the tenant'],['relet','Re-let it: I\'m already a BOOM client'],['value','Know what it can earn'],['concordato','Canone concordato (10% flat tax)']],
@@ -992,8 +1006,8 @@ function setLang(l,silent){
   document.documentElement.lang=l;
   try{localStorage.setItem('boom_own_lang',l)}catch(e){}
   var it=document.getElementById('langIt'),en=document.getElementById('langEn');
-  if(it)it.classList.toggle('on',l==='it');
-  if(en)en.classList.toggle('on',l==='en');
+  if(it){it.classList.toggle('on',l==='it');it.setAttribute('aria-pressed',l==='it');}
+  if(en){en.classList.toggle('on',l==='en');en.setAttribute('aria-pressed',l==='en');}
   var p=PH[l];
   ['fName','fContact','fZone','fSqm','fRent','fMsg'].forEach(function(id){var el=document.getElementById(id);if(el&&p[id])el.placeholder=p[id];});
   // Le etichette cambiano lingua, i VALORI no: il riassunto che legge
@@ -1043,7 +1057,7 @@ function renderConto(){
   var found=z.length>=3?zoneMatches(z):[];
   if(ZC.cod&&!found.some(function(x){return x.cod===ZC.cod}))ZC.cod=null;
   if(found.length===1)ZC.cod=found[0].cod;
-  chips.innerHTML=found.length?'<span>'+(en?'Accordo zone:':'Zona dell\'Accordo:')+'</span>'+found.map(function(x){
+  chips.innerHTML=found.length?'<span id="zChipsLbl">'+(en?'Pick your zone:':'Scelga la sua zona:')+'</span>'+found.map(function(x){
     var on=x.cod===ZC.cod;
     return '<button type="button" data-cod="'+x.cod+'" aria-pressed="'+on+'" class="'+(on?'on':'')+'">'+x.label+' · '+x.cod+'</button>';
   }).join(''):'';
@@ -1051,10 +1065,9 @@ function renderConto(){
   if(ZC.cod&&mq){var n=C.normalize({z:ZC.cod,mq:mq});if(n.ok)r=C.conto(n.input);}
   if(r&&r.ok){
     var E=function(v){return C.fmtEur(v,en?'en':'it')};
-    var href='/canone?'+C.encode(r.input);
     line.innerHTML=en
-      ?'On agreed rent (canone concordato), for <b>'+r.zone.label+'</b> and '+C.fmtNum(mq,mq%1?1:0,'en')+' sqm (walkable) the maximum is between <b>'+E(r.fasce.A.max)+'</b> and <b>'+E(r.fasce.C.max)+'</b> a month, depending on its features. <a href="'+href+'">Full calculation →</a>'
-      :'A canone concordato, per <b>'+r.zone.label+'</b> e '+C.fmtNum(mq,mq%1?1:0,'it')+' mq calpestabili il massimo è tra <b>'+E(r.fasce.A.max)+'</b> e <b>'+E(r.fasce.C.max)+'</b> al mese, secondo le dotazioni. <a href="'+href+'">Il conto completo →</a>';
+      ?'On agreed rent (canone concordato), for <b>'+r.zone.label+'</b> and '+C.fmtNum(mq,mq%1?1:0,'en')+' sqm (walkable) the maximum is between <b>'+E(r.fasce.A.max)+'</b> and <b>'+E(r.fasce.C.max)+'</b> a month, depending on its features. The full calculation comes with the reply, in PDF.'
+      :'A canone concordato, per <b>'+r.zone.label+'</b> e '+C.fmtNum(mq,mq%1?1:0,'it')+' mq calpestabili il massimo è tra <b>'+E(r.fasce.A.max)+'</b> e <b>'+E(r.fasce.C.max)+'</b> al mese, secondo le dotazioni. Il conto completo arriva con la risposta, in PDF.';
     line.hidden=false;
     if(!ZC.seen){ZC.seen=true;boomTrack('conto_result',{zone:r.zone.cod,source_page:'owners'});}
   }else line.hidden=true;
@@ -1067,8 +1080,21 @@ function renderConto(){
     var b=e.target.closest('button[data-cod]');if(!b)return;
     ZC.cod=b.getAttribute('data-cod');renderConto();
   });
-  addEventListener('DOMContentLoaded',renderConto);
+  addEventListener('DOMContentLoaded',function(){prefillConto();renderConto();});
 })();
+// Da /canone si arriva con ?z=<zona dell'Accordo>&mq=<metri>: zona e metri si
+// riempiono da soli, la zona è già scelta. Nel link non c'è mai un dato
+// personale, solo i due numeri del conto.
+function prefillConto(){
+  var C=window.BOOM_CONTO;if(!C)return;
+  var q=new URLSearchParams(location.search),cod=q.get('z'),mq=q.get('mq');
+  if(!cod||!mq)return;
+  var n=C.normalize({z:cod,mq:mq});if(!n.ok)return;
+  var zone=C.ZONES.filter(function(x){return x.cod===n.input.z})[0];if(!zone)return;
+  var fz=document.getElementById('fZone'),fs=document.getElementById('fSqm');
+  if(fz.value||fs.value)return;
+  fz.value=zone.label;fs.value=String(n.input.mq);ZC.cod=zone.cod;
+}
 function contoCalc(){var mq=zoneMq();return ZC.cod&&mq?{v:1,z:ZC.cod,mq:mq}:null;}
 
 /* ── invio ── */
@@ -1116,6 +1142,7 @@ document.getElementById('owForm').addEventListener('submit',function(ev){
     var pdf=document.getElementById('fPdf');
     if(pdf&&j.pdfUrl&&/^https:\/\//.test(j.pdfUrl)){pdf.href=j.pdfUrl;pdf.hidden=false;}
     document.getElementById('fDone').classList.add('on');
+    try{document.getElementById('fDoneH').focus();}catch(x){}
     boomTrack('sign_up',{method:'owners_form'});
   })
   .catch(function(){
@@ -1132,10 +1159,12 @@ document.getElementById('owForm').addEventListener('submit',function(ev){
     if(bar){var h=document.documentElement.scrollHeight-innerHeight;bar.style.width=(h>0?(scrollY/h)*100:0)+'%';}
   },{passive:true});
   var t=document.getElementById('navToggle'),m=document.getElementById('mobileMenu');
-  t.addEventListener('click',function(){t.classList.toggle('active');m.classList.toggle('active');
-    document.body.style.overflow=m.classList.contains('active')?'hidden':'';});
-  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){
-    t.classList.remove('active');m.classList.remove('active');document.body.style.overflow='';});});
+  function shut(){t.classList.remove('active');m.classList.remove('active');t.setAttribute('aria-expanded','false');document.body.style.overflow='';}
+  t.addEventListener('click',function(){var on=!m.classList.contains('active');t.classList.toggle('active',on);m.classList.toggle('active',on);
+    t.setAttribute('aria-expanded',on);document.body.style.overflow=on?'hidden':'';});
+  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',shut);});
+  addEventListener('keydown',function(e){if(e.key==='Escape'&&m.classList.contains('active')){shut();t.focus();}});
+  try{var fam=document.querySelector('.fam'),fon=document.querySelector('.fam .on');if(fam&&fon)fam.scrollLeft=Math.max(0,fon.offsetLeft-(fam.clientWidth-fon.offsetWidth)/2);}catch(e){}
   var glow=document.getElementById('mouseGlow');
   if(glow&&matchMedia('(pointer:fine)').matches&&!matchMedia('(prefers-reduced-motion: reduce)').matches){
     addEventListener('mousemove',function(e){glow.classList.add('active');glow.style.left=e.clientX+'px';glow.style.top=e.clientY+'px';},{passive:true});
@@ -1153,10 +1182,10 @@ document.getElementById('owForm').addEventListener('submit',function(ev){
 
 /* ── barra mobile: compare dopo l'hero ── */
 (function(){
-  var bar=document.getElementById('paybar'),hero=document.querySelector('.hero');
+  var bar=document.getElementById('paybar'),hero=document.querySelector('.hero'),band=document.querySelector('main .band');
   if(!bar||!hero)return;
-  function upd(){bar.classList.toggle('on',hero.getBoundingClientRect().bottom<0);}
-  addEventListener('scroll',upd,{passive:true});upd();
+  function upd(){var b=band&&band.getBoundingClientRect(),seen=!!b&&b.top<innerHeight&&b.bottom>0;bar.classList.toggle('on',hero.getBoundingClientRect().bottom<0&&!seen);}
+  addEventListener('scroll',upd,{passive:true});addEventListener('resize',upd);upd();
 })();
 boomTrack('page_view_market',{market:'roma-owners'});
 </script>
