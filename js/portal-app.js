@@ -975,11 +975,17 @@ Valentyne - BOOM Rome`
     // Le rate non pagate della proprietaria, come le conta il Palazzo: mai
     // quelle dei mesi PRIMA della gestione BOOM (gestioneDal), che non sono
     // arretrati.
+    // La RATA intera, non il suo mese: una trimestrale che arriva dentro la
+    // gestione è un arretrato (la regola del Palazzo, in contract-state.js).
     function landlordLatePayments() {
         const props = new Map((S.properties || []).map(p => [p.id, p]));
+        const cons = new Map((S.contracts || []).map(c => [c.id, c]));
+        const CS = window.BOOM_CONTRACT_STATE;
         return getMyPayments().filter(p => {
             if (!isPaymentLate(p)) return false;
-            const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
+            const prop = props.get(p.propertyId || (cons.get(p.contractId) || {}).propertyId) || {};
+            if (CS && CS.paymentBeforeGestione) return !CS.paymentBeforeGestione(p, prop);
+            const gd = String(prop.gestioneDal || '');
             const month = String(p.month || p.dueDate || '').slice(0, 7);
             return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
         });

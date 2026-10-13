@@ -11,7 +11,7 @@
 //
 // Output: { generatedAt, text, html, summary:{leadsNew,pending,risksHigh,...}, sent? }
 
-import { fsList, sendEmail, logActivity, guardPost, okJson, errJson } from './_lib.js';
+import { fsList, fsListAll, fsListOpenPayments, sendEmail, logActivity, guardPost, okJson, errJson } from './_lib.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
 import RELET from '../../js/relet-engine.js';
 import RENT from '../../js/rent-engine.js';
@@ -28,14 +28,19 @@ export default async function handler(req, res) {
   const horizon = typeof body.window === 'number' ? body.window : 60;
 
   try {
-    const [leads, contracts, payments, properties, users, stateDocs] = await Promise.all([
+    // Contratti, immobili e rate APERTE fino in fondo (a pagine per nome):
+    // la vecchia lettura «limit: 300» perdeva, oltre quel numero, i ritardi
+    // e i bonifici segnalati del Palazzo. Un tetto scattato si DICE.
+    const [leads, contractsR, paymentsR, propertiesR, users, stateDocs] = await Promise.all([
       fsList('leads', { orderBy: { field: 'createdAt', direction: 'DESCENDING' }, limit: 80 }),
-      fsList('contracts', { limit: 200 }),
-      fsList('payments', { limit: 300 }),
-      fsList('properties', { limit: 200 }),
+      fsListAll('contracts'),
+      fsListOpenPayments(),
+      fsListAll('properties'),
       fsList('users', { limit: 1000 }).catch(() => []),
       fsList('complianceState', { limit: 500 }).catch(() => []),
     ]);
+    const contracts = contractsR.docs, payments = paymentsR.docs, properties = propertiesR.docs;
+    const partial = [[contractsR, 'contratti'], [paymentsR, 'rate'], [propertiesR, 'immobili']].filter(([r]) => r.truncated).map(([, n]) => n);
     const propById = {}; properties.forEach(p => { propById[p.id] = p; });
     const userById = {}; users.forEach(u => { userById[u.id] = u; });
     const stateById = {}; stateDocs.forEach(d => { stateById[d.id] = d.items || {}; });
@@ -69,8 +74,7 @@ export default async function handler(req, res) {
       if (st === 'reported') { pushRisk('med', `${p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`); continue; }
       if (st !== 'overdue') continue;
       const pc = contractById[p.contractId] || {};
-      const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
-      if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
+      if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }
     }
@@ -100,7 +104,7 @@ export default async function handler(req, res) {
       });
     } catch (e) { /* non-fatal */ }
 
-    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed, buroOverdue, buroSoon, reletExpiring, reletUncovered };
+    const summary = { leadsNew: newToday, pendingNew, gradeA, risksHigh, risksMed, buroOverdue, buroSoon, reletExpiring, reletUncovered, archivePartial: partial.length };
     const dateStr = new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' });
 
     const textLines = [
@@ -110,6 +114,7 @@ export default async function handler(req, res) {
       `🎯 Rischi: ${risksHigh} urgenti · ${risksMed} da seguire`,
       `🏛️ Burocrazia: ${buroOverdue} scadut${buroOverdue === 1 ? 'a' : 'e'} · ${buroSoon} in scadenza`,
       `🔄 Ricollocamento: ${reletExpiring} in uscita ≤90gg · ${reletUncovered} senza domanda`,
+      ...(partial.length ? [`⚠️ Archivio letto in parte: ${partial.join(', ')} — i numeri possono non essere tutti`] : []),
       ``,
       ...(top.length ? ['Top priorità:', ...top.map(t => '· ' + t)] : ['Nessun rischio aperto ✅']),
     ];
@@ -121,6 +126,7 @@ export default async function handler(req, res) {
         <p style="font-size:15px"><strong>🎯 Rischi:</strong> ${risksHigh} urgenti · ${risksMed} da seguire</p>
         <p style="font-size:15px"><strong>🏛️ Burocrazia:</strong> ${buroOverdue} scadute · ${buroSoon} in scadenza</p>
         <p style="font-size:15px"><strong>🔄 Ricollocamento:</strong> ${reletExpiring} in uscita ≤90gg · ${reletUncovered} senza domanda</p>
+        ${partial.length ? `<p style="font-size:14px;color:#a33"><strong>⚠️ Archivio letto in parte:</strong> ${partial.join(', ')} — i numeri possono non essere tutti</p>` : ''}
         ${top.length ? `<p style="font-weight:bold;margin-top:16px">Top priorità</p><ul style="line-height:1.7;font-size:14px;color:#333">${top.map(t => `<li>${t.replace(/^🔴 |^🟠 /, '')}</li>`).join('')}</ul>` : '<p style="color:#2a8">Nessun rischio aperto ✅</p>'}
       </div></div>`;
 

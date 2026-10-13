@@ -873,5 +873,211 @@ const CS = require('../../js/contract-state.js');
   ok(mdiff, 'mutazione: senza «mai prima del periodo» i due piani divergono (il test lo vede)');
 }
 
+// ═══ 20. Revisione finale (13/10/2026): letture intere, soldi tornati, gestione per RATA ═══
+// Un palazzo inventato con rate in OGNI stato: prima della gestione, pagata,
+// scaduta, segnalata, rimborsata con carta, saldo deposito, trimestrale che
+// scavalca «gestione BOOM dal», contratto chiuso, SEPA in corso.
+function seedWorld2() {
+  DB.clear(); TG.length = 0; UPLOADS.length = 0; globalThis.__mails = [];
+  const ADDR = 'Via Prova 10, Roma';
+  const P = (id, int, floor, gd) => seed('properties/' + id, { name: ADDR + ' int. ' + int, address: ADDR, interno: int, floor: String(floor), ownerId: 'own1', gestioneDal: gd, source: 'palazzo-import' });
+  P('pA', '1', 1, '2026-08'); P('pB', '2', 1, '2026-08'); P('pC', '3', 2, '2026-08');
+  P('pD', '4', 2, '2026-10'); P('pE', '5', 3, '2026-09'); P('pF', '6', 3, '2026-08');
+  seed('users/admin1', { role: 'admin', name: 'Operatore' });
+  seed('users/own1', { role: 'landlord', name: 'Chiara Prova', email: 'chiara@example.invalid' });
+  seed('users/tF', { role: 'tenant', name: 'Sergio Prova', email: 'sergio@example.invalid' });
+  const imp = { source: 'palazzo-import', signatureStatus: 'paper', landlordName: 'Prova Immobiliare S.r.l.' };
+  seed('contracts/cA', { propertyId: 'pA', status: 'active', ...imp, tenantName: 'Ayse Prova', startDate: '2026-07-01', endDate: '2027-06-30', rent: 1000, type: 'studenti' });
+  seed('contracts/cB', { propertyId: 'pB', status: 'active', ...imp, tenantName: 'Ivan Prova', startDate: '2026-08-15', endDate: '2027-08-14', rent: 1500, oneriQuota: 120, type: 'studenti' });
+  seed('contracts/cC', { propertyId: 'pC', status: 'terminated', terminatedAt: '2026-09-30', ...imp, tenantName: 'Olga Prova', startDate: '2026-03-01', endDate: '2027-02-28', rent: 900, type: 'studenti' });
+  seed('contracts/cD', { propertyId: 'pD', status: 'active', ...imp, contractMissing: true, tenantName: 'Pavel Prova' });
+  seed('contracts/cE', { propertyId: 'pE', status: 'active', ...imp, tenantName: 'Emre Prova', startDate: '2026-08-01', endDate: '2027-07-31', rent: 1000, installmentMonths: 3, type: 'transitorio' });
+  seed('contracts/cF', { propertyId: 'pF', status: 'active', tenantId: 'tF', tenantName: 'Sergio Prova', startDate: '2026-01-01', endDate: '2026-12-31', rent: 800, type: 'transitorio', signatureStatus: 'complete' });
+  const R = (id, contractId, propertyId, month, amount, dueDate, status, extra = {}) => seed('payments/' + id, { contractId, propertyId, type: 'rent', month, amount, dueDate, status, ...extra });
+  R('pay_cA_2026-07', 'cA', 'pA', '2026-07', 1000, '2026-07-05', 'pending', { source: 'palazzo-import' });
+  R('pay_cA_2026-08', 'cA', 'pA', '2026-08', 1000, '2026-08-05', 'paid', { paidDate: '2026-08-03', paidVia: 'bonifico', source: 'palazzo-import' });
+  R('pay_cA_2026-09', 'cA', 'pA', '2026-09', 1000, '2026-09-05', 'pending', { source: 'palazzo-import' });
+  R('pay_cA_2026-10', 'cA', 'pA', '2026-10', 1000, '2026-10-05', 'pending', { source: 'palazzo-import', tenantReported: true, tenantReportDate: '2026-10-06', tenantReportedAt: '2026-10-06T10:00:00Z' });
+  R('pay_cB_2026-08', 'cB', 'pB', '2026-08', 1620, '2026-08-15', 'paid', { rentAmount: 1500, oneriAmount: 120, paidDate: '2026-08-16', paidVia: 'bonifico' });
+  R('pay_cB_2026-09', 'cB', 'pB', '2026-09', 1620, '2026-09-15', 'paid', { rentAmount: 1500, oneriAmount: 120, paidDate: '2026-09-16', paidVia: 'stripe', refundedAt: '2026-10-01T10:00:00Z', refundedAmount: 1620, refundedFull: true });
+  R('pay_cB_2026-10', 'cB', 'pB', '2026-10', 1620, '2026-10-15', 'pending', { rentAmount: 1500, oneriAmount: 120 });
+  seed('payments/depbal_cB', { contractId: 'cB', propertyId: 'pB', type: 'deposit-balance', month: 'saldo deposito', amount: 1500, dueDate: '2026-08-15', status: 'pending' });
+  R('pay_cC_2026-09', 'cC', 'pC', '2026-09', 900, '2026-09-05', 'paid', { paidDate: '2026-10-02', paidVia: 'bonifico' });
+  R('pay_cC_2026-10', 'cC', 'pC', '2026-10', 900, '2026-10-05', 'pending');
+  R('pay_cC_2026-11', 'cC', 'pC', '2026-11', 900, '2026-11-05', 'pending');
+  R('pay_cD_2026-09', 'cD', 'pD', '2026-09', 700, '2026-09-05', 'pending');   // prima della gestione (2026-10)
+  R('pay_cE_2026-08', 'cE', 'pE', '2026-08', 3000, '2026-08-05', 'pending', { coversTo: '2026-10', installmentMonths: 3 });
+  R('pay_cF_2026-08', 'cF', 'pF', '2026-08', 800, '2026-08-01', 'paid', { paidDate: '2026-08-01', paidVia: 'sepa', tenantId: 'tF' });
+  R('pay_cF_2026-09', 'cF', 'pF', '2026-09', 800, '2026-09-01', 'cancelled', { tenantId: 'tF' });
+  R('pay_cF_2026-10', 'cF', 'pF', '2026-10', 800, '2026-10-01', 'pending', { sddPiId: 'pi_1', sddStatus: 'processing', tenantId: 'tF' });
+}
+// L'archivio che cresce: `n` rate PAGATE di altri contratti con id che, in
+// ordine di NOME, vengono PRIMA di quelle del Palazzo ('pay_A…' < 'pay_c…').
+function seedBigArchive(n) {
+  const AZ = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for (let i = 0; i < n; i++) {
+    const cid = AZ[i % 26] + 'x' + String(Math.floor(i / 12)).padStart(3, '0');
+    const mm = '2025-' + String((i % 12) + 1).padStart(2, '0');
+    seed('payments/pay_' + cid + '_' + mm + '_' + i, { contractId: cid, type: 'rent', month: mm, amount: 700, dueDate: mm + '-05', status: 'paid', paidDate: mm + '-04' });
+  }
+}
+
+// 20a. fsListAll / fsListOpenPayments: tutto, a pagine; un tetto si DICE.
+{
+  seedWorld();
+  seedBigArchive(700);
+  const L = await import('../../api/homie/_lib.js');
+  const all = await L.fsListAll('payments');
+  const total = keys('payments').length;
+  ok(all.docs.length === total && all.truncated === false, 'fsListAll: legge TUTTE le rate a pagine per nome (oltre 700), senza tetto scattato', { got: all.docs.length, total });
+  const cut = await L.fsListAll('payments', { page: 100, maxPages: 3 });
+  ok(cut.docs.length === 300 && cut.truncated === true, 'fsListAll: un tetto di sicurezza scattato si dichiara (truncated)', { got: cut.docs.length, truncated: cut.truncated });
+  const open = await L.fsListOpenPayments();
+  ok(open.docs.length && open.docs.every(p => L.OPEN_PAYMENT_STATUSES.includes(p.status)) && open.docs.some(p => p.id === 'pay_c11_2026-10') && open.docs.some(p => p.id === 'pay_c7_2026-10'),
+    'fsListOpenPayments: le rate aperte del Palazzo ci sono, nessuna pagata', open.docs.map(p => p.id));
+}
+
+// 20b. Con un archivio grande le macchine del mattino vedono ANCORA il Palazzo.
+{
+  seedWorld();
+  seedBigArchive(700);
+  ok(keys('payments').sort().slice(0, 600).every(k => !/pay_c(7|11)_/.test(k)), 'premessa: con la vecchia lettura (600 per nome) le rate del Palazzo restano FUORI');
+  const gestore = (await import('../../api/employees/gestore.js')).default;
+  const g = await call(gestore, { headers: asCron, query: { dry: '1' } });
+  const dg = (g.body && g.body.report && g.body.report.digest) || [];
+  ok(g.statusCode === 200 && dg.some(l => /int\. 11/.test(l) && /in ritardo/.test(l)) && dg.some(l => /💶 .*int\. 7.*bonifico segnalato/.test(l)) && !dg.some(l => /archivio letto in parte/.test(l)),
+    'gestore: con 700 rate pagate davanti, il ritardo di int. 11 e il bonifico segnalato di int. 7 restano nel digest', dg);
+  const MG = await importMutant('api/employees/gestore.js', '    fsListOpenPayments(),\n', "    fsList('payments', { limit: 600 }).then(docs => ({ docs, truncated: false })),\n");
+  const gm = await call(MG.default, { headers: asCron, query: { dry: '1' } });
+  const dgm = (gm.body && gm.body.report && gm.body.report.digest) || [];
+  ok(!dgm.some(l => /int\. 11/.test(l) && /in ritardo/.test(l)), 'mutazione: con la vecchia lettura «limit: 600» il ritardo del Palazzo sparisce (il test lo vede)', dgm);
+  const contabile = (await import('../../api/employees/contabile.js')).default;
+  const cb = await call(contabile, { headers: asCron, query: { dry: '1' } });
+  const rep = (cb.body && cb.body.report) || {};
+  ok(cb.statusCode === 200 && (rep.late || []).some(l => l.paymentId === 'pay_c11_2026-10') && (rep.reported || []).some(l => l.paymentId === 'pay_c7_2026-10'),
+    'contabile: con 700 rate pagate davanti, ritardo e bonifico segnalato del Palazzo ci sono', { late: rep.late, reported: rep.reported });
+  const { scan } = await import('../../api/agent/risk.scan.js');
+  const rs = await scan(60);
+  ok(rs.items.some(i => i.cat === 'Bonifico segnalato' && i.ref === 'pay_c7_2026-10') && rs.items.some(i => i.cat === 'Pagamento in ritardo' && i.ref === 'pay_c11_2026-10'),
+    'risk.scan: con 700 rate davanti, il segnalato e il ritardo del Palazzo ci sono', rs.items.map(i => i.cat + ' ' + i.ref));
+  const { snapshot } = await import('../../api/agent/state.snapshot.js');
+  const sn = await snapshot('payments');
+  ok(sn.payments.reported >= 1 && sn.payments.overdue >= 1 && !sn.payments.partial, 'state.snapshot: con 700 rate davanti conta ritardi e segnalati del Palazzo', sn.payments);
+  const digest = (await import('../../api/agent/digest.js')).default;
+  const d = await call(digest, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+  ok(d.statusCode === 200 && /bonifico segnalato/.test(d.body.text || ''), 'digest di Homie: con 700 rate davanti il bonifico segnalato c\'è ancora', d.body && d.body.text);
+  const W = await import('../../api/telegram/webhook.js');
+  const lines = W.snapshotLines({ payments: (await (await import('../../api/homie/_lib.js')).fsListOpenPayments()).docs, now: new Date(NOW) });
+  ok(/segnalati da verificare: 1/.test(lines.join('\n')), 'Telegram /snapshot: il segnalato del Palazzo contato', lines);
+}
+
+// 20c. Una rata trimestrale che scavalca «gestione BOOM dal»: arretrato vero
+// per TUTTI (Palazzo, Oggi, Gestore, Contabile, risk, digest, snapshot);
+// le rate tutte prima della gestione per nessuno (snapshot compreso).
+{
+  ok(CS.paymentBeforeGestione({ month: '2026-08', coversTo: '2026-10' }, { gestioneDal: '2026-09' }) === false
+    && CS.paymentBeforeGestione({ month: '2026-08' }, { gestioneDal: '2026-09' }) === true
+    && CS.paymentBeforeGestione({ month: 'saldo deposito', dueDate: '2026-07-15' }, { gestioneDal: '2026-09' }) === true
+    && CS.paymentBeforeGestione({ month: '2026-08', coversTo: '2026-10' }, {}) === false
+    && CS.paymentBeforeGestione({ month: 'boh' }, { gestioneDal: '2026-09' }) === false,
+    'paymentBeforeGestione: la RATA intera (coversTo), dal mese o dalla scadenza; senza dato, mai');
+  // la stessa regola del motore del Palazzo
+  const PE = require('../../js/palazzo-engine.js');
+  seedWorld2();
+  const props = keys('properties').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const cons = keys('contracts').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const pays = keys('payments').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const users = keys('users').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const ctx = PE.context({ properties: props, contracts: cons, payments: pays, users, now: new Date(NOW) });
+  const m = PE.model(ctx, PE.buildings(ctx)[0].key, '2026-10', { strip: false });
+  const debtIds = (m.debtors || []).flatMap(d => d.rows.map(r => r.id));
+  ok(debtIds.includes('pay_cE_2026-08') && !debtIds.includes('pay_cA_2026-07'), 'premessa: il Palazzo conta la trimestrale di agosto (gestione da settembre) fra gli arretrati', debtIds);
+  const O = require('../../js/oggi-engine.js');
+  const oggi = O.build({ payments: pays, contracts: cons, properties: props, users }, NOW);
+  ok(oggi.decisions.some(x => x.id === 'pay_pay_cE_2026-08') && !oggi.decisions.some(x => x.id === 'pay_pay_cA_2026-07'),
+    'Oggi: la trimestrale che arriva dentro la gestione è un ritardo; il luglio prima della gestione no', oggi.decisions.map(x => x.id));
+  const gestore = (await import('../../api/employees/gestore.js')).default;
+  const g = await call(gestore, { headers: asCron, query: { dry: '1' } });
+  const dg = (g.body && g.body.report && g.body.report.digest) || [];
+  ok(dg.some(l => /int\. 5/.test(l) && /€3\.000 in ritardo/.test(l)) && !dg.some(l => /int\. 1/.test(l) && /luglio/.test(l)),
+    'gestore: la trimestrale di int. 5 arriva nel digest col link; luglio di int. 1 (prima della gestione) no', dg);
+  const MG = await importMutant('api/employees/gestore.js', '    if (CS.paymentBeforeGestione(p, property)) continue;\n',
+    "    if (CS.beforeGestione(/^\\d{4}-\\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7), property)) continue;\n");
+  const gm = await call(MG.default, { headers: asCron, query: { dry: '1' } });
+  ok(!((gm.body.report || {}).digest || []).some(l => /int\. 5/.test(l) && /in ritardo/.test(l)), 'mutazione: col solo mese la trimestrale di int. 5 sparisce dal digest (il test lo vede)');
+  const contabile = (await import('../../api/employees/contabile.js')).default;
+  const cb = await call(contabile, { headers: asCron, query: { dry: '1' } });
+  ok((cb.body.report.late || []).some(l => l.paymentId === 'pay_cE_2026-08') && !(cb.body.report.late || []).some(l => l.paymentId === 'pay_cA_2026-07'),
+    'contabile: la trimestrale è un ritardo, il mese prima della gestione no', cb.body.report.late);
+  const { scan } = await import('../../api/agent/risk.scan.js');
+  const rs = await scan(60);
+  ok(rs.items.some(i => i.cat === 'Pagamento in ritardo' && i.ref === 'pay_cE_2026-08') && !rs.items.some(i => i.ref === 'pay_cA_2026-07'), 'risk.scan: idem', rs.items.map(i => i.ref));
+  const { snapshot } = await import('../../api/agent/state.snapshot.js');
+  const sn = await snapshot('payments');
+  // aperte e scadute dopo la gestione: cA_09 (1000), depbal_cB (1500), cC_10 (900), cE_08 (3000)
+  ok(sn.payments.overdue === 4 && sn.payments.overdueAmount === 6400, 'state.snapshot: niente rate tutte prima della gestione (luglio di int. 1 e settembre di int. 4 fuori), la trimestrale dentro', sn.payments);
+  const MS = await importMutant('api/agent/state.snapshot.js', '      return !CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId]);\n', '      return true;\n');
+  ok((await MS.snapshot('payments')).payments.overdueAmount === 8100, 'mutazione: senza il filtro la fotografia conta luglio di int. 1 e settembre di int. 4 come arretrati (il test lo vede)');
+}
+
+// 20d. Rata rimborsata o contestata: non è incassata, né nella chiusura del
+// mese né nell'incassato YTD né nel pacchetto del commercialista.
+{
+  seedWorld2();
+  process.env.ACCOUNTING_EMAIL = 'contabile@example.invalid';
+  const contabile = (await import('../../api/employees/contabile.js')).default;
+  const cb = await call(contabile, { headers: asCron, query: { monthly: '1' } });
+  const mail = (globalThis.__mails || []).find(x => /Chiusura contabile/.test(x.subject || ''));
+  const html = mail ? mail.html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ') : '';
+  ok(cb.statusCode === 200 && mail && /settembre 2026/.test(mail.subject) && /€900 su €3\.520/.test(mail.text),
+    'chiusura mese: settembre dice €900 su €3.520 — come il Palazzo e il rendiconto (la rata rimborsata NON è incassata)', mail && { subject: mail.subject, text: mail.text });
+  ok(/Non incassato: .*int\. 1 — €1\.000/.test(html) && !/Non incassato: [^D]*int\. 4/.test(html) && !/Non incassato: [^D]*int\. 2/.test(html)
+    && /Da verificare .*int\. 2 — €1\.620 \(rimborso o contestazione\)/.test(html),
+    'chiusura mese: int. 1 fra i non incassati; int. 4 (prima della gestione) assente; int. 2 (rimborsata) fra i «da verificare»', html.slice(html.indexOf('Canoni'), html.indexOf('Pacchetto')));
+  const ytd = cb.body.counts;
+  ok(ytd.incassatoYtd === 4320 && ytd.paymentsMoneyBack === 1, 'contabile: incassato YTD senza i €1.620 rimborsati (4.320, non 5.940)', ytd);
+  ok((cb.body.report.moneyBack || []).some(x => x.paymentId === 'pay_cB_2026-09' && x.why === 'rimborso'), 'contabile: la rata rimborsata è nella lista «da verificare» del rapporto', cb.body.report.moneyBack);
+  const MC = await importMutant('api/employees/contabile.js', "      if (st === 'paid') { incassatoYtd += amt; attesoYtd += amt; }", "      if (p.status === 'paid') { incassatoYtd += amt; attesoYtd += amt; }");
+  seedWorld2();
+  const cbm = await call(MC.default, { headers: asCron, query: { dry: '1' } });
+  ok(cbm.body.counts.incassatoYtd === 5940, 'mutazione: con p.status === \'paid\' la rata rimborsata torna incassata (il test lo vede)', cbm.body.counts.incassatoYtd);
+  const MC2 = await importMutant('api/employees/contabile.js', "    if (st === 'paid') incassato += amt;", "    if (p.status === 'paid') incassato += amt;");
+  const pays = keys('payments').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const propById = Object.fromEntries(keys('properties').map(k => [k.split('/')[1], { id: k.split('/')[1], ...read(k) }]));
+  const contractById = Object.fromEntries(keys('contracts').map(k => [k.split('/')[1], { id: k.split('/')[1], ...read(k) }]));
+  const fig = MC2.monthlyCloseFigures({ payments: pays, monthKey: '2026-09', propById, contractById, now: new Date(NOW) });
+  ok(fig.incassato === 2520, 'mutazione: nella chiusura col vecchio p.status la rimborsata torna incassata (€2.520, il test lo vede)', fig);
+  // il pacchetto commercialista
+  const T = require('../../js/taxpack-engine.js');
+  const cBpays = pays.filter(p => p.contractId === 'cB');
+  const tot = T.computeTotals({ contract: { id: 'cB', ...read('contracts/cB') }, payments: cBpays, fiscalYear: 2026 });
+  ok(tot.canoniIncassati === 1620 && tot.monthsPaid === 1, 'taxpack: i canoni incassati non contano la rata rimborsata', tot);
+  ok(T.computeTotals({ contract: {}, payments: [{ month: '2026-09', amount: 500, status: 'paid', disputeStatus: 'open' }, { month: '2026-08', amount: 500, status: 'paid', disputeStatus: 'won' }], fiscalYear: 2026 }).canoniIncassati === 500,
+    'taxpack: una contestazione aperta toglie la rata dagli incassati, una vinta no');
+  const MT = requireMutant('js/taxpack-engine.js', '    var paid = yearPayments.filter(paidMoney);', "    var paid = yearPayments.filter(function (p) { return p.status === 'paid'; });");
+  ok(MT.computeTotals({ contract: {}, payments: cBpays, fiscalYear: 2026 }).canoniIncassati === 3240, 'mutazione: col solo status il pacchetto mette in dichiarazione un canone rimborsato (il test lo vede)');
+  delete process.env.ACCOUNTING_EMAIL;
+}
+
+// 20e. compliance.scan (il radar di Homie) passa l'immobile: niente
+// «Burocrazia scaduta» sugli adempimenti di PRIMA della gestione BOOM.
+{
+  seedWorld();
+  seed('properties/plz20', { name: 'Piazzale Esempio 42 int. 20', address: 'Piazzale Esempio 42, Roma', interno: '20', ownerId: 'own1', gestioneDal: '2026-10', source: 'palazzo-import' });
+  seed('contracts/c20', { propertyId: 'plz20', status: 'active', source: 'palazzo-import', signatureStatus: 'paper', type: 'studenti', startDate: '2025-09-15', endDate: '2026-09-14',
+    rent: 1600, deposit: 3200, cedolareSecca: 'no', tenantName: 'Zeynep Prova', createdAt: '2026-10-12T08:00:00Z' });
+  const cscan = (await import('../../api/agent/compliance.scan.js')).default;
+  const r = await call(cscan, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+  const on20 = (r.body.items || []).filter(i => i.ref === 'c20' && i.cat === 'Burocrazia scaduta').map(i => i.code);
+  ok(r.statusCode === 200 && on20.includes('RLI_REG') && !on20.some(c => ['REGISTRO_BOLLO', 'APE', 'RENEWAL_DECISION', 'DEPOSIT_RETURN'].includes(c)),
+    'compliance.scan: per il contratto preso in carico resta la RLI (fatto legale), non gli adempimenti di prima della gestione', on20);
+  ok(!(r.body.items || []).some(i => ['c7', 'c11', 'c14'].includes(i.ref) && i.cat === 'Burocrazia scaduta' && ['REGISTRO_BOLLO', 'APE', 'RENEWAL_DECISION'].includes(i.code)),
+    'compliance.scan: niente scadenze false sui contratti del Palazzo', (r.body.items || []).filter(i => ['c7', 'c11', 'c14'].includes(i.ref)));
+  const MC = await importMutant('api/agent/compliance.scan.js', '{ tenant, today, property: prop }', '{ tenant, today }');
+  const rm = await call(MC.default, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+  ok((rm.body.items || []).some(i => i.ref === 'c20' && i.cat === 'Burocrazia scaduta' && ['REGISTRO_BOLLO', 'RENEWAL_DECISION', 'DEPOSIT_RETURN'].includes(i.code)),
+    'mutazione: senza l\'immobile il radar grida SCADUTI gli adempimenti di prima della gestione (il test lo vede)', (rm.body.items || []).filter(i => i.ref === 'c20').map(i => i.code));
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

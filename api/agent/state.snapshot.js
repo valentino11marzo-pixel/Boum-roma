@@ -8,7 +8,7 @@
 //        default 'all'. Numbers are recent slices (last 30d) to keep the
 //        response small (<10KB).
 
-import { fsList, guardPost, okJson, errJson } from './_lib.js';
+import { fsList, fsListAll, fsListOpenPayments, guardPost, okJson, errJson } from './_lib.js';
 import { memoized } from './_memo.js';
 import RENT from '../../js/rent-engine.js';
 import CS from '../../js/contract-state.js';
@@ -47,7 +47,9 @@ export async function snapshot(scope) {
   }
 
   if (scope === 'all' || scope === 'contracts') {
-    const contracts = await fsList('contracts', { limit: 100 });
+    // Tutti i contratti (a pagine per nome), mai «i primi 100».
+    const contractsR = await fsListAll('contracts');
+    const contracts = contractsR.docs;
     const now = Date.now();
     const exp = (c) => c.endDate ? Math.round((new Date(c.endDate).getTime() - now) / 86400000) : null;
     out.contracts = {
@@ -58,17 +60,31 @@ export async function snapshot(scope) {
       unsigned: contracts.filter(c => !CS.notSignable(c) && (!c.landlordSignature || !c.tenantSignature)).length,
       expiring60: contracts.filter(c => { const d = exp(c); return d != null && d >= 0 && d <= 60; }).length,
       expiring30: contracts.filter(c => { const d = exp(c); return d != null && d >= 0 && d <= 30; }).length,
+      ...(contractsR.truncated ? { partial: true } : {}),
     };
   }
 
   if (scope === 'all' || scope === 'payments') {
-    const payments = await fsList('payments', { limit: 100 });
+    // Le rate APERTE fino in fondo (mai «le prime 100» per nome: oltre quel
+    // numero sparivano proprio quelle del Palazzo) e, come nel Palazzo, mai
+    // una rata tutta prima della gestione BOOM (property.gestioneDal): la
+    // fotografia per Homie non conta arretrati che il Palazzo non conta.
+    const [paymentsR, propertiesR, contractsR] = await Promise.all([
+      fsListOpenPayments(), fsListAll('properties'), fsListAll('contracts'),
+    ]);
+    const propById = {}; propertiesR.docs.forEach(p => { propById[p.id] = p; });
+    const contractById = {}; contractsR.docs.forEach(c => { contractById[c.id] = c; });
+    const payments = paymentsR.docs.filter(p => {
+      const pc = contractById[p.contractId] || {};
+      return !CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId]);
+    });
     const now = new Date();
     // Lo stato da BOOM_RENT.paymentState (la lettura del Palazzo): un
     // bonifico SEGNALATO dall'inquilino è da verificare, non in ritardo.
     const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue');
     const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported');
     out.payments = {
+      ...(paymentsR.truncated || propertiesR.truncated || contractsR.truncated ? { partial: true } : {}),
       pending: payments.filter(p => p.status === 'pending').length,
       overdue: overdue.length,
       overdueAmount: overdue.reduce((s, p) => s + (p.amount || 0), 0),

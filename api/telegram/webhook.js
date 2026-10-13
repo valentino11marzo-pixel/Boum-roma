@@ -15,7 +15,7 @@
 // Env: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, TELEGRAM_WEBHOOK_SECRET (optional),
 //      CRON_SECRET (used for the internal exec hop), HOMIE_SECRET (executor auth)
 
-import { fsGet, fsPatch, fsList, readJson } from '../homie/_lib.js';
+import { fsGet, fsPatch, fsList, fsListAll, fsListOpenPayments, readJson } from '../homie/_lib.js';
 import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, fmtAction } from './_lib.js';
 import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
@@ -93,18 +93,24 @@ async function fmtSnapshot() {
 // raccogliere: contarli era un falso allarme), e «scaduti» è lo stato di
 // BOOM_RENT — un bonifico SEGNALATO dall'inquilino è da verificare, non in
 // ritardo, e si conta a parte.
-export function snapshotLines({ leads = [], contracts = [], payments = [], pendingActions = [], now = new Date() } = {}) {
+export function snapshotLines({ leads = [], contracts = [], payments = [], properties = [], pendingActions = [], partial = [], now = new Date() } = {}) {
   const newLeads = leads.filter(l => l.status === 'new' || !l.status).length;
   const activeC = contracts.filter(c => c.status === 'active').length;
   const unsigned = contracts.filter(c => c.status !== 'draft' && !CS.notSignable(c) && (!c.landlordSignature || !c.tenantSignature)).length;
-  const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue').length;
-  const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported').length;
+  // Come nel Palazzo: una rata tutta prima della gestione BOOM
+  // (property.gestioneDal) non è un arretrato di nessuno.
+  const propById = {}; properties.forEach(p => { propById[p.id] = p; });
+  const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
+  const live = payments.filter(p => !CS.paymentBeforeGestione(p, propById[p.propertyId || (contractById[p.contractId] || {}).propertyId]));
+  const overdue = live.filter(p => RENT.paymentState(p, now) === 'overdue').length;
+  const reported = live.filter(p => RENT.paymentState(p, now) === 'reported').length;
   return [
     '<b>📊 Snapshot BOOM</b>',
     `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
     `📄 Contratti attivi: ${activeC} · da firmare: ${unsigned}`,
     `💶 Pagamenti scaduti: ${overdue}` + (reported ? ` · segnalati da verificare: ${reported}` : ''),
     `⚡ Azioni in attesa: ${pendingActions.length}`,
+    ...(partial.length ? [`⚠️ archivio letto in parte: ${partial.join(', ')}`] : []),
   ];
 }
 
@@ -636,13 +642,17 @@ export default async function handler(req, res) {
         // self-fetching our own HTTP endpoint over VERCEL_URL, which could come
         // back empty and render as a bare "{}".
         try {
-          const [leads, contracts, payments, pendingActions] = await Promise.all([
+          // Contratti, immobili e rate APERTE fino in fondo (a pagine per
+          // nome): «le prime 100» perdevano proprio le rate del Palazzo.
+          const [leads, contractsR, paymentsR, propertiesR, pendingActions] = await Promise.all([
             fsList('leads', { limit: 100 }),
-            fsList('contracts', { limit: 100 }),
-            fsList('payments', { limit: 100 }),
+            fsListAll('contracts'),
+            fsListOpenPayments(),
+            fsListAll('properties'),
             fsList('action_queue', { filter: { field: 'status', op: 'EQUAL', value: 'pending' }, limit: 50 }),
           ]);
-          await tgSend(chatId, snapshotLines({ leads, contracts, payments, pendingActions, now: new Date() }).join('\n'));
+          const partial = [[contractsR, 'contratti'], [paymentsR, 'rate'], [propertiesR, 'immobili']].filter(([r]) => r.truncated).map(([, n]) => n);
+          await tgSend(chatId, snapshotLines({ leads, contracts: contractsR.docs, payments: paymentsR.docs, properties: propertiesR.docs, pendingActions, partial, now: new Date() }).join('\n'));
         } catch (e) {
           await tgSend(chatId, '⚠️ Snapshot non disponibile al momento.');
         }

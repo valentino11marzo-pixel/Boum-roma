@@ -355,6 +355,39 @@ export async function fsList(collection, { filter, orderBy, limit = 50, afterId,
   return (Array.isArray(arr) ? arr : []).filter(r => r.document).map(r => fsDocToJs(r.document));
 }
 
+// TUTTA una collection (o tutti i documenti di un filtro), a pagine per
+// NOME del documento — mai «i primi N». Una lettura `limit: 600` senza ordine
+// restituisce i primi 600 per id: oltre quel numero un archivio che cresce
+// perde in silenzio proprio le rate più nuove (le `pay_c_plz_…` del Palazzo
+// vengono dopo `pay_A…`, `depbal_…` e gli id automatici). Qui si legge fino
+// in fondo; se il tetto di sicurezza (maxPages) scatta, `truncated` lo DICE
+// e il chiamante lo scrive nel rapporto («archivio letto in parte»).
+// Filtro di uguaglianza / IN + ordine per __name__: nessun indice composto.
+//   → { docs, truncated }
+export async function fsListAll(collection, { filter, page = 500, maxPages = 20, signal } = {}) {
+  const docs = []; let after = null, truncated = false;
+  for (let i = 0; ; i++) {
+    if (i >= maxPages) { truncated = true; break; }
+    const got = await fsList(collection, { filter, limit: page, afterId: after, signal });
+    docs.push(...got);
+    if (got.length < page) break;
+    const last = got[got.length - 1] && got[got.length - 1].id;
+    if (!last || last === after) break;                 // nessun progresso: mai un giro infinito
+    // Un id che il cursore non accetta: ci si ferma e si dichiara.
+    if (!/^[\w.-]{1,180}$/.test(last) || ['.', '..'].includes(last)) { truncated = true; break; }
+    after = last;
+  }
+  return { docs, truncated };
+}
+
+// Le rate ANCORA APERTE (da pagare, scadute, segnalate, in corso): ciò che
+// serve a chi sollecita, segnala o riconcilia. Tutte, non le prime N.
+// Gli stati sono quelli che BOOM_RENT.paymentState legge come aperti.
+export const OPEN_PAYMENT_STATUSES = ['pending', 'overdue', 'due', 'reported', 'processing'];
+export function fsListOpenPayments(opts = {}) {
+  return fsListAll('payments', { ...opts, filter: { field: 'status', op: 'IN', value: OPEN_PAYMENT_STATUSES } });
+}
+
 // Append an entry to the activityLog collection. Every agent tool call MUST
 // pass through here so the human operator can audit Homie's behaviour.
 export async function logActivity(action, category, details = {}, actor = 'homie') {

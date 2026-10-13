@@ -30,7 +30,7 @@ import CS from '../../js/contract-state.js';
 import { sendEmail } from '../agent/_lib.js';
 import { real } from '../_demo.js';
 import {
-  requireCronOrAdmin, fsGet, fsList, logActivity, tgNotify,
+  requireCronOrAdmin, fsGet, fsList, fsListAll, logActivity, tgNotify,
   reportEmployeeHealth, saveReport, daysUntil, euro, esc, propLabel,
 } from './_lib.js';
 
@@ -62,15 +62,23 @@ async function run({ dry, forceMonthly, yearOverride }) {
   const now = new Date();
   const fiscalYear = yearOverride || now.getFullYear();
 
-  const [properties, contracts, payments, documents, invoices, bankHealth, bankAccounts] = await Promise.all([
-    fsList('properties', { limit: 200 }),
-    fsList('contracts', { limit: 300 }).then(real),
-    fsList('payments', { limit: 600 }).then(real),
+  // Immobili, contratti e rate letti FINO IN FONDO (a pagine per nome):
+  // il Contabile conta anche le rate PAGATE dell'anno (incassato YTD,
+  // pacchetto per contratto, chiusura del mese), quindi legge tutto. Una
+  // lettura «limit: 600» senza ordine perdeva, oltre quel numero, proprio le
+  // rate del Palazzo (`pay_c_plz_…`, in fondo all'ordine per nome). Un tetto
+  // di sicurezza scattato si DICE nel rapporto e su Telegram.
+  const [propertiesR, contractsR, paymentsR, documents, invoices, bankHealth, bankAccounts] = await Promise.all([
+    fsListAll('properties'),
+    fsListAll('contracts'),
+    fsListAll('payments', { maxPages: 30 }),
     fsList('documents', { limit: 600 }).catch(() => []),
     fsList('invoices', { limit: 400 }).catch(() => []),
     fsGet('teamHealth/banca').catch(() => null),
     fsList('bankAccounts', { limit: 20 }).catch(() => []),
   ]);
+  const properties = propertiesR.docs, contracts = real(contractsR.docs), payments = real(paymentsR.docs);
+  const partial = [[propertiesR, 'immobili'], [contractsR, 'contratti'], [paymentsR, 'rate']].filter(([r]) => r.truncated).map(([, n]) => n);
   const propById = {};
   properties.forEach(p => { propById[p.id] = p; });
 
@@ -127,23 +135,29 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // Lo stato di ogni rata da BOOM_RENT.paymentState (la stessa lettura del
   // Palazzo): un bonifico SEGNALATO dall'inquilino è da verificare, non «in
   // ritardo»; un mese prima della gestione BOOM (property.gestioneDal) non è
-  // un arretrato né un atteso.
+  // un arretrato né un atteso — la RATA intera (una trimestrale che arriva
+  // dentro la gestione resta). Anche l'INCASSATO segue lo stato: una rata
+  // 'paid' poi rimborsata o con una contestazione aperta/persa (stato
+  // 'review') NON è incassata — il Palazzo e il rendiconto la danno non
+  // incassata, e così il Contabile: va nell'atteso e fra le «da verificare».
   let incassatoYtd = 0, attesoYtd = 0;
-  const late = [], reported = [];
+  const late = [], reported = [], moneyBack = [];
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
     const pc = contractById[p.contractId] || {};
-    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
-    if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
+    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
     const st = RENT.paymentState(p, now);
     const inYear = p.month && String(p.month).slice(0, 4) === String(fiscalYear);
+    const label = propLabel(propById, p.propertyId ? p : pc);
     if (inYear) {
       const amt = Number(p.amount) || 0;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
-      if (p.status === 'paid') { incassatoYtd += amt; attesoYtd += amt; }
-      else if (p.status !== 'cancelled' && due && due <= now.getTime()) attesoYtd += amt;
+      if (st === 'paid') { incassatoYtd += amt; attesoYtd += amt; }
+      else if (st === 'review') {
+        attesoYtd += amt;
+        moneyBack.push({ paymentId: p.id, property: label, month: p.month || null, amount: amt, why: RENT.moneyBack(p) === 'dispute' ? 'contestazione' : 'rimborso' });
+      } else if (st !== 'cancelled' && due && due <= now.getTime()) attesoYtd += amt;
     }
-    const label = propLabel(propById, p.propertyId ? p : pc);
     if (st === 'reported') {
       reported.push({ paymentId: p.id, property: label, month: p.month || null, amount: Number(p.amount) || 0 });
       continue;
@@ -180,6 +194,8 @@ async function run({ dry, forceMonthly, yearOverride }) {
     daSmistare,
     paymentsLate: late.length,
     paymentsReported: reported.length,
+    paymentsMoneyBack: moneyBack.length,
+    archivePartial: partial.length,
     incassatoYtd: Math.round(incassatoYtd),
     outstandingYtd: Math.round(attesoYtd - incassatoYtd),
   };
@@ -188,18 +204,22 @@ async function run({ dry, forceMonthly, yearOverride }) {
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
     `Canoni/depositi per conto dei proprietari YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
     `${counts.paymentsLate} in ritardo` + (reported.length ? ` · ${reported.length} bonifici segnalati da verificare` : '') +
-    (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '');
+    (moneyBack.length ? ` · ${moneyBack.length} rimborsate/contestate` : '') +
+    (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '') +
+    (partial.length ? ` | ⚠️ archivio letto in parte: ${partial.join(', ')}` : '');
 
   // ── Telegram: solo quando c'è da agire ───────────────────────────────
   const urgentSoon = dueSoon.filter(o => (o.days ?? 99) <= 7);
-  const actionable = overdue.length || urgentSoon.length || late.length || reported.length || banca.toConfirm || banca.consentExpired;
+  const actionable = overdue.length || urgentSoon.length || late.length || reported.length || moneyBack.length || banca.toConfirm || banca.consentExpired || partial.length;
   let notified = false;
   if (!dry && actionable) {
     const lines = [`🧮 <b>Contabile — da fare</b>`];
+    if (partial.length) lines.push(`⚠️ archivio letto in parte: ${esc(partial.join(', '))} — i numeri qui sotto possono non essere completi`);
     overdue.slice(0, 6).forEach(o => lines.push(`🔴 ${esc(oblText(o))} — scaduta da ${Math.abs(o.days)}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(oblText(o))} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
     reported.slice(0, 4).forEach(r => lines.push(`💶 ${esc(r.property)} — ${euro(r.amount)} bonifico segnalato: verifica l'incasso`));
+    moneyBack.slice(0, 4).forEach(r => lines.push(`↩️ ${esc(r.property)} — ${euro(r.amount)} ${r.why === 'contestazione' ? 'contestato con la carta' : 'rimborsato'}: non è incassato`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
     if (banca.toConfirm) lines.push(`🏦 ${banca.toConfirm} bonifici da confermare come canoni: https://boomrome.com/banca`);
     if (daSmistare) lines.push(`📥 ${daSmistare} documenti archiviati ma senza immobile — assegnali dal portale`);
@@ -211,7 +231,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // ── Chiusura mese (giorno 1, o ?monthly=1) ────────────────────────────
   let monthlyEmail = null;
   if ((now.getUTCDate() === 1 || forceMonthly) && !dry) {
-    monthlyEmail = await sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById });
+    monthlyEmail = await sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById, contractById, partial });
   }
 
   const report = {
@@ -222,6 +242,8 @@ async function run({ dry, forceMonthly, yearOverride }) {
     packs: packs.slice(0, 20),
     late: late.slice(0, 15),
     reported: reported.slice(0, 15),
+    moneyBack: moneyBack.slice(0, 15),
+    partial,
     banca,
     notified,
   };
@@ -234,24 +256,43 @@ async function run({ dry, forceMonthly, yearOverride }) {
 
 // "Chiusura mese": incassi del mese appena chiuso + prontezza del pacchetto
 // commercialista + prossime scadenze. Recipient override via ACCOUNTING_EMAIL.
-async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById }) {
+// Lo stato di ogni rata dalla STESSA lettura del Palazzo e del rendiconto
+// (BOOM_RENT.paymentState): una rata rimborsata o contestata non è
+// incassata; un bonifico segnalato, una carta in volo o uno stato illeggibile
+// sono «da verificare» (nell'atteso, mai fra gli incassati né fra i «non
+// incassato»); le rate tutte prima della gestione BOOM non sono di nessuno.
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+export function monthlyCloseFigures({ payments, monthKey, propById, contractById = {}, now }) {
+  let incassato = 0, atteso = 0;
+  const unpaid = [], toCheck = [];
+  const WHY = { review: 'rimborso o contestazione', reported: 'bonifico segnalato', processing: 'pagamento in corso', unknown: 'stato da verificare' };
+  for (const p of payments) {
+    if (p.month !== monthKey) continue;
+    const pc = contractById[p.contractId] || {};
+    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
+    const st = RENT.paymentState(p, now);
+    if (st === 'cancelled') continue;
+    const amt = Number(p.amount) || 0;
+    const label = propLabel(propById, p.propertyId ? p : (pc.propertyId ? pc : p));
+    atteso += amt;
+    if (st === 'paid') incassato += amt;
+    else if (WHY[st]) toCheck.push(`${label} — ${euro(amt)} (${WHY[st]})`);
+    else unpaid.push(`${label} — ${euro(amt)}`);
+  }
+  return { incassato, atteso, unpaid, toCheck };
+}
+
+async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propById, contractById, partial = [] }) {
   const to = process.env.ACCOUNTING_EMAIL || process.env.GMAIL_USER;
   if (!to) return { sent: false, error: 'no recipient configured' };
 
   const prev = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1));
   const monthKey = prev.toISOString().slice(0, 7); // YYYY-MM
-  const monthLabel = prev.toLocaleDateString('it-IT', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  // Deterministico (mai toLocaleDateString: con l'ICU ridotta del runtime
+  // 'it-IT' ricade sull'inglese).
+  const monthLabel = MESI[prev.getUTCMonth()] + ' ' + prev.getUTCFullYear();
 
-  let incassato = 0, atteso = 0;
-  const unpaid = [];
-  for (const p of payments) {
-    if (p.month !== monthKey) continue;
-    const amt = Number(p.amount) || 0;
-    if (p.status === 'cancelled') continue;
-    atteso += amt;
-    if (p.status === 'paid') incassato += amt;
-    else unpaid.push(`${propLabel(propById, p)} — ${euro(amt)}`);
-  }
+  const { incassato, atteso, unpaid, toCheck } = monthlyCloseFigures({ payments, monthKey, propById, contractById, now });
 
   const rows = packs.map(k =>
     `<tr><td style="padding:6px 10px;border-bottom:1px solid #eee">${esc(k.property)}</td>` +
@@ -269,7 +310,9 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
     </div>
     <div style="border:1px solid #eee;border-top:none;padding:18px 22px;border-radius:0 0 10px 10px">
       <p style="font-size:15px"><strong>💰 Canoni/depositi per conto dei proprietari:</strong> ${euro(incassato)} su ${euro(atteso)} attesi</p>
-      ${unpaid.length ? `<p style="font-size:14px;color:#a33"><strong>Non incassato:</strong></p><ul style="font-size:14px">${unpaid.map(u => `<li>${esc(u)}</li>`).join('')}</ul>` : '<p style="color:#2a8;font-size:14px">Tutti i canoni del mese incassati ✅</p>'}
+      ${partial.length ? `<p style="font-size:14px;color:#a33"><strong>⚠️ Archivio letto in parte (${esc(partial.join(', '))}):</strong> i numeri possono non essere completi.</p>` : ''}
+      ${unpaid.length ? `<p style="font-size:14px;color:#a33"><strong>Non incassato:</strong></p><ul style="font-size:14px">${unpaid.map(u => `<li>${esc(u)}</li>`).join('')}</ul>` : (toCheck.length ? '' : '<p style="color:#2a8;font-size:14px">Tutti i canoni del mese incassati ✅</p>')}
+      ${toCheck.length ? `<p style="font-size:14px;color:#b8860b"><strong>Da verificare (bonifico segnalato / rimborso / contestazione):</strong></p><ul style="font-size:14px">${toCheck.map(u => `<li>${esc(u)}</li>`).join('')}</ul>` : ''}
       <p style="font-weight:bold;margin-top:18px">📁 Pacchetto commercialista (anno ${now.getUTCFullYear()})</p>
       <table style="border-collapse:collapse;font-size:13px;width:100%">${rows}</table>
       ${oblRows ? `<p style="font-weight:bold;margin-top:18px">🏛️ Scadenze fiscali</p><ul style="font-size:14px;line-height:1.7">${oblRows}</ul>` : ''}
@@ -277,7 +320,8 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
     </div></div>`;
 
   try {
-    const r = await sendEmail({ to, subject: `BOOM · Chiusura contabile ${monthLabel}`, html, text: `Chiusura ${monthLabel}: canoni/depositi per conto dei proprietari ${euro(incassato)} su ${euro(atteso)}.` });
+    const r = await sendEmail({ to, subject: `BOOM · Chiusura contabile ${monthLabel}`, html, text: `Chiusura ${monthLabel}: canoni/depositi per conto dei proprietari ${euro(incassato)} su ${euro(atteso)}.` +
+      (unpaid.length ? `\nNon incassato: ${unpaid.join('; ')}` : '') + (toCheck.length ? `\nDa verificare: ${toCheck.join('; ')}` : '') });
     return { sent: true, to, messageId: r.messageId, month: monthKey };
   } catch (e) {
     return { sent: false, error: e.message };

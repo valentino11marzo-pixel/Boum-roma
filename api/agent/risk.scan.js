@@ -9,7 +9,7 @@
 //
 // Output: { generatedAt, counts:{high,med,total}, items:[{sev,cat,title,detail,days,ref}] }
 
-import { fsList, guardPost, okJson, errJson } from './_lib.js';
+import { fsList, fsListAll, fsListOpenPayments, guardPost, okJson, errJson } from './_lib.js';
 import { memoized } from './_memo.js';
 import COMPLIANCE from '../../js/compliance-rules.js';
 import RENT from '../../js/rent-engine.js';
@@ -34,14 +34,20 @@ export default async function handler(req, res) {
 }
 
 export async function scan(horizon = 60) {
-  const [contracts, payments, leads, properties, users, stateDocs] = await Promise.all([
-    fsList('contracts', { limit: 200 }),
-    fsList('payments', { limit: 300 }),
+  // Contratti, immobili e rate APERTE fino in fondo (a pagine per nome),
+  // mai «i primi 300»: oltre quel numero l'archivio perdeva proprio i
+  // ritardi e i bonifici segnalati del Palazzo (`pay_c_plz_…`, in fondo
+  // all'ordine per nome). Un tetto di sicurezza scattato si DICE (partial).
+  const [contractsR, paymentsR, leads, propertiesR, users, stateDocs] = await Promise.all([
+    fsListAll('contracts'),
+    fsListOpenPayments(),
     fsList('leads', { orderBy: { field: 'createdAt', direction: 'DESCENDING' }, limit: 80 }),
-    fsList('properties', { limit: 200 }),
+    fsListAll('properties'),
     fsList('users', { limit: 1000 }).catch(() => []),
     fsList('complianceState', { limit: 500 }).catch(() => []),
   ]);
+  const contracts = contractsR.docs, payments = paymentsR.docs, properties = propertiesR.docs;
+  const partial = [[contractsR, 'contratti'], [paymentsR, 'rate'], [propertiesR, 'immobili']].filter(([r]) => r.truncated).map(([, n]) => n);
   const propById = {};
   properties.forEach(p => { propById[p.id] = p; });
   const userById = {}; users.forEach(u => { userById[u.id] = u; });
@@ -88,8 +94,9 @@ export async function scan(horizon = 60) {
     }
     if (st !== 'overdue') continue;
     const pc = contractById[p.contractId] || {};
-    const month = /^\d{4}-\d{2}$/.test(String(p.month || '')) ? p.month : String(p.dueDate || '').slice(0, 7);
-    if (CS.beforeGestione(month, propById[p.propertyId || pc.propertyId])) continue;
+    // La RATA intera prima della gestione (una trimestrale che arriva dentro
+    // la gestione è un arretrato vero, come nel Palazzo).
+    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
     const due = p.dueDate ? Date.parse(p.dueDate) : null;
     if (due && due < now) {
       const late = Math.round((now - due) / 86400000);
@@ -131,6 +138,8 @@ export async function scan(horizon = 60) {
       });
     }
   }
+
+  if (partial.length) items.push({ sev: 'med', cat: 'Archivio letto in parte', title: partial.join(', '), detail: 'Il tetto di lettura è scattato: ritardi e scadenze possono non essere tutti', days: 0, ref: 'partial' });
 
   const rank = { high: 0, med: 1, low: 2 };
   items.sort((a, b) => (rank[a.sev] - rank[b.sev]) || (a.days - b.days));

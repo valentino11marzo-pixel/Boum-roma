@@ -71,10 +71,33 @@ await check('il mese dallo STESSO motore della pagina: la frase, chi non ha paga
   // Chi non ha pagato: TUTTE le rate scadute fino al mese (anche i mesi
   // prima), col totale e il ritardo più vecchio (rilievo 3) — int. 3 ne ha
   // tre da €1.000, int. 12 la rata del mese e il saldo del deposito.
-  assert.ok(/🔴 <b>Non hanno pagato<\/b>\n• int\. 3 · Inquilino 3 Demo · €3\.000 · 3 rate, la più vecchia da \d+ giorni\n• int\. 12 · Inquilino 12 Demo · €1\.200 · 2 rate, la più vecchia da \d+ giorni/.test(msg), msg);
+  // Il saldo del deposito si chiama per nome (rowKind/itemsText della
+  // scheda): «1 rata + saldo deposito», mai «2 rate» come fosse un canone.
+  assert.ok(/🔴 <b>Non hanno pagato<\/b>\n• int\. 3 · Inquilino 3 Demo · €3\.000 · 3 rate, la più vecchia da \d+ giorni\n• int\. 12 · Inquilino 12 Demo · €1\.200 · 1 rata \+ saldo deposito, la più vecchia da \d+ giorni/.test(msg), msg);
   assert.ok(/⌛ <b>In scadenza entro 90 giorni<\/b>\n• int\. 7 · tra 60 giorni/.test(msg), msg);
   assert.ok(msg.includes('📄 <b>Registrazione da segnare</b> (oltre 30 giorni dalla decorrenza): int. 5, int. 8'), msg);
   assert.ok(/🧰 Da sistemare nel portal: \d+ voci\./.test(msg), msg);
+});
+await check('solo il saldo del deposito aperto (canone del mese pagato): la riga dice «saldo deposito», non un canone', async () => {
+  const p12 = store.payments.find(p => p.propertyId === 'u12' && p.type !== 'deposit-balance');
+  const was = p12.status; p12.status = 'paid'; p12.paidDate = p12.dueDate;
+  try {
+    const { msg } = await palazzoMessage('', { now: NOW });
+    assert.ok(/• int\. 12 · Inquilino 12 Demo · €400 · saldo deposito · \d+ giorni/.test(msg), msg);
+  } finally { p12.status = was; delete p12.paidDate; }
+});
+await check('rowKind/itemsText: la stessa regola della scheda del portal (js/palazzo.js)', async () => {
+  const T = await import('../../api/telegram/_palazzo.js');
+  const src = readFileSync(new URL('../../js/palazzo.js', import.meta.url), 'utf8');
+  const grab = (name) => { const at = src.indexOf('  function ' + name + '('); assert.ok(at > 0, name); let d = 0, i = src.indexOf('{', at);
+    for (; i < src.length; i++) { if (src[i] === '{') d++; else if (src[i] === '}' && --d === 0) break; } return src.slice(at, i + 1); };
+  const page = new Function(grab('rowKind') + grab('rowName') + grab('itemsText') + '\nreturn { rowKind, itemsText };')();
+  const R = (isRent, type) => ({ isRent, type });
+  const cases = [[], [R(true, 'rent')], [R(true, 'rent'), R(true, 'rent')], [R(false, 'deposit-balance')], [R(false, 'deposit')],
+    [R(true, 'rent'), R(false, 'deposit-balance')], [R(true, 'rent'), R(true, 'rent'), R(false, 'deposit-balance'), R(false, 'deposit')],
+    [R(false, 'utility')], [R(true, 'rent'), R(false, 'utility'), R(false, 'deposit-balance')]];
+  for (const c of cases) assert.equal(T.itemsText(c), page.itemsText(c), JSON.stringify(c));
+  assert.equal(T.itemsText([R(true, 'rent'), R(false, 'deposit-balance')]), '1 rata + saldo deposito');
 });
 await check('mai un recapito degli inquilini nel messaggio (per chiamare c\'è la scheda)', async () => {
   const { msg } = await palazzoMessage('', { now: NOW });

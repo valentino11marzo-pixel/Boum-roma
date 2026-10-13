@@ -25,6 +25,30 @@
   // unit onward (we preview the single-unit case at 21/10).
   var CEDOLARE = { standard: 0.21, concordato: 0.10, breveExtra: 0.26 };
 
+  // ─── Soldi davvero incassati ─────────────────────────────────────────
+  // Una rata 'paid' poi RIMBORSATA (per intero) o con una contestazione
+  // della carta aperta o persa non è un canone incassato: il Palazzo, i
+  // Canoni e il rendiconto la danno «da verificare» (BOOM_RENT.moneyBack),
+  // e così il pacchetto — mai un canone in dichiarazione che è tornato
+  // indietro. La regola sta in js/rent-engine.js; se il modulo non è
+  // caricato vale la stessa riga, identica.
+  var DISPUTE_LIVE = ['open', 'lost', 'needs_response', 'under_review', 'warning_needs_response', 'warning_under_review'];
+  function rentEngine() {
+    var R = root && root.BOOM_RENT;
+    if (!R && typeof require === 'function') { try { R = require('./rent-engine.js'); } catch (_) { R = null; } }
+    return R && typeof R.moneyBack === 'function' ? R : null;
+  }
+  function moneyBack(p) {
+    var R = rentEngine();
+    if (R) return R.moneyBack(p);
+    p = p || {};
+    if (DISPUTE_LIVE.indexOf(String(p.disputeStatus == null ? '' : p.disputeStatus).trim().toLowerCase()) >= 0) return 'dispute';
+    var back = Number(p.refundedAmount), principal = Number(p.amount);
+    if (p.refundedAt && (p.refundedFull === true || (isFinite(back) && isFinite(principal) && principal > 0 && back >= principal))) return 'refund';
+    return '';
+  }
+  function paidMoney(p) { return !!p && p.status === 'paid' && !moneyBack(p); }
+
   // ─── Document requirement catalogue ──────────────────────────────────
   // Each requirement: { key, label, category, appliesTo(ctx) -> bool,
   //   cadence: 'once'|'annual'|'monthly', folder }
@@ -136,7 +160,7 @@
       if (r.cadence === 'monthly') {
         var expectedMonths = monthsActiveInYear(contract, fiscalYear);
         var paidMonths = payments.filter(function (p) {
-          return p.status === 'paid' && p.month && String(p.month).slice(0, 4) === String(fiscalYear);
+          return paidMoney(p) && p.month && String(p.month).slice(0, 4) === String(fiscalYear);
         }).length;
         // Either uploaded receipts OR BOOM-tracked paid payments count as present.
         var covered = Math.max(matches.length, paidMonths);
@@ -191,7 +215,7 @@
     var yearPayments = payments.filter(function (p) {
       return p.month && String(p.month).slice(0, 4) === String(fiscalYear);
     });
-    var paid = yearPayments.filter(function (p) { return p.status === 'paid'; });
+    var paid = yearPayments.filter(paidMoney);
     var canoniIncassati = paid.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
     var canoniAttesi = yearPayments.reduce(function (s, p) { return s + (Number(p.amount) || 0); }, 0);
     var outstanding = canoniAttesi - canoniIncassati;

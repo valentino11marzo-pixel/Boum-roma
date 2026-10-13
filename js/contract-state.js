@@ -106,6 +106,33 @@
     return m < gd;
   }
 
+  // Il mese (YYYY-MM) di una RATA: `month` quando è un mese vero, altrimenti
+  // dalla scadenza (un saldo deposito porta un'etichetta, non un mese).
+  // '' se illeggibile.
+  function paymentMonth(p) {
+    var m = str(p && p.month);
+    if (/^\d{4}-(0[1-9]|1[0-2])$/.test(m)) return m;
+    var due = p && p.dueDate;
+    if (typeof due === 'string') { var s = due.slice(0, 7); return /^\d{4}-(0[1-9]|1[0-2])$/.test(s) ? s : ''; }
+    var t = dayMs(due);
+    return t == null ? '' : new Date(t).toISOString().slice(0, 7);
+  }
+
+  // La RATA cade tutta PRIMA della gestione BOOM? Non basta il suo mese: una
+  // rata trimestrale di agosto che copre fino a ottobre (coversTo) con la
+  // gestione da settembre è DENTRO la gestione — il Palazzo la conta fra gli
+  // arretrati, e così devono fare Oggi, Gestore, Contabile, risk e digest.
+  // La STESSA regola di js/palazzo-engine.js (`(coversTo || month) < gd`).
+  function paymentBeforeGestione(p, property) {
+    var gd = str(property && property.gestioneDal);
+    if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(gd)) return false;
+    var m = paymentMonth(p);
+    if (!m) return false;
+    var cov = str(p && p.coversTo);
+    var last = /^\d{4}-(0[1-9]|1[0-2])$/.test(cov) ? cov : m;
+    return last < gd;
+  }
+
   // Un giorno di calendario da qualunque forma (YYYY-MM-DD, ISO, Date,
   // Timestamp Firestore {seconds}/{_seconds}/toDate). null se illeggibile.
   function dayMs(v) {
@@ -168,6 +195,8 @@
     phoneIntl: phoneIntl,
     isRegistered: isRegistered,
     beforeGestione: beforeGestione,
+    paymentMonth: paymentMonth,
+    paymentBeforeGestione: paymentBeforeGestione,
     recentReminder: recentReminder,
     noModelPdf: noModelPdf,
     tenantPhones: tenantPhones

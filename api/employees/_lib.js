@@ -13,11 +13,11 @@
 //   teamHealth/<employee>   heartbeat: lastRunAt, ok, consecutiveErrors, stats
 //   teamReports/<auto>      one doc per run: summary + compact data sections
 
-import { FS_BASE, getAdminToken, fsGet, fsPatch, fsCreate, fsList, logActivity } from '../homie/_lib.js';
+import { FS_BASE, getAdminToken, fsGet, fsPatch, fsCreate, fsList, fsListAll, fsListOpenPayments, logActivity } from '../homie/_lib.js';
 import { tgNotify } from '../pfs/_health.js';
 
 export { requireCronOrAdmin } from '../pfs/_guard.js';
-export { fsGet, fsPatch, fsCreate, fsList, logActivity, tgNotify };
+export { fsGet, fsPatch, fsCreate, fsList, fsListAll, fsListOpenPayments, logActivity, tgNotify };
 
 const ALERT_COOLDOWN_MS = 6 * 3600 * 1000;
 const FAILURES_BEFORE_ALERT = 3;
