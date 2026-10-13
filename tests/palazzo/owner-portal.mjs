@@ -65,7 +65,7 @@ const NAMES = ['isAdmin', 'isLandlord', 'isTenant', 'contractIsPaper', 'contract
   'checkAlerts', 'viewContract', 'viewContractLandlord', 'viewMaintenance', 'openFirmaOra', 'openSignContractModal', 'generateContractPasses',
   'regenerateContractPDF', 'openShareHub', 'readContractPDF', 'settingsPage', 'sendMyPasswordLink', '_getOnboardingSteps', 'getModal', 'updateContract',
   'inboxLogMessage', 'inboxHomieBanner', 'commercialistaLocatore', 'commercialistaBuildingContracts', 'commercialistaTaxPayments', 'commercialistaProps', 'commercialistaLandlordLite', 'fiscalScadenzarioCard',
-  'paymentAfterClose', 'isPaymentLateLive', 'commercialistaAdminFull', 'buildRiepilogoPDF', 'downloadTaxPackZip', 'pdfLatin',
+  'paymentAfterClose', 'isPaymentLateLive', 'commercialistaAdminFull', 'buildRiepilogoPDF', 'downloadTaxPackZip', 'pdfLatin', 'pdfWa',
   'burocraziaOutOfJourney', 'burocraziaPage', 'renderContractRow', 'myPaymentsPage', 'myDocumentsPage', 'boomEmailDenied', 'sendBoomEmail',
   'innestoPools', 'innestoLinkFor', 'innestoApply', 'innestoSkippedContractCard',
   'palazzoLinkOwner', 'palazzoImport', 'palazzoSaveLook', 'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper',
@@ -74,7 +74,8 @@ const NAMES = ['isAdmin', 'isLandlord', 'isTenant', 'contractIsPaper', 'contract
 // stessa fetta che monta tests/palazzo/ui.mjs).
 const CONFIG = region('    window.BOOM_PALAZZO_UI?.configure({', "    // L'unica scrittura della vista");
 const CONSTS = region('    const BOOM_INTERNAL_EMAILS', '    function boomEmailDenied');
-const BASE_CODE = NAMES.map(n => extract(n)).join('\n') + '\n' + CONSTS + '\n' + CONFIG;
+const PDFTXT = region('    const PDF_WIN_EXTRA', '    function pdfWa(');
+const BASE_CODE = NAMES.map(n => extract(n)).join('\n') + '\n' + CONSTS + '\n' + PDFTXT + '\n' + CONFIG;
 
 // I nomi del filone dei soldi (S4a): esistono o no a seconda del ramo.
 const S4A = ['openRecordIncasso', 'undoIncasso', 'applyOneriFuture', 'applyRentFuture'];

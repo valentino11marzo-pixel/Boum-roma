@@ -308,7 +308,7 @@ const today = romeDay();
   });
   await check('l’attestazione: locatore, BOOM come gestore, conduttore e cointestatario traslitterati, canone e oneri separati', () => {
     const t = T.texts;
-    for (const s of ['ATTESTAZIONE DI PAGAMENTO', "Data dell'accredito: 03/10/2026", 'Società Esempio S.r.l.', 'Sukru Yilmaz', 'in solido con: Ivan Petrov',
+    for (const s of ['ATTESTAZIONE DI PAGAMENTO', "Data dell'accredito: 03/10/2026", 'Società Esempio S.r.l.', 'Sükrü Yilmaz', 'in solido con: Ivan Petrov',
       'dal 15/10/2026 al 14/11/2026', 'Canone di locazione', 'EUR 1.600,00', 'Oneri accessori (quota fissa, salvo conguaglio)', 'EUR 120,00', 'EUR 1.720,00',
       "Canale: bonifico bancario - verifica dell'accredito: estratto conto del locatore"]) assert.ok(t.includes(s), 'manca: ' + s);
     assert.ok(t.some(s => /tramite Egidi Immobiliare S\.r\.l\. \(BOOM\), che gestisce la locazione per conto del locatore/.test(s)));
@@ -332,16 +332,38 @@ const today = romeDay();
     assert.equal('RIC-' + 'pay_c_plz_test_int7_2026-10-15_2026-10'.slice(-8).toUpperCase(), 'RIC-' + 'pay_c_plz_test_int8_2026-10-15_2026-10'.slice(-8).toUpperCase());
   });
   await check('la traslitterazione: turco e cirillico in latino, le parole WinAnsi intatte, mai un nome vuoto', () => {
-    assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sukru Yilmaz');
+    assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sükrü Yilmaz');
     assert.equal(T.run("pdfLatin('Ayşe Doğan')"), 'Ayse Dogan');
     assert.equal(T.run("pdfLatin('Иван Петров')"), 'Ivan Petrov');
     assert.equal(T.run("pdfLatin('Жанна Щукина')"), 'Zhanna Shchukina');
     assert.equal(T.run("pdfLatin('Nicolò Müller-Lüdenscheidt')"), 'Nicolò Müller-Lüdenscheidt');
-    assert.equal(T.run("pdfLatin('Gülşen Çelik')"), 'Gulsen Celik');
+    assert.equal(T.run("pdfLatin('Gülşen Çelik')"), 'Gülsen Çelik');
     assert.equal(T.run("pdfLatin('王伟')"), '');
     T.texts.length = 0;
     T.run("_buildReceiptDoc({id:'x1',amount:500,type:'rent',month:'2026-10',paidDate:'2026-10-05'},{id:'c',tenantName:'王伟'},{id:'p',name:'Int. 1',address:'Roma'},null)");
     assert.ok(T.texts.includes('Conduttore indicato nel contratto'));
+  });
+  // UNA traslitterazione: l'attestazione del portal (jsPDF) e il rendiconto
+  // del server (pdf-lib, wa() di api/_pdfbrand.js) scrivono lo stesso
+  // inquilino nello stesso modo — prima «Yuliya»/«Iuliia», «Sukru»/«Sükrü».
+  const { wa } = await import('../../api/_pdfbrand.js');
+  await check('stessa traslitterazione del server: russo, turco, greco accentato, azero, serbo, il cinese che non si stampa', () => {
+    const names = ['Юлия Щербакова', 'Şükrü Yılmaz', 'Илья Жуков', 'Αθηνά Παπαδοπούλου', 'Ευάγγελος Μαυρίδης', 'Gülşen Çelik', 'Əli Həsənov', 'Ђорђе Јовановић',
+      'ŁUKASZ Wałęsa', 'Nicolò Müller', 'Zoë Brontë', 'O’Brien – Smith', 'ЖАННА', 'Ayşe  Doğan\n', '王伟', 'Ngozi Ọkọnkwọ'];
+    for (const n of names) {
+      const server = wa(n).replace(/\s+/g, ' ').trim();
+      assert.equal(T.run('pdfLatin(' + JSON.stringify(n) + ')'), server === '(testo in caratteri non stampabili)' ? '' : server, n);
+    }
+    assert.equal(T.run("pdfLatin('Юлия Щербакова')"), 'Iuliia Shcherbakova');
+    assert.equal(T.run("pdfLatin('Αθηνά Παπαδοπούλου')"), 'Athina Papadopoulou', 'le vocali greche accentate non cadono');
+  });
+  await check('le tabelle del portal sono quelle di api/_pdfbrand.js, voce per voce (anti-deriva)', () => {
+    const PB = fs.readFileSync(new URL('../../api/_pdfbrand.js', import.meta.url), 'utf8');
+    const lit = (src, re) => { const m = re.exec(src); if (!m) throw new Error('tabella mancante: ' + re); return vm.runInNewContext('(' + m[1] + ')'); };
+    for (const [srv, cli] of [['LATIN_MAP', 'PDF_LATIN_MAP'], ['CYR', 'PDF_CYR'], ['GREEK', 'PDF_GREEK'], ['GREEK_PAIRS', 'PDF_GREEK_PAIRS'], ['WIN_EXTRA', 'PDF_WIN_EXTRA']]) {
+      const a = lit(PB, new RegExp('const ' + srv + ' = (\\{[\\s\\S]*?\\}|\'[^\']*\');')), b = lit(SRC0, new RegExp('const ' + cli + ' = (\\{[\\s\\S]*?\\}|\'[^\']*\');'));
+      assert.deepEqual(JSON.parse(JSON.stringify(b)), JSON.parse(JSON.stringify(a)), srv);
+    }
   });
   await check('il PDF vero (jsPDF) stampa i nomi traslitterati, non simboli', () => {
     const { jsPDF } = require('jspdf');
@@ -352,7 +374,7 @@ const today = romeDay();
     const r = spawnSync('pdftotext', [out, '-'], { encoding: 'utf8' });
     fs.unlinkSync(out);
     if (r.error) { console.log('  (pdftotext assente: verificato solo il testo passato a jsPDF)'); return; }
-    assert.match(r.stdout, /Sukru Yilmaz/); assert.match(r.stdout, /Ivan Petrov/); assert.match(r.stdout, /Società Esempio S\.r\.l\./);
+    assert.match(r.stdout, /Sükrü Yilmaz/); assert.match(r.stdout, /Ivan Petrov/); assert.match(r.stdout, /Società Esempio S\.r\.l\./);
     assert.ok(!/Y1lmaz|\^ükrü/.test(r.stdout));
   });
 }
@@ -1158,8 +1180,8 @@ await mutant('la quota energia cancellata dal canone nuovo', "} else if (rents.l
 await mutant('il numero dalle ultime 8 cifre', "return 'RIC-' + (4294967296", "return 'RIC-' + String(id).slice(-8).toUpperCase() || (4294967296", async T => {
   assert.notEqual(T.run("incassoReceiptNumber('pay_c_a_int7_2026-10')"), T.run("incassoReceiptNumber('pay_c_a_int8_2026-10')"));
 });
-await mutant('i nomi turchi stampati senza traslitterare', ".map(tr).join('')", ".join('')", async T => {
-  assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sukru Yilmaz');
+await mutant('i nomi turchi stampati senza traslitterare', "            out += latinOf(ch, chars[i - 1], chars[i + 1]);", "            out += '';", async T => {
+  assert.equal(T.run("pdfLatin('Şükrü Yılmaz')"), 'Sükrü Yilmaz');
 });
 await mutant('l’attestazione annullata riusata', [["&& !d.voided && !!safeUrl(d.fileUrl)", "&& !!safeUrl(d.fileUrl)"], ["if (!pay.receiptDocId && existing.exists && (existing.data() || {}).voided) {", "if (false) {"]], async T => {
   await T.run("markPaymentPaid('pay_c8_2026-10',{paidDate:'2026-10-04',paidVia:'bonifico',paidEvidence:'conferma-proprietaria',notifyTenant:false})");

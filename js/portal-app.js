@@ -23802,29 +23802,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // Il font dei PDF del portal (Helvetica di jsPDF) conosce solo WinAnsi:
     // «Şükrü Yılmaz» usciva «^ükrü Y1lmaz», «Иван Петров» una fila di simboli.
-    // Un campo con anche un solo carattere fuori tabella si traslittera TUTTO
-    // in latino, così il nome resta coerente (Sukru Yilmaz, Gulsen Celik,
-    // Ivan Petrov); un campo già scrivibile (Nicolò, Müller, Città) resta com'è.
+    // UNA traslitterazione per portal e server (13/10/2026): l'attestazione
+    // del portal e il rendiconto del server scrivevano lo stesso inquilino in
+    // due modi («Yuliya»/«Iuliia», «Sukru»/«Sükrü») e perdevano lettere greche
+    // accentate («Athin Papadopoloy»). Questa è wa() di api/_pdfbrand.js, riga
+    // per riga (ICAO 9303 per il cirillico, ELOT 743 per il greco, le lettere
+    // Latin-1 restano: jsPDF scrive WinAnsi come pdf-lib). tests/rendiconto/
+    // wa.mjs + tests/palazzo/money-portal.mjs confrontano le due copie.
     // Ciò che non si traslittera (un ideogramma) cade, e se non resta niente
     // torna '': il chiamante mette un'etichetta, mai un nome vuoto o storpiato.
+    const PDF_WIN_EXTRA = '€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ';
+    const PDF_LATIN_MAP = {
+        'ı': 'i', 'İ': 'I', 'ł': 'l', 'Ł': 'L', 'đ': 'd', 'Đ': 'D', 'ħ': 'h', 'Ħ': 'H', 'ŀ': 'l', 'Ŀ': 'L',
+        'ŋ': 'ng', 'Ŋ': 'Ng', 'ĸ': 'k', 'ſ': 's', 'ə': 'e', 'Ə': 'E', 'ɛ': 'e', 'Ɛ': 'E', 'ɔ': 'o', 'Ɔ': 'O',
+        'ƀ': 'b', 'ɓ': 'b', 'ɗ': 'd', 'ƙ': 'k', 'ƴ': 'y', 'ȷ': 'j', 'ĳ': 'ij', 'Ĳ': 'IJ',
+        'ʼ': '’', 'ʻ': '‘', '′': "'", '″': '"', '‐': '-', '‑': '-', '‒': '–', '―': '—', '−': '-',
+        '→': '->', '➔': '->', '➡': '->', '←': '<-', '✓': 'X', '✔': 'X', '☑': 'X', '☒': 'X',
+        '≈': '~', '≤': '<=', '≥': '>=', '≠': '!=', '№': 'N.',
+    };
+    const PDF_CYR = {
+        'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'i',
+        'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ф': 'f',
+        'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': 'ie', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'iu', 'я': 'ia',
+        'є': 'ie', 'і': 'i', 'ї': 'i', 'ґ': 'g', 'ў': 'u', 'ђ': 'dj', 'ј': 'j', 'љ': 'lj', 'њ': 'nj', 'ћ': 'c', 'џ': 'dz',
+        'ѓ': 'gj', 'ќ': 'kj', 'ѕ': 'dz',
+    };
+    const PDF_GREEK = {
+        'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l',
+        'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p', 'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f',
+        'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
+    };
+    const PDF_GREEK_PAIRS = { 'ου': 'ou', 'αυ': 'av', 'ευ': 'ev', 'γγ': 'ng' };
+    function pdfWa(s0) {
+        const bare = ch => (ch || '').normalize('NFD').charAt(0).toLowerCase();
+        const inWinAnsi = ch => { const c = ch.codePointAt(0); return (c >= 0x20 && c <= 0x7E) || (c >= 0xA0 && c <= 0xFF) || PDF_WIN_EXTRA.includes(ch); };
+        const isUpper = ch => !!ch && ch !== ch.toLowerCase() && ch === ch.toUpperCase();
+        const fromAlphabet = (ch, prev, next) => {
+            const lo = ch.toLowerCase();
+            const t = PDF_CYR[lo] != null ? PDF_CYR[lo] : PDF_GREEK[lo];
+            if (t == null) return null;
+            if (!isUpper(ch) || !t) return t;
+            return (isUpper(prev) || isUpper(next)) ? t.toUpperCase() : t.charAt(0).toUpperCase() + t.slice(1);
+        };
+        const latinOf = (ch, prev, next) => {
+            if (PDF_LATIN_MAP[ch] != null) return PDF_LATIN_MAP[ch];
+            const a = fromAlphabet(ch, prev, next);
+            if (a != null) return a;
+            const d = ch.normalize('NFD');
+            if (d === ch) return '';
+            const chars = [...d], base = chars[0];
+            if (chars.length > 1) { const one = (base + chars[1]).normalize('NFC'); if ([...one].length === 1 && inWinAnsi(one)) return one; }
+            if (inWinAnsi(base)) return base;
+            const b = fromAlphabet(base, prev, next);
+            return b != null ? b : (PDF_LATIN_MAP[base] || '');
+        };
+        const src = String(s0 == null ? '' : s0).normalize('NFC');
+        const chars = [...src];
+        let out = '';
+        for (let i = 0; i < chars.length; i++) {
+            const ch = chars[i], c = ch.codePointAt(0);
+            if (c === 0x09 || c === 0x0A || c === 0x0D) { out += ' '; continue; }
+            if (c < 0x20 || (c >= 0x7F && c <= 0x9F)) continue;
+            if (inWinAnsi(ch)) { out += ch; continue; }
+            if (/\s/u.test(ch)) { out += ' '; continue; }
+            const pair = PDF_GREEK_PAIRS[bare(ch) + bare(chars[i + 1])];
+            if (pair) {
+                out += !isUpper(ch) ? pair : isUpper(chars[i + 1]) ? pair.toUpperCase() : pair.charAt(0).toUpperCase() + pair.slice(1);
+                i++; continue;
+            }
+            out += latinOf(ch, chars[i - 1], chars[i + 1]);
+        }
+        if (/\p{L}/u.test(src) && !/[\p{L}\p{N}]/u.test(out)) return '(testo in caratteri non stampabili)';
+        return out;
+    }
     function pdfLatin(value) {
         const s = String(value == null || value === false ? '' : value).normalize('NFC').replace(/\s+/g, ' ').trim();
         if (!s) return '';
-        const ok = ch => /[\x20-\x7E -ÿ€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ]/.test(ch);
-        const T = { 'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'ґ': 'g', 'д': 'd', 'е': 'e', 'ё': 'e', 'є': 'ye', 'ж': 'zh', 'з': 'z', 'и': 'i', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k',
-            'л': 'l', 'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u', 'ў': 'u', 'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
-            'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya',
-            'α': 'a', 'β': 'v', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'i', 'θ': 'th', 'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
-            'ρ': 'r', 'σ': 's', 'ς': 's', 'τ': 't', 'υ': 'y', 'φ': 'f', 'χ': 'ch', 'ψ': 'ps', 'ω': 'o',
-            'ı': 'i', 'ł': 'l', 'đ': 'd', 'ð': 'd', 'ø': 'o', 'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'þ': 'th', 'ħ': 'h', 'ŧ': 't', 'ŋ': 'ng', 'ĸ': 'k', 'ſ': 's' };
-        const tr = ch => {
-            const low = ch.toLowerCase();
-            if (!Object.prototype.hasOwnProperty.call(T, low)) return ch;
-            const r = T[low];
-            return ch !== low && r ? r.charAt(0).toUpperCase() + r.slice(1) : r;
-        };
-        if ([...s].every(ok)) return s;
-        return [...s].map(tr).join('').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7E]/g, '').replace(/\s+/g, ' ').trim();
+        const r = pdfWa(s).replace(/\s+/g, ' ').trim();
+        return r === '(testo in caratteri non stampabili)' ? '' : r;
     }
 
     function downloadPaymentReceipt(id) {
