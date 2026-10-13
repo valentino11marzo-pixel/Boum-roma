@@ -28,7 +28,7 @@ function extract(name) {
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentOpen',
   'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook', 'palazzoImport',
-  'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper', 'palazzoSendPasswordLink'];
+  'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper', 'palazzoSendPasswordLink', 'palazzoCompany', 'palazzoBoomText', 'palazzoWriteBoom'];
 const functions = names.map(extract).join('\n');
 const cfgStart = src.indexOf('    window.BOOM_PALAZZO_UI?.configure({');
 const config = src.slice(cfgStart, src.indexOf('    // L\'unica scrittura della vista', cfgStart));
@@ -266,7 +266,7 @@ try {
       const href = decodeURIComponent(await wa.getAttribute('href'));
       assert.ok(href.startsWith('https://wa.me/390000000003?text='), href);
       // la rata da sollecitare è la più VECCHIA (payRow), il messaggio parte in inglese con &lang=en
-      assert.ok(href.includes('Hi Inquilino, a reminder about the ') && href.includes(' rent (unit 3): €1,000, due on ') && href.includes('report your transfer with a photo of the receipt') &&
+      assert.ok(href.includes('Hi Inquilino, a reminder about the ') && href.includes(' rent (unit 3): €1,000, due on ') && href.includes('report your bank transfer with a photo of the receipt') &&
         /\/rata\?id=p3_\d{4}-\d{2}&t=demo&lang=en/.test(href), href);
       // il primo messaggio a un contratto porta l'informativa per gli inquilini
       assert.ok(href.includes('https://www.boomrome.com/privacy-inquilini?lang=en'), href);
@@ -336,7 +336,10 @@ try {
     await check('Semplice: i liberi dicono cosa succede (trattativa, sito, da quanto)', async () => {
       const txt = await pg.locator('.plz-scard').filter({ hasText: 'Liberi' }).innerText();
       assert.ok(txt.includes('in trattativa con Candidata Demo') && txt.includes('pubblicato sul sito') && /libero da \d+ giorni/.test(txt), txt);
-      assert.ok(txt.includes('proposta pagata, contratto da creare'), txt);
+      // chi arriva con una proposta pagata non è «libero»: ha la sua scheda
+      assert.ok(!txt.includes('proposta pagata'), txt);
+      const coming = await pg.locator('.plz-scard').filter({ hasText: 'In arrivo' }).innerText();
+      assert.ok(coming.includes('proposta pagata, contratto da creare'), coming);
     });
     await check('contatti: UNA richiesta per palazzo, con tutti i contratti del mese', async () => {
       await pg.waitForFunction(() => document.querySelectorAll('.plz-win[data-id]').length > 0);
@@ -407,7 +410,8 @@ try {
       const k = await pg.locator('#plz-kpis').innerText();
       assert.ok(/Pieni\s*10\s*\/13\s*1 libero · 2 in arrivo · 1 in scadenza/i.test(k), k);
       assert.ok(/Hanno pagato[^\n]*\n\s*5\s*\/9\s*€5\.000 di €8\.950/i.test(k), k);
-      assert.ok(/Non hanno pagato\s*2\s*€1\.800 in ritardo/i.test(k), k);
+      // chi non ha pagato porta il TOTALE dovuto e il mese da cui decorre (anche i mesi prima)
+      assert.ok(/Non hanno pagato\s*2\s*€4\.200 · dal \d+ \w+ \d{4}/i.test(k), k);
       assert.ok(k.includes('€4.200'), k);
     });
     await check('il mese in parole: chi non ha pagato, per primo il ritardo più lungo', async () => {
@@ -415,7 +419,7 @@ try {
       assert.ok(/^non hanno pagato/i.test(blocks[0]), blocks[0]);
       const first = await pg.locator('.plz-block').first().locator('.plz-line').allInnerTexts();
       assert.equal(first.length, 2);
-      assert.ok(first[0].includes('Int. 12') && first[1].includes('Int. 3'), first.join(' | '));
+      assert.ok(first[0].includes('Int. 3') && first[1].includes('Int. 12'), first.join(' | '));
     });
     await check('da sistemare (solo admin): cortile, accesso, contratti, rate', async () => {
       const txt = await pg.locator('.plz-issues').innerText();
@@ -522,7 +526,9 @@ try {
       const p = await pg.locator('#plz-panel').innerText();
       assert.ok(/Registrazione\s*in verifica da BOOM/i.test(p), p);
       assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel .plz-agroup').count(), 0);
-      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
+      // Scrivi a BOOM: WhatsApp ed email, con l'interno dentro
+      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 2);
+      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"][data-ch="email"][data-id="u5"]').count(), 1);
       await pg.locator('.plz-preview [data-plz="as-owner"]').click();
       await pg.waitForSelector('.plz-otools');
       assert.equal(await pg.locator('.plz-preview').count(), 0);
@@ -532,7 +538,7 @@ try {
       await pg.locator('[data-plz="share"]').click();
       await pg.waitForSelector('#plz-share-t');
       const t = await pg.locator('#plz-share-t').inputValue();
-      assert.ok(t.startsWith('Buongiorno Proprietaria,') && t.includes('https://www.boomrome.com/login?next=%2Fportal%23palazzo') && t.includes('Forgot?'), t);
+      assert.ok(t.startsWith('Buongiorno Proprietaria,') && t.includes('https://www.boomrome.com/login?next=%2Fportal%23palazzo') && t.includes('Password dimenticata?') && !t.includes('Forgot?'), t);
       assert.ok((await pg.locator('.plz-share a[href^="https://wa.me/390000009999?text="]').count()) === 1);
       assert.ok((await pg.locator('.plz-share a[href^="mailto:owner@example.invalid?subject="]').count()) === 1);
       await pg.locator('[data-plz="share"]').click();
@@ -542,7 +548,7 @@ try {
       assert.equal(await pg.locator('.plz-abar').count(), 12);
       const a = await pg.locator('#plz-analytics').innerText();
       assert.ok(/Incassato su scaduto\s*89%/i.test(a) && a.includes('€39.050 di €44.050'), a);
-      assert.ok(/Puntualità\s*97%/i.test(a) && a.includes('29 rate su 30'), a);
+      assert.ok(/Puntualità\s*97%/i.test(a) && a.includes('29 su 30 rate entro la scadenza'), a);
       assert.ok(/Occupazione 12 mesi\s*88%/i.test(a), a);
       assert.ok(a.includes('Int. 7'), a);
       const tip = await pg.locator('.plz-abar.is-on').getAttribute('aria-label');
@@ -597,9 +603,10 @@ try {
       await pg.waitForSelector('.plz-unit');
     });
     await check('collega l\'interno non collegato: una scrittura, sola, sul suo immobile', async () => {
+      const w0 = await pg.evaluate(() => writes.length);
       await pg.locator('.plz-issues [data-plz="link"]').click();
-      await pg.waitForFunction(() => writes.length > 0);
-      const w = await pg.evaluate(() => writes);
+      await pg.waitForFunction(n => writes.length > n, w0);
+      const w = await pg.evaluate(n => writes.slice(n), w0);
       assert.deepEqual(w.map(x => x[0]), ['properties/u13']);
       assert.equal(w[0][1].ownerId, 'owner-demo');
       assert.ok(!(await pg.locator('.plz-issues').innerText()).includes('non collegato'));
@@ -687,7 +694,7 @@ try {
       assert.equal(firstPay, mon, 'le rate partono dalla gestione, mai dalla decorrenza del 2025');
       assert.equal(await pg.locator('.plz-win[data-id]').count(), 3);
       assert.equal(await pg.locator('.plz-win[data-id="plz_piazzale-prenestino-42_1"]').getAttribute('data-state'), 'paid');
-      assert.ok((await pg.locator('.plz-sub').innerText()).includes('gestione dal'));
+      assert.ok(/gestione BOOM da \w+ \d{4}/.test(await pg.locator('.plz-sub').innerText()));
       const pay1 = await pg.evaluate(n => writes.slice(n).find(x => x[0].startsWith('payments/') && x[1].status === 'paid')[1], w0);
       assert.deepEqual([pay1.amount, pay1.rentAmount, pay1.oneriAmount], [1370, 1250, 120], 'la rata è canone + oneri');
       const con1 = await pg.evaluate(n => writes.slice(n).find(x => x[0].startsWith('contracts/') && x[1].tenantName === 'Mario Rossi')[1], w0);
@@ -740,7 +747,12 @@ try {
       await pg.locator('.plz-unit[data-id="u3"]').click({ force: true });
       await pg.waitForSelector('#plz-unit-h');
       assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"], #plz-panel [data-plz="rata"], #plz-panel [data-plz="record"], [data-plz="rata-all"]').count(), 0);
-      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
+      // Scrivi a BOOM: WhatsApp col numero vero di BOOM e l'interno già scritto, oppure email
+      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 2);
+      await pg.evaluate(() => { window.__opened = []; window.open = (u) => { __opened.push(u); return {}; }; });
+      await pg.locator('#plz-panel [data-plz="inbox"]:not([data-ch])').click();
+      const waUrl = decodeURIComponent(await pg.evaluate(() => __opened.at(-1)));
+      assert.ok(waUrl.startsWith('https://wa.me/393313251961?text=') && waUrl.includes('Viale Esempio 12, int. 3'), waUrl);
       assert.ok(!(await pg.locator('#plz-panel').innerText()).includes('Proposta'), 'le proposte restano all\'operatore');
     });
     await check('proprietaria: vede i guasti dei suoi interni e li segnala lei, a suo nome', async () => {

@@ -981,7 +981,6 @@
     if (s) subs.push(sentText(s));
     var manual = r.state === 'paid' && !(p.stripeSessionId || p.sddPiId || p.bankTxId) && (['stripe', 'sepa', 'bank'].indexOf(String(p.paidVia || '')) < 0 || !!p.paidRecordedBy);
     var acts = (safeUrl(r.receiptUrl) ? '<a class="plz-btn plz-sm" href="' + esc(safeUrl(r.receiptUrl)) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
-      (r.state === 'reported' && safeUrl(r.proofUrl) && !(Array.isArray(p.tenantReports) && p.tenantReports.length) ? '<a class="plz-btn plz-sm" href="' + esc(safeUrl(r.proofUrl)) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
       (admin && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm' + (r.state === 'overdue' ? ' plz-primary' : '') + '" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '" data-cid="' + esc(r.contractId || '') + '">Manda il link</button>' : '') +
       (admin && (payable(r) || r.state === 'reported') && A0.record ? '<button type="button" class="plz-btn plz-sm" data-plz="record" data-pay="' + esc(r.id) + '">Registra incasso</button>' : '') +
       (admin && manual && A0.undoRecord ? '<button type="button" class="plz-btn plz-sm" data-plz="undo-record" data-pay="' + esc(r.id) + '">Annulla incasso</button>' : '');
@@ -1662,7 +1661,7 @@
         if (src.payments) bits.push(plural(src.payments, 'rata', 'rate'));
         if (src.paid) bits.push('<b>pagato</b>' + (src.paidMarks && src.paidMarks[0] ? ' (rata di ' + esc(E.monthLabel(src.paidMarks[0].month).toLowerCase()) + ')' : ''));
         if (src.overdue) bits.push('<span class="plz-red">' + plural(src.overdue, 'rata già scaduta', 'rate già scadute') + '</span>');
-        if (src.gestioneKept) bits.push('gestione da ' + esc(E.monthLabel(src.gestioneDal).toLowerCase()));
+        if (src.gestioneKept) bits.push('gestione BOOM da ' + esc(E.monthLabel(src.gestioneDal).toLowerCase()));
         verdict = bits.filter(Boolean).join(' · ');
       } else verdict = 'da leggere';
       var detail = [];
