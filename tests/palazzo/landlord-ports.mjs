@@ -128,7 +128,10 @@ const mails = () => globalThis.__mails || [];
 
 const notifySend = (await import('../../api/notify/send.js'));
 const create = (await import('../../api/preagreement/create.js')).default;
-const convert = (await import('../../api/preagreement/convert.js')).default;
+const convertMod = await import('../../api/preagreement/convert.js');
+const convert = convertMod.default;
+const sendSign = (await import('../../api/preagreement/send-sign.js')).default;
+const resolvePa = (await import('../../api/preagreement/resolve.js')).default;
 const paNotify = (await import('../../api/preagreement/notify.js')).default;
 const enhance = (await import('../../api/photos/enhance.js'));
 const ingest = (await import('../../api/portal/ingest.js')).default;
@@ -219,6 +222,21 @@ await check('preagreement/notify: «Reinvia copia» sulla proposta di un altro �
   assert.equal(mine.statusCode, 409, 'passato il cancello: non ancora accettata');
 });
 
+await check('paOwnerGuard (una copia sola, la importano send-sign e resolve): la proprietaria solo sulle SUE proposte e verso i SUOI immobili; l\'admin sempre', async () => {
+  const { paOwnerGuard } = convertMod;
+  const chiara = { uid: 'owner1', profile: { role: 'landlord' } }, adm = { uid: 'admin1', profile: { role: 'admin' } };
+  const pa = id => store.get('preAgreements/' + id);
+  assert.equal(await paOwnerGuard(chiara, pa('pa_mine'), {}), null);
+  assert.equal(await paOwnerGuard(chiara, pa('pa_altrui'), {}), 'forbidden_property');
+  assert.equal(await paOwnerGuard(chiara, pa('pa_orfana'), {}), 'forbidden_property', 'senza immobile');
+  assert.equal(await paOwnerGuard(chiara, pa('pa_mine'), { propertyId: 'p_altrui' }), 'forbidden_property', 'verso un immobile non suo');
+  assert.equal(await paOwnerGuard(chiara, pa('pa_mine'), { propertyId: '../users/owner1' }), 'forbidden_property', 'un id che non è un id');
+  assert.equal(await paOwnerGuard(chiara, pa('pa_mine'), { createProperty: true }), 'forbidden_property');
+  assert.equal(await paOwnerGuard({ uid: 'owner2', profile: { role: 'landlord' } }, pa('pa_mine'), {}), 'forbidden_property');
+  assert.equal(await paOwnerGuard(adm, pa('pa_altrui'), { createProperty: true }), null);
+  assert.equal(await paOwnerGuard(adm, pa('pa_orfana'), {}), null);
+});
+
 // ── photos/enhance ──────────────────────────────────────────────────────
 await check('photos/enhance: la proprietaria non riscrive le foto di un annuncio altrui (403, nessuna scrittura) e non lancia lo sweep', async () => {
   const w0 = writes.length;
@@ -247,6 +265,33 @@ await check('portal/ingest: la proprietaria (e l\'inquilino) ricevono 403 prima 
   const a = await call(ingest, 'tok-admin', { text: 'Contratto di locazione fra le parti…' });
   assert.equal(a.statusCode, 500); assert.equal(a.body.error, 'server_missing_anthropic_key', 'oltre il cancello (qui senza chiave: nessuna chiamata al modello)');
 });
+
+// ── send-sign · resolve: NON di questo filone ─────────────────────────────
+// Le due porte accettano ancora qualunque proprietario su qualunque paId: un
+// 🖊 Magic Sign sulla proposta di un ALTRO crea contratto, token e PDF e
+// manda le email al suo cliente e al suo locatore. La guardia è pronta
+// (paOwnerGuard, qui sopra) e va messa nei due file dal filone che li
+// possiede. Finché una porta risponde altro che 403 il controllo NON fa
+// fallire la suite ma lo dice; quando la guardia c'è, si toglie il nome da
+// PENDING_OTHERS e il controllo diventa vincolante. Gira per ULTIMO fra gli
+// handler: se la porta è aperta scrive davvero (contratto, token, email).
+const PENDING_OTHERS = new Set(['send-sign', 'resolve']);
+const pending = [];
+for (const [name, h] of [['send-sign', sendSign], ['resolve', resolvePa]]) {
+  await check(name + ': la proprietaria sulla proposta di un ALTRO → 403, nessuna scrittura né email' + (PENDING_OTHERS.has(name) ? ' (in attesa del filone preagreement)' : ''), async () => {
+    const w0 = writes.length, m0 = mails().length;
+    const r = await call(h, 'tok-chiara', { id: 'pa_altrui' });
+    if (r.statusCode === 403) {
+      assert.equal(r.body.error, 'forbidden_property');
+      assert.deepEqual(writes.slice(w0), []); assert.equal(mails().length, m0);
+      if (PENDING_OTHERS.has(name)) console.log('  (chiusa: togliere «' + name + '» da PENDING_OTHERS)');
+      return;
+    }
+    if (!PENDING_OTHERS.has(name)) assert.fail(name + ' → ' + r.statusCode + ' ' + JSON.stringify(r.body));
+    pending.push(name + ' → ' + r.statusCode + ', scritture ' + (writes.length - w0) + ', email ' + (mails().length - m0));
+    console.log('  ⚠ APERTA: ' + pending.at(-1));
+  });
+}
 
 // ── La porta d'ingresso: /login in italiano per il Palazzo (Chromium) ────
 const { loadChromium, launchOptions } = await import('../_browser.mjs');
@@ -341,3 +386,4 @@ if (!chromium) {
 }
 
 console.log(`\n${count} check — le porte del ruolo landlord, handler veri su Firestore in memoria.`);
+if (pending.length) console.log('⚠ ' + pending.length + ' porte ancora aperte, fuori da questo filone: ' + pending.join(' · '));
