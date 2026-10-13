@@ -85,8 +85,8 @@ export default async function handler(req, res) {
     if (calc.mensile) parts.push(`canone stimato ~€${calc.mensile}/mese`);
     if (calc.risparmioAnnuo) parts.push(`risparmio fiscale ~€${calc.risparmioAnnuo}/anno`);
     summary = parts.length
-      ? `Richiesta calcolo certificato canone concordato — ${parts.join(' · ')}.`
-      : 'Richiesta calcolo certificato canone concordato.';
+      ? `Richiesta conto canone concordato — ${parts.join(' · ')}.`
+      : 'Richiesta conto canone concordato.';
   }
 
   const zone = clip(body.zone, 80) || calc.zona || null;
