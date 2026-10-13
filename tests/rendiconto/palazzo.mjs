@@ -108,8 +108,10 @@ let pdfTxt = '', previewHtml = '';
   check('contratto da caricare: «in arrivo da BOOM», mai un canone a zero', (pdfTxt.match(/in arrivo da BOOM/g) || []).length >= 2 && !/€0(?![\d.,])/.test(pdfTxt) && !/0\/mese/.test(pdfTxt));
   // Le righe lunghe vanno a capo nel PDF: si confrontano ricomposte.
   const flat = pdfTxt.replace(/\n/g, ' ');
+  // Contratto dal 15: la rata non scade mai prima dell'inizio del suo periodo
+  // (rilievo 12), quindi il 15 e non il 5 del giorno di pagamento.
   check('la rata scaduta del mese: NON PAGATA, con la data e la richiesta di pagamento registrata',
-    new RegExp(`Rata di ${MESE} \\(15/\\d\\d–14/\\d\\d\\) · NON PAGATA, scaduta il 05/${M.slice(5)}/${M.slice(0, 4)} · pagamento chiesto all'inquilino il 12/${M.slice(5)}`).test(flat));
+    new RegExp(`Rata di ${MESE} \\(15/\\d\\d–14/\\d\\d\\) · NON PAGATA, scaduta il 15/${M.slice(5)}/${M.slice(0, 4)} · pagamento chiesto all'inquilino il 12/${M.slice(5)}`).test(flat));
   check('il bonifico segnalato: in verifica da BOOM', new RegExp(`bonifico segnalato dall'inquilino il 06/${M.slice(5)}/${M.slice(0, 4)}, in verifica da BOOM`).test(pdfTxt));
   check('canone e oneri: righe distinte nel contratto e nella rata', /Canone mensile\n€1\.500/.test(pdfTxt) && /Oneri accessori mensili \(acconto\)\n€120/.test(pdfTxt) && /canone €1\.500 \+ oneri accessori €120/.test(pdfTxt));
   // Il totale degli oneri versati nell'anno (per il conguaglio): int. 7 ha

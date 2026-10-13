@@ -31,7 +31,8 @@ const male = (t) => { ko++; console.log('  \x1b[31m✗\x1b[0m ' + t); };
 
 function html(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === 'node_modules' || e.name === '.git') continue;
+    // .claude: i worktree degli agenti sono copie del repo, non pagine nostre.
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === '.claude') continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) html(p, acc);
     else if (e.name.endsWith('.html')) acc.push(path.relative(R, p));
@@ -129,7 +130,7 @@ function tetto(f) {
 }
 function immagini(dir, acc = []) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    if (e.name === 'node_modules' || e.name === '.git' || e.name === 'reference') continue;
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === '.claude' || e.name === 'reference') continue;
     const p = path.join(dir, e.name);
     if (e.isDirectory()) immagini(p, acc);
     else if (/\.(jpe?g|png|webp)$/i.test(e.name)) acc.push(p);
