@@ -108,8 +108,15 @@ const server = createServer(async (req, res) => {
       }
       if (b.op === 'links') {
         const links = {};
-        for (const id of b.propertyIds) { const p = F.state.properties.find(x => x.id === id); if (p && (who === 'demo-admin' || p.ownerId === who)) links[id] = 'https://www.boomrome.com/guasto?t=' + id + '.demo'; }
-        res.end(JSON.stringify({ ok: true, links })); return;
+        // seats: il contratto a cui il link di OGGI apre (come il server vero):
+        // l'adattatore del portal deve passarlo alla vista.
+        const seats = {};
+        for (const id of b.propertyIds) { const p = F.state.properties.find(x => x.id === id); if (p && (who === 'demo-admin' || p.ownerId === who)) {
+          links[id] = 'https://www.boomrome.com/guasto?t=' + id + '.demo';
+          const c = F.state.contracts.find(x => x.propertyId === id && x.status === 'active');
+          seats[id] = c ? c.id : null;
+        } }
+        res.end(JSON.stringify({ ok: true, links, seats })); return;
       }
       res.statusCode = 400; res.end('{"ok":false}'); return;
     }
@@ -489,6 +496,9 @@ try {
       assert.equal(guastoCalls.at(-1).op, 'links');
       const wa = await pg.locator('#plz-panel .plz-mlink a').getAttribute('href');
       assert.ok(wa.startsWith('https://wa.me/390000000007?text=') && decodeURIComponent(wa).includes('https://www.boomrome.com/guasto?t=u7.demo'), wa);
+      // L'adattatore del portal passa il posto di oggi detto dal server
+      // (seats): la vista lo preferisce al motore.
+      assert.equal(await pg.evaluate(() => (window.BOOM_PALAZZO_UI.ui.linksSeat || {}).u7), 'c7');
       await pg.locator('[data-plz="deselect"]').click();
     });
     await check('da sistemare: i contratti in corso senza registrazione segnata', async () => {

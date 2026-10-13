@@ -853,7 +853,10 @@ Valentyne - BOOM Rome`
             loadBuilding: propertyIds => palazzoLoadBuilding(propertyIds),
             reload: () => palazzoReload(),
             saveLook: (ids, fields) => palazzoAdminOnly() && palazzoSaveLook(ids, fields),
-            // «Carica il contratto» di un interno da caricare, da un PDF.
+            // L'Innesto aperto su un interno. Il segnaposto («contratto da
+            // caricare») NON lo offre più: la lettura (a pagamento) finiva in
+            // un vicolo cieco, perché l'Innesto crea e non completa il
+            // segnaposto. La leva resta per chi la chiama esplicitamente.
             innesto: propertyId => palazzoAdminOnly() && typeof innestoOpenFor === 'function' && innestoOpenFor('property', propertyId),
             // Le rate rimaste APERTE dopo la chiusura del contratto («Da
             // sistemare»): si annullano rileggendo ognuna dal server, mai una
@@ -936,7 +939,9 @@ Valentyne - BOOM Rome`
         links: async (propertyIds) => {
             const r = await palazzoGuasto({ op: 'links', propertyIds });
             if (!r || !r.ok) throw new Error((r && r.error) || 'links_failed');
-            return { links: r.links || {}, byContract: r.byContract || {} };
+            // seats: il contratto a cui il link di oggi apre (null = libero),
+            // detto dal server; la vista lo preferisce al motore.
+            return { links: r.links || {}, byContract: r.byContract || {}, seats: r.seats || {} };
         },
         // I link /rata (carta o Apple Pay, oppure bonifico con la ricevuta):
         // il token è derivato sul server, solo l'admin li chiede.
