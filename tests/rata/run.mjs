@@ -135,7 +135,8 @@ await check('lookup: importo, scadenza, commissione della carta DETTA prima, con
   assert.equal(v.bonifico.iban, 'IT60X0542811101000000123456');
   assert.equal(v.bonifico.beneficiary, 'Proprietaria Esempio');
   assert.ok(/^BOOM-[2-9A-HJ-NP-Z]{6} canone 2026-10$/.test(v.bonifico.causale), v.bonifico.causale);
-  assert.equal(r.body.payUrl, 'https://www.boomrome.com/api/payments/link?k=pay&id=r1&t=' + t('r1'), 'la carta passa dal link di pagamento che esiste già');
+  assert.equal(r.body.payUrl, 'https://www.boomrome.com/api/payments/link?k=pay&id=r1&t=' + t('r1') + '&from=rata', 'la carta passa dal link di pagamento che esiste già, e il ritorno da Stripe torna su /rata');
+  assert.deepEqual([v.card.available, v.card.feeMode, v.card.fee], [true, 'standard', v.cardFee], 'un contratto normale (non preso in carico dal Palazzo) tiene la carta di sempre');
   const raw = JSON.stringify(r.body);
   assert.ok(!raw.includes('Giulia') && !raw.includes('333') && !raw.includes('example.invalid'), 'la pagina non dice chi abita lì');
   assert.equal(r.headers['cache-control'], 'private, no-store');
@@ -242,7 +243,7 @@ await check('canone + oneri: la pagina dice di cosa è fatto il totale; un IBAN 
 await check('giunzioni: la pagina parla con questa porta, dice la commissione, è noindex/no-store; il Palazzo la usa', async () => {
   const page = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
   assert.ok(page.includes("fetch('/api/payments/rata'") && page.includes('noindex'));
-  assert.ok(page.includes('cardFee') && page.includes('Il bonifico non costa niente'));
+  assert.ok(page.includes('cardFee') && page.includes('Il bonifico non ha commissioni') && page.includes('A bank transfer has no fees'));
   const vercel = readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8');
   assert.ok(vercel.includes('|rata|rata.html)(.*)'));
   const portal = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');

@@ -5,6 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { payToken } from './payments/_token.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -21,6 +22,16 @@ async function getRawBody(req) {
 // rifaceva il login con la password — quattro login per un solo evento Stripe.
 async function firebaseIdToken() {
   return getAdminToken();
+}
+
+// La data di un incasso è quella di ROMA, non quella UTC: un pagamento alle
+// 00:30 del 6 novembre a Roma è del 6, e uno alle 23:30 UTC del 31 dicembre
+// è dell'anno dopo. Il CSV del commercialista e la puntualità leggono questa.
+export function romeDay(at) {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(at instanceof Date ? at : new Date(at || Date.now()));
+  const p = {}; parts.forEach(x => { p[x.type] = x.value; });
+  return p.year + '-' + p.month + '-' + p.day;
 }
 
 function toFirestoreFields(obj) {
@@ -562,9 +573,55 @@ async function handlePreagreement(res, session, m) {
 }
 
 // RENT — Canone via BOOM: a tenant paid a scheduled installment (or the
-// deposit balance) by card from /casa (api/payments/pay.js). Marks the
-// payment doc paid (paidVia:'stripe') and emails the receipt with the
-// platform's design system. Idempotent on stripeSessionId.
+// deposit balance) by card — from /casa (api/payments/pay.js) or from the
+// stable link / the /rata page (api/payments/link.js). Marks the payment doc
+// paid (paidVia:'stripe', paidDate = ROME civil date) and emails the receipt
+// with the platform's design system. Idempotent on stripeSessionId.
+//
+// Chi paga dal link /rata non ha un account BOOM: la ricevuta va a
+// customer_details.email (l'indirizzo che ha DIGITATO su Stripe), poi
+// all'email del contratto; in inglese salvo lingua italiana dichiarata, e il
+// bottone porta alla SUA rata su /rata (che mostra "pagata" e la ricevuta),
+// non a /casa, che chiede un login che non ha.
+//
+// Un bonifico già SEGNALATO su quella rata + la carta che incassa adesso
+// (due co-intestatari: uno esitava sulla Checkout, l'altro ha fatto il
+// bonifico) = possibile doppio incasso: la rata si segna pagata (i soldi
+// della carta ci sono), la segnalazione e la sua ricevuta restano, e parte
+// l'allarme ad alta priorità — prima finiva in silenzio.
+export function rentReceiptEmail({ lang, amount, fee, label, month, receiptUrl, homeUrl, hasHome }) {
+  const en = lang !== 'it';
+  const eurFmt = n => {
+    const [i, d] = Number(n || 0).toFixed(2).split('.');
+    const g = i.replace(/\B(?=(\d{3})+(?!\d))/g, en ? ',' : '.');
+    return '€' + g + (d === '00' ? '' : (en ? '.' : ',') + d);
+  };
+  const subject = en
+    ? `Receipt — ${label.en} ${eurFmt(amount)} ✓`
+    : `Ricevuta — ${label.it} ${eurFmt(amount)} ✓`;
+  const feeLine = fee > 0 ? (en ? ` (card payment fee ${eurFmt(fee)})` : ` (commissione pagamento con carta ${eurFmt(fee)})`) : '';
+  const body = en
+    ? para(`Payment received ✓ — your ${label.en} of <b>${eurFmt(amount)}</b> is recorded${feeLine}. ${hasHome ? 'You also find it in your BOOM home, with the full history.' : 'Your rent page shows it as paid, with the receipt.'}`)
+      + btn(homeUrl, hasHome ? 'Open your BOOM home' : 'View your rent')
+      + (receiptUrl ? fine(`Stripe receipt: <a href="${receiptUrl}" style="color:#141414">open →</a>`, 'text-align:center') : '')
+      + fine('Questions? Reply to this email or <a href="https://wa.me/393313251961" style="color:#141414">message us on WhatsApp</a>.', 'text-align:center')
+    : para(`Pagamento ricevuto ✓ — il tuo ${label.it} di <b>${eurFmt(amount)}</b> è registrato${feeLine}. ${hasHome ? 'Lo ritrovi anche in <b>La tua casa BOOM</b>, insieme allo storico completo.' : 'La pagina della tua rata lo mostra pagato, con la ricevuta.'}`)
+      + btn(homeUrl, hasHome ? 'Apri La tua casa BOOM' : 'Vedi la tua rata')
+      + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
+      + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center');
+  return { subject, html: shell(body, en ? `Payment ${eurFmt(amount)} recorded` : `Pagamento ${eurFmt(amount)} registrato`) };
+}
+
+// Dove sta la rata, in parole: «Piazzale Esempio 42 · int. 7».
+function whereOf(pay, contract, property) {
+  const pr = property || {}, c = contract || {};
+  const building = String(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name || '').trim();
+  const interno = String(pr.interno || c.unit || '').trim();
+  return [building, interno ? 'int. ' + interno : ''].filter(Boolean).join(' · ');
+}
+const EMAIL_OK = /^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']{2,}$/;
+const okId = v => typeof v === 'string' && /^[\w.-]{1,200}$/.test(v);
+
 async function handleRent(res, session, m) {
   const paymentId = String(m.paymentId || '').trim();
   if (!paymentId) return res.status(200).json({ received: true, error: 'no_paymentId' });
@@ -575,6 +632,14 @@ async function handleRent(res, session, m) {
   let pay = null;
   try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
   if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  // La STESSA sessione ri-consegnata su una rata che un umano ha riaperto dopo
+  // averla incassata (incasso annullato, rimborso): questa sessione è già
+  // stata registrata una volta (stripeSessionId lo scrive solo questo ramo,
+  // insieme a «pagata»). Non la si ri-segna pagata: la decisione
+  // dell'operatore resta, e la rata riaperta resta pagabile da capo.
+  if (pay.status !== 'paid' && pay.stripeSessionId === session.id) {
+    return res.status(200).json({ received: true, duplicate: true, reopened: true, paymentId });
+  }
   if (pay.status === 'paid') {
     // Same session retried by Stripe → simple ack.
     if (pay.stripeSessionId === session.id) {
@@ -603,6 +668,15 @@ async function handleRent(res, session, m) {
     return res.status(200).json({ received: true, doublePayment: true, paymentId });
   }
 
+  // Contratto e immobile: l'email di chi paga senza account, il nome
+  // dell'interno negli avvisi. Best-effort: senza, l'incasso si registra.
+  const contract = okId(pay.contractId) ? await readDoc(`contracts/${pay.contractId}`).catch(() => null) : null;
+  const propId = pay.propertyId || (contract && contract.propertyId);
+  const property = okId(propId) ? await readDoc(`properties/${propId}`).catch(() => null) : null;
+  const where = whereOf(pay, contract, property);
+  // Un bonifico segnalato su questa rata PRIMA che la carta incassasse.
+  const reported = pay.tenantReported === true;
+
   // Ricevuta Stripe + COSTO REALE dell'incasso (best-effort).
   //
   // Stripe dice, su ogni addebito, quanto gli è costato: balance_transaction
@@ -626,14 +700,20 @@ async function handleRent(res, session, m) {
 
   try {
     await patchDoc(`payments/${paymentId}`, {
-      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      status: 'paid', paidAt: now, paidDate: romeDay(now),
       paidVia: 'stripe', stripeSessionId: session.id,
+      // Il PaymentIntent lega rimborsi e contestazioni a QUESTO incasso.
+      stripePaymentIntentId: session.payment_intent ? String(session.payment_intent) : null,
       serviceFeeEur: fee, receiptUrl: receiptUrl || '',
+      // La carta incassa sul conto Stripe di BOOM: questi soldi sono tenuti
+      // da BOOM per conto del locatore finché non vengono girati.
+      heldBy: 'boom',
       // Il conto vero di questo incasso: quanto abbiamo chiesto, quanto ci è
       // costato, cosa ci resta. Con il paese della carta, che è la ragione per
       // cui lo stesso incasso costa il doppio.
       stripeCostEur, cardCountry, cardBrand,
       marginEur: stripeCostEur == null ? null : Math.round((fee - stripeCostEur) * 100) / 100,
+      ...(reported ? { doublePaymentSuspect: true } : {}),
     });
   } catch (err) {
     console.error('[rent] payment patch:', err.message);
@@ -651,8 +731,9 @@ async function handleRent(res, session, m) {
         count: (Number(prev.count) || 0) + 1,
         volumeEur: Math.round(((Number(prev.volumeEur) || 0) + amount) * 100) / 100,
         costEur: Math.round(((Number(prev.costEur) || 0) + stripeCostEur) * 100) / 100,
-        // Parte fissa: Stripe ne applica una per addebito (~€0,25). Tenerla
-        // separata evita di gonfiare la percentuale sui canoni piccoli.
+        // Parte fissa: Stripe ne applica una per addebito (~€0,25). È GIÀ
+        // dentro costEur: pay.js la toglie dalla quota proporzionale e la
+        // somma una volta sola (measuredCost).
         fixedEur: Math.round(((Number(prev.fixedEur) || 0) + 0.25) * 100) / 100,
         lastAt: now,
         lastCardCountry: cardCountry || null,
@@ -660,44 +741,61 @@ async function handleRent(res, session, m) {
     } catch (err) { console.error('[rent] statistica costi:', err.message); }
   }
 
+  if (reported) {
+    try {
+      await writeDoc('agentNotifications', 'rent-double-' + paymentId + '-' + session.id.slice(-8), {
+        type: 'payment.rent.double',
+        summary: `🚨 POSSIBILE DOPPIO INCASSO — ${where || paymentId} · ${pay.month || paymentId}: bonifico già SEGNALATO${pay.tenantReportDate ? ' il ' + pay.tenantReportDate : ''}${pay.proofUrl ? ' (con ricevuta)' : ''}, e ora la carta ha incassato €${amount} (${session.id}). Verifica con il locatore se il bonifico è arrivato e rimborsa uno dei due.`,
+        paymentId,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        dedupKey: 'rent-double-' + paymentId, createdAt: now, attempts: 0,
+      });
+    } catch (err) { console.error('[rent] double notify:', err.message); }
+    try { await tgNotify(`🚨 <b>Possibile doppio incasso</b> — ${where || paymentId} (${pay.month || ''})\nBonifico segnalato${pay.tenantReportDate ? ' il ' + pay.tenantReportDate : ''} e ora ANCHE la carta (€${amount}). Verifica con il locatore e rimborsa.`); } catch (_) {}
+  }
+
   try {
     await writeDoc('agentNotifications', 'rent-' + paymentId + '-' + session.id.slice(-8), {
       type: 'payment.rent',
-      summary: `💶 Canone incassato via BOOM: €${amount.toLocaleString('it-IT')} (${pay.month || paymentId}) + fee €${fee}`,
+      summary: `💶 Canone incassato via BOOM: €${amount.toLocaleString('it-IT')} (${where ? where + ' · ' : ''}${pay.month || paymentId})${fee ? ' + fee €' + fee : ''}`,
       priority: 'normal', status: 'pending', actor: 'stripe-webhook',
       dedupKey: 'rent-' + paymentId, createdAt: now, attempts: 0,
     });
   } catch (err) { console.error('[rent] notify write:', err.message); }
 
   const isDeposit = pay.type === 'deposit-balance';
-  const label = isDeposit ? 'saldo del deposito cauzionale' : `canone di ${pay.month || String(pay.dueDate || '').slice(0, 7)}`;
-  const email = session.customer_email || '';
-  const eurFmt = n => '€' + Number(n || 0).toLocaleString('en-US');
+  const monthKey = pay.month || String(pay.dueDate || '').slice(0, 7);
+  const label = isDeposit
+    ? { it: 'saldo del deposito cauzionale', en: 'security deposit balance' }
+    : { it: `canone di ${monthKey}`, en: `rent for ${monthKey}` };
+  // La ricevuta va a chi ha pagato: l'indirizzo DIGITATO su Stripe, poi
+  // quello passato alla sessione, poi l'email del contratto.
+  const email = [session.customer_details && session.customer_details.email, session.customer_email, contract && contract.tenantEmail]
+    .map(v => String(v || '').trim()).find(v => EMAIL_OK.test(v)) || '';
+  const hasHome = !!String(m.tenantId || pay.tenantId || '').trim();
+  const lang = m.lang === 'it' || m.lang === 'en' ? m.lang : (hasHome ? 'it' : 'en');
+  const homeUrl = hasHome ? 'https://www.boomrome.com/casa'
+    : `https://www.boomrome.com/rata?id=${encodeURIComponent(paymentId)}&t=${payToken('pay', paymentId)}&lang=${lang}`;
   if (email) {
     try {
-      await sendEmail({
-        to: email,
-        subject: `Ricevuta — ${isDeposit ? 'saldo deposito' : 'canone ' + (pay.month || '')} ${eurFmt(amount)} ✓`,
-        html: shell(
-          para(`Pagamento ricevuto ✓ — il tuo ${label} di <b>${eurFmt(amount)}</b> è registrato${fee ? ` (commissione servizio ${eurFmt(fee)})` : ''}. La ricevuta è tua per sempre: la ritrovi anche in <b>La tua casa BOOM</b>, insieme allo storico completo.`)
-          + btn('https://www.boomrome.com/casa', 'Apri La tua casa BOOM')
-          + (receiptUrl ? fine(`Ricevuta Stripe: <a href="${receiptUrl}" style="color:#141414">apri →</a>`, 'text-align:center') : '')
-          + fine('Domande? Rispondi a questa email o <a href="https://wa.me/393313251961" style="color:#141414">scrivici su WhatsApp</a>.', 'text-align:center'),
-          `Pagamento ${eurFmt(amount)} registrato`),
-      });
+      const mail = rentReceiptEmail({ lang, amount, fee, label, month: monthKey, receiptUrl, homeUrl, hasHome });
+      await sendEmail({ to: email, subject: mail.subject, html: mail.html });
     } catch (err) { console.error('[rent] tenant email:', err.message); }
   }
+  const eurFmt = n => '€' + Number(n || 0).toLocaleString('it-IT');
   try {
     await sendEmail({
       to: 'valentino@boom-rome.com',
-      subject: `💶 CANONE VIA BOOM ${eurFmt(amount)} — ${pay.month || paymentId}`,
+      subject: `${reported ? '🚨 DOPPIO? ' : '💶 '}CANONE VIA BOOM ${eurFmt(amount)} — ${where ? where + ' · ' : ''}${pay.month || paymentId}`,
       html: shell(
-        para(`Incassato via Stripe: <b>${eurFmt(amount)}</b> (${label}) + commissione servizio <b>${eurFmt(fee)}</b>.<br>Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · stripe</b> — la riconciliazione bancaria lo salta in automatico.`)
+        para(`Incassato via Stripe sul conto BOOM: <b>${eurFmt(amount)}</b> (${label.it})${fee ? ` + commissione <b>${eurFmt(fee)}</b>` : ' — nessuna commissione all\'inquilino'}.<br>${where ? where + ' · ' : ''}Payment <b>${paymentId}</b> · contratto ${pay.contractId || '—'} · segnato <b>paid · stripe</b> — la riconciliazione bancaria lo salta in automatico.`
+          + (reported ? `<br><b>Attenzione:</b> su questa rata era già SEGNALATO un bonifico${pay.tenantReportDate ? ' del ' + pay.tenantReportDate : ''}. Verifica con il locatore e rimborsa uno dei due.` : '')
+          + (email ? '' : '<br>Nessuna email del pagante: la ricevuta all\'inquilino non è partita.'))
         + btn2('https://www.boomrome.com/portal', 'Apri il portale')),
     });
   } catch (err) { console.error('[rent] admin email:', err.message); }
 
-  return res.status(200).json({ received: true, rent: true, paymentId });
+  return res.status(200).json({ received: true, rent: true, paymentId, receiptTo: email ? 'sent' : 'none', doublePaymentSuspect: reported || undefined });
 }
 
 // INVOICE — una fattura BOOM pagata con carta dal link mandato su WhatsApp.
@@ -739,7 +837,7 @@ async function handleInvoice(res, session, m) {
 
   try {
     await patchDoc(`invoices/${invoiceId}`, {
-      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      status: 'paid', paidAt: now, paidDate: romeDay(now),
       paidVia: 'stripe', stripeSessionId: session.id, receiptUrl: receiptUrl || '',
     });
   } catch (err) {
@@ -794,44 +892,148 @@ async function handleInvoice(res, session, m) {
 // è perso per sempre. Ora ogni evento suona sul Telegram dell'operatore e
 // lascia una notifica in agentNotifications (che fa anche da idempotenza:
 // il retry di Stripe trova il doc già scritto e non suona due volte).
+//
+// E la RATA lo sa: prima restava «pagata» nel Palazzo, nel rendiconto e nel
+// CSV anche con una contestazione persa. Ora, se l'addebito è quello che ha
+// pagato la rata (PaymentIntent o sessione registrati sulla rata), il webhook
+// scrive refundedAt/refundedAmount/refundedFull o disputeStatus/disputeAt e
+// BOOM_RENT.paymentState la porta a 'review' (da verificare): un rimborso che
+// copre la rata, una contestazione aperta o persa. Una contestazione vinta la
+// riporta pagata. Un rimborso del DOPPIO incasso (la rata pagata con
+// bonifico) non tocca la rata: lo si dice nell'avviso.
+//
+// La rata si trova dai metadata del PaymentIntent (link.js e pay.js li
+// scrivono: payment_intent_data.metadata), e per gli addebiti nati prima
+// dalla sessione Checkout di quel PaymentIntent.
+async function rentOfCharge(event) {
+  const o = event.data.object || {};
+  const isDispute = event.type.startsWith('charge.dispute');
+  const piId = typeof o.payment_intent === 'string' ? o.payment_intent : (o.payment_intent && o.payment_intent.id) || '';
+  // Canone con carta (RENT) o con addebito SEPA (RENT_SDD): stessa rata.
+  const rentish = m => !!(m && (m.service === 'RENT' || m.service === 'RENT_SDD'));
+  let meta = !isDispute && rentish(o.metadata) ? o.metadata : null;
+  if (!meta && piId) {
+    try {
+      const pi = await stripe.paymentIntents.retrieve(piId);
+      if (pi && rentish(pi.metadata)) meta = pi.metadata;
+    } catch (e) { console.error('[moneyback] PaymentIntent non leggibile:', e.message); }
+  }
+  let sessionId = '';
+  if (piId && (!meta || !meta.paymentId)) {
+    try {
+      const list = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
+      const s = list && list.data && list.data[0];
+      if (s && rentish(s.metadata)) { meta = s.metadata; sessionId = s.id; }
+    } catch (e) { console.error('[moneyback] sessione non leggibile:', e.message); }
+  }
+  const paymentId = meta && String(meta.paymentId || '').trim();
+  if (!paymentId || !okId(paymentId)) return null;
+  let pay = null;
+  try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
+  if (!pay) return { paymentId, pay: null, mine: false };
+  // È QUESTO l'incasso che ha pagato la rata? Il PaymentIntent registrato
+  // (dal webhook di oggi) o, per le rate pagate prima, la sessione Checkout.
+  if (!pay.stripePaymentIntentId && !sessionId && piId && pay.stripeSessionId) {
+    try {
+      const list = await stripe.checkout.sessions.list({ payment_intent: piId, limit: 1 });
+      const s = list && list.data && list.data[0];
+      if (s) sessionId = s.id;
+    } catch (_) {}
+  }
+  const mine = String(pay.status || '') === 'paid' && (pay.paidVia === 'sepa'
+    ? !!piId && pay.sddPiId === piId
+    : pay.paidVia === 'stripe' && (pay.stripePaymentIntentId
+      ? pay.stripePaymentIntentId === piId
+      : !!sessionId && pay.stripeSessionId === sessionId));
+  return { paymentId, pay, mine, piId };
+}
+
+const DISPUTE_FINAL = { won: 'won', warning_closed: 'won', lost: 'lost' };
+
 async function handleMoneyBack(res, event) {
   const o = event.data.object || {};
   const eur = n => '€' + (Math.round(n || 0) / 100).toLocaleString('it-IT');
   const when = e => e ? new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long' }).format(new Date(e * 1000)) : '—';
+  const nowIso = new Date().toISOString();
+
+  // 1) La rata (se l'addebito è un canone) e cosa le succede.
+  let rent = null, rataLine = '', rataPatch = null, rataState = '';
+  try { rent = await rentOfCharge(event); } catch (e) { console.error('[moneyback] rata:', e.message); }
+  if (rent && rent.pay) {
+    const pay = rent.pay;
+    const contract = okId(pay.contractId) ? await readDoc(`contracts/${pay.contractId}`).catch(() => null) : null;
+    const propId = pay.propertyId || (contract && contract.propertyId);
+    const property = okId(propId) ? await readDoc(`properties/${propId}`).catch(() => null) : null;
+    const where = whereOf(pay, contract, property);
+    const what = (pay.type === 'deposit-balance' ? 'saldo deposito' : 'canone') + ' ' + (pay.month || String(pay.dueDate || '').slice(0, 7));
+    rataLine = `${where ? where + ' · ' : ''}${what} (${rent.paymentId})`;
+    if (!rent.mine) {
+      rataState = 'untouched';
+    } else if (event.type === 'charge.refunded') {
+      const full = (o.amount_refunded || 0) >= (o.amount || 0) && (o.amount || 0) > 0;
+      rataPatch = { refundedAt: nowIso, refundedAmount: Math.round(o.amount_refunded || 0) / 100, refundedFull: full };
+      // Rimborsato l'intero importo della rata (con o senza commissione)?
+      const principal = Number(pay.amount) || 0;
+      rataState = full || (principal > 0 && (o.amount_refunded || 0) / 100 >= principal) ? 'review' : 'paid';
+    } else if (event.type === 'charge.dispute.created') {
+      // Un evento arrivato fuori ordine non riapre una contestazione chiusa.
+      if (pay.disputeId === o.id && DISPUTE_FINAL[pay.disputeStatus]) rataState = pay.disputeStatus === 'won' ? 'paid' : 'review';
+      else { rataPatch = { disputeStatus: 'open', disputeAt: nowIso, disputeId: String(o.id || '') }; rataState = 'review'; }
+    } else {
+      const final = DISPUTE_FINAL[o.status] || 'open';
+      rataPatch = { disputeStatus: final, disputeClosedAt: nowIso, disputeId: String(o.id || '') };
+      if (!pay.disputeAt) rataPatch.disputeAt = nowIso;
+      rataState = final === 'won' ? 'paid' : 'review';
+    }
+    if (rataPatch) {
+      // Prima la rata, poi l'avviso: se la scrittura fallisce Stripe ritenta
+      // (l'avviso non è ancora scritto, quindi non fa da "già visto").
+      try { await patchDoc(`payments/${rent.paymentId}`, rataPatch); }
+      catch (e) {
+        console.error('[moneyback] rata patch:', e.message);
+        return res.status(500).json({ received: false, error: 'patch_failed' });
+      }
+    }
+  }
+  const rataNote = !rataLine ? ''
+    : rataState === 'review' ? `\nRata: ${rataLine} → torna DA VERIFICARE (non più pagata).`
+    : rataState === 'paid' ? `\nRata: ${rataLine} → resta pagata.`
+    : `\nRata: ${rataLine} → NON toccata: questo addebito non è quello registrato come pagamento della rata (doppio incasso?).`;
 
   let text = '';
-  let priority = 'normal';
+  let priority = rataState === 'review' ? 'high' : 'normal';
   if (event.type === 'charge.refunded') {
     const who = (o.billing_details && (o.billing_details.name || o.billing_details.email)) || '—';
     const full = (o.amount_refunded || 0) >= (o.amount || 0);
     text = `↩️ <b>RIMBORSO ${full ? 'totale' : 'parziale'}: ${eur(o.amount_refunded)}</b>\n`
-      + `${who} · addebito ${eur(o.amount)}\n`
+      + `${who} · addebito ${eur(o.amount)}${rataNote}\n`
       + `https://dashboard.stripe.com/payments/${o.payment_intent || o.id}`;
   } else if (event.type === 'charge.dispute.created') {
     priority = 'high';
     const dueBy = o.evidence_details && o.evidence_details.due_by;
     text = `🚨 <b>CONTESTAZIONE (dispute): ${eur(o.amount)}</b>\n`
-      + `Motivo: ${o.reason || '—'}\n`
+      + `Motivo: ${o.reason || '—'}${rataNote}\n`
       + `⏰ Rispondi con le prove <b>entro il ${when(dueBy)}</b> — senza risposta l'importo è perso.\n`
       + `https://dashboard.stripe.com/disputes/${o.id}`;
   } else {
     const esito = o.status === 'won' ? 'VINTA ✓' : o.status === 'lost' ? 'PERSA ✗' : (o.status || 'chiusa');
-    text = `⚖️ Dispute ${esito} — ${eur(o.amount)}\nhttps://dashboard.stripe.com/disputes/${o.id}`;
+    text = `⚖️ Dispute ${esito} — ${eur(o.amount)}${rataNote}\nhttps://dashboard.stripe.com/disputes/${o.id}`;
   }
 
   let w = null;
   try {
     w = await writeDoc('agentNotifications', 'stripe-' + String(event.id).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40), {
       type: 'stripe.' + event.type,
-      summary: text.replace(/<[^>]+>/g, '').split('\n').slice(0, 2).join(' · '),
+      summary: text.replace(/<[^>]+>/g, '').split('\n').filter(l => !/^https:\/\//.test(l)).slice(0, 3).join(' · '),
+      ...(rent && rent.paymentId ? { paymentId: rent.paymentId } : {}),
       priority, status: 'pending', actor: 'stripe-webhook',
-      dedupKey: 'stripe-' + event.id, createdAt: new Date().toISOString(), attempts: 0,
+      dedupKey: 'stripe-' + event.id, createdAt: nowIso, attempts: 0,
     });
   } catch (e) { console.error('[moneyback] notify write:', e.message); }
   if (w && w.exists) return res.status(200).json({ received: true, duplicate: true });
 
   try { await tgNotify(text); } catch (e) { console.error('[moneyback] telegram:', e.message); }
-  return res.status(200).json({ received: true, moneyback: event.type });
+  return res.status(200).json({ received: true, moneyback: event.type, paymentId: (rent && rent.paymentId) || undefined, rataState: rataState || undefined });
 }
 
 // ─── SDD: il canone automatico SEPA (api/payments/_sdd.js) ─────────────────
@@ -973,7 +1175,7 @@ export async function handleSddPaid(res, pi) {
 
   try {
     await patchDoc('payments/' + paymentId, {
-      status: 'paid', paidAt: now, paidDate: now.slice(0, 10),
+      status: 'paid', paidAt: now, paidDate: romeDay(now),
       paidVia: 'sepa', sddStatus: 'succeeded',
       serviceFeeEur: fee, receiptUrl: receiptUrl || '',
       stripeCostEur,

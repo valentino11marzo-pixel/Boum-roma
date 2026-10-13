@@ -49,9 +49,26 @@
     return /^\d{4}-(0[1-9]|1[0-2])$/.test(s) ? s : '';
   }
 
+  // Soldi tornati indietro su una rata pagata con carta (scritti dal webhook:
+  // refundedAt/refundedAmount/refundedFull, disputeStatus). Una contestazione
+  // aperta o persa, o un rimborso che copre l'importo della rata, la tolgono
+  // da "pagata": torna DA VERIFICARE (mai pagabile da sola, decide un umano).
+  // Una contestazione vinta o chiusa senza seguito la lascia pagata; un
+  // rimborso parziale (es. la sola commissione) pure. Vale SOLO su una rata
+  // ancora 'paid': se l'operatore la riapre (pending), i segni restano come
+  // storia e non la bloccano più.
+  var DISPUTE_LIVE = ['open', 'lost', 'needs_response', 'under_review', 'warning_needs_response', 'warning_under_review'];
+  function moneyBack(payment) {
+    var p = payment || {};
+    if (DISPUTE_LIVE.includes(key(p.disputeStatus))) return 'dispute';
+    var back = amount(p.refundedAmount), principal = amount(p.amount);
+    if (p.refundedAt && (p.refundedFull === true || (back != null && principal != null && principal > 0 && back >= principal))) return 'refund';
+    return '';
+  }
+
   function paymentBlockReason(payment, kind) {
     var p = payment || {}, status = key(p.status), sdd = key(p.sddStatus);
-    if (status === 'paid') return 'already_paid';
+    if (status === 'paid') return moneyBack(p) ? 'payment_review' : 'already_paid';
     if (['cancelled', 'canceled', 'void', 'voided'].includes(status)) return 'payment_cancelled';
     if ((p.sddPiId && !['failed', 'canceled', 'cancelled'].includes(sdd)) || ['processing', 'pending', 'succeeded'].includes(sdd)) return 'sdd_processing';
     if (status === 'processing' || [p.stripeStatus, p.stripePaymentStatus, p.paymentIntentStatus, p.cardStatus].some(function (s) {
@@ -66,6 +83,7 @@
   function paymentState(payment, now) {
     var p = payment || {}, blocked = paymentBlockReason(p), status = key(p.status);
     if (blocked === 'already_paid') return 'paid';
+    if (blocked === 'payment_review') return 'review';
     if (blocked === 'payment_cancelled') return 'cancelled';
     if (blocked === 'payment_not_payable') return 'unknown';
     if (blocked === 'payment_reported') return 'reported';
@@ -81,6 +99,41 @@
   function canPay(payment, now) {
     var state = paymentState(payment, now), n = amount((payment || {}).amount);
     return (state === 'due' || state === 'overdue') && n != null && n > 0;
+  }
+
+  // Contratto preso in carico dalla tabella del Palazzo: la regola sta in
+  // js/contract-state.js (una copia sola); se il modulo non è caricato (una
+  // pagina che non lo include) vale la stessa riga, identica.
+  function contractState() {
+    var CS = root && root.BOOM_CONTRACT_STATE;
+    if (!CS && typeof require === 'function') { try { CS = require('./contract-state.js'); } catch (_) { CS = null; } }
+    return CS;
+  }
+  function isImportedContract(contract) {
+    var CS = contractState();
+    return CS && typeof CS.isImported === 'function' ? CS.isImported(contract) : !!(contract && str(contract.source) === 'palazzo-import');
+  }
+
+  // LA CARTA SU UNA RATA, in una copia sola per /rata, il link di pagamento,
+  // /casa e la vista del Palazzo. I contratti presi in carico dalla tabella
+  // della proprietaria (source 'palazzo-import') pagano il canone sul conto
+  // del LOCATORE: con la carta i soldi arriverebbero invece sul conto Stripe
+  // di BOOM. Lì la carta resta SPENTA finché l'interno non ha un mandato
+  // all'incasso registrato (property.rataCard = { on:true, mandateAt }), e
+  // anche accesa non porta commissione all'inquilino se non è stata scelta
+  // ('surcharge'): il sovrapprezzo su uno strumento di pagamento verso un
+  // consumatore è vietato (art. 62 Cod. consumo) — il default è 'absorbed'.
+  // Gli altri contratti restano come prima: carta accesa, commissione
+  // misurata ('standard').
+  //   → { available, reason: ''|'card_off'|'no_mandate', fee: 'standard'|'absorbed'|'surcharge'|'none', imported, mandateAt }
+  function cardPolicy(payment, contract, property) {
+    var p = payment || {}, cfg = property && property.rataCard && typeof property.rataCard === 'object' ? property.rataCard : null;
+    var imported = isImportedContract(contract) || str(p.source) === 'palazzo-import';
+    if (!imported) return { available: true, reason: '', fee: 'standard', imported: false, mandateAt: '' };
+    if (!cfg || cfg.on !== true) return { available: false, reason: 'card_off', fee: 'none', imported: true, mandateAt: '' };
+    var mandateAt = day(cfg.mandateAt);
+    if (!mandateAt) return { available: false, reason: 'no_mandate', fee: 'none', imported: true, mandateAt: '' };
+    return { available: true, reason: '', fee: key(cfg.fee) === 'surcharge' ? 'surcharge' : 'absorbed', imported: true, mandateAt: mandateAt };
   }
 
   function canReviewReport(payment) {
@@ -243,7 +296,7 @@
     });
     var visible = [].concat.apply([], units.map(function (unit) { return unit.payments; }));
     var counts = { units: units.length, payments: visible.length, noInstallments: units.filter(function (unit) { return unit.noInstallments; }).length, unlinked: visible.filter(function (row) { return row.unlinked; }).length, unknownMonth: visible.filter(function (row) { return !row.month; }).length };
-    ['paid', 'due', 'overdue', 'processing', 'reported', 'cancelled', 'unknown'].forEach(function (state) { counts[state] = visible.filter(function (row) { return row.state === state; }).length; });
+    ['paid', 'due', 'overdue', 'processing', 'reported', 'review', 'cancelled', 'unknown'].forEach(function (state) { counts[state] = visible.filter(function (row) { return row.state === state; }).length; });
     counts.pending = counts.due + counts.overdue;
     return { units: units, totals: summarize(visible), month: month, months: months, counts: counts, payments: visible };
   }
@@ -268,7 +321,7 @@
   function nextAction(unit) {
     var rows = list(unit && unit.payments);
     // Broken associations need review before an operator sends a link.
-    var review = rows.find(function (r) { return r.unlinked || r.amount == null || !r.month || r.state === 'unknown'; });
+    var review = rows.find(function (r) { return r.unlinked || r.amount == null || !r.month || r.state === 'unknown' || r.state === 'review'; });
     if (review) return { kind: 'review', paymentId: review.id, month: review.month };
     var reported = rows.find(function (r) { return r.state === 'reported'; });
     if (reported) return { kind: 'reported', paymentId: reported.id, month: reported.month };
@@ -281,7 +334,7 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { amount: amount, moneyBack: moneyBack, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
