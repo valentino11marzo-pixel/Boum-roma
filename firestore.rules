@@ -144,7 +144,8 @@ service cloud.firestore {
       // "creo per me stesso" e ogni scrittura server-side per conto di terzi
       // tornava PERMISSION_DENIED.
       allow create: if isAdmin()
-                    || (isSignedIn() && request.resource.data.userId == uid());
+                    || (isSignedIn() && request.resource.data.userId == uid()
+                        && !request.resource.data.keys().hasAny(['source', 'revision', 'requestHash', 'delivery', 'previousDelivery']));
       allow update, delete: if isAdmin();
     }
 

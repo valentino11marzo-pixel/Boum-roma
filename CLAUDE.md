@@ -1591,6 +1591,25 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Rilancio area casa, 13/10:** invito dal Share Hub con istruzione di fissare
+  il messaggio in chat; il cliente copia un link ordinario, sempre autenticato.
+  «Il tuo link e gli avvisi» legge le notifiche personali già esistenti tramite
+  `api/tenant/notifications`: solo destinatario verificato (o anteprima admin),
+  testo escapato, fino a 50, errore distinto dall’assenza. Nessun auto-invio nuovo
+  e nessun testo di notifica decide se una rata sia pagabile. Test `tenantworkspace`
+  e `tenantworkspaceui`; suite di accesso, pagamenti e rules per il rilascio.
+
+- **Archivio e richieste tenant, 05/10:** `/api/tenant/documents` legge l’archivio del cliente/contratto, anche in bozza; HTTPS, titolarità e condivisione esplicita, limite dichiarato. Nessuna condivisione implicita dal solo immobile.
+  `/api/tenant/maintenance` salva e modifica richieste proprie con Bearer, ID ripetibile e confronto atomico delle versioni di ticket/contratto. Stati `open`/`urgent` coerenti col portale; costi, assegnazioni e risoluzioni non vengono dal cliente.
+  `js/tenant-workspace-engine.js` centralizza i filtri; `tenant-workspace-ui.js` conserva bozze e richiesta incerta fra ridisegni/ricariche, ricerca i file e distingue errore da vuoto. Rules impediscono al client di contraffare i campi del flusso server.
+  Inoltro ai fornitori **non implementato né attivo**: destinatari e contenuto attendono conferma; nessuna chiamata anonima a `/api/agent/notify`, nessun nuovo scheduler. Le richieste compaiono nella manutenzione esistente con disponibilità e revisione.
+  Lancio limitato a carta/Apple Pay/bonifico: rimossa l’offerta di nuovi mandati SEPA, conservati stato e revoca di quelli già attivi. Prove: `tenantworkspace`, `tenantworkspaceui`, `tenantworkspacemutations`, `tenantpayments`.
+  La firma non viene chiamata «contratto attivo»: la decorrenza non prova consegna delle chiavi. La rotta richiede `verbaleConsegna` con data passata e file HTTPS; il verbale è apribile dai documenti. Prove `tenantpayments` e `scalo`.
+- **Lancio tenant, 05/10:** Share Hub include l’invito alla dashboard per il profilo tenant collegato, con URL di login senza email/token e messaggi da inviare manualmente. Nessuna sessione anonima e nessuna modifica account implicita.
+  `/login` spiega il primo accesso via recupero password, conserva la casa nel ritorno dall’email, distingue errori rete da richiesta accettata e non redirige sessioni anonime.
+  `js/tenant-access-engine.js` sceglie il contratto corrente prima dei futuri, preserva la scelta esplicita e il contratto del pagamento di ritorno; `/casa` permette di cambiare casa/periodo fra i propri contratti.
+  Lettura contratto fallita o casa non associata mostrano recupero/assistenza, mai una dashboard vuota spacciata per pronta. Limite 50 contratti dichiarato; UID verificato anche nel controller, oltre alle regole Firestore.
+  Ritorni annullamento carta e mandato SEPA conservano il contratto. Prove: `tenantaccess`, `tenantpayments`, `paymentlinks`, `sdd`; nessun pagamento o invio reale nelle suite.
 - **Confronto UX con Claude, 18/09:** `/casa` permette di segnalare il bonifico già eseguito e annullare una segnalazione erronea. `api/payments/report` ammette solo il titolare tenant; legge la versione e salva solo il flag con CAS. Mai `paid` dal client, admin preview esclusa, stato riletto dal server anche dopo errori.
   `payment_reported` ora ferma checkout autenticato, link operatore/pubblico e nuove selezioni del collector SDD; restano fuori garanzia sessioni Stripe già aperte e gare tra canali avviate prima del riscontro.
   Ricevute archiviate raggiungibili da `receiptDocId`, con ID rata verificato e URL HTTPS; nuove archiviazioni espongono il file sulla rata senza sostituire ricevute Stripe. Nessun PDF o associazione inventati.
@@ -6276,6 +6295,15 @@ const unsub = BoomPortal.listen(
 ```
 
 ## Common Tasks
+
+**Area casa — accoglienza prima della firma (6 ottobre 2026):** il link resta
+utilizzabile dal cliente associato anche mentre le firme sono in corso.
+`tenant-access-engine.stage` distingue preparazione, firma cliente, attesa
+proprietario/co-conduttori e completamento (`complete` e legacy `completed`).
+Il pulsante apre solo il link personale restituito da `/api/sign/links`, su
+azione esplicita; l'anteprima admin non può firmare. Nessun incasso o rata
+viene creato dall'accoglienza: il piano mostra solo registrazioni esistenti.
+Verifica: `tenantaccess`, `tenantpayments`, `signtokens`, `scalo`.
 
 **Add a new apartment page**: Copy an existing `apartment_*.html`, update content and Firestore document ID.
 

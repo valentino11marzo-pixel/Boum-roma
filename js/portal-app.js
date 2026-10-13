@@ -19055,8 +19055,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
                 ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.description)}</p></div>` : ''}
+                ${m.availability ? `<div class="mt-16"><div class="detail-label">Disponibilità indicata</div><p>${esc(m.availability)}</p></div>` : ''}
+                ${m.source === 'tenant-dashboard' ? `<div class="mt-16"><div class="detail-label">Dashboard inquilino · revisione ${Number(m.revision) || 1}</div><p style="font-size:13px">Richiesta salvata nel portale. Inoltro automatico al fornitore non ancora attivo. Nessuna spesa o visita autorizzata.</p></div>` : ''}
                 ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.resolutionNotes}</p></div>` : ''}
-                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
+                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','open')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
             <div class="modal-footer">
                 ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${jsq(m.title)}')">🗑</button>` : ''}
@@ -24409,6 +24411,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // ---- Build the link catalogue ----
         const links = [];
 
+        // The invitation is an ordinary login URL, never an anonymous session.
+        const casaUrl = window.BOOM_TENANT_ACCESS && window.BOOM_TENANT_ACCESS.inviteUrl(c, tenant);
+        if (isAdmin() && casaUrl) {
+            const inviteText = (n) => `Hi ${n}, welcome to your BOOM home space:\n\n{URL}\n\nSign in with ${tenant.email}. First visit? Select “First access / reset password” to choose your password through your email.\n\nPlease pin this message in our WhatsApp chat so you can find your home space whenever you need it. Keep this link throughout your stay. You can see available documents, check recorded payments and request help, even while the remaining contract signatures are being completed.\n\nFor the payments shown in your space, you can use card or Apple Pay where available, or the displayed bank transfer details. Check the recipient and total before confirming.\n\n— BOOM Roma`;
+            links.push({
+                audience: 'tenant', icon: '🏠', title: 'Invita alla dashboard inquilino',
+                subtitle: 'Copia o condividi il link e fissa il messaggio nella chat WhatsApp · accesso con email personale',
+                url: casaUrl, target: tenant, waText: inviteText,
+                emailSubj: 'BOOM · Your home dashboard', emailBody: inviteText
+            });
+        }
+
         // Tenant: magic-sign
         if (!c.tenantSignature && signLinks.tenant) {
             links.push({
@@ -24599,7 +24613,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
             <div class="modal-body">
-                <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Tutti i link sono pronti all'uso. I token mancanti sono stati generati automaticamente. Per ogni link puoi copiare, mandare via WhatsApp o aprire un'email pre-compilata.</div>
+                <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Scegli il link e verifica il destinatario. WhatsApp ed email aprono un messaggio da controllare e inviare. L’invito alla dashboard richiede l’account personale del cliente.</div>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
                     ${colHtml('👤 INQUILINO',  tenant,   tenantLinks)}
                     ${colHtml('🏠 LOCATORE',  landlord, landlordLinks)}

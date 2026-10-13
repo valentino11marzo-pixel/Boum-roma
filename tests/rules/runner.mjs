@@ -110,6 +110,12 @@ await check('creates maintenance with own userId',
   assertSucceeds(setDoc(doc(tA, 'maintenance/newM'), { userId: 'tA', propertyId: 'propA', title: 'New' })));
 await check('CANNOT create maintenance as another user',
   assertFails(setDoc(doc(tA, 'maintenance/badM'), { userId: 'tB', propertyId: 'propB', title: 'Spoof' })));
+for (const [field,value] of Object.entries({source:'tenant-dashboard',revision:1,requestHash:'fake',delivery:{state:'sent'},previousDelivery:{state:'sent'}})) {
+  await check('CANNOT forge maintenance workflow field '+field,
+    assertFails(setDoc(doc(tA, 'maintenance/forged-'+field), {userId:'tA',propertyId:'propA',title:'New',[field]:value})));
+}
+await check('admin creates server-owned tenant maintenance',
+  assertSucceeds(setDoc(doc(admin,'maintenance/serverOwned'),{userId:'tA',propertyId:'propA',source:'tenant-dashboard',revision:1,requestHash:'server'})));
 await check('flags OWN payment reported (allowed fields)',
   assertSucceeds(updateDoc(doc(tA, 'payments/payA'), { tenantReported: true, proofUrl: 'http://x/p.jpg' })));
 await check('CANNOT change payment amount',
