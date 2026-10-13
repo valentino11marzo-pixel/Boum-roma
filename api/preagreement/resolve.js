@@ -90,6 +90,12 @@ export default async function handler(req, res) {
   // sbloccare la riserva, convertire) la proposta di un immobile ALTRUI con
   // il solo id. Lo stesso cancello di convert e send-sign, PRIMA di Stripe,
   // del lucchetto e di qualunque scrittura o email.
+  // Dichiarare l'interno («non è la stessa unità») resta dell'admin, su
+  // qualunque immobile: lo si dice per primo, con la sua parola.
+  const declaresUnit = !!(b && ((typeof b.unit === 'string' && b.unit.trim()) || (typeof b.notSameAs === 'string' && b.notSameAs.trim())));
+  if (declaresUnit && ((auth.profile || {}).role) !== 'admin') {
+    return res.status(403).json({ ok: false, error: 'admin_only' });
+  }
   const deny = await paOwnerGuard(auth, pa, { createProperty: false });
   if (deny) return res.status(403).json({ ok: false, error: deny });
 
