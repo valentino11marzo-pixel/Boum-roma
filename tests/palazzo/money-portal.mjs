@@ -392,6 +392,20 @@ const today = romeDay();
   });
 }
 
+// ═══ 4c. «Archivia ricevuta per il cliente» su chi non ha un profilo ═══════
+{
+  const T = build(); T.seed(FIX());
+  T.ctx.reloadRentPayments = async () => {};
+  const paid = { ...T.doc('payments/pay_c7_2026-10'), status: 'paid', paidDate: '2026-10-03', paidVia: 'bonifico', paidEvidence: 'estratto-conto-locatore' };
+  T.store.set('payments/pay_c7_2026-10', paid);
+  Object.assign(T.S.payments.find(x => x.id === 'pay_c7_2026-10'), paid);
+  await T.run("publishRentReceipt('pay_c7_2026-10', null)");
+  await check('l’attestazione archiviata a mano per chi non ha profilo dice dov’è, non «nell’archivio del cliente»', () => {
+    assert.equal(T.doc('payments/pay_c7_2026-10').receiptDocId, 'rent-receipt-pay_c7_2026-10');
+    assert.match(T.toasts.at(-1)[1], /sotto il contratto: l’inquilino non ha un profilo/);
+  });
+}
+
 // ═══ 5. Annulla incasso, poi registralo di nuovo ═════════════════════════
 {
   const T = build(); T.seed(FIX());

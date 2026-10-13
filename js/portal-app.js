@@ -10670,7 +10670,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const receiptId = await archivePaymentReceipt({id});
             if (!receiptId) return toast('warning','Ricevuta non archiviata. Verifica pagamento, dati e collegamenti prima di riprovare.');
-            closeModal(); await reloadRentPayments(); toast('success','Ricevuta disponibile nell’archivio del cliente.');
+            // Chi non ha un profilo nel portale non ha un archivio: l'attestazione
+            // sta sotto il contratto, e si dice così.
+            const pay = (S.payments || []).find(x => x.id === id);
+            const profile = !!(pay && incassoParties(pay).hasProfile);
+            closeModal(); await reloadRentPayments(); toast('success', profile ? 'Ricevuta disponibile nell’archivio del cliente.' : 'Attestazione archiviata sotto il contratto: l’inquilino non ha un profilo nel portale.');
         } finally { rentReceiptBusy.delete(id); if (button) button.disabled = false; }
     }
     // ═══ L'INCASSO REGISTRATO — data dell'accredito, canale, fonte ═══════
