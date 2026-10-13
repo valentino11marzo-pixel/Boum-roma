@@ -29,9 +29,10 @@ nothing in production.
   `video` resta pubblico;
   un guasto si apre solo sul proprio interno (mai anonimo, mai `reporter`/
   `source` dal browser) e solo col contratto VIVO: l'ex inquilino (stato
-  chiuso, fine o chiusura anticipata passate) non apre più guasti sull'interno
-  che ha lasciato, la seconda stanza attiva sì (13/10/2026: mutazione — con
-  la regola di prima cadono 7 controlli); la proprietaria non legge Inbox,
+  chiuso subito; fine o chiusura anticipata passate da oltre 60 giorni) non
+  apre più guasti sull'interno che ha lasciato, la seconda stanza attiva sì,
+  e un contratto rimasto «active» da poco oltre la fine sì (13/10/2026:
+  mutazione — con la regola di prima cadono 7 controlli); la proprietaria non legge Inbox,
   note interne né analisi AI; il suo loader a blocchi di 9 interni passa, un
   blocco con un immobile non suo no; `paymentCosts` admin-only (la
   collection è pronta: i campi di costo li sposta lì il webhook, filone soldi).
@@ -66,7 +67,7 @@ Requires: Node 18+, Java 17+ (for the emulator), and `firebase-tools`
 Expected output ends with:
 
 ```
-Result: 166 passed, 0 failed
+Result: 167 passed, 0 failed
 All rules behave as intended.
 ```
 

@@ -104,6 +104,12 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'contracts/cOld2'), { tenantId: 'tOld2', propertyId: 'propX', status: 'expired' });
   await setDoc(doc(db, 'contracts/cOld3'), { tenantId: 'tOld3', propertyId: 'propX', status: 'active', endDate: '2025-06-30' });
   await setDoc(doc(db, 'contracts/cOld4'), { tenantId: 'tOld4', propertyId: 'propX', status: 'active', endDate: '2099-06-30', terminatedAt: '2025-12-31' });
+  // Rimasto «active» con la fine passata da 20 giorni: l'inquilino è
+  // probabilmente ancora in casa (rinnovo non a sistema) — dentro la
+  // tolleranza di 60 giorni delle regole.
+  await setDoc(doc(db, 'users/tGrace'), { role: 'tenant', name: 'Inquilino in proroga' });
+  await setDoc(doc(db, 'contracts/cGrace'), { tenantId: 'tGrace', propertyId: 'propX', status: 'active',
+    endDate: new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10) });
   await setDoc(doc(db, 'contracts/cRoom'), { tenantId: 'tRoom', propertyId: 'propX', status: 'active', unit: 'B', endDate: '2099-06-30' });
   await setDoc(doc(db, 'contracts/cNext'), { tenantId: 'tNext', propertyId: 'propX', status: 'pending', startDate: '2099-01-01' });
   // Un interno il cui contratto CORRENTE è stato chiuso e nessuno è subentrato.
@@ -346,9 +352,9 @@ await check('tenant A CANNOT open with a contractId that does not exist',
     assertFails(setDoc(doc(tOld, 'maintenance/exOld'), { userId: 'tOld', propertyId: 'propX', contractId: 'cOld', title: 'FUGA DI GAS', priority: 'urgent' })));
   await check('EX tenant (contract expired) CANNOT either',
     assertFails(setDoc(doc(tOld2, 'maintenance/exOld2'), { userId: 'tOld2', propertyId: 'propX', contractId: 'cOld2', title: 'x' })));
-  await check('EX tenant whose contract is still «active» by mistake but whose END DATE is past CANNOT either',
+  await check('EX tenant whose contract is still «active» by mistake but whose END DATE passed over 60 days ago CANNOT either',
     assertFails(setDoc(doc(tOld3, 'maintenance/exOld3'), { userId: 'tOld3', propertyId: 'propX', contractId: 'cOld3', title: 'x' })));
-  await check('EX tenant closed early (terminatedAt past) CANNOT either',
+  await check('EX tenant closed early (terminatedAt over 60 days ago) CANNOT either',
     assertFails(setDoc(doc(tOld4, 'maintenance/exOld4'), { userId: 'tOld4', propertyId: 'propX', contractId: 'cOld4', title: 'x' })));
   await check('the NEW tenant (current contract) opens a ticket, with or without contractId',
     assertSucceeds(Promise.all([
@@ -356,6 +362,8 @@ await check('tenant A CANNOT open with a contractId that does not exist',
       setDoc(doc(tNew, 'maintenance/newX2'), { userId: 'tNew', propertyId: 'propX', title: 'Caldaia' })])));
   await check('a SECOND ROOM (active, not the current contract) still opens a ticket',
     assertSucceeds(setDoc(doc(tRoom, 'maintenance/roomX'), { userId: 'tRoom', propertyId: 'propX', contractId: 'cRoom', title: 'Serratura' })));
+  await check('a contract left «active» 20 days past its end (renewal not yet entered) still opens a ticket — 60-day grace',
+    assertSucceeds(setDoc(doc(env.authenticatedContext('tGrace').firestore(), 'maintenance/graceX'), { userId: 'tGrace', propertyId: 'propX', contractId: 'cGrace', title: 'Perdita' })));
   await check('an INCOMING tenant (pending, not current) does not open tickets yet',
     assertFails(setDoc(doc(tNext, 'maintenance/nextX'), { userId: 'tNext', propertyId: 'propX', contractId: 'cNext', title: 'x' })));
   await check('the CURRENT contract closed with nobody after: its tenant CANNOT open, with or without contractId',

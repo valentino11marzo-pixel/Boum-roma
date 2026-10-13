@@ -182,18 +182,21 @@ service cloud.firestore {
     // dell'inquilino e di quell'interno: un EX inquilino, col suo account,
     // apriva ancora guasti sull'interno che aveva lasciato passando il
     // vecchio contractId — la stessa revoca al cambio di inquilino che
-    // /guasto fa coi link. Vivo = non chiuso (stato, fine, chiusura
-    // anticipata: le date YYYY-MM-DD si confrontano col giorno di oggi in
-    // UTC, al più un giorno di tolleranza) E il contratto corrente
-    // dell'immobile oppure 'active' (due stanze nello stesso immobile: il
-    // corrente è uno solo, l'altro inquilino è vivo lo stesso).
-    function todayYmd() {
-      let m = request.time.month();
-      let d = request.time.day();
-      return string(request.time.year()) + '-' + (m < 10 ? '0' : '') + string(m) + '-' + (d < 10 ? '0' : '') + string(d);
+    // /guasto fa coi link. Vivo = lo stato non dice chiuso (ended, expired,
+    // terminated… : subito) E il contratto corrente dell'immobile oppure
+    // 'active' (due stanze nello stesso immobile: il corrente è uno solo,
+    // l'altro inquilino è vivo lo stesso). Le DATE (fine, chiusura
+    // anticipata) chiudono con 60 giorni di tolleranza: un contratto rimasto
+    // «active» oltre la fine è spesso un inquilino ancora in casa col
+    // rinnovo non ancora a sistema, e bloccargli la segnalazione di una
+    // perdita costa più di un guasto finto, tracciato, di chi è appena uscito.
+    function ymd(ts) {
+      let m = ts.month();
+      let d = ts.day();
+      return string(ts.year()) + '-' + (m < 10 ? '0' : '') + string(m) + '-' + (d < 10 ? '0' : '') + string(d);
     }
     function notPast(v) {
-      return !(v is string) || v == '' || v >= todayYmd();
+      return !(v is string) || v == '' || v >= ymd(request.time - duration.value(60, 'd'));
     }
     function contractOpen(cid) {
       let c = contractData(cid);

@@ -22,6 +22,7 @@ const server = createServer(async (req, res) => {
     let body = ''; for await (const ch of req) body += ch;
     const b = JSON.parse(body); calls.push(b);
     res.setHeader('Content-Type', 'application/json');
+    if (b.t === 'p1.busy') { res.statusCode = 429; res.end('{"ok":false,"error":"rate_limited"}'); return; }
     if (b.t !== 'p1.tok') { res.statusCode = 404; res.end('{"ok":false,"error":"invalid_link"}'); return; }
     if (b.op === 'lookup') { res.end(JSON.stringify({ ok: true, unit: { building: 'Piazza Esempio 42', interno: '7', label: 'Int. 7' } })); return; }
     if (b.op === 'report') { res.end(JSON.stringify({ ok: true, id: 'm1', photo: b.photo ? photoOk : null })); return; }
@@ -133,6 +134,13 @@ try {
     await page.waitForSelector('.where');
     assert.match(await page.textContent('.where'), /no longer active/);
     assert.ok((await page.getAttribute('main a.wa', 'href')).startsWith('https://wa.me/393313251961'));
+    await ctx.close();
+  });
+  await check('troppe aperture dallo stesso indirizzo (429): dice «riprova fra qualche minuto», non «controlla la connessione»', async () => {
+    const { page, ctx } = await open('t=p1.busy', 'en-US');
+    await page.waitForSelector('#retry');
+    const txt = await page.textContent('.where');
+    assert.match(txt, /try again in a few minutes/); assert.doesNotMatch(txt, /connection/);
     await ctx.close();
   });
   await check('accessibilità: tasti lingua ≥44px, piede leggibile (contrasto ≥4,5:1), focus visibile sulla foto, link all\'informativa', async () => {
