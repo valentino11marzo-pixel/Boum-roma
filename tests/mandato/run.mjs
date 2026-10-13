@@ -787,7 +787,8 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const cv = R('api/preagreement/convert.js');
   check('convert.js: la base del mandato è la FOTO della proposta (pa.approvedTerms), mai il contratto — il contratto si VERIFICA (diff), non fa da base',
     /const terms = snap \? snap\.terms : MANDATO\.termsFromProposal\(pa/.test(cv) && /const termsHash = snap \? snap\.hash : mandateTermsHash\(terms\)/.test(cv)
-    && /MANDATO\.diffTerms\(terms, MANDATO\.termsFromContract\(contract\)\)/.test(cv) && !/termsFingerprint\(contract\)/.test(cv));
+    // il contratto si confronta allineato alla foto (l'immobile nato dalla proposta, §12)
+    && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId \}\)\)/.test(cv) && !/termsFingerprint\(contract\)/.test(cv));
 }
 
 // ═══ 10. Il bug della pagina RLI: numeri da rliFacts (L2 per tutti, importo per durata) ═══
@@ -1252,7 +1253,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /var dele=\(S\.role==='landlord'&&ASDELE&&c\.landlordDelegate&&c\.landlordDelegate\.name\)/.test(sign) && /written mandate given by the landlord on/.test(sign) && /lmand\.termsOk===false/.test(sign));
   check('console: delegaUrl su Controfirma per delega / Copia link delega / link dopo la conversione; 🏠 Chiedi il mandato al proprietario; ✍️ Controfirmo io (mandato) primaria a inquilino firmato; il prompt della base SOLO senza mandato',
     /function delegaUrl\(u\)/.test(cons) && /href="'\+delegaUrl\(d\.landlordSignUrl\)\+'" target="_blank" rel="noopener">🖊 Controfirma per delega/.test(cons) && /copyTxt\(\\''\+\(d\.delegated\?delegaUrl\(d\.landlordSignUrl\):d\.landlordSignUrl\)/.test(cons)
-    && /isDele\?delegaUrl\(j\.landlordSignUrl\):j\.landlordSignUrl/.test(cons) && /window\.askLandlordMandateFor=async function\(id\)/.test(cons) && /op:'ask-landlord-mandate'/.test(cons)
+    && /isDele\?delegaUrl\(j\.landlordSignUrl\):j\.landlordSignUrl/.test(cons) && /window\.askLandlordMandateFor=async function\(id,opt\)/.test(cons) && /op:'ask-landlord-mandate'/.test(cons)
     && /\(lmand&&cid\s*\?'<button class="pbtn prim" onclick="signFor\(/.test(cons) && /!p\.landlordSigned&&!lm&&!p\.landlordDelegate&&/.test(cons) && /landlord_mandate_terms_changed/.test(cons) && /Mandato del proprietario ricevuto il/.test(cons));
   check('portal 🖊 Firma ora: il link del locatore porta &delegate=1 con la delega armata; la delega si arma DAL mandato (basisKind mandate, hash); 🏠 Chiedi il mandato al proprietario via /api/profile/link',
     /const lLink = sl\.landlord \? `\$\{sl\.landlord\}\$\{dele \? '&delegate=1' : ''\}` : '';/.test(app) && /basisKind: 'mandate', mandateRef: lm\.ref \|\| '', mandateAt: lm\.at \|\| '', mandateHash: lm\.hash \|\| ''/.test(app)
@@ -1263,6 +1264,201 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('profile/lookup: il testo del mandato arriva dal server (LL_MANDATE_TEXT importato), card solo per il ruolo landlord', /import \{ LL_MANDATE_TEXT \} from '\.\.\/preagreement\/_consent\.js';/.test(pl) && /if \(role === 'landlord'\) \{\s*const m = \(contract\.landlordMandate/.test(pl));
   check('profile/mandate: le scritture sono attese (nessuna fsPatch/fsCreate/commitWrites/logActivity a inizio istruzione senza await), 410 prima di already, not_offered dopo',
     !/^\s*(fsPatch|fsCreate|commitWrites|logActivity)\(/m.test(pm) && pm.indexOf("error: 'already_signed'") < pm.indexOf('already: true') && pm.indexOf('already: true') < pm.indexOf("error: 'not_offered'"));
+}
+
+// ═══ 12. LA PROPOSTA SENZA IMMOBILE COLLEGATO (12/10/2026 — Via dei Latini 76) ═══
+// «Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
+// dati o il link del Magic Sign». La proposta BOOM-MUCHJ6LC era pagata da
+// venti giorni senza contratto (nessun immobile collegato): la Scheda e i
+// link di firma non esistevano. E il contratto, una volta nato sull'immobile
+// creato DALLA proposta, avrebbe rifiutato ✍️ Firmo io: la foto del mandato
+// porta propertyId null, il contratto prop_pa_<id> — «condizioni cambiate»
+// per costruzione (in produzione: BOOM-MUMY744I, termsDiff ['propertyId']).
+{
+  const signFor = (await import('../../api/preagreement/sign-for.js')).default;
+  const paSubmit = (await import('../../api/preagreement/submit.js')).default;
+  const MANDATO = (await import('../../js/mandato-engine.js')).default;
+  const { mandateCheck } = await import('../../api/magic-sign/_shared.js');
+  const ADMIN = { authorization: 'Bearer admin-token' };
+  const admin = (body, extra = {}) => mkReq(body, { ...ADMIN, ...extra });
+  const PNG = 'data:image/png;base64,' + 'C'.repeat(600);
+  const mails = () => globalThis.__mails || [];
+  IP = '9.7.12.1';
+
+  const T_L = 'd1'.repeat(16);   // '9e' è già di paL
+  const tenL = { fullName: 'Ahmet Prova', email: 'ahmet@x.com', phone: '+905000000001', dob: '1991-02-01', nationality: 'Turkish' };
+  store.set('preAgreements/paLat', paSeed(T_L, {
+    propertyId: null, askMandate: true,
+    property: { address: 'Via dei Latini 76', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '1', unit: '1' },
+    landlord: { name: 'Tavolieri Chiara', email: null, phone: '+39 344 509 7480' },
+    lease: { startDate: '2046-11-01', months: 3, endDate: '2047-01-30', type: 'Transitional Lease', lawRef: 'x', reason: 'Sapienza' },
+  }));
+  let r = mkRes();
+  await paSubmit(mkReq({ token: T_L, tenant: tenL, tenants: [tenL], accept: true, mandate: true }), r);
+  const pa0 = store.get('preAgreements/paLat');
+  check('§12 setup: accettata col mandato, la foto delle condizioni ha immobile NULL (proposta non collegata), nessun contratto',
+    r.code === 200 && pa0.mandate && pa0.mandate.given === true && pa0.approvedTerms.terms.propertyId === null && !store.has('contracts/pa_paLat'));
+
+  // 📋 PRIMA del contratto: il contratto nasce (con l'immobile dalla proposta), nessun mandato armato
+  const mailsBefore = mails().length;
+  r = mkRes();
+  await signFor(admin({ op: 'landlord-scheda', id: 'paLat', createProperty: true }), r);
+  const cL = store.get('contracts/pa_paLat');
+  const pL = store.get('properties/prop_pa_paLat');
+  check('📋 landlord-scheda senza contratto: 200, contratto pa_<id> e immobile prop_pa_<id> nati ORA (created, propertyCreated), immobile = indirizzo della proposta',
+    r.code === 200 && r.body.ok === true && r.body.created === true && r.body.propertyCreated === true && !!cL && cL.propertyId === 'prop_pa_paLat' && !!pL && /Via dei Latini 76/.test(pL.address || ''));
+  check('… il link è la Scheda del LOCATORE (derivata, ruolo l); il messaggio IT nomina i dati che mancano e porta il link',
+    /\/scheda\?t=pa_paLat\.l\./.test(r.body.url || '') && (r.body.message || '').includes(r.body.url) && /^Gentile /.test(r.body.message) && /ci mancano ancora/.test(r.body.message)
+    && Array.isArray(r.body.missing) && r.body.missing.length > 0 && r.body.missing.some(m => /fiscale/i.test(m.label)));
+  check('… il telefono dalla proposta, nessuna email (quindi nessun invio automatico), nessun mandato armato: è un\'altra domanda',
+    r.body.phone === '+39 344 509 7480' && r.body.email === null && r.body.emailed === false && mails().length === mailsBefore && cL.askLandlordMandate !== true && r.body.locked === false);
+  check('… la proposta riceve il back-link (contractId, propertyId) e il link FIRMA del proprietario per la riga',
+    store.get('preAgreements/paLat').contractId === 'pa_paLat' && store.get('preAgreements/paLat').propertyId === 'prop_pa_paLat' && /\/sign\?sign=/.test(store.get('preAgreements/paLat').landlordSignUrl || ''));
+  check('IL DIFETTO: il mandato dato sull\'indirizzo resta SPENDIBILE sull\'immobile nato dalla proposta (termsMatch alla conversione, mandateCheck ok)',
+    !!cL.tenantMandate && cL.tenantMandate.termsMatch === true && cL.tenantMandate.termsDiff.length === 0 && mandateCheck(cL).ok === true);
+
+  r = mkRes();
+  await signFor(admin({ op: 'landlord-scheda', id: 'paLat', createProperty: true }), r);
+  check('📋 di nuovo: stesso contratto, created=false, stesso link — nessun secondo contratto né immobile',
+    r.code === 200 && r.body.created === false && r.body.contractId === 'pa_paLat' && [...store.keys()].filter(k => k.startsWith('properties/prop_pa_paLat')).length === 1 && [...store.keys()].filter(k => k.startsWith('contracts/pa_paLat')).length === 1);
+
+  // ✍️ Firmo io: il conduttore per mandato, poi tocca al proprietario col SUO link
+  r = mkRes(); await signFor(admin({ op: 'signature', png: PNG }), r);
+  r = mkRes();
+  await signFor(admin({ op: 'sign', id: 'paLat', contractVersion: 1 }), r);
+  const cL2 = store.get('contracts/pa_paLat');
+  check('✍️ Firmo io sul contratto nato dalla proposta: 200, conduttore firmato PER MANDATO, landlordPending col link firma del proprietario',
+    r.code === 200 && r.body.ok === true && (r.body.steps || []).join() === 'tenant' && r.body.landlordPending === true && /\/sign\?sign=/.test(r.body.landlordSignUrl || '')
+    && !!cL2.tenantSignature && !!cL2.tenantSignedByDelegate && cL2.tenantSignedByDelegate.onBehalfOf === 'Ahmet Prova' && !cL2.landlordSignature);
+
+  // il confine, per mutazione: SOLO l'immobile nato da QUELLA proposta vale come l'indirizzo
+  const diffKeys = (c) => mandateCheck(c).diff.map(d => d.key).join();
+  check('un immobile DIVERSO scelto a mano dopo l\'accettazione → mandato NON spendibile (diff immobile)',
+    mandateCheck({ ...cL, propertyId: 'prop1' }).ok === false && diffKeys({ ...cL, propertyId: 'prop1' }) === 'propertyId');
+  check('l\'immobile nato da UN\'ALTRA proposta → mandato NON spendibile', mandateCheck({ ...cL, propertyId: 'prop_pa_altraProposta' }).ok === false);
+  check('una condizione VERA cambiata resta un diff anche sull\'immobile nato dalla proposta (canone)',
+    mandateCheck({ ...cL, rent: 1600 }).ok === false && diffKeys({ ...cL, rent: 1600 }) === 'rent');
+  check('una foto CON immobile collegato non si allinea mai (prop2 → prop_pa_<id> resta un diff)', (() => {
+    const t = { ...pa0.approvedTerms.terms, propertyId: 'prop2' };
+    return MANDATO.diffTerms(t, MANDATO.alignPropertyToSnapshot(t, MANDATO.termsFromContract(cL), 'paLat')).some(d => d.key === 'propertyId');
+  })());
+  check('termsForMandate: senza paId sul mandato vale preAgreementId del contratto; un mandato v1 (senza foto) non si allinea',
+    MANDATO.termsForMandate(cL, { ...cL.tenantMandate, paId: undefined }).propertyId === null && MANDATO.termsForMandate(cL, { termsVersion: 1 }).propertyId === 'prop_pa_paLat');
+
+  // 📋 con l'email del proprietario: parte l'email della Scheda (la stessa di 🖊), stampata sul contratto
+  IP = '9.7.12.2';
+  const T_L2 = 'd2'.repeat(16);
+  const tenM = { fullName: 'Nora Prova', email: 'nora@x.com', phone: '+33600000099', dob: '1995-05-05', nationality: 'French' };
+  store.set('preAgreements/paLat2', paSeed(T_L2, {
+    propertyId: null, askMandate: false,
+    property: { address: 'Via Moricone 18', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '2' },
+    landlord: { name: 'Mario Rossi', email: 'mario.rossi@x.it', phone: null },
+    lease: { startDate: '2048-11-01', months: 6, endDate: '2049-04-30', type: 'Transitional Lease', lawRef: 'x' },
+  }));
+  r = mkRes(); await paSubmit(mkReq({ token: T_L2, tenant: tenM, tenants: [tenM], accept: true }), r);
+  const m0 = mails().length;
+  r = mkRes();
+  await signFor(admin({ op: 'landlord-scheda', id: 'paLat2', createProperty: true }), r);
+  const sent = mails().slice(m0);
+  check('📋 col proprietario che ha l\'email: emailed, UNA email alla sua casella con il link della Scheda, stampa schedaAskedLandlord* sul contratto, phone null',
+    r.code === 200 && r.body.emailed === true && sent.length === 1 && sent[0].to === 'mario.rossi@x.it' && String(sent[0].html || '').includes(r.body.url)
+    && store.get('contracts/pa_paLat2').schedaAskedLandlordTo === 'mario.rossi@x.it' && r.body.phone === null);
+
+  // senza indirizzo e senza immobile: nessun contratto inventato
+  store.set('preAgreements/paNoAddr', { ...paSeed('d3'.repeat(16), { propertyId: null, property: { address: '' } }), status: 'accepted' });
+  r = mkRes();
+  await signFor(admin({ op: 'landlord-scheda', id: 'paNoAddr', createProperty: true }), r);
+  check('📋 su una proposta senza indirizzo né immobile → 400 no_property (canCreate false), nessun contratto né immobile',
+    r.code === 400 && r.body.error === 'no_property' && r.body.canCreate === false && !store.has('contracts/pa_paNoAddr') && !store.has('properties/prop_pa_paNoAddr'));
+  store.get('users/caller1').role = 'landlord';
+  r = mkRes();
+  await signFor(admin({ op: 'landlord-scheda', id: 'paLat' }), r);
+  check('📋 solo admin (403 a un proprietario)', r.code === 403);
+  store.get('users/caller1').role = 'admin';
+
+  // ✍️ premuto PER PRIMO, senza passare da 📋 — con il mandato in mano è la
+  // mossa più naturale. La console legge hasContract dallo status: false →
+  // manda createProperty. Senza, la firma non parte e non scrive NIENTE.
+  IP = '9.7.12.3';
+  const T_L4 = 'd4'.repeat(16);
+  const tenP = { fullName: 'Lina Prova', email: 'lina@x.com', phone: '+905000000004', dob: '1993-03-03', nationality: 'Turkish' };
+  store.set('preAgreements/paLat4', paSeed(T_L4, {
+    propertyId: null, askMandate: true,
+    property: { address: 'Via dei Volsci 5', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '2', unit: '3' },
+    landlord: { name: 'Sara Prova', email: null, phone: '+39 345 000 0004' },
+    lease: { startDate: '2050-11-01', months: 3, endDate: '2051-01-31', type: 'Transitional Lease', lawRef: 'x', reason: 'Sapienza' },
+  }));
+  r = mkRes(); await paSubmit(mkReq({ token: T_L4, tenant: tenP, tenants: [tenP], accept: true, mandate: true }), r);
+  const users0 = [...store.keys()].filter(k => k.startsWith('users/')).length;
+  r = mkRes(); await signFor(admin({ op: 'status', id: 'paLat4' }), r);
+  check('✍️ per primo · status senza contratto: hasContract false, needsContract (è ciò che la console legge per mandare createProperty)',
+    r.code === 200 && r.body.hasContract === false && r.body.plan.needsContract === true && r.body.plan.mandateOk === true);
+  r = mkRes(); await signFor(admin({ op: 'sign', id: 'paLat4', contractVersion: 1 }), r);
+  check('✍️ per primo SENZA createProperty → 400 no_property (canCreate true), nessun contratto, immobile, profilo o firma',
+    r.code === 400 && r.body.error === 'no_property' && r.body.canCreate === true && !store.has('contracts/pa_paLat4') && !store.has('properties/prop_pa_paLat4')
+    && [...store.keys()].filter(k => k.startsWith('users/')).length === users0);
+  r = mkRes(); await signFor(admin({ op: 'sign', id: 'paLat4', contractVersion: 1, createProperty: true }), r);
+  const c4 = store.get('contracts/pa_paLat4');
+  check('✍️ per primo CON createProperty: contratto e immobile nascono dalla proposta e il conduttore è firmato PER MANDATO nello stesso tap, col link firma del proprietario in risposta',
+    r.code === 200 && (r.body.steps || []).join() === 'tenant' && r.body.landlordPending === true && /\/sign\?sign=/.test(r.body.landlordSignUrl || '')
+    && !!c4 && c4.propertyId === 'prop_pa_paLat4' && store.has('properties/prop_pa_paLat4') && !!c4.tenantSignature
+    && !!c4.tenantSignedByDelegate && c4.tenantSignedByDelegate.onBehalfOf === 'Lina Prova' && !c4.landlordSignature
+    && store.get('preAgreements/paLat4').contractId === 'pa_paLat4');
+
+  // lo Share Hub del portal MONTATO (la funzione vera, estratta dal file): la
+  // proprietaria senza profilo nel portal ha WhatsApp dal contratto
+  {
+    const vm = await import('node:vm');
+    const src = R('js/portal-app.js');
+    const grab = (n) => { const m = new RegExp('^    (?:async )?function ' + n + '\\(', 'm').exec(src); const end = src.slice(m.index + 5).search(/\n    (?:async )?function /); return src.slice(m.index, m.index + 5 + end); };
+    const modals = { innerHTML: '' };
+    const sbx = {
+      S: { contracts: [{ id: 'pa_X', propertyId: 'prop_pa_X', tenantId: 'tX', landlordName: 'Tavolieri Chiara', landlordPhone: '+39 344 509 7480', landlordEmail: null }],
+        properties: [{ id: 'prop_pa_X', name: 'Via dei Latini 76' }], users: [{ id: 'tX', name: 'Ahmet Prova', phone: '+905000000001', email: 'ahmet@x.com' }] },
+      toast() {}, esc: (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+      document: { getElementById: () => modals }, auth: { currentUser: { getIdToken: async () => 't' } },
+      fetchSignLinks: async () => ({ ok: true, tenant: 'https://www.boomrome.com/sign?sign=T', landlord: 'https://www.boomrome.com/sign?sign=L' }),
+      fetch: async () => ({ json: async () => ({ ok: true, tenantUrl: 'https://www.boomrome.com/scheda?t=pa_X.t.a', landlordUrl: 'https://www.boomrome.com/scheda?t=pa_X.l.b',
+        missing: { tenant: [], landlord: [{ key: 'landlordCF', label: 'codice fiscale' }] }, messages: { landlord: 'Gentile Tavolieri,\nci mancano ancora: codice fiscale.\nhttps://www.boomrome.com/scheda?t=pa_X.l.b' } }) }),
+      window: { location: { origin: 'https://www.boomrome.com' } }, encodeURIComponent,
+    };
+    vm.createContext(sbx);
+    vm.runInContext(grab('openShareHub'), sbx);
+    await sbx.window.openShareHub('pa_X');
+    const html = modals.innerHTML, ll = html.slice(html.indexOf('🏠 LOCATORE'));
+    check('Share Hub montato: la Scheda della proprietaria SENZA profilo nel portal ha WhatsApp col numero del contratto (prima «Manca il telefono»), nessun accesso al portale inventato',
+      /🏠 LOCATORE[\s\S]*Tavolieri Chiara/.test(html) && /Compila i Suoi dati/.test(ll) && /href="https:\/\/wa\.me\/393445097480\?text=/.test(ll) && !/Accedi al portale proprietari/.test(html));
+  }
+
+  // le giunzioni sulla sorgente
+  const cons = R('pre-agreement-admin.html'), app = R('js/portal-app.js'), sf = R('api/preagreement/sign-for.js'), sh = R('api/magic-sign/_shared.js'), cv = R('api/preagreement/convert.js');
+  check('server: mandateCheck e tenantMandateFor confrontano con termsForMandate; l\'id dell\'immobile nato dalla proposta in UNA copia',
+    /const current = MANDATO\.termsForMandate\(contract, m\);/.test(sh) && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId \}\)\)/.test(cv) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(cv));
+  check('sign-for: 🏠 e 📋 fanno nascere il contratto dalla STESSA funzione (convertIfMissing), 📋 non arma il mandato',
+    (sf.match(/const fail = await convertIfMissing\(\);/g) || []).length === 2 && /if \(op === 'landlord-scheda'\)/.test(sf)
+    && !/askLandlordMandate: true/.test(sf.slice(sf.indexOf("if (op === 'landlord-scheda')"), sf.indexOf("if (op === 'ask-landlord-mandate')"))));
+  check('console: 📋 Scheda proprietario sulla riga (proprietario non firmato), op landlord-scheda con createProperty se la proposta non è collegata',
+    /\(done&&!sig\.landlordSigned&&sig\.status!=='complete'\?'<button class="pbtn" onclick="sendLandlordScheda\(/.test(cons)
+    && /op:'landlord-scheda',id:id,propertyId:d\.propertyId\|\|undefined,createProperty:!d\.propertyId/.test(cons));
+  check('console: il contratto che manca si annuncia PRIMA (confirmContractBirth) per 📋 e 🏠, non dopo ✍️ (contractKnown)',
+    /if\(!\(await confirmContractBirth\(d,'mandare la Scheda a /.test(cons) && /if\(!\(opt&&opt\.contractKnown\)&&!\(await confirmContractBirth\(d,'chiedere il mandato al proprietario'\)\)\)return;/.test(cons)
+    && /askLandlordMandateFor\(d\.id,\{contractKnown:true\}\)/.test(cons));
+  check('console: niente window.open dopo la chiamata al server per 🏠 (Safari lo blocca in silenzio): WhatsApp è un link vero nella finestra della pagina',
+    !/window\.open\('https:\/\/wa\.me\/'\+String\(j\.phone\)/.test(cons) && /function showPartySend\(d,o\)/.test(cons) && /'<a class="pbtn prim wa" href="'\+wa\+'" target="_blank" rel="noopener">📲 Manda su WhatsApp<\/a>'/.test(cons));
+  check('console: dopo ✍️ col proprietario di turno, il SUO link firma subito, dalla risposta',
+    /if\(j\.landlordPending&&j\.landlordSignUrl\)showLandlordSignLink\(d,j\.landlordSignUrl,!j\.askLandlordMandate\);/.test(cons) && /function showLandlordSignLink\(d,url,offerMandate\)/.test(cons));
+  check('console: ✍️ senza contratto (lo dice il SERVER, hasContract) annuncia la nascita nella stessa conferma e manda createProperty/propertyId',
+    /var needsContract=st\.hasContract===false;/.test(cons) && /if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare',await existingPropFor\(d\)\)\);/.test(cons)
+    && /if\(needsContract\)\{if\(d\.propertyId\)body\.propertyId=d\.propertyId;else body\.createProperty=true;\}/.test(cons)
+    && /return ask\(contractBirthText\(d,purpose,await existingPropFor\(d\)\)\+'\\n\\nProcedere\?'\);/.test(cons));
+  check('console: prima di creare un immobile dalla proposta (📋 🏠 ✍️) si cerca la casa GIÀ nel portal con lo stesso abbinamento di → Contratto (una copia), escluso l\'immobile nato da questa proposta',
+    /async function existingPropFor\(d\)\{\n  if\(!d\|\|d\.propertyId\)return null;\n  var g=propGuess\(d,await loadProps\(\)\);\n  return \(g&&g\.id!=='prop_pa_'\+d\.id\)\?g:null;\n\}/.test(cons)
+    && /var guess=propGuess\(d,props\);/.test(cons) && (cons.match(/function propGuess\(/g) || []).length === 1 && !/norm\(addr\)\.indexOf\(norm\(p\.address\)\.slice\(0,14\)\)===0\}\)\n    \|\|props\.find/.test(cons.slice(cons.indexOf('window.convertPA='))));
+  check('portal: 🖊 Firma ora e il mandato armato confrontano con termsForMandate (lo stesso confronto del server)',
+    /ME\.termsForMandate \? ME\.termsForMandate\(c, mand\)/.test(app) && /ME\.termsForMandate \? ME\.termsForMandate\(c, c\.tenantMandate\)/.test(app));
+  check('portal Share Hub: WhatsApp/email delle parti dai contatti del CONTRATTO quando manca il profilo; l\'accesso al portale solo a chi ha un profilo',
+    /const landlord = partyOf\(landlordUser, c\.landlordName, c\.landlordPhone, c\.landlordEmail\);/.test(app) && /const tenant = partyOf\(tenantUser, c\.tenantName, c\.tenantPhone, c\.tenantEmail\);/.test(app)
+    && /\/\/ Landlord: portal access — solo a chi ha davvero un profilo per entrare\n\s*if \(landlordUser\) \{/.test(app));
 }
 
 console.log(`\nMandato: ${passed} passed, ${failed} failed`);

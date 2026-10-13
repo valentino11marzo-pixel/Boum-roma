@@ -3360,6 +3360,97 @@ italiano). Lo specchio esatto del mandato del conduttore:
   ruota l'IP a ogni sotto-sezione — il tap ✍️ sono due submit dallo stesso
   IP dell'operatore.
 
+### 📋 La Scheda del proprietario dalla console + il mandato sull'immobile nato dalla proposta (12/10/2026)
+«Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
+dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: la
+proposta BOOM-MUCHJ6LC (Via dei Latini 76) era pagata dal 22/09 **senza
+contratto**, perché non era collegata a nessun immobile del portal, e la
+proprietaria aveva solo il telefono. La Scheda e i link di firma sono del
+CONTRATTO: non c'era niente da mandare, e la riga non lo spiegava. Dietro,
+tre difetti veri:
+- **Il mandato del conduttore era inservibile per costruzione** su OGNI
+  proposta accettata senza immobile collegato. La foto delle condizioni ha
+  `propertyId: null`; il contratto nasce sempre su un record di `properties`,
+  e quando la casa non c'era lo crea convert DALLA STESSA proposta
+  (`prop_pa_<paId>`). Quel record contava come «immobile cambiato» → ✍️
+  Firmo io 409 `mandate_terms_changed`. In produzione: BOOM-MUMY744I con
+  `termsDiff ['propertyId']` e nient'altro, più tre proposte pagate col
+  mandato in attesa dello stesso destino (Latini 76, Moricone 18, Angelico 9).
+  Ora `termsForMandate` (js/mandato-engine.js, una copia per server e portal:
+  `mandateCheck`, `tenantMandateFor`, 🖊 Firma ora) allinea la foto SOLO
+  sull'immobile nato da QUELLA proposta (`proposalPropertyId`, lo stesso id
+  di `convert.propertyIdForPa`). Un immobile diverso scelto a mano dopo
+  l'accettazione resta un cambio di condizioni, anche allo stesso civico
+  (in un palazzo ci sono più interni), e lo resta l'immobile nato da
+  un'altra proposta. Verificato sul contratto vero del backup: prima
+  `ok=false diff=[propertyId]`, dopo `ok=true`.
+- **📋 Scheda proprietario** sulla riga della console (accettata o pagata,
+  proprietario non ancora firmato): `sign-for` `op:'landlord-scheda'` crea il
+  contratto se manca (la STESSA `convertIfMissing` di 🏠, con
+  `createProperty` se la proposta non è collegata), legge cosa manca al
+  locatore come lo legge il PDF (`landlordGaps`), scrive il messaggio del
+  dizionario (`missingMessage`, IT) col link della sua Scheda, e manda
+  l'email se c'è (`askLandlordScheda`, la stessa di 🖊). Non arma il mandato:
+  è un'altra domanda. Prima di far nascere un contratto (📋 e 🏠) la console
+  lo dice (`confirmContractBirth`), con l'uscita per chi ha già la casa nel
+  portal sotto un altro nome (→ Contratto). La riga del pagato senza
+  contratto ora dice PERCHÉ Scheda e link non esistono ancora.
+- **Il messaggio parte da una finestra della pagina** (`showPartySend`):
+  WhatsApp è un link vero, più copia del messaggio e del link. Prima 🏠 faceva
+  `window.open` DOPO la chiamata al server, e Safari lo blocca in silenzio.
+  Dopo ✍️ Firmo io, col proprietario di turno, il SUO link di firma esce
+  subito dalla risposta (`showLandlordSignLink`), con l'alternativa del
+  mandato: col locatore senza email nessun invito parte da solo.
+- **✍️ Firmo io premuto PER PRIMO** (stesso giorno, dopo il merge): su una
+  proposta senza contratto la firma partiva senza `createProperty` e, DOPO il
+  «Procedere?», moriva su `no_property`. Ora la console legge `hasContract`
+  dallo status (il server, non la riga): se manca, la STESSA conferma apre
+  con la nascita del contratto e dell'immobile (`contractBirthText`, una
+  copia con 📋/🏠) e la firma parte con `createProperty` (o `propertyId` se la
+  proposta è collegata). Un tap: contratto, immobile, conduttore per mandato
+  e link del proprietario.
+- **L'immobile c'è GIÀ?** (letto nel backup, BOOM-MUPU8OMY): la proposta di
+  Viale Angelico 9 non era collegata, ma l'appartamento era nel portal con il
+  contratto di Inês vivo fino al 30/01/2027, e la nuova locazione parte
+  l'1/01/2027. 📋 🏠 ✍️ mandavano `createProperty` a occhi chiusi: sarebbe
+  nato un doppione e la guardia sovrapposizioni, che confronta l'immobile,
+  avrebbe taciuto. Ora prima di creare (`existingPropFor`) la console cerca
+  la casa con lo STESSO abbinamento con cui → Contratto preseleziona
+  (`propGuess`, estratto in una copia) e, se la trova, la conferma lo dice:
+  annulla e collega da → Contratto, oppure procedi se è un altro interno.
+  Avverte, non blocca. L'immobile nato da QUESTA proposta (`prop_pa_<id>`)
+  non è un doppione. Da sapere: collegare una casa del portal a una proposta
+  accettata senza immobile rende il mandato del conduttore non spendibile
+  (immobile diverso dalla foto) — lì firma il conduttore col suo link.
+- **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
+  contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
+  da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
+  («Manca il telefono») col numero scritto sul contratto. L'accesso al portale
+  resta solo a chi ha un profilo.
+Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
+📋 fa nascere contratto e immobile, link e messaggio della Scheda, nessuna
+email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il
+conduttore e restituisce il link del proprietario; i confini per mutazione:
+immobile diverso, immobile di un'altra proposta, canone cambiato, foto con
+immobile; email quando c'è; 400 senza indirizzo; 403 non admin; ✍️ per
+primo: senza `createProperty` 400 e nessuna scrittura, con `createProperty`
+contratto + immobile + firma per mandato in un tap; giunzioni) e
+`tests/firma/console.mjs` (riga F col 📋 e il perché, il tap con
+`createProperty` e la finestra con WhatsApp come link, ✍️ → link del
+proprietario; ✍️ per primo: una conferma con la nascita detta, firma con
+`createProperty`, annullata = niente firma, col contratto già nato niente
+annuncio; una SECONDA console montata col portal che ha già le case:
+l'avviso del doppione su ✍️ 📋 🏠, nessun avviso per la casa nata dalla
+proposta o senza corrispondenze, confermato = si procede, → Contratto che
+preseleziona come prima). Mutazioni prese: allineamento spento, `mandateCheck`
+e `tenantMandateFor` senza allineamento, qualunque immobile allineato, 📋 che
+arma il mandato, Share Hub senza contatti dal contratto, niente link dopo ✍️,
+niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
+`needsContract` fisso a falso o a vero, annuncio tolto dalla conferma,
+ricerca della casa spenta (anche solo su ✍️), la casa della proposta contata
+come doppione, testo che ignora la casa trovata, → Contratto senza
+preselezione, conferma senza `await`.
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la

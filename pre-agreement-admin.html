@@ -791,10 +791,16 @@ window.signFor=async function(id,btn){
     if(!st||!st.ok)throw new Error((st&&st.error)||'status_failed');
     if(!st.operatorSignature){restore();return openSigModal(function(){signFor(id,btn)});}
     var p=st.plan||{},t=d.tenant||{},ll=d.landlord||{};
+    /* il contratto lo dice il SERVER (hasContract), non la riga: senza
+       contratto ✍️ lo fa nascere — e su una proposta non collegata anche
+       l'immobile, dalla proposta (12/10/2026: prima la firma partiva senza
+       createProperty e, DOPO il «Procedere?», moriva su no_property) */
+    var needsContract=st.hasContract===false;
     if(p.signatureStatus==='complete'){restore();alert('Il contratto è già firmato da entrambe le parti.');return;}
     if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
     if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
     var lines=[];
+    if(needsContract)lines.push(contractBirthText(d,'firmare',await existingPropFor(d)));
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
     if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
     var lm=p.landlordMandate||null;
@@ -814,6 +820,7 @@ window.signFor=async function(id,btn){
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id,contractVersion:p.contractVersion||1,ackUploadedPdf:!!p.uploadedPdf};
+    if(needsContract){if(d.propertyId)body.propertyId=d.propertyId;else body.createProperty=true;}
     if(!p.landlordSigned&&!lm&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link (o gli chiedi il mandato dalla riga).')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
@@ -827,10 +834,13 @@ window.signFor=async function(id,btn){
     alert(j.alreadySigned?'Il contratto era già firmato da entrambe le parti.'
       :j.fullySigned?'Contratto firmato da entrambe le parti'+(j.signedPdfUrl?': il PDF firmato è pronto (📥 nella riga). Certificato, fascicolo e pack sono partiti.':' — il PDF firmato e il certificato arrivano tra pochi secondi.')
       :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link (te li mostro adesso), poi il proprietario.'
-      :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: '+(j.askLandlordMandate?'il mandato gli è già stato chiesto — appena lo dà, ✍️ Controfirmo io.':'chiedigli il mandato (🏠, un tap sulla sua scheda) oppure mandagli il link firma (WhatsApp/copia nella riga).')
+      :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: '+(j.askLandlordMandate?'il mandato gli è già stato chiesto — appena lo dà, ✍️ Controfirmo io. Intanto ti mostro anche il suo link per firmare.':'ti mostro il suo link per firmare (WhatsApp/copia); in alternativa chiedigli il mandato (🏠) e controfirmi tu.')
       :'Fatto: '+(j.steps||[]).join(', '));
     if(j.coTenants&&j.coTenants.length)showCoLinks(d,j.coTenants,'');
-    if(j.landlordPending&&!j.askLandlordMandate&&ask('Vuoi chiedere ORA al proprietario il mandato a firmare (WhatsApp/email con il link della sua scheda)?'))askLandlordMandateFor(id);
+    /* il link firma del proprietario SUBITO, dalla risposta (12/10/2026):
+       prima la console rimandava alla riga e lo scopriva solo chi sapeva
+       dove guardare — col locatore senza email nessun invito parte da solo */
+    if(j.landlordPending&&j.landlordSignUrl)showLandlordSignLink(d,j.landlordSignUrl,!j.askLandlordMandate);
   }catch(e){
     restore();
     var m=String(e&&e.message||'');
@@ -868,21 +878,124 @@ window.askMandateFor=async function(id){
    card sulla SUA Scheda (askLandlordMandate, contratto creato se manca),
    manda l'email se c'è, e restituisce link e messaggio: WhatsApp col numero,
    copia senza. Per il proprietario è un tap; poi ✍️ Controfirmo io. */
-window.askLandlordMandateFor=async function(id){
+window.askLandlordMandateFor=async function(id,opt){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  /* dopo ✍️ il contratto esiste già anche se la riga non l'ha ancora riletto */
+  if(!(opt&&opt.contractKnown)&&!(await confirmContractBirth(d,'chiedere il mandato al proprietario')))return;
   try{
     var tok=await USER.getIdToken();
     var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'ask-landlord-mandate',id:id,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
     var j=await r.json();
     if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
     if(j.already){alert('Il proprietario ha già dato il mandato'+(j.at?' il '+String(j.at).slice(0,10):'')+': puoi controfirmare tu (✍️ Controfirmo io).');return;}
-    if(j.phone)window.open('https://wa.me/'+String(j.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(j.message),'_blank','noopener');
-    else{copyTxt(j.message);alert('Messaggio copiato (nessun numero del proprietario in archivio): incollalo dove preferisci.'+(j.emailed?'\n\nGli è partita anche l’email con il link.':''));}
-    if(j.emailed&&j.phone)alert('Email con il link inviata a '+j.email+'. Appena il proprietario dà il mandato, nella riga compare ✍️ Controfirmo io.');
+    showPartySend(d,{title:'🏠 Mandato del proprietario',who:(d.landlord||{}).name||'il proprietario',
+      what:'Il link apre la sua Scheda: legge le condizioni e, se vuole, ti dà il mandato a firmare per lui con un tap. Appena lo dà, nella riga compare ✍️ Controfirmo io.',
+      url:j.url,message:j.message,phone:j.phone,email:j.email,emailed:j.emailed,created:j.created,propertyCreated:j.propertyCreated});
   }catch(e){
     var m=String(e&&e.message||'');
-    alert('Non riesco a chiedere il mandato: '+(m==='no_property'?'collega (o crea) la proprietà con → Contratto.':m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':m==='already_signed'?'il proprietario ha già firmato.':m||'riprova'));
+    alert('Non riesco a chiedere il mandato: '+partyErr(m));
   }
+};
+
+/* Il contratto non c'è ancora: la Scheda e i link di firma sono del
+   CONTRATTO, quindi nasce qui — e se la proposta non è collegata a un
+   immobile del portal nasce anche l'immobile, dalla proposta. Lo si dice
+   PRIMA (12/10/2026: senza dirlo, l'operatore non sapeva perché la
+   Scheda di Chiara Tavolieri non esisteva). */
+function contractBirthText(d,purpose,same){
+  var addr=((d.property||{}).address)||'';
+  return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso'
+    +(d.propertyId?'.':', insieme all’immobile «'+addr+'» (dalla proposta: nel portal non è collegato a nessun immobile).')
+    +(same
+      ?'\n\n⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «'+same.name+(same.address&&same.address!==same.name?' — '+same.address:'')+'». Se è la stessa casa, ANNULLA e usa → Contratto per collegarla: un immobile nuovo sarebbe un doppione, e il controllo delle sovrapposizioni non vedrebbe i contratti già vivi su quella casa. Procedi solo se è un’altra casa (es. un altro interno).'
+      :'\n\nSe la casa è già nel portal con un altro nome, annulla e usa → Contratto per sceglierla.');
+}
+/* L'IMMOBILE C'È GIÀ? (12/10/2026 — Viale Angelico 9: proposta non
+   collegata, ma l'appartamento era nel portal con un contratto vivo fino al
+   30/01/2027 e la nuova locazione partiva l'1/01). 📋 🏠 ✍️ mandano
+   createProperty a occhi chiusi: senza questo avviso nasceva un doppione e la
+   guardia sovrapposizioni, che confronta l'immobile, taceva. La regola è
+   quella con cui → Contratto preseleziona: una copia sola (propGuess). */
+async function existingPropFor(d){
+  if(!d||d.propertyId)return null;
+  var g=propGuess(d,await loadProps());
+  return (g&&g.id!=='prop_pa_'+d.id)?g:null;
+}
+async function confirmContractBirth(d,purpose){
+  if(contractIdOf(d))return true;
+  return ask(contractBirthText(d,purpose,await existingPropFor(d))+'\n\nProcedere?');
+}
+function partyErr(m){
+  return m==='no_property'?'la proposta non ha l’indirizzo dell’immobile: usa → Contratto e scegli la proprietà.'
+    :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
+    :m==='already_signed'?'il proprietario ha già firmato.'
+    :m==='property_create_failed'?'non sono riuscito a creare l’immobile nel portal: riprova, o crealo da → Contratto.'
+    :m==='not_accepted_yet'?'la proposta non è ancora accettata.'
+    :(m||'riprova');
+}
+/* Il messaggio per una parte, in una finestra della pagina: WhatsApp è un
+   link vero (un tap dell'operatore — window.open dopo una chiamata al
+   server Safari lo blocca in silenzio), più copia del messaggio e del link. */
+function showPartySend(d,o){
+  var old=document.getElementById('psov');if(old)old.remove();
+  var ov=document.createElement('div');ov.className='cvov';ov.id='psov';
+  var wa=o.phone?('https://wa.me/'+String(o.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(o.message||'')):null;
+  var made=o.created?('<div class="sub2" style="color:var(--gold-light);margin-top:8px">✓ Contratto creato adesso'+(o.propertyCreated?' insieme all’immobile (dalla proposta): catasto, mq e zona li completi da Immobili':'')+'.</div>'):'';
+  ov.innerHTML='<div class="cvbox" style="width:min(560px,100%)"><h3>'+esc(o.title)+'</h3>'
+    +'<div class="sub2"><b style="color:var(--t1)">'+esc(o.who||'')+'</b> — '+esc(o.what||'')+'</div>'+made
+    +(o.note?'<div class="sub2" style="margin-top:8px">'+o.note+'</div>':'')
+    +'<div class="cvlink" style="margin-top:12px"><span class="u" style="white-space:pre-wrap">'+esc(o.message||'')+'</span></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">'
+    +(wa?'<a class="pbtn prim wa" href="'+wa+'" target="_blank" rel="noopener">📲 Manda su WhatsApp</a>':'<span class="sub2">Nessun telefono in archivio: copia il messaggio e mandalo dove preferisci.</span>')
+    +'<button class="pbtn" id="psMsg">Copia messaggio</button>'
+    +(o.url?'<button class="pbtn" id="psUrl">Copia solo il link</button>':'')
+    +(o.extra?'<button class="pbtn" id="psExtra">'+esc(o.extra.label)+'</button>':'')
+    +'</div>'
+    +(o.emailed?'<div class="sub2" style="margin-top:10px;color:var(--green)">✓ Email con il link partita a '+esc(o.email||'')+'.</div>':(o.email||o.hideEmailNote?'':'<div class="sub2" style="margin-top:10px">Nessuna email in archivio: niente email automatica.</div>'))
+    +'<div style="margin-top:12px"><button class="pbtn" id="psClose">Chiudi</button></div></div>';
+  ov.addEventListener('click',function(e){if(e.target===ov)ov.remove();});
+  document.body.appendChild(ov);
+  var bm=ov.querySelector('#psMsg');if(bm)bm.onclick=function(){copyTxt(o.message||'');bm.textContent='✓ Copiato';};
+  var bu=ov.querySelector('#psUrl');if(bu)bu.onclick=function(){copyTxt(o.url||'');bu.textContent='✓ Copiato';};
+  var bx=ov.querySelector('#psExtra');if(bx)bx.onclick=function(){ov.remove();o.extra.fn();};
+  ov.querySelector('#psClose').onclick=function(){ov.remove();};
+}
+/* Il link FIRMA del proprietario, con il messaggio già scritto (IT: il
+   locatore è italiano). Dalla firma per mandato del conduttore in poi è
+   il suo turno: WhatsApp col suo numero, copia altrimenti. */
+function showLandlordSignLink(d,url,offerMandate){
+  var ll=d.landlord||{},addr=((d.property||{}).address)||'';
+  var first=String(ll.name||'').trim().split(/\s+/)[0]||'';
+  showPartySend(d,{title:'🖊 Firma del proprietario',who:ll.name||'il proprietario',
+    what:'il conduttore ha firmato: ora tocca a lui. Questo è il SUO link per firmare il contratto dal telefono.',
+    url:url,message:'Ciao'+(first?' '+first:'')+'! Il contratto per '+addr+' è pronto per la sua firma digitale — l’inquilino ha già firmato. Può firmare qui in 2 minuti: '+url,
+    phone:ll.phone,email:null,hideEmailNote:true,
+    extra:offerMandate?{label:'🏠 Chiedi invece il mandato',fn:function(){askLandlordMandateFor(d.id,{contractKnown:true});}}:null});
+}
+/* 📋 LA SCHEDA DEL PROPRIETARIO (12/10/2026 — «non riesco a inviare a
+   Chiara Tavolieri la scheda per far compilare i suoi dati»). La Scheda è
+   del contratto: qui il server lo crea se manca (con la conferma sopra),
+   calcola cosa manca al proprietario come lo leggerebbe il PDF e scrive il
+   messaggio che lo nomina, col link. WhatsApp col suo numero, email se c'è. */
+window.sendLandlordScheda=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var ll=d.landlord||{};
+  if(!(await confirmContractBirth(d,'mandare la Scheda a '+(ll.name||'il proprietario'))))return;
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Preparo…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'landlord-scheda',id:id,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    var miss=(j.missing||[]).map(function(m){return m.label});
+    showPartySend(d,{title:'📋 Scheda del proprietario',who:ll.name||'il proprietario',
+      what:j.locked?'ha già firmato: la Scheda è in sola lettura (resta il caricamento del documento).'
+        :(miss.length?'gli mancano '+miss.length+' dati per il contratto: '+miss.join(', ')+'. Li compila dal telefono, il PDF si rifà da solo.':'per il contratto non gli manca nessun dato. Il link resta valido per correzioni e documento.'),
+      url:j.url,message:j.message+(miss.length?'':'\n'+j.url),phone:j.phone,email:j.email,emailed:j.emailed,created:j.created,propertyCreated:j.propertyCreated});
+  }catch(e){
+    alert('Scheda non preparata: '+partyErr(String(e&&e.message||'')));
+  }finally{if(btn){btn.disabled=false;btn.textContent=was;}}
 };
 
 /* ✍️ LA FIRMA DELL'OPERATORE — disegnata UNA volta (canvas), salvata dal
@@ -1384,15 +1497,24 @@ async function loadProps(){
   }catch(e){console.warn('properties load',e);}
   return PROPS;
 }
+/* quale immobile del portal È la casa della proposta: il collegato, se c'è,
+   altrimenti il primo con lo stesso indirizzo. → Contratto lo preseleziona,
+   📋 🏠 ✍️ lo usano per avvisare prima di creare un doppione. */
+function propGuess(d,props){
+  var addr=((d&&d.property)||{}).address||'';
+  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
+  props=props||[];
+  return (d&&d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||(norm(addr)?props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0}):null)
+    ||(norm(addr)?props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0}):null)
+    ||null;
+}
 window.closeConvert=function(){var o=document.getElementById('cvov');if(o)o.remove();};
 window.convertPA=async function(id){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   var props=await loadProps();
   var t=d.tenant||{},ll=d.landlord||{},addr=((d.property||{}).address||'');
-  var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
-  var guess=(d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
-    ||props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0})
-    ||props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0});
+  var guess=propGuess(d,props);
   var ov=document.createElement('div');ov.className='cvov';ov.id='cvov';
   ov.innerHTML='<div class="cvbox">'
     +'<h3>Converti in contratto</h3>'
@@ -1621,8 +1743,9 @@ function paRow(d){
   if(noContract&&!mismatch){
     var days=d.paidAt?Math.max(0,Math.round((Date.now()-new Date(d.paidAt).getTime())/86400000)):null;
     alertLine='<div class="alertline"><b>💶 Pagato'+(d.paidAt?' il '+String(d.paidAt).slice(0,10):'')+(days!=null?' ('+days+' giorni fa)':'')+' — contratto NON ancora creato nel sistema</b>: '
-      +'senza contratto non partono Magic Sign, rate, journey né registrazione. '
+      +'senza contratto non partono Magic Sign, rate, journey né registrazione, e non esistono la Scheda né i link di firma delle parti. '
       +(d.propertyId?'Premi <b>🖊 Magic Sign</b>: crea il contratto e manda il link.':'Premi <b>→ Contratto</b> e scegli l’immobile'+(((d.property||{}).address)?' («'+esc(String((d.property||{}).address).slice(0,40))+'»)':'')+'; se non è nel portal, lo crei dalla proposta con un tap, lì dentro.')
+      +' Per il proprietario, <b>📋 Scheda proprietario</b> crea il contratto e ti dà subito il link dei suoi dati.'
       +'</div>';
   }
   if(mismatch){
@@ -1723,6 +1846,10 @@ function paRow(d){
         /* 🏠 il mandato del proprietario: chiesto dalla riga, dato con un tap
            dalla sua Scheda — senza, resta il suo link o la delega dichiarata */
         +(done&&!sig.landlordSigned&&sig.status!=='complete'&&!lmand&&!d.delegated?'<button class="pbtn" onclick="askLandlordMandateFor(\''+d.id+'\')" title="Arma la card sulla scheda del proprietario e manda il messaggio (WhatsApp/email): per lui è un tap, poi controfirmi tu">🏠 '+(lask?'Richiedi di nuovo il mandato':'Chiedi il mandato al proprietario')+'</button>':'')
+        /* 📋 la Scheda del proprietario per i SUOI DATI (CF, nascita,
+           residenza, documento, catasto…): anche prima del contratto, che
+           nasce qui con conferma — la Scheda è del contratto */
+        +(done&&!sig.landlordSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="sendLandlordScheda(\''+d.id+'\',this)" title="Il link della Scheda del proprietario, col messaggio che nomina i dati che gli mancano: WhatsApp col suo numero, email se c’è">📋 Scheda proprietario</button>':'')
         +(done&&!hasMandate&&!sig.tenantSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="Attiva la card sulla proposta e manda il messaggio: il cliente dà il mandato con un tap">🖊 Chiedi il mandato</button>':'')
         +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
         +(cid&&coWait&&!sig.tenantSigned?'<button class="pbtn" onclick="coLinksFor(\''+d.id+'\',this)" title="Ogni co-conduttore firma col suo link: email a chi ce l’ha, WhatsApp/copia per tutti">👥 Link co-conduttori ('+sig.coPending.length+')</button>':'')

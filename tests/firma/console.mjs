@@ -26,7 +26,7 @@ const mkEl = (id) => els[id] || (els[id] = {
   id, innerHTML: '', textContent: '', style: {}, value: '',
   classList: { toggle() {}, add() {}, remove() {} },
   querySelectorAll: () => [], querySelector: () => ({ textContent: '' }),
-  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; },
+  addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; }, remove() {},
 });
 const chipI = {};
 const chips = ['all', 'open', 'close', 'paid', 'signed', 'nocontract', 'reserve', 'revoked'].map(f => ({
@@ -153,6 +153,127 @@ ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · 
   'I · versione caricata: la riga dice quale versione gira e perché, con 📤 e ↺ Modello BOOM');
 ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
   'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
+
+/* 📋 F: LA SCHEDA DEL PROPRIETARIO (12/10/2026 — il caso Chiara Tavolieri,
+   Via dei Latini 76: pagata da venti giorni, nessun contratto, nessun modo
+   di mandare la Scheda al proprietario se non dentro la richiesta del mandato) */
+ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietario/) && has(5, /onclick="askLandlordMandateFor\('F'\)"/)
+  && has(5, /<b>📋 Scheda proprietario<\/b> crea il contratto/) && has(5, /non esistono la Scheda né i link di firma delle parti/) && !has(2, /sendLandlordScheda/),
+  'F · pagato senza contratto: 📋 Scheda proprietario sulla riga, e la riga dice PERCHÉ Scheda e link non esistono ancora; C · firmato da entrambi: niente 📋');
+{
+  let lastBody = null;
+  ctx.fetch = async (u, o) => { lastBody = JSON.parse(o.body); return { json: async () => ({
+    ok: true, contractId: 'pa_F', created: true, propertyCreated: true, url: 'https://www.boomrome.com/scheda?t=pa_F.l.x',
+    message: 'Gentile Giulia,\nper preparare il contratto ci mancano ancora: codice fiscale.\nDue minuti qui, dal telefono: https://www.boomrome.com/scheda?t=pa_F.l.x\n\n— BOOM Roma',
+    missing: [{ key: 'landlordCF', label: 'codice fiscale' }], phone: '+39334', email: null, emailed: false, locked: false }) }; };
+  await ctx.sendLandlordScheda('F', null);
+  const ovl = Object.values(els).find(e => /📋 Scheda del proprietario/.test(e.innerHTML || ''));
+  ok(!!lastBody && lastBody.op === 'landlord-scheda' && lastBody.id === 'F' && lastBody.createProperty === true
+    && !!ovl && /<a class="pbtn prim wa" href="https:\/\/wa\.me\/39334\?text=Gentile%20Giulia/.test(ovl.innerHTML)
+    && /Contratto creato adesso insieme all’immobile/.test(ovl.innerHTML) && /gli mancano 1 dati per il contratto: codice fiscale/.test(ovl.innerHTML) && /Nessuna email in archivio/.test(ovl.innerHTML),
+    '📋 il tap: op landlord-scheda con createProperty (proposta non collegata), finestra con WhatsApp come LINK vero, contratto e immobile appena nati detti, i dati mancanti nominati');
+  /* ✍️ Firmo io sul giro vero della console: piano → firma → tocca al
+     proprietario, e il SUO link firma esce subito in una finestra */
+  const ops = [];
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); ops.push(bd.op); return { json: async () => (bd.op === 'status'
+    ? { ok: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, contractVersion: 1, coTenantsPending: [] } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L2', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sl = Object.values(els).find(e => /🖊 Firma del proprietario/.test(e.innerHTML || ''));
+  ok(ops.join() === 'status,sign' && !!sl && /href="https:\/\/wa\.me\/39334\?text=Ciao%20Giulia!/.test(sl.innerHTML) && /sign%3Fsign%3DL2/.test(sl.innerHTML)
+    && /🏠 Chiedi invece il mandato/.test(sl.innerHTML) && !/Nessuna email in archivio/.test(sl.innerHTML),
+    'dopo ✍️ (conduttore firmato per mandato): il link FIRMA del proprietario subito in una finestra, WhatsApp col suo numero, e l’alternativa del mandato');
+
+  /* ✍️ premuto PER PRIMO su una proposta senza contratto né immobile: il
+     server dice hasContract:false → UNA conferma che annuncia la nascita del
+     contratto e dell'immobile, e la firma parte con createProperty (prima
+     moriva su no_property DOPO il «Procedere?») */
+  const asked = [], bodies = [];
+  const stNoContract = { ok: true, hasContract: false, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, coTenantsPending: [] } };
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? stNoContract
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L3', askLandlordMandate: false, contractId: 'pa_F' }) }; };
+  await ctx.signFor('F', null);
+  const sb = bodies.find(b => b.op === 'sign');
+  ok(bodies.map(b => b.op).join() === 'status,sign' && !!sb && sb.createProperty === true && !('propertyId' in sb)
+    && /^Il contratto di questa proposta non esiste ancora: per firmare lo creo adesso, insieme all’immobile «Viale Angelico 9»/.test(asked[0] || '')
+    && /Firmi TU per il conduttore Ines Test/.test(asked[0] || ''),
+    '✍️ per primo, senza contratto né immobile: UNA conferma che dice che nascono contratto e immobile, e la firma parte con createProperty');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return false; };
+  await ctx.signFor('F', null);
+  ok(bodies.map(b => b.op).join() === 'status' && asked.length === 1, '… annullata la conferma: nessuna firma, nessun contratto creato');
+  bodies.length = 0; asked.length = 0;
+  ctx.confirm = (m) => { asked.push(m); return true; };
+  ctx.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies.push(bd); return { json: async () => (bd.op === 'status' ? { ...stNoContract, hasContract: true, plan: { ...stNoContract.plan, needsContract: undefined } }
+    : { ok: true, steps: ['tenant'], landlordPending: true, landlordSignUrl: 'https://www.boomrome.com/sign?sign=L4', askLandlordMandate: false, contractId: 'pa_A' }) }; };
+  await ctx.signFor('A', null);
+  const sa = bodies.find(b => b.op === 'sign');
+  ok(!!sa && !('createProperty' in sa) && !('propertyId' in sa) && !/non esiste ancora/.test(asked[0] || ''),
+    '✍️ con il contratto già nato: nessun annuncio di nascita, nessun createProperty');
+
+  delete ctx.confirm;
+}
+
+/* ── L'IMMOBILE C'È GIÀ (Viale Angelico 9, 12/10/2026) ──
+   Una SECONDA console montata, con il portal che ha già le case: la proposta
+   non è collegata ma l'appartamento è nel portal (con un contratto vivo).
+   Prima di far nascere un doppione 📋 🏠 ✍️ lo DICONO, con lo stesso
+   abbinamento con cui → Contratto preseleziona (propGuess, una copia). */
+{
+  let paApply2 = null;
+  const propsDocs = [
+    { id: 'W0lE1', name: 'Angelico 9', address: 'Viale Angelico 9' },
+    { id: 'prop_pa_K', name: 'Via dei Latini 76 int. 1', address: 'Via dei Latini 76' },
+    { id: 'pX', name: 'Altro', address: 'Via Roma 1' },
+  ];
+  const asked2 = [], bodies2 = [];
+  const stNo = { ok: true, hasContract: false, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true, mandate: { at: '2026-09-23T10:36:06Z', ref: 'BOOM-X' }, mandateOk: true, coTenantsPending: [] } };
+  const fs2 = () => ({ collection: (name) => ({
+    orderBy: () => ({ limit: () => ({ onSnapshot: (fn) => { paApply2 = fn; }, get: async () => { throw new Error('offline'); } }) }),
+    doc: () => ({ onSnapshot() {}, get: async () => { throw new Error('offline'); }, update: async () => {} }),
+    limit: () => ({ get: async () => ({ forEach: (fn) => (name === 'properties' ? propsDocs : []).forEach(p => fn({ id: p.id, data: () => p })) }) }),
+  }) });
+  const ctx2 = {
+    ...ctx, firebase: { firestore: fs2 },
+    confirm: (m) => { asked2.push(m); return false; },
+    fetch: async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status' ? stNo : { ok: true }) }; },
+  };
+  ctx2.window = ctx2; ctx2.self = ctx2;
+  vm.createContext(ctx2);
+  for (const s of scripts) vm.runInContext(s, ctx2);
+  const pa2 = (id, addr) => ({ ...base, id, contractId: undefined, propertyId: null, signSentAt: null, property: { address: addr } });
+  paApply2(snap([pa2('F', 'Viale Angelico 9'), pa2('K', 'Via dei Latini 76'), pa2('L', 'Via Nuova 5')]));
+  const warnRe = /⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «Angelico 9 — Viale Angelico 9»\. Se è la stessa casa, ANNULLA e usa → Contratto per collegarla/;
+  const reset = () => { asked2.length = 0; bodies2.length = 0; };
+
+  await ctx2.signFor('F', null);
+  ok(warnRe.test(asked2[0] || '') && /doppione/.test(asked2[0] || '') && /sovrapposizioni/.test(asked2[0] || '') && bodies2.map(b => b.op).join() === 'status',
+    '✍️ su proposta non collegata con la casa GIÀ nel portal: la conferma lo dice (nome, indirizzo, doppione, sovrapposizioni, → Contratto) e, annullata, non firma');
+  reset(); await ctx2.sendLandlordScheda('F', null);
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 0, '📋 sulla stessa proposta: lo stesso avviso, e annullato non parte nessuna chiamata');
+  reset(); await ctx2.askLandlordMandateFor('F');
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 0, '🏠 sulla stessa proposta: lo stesso avviso, e annullato non parte nessuna chiamata');
+  reset(); await ctx2.sendLandlordScheda('K', null);
+  ok(asked2.length === 1 && !/GIÀ un immobile/.test(asked2[0]) && /annulla e usa → Contratto per sceglierla/.test(asked2[0]),
+    'K · l’unica casa allo stesso indirizzo è quella nata da QUESTA proposta (prop_pa_K): non è un doppione, nessun avviso');
+  reset(); await ctx2.sendLandlordScheda('L', null);
+  ok(asked2.length === 1 && !/GIÀ un immobile/.test(asked2[0]) && /insieme all’immobile «Via Nuova 5»/.test(asked2[0]),
+    'L · nessuna casa a quell’indirizzo nel portal: la conferma di sempre, nessun avviso');
+  reset(); ctx2.confirm = (m) => { asked2.push(m); return true; };
+  await ctx2.sendLandlordScheda('F', null);
+  ok(warnRe.test(asked2[0] || '') && bodies2.length === 1 && bodies2[0].op === 'landlord-scheda' && bodies2[0].createProperty === true,
+    '… se l’operatore conferma che è un’altra casa (es. un altro interno), si procede: l’avviso non blocca');
+  /* → Contratto preseleziona ancora con la STESSA regola (il riordino non l'ha cambiata) */
+  const lastConv = () => Object.values(els).filter(e => /Converti in contratto/.test(e.innerHTML || '')).pop();
+  await ctx2.convertPA('F');
+  const cvF = lastConv();
+  await ctx2.convertPA('L');
+  const cvL = lastConv();
+  ok(!!cvF && /<option value="W0lE1" selected>/.test(cvF.innerHTML) && !/value="__new__" selected/.test(cvF.innerHTML)
+    && !!cvL && /<option value="__new__" selected>/.test(cvL.innerHTML) && !/<option value="W0lE1" selected>/.test(cvL.innerHTML),
+    '→ Contratto: con la casa nel portal preseleziona QUELLA, senza preseleziona «＋ Crea l’immobile» (stesso abbinamento, una copia)');
+}
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);
