@@ -411,7 +411,8 @@ function fixture() {
     assert.match(w.log.toast.at(-1)[2], /393313251961|\+393313251961/);
   };
   await check('27 · «Scrivi a BOOM»: a scheda aperta nessun ripiego, a popup bloccato numero ed email', () => writesBoom());
-  await mutant('window.open con \'noopener\' (null anche a scheda aperta)', "encodeURIComponent(text), '_blank');", "encodeURIComponent(text), '_blank', 'noopener');", writesBoom);
+  await mutant('window.open con \'noopener\' (null anche a scheda aperta)', "co.wa + '?text=' + encodeURIComponent(text), '_blank');",
+    "co.wa + '?text=' + encodeURIComponent(text), '_blank', 'noopener');", writesBoom);
   await check('27 · per l\'operatore «Scrivi a BOOM» resta l\'Inbox', () => {
     const a = track(makeCtx({ role: 'admin', state: fixture() }));
     a.run('buildNav = function () {}; renderPage = function () {};'); // il menu dell'operatore non è qui in prova
