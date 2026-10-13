@@ -1071,15 +1071,24 @@
   function withdrawnLines(p, r, admin) {
     var wd = p && p.tenantReportWithdrawn;
     if (!wd || typeof wd !== 'object' || r.state === 'paid' || r.state === 'cancelled') return [];
-    var wMs = msOf(wd.at), rMs = msOf(p.tenantReportedAt);
+    // L'ULTIMA segnalazione attiva: la più recente dell'elenco (tenantReportedAt
+    // è la prima, e con più co-intestatari non si aggiorna).
+    var reps = Array.isArray(p.tenantReports) ? p.tenantReports.filter(function (x) { return x && typeof x === 'object'; }) : [];
+    var rMs = Math.max(msOf(p.tenantReportedAt), reps.reduce(function (a, x) { return Math.max(a, msOf(x.at)); }, 0));
+    var wMs = msOf(wd.at);
     if (!wMs || (r.state === 'reported' && rMs && wMs < rMs)) return [];
     var list = Array.isArray(wd.reports) ? wd.reports.filter(function (x) { return x && typeof x === 'object'; }) : [];
-    var wDay = dateIt(E.day ? E.day(wd.at) : String(wd.at).slice(0, 10));
-    var who = wd.by && wd.by !== 'tenant' ? (admin ? 'revocata da BOOM' : 'non confermata da BOOM') : 'annullata dall’inquilino';
-    return (list.length ? list.slice(-3) : [{}]).map(function (x) {
-      var d = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || '')) ? x.date : '';
+    // Ogni voce con la SUA data d'annullo e chi l'ha annullata (withdrawnAt/
+    // withdrawnBy); le voci scritte prima valgono la testa. Una voce annullata
+    // prima dell'ultima segnalazione attiva è storia superata: non si mostra.
+    var rows = (list.length ? list : [{}]).map(function (x) { return { x: x, at: x.withdrawnAt || wd.at, by: x.withdrawnBy || wd.by }; })
+      .filter(function (o) { return !(r.state === 'reported' && rMs && msOf(o.at) && msOf(o.at) < rMs); });
+    return rows.slice(-3).map(function (o) {
+      var x = o.x, d = /^\d{4}-\d{2}-\d{2}$/.test(String(x.date || '')) ? x.date : '';
+      var wDay = o.at ? dateIt(E.day ? E.day(o.at) : String(o.at).slice(0, 10)) : '';
+      var who = o.by && o.by !== 'tenant' ? (admin ? 'revocata da BOOM' : 'non confermata da BOOM') : 'annullata dall’inquilino';
       return '<s>bonifico segnalato' + (d ? ' del ' + dateIt(d) : '') + '</s> · segnalazione ' + who + (wDay ? ' il ' + wDay : '') +
-        (admin && wd.reason ? ' · «' + esc(String(wd.reason).slice(0, 80)) + '»' : '');
+        (admin && wd.reason && o.at === wd.at ? ' · «' + esc(String(wd.reason).slice(0, 80)) + '»' : '');
     });
   }
   var ROW_STATE = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', review: 'Rimborso/contestazione — da verificare', cancelled: 'Annullata', unknown: 'Da verificare' };

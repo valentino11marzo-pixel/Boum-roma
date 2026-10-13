@@ -372,7 +372,14 @@ await check('rata · co-intestatari: chi annulla col SUO nonce toglie solo la su
   await rata({ op: 'report', id: 'rTwo', t: tk('rTwo'), date: '2026-10-06', note: 'Mehmet again', nonce: 'cccccccccccc3003', amount: '860', another: true });
   await rata({ op: 'withdraw', id: 'rTwo', t: tk('rTwo'), nonce: 'aaaaaaaaaaaa1001' });
   const q = store.get('payments/rTwo');
-  return eq([q.tenantReports.length, q.tenantReportDate, q.tenantNotes, q.proofUrl, RENT.paymentState(q)], [1, '2026-10-06', 'Mehmet again', null, 'reported']);
+  eq([q.tenantReports.length, q.tenantReportDate, q.tenantNotes, q.proofUrl, RENT.paymentState(q)], [1, '2026-10-06', 'Mehmet again', null, 'reported']);
+  // Ogni voce annullata porta la SUA data d'annullo; l'ultimo annullo (tutto)
+  // accoda alla storia di prima invece di cancellarla.
+  const hw = q.tenantReportWithdrawn.reports;
+  eq([hw.length, hw.every(x => /^\d{4}-\d{2}-\d{2}T/.test(String(x.withdrawnAt || '')) && x.withdrawnBy === 'tenant')], [2, true], 'withdrawnAt per voce');
+  await rata({ op: 'withdraw', id: 'rTwo', t: tk('rTwo') });
+  const z = store.get('payments/rTwo').tenantReportWithdrawn.reports;
+  return eq([z.length, z.map(x => x.nonce).join(',')], [3, 'bbbbbbbbbbbb2002,aaaaaaaaaaaa1001,cccccccccccc3003'], 'la storia di prima resta');
 });
 await check('rata · l\'importo segnalato: «la mia metà» resta metà — la card lo dice con la nota, la pagina non dice «non pagare di nuovo» finché manca il resto', async () => {
   rate('rAmt', 'cImp', 'pImp', { month: '2027-02', dueDate: '2099-02-05' });

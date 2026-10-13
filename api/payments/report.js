@@ -34,11 +34,16 @@ export function reportHistory(p) {
   return [];
 }
 export function withdrawFields(p, { by, reason, reviewId } = {}) {
+  // Ogni voce porta la SUA data d'annullo e chi l'ha annullata: la storia di
+  // prima (un co-intestatario che aveva già ritirato la sua da /rata) resta
+  // e si accoda — «at» in testa è solo l'ultimo annullo.
+  const nowIso = new Date().toISOString(), who = by || 'tenant';
+  const prev = p && p.tenantReportWithdrawn && Array.isArray(p.tenantReportWithdrawn.reports) ? p.tenantReportWithdrawn.reports.filter(x => x && typeof x === 'object') : [];
   return {
     tenantReported: false, tenantReportedAt: null, tenantReportWithdrawnAt: new Date(),
     tenantReportDate: null, tenantNotes: null, proofUrl: null, proofName: null, tenantReports: null,
-    tenantReportWithdrawn: { at: new Date().toISOString(), by: by || 'tenant', ...(reason ? { reason: clip(reason, 500) } : {}),
-      ...(reviewId ? { reviewId } : {}), reports: reportHistory(p) },
+    tenantReportWithdrawn: { at: nowIso, by: who, ...(reason ? { reason: clip(reason, 500) } : {}),
+      ...(reviewId ? { reviewId } : {}), reports: prev.concat(reportHistory(p).map(x => ({ ...x, withdrawnAt: nowIso, withdrawnBy: who }))).slice(-6) },
   };
 }
 

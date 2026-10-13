@@ -423,9 +423,12 @@ export default async function handler(req, res) {
       if (at < 0) return res.status(409).json({ ok: false, error: 'several_reports', count: was.length });
       const removed = was[at], left = was.filter((_, i) => i !== at), first = left[0];
       const prevW = r.p.tenantReportWithdrawn && Array.isArray(r.p.tenantReportWithdrawn.reports) ? r.p.tenantReportWithdrawn.reports : [];
+      // Ogni voce annullata porta la SUA data d'annullo (withdrawnAt): con più
+      // co-intestatari la storia si accoda, e «at» in testa è solo l'ultimo.
+      const nowIso = new Date().toISOString();
       const fields = { tenantReports: left, tenantReportDate: ymd(first.date) || null, tenantNotes: clip(first.note, 500),
         proofUrl: first.proofUrl || null, proofName: first.proofUrl ? (first.proofName || null) : null,
-        tenantReportWithdrawn: { at: new Date().toISOString(), reports: prevW.concat([removed]).slice(-MAX_REPORTS) } };
+        tenantReportWithdrawn: { at: nowIso, reports: prevW.concat([{ ...removed, withdrawnAt: nowIso, withdrawnBy: 'tenant' }]).slice(-MAX_REPORTS) } };
       if (at === 0) { const t0 = Date.parse(String(first.at || '')); if (Number.isFinite(t0)) fields.tenantReportedAt = new Date(t0); }
       try { await fsCommit([{ docPath: 'payments/' + id, fields, precondition: { updateTime: r.version.updateTime } }]); }
       catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }
@@ -436,10 +439,14 @@ export default async function handler(req, res) {
     // una nuova segnalazione senza ricevuta non deve risultare "con ricevuta"
     // per quella vecchia. Ciò che c'era resta, a parte, come storia.
     try {
+      // La storia di prima (un co-intestatario che aveva già annullato la
+      // sua) resta: si accoda, ogni voce con la sua data d'annullo.
+      const nowIso = new Date().toISOString();
+      const prevW = r.p.tenantReportWithdrawn && Array.isArray(r.p.tenantReportWithdrawn.reports) ? r.p.tenantReportWithdrawn.reports : [];
       await fsCommit([{ docPath: 'payments/' + id, fields: {
         tenantReported: false, tenantReportedAt: null, tenantReportWithdrawnAt: new Date(),
         tenantReportDate: null, tenantNotes: null, proofUrl: null, proofName: null, tenantReports: null,
-        tenantReportWithdrawn: { at: new Date().toISOString(), reports: was.slice(0, MAX_REPORTS) }
+        tenantReportWithdrawn: { at: nowIso, reports: prevW.concat(was.slice(0, MAX_REPORTS).map(x => ({ ...x, withdrawnAt: nowIso, withdrawnBy: 'tenant' }))).slice(-MAX_REPORTS) }
       }, precondition: { updateTime: r.version.updateTime } }]);
     } catch (e) { return res.status(e.conflict ? 409 : 503).json({ ok: false, error: e.conflict ? 'state_changed' : 'unavailable' }); }
     try { await pingWithdrawn(id, r, view, { date: ymd(was[0] && was[0].date), left: 0 }); } catch (e) { console.warn('[rata] ping annullo:', e.message); }

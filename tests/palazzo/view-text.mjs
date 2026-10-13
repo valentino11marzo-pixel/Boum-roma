@@ -411,6 +411,30 @@ ok('una segnalazione NUOVA dopo l’annullo: la storia superata non si mostra; r
   const o = scenWd(null, { tenantReported: false, tenantReportWithdrawn: { at: D2 + 'T10:00:00Z', by: 'admin', reason: 'nessun accredito', reports: [{ date: D1 }] } }, 'landlord');
   assert.ok(/segnalazione non confermata da BOOM/.test(o) && !/nessun accredito/.test(o), o);
 });
+ok('due annulli in giorni diversi: ognuno con la SUA data (mai l’ultima per tutti), e la storia superata da una segnalazione nuova non si mostra', () => {
+  const D0 = CUR + '-01', D4 = CUR + '-04', D5 = CUR + '-05';
+  // Tutto annullato: Ayse il D2, Mehmet il D4.
+  const t = scenWd(null, { tenantReported: false, tenantReportWithdrawn: { at: D4 + 'T10:00:00Z', reports: [
+    { at: D0 + 'T09:00:00Z', date: D0, amount: 860, withdrawnAt: D2 + 'T10:00:00Z', withdrawnBy: 'tenant' },
+    { at: D1 + 'T09:00:00Z', date: D1, amount: 860, withdrawnAt: D4 + 'T10:00:00Z', withdrawnBy: 'tenant' }] } });
+  // dateIt della vista: «3 ott 2026» (giorno senza zero, mese breve).
+  const day = d => String(Number(d.slice(8, 10))) + ' ';
+  assert.ok(t.includes('annullata dall’inquilino il ' + day(D2)) && t.includes('annullata dall’inquilino il ' + day(D4)), t);
+  // La prima annullata il D2, poi una segnalazione NUOVA il D3 (attiva), poi un'altra fatta il D4 e annullata il D5:
+  // si vede solo quella del D5 (quella del D2 è storia superata dalla segnalazione del D3).
+  const u = scenWd(null, { tenantReported: true, tenantReportedAt: D2 + 'T12:00:00Z', tenantReportDate: D2,
+    tenantReports: [{ at: CUR + '-03T09:00:00Z', date: CUR + '-03', amount: 860 }],
+    tenantReportWithdrawn: { at: D5 + 'T10:00:00Z', reports: [
+      { date: D0, amount: 860, withdrawnAt: D2 + 'T10:00:00Z', withdrawnBy: 'tenant' },
+      { at: D4 + 'T09:00:00Z', date: D4, amount: 860, withdrawnAt: D5 + 'T10:00:00Z', withdrawnBy: 'tenant' }] } });
+  assert.ok(/<s>bonifico segnalato del (\d+) [^<]*<\/s> · segnalazione annullata dall’inquilino il (\d+) /.test(u) && u.match(/<s>/g).length === 1
+    && u.includes('<s>bonifico segnalato del ' + day(D4)) && u.includes('annullata dall’inquilino il ' + day(D5)), u);
+  const src = read('palazzo.js'), from = "var rows = (list.length ? list : [{}]).map(function (x) { return { x: x, at: x.withdrawnAt || wd.at, by: x.withdrawnBy || wd.by }; })";
+  assert.ok(src.includes(from));
+  const m = scenWd(src.replace(from, "var rows = (list.length ? list : [{}]).map(function (x) { return { x: x, at: wd.at, by: wd.by }; })"), { tenantReported: false, tenantReportWithdrawn: { at: D4 + 'T10:00:00Z', reports: [
+    { date: D0, withdrawnAt: D2 + 'T10:00:00Z' }, { date: D1, withdrawnAt: D4 + 'T10:00:00Z' }] } });
+  assert.ok(!m.includes('il ' + day(D2)), 'mutazione: con la data dell’ultimo annullo per tutte le righe il controllo cade');
+});
 ok('mutazione: la storia dell’annullo ignorata — il controllo cade', () => {
   const src = read('palazzo.js'), from = '    withdrawnLines(p, r, admin).forEach(function (x) { subs.push(x); });\n';
   assert.ok(src.includes(from));
