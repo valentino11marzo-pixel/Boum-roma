@@ -632,6 +632,14 @@ async function handleRent(res, session, m) {
   let pay = null;
   try { pay = await readDoc(`payments/${paymentId}`); } catch (_) {}
   if (!pay) return res.status(200).json({ received: true, error: 'payment_not_found', paymentId });
+  // La STESSA sessione ri-consegnata su una rata che un umano ha riaperto dopo
+  // averla incassata (incasso annullato, rimborso): questa sessione è già
+  // stata registrata una volta (stripeSessionId lo scrive solo questo ramo,
+  // insieme a «pagata»). Non la si ri-segna pagata: la decisione
+  // dell'operatore resta, e la rata riaperta resta pagabile da capo.
+  if (pay.status !== 'paid' && pay.stripeSessionId === session.id) {
+    return res.status(200).json({ received: true, duplicate: true, reopened: true, paymentId });
+  }
   if (pay.status === 'paid') {
     // Same session retried by Stripe → simple ack.
     if (pay.stripeSessionId === session.id) {

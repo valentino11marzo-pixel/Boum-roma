@@ -40,6 +40,7 @@ const MUTATIONS = {
   'nonce-ignored': ['/api/payments/rata.js', "const nonce = NONCE_RE.test(String(b.nonce || '')) ? String(b.nonce) : '';", "const nonce = '';"],
   'double-tap-window': ['/api/payments/rata.js', 'Date.now() - t < DOUBLE_TAP_MS', 'true'],
   'pi-lang': ['/api/payments/pay.js', 'description: (paymentLabel(payment, lang) + (where', 'description: (paymentLabel(payment) + (where'],
+  'redelivery-reopened': ['/api/stripe-webhook.js', "if (pay.status !== 'paid' && pay.stripeSessionId === session.id) {", 'if (false) {'],
 };
 
 export async function load(url, context, nextLoad) {

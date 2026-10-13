@@ -586,7 +586,12 @@ await check('revisione · carta incassata, rimborsata e riaperta: il bonifico si
   put('payments/rUndo', { ...cur, status: 'pending', paidDate: null, paidVia: null, receiptUrl: null, incassoAnnullato: { at: 'x', by: 'admin1', was: { status: 'paid' } } });
   eq([l.statusCode, w.body.rent, rf.body.rataState, RENT.paymentState(store.get('payments/rUndo')), RENT.canPay(store.get('payments/rUndo'))], [303, true, 'review', 'due', true], 'giro');
   const r = await rata({ op: 'report', id: 'rUndo', t: tk('rUndo'), date: '2026-10-10', note: 'pagato con bonifico dopo il rimborso' });
-  return eq([r.statusCode, r.body.state, store.get('payments/rUndo').tenantReported], [200, 'reported', true]);
+  eq([r.statusCode, r.body.state, store.get('payments/rUndo').tenantReported], [200, 'reported', true]);
+  // Stripe ri-consegna l'evento della sessione già registrata: la rata
+  // riaperta dall'operatore NON torna pagata da sola.
+  const v0 = versions.get('payments/rUndo');
+  const again = await hook({ id: 'evt_undo1', type: 'checkout.session.completed', data: { object: { id: sid, payment_intent: 'pi_undo', amount_total: 172000, metadata: sess.metadata, customer_details: { email: 'x@example.invalid' } } } });
+  return eq([again.body.duplicate, again.body.reopened, store.get('payments/rUndo').status, versions.get('payments/rUndo') === v0], [true, true, 'pending', true]);
 });
 await check('revisione · stessa rata riaperta: il link apre una Checkout NUOVA invece di «non serve pagare di nuovo»', async () => {
   undone('rUndoL');
