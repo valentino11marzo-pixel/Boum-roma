@@ -439,6 +439,14 @@ await check('link · il PaymentIntent porta la rata (metadata), un descrittore r
 });
 await check('link · la ricevuta va a chi paga: l\'email del contratto quando la rata non la porta', async () =>
   eq(stripe().calls.at(-1).customer_email, 'lena@example.invalid'));
+await check('link · da /rata con un co-intestatario nessuna email precompilata: la ricevuta va a chi paga davvero', async () => {
+  prop('pImpCo', { interno: '11', rataCard: { on: true, mandateAt: '2026-10-01', fee: 'absorbed' } });
+  put('contracts/cImpCo', { ...imported, propertyId: 'pImpCo', tenantName: 'Lena Esempio', tenantEmail: 'lena@example.invalid', coTenants: [{ name: 'Marta Esempio' }] });
+  rate('rImpCo', 'cImpCo', 'pImpCo');
+  const n0 = stripe().calls.length;
+  await link('rImpCo', { lang: 'en', from: 'rata' });
+  return eq([stripe().calls.length, stripe().calls.at(-1).customer_email], [n0 + 1, undefined]);
+});
 await check('link · surcharge scelto: la riga della commissione c\'è, col suo nome vero', async () => {
   await link('rImpSur', { lang: 'it', from: 'rata' });
   const c = stripe().calls.at(-1);

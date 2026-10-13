@@ -345,7 +345,11 @@ export default async function handler(req, res) {
   // La ricevuta va a chi paga: l'email della rata, poi quella del contratto
   // (le rate prese in carico dal Palazzo non la portano). Senza, Stripe la
   // chiede e il webhook la legge da customer_details.
-  const prefill = [doc.recipientEmail, doc.tenantEmail, card.contract && card.contract.tenantEmail]
+  // Da /rata con più intestatari il link lo apre anche il co-intestatario:
+  // l'email del titolare precompilata (e non modificabile su Stripe) mandava
+  // la ricevuta all'altra persona — e /rata dice «l'email che inserisci».
+  const shared = fromRata && card.contract && Array.isArray(card.contract.coTenants) && card.contract.coTenants.some(x => x && typeof x === 'object');
+  const prefill = shared ? undefined : [doc.recipientEmail, doc.tenantEmail, card.contract && card.contract.tenantEmail]
     .map(v => String(v || '').trim()).find(v => EMAIL_RE.test(v)) || undefined;
   const back = fromRata ? rataUrl : '';
 
