@@ -416,4 +416,132 @@ const loaded = loadedFrom(first);
   ok('…e nessun avviso sul pagamento già registrato', p2.rows.every(r => !r.warnings.some(w => /pagament|pagato/.test(w))), p2.rows.map(r => r.warnings));
 }
 
+// ── 16. Il civico resta il civico: un dettaglio dopo il numero non fa un ──
+//        altro palazzo (seconda revisione, regressione del rilievo 55)
+{
+  const same42 = ['Piazzale Prenestino 42', 'Piazzale Prenestino 42 terzo piano', 'Piazzale Prenestino 42 primo piano', 'Piazzale Prenestino 42 PT',
+    'Piazzale Prenestino 42 attico', 'Piazzale Prenestino 42 Pigneto', 'Piazzale Prenestino 42 stanza 2', 'Piazzale Prenestino 42 camera 2',
+    'Piazzale Prenestino 42 appartamento 3', 'Piazzale Prenestino 42 app. 3', 'Piazzale Prenestino 42 palazzina B', 'Piazzale Prenestino 42 lotto 2',
+    'Piazzale Prenestino 42 seminterrato', 'Piazzale Prenestino 42 piano rialzato', 'Piazzale Prenestino 42 (Pigneto)', 'Piazzale Prenestino 42 Pigneto, Roma 00176',
+    'P.le Prenestino 42 int 7', 'Piazzale Prenestino 42 - Roma'];
+  eq('quartiere, piano, stanza, appartamento dopo il civico: tutti «piazzale prenestino 42»', same42.filter(a => P.streetKey(a) !== 'piazzale prenestino 42'), []);
+  eq('…mentre i numeri nel nome della via restano nel nome', ['Via 4 Fontane 20', 'Via 4 Novembre 96', 'Via 4 Novembre 12, Roma', 'Viale 21 Aprile 12', 'Largo 16 Ottobre 1943 5',
+    'Piazza 2 Giugno 4', 'Via XX Settembre 98', 'Corso Vittorio Emanuele II 18', 'Piazzale Esempio 42 bis', 'Piazzale Esempio 42-44', 'Via della Scala 5, int 2'].map(P.streetKey),
+  ['via 4 fontane 20', 'via 4 novembre 96', 'via 4 novembre 12', 'viale 21 aprile 12', 'largo 16 ottobre 1943 5', 'piazza 2 giugno 4', 'via 20 settembre 98',
+    'corso vittorio emanuele ii 18', 'piazzale esempio 42bis', 'piazzale esempio 42', 'via della scala 5']);
+  // Tre interni allo stesso civico scritti in tre modi: un palazzo, nessun doppione.
+  const props = [{ id: 'u3', address: 'Piazzale Prenestino 42 terzo piano', interno: '3', floor: '3', ownerId: 'owner-x' },
+    { id: 'u5', address: 'Piazzale Prenestino 42 stanza 2', interno: '5', ownerId: 'owner-x' }, { id: 'u7', address: 'Piazzale Prenestino 42', interno: '7', ownerId: 'owner-x' }];
+  const ctx = P.context({ now: NOW, properties: props });
+  eq('il Palazzo vede UN palazzo', P.buildings(ctx).map(b => b.key), ['a:piazzale prenestino 42']);
+  const t3 = 'Interno;Inquilino;Canone;Dal;Al\n3;Ada Prova;900;01/10/2026;30/09/2027\n5;Bea Prova;900;01/10/2026;30/09/2027\n7;Cia Prova;900;01/10/2026;30/09/2027';
+  const run3 = E => E.planImport(E.parseRentRoll(t3).rows, E.context({ now: NOW, properties: props }), { address: 'Piazzale Prenestino 42, Roma', ownerId: 'owner-x', gestioneDal: '2026-10' });
+  eq('la presa in carico aggancia i tre interni in archivio (zero nuovi)', run3(P).properties.map(p => [p.id, p.exists]), [['u3', true], ['u5', true], ['u7', true]]);
+  mutation('un quartiere dopo il civico rimanda il numero nella via', 'if (!rest.some(isNum)) break;', '',
+    E => E.streetKey('Piazzale Prenestino 42 Pigneto') === 'piazzale prenestino 42' && E.streetKey('Piazzale Prenestino 42 terzo piano') === 'piazzale prenestino 42');
+  mutation('«42 stanza 2»: il dettaglio non ferma il civico', 'if (CITY.indexOf(w) >= 0 || isNum(w) || DETAIL.indexOf(w) >= 0) break;', 'if (CITY.indexOf(w) >= 0 || isNum(w)) break;',
+    E => E.streetKey('Piazzale Prenestino 42 stanza 2') === 'piazzale prenestino 42' && run3(E).properties.every(p => p.exists));
+}
+
+// ── 17. Un contratto firmato non si riempie dalla tabella ───────────────
+{
+  const st = { properties: [{ id: 'u7', address: ADDR, interno: '7', floor: '2', ownerId: 'owner-x', gestioneDal: '2026-10' }],
+    contracts: [{ id: 'c7', propertyId: 'u7', status: 'active', tenantName: 'Ada Uno', rent: 1500, startDate: '2026-10-01', endDate: '2027-09-30',
+      signatureStatus: 'tenant_signed', tenantSignature: 'data:image/png;base64,xx', signedTermsHash: 'h', type: '', cedolareSecca: '', deposit: null }] };
+  const t = 'Interno;Inquilino;Telefono;Canone;Dal;Al;Tipo;Deposito;Cedolare\n7;Ada Uno;+39 000 000 0007;1500;01/10/2026;30/09/2027;studenti;3000;no';
+  const pl = plan(P, t, st);
+  const w = pl.contracts.find(c => c.id === 'c7');
+  eq('tenant_signed: deposito, tipo e cedolare NON si scrivono (cambierebbero l\'impronta delle firme)', w ? Object.keys(w.data).filter(k => ['deposit', 'type', 'cedolareSecca'].includes(k)) : [], []);
+  ok('…il telefono (non è un termine) sì', w && w.data.tenantPhone === '+390000000007', w);
+  eq('…e restano differenze BLOCCATE «firmato», dette', pl.diffs.filter(d => d.fill).map(d => [d.field, d.locked, d.lockReason, d.fromText]),
+    [['deposit', true, 'firmato', 'non indicato'], ['type', true, 'firmato', 'non indicato'], ['cedolareSecca', true, 'firmato', 'non indicato']]);
+  ok('il piano lo conta e lo dice', pl.counts.diffsLocked === 3 && pl.messages.some(m => /contratti firmati digitalmente/.test(m)), pl.messages);
+  const ap = plan(P, t, st, { applyDiffs: true });
+  ok('nemmeno con applyDiffs', !ap.contracts.some(c => c.id === 'c7' && ['deposit', 'type', 'cedolareSecca'].some(k => k in c.data)), ap.contracts);
+  const paper = plan(P, t, { ...st, contracts: [{ ...st.contracts[0], signatureStatus: 'paper', tenantSignature: null, signedTermsHash: null }] });
+  eq('un contratto su carta invece si completa (fill-only)', ['deposit', 'type', 'cedolareSecca'].map(k => paper.contracts[0].data[k]), [3000, 'studenti', 'no']);
+  mutation('il fill riempie i termini di un contratto firmato', 'if (rrEmpty(from) && d.terms && locked) {', 'if (false) {',
+    E => !plan(E, t, st).contracts.some(c => 'deposit' in c.data || 'type' in c.data || 'cedolareSecca' in c.data));
+}
+
+// ── 18. Oneri su un contratto con rate del portal: lo si dice ───────────
+{
+  const st = { properties: [{ id: 'u7', address: ADDR, interno: '7', floor: '2', ownerId: 'owner-x', gestioneDal: '2026-10' }],
+    contracts: [{ id: 'c7', propertyId: 'u7', status: 'active', tenantName: 'Ada Uno', rent: 1500, startDate: '2026-10-01', endDate: '2027-09-30', signatureStatus: 'paper' }],
+    // Le rate del portal (generateMonthlyPayments): niente periodFrom, niente source.
+    payments: Array.from({ length: 12 }, (_, i) => { const m = new Date(Date.UTC(2026, 9 + i, 5)).toISOString().slice(0, 7);
+      return { id: 'pay_c7_' + m, contractId: 'c7', propertyId: 'u7', type: 'rent', amount: 1500, month: m, dueDate: m + '-05', status: 'pending', installmentMonths: 1, coversTo: m }; }) };
+  const t = 'Interno;Inquilino;Canone;Oneri;Dal;Al\n7;Ada Uno;1500;120;01/10/2026;30/09/2027';
+  const pl = plan(P, t, st);
+  eq('gli oneri entrano nel contratto (campo vuoto)', pl.contracts.map(c => [c.id, c.data]), [['c7', { oneriQuota: 120 }]]);
+  ok('…e la vista riceve l\'avviso «oneri:7»', pl.notes.includes('oneri:7'), pl.notes);
+  ok('…la riga dice che 12 rate del portal non cambiano da qui', pl.rows[0].notes.some(x => /^gli oneri \(€120\) entrano nel contratto, ma 12 rate da pagare non seguono il calendario della presa in carico e da qui non cambiano: correggile da Gestisci canoni$/.test(x)), pl.rows[0].notes);
+  ok('nessuna rata del portal riscritta, nessuna rata nuova', !pl.paymentUpdates.length && !pl.payments.length);
+  mutation('oneri riempiti in silenzio sulle rate del portal', '|| rec.skipped.length)) out.notes.push(\'oneri:\' + r.interno);', ')) out.notes.push(\'oneri:\' + r.interno);',
+    E => plan(E, t, st).notes.includes('oneri:7'));
+}
+
+// ── 19. Rate ogni N mesi e rate che coprono più mesi ────────────────────
+{
+  const prop = { id: 'u7', address: ADDR, interno: '7', floor: '2', ownerId: 'owner-x', gestioneDal: '2026-10' };
+  const c7 = { id: 'c7', propertyId: 'u7', status: 'active', tenantName: 'Ada Uno', rent: 1500, startDate: '2026-10-01', endDate: '2027-09-30', signatureStatus: 'paper' };
+  const quarterly = ['2026-10', '2027-01', '2027-04', '2027-07'].map(m => ({ id: 'pay_c7_' + m, contractId: 'c7', propertyId: 'u7', type: 'rent', amount: 4500, month: m,
+    coversTo: new Date(Date.UTC(+m.slice(0, 4), +m.slice(5, 7) + 1, 1)).toISOString().slice(0, 7), dueDate: m + '-05', status: 'pending', installmentMonths: 3 }));
+  const t = 'Interno;Inquilino;Canone;Dal;Al;Pagato il\n7;Ada Uno;1500;01/10/2026;30/09/2027;03/10/2026';
+  const q = plan(P, t, { properties: [prop], contracts: [{ ...c7, installmentMonths: 3 }], payments: quarterly });
+  ok('contratto trimestrale: nessuna rata mensile dalla tabella (prima: 8 canoni chiesti due volte)', q.payments.length === 0, q.payments.map(x => x.data.month));
+  ok('…la riga lo dice, e «Pagato il» non segna niente da qui', q.rows[0].notes.includes('il contratto ha rate ogni 3 mesi: le rate mancanti si generano da Gestisci canoni') &&
+    q.rows[0].warnings.some(w => /con rate ogni 3 mesi non lo segno da qui/.test(w)), q.rows[0]);
+  // La cadenza scritta solo sulle rate (il contratto non la porta) vale lo stesso.
+  const q2 = plan(P, t, { properties: [prop], contracts: [c7], payments: quarterly });
+  ok('…anche quando la cadenza sta solo sulle rate', q2.payments.length === 0 && q2.rows[0].notes.some(x => /rate ogni 3 mesi/.test(x)));
+  mutation('un contratto trimestrale riceve rate mensili', 'if (every > 1) {', 'if (false) {',
+    E => plan(E, t, { properties: [prop], contracts: [{ ...c7, installmentMonths: 3 }], payments: quarterly }).rows[0].notes.some(x => /rate ogni 3 mesi/.test(x)));
+  // Una rata mensile che copre due mesi (scritta a mano): il secondo mese non riceve una rata.
+  const cover = [{ id: 'pay_c7_2026-10', contractId: 'c7', propertyId: 'u7', type: 'rent', amount: 3000, month: '2026-10', coversTo: '2026-11', dueDate: '2026-10-05', status: 'paid', installmentMonths: 1 }];
+  const t2 = 'Interno;Inquilino;Canone;Dal;Al\n7;Ada Uno;1500;01/10/2026;30/09/2027';
+  const cv = plan(P, t2, { properties: [prop], contracts: [c7], payments: cover });
+  eq('il mese coperto da una rata in archivio non riceve un\'altra rata', cv.payments.map(x => x.data.month).slice(0, 2), ['2026-12', '2027-01']);
+  mutation('coversTo ignorato', 'for (var m = x.month, g = 0; m && m <= last && g < 24; m = monthAdd(m, 1), g++) have[m] = 1;', 'have[x.month] = 1;',
+    E => !plan(E, t2, { properties: [prop], contracts: [c7], payments: cover }).payments.some(x => x.data.month === '2026-11'));
+}
+
+// ── 20. I titoli dell'inquilino, e la tabella senza nomi ────────────────
+{
+  const cols = ['Nome inquilino', 'Nome conduttore', 'Nome e cognome inquilino', 'Cognome e nome conduttore', 'Nome dell\'inquilino', 'Inquilino attuale', 'Conduttore/i']
+    .map(h => P.parseRentRoll('Interno;' + h + ';Canone;Dal;Al\n7;Ada Prova;900;01/10/2026;30/09/2027').columns.inquilino);
+  eq('«Nome inquilino», «Nome conduttore», «Nome e cognome inquilino»… sono la colonna Inquilino', cols, [1, 1, 1, 1, 1, 1, 1]);
+  const run = (E, t) => E.planImport(E.parseRentRoll(t).rows, E.context({ now: NOW, properties: [] }), { address: ADDR, ownerId: 'owner-x', gestioneDal: '2026-10' });
+  const occ = run(P, 'Interno;Occupante;Canone;Dal;Al\n7;Ada Prova;900;01/10/2026;30/09/2027\n8;Bea Prova;900;01/10/2026;30/09/2027');
+  ok('un titolo che non riconosco con canone e date: le righe si fermano (mai un interno «libero» con dentro qualcuno)', occ.rows.every(r => r.action === 'error' && r.errors.some(e => /la tabella non ha la colonna Inquilino/.test(e))) && !occ.properties.length, occ.rows.map(r => r.errors));
+  eq('…e plan.errors le conta', [occ.errors, occ.counts.rowErrors], [['row:2', 'row:3'], 2]);
+  const ask = run(P, 'Interno;Piano;Canone\n9;2;900');
+  ok('una tabella senza nomi col solo canone (richiesta di un libero) resta valida: interno nuovo, nessuno stato inventato', !ask.errors.length && ask.rows[0].action === 'property' && !('availabilityStatus' in ask.properties[0].data) && ask.properties[0].data.rent === 900, ask.rows[0]);
+  mutation('senza la colonna dei nomi le date passano', '} else if (!r.inquilino && !tenantCol && (', '} else if (false && (',
+    E => run(E, 'Interno;Occupante;Canone;Dal;Al\n7;Ada Prova;900;01/10/2026;30/09/2027').rows[0].action === 'error');
+}
+
+// ── 21. Le righe ferme alla lettura contano come le altre; esiti onesti ─
+{
+  const dup = plan(P, 'Interno;Inquilino\n9;Ada Prova\n09;Bea Prova', {});
+  eq('interno ripetuto: plan.errors e counts.rowErrors lo contano', [dup.errors, dup.counts.rowErrors, dup.rows[1].action], [['row:3'], 1, 'error']);
+  mutation('le righe ferme alla lettura fuori da plan.errors', "out.errors.push('row:' + r.line); out.skipped.push(r.line); out.counts.rowErrors++; return; }", 'out.skipped.push(r.line); return; }',
+    E => plan(E, 'Interno;Inquilino\n9;Ada Prova\n09;Bea Prova', {}).errors.length === 1);
+  const fl = plan(P, 'Interno;Piano\n9;2', {});
+  ok('«Interno;Piano»: l\'interno si crea, ma non è «libero» (la tabella non lo dice)', fl.rows[0].action === 'property' && !('availabilityStatus' in fl.properties[0].data), [fl.rows[0].action, fl.properties[0].data]);
+  const flEx = plan(P, 'Interno;Piano\n9;2', { properties: [{ id: 'u9', address: ADDR, interno: '9', floor: '2', ownerId: 'owner-x', gestioneDal: '2026-10' }] });
+  eq('…e su un interno che ha già tutto: niente da fare', flEx.rows[0].action, 'none');
+  const sc = plan(P, 'Interno;Inquilino;Telefono\n9;Ada Prova;+39 000 000 0009', {});
+  ok('solo contatti per un interno nuovo: niente «occupato» senza contratto', sc.rows[0].action === 'none' && !('availabilityStatus' in sc.properties[0].data) && !sc.contracts.length, [sc.rows[0], sc.properties[0].data]);
+  const z = plan(P, 'Interno\tInquilino\tCanone\tDal\tAl\n9\tAda Prova\t0\t01/11/2026\t31/10/2027', {});
+  ok('canone 0 con inquilino: errore di riga, mai dodici rate da €0', z.rows[0].action === 'error' && z.rows[0].errors.some(e => /^canone 0:/.test(e)) && !z.payments.length && z.errors.length === 1, z.rows[0].errors);
+  const zf = plan(P, 'Interno\tPiano\tInquilino\tCanone\n9\t1\t\t0', {});
+  ok('canone 0 su un interno libero: avviso, nessun rent', !zf.errors.length && !('rent' in zf.properties[0].data) && zf.rows[0].warnings.some(w => /canone 0 su un interno libero/.test(w)), zf.rows[0]);
+  // Tre rate già scadute: «Pagato il» non basta, lo si dice giusto.
+  const od = plan(P, 'Interno\tPiano\tInquilino\tCanone\tDal\tAl\n9\t1\tAda Prova\t900\t01/09/2026\t31/08/2027', {}, { gestioneDal: '2026-09', now: new Date('2026-11-12T10:00:00Z') });
+  ok('più rate scadute: «registra l\'incasso di ciascuna», «Pagato il» vale per la prima', od.messages.some(m => /^3 rate risultano già scadute oggi .*se sono state pagate, registra l’incasso di ciascuna dal Palazzo dopo il carico \(«Pagato il» vale solo per la prima rata di ogni interno\)\.$/.test(m)), od.messages);
+  const od1 = plan(P, 'Interno\tPiano\tInquilino\tCanone\tDal\tAl\n9\t1\tAda Prova\t900\t01/10/2026\t30/09/2027', {});
+  ok('una sola rata scaduta: la frase al singolare', od1.messages.some(m => /^1 rata risulta già scaduta oggi .*se è stata pagata, scrivi «Pagato il» nella tabella/.test(m)), od1.messages);
+}
+
 console.log('\n' + n + ' check passati — presa in carico, nessuna rete.');

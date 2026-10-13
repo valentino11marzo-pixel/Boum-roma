@@ -347,6 +347,12 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('reincollata: solo i campi vuoti del contratto, mai i co-intestatari già scritti, nessuna rata nuova', [upd.map(x => [x.interno, x.data]), again.counts.contractUpdates, again.counts.payments],
     [[['11', { oneriQuota: 120, landlordIban: 'IT60X0542811101000000123456' }]], 1, 0]);
   ok('se gli oneri arrivano dopo le rate, il piano lo dice (le rate in archivio non si ricalcolano da qui)', again.notes.includes('oneri:11'));
+  // Lo stesso con le rate nate dal portal (niente periodFrom né source): il
+  // calendario è un altro, la riga lo dice e l'avviso c'è comunque.
+  const portalRates = P.context({ now: NOW, properties: loaded.properties, contracts: Object.values(loaded.contractById),
+    payments: plan.payments.map(x => { const d = { id: x.id, ...x.data, ...(x.interno === '11' ? { amount: x.data.rentAmount, rentAmount: null, oneriAmount: null } : {}) }; delete d.periodFrom; delete d.periodTo; delete d.source; return d; }) });
+  const againP = P.planImport([a, b2], portalRates, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month });
+  ok('…anche con le rate nate dal portal (prima: silenzio)', againP.notes.includes('oneri:11') && againP.rows.find(r => r.interno === '11').notes.some(x => /non seguono il calendario della presa in carico/.test(x)), againP.rows.find(r => r.interno === '11').notes);
   const lm = P.model(loaded, again.buildingKey, F.month);
   const u7 = lm.units.find(u => u.interno === '7');
   eq('il Palazzo legge i due intestatari e atteso = canone + oneri', [u7.month.tenants, u7.month.expected, u7.month.rent], [['Ada Uno', 'Bea Due'], 1720, 1600]);
