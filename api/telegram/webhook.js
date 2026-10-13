@@ -101,9 +101,9 @@ export function snapshotLines({ leads = [], contracts = [], payments = [], prope
   // (property.gestioneDal) non è un arretrato di nessuno.
   const propById = {}; properties.forEach(p => { propById[p.id] = p; });
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
-  const live = payments.filter(p => !CS.paymentBeforeGestione(p, propById[p.propertyId || (contractById[p.contractId] || {}).propertyId]));
-  const overdue = live.filter(p => RENT.paymentState(p, now) === 'overdue').length;
-  const reported = live.filter(p => RENT.paymentState(p, now) === 'reported').length;
+  payments = payments.filter(p => !CS.paymentBeforeGestione(p, propById[p.propertyId || (contractById[p.contractId] || {}).propertyId]));
+  const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue').length;
+  const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported').length;
   return [
     '<b>📊 Snapshot BOOM</b>',
     `👥 Lead: ${leads.length} (${newLeads} nuovi)`,
