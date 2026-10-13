@@ -129,20 +129,22 @@ export function categorize({ amount, description, counterparty }) {
 // Anything weaker becomes a suggestion (tx.matchSuggestions) surfaced in
 // /banca and in the Contabile's report — never a silent guess.
 // Una rata che si paga sul conto del LOCATORE, non su quello di BOOM: le
-// rate di un palazzo preso in carico (source 'palazzo-import') e quelle di
-// un contratto che porta il suo landlordIban (/rata indica quel conto). Per
-// costruzione non arrivano mai qui: un accredito di pari importo sul conto
-// BOOM è un'altra cosa (una provvigione, un rimborso). Al massimo un
-// SUGGERIMENTO da confermare, mai un «pagato» automatico.
+// rate di un palazzo preso in carico (source 'palazzo-import' — /rata indica
+// il landlordIban del contratto). Per costruzione non arrivano mai qui: un
+// accredito di pari importo sul conto BOOM è un'altra cosa (una provvigione,
+// un rimborso). Al massimo un SUGGERIMENTO da confermare, mai un «pagato»
+// automatico. Il solo landlordIban NON basta: la Scheda lo raccoglie anche
+// sui contratti digitali, i cui canoni arrivano sul conto BOOM (settings/
+// payout, /casa) — escluderli spegnerebbe la riconciliazione che funziona.
 export function toLandlordAccount(p) {
-  return !!(p && (p.source === 'palazzo-import' || p.directToLandlord === true || p._toLandlord === true));
+  return !!(p && (p.source === 'palazzo-import' || p._toLandlord === true));
 }
 
-/** Marca le rate dei contratti che si pagano al locatore (landlordIban o
- *  presa in carico del Palazzo). Muta e restituisce l'array. */
+/** Marca le rate dei contratti presi in carico dal Palazzo (anche quelle
+ *  nate dopo, senza `source` sulla rata). Muta e restituisce l'array. */
 export function markLandlordDirect(payments, contracts) {
   const direct = new Set((contracts || [])
-    .filter(c => c && c.id && (c.source === 'palazzo-import' || String(c.landlordIban || '').trim()))
+    .filter(c => c && c.id && c.source === 'palazzo-import')
     .map(c => c.id));
   for (const p of payments || []) if (p && direct.has(p.contractId)) p._toLandlord = true;
   return payments;

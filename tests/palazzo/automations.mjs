@@ -424,9 +424,16 @@ const CS = require('../../js/contract-state.js');
   ok(!r2.match && r2.suggestions[0] === imp.id, 'banca: nemmeno il codice in causale la segna pagata da sola (i soldi vanno al locatore)', r2);
   const r3 = B.reconcile(tx(900, 'Bonifico'), [imp, nor], {});
   ok(r3.match && r3.match.paymentId === nor.id, 'banca: la rata BOOM normale si abbina come prima', r3);
+  // la rata nata DOPO la presa in carico (senza source sulla rata): la
+  // marca il contratto
+  const later = [{ ...nor, id: 'pay_cP_2026-10', contractId: 'cP' }];
+  B.markLandlordDirect(later, [{ id: 'cP', source: 'palazzo-import' }]);
+  ok(!B.reconcile(tx(900, 'Bonifico'), later, {}).match, 'banca: una rata di un contratto preso in carico (anche senza source sulla rata) resta solo un suggerimento');
+  // il solo landlordIban (raccolto dalla Scheda anche sui contratti digitali,
+  // i cui canoni arrivano sul conto BOOM) non spegne la riconciliazione
   const withIban = [{ ...nor }];
   B.markLandlordDirect(withIban, [{ id: 'cN', landlordIban: 'IT60X0542811101000000123456' }]);
-  ok(!B.reconcile(tx(900, 'Bonifico'), withIban, {}).match, 'banca: un contratto col landlordIban (si paga al locatore) resta solo un suggerimento');
+  ok(!!(B.reconcile(tx(900, 'Bonifico'), withIban, {}).match || {}).paymentId, 'banca: un contratto digitale col solo landlordIban si abbina come prima');
   const MB = await importMutant('api/banking/_lib.js', '  if (toLandlordAccount(p)) return { match: null, suggestions: [p.id] };\n', '');
   ok(!!MB.reconcile(tx(1620, 'Bonifico'), [imp, nor], {}).match, 'mutazione: senza la guardia la rata del Palazzo si chiude da sola (il test lo vede)');
 }
@@ -613,6 +620,15 @@ const CS = require('../../js/contract-state.js');
   const d = await call(digest, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
   const text = JSON.stringify(d.body || {});
   ok(d.statusCode === 200 && !/int\. 7 — firma mancante/.test(text) && /bonifico segnalato/.test(text), 'digest di Homie: niente firme mancanti false, il segnalato detto per quello che è');
+  // la fotografia per Homie (state.snapshot): stessi fatti
+  const { snapshot } = await import('../../api/agent/state.snapshot.js');
+  const snap = await snapshot('all');
+  const unsignedOld = keys('contracts').map(read).filter(c => !c.landlordSignature || !c.tenantSignature).length;
+  ok(snap.contracts.unsigned < unsignedOld && snap.payments.reported >= 1,
+    'state.snapshot: carta e segnaposto non sono «non firmati», il segnalato contato a parte', { unsigned: snap.contracts.unsigned, unsignedOld, payments: snap.payments });
+  const MS = await importMutant('api/agent/state.snapshot.js', '!CS.notSignable(c) && ', '');
+  const snapM = await MS.snapshot('contracts');
+  ok(snapM.contracts.unsigned === unsignedOld, 'mutazione: senza la guardia la fotografia conta i contratti su carta fra i non firmati (il test lo vede)', { m: snapM.contracts.unsigned, unsignedOld });
 }
 
 // ═══ 16. Telegram e la coda del Mac: la card nuova arriva sempre ════════════

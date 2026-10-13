@@ -10,6 +10,8 @@
 
 import { fsList, guardPost, okJson, errJson } from './_lib.js';
 import { memoized } from './_memo.js';
+import RENT from '../../js/rent-engine.js';
+import CS from '../../js/contract-state.js';
 
 function startOfToday() { const d = new Date(); d.setHours(0,0,0,0); return d.toISOString(); }
 function daysAgoIso(n) { const d = new Date(); d.setDate(d.getDate() - n); return d.toISOString(); }
@@ -51,7 +53,9 @@ export async function snapshot(scope) {
     out.contracts = {
       active: contracts.filter(c => c.status === 'active').length,
       draft: contracts.filter(c => c.status === 'draft').length,
-      unsigned: contracts.filter(c => !c.landlordSignature || !c.tenantSignature).length,
+      // firmati su carta e segnaposto non hanno una firma digitale da
+      // raccogliere: contarli fra i «non firmati» era un falso allarme
+      unsigned: contracts.filter(c => !CS.notSignable(c) && (!c.landlordSignature || !c.tenantSignature)).length,
       expiring60: contracts.filter(c => { const d = exp(c); return d != null && d >= 0 && d <= 60; }).length,
       expiring30: contracts.filter(c => { const d = exp(c); return d != null && d >= 0 && d <= 30; }).length,
     };
@@ -60,11 +64,16 @@ export async function snapshot(scope) {
   if (scope === 'all' || scope === 'payments') {
     const payments = await fsList('payments', { limit: 100 });
     const now = new Date();
-    const overdue = payments.filter(p => p.status === 'pending' && p.dueDate && new Date(p.dueDate) < now);
+    // Lo stato da BOOM_RENT.paymentState (la lettura del Palazzo): un
+    // bonifico SEGNALATO dall'inquilino è da verificare, non in ritardo.
+    const overdue = payments.filter(p => RENT.paymentState(p, now) === 'overdue');
+    const reported = payments.filter(p => RENT.paymentState(p, now) === 'reported');
     out.payments = {
       pending: payments.filter(p => p.status === 'pending').length,
       overdue: overdue.length,
       overdueAmount: overdue.reduce((s, p) => s + (p.amount || 0), 0),
+      reported: reported.length,
+      reportedAmount: reported.reduce((s, p) => s + (p.amount || 0), 0),
     };
   }
 

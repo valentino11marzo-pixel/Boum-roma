@@ -60,9 +60,9 @@ async function run({ dry, windowDays }) {
   const iso = d => d.toISOString().slice(0, 10);
 
   // Pending payments + tenant names once, shared across accounts.
-  // Le rate che si pagano sul conto del LOCATORE (palazzo preso in carico,
-  // landlordIban sul contratto) restano candidate — un pari importo resta
-  // ambiguo — ma non vengono MAI segnate pagate da sole: solo suggerite.
+  // Le rate che si pagano sul conto del LOCATORE (palazzo preso in carico)
+  // restano candidate — un pari importo resta ambiguo — ma non vengono MAI
+  // segnate pagate da sole: solo suggerite.
   const [payments, users, contracts] = await Promise.all([
     fsList('payments', { limit: 600 }),
     fsList('users', { limit: 1000 }).catch(() => []),
