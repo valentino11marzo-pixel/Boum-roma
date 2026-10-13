@@ -800,7 +800,10 @@ try {
     await check('proprietaria: la voce nel menu e il badge dei ritardi', async () => {
       const nav = await pg.locator('#sidebar').innerText();
       assert.ok(nav.includes('Il Palazzo'));
-      assert.ok(/Pagamenti\s*\d/.test(nav), nav); // il badge contava 0: le rate rinominate "overdue" sparivano
+      // Il badge dei ritardi sta sul Palazzo (la vecchia pagina Pagamenti è
+      // ritirata per la proprietaria); prima contava 0: le rate rinominate
+      // "overdue" sparivano.
+      assert.ok(/Il Palazzo\s*\d/.test(nav) && !/Pagamenti|Dashboard|Messaggi/.test(nav), nav);
     });
     if (process.env.SCREENSHOT_DIR) {
       await pg.locator('[data-plz="deselect"]').click().catch(() => {});

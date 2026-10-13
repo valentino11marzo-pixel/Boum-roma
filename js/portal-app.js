@@ -809,23 +809,56 @@ Valentyne - BOOM Rome`
 
     // IL PALAZZO: un proprietario, un palazzo, ogni interno, ogni mese. La vista
     // deriva tutto da S (BOOM_PALAZZO); le azioni restano quelle del portal.
+    // Le azioni che scrivono passano tutte da isAdmin() (anche qui, oltre che
+    // nelle funzioni): la proprietaria legge, non scrive. Le azioni di
+    // incasso/rate le scrive il filone dei soldi (openRecordIncasso,
+    // undoIncasso, applyOneriFuture, applyRentFuture): finché una manca il
+    // tasto lo DICE invece di fare finta.
     window.BOOM_PALAZZO_UI?.configure({
         state: () => S, isAdmin: () => isAdmin(),
         render: () => { if (S.page === 'palazzo') { renderPage(); } },
-        actions: { rent: (propertyId, month) => openRentUnit('property:' + propertyId, month),
+        actions: { rent: (propertyId, month) => palazzoAdminOnly() && openRentUnit('property:' + propertyId, month),
+            // Il contratto: all'operatore la sua scheda, alla proprietaria
+            // l'interno selezionato nel Palazzo (viewContract delega).
             contract: id => viewContract(id),
-            dossier: id => window.BOOM_PROPERTY_DOSSIER?.open(id),
-            edit: property => openModal('editProperty', property),
-            contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
-            payLink: id => showPaymentLink('pay', id),
+            dossier: id => palazzoAdminOnly() && window.BOOM_PROPERTY_DOSSIER?.open(id),
+            edit: property => palazzoAdminOnly() && openModal('editProperty', property),
+            contracts: () => goTo('contracts'), users: () => goTo('users'),
+            // «Scrivi a BOOM»: per l'operatore l'Inbox, per la proprietaria
+            // WhatsApp (o email) a BOOM con l'interno già scritto.
+            inbox: (propertyId, channel) => palazzoWriteBoom(propertyId, channel),
+            payLink: id => palazzoAdminOnly() && showPaymentLink('pay', id),
+            // Il PDF lo apre anche la proprietaria (sola lettura: la scansione
+            // firmata su carta, poi la copia firmata, poi il generato).
             pdf: id => downloadContractPDF(id), firma: id => openFirmaOra(id),
-            rli: id => markRliRegistered(id), aspi: id => openAspi(id),
-            fiscale: id => openFascicolo(id), arpe: id => openSchedaArpe(id),
-            linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
-            importRoll: plan => palazzoImport(plan),
+            rli: id => palazzoAdminOnly() && markRliRegistered(id), aspi: id => palazzoAdminOnly() && openAspi(id),
+            fiscale: id => palazzoAdminOnly() && openFascicolo(id), arpe: id => palazzoAdminOnly() && openSchedaArpe(id),
+            linkOwner: (ids, ownerId) => palazzoAdminOnly() && palazzoLinkOwner(ids, ownerId),
+            importRoll: plan => palazzoAdminOnly() && palazzoImport(plan),
             maintenance: id => viewMaintenance(id),
-            record: id => confirmRentPayment(id),
-            saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
+            // L'incasso: il modale con data dell'accredito, canale e prova
+            // (filone soldi). Finché non c'è, il percorso di prima.
+            record: id => palazzoAdminOnly() && (typeof openRecordIncasso === 'function' ? openRecordIncasso(id) : confirmRentPayment(id)),
+            undoRecord: id => palazzoAdminOnly() && palazzoMissing(typeof undoIncasso === 'function' ? undoIncasso : null, 'Annulla incasso', id),
+            applyOneri: (contractId, oneri) => palazzoAdminOnly() && palazzoMissing(typeof applyOneriFuture === 'function' ? applyOneriFuture : null, 'Oneri sulle rate future', contractId, oneri),
+            setRent: (contractId, rent) => palazzoAdminOnly() && palazzoMissing(typeof applyRentFuture === 'function' ? applyRentFuture : null, 'Canone sulle rate future', contractId, rent),
+            // Chiudi contratto: dal Palazzo arriva solo l'id, quindi si apre il
+            // modulo (data, motivo, deposito), come ⛔ Termina della scheda.
+            terminate: id => palazzoAdminOnly() && palazzoTerminate(id),
+            logRataSent: (paymentId, meta) => palazzoLogSent(paymentId, meta),
+            setRendiconto: (ownerId, mode) => palazzoSetRendiconto(ownerId, mode),
+            saveRataCard: (propertyIds, cfg) => palazzoSaveRataCard(propertyIds, cfg),
+            uploadPaperContract: (contractId, file) => palazzoUploadPaper(contractId, file),
+            sendPasswordLink: ownerId => palazzoSendPasswordLink(ownerId),
+            loadBuilding: propertyIds => palazzoLoadBuilding(propertyIds),
+            reload: () => palazzoReload(),
+            saveLook: (ids, fields) => palazzoAdminOnly() && palazzoSaveLook(ids, fields) },
+        // Recapiti di BOOM per la proprietaria («Scrivi a BOOM»).
+        company: () => palazzoCompany(),
+        // I documenti CONDIVISI degli interni (mai uno non condiviso alla
+        // proprietaria) e, solo all'operatore, le proposte degli interni.
+        documents: propertyIds => palazzoDocuments(propertyIds),
+        proposals: propertyIds => palazzoProposals(propertyIds),
         // I contatti degli inquilini: `users` non è leggibile dal proprietario
         // e un contratto da proposta non porta il telefono — li ricompone il
         // server, SOLO per i contratti dei suoi immobili.
@@ -878,6 +911,237 @@ Valentyne - BOOM Rome`
         const r = await fetch('/api/maintenance/guasto', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(body) });
         return r.json().catch(() => ({ ok: false, error: 'http_' + r.status }));
     }
+
+    // ── LA PROPRIETARIA: un menu, quattro porte ─────────────────────────
+    // Il portale del proprietario era nato prima del Palazzo: nove voci,
+    // quattro delle quali contraddicevano il Palazzo con numeri falsi
+    // (€50.500 «in ritardo» = tutte le rate future), tasti ✔ che non
+    // facevano niente e la cabina di regia dell'operatore a un tocco da
+    // «Contratti». Ora Palazzo · Documenti · Commercialista · Impostazioni:
+    // ogni altra rotta — un segnalibro, il tasto indietro, una pagina
+    // salvata in boom_lastPage da prima — porta al Palazzo.
+    function landlordRoute(p) {
+        const page = String(p || '');
+        if (['palazzo', 'my-documents', 'commercialista', 'settings'].includes(page)) return page;
+        return page === 'documents' ? 'my-documents' : 'palazzo';
+    }
+    // Le rate non pagate della proprietaria, come le conta il Palazzo: mai
+    // quelle dei mesi PRIMA della gestione BOOM (gestioneDal), che non sono
+    // arretrati.
+    function landlordLatePayments() {
+        const props = new Map((S.properties || []).map(p => [p.id, p]));
+        return getMyPayments().filter(p => {
+            if (!isPaymentLate(p)) return false;
+            const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
+            const month = String(p.month || p.dueDate || '').slice(0, 7);
+            return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
+        });
+    }
+    function palazzoAdminOnly() {
+        if (isAdmin()) return true;
+        toast('info', 'Lo fa BOOM', 'Questa operazione la esegue l’operatore BOOM.');
+        return false;
+    }
+    // Un'azione di un altro filone non ancora presente: il tasto lo dice.
+    function palazzoMissing(fn, label, ...args) {
+        if (typeof fn === 'function') return fn(...args);
+        toast('warning', label + ': non ancora disponibile', 'Questa versione del portale non ha ancora questa funzione.');
+        return false;
+    }
+    // terminateContract(e, id) è il GESTORE del form: chiamarlo con un id
+    // faceva e.preventDefault() su una stringa (TypeError, nessun toast).
+    // Si apre il modulo, che dice cosa succede alle rate prima di
+    // confermare — lo stesso che fa terminateContract(id) nel filone soldi.
+    function palazzoTerminate(id) {
+        const c = (S.contracts || []).find(x => x.id === id);
+        if (!c) { toast('error', 'Contratto non trovato'); return false; }
+        if (c.status === 'terminated') { toast('info', 'Contratto già chiuso', c.terminatedAt ? 'Chiuso il ' + fmtDate(c.terminatedAt) + '.' : ''); return false; }
+        openModal('terminateContract', c);
+        return true;
+    }
+    function palazzoCompany() { return { phone: '+393313251961', wa: '393313251961', email: 'valentino@boom-rome.com' }; }
+    // Il testo già pronto per BOOM: palazzo e interno, così chi risponde sa
+    // subito di cosa si parla.
+    function palazzoBoomText(propertyId) {
+        const p = propertyId ? (S.properties || []).find(x => x.id === propertyId) : null;
+        const street = p ? String(p.address || p.name || '').split(',')[0].trim() : '';
+        const where = [street, p && p.interno ? 'int. ' + p.interno : ''].filter(Boolean).join(', ');
+        return 'Buongiorno BOOM, ' + (where ? 'le scrivo per ' + where + ': ' : '');
+    }
+    function palazzoWriteBoom(propertyId, channel) {
+        if (isAdmin()) return goTo('inbox');
+        const pid = propertyId || (window.BOOM_PALAZZO_UI && window.BOOM_PALAZZO_UI.ui && window.BOOM_PALAZZO_UI.ui.selected) || '';
+        const co = palazzoCompany(), text = palazzoBoomText(pid);
+        if (channel === 'email') {
+            const p = pid ? (S.properties || []).find(x => x.id === pid) : null;
+            const subject = 'Il Palazzo' + (p && p.interno ? ' · int. ' + p.interno : '');
+            window.location.href = 'mailto:' + co.email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(text);
+            return true;
+        }
+        // Senza 'noopener' fra le opzioni: con quello window.open restituisce
+        // SEMPRE null (specifica HTML) e il ripiego qui sotto scattava a ogni
+        // tocco. L'opener si stacca a mano; null resta il popup bloccato.
+        const w = window.open('https://wa.me/' + co.wa + '?text=' + encodeURIComponent(text), '_blank');
+        if (w) { try { w.opener = null; } catch (_) {} }
+        else toast('info', 'Scrivi a BOOM', 'WhatsApp ' + co.phone + ' · email ' + co.email);
+        return true;
+    }
+
+    // Lettura a blocchi IN con un ripiego sui documenti senza data() (le
+    // pagine di prova): la base delle letture mirate del Palazzo.
+    async function palazzoReadIn(col, field, values, size, extra) {
+        const out = [], step = Math.max(1, Math.min(30, Number(size) || 30));
+        const ids = [...new Set((values || []).filter(Boolean))];
+        for (let i = 0; i < ids.length; i += step) {
+            let q = db.collection(col).where(field, 'in', ids.slice(i, i + step));
+            if (typeof extra === 'function') q = extra(q);
+            const snap = await q.get();
+            snap.docs.forEach(d => out.push({ id: d.id, ...(typeof d.data === 'function' ? d.data() : {}) }));
+        }
+        return out;
+    }
+    // Fonde in S senza doppioni; ritorna quanti documenti sono nuovi o cambiati.
+    // addOnly: aggiunge solo ciò che manca, non riscrive mai un documento
+    // già in memoria (che può essere più fresco della copia letta prima).
+    function palazzoMerge(col, rows, addOnly) {
+        const arr = S[col] = S[col] || [];
+        const byId = new Map(arr.map(x => [x.id, x]));
+        let n = 0;
+        (rows || []).forEach(r => {
+            const cur = byId.get(r.id);
+            if (!cur) { arr.push(addOnly ? Object.assign({}, r) : r); byId.set(r.id, r); n++; return; }
+            if (addOnly) return;
+            const next = Object.assign({}, cur, r);
+            if (JSON.stringify(next) !== JSON.stringify(cur)) { Object.assign(cur, r); n++; }
+        });
+        return n;
+    }
+    // IL PALAZZO APERTO, LETTO MIRATO (admin). Il carico del portal ha tetti
+    // senza ordine (contracts 800, payments 3000, maintenance 600): oltre il
+    // tetto un pezzo qualunque manca, e il Palazzo diceva «senza rata» o
+    // «libero» su un interno che le rate le ha. Qui contratti, rate (per
+    // immobile E per contratto), manutenzioni e proposte degli interni del
+    // palazzo si rileggono per id e si fondono in S.
+    // Una lettura sola per palazzo: la vista (all'apertura) e il portal
+    // (palazzoEnsureBuilding) possono chiederla insieme — chi arriva mentre è
+    // in volo riceve LA STESSA; nei 5 minuti dopo si risponde dalla memoria
+    // con changed: 0 (niente da ridisegnare: mai un giro di render infinito).
+    // { fresh: true } rilegge comunque.
+    function palazzoLoadBuilding(propertyIds, opts) {
+        if (!isAdmin()) return Promise.resolve(null);
+        const ids = [...new Set((propertyIds || []).filter(Boolean))].sort();
+        if (!ids.length) return Promise.resolve({ contracts: 0, payments: 0, maintenance: 0, proposals: 0, changed: 0 });
+        const key = ids.join('|'), runs = S._plzRuns = S._plzRuns || {};
+        const prev = runs[key];
+        if (prev && !(opts && opts.fresh)) {
+            if (prev.promise) return prev.promise;
+            if (Date.now() - prev.at < 5 * 60000) return Promise.resolve(Object.assign({}, prev.result, { changed: 0, cached: true }));
+        }
+        const promise = palazzoReadBuilding(ids);
+        runs[key] = { promise, at: Date.now() };
+        promise.then(r => { runs[key] = { at: Date.now(), result: r }; }, () => { delete runs[key]; });
+        return promise;
+    }
+    async function palazzoReadBuilding(ids) {
+        const [contracts, payByProp, maint, proposals] = await Promise.all([
+            palazzoReadIn('contracts', 'propertyId', ids, 30),
+            palazzoReadIn('payments', 'propertyId', ids, 30),
+            palazzoReadIn('maintenance', 'propertyId', ids, 30),
+            palazzoReadIn('preAgreements', 'propertyId', ids, 30)
+        ]);
+        const payByContract = contracts.length ? await palazzoReadIn('payments', 'contractId', contracts.map(c => c.id), 30) : [];
+        const payments = [...new Map([...payByProp, ...payByContract].map(p => [p.id, p])).values()];
+        // Lo stesso ritocco in memoria del carico generale (scaduta → overdue),
+        // altrimenti ogni rata riletta sembrerebbe «cambiata».
+        const today = new Date().toISOString().split('T')[0];
+        payments.forEach(p => { if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue'; });
+        const changed = palazzoMerge('contracts', contracts) + palazzoMerge('payments', payments)
+            + palazzoMerge('maintenance', maint) + palazzoMerge('preAgreements', proposals);
+        // Si ricordano: un ascolto realtime (contratti 800, manutenzioni 600)
+        // riscrive S intero e, ad archivio troncato, le farebbe sparire.
+        (S._plzRows = S._plzRows || {})[ids.join('|')] = { contracts, payments, maintenance: maint, proposals };
+        if (changed && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
+        return { contracts: contracts.length, payments: payments.length, maintenance: maint.length, proposals: proposals.length, changed };
+    }
+    // Prima di disegnare il Palazzo (admin): se l'archivio è stato letto al
+    // tetto, le righe lette mirate tornano in S — SOLO quelle che mancano
+    // (mai sopra una copia più fresca). Ad archivio completo non serve: lì
+    // rimetterle resusciterebbe un documento appena cancellato.
+    function palazzoRemerge() {
+        if (!isAdmin() || !S.palazzoTruncated || !S._plzRows) return 0;
+        let n = 0;
+        Object.values(S._plzRows).forEach(r => {
+            n += palazzoMerge('contracts', r.contracts, true) + palazzoMerge('payments', r.payments, true)
+                + palazzoMerge('maintenance', r.maintenance, true) + palazzoMerge('preAgreements', r.proposals, true);
+        });
+        if (n && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
+        return n;
+    }
+    // All'apertura del Palazzo (admin): il palazzo mostrato si rilegge mirato
+    // una volta (poi ogni 5 minuti). Ridisegna solo se qualcosa è cambiato, e
+    // mai sotto un modale o mentre si scrive in un campo del Palazzo.
+    function palazzoEnsureBuilding() {
+        if (!isAdmin() || !window.BOOM_PALAZZO || !window.BOOM_PALAZZO_UI || !window.BOOM_PALAZZO_UI.ui) return;
+        const key = window.BOOM_PALAZZO_UI.ui.key;
+        if (!key) return;
+        const ids = (S.properties || []).filter(p => (window.BOOM_PALAZZO.buildingKeyOf(p) || 'x:senza-indirizzo') === key).map(p => p.id);
+        if (!ids.length) return;
+        const run = palazzoLoadBuilding(ids);
+        const k = ids.slice().sort().join('|');
+        // Dalla memoria (letta da poco) non c'è niente da seguire; una lettura
+        // in volo si segue UNA volta sola.
+        if (!(S._plzRuns && S._plzRuns[k] && S._plzRuns[k].promise === run) || S._plzFollow === run) return;
+        S._plzFollow = run;
+        S.palazzoLoad = { key, state: 'loading', at: new Date().toISOString(), error: null };
+        run.then(r => {
+            S.palazzoLoad = { key, state: 'ready', at: new Date().toISOString(), error: null, result: r };
+            const a = document.activeElement;
+            const typing = a && a.closest && a.closest('.plz') && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+            const modal = document.querySelector('#modals .modal-overlay');
+            if (r && r.changed && S.page === 'palazzo' && !typing && !modal) renderPage();
+        }, err => {
+            S.palazzoLoad = { key, state: 'error', at: new Date().toISOString(), error: 'Non sono riuscito a rileggere i dati di questo palazzo: i numeri potrebbero essere incompleti.' };
+            console.warn('[palazzo] lettura mirata', err && err.message);
+        });
+    }
+    // «Riprova» della vista: un carico FRESCO (mai la cache) e il Palazzo
+    // ridisegnato. Ritorna true se è andato tutto bene.
+    async function palazzoReload() {
+        S.scopedLoadError = null;
+        if (S._plzRuns) S._plzRuns = {};
+        try { await loadDataFresh(false); }
+        catch (e) { S.scopedLoadError = S.scopedLoadError || 'Caricamento non riuscito: riprova fra un attimo.'; }
+        if (S.page === 'palazzo') renderPage();
+        return !S.scopedLoadError;
+    }
+    // I documenti CONDIVISI degli interni (scansione del contratto, ricevuta
+    // RLI, APE…). Alla proprietaria SOLO i suoi interni e SOLO shared == true
+    // (le rules lo pretendono nella query), a blocchi di 9; mai un documento
+    // annullato.
+    async function palazzoDocuments(propertyIds) {
+        const ids = [...new Set((propertyIds || []).filter(Boolean))];
+        if (!ids.length) return [];
+        let rows = [];
+        if (isAdmin()) rows = (await palazzoReadIn('documents', 'propertyId', ids, 30)).filter(d => d.shared === true || d.shared === 'true');
+        else if (isLandlord()) {
+            const mine = new Set((S.properties || []).filter(p => p.ownerId === S.profile.id).map(p => p.id));
+            const own = ids.filter(id => mine.has(id));
+            if (!own.length) return [];
+            rows = await palazzoReadIn('documents', 'propertyId', own, 9, q => q.where('shared', '==', true));
+        }
+        const at = d => { const v = d.createdAt || d.uploadedAt || d.date; return v && v.toDate ? v.toDate().getTime() : (Date.parse(v) || 0); };
+        return rows.filter(d => d.voided !== true).sort((a, b) => at(b) - at(a));
+    }
+    // Le proposte degli interni del palazzo (solo admin): letture mirate al
+    // posto delle «prime 150» dell'archivio, che con più proposte lasciavano
+    // fuori a caso quella di un interno («Libero» invece di «In arrivo»).
+    async function palazzoProposals(propertyIds) {
+        if (!isAdmin()) return [];
+        const rows = await palazzoReadIn('preAgreements', 'propertyId', propertyIds, 30);
+        palazzoMerge('preAgreements', rows);
+        return rows;
+    }
+
     // L'unica scrittura della vista, esplicita e solo admin: un interno senza
     // ownerId non esiste per il proprietario (rules + loader leggono ownerId).
     async function palazzoLinkOwner(ids, ownerId) {
@@ -986,6 +1250,142 @@ Valentyne - BOOM Rome`
         } catch (err) { toast('error', 'Salvataggio non riuscito', err.message); return false; }
     }
 
+    // Le altre scritture del Palazzo (solo admin): tenute DOPO la presa in
+    // carico e l'aspetto, una funzione per mestiere.
+    // Ogni link o sollecito mandato dal Palazzo resta SULLA RATA
+    // (dunningHistory + lastReminderDate), come i solleciti di sendDunningWA:
+    // prima «✓ Inviato» viveva solo in memoria e cambiando dispositivo si
+    // perdeva chi l'aveva già ricevuto.
+    async function palazzoLogSent(paymentId, meta) {
+        if (!isAdmin()) return false;
+        const pay = (S.payments || []).find(p => p.id === paymentId);
+        if (!pay) return false;
+        const m = meta || {};
+        const now = new Date();
+        const day = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+        const entry = {
+            channel: ['whatsapp', 'email', 'telegram'].includes(m.channel) ? m.channel : 'whatsapp',
+            kind: m.kind === 'sollecito' ? 'sollecito' : 'rata-link',
+            at: now.toISOString(),
+            month: /^\d{4}-\d{2}$/.test(String(m.month || '')) ? m.month : (/^\d{4}-\d{2}/.test(String(pay.month || '')) ? String(pay.month).slice(0, 7) : day.slice(0, 7)),
+            by: S.profile?.id || ''
+        };
+        try {
+            await db.collection('payments').doc(paymentId).update({ dunningHistory: firebase.firestore.FieldValue.arrayUnion(entry), lastReminderDate: day });
+            pay.dunningHistory = (Array.isArray(pay.dunningHistory) ? pay.dunningHistory : []).concat([entry]);
+            pay.lastReminderDate = day;
+            return true;
+        } catch (err) {
+            toast('warning', 'Invio non segnato sulla rata', 'Il messaggio è partito, ma non sono riuscito a registrarlo: ' + (err && err.message || ''));
+            return false;
+        }
+    }
+
+    // Il rendiconto mensile alla proprietaria: spento, in anteprima (il PDF
+    // arriva SOLO all'operatore) o automatico. Solo admin, con conferma.
+    async function palazzoSetRendiconto(ownerId, mode) {
+        if (!isAdmin()) return false;
+        if (!['off', 'preview', 'auto'].includes(mode)) { toast('error', 'Modalità non valida', String(mode)); return false; }
+        const u = (S.users || []).find(x => x.id === ownerId);
+        if (!ownerId || !u) { toast('error', 'Proprietario non trovato'); return false; }
+        const what = { off: 'non riceve il rendiconto', preview: 'il rendiconto arriva SOLO a BOOM in anteprima, mai a lei', auto: 'il 1° del mese riceve il rendiconto via email' }[mode];
+        if (!confirm(`Rendiconto di ${u.name || u.email}: ${what}?`)) return false;
+        try {
+            await db.collection('users').doc(ownerId).update({ rendicontoMode: mode, rendicontoModeAt: new Date().toISOString(), rendicontoModeBy: S.profile?.id || '' });
+            u.rendicontoMode = mode;
+            logActivity('owner_rendiconto_mode', 'user', { ownerId, mode });
+            toast('success', 'Rendiconto aggiornato', what);
+            return true;
+        } catch (err) { toast('error', 'Non salvato', err.message); return false; }
+    }
+
+    // La carta su /rata per gli interni del palazzo: i soldi della carta
+    // arrivano sul conto Stripe di BOOM, quindi serve un mandato all'incasso
+    // REGISTRATO (data). Senza mandateAt la carta resta spenta anche con on.
+    // fee: 'absorbed' (default, nessuna commissione all'inquilino) o 'surcharge'.
+    async function palazzoSaveRataCard(propertyIds, cfg) {
+        if (!isAdmin()) return false;
+        const props = [...new Set(propertyIds || [])].map(id => (S.properties || []).find(p => p.id === id)).filter(Boolean);
+        if (!props.length) return false;
+        const c = cfg || {};
+        const mandateAt = /^\d{4}-\d{2}-\d{2}$/.test(String(c.mandateAt || '')) ? c.mandateAt : null;
+        const value = { on: c.on === true, mandateAt, note: String(c.note || '').slice(0, 500), fee: c.fee === 'surcharge' ? 'surcharge' : 'absorbed', by: S.profile?.id || '', at: new Date().toISOString() };
+        const effect = !value.on ? 'carta SPENTA su /rata (solo bonifico)'
+            : !value.mandateAt ? 'carta ancora SPENTA: manca la data del mandato all’incasso'
+            : 'carta ACCESA su /rata (mandato del ' + value.mandateAt + ')' + (value.fee === 'surcharge' ? ', con commissione all’inquilino' : ', commissione a carico di BOOM');
+        if (!confirm(`Pagamento con carta per ${props.length} ${props.length === 1 ? 'interno' : 'interni'}:\n\n${effect}`)) return false;
+        try {
+            const batch = db.batch();
+            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { rataCard: value }));
+            await batch.commit();
+            props.forEach(p => { p.rataCard = Object.assign({}, value); });
+            logActivity('palazzo_rata_card', 'property', { ids: props.map(p => p.id), on: value.on, mandateAt: value.mandateAt, fee: value.fee });
+            toast('success', 'Carta su /rata', effect);
+            return true;
+        } catch (err) { toast('error', 'Non salvato', err.message); return false; }
+    }
+
+    // La scansione del contratto FIRMATO SU CARTA: solo PDF (si controllano
+    // i byte, non solo il nome), fino a 15 MB, su Storage nella cartella del
+    // contratto. Diventa il «Contratto (PDF)» del Palazzo e del fascicolo.
+    async function palazzoUploadPaper(contractId, file) {
+        if (!isAdmin()) { toast('info', 'Lo fa BOOM', 'La scansione del contratto la carica l’operatore.'); return null; }
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) { toast('error', 'Contratto non trovato'); return null; }
+        // Solo dove la scansione È il documento (firmato su carta, o il
+        // segnaposto «da caricare»): su un contratto digitale nessuno la
+        // leggerebbe — il PDF resta il generato/firmato — e il caricamento
+        // sembrerebbe riuscito per niente.
+        if (!contractIsPaper(c) && !contractIsPlaceholder(c)) {
+            toast('info', 'Contratto digitale', 'Questo contratto si firma in digitale: il suo PDF è quello del modello BOOM, la scansione non serve.');
+            return null;
+        }
+        if (!file) return null;
+        const MAX = 15 * 1024 * 1024;
+        if (file.size > MAX) { toast('error', 'File troppo grande', 'Massimo 15 MB: comprimi la scansione o dividila.'); return null; }
+        let head = '';
+        try { head = new TextDecoder().decode(new Uint8Array(await file.slice(0, 5).arrayBuffer())); } catch (_) {}
+        if (head !== '%PDF-') { toast('error', 'Serve un PDF', 'La scansione va caricata come PDF (non foto o Word).'); return null; }
+        try {
+            const path = 'contracts/' + contractId + '/contratto-carta-' + Date.now() + '.pdf';
+            const snap = await storage.ref(path).put(file, { contentType: 'application/pdf' });
+            const url = await snap.ref.getDownloadURL();
+            const patch = { paperPdfUrl: url, paperPdfAt: new Date().toISOString(), paperPdfBy: S.profile?.id || '' };
+            await db.collection('contracts').doc(contractId).update(patch);
+            Object.assign(c, patch);
+            logActivity('contract_paper_uploaded', 'contract', { contractId, size: file.size });
+            toast('success', 'Contratto firmato caricato', 'La scansione è il PDF del contratto, anche per la proprietaria.'
+                + (contractIsPlaceholder(c) ? ' Canone e date restano da completare dalla tabella del Palazzo.' : ''));
+            if (S.page === 'palazzo') renderPage();
+            return url;
+        } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return null; }
+    }
+
+    // Il primo ingresso della proprietaria: il link per SCEGLIERE la password,
+    // in italiano, che la riporta dritta al Palazzo (prima: «tocca Forgot?»
+    // su una pagina inglese, e la mail di Firebase la lasciava sul login).
+    async function palazzoSendPasswordLink(ownerId) {
+        if (!isAdmin()) return false;
+        const u = (S.users || []).find(x => x.id === ownerId);
+        const email = u ? String(u.email || '').trim() : '';
+        if (!email) { toast('error', 'Email mancante', 'Il profilo della proprietaria non ha un’email: aggiungila da Utenti.'); return false; }
+        if (!confirm(`Mandare a ${email} il link per scegliere la password?\n\nLe arriva un'email: tocca il link, sceglie la password e rientra direttamente nel Palazzo.`)) return false;
+        const prev = auth.languageCode;
+        try {
+            auth.languageCode = 'it';
+            try { await auth.sendPasswordResetEmail(email, { url: 'https://www.boomrome.com/login?next=%2Fportal%23palazzo' }); }
+            catch (e) {
+                // Un indirizzo di ritorno non autorizzato non deve fermare l'invio.
+                if (e && /continue-uri|unauthorized-domain|invalid-continue/i.test(String(e.code || ''))) await auth.sendPasswordResetEmail(email);
+                else throw e;
+            }
+            logActivity('owner_password_link_sent', 'user', { ownerId });
+            toast('success', 'Link per la password inviato', email);
+            return true;
+        } catch (err) { toast('error', 'Link non inviato', (err && err.message) || ''); return false; }
+        finally { auth.languageCode = prev; }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // TRANSLATIONS (IT/EN)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1056,11 +1456,18 @@ Valentyne - BOOM Rome`
     });
 
     function updateActivity() { S.lastActivity = Date.now(); }
-    
+
+    // Sessione scaduta: si esce PULITI, una volta. Prima checkSession
+    // chiamava logout(), che chiedeva «Vuoi uscire?» — una domanda che
+    // nessuno aveva fatto, ripetuta ogni minuto finché non si diceva sì
+    // (i tasti del confirm non contano come attività). Ora: si ferma il
+    // controllo, si esce senza domande e il login riporta alla pagina dov'eri.
     function checkSession() {
-        if (S.user && (Date.now() - S.lastActivity > CONFIG.SESSION_TIMEOUT)) {
-            toast('warning', 'Sessione scaduta', 'Effettua nuovamente il login');
-            logout();
+        if (S.user && !S._sessionExpiring && (Date.now() - S.lastActivity > CONFIG.SESSION_TIMEOUT)) {
+            S._sessionExpiring = true;
+            stopSessionCheck();
+            toast('warning', 'Sessione scaduta', 'Per sicurezza rientra con la tua password: torni dov’eri.');
+            logout({ silent: true, reason: 'expired' });
         }
     }
 
@@ -1076,8 +1483,15 @@ Valentyne - BOOM Rome`
         }
     }
 
+    // Attività vera anche su telefono: un tocco o uno scorrimento NON sono un
+    // click, e la proprietaria che legge il palazzo scorrendo veniva data per
+    // assente. Al rientro sulla scheda (Safari tiene fermi i timer in
+    // background) il controllo parte SUBITO, prima di qualunque tocco.
     document.addEventListener('click', updateActivity);
-    document.addEventListener('keypress', updateActivity);
+    document.addEventListener('keydown', updateActivity);
+    document.addEventListener('pointerdown', updateActivity, { passive: true });
+    window.addEventListener('scroll', updateActivity, { passive: true, capture: true });
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkSession(); });
 
     // ═══════════════════════════════════════════════════════════════════════════
     // RBAC & DATA FILTERS
@@ -1085,6 +1499,39 @@ Valentyne - BOOM Rome`
     function isAdmin() { return S.profile?.role === 'admin'; }
     function isLandlord() { return S.profile?.role === 'landlord'; }
     function isTenant() { return S.profile?.role === 'tenant'; }
+
+    // CHE TIPO DI CONTRATTO È (js/contract-state.js, una copia sola): un
+    // contratto firmato SU CARTA o un segnaposto della presa in carico non è
+    // «da firmare» — né per un badge, né per Firma ora, né per un conteggio.
+    // Prima bastava `!c.landlordSignature`: la proprietaria leggeva «richiede
+    // la tua firma» su un atto già firmato a penna con la sua società, e un
+    // tocco coniava un link di firma digitale per un documento diverso.
+    // Il ripiego in linea vale per le pagine che montano pezzi del portal.
+    function contractIsPaper(c) { const CS = window.BOOM_CONTRACT_STATE; return CS ? CS.isPaper(c) : !!(c && c.signatureStatus === 'paper'); }
+    function contractIsPlaceholder(c) { const CS = window.BOOM_CONTRACT_STATE; return CS ? CS.isPlaceholder(c) : !!(c && c.contractMissing === true); }
+    function contractNotSignable(c) { const CS = window.BOOM_CONTRACT_STATE; return CS ? CS.notSignable(c) : (!c || contractIsPaper(c) || contractIsPlaceholder(c) || c.signatureStatus === 'complete'); }
+    // Firmato: digitale completo, oppure su carta. Un segnaposto NON lo è:
+    // il contratto non è nemmeno in archivio.
+    function contractSigned(c) {
+        if (!c || contractIsPlaceholder(c)) return false;
+        return c.signatureStatus === 'complete' || !!(c.tenantSignature && c.landlordSignature) || contractIsPaper(c);
+    }
+    // Aspetta una firma DIGITALE: solo un contratto che si può firmare.
+    function awaitingDigitalSignature(c) { return !!c && !contractNotSignable(c) && (!c.tenantSignature || !c.landlordSignature); }
+    // Perché qui non si firma, in parole (mai un rifiuto muto).
+    function contractSignBlock(c) {
+        if (!c) return 'Contratto non trovato.';
+        if (contractIsPlaceholder(c)) return 'Il contratto di questo interno non è ancora in archivio: si carica dalla tabella del Palazzo (canone e date) o con la scansione firmata. Non c’è niente da firmare qui.';
+        if (contractIsPaper(c)) return 'Contratto firmato su carta: non si firma di nuovo in digitale. Dal Palazzo si allega la scansione firmata.';
+        if (c.signatureStatus === 'complete') return 'Il contratto è già firmato da tutte le parti.';
+        return '';
+    }
+    // Il nome dell'inquilino: dal profilo se c'è, altrimenti quello scritto
+    // sul contratto (la presa in carico non crea profili) — mai «N/A».
+    function contractTenantName(c, fallback) {
+        const t = c && c.tenantId ? (S.users || []).find(u => u.id === c.tenantId) : null;
+        return (t && t.name) || (c && c.tenantName) || (fallback == null ? '' : fallback);
+    }
 
     function getMyProperties() {
         if (isAdmin()) return S.properties || [];
@@ -1122,7 +1569,9 @@ Valentyne - BOOM Rome`
         if (isAdmin()) return S.documents;
         // Tenant/landlord see their own + shared docs for their properties
         const myPropIds = isTenant() ? getMyContracts().map(c => c.propertyId) : getMyProperties().map(p => p.id);
-        return S.documents.filter(d => d.userId === S.profile.id || (d.shared && myPropIds.includes(d.propertyId)));
+        // Mai un documento ANNULLATO (es. la ricevuta di un incasso registrato
+        // per errore): resta in archivio per l'operatore, non per le parti.
+        return (S.documents || []).filter(d => d && d.voided !== true && (d.userId === S.profile.id || ((d.shared === true || d.shared === 'true') && myPropIds.includes(d.propertyId))));
     }
 
     // Get owner/admin contact for tenant
@@ -2739,7 +3188,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const age = Date.now() - timestamp;
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
+                    // La proprietaria non legge l'Inbox (note e analisi
+                    // dell'operatore): conversazioni rimaste in una cache di
+                    // prima non tornano in memoria, e la cache si riscrive
+                    // subito senza — senza aspettare un carico che può fallire.
+                    const dropInbox = role === 'landlord' && Array.isArray(data && data.conversations) && data.conversations.length;
+                    if (role === 'landlord' && data) { data.conversations = []; data.messages = []; }
                     Object.assign(S, data);
+                    if (dropInbox) cacheData();
                     invalidateRentSnapshot();
                     window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
@@ -2769,17 +3225,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         return out;
     }
-    async function fetchWhereInChunked(collection, field, values) {
+    // `size`: quanti valori per blocco IN. Per il proprietario 9, non 30:
+    // le rules autorizzano ogni documento con ownsProperty(propertyId), cioè
+    // UNA get() del suo immobile per ogni valore della IN più quella del suo
+    // profilo — e Firestore ne ammette 10 per richiesta. Oltre, la query è
+    // rifiutata PER INTERO e il Palazzo disegnava tutti gli interni «Libero».
+    // `extra(q)` aggiunge vincoli (es. shared == true per i documenti).
+    async function fetchWhereInChunked(collection, field, values, size, extra) {
         const out = [];
+        const step = Math.max(1, Math.min(30, Number(size) || 30));
         const unique = Array.from(new Set(values)).filter(Boolean);
-        for (let i = 0; i < unique.length; i += 30) {
-            const chunk = unique.slice(i, i + 30);
+        for (let i = 0; i < unique.length; i += step) {
+            const chunk = unique.slice(i, i + step);
             if (!chunk.length) continue;
-            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            let q = db.collection(collection).where(field, 'in', chunk);
+            if (typeof extra === 'function') q = extra(q);
+            const snap = await q.get();
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
     }
+    // Il limite delle get() nelle rules per il proprietario (vedi sopra).
+    const LANDLORD_IN_CHUNK = 9;
 
     // Non-admin loader: scoped to exactly what the role may read, so the
     // queries pass Firestore Security Rules (which reject unconstrained
@@ -2800,14 +3267,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const props = await db.collection('properties').where('ownerId', '==', myUid).get();
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             const propIds = S.properties.map(p => p.id);
-            const [contracts, payments, maint] = await Promise.all([
-                fetchWhereInChunked('contracts', 'propertyId', propIds),
-                fetchWhereInChunked('payments', 'propertyId', propIds),
-                fetchWhereInChunked('maintenance', 'propertyId', propIds)
+            // Ogni lettura per conto suo: una che fallisce NON svuota le altre
+            // e non lascia il Palazzo a dire «tutti liberi, nessun pagamento».
+            // Resta quello che c'era (cache) e l'errore si DICE (S.scopedLoadError:
+            // la vista offre «Riprova» → loadData(true)).
+            const failed = [];
+            const part = (label, col, extra) => fetchWhereInChunked(col, 'propertyId', propIds, LANDLORD_IN_CHUNK, extra)
+                .then(rows => ({ ok: true, rows }), err => { failed.push(label); console.warn('[landlord load] ' + col, err && err.message); return { ok: false }; });
+            const [contracts, payments, maint, shared] = await Promise.all([
+                part('contratti', 'contracts'), part('rate', 'payments'), part('manutenzioni', 'maintenance'),
+                // I documenti CONDIVISI da BOOM sui suoi interni (scansione del
+                // contratto, ricevuta RLI, APE…): le rules li permettono solo
+                // con shared == true, quindi il vincolo sta nella query.
+                part('documenti condivisi', 'documents', q => q.where('shared', '==', true))
             ]);
-            S.contracts = contracts;
-            S.payments = payments;
-            S.maintenance = maint;
+            if (contracts.ok) S.contracts = contracts.rows; else S.contracts = S.contracts || [];
+            if (payments.ok) S.payments = payments.rows; else S.payments = S.payments || [];
+            if (maint.ok) S.maintenance = maint.rows; else S.maintenance = S.maintenance || [];
+            S._landlordShared = shared.ok ? shared.rows : (S._landlordShared || []);
+            S.scopedLoadError = failed.length
+                ? 'Non sono riuscito a leggere ' + failed.join(', ') + '. I numeri potrebbero essere incompleti: tocca Riprova.'
+                : null;
+            if (failed.length && !silent) toast('error', 'Dati incompleti', S.scopedLoadError);
             // Tenants on those contracts (so names render) — read-allowed since
             // admin rule covers users; landlords read tenant docs via rules only
             // if permitted. Keep minimal: skip cross-user fetch, render by id.
@@ -2827,14 +3308,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.maintenance = maint;
         }
 
-        // Own documents (both roles).
-        const docs = await db.collection('documents').where('userId', '==', myUid).get();
-        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
-
-        // Inbox: scoped reads. Landlord sees conversations assigned to them.
-        // Tenant sees own (contactUid == myUid). Either way the rule allows it.
+        // Own documents (both roles) + per la proprietaria quelli condivisi da
+        // BOOM sui suoi interni (letti sopra), senza doppioni.
+        // Per la proprietaria una lettura che fallisce si DICE (come sopra) e
+        // non butta via il resto: i suoi documenti restano quelli di prima.
         try {
-            const field = isLandlord() ? 'assignedLandlordId' : 'contactUid';
+            const docs = await db.collection('documents').where('userId', '==', myUid).get();
+            S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            if (!isLandlord()) throw e;
+            console.warn('[landlord load] documents', e && e.message);
+            S.documents = (S.documents || []).filter(d => d.userId === myUid);
+            S.scopedLoadError = (S.scopedLoadError ? S.scopedLoadError.replace(/\. I numeri.*$/, '') + ', i tuoi documenti' : 'Non sono riuscito a leggere i tuoi documenti')
+                + '. I numeri potrebbero essere incompleti: tocca Riprova.';
+            if (!silent) toast('error', 'Dati incompleti', S.scopedLoadError);
+        }
+        if (isLandlord()) (S._landlordShared || []).forEach(d => { if (!S.documents.some(x => x.id === d.id)) S.documents.push(d); });
+
+        // Inbox: per la proprietaria NON si legge. L'inbox è dell'operatore
+        // (note interne, analisi): per lei «Scrivi a BOOM» è WhatsApp/email
+        // dalla scheda dell'interno, e la voce Messaggi porta al Palazzo.
+        // Tenant sees own (contactUid == myUid).
+        if (!isLandlord()) try {
+            const field = 'contactUid';
             const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get();
             S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
             const convIds = S.conversations.map(c => c.id);
@@ -2900,7 +3396,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             try { return await loadDataScoped(silent, startTime); }
             catch (e) {
                 console.error('Scoped load error:', e);
-                if (!silent) toast('error', 'Errore caricamento', e.message);
+                // Mai il messaggio grezzo di Firebase a una proprietaria: cosa
+                // è successo e cosa fare. La vista del Palazzo lo legge e
+                // offre «Riprova».
+                S.scopedLoadError = 'Non sono riuscito a leggere i tuoi immobili. Controlla la connessione e tocca Riprova.';
+                if (!silent) toast('error', 'Caricamento non riuscito', S.scopedLoadError);
+                try { if (S.page === 'palazzo') renderPage(); } catch (_) {}
                 return;
             }
         }
@@ -2949,6 +3450,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
+            // Un archivio letto AL TETTO può essere incompleto (i tetti non
+            // hanno un ordine: oltre il limite manca un pezzo qualunque). Il
+            // Palazzo lo dice; per il palazzo aperto rilegge mirato (loadBuilding).
+            S.palazzoTruncated = props.size >= 400 || contracts.size >= 800 || payments.size >= 3000 || maint.size >= 600 || users.size >= 800;
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
             
@@ -3059,8 +3564,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.notifications.push({ type: 'warning', title: 'Contratto in scadenza', text: `${S.properties.find(p => p.id === c.propertyId)?.name || 'Immobile'} - ${days} giorni`, id: c.id });
             }
         });
-        // Overdue payments
-        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
+        // Overdue payments — per la proprietaria come le conta il Palazzo: mai
+        // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue')).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -3545,7 +4051,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // landlord sees only the conversations assigned to them.
     function startInboxListener() {
         if (!S.profile?.id) return;
-        if (!isAdmin() && !isLandlord()) return;
+        // Solo l'operatore: per la proprietaria l'Inbox è ritirata («Scrivi a
+        // BOOM» è WhatsApp/email dalla scheda), e il suo ascolto leggeva
+        // conversazioni con riassunti e note dell'operatore.
+        if (!isAdmin()) return;
         if (S.inboxListener) S.inboxListener();
         const user = auth.currentUser, profileId = S.profile.id;
         const generation = S.inboxGeneration = (S.inboxGeneration || 0) + 1;
@@ -4244,8 +4753,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function showAuthError(m) { const e = document.getElementById('authError'); e.textContent = m; e.classList.add('show'); document.getElementById('authInfo').classList.remove('show'); }
     function showAuthInfo(m) { const e = document.getElementById('authInfo'); e.textContent = m; e.classList.add('show'); document.getElementById('authError').classList.remove('show'); }
 
-    async function logout() {
-        if (confirm('Vuoi uscire?')) {
+    // logout()            → il tasto Esci: chiede conferma.
+    // logout({silent:true}) → sessione scaduta: nessuna domanda, e il login
+    //                         riporta alla pagina dov'eri (#palazzo, …).
+    async function logout(opts) {
+        const silent = !!(opts && opts.silent);
+        if (silent || confirm('Vuoi uscire?')) {
             stopSessionCheck();
             stopNotificationListener();
             stopContractsListener();
@@ -4263,7 +4776,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             } catch (e) {
                 console.error('Logout error:', e);
             }
-            window.location.href = '/login?next=%2Fportal';
+            // La pagina dov'eri torna dopo il login (login.html accetta solo
+            // percorsi locali): '/portal#palazzo', mai un indirizzo esterno.
+            const page = silent && S.page && /^[\w\-\/]+$/.test(String(S.page)) ? '#' + S.page : '';
+            window.location.href = '/login?next=' + encodeURIComponent('/portal' + page) + (silent ? '&expired=1' : '');
         }
     }
     
@@ -4342,8 +4858,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // contractRegistrationStatus: quello si carica solo aprendo la
         // pagina, quindi al boot la sidebar taceva proprio mentre una
         // registrazione correva verso i 30 giorni.
-        const daRegistrare = (S.contracts || []).filter(c =>
-            (c.signatureStatus === 'complete' || (c.tenantSignature && c.landlordSignature))
+        // Firmato vale anche SU CARTA: quei contratti si registrano come gli
+        // altri, mai un segnaposto senza contratto (contractMissing).
+        const daRegistrare = (S.contracts || []).filter(c => c.contractMissing !== true
+            && (c.signatureStatus === 'complete' || c.signatureStatus === 'paper' || (c.tenantSignature && c.landlordSignature))
             && (c.registrationStatus || 'pending') !== 'registered' && !c.rliRegisteredAt).length;
 
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
@@ -4411,25 +4929,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
                 </div>`;
         } else if (r === 'landlord') {
-            const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
-            const myOverdue = getMyPayments().filter(isPaymentLate).length;
-            const myUnreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
+            // Quattro porte (landlordRoute): il Palazzo dice chi ha pagato,
+            // chi no, i guasti e i contratti — le vecchie pagine Immobili,
+            // Contratti, Pagamenti e Dashboard lo contraddicevano. Il badge
+            // dei ritardi sta sul Palazzo, dove si guardano.
+            const myOverdue = landlordLatePayments().length;
             sb.innerHTML = `
-                <div class="nav-section"><div class="nav-label">Home</div>
-                    <div class="nav-item ${S.page==='palazzo'?'active':''}" onclick="goTo('palazzo')"><span class="nav-icon">🏛️</span> Il Palazzo</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
-                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Messaggi ${myUnreadInbox?`<span class="nav-badge gold">${myUnreadInbox}</span>`:''}</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">I Miei Immobili</div>
-                    <div class="nav-item ${S.page==='my-properties'?'active':''}" onclick="goTo('my-properties')"><span class="nav-icon">🏠</span> Immobili</div>
-                    <div class="nav-item ${S.page==='my-contracts'?'active':''}" onclick="goTo('my-contracts')"><span class="nav-icon">📋</span> Contratti</div>
-                    <div class="nav-item ${S.page==='my-payments'?'active':''}" onclick="goTo('my-payments')"><span class="nav-icon">💳</span> Pagamenti ${myOverdue?`<span class="nav-badge">${myOverdue}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='my-maintenance'?'active':''}" onclick="goTo('my-maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${myMaint?`<span class="nav-badge">${myMaint}</span>`:''}</div>
+                <div class="nav-section"><div class="nav-label">Il tuo palazzo</div>
+                    <div class="nav-item ${S.page==='palazzo'?'active':''}" onclick="goTo('palazzo')"><span class="nav-icon">🏛️</span> Il Palazzo ${myOverdue?`<span class="nav-badge" title="Rate non pagate">${myOverdue}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="sidebar-footer">
-                    <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
+                    <div class="nav-item ${S.page==='settings'?'active':''}" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
                     <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
                 </div>`;
         } else { // tenant
@@ -4453,7 +4965,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function goTo(p, arg) { S.page = p; S.pageArg = arg || null; window.location.hash = p; localStorage.setItem('boom_lastPage', p); buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
+    // La proprietaria ha quattro porte (landlordRoute): ogni altra rotta porta
+    // al Palazzo, e una pagina ritirata non si salva mai come boom_lastPage.
+    function goTo(p, arg) { if (S.profile?.role === 'landlord') p = landlordRoute(p); S.page = p; S.pageArg = arg || null; window.location.hash = p; try { localStorage.setItem('boom_lastPage', p); } catch (_) {} buildNav(); renderPage(); closeSidebar(); window.scrollTo(0, 0); }
     // Open the 360° person hub. kind: 'lead' | 'pfsClient' | 'crmClient' | 'user'.
     function openPerson(id, kind) { goTo('person', { id, kind: kind || 'user' }); }
     window.openPerson = openPerson;
@@ -4480,6 +4994,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderPage() {
         const m = document.getElementById('main');
         const r = S.profile.role;
+        // Anche dal tasto indietro o da un hash scritto a mano: la
+        // proprietaria non apre MAI una pagina ritirata (vedi landlordRoute).
+        if (r === 'landlord') {
+            const to = landlordRoute(S.page);
+            if (to !== S.page) {
+                S.page = to;
+                try { history.replaceState(null, '', '#' + to); } catch (_) {}
+                try { localStorage.setItem('boom_lastPage', to); } catch (_) {}
+                buildNav();
+            }
+        }
         const dossierRoute = window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page);
         if (dossierRoute) {
             m.innerHTML = window.BOOM_PROPERTY_DOSSIER.render(S, dossierRoute, window.BOOM_PROPERTY_DOSSIER.load);
@@ -4560,16 +5085,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // === Landlord/Tenant ===
             case 'palazzo':
                 if ((isAdmin() || isLandlord()) && window.BOOM_PALAZZO_UI) {
-                    // Le proposte non sono nel boot (dieta): come in Oggi si caricano
-                    // alla prima apertura, senza attendere, e il palazzo si ridisegna.
-                    if (isAdmin() && !S._paLoaded && !S._paLoading) {
-                        S._paLoading = true;
-                        db.collection('preAgreements').limit(150).get().then((snap) => {
-                            S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() })); S._paLoaded = true;
-                            if (S.page === 'palazzo') renderPage();
-                        }).catch(() => { S._paLoaded = true; });
-                    }
+                    if (isAdmin()) palazzoRemerge();
                     m.innerHTML = window.BOOM_PALAZZO_UI.render(); window.BOOM_PALAZZO_UI.mount();
+                    // Admin: il palazzo MOSTRATO si rilegge mirato (contratti, rate,
+                    // manutenzioni e proposte dei suoi interni), senza attendere.
+                    // Prima: le «prime 150» proposte dell'archivio, a caso.
+                    if (isAdmin()) palazzoEnsureBuilding();
                 }
                 else m.innerHTML = accessDenied();
                 break;
@@ -4587,6 +5108,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'bonifica': m.innerHTML = isAdmin() ? bonificaPage() : accessDenied(); break;
             case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
+        }
+        // Dati della proprietaria letti a metà: lo si dice anche su Documenti,
+        // Commercialista e Impostazioni (sul Palazzo lo dice la vista), con
+        // «Riprova» — mai una pagina che sembra completa e non lo è.
+        if (r === 'landlord' && S.scopedLoadError && S.page !== 'palazzo') {
+            m.insertAdjacentHTML('afterbegin', `<div class="card" role="alert" data-scoped-error style="border-color:var(--red);margin-bottom:14px"><div class="card-body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px"><span style="flex:1;min-width:200px">⚠️ ${esc(S.scopedLoadError)}</span><button class="btn btn-sm" onclick="palazzoReload()">Riprova</button></div></div>`);
         }
         window.BOOM_PROPERTY_DOSSIER?.afterRender();
         // Post-render hooks
@@ -6064,7 +6591,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (isAdmin() && !S._paLoaded && !S._paLoading) {
             S._paLoading = true;
             db.collection('preAgreements').limit(150).get().then((snap) => {
-                S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+                // Si fonde, non si sostituisce: le proposte lette mirate dal
+                // Palazzo (palazzoProposals) non devono sparire aprendo Oggi.
+                const fresh = snap.docs.map((d) => ({ id: d.id, ...d.data() })), seen = new Set(fresh.map((x) => x.id));
+                S.preAgreements = fresh.concat((S.preAgreements || []).filter((x) => !seen.has(x.id)));
                 S._paLoaded = true;
                 oggiScheduleUpdate();
             }).catch(() => { S._paLoaded = true; });
@@ -6176,7 +6706,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const d = daysUntil(c.endDate);
             return d !== null && d <= 60 && d >= 0;
         });
-        const pendingSignatures = S.contracts.filter(c => !c.landlordSignature || !c.tenantSignature);
+        // Solo i contratti che si firmano in DIGITALE: carta e segnaposto no.
+        const pendingSignatures = S.contracts.filter(awaitingDigitalSignature);
 
         // Rules engine status
         const activeRules = (S.rules || []).filter(r => r.enabled).length;
@@ -7170,7 +7701,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const annualIncome = myPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
         
         // Contracts pending landlord signature
-        const pendingSignatures = myContracts.filter(c => !c.landlordSignature);
+        // Una firma digitale del locatore che ASPETTA davvero: mai su un
+        // contratto firmato su carta o non ancora in archivio.
+        const pendingSignatures = myContracts.filter(c => awaitingDigitalSignature(c) && !c.landlordSignature);
 
         let alerts = '';
         
@@ -7468,7 +8001,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const contractProgress = totalContractDays && contractDays !== null ? Math.max(0, Math.min(100, Math.round(((totalContractDays - contractDays) / totalContractDays) * 100))) : 0;
         const paymentDays = nextPayment ? daysUntil(nextPayment.dueDate) : null;
         const paymentOverdue = nextPayment && isOverdue(nextPayment.dueDate);
-        const pendingSignatures = getMyContracts().filter(c => !c.tenantSignature);
+        const pendingSignatures = getMyContracts().filter(c => awaitingDigitalSignature(c) && !c.tenantSignature);
 
         let alerts = '';
         
@@ -9077,7 +9610,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const overduePayments = payments.filter(isPaymentLate);
         const totalPaid = paid.reduce((s, p) => s + (p.amount || 0), 0);
         const totalOverdue = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
-        const unsignedContracts = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
+        // Firma DIGITALE che aspetta: un contratto su carta o un segnaposto no.
+        const unsignedContracts = contracts.filter(c => c.status === 'active' && awaitingDigitalSignature(c));
         const openMaint = maintenance.filter(m => m.status !== 'resolved');
 
         // ── Timeline: unified chronological feed ─────────────────────────────
@@ -10385,13 +10919,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span class="li-flags">
                         ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
                         ${c.signatureStatus === 'none' ? `<span class="li-flag orange">Da firmare</span>` : (c.signatureStatus === 'partial' ? `<span class="li-flag gold">Firma parziale</span>` : '')}
+                        ${contractIsPlaceholder(c) ? `<span class="li-flag orange">Contratto da caricare</span>` : (contractIsPaper(c) ? `<span class="li-flag">Firmato su carta</span>` : '')}
                         ${c.signatureStatus === 'complete' && !c.finalizedAt ? `<span class="li-flag red" onclick="event.stopPropagation();refinalizeContract('${c.id}')" title="Il post-firma (adempimenti/certificato/email) non è completo — clicca per rieseguirlo">Da rifinire · Rigenera</span>` : ''}
                         ${Number(c.deposit) > 0 && (c.tenantSignature || c.signatureStatus === 'complete') ? (c.depositPaid ? `<span class="li-flag green">Deposito ✓</span>` : `<span class="li-flag orange">Deposito in attesa</span>`) : ''}
                         ${c.tenantPassGenerated && c.landlordPassGenerated ? `<span class="li-flag">Pass inviati</span>` : ''}
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
+                        <b>${esc(t?.name || c.tenantName || 'N/A')}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
                     ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
                         ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
@@ -12054,14 +12589,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const direction = opts.direction || 'out';
         const channel = opts.channel || 'note';
         const now = firebase.firestore.FieldValue.serverTimestamp();
+        // Una NOTA INTERNA non porta né il contatto né la proprietaria
+        // assegnata: le rules aprono un messaggio a chi è in quei campi, e
+        // il composer promette «visibile solo al team». Prima la nota li
+        // copiava dalla conversazione e la cliente poteva leggerla.
+        const internal = direction === 'note';
         const msg = {
             conversationId: conv.id,
             direction,
             channel,
             body,
             by: S.profile.id,
-            contactUid: conv.contactUid || null,
-            assignedLandlordId: conv.assignedLandlordId || null,
+            contactUid: internal ? null : (conv.contactUid || null),
+            assignedLandlordId: internal ? null : (conv.assignedLandlordId || null),
             at: now,
         };
         if (opts.subject) msg.subject = String(opts.subject).slice(0, 200);
@@ -12273,6 +12813,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // a summary / suggested reply, surface it above the timeline with one-tap
     // actions (load the suggested reply into the composer, mark handled).
     function inboxHomieBanner(conv) {
+        // L'analisi di Homie (riassunto, bozza, urgenza) è dell'operatore.
+        if (!isAdmin()) return '';
         if (!conv.aiSummary && !conv.suggestedReply && !conv.needsReply) return '';
         const urg = conv.urgency || (conv.needsReply ? 'medium' : 'low');
         const tone = urg === 'high' ? 'red' : urg === 'medium' ? 'orange' : 'gold';
@@ -13395,6 +13937,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         logActivity('fiscal_obligations_saved_as_deadlines', 'fiscal', { party, year, added, skipped });
     }
 
+    // Chi è il LOCATORE di questi contratti. Il palazzo può essere di una
+    // società (la presa in carico scrive landlordName = la SRL) mentre
+    // l'accesso è della persona che lo segue: allora il reddito NON è suo, e
+    // una stima IRPEF o cedolare a suo nome sarebbe un numero falso dato al
+    // commercialista. La stima resta solo quando il locatore è lei (o il
+    // contratto non dice altro).
+    function commercialistaLocatore(contracts, profile) {
+        const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
+        const me = norm(profile && profile.name), meTok = me.split(' ').filter(w => w.length > 1);
+        const COMPANY_RE = /\b(s\s*r\s*l\s*s?|s\s*a\s*s|s\s*p\s*a|s\s*n\s*c|s\s*a\s*p\s*a|soc|societa|immobiliare|holding|srl|spa|sas|snc|ltd|gmbh|sarl)\b/;
+        for (const c of contracts || []) {
+            const raw = String((c && c.landlordName) || '').trim();
+            const company = !!(c && c.landlordKind === 'giuridica') || (raw && COMPANY_RE.test(norm(raw)));
+            if (!raw && !company) continue;
+            const n = norm(raw), nTok = n.split(' ').filter(w => w.length > 1);
+            const same = !company && raw && meTok.length && (meTok.every(w => nTok.includes(w)) || nTok.every(w => meTok.includes(w)));
+            if (!same) return { name: raw, other: true, company };
+        }
+        return { name: (profile && profile.name) || '', other: false, company: false };
+    }
+
     // ─── LANDLORD LITE — one property, one question, one action ─────────────
     // "Sei pronto per il commercialista?" Everything else collapses behind
     // "Vedi dettagli". Plain language, no fiscal jargon, big calm surface.
@@ -13420,17 +13983,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
             const documents = (S.documents || []).filter(d => d.propertyId === p.id);
             const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
-            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            // Il reddito è il CANONE: gli oneri accessori pagati insieme
+            // (rentAmount + oneriAmount = amount) sono rimborsi spese, non si
+            // stimano come imponibile.
+            const taxPayments = payments.map(x => (x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
+                ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
+            const totals = TP.computeTotals({ contract, payments: taxPayments, fiscalYear: year });
             return { p, contract, payments, documents, checklist, totals };
         });
 
         const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
         const { p: prop, contract, checklist, totals } = cur;
+        // Il locatore è un ALTRO soggetto (es. la società del palazzo)? Allora
+        // niente stima d'imposta né scadenzario personale a nome suo.
+        const viewer = isPreview ? ((S.users || []).find(u => u.id === prop.ownerId) || {}) : S.profile;
+        const locatore = commercialistaLocatore((S.contracts || []).filter(c => c.propertyId === prop.id), viewer);
 
         // Scadenzario — computed obligations for THIS property (engine).
         const FX = window.BOOM_FISCAL;
-        const obligations = FX ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
-        const scadCard = FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
+        const obligations = FX && !locatore.other ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
+        const scadCard = locatore.other
+            ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${locatore.company ? 'della società' : 'del locatore'}: le segue il suo commercialista.</div></div>`
+            : FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
 
         // Status mapping → calm, human.
         let statusKey, icon, headline, sub, accent;
@@ -13454,7 +14028,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
 
         // Plain-language money line (factual, no formula).
-        const moneyLine = totals.canoniIncassati
+        const moneyLine = locatore.other
+            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${locatore.company ? 'della società' : 'del locatore'}.`
+            : totals.canoniIncassati
             ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
               (totals.regime !== 'ordinario'
                 ? ` · imposta cedolare stimata <strong style="color:var(--gold)">${TP.fmtEuro(totals.cedolareImposta)}</strong> (${(totals.cedolareRate*100).toFixed(0)}%)`
@@ -13526,7 +14102,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card" style="margin-top:16px">
                 <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                     <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
-                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    ${locatore.other ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
@@ -15246,7 +15822,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 const isOD = isPaymentLate(p);
                 const payBadge = p.stripeSessionId ? ' <span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : '';
-                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 Paga</button>` : ''}${p.status === 'pending' && isTenant() ? `<button class="btn btn-xs ${p.tenantReported ? 'btn-secondary' : ''}" onclick="reportPaymentMade('${p.id}')" style="${!p.tenantReported ? 'background:var(--green);color:#fff' : ''}">${p.tenantReported ? '⏳ Reported' : '✅ I Paid'}</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
+                return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 Paga</button>` : ''}${p.status === 'pending' && isTenant() ? `<button class="btn btn-xs ${p.tenantReported ? 'btn-secondary' : ''}" onclick="reportPaymentMade('${p.id}')" style="${!p.tenantReported ? 'background:var(--green);color:#fff' : ''}">${p.tenantReported ? '⏳ Reported' : '✅ I Paid'}</button>` : ''}</div>`;
             }).join('') : '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div></div>'}</div></div>`;
     }
 
@@ -15485,7 +16061,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="list-content" style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 <div class="list-title">${esc(d.name)}</div>
-                                ${isFromBoom ? `<span class="badge gold" style="font-size:9px">FROM BOOM</span>` : `<span class="badge gray" style="font-size:9px">${isEN ? 'MY UPLOAD' : 'MIO'}</span>`}
+                                ${isFromBoom ? `<span class="badge gold" style="font-size:9px">${isEN ? 'FROM BOOM' : 'DA BOOM'}</span>` : `<span class="badge gray" style="font-size:9px">${isEN ? 'MY UPLOAD' : 'MIO'}</span>`}
                                 ${d.shared ? `<span class="badge blue" style="font-size:9px">🔗 ${isEN ? 'Shared' : 'Condiviso'}</span>` : ''}
                             </div>
                             <div class="list-subtitle">${fmtDate(d.createdAt)}${d.fileName ? ' · ' + esc(d.fileName) : ''}${d.fileSize ? ' · ' + (d.fileSize/1024).toFixed(0) + ' KB' : ''}</div>
@@ -15679,13 +16255,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ];
         }
         
-        // ★ LANDLORD ONBOARDING
+        // ★ PROPRIETARIA — due righe in italiano che portano al Palazzo. Prima
+        // un wizard in inglese le prometteva una dashboard e funzioni che il
+        // suo accesso non ha («Track rent payments», «Manage maintenance»…),
+        // sopra il Palazzo, al primo ingresso.
         if (isLandlord()) {
+            const co = palazzoCompany();
             return [
-                { icon: '\uD83C\uDFE0', title: 'Welcome, ' + name + '!', text: 'Your BOOM landlord portal is ready. Here you can manage your properties, tenants, contracts, and payments — everything in one place.', btn: 'Get Started' },
-                { icon: '\uD83D\uDCCB', title: 'Your Properties', text: (property ? 'Your property <strong>' + esc(property.name) + '</strong>' + (property.address ? ' at ' + esc(property.address) : '') + ' is set up and ready.' : 'Your properties will appear here once configured by your BOOM agent.') + '<br><br>You can track tenant payments, handle maintenance requests, and manage documents all from your dashboard.', btn: 'Next' },
-                { icon: '\uD83D\uDCB0', title: 'Payments & Documents', text: '<strong>What you can do here:</strong><br><br>\u2705 Track rent payments in real-time<br>\uD83D\uDCC4 Access contracts and documents<br>\uD83D\uDD27 Manage maintenance requests<br>\uD83D\uDCCA View financial analytics<br>\uD83D\uDCE7 Receive email notifications for important events<br><br>All payments and contract events are logged automatically.', btn: 'Next' },
-                { icon: '\u2705', title: 'All Set!', text: 'Your dashboard is ready. BOOM manages the day-to-day so you do not have to.<br><br>Questions? Contact us anytime at <strong>' + COMPANY.email + '</strong> or <strong>' + COMPANY.phone + '</strong>.', btn: 'Go to Dashboard' }
+                // Il ruolo landlord non è solo la proprietaria del Palazzo:
+                // un saluto che non presume il genere.
+                { icon: '🏛️', title: 'Buongiorno' + (name && name !== 'there' ? ', ' + esc(name) : '') + '!', text: 'Qui c’è <strong>il suo palazzo</strong>, interno per interno: ogni mese vede chi è dentro, chi ha pagato e chi no. Toccando un interno trova l’inquilino con il telefono, la scadenza del contratto e i pagamenti.', btn: 'Avanti' },
+                { icon: '💬', title: 'BOOM pensa al resto', text: 'Incassi, solleciti, guasti e contratti li segue BOOM. Per qualunque domanda: WhatsApp <strong>' + esc(co.phone) + '</strong> o <strong>' + esc(co.email) + '</strong>.', btn: 'Apri il Palazzo' }
             ];
         }
         
@@ -15718,7 +16298,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     '<h2 style="font-size:22px;font-weight:600;margin-bottom:10px">' + s.title + '</h2>' +
                     '<p style="font-size:14px;color:var(--text-secondary);line-height:1.7;margin-bottom:28px;text-align:left">' + s.text + '</p>' +
                     '<div style="display:flex;gap:10px;justify-content:center">' +
-                        (onboardingStep > 0 ? '<button class="btn btn-secondary" onclick="onboardingStep--;renderOnboardingStep(' + (contract ? 'S.contracts.find(c=>c.id===\'' + contract.id + '\')' : 'null') + ',' + (property ? 'S.properties.find(p=>p.id===\'' + property.id + '\')' : 'null') + ')">← Back</button>' : '') +
+                        (onboardingStep > 0 ? '<button class="btn btn-secondary" onclick="onboardingStep--;renderOnboardingStep(' + (contract ? 'S.contracts.find(c=>c.id===\'' + contract.id + '\')' : 'null') + ',' + (property ? 'S.properties.find(p=>p.id===\'' + property.id + '\')' : 'null') + ')">' + (isLandlord() ? '← Indietro' : '← Back') + '</button>' : '') +
                         '<button class="btn" style="padding:12px 28px" onclick="' + (isLast ? 'completeOnboarding()' : 'onboardingStep++;renderOnboardingStep(' + (contract ? 'S.contracts.find(c=>c.id===\'' + contract.id + '\')' : 'null') + ',' + (property ? 'S.properties.find(p=>p.id===\'' + property.id + '\')' : 'null') + ')') + '">' + s.btn + ' →</button>' +
                     '</div>' +
                 '</div>' +
@@ -15734,7 +16314,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             S.profile.onboardingPending = false;
             closeModal();
-            toast('success', '🎉 Welcome!', 'Your portal is ready');
+            if (isLandlord()) { if (S.page !== 'palazzo') goTo('palazzo'); }
+            else toast('success', isTenant() ? '🎉 Welcome!' : '🎉 Benvenuto!', isTenant() ? 'Your portal is ready' : 'Il portale è pronto');
             logActivity('Onboarding completato', 'user', { userId: S.profile.id });
         } catch (err) {
             closeModal();
@@ -15789,12 +16370,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function settingsPage() {
+        // `Notification` non esiste su iPhone Safari fuori da una PWA
+        // installata: `Notification?.permission` lanciava comunque
+        // (ReferenceError su un nome mai dichiarato) e Impostazioni non si
+        // apriva — anzi, riaprendo con #settings il portale restava vuoto.
+        const pushOn = typeof Notification !== 'undefined' && Notification.permission === 'granted';
+        const owner = isLandlord(), co = palazzoCompany();
         return `<div class="page-header"><h1 class="page-title">⚙️ Impostazioni</h1></div>
             ${companySettingsCard()}
             <div class="card"><div class="card-header"><h3 class="card-title">👤 Profilo</h3></div><div class="card-body">
                 <form onsubmit="updateProfile(event)">
-                    <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="setName" value="${S.profile.name}"></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" id="setPhone" value="${S.profile.phone || ''}"></div></div>
-                    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${S.profile.email}" disabled></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Nome</label><input type="text" class="form-input" id="setName" value="${esc(S.profile.name || '')}"></div><div class="form-group"><label class="form-label">Telefono</label><input type="tel" class="form-input" id="setPhone" value="${esc(S.profile.phone || '')}"></div></div>
+                    <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-input" value="${esc(S.profile.email || '')}" disabled></div>
                     <div class="form-group"><label class="form-label">Ruolo</label><input type="text" class="form-input" value="${roleLabel(S.profile.role)}" disabled></div>
                     <button type="submit" class="btn">Salva Modifiche</button>
                 </form>
@@ -15831,37 +16418,64 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card"><div class="card-header"><h3 class="card-title">🔔 Notifiche Push</h3></div><div class="card-body">
                 <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Ricevi notifiche anche quando il portale è chiuso. Pagamenti, manutenzione, documenti — tutto in tempo reale.</p>
                 <div style="display:flex;align-items:center;gap:12px">
-                    <button class="btn ${Notification?.permission === 'granted' ? 'btn-secondary' : ''}" onclick="requestPushPermission()">
-                        ${typeof Notification !== 'undefined' && Notification.permission === 'granted' ? '✅ Notifiche attive' : '🔔 Attiva notifiche'}
+                    <button class="btn ${pushOn ? 'btn-secondary' : ''}" onclick="requestPushPermission()">
+                        ${pushOn ? '✅ Notifiche attive' : '🔔 Attiva notifiche'}
                     </button>
-                    ${typeof Notification !== 'undefined' && Notification.permission === 'granted' ? '<span style="font-size:12px;color:var(--green)">Le notifiche push sono abilitate</span>' : '<span style="font-size:12px;color:var(--text-muted)">Le notifiche ti terranno aggiornato</span>'}
+                    ${pushOn ? '<span style="font-size:12px;color:var(--green)">Le notifiche push sono abilitate</span>' : '<span style="font-size:12px;color:var(--text-muted)">Le notifiche ti terranno aggiornato</span>'}
                 </div>
             </div></div>
             
-            <div class="card"><div class="card-header"><h3 class="card-title">🌐 Lingua Documenti</h3></div><div class="card-body">
+            ${owner ? '' : `<div class="card"><div class="card-header"><h3 class="card-title">🌐 Lingua Documenti</h3></div><div class="card-body">
                 <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Seleziona la lingua per la generazione dei PDF e documenti</p>
                 <div class="lang-selector" style="width:fit-content">
                     <button class="lang-btn ${S.lang === 'IT' ? 'active' : ''}" onclick="setLang('IT')">🇮🇹 Italiano</button>
                     <button class="lang-btn ${S.lang === 'EN' ? 'active' : ''}" onclick="setLang('EN')">🇬🇧 English</button>
                 </div>
-            </div></div>
+            </div></div>`}
             ${isAdmin() ? `<div class="card"><div class="card-header"><h3 class="card-title">📋 CAF / Registrazione Contratti</h3></div><div class="card-body">
                 <p style="margin-bottom:16px;color:var(--text-secondary);font-size:13px">Email del CAF per l'invio automatico delle richieste di asseverazione e registrazione contratti.</p>
                 <div class="form-group"><label class="form-label">Email CAF</label><input type="email" class="form-input" id="setCafEmail" placeholder="caf@esempio.it"></div>
                 <div class="form-group"><label class="form-label">Email CAF alternativa</label><input type="email" class="form-input" id="setCafEmailAlt" placeholder="backup@esempio.it"></div>
                 <button class="btn" onclick="saveCAFSettings()">Salva Impostazioni CAF</button>
             </div></div>` : ''}
-            <div class="card"><div class="card-header"><h3 class="card-title">🔐 Sicurezza</h3></div><div class="card-body">
+            <div class="card"><div class="card-header"><h3 class="card-title">🔐 Sicurezza</h3></div><div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
+                <button class="btn btn-secondary" onclick="sendMyPasswordLink()">🔑 Cambia password</button>
                 <button class="btn btn-secondary" onclick="logout()">🚪 Esci dall'account</button>
             </div></div>
-            <div class="card"><div class="card-header"><h3 class="card-title">🔗 Collegamenti</h3></div><div class="card-body">
+            ${owner ? `<div class="card"><div class="card-header"><h3 class="card-title">💬 Scrivi a BOOM</h3></div><div class="card-body">
+                <p style="margin-bottom:12px;color:var(--text-secondary);font-size:13px">Per qualunque domanda sul palazzo, un inquilino o un pagamento.</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                    <a href="https://wa.me/${co.wa}?text=${encodeURIComponent('Buongiorno BOOM, ')}" target="_blank" rel="noopener" class="btn btn-success">💬 WhatsApp</a>
+                    <a href="mailto:${co.email}" class="btn btn-secondary">📧 ${co.email}</a>
+                </div>
+            </div></div>` : `<div class="card"><div class="card-header"><h3 class="card-title">🔗 Collegamenti</h3></div><div class="card-body">
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                     <a href="https://www.boomrome.com" target="_blank" class="btn btn-secondary">🌐 Sito Web</a>
                     <a href="https://www.boomrome.com/apartments.html" target="_blank" class="btn btn-secondary">🏠 Appartamenti</a>
-                    <a href="https://console.firebase.google.com" target="_blank" class="btn btn-secondary">🔥 Firebase</a>
+                    ${isAdmin() ? '<a href="https://console.firebase.google.com" target="_blank" class="btn btn-secondary">🔥 Firebase</a>' : ''}
                     <a href="https://wa.me/393313251961" target="_blank" class="btn btn-secondary">💬 WhatsApp</a>
                 </div>
-            </div></div>`;
+            </div></div>`}`;
+    }
+
+    // «Cambia password» da Impostazioni: il link arriva all'email del profilo
+    // (in italiano, e riporta dov'eri). Nessuna password passa dal portale.
+    async function sendMyPasswordLink() {
+        const email = String(S.profile?.email || auth.currentUser?.email || '').trim();
+        if (!email) return toast('error', 'Email mancante', 'Il tuo profilo non ha un’email: scrivi a BOOM.');
+        if (!confirm(`Ti mandiamo a ${email} il link per scegliere una nuova password?`)) return;
+        const prev = auth.languageCode;
+        try {
+            auth.languageCode = isTenant() ? 'en' : 'it';
+            const back = 'https://www.boomrome.com/login?next=' + encodeURIComponent('/portal' + (isLandlord() ? '#palazzo' : ''));
+            try { await auth.sendPasswordResetEmail(email, { url: back }); }
+            catch (e) {
+                if (e && /continue-uri|unauthorized-domain|invalid-continue/i.test(String(e.code || ''))) await auth.sendPasswordResetEmail(email);
+                else throw e;
+            }
+            toast('success', 'Link inviato', 'Controlla la posta: ' + email);
+        } catch (err) { toast('error', 'Link non inviato', (err && err.message) || ''); }
+        finally { auth.languageCode = prev; }
     }
 
     async function updateProfile(e) {
@@ -16987,7 +17601,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 </div>
 </form></div></div></div>`; }
 
-        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div><div id="eStudentiFields" style="display:${c.type === 'studenti' ? 'block' : 'none'}"><div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">🎓 Dati specifici contratto studenti (CAF Allegato C)</div><div class="form-group"><label class="form-label">Corso di studi *</label><input type="text" class="form-input" name="studenti_corsoStudi" value="${(c.studenti && c.studenti.corsoStudi) || c.courseName || ''}" placeholder="Es: Laurea Magistrale in International Management"></div><div class="form-row"><div class="form-group"><label class="form-label">Università *</label><input type="text" class="form-input" name="studenti_universita" value="${(c.studenti && c.studenti.universita) || c.universityName || ''}" placeholder="Es: LUISS Guido Carli"></div><div class="form-group"><label class="form-label">Indirizzo università *</label><input type="text" class="form-input" name="studenti_universitaIndirizzo" value="${(c.studenti && c.studenti.universitaIndirizzo) || ''}" placeholder="Es: Viale Romania 32, Roma"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo iscrizione</label><select class="form-select" name="studenti_tipoIscrizione">${['','Laurea Triennale','Laurea Magistrale','Master','Dottorato','Erasmus','Altro'].map(t => `<option value="${t}" ${((c.studenti && c.studenti.tipoIscrizione) || '') === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Anno accademico</label><input type="text" class="form-input" name="studenti_annoAccademico" value="${(c.studenti && c.studenti.annoAccademico) || ''}" placeholder="Es: 2025/2026"></div></div></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo contratto <span style="font-size:10px;color:var(--text-muted)">(decide il MODELLO del PDF)</span></label><select class="form-select" name="type" onchange="const b=document.getElementById('eStudentiFields');if(b)b.style.display=this.value==='studenti'?'block':'none'"><option value="transitorio" ${c.type !== 'studenti' ? 'selected' : ''}>Transitorio — Allegato B</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti universitari — Allegato C</option><option value="3+2" ${c.type === '3+2' ? 'selected' : ''}>3+2 canone concordato — Allegato A</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId"><option value="" ${c.tenantId ? '' : 'selected'}>— nessun profilo collegato${c.tenantName ? ' (' + esc(c.tenantName) + ')' : ''} —</option>${tenants.map(t => `<option value="${esc(t.id)}" ${c.tenantId === t.id ? 'selected' : ''}>${esc(t.name || t.email || t.id)}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div><div id="eStudentiFields" style="display:${c.type === 'studenti' ? 'block' : 'none'}"><div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">🎓 Dati specifici contratto studenti (CAF Allegato C)</div><div class="form-group"><label class="form-label">Corso di studi *</label><input type="text" class="form-input" name="studenti_corsoStudi" value="${(c.studenti && c.studenti.corsoStudi) || c.courseName || ''}" placeholder="Es: Laurea Magistrale in International Management"></div><div class="form-row"><div class="form-group"><label class="form-label">Università *</label><input type="text" class="form-input" name="studenti_universita" value="${(c.studenti && c.studenti.universita) || c.universityName || ''}" placeholder="Es: LUISS Guido Carli"></div><div class="form-group"><label class="form-label">Indirizzo università *</label><input type="text" class="form-input" name="studenti_universitaIndirizzo" value="${(c.studenti && c.studenti.universitaIndirizzo) || ''}" placeholder="Es: Viale Romania 32, Roma"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo iscrizione</label><select class="form-select" name="studenti_tipoIscrizione">${['','Laurea Triennale','Laurea Magistrale','Master','Dottorato','Erasmus','Altro'].map(t => `<option value="${t}" ${((c.studenti && c.studenti.tipoIscrizione) || '') === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Anno accademico</label><input type="text" class="form-input" name="studenti_annoAccademico" value="${(c.studenti && c.studenti.annoAccademico) || ''}" placeholder="Es: 2025/2026"></div></div></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo contratto <span style="font-size:10px;color:var(--text-muted)">(decide il MODELLO del PDF)</span></label><select class="form-select" name="type" onchange="const b=document.getElementById('eStudentiFields');if(b)b.style.display=this.value==='studenti'?'block':'none'"><option value="transitorio" ${c.type !== 'studenti' ? 'selected' : ''}>Transitorio — Allegato B</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti universitari — Allegato C</option><option value="3+2" ${c.type === '3+2' ? 'selected' : ''}>3+2 canone concordato — Allegato A</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
         if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">🔄 Rinnova</button></div></div></div>`; }
 
@@ -18486,11 +19100,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const _mb = (data.startDate && data.endDate) ? monthsBetween(data.startDate, data.endDate) : { text: '', months: 0 };
             const updatePayload = {
                 propertyId: data.propertyId,
-                tenantId: data.tenantId,
                 startDate: data.startDate,
                 endDate: data.endDate,
-                rent: _monthly,
-                deposit: parseInt(data.deposit) || 0,
                 // IL TIPO DECIDE IL MODELLO del PDF (studenti → Allegato C,
                 // altrimenti Allegato B). Finché questo campo non è esistito
                 // qui, un contratto nato 'transitorio' per errore non poteva
@@ -18501,6 +19112,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 notes: data.notes || '',
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
+            // L'INQUILINO si scrive solo se l'hai SCELTO: senza un'opzione
+            // vuota il browser selezionava il primo profilo dell'elenco, e una
+            // modifica alle note collegava il contratto a uno sconosciuto —
+            // che da lì lo leggeva, riceveva il journey e i solleciti.
+            if (data.tenantId && data.tenantId !== _existingContract.tenantId) updatePayload.tenantId = data.tenantId;
+            // Canone e deposito: un campo lasciato vuoto non diventa «€0» (un
+            // contratto preso in carico può non averli in archivio).
+            if (String(data.rent || '').trim() !== '') updatePayload.rent = _monthly;
+            if (String(data.deposit || '').trim() !== '') updatePayload.deposit = parseInt(data.deposit) || 0;
             if (_monthly > 0 && _installments > 0) {
                 updatePayload['canone.monthly'] = _monthly;
                 updatePayload['canone.total'] = _total || (_monthly * _installments);
@@ -18518,7 +19138,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 updatePayload['studenti.annoAccademico'] = data.studenti_annoAccademico || '';
             }
             await db.collection('contracts').doc(id).update(updatePayload);
-            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId, tenantId: data.tenantId || _existingContract.tenantId, rent: updatePayload.rent });
+            logActivity('contract_updated', 'contract', { id: id, propertyId: data.propertyId || _existingContract.propertyId || null, tenantId: updatePayload.tenantId || _existingContract.tenantId || null, rent: updatePayload.rent ?? _existingContract.rent ?? null });
             await refreshOnly('contracts'); closeModal(); toast('success', 'Contratto aggiornato!');
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -19352,6 +19972,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function viewContract(id) {
+        // La scheda contratto è la cabina di regia dell'OPERATORE (modifica,
+        // termina, firma, ASPI, verbale, pass…). Chi non è admin apre la sua
+        // vista: la proprietaria l'interno nel Palazzo, l'inquilino il suo
+        // contratto.
+        if (!isAdmin()) return viewContractLandlord(id);
         const c = S.contracts.find(x => x.id === id); if (!c) return;
         const p = S.properties.find(x => x.id === c.propertyId);
         const t = S.users.find(x => x.id === c.tenantId);
@@ -19361,14 +19986,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const paidTotal = payments.filter(pay => pay.status === 'paid').reduce((s, pay) => s + (pay.amount || 0), 0);
         const pendingTotal = payments.filter(pay => pay.status === 'pending').reduce((s, pay) => s + (pay.amount || 0), 0);
         
-        // Signature status
+        // Signature status — carta e segnaposto NON sono «da firmare».
         const sigStatus = c.signatureStatus || 'none';
-        const sigBadge = sigStatus === 'complete' 
+        const isPaperC = contractIsPaper(c), isPlaceholderC = contractIsPlaceholder(c);
+        const sigBadge = isPlaceholderC ? '<span class="badge orange">📄 Contratto da caricare</span>'
+            : isPaperC ? '<span class="badge green">🖋 Firmato su carta</span>'
+            : sigStatus === 'complete'
             ? '<span class="badge green">✅ Firmato</span>'
             : sigStatus === 'partial'
             ? '<span class="badge orange">✏️ Firma parziale</span>'
             : '<span class="badge gray">📝 Da firmare</span>';
-        
+        const tName = contractTenantName(c, 'N/A');
+
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
@@ -19379,7 +20008,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 
                 <!-- Signature Section -->
-                <div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
+                ${isPaperC || isPlaceholderC ? `<div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
+                    <div style="font-weight:600;margin-bottom:6px">${isPlaceholderC ? '📄 Contratto non ancora in archivio' : '🖋 Firmato su carta'}</div>
+                    <div style="font-size:12.5px;color:var(--text-secondary);line-height:1.5">${isPlaceholderC
+                        ? (c.paperPdfUrl
+                            ? `La scansione firmata è allegata: <a href="${esc(c.paperPdfUrl)}" target="_blank" rel="noopener">Apri la scansione</a>. Canone e date non sono ancora in archivio: completa la riga dalla tabella del Palazzo. Niente da firmare in digitale.`
+                            : 'L’interno risulta occupato ma il contratto non è caricato: completa la riga dalla tabella del Palazzo (canone e date) o carica la scansione firmata. Niente da firmare in digitale.')
+                        : 'Le parti hanno firmato il documento cartaceo: nessuna firma digitale da raccogliere.' + (c.paperPdfUrl ? ` <a href="${esc(c.paperPdfUrl)}" target="_blank" rel="noopener">Apri la scansione</a>` : ' La scansione si allega dal Palazzo.')}</div>
+                </div>` : `<div class="card" style="padding:16px;margin-bottom:16px;background:var(--bg-elevated)">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
                         <span style="font-weight:600">✏️ Firme Digitali</span>
                         <button class="btn btn-xs ${sigStatus === 'complete' ? 'btn-success' : ''}" onclick="viewContractSignatures('${c.id}')">${sigStatus === 'complete' ? '📥 Vedi/Scarica' : '✏️ Gestisci Firme'}</button>
@@ -19412,8 +20048,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             }).join('');
                         })()}
                     </div>
-                </div>
-                
+                </div>`}
+
                 ${c.linkedLeadId || c.linkedViewingId ? `
                 <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">🔗 Origine Deal</div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -19450,11 +20086,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div><div class="detail-label">Immobile</div><div class="detail-value">${p?.name || 'N/A'}</div></div>
                     <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p?.address || 'Roma'}</div></div>
                     <div><div class="detail-label">Proprietario</div><div class="detail-value">${o?.name || 'N/A'} ${o?.phone ? '· ' + o.phone : ''}</div></div>
-                    <div><div class="detail-label">Inquilino</div><div class="detail-value">${t?.name || 'N/A'} ${t?.phone ? '· ' + t.phone : ''}</div></div>
-                    <div><div class="detail-label">Data Inizio</div><div class="detail-value">${fmtDate(c.startDate)}</div></div>
-                    <div><div class="detail-label">Data Fine</div><div class="detail-value">${fmtDate(c.endDate)}</div></div>
-                    <div><div class="detail-label">Affitto Mensile</div><div class="detail-value text-gold">€${c.rent}</div></div>
-                    <div><div class="detail-label">Deposito Cauzionale</div><div class="detail-value">€${c.deposit || 0}</div></div>
+                    <div><div class="detail-label">Inquilino</div><div class="detail-value">${esc(tName)} ${(t?.phone || c.tenantPhone) ? '· ' + esc(t?.phone || c.tenantPhone) : ''}</div></div>
+                    <div><div class="detail-label">Data Inizio</div><div class="detail-value">${c.startDate ? fmtDate(c.startDate) : '—'}</div></div>
+                    <div><div class="detail-label">Data Fine</div><div class="detail-value">${c.endDate ? fmtDate(c.endDate) : '—'}</div></div>
+                    <div><div class="detail-label">Affitto Mensile</div><div class="detail-value text-gold">${Number(c.rent) > 0 ? '€' + Number(c.rent).toLocaleString('it-IT') : 'non in archivio'}</div></div>
+                    <div><div class="detail-label">Deposito Cauzionale</div><div class="detail-value">${c.deposit != null && c.deposit !== '' ? '€' + Number(c.deposit).toLocaleString('it-IT') : 'non in archivio'}</div></div>
                 </div>
                 ${contractCompletenessHtml(c)}
                 ${c.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${c.notes}</div></div>` : ''}
@@ -19472,15 +20108,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
                 <button class="btn" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('editContract',S.contracts.find(x=>x.id===cid)),250)">✏️ Modifica</button>
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('contract','${c.id}','Contratto ${jsq(p?.name)}')">🗑</button>
-                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
+                ${c.status === 'active' && !isPlaceholderC ? `<button class="btn btn-sm" style="background:var(--purple);color:white" onclick="generateDeadlinesForContract('${c.id}')" title="Genera scadenze automatiche">📅 Genera Scadenze</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
-                ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
-                <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
-                <button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>
-                <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
-                <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
-                <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
-                <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Fascicolo Fiscale: scheda di calcolo canone (Allegato 2/B ARPE) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                ${c.status === 'active' && !isPlaceholderC ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
+                ${isPaperC || isPlaceholderC ? `<label class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600;cursor:pointer" title="La scansione del contratto firmato su carta (PDF, fino a 15 MB): diventa il PDF del contratto, anche per la proprietaria">📎 ${c.paperPdfUrl ? 'Sostituisci la scansione' : 'Allega contratto firmato'}<input type="file" accept="application/pdf,.pdf" hidden onchange="palazzoUploadPaper('${c.id}', this.files && this.files[0]).then(u => { if (u) { closeModal(); viewContract('${c.id}'); } })"></label>` : ''}
+                ${isPlaceholderC ? '' : `<button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>`}
+                ${contractNotSignable(c) ? '' : `<button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>`}
+                ${isPlaceholderC && !c.paperPdfUrl ? '' : `<button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
+                <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>`}
+                ${isPaperC || isPlaceholderC ? '' : `<button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>`}
+                ${isPlaceholderC ? '' : `<button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Fascicolo Fiscale: scheda di calcolo canone (Allegato 2/B ARPE) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openSchedaArpe('${c.id}')" title="La Scheda di calcolo del canone da sola — Allegato 2/B, 1:1 col modulo ARPE: firmano le parti, si manda ad ARPE per l'attestazione">📐 Scheda ARPE</button>
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
@@ -19489,34 +20126,63 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
-                ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
+                ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
             </div>
         </div></div>`;
     }
 
-    function viewContractLandlord(id) { viewContract(id); }
+    // La proprietaria: l'interno del contratto, selezionato nel SUO Palazzo
+    // (la scheda in sola lettura: parti, date, canone e oneri, registrazione,
+    // PDF). L'inquilino: la pagina del suo contratto.
+    function viewContractLandlord(id) {
+        if (isTenant()) return goTo('my-contract');
+        const c = (S.contracts || []).find(x => x.id === id);
+        const p = c ? (S.properties || []).find(x => x.id === c.propertyId) : null;
+        const UI = window.BOOM_PALAZZO_UI, E = window.BOOM_PALAZZO;
+        if (p && UI && UI.ui) {
+            if (E && typeof E.buildingKeyOf === 'function') UI.ui.key = E.buildingKeyOf(p) || UI.ui.key;
+            UI.ui.selected = p.id;
+        }
+        closeModal();
+        goTo('palazzo');
+    }
 
     function viewMaintenance(id) {
         const m = S.maintenance.find(x => x.id === id); if (!m) return;
         const p = S.properties.find(x => x.id === m.propertyId);
         const u = S.users.find(x => x.id === m.userId);
+        // CHI HA SEGNALATO: un inquilino dal link /guasto non ha un profilo
+        // (userId null) e prima la scheda diceva «N/A» — con nome, telefono
+        // e foto salvati sul guasto. Ora si vede chi richiamare, e come.
+        const rep = m.reporter && typeof m.reporter === 'object' ? m.reporter : {};
+        const repName = u?.name || rep.name || m.tenantName || '';
+        const repRole = { tenant: 'inquilino', owner: 'proprietaria', admin: 'BOOM' }[rep.role] || (u ? roleLabel(u.role) : '');
+        const repPhone = String(rep.phone || u?.phone || '').trim();
+        const ph = repPhone ? (window.BOOM_CONTRACT_STATE ? window.BOOM_CONTRACT_STATE.phoneIntl(repPhone)
+            : (/^\+?\d[\d\s.\-]{7,}$/.test(repPhone) ? { e164: repPhone.replace(/[^\d+]/g, ''), wa: repPhone.replace(/\D/g, '') } : { e164: null, wa: null })) : null;
+        const channel = m.source === 'guasto-link' || rep.via === 'link' ? 'Link /guasto (senza accesso)'
+            : m.source === 'palazzo' || rep.via === 'palazzo' ? 'Dal Palazzo' : rep.via === 'casa' ? 'La tua casa (/casa)' : '';
+        const photos = [m.photoUrl, ...(Array.isArray(m.photos) ? m.photos : [])].filter(x => typeof x === 'string' && /^https:\/\//i.test(x));
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🔧 ${esc(m.title)}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div class="detail-badges mb-16"><span class="badge ${statusColor(m.status)}">${statusLabel(m.status)}</span><span class="badge ${priorityColor(m.priority)}">${priorityLabel(m.priority)}</span></div>
                 <div class="detail-grid">
-                    <div><div class="detail-label">Immobile</div><div class="detail-value">${p?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Immobile</div><div class="detail-value">${esc(p?.name || 'N/A')}${m.interno && !(p?.name || '').includes(m.interno) ? ' · int. ' + esc(m.interno) : ''}</div></div>
                     <div><div class="detail-label">Categoria</div><div class="detail-value">${catLabel(m.category)}</div></div>
-                    <div><div class="detail-label">Richiesto da</div><div class="detail-value">${u?.name || 'N/A'}</div></div>
+                    <div><div class="detail-label">Segnalato da</div><div class="detail-value">${repName ? esc(repName) : 'non indicato'}${repRole ? ` <span style="color:var(--text-muted)">· ${esc(repRole)}</span>` : ''}</div></div>
+                    <div><div class="detail-label">Telefono</div><div class="detail-value">${repPhone ? esc(repPhone) + (ph && ph.e164 ? ` <a class="btn btn-xs btn-secondary" href="tel:${esc(ph.e164)}">📞 Chiama</a>` : '') + (ph && ph.wa ? ` <a class="btn btn-xs btn-success" href="https://wa.me/${esc(ph.wa)}" target="_blank" rel="noopener">💬 WhatsApp</a>` : '') : 'non lasciato'}</div></div>
+                    ${channel ? `<div><div class="detail-label">Canale</div><div class="detail-value">${channel}</div></div>` : ''}
                     <div><div class="detail-label">Data</div><div class="detail-value">${fmtDate(m.createdAt)}</div></div>
                     ${m.cost ? `<div><div class="detail-label">Costo</div><div class="detail-value text-gold">€${m.cost}</div></div>` : ''}
                     ${m.technician ? `<div><div class="detail-label">Tecnico</div><div class="detail-value">${m.technician}</div></div>` : ''}
                     ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
                 ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.description)}</p></div>` : ''}
-                ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.resolutionNotes}</p></div>` : ''}
+                ${photos.length ? `<div class="mt-16"><div class="detail-label">Foto</div><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">${photos.map(src => `<a href="${esc(src)}" target="_blank" rel="noopener"><img src="${esc(src)}" alt="Foto del guasto" loading="lazy" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--border)"></a>`).join('')}</div></div>` : ''}
+                ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.resolutionNotes)}</p></div>` : ''}
                 ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
             <div class="modal-footer">
@@ -19681,6 +20347,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const signerName = role === 'landlord' ? (landlord?.name || 'Proprietario') : (tenant?.name || 'Inquilino');
         if (role === 'landlord' ? contract.landlordSignature : contract.tenantSignature) {
             return toast('info', 'Already signed', signerName + ' has already signed this contract');
+        }
+        // Carta o segnaposto: nessun link da chiedere (il server lo conierebbe).
+        if (contractIsPaper(contract) || contractIsPlaceholder(contract)) {
+            return toast('info', isTenant() ? 'Nothing to sign' : 'Niente da firmare', isTenant() ? 'This lease was signed on paper: there is nothing to sign online.' : contractSignBlock(contract));
         }
         // Unified signing: open the premium /sign page for this role's link —
         // same experience the client gets. The link comes from the server
@@ -20841,7 +21511,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // un'email spedita dal browser moriva con la tab e vestiva un design
     // diverso dal resto della piattaforma. STESSA FIRMA di prima — i 16
     // chiamanti non sanno nulla; templateId resta solo per il log.
+    // Le email col marchio BOOM sono dell'OPERATORE. Una proprietaria (o un
+    // inquilino) non spedisce email a terzi dalla casella di BOOM: il server
+    // lo rifiuta, e qui non si fa nemmeno la chiamata — si dice che l'email
+    // non parte (una volta per sessione), invece di un errore tecnico o del
+    // silenzio. Verso la casella dell'operatore (avvisi interni) si prova.
+    const BOOM_INTERNAL_EMAILS = ['valentino@boomrome.com', 'valentino@boom-rome.com', 'info@boomrome.com'];
+    function boomEmailDenied(reason) {
+        if (S._emailDeniedSaid) return;
+        S._emailDeniedSaid = true;
+        toast('info', isTenant() ? 'Email not sent from here' : 'Email non inviata da qui', isTenant()
+            ? 'BOOM sends the emails: your action is saved.'
+            : 'Le email le manda BOOM: quello che hai fatto è salvato' + (reason ? ' (' + reason + ')' : '') + '.');
+    }
     async function sendBoomEmail(templateId, toEmail, params) {
+        if (!isAdmin()) {
+            const to = String(toEmail || '').trim().toLowerCase();
+            if (!BOOM_INTERNAL_EMAILS.includes(to) && to !== String(NOTIFY_OWNER.email || '').toLowerCase()) {
+                console.info('[BOOM] email a terzi non inviata dal ruolo', S.profile?.role, '→', templateId);
+                boomEmailDenied('');
+                return false;
+            }
+        }
         try {
             const idTok = await auth.currentUser.getIdToken();
             const r = await fetch('/api/notify/send', {
@@ -20849,6 +21540,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idTok },
                 body: JSON.stringify({ to: toEmail, params: params || {} })
             });
+            // Il server può restringere la porta ai soli operatori: per chi non
+            // è admin un 401/403 è una regola, non un guasto — si dice così.
+            if (!isAdmin() && (r.status === 401 || r.status === 403)) { boomEmailDenied(''); return false; }
             if (!r.ok) throw new Error('notify_send_' + r.status);
             logActivity('Email inviata', 'system', { template: templateId, to: toEmail });
             return true;
@@ -21309,6 +22003,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function generateContractPasses(contractId) {
+        // La proprietaria non genera pass (e non manda WhatsApp a nome di
+        // BOOM): la scheda contratto dell'operatore non le appartiene. Il
+        // giro post-firma (sessione Magic Sign) resta com'era.
+        if (isLandlord()) { toast('info', 'Lo fa BOOM', 'I pass Wallet li genera l’operatore BOOM.'); return; }
         // Resolve contract — fallback to Firestore if not in S.contracts cache
         // (Magic Sign session has anonymous auth; S.contracts may be empty.)
         var contract = (S.contracts || []).find(function(c) { return c.id === contractId; });
@@ -21839,8 +22537,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Quello che NON si fa, e il pannello lo dice: firmare al posto del
     // conduttore SENZA mandato. Quella non è una delega, è una firma falsa.
     async function openFirmaOra(contractId) {
+        // Firmare per altri, armare deleghe e mandati: solo l'operatore.
+        if (!isAdmin()) return toast('info', 'Lo fa BOOM', 'Le firme le raccoglie l’operatore BOOM.');
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
+        // Carta, segnaposto, già firmato: niente da firmare. Il pannello
+        // chiederebbe i link al server, che li CONIA — e da lì il Gestore
+        // sollecita ogni settimana una firma che non esiste.
+        const blocked = contractSignBlock(c);
+        if (blocked && contractNotSignable(c)) return toast('info', contractIsPlaceholder(c) ? 'Contratto da caricare' : contractIsPaper(c) ? 'Firmato su carta' : 'Già firmato', blocked);
         const p = (S.properties || []).find(x => x.id === c.propertyId);
         const t = (S.users || []).find(u => u.id === c.tenantId);
         const ll = p ? (S.users || []).find(u => u.id === p.ownerId) : null;
@@ -22160,8 +22865,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 return null;
             }
             const contract = snapshot.data();
-            const signed = !!contract.signedPdfUrl;
-            const url = contract.signedPdfUrl || (!signedOnly && contract.generatedPDF);
+            // Firmato su carta: il documento è la SCANSIONE (paperPdfUrl),
+            // poi l'eventuale copia firmata/generata. Anche il segnaposto
+            // («da caricare») può avere la scansione allegata dalla scheda:
+            // allora È il suo PDF (prima rispondeva «non ancora in archivio» a
+            // scansione già caricata). Senza scansione lo si dice, senza
+            // proporre di rigenerare il modello.
+            const paper = (contract.signatureStatus === 'paper' || contract.contractMissing === true)
+                && typeof contract.paperPdfUrl === 'string' && contract.paperPdfUrl ? contract.paperPdfUrl : '';
+            if (!paper && contract.contractMissing === true) {
+                toast('info', isAdmin() ? 'Contratto non ancora in archivio: completalo dalla tabella del Palazzo o allega la scansione firmata.' : 'Il contratto non è ancora in archivio: BOOM lo sta caricando.');
+                return null;
+            }
+            const signed = !!(paper || contract.signedPdfUrl);
+            const url = paper || contract.signedPdfUrl || (!signedOnly && contract.generatedPDF);
+            if (!url && contract.signatureStatus === 'paper') {
+                toast('info', isAdmin() ? 'Contratto firmato su carta: la scansione non è ancora allegata (📎 dalla scheda contratto).' : 'Contratto firmato su carta: BOOM sta caricando la scansione.');
+                return null;
+            }
             if (!url) {
                 const signatureStarted = contract.signatureStatus === 'complete' || contract.tenantSignature || contract.landlordSignature
                     || (Array.isArray(contract.coTenants) && contract.coTenants.some(c => c && c.signature));
@@ -22256,8 +22977,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // all'intero impaginato — una copia sola, browser e server.
 
     async function regenerateContractPDF(id) {
+        if (!isAdmin()) return toast('info', 'Lo fa BOOM', 'Il PDF del contratto lo rigenera l’operatore BOOM.');
         const contract = S.contracts.find(c => c.id === id);
         if (!contract) return;
+        // Un contratto firmato su carta o non ancora in archivio non ha un
+        // PDF da RIfare: il modello BOOM non è il documento firmato.
+        if (contractIsPaper(contract) || contractIsPlaceholder(contract)) {
+            toast('info', contractIsPaper(contract) ? 'Firmato su carta' : 'Contratto da caricare', 'Il PDF di questo contratto è la scansione firmata: si allega dalla scheda contratto o dal Palazzo, non si genera dal modello.');
+            return;
+        }
 
         // GUARDIA FIRME: a contratto COMPLETO il PDF fa fede — rigenerarlo
         // sovrascriverebbe generatedPDF/pdfHash mentre contratto-firmato.pdf
@@ -24335,12 +25063,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     let burocraziaFilter = 'all';  // all | toSign | toRegister | overdue | done
     let burocraziaSearch = '';
 
+    // Fuori dal giro automatico (journey, welcome): carta, segnaposto,
+    // presi in carico dal Palazzo (js/contract-state.js).
+    function burocraziaOutOfJourney(c) { const CS = window.BOOM_CONTRACT_STATE; return CS ? CS.outOfJourney(c) : !!(c && (c.source === 'palazzo-import' || c.contractMissing === true || c.signatureStatus === 'paper')); }
+
     function burocraziaPage() {
         // Aggregated KPI across all real contracts
         const contracts = (S.contracts || []);
-        const toSign = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
-        const fullySigned = contracts.filter(c => c.tenantSignature && c.landlordSignature);
-        const onboardingIncomplete = fullySigned.filter(c => !c.paymentsGenerated || !c.welcomeEmailSent);
+        // «Da firmare» = una firma DIGITALE che aspetta: un contratto firmato
+        // su carta è firmato (e va registrato), un segnaposto non è in
+        // archivio. L'onboarding automatico (welcome, journey) non riguarda
+        // i contratti presi in carico dal Palazzo: lì non manca niente.
+        const toSign = contracts.filter(c => c.status === 'active' && awaitingDigitalSignature(c));
+        const fullySigned = contracts.filter(contractSigned);
+        const onboardingIncomplete = fullySigned.filter(c => !burocraziaOutOfJourney(c) && (!c.paymentsGenerated || !c.welcomeEmailSent));
         const toRegister = fullySigned.filter(c => (c.registrationStatus || 'pending') !== 'registered');
         const rliDeadlines = (S.deadlines || []).filter(d => d.type === 'contract_registration' && d.status === 'pending');
         const overdueRli = rliDeadlines.filter(d => isOverdue(d.date));
@@ -24396,12 +25132,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         const matchesFilter = (c) => {
-            const signed = c.tenantSignature && c.landlordSignature;
+            const signed = contractSigned(c);
             const registered = c.registrationStatus === 'registered';
             const rliDue = (S.deadlines || []).find(d => d.linkedContractId === c.id && d.type === 'contract_registration' && d.status === 'pending');
             const rliOverdue = rliDue && isOverdue(rliDue.date);
-            if (burocraziaFilter === 'toSign') return c.status === 'active' && !signed;
-            if (burocraziaFilter === 'onboarding') return signed && (!c.paymentsGenerated || !c.welcomeEmailSent);
+            if (burocraziaFilter === 'toSign') return c.status === 'active' && awaitingDigitalSignature(c);
+            if (burocraziaFilter === 'onboarding') return signed && !burocraziaOutOfJourney(c) && (!c.paymentsGenerated || !c.welcomeEmailSent);
             if (burocraziaFilter === 'toRegister') return signed && !registered;
             if (burocraziaFilter === 'overdue') return !!rliOverdue;
             if (burocraziaFilter === 'done') return registered;
@@ -24450,7 +25186,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tenant = (S.users || []).find(u => u.id === c.tenantId) || {};
         const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (S.users || []).find(u => u.id === c.landlordId) || {};
         const signedT = !!c.tenantSignature, signedL = !!c.landlordSignature;
-        const fullySigned = signedT && signedL;
+        // Su carta è firmato (e si registra); un segnaposto non è in archivio.
+        const paperC = contractIsPaper(c), placeholderC = contractIsPlaceholder(c);
+        const fullySigned = contractSigned(c);
         const regStatus = c.registrationStatus || 'pending';
         const regBadge = { pending: '<span class="badge orange" style="font-size:10px">Da registrare</span>', sent: '<span class="badge blue" style="font-size:10px">🏛 Inviato ad ASPI</span>', registered: '<span class="badge green" style="font-size:10px">✓ Registrato</span>' }[regStatus] || '';
         const asseveBadge = (c.type === 'studenti' || c.type === 'transitorio')
@@ -24461,7 +25199,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const rliBadge = rliDue ? (isOverdue(rliDue.date)
             ? `<span class="badge red" style="font-size:10px">⚠️ RLI scaduta ${Math.abs(daysUntil(rliDue.date))}gg fa</span>`
             : daysUntil(rliDue.date) <= 7 ? `<span class="badge orange" style="font-size:10px">⏱ RLI tra ${daysUntil(rliDue.date)}gg</span>` : '') : '';
-        const onbBadge = fullySigned && (!c.paymentsGenerated || !c.welcomeEmailSent)
+        const onbBadge = fullySigned && !burocraziaOutOfJourney(c) && (!c.paymentsGenerated || !c.welcomeEmailSent)
             ? `<span class="badge orange" style="font-size:10px" title="Pagamenti: ${c.paymentsGenerated ? '✓' : '·'} · Welcome: ${c.welcomeEmailSent ? '✓' : '·'} · Pass: ${c.passGenerated ? '✓' : '·'}">🚀 Onboarding incompleto</span>`
             : '';
 
@@ -24487,9 +25225,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="list-icon" style="font-size:20px">${fullySigned && regStatus === 'registered' ? '✅' : fullySigned ? '📝' : signedT || signedL ? '✍️' : '⏳'}</div>
             <div class="list-content" style="min-width:0">
                 <div class="list-title" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                    <span>${esc(prop.name || 'Immobile')} · ${esc(tenant.name || 'Inquilino')}</span>
-                    <span class="badge ${signedT ? 'green' : 'gray'}" style="font-size:9px">T${signedT ? '✓' : '·'}</span>
-                    <span class="badge ${signedL ? 'green' : 'gray'}" style="font-size:9px">L${signedL ? '✓' : '·'}</span>
+                    <span>${esc(prop.name || 'Immobile')} · ${esc(tenant.name || c.tenantName || 'Inquilino')}</span>
+                    ${placeholderC ? '<span class="badge orange" style="font-size:9px">Contratto da caricare</span>' : paperC ? '<span class="badge green" style="font-size:9px">Firmato su carta</span>' : `<span class="badge ${signedT ? 'green' : 'gray'}" style="font-size:9px">T${signedT ? '✓' : '·'}</span>
+                    <span class="badge ${signedL ? 'green' : 'gray'}" style="font-size:9px">L${signedL ? '✓' : '·'}</span>`}
                     ${regBadge} ${asseveBadge} ${rliBadge} ${onbBadge}
                 </div>
                 <div class="list-subtitle" style="margin-top:4px">
@@ -24505,7 +25243,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${regStatus !== 'registered' ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openAspi('${c.id}')" title="Email strutturata al referente ASPI con contratto, identità e (per il concordato) APE + planimetria + scheda calcolo — fattura col markup in un tap">🏛 ${c.aspiRequestedAt ? 'ASPI ✓ re-invia' : 'Invia ad ASPI'}</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
-                    ${fullySigned && !c.paymentsGenerated ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="reactivateContract('${c.id}')" title="Esegui di nuovo: pagamenti, welcome mail, RLI, CAF, Apple Pass">🚀 Ri-attiva onboarding</button>` : ''}
+                    ${fullySigned && !c.paymentsGenerated && !burocraziaOutOfJourney(c) ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="reactivateContract('${c.id}')" title="Esegui di nuovo: pagamenti, welcome mail, RLI, CAF, Apple Pass">🚀 Ri-attiva onboarding</button>` : ''}
                     ${tenant.id ? `<button class="btn btn-xs btn-secondary" onclick="openPerson('${tenant.id}','user')">📂 360°</button>` : ''}
                 </div>
             </div>
@@ -24949,6 +25687,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // and *backfills missing tokens on the fly* so legacy contracts (created before
     // the wizard) also get magic-sign + form links without manual fix-ups.
     async function openShareHub(contractId) {
+        if (!isAdmin()) return toast('info', 'Lo fa BOOM', 'I link per le parti li manda l’operatore BOOM.');
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
         const prop = (S.properties || []).find(p => p.id === c.propertyId);
@@ -24970,9 +25709,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // I link di firma dal server (/api/sign/links): coniati nel deposito
         // signTokens se mancano, e SOLO quelli che spettano a chi chiede
         // (admin entrambi, il proprietario il suo). Il contratto non li porta.
+        // Carta, segnaposto o già firmato: NESSUN link di firma (chiederlo
+        // conierebbe token per un atto già concluso, e il Gestore poi
+        // solleciterebbe una firma che non esiste).
         let signLinks = {};
-        try { signLinks = await fetchSignLinks(contractId); }
-        catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
+        if (!contractNotSignable(c)) {
+            try { signLinks = await fetchSignLinks(contractId); }
+            catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
+        }
 
         // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
         // browser non può calcolarli) — una POST restituisce entrambi i link.
@@ -30001,16 +30745,17 @@ IBAN: ${l.iban || '-'}`;
     // PUSH NOTIFICATIONS - Browser Push API
     // ═══════════════════════════════════════════════════════════════════════════
     async function requestPushPermission() {
-        if (!('Notification' in window)) { toast('info', 'This browser does not support push notifications'); return; }
+        const en = isTenant();
+        if (!('Notification' in window)) { toast('info', en ? 'This browser does not support push notifications' : 'Questo browser non supporta le notifiche (su iPhone: installa il portale sulla schermata Home)'); return; }
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            toast('success', 'Push notifications enabled!');
+            toast('success', en ? 'Push notifications enabled!' : 'Notifiche attivate');
             // Store preference
             if (S.profile?.id) {
                 await db.collection('users').doc(S.profile.id).update({ pushEnabled: true, pushEnabledAt: firebase.firestore.FieldValue.serverTimestamp() });
             }
         } else {
-            toast('info', 'Push notifications declined');
+            toast('info', en ? 'Push notifications declined' : 'Notifiche non attivate');
         }
     }
     
@@ -30356,7 +31101,7 @@ IBAN: ${l.iban || '-'}`;
             // (spunta accesa), la proposta nel console (spunta spenta: è un
             // link che parte al cliente), il contratto saltato quando il deal
             // è già una proposta del console (nasce DA quella, non da qui).
-            create: { lead: true, preagreement: false }, pa: null, skipContract: false,
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false, skipReason: null,
             // «Riguarda» (22/09): l'immobile e le parti DICHIARATI dall'operatore
             // prima della lettura — l'aggancio è certo (per id, qui) e il modello
             // riceve nome e indirizzo come fatti; ciò che legge diventa una
@@ -30630,7 +31375,23 @@ IBAN: ${l.iban || '-'}`;
             landlord: users.filter(u => u.role === 'landlord' || u.role === 'owner').map(u => Object.assign({ _col: 'users' }, u))
                 .concat((S.landlords || []).map(l => Object.assign({ _col: 'landlords' }, l))),
             tenant: users.filter(u => u.role === 'tenant').map(u => Object.assign({ _col: 'users' }, u)),
-            property: (S.properties || []).map(p => Object.assign({ _col: 'properties' }, p))
+            property: (S.properties || []).map(p => Object.assign({ _col: 'properties' }, p)),
+            // UN CONTRATTO VIVO sull'interno: un segnaposto della presa in
+            // carico (contractMissing) o un contratto attivo il cui periodo
+            // tocca quello nuovo. L'Innesto non ne crea un SECONDO accanto:
+            // il Palazzo segnalerebbe la sovrapposizione, il segnaposto
+            // resterebbe vivo e nascerebbero rate dei mesi prima di BOOM.
+            liveContract(propertyId, next) {
+                if (!propertyId) return null;
+                const n = next || {}, from = String(n.startDate || ''), to = String(n.endDate || '9999-12-31');
+                return (S.contracts || []).find(c => {
+                    if (!c || c.propertyId !== propertyId) return false;
+                    if (c.contractMissing === true) return ['terminated', 'expired', 'cancelled'].indexOf(c.status) < 0;
+                    if (c.status !== 'active') return false;
+                    const cf = String(c.startDate || ''), ct = String(c.terminatedAt || c.endDate || '9999-12-31');
+                    return (!from || !ct || ct >= from) && (!cf || cf <= to);
+                }) || null;
+            }
         };
     }
     // L'aggancio di una sezione: scelto (id) · rifiutato (null) · proposto.
@@ -30788,8 +31549,13 @@ IBAN: ${l.iban || '-'}`;
         // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
         // scopriva giorni dopo, controllando l'archivio. Una gamba vale
         // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
+        // L'interno ha già un contratto vivo o il segnaposto «da caricare»:
+        // il contratto NON nasce da qui (innestoApply lo rifiuta) e si dice
+        // prima del tasto, con la strada giusta.
+        const clashRec = p.contract && !_innesto.skipContract ? innestoLinkFor('property', p.property, pools.property, 'property', _innesto.links).record : null;
+        const clash = clashRec ? pools.liveContract(clashRec.id, p.contract) : null;
         const contractLegs = [];
-        const wantContract = p.contract && !_innesto.skipContract;
+        const wantContract = p.contract && !_innesto.skipContract && !clash;
         if (wantContract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
         if (wantContract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
         if (wantContract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
@@ -30811,6 +31577,13 @@ IBAN: ${l.iban || '-'}`;
         ${val.warnings.length ? `<div class="card" style="border-color:rgba(255,107,53,0.35);margin-bottom:14px">
             <div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Da guardare (non bloccante)</div>
             ${val.warnings.map(w => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(w)}</div>`).join('')}
+        </div>` : ''}
+        ${clash ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
+            <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ L'interno ha già un contratto</div>
+            <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">${clash.contractMissing === true
+                ? 'C’è il contratto <b>«da caricare»</b> della presa in carico del Palazzo: un secondo contratto qui accanto resterebbe in sovrapposizione e farebbe nascere rate dei mesi prima di BOOM. Completalo dalla <b>tabella del Palazzo</b> (reincolla la riga con canone e date) o allega la scansione firmata dalla scheda contratto.'
+                : 'Un contratto <b>attivo</b> copre già questo periodo' + (clash.tenantName ? ' (' + esc(clash.tenantName) + ')' : '') + ': chiudi prima il vecchio contratto, oppure non creare il contratto da qui.'}
+                <div style="margin-top:8px"><label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;color:var(--text)"><input type="checkbox" onchange="_innesto.skipContract=this.checked;_innesto.skipReason=this.checked?'clash':null;renderPage()"> non creare il contratto da qui (aggiorna solo persone e immobile)</label></div></div>
         </div>` : ''}
         ${contractLegs.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
             <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ Contratto NON creabile</div>
@@ -31056,7 +31829,7 @@ IBAN: ${l.iban || '-'}`;
         const state = _innesto, key = innestoPaKey(p);
         if (!key || (state.pa && state.pa.key === key)) return;
         const job = { key, loading: true, found: null, candidates: [], error: '' };
-        state.pa = job; state.skipContract = false;
+        state.pa = job; state.skipContract = false; state.skipReason = null;
         try {
             const exactRef = key.indexOf('email:') !== 0;
             const snap = await db.collection('preAgreements').where(exactRef ? 'ref' : 'tenant.email', '==', exactRef ? key : key.slice(6)).limit(exactRef ? 2 : 5).get();
@@ -31068,6 +31841,7 @@ IBAN: ${l.iban || '-'}`;
             const found = exactRef && candidates.length === 1 ? candidates[0] : null;
             Object.assign(job, { loading: false, found, candidates: found ? [] : candidates });
             if (found) state.skipContract = true;
+            state.skipReason = found ? 'pa' : null;
         } catch (e) {
             if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
             Object.assign(job, { loading: false, error: (e && e.message) || 'ricerca non riuscita' });
@@ -31091,6 +31865,7 @@ IBAN: ${l.iban || '-'}`;
         if (id && !found) return;
         _innesto.pa = Object.assign({}, lookup, { found, candidates: [] });
         _innesto.skipContract = !!found;
+        _innesto.skipReason = found ? 'pa' : null;
         renderPage();
     }
     function innestoLeadDup(ld) {
@@ -31140,7 +31915,7 @@ IBAN: ${l.iban || '-'}`;
                 : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">La proposta esiste (${esc(st)}). Il contratto si crea <b>dalla proposta</b> — con identità, documenti caricati, cadenza e mandato che porta con sé — non da qui.</div>
                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
                        <button class="btn btn-sm" type="button" onclick="innestoConvertPa('${esc(found.id)}')">→ Contratto dalla proposta</button>
-                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;renderPage()"> non creare il contratto da qui</label>
+                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;_innesto.skipReason=this.checked?'pa':null;renderPage()"> non creare il contratto da qui</label>
                    </div>`;
         } else {
             head = `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.preagreement=this.checked;renderPage()"> crea la proposta nel console</label>`;
@@ -31158,15 +31933,26 @@ IBAN: ${l.iban || '-'}`;
     }
     function innestoSkippedContractCard(p) {
         const found = _innesto.pa && _innesto.pa.found;
+        // Il PERCHÉ il contratto non nasce da qui decide le parole: la
+        // proposta nel console, oppure (skipReason 'clash') il contratto
+        // già vivo o «da caricare» sull'interno. Prima, senza proposta,
+        // la card parlava di una proposta che non c'era e la scelta non si
+        // poteva più togliere.
+        const undo = label => ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;_innesto.skipReason=null;renderPage()">' + label + '</a>';
+        const text = found && found.contractId
+            ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
+            : _innesto.skipReason === 'clash'
+            ? 'Contratto non creato: l’interno ha già un contratto (vivo o «da caricare»). Completalo dalla <b>tabella del Palazzo</b>, oppure chiudi prima il vecchio contratto. Le persone e l’immobile letti si agganciano e si aggiornano.' + undo('Annulla la scelta')
+            : found
+            ? 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.' + undo('Crealo comunque da qui')
+            : 'Hai scelto di non creare il contratto da qui: le persone e l’immobile letti si agganciano e si aggiornano.' + undo('Crealo da qui');
         return `
             <div class="card" style="margin-bottom:14px;border-style:dashed">
                 <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                     <strong style="font-size:14px">📋 Contratto</strong>
                     <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)">non creato da qui</span>
                 </div>
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${found && found.contractId
-                    ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
-                    : 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.'}${found && !found.contractId ? ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;renderPage()">Crealo comunque da qui</a>' : ''}</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${text}</div>
             </div>`;
     }
     async function innestoConvertPa(paId, opts) {
@@ -31344,7 +32130,7 @@ IBAN: ${l.iban || '-'}`;
         const t = innestoTarget(section); if (!t) return;
         t[key] = INNESTO_NUMERIC.indexOf(key) >= 0 ? (value === '' ? null : Number(value)) : value;
         if (_innesto.pa && _innesto.pa.key !== innestoPaKey(_innesto.proposal)) {
-            _innesto.pa = null; _innesto.skipContract = false;
+            _innesto.pa = null; _innesto.skipContract = false; _innesto.skipReason = null;
         }
         if (section === 'contract' && key === 'type' && value === 'studenti' && !t.studenti) t.studenti = { corsoStudi: '', universita: '', universitaIndirizzo: '', tipoIscrizione: '', annoAccademico: '' };
         // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe
@@ -31433,6 +32219,19 @@ IBAN: ${l.iban || '-'}`;
         }
         const val = V.validateProposal(p);
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
+        // L'interno ha già un contratto vivo (o il segnaposto «da caricare»
+        // della presa in carico): NESSUNA scrittura, e si dice la strada.
+        if (p.contract && !_innesto.skipContract) {
+            const clashPools = innestoPools();
+            const pLink = innestoLinkFor('property', p.property, clashPools.property, 'property', _innesto.links);
+            const clash = pLink.record ? clashPools.liveContract(pLink.record.id, p.contract) : null;
+            if (clash) {
+                toast('error', 'L’interno ha già un contratto', clash.contractMissing === true
+                    ? 'C’è il contratto «da caricare» della presa in carico: completalo dalla tabella del Palazzo (reincolla la riga con canone e date) o allega la scansione dalla scheda contratto. Nessun dato è stato scritto.'
+                    : 'Un contratto attivo copre già questo periodo' + (clash.tenantName ? ' (' + clash.tenantName + ')' : '') + ': chiudi prima il vecchio, oppure togli il contratto da questa lettura. Nessun dato è stato scritto.');
+                return;
+            }
+        }
         if (_innesto.archive && (_innesto.readDocs || []).some(innestoArchiveNeedsZip) && !window.JSZip) {
             toast('warning', 'Archivio ZIP non pronto', 'Attendi il caricamento della pagina e riprova: nessun dato è stato creato.'); return;
         }

@@ -86,16 +86,24 @@ window.__pmLoaded = true;
     // dell'operatore — la tab bar la offre come primo tap quando la
     // sidebar del ruolo la porta (admin); per gli altri ruoli non esiste
     // in sidebar e la lista scala da sola sul dashboard.
-    // 'palazzo' dopo i soldi: per l'admin resta quinto (fuori), per la
-    // proprietaria — che ci atterra — è il secondo tap.
+    // 'palazzo' dopo i soldi: per l'admin resta quinto (fuori). La
+    // proprietaria ha solo Palazzo · Documenti · Commercialista in sidebar
+    // (le altre pagine sono ritirate): sono le sue tre tab, più il Menu con
+    // Impostazioni ed Esci.
     var PREF_TABS = ['oggi', 'dashboard', 'contracts', 'payments', 'palazzo', 'viewings', 'leads', 'clienti',
-        'my-contract', 'my-contracts', 'my-payments', 'my-maintenance', 'my-properties', 'my-documents'];
+        'my-contract', 'my-contracts', 'my-payments', 'my-maintenance', 'my-properties', 'my-documents', 'commercialista'];
     var TAB_LABELS = {
         oggi: 'Oggi', palazzo: 'Palazzo', dashboard: 'Studio', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
         leads: 'Lead', clienti: 'Clienti', properties: 'Immobili',
         'my-contract': 'Contratto', 'my-contracts': 'Contratti', 'my-payments': 'Pagamenti',
-        'my-maintenance': 'Guasti', 'my-properties': 'Immobili', 'my-documents': 'Documenti'
+        'my-maintenance': 'Guasti', 'my-properties': 'Immobili', 'my-documents': 'Documenti', commercialista: 'Fisco'
     };
+    // «Studio» è il gergo dell'operatore (la sua dashboard): per chi non lo
+    // è la stessa tab si chiama Home. Si legge dalla sidebar VERA del ruolo.
+    function tabLabel(t, item) {
+        if (t === 'dashboard' && !/\bStudio\b/.test(txt(item.textContent))) return 'Home';
+        return TAB_LABELS[t] || txt(item.textContent).split(' ')[0];
+    }
     // Sezioni le cui righe .list-item diventano card con corsia azioni.
     var LIST_SECTIONS = ['contracts', 'payments', 'invoices', 'users', 'maintenance', 'documents',
         'rules', 'leads', 'properties', 'my-payments', 'my-contracts', 'my-maintenance',
@@ -269,7 +277,7 @@ window.__pmLoaded = true;
             var item = sidebarItemFor(t);
             if (!item) return;
             var icon = txt((item.querySelector('.nav-icon') || {}).textContent) || '·';
-            var label = TAB_LABELS[t] || txt(item.textContent).split(' ')[0];
+            var label = tabLabel(t, item);
             out.push({ target: t, icon: icon, label: label });
         });
         return out;

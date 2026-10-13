@@ -366,7 +366,8 @@ section('6. Il portal: listener vivo sui lead');
   ok('startLeadsListener esiste', a > -1 && b0 > a);
   const setup = src.slice(src.indexOf('    function setupApp() {'), src.indexOf('    function buildNav()'));
   ok('setupApp lo avvia', /startLeadsListener\(\);/.test(setup));
-  const logout = src.slice(src.indexOf('    async function logout() {'), src.indexOf('    async function forceRefreshData()'));
+  // logout(opts): la sessione scaduta esce senza domanda (opts.silent).
+  const logout = src.slice(src.indexOf('    async function logout('), src.indexOf('    async function forceRefreshData()'));
   ok('logout lo ferma', /stopLeadsListener\(\);/.test(logout));
 
   const calls = { toast: [], notif: [], render: 0, oggi: 0, nav: 0 };
