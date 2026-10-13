@@ -488,7 +488,7 @@ const TG = await import('../../api/telegram/_palazzo.js');
   ok('studenti ancora «attivo» oltre il 31/08 con le rate di settembre e ottobre: occupato, €2.000 di ritardo, «rinnovato?» — mai «da annullare»', true);
   const s3 = TG.palazzoSummary(m3);
   ok('Telegram: rate oltre la scadenza come domanda, nessuna rata «da annullare»', s3.includes('🔁 <b>Rate oltre la scadenza</b> (contratto ancora attivo: rinnovato? aggiorna la fine)\n• int. 83 · scaduto il 31/08/2027 · 2 rate dopo (2 aperte)') && !/da annullare/.test(s3), s3);
-  bites('le rate oltre la fine di un contratto attivo tornano «da annullare» (e spariscono dal Palazzo)', scenR3, 'if (closedForReal(contract)) {', 'if (true) {');
+  bites('le rate oltre la fine di un contratto attivo tornano «da annullare» (e spariscono dal Palazzo)', scenR3, 'if (ci.closed) {', 'if (true) {');
   // Lo stesso con il contratto messo su «Scaduto»: lì sì, chiuso davvero.
   const exp = build(P, { properties: [prop('u83', { gestioneDal: '2026-09' })], contracts: [{ ...studAct, status: 'expired' }], payments: paysT }, '2027-10-20T10:00:00Z').model('2027-10');
   same('…con il contratto chiuso davvero («Scaduto»): le rate dopo sono da annullare e l’interno è libero', [unit(exp, 'u83').month.state, code(exp, 'afterClose').open, !!code(exp, 'beyondEnd')], ['vacant', 2, false]);

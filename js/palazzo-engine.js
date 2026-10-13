@@ -42,16 +42,18 @@
   // il 31/12 alle 23:30 UTC è già l'anno dopo). Senza fuso la data è quella
   // scritta: nessuno ha detto in che ora del mondo.
   var INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
+  // Le stesse date tornano migliaia di volte (scadenze, decorrenze): la
+  // lettura di una stringa si ricorda (deterministica: il fuso è sempre
+  // Roma), con un tetto perché una pagina aperta tutto il giorno non cresca.
+  var DAY_MEMO = Object.create(null), DAY_MEMO_N = 0;
+  var ROME_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' });
   function day(value) {
     if (value == null || value === '') return '';
     if (typeof value === 'string') {
-      var s0 = value.trim();
-      var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(s0);
-      if (!m) return '';
-      var d0 = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-      if (!(d0.getUTCFullYear() === +m[1] && d0.getUTCMonth() === +m[2] - 1 && d0.getUTCDate() === +m[3])) return '';
-      if (INSTANT_RE.test(s0)) { var at = new Date(s0); if (Number.isFinite(at.getTime())) return day(at); }
-      return m[0].slice(0, 10);
+      var hit = DAY_MEMO[value];
+      if (hit !== undefined) return hit;
+      if (++DAY_MEMO_N > 20000) { DAY_MEMO = Object.create(null); DAY_MEMO_N = 1; }
+      return (DAY_MEMO[value] = dayOfString(value));
     }
     var date;
     try {
@@ -60,9 +62,17 @@
     } catch (_) { return ''; }
     if (!date || !Number.isFinite(date.getTime())) return '';
     var p = {};
-    new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
-      .formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
+    ROME_DAY.formatToParts(date).forEach(function (x) { p[x.type] = x.value; });
     return p.year + '-' + p.month + '-' + p.day;
+  }
+  function dayOfString(value) {
+    var s0 = value.trim();
+    var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(s0);
+    if (!m) return '';
+    var d0 = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+    if (!(d0.getUTCFullYear() === +m[1] && d0.getUTCMonth() === +m[2] - 1 && d0.getUTCDate() === +m[3])) return '';
+    if (INSTANT_RE.test(s0)) { var at = new Date(s0); if (Number.isFinite(at.getTime())) return day(at); }
+    return m[0].slice(0, 10);
   }
   function monthOf(v) { var s = str(v); return /^\d{4}-(0[1-9]|1[0-2])$/.test(s) ? s : ''; }
   function monthAdd(month, k) {
@@ -400,6 +410,19 @@
       (byProperty[pid] = byProperty[pid] || []).push(c);
     });
     var paymentsByProperty = Object.create(null), preBoomOpen = Object.create(null), afterClose = Object.create(null), beyondEnd = Object.create(null);
+    // Ciò che di un contratto serve a ogni sua rata, calcolato una volta:
+    // inizio, fine effettiva, chiuso davvero, e i giorni dei mesi di locazione.
+    var infoMemo = typeof Map === 'function' ? new Map() : null;
+    var infoOf = function (c) {
+      var hit = infoMemo && infoMemo.get(c);
+      if (hit) return hit;
+      var it = { start: day(c.startDate), end: effectiveEnd(c), closed: closedForReal(c), lm: Object.create(null), pe: Object.create(null) };
+      it.month0 = it.start ? it.start.slice(0, 7) : '';
+      it.lease = function (k) { return it.lm[k] || (it.lm[k] = leaseMonth(it.start, k)); };
+      it.periodEnd = function (k) { return it.pe[k] || (it.pe[k] = dayAdd(it.lease(k), -1)); };
+      if (infoMemo) infoMemo.set(c, it);
+      return it;
+    };
     list(o.payments).forEach(function (p, i) {
       var contract = contractById[str(p.contractId)] || null;
       var pid = str(p.propertyId) || str(contract && contract.propertyId);
@@ -425,13 +448,14 @@
       // carico), oppure ricavato dal giorno di decorrenza del contratto come
       // fanno i generatori (mesi di LOCAZIONE): una rata di luglio di un
       // contratto dal 15 copre fino al 14 agosto.
-      var pf = day(p.periodFrom), pt = day(p.periodTo), cs = contract ? day(contract.startDate) : '';
-      if ((!pf || !pt) && cs && row.month && monthsDiff(cs.slice(0, 7), row.month) >= 0) {
-        var k0 = monthsDiff(cs.slice(0, 7), row.month), k1 = monthsDiff(cs.slice(0, 7), row.coversTo && row.coversTo > row.month ? row.coversTo : row.month) + 1;
-        if (!pf) pf = leaseMonth(cs, k0);
+      var ci = contract ? infoOf(contract) : null;
+      var pf = day(p.periodFrom), pt = day(p.periodTo), cs = ci ? ci.start : '';
+      if ((!pf || !pt) && cs && row.month && monthsDiff(ci.month0, row.month) >= 0) {
+        var k0 = monthsDiff(ci.month0, row.month), k1 = monthsDiff(ci.month0, row.coversTo && row.coversTo > row.month ? row.coversTo : row.month) + 1;
+        if (!pf) pf = ci.lease(k0);
         // Il periodo si chiude alla fine del contratto, ma solo per la rata
         // che la contiene: una rata che comincia DOPO la fine tiene il suo.
-        if (!pt) { pt = dayAdd(leaseMonth(cs, k1), -1); var ce = effectiveEnd(contract); if (ce && pt > ce && pf <= ce) pt = ce; }
+        if (!pt) { pt = ci.periodEnd(k1); var ce = ci.end; if (ce && pt > ce && pf <= ce) pt = ce; }
         row.periodDerived = true;
       }
       row.periodFrom = pf; row.periodTo = pt;
@@ -453,9 +477,9 @@
       // tacito, una data da aggiornare): la rata resta dovuta — tiene occupato
       // l'interno, conta come ritardo — e si segnala a parte («rinnovo?»),
       // mai «da annullare».
-      var cEnd = contract ? effectiveEnd(contract) : '', pStart = pf || (row.month ? monthStart(row.month) : '');
+      var cEnd = ci ? ci.end : '', pStart = pf || (row.month ? monthStart(row.month) : '');
       if (cEnd && pStart && pStart > cEnd) {
-        if (closedForReal(contract)) {
+        if (ci.closed) {
           row.afterClose = true;
           var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [] };
           if (row.state === 'overdue' || row.state === 'due' || row.state === 'unknown') { ac.open.push(row); return; }
