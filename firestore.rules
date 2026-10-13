@@ -166,11 +166,14 @@ service cloud.firestore {
     // ─── maintenance ──────────────────────────────────────────────────
     // L'inquilino di quell'interno: il contratto indicato è suo e riguarda
     // proprio quell'immobile; senza contratto indicato, quello corrente.
+    // `.get(…)` e `is string`: un campo assente (un immobile senza
+    // currentContractId, un contractId null) è un "no", mai un errore.
     function tenantOfUnit(pid, cid) {
-      return cid != ''
-        ? (contractData(cid).tenantId == uid() && contractData(cid).propertyId == pid)
-        : (propertyData(pid).currentContractId != null
-           && contractData(propertyData(pid).currentContractId).tenantId == uid());
+      return (cid is string && cid != '')
+        ? (contractData(cid).get('tenantId', '') == uid() && contractData(cid).get('propertyId', '') == pid)
+        : (propertyData(pid).get('currentContractId', '') is string
+           && propertyData(pid).get('currentContractId', '') != ''
+           && contractData(propertyData(pid).get('currentContractId', '')).get('tenantId', '') == uid());
     }
     match /maintenance/{mId} {
       allow read:   if isAdmin()

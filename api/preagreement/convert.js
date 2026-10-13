@@ -791,7 +791,7 @@ export default async function handler(req, res) {
   // suo stesso portale): prima bastava il ruolo, su qualunque paId.
   if (auth.profile.role !== 'admin') {
     const pids = [...new Set([clip(pa.propertyId, 80), clip(b.propertyId, 80)].filter(Boolean))];
-    if (b.createProperty === true || !pids.length) return res.status(403).json({ ok: false, error: 'forbidden_property' });
+    if (b.createProperty === true || !pids.length || pids.some(pid => !/^[\w.-]{1,80}$/.test(pid))) return res.status(403).json({ ok: false, error: 'forbidden_property' });
     const own = await Promise.all(pids.map(pid => fsGet('properties/' + pid).then(p => !!p && p.deleted !== true && p.ownerId === auth.uid, () => false)));
     if (own.some(x => !x)) return res.status(403).json({ ok: false, error: 'forbidden_property' });
   }

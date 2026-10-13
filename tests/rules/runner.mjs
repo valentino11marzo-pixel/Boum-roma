@@ -45,6 +45,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   await setDoc(doc(db, 'properties/propA'), { ownerId: 'llA', currentContractId: 'contractA', name: 'Prop A' });
   await setDoc(doc(db, 'properties/propB'), { ownerId: 'llB', currentContractId: 'contractB', name: 'Prop B' });
+  await setDoc(doc(db, 'properties/propNoCur'), { ownerId: 'llA', name: 'Prop senza contratto corrente' });
 
   await setDoc(doc(db, 'contracts/contractA'), { tenantId: 'tA', propertyId: 'propA', rent: 1000 });
   await setDoc(doc(db, 'contracts/contractB'), { tenantId: 'tB', propertyId: 'propB', rent: 1200 });
@@ -296,6 +297,19 @@ await check('tenant A CANNOT forge the reporter/source written by the server',
     reporter: { role: 'owner', name: 'La proprietaria', via: 'palazzo' }, source: 'palazzo' })));
 await check('tenant A CANNOT open a ticket without a propertyId',
   assertFails(setDoc(doc(tA, 'maintenance/casaA4'), { userId: 'tA', title: 'x' })));
+// Il portal (vista inquilino) non manda contractId: vale il contratto
+// CORRENTE dell'immobile. Un immobile senza currentContractId, o un
+// contractId null, sono un "no" (mai un errore che passi per sbaglio).
+await check('tenant A opens a ticket WITHOUT contractId on the property whose current contract is hers',
+  assertSucceeds(setDoc(doc(tA, 'maintenance/casaA5'), { userId: 'tA', propertyId: 'propA', title: 'Caldaia' })));
+await check('tenant B CANNOT open without contractId on a property whose current contract is not his',
+  assertFails(setDoc(doc(tB, 'maintenance/casaB5'), { userId: 'tB', propertyId: 'propA', title: 'x' })));
+await check('tenant A CANNOT open without contractId on a property with no current contract',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA6'), { userId: 'tA', propertyId: 'propNoCur', title: 'x' })));
+await check('contractId null counts as «not given»: tenant B still CANNOT open on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/casaB7'), { userId: 'tB', propertyId: 'propA', contractId: null, title: 'x' })));
+await check('tenant A CANNOT open with a contractId that does not exist',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA8'), { userId: 'tA', propertyId: 'propA', contractId: 'nope', title: 'x' })));
 await check('landlord A opens a ticket on OWN property',
   assertSucceeds(setDoc(doc(llA, 'maintenance/llA1'), { userId: 'llA', propertyId: 'propA', title: 'Umidità' })));
 await check('landlord A CANNOT open a ticket on landlord B property',

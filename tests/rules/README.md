@@ -61,7 +61,7 @@ Requires: Node 18+, Java 17+ (for the emulator), and `firebase-tools`
 Expected output ends with:
 
 ```
-Result: 135 passed, 0 failed
+Result: 140 passed, 0 failed
 All rules behave as intended.
 ```
 
