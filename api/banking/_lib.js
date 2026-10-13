@@ -18,7 +18,7 @@
 //   bankRequisitions/<id>          consent flows in progress (audit)
 
 import crypto from 'node:crypto';
-import { FS_BASE, getAdminToken, fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
+import { FS_BASE, getAdminToken, fsGet, fsPatch, fsCreate, fsList, logActivity } from '../homie/_lib.js';
 import { findByRef } from '../payments/_ref.js';
 
 const GC_BASE = 'https://bankaccountdata.gocardless.com/api/v2';
@@ -253,7 +253,7 @@ export async function listLinkedAccounts() {
 // Shared by /api/banking/import (manual upload) and /api/banking/scan-inbox
 // (statement attachments arriving by email). Column auto-detect covers the
 // common Italian exports (Intesa, Unicredit, BPER, Fineco, N26, Revolut).
-export function parseBankCsv(text) {
+export function parseBankCsv(text, { strict = false } = {}) {
   const rows = csvRows(text);
   if (rows.length < 2) return { txs: [], error: 'nessuna riga dati trovata' };
   // Header may not be on line 1 (some exports prepend account metadata):
@@ -265,10 +265,16 @@ export function parseBankCsv(text) {
   }
   if (!map) return { txs: [], error: 'colonne non riconosciute — servono almeno data e importo (o entrate/uscite)', header: rows[0] };
 
+  if (strict && map.desc == null) return { txs: [], error: 'serve la colonna descrizione per identificare i movimenti' };
   const txs = [];
-  for (const r of rows.slice(headerIdx + 1)) {
+  for (const [index, r] of rows.slice(headerIdx + 1).entries()) {
     const dateIso = parseItDate(r[map.date]);
+    if (strict && (!dateIso || !Number.isFinite(Date.parse(dateIso + 'T12:00:00Z')) || new Date(dateIso + 'T12:00:00Z').toISOString().slice(0, 10) !== dateIso)) return { txs: [], error: 'data non valida alla riga dati ' + (index + 1) };
     if (!dateIso) continue;
+    if (strict) {
+      const cells = map.amount != null ? [r[map.amount]] : [r[map.in], r[map.out]];
+      if (cells.some(v => { const value = String(v || '').replace(/[€\s]/g, ''); return value && !/^[+\-]?(?:\d+(?:[.,]\d{1,2})?|\d{1,3}(?:\.\d{3})+,\d{1,2}|\d{1,3}(?:,\d{3})+\.\d{1,2})$/.test(value); })) return { txs: [], error: 'formato importo non valido alla riga dati ' + (index + 1) };
+    }
     let amount;
     if (map.amount != null) amount = parseItNumber(r[map.amount]);
     else {
@@ -276,6 +282,9 @@ export function parseBankCsv(text) {
       const out = parseItNumber(r[map.out]) || 0;
       amount = inc - Math.abs(out);
     }
+    if (strict && (!Number.isFinite(amount) || !amount || Math.abs(amount * 100 - Math.round(amount * 100)) > 0.0001 || Math.abs(amount) > 1e9)) return { txs: [], error: 'importo non valido alla riga dati ' + (index + 1) };
+    if (strict && map.currency != null && !['EUR', '€'].includes(String(r[map.currency]).trim().toUpperCase())) return { txs: [], error: 'valuta diversa da EUR o mancante alla riga dati ' + (index + 1) };
+    if (strict && !String(r[map.desc] || '').trim()) return { txs: [], error: 'descrizione mancante alla riga dati ' + (index + 1) };
     if (!amount) continue;
     txs.push({
       bookingDate: dateIso,
@@ -322,6 +331,7 @@ function detectColumns(header) {
     in: find('entrate', 'accrediti', 'avere', 'credit'),
     out: find('uscite', 'addebiti', 'dare', 'debit'),
     desc: find('descrizione', 'causale', 'dettagli', 'description', 'note'),
+    currency: (() => { const i = h.findIndex(x => ['valuta', 'currency', 'divisa'].includes(x.trim())); return i < 0 ? null : i; })(),
     ctrp: find('controparte', 'beneficiario', 'ordinante', 'payee', 'counterparty'),
   };
 }
@@ -350,7 +360,7 @@ export function parseItNumber(s) {
 // rawTxs: [{ bookingDate, amount, description, counterparty }]. Applies
 // categorization, stable-id dedupe, conservative reconciliation and the
 // parallel writes. Returns { imported, skipped, matched, suggested }.
-export async function ingestBankTransactions(rawTxs, { accountId, source, actor = 'banca' }) {
+export async function ingestBankTransactions(rawTxs, { accountId, source, actor = 'banca', reviewOnly = false, dryRun = false }) {
   const txs = rawTxs.map(r => ({
     accountId,
     txId: null,
@@ -365,6 +375,9 @@ export async function ingestBankTransactions(rawTxs, { accountId, source, actor 
     source,
   }));
   const withIds = txs.map(tx => ({ tx, docId: txDocId(tx) }));
+  // Repeated identical rows cannot be distinguished from two genuine equal transfers.
+  // Manual review must resolve them in the source instead of silently losing one.
+  if (reviewOnly && new Set(withIds.map(w => w.docId)).size !== withIds.length) throw new Error('ambiguous_duplicate_rows');
   const seen = withIds.length ? await batchExists('bankTransactions', withIds.map(w => w.docId)) : new Set();
   const fresh = withIds.filter(w => !seen.has(w.docId));
 
@@ -379,17 +392,23 @@ export async function ingestBankTransactions(rawTxs, { accountId, source, actor 
   const toWrite = [];
   for (const { tx, docId } of fresh) {
     const { match, suggestions } = reconcile(tx, pending, tenantNameById);
-    if (match) { const i = pending.findIndex(p => p.id === match.paymentId); if (i >= 0) pending.splice(i, 1); matched++; }
-    else if (suggestions.length) suggested++;
-    toWrite.push({ tx, docId, match, suggestions });
+    if (match && !reviewOnly) { const i = pending.findIndex(p => p.id === match.paymentId); if (i >= 0) pending.splice(i, 1); matched++; }
+    else if (match || suggestions.length) suggested++;
+    toWrite.push({ tx, docId, match: reviewOnly ? null : match, suggestions: reviewOnly && match ? [match.paymentId] : suggestions });
   }
+  if (dryRun) return { toImport: fresh.length, skipped: withIds.length - fresh.length, matched: 0, suggested, rows: withIds.map(({ tx, docId }) => ({ ...tx, id: docId, alreadyPresent: seen.has(docId) })) };
+  let imported = 0, raced = 0;
   for (let i = 0; i < toWrite.length; i += 8) {
     await Promise.all(toWrite.slice(i, i + 8).map(async ({ tx, docId, match, suggestions }) => {
-      await fsPatch('bankTransactions/' + docId, { ...tx, matchSuggestions: suggestions.length ? suggestions : null, createdAt: new Date() });
+      const data = { ...tx, matchSuggestions: suggestions.length ? suggestions : null, createdAt: new Date() };
+      if (reviewOnly) {
+        try { await fsCreate('bankTransactions', { ...data, reviewRequired: true, importedBy: actor }, docId); imported++; }
+        catch (e) { if (!e.exists) throw e; raced++; }
+      } else { await fsPatch('bankTransactions/' + docId, data); imported++; }
       if (match) await applyMatch(docId, tx, match.paymentId, match.confidence, actor);
     }));
   }
-  return { imported: fresh.length, skipped: withIds.length - fresh.length, matched, suggested };
+  return { imported, skipped: withIds.length - fresh.length + raced, matched, suggested };
 }
 
 export { fsGet, fsPatch, fsList, logActivity };

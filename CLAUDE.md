@@ -5529,7 +5529,7 @@ no-op), `bankRequisitions` (consent audit).
 | `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
 | `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
 | `POST /api/banking/scan-inbox` | **cron daily 04:05 — the primary feed now that GoCardless is closed to new signups.** Reads the Gmail mailbox over IMAP (same infra as pfs/scan-inbox). Three tiers: (1) **movement-alert emails** ("Hai ricevuto un bonifico di €1.200 da…") — amounts live in the BODY, extracted via Claude haiku, but ONLY from recognized bank sender domains (`KNOWN_BANK_DOMAINS` + `BANK_MAIL_FROM`) so a tenant writing "ti ho fatto il bonifico" never becomes a transaction; (2) **statement attachments** — CSV parsed directly, PDF via Claude document block; (3) forwarded emails, same handling. "Statement available behind login" emails yield an empty extraction and are remembered so the AI call is never repeated. Processed emails → `bankImports`; tx-level dedupe makes re-runs no-ops; per-run AI budget. Telegram recap when something lands. Heartbeat `teamHealth/banca-mail`. Setup: attiva nell'home banking gli avvisi email di movimento (e, se disponibile, l'invio dell'estratto come allegato). |
-| `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
+| `POST /api/banking/import` | admin-only manual CSV: `action:preview` reads only; `action:import` requires the same file/account digest and `confirmed:true`. Acquires movements with suggestions only; never marks payments paid. Works without bank API setup. |
 | `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
 
 All admin-gated via `api/pfs/_guard.js`. **Console**: `banca.html` (`/banca`,
@@ -5537,6 +5537,12 @@ admin-only, noindex) — linked accounts + consent status, recent movements
 with one-tap match confirmation, CSV/ICS export, manual import. The
 Contabile's morning report includes the bank picture (riconciliati/da
 confermare/consensi scaduti).
+### Import bancario manuale con verifica — 13 ottobre 2026
+Prima `/banca` caricava subito il CSV e poteva segnare canoni pagati. Ora richiede anteprima e conferma del medesimo file/conto; l'etichetta conto deve restare stabile fra gli estratti.
+Il handler manuale accetta solo admin, valida date/importi/valuta/descrizioni e respinge righe identiche ambigue. Le categorie rimangono suggerimenti, non prove fiscali.
+La pipeline condivisa ammette `reviewOnly`/`dryRun`: l'anteprima non scrive; l'acquisizione crea con ID deterministico e conserva i candidati in `matchSuggestions`, senza chiamare `applyMatch`. Retry/concorrenza non sovrascrivono movimenti esistenti.
+Il percorso email/API automatico mantiene la propria politica precedente; questo cambiamento non lo attiva né ne certifica la copertura. Suite `bankimport`: handler e UI reali, rete simulata, mutazioni su anteprima e pagamento involontario.
+
 ### `/api/photos/enhance` — the unified photo brain
 One pipeline, three doors:
 1. **Console** (`photo-lab.html`, renders the catalog unauthenticated; auth on

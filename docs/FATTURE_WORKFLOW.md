@@ -20,7 +20,7 @@ La routine “alla ricezione” è una regola organizzativa. La fattura immediat
 
 | Sistema | Percorso esistente | Prossima prova prima di chiamarlo automatico |
 | --- | --- | --- |
-| Sella | `/banca`, `bankAccounts`, `bankTransactions`, `api/banking/import.js`, `sync.js`, `scan-inbox.js` | Verificare configurazione effettiva, consenso/copertura, ultimo successo, deduplica e riconciliazione. Non attivare il sync alla cieca: può registrare pagamenti riscontrati. |
+| Sella | `/banca`, `bankAccounts`, `bankTransactions`, `api/banking/import.js`, `sync.js`, `scan-inbox.js` | Verificare configurazione effettiva, consenso/copertura, ultimo successo, deduplica e riconciliazione. Il caricamento CSV manuale ora richiede anteprima/conferma e acquisisce solo movimenti con suggerimenti. I sync API/email conservano la precedente politica di riconciliazione: verificarli prima di attivarli. |
 | Stripe | Checkout/webhook esistenti, riferimenti charge/payment intent/payout | Verificare copertura dell'account e storico, rimborsi, commissioni e retry; collegare l'ID certo alla pratica. Export storico e webhook non sono la stessa copertura. |
 | Zucchetti | Prospetti e XML originali importati | Verificare disponibilità e condizioni dell'integrazione/export e accesso agli esiti SdI. Nessuna API TIC già operativa viene presunta. |
 | People / Pratiche / Contratti | Record esistenti del portale | Collegare tramite ID confermato; il nome o l'importo da soli non provano l'identità. Non creare seconda rubrica. |
@@ -33,7 +33,7 @@ Conferma del titolare del 13 ottobre: nuovo studio con decorrenza 1 gennaio 2027
 
 ## Sequenza di completamento
 
-1. **Preparato:** estensione del portale e import privato del 13/10 con 104 righe e 25 bozze; test automatici. Nessun dato reale nel repository.
+1. **Preparato:** import bancario manuale con anteprima senza scritture e acquisizione senza conferma automatica dei canoni; estensione del portale e import privato del 13/10 con 104 righe e 25 bozze; test automatici. Nessun dato reale nel repository.
 2. **Rilascio da completare:** merge secondo AGENTS, pubblicazione con regole Firestore, prova autenticata admin/non-admin e import del prospetto aggiornato. Il ramo non certifica il portale live.
 3. **Da realizzare/verificare:** collegamenti automatici sopra elencati e modifica operativa delle uscite dalla UI con audit e gestione della concorrenza. Oggi le nuove voci si acquisiscono con una nuova revisione del prospetto.
 4. **Da confermare col titolare/consulente:** le voci economiche ancora ambigue, trattamento degli scarti e scadenze fiscali; nessuna emissione automatica autorizzata.

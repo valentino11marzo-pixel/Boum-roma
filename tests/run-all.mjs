@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'bankimport', file: 'tests/bank-import/run.mjs', what: 'CSV bancario admin-only, anteprima senza scritture, acquisizione senza pagamento canoni, deduplica e mutazioni' },
   { name: 'invoicereconciliation', file: 'tests/invoice-reconciliation/run.mjs', what: 'evidenze fatture admin-only, import idempotente, stati fiscali separati, costi e mutazioni' },
   { name: 'behavior', file: 'tests/behavior/run.mjs', what: 'Behavior Intelligence: consenso, minimizzazione PII, copertura canonica, percorsi/sezioni/uscite, dashboard admin e retention' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },

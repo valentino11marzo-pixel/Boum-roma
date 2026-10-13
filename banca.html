@@ -204,10 +204,11 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
     <div class="card">
       <div class="row-controls">
         <input type="file" id="csvFile" accept=".csv,text/csv" style="font-size:12px">
-        <input type="text" id="csvLabel" placeholder="Etichetta conto (es. Intesa aziendale)" style="flex:1;min-width:180px">
-        <button id="btnImport">IMPORTA</button>
+        <input type="text" id="csvLabel" placeholder="Etichetta stabile del conto (es. Sella aziendale)" style="flex:1;min-width:180px">
+        <button id="btnImport">ANTEPRIMA</button>
       </div>
-      <div class="hint">In alternativa: esporta il CSV dal tuo home banking (Intesa, Unicredit, Fineco, N26, Revolut…) e caricalo qui. Colonne riconosciute automaticamente; i movimenti già presenti vengono saltati; i bonifici vengono riconciliati con i canoni attesi.</div>
+      <div class="hint">Carica un CSV in euro e usa sempre la stessa etichetta per lo stesso conto: cambiarla può duplicare movimenti già caricati. Controlla l’anteprima, poi conferma. Il caricamento acquisisce i movimenti; gli abbinamenti ai canoni restano suggerimenti da verificare. Le categorie sono proposte automatiche, non classificazioni fiscali confermate.</div>
+    <div id="bankImportPreview" aria-live="polite"></div>
     </div>
   </section>
 </div>
@@ -579,17 +580,49 @@ input:focus, textarea:focus { border-color: rgba(212,175,55,.4); }
     b.disabled = false; b.textContent = 'LEGGI CASELLA ORA';
   });
 
-  // ── Import manuale ───────────────────────────────────────────────────
-  document.getElementById('btnImport').addEventListener('click', async e => {
-    const f = document.getElementById('csvFile').files[0];
-    if (!f) return toast('Seleziona il file CSV esportato dal tuo home banking', 'warning');
-    const b = e.target; b.disabled = true; b.textContent = 'IMPORTO…';
+  // ── Import manuale: prima si controlla, poi si acquisisce ─────────────
+  const csvFile = document.getElementById('csvFile');
+  const csvLabel = document.getElementById('csvLabel');
+  const importButton = document.getElementById('btnImport');
+  const importPreview = document.getElementById('bankImportPreview');
+  let reviewedImport = null;
+  function resetImport() { reviewedImport = null; importPreview.innerHTML = ''; }
+  csvFile.addEventListener('change', resetImport);
+  csvLabel.addEventListener('input', resetImport);
+  function importBusy(busy) { csvFile.disabled = csvLabel.disabled = importButton.disabled = busy; }
+  importButton.addEventListener('click', async () => {
+    resetImport();
+    const f = csvFile.files[0];
+    if (!f) return toast('Seleziona il CSV esportato dal tuo home banking', 'warning');
+    if (!csvLabel.value.trim()) return toast('Indica una etichetta stabile per questo conto', 'warning');
+    if (f.size > 2_000_000) return toast('File troppo grande (max 2 MB)', 'warning');
+    importBusy(true); importButton.textContent = 'CONTROLLO…';
     try {
-      const csv = await f.text();
-      const j = await api('/api/banking/import', { csv, accountLabel: document.getElementById('csvLabel').value || f.name });
-      toast(`Importati ${j.imported} movimenti (${j.skipped} già presenti) · ${j.matched} canoni riconciliati`, 'success');
-    } catch (err) { toast('Import fallito: ' + err.message, 'error'); }
-    b.disabled = false; b.textContent = 'IMPORTA';
+      const payload = { csv: await f.text(), accountLabel: csvLabel.value.trim() };
+      const j = await api('/api/banking/import', { action: 'preview', ...payload });
+      reviewedImport = { ...payload, digest: j.digest };
+      importPreview.innerHTML = '<p>' + j.toImport + ' movimenti da acquisire · ' + j.skipped
+        + ' già presenti · ' + j.suggested + ' possibili abbinamenti da verificare. Nessun canone sarà segnato pagato.</p>'
+        + '<div style="overflow-x:auto"><table style="width:100%;font-size:12px"><thead><tr><th>Data</th><th>Descrizione</th><th>Importo</th><th>Stato</th></tr></thead><tbody>'
+        + j.rows.map(r => '<tr><td>' + esc(r.bookingDate) + '</td><td>' + esc(r.description) + '</td><td>' + euro(r.amount)
+          + '</td><td>' + (r.alreadyPresent ? 'Già presente' : 'Da acquisire') + '</td></tr>').join('')
+        + '</tbody></table></div><button id="btnConfirmImport" style="margin-top:12px">CONFERMA CARICAMENTO MOVIMENTI</button>';
+    } catch (err) { resetImport(); toast('Anteprima non disponibile: ' + err.message, 'error'); }
+    finally { importBusy(false); importButton.textContent = 'ANTEPRIMA'; }
+  });
+  importPreview.addEventListener('click', async e => {
+    if (e.target.id !== 'btnConfirmImport' || !reviewedImport || e.target.disabled) return;
+    const b = e.target; b.disabled = true; importBusy(true);
+    const payload = reviewedImport;
+    try {
+      const j = await api('/api/banking/import', { action: 'import', ...payload, confirmed: true });
+      resetImport();
+      importPreview.textContent = 'Acquisiti ' + j.imported + ' movimenti; ' + j.skipped + ' già presenti. Nessun canone segnato pagato. Verifica separatamente i suggerimenti.';
+    } catch (err) {
+      resetImport();
+      importPreview.textContent = 'Caricamento non completato. Ripeti l’anteprima: i movimenti eventualmente già acquisiti verranno saltati.';
+      toast('Importazione non completata: ' + err.message, 'error');
+    } finally { importBusy(false); }
   });
 })();
 </script>
