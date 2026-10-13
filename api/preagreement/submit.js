@@ -22,6 +22,7 @@ import { paExpired } from './lookup.js';
 import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
 import { paidOnRecord } from './_state.js';
 import { normalizeAddons, addonsTotal } from './_addons.js';
+import { paymentTermsFor, checkoutParams } from './_checkout.js';
 import { tgSend } from '../telegram/_lib.js';
 import { PA_CONSENT_TEXT, PA_CONSENT_HASH, PA_MANDATE_TEXT, PA_MANDATE_HASH } from './_consent.js';
 import MANDATO from '../../js/mandato-engine.js';
@@ -134,14 +135,16 @@ export default async function handler(req, res) {
     // al massimo scegliere un servizio diverso, mai un prezzo diverso.
     const addons = normalizeAddons(b.addons);
     const addonsEur = addonsTotal(addons);
-    const dueNow = Math.round(Number((data.money || {}).dueAtSigning) || 0) + addonsEur;
-    let lock = { ok: true, reason: 'skipped' };
+    let paymentTerms;
+    try { paymentTerms = paymentTermsFor({ ...data, paymentTerms: null, addons, addonsEur }); }
+    catch { return res.status(409).json({ ok: false, error: 'invalid_payment_terms' }); }
+    const dueNow = paymentTerms.totalCents / 100;
+    let lock;
     try {
       lock = await acquireLock({ pa: data, paId: id, firm: dueNow <= 0 });
     } catch (e) {
-      // Un guasto del lucchetto non deve bloccare una chiusura legittima:
-      // si registra e si prosegue (il rischio residuo è quello di prima).
       console.error('[pa/submit] lucchetto non verificabile:', e.message);
+      return res.status(503).json({ ok: false, error: 'property_lock_unavailable' });
     }
 
     if (lock.ok === false && lock.reason === 'held') {
@@ -170,10 +173,11 @@ export default async function handler(req, res) {
         heldUntil: lock.until || null,
       });
     }
+    if (!lock?.ok) return res.status(503).json({ ok: false, error: 'property_lock_unavailable' });
     await fsPatch(`preAgreements/${id}`, {
       tenant, tenants: signed, status: 'accepted', ref,
       acceptedAt,
-      ...(addons.length ? { addons, addonsEur } : {}),
+      addons, addonsEur, paymentTerms,
       consent, mandate, approvedTerms,
     });
     await logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
@@ -186,57 +190,7 @@ export default async function handler(req, res) {
     if (due > 0 && process.env.STRIPE_SECRET_KEY) {
       try {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-        // Il dovuto della proposta e gli add-on sono RIGHE SEPARATE: su Stripe
-        // il cliente legge esattamente cosa sta pagando, e la ricevuta lo
-        // dice — un totale unico che "cresce" senza spiegazione è il modo più
-        // veloce per far abbandonare un pagamento già deciso.
-        const baseEur = Math.max(0, due - addonsEur);
-        const eur = Math.max(50, Math.min(20000, due));
-        const line_items = [];
-        if (baseEur > 0) line_items.push({
-          price_data: {
-            currency: 'eur',
-            product_data: {
-              name: `Pre-agreement ${ref} — ${(data.property || {}).address || 'Rome apartment'}`,
-              description: 'Amount due at signing per your BOOM pre-agreement. Deposit terms per the agreement.',
-            },
-            unit_amount: Math.max(50, Math.min(20000, baseEur)) * 100,
-          },
-          quantity: 1,
-        });
-        for (const a of addons) line_items.push({
-          price_data: {
-            currency: 'eur',
-            product_data: { name: `BOOM ${a.label}` },
-            unit_amount: a.eur * 100,
-          },
-          quantity: 1,
-        });
-        const session = await stripe.checkout.sessions.create({
-          mode: 'payment',
-          payment_method_types: ['card'],
-          customer_email: email,
-          line_items: line_items.length ? line_items : [{
-            price_data: {
-              currency: 'eur',
-              product_data: {
-                name: `Pre-agreement ${ref} — ${(data.property || {}).address || 'Rome apartment'}`,
-                description: 'Amount due at signing per your BOOM pre-agreement. Deposit terms per the agreement.',
-              },
-              unit_amount: eur * 100,
-            },
-            quantity: 1,
-          }],
-          metadata: {
-            service: 'PREAGREEMENT', ref, token,
-            address: clip((data.property || {}).address, 200) || '',
-            name: fullName, email, phone,
-            addons: addons.map(a => a.kind).join(',').slice(0, 200),
-            addonsEur: String(addonsEur),
-          },
-          success_url: 'https://www.boomrome.com/pre-agreement?t=' + token + '&paid=1',
-          cancel_url: 'https://www.boomrome.com/pre-agreement?t=' + token,
-        });
+        const session = await stripe.checkout.sessions.create(checkoutParams({ ...data, token, ref, tenant }, paymentTerms));
         checkoutUrl = session.url;
         await fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
       } catch (e) {
@@ -258,21 +212,22 @@ export default async function handler(req, res) {
     } catch (e) { console.error('[preagreement/submit] emails failed:', e.message); }
 
     // Deal sealed with nothing due via Stripe → the contract auto-creates
-    // NOW and the tenant's Magic-Sign link goes out while momentum is hot.
+    // NOW. A missing Checkout URL is a payment failure, never proof that
+    // nothing is due; the tenant signature invitation remains deliberate.
     // (When a payment is expected, the webhook runs this after checkout.)
     // LO STATO ACCETTATO VIAGGIA INTERO: `data` è la proposta letta PRIMA
     // della patch — senza consenso, mandato e foto delle condizioni il
     // contratto automatico nasceva senza paAcceptance e senza tenantMandate
     // (il mandato appena dato spariva proprio sulla strada normale).
-    if (!(due > 0 && checkoutUrl)) {
+    if (due === 0) {
       await maybeAutoConvert({
         pa: { ...data, tenant, tenants: signed, status: 'accepted', ref, acceptedAt, consent, mandate, approvedTerms,
-              ...(addons.length ? { addons, addonsEur } : {}) },
+              addons, addonsEur, paymentTerms },
         paId: id,
       });
     }
 
-    return res.status(200).json({ ok: true, ref, checkoutUrl });
+    return res.status(200).json({ ok: true, ref, checkoutUrl, paymentDueEur: due });
   } catch (e) {
     console.error('[preagreement/submit] failed:', e.message);
     return res.status(500).json({ ok: false, error: 'submit_failed' });

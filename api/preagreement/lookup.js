@@ -9,6 +9,7 @@
 import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { offeredAddons } from './_addons.js';
 import { paidOnRecord, dueAtSigning } from './_state.js';
+import { paymentTermsFor } from './_checkout.js';
 import { resolveCanoneInput, schedaFacts, schedaGaps } from '../fiscal/fascicolo.js';
 import CANONE from '../../js/canone-engine.js';
 import { readSignTokens, signUrl } from '../sign/_tokens.js';
@@ -125,12 +126,14 @@ export default async function handler(req, res) {
     // Atteso: «viewed» è ciò che la console mostra come «ha aperto il link».
     await fsPatch(`preAgreements/${id}`, { views, status: data.status === 'sent' ? 'viewed' : data.status }).catch(() => {});
 
+    let paymentDueEur = null;
+    try { paymentDueEur = paymentTermsFor(data).totalCents / 100; } catch { /* unavailable, never a made-up zero */ }
     return res.status(200).json({
       ok: true, id,
       pa: {
         status: data.status, property: data.property, landlord: data.landlord,
         tenant: data.tenant, tenants: Array.isArray(data.tenants) ? data.tenants : null,
-        lease: data.lease, money: data.money,
+        lease: data.lease, money: data.money, paymentDueEur,
         extras: Array.isArray(data.extras) ? data.extras : null,
         customClauses: Array.isArray(data.customClauses) ? data.customClauses : null,
         // uploads stay private (their URLs carry the read token) — the page

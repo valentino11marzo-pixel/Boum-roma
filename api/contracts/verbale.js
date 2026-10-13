@@ -192,7 +192,12 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
         const img = s.img.kind === 'png' ? await pdf.embedPng(s.img.buf) : await pdf.embedJpg(s.img.buf);
         const sc = Math.min(colW / img.width, sigH / img.height);
         page.drawImage(img, { x, y: y - 12 - sigH + (sigH - img.height * sc) / 2, width: img.width * sc, height: img.height * sc });
-      } catch { /* firma non renderizzabile: resta nome+riga */ }
+      } catch {
+        // Una foto accessoria può mancare; una firma dichiarata no.
+        const error = new Error('signature_unreadable');
+        error.code = 'signature_unreadable';
+        throw error;
+      }
       line(y - 16 - sigH, x, x + colW, 0.7);
       T(s.name, x, y - 26 - sigH, 9, font, ink);
     }
@@ -274,6 +279,10 @@ export default async function handler(req, res) {
   const consegnanti = firme.filter((f) => f && f.kind === 'consegnante' && dataUriToBuf(f.sig));
   if (!conduttori.length) return res.status(400).json({ ok: false, error: 'tenant_signature_required' });
   if (consegnanti.length !== 1) return res.status(400).json({ ok: false, error: 'operator_signature_required' });
+  for (const firma of firme) {
+    if (!clip(firma && firma.name, 60)) return res.status(400).json({ ok: false, error: 'signer_name_required' });
+    if (!dataUriToBuf(firma.sig)) return res.status(400).json({ ok: false, error: 'signature_unreadable' });
+  }
   for (const p of (Array.isArray(body.photos) ? body.photos : [])) {
     if (p && String(p.base64 || '').length > MAX_PHOTO * 1.4) return res.status(413).json({ ok: false, error: 'photo_too_large' });
   }
@@ -328,6 +337,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({ ok: true, url });
   } catch (e) {
+    if (e.code === 'signature_unreadable') return res.status(400).json({ ok: false, error: 'signature_unreadable' });
     console.error('[verbale] failed:', e.message);
     return res.status(500).json({ ok: false, error: 'verbale_failed' });
   }

@@ -179,10 +179,28 @@ const FULL = () => ({
 
   const badSig = FULL(); badSig.firme[0].sig = 'data:image/png;base64,'; // vuota
   const r3 = await drive(badSig);
-  check('firma vuota di un conduttore non conta (ma il resto firma → 200)', r3.code === 200);
+  check('firma dichiarata ma vuota: 400 anche se un altro conduttore firma', r3.code === 400 && r3.body.error === 'signature_unreadable');
 
   const r4 = await drive({ ...FULL(), contractId: 'sparito' });
   check('contratto inesistente: 404', r4.code === 404 && r4.body.error === 'contract_not_found');
+}
+
+// Nessun verbale «firmato» o messaggio se una firma dichiarata non può
+// essere rappresentata sul PDF. Il decoder pdf-lib è quello reale.
+for (const [label, edit, error] of [
+  ['nome vuoto', f => { f.name = '  '; }, 'signer_name_required'],
+  ['PNG corrotto', f => { f.sig = 'data:image/png;base64,Ym9vbQ=='; }, 'signature_unreadable'],
+  ['JPEG corrotto', f => { f.sig = 'data:image/jpeg;base64,Ym9vbQ=='; }, 'signature_unreadable'],
+]) {
+  for (const idx of [0, 2]) {
+    seed('admin', 'own1');
+    const body = FULL(); edit(body.firme[idx]);
+    const response = await drive(body);
+    check(`${label}, firmatario ${idx}: 400 esplicito`, response.code === 400 && response.body.error === error);
+    check(`${label}, firmatario ${idx}: zero Storage, archivio, stato o email`,
+      storageFiles.size === 0 && !store.get('contracts/ctr1').verbaleConsegna
+      && ![...store.keys()].some(k => k.startsWith('documents/')) && mails().length === 0);
+  }
 }
 
 // ═══ Esito ══════════════════════════════════════════════════════════════
