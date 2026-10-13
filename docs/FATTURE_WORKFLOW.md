@@ -29,11 +29,11 @@ La routine “alla ricezione” è una regola organizzativa. La fattura immediat
 
 ## Passaggio di studio
 
-Conferma del titolare del 13 ottobre: nuovo studio con decorrenza 1 gennaio 2027; gestione del 2026 ancora da chiarire. L'incarico al nuovo studio non è ancora documentato. Prima del passaggio assegnare per iscritto: chi chiude il 2026, chi cura dichiarazioni e adempimenti successivi relativi al 2026, chi sistema gli scarti e chi comunica importi/scadenze da versare. Preparare consegna di registri, mastrini, fatture/XML/esiti, F24/ricevute, saldi iniziali e questioni aperte.
+Registrare nel fascicolo privato la decorrenza confermata e il nuovo incarico. Prima del passaggio assegnare per iscritto: chi chiude l’anno precedente, chi cura le relative dichiarazioni e gli adempimenti successivi, chi sistema gli scarti e chi comunica importi/scadenze da versare. Preparare consegna di registri, mastrini, fatture/XML/esiti, F24/ricevute, saldi iniziali e questioni aperte.
 
 ## Sequenza di completamento
 
-1. **Preparato:** import bancario manuale con anteprima senza scritture e acquisizione senza conferma automatica dei canoni; estensione del portale e import privato del 13/10 con 104 righe e 25 bozze; test automatici. Nessun dato reale nel repository.
+1. **Preparato:** import bancario manuale con anteprima senza scritture e acquisizione senza conferma automatica dei canoni; estensione del portale e prospetto privato verificato; test automatici. I documenti e i prospetti contabili reali devono restare nel fascicolo privato.
 2. **Rilascio da completare:** merge secondo AGENTS, pubblicazione con regole Firestore, prova autenticata admin/non-admin e import del prospetto aggiornato. Il ramo non certifica il portale live.
 3. **Da realizzare/verificare:** collegamenti automatici sopra elencati e modifica operativa delle uscite dalla UI con audit e gestione della concorrenza. Oggi le nuove voci si acquisiscono con una nuova revisione del prospetto.
 4. **Da confermare col titolare/consulente:** le voci economiche ancora ambigue, trattamento degli scarti e scadenze fiscali; nessuna emissione automatica autorizzata.

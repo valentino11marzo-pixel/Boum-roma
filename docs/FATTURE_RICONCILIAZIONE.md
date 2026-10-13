@@ -12,7 +12,7 @@ La sezione distingue evidenze fiscali Zucchetti, pagamenti Stripe, trasferimenti
 
 L’importazione crea uno snapshot immutabile con digest e autore, senza modificare fatture o incassi, inviare comunicazioni, applicare correzioni anagrafiche o trasmettere a SdI. Il secondo invio dello stesso contenuto restituisce lo snapshot esistente; una correzione dei dati produce una nuova revisione. Il caricamento non è un collegamento automatico ai gestionali: la data delle fonti resta visibile.
 
-## Copertura del collaudo
+## Collaudo iniziale del 6 ottobre
 
 `node tests/run-all.mjs invoicereconciliation rent rentadmin agencyaccounting vercelfunctions`: cinque suite verdi. La nuova suite verifica 47 condizioni, inclusi handler reale con rete simulata, privacy admin, import concorrente/ripetuto, filtri, errori, cambio sessione e mutazioni sulle regole delicate.
 
@@ -24,8 +24,8 @@ Gli incassi fuori periodo e i tentativi non acquisiti restano ispezionabili ma n
 
 ## Estensione 13 ottobre
 
-Dieci viste, inclusa Da fare, con mastrini, bozze e uscite previste. Schema v1 retrocompatibile: nuove sezioni opzionali, vecchi digest immutati. Il prospetto privato del 13/10 integra i riscontri del 12/10; non è un nuovo accesso live ai gestionali. Le 104 righe mastrino restano distinte dai pagamenti Stripe; 25 bozze per 16.197 euro non diventano nuove fatture emesse.
+Dieci viste, inclusa Da fare, con mastrini, bozze e uscite previste. Schema v1 retrocompatibile: nuove sezioni opzionali, vecchi digest immutati. Il prospetto privato del 13/10 integra i riscontri del 12/10; non è un nuovo accesso live ai gestionali. Le righe mastrino restano distinte dai pagamenti Stripe; le bozze non diventano nuove fatture emesse. Conteggi e importi reali sono nel fascicolo privato.
 
-Cinque suite pertinenti verdi, con 62 verifiche della riconciliazione. Le estensioni usano lo stesso handler, autorizzazioni e archivio: nessuna nuova collection, dipendenza o segreto. La roadmap operativa e le integrazioni ancora da verificare sono in [FATTURE_WORKFLOW.md](FATTURE_WORKFLOW.md).
+Sei suite pertinenti verdi, con 62 verifiche della riconciliazione e 32 dell’import bancario manuale (handler reale, rete simulata e mutazioni). Le estensioni usano lo stesso handler, autorizzazioni e archivio: nessuna nuova collection, dipendenza o segreto. La roadmap operativa e le integrazioni ancora da verificare sono in [FATTURE_WORKFLOW.md](FATTURE_WORKFLOW.md).
 
 Anteprima sintetica del 13/10 verificata in Chrome desktop e mobile 390 px: navigazione Da fare/Uscite/Mastrini, ricerca senza risultati e nessuno overflow della pagina. Non è una prova di import autenticato in produzione.
