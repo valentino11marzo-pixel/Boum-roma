@@ -984,13 +984,16 @@ Valentyne - BOOM Rome`
         return out;
     }
     // Fonde in S senza doppioni; ritorna quanti documenti sono nuovi o cambiati.
-    function palazzoMerge(col, rows) {
+    // addOnly: aggiunge solo ciò che manca, non riscrive mai un documento
+    // già in memoria (che può essere più fresco della copia letta prima).
+    function palazzoMerge(col, rows, addOnly) {
         const arr = S[col] = S[col] || [];
         const byId = new Map(arr.map(x => [x.id, x]));
         let n = 0;
         (rows || []).forEach(r => {
             const cur = byId.get(r.id);
-            if (!cur) { arr.push(r); byId.set(r.id, r); n++; return; }
+            if (!cur) { arr.push(addOnly ? Object.assign({}, r) : r); byId.set(r.id, r); n++; return; }
+            if (addOnly) return;
             const next = Object.assign({}, cur, r);
             if (JSON.stringify(next) !== JSON.stringify(cur)) { Object.assign(cur, r); n++; }
         });
@@ -1020,8 +1023,25 @@ Valentyne - BOOM Rome`
         payments.forEach(p => { if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue'; });
         const changed = palazzoMerge('contracts', contracts) + palazzoMerge('payments', payments)
             + palazzoMerge('maintenance', maint) + palazzoMerge('preAgreements', proposals);
+        // Si ricordano: un ascolto realtime (contratti 800, manutenzioni 600)
+        // riscrive S intero e, ad archivio troncato, le farebbe sparire.
+        (S._plzRows = S._plzRows || {})[ids.slice().sort().join('|')] = { contracts, payments, maintenance: maint, proposals };
         if (changed && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
         return { contracts: contracts.length, payments: payments.length, maintenance: maint.length, proposals: proposals.length, changed };
+    }
+    // Prima di disegnare il Palazzo (admin): se l'archivio è stato letto al
+    // tetto, le righe lette mirate tornano in S — SOLO quelle che mancano
+    // (mai sopra una copia più fresca). Ad archivio completo non serve: lì
+    // rimetterle resusciterebbe un documento appena cancellato.
+    function palazzoRemerge() {
+        if (!isAdmin() || !S.palazzoTruncated || !S._plzRows) return 0;
+        let n = 0;
+        Object.values(S._plzRows).forEach(r => {
+            n += palazzoMerge('contracts', r.contracts, true) + palazzoMerge('payments', r.payments, true)
+                + palazzoMerge('maintenance', r.maintenance, true) + palazzoMerge('preAgreements', r.proposals, true);
+        });
+        if (n && typeof invalidateRentSnapshot === 'function') invalidateRentSnapshot();
+        return n;
     }
     // All'apertura del Palazzo (admin): il palazzo mostrato si rilegge mirato
     // una volta (poi ogni 5 minuti). Ridisegna solo se qualcosa è cambiato, e
@@ -5012,6 +5032,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // === Landlord/Tenant ===
             case 'palazzo':
                 if ((isAdmin() || isLandlord()) && window.BOOM_PALAZZO_UI) {
+                    if (isAdmin()) palazzoRemerge();
                     m.innerHTML = window.BOOM_PALAZZO_UI.render(); window.BOOM_PALAZZO_UI.mount();
                     // Admin: il palazzo MOSTRATO si rilegge mirato (contratti, rate,
                     // manutenzioni e proposte dei suoi interni), senza attendere.

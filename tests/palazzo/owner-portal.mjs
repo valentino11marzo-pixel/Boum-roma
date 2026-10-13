@@ -541,6 +541,15 @@ function fixture() {
     eqj(a.S.payments.map(p => p.id).sort(), ['far', 'pay7-06'], 'anche la rata senza propertyId, letta per contratto');
     eqj(a.S.preAgreements.map(p => p.id), ['pa1']);
     assert.ok(a.log.reads.some(x => x.col === 'payments' && x.filters[0][0] === 'contractId'));
+    // Un ascolto realtime al tetto riscrive S.payments senza la rata lontana
+    // e con pay7-06 già pagata: tornano SOLO le righe che mancano.
+    a.S.palazzoTruncated = true;
+    a.S.payments = [{ id: 'pay7-06', propertyId: 'p7', contractId: 'c7', status: 'paid' }];
+    assert.equal(a.run('palazzoRemerge()'), 1);
+    eqj(a.S.payments.map(p => [p.id, p.status]).sort(), [['far', 'pending'], ['pay7-06', 'paid']].sort(), 'mai sopra una copia più fresca');
+    a.S.palazzoTruncated = false;
+    a.S.payments = [];
+    assert.equal(a.run('palazzoRemerge()'), 0, 'archivio completo: niente da rimettere (mai resuscitare un documento cancellato)');
     const props = await a.base.__adapter.proposals(['p11', 'pX']);
     eqj(props.map(p => p.id).sort(), ['pa1', 'paX']);
     const o = track(makeCtx({ role: 'landlord', profile: OWNER, store: st }));
