@@ -168,7 +168,7 @@ const loaded = loadedFrom(first);
   const st2 = [H, row({ int: '5', inq: 'Nuovo Cinque', can: '1100', dal: '11/08/2027', al: '10/08/2028' })].join('\n');
   const nx = plan(P, st2, loadedFrom(st));
   ok('il contratto che entra a metà mese ha la sua rata del mese, anche se il vecchio ne ha una', nx.payments[0] && nx.payments[0].data.month === '2027-08' && nx.payments[0].data.contractId.endsWith('2027-08-11'), nx.payments.slice(0, 2));
-  mutation('rate contate per interno invece che per contratto', 'if (x.contractId === cid && x.month) have[x.month] = 1;', 'if (x.month) have[x.month] = 1;',
+  mutation('rate contate per interno invece che per contratto', 'if (x.contractId !== cid || !x.month) return;', 'if (!x.month) return;',
     E => plan(E, st2, loadedFrom(st)).payments.some(x => x.data.month === '2027-08'));
 }
 
@@ -395,7 +395,7 @@ const loaded = loadedFrom(first);
   ok('il segnaposto è di un\'altra persona: non si completa da solo, lo si dice', other.rows[0].action === 'placeholder-hold' && !other.contracts.length && !other.payments.length && other.rows[0].notes.some(x => /a nome di Gaia Sette, la tabella dice Nina Altra/.test(x)), other.rows[0]);
   const ph = plan(P, 'Interno\tInquilino\tTelefono\tCanone\tDal\tAl\n14\tGaia Sette\t+39 000 000 0014\t\t\t', st);
   eq('ricaricare il «contratto da caricare» coi soli contatti: si riempie il telefono, nessun secondo segnaposto', ph.contracts.map(x => [x.id, x.exists, x.data]), [['c_p14_da-caricare', true, { tenantPhone: '+390000000014' }]]);
-  mutation('le rate del segnaposto con gli oneri della tabella anche non applicati', 'newRates(str(ph.id), updateExisting(ph, cmpP, fillP));',
+  mutation('le rate del segnaposto con gli oneri della tabella anche non applicati', 'newRates(str(ph.id), updateExisting(ph, cmpP, fillP), ph);',
     "updateExisting(ph, cmpP, fillP); newRates(str(ph.id), { start: r.dal, end: r.al, rent: r.canone, oneri: r.oneri != null ? r.oneri : money(ph.oneriQuota), day: r.giorno });",
     E => plan(E, t, st).payments[0].data.oneriAmount === 120);
   // «Pagato il» per una rata già in archivio: non la si tocca da qui.
