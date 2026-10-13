@@ -40,7 +40,10 @@ console.log('\n── A. Il motore ───────────────
   const m3 = O.buildMessage({}, { style: 'deciso' });
   ok('senza titolo né zona: "il suo annuncio", mai uno slot inventato', m3.includes('il suo annuncio') && !m3.includes('undefined'), m3);
   const m4 = O.buildMessage(L, { voice: 'boom' });
-  ok('voce BOOM: trasparente, "senza alcun costo per lei"', m4.includes('BOOM Roma') && m4.includes('senza alcun costo'));
+  // «senza alcun costo» non si scrive più: dal 30/09 la prima locazione ha
+  // le pratiche del contratto a carico del proprietario (scala di /owners) e
+  // «gratuito» con un costo è pratica ingannevole (Cod. cons. art. 23 lett. v).
+  ok('voce BOOM: trasparente, "senza provvigione per lei" (mai «senza alcun costo»)', m4.includes('BOOM Roma') && m4.includes('senza provvigione per lei') && !/senza alcun costo|at no cost/.test(m4));
   const m5 = O.buildMessage(L, { note: 'Disponibile anche visita video' });
   ok('la nota extra dell\'operatore entra nel testo', m5.includes('Disponibile anche visita video'));
   ok('il messaggio non sfora mai il tetto', O.buildMessage(L, { note: 'x'.repeat(300) }).length <= O.MAX_LEN);
