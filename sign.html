@@ -881,10 +881,11 @@
       consent.onchange=ready;
       document.getElementById('s-back').onclick=function(){ return S.phoneVerified ? renderIdentity() : renderPhone(); };
       var signBtn=document.getElementById('s-sign');
-      function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
+      var documentReady=false;
+      function ready(){ signBtn.disabled = !(documentReady && pad.hasInk() && consent.checked); }
       pad.onChange=ready;
       signBtn.onclick=function(){
-        if(!pad.hasInk()||!consent.checked) return;
+        if(!documentReady||!pad.hasInk()||!consent.checked) return;
         signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
         S.signature=pad.toDataURL();
         submit();
@@ -1069,15 +1070,21 @@
         .then(function(j){
           if(!j||!j.ok){
             if(j&&(j.error==='not_found'||j.error==='invalid_token')) return centered(ICON_LINK,'Link not valid','This document link is invalid or has expired.', SUPPORT_());
-            return centered(ICON_WARN,'Something went wrong','We couldn’t load this document. Please try again.', SUPPORT_());
+            return customError(j && j.error);
           }
-          if(j.alreadySigned){
-            var done = j.status==='complete';
-            return centered(ICON_CHECK,'Already signed', done?'This document is fully signed.':j.status==='finalization_failed'?'Your signature is recorded. BOOM is preparing the final PDF.':'Your signature is recorded. We’re waiting for the other party.', '');
-          }
+          CUSTOM.documentVersion=j.documentVersion; CUSTOM.documentHash=j.documentHash;
+          if(j.alreadySigned) return customSuccess(j.status==='complete' && !!j.signedPdfUrl, j.signedPdfUrl||'', !!j.finalizationPending);
           renderCustom(j);
         })
         .catch(function(){ centered(ICON_WARN,t('e_conn_t'),t('e_conn_d'), SUPPORT_()); });
+    }
+
+    function customError(code){
+      var review = code==='legacy_signed_review_required' || code==='legacy_migration_required' || code==='signature_version_mismatch';
+      if(code==='unsupported_pdf_geometry') return centered(ICON_WARN,'PDF layout needs verification','This PDF uses rotation or cropping that this signing editor cannot position reliably. Ask BOOM for a verified PDF with standard page geometry.',SUPPORT_());
+      var changed = code==='document_changed';
+      return centered(ICON_WARN, review?'BOOM needs to verify this request':changed?'Document changed':'Document unavailable',
+        review?'This older request needs an operator check before another signature. Existing signatures are preserved. Please contact BOOM for a verified request.':changed?'The document differs from the verified version. Existing signatures are preserved. Reload this page and review the document before continuing.':'We could not verify this document. Please reload the page or contact BOOM.', SUPPORT_());
     }
 
     function renderCustom(d){
@@ -1100,34 +1107,43 @@
       document.getElementById('pad-clear').onclick=function(){ pad.clear(); ready(); };
       var consent=document.getElementById('consent'); consent.onchange=ready;
       var signBtn=document.getElementById('c-sign');
-      function ready(){ signBtn.disabled = !(pad.hasInk() && consent.checked); }
+      var documentReady=false;
+      function ready(){ signBtn.disabled = !(documentReady && pad.hasInk() && consent.checked); }
       pad.onChange=ready;
       signBtn.onclick=function(){
-        if(!pad.hasInk()||!consent.checked) return;
+        if(!documentReady||!pad.hasInk()||!consent.checked) return;
         signBtn.disabled=true; signBtn.innerHTML='<span class="spin"></span>';
         if(DEMO){ setTimeout(function(){ customSuccess(false,''); }, 550); return; }
         var sig=pad.toDataURL();
         // The consent record travels with the signature (same FES evidence
         // model as the standard flow) — server pins text + verifies hash.
         sha256Hex(CONSENT_DOC).then(function(h){
-        return fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, signature:sig, consent:{ text:CONSENT_DOC, hash:h, at:new Date().toISOString() } }) }); })
+        return fetch('/api/sign/custom/submit',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ req:CUSTOM.req, role:CUSTOM.role, token:CUSTOM.token, documentVersion:d.documentVersion, documentHash:d.documentHash, signature:sig, consent:{ text:CONSENT_DOC, hash:h, at:new Date().toISOString() } }) }); })
           .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
           .then(function(j){
-            if(!j||!j.ok){ signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }
+            if(!j||!j.ok){ if(j && ['document_changed','legacy_signed_review_required','signature_version_mismatch'].indexOf(j.error)>=0) return customError(j.error); signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }
             customSuccess(!!j.complete, j.signedPdfUrl||'', !!j.finalizationPending);
           })
           .catch(function(){ signBtn.disabled=false; signBtn.textContent='Sign document'; flash('Connection lost. Please try again.'); });
       };
-      renderPdf(d);
+      renderPdf(d, function(){ documentReady=true; ready(); });
     }
 
     function customSuccess(complete, pdfUrl, finalizationPending){
       setProgress(-1);
       var cta = (complete && pdfUrl) ? '<a class="btn" href="'+esc(pdfUrl)+'" target="_blank" rel="noopener noreferrer" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Download signed PDF</a>' : '';
+      if(finalizationPending && CUSTOM && CUSTOM.documentHash) cta += '<button class="btn" id="c-retry-pdf" style="margin-top:18px">Retry final PDF</button>';
       FLOW.innerHTML='';
       FLOW.appendChild(el('<div class="step center"><div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK_ANIM+'</div>'+
         '<h2>'+(complete?'Document complete':'Signed successfully')+'</h2>'+
-        '<p>'+(complete?'All parties have signed. The signed document is ready.':finalizationPending?'All parties have signed. Your signature is recorded; BOOM is preparing the final PDF.':'Your signature has been recorded. We’ll notify you when it’s fully signed.')+'</p>'+cta+'</div>'));
+        '<p>'+(complete?'All parties have signed. The signed document is ready.':finalizationPending?'All parties have signed. Your signature is recorded; the final PDF is not ready yet. You can retry below without signing again.':'Your signature has been recorded. The other required signatures are still pending.')+'</p>'+cta+'</div>'));
+      var retry=document.getElementById('c-retry-pdf');
+      if(retry) retry.onclick=function(){
+        retry.disabled=true; retry.textContent='Preparing PDF…';
+        fetch('/api/sign/custom/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({req:CUSTOM.req,role:CUSTOM.role,token:CUSTOM.token,documentVersion:CUSTOM.documentVersion,documentHash:CUSTOM.documentHash,op:'retryFinalization'})})
+          .then(function(r){return r.json();}).then(function(j){if(!j.ok) return customError(j.error); customSuccess(!!j.complete,j.signedPdfUrl||'',!!j.finalizationPending);})
+          .catch(function(){retry.disabled=false;retry.textContent='Retry final PDF';flash('Connection lost. Please try again.');});
+      };
     }
 
     function renderMockPdf(host, d){
@@ -1147,13 +1163,17 @@
         host.appendChild(wrap);
       }
     }
-    function renderPdf(d){
+    function renderPdf(d, onVerified){
       var host=document.getElementById('pdfview'); if(!host) return;
-      if(DEMO || !d.originalPdfUrl){ renderMockPdf(host, d); return; }
+      if(DEMO){ renderMockPdf(host, d); if(onVerified) onVerified(); return; }
       ensurePdfJs(function(err){
-        if(err||!window.pdfjsLib){ host.innerHTML='<div class="pdfloading">Preview unavailable — use “Open full PDF” above. Your fields will still be signed.</div>'; return; }
-        fetch(d.originalPdfUrl).then(function(r){ return r.arrayBuffer(); }).then(function(buf){
-          return window.pdfjsLib.getDocument({ data: buf }).promise;
+        if(err||!window.pdfjsLib){ host.innerHTML='<div class="pdfloading">Preview could not be verified. Reload the page before signing, or contact BOOM.</div>'; return; }
+        fetch(d.originalPdfUrl, {cache:'no-store'}).then(function(r){ if(!r.ok) throw new Error('pdf_unavailable'); return r.arrayBuffer(); }).then(function(buf){
+          return crypto.subtle.digest('SHA-256',buf).then(function(digest){
+            var actual=Array.from(new Uint8Array(digest)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+            if(actual!==d.pdfHash) throw new Error('document_changed');
+            return window.pdfjsLib.getDocument({ data: buf }).promise;
+          });
         }).then(function(pdf){
           host.innerHTML='';
           var width=Math.max(220,(host.clientWidth||340)-20);
@@ -1171,8 +1191,8 @@
               b.textContent=(f.kind==='date'?'Date':(f.kind==='initials'?'Initials':'Sign')); wrap.appendChild(b); });
             return page.render({ canvasContext:cx, viewport:vp }).promise;
           }); }); })(n); }
-          return chain;
-        }).catch(function(){ host.innerHTML='<div class="pdfloading">Preview unavailable — use “Open full PDF” above. Your fields will still be signed.</div>'; });
+          return chain.then(function(){if(onVerified) onVerified();});
+        }).catch(function(){ host.innerHTML='<div class="pdfloading">Preview could not be verified. Reload the page before signing, or contact BOOM.</div>'; });
       });
     }
 
