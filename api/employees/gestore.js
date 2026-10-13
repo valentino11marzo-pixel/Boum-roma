@@ -160,8 +160,22 @@ async function run({ dry }) {
     if (RENT.openAfterClose(p, contractById[p.contractId], now)) { afterClose.push({ prop, p }); continue; }
     const state = RENT.paymentState(p, now);
     if (state === 'reported') {
-      const when = String(p.tenantReportDate || '').slice(0, 10);
-      digest.push(`💶 ${prop} — ${euro(p.amount)} bonifico segnalato${when ? ' il ' + when : ''}${p.tenantReportProofUrl || p.proofUrl ? ' (ricevuta allegata)' : ''}: verifica l'incasso e premi Registra incasso`);
+      const rs = RENT.reportSummary(p);
+      const when = rs.lastDate || String(p.tenantReportDate || '').slice(0, 10);
+      const proof = (Array.isArray(p.tenantReports) && p.tenantReports.some(x => x && x.proofUrl)) || p.tenantReportProofUrl || p.proofUrl;
+      // Un bonifico segnalato su una rata DOPO la chiusura del contratto non
+      // è un incasso da registrare: si verifica, poi si rimborsa o si annulla.
+      if (RENT.reportedAfterClose(p, contractById[p.contractId], now)) {
+        digest.push(`💶 ${prop} — bonifico segnalato su una rata DOPO la chiusura del contratto (${monthWords(p.month, 'it') || p.month || ''}, ${euro(p.amount)})${when ? ' il ' + when : ''}: verifica cosa è arrivato, poi rimborsa o annulla la rata — non è un incasso da registrare`.replace(/\(, /, '('));
+        continue;
+      }
+      // Una PARTE segnalata (la metà di un co-intestatario): la rata non è
+      // saldata, e il resto va chiesto — mai «premi Registra incasso».
+      if (rs.partial) {
+        digest.push(`💶 ${prop} — ${euro(rs.sum)} segnalati su ${euro(rs.total)} (mancano ${euro(rs.missing)})${when ? ', ultimo bonifico il ' + when : ''}${proof ? ' (ricevuta allegata)' : ''}: verifica — segnalata solo una parte, il resto va chiesto`);
+        continue;
+      }
+      digest.push(`💶 ${prop} — ${euro(p.amount)} bonifico segnalato${when ? ' il ' + when : ''}${proof ? ' (ricevuta allegata)' : ''}: verifica l'incasso e premi Registra incasso`);
       continue;
     }
     if (state !== 'overdue') continue;

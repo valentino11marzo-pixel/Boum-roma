@@ -542,9 +542,15 @@
       if (cEnd && pStart && pStart > cEnd) {
         if (ci.closed) {
           row.afterClose = true;
-          var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [] };
+          var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [], reported: [] };
           if (row.state === 'overdue' || row.state === 'due' || row.state === 'unknown') { ac.open.push(row); return; }
           if (row.state === 'paid') ac.paid.push(row);
+          // Un bonifico SEGNALATO (o un pagamento in corso, o da verificare)
+          // su un mese dopo la chiusura: non è un incasso da registrare né un
+          // atteso dell'interno (libero) — si verifica, poi si rimborsa o si
+          // annulla. Resta fra i soldi del mese, e si dichiara (BOOM_RENT.
+          // reportedAfterClose, la stessa formulazione delle altre superfici).
+          else if (row.state === 'reported' || row.state === 'processing' || row.state === 'review') ac.reported.push(row);
         } else if (row.state !== 'cancelled') {
           row.beyondEnd = true;
           var be = beyondEnd[pid] = beyondEnd[pid] || [];
@@ -680,6 +686,10 @@
     var expected = 0, collected = 0, lateAmount = 0, unknownAmounts = 0, lateUnknown = 0;
     var split = { er: 0, eo: 0, cr: 0, co: 0, ok: true };
     ownRows.forEach(function (r) {
+      // Interno libero: una rata dopo la chiusura del contratto non pagata
+      // (segnalata, in corso, da verificare) non è un atteso — l'atteso di un
+      // interno libero è zero. Pagata resta fra i soldi del mese (sono veri).
+      if (!occupied && r.afterClose && r.state !== 'paid') return;
       if (r.amount == null) { unknownAmounts++; split.ok = false; if (r.state === 'overdue') lateUnknown++; return; }
       expected = round(expected + r.amount);
       if (r.state === 'paid') collected = round(collected + r.amount);
@@ -2466,11 +2476,16 @@
     if (pre.length) issues.push({ code: 'preBoom', count: pre.reduce(function (a, u) { return a + ctx.preBoomOpen[u.id]; }, 0), ids: pre.map(function (u) { return u.id; }) });
     // Rate rimaste dopo la chiusura del contratto: aperte vanno annullate;
     // pagate vanno verificate (rimborso, o la data di chiusura è sbagliata).
-    var acU = units.filter(function (u) { var a = ctx.afterClose && ctx.afterClose[u.id]; return a && (a.open.length || a.paid.length); });
+    // Segnalate (o in corso, o da verificare): verifica, poi rimborsa o annulla.
+    var acU = units.filter(function (u) { var a = ctx.afterClose && ctx.afterClose[u.id]; return a && (a.open.length || a.paid.length || (a.reported || []).length); });
     if (acU.length) {
-      var acOpen = [], acPaid = [];
-      acU.forEach(function (u) { ctx.afterClose[u.id].open.forEach(function (r) { acOpen.push(r.id); }); ctx.afterClose[u.id].paid.forEach(function (r) { acPaid.push(r.id); }); });
-      issues.push({ code: 'afterClose', count: acOpen.length + acPaid.length, open: acOpen.length, paid: acPaid.length, ids: acU.map(function (u) { return u.id; }), paymentIds: acOpen, paidIds: acPaid });
+      var acOpen = [], acPaid = [], acRep = [];
+      acU.forEach(function (u) {
+        var a = ctx.afterClose[u.id];
+        a.open.forEach(function (r) { acOpen.push(r.id); }); a.paid.forEach(function (r) { acPaid.push(r.id); }); (a.reported || []).forEach(function (r) { acRep.push(r.id); });
+      });
+      issues.push({ code: 'afterClose', count: acOpen.length + acPaid.length + acRep.length, open: acOpen.length, paid: acPaid.length, reported: acRep.length,
+        ids: acU.map(function (u) { return u.id; }), paymentIds: acOpen, paidIds: acPaid, reportedIds: acRep });
     }
     // Rate oltre la fine di un contratto ancora 'attivo': sono dovute (tengono
     // occupato l'interno, contano come ritardo). Rinnovo tacito o una data da

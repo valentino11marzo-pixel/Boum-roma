@@ -78,7 +78,16 @@ export default async function handler(req, res) {
       if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
       if (RENT.openAfterClose(p, contractById[p.contractId], new Date(now))) { afterCloseN++; continue; }
       const st = RENT.paymentState(p, new Date(now));
-      if (st === 'reported') { pushRisk('med', `${p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`); continue; }
+      const who = p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento';
+      // Segnalato su una rata dopo la chiusura: verifica, poi rimborsa o annulla.
+      if (RENT.reportedAfterClose(p, contractById[p.contractId], new Date(now))) { pushRisk('med', `${who} — pagamento segnalato su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla`); continue; }
+      if (st === 'reported') {
+        const rs = RENT.reportSummary(p);
+        pushRisk('med', rs.partial
+          ? `${who} — €${rs.sum.toLocaleString('it-IT')} segnalati su €${rs.total.toLocaleString('it-IT')} (mancano €${rs.missing.toLocaleString('it-IT')}), da verificare`
+          : `${who} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`);
+        continue;
+      }
       if (st !== 'overdue') continue;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }

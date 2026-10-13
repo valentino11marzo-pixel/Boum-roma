@@ -156,17 +156,25 @@ async function run({ dry, forceMonthly, yearOverride }) {
     const st = RENT.paymentState(p, now);
     const inYear = p.month && String(p.month).slice(0, 4) === String(fiscalYear);
     const label = propLabel(propById, p.propertyId ? p : pc);
+    // Un pagamento segnalato, in corso o da verificare su una rata DOPO la
+    // chiusura del contratto non è un atteso di nessuno (come nel Palazzo).
+    const acRep = RENT.reportedAfterClose(p, contractById[p.contractId], now);
     if (inYear) {
       const amt = Number(p.amount) || 0;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (st === 'paid') { incassatoYtd += amt; attesoYtd += amt; }
       else if (st === 'review') {
-        attesoYtd += amt;
+        if (!acRep) attesoYtd += amt;
         moneyBack.push({ paymentId: p.id, property: label, month: p.month || null, amount: amt, why: RENT.moneyBack(p) === 'dispute' ? 'contestazione' : 'rimborso' });
-      } else if (st !== 'cancelled' && due && due <= now.getTime()) attesoYtd += amt;
+      } else if (!acRep && st !== 'cancelled' && due && due <= now.getTime()) attesoYtd += amt;
     }
     if (st === 'reported') {
-      reported.push({ paymentId: p.id, property: label, month: p.month || null, amount: Number(p.amount) || 0 });
+      // Una PARTE segnalata non è la rata saldata (reportSummary); su una rata
+      // dopo la chiusura non c'è un incasso da registrare.
+      const rs = RENT.reportSummary(p);
+      reported.push({ paymentId: p.id, property: label, month: p.month || null, amount: Number(p.amount) || 0,
+        ...(rs.partial ? { reportedSum: rs.sum, missing: rs.missing } : {}),
+        ...(RENT.reportedAfterClose(p, contractById[p.contractId], now) ? { afterClose: true } : {}) });
       continue;
     }
     if (st !== 'overdue') continue;
@@ -227,7 +235,10 @@ async function run({ dry, forceMonthly, yearOverride }) {
     overdue.slice(0, 6).forEach(o => lines.push(`🔴 ${esc(oblText(o))} — scaduta da ${Math.abs(o.days)}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     urgentSoon.slice(0, 6).forEach(o => lines.push(`🟠 ${esc(oblText(o))} — tra ${o.days}gg${o.amount ? ` · ~${euro(o.amount)}` : ''}`));
     late.slice(0, 6).forEach(l => lines.push(`💸 ${esc(l.property)} — ${euro(l.amount)} in ritardo ${l.daysLate}gg`));
-    reported.slice(0, 4).forEach(r => lines.push(`💶 ${esc(r.property)} — ${euro(r.amount)} bonifico segnalato: verifica l'incasso`));
+    reported.slice(0, 4).forEach(r => lines.push(r.afterClose
+      ? `💶 ${esc(r.property)} — bonifico segnalato su una rata dopo la chiusura del contratto (${euro(r.amount)}): verifica, poi rimborsa o annulla`
+      : r.missing ? `💶 ${esc(r.property)} — ${euro(r.reportedSum)} segnalati su ${euro(r.amount)} (mancano ${euro(r.missing)}): verifica, segnalata solo una parte`
+        : `💶 ${esc(r.property)} — ${euro(r.amount)} bonifico segnalato: verifica l'incasso`));
     moneyBack.slice(0, 4).forEach(r => lines.push(`↩️ ${esc(r.property)} — ${euro(r.amount)} ${r.why === 'contestazione' ? 'contestato con la carta' : 'rimborsato'}: non è incassato`));
     afterClose.slice(0, 4).forEach(r => lines.push(`🧾 ${esc(r.property)} — ${euro(r.amount)}${r.month ? ' (' + esc(r.month) + ')' : ''} rata dopo la chiusura del contratto: annullala (non è un arretrato)`));
     if (missingDocs.length) lines.push(`📁 ${missingDocs.length} documenti mancanti per il commercialista`);
@@ -287,9 +298,18 @@ export function monthlyCloseFigures({ payments, monthKey, propById, contractById
     if (st === 'cancelled') continue;
     const amt = Number(p.amount) || 0;
     const label = propLabel(propById, p.propertyId ? p : (pc.propertyId ? pc : p));
+    // Segnalata (o in corso, o da verificare) su una rata DOPO la chiusura:
+    // non è un atteso di nessuno — si verifica, poi si rimborsa o si annulla.
+    if (RENT.reportedAfterClose(p, contractById[p.contractId], now)) {
+      toCheck.push(`${label} — ${euro(amt)} (${WHY[st] || 'da verificare'} su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla)`);
+      continue;
+    }
     atteso += amt;
     if (st === 'paid') incassato += amt;
-    else if (WHY[st]) toCheck.push(`${label} — ${euro(amt)} (${WHY[st]})`);
+    else if (st === 'reported' && RENT.reportSummary(p).partial) {
+      const rs = RENT.reportSummary(p);
+      toCheck.push(`${label} — ${euro(amt)} (bonifico segnalato: ${euro(rs.sum)} su ${euro(amt)}, mancano ${euro(rs.missing)})`);
+    } else if (WHY[st]) toCheck.push(`${label} — ${euro(amt)} (${WHY[st]})`);
     else unpaid.push(`${label} — ${euro(amt)}`);
   }
   return { incassato, atteso, unpaid, toCheck };

@@ -289,8 +289,9 @@
           var parts = [];
           if (i.open) parts.push(plural(i.open, 'aperta da annullare', 'aperte da annullare'));
           if (i.paid) parts.push(plural(i.paid, 'pagata da verificare (rimborso, o la data di chiusura è sbagliata)', 'pagate da verificare (rimborso, o la data di chiusura è sbagliata)'));
+          if (i.reported) parts.push(plural(i.reported, 'con un pagamento segnalato: verifica cosa è arrivato, poi rimborsa o annulla (non è un incasso da registrare)', 'con un pagamento segnalato: verifica cosa è arrivato, poi rimborsa o annulla (non sono incassi da registrare)'));
           var acts = (i.open && (adapter.actions || {}).cancelRates ? btn('cancel-rates', 'Annulla ' + (i.open === 1 ? 'la rata aperta' : 'le ' + i.open + ' rate aperte'), ' data-ids="' + esc((i.paymentIds || []).join(',')) + '"') : '') +
-            (i.paid ? btn('rent', 'Verifica in Canoni', ' data-id="' + esc(i.ids[0]) + '"') : '');
+            (i.paid || i.reported ? btn('rent', 'Verifica in Canoni', ' data-id="' + esc(i.ids[0]) + '"') : '');
           return row('Rate', plural(i.count, 'rata cade', 'rate cadono') + ' dopo la chiusura del contratto (' + esc(i.ids.map(name).join(', ')) + '): ' + parts.join(', ') + '.', acts, i.code);
         }
         case 'beyondEnd': {

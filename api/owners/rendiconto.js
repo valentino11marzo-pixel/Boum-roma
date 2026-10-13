@@ -200,10 +200,17 @@ function reminderOf(r) {
 // perché quando lo si sa (un bonifico segnalato, un pagamento in corso).
 function reviewText(r) {
   const p = r.payment || {};
+  // Una rata del mese dopo la fine del contratto: il pagamento si verifica
+  // (e se è arrivato si restituisce o si compensa), non è un canone.
+  const after = r.afterClose ? ' per un mese dopo la fine del contratto' : '';
   if (r.state === 'reported') {
-    const d = PALAZZO.day(p.tenantReportDate || p.tenantReportedAt);
-    return `bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}, in verifica da BOOM`;
+    const rs = RENT.reportSummary(p);
+    const d = rs.lastDate || PALAZZO.day(p.tenantReportDate || p.tenantReportedAt);
+    // Una PARTE segnalata (la metà di un co-intestatario) non è la rata.
+    if (rs.partial) return `bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}${after}: ${eur(rs.sum)} su ${eur(rs.total)}, mancano ${eur(rs.missing)} — in verifica da BOOM`;
+    return `bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}${after}, in verifica da BOOM`;
   }
+  if (after) return `pagamento${after}, in verifica da BOOM`;
   if (r.state === 'processing') return 'pagamento in corso (carta o addebito SEPA), in verifica da BOOM';
   return 'in verifica da BOOM';
 }
@@ -362,9 +369,10 @@ export function ownerReport(o) {
       if (r.amount == null) unknownAmounts++;
     }
     for (const r of review) {
-      const d = PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt);
+      const rs = RENT.reportSummary(r.payment || {});
+      const d = rs.lastDate || PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt);
       lines.push({ text: r.state === 'reported'
-        ? `In verifica da BOOM: ${payLabel(r)}${who(r)}, bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}`
+        ? `In verifica da BOOM: ${payLabel(r)}${who(r)}, bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}${r.afterClose ? ' per un mese dopo la fine del contratto' : ''}${rs.partial ? ` (${eur(rs.sum)} su ${eur(rs.total)}, mancano ${eur(rs.missing)})` : ''}`
         : r.state === 'processing' ? `In verifica da BOOM: ${payLabel(r)}${who(r)}, pagamento in corso`
           : `In verifica da BOOM: ${payLabel(r)}${who(r)}`, amount: r.amount, tone: 'review' });
     }
@@ -397,6 +405,9 @@ export function ownerReport(o) {
       // mesi: nel riepilogo si dice QUALE («rata da settembre a novembre»).
       lateCover: !um.rows.some((r) => r.month === month && r.state === 'overdue') && coverLate ? coverLate.label : '',
       reportDate: (() => { const r = um.rows.find((x) => x.state === 'reported'); return r ? PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt) : ''; })(),
+      // Un pagamento segnalato (o in corso) per un mese DOPO la fine del
+      // contratto: in verifica da BOOM, anche se nel mese l'interno è libero.
+      afterCloseReview: [...um.rows, ...review].some((r) => r.afterClose && ['reported', 'processing', 'review'].includes(r.state)),
       // La rata del mese annullata: il motivo (il primo), per il mese in breve.
       waivedWhy: um.state === 'waived' ? clip(((um.waivedRows || [])[0] && um.waivedRows[0].payment || {}).cancelledReason, 80) : '',
     });
@@ -441,6 +452,7 @@ export function ownerReport(o) {
     paid: pick((s) => s.state === 'paid'),
     late: pick((s) => s.state === 'late'),
     review: pick((s) => s.state === 'review' || s.state === 'unknown' || (s.state === 'norate' && !s.placeholder)),
+    afterCloseReview: pick((s) => s.afterCloseReview && !(s.state === 'review' || s.state === 'unknown')),
     due: pick((s) => s.state === 'due'),
     placeholder: pick((s) => s.placeholder),
     waived: pick((s) => s.state === 'waived' && !s.placeholder),
@@ -456,6 +468,7 @@ export function ownerReport(o) {
   const lateWhy = (s) => (s.dueDate || s.lateCover ? ` (${[s.lateCover, s.dueDate ? 'scaduta il ' + itDate(s.dueDate) : ''].filter(Boolean).join(', ')})` : '');
   if (lists.late.length) brief.push(`Non hanno pagato la rata di ${mese(month)}: ${lists.late.map((s) => nm(s) + lateWhy(s)).join(', ')}.`);
   if (lists.review.length) brief.push(`In verifica da BOOM: ${lists.review.map((s) => nm(s) + (s.reportDate ? ` (bonifico segnalato il ${itDate(s.reportDate)})` : '')).join(', ')}.`);
+  if (lists.afterCloseReview.length) brief.push(`In verifica da BOOM anche: ${lists.afterCloseReview.map(nm).join(', ')} (pagamento segnalato per un mese dopo la fine del contratto).`);
   if (lists.due.length) brief.push(`Da pagare entro la scadenza: ${lists.due.map((s) => nm(s) + (s.dueDate ? ` (entro il ${itDate(s.dueDate)})` : '')).join(', ')}.`);
   if (lists.placeholder.length) brief.push(`Contratto in arrivo da BOOM: ${lists.placeholder.map(nm).join(', ')}.`);
   if (lists.waived.length) brief.push(`${lists.waived.length === 1 ? 'Rata' : 'Rate'} di ${mese(month)} ${lists.waived.length === 1 ? 'annullata' : 'annullate'}: ${lists.waived.map((s) => nm(s) + (s.waivedWhy ? ` (${s.waivedWhy})` : '')).join(', ')}.`);

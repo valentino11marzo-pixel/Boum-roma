@@ -193,9 +193,14 @@
         }
 
         // ── 3a. Rate dopo la chiusura del contratto: da annullare ───────
+        // UNA card; l'azione apre l'interno nel Palazzo solo se le rate stanno
+        // TUTTE nello stesso immobile — in palazzi diversi (o senza immobile)
+        // apre il Palazzo, dove «Da sistemare» le elenca tutte: un tasto che
+        // ne raggiunge una sola lascerebbe le altre senza strada.
         if (closedOpen.length) {
-            const first = closedOpen[0], c0 = byC(first.contractId);
-            const pid = first.propertyId || (c0 && c0.propertyId) || '';
+            const pidOf = (p) => { const c = byC(p.contractId); return p.propertyId || (c && c.propertyId) || ''; };
+            const pids = closedOpen.map(pidOf).filter((v, i, a) => a.indexOf(v) === i);
+            const pid = pids.length === 1 ? pids[0] : '';
             out.push({
                 id: 'afterclose', kind: 'incassi', icon: '🧾', tint: 'gold',
                 title: `${closedOpen.length} rat${closedOpen.length === 1 ? 'a' : 'e'} dopo la chiusura del contratto — da annullare, non da sollecitare`,
@@ -203,7 +208,8 @@
                 score: 58,
                 actions: [pid
                     ? { label: 'Annulla dal Palazzo', fn: 'openPalazzoUnit', args: [pid], primary: true }
-                    : { label: 'Apri Incassi', fn: 'goTo', args: ['payments'], primary: true }]
+                    : pids.some(Boolean) ? { label: 'Annulla dal Palazzo', fn: 'goTo', args: ['palazzo'], primary: true }
+                        : { label: 'Apri Incassi', fn: 'goTo', args: ['payments'], primary: true }]
             });
         }
 
@@ -219,6 +225,22 @@
             .forEach(({ p, age }) => {
                 const c = byC(p.contractId);
                 const who = nameOf(c);
+                // Segnalato su una rata DOPO la chiusura del contratto: non è
+                // un incasso da registrare — verifica, poi rimborsa o annulla.
+                if (RENT && typeof RENT.reportedAfterClose === 'function' && c && RENT.reportedAfterClose(p, c, nowDate)) {
+                    const pid = p.propertyId || c.propertyId || '';
+                    out.push({
+                        id: 'rep_' + p.id, kind: 'incassi', icon: '💶', tint: 'gold',
+                        title: `Bonifico segnalato su una rata dopo la chiusura — verifica · €${num(p.amount).toLocaleString('it-IT')} — ${who || propName(pid) || 'rata'}`,
+                        sub: [who ? propName(pid) : '', p.month || '', 'il contratto era già chiuso: verifica cosa è arrivato, poi rimborsa o annulla la rata'].filter(Boolean).join(' · ').slice(0, 200),
+                        score: 72 + ageBoost(age, 2, 12),
+                        actions: [
+                            pid ? { label: 'Verifica dal Palazzo', fn: 'openPalazzoUnit', args: [pid], primary: true } : { label: 'Apri Incassi', fn: 'goTo', args: ['payments'], primary: true },
+                            { label: 'Revoca segnalazione', fn: 'openRentReportReview', args: [p.id] }
+                        ]
+                    });
+                    return;
+                }
                 // TUTTE le segnalazioni (due co-intestatari che pagano metà
                 // ciascuno): prima la card mostrava solo la prima, e chi
                 // registrava l'incasso vedeva €860 dove c'erano due bonifici.

@@ -202,6 +202,39 @@
     return st === 'due' || st === 'overdue' || st === 'unknown';
   }
 
+  // La rata dopo la chiusura con un pagamento SEGNALATO, in corso o da
+  // verificare (rimborso, contestazione): non è aperta (openAfterClose), ma
+  // non è nemmeno un incasso da registrare — il contratto dice che lì non
+  // c'era più nessuno. Si verifica cosa è arrivato, poi si rimborsa o si
+  // annulla la rata. UNA formulazione per Gestore, Contabile, risk, digest,
+  // Oggi e il Palazzo (mai «premi Registra incasso»).
+  function reportedAfterClose(payment, contract, now) {
+    if (!afterClose(payment, contract)) return false;
+    var st = paymentState(payment, now);
+    return st === 'reported' || st === 'processing' || st === 'review';
+  }
+
+  // LE SEGNALAZIONI DI BONIFICO DI UNA RATA, una lettura sola (/rata, Oggi,
+  // Gestore, Contabile, risk, digest, rendiconto). L'elenco tenantReports
+  // (due co-intestatari = due bonifici); una rata segnalata prima che
+  // esistesse l'elenco porta la sua segnalazione in testa: una voce senza
+  // importo, che vale «tutta la rata» come prima. Una parte segnalata NON è
+  // la rata saldata: prima solo Oggi lo diceva, le altre superfici dicevano
+  // «€1.720 bonifico segnalato» per €860 (e nessuno chiedeva il resto).
+  //   → { count, sum (null se una voce non dice l'importo), total, partial, missing, lastDate }
+  function reportSummary(payment) {
+    var p = payment || {};
+    var reps = list(p.tenantReports).filter(function (x) { return x && typeof x === 'object'; });
+    if (!reps.length && p.tenantReported === true) reps = [{ date: p.tenantReportDate, at: p.tenantReportedAt }];
+    var total = amount(p.amount), amts = reps.map(function (r) { return amount(r.amount); });
+    var all = reps.length > 0 && amts.every(function (a) { return a != null; });
+    var sum = all ? round(amts.reduce(function (t, a) { return t + a; }, 0)) : null;
+    var partial = !!(all && total != null && sum < total - 0.005);
+    var dates = reps.map(function (r) { return day(r.date) || day(r.at); }).filter(Boolean).sort();
+    return { count: reps.length, sum: sum, total: total, partial: partial, missing: partial ? round(total - sum) : 0,
+      lastDate: dates.length ? dates[dates.length - 1] : day(p.tenantReportDate) };
+  }
+
   function canReviewReport(payment) {
     var p = payment || {};
     return paymentState(p) === 'reported' && ['pending','due','overdue','reported'].includes(key(p.status))
@@ -417,7 +450,7 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, moneyBack: moneyBack, afterClose: afterClose, openAfterClose: openAfterClose, contractClosed: contractClosed, contractEnd: contractEnd, periodStart: periodStart, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { amount: amount, moneyBack: moneyBack, afterClose: afterClose, openAfterClose: openAfterClose, reportedAfterClose: reportedAfterClose, reportSummary: reportSummary, contractClosed: contractClosed, contractEnd: contractEnd, periodStart: periodStart, cardPolicy: cardPolicy, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

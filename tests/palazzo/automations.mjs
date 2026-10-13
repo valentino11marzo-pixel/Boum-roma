@@ -1156,6 +1156,98 @@ function seedBigArchive(n) {
   ok(/Rate dopo la chiusura del contratto<\/b>: 2 rate da annullare/.test(txt) && !/Olga Prova[^\n]*giorni/.test(txt), '/palazzo: «2 rate da annullare», int. 3 non fra chi non ha pagato', txt);
 }
 
+// 20c-ter. Una PARTE segnalata non è la rata saldata, e un bonifico segnalato
+// su una rata DOPO la chiusura non è un incasso da registrare — la stessa
+// lettura (BOOM_RENT.reportSummary / reportedAfterClose) in Gestore,
+// Contabile, risk.scan, digest, rendiconto, Oggi e il Palazzo.
+{
+  const RENT = require('../../js/rent-engine.js');
+  const PE = require('../../js/palazzo-engine.js');
+  seedWorld2();
+  // int. 1: la metà di un co-intestatario (€500 su €1.000).
+  seed('payments/pay_cA_2026-10', { ...read('payments/pay_cA_2026-10'), tenantReports: [{ at: '2026-10-06T10:00:00Z', date: '2026-10-06', amount: 500, via: 'link' }] });
+  // int. 7: uscito il 30/09, il bonifico di ottobre segnalato il 04/10.
+  seed('properties/pG', { name: 'Via Prova 10, Roma int. 7', address: 'Via Prova 10, Roma', interno: '7', floor: '4', ownerId: 'own1', gestioneDal: '2026-08', source: 'palazzo-import' });
+  seed('contracts/cG', { propertyId: 'pG', status: 'terminated', terminatedAt: '2026-09-30', source: 'palazzo-import', signatureStatus: 'paper', tenantName: 'Gina Uscita', startDate: '2026-03-01', endDate: '2027-02-28', rent: 700, type: 'studenti' });
+  seed('payments/pay_cG_2026-10', { contractId: 'cG', propertyId: 'pG', type: 'rent', month: '2026-10', amount: 700, dueDate: '2026-10-05', status: 'pending', source: 'palazzo-import', tenantReported: true, tenantReportedAt: '2026-10-04T10:00:00Z', tenantReportDate: '2026-10-04' });
+  // Un'altra rata aperta dopo la chiusura, in un ALTRO palazzo: la card di Oggi non può aprire un interno solo.
+  seed('properties/pX', { name: 'Via Altra 1, Roma int. 2', address: 'Via Altra 1, Roma', interno: '2', floor: '1', ownerId: 'own1', gestioneDal: '2026-08', source: 'palazzo-import' });
+  seed('contracts/cX', { propertyId: 'pX', status: 'terminated', terminatedAt: '2026-09-30', source: 'palazzo-import', signatureStatus: 'paper', tenantName: 'Xena Uscita', startDate: '2026-03-01', endDate: '2027-02-28', rent: 650, type: 'studenti' });
+  seed('payments/pay_cX_2026-10', { contractId: 'cX', propertyId: 'pX', type: 'rent', month: '2026-10', amount: 650, dueDate: '2026-10-05', status: 'pending', source: 'palazzo-import' });
+  const props = keys('properties').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const cons = keys('contracts').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const pays = keys('payments').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const users = keys('users').map(k => ({ id: k.split('/')[1], ...read(k) }));
+  const pA = pays.find(p => p.id === 'pay_cA_2026-10'), pG = pays.find(p => p.id === 'pay_cG_2026-10'), cG = cons.find(c => c.id === 'cG');
+  const rs = RENT.reportSummary(pA);
+  ok(rs.partial && rs.sum === 500 && rs.missing === 500 && rs.total === 1000 && !RENT.reportSummary({ ...pA, tenantReports: undefined }).partial
+    && RENT.reportedAfterClose(pG, cG, new Date(NOW)) && !RENT.openAfterClose(pG, cG, new Date(NOW)) && !RENT.reportedAfterClose(pA, cons.find(c => c.id === 'cA'), new Date(NOW)),
+    'premesse: €500 su €1.000 è una parte; la segnalazione senza importo vale la rata; ottobre di int. 7 è segnalato DOPO la chiusura', rs);
+  // Gestore
+  const gestore = (await import('../../api/employees/gestore.js')).default;
+  const g = await call(gestore, { headers: asCron, query: { dry: '1' } });
+  const dg = (g.body && g.body.report && g.body.report.digest) || [];
+  const gA = dg.find(l => /int\. 1 —/.test(l) && /segnalat/.test(l)) || '', gG = dg.find(l => /int\. 7 —/.test(l)) || '';
+  ok(/€500 segnalati su €1\.000 \(mancano €500\)/.test(gA) && /segnalata solo una parte/.test(gA) && !/Registra incasso/.test(gA),
+    'gestore: la parte si dice (€500 su €1.000, mancano €500), mai «premi Registra incasso»', dg);
+  ok(/DOPO la chiusura del contratto/.test(gG) && /rimborsa o annulla/.test(gG) && !/Registra incasso/.test(gG), 'gestore: il bonifico dopo la chiusura si verifica, poi si rimborsa o si annulla', gG);
+  const MG = await importMutant('api/employees/gestore.js', '      if (rs.partial) {\n', '      if (false) {\n');
+  const gm = await call(MG.default, { headers: asCron, query: { dry: '1' } });
+  ok(((gm.body.report || {}).digest || []).some(l => /int\. 1 — €1\.000 bonifico segnalato.*premi Registra incasso/.test(l)), 'mutazione: senza la parte il gestore dice «€1.000 … premi Registra incasso» (il test lo vede)');
+  // Contabile
+  const contabile = (await import('../../api/employees/contabile.js')).default;
+  const cb = await call(contabile, { headers: asCron, query: { dry: '1' } });
+  const rA = (cb.body.report.reported || []).find(x => x.paymentId === 'pay_cA_2026-10') || {}, rG = (cb.body.report.reported || []).find(x => x.paymentId === 'pay_cG_2026-10') || {};
+  ok(rA.reportedSum === 500 && rA.missing === 500 && rG.afterClose === true, 'contabile: nel rapporto la parte segnalata e la rata dopo la chiusura', cb.body.report.reported);
+  const CB = await import('../../api/employees/contabile.js');
+  const propById = Object.fromEntries(props.map(p => [p.id, p])), contractById = Object.fromEntries(cons.map(c => [c.id, c]));
+  const fig = CB.monthlyCloseFigures({ payments: pays, monthKey: '2026-10', propById, contractById, now: new Date(NOW) });
+  ok(fig.toCheck.some(t => /int\. 1 — €1\.000 \(bonifico segnalato: €500 su €1\.000, mancano €500\)/.test(t)) && fig.toCheck.some(t => /int\. 7 — €700 \(bonifico segnalato su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla\)/.test(t)),
+    'chiusura del mese: la parte e la rata dopo la chiusura dette per quello che sono', fig.toCheck);
+  const figNo = CB.monthlyCloseFigures({ payments: pays.filter(p => p.id !== 'pay_cG_2026-10'), monthKey: '2026-10', propById, contractById, now: new Date(NOW) });
+  ok(fig.atteso === figNo.atteso, 'chiusura del mese: la rata dopo la chiusura segnalata non è un atteso', { con: fig.atteso, senza: figNo.atteso });
+  // risk.scan + digest
+  const { scan } = await import('../../api/agent/risk.scan.js');
+  const r = await scan(60);
+  const iA = r.items.find(i => i.ref === 'pay_cA_2026-10') || {}, iG = r.items.find(i => i.ref === 'pay_cG_2026-10') || {};
+  ok(/€500 segnalati su €1000 · mancano €500/.test(iA.detail) && iG.cat === 'Rata dopo la chiusura' && /rimborsa o annulla/.test(iG.detail), 'risk.scan: la parte e la rata dopo la chiusura', [iA, iG]);
+  const digest = (await import('../../api/agent/digest.js')).default;
+  const dd = await call(digest, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+  ok(/€500 segnalati su €1000 \(mancano €500\)/.test(dd.body.text) && /Gina Uscita — pagamento segnalato su una rata dopo la chiusura del contratto: verifica, poi rimborsa o annulla/.test(dd.body.text),
+    'digest: la parte e la rata dopo la chiusura', dd.body.text);
+  // Rendiconto alla proprietaria
+  const RND = await import('../../api/owners/rendiconto.js');
+  const rep = RND.ownerReport({ ownerId: 'own1', user: read('users/own1'), month: '2026-10', properties: props.filter(p => p.ownerId === 'own1'), contracts: cons, payments: pays, users, now: new Date(NOW) });
+  const lineOf = (re) => rep.sections.flatMap(x => x.lines.map(l => [x.short, l.text])).find(([sh, t]) => re.test(sh + ' ' + t)) || [];
+  ok(/€500 su €1\.000, mancano €500/.test(lineOf(/int\. 1 .*segnalato/)[1] || '') && /per un mese dopo la fine del contratto/.test(lineOf(/int\. 7 /)[1] || '')
+    && rep.brief.some(b => /In verifica da BOOM anche: .*int\. 7/.test(b)), 'rendiconto: la parte detta, la rata dopo la chiusura detta e nel mese in breve', { brief: rep.brief, a: lineOf(/int\. 1 .*segnalato/), g: lineOf(/int\. 7 /) });
+  // Il Palazzo
+  const ctx = PE.context({ properties: props, contracts: cons, payments: pays, users, now: new Date(NOW) });
+  const bk = PE.buildings(ctx).find(b => /prova/i.test(b.key));
+  const m = PE.model(ctx, bk.key, '2026-10', { strip: false });
+  const ac = m.issues.find(i => i.code === 'afterClose') || {};
+  const u7 = m.units.find(u => u.id === 'pG');
+  ok((ac.reportedIds || []).includes('pay_cG_2026-10') && ac.reported === 1 && u7 && u7.month.state === 'vacant' && u7.month.expected === 0,
+    'Palazzo: la rata segnalata dopo la chiusura sta in «Da sistemare» e non è un atteso dell’interno libero', { ac, u7: u7 && u7.month.expected });
+  const MP = requireMutant('js/palazzo-engine.js', "      if (!occupied && r.afterClose && r.state !== 'paid') return;\n", '');
+  const mm = MP.model(MP.context({ properties: props, contracts: cons, payments: pays, users, now: new Date(NOW) }), bk.key, '2026-10', { strip: false });
+  ok(mm.units.find(u => u.id === 'pG').month.expected === 700, 'mutazione: senza la regola l’interno libero «attende» €700 (il test lo vede)');
+  const T = await import('../../api/telegram/_palazzo.js');
+  ok(/1 con un pagamento segnalato: verifica, poi rimborsa o annulla/.test(T.palazzoSummary(m)), '/palazzo: la rata segnalata dopo la chiusura detta', T.palazzoSummary(m));
+  // Oggi
+  const O = require('../../js/oggi-engine.js');
+  const oggi = O.build({ payments: pays, contracts: cons, properties: props, users }, NOW);
+  const cG7 = oggi.decisions.find(x => x.id === 'rep_pay_cG_2026-10') || {};
+  ok(/dopo la chiusura/.test(cG7.title || '') && cG7.actions && cG7.actions[0].fn === 'openPalazzoUnit' && !cG7.actions.some(a => a.fn === 'confirmRentPayment'),
+    'Oggi: il bonifico dopo la chiusura si verifica dal Palazzo, mai «Registra incasso»', cG7);
+  const acCard = oggi.decisions.find(x => x.id === 'afterclose') || {};
+  ok(/3 rate dopo la chiusura/.test(acCard.title || '') && acCard.actions[0].fn === 'goTo' && acCard.actions[0].args[0] === 'palazzo',
+    'Oggi: rate da annullare in palazzi diversi → la card apre il Palazzo (non un interno solo)', acCard);
+  const MO = requireMutant('js/oggi-engine.js', "const pid = pids.length === 1 ? pids[0] : '';", "const pid = pids[0] || '';");
+  ok(MO.build({ payments: pays, contracts: cons, properties: props, users }, NOW).decisions.find(x => x.id === 'afterclose').actions[0].fn === 'openPalazzoUnit',
+    'mutazione: con la prima rata sola la card apre un interno e lascia l’altro palazzo senza strada (il test lo vede)');
+}
+
 // 20d. Rata rimborsata o contestata: non è incassata, né nella chiusura del
 // mese né nell'incassato YTD né nel pacchetto del commercialista.
 {

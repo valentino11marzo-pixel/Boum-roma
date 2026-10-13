@@ -100,8 +100,18 @@ export async function scan(horizon = 60) {
       continue;
     }
     const st = RENT.paymentState(p, new Date(now));
+    // Segnalato (o in corso, o da verificare) su una rata dopo la chiusura:
+    // non è un incasso da registrare — verifica, poi rimborsa o annulla.
+    if (RENT.reportedAfterClose(p, contractById[p.contractId], new Date(now))) {
+      items.push({ sev: 'med', cat: 'Rata dopo la chiusura', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · pagamento segnalato dopo la chiusura: verifica, poi rimborsa o annulla`, days: 0, ref: p.id });
+      continue;
+    }
     if (st === 'reported') {
-      items.push({ sev: 'med', cat: 'Bonifico segnalato', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento', detail: `€${(p.amount || 0).toLocaleString('it-IT')} · da verificare`, days: 0, ref: p.id });
+      // Una PARTE segnalata non è la rata saldata (reportSummary).
+      const rs = RENT.reportSummary(p);
+      items.push({ sev: 'med', cat: 'Bonifico segnalato', title: p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento',
+        detail: rs.partial ? `€${rs.sum.toLocaleString('it-IT')} segnalati su €${rs.total.toLocaleString('it-IT')} · mancano €${rs.missing.toLocaleString('it-IT')} · da verificare`
+          : `€${(p.amount || 0).toLocaleString('it-IT')} · da verificare`, days: 0, ref: p.id });
       continue;
     }
     if (st !== 'overdue') continue;

@@ -113,7 +113,10 @@ export function palazzoSummary(m) {
       (ASK[x.renews] ? ' · ' + ASK[x.renews] : !x.type ? ' · tipo di contratto non indicato: segna la chiusura o il rinnovo' : ' · segna la chiusura o il rinnovo')); });
   }
   const after = m.issues.find(i => i.code === 'afterClose');
-  if (after && after.open) lines.push('', '🧾 <b>Rate dopo la chiusura del contratto</b>: ' + after.open + (after.open === 1 ? ' rata da annullare' : ' rate da annullare') + ' (' + esc(after.ids.map(byId).filter(Boolean).map(unitName).join(', ')) + ')');
+  if (after && (after.open || after.reported)) lines.push('', '🧾 <b>Rate dopo la chiusura del contratto</b>: ' + [
+    after.open ? after.open + (after.open === 1 ? ' rata da annullare' : ' rate da annullare') : '',
+    after.reported ? after.reported + (after.reported === 1 ? ' con un pagamento segnalato: verifica, poi rimborsa o annulla' : ' con un pagamento segnalato: verifica, poi rimborsa o annulla') : '',
+  ].filter(Boolean).join(' · ') + ' (' + esc(after.ids.map(byId).filter(Boolean).map(unitName).join(', ')) + ')');
   // Rate oltre la fine di un contratto ancora attivo: DOVUTE (sono fra i
   // ritardi sopra), mai «da annullare» — si chiede del rinnovo.
   const beyond = m.issues.find(i => i.code === 'beyondEnd');
@@ -134,7 +137,7 @@ export function palazzoSummary(m) {
     lines.push('', '📄 <b>Registrazione da segnare</b> (oltre 30 giorni dalla decorrenza): ' + esc(names.join(', ')));
   }
   const SHOWN = { unregistered: 1, noticeDue: 1, expiredStillIn: 1, afterClose: 1, beyondEnd: 1, partial: 1 };
-  const other = m.issues.filter(i => !SHOWN[i.code] || (i.code === 'afterClose' && !i.open)).length;
+  const other = m.issues.filter(i => !SHOWN[i.code] || (i.code === 'afterClose' && !i.open && !i.reported)).length;
   if (other) lines.push('', '🧰 Da sistemare nel portal: ' + other + (other === 1 ? ' voce' : ' voci') + '.');
   return lines.join('\n');
 }
