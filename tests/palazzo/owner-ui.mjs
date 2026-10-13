@@ -30,7 +30,7 @@ function extract(name) {
   return next < 0 ? src.slice(start) : src.slice(start, start + 5 + next);
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'jsq', 'fmtDate',
-  'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentOpen', 'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'getMyDocuments',
+  'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentLateLive', 'paymentAfterClose', 'isPaymentOpen', 'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'getMyDocuments',
   'boomBusinessInvoices', 'closeModal', 'roleLabel', 'settingsPage', 'companySettingsCard', 'myDocumentsPage', 'docIcon', 'viewContract', 'viewContractLandlord',
   'contractIsPaper', 'contractIsPlaceholder', 'contractNotSignable', 'contractSigned', 'awaitingDigitalSignature', 'contractSignBlock', 'contractTenantName'];
 const functions = names.map(extract).join('\n');

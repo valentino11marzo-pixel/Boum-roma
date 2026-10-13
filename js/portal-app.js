@@ -977,8 +977,11 @@ Valentyne - BOOM Rome`
     // arretrati.
     function landlordLatePayments() {
         const props = new Map((S.properties || []).map(p => [p.id, p]));
+        // Il ritardo vero (mai una rata dopo la chiusura del contratto); chi
+        // carica questa funzione senza le sorelle resta sul ritardo nudo.
+        const late = typeof isPaymentLateLive === 'function' ? isPaymentLateLive : isPaymentLate;
         return getMyPayments().filter(p => {
-            if (!isPaymentLateLive(p)) return false;
+            if (!late(p)) return false;
             const gd = String((props.get(p.propertyId) || {}).gestioneDal || '');
             const month = String(p.month || p.dueDate || '').slice(0, 7);
             return !(gd && /^\d{4}-\d{2}$/.test(month) && month < gd);
@@ -3697,7 +3700,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         // Overdue payments — per la proprietaria come le conta il Palazzo: mai
         // le rate dei mesi prima della gestione BOOM, che non sono arretrati.
-        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => isPaymentLateLive(p))).forEach(p => {
+        (isLandlord() ? landlordLatePayments() : S.payments.filter(p => (typeof isPaymentLateLive === 'function' ? isPaymentLateLive : isPaymentLate)(p))).forEach(p => {
             {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
@@ -6786,7 +6789,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiDecisionPanel() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return '';
-        const { decisions, cash } = E.build(Object.assign({}, S, { payments: livePaymentsForQueues() }), new Date().toISOString());
+        const { decisions, cash } = E.build(typeof livePaymentsForQueues === 'function' ? Object.assign({}, S, { payments: livePaymentsForQueues() }) : S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
