@@ -64,7 +64,8 @@ const NAMES = ['isAdmin', 'isLandlord', 'isTenant', 'contractIsPaper', 'contract
   'goTo', 'buildNav', 'renderPage', 'checkSession', 'logout', 'fetchWhereInChunked', 'fetchByIdsChunked', 'loadDataScoped', 'loadDataFresh',
   'checkAlerts', 'viewContract', 'viewContractLandlord', 'viewMaintenance', 'openFirmaOra', 'openSignContractModal', 'generateContractPasses',
   'regenerateContractPDF', 'openShareHub', 'readContractPDF', 'settingsPage', 'sendMyPasswordLink', '_getOnboardingSteps', 'getModal', 'updateContract',
-  'inboxLogMessage', 'inboxHomieBanner', 'commercialistaLocatore', 'commercialistaProps', 'commercialistaLandlordLite', 'fiscalScadenzarioCard',
+  'inboxLogMessage', 'inboxHomieBanner', 'commercialistaLocatore', 'commercialistaBuildingContracts', 'commercialistaTaxPayments', 'commercialistaProps', 'commercialistaLandlordLite', 'fiscalScadenzarioCard',
+  'paymentAfterClose', 'commercialistaAdminFull', 'buildRiepilogoPDF', 'downloadTaxPackZip', 'pdfLatin',
   'burocraziaOutOfJourney', 'burocraziaPage', 'renderContractRow', 'myPaymentsPage', 'myDocumentsPage', 'boomEmailDenied', 'sendBoomEmail',
   'innestoPools', 'innestoLinkFor', 'innestoApply', 'innestoSkippedContractCard',
   'palazzoLinkOwner', 'palazzoImport', 'palazzoSaveLook', 'palazzoLogSent', 'palazzoSetRendiconto', 'palazzoSaveRataCard', 'palazzoUploadPaper',
@@ -835,7 +836,7 @@ function fixture() {
     });
   await check('33 · locatrice società: niente stima IRPEF/cedolare né «Cedolare vs IRPEF» a nome della persona, lo dice', () => {
     eqj(vm.runInNewContext(extract('commercialistaLocatore') + '\n;[commercialistaLocatore([{ landlordName: "Societa Prova S.R.L." }], { name: "Chiara Demo" }), commercialistaLocatore([{ landlordName: "Chiara Demo" }], { name: "Chiara Demo" }), commercialistaLocatore([{ landlordName: "Mario Bianchi" }], { name: "Chiara Demo" })]'),
-      [{ name: 'Societa Prova S.R.L.', other: true, company: true }, { name: 'Chiara Demo', other: false, company: false }, { name: 'Mario Bianchi', other: true, company: false }]);
+      [{ name: 'Societa Prova S.R.L.', other: true, company: true }, { name: 'Chiara Demo', other: false, company: false }, { name: 'Mario Bianchi', other: true, company: false, soft: true }]);
     const F = fixture();
     F.payments.forEach(p => { p.status = 'paid'; p.paidDate = '2026-0' + p.month.slice(6) + '-04'; });
     const o = track(makeCtx({ role: 'landlord', profile: OWNER, state: F, defs: { _cmState: { propertyId: 'p7', year: 2026 } } }));
@@ -843,6 +844,16 @@ function fixture() {
     const html = o.run('commercialistaLandlordLite(false)');
     assert.ok(html.includes('Locatore: <strong>Societa Prova S.R.L.</strong>') && html.includes('della società'), html.slice(0, 300));
     assert.ok(!/IRPEF stimato|cedolare stimata|Cedolare vs IRPEF/.test(html));
+    // Gli adempimenti sono della SRL: alla persona l'archivio si offre, non si
+    // impone (mai «N documenti da caricare», mai il rosso «0% completo»).
+    assert.ok(!/documenti da caricare|Carica i documenti mancanti/.test(html), 'la checklist della società presentata come dovere suo');
+    assert.ok(html.includes('Archivio documenti per il commercialista della società') && html.includes('Carica una copia') && html.includes('Facoltativo'));
+    // Un segnaposto dello stesso palazzo, senza landlordName: niente
+    // scadenzario personale accanto agli interni della società.
+    const ph = track(makeCtx({ role: 'landlord', profile: OWNER, state: fixture(), defs: { _cmState: { propertyId: 'p11', year: 2026 } } }));
+    const phHtml = ph.run('commercialistaLandlordLite(false)');
+    assert.ok(!phHtml.includes('Scadenzario fiscale') && phHtml.includes('della società'), 'il segnaposto riporta la locatrice in prima persona');
+    assert.ok(!/documenti da caricare/.test(phHtml));
     const same = fixture();
     same.contracts[0].landlordName = 'Chiara Demo';
     // Rate con gli oneri dentro (amount = canone + oneri): il reddito stimato
@@ -853,6 +864,75 @@ function fixture() {
     const mine = s.run('commercialistaLandlordLite(false)');
     assert.ok(mine.includes('Cedolare vs IRPEF'), 'se il locatore è lei la stima resta');
     assert.ok(mine.includes("Quest'anno hai incassato <strong>" + TP.fmtEuro(4500) + '</strong>') && !mine.includes(TP.fmtEuro(4860)), 'gli oneri non sono reddito');
+  });
+  // Chi è il locatore, quando lo dice solo il nome: un diminutivo, un titolo,
+  // un profilo senza nome non tolgono a una locatrice in prima persona le sue
+  // scadenze; il codice fiscale, quando c'è, decide lui.
+  const LOC = (contracts, profile) => JSON.parse(JSON.stringify(vm.runInNewContext(extract('commercialistaLocatore') + '\n;commercialistaLocatore(__c, __p)', { __c: contracts, __p: profile })));
+  await check('33b · locatore: diminutivi, titoli, particelle e profilo senza nome non sono «un altro»; il codice fiscale decide', () => {
+    assert.equal(LOC([{ landlordName: 'Giovanni Verdi' }], { name: 'Gio Verdi' }).other, false);
+    assert.equal(LOC([{ landlordName: 'Giovanna Verdi' }], { name: 'Sig.ra Verdi' }).other, false);
+    assert.equal(LOC([{ landlordName: 'Anna Rossi' }], { name: '' }).other, false, 'profilo senza nome: indeterminato, non «altro»');
+    assert.equal(LOC([{ landlordName: 'Anna Maria Rossi' }], { name: 'Anna Rossi' }).other, false);
+    assert.equal(LOC([{ landlordName: 'Paolo Di Stefano' }], { name: 'Dott. Paolo Di Stefano' }).other, false);
+    eqj(LOC([{ landlordName: 'Giovanni Verdi', landlordCF: 'VRDGNN70A01H501X' }], { name: 'Mario Altro', codiceFiscale: 'VRDGNN70A01H501X' }), { name: 'Mario Altro', other: false, company: false }, 'CF uguale, nome diverso: è lei');
+    const diff = LOC([{ landlordName: 'Chiara Demo', landlordCF: 'DMOCHR80A41H501Y' }], { name: 'Chiara Demo', codiceFiscale: 'VRDGNN70A01H501X' });
+    assert.ok(diff.other && !diff.soft, 'CF diverso con lo stesso nome: è un altro, provato');
+    const soft = LOC([{ landlordName: 'Mario Bianchi' }], { name: 'Chiara Demo' });
+    assert.ok(soft.other && soft.soft, 'solo il nome non torna: avviso, non verdetto');
+    // La pagina: col solo nome diverso la stima e lo scadenzario restano, con la nota.
+    const G = fixture();
+    G.contracts[0].landlordName = 'Mario Bianchi';
+    G.payments.forEach(p => { p.status = 'paid'; p.paidDate = '2026-0' + p.month.slice(6) + '-04'; });
+    const g = track(makeCtx({ role: 'landlord', profile: OWNER, state: G, defs: { _cmState: { propertyId: 'p7', year: 2026 } } }));
+    g.window._cmExpanded = true;
+    const h = g.run('commercialistaLandlordLite(false)');
+    assert.ok(h.includes('Cedolare vs IRPEF') && /Quest'anno hai incassato/.test(h), 'la stima resta');
+    assert.ok(h.includes('Sul contratto il locatore è <strong style="color:var(--text)">Mario Bianchi</strong>'), 'la nota non assertiva');
+  });
+  await mutant('il locatore deciso dal solo nome (Gio ≠ Giovanni nasconde lo scadenzario)', 'const same = shortT.length > 0 && shortT.every(w => longT.some(v => tokMatch(w, v)));',
+    'const same = shortT.length > 0 && shortT.every(w => longT.includes(w));', code => {
+      const r = JSON.parse(JSON.stringify(vm.runInNewContext(extract('commercialistaLocatore', code) + '\n;commercialistaLocatore(__c, __p)', { __c: [{ landlordName: 'Giovanni Verdi' }], __p: { name: 'Gio Verdi' } })));
+      assert.equal(r.other, false);
+    }, SRC);
+  // Il pacchetto per il commercialista e la pagina dell'operatore: stessi
+  // numeri e stesso locatore della pagina della proprietaria.
+  function fakePdfZip() {
+    const texts = [], files = [];
+    function FakePDF() {
+      return { setFont() {}, setFontSize() {}, setTextColor() {}, setDrawColor() {}, setLineWidth() {}, line() {}, addPage() {}, setPage() {},
+        text(s) { texts.push(Array.isArray(s) ? s.join(' ') : String(s)); }, internal: { getNumberOfPages: () => 1 }, output: () => new Blob(['pdf']) };
+    }
+    function FakeZip() {
+      const mk = p => ({ folder: n => mk(p + n + '/'), file: (n, b) => { files.push(p + n); } });
+      return Object.assign(mk(''), { generateAsync: async () => new Blob(['zip']) });
+    }
+    return { texts, files, FakePDF, FakeZip };
+  }
+  const SRL_FIX = () => {
+    const F = fixture();
+    F.payments.forEach(p => { p.status = 'paid'; p.paidDate = '2026-0' + p.month.slice(6) + '-04'; p.rentAmount = 1500; p.oneriAmount = 120; p.amount = 1620; });
+    return F;
+  };
+  await check('33c · pacchetto fiscale (ZIP): locatore la SRL, canoni senza oneri, nessuna stima IRPEF né «Quadro RB»', async () => {
+    const z = fakePdfZip();
+    const o = track(makeCtx({ role: 'landlord', profile: OWNER, state: SRL_FIX(), defs: { JSZip: z.FakeZip } }));
+    o.window.JSZip = z.FakeZip; o.window.jspdf = { jsPDF: z.FakePDF };
+    await o.run("downloadTaxPackZip('p7', 2026)");
+    const all = z.texts.join(' | ');
+    assert.ok(z.texts.includes('Societa Prova S.R.L.'), 'il LOCATORE stampato è la società: ' + all.slice(0, 400));
+    assert.ok(!z.texts.includes('Chiara Demo'), 'mai la persona al posto del locatore');
+    assert.ok(z.texts.includes('Ada Demo'), 'il conduttore dal contratto, anche senza profilo');
+    assert.ok(/Canoni incassati: \| € 4\.?500/.test(all) && !/4\.?860/.test(all), 'canoni senza oneri: ' + all);
+    assert.ok(!/Imponibile IRPEF|Quadro RB|Cedolare stimata/.test(all), 'nessuna stima a nome di nessuno');
+    assert.ok(/della società/.test(all));
+  });
+  await check('33d · pagina Commercialista dell’operatore: niente «Imponibile (95%)» né 4.860 su un palazzo della SRL', () => {
+    const a = track(makeCtx({ role: 'admin', state: SRL_FIX(), defs: { _cmState: { propertyId: 'p7', year: 2026 } } }));
+    const h = a.run('commercialistaAdminFull()');
+    assert.ok(h.includes(TP.fmtEuro(4500)) && !h.includes(TP.fmtEuro(4860)), 'gli oneri non sono canoni');
+    assert.ok(!/Imponibile \(95%\)|Cedolare stimata|Cedolare vs IRPEF/.test(h));
+    assert.ok(h.includes('Societa Prova S.R.L.') && h.includes('della società'));
   });
   await check('58 · una nota interna non porta né il contatto né la proprietaria; un messaggio vero sì', async () => {
     const a = track(makeCtx({ role: 'admin', state: fixture() }));

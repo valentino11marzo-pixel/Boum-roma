@@ -14161,21 +14161,69 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // società (la presa in carico scrive landlordName = la SRL) mentre
     // l'accesso è della persona che lo segue: allora il reddito NON è suo, e
     // una stima IRPEF o cedolare a suo nome sarebbe un numero falso dato al
-    // commercialista. La stima resta solo quando il locatore è lei (o il
-    // contratto non dice altro).
+    // commercialista. Le prove, in ordine (13/10/2026):
+    //  1. il codice fiscale, quando c'è da entrambe le parti: decide lui;
+    //  2. la società (landlordKind 'giuridica', o S.r.l./S.p.A./… nel nome);
+    //  3. il nome, senza titoli (Sig.ra, Dott.…), con le particelle unite al
+    //     cognome (Di Stefano = distefano) e i diminutivi come prefisso di
+    //     almeno 3 lettere (Gio = Giovanni). Un profilo senza nome non decide.
+    // Quando il «no» viene SOLO dal nome (soft: true) non si toglie niente —
+    // stima e scadenzario restano, con una nota: un nome scritto in due modi
+    // non può nascondere a una locatrice le sue scadenze.
     function commercialistaLocatore(contracts, profile) {
         const norm = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-        const me = norm(profile && profile.name), meTok = me.split(' ').filter(w => w.length > 1);
+        const TITLES = new Set(['sig', 'sigr', 'sigra', 'sign', 'signor', 'signore', 'signora', 'sigg', 'dott', 'dottssa', 'dottor', 'dottore', 'dottoressa', 'dr', 'avv', 'ing', 'arch', 'geom', 'prof', 'profssa', 'rag', 'ra', 'ssa']);
+        const PARTICLES = new Set(['di', 'de', 'del', 'della', 'dello', 'dei', 'degli', 'delle', 'da', 'dal', 'dalla', 'lo', 'la', 'le', 'li', 'van', 'von', 'der', 'mac', 'mc', 'd']);
+        const tokens = name => {
+            const raw = norm(String(name || '').replace(/\b(sig|dott|prof)\s*\.\s*(ra|ssa)\b/gi, '$1$2')).split(' ').filter(w => w && !TITLES.has(w));
+            const out = [];
+            for (let i = 0; i < raw.length; i++) {
+                if (PARTICLES.has(raw[i]) && i + 1 < raw.length) { out.push(raw[i] + raw[i + 1]); i++; } else out.push(raw[i]);
+            }
+            return out.filter(w => w.length > 1);
+        };
+        const tokMatch = (a, b) => a === b || (Math.min(a.length, b.length) >= 3 && (a.startsWith(b) || b.startsWith(a)));
+        const cfOf = v => String(v || '').replace(/\s+/g, '').toUpperCase();
+        const myCf = cfOf(profile && (profile.codiceFiscale || profile.cf || profile.taxCode));
+        const meTok = tokens(profile && profile.name);
         const COMPANY_RE = /\b(s\s*r\s*l\s*s?|s\s*a\s*s|s\s*p\s*a|s\s*n\s*c|s\s*a\s*p\s*a|soc|societa|immobiliare|holding|srl|spa|sas|snc|ltd|gmbh|sarl)\b/;
+        let soft = null;
         for (const c of contracts || []) {
             const raw = String((c && c.landlordName) || '').trim();
+            const theirCf = cfOf(c && (c.landlordCF || c.landlordCf || c.landlordCodiceFiscale));
+            if (myCf && theirCf) {
+                if (myCf === theirCf) continue;
+                return { name: raw || theirCf, other: true, company: theirCf.length === 11 || !!(c && c.landlordKind === 'giuridica') || (!!raw && COMPANY_RE.test(norm(raw))) };
+            }
             const company = !!(c && c.landlordKind === 'giuridica') || (raw && COMPANY_RE.test(norm(raw)));
-            if (!raw && !company) continue;
-            const n = norm(raw), nTok = n.split(' ').filter(w => w.length > 1);
-            const same = !company && raw && meTok.length && (meTok.every(w => nTok.includes(w)) || nTok.every(w => meTok.includes(w)));
-            if (!same) return { name: raw, other: true, company };
+            if (company) return { name: raw, other: true, company: true };
+            if (!raw || !meTok.length) continue;
+            const nTok = tokens(raw);
+            const [shortT, longT] = meTok.length <= nTok.length ? [meTok, nTok] : [nTok, meTok];
+            const same = shortT.length > 0 && shortT.every(w => longT.some(v => tokMatch(w, v)));
+            if (!same && !soft) soft = { name: raw, other: true, company: false, soft: true };
         }
-        return { name: (profile && profile.name) || '', other: false, company: false };
+        return soft || { name: (profile && profile.name) || '', other: false, company: false };
+    }
+    // I contratti che dicono chi è il locatore di un interno: quelli dello
+    // STESSO palazzo e della stessa proprietaria (un segnaposto senza
+    // landlordName non deve far tornare lo scadenzario personale accanto agli
+    // interni della società).
+    function commercialistaBuildingContracts(prop) {
+        const P = window.BOOM_PALAZZO;
+        const keyOf = p => (P && typeof P.buildingKeyOf === 'function' ? P.buildingKeyOf(p) : '') || '';
+        const k = keyOf(prop);
+        const ids = new Set([prop.id]);
+        if (k) (S.properties || []).forEach(p => { if (p && p.id && p.ownerId === prop.ownerId && keyOf(p) === k) ids.add(p.id); });
+        const own = (S.contracts || []).filter(c => c.propertyId === prop.id);
+        return own.concat((S.contracts || []).filter(c => c.propertyId !== prop.id && ids.has(c.propertyId)));
+    }
+    // Il reddito è il CANONE: gli oneri accessori pagati insieme (rentAmount
+    // + oneriAmount = amount) sono rimborsi spese. Una regola sola per la
+    // pagina della proprietaria, quella dell'operatore e il pacchetto ZIP.
+    function commercialistaTaxPayments(payments) {
+        return (payments || []).map(x => (x && x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
+            ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
     }
 
     // ─── LANDLORD LITE — one property, one question, one action ─────────────
@@ -14203,13 +14251,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payments = (S.payments || []).filter(x => x.propertyId === p.id || cids.includes(x.contractId));
             const documents = (S.documents || []).filter(d => d.propertyId === p.id);
             const checklist = TP.buildChecklist({ contract, property: p, documents, payments, fiscalYear: year });
-            // Il reddito è il CANONE: gli oneri accessori pagati insieme
-            // (rentAmount + oneriAmount = amount) sono rimborsi spese, non si
-            // stimano come imponibile.
-            const taxPayments = payments.map(x => (x.rentAmount != null && x.rentAmount !== '' && Number.isFinite(Number(x.rentAmount)))
-                ? Object.assign({}, x, { amount: Number(x.rentAmount) }) : x);
-            const totals = TP.computeTotals({ contract, payments: taxPayments, fiscalYear: year });
-            return { p, contract, payments, documents, checklist, totals };
+            const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+            const viewerP = isPreview ? ((S.users || []).find(u => u.id === p.ownerId) || {}) : S.profile;
+            const loc = commercialistaLocatore(commercialistaBuildingContracts(p), viewerP);
+            return { p, contract, payments, documents, checklist, totals, hardOther: loc.other && !loc.soft };
         });
 
         const cur = portfolio.find(x => x.p.id === _cmState.propertyId) || portfolio[0];
@@ -14217,18 +14262,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Il locatore è un ALTRO soggetto (es. la società del palazzo)? Allora
         // niente stima d'imposta né scadenzario personale a nome suo.
         const viewer = isPreview ? ((S.users || []).find(u => u.id === prop.ownerId) || {}) : S.profile;
-        const locatore = commercialistaLocatore((S.contracts || []).filter(c => c.propertyId === prop.id), viewer);
+        const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), viewer);
+        // hard: il locatore è un ALTRO soggetto provato (società, codice
+        // fiscale diverso). soft: solo il nome non torna — si avverte, non si
+        // toglie niente.
+        const hardOther = locatore.other && !locatore.soft;
+        const whose = locatore.company ? 'della società' : 'del locatore';
 
         // Scadenzario — computed obligations for THIS property (engine).
         const FX = window.BOOM_FISCAL;
-        const obligations = FX && !locatore.other ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
-        const scadCard = locatore.other
-            ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${locatore.company ? 'della società' : 'del locatore'}: le segue il suo commercialista.</div></div>`
-            : FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '';
+        const obligations = FX && !hardOther ? FX.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }) : [];
+        const softNote = locatore.soft ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Sul contratto il locatore è <strong style="color:var(--text)">${esc(locatore.name)}</strong>: se non sei tu, le imposte e le scadenze qui sotto sono sue.</div></div>` : '';
+        const scadCard = hardOther
+            ? `<div class="card" style="margin-top:16px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${whose}: le segue il suo commercialista.</div></div>`
+            : softNote + (FX ? fiscalScadenzarioCard(obligations, { compact: true, showSaveAction: true, year, party: 'landlord' }) : '');
 
         // Status mapping → calm, human.
         let statusKey, icon, headline, sub, accent;
-        if (checklist.ready) {
+        if (hardOther) {
+            // Gli adempimenti (RLI, imposta di registro, IMU) sono del locatore:
+            // alla persona che segue il palazzo l'archivio si offre, non si
+            // impone — mai «9 documenti da caricare» come se fossero suoi.
+            statusKey = 'archive'; icon = '🗂️'; accent = 'var(--text-muted)';
+            headline = 'Archivio documenti per il commercialista ' + whose;
+            sub = 'Facoltativo: se hai una copia, caricala qui. Gli adempimenti (registrazione RLI, imposta di registro, IMU) sono ' + whose + ' — ' + locatore.name + '.';
+        } else if (checklist.ready) {
             statusKey = 'ready'; icon = '✅'; accent = 'var(--green)';
             headline = 'Sei pronto';
             sub = 'Hai tutti i documenti che servono al commercialista per ' + (prop.name || 'questo immobile') + '.';
@@ -14248,8 +14306,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let yy = nowY; yy >= nowY - 5; yy--) yearOpts.push(`<option value="${yy}" ${yy === year ? 'selected' : ''}>${yy}</option>`);
 
         // Plain-language money line (factual, no formula).
-        const moneyLine = locatore.other
-            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${locatore.company ? 'della società' : 'del locatore'}.`
+        const moneyLine = hardOther
+            ? `Locatore: <strong>${esc(locatore.name)}</strong>${totals.canoniIncassati ? ` · canoni registrati nel ${year}: <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong> (senza gli oneri accessori, dove la rata li separa)` : ''}. Nessuna stima d'imposta qui: il reddito è ${whose}.`
             : totals.canoniIncassati
             ? `Quest'anno hai incassato <strong>${TP.fmtEuro(totals.canoniIncassati)}</strong>` +
               (totals.regime !== 'ordinario'
@@ -14262,13 +14320,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:24px">
                 ${portfolio.map(x => {
                     const active = x.p.id === _cmState.propertyId;
-                    const dot = x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
+                    const dot = x.hardOther ? 'var(--text-muted)' : x.checklist.ready ? 'var(--green)' : x.checklist.completeness >= 70 ? 'var(--gold)' : 'var(--red)';
                     return `<div onclick="_cmState.propertyId='${x.p.id}';renderPage()" style="flex:0 0 auto;cursor:pointer;padding:14px 18px;border-radius:14px;border:1px solid ${active ? 'var(--gold)' : 'var(--border)'};background:${active ? 'var(--gold-light)' : 'var(--bg-card)'};min-width:150px;transition:all .2s">
                         <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
                             <span style="width:9px;height:9px;border-radius:50%;background:${dot};flex-shrink:0"></span>
                             <span style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.p.name || x.p.address || 'Immobile')}</span>
                         </div>
-                        <div style="font-size:11px;color:var(--text-muted)">${x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
+                        <div style="font-size:11px;color:var(--text-muted)">${x.hardOther ? 'Archivio' : x.checklist.ready ? 'Pronto' : x.checklist.completeness + '% completo'}</div>
                     </div>`;
                 }).join('')}
             </div>` : '';
@@ -14277,7 +14335,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const primaryAction = checklist.ready
             ? `<button class="btn btn-lg" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn" style="background:var(--green);color:#000;font-size:15px;padding:16px 32px">📦 Scarica il pacchetto fiscale</button>
                <button class="btn btn-lg btn-secondary" onclick="openCommercialistaShare('${prop.id}', ${year})" style="font-size:15px;padding:16px 28px">🔗 Invia al commercialista</button>`
-            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">📁 Carica i documenti mancanti</button>`;
+            : `<button class="btn btn-lg" onclick="openDocUploadForProperty('${prop.id}', ${year})" style="font-size:15px;padding:16px 32px">${hardOther ? '📁 Carica una copia' : '📁 Carica i documenti mancanti'}</button>`;
 
         // Missing list (calm, actionable — each opens upload prefilled)
         const missingBlock = checklist.missing.length ? `
@@ -14286,7 +14344,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div onclick="openDocUploadForProperty('${prop.id}', ${year}, '${m.key}')" style="display:flex;align-items:center;gap:12px;padding:14px 16px;border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
                         <span style="font-size:20px">＋</span>
                         <div style="flex:1"><div style="font-weight:500">${esc(m.label)}</div></div>
-                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">Carica →</span>
+                        <span style="color:var(--gold);font-size:13px;white-space:nowrap">${hardOther ? 'Carica una copia →' : 'Carica →'}</span>
                     </div>`).join('')}
             </div>` : '';
 
@@ -14322,7 +14380,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card" style="margin-top:16px">
                 <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                     <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
-                    ${locatore.other ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
+                    ${hardOther ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
@@ -14429,9 +14487,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const documents = (S.documents || []).filter(d => d.propertyId === prop.id);
 
         const checklist = TP.buildChecklist({ contract, property: prop, documents, payments, fiscalYear: year });
-        const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+        // Il canone senza gli oneri, e il locatore vero: la stessa regola
+        // della pagina della proprietaria (mai una stima IRPEF a nome di chi
+        // non è il locatore, mai 4.860 dove la proprietaria legge 4.500).
+        const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+        const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), (S.users || []).find(u => u.id === prop.ownerId) || {});
+        const hardOther = locatore.other && !locatore.soft;
+        const whose = locatore.company ? 'della società' : 'del locatore';
         const FX_admin = window.BOOM_FISCAL;
-        const adminScad = FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
+        const adminScad = hardOther
+            ? `<div class="card" style="margin-bottom:20px"><div class="card-body" style="font-size:13px;color:var(--text-secondary);line-height:1.6">Locatore: <strong style="color:var(--text)">${esc(locatore.name)}</strong>. Le scadenze fiscali (IMU, imposte sui canoni) sono ${whose}: le segue il suo commercialista.</div></div>`
+            : FX_admin ? fiscalScadenzarioCard(FX_admin.landlordObligations({ properties: [prop], contracts: (S.contracts||[]).filter(c=>c.propertyId===prop.id), fiscalYear: year }), { compact: false }) : '';
 
         const yearOpts = [];
         const nowY = new Date().getFullYear();
@@ -14467,8 +14533,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card"><div class="stat-label">Canoni incassati ${year}</div><div class="stat-value">${TP.fmtEuro(totals.canoniIncassati)}</div><div class="stat-description">${totals.monthsPaid}/${totals.monthsExpected} mesi · ${TP.fmtEuro(totals.outstanding)} da incassare</div></div>
-                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${esc(regimeLabel)}</div></div>
-                <div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>
+                <div class="stat-card"><div class="stat-label">Regime</div><div class="stat-value" style="font-size:18px">${hardOther ? 'del locatore' : esc(regimeLabel)}</div></div>
+                ${hardOther
+                    ? `<div class="stat-card"><div class="stat-label">Locatore</div><div class="stat-value" style="font-size:16px">${esc(locatore.name)}</div><div class="stat-description">nessuna stima d'imposta: il reddito è ${whose}</div></div>`
+                    : `<div class="stat-card"><div class="stat-label">${totals.regime === 'ordinario' ? 'Imponibile (95%)' : 'Cedolare stimata'}</div><div class="stat-value gold">${TP.fmtEuro(totals.regime === 'ordinario' ? totals.irpefImponibile : totals.cedolareImposta)}</div><div class="stat-description">anteprima — verifica col commercialista</div></div>`}
                 <div class="stat-card ${ready ? '' : 'highlight'}"><div class="stat-label">Completezza</div><div class="stat-value ${ready ? 'green' : 'gold'}">${checklist.completeness}%</div><div class="stat-description">${checklist.presentCount}/${checklist.requiredCount} documenti</div></div>
             </div>
 
@@ -14478,7 +14546,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div style="font-weight:600">${ready ? '✅ Pronto per il commercialista' : '⚠️ Mancano ' + checklist.missing.length + ' documenti'}</div>
                         <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${esc(prop.name || prop.address || '')} · Anno ${year}</div>
                     </div>
-                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    ${hardOther ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                     <button class="btn btn-secondary btn-sm" onclick="downloadTaxPackZip('${prop.id}', ${year})" id="taxPackBtn">📦 Scarica Tax Pack (zip)</button>
                     <button class="btn" onclick="openCommercialistaShare('${prop.id}', ${year})">🔗 Genera link commercialista</button>
@@ -14796,6 +14864,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const jsPDF = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
         if (!jsPDF) throw new Error('jsPDF non caricato');
         const { property, contract, tenant, landlord, totals, checklist, year } = opts;
+        // Il locatore VERO: se è un altro soggetto (la società del palazzo) il
+        // riepilogo stampa lui, non chi segue il palazzo, e non fa stime
+        // d'imposta a nome di nessuno.
+        const loc = opts.locatore || null;
+        const hardOther = !!(loc && loc.other && !loc.soft);
+        const pdfTxt = v => (typeof pdfLatin === 'function' ? pdfLatin(v) : String(v == null ? '' : v));
         const pdf = new jsPDF({ unit: 'mm', format: 'a4' });
         const today = new Date().toLocaleDateString('it-IT');
 
@@ -14827,12 +14901,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         pdf.setFontSize(9); pdf.setTextColor(120);
         pdf.text('LOCATORE', 20, y); pdf.text('CONDUTTORE', 110, y);
         pdf.setTextColor(0); pdf.setFontSize(11);
-        pdf.text(landlord.name || '—', 20, y + 6);
-        pdf.text(tenant.name || '—', 110, y + 6);
+        pdf.text(pdfTxt(hardOther ? loc.name : (landlord.name || contract.landlordName)) || '—', 20, y + 6);
+        pdf.text(pdfTxt(tenant.name || contract.tenantName) || '—', 110, y + 6);
         pdf.setFontSize(9); pdf.setTextColor(80);
-        if (landlord.codiceFiscale || landlord.cf) pdf.text('CF: ' + (landlord.codiceFiscale || landlord.cf), 20, y + 11);
-        if (tenant.cf || tenant.codiceFiscale) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale), 110, y + 11);
-        if (landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
+        const llCf = hardOther ? (contract.landlordCF || contract.landlordCf || '') : (landlord.codiceFiscale || landlord.cf || '');
+        if (llCf) pdf.text('CF: ' + llCf, 20, y + 11);
+        if (tenant.cf || tenant.codiceFiscale || contract.tenantCF) pdf.text('CF: ' + (tenant.cf || tenant.codiceFiscale || contract.tenantCF), 110, y + 11);
+        if (!hardOther && landlord.partitaIva) pdf.text('P.IVA: ' + landlord.partitaIva, 20, y + 16);
         pdf.setTextColor(0);
         y += 24;
 
@@ -14849,7 +14924,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ['Scadenza', contract.endDate ? new Date(contract.endDate).toLocaleDateString('it-IT') : '—'],
             ['Canone mensile', '€ ' + (Number(contract.rent) || 0).toLocaleString('it-IT')],
             ['Deposito', '€ ' + (Number(contract.deposit) || 0).toLocaleString('it-IT')],
-            ['Regime fiscale', regimeLabel],
+            ['Regime fiscale', hardOther ? 'a cura del locatore' : regimeLabel],
         ];
         rows1.forEach(r => {
             y += 5;
@@ -14860,7 +14935,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Totals block (Quadro RB)
         pdf.setDrawColor(212, 175, 55); pdf.setLineWidth(0.3); pdf.line(20, y, 190, y); y += 6;
-        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + ' (anteprima Quadro RB)', 20, y); y += 6;
+        pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('TOTALI ANNO ' + year + (hardOther ? '' : ' (anteprima Quadro RB)'), 20, y); y += 6;
         pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10);
         const rows2 = [
             ['Mesi attivi', String(totals.monthsActive)],
@@ -14869,7 +14944,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ['Canoni attesi', '€ ' + (totals.canoniAttesi || 0).toLocaleString('it-IT')],
             ['Da incassare', '€ ' + (totals.outstanding || 0).toLocaleString('it-IT')],
         ];
-        if (totals.regime === 'ordinario') {
+        if (hardOther) {
+            // nessuna stima: il reddito è del locatore (società o altra persona)
+        } else if (totals.regime === 'ordinario') {
             rows2.push(['Imponibile IRPEF (95%)', '€ ' + (totals.irpefImponibile || 0).toLocaleString('it-IT')]);
         } else {
             rows2.push(['Aliquota cedolare', (totals.cedolareRate * 100).toFixed(0) + ' %']);
@@ -14882,7 +14959,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         y += 8;
         pdf.setFontSize(8); pdf.setTextColor(150);
-        pdf.text('Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
+        pdf.text(hardOther
+            ? pdfTxt('Canoni senza gli oneri accessori. Il reddito è ' + (loc.company ? 'della società' : 'del locatore') + ' (' + loc.name + '): nessuna stima d\'imposta qui.')
+            : 'Valori indicativi calcolati da BOOM — la dichiarazione resta a cura del commercialista.', 20, y);
         pdf.setTextColor(0); y += 8;
 
         // Checklist summary
@@ -14943,14 +15022,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const landlord = (S.users || []).find(u => u.id === prop.ownerId) || (isLandlord() ? S.profile : {});
 
             const checklist = TP.buildChecklist({ contract, property: prop, documents: allDocs, payments, fiscalYear: year });
-            const totals = TP.computeTotals({ contract, payments, fiscalYear: year });
+            // Lo stesso canone (senza oneri) e lo stesso locatore della pagina:
+            // il riepilogo per il commercialista non può dire 4.860 e «IRPEF a
+            // nome della persona» dove la pagina dice 4.500 e «della società».
+            const totals = TP.computeTotals({ contract, payments: commercialistaTaxPayments(payments), fiscalYear: year });
+            const locatore = commercialistaLocatore(commercialistaBuildingContracts(prop), (landlord && landlord.name) ? landlord : ((S.users || []).find(u => u.id === prop.ownerId) || {}));
             const manifest = TP.buildManifest({ contract, property: prop, documents: allDocs, fiscalYear: year, checklist });
 
             const zip = new JSZip();
             const root = zip.folder(manifest.root);
 
             // 1) Riepilogo PDF — first file the accountant opens
-            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year });
+            const summaryPDF = buildRiepilogoPDF({ property: prop, contract, tenant, landlord, totals, checklist, year, locatore });
             const summaryBlob = summaryPDF.output('blob');
             root.file(manifest.summaryFile, summaryBlob);
 
