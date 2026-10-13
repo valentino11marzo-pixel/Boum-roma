@@ -423,12 +423,13 @@ const loaded = loadedFrom(first);
     'Piazzale Prenestino 42 attico', 'Piazzale Prenestino 42 Pigneto', 'Piazzale Prenestino 42 stanza 2', 'Piazzale Prenestino 42 camera 2',
     'Piazzale Prenestino 42 appartamento 3', 'Piazzale Prenestino 42 app. 3', 'Piazzale Prenestino 42 palazzina B', 'Piazzale Prenestino 42 lotto 2',
     'Piazzale Prenestino 42 seminterrato', 'Piazzale Prenestino 42 piano rialzato', 'Piazzale Prenestino 42 (Pigneto)', 'Piazzale Prenestino 42 Pigneto, Roma 00176',
-    'P.le Prenestino 42 int 7', 'Piazzale Prenestino 42 - Roma'];
+    'P.le Prenestino 42 int 7', 'Piazzale Prenestino 42 - Roma', 'Piazzale Prenestino 42 Pigneto 2'];
   eq('quartiere, piano, stanza, appartamento dopo il civico: tutti «piazzale prenestino 42»', same42.filter(a => P.streetKey(a) !== 'piazzale prenestino 42'), []);
   eq('…mentre i numeri nel nome della via restano nel nome', ['Via 4 Fontane 20', 'Via 4 Novembre 96', 'Via 4 Novembre 12, Roma', 'Viale 21 Aprile 12', 'Largo 16 Ottobre 1943 5',
-    'Piazza 2 Giugno 4', 'Via XX Settembre 98', 'Corso Vittorio Emanuele II 18', 'Piazzale Esempio 42 bis', 'Piazzale Esempio 42-44', 'Via della Scala 5, int 2'].map(P.streetKey),
+    'Piazza 2 Giugno 4', 'Via XX Settembre 98', 'Corso Vittorio Emanuele II 18', 'Piazzale Esempio 42 bis', 'Piazzale Esempio 42-44', 'Via della Scala 5, int 2',
+    'Viale dei 4 Venti 30', 'Via 4 Fontane'].map(P.streetKey),
   ['via 4 fontane 20', 'via 4 novembre 96', 'via 4 novembre 12', 'viale 21 aprile 12', 'largo 16 ottobre 1943 5', 'piazza 2 giugno 4', 'via 20 settembre 98',
-    'corso vittorio emanuele ii 18', 'piazzale esempio 42bis', 'piazzale esempio 42', 'via della scala 5']);
+    'corso vittorio emanuele ii 18', 'piazzale esempio 42bis', 'piazzale esempio 42', 'via della scala 5', 'viale dei 4 venti 30', 'via 4 fontane']);
   // Tre interni allo stesso civico scritti in tre modi: un palazzo, nessun doppione.
   const props = [{ id: 'u3', address: 'Piazzale Prenestino 42 terzo piano', interno: '3', floor: '3', ownerId: 'owner-x' },
     { id: 'u5', address: 'Piazzale Prenestino 42 stanza 2', interno: '5', ownerId: 'owner-x' }, { id: 'u7', address: 'Piazzale Prenestino 42', interno: '7', ownerId: 'owner-x' }];
@@ -437,10 +438,17 @@ const loaded = loadedFrom(first);
   const t3 = 'Interno;Inquilino;Canone;Dal;Al\n3;Ada Prova;900;01/10/2026;30/09/2027\n5;Bea Prova;900;01/10/2026;30/09/2027\n7;Cia Prova;900;01/10/2026;30/09/2027';
   const run3 = E => E.planImport(E.parseRentRoll(t3).rows, E.context({ now: NOW, properties: props }), { address: 'Piazzale Prenestino 42, Roma', ownerId: 'owner-x', gestioneDal: '2026-10' });
   eq('la presa in carico aggancia i tre interni in archivio (zero nuovi)', run3(P).properties.map(p => [p.id, p.exists]), [['u3', true], ['u5', true], ['u7', true]]);
-  mutation('un quartiere dopo il civico rimanda il numero nella via', 'if (!rest.some(isNum)) break;', '',
-    E => E.streetKey('Piazzale Prenestino 42 Pigneto') === 'piazzale prenestino 42' && E.streetKey('Piazzale Prenestino 42 terzo piano') === 'piazzale prenestino 42');
-  mutation('«42 stanza 2»: il dettaglio non ferma il civico', 'if (CITY.indexOf(w) >= 0 || isNum(w) || DETAIL.indexOf(w) >= 0) break;', 'if (CITY.indexOf(w) >= 0 || isNum(w)) break;',
-    E => E.streetKey('Piazzale Prenestino 42 stanza 2') === 'piazzale prenestino 42' && run3(E).properties.every(p => p.exists));
+  mutation('un quartiere dopo il civico rimanda il numero nella via', "if (!out.every(function (x) { return STREET_TYPES.indexOf(x) >= 0 || PREP.indexOf(x) >= 0 || CITY.indexOf(x) >= 0; })) break;", '',
+    E => E.streetKey('Piazzale Prenestino 42 Pigneto') === 'piazzale prenestino 42' && E.streetKey('Piazzale Prenestino 42 Pigneto 2') === 'piazzale prenestino 42');
+  // Anche dove il nome della via è il solo tipo di strada, un dettaglio
+  // dopo il numero non entra nel nome («Vicolo 9 stanza 2» è il 9).
+  mutation('un dettaglio dopo il civico entra nel nome della via', 'if (CITY.indexOf(w) >= 0 || isNum(w) || DETAIL.indexOf(w) >= 0) break;', 'if (CITY.indexOf(w) >= 0 || isNum(w)) break;',
+    E => E.streetKey('Vicolo 9 stanza 2') === 'vicolo 9' && E.streetKey('Vicolo 9 terzo piano') === 'vicolo 9');
+  // Le due guardie tolte insieme: il difetto della revisione, tale e quale.
+  mutation('i tre interni dello stesso civico diventano doppioni',
+    "if (CITY.indexOf(w) >= 0 || isNum(w) || DETAIL.indexOf(w) >= 0) break;\n        if (!out.every(function (x) { return STREET_TYPES.indexOf(x) >= 0 || PREP.indexOf(x) >= 0 || CITY.indexOf(x) >= 0; })) break;",
+    'if (CITY.indexOf(w) >= 0 || isNum(w)) break;',
+    E => run3(E).properties.every(p => p.exists) && E.buildings(E.context({ now: NOW, properties: props })).length === 1);
 }
 
 // ── 17. Un contratto firmato non si riempie dalla tabella ───────────────

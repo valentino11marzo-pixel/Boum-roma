@@ -183,14 +183,13 @@
       if (w === 'civico' || w === 'civ' || w === 'n' || w === 'nr' || w === 'num') continue;
       if (civico) {
         // Un numero seguito da altre parole della via era parte del nome
-        // ("Via 4 Fontane 20"): torna nella via e si cerca il civico vero —
-        // ma SOLO se più avanti, prima della virgola, c'è un altro numero.
-        // «42 Pigneto», «42 terzo piano», «42 stanza 2» restano il 42: un
-        // quartiere o un dettaglio dopo il civico non fanno un altro palazzo.
+        // ("Via 4 Fontane 20"): torna nella via e si cerca il civico vero.
+        // Ma solo se sta SUBITO dopo il tipo di strada («Via 4 Fontane»,
+        // «Viale dei 4 Venti»): dopo «Piazzale Prenestino» il 42 è già il
+        // civico, e «42 Pigneto», «42 terzo piano», «42 stanza 2» restano
+        // il 42 — un quartiere o un dettaglio non fanno un altro palazzo.
         if (CITY.indexOf(w) >= 0 || isNum(w) || DETAIL.indexOf(w) >= 0) break;
-        var rest = t.slice(i), cut = rest.indexOf(',');
-        if (cut >= 0) rest = rest.slice(0, cut);
-        if (!rest.some(isNum)) break;
+        if (!out.every(function (x) { return STREET_TYPES.indexOf(x) >= 0 || PREP.indexOf(x) >= 0 || CITY.indexOf(x) >= 0; })) break;
         out.push(civico); civico = '';
       }
       if (ROMAN_DAYS[w] && MONTH_WORDS.indexOf(next) >= 0) { out.push(String(ROMAN_DAYS[w])); continue; }
