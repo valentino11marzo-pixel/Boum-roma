@@ -1270,7 +1270,11 @@ function wire(next,hist){
          lo prevedono: "l'admin può aprire una segnalazione per un
          inquilino") — deve comparire nella SUA lista, non in quella admin */
       var mUid=(VIEW_AS&&CONTRACT&&CONTRACT.tenantId)||USER.uid;
+      /* contractId: le rules aprono un guasto solo all'inquilino del SUO
+         contratto e di quell'immobile (prima bastava userId==uid: anche una
+         sessione anonima apriva «fuga di gas» su un interno qualunque). */
       var doc={userId:mUid,tenantId:mUid,tenantName:(VIEW_AS&&CONTRACT&&CONTRACT.tenantName)||(PROFILE&&PROFILE.name)||USER.email||'',
+        contractId:(CONTRACT&&CONTRACT.id)||'',
         propertyId:(CONTRACT&&CONTRACT.propertyId)||(PROFILE&&PROFILE.propertyId)||'',
         propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
         category:$('mCat').value,priority:$('mPri').value,description:desc.slice(0,800),

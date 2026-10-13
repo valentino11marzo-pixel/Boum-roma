@@ -39,8 +39,19 @@
 // Response: { ok, id, token, url }
 
 import crypto from 'node:crypto';
-import { fsCreate, readJson, logActivity } from '../homie/_lib.js';
+import { fsCreate, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+
+// Un proprietario crea una proposta SOLO su un suo immobile (12/10/2026).
+// Prima bastava il ruolo: un account proprietario poteva emettere una
+// proposta BOOM (protocollo BOOM-…, piè di pagina Egidi) per un immobile,
+// un locatore e un dovuto alla firma inventati — e la pagina pubblica
+// mandava il cliente a una Checkout che incassa sul conto di BOOM.
+export async function ownsPropertyId(uid, pid) {
+  if (!uid || !pid || !/^[\w.-]{1,120}$/.test(String(pid))) return false;
+  const p = await fsGet('properties/' + pid).catch(() => null);
+  return !!p && p.deleted !== true && p.ownerId === uid;
+}
 
 const clip = (v, n = 300) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const num = (v, d = 0) => (isFinite(+v) ? +v : d);
@@ -154,6 +165,10 @@ export default async function handler(req, res) {
   const money = deriveMoney(m);
   if (!address || !landlordName || !startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate) || money.rent <= 0) {
     return res.status(400).json({ ok: false, error: 'validation' });
+  }
+
+  if (auth.profile.role !== 'admin' && !(await ownsPropertyId(auth.uid, clip(b.propertyId, 80)))) {
+    return res.status(403).json({ ok: false, error: 'forbidden_property' });
   }
 
   const token = crypto.randomBytes(16).toString('hex');

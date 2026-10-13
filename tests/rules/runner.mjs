@@ -17,6 +17,7 @@ import {
 import { readFileSync } from 'node:fs';
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField,
+  collection, query, where, getDocs,
 } from 'firebase/firestore';
 
 const PROJECT = 'boom-rules-test';
@@ -44,6 +45,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   await setDoc(doc(db, 'properties/propA'), { ownerId: 'llA', currentContractId: 'contractA', name: 'Prop A' });
   await setDoc(doc(db, 'properties/propB'), { ownerId: 'llB', currentContractId: 'contractB', name: 'Prop B' });
+  await setDoc(doc(db, 'properties/propNoCur'), { ownerId: 'llA', name: 'Prop senza contratto corrente' });
 
   await setDoc(doc(db, 'contracts/contractA'), { tenantId: 'tA', propertyId: 'propA', rent: 1000 });
   await setDoc(doc(db, 'contracts/contractB'), { tenantId: 'tB', propertyId: 'propB', rent: 1200 });
@@ -65,6 +67,54 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'config/parse_docs'), { bearer: 'super-secret-token' });
   await setDoc(doc(db, 'documentShares/share1'), { token: 'tok_abc', ownerId: 'llA', docIds: ['d1'], revoked: false });
   await setDoc(doc(db, 'taxPacks/pack1'), { ownerId: 'llA', fiscalYear: 2025, propertyId: 'propA' });
+
+  // ── Palazzo (12/10/2026): le porte del ruolo landlord ──────────────────
+  // Le manopole interne in settings, e quelle che il pubblico legge.
+  for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria',
+       'fiducia', 'publisher', 'outreach', 'cockpit', 'general', 'mediaRehost', 'marketBenchmarks'])
+    await setDoc(doc(db, 'settings/' + x), { secret: 'interno-' + x });
+  await setDoc(doc(db, 'settings/company'), { iban: 'IT60X0542811101000000123456' });
+  await setDoc(doc(db, 'settings/video'), { url: 'https://example.invalid/v.mp4' });
+  await setDoc(doc(db, 'settings/canoneAccordo'), { pArr: 0.1 });
+  // Inbox: una conversazione assegnata alla proprietaria A, con l'analisi
+  // AI; un messaggio del contatto e una NOTA INTERNA.
+  await setDoc(doc(db, 'conversations/conv1'), { contactUid: 'tA', assignedLandlordId: 'llA', aiSummary: 'analisi interna', suggestedReply: 'bozza' });
+  await setDoc(doc(db, 'messages/msgIn'), { conversationId: 'conv1', contactUid: 'tA', assignedLandlordId: 'llA', direction: 'in', body: 'ciao' });
+  await setDoc(doc(db, 'messages/msgNote'), { conversationId: 'conv1', contactUid: 'tA', assignedLandlordId: 'llA', direction: 'note', body: 'NOTA INTERNA' });
+  // La proprietaria C ha un palazzo da 9 interni (un blocco del loader) —
+  // ogni interno con contratto, rata, guasto e documento condiviso.
+  await setDoc(doc(db, 'users/llC'), { role: 'landlord', name: 'Landlord C' });
+  for (let i = 1; i <= 9; i++) {
+    const p = 'plzC_' + i;
+    await setDoc(doc(db, 'properties/' + p), { ownerId: 'llC', name: 'Int. ' + i });
+    await setDoc(doc(db, 'contracts/cC_' + i), { tenantId: 'tC' + i, propertyId: p, rent: 900 });
+    await setDoc(doc(db, 'payments/payC_' + i), { tenantId: 'tC' + i, propertyId: p, contractId: 'cC_' + i, amount: 900, status: 'pending' });
+    await setDoc(doc(db, 'maintenance/mC_' + i), { userId: 'tC' + i, propertyId: p, title: 'Guasto ' + i });
+    await setDoc(doc(db, 'documents/dC_' + i), { userId: 'adminUid', propertyId: p, shared: true, name: 'Doc ' + i });
+  }
+  // Il cambio di inquilino (13/10/2026): l'interno propX ha un contratto
+  // corrente nuovo; il vecchio è finito (per stato, per data o per chiusura
+  // anticipata) o resta 'active' per dimenticanza ma con la fine passata.
+  // Una seconda stanza viva sullo stesso immobile, non corrente.
+  for (const u of ['tOld', 'tOld2', 'tOld3', 'tOld4', 'tNew', 'tRoom', 'tTerm', 'tNext'])
+    await setDoc(doc(db, 'users/' + u), { role: 'tenant', name: 'Inquilino ' + u });
+  await setDoc(doc(db, 'properties/propX'), { ownerId: 'llA', currentContractId: 'cNew', name: 'Int. X' });
+  await setDoc(doc(db, 'contracts/cNew'), { tenantId: 'tNew', propertyId: 'propX', status: 'active', startDate: '2026-07-01', endDate: '2099-06-30' });
+  await setDoc(doc(db, 'contracts/cOld'), { tenantId: 'tOld', propertyId: 'propX', status: 'ended', endDate: '2025-06-30' });
+  await setDoc(doc(db, 'contracts/cOld2'), { tenantId: 'tOld2', propertyId: 'propX', status: 'expired' });
+  await setDoc(doc(db, 'contracts/cOld3'), { tenantId: 'tOld3', propertyId: 'propX', status: 'active', endDate: '2025-06-30' });
+  await setDoc(doc(db, 'contracts/cOld4'), { tenantId: 'tOld4', propertyId: 'propX', status: 'active', endDate: '2099-06-30', terminatedAt: '2025-12-31' });
+  // Rimasto «active» con la fine passata da 20 giorni: l'inquilino è
+  // probabilmente ancora in casa (rinnovo non a sistema) — dentro la
+  // tolleranza di 60 giorni delle regole.
+  await setDoc(doc(db, 'users/tGrace'), { role: 'tenant', name: 'Inquilino in proroga' });
+  await setDoc(doc(db, 'contracts/cGrace'), { tenantId: 'tGrace', propertyId: 'propX', status: 'active',
+    endDate: new Date(Date.now() - 20 * 86400000).toISOString().slice(0, 10) });
+  await setDoc(doc(db, 'contracts/cRoom'), { tenantId: 'tRoom', propertyId: 'propX', status: 'active', unit: 'B', endDate: '2099-06-30' });
+  await setDoc(doc(db, 'contracts/cNext'), { tenantId: 'tNext', propertyId: 'propX', status: 'pending', startDate: '2099-01-01' });
+  // Un interno il cui contratto CORRENTE è stato chiuso e nessuno è subentrato.
+  await setDoc(doc(db, 'properties/propY'), { ownerId: 'llA', currentContractId: 'cTerm', name: 'Int. Y' });
+  await setDoc(doc(db, 'contracts/cTerm'), { tenantId: 'tTerm', propertyId: 'propY', status: 'terminated', terminatedAt: '2025-12-31' });
 });
 
 // Auth contexts
@@ -235,6 +285,130 @@ await check('landlord CANNOT read clientErrors',
   assertFails(getDoc(doc(llA, 'clientErrors/e1'))));
 await check('nobody writes clientErrors from the browser',
   assertFails(setDoc(doc(admin, 'clientErrors/e2'), { message: 'x' })));
+
+// ── PALAZZO (12/10/2026): le porte che l'account della proprietaria apre ──
+console.log('\nsettings — le manopole interne sono dell\'admin');
+const llC = env.authenticatedContext('llC').firestore();
+for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria',
+       'fiducia', 'publisher', 'outreach', 'cockpit', 'general', 'mediaRehost', 'marketBenchmarks']) {
+  await check('landlord CANNOT read settings/' + x, assertFails(getDoc(doc(llA, 'settings/' + x))));
+  await check('tenant CANNOT read settings/' + x, assertFails(getDoc(doc(tA, 'settings/' + x))));
+}
+await check('anonymous CANNOT read settings/ai (URL del tunnel)', assertFails(getDoc(doc(anon, 'settings/ai'))));
+await check('admin reads settings/registrazione', assertSucceeds(getDoc(doc(admin, 'settings/registrazione'))));
+await check('admin reads settings/rentFeeStats', assertSucceeds(getDoc(doc(admin, 'settings/rentFeeStats'))));
+await check('landlord reads settings/company (il portal la carica al boot)', assertSucceeds(getDoc(doc(llA, 'settings/company'))));
+await check('tenant reads settings/company', assertSucceeds(getDoc(doc(tA, 'settings/company'))));
+await check('anonymous CANNOT read settings/company (IBAN)', assertFails(getDoc(doc(anon, 'settings/company'))));
+await check('anon-provider session CANNOT read settings/company', assertFails(getDoc(doc(anonProv, 'settings/company'))));
+await check('anonymous STILL reads settings/video (sito pubblico)', assertSucceeds(getDoc(doc(anon, 'settings/video'))));
+await check('anon-provider session reads settings/video', assertSucceeds(getDoc(doc(anonProv, 'settings/video'))));
+await check('landlord CANNOT write settings/company', assertFails(setDoc(doc(llA, 'settings/company'), { iban: 'x' })));
+// I parametri dell'accordo non sono un segreto: la console proposte (aperta
+// anche a un proprietario) deve dare lo stesso verdetto di fascia dell'admin.
+await check('landlord reads settings/canoneAccordo', assertSucceeds(getDoc(doc(llA, 'settings/canoneAccordo'))));
+await check('anonymous CANNOT read settings/canoneAccordo', assertFails(getDoc(doc(anon, 'settings/canoneAccordo'))));
+await check('landlord CANNOT write settings/canoneAccordo', assertFails(setDoc(doc(llA, 'settings/canoneAccordo'), { pArr: 0.5 })));
+
+console.log('\nmaintenance — un guasto solo sul proprio interno, mai anonimo');
+await check('anon-provider session CANNOT open a fake leak on propA',
+  assertFails(setDoc(doc(anonProv, 'maintenance/fake1'), { userId: 'anonSess', propertyId: 'propA', title: 'FUGA DI GAS — evacuare' })));
+await check('unauthenticated CANNOT open a ticket',
+  assertFails(setDoc(doc(anon, 'maintenance/fake2'), { userId: 'x', propertyId: 'propA', title: 'x' })));
+await check('tenant B (other building) CANNOT open a ticket on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/fake3'), { userId: 'tB', propertyId: 'propA', title: 'Allagamento' })));
+await check('tenant B CANNOT borrow tenant A\'s contract to open on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/fake4'), { userId: 'tB', propertyId: 'propA', contractId: 'contractA', title: 'x' })));
+await check('tenant A opens a ticket with OWN contractId (come /casa)',
+  assertSucceeds(setDoc(doc(tA, 'maintenance/casaA'), { userId: 'tA', tenantId: 'tA', propertyId: 'propA', contractId: 'contractA', title: 'Caldaia', status: 'pending' })));
+await check('tenant A CANNOT point own contract at another property',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA2'), { userId: 'tA', propertyId: 'propB', contractId: 'contractA', title: 'x' })));
+await check('tenant A CANNOT forge the reporter/source written by the server',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA3'), { userId: 'tA', propertyId: 'propA', contractId: 'contractA', title: 'x',
+    reporter: { role: 'owner', name: 'La proprietaria', via: 'palazzo' }, source: 'palazzo' })));
+await check('tenant A CANNOT open a ticket without a propertyId',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA4'), { userId: 'tA', title: 'x' })));
+// Il portal (vista inquilino) non manda contractId: vale il contratto
+// CORRENTE dell'immobile. Un immobile senza currentContractId, o un
+// contractId null, sono un "no" (mai un errore che passi per sbaglio).
+await check('tenant A opens a ticket WITHOUT contractId on the property whose current contract is hers',
+  assertSucceeds(setDoc(doc(tA, 'maintenance/casaA5'), { userId: 'tA', propertyId: 'propA', title: 'Caldaia' })));
+await check('tenant B CANNOT open without contractId on a property whose current contract is not his',
+  assertFails(setDoc(doc(tB, 'maintenance/casaB5'), { userId: 'tB', propertyId: 'propA', title: 'x' })));
+await check('tenant A CANNOT open without contractId on a property with no current contract',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA6'), { userId: 'tA', propertyId: 'propNoCur', title: 'x' })));
+await check('contractId null counts as «not given»: tenant B still CANNOT open on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/casaB7'), { userId: 'tB', propertyId: 'propA', contractId: null, title: 'x' })));
+await check('tenant A CANNOT open with a contractId that does not exist',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA8'), { userId: 'tA', propertyId: 'propA', contractId: 'nope', title: 'x' })));
+// Il cambio di inquilino: chi è uscito non apre più guasti sull'interno,
+// nemmeno col SUO vecchio contractId (la revoca che /guasto fa coi link).
+{
+  const tOld = env.authenticatedContext('tOld').firestore(), tOld2 = env.authenticatedContext('tOld2').firestore();
+  const tOld3 = env.authenticatedContext('tOld3').firestore(), tOld4 = env.authenticatedContext('tOld4').firestore();
+  const tNew = env.authenticatedContext('tNew').firestore(), tRoom = env.authenticatedContext('tRoom').firestore();
+  const tTerm = env.authenticatedContext('tTerm').firestore(), tNext = env.authenticatedContext('tNext').firestore();
+  await check('EX tenant (contract ended) CANNOT open a ticket on the unit he left, with his old contractId',
+    assertFails(setDoc(doc(tOld, 'maintenance/exOld'), { userId: 'tOld', propertyId: 'propX', contractId: 'cOld', title: 'FUGA DI GAS', priority: 'urgent' })));
+  await check('EX tenant (contract expired) CANNOT either',
+    assertFails(setDoc(doc(tOld2, 'maintenance/exOld2'), { userId: 'tOld2', propertyId: 'propX', contractId: 'cOld2', title: 'x' })));
+  await check('EX tenant whose contract is still «active» by mistake but whose END DATE passed over 60 days ago CANNOT either',
+    assertFails(setDoc(doc(tOld3, 'maintenance/exOld3'), { userId: 'tOld3', propertyId: 'propX', contractId: 'cOld3', title: 'x' })));
+  await check('EX tenant closed early (terminatedAt over 60 days ago) CANNOT either',
+    assertFails(setDoc(doc(tOld4, 'maintenance/exOld4'), { userId: 'tOld4', propertyId: 'propX', contractId: 'cOld4', title: 'x' })));
+  await check('the NEW tenant (current contract) opens a ticket, with or without contractId',
+    assertSucceeds(Promise.all([
+      setDoc(doc(tNew, 'maintenance/newX1'), { userId: 'tNew', propertyId: 'propX', contractId: 'cNew', title: 'Caldaia' }),
+      setDoc(doc(tNew, 'maintenance/newX2'), { userId: 'tNew', propertyId: 'propX', title: 'Caldaia' })])));
+  await check('a SECOND ROOM (active, not the current contract) still opens a ticket',
+    assertSucceeds(setDoc(doc(tRoom, 'maintenance/roomX'), { userId: 'tRoom', propertyId: 'propX', contractId: 'cRoom', title: 'Serratura' })));
+  await check('a contract left «active» 20 days past its end (renewal not yet entered) still opens a ticket — 60-day grace',
+    assertSucceeds(setDoc(doc(env.authenticatedContext('tGrace').firestore(), 'maintenance/graceX'), { userId: 'tGrace', propertyId: 'propX', contractId: 'cGrace', title: 'Perdita' })));
+  await check('an INCOMING tenant (pending, not current) does not open tickets yet',
+    assertFails(setDoc(doc(tNext, 'maintenance/nextX'), { userId: 'tNext', propertyId: 'propX', contractId: 'cNext', title: 'x' })));
+  await check('the CURRENT contract closed with nobody after: its tenant CANNOT open, with or without contractId',
+    assertFails(setDoc(doc(tTerm, 'maintenance/termY1'), { userId: 'tTerm', propertyId: 'propY', contractId: 'cTerm', title: 'x' })));
+  await check('…without contractId either',
+    assertFails(setDoc(doc(tTerm, 'maintenance/termY2'), { userId: 'tTerm', propertyId: 'propY', title: 'x' })));
+}
+await check('landlord A opens a ticket on OWN property',
+  assertSucceeds(setDoc(doc(llA, 'maintenance/llA1'), { userId: 'llA', propertyId: 'propA', title: 'Umidità' })));
+await check('landlord A CANNOT open a ticket on landlord B property',
+  assertFails(setDoc(doc(llA, 'maintenance/llA2'), { userId: 'llA', propertyId: 'propB', title: 'x' })));
+await check('admin opens a ticket for a tenant (the server path)',
+  assertSucceeds(setDoc(doc(admin, 'maintenance/adm1'), { userId: null, propertyId: 'propA', title: 'x', reporter: { role: 'tenant', via: 'link' }, source: 'guasto-link' })));
+
+console.log('\nInbox — la proprietaria non legge note interne né analisi AI');
+await check('landlord A CANNOT read the conversation assigned to her (aiSummary)', assertFails(getDoc(doc(llA, 'conversations/conv1'))));
+await check('landlord A CANNOT read a message of that conversation', assertFails(getDoc(doc(llA, 'messages/msgIn'))));
+await check('landlord A CANNOT read the internal note', assertFails(getDoc(doc(llA, 'messages/msgNote'))));
+await check('landlord A CANNOT list conversations by assignedLandlordId',
+  assertFails(getDocs(query(collection(llA, 'conversations'), where('assignedLandlordId', '==', 'llA')))));
+await check('the contact (tenant A) reads own conversation', assertSucceeds(getDoc(doc(tA, 'conversations/conv1'))));
+await check('the contact reads own inbound message', assertSucceeds(getDoc(doc(tA, 'messages/msgIn'))));
+await check('the contact CANNOT read an internal note about them', assertFails(getDoc(doc(tA, 'messages/msgNote'))));
+await check('a client CANNOT fabricate an internal note',
+  assertFails(setDoc(doc(tA, 'messages/forgedNote'), { conversationId: 'conv1', by: 'tA', direction: 'note', body: 'x' })));
+await check('a client still writes an ordinary message',
+  assertSucceeds(setDoc(doc(tA, 'messages/okOut'), { conversationId: 'conv1', by: 'tA', direction: 'out', body: 'x' })));
+await check('admin reads the note', assertSucceeds(getDoc(doc(admin, 'messages/msgNote'))));
+
+console.log('\nIl loader della proprietaria: un blocco da 9 interni passa, uno estraneo no');
+const nine = Array.from({ length: 9 }, (_, i) => 'plzC_' + (i + 1));
+for (const coll of ['contracts', 'payments', 'maintenance']) {
+  await check('landlord C reads ' + coll + ' where propertyId in [9 suoi]',
+    assertSucceeds(getDocs(query(collection(llC, coll), where('propertyId', 'in', nine)))));
+  await check('landlord C CANNOT read ' + coll + ' if the block holds a property not hers',
+    assertFails(getDocs(query(collection(llC, coll), where('propertyId', 'in', [...nine.slice(0, 8), 'propA'])))));
+}
+await check('landlord C reads the SHARED documents of her 9 units',
+  assertSucceeds(getDocs(query(collection(llC, 'documents'), where('shared', '==', true), where('propertyId', 'in', nine)))));
+await check('landlord C CANNOT read unshared documents of her units',
+  assertFails(getDocs(query(collection(llC, 'documents'), where('propertyId', 'in', nine)))));
+
+console.log('\npaymentCosts — costo Stripe e margine BOOM fuori dalla rata');
+await check('landlord CANNOT read paymentCosts', assertFails(getDoc(doc(llA, 'paymentCosts/payA'))));
+await check('admin writes paymentCosts', assertSucceeds(setDoc(doc(admin, 'paymentCosts/payA'), { stripeCostEur: 1.2, marginEur: 0 })));
 
 // ── DEFAULT DENY ────────────────────────────────────────────────────────
 console.log('\nDefault-deny');

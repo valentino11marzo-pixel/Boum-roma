@@ -52,8 +52,8 @@
 //     caselle, co-conduttori, corso di studi, conviventi — tutto quello che
 //     poi usciva come puntini. Ora si legge ciò che il contratto stampa.
 //
-// Auth: Firebase ID token (admin/owner/landlord) come le altre superfici
-// chiamate dal browser loggato. La chiave Anthropic resta lato server.
+// Auth: Firebase ID token di un ADMIN (l'Innesto è una pagina admin; dal
+// 12/10/2026 owner e landlord non passano). La chiave resta lato server.
 
 import { PDFDocument } from 'pdf-lib';
 import { requireRole } from '../_auth.js';
@@ -631,7 +631,12 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   }
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (12/10/2026). L'Innesto è una pagina admin del portal, ma la
+  // porta accettava anche owner e landlord: con l'account di una
+  // proprietaria esterna, la lettura più cara del registro (20 MB a
+  // chiamata, migliaia di token di output) era a disposizione di chiunque
+  // avesse il ruolo. La proprietaria non ha l'Innesto.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   if (!process.env.ANTHROPIC_API_KEY) {

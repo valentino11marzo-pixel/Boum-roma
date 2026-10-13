@@ -15,9 +15,19 @@
 //
 // I tenant NON passano di qui: un endpoint che spedisce email a
 // destinatari arbitrari con il marchio BOOM è roba da operatore.
+//
+// IL PROPRIETARIO NON È L'OPERATORE (12/10/2026). Con l'account di una
+// proprietaria esterna il ruolo 'landlord' bastava a mandare, dalla casella
+// Gmail di BOOM e col marchio BOOM, un'email a QUALSIASI indirizzo con un
+// bottone verso QUALSIASI URL: phishing col nostro nome. Ora, per chi non è
+// admin:
+//   - il destinatario è BOOM (l'operatore), lei stessa, o un inquilino /
+//     co-intestatario dei contratti dei SUOI immobili — altri: 403;
+//   - il bottone porta solo su https://www.boomrome.com (o boomrome.com).
+// L'admin resta libero (link http/https qualunque: anteprime, Wallet).
 
 import { requireRole, setCors } from '../_auth.js';
-import { readJson } from '../homie/_lib.js';
+import { readJson, fsList, fsGetMany } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, rule } from '../preagreement/_notify.js';
 
@@ -28,6 +38,48 @@ const esc = (s) => clip(s, 1200).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':
 // evento), non centinaia — un client impazzito non svuota il quota Gmail.
 const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 30;
 const rateOk = (uid) => { const n = Date.now(); const e = RL.get(uid); if (!e || n - e.t >= RL_WINDOW) { RL.set(uid, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; };
+
+const low = (v) => String(v == null ? '' : v).trim().toLowerCase();
+// Il bottone dell'email: l'admin può puntare ovunque (http/https), gli altri
+// solo al sito di BOOM. Pura: si testa senza rete.
+export function linkAllowed(raw, isAdmin) {
+  let u;
+  try { u = new URL(String(raw || '')); } catch { return false; }
+  if (isAdmin) return u.protocol === 'https:' || u.protocol === 'http:';
+  return u.protocol === 'https:' && (u.hostname === 'www.boomrome.com' || u.hostname === 'boomrome.com') && !u.username && !u.password;
+}
+// Gli indirizzi di BOOM a cui chiunque nel portal può scrivere.
+export function boomAddresses() {
+  // valentino@boomrome.com è l'inoltro di ogni notifica del portal
+  // (NOTIFY_OWNER in portal-app.js), anche quando la scatena la proprietaria.
+  return new Set(['valentino@boom-rome.com', 'valentino@boomrome.com', 'info@boomrome.com', process.env.ADMIN_NOTIFY_EMAIL, process.env.GMAIL_USER, process.env.CAF_EMAIL]
+    .map(low).filter(Boolean));
+}
+// A chi può scrivere una proprietaria: BOOM, sé stessa, gli inquilini e i
+// co-intestatari dei contratti dei suoi immobili (dal contratto o dal
+// profilo dell'inquilino). → true | false
+export async function landlordMayEmail(auth, to) {
+  const target = low(to);
+  if (boomAddresses().has(target)) return true;
+  if (target === low(auth.email) || target === low(auth.profile && auth.profile.email)) return true;
+  const props = await fsList('properties', { filter: { field: 'ownerId', op: 'EQUAL', value: auth.uid }, limit: 300 });
+  const pids = (props || []).map(p => p.id).filter(Boolean);
+  const tenantIds = new Set();
+  for (let i = 0; i < pids.length; i += 30) {
+    const chunk = pids.slice(i, i + 30);
+    const rows = await fsList('contracts', { filter: chunk.length === 1
+      ? { field: 'propertyId', op: 'EQUAL', value: chunk[0] } : { field: 'propertyId', op: 'IN', value: chunk }, limit: 500 });
+    for (const c of rows || []) {
+      if (low(c.tenantEmail) === target) return true;
+      if ((Array.isArray(c.coTenants) ? c.coTenants : []).some(x => x && low(x.email) === target)) return true;
+      if (c.tenantId) tenantIds.add(String(c.tenantId));
+    }
+  }
+  if (!tenantIds.size) return false;
+  const users = await fsGetMany([...tenantIds].map(id => 'users/' + id));
+  for (const u of users.values()) if (u && low(u.email) === target) return true;
+  return false;
+}
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -43,6 +95,14 @@ export default async function handler(req, res) {
   const to = clip((body || {}).to, 120);
   const p = (body || {}).params || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'bad_recipient' });
+  const isAdmin = auth.profile.role === 'admin';
+  if (p.portal_link && !linkAllowed(p.portal_link, isAdmin)) return res.status(400).json({ ok: false, error: 'bad_link' });
+  if (!isAdmin) {
+    let okTo;
+    try { okTo = await landlordMayEmail(auth, to); }
+    catch (e) { console.warn('[notify/send] recipient check:', e.message); return res.status(503).json({ ok: false, error: 'recipient_check_failed' }); }
+    if (!okTo) return res.status(403).json({ ok: false, error: 'recipient_not_allowed' });
+  }
 
   const heading = clip(p.heading, 140) || clip(p.card_title, 140) || 'Notifica BOOM';
   const rows = [1, 2, 3, 4]

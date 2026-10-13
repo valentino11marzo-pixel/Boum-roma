@@ -770,6 +770,23 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   };
 }
 
+// Il cancello del proprietario sulle porte che agiscono su una proposta
+// (convert qui; send-sign e resolve lo importano da qui, una copia sola).
+// Un proprietario agisce SOLO su una proposta dei suoi immobili, verso un
+// suo immobile, e non crea immobili (nascerebbero senza ownerId, fuori dal
+// suo stesso portale): prima bastava il ruolo, su qualunque paId. L'admin
+// passa sempre. → null se può, altrimenti il codice d'errore (403).
+export async function paOwnerGuard(auth, pa, body) {
+  if (auth && auth.profile && auth.profile.role === 'admin') return null;
+  const b = body || {};
+  const pids = [...new Set([clip(pa && pa.propertyId, 80), clip(b.propertyId, 80)].filter(Boolean))];
+  if (b.createProperty === true || !pids.length || pids.some(pid => !/^[\w.-]{1,80}$/.test(pid))) return 'forbidden_property';
+  const uid = auth && auth.uid;
+  if (!uid) return 'forbidden_property';
+  const own = await Promise.all(pids.map(pid => fsGet('properties/' + pid).then(p => !!p && p.deleted !== true && p.ownerId === uid, () => false)));
+  return own.every(Boolean) ? null : 'forbidden_property';
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -786,6 +803,8 @@ export default async function handler(req, res) {
   try { pa = await fsGet('preAgreements/' + paId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!pa) return res.status(404).json({ ok: false, error: 'not_found' });
+  const deny = await paOwnerGuard(auth, pa, b);
+  if (deny) return res.status(403).json({ ok: false, error: deny });
 
   const out = await convertPaToContract({
     pa, paId,

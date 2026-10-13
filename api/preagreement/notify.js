@@ -29,6 +29,14 @@ export default async function handler(req, res) {
   try { pa = await fsGet('preAgreements/' + paId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!pa) return res.status(404).json({ ok: false, error: 'not_found' });
+  // Un proprietario rimanda la copia SOLO di una proposta di un suo immobile
+  // (12/10/2026: prima bastava il ruolo, su qualunque paId — e l'email parte
+  // al cliente col marchio BOOM).
+  if (auth.profile.role !== 'admin') {
+    const pid = typeof pa.propertyId === 'string' ? pa.propertyId.slice(0, 80) : '';
+    const prop = pid ? await fsGet('properties/' + pid).catch(() => null) : null;
+    if (!prop || prop.deleted === true || prop.ownerId !== auth.uid) return res.status(403).json({ ok: false, error: 'forbidden_property' });
+  }
   if (pa.status !== 'accepted' && pa.status !== 'paid') {
     return res.status(409).json({ ok: false, error: 'not_accepted_yet', status: pa.status });
   }
