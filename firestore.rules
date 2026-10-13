@@ -48,7 +48,33 @@ service cloud.firestore {
     // 'company' (IBAN) e 'registrazione' (email personale del referente
     // ASPI) non si servono al pubblico anonimo — stessa lezione.
     // 'ai' porta l'URL del tunnel verso il Mac dell'operatore: non è per il pubblico.
-    match /settings/{x}  { allow read: if !(x in ['company', 'registrazione', 'ai']) || request.auth != null; allow write: if isAdmin(); }
+    //
+    // LE MANOPOLE INTERNE NON SONO PER CHI HA SOLO FATTO IL LOGIN (12/10/2026).
+    // Prima bastava `request.auth != null`: ogni account — la proprietaria,
+    // un inquilino, una sessione anonima di /sign — leggeva registrazione
+    // (prezzo €89 accanto al costo vero €37, e l'email personale del
+    // referente), ai (l'URL del tunnel), i costi misurati di carta e SEPA
+    // (il margine di BOOM sulla commissione), l'indirizzo SEGRETO del
+    // calendario (busyIcs su viewingAvailability: l'URL È la credenziale) e
+    // gli interruttori degli agenti. Ora sono dell'admin, in lettura come in
+    // scrittura; i server leggono con credenziali admin. 'company' resta
+    // per gli account veri (il portal la carica al boot per ogni ruolo), mai
+    // per l'anonimo. Il resto (es. 'video', letto dal sito pubblico) resta
+    // pubblico. Un nuovo documento di sola configurazione interna va
+    // aggiunto a settingsInternal: tests/rules lo verifica per ruolo.
+    function settingsInternal(x) {
+      return x in ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability',
+                   'squadra', 'fiducia', 'segretaria', 'publisher', 'outreach', 'cockpit',
+                   'canoneAccordo', 'general', 'mediaRehost', 'marketBenchmarks'];
+    }
+    match /settings/{x}  {
+      // Il ramo pubblico viene PRIMA: una lettura anonima di 'video' non
+      // deve passare da get(users/…) (che per una sessione anonima non esiste).
+      allow read: if (!(x in ['company', 'registrazione', 'ai']) && !settingsInternal(x))
+                  || (x == 'company' && isSignedIn() && !isAnon())
+                  || isAdmin();
+      allow write: if isAdmin();
+    }
     // Coordinate per il bonifico del canone. NON in /settings, che è
     // leggibile da chiunque via API: un IBAN esposto così invita scraping.
     // L'inquilino che deve pagare è comunque autenticato.
@@ -118,6 +144,11 @@ service cloud.firestore {
     // tests/guasti/run.mjs pretende una regola per OGNI collection usata
     // dal server.
     match /operatorSignatures/{x} { allow read, write: if isAdmin(); }
+    // Il COSTO di un incasso con carta (commissione Stripe misurata, margine
+    // BOOM, paese e circuito della carta): dati di BOOM, non della rata. Una
+    // rata la legge anche la proprietaria e Firestore non nasconde un campo:
+    // il webhook li scrive qui, paymentCosts/<paymentId>, admin-only.
+    match /paymentCosts/{x} { allow read, write: if isAdmin(); }
 
     // ─── payments ─────────────────────────────────────────────────────
     match /payments/{pId} {
@@ -133,6 +164,14 @@ service cloud.firestore {
     }
 
     // ─── maintenance ──────────────────────────────────────────────────
+    // L'inquilino di quell'interno: il contratto indicato è suo e riguarda
+    // proprio quell'immobile; senza contratto indicato, quello corrente.
+    function tenantOfUnit(pid, cid) {
+      return cid != ''
+        ? (contractData(cid).tenantId == uid() && contractData(cid).propertyId == pid)
+        : (propertyData(pid).currentContractId != null
+           && contractData(propertyData(pid).currentContractId).tenantId == uid());
+    }
     match /maintenance/{mId} {
       allow read:   if isAdmin()
                     || (isTenant() && resource.data.userId == uid())
@@ -143,8 +182,31 @@ service cloud.firestore {
       // all'inquilino di prova. Senza `isAdmin()` la regola ammetteva solo
       // "creo per me stesso" e ogni scrittura server-side per conto di terzi
       // tornava PERMISSION_DENIED.
+      //
+      // UN GUASTO SI APRE SOLO SU UN INTERNO CHE SI ABITA O SI POSSIEDE
+      // (12/10/2026). Prima bastava `userId == uid()`: una sessione ANONIMA
+      // (signInAnonymously di /sign) o l'inquilino di un altro palazzo
+      // aprivano «FUGA DI GAS — evacuare» su qualunque interno — e gli id
+      // degli interni importati si indovinano dall'indirizzo (plz_<via>_<n>).
+      // La segnalazione falsa finiva sulla facciata della proprietaria, nella
+      // frase del mese e nei report dell'operatore. Ora:
+      //  - mai una sessione anonima;
+      //  - l'inquilino solo sul SUO contratto (contractId, che /casa manda) e
+      //    sullo stesso propertyId; senza contractId vale l'inquilino del
+      //    contratto corrente dell'immobile (il portal lo apre così);
+      //  - il proprietario solo sui suoi immobili (ownsProperty);
+      //  - nessun campo di chi segnala falsificabile dal browser: reporter,
+      //    source e interno li scrive SOLO il server (/api/maintenance/guasto,
+      //    credenziali admin), che resta la porta del link /guasto.
       allow create: if isAdmin()
-                    || (isSignedIn() && request.resource.data.userId == uid());
+                    || (isSignedIn() && !isAnon()
+                        && request.resource.data.userId == uid()
+                        && request.resource.data.get('propertyId', '') is string
+                        && request.resource.data.get('propertyId', '') != ''
+                        && !request.resource.data.keys().hasAny(['reporter', 'source', 'interno'])
+                        && ((isTenant() && tenantOfUnit(request.resource.data.propertyId,
+                                                       request.resource.data.get('contractId', '')))
+                            || ownsProperty(request.resource.data.propertyId)));
       allow update, delete: if isAdmin();
     }
 
@@ -193,22 +255,33 @@ service cloud.firestore {
     }
 
     // ─── conversations + messages (Inbox unificato) ──────────────────
+    // IL PROPRIETARIO NON LEGGE L'INBOX (12/10/2026). Una conversazione porta
+    // aiSummary e suggestedReply (l'analisi di Homie sul contatto) e i
+    // messaggi portano le NOTE INTERNE («visibile solo al team»): con il ramo
+    // assignedLandlordId la proprietaria li leggeva tutti — anche quelli su
+    // di lei, perché homie/message assegna a lei la conversazione quando a
+    // scrivere su WhatsApp è lei stessa. E il suo «Messaggi» non mostrava
+    // comunque niente (la query dei messaggi non era vincolata ad
+    // assignedLandlordId: rifiutata sempre). Il canale verso BOOM della
+    // proprietaria è WhatsApp/email dalla scheda dell'interno. Il contatto
+    // (inquilino) legge la propria conversazione, MAI una nota interna.
     match /conversations/{convId} {
       allow read:   if isAdmin()
-                    || (resource.data.contactUid == uid())
-                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+                    || (resource.data.contactUid == uid() && !isLandlord());
       allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     match /messages/{msgId} {
       allow read:   if isAdmin()
-                    || (resource.data.contactUid == uid())
-                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+                    || (resource.data.contactUid == uid() && !isLandlord()
+                        && resource.data.get('direction', '') != 'note');
+      // Una nota interna la scrive solo il team: un account cliente che
+      // crea 'note' fabbricherebbe un appunto dell'operatore.
       allow create: if isAdmin()
                     || (isSignedIn()
                         && request.resource.data.by == uid()
-                        && request.resource.data.direction in ['out','in','note']
+                        && request.resource.data.direction in ['out','in']
                         // Server-only evidence: clients may still write their
                         // existing message shapes, but cannot impersonate an
                         // authenticated Owner Command in Segreteria context.

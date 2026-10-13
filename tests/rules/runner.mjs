@@ -17,6 +17,7 @@ import {
 import { readFileSync } from 'node:fs';
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField,
+  collection, query, where, getDocs,
 } from 'firebase/firestore';
 
 const PROJECT = 'boom-rules-test';
@@ -65,6 +66,29 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'config/parse_docs'), { bearer: 'super-secret-token' });
   await setDoc(doc(db, 'documentShares/share1'), { token: 'tok_abc', ownerId: 'llA', docIds: ['d1'], revoked: false });
   await setDoc(doc(db, 'taxPacks/pack1'), { ownerId: 'llA', fiscalYear: 2025, propertyId: 'propA' });
+
+  // ── Palazzo (12/10/2026): le porte del ruolo landlord ──────────────────
+  // Le manopole interne in settings, e quelle che il pubblico legge.
+  for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria'])
+    await setDoc(doc(db, 'settings/' + x), { secret: 'interno-' + x });
+  await setDoc(doc(db, 'settings/company'), { iban: 'IT60X0542811101000000123456' });
+  await setDoc(doc(db, 'settings/video'), { url: 'https://example.invalid/v.mp4' });
+  // Inbox: una conversazione assegnata alla proprietaria A, con l'analisi
+  // AI; un messaggio del contatto e una NOTA INTERNA.
+  await setDoc(doc(db, 'conversations/conv1'), { contactUid: 'tA', assignedLandlordId: 'llA', aiSummary: 'analisi interna', suggestedReply: 'bozza' });
+  await setDoc(doc(db, 'messages/msgIn'), { conversationId: 'conv1', contactUid: 'tA', assignedLandlordId: 'llA', direction: 'in', body: 'ciao' });
+  await setDoc(doc(db, 'messages/msgNote'), { conversationId: 'conv1', contactUid: 'tA', assignedLandlordId: 'llA', direction: 'note', body: 'NOTA INTERNA' });
+  // La proprietaria C ha un palazzo da 9 interni (un blocco del loader) —
+  // ogni interno con contratto, rata, guasto e documento condiviso.
+  await setDoc(doc(db, 'users/llC'), { role: 'landlord', name: 'Landlord C' });
+  for (let i = 1; i <= 9; i++) {
+    const p = 'plzC_' + i;
+    await setDoc(doc(db, 'properties/' + p), { ownerId: 'llC', name: 'Int. ' + i });
+    await setDoc(doc(db, 'contracts/cC_' + i), { tenantId: 'tC' + i, propertyId: p, rent: 900 });
+    await setDoc(doc(db, 'payments/payC_' + i), { tenantId: 'tC' + i, propertyId: p, contractId: 'cC_' + i, amount: 900, status: 'pending' });
+    await setDoc(doc(db, 'maintenance/mC_' + i), { userId: 'tC' + i, propertyId: p, title: 'Guasto ' + i });
+    await setDoc(doc(db, 'documents/dC_' + i), { userId: 'adminUid', propertyId: p, shared: true, name: 'Doc ' + i });
+  }
 });
 
 // Auth contexts
@@ -235,6 +259,81 @@ await check('landlord CANNOT read clientErrors',
   assertFails(getDoc(doc(llA, 'clientErrors/e1'))));
 await check('nobody writes clientErrors from the browser',
   assertFails(setDoc(doc(admin, 'clientErrors/e2'), { message: 'x' })));
+
+// ── PALAZZO (12/10/2026): le porte che l'account della proprietaria apre ──
+console.log('\nsettings — le manopole interne sono dell\'admin');
+const llC = env.authenticatedContext('llC').firestore();
+for (const x of ['registrazione', 'ai', 'rentFeeStats', 'sddFeeStats', 'viewingAvailability', 'squadra', 'segretaria']) {
+  await check('landlord CANNOT read settings/' + x, assertFails(getDoc(doc(llA, 'settings/' + x))));
+  await check('tenant CANNOT read settings/' + x, assertFails(getDoc(doc(tA, 'settings/' + x))));
+}
+await check('anonymous CANNOT read settings/ai (URL del tunnel)', assertFails(getDoc(doc(anon, 'settings/ai'))));
+await check('admin reads settings/registrazione', assertSucceeds(getDoc(doc(admin, 'settings/registrazione'))));
+await check('admin reads settings/rentFeeStats', assertSucceeds(getDoc(doc(admin, 'settings/rentFeeStats'))));
+await check('landlord reads settings/company (il portal la carica al boot)', assertSucceeds(getDoc(doc(llA, 'settings/company'))));
+await check('tenant reads settings/company', assertSucceeds(getDoc(doc(tA, 'settings/company'))));
+await check('anonymous CANNOT read settings/company (IBAN)', assertFails(getDoc(doc(anon, 'settings/company'))));
+await check('anon-provider session CANNOT read settings/company', assertFails(getDoc(doc(anonProv, 'settings/company'))));
+await check('anonymous STILL reads settings/video (sito pubblico)', assertSucceeds(getDoc(doc(anon, 'settings/video'))));
+await check('anon-provider session reads settings/video', assertSucceeds(getDoc(doc(anonProv, 'settings/video'))));
+await check('landlord CANNOT write settings/company', assertFails(setDoc(doc(llA, 'settings/company'), { iban: 'x' })));
+
+console.log('\nmaintenance — un guasto solo sul proprio interno, mai anonimo');
+await check('anon-provider session CANNOT open a fake leak on propA',
+  assertFails(setDoc(doc(anonProv, 'maintenance/fake1'), { userId: 'anonSess', propertyId: 'propA', title: 'FUGA DI GAS — evacuare' })));
+await check('unauthenticated CANNOT open a ticket',
+  assertFails(setDoc(doc(anon, 'maintenance/fake2'), { userId: 'x', propertyId: 'propA', title: 'x' })));
+await check('tenant B (other building) CANNOT open a ticket on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/fake3'), { userId: 'tB', propertyId: 'propA', title: 'Allagamento' })));
+await check('tenant B CANNOT borrow tenant A\'s contract to open on propA',
+  assertFails(setDoc(doc(tB, 'maintenance/fake4'), { userId: 'tB', propertyId: 'propA', contractId: 'contractA', title: 'x' })));
+await check('tenant A opens a ticket with OWN contractId (come /casa)',
+  assertSucceeds(setDoc(doc(tA, 'maintenance/casaA'), { userId: 'tA', tenantId: 'tA', propertyId: 'propA', contractId: 'contractA', title: 'Caldaia', status: 'pending' })));
+await check('tenant A CANNOT point own contract at another property',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA2'), { userId: 'tA', propertyId: 'propB', contractId: 'contractA', title: 'x' })));
+await check('tenant A CANNOT forge the reporter/source written by the server',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA3'), { userId: 'tA', propertyId: 'propA', contractId: 'contractA', title: 'x',
+    reporter: { role: 'owner', name: 'La proprietaria', via: 'palazzo' }, source: 'palazzo' })));
+await check('tenant A CANNOT open a ticket without a propertyId',
+  assertFails(setDoc(doc(tA, 'maintenance/casaA4'), { userId: 'tA', title: 'x' })));
+await check('landlord A opens a ticket on OWN property',
+  assertSucceeds(setDoc(doc(llA, 'maintenance/llA1'), { userId: 'llA', propertyId: 'propA', title: 'Umidità' })));
+await check('landlord A CANNOT open a ticket on landlord B property',
+  assertFails(setDoc(doc(llA, 'maintenance/llA2'), { userId: 'llA', propertyId: 'propB', title: 'x' })));
+await check('admin opens a ticket for a tenant (the server path)',
+  assertSucceeds(setDoc(doc(admin, 'maintenance/adm1'), { userId: null, propertyId: 'propA', title: 'x', reporter: { role: 'tenant', via: 'link' }, source: 'guasto-link' })));
+
+console.log('\nInbox — la proprietaria non legge note interne né analisi AI');
+await check('landlord A CANNOT read the conversation assigned to her (aiSummary)', assertFails(getDoc(doc(llA, 'conversations/conv1'))));
+await check('landlord A CANNOT read a message of that conversation', assertFails(getDoc(doc(llA, 'messages/msgIn'))));
+await check('landlord A CANNOT read the internal note', assertFails(getDoc(doc(llA, 'messages/msgNote'))));
+await check('landlord A CANNOT list conversations by assignedLandlordId',
+  assertFails(getDocs(query(collection(llA, 'conversations'), where('assignedLandlordId', '==', 'llA')))));
+await check('the contact (tenant A) reads own conversation', assertSucceeds(getDoc(doc(tA, 'conversations/conv1'))));
+await check('the contact reads own inbound message', assertSucceeds(getDoc(doc(tA, 'messages/msgIn'))));
+await check('the contact CANNOT read an internal note about them', assertFails(getDoc(doc(tA, 'messages/msgNote'))));
+await check('a client CANNOT fabricate an internal note',
+  assertFails(setDoc(doc(tA, 'messages/forgedNote'), { conversationId: 'conv1', by: 'tA', direction: 'note', body: 'x' })));
+await check('a client still writes an ordinary message',
+  assertSucceeds(setDoc(doc(tA, 'messages/okOut'), { conversationId: 'conv1', by: 'tA', direction: 'out', body: 'x' })));
+await check('admin reads the note', assertSucceeds(getDoc(doc(admin, 'messages/msgNote'))));
+
+console.log('\nIl loader della proprietaria: un blocco da 9 interni passa, uno estraneo no');
+const nine = Array.from({ length: 9 }, (_, i) => 'plzC_' + (i + 1));
+for (const coll of ['contracts', 'payments', 'maintenance']) {
+  await check('landlord C reads ' + coll + ' where propertyId in [9 suoi]',
+    assertSucceeds(getDocs(query(collection(llC, coll), where('propertyId', 'in', nine)))));
+  await check('landlord C CANNOT read ' + coll + ' if the block holds a property not hers',
+    assertFails(getDocs(query(collection(llC, coll), where('propertyId', 'in', [...nine.slice(0, 8), 'propA'])))));
+}
+await check('landlord C reads the SHARED documents of her 9 units',
+  assertSucceeds(getDocs(query(collection(llC, 'documents'), where('shared', '==', true), where('propertyId', 'in', nine)))));
+await check('landlord C CANNOT read unshared documents of her units',
+  assertFails(getDocs(query(collection(llC, 'documents'), where('propertyId', 'in', nine)))));
+
+console.log('\npaymentCosts — costo Stripe e margine BOOM fuori dalla rata');
+await check('landlord CANNOT read paymentCosts', assertFails(getDoc(doc(llA, 'paymentCosts/payA'))));
+await check('admin writes paymentCosts', assertSucceeds(setDoc(doc(admin, 'paymentCosts/payA'), { stripeCostEur: 1.2, marginEur: 0 })));
 
 // ── DEFAULT DENY ────────────────────────────────────────────────────────
 console.log('\nDefault-deny');

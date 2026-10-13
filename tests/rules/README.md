@@ -23,6 +23,24 @@ nothing in production.
   `tenantSignToken`/`landlordSignToken` on a contract — removing them (the
   migration) is allowed.
 - **Default-deny** catch-all blocks any undeclared collection.
+- **Palazzo — le porte del ruolo landlord** (12/10/2026): le manopole interne
+  di `settings` (registrazione, ai, costi carta/SEPA, calendario, agenti) sono
+  solo dell'admin, `company` solo per account veri, `video` resta pubblico;
+  un guasto si apre solo sul proprio interno (mai anonimo, mai `reporter`/
+  `source` dal browser); la proprietaria non legge Inbox, note interne né
+  analisi AI; il suo loader a blocchi di 9 interni passa, un blocco con un
+  immobile non suo no; `paymentCosts` admin-only.
+
+### Storage (`storage.mjs`)
+
+Le regole Storage leggono il ruolo da Firestore, quindi girano con DUE
+emulatori (`--only firestore,storage`). Provano che la proprietaria non
+elenca né scarica le cartelle degli altri (documents/, payment-proofs/,
+maintenance/ — il difetto `|| isLandlord()`), che il titolare e l'admin
+leggono le proprie, e che l'admin carica il contratto su carta in
+`contracts/<id>/contratto-carta-<ts>.pdf`. `run-tests.sh` copia
+`storage.rules` per la durata della prova e la cancella all'uscita.
+Mutazione verificata: con le regole precedenti cadono 11 controlli su 23.
 
 ## Run
 
@@ -43,7 +61,7 @@ Requires: Node 18+, Java 17+ (for the emulator), and `firebase-tools`
 Expected output ends with:
 
 ```
-Result: 39 passed, 0 failed
+Result: 135 passed, 0 failed
 All rules behave as intended.
 ```
 
