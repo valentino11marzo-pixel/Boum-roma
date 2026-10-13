@@ -817,20 +817,24 @@ Valentyne - BOOM Rome`
     window.BOOM_PALAZZO_UI?.configure({
         state: () => S, isAdmin: () => isAdmin(),
         render: () => { if (S.page === 'palazzo') { renderPage(); } },
-        actions: { rent: (propertyId, month) => openRentUnit('property:' + propertyId, month),
+        actions: { rent: (propertyId, month) => palazzoAdminOnly() && openRentUnit('property:' + propertyId, month),
+            // Il contratto: all'operatore la sua scheda, alla proprietaria
+            // l'interno selezionato nel Palazzo (viewContract delega).
             contract: id => viewContract(id),
-            dossier: id => window.BOOM_PROPERTY_DOSSIER?.open(id),
-            edit: property => openModal('editProperty', property),
+            dossier: id => palazzoAdminOnly() && window.BOOM_PROPERTY_DOSSIER?.open(id),
+            edit: property => palazzoAdminOnly() && openModal('editProperty', property),
             contracts: () => goTo('contracts'), users: () => goTo('users'),
             // «Scrivi a BOOM»: per l'operatore l'Inbox, per la proprietaria
             // WhatsApp (o email) a BOOM con l'interno già scritto.
             inbox: (propertyId, channel) => palazzoWriteBoom(propertyId, channel),
-            payLink: id => showPaymentLink('pay', id),
+            payLink: id => palazzoAdminOnly() && showPaymentLink('pay', id),
+            // Il PDF lo apre anche la proprietaria (sola lettura: la scansione
+            // firmata su carta, poi la copia firmata, poi il generato).
             pdf: id => downloadContractPDF(id), firma: id => openFirmaOra(id),
-            rli: id => markRliRegistered(id), aspi: id => openAspi(id),
-            fiscale: id => openFascicolo(id), arpe: id => openSchedaArpe(id),
-            linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
-            importRoll: plan => palazzoImport(plan),
+            rli: id => palazzoAdminOnly() && markRliRegistered(id), aspi: id => palazzoAdminOnly() && openAspi(id),
+            fiscale: id => palazzoAdminOnly() && openFascicolo(id), arpe: id => palazzoAdminOnly() && openSchedaArpe(id),
+            linkOwner: (ids, ownerId) => palazzoAdminOnly() && palazzoLinkOwner(ids, ownerId),
+            importRoll: plan => palazzoAdminOnly() && palazzoImport(plan),
             maintenance: id => viewMaintenance(id),
             // L'incasso: il modale con data dell'accredito, canale e prova
             // (filone soldi). Finché non c'è, il percorso di prima.
@@ -846,7 +850,7 @@ Valentyne - BOOM Rome`
             sendPasswordLink: ownerId => palazzoSendPasswordLink(ownerId),
             loadBuilding: propertyIds => palazzoLoadBuilding(propertyIds),
             reload: () => palazzoReload(),
-            saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
+            saveLook: (ids, fields) => palazzoAdminOnly() && palazzoSaveLook(ids, fields) },
         // Recapiti di BOOM per la proprietaria («Scrivi a BOOM»).
         company: () => palazzoCompany(),
         // I documenti CONDIVISI degli interni (mai uno non condiviso alla
@@ -1084,6 +1088,116 @@ Valentyne - BOOM Rome`
         return rows;
     }
 
+    // L'unica scrittura della vista, esplicita e solo admin: un interno senza
+    // ownerId non esiste per il proprietario (rules + loader leggono ownerId).
+    async function palazzoLinkOwner(ids, ownerId) {
+        if (!isAdmin()) return;
+        const owner = (S.users || []).find(u => u.id === ownerId);
+        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(p => p && p.ownerId !== ownerId);
+        if (!owner || !props.length) return toast('info', 'Niente da collegare');
+        const names = props.map(p => p.interno ? 'int. ' + p.interno : (p.name || p.id)).join(', ');
+        if (!confirm(`Collegare ${props.length} ${props.length === 1 ? 'interno' : 'interni'} a ${owner.name || owner.email}?\n\n${names}\n\nDal suo accesso li vedrà con contratti e canoni.`)) return;
+        try {
+            const batch = db.batch();
+            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ownerId, ownerName: owner.name || p.ownerName || '', ownerLinkedAt: firebase.firestore.FieldValue.serverTimestamp(), ownerLinkedFrom: 'palazzo' }));
+            await batch.commit();
+            props.forEach(p => { p.ownerId = ownerId; if (owner.name) p.ownerName = owner.name; });
+            logActivity('property_owner_linked', 'property', { ids: props.map(p => p.id), ownerId });
+            toast('success', 'Interni collegati', `${props.length} → ${owner.name || owner.email}`);
+            if (S.page === 'palazzo') renderPage();
+        } catch (err) { toast('error', 'Collegamento non riuscito', err.message); }
+    }
+
+    // L'aspetto del palazzo (intonaco, persiane, ultimo piano, nome) si scrive
+    // su TUTTI i suoi interni: il motore legge il primo valore dichiarato. I
+    // campi arrivano già validati da BOOM_PALAZZO.validateLook (solo quelli
+    // cambiati); qui la conferma e la scrittura, solo admin.
+    // LA PRESA IN CARICO: il palazzo da una tabella (BOOM_PALAZZO.planImport,
+    // puro). Solo admin, con conferma che dice cosa nasce. Prima di scrivere
+    // si chiede al SERVER cosa esiste già (il carico del portal ha dei tetti):
+    // un contratto o una rata già in archivio non si sovrascrive MAI — una
+    // rata pagata tornerebbe "da pagare". Solo properties/contracts/payments.
+    async function palazzoImport(plan) {
+        if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
+        const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
+        const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
+        const newC = C.filter(c => !c.exists).length, updC = C.length - newC;
+        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${newC} contratti${updC ? `, ${updC} già in archivio (solo i campi vuoti)` : ''}\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
+        try {
+            const exists = async (col, ids) => {
+                const out = new Set();
+                for (const id of ids) { const d = await db.collection(col).doc(id).get(); if (d.exists) out.add(id); }
+                return out;
+            };
+            const propHave = await exists('properties', P.filter(p => !p.exists).map(p => p.id));
+            const conHave = await exists('contracts', C.filter(c => !c.exists).map(c => c.id));
+            const payHave = new Set();
+            const cids = [...new Set(R.map(r => r.data.contractId))];
+            for (let i = 0; i < cids.length; i += 10) {
+                const snap = await db.collection('payments').where('contractId', 'in', cids.slice(i, i + 10)).get();
+                snap.docs.forEach(d => payHave.add(d.id));
+            }
+            const ts = firebase.firestore.FieldValue.serverTimestamp(), by = S.profile?.id || '';
+            const ops = [];
+            P.forEach(p => {
+                if (p.exists) ops.push(['update', 'properties', p.id, { ...p.data, palazzoImportAt: ts, palazzoImportBy: by }]);
+                else if (!propHave.has(p.id)) ops.push(['set', 'properties', p.id, { ...p.data, createdAt: ts, palazzoImportBy: by }]);
+            });
+            C.forEach(c => {
+                if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by }]);
+                else if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]);
+            });
+            R.forEach(r => { if (!payHave.has(r.id)) ops.push(['set', 'payments', r.id, { ...r.data, createdAt: ts }]); });
+            for (let i = 0; i < ops.length; i += 400) {
+                const batch = db.batch();
+                ops.slice(i, i + 400).forEach(([kind, col, id, data]) => {
+                    const ref = db.collection(col).doc(id);
+                    if (kind === 'update') batch.update(ref, data); else batch.set(ref, data);
+                });
+                await batch.commit();
+            }
+            // In memoria subito: il palazzo si disegna senza ricaricare.
+            ops.forEach(([kind, col, id, data]) => {
+                const arr = S[col] = S[col] || [];
+                const clean = { ...data }; ['createdAt', 'palazzoImportAt'].forEach(k => { if (clean[k] === ts) delete clean[k]; });
+                const cur = arr.find(x => x.id === id);
+                if (cur) Object.assign(cur, clean); else arr.push({ id, ...clean });
+            });
+            const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
+            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped });
+            toast('success', 'Palazzo caricato', `${newP} interni · ${newC} contratti${updC ? ` (+${updC} completati)` : ''} · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
+            return true;
+        } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
+    }
+
+    async function palazzoSaveLook(ids, fields) {
+        if (!isAdmin()) return false;
+        const allowed = ['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'];
+        const clean = {};
+        Object.keys(fields || {}).forEach(k => { if (allowed.includes(k)) clean[k] = fields[k]; });
+        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(Boolean);
+        if (!props.length || !Object.keys(clean).length) return false;
+        const L = window.BOOM_PALAZZO?.LOOKS || { intonaco: {}, persiane: {} };
+        const what = [
+            clean.palazzoNome != null ? (clean.palazzoNome ? `nome «${clean.palazzoNome}»` : 'nome tolto') : '',
+            clean.ultimoPiano != null ? `ultimo piano ${clean.ultimoPiano}` : '',
+            clean.palazzoIntonaco ? `intonaco ${(L.intonaco[clean.palazzoIntonaco] || [clean.palazzoIntonaco])[0].toLowerCase()}` : '',
+            clean.palazzoPersiane ? `persiane ${(L.persiane[clean.palazzoPersiane] || [clean.palazzoPersiane])[0].toLowerCase()}` : ''
+        ].filter(Boolean).join(', ');
+        if (!confirm(`Salvare l'aspetto del palazzo su ${props.length} ${props.length === 1 ? 'interno' : 'interni'}?\n\n${what}`)) return false;
+        try {
+            const batch = db.batch();
+            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ...clean, palazzoLookAt: firebase.firestore.FieldValue.serverTimestamp(), palazzoLookBy: S.profile?.id || '' }));
+            await batch.commit();
+            props.forEach(p => Object.assign(p, clean));
+            logActivity('palazzo_look_saved', 'property', { ids: props.map(p => p.id), fields: Object.keys(clean) });
+            toast('success', 'Palazzo aggiornato', what);
+            return true;
+        } catch (err) { toast('error', 'Salvataggio non riuscito', err.message); return false; }
+    }
+
+    // Le altre scritture del Palazzo (solo admin): tenute DOPO la presa in
+    // carico e l'aspetto, una funzione per mestiere.
     // Ogni link o sollecito mandato dal Palazzo resta SULLA RATA
     // (dunningHistory + lastReminderDate), come i solleciti di sendDunningWA:
     // prima «✓ Inviato» viveva solo in memoria e cambiando dispositivo si
@@ -1207,113 +1321,6 @@ Valentyne - BOOM Rome`
             return true;
         } catch (err) { toast('error', 'Link non inviato', (err && err.message) || ''); return false; }
         finally { auth.languageCode = prev; }
-    }
-    // L'unica scrittura della vista, esplicita e solo admin: un interno senza
-    // ownerId non esiste per il proprietario (rules + loader leggono ownerId).
-    async function palazzoLinkOwner(ids, ownerId) {
-        if (!isAdmin()) return;
-        const owner = (S.users || []).find(u => u.id === ownerId);
-        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(p => p && p.ownerId !== ownerId);
-        if (!owner || !props.length) return toast('info', 'Niente da collegare');
-        const names = props.map(p => p.interno ? 'int. ' + p.interno : (p.name || p.id)).join(', ');
-        if (!confirm(`Collegare ${props.length} ${props.length === 1 ? 'interno' : 'interni'} a ${owner.name || owner.email}?\n\n${names}\n\nDal suo accesso li vedrà con contratti e canoni.`)) return;
-        try {
-            const batch = db.batch();
-            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ownerId, ownerName: owner.name || p.ownerName || '', ownerLinkedAt: firebase.firestore.FieldValue.serverTimestamp(), ownerLinkedFrom: 'palazzo' }));
-            await batch.commit();
-            props.forEach(p => { p.ownerId = ownerId; if (owner.name) p.ownerName = owner.name; });
-            logActivity('property_owner_linked', 'property', { ids: props.map(p => p.id), ownerId });
-            toast('success', 'Interni collegati', `${props.length} → ${owner.name || owner.email}`);
-            if (S.page === 'palazzo') renderPage();
-        } catch (err) { toast('error', 'Collegamento non riuscito', err.message); }
-    }
-
-    // L'aspetto del palazzo (intonaco, persiane, ultimo piano, nome) si scrive
-    // su TUTTI i suoi interni: il motore legge il primo valore dichiarato. I
-    // campi arrivano già validati da BOOM_PALAZZO.validateLook (solo quelli
-    // cambiati); qui la conferma e la scrittura, solo admin.
-    // LA PRESA IN CARICO: il palazzo da una tabella (BOOM_PALAZZO.planImport,
-    // puro). Solo admin, con conferma che dice cosa nasce. Prima di scrivere
-    // si chiede al SERVER cosa esiste già (il carico del portal ha dei tetti):
-    // un contratto o una rata già in archivio non si sovrascrive MAI — una
-    // rata pagata tornerebbe "da pagare". Solo properties/contracts/payments.
-    async function palazzoImport(plan) {
-        if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
-        const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
-        const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
-        const newC = C.filter(c => !c.exists).length, updC = C.length - newC;
-        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${newC} contratti${updC ? `, ${updC} già in archivio (solo i campi vuoti)` : ''}\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
-        try {
-            const exists = async (col, ids) => {
-                const out = new Set();
-                for (const id of ids) { const d = await db.collection(col).doc(id).get(); if (d.exists) out.add(id); }
-                return out;
-            };
-            const propHave = await exists('properties', P.filter(p => !p.exists).map(p => p.id));
-            const conHave = await exists('contracts', C.filter(c => !c.exists).map(c => c.id));
-            const payHave = new Set();
-            const cids = [...new Set(R.map(r => r.data.contractId))];
-            for (let i = 0; i < cids.length; i += 10) {
-                const snap = await db.collection('payments').where('contractId', 'in', cids.slice(i, i + 10)).get();
-                snap.docs.forEach(d => payHave.add(d.id));
-            }
-            const ts = firebase.firestore.FieldValue.serverTimestamp(), by = S.profile?.id || '';
-            const ops = [];
-            P.forEach(p => {
-                if (p.exists) ops.push(['update', 'properties', p.id, { ...p.data, palazzoImportAt: ts, palazzoImportBy: by }]);
-                else if (!propHave.has(p.id)) ops.push(['set', 'properties', p.id, { ...p.data, createdAt: ts, palazzoImportBy: by }]);
-            });
-            C.forEach(c => {
-                if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by }]);
-                else if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]);
-            });
-            R.forEach(r => { if (!payHave.has(r.id)) ops.push(['set', 'payments', r.id, { ...r.data, createdAt: ts }]); });
-            for (let i = 0; i < ops.length; i += 400) {
-                const batch = db.batch();
-                ops.slice(i, i + 400).forEach(([kind, col, id, data]) => {
-                    const ref = db.collection(col).doc(id);
-                    if (kind === 'update') batch.update(ref, data); else batch.set(ref, data);
-                });
-                await batch.commit();
-            }
-            // In memoria subito: il palazzo si disegna senza ricaricare.
-            ops.forEach(([kind, col, id, data]) => {
-                const arr = S[col] = S[col] || [];
-                const clean = { ...data }; ['createdAt', 'palazzoImportAt'].forEach(k => { if (clean[k] === ts) delete clean[k]; });
-                const cur = arr.find(x => x.id === id);
-                if (cur) Object.assign(cur, clean); else arr.push({ id, ...clean });
-            });
-            const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
-            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped });
-            toast('success', 'Palazzo caricato', `${newP} interni · ${newC} contratti${updC ? ` (+${updC} completati)` : ''} · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
-            return true;
-        } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
-    }
-
-    async function palazzoSaveLook(ids, fields) {
-        if (!isAdmin()) return false;
-        const allowed = ['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'];
-        const clean = {};
-        Object.keys(fields || {}).forEach(k => { if (allowed.includes(k)) clean[k] = fields[k]; });
-        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(Boolean);
-        if (!props.length || !Object.keys(clean).length) return false;
-        const L = window.BOOM_PALAZZO?.LOOKS || { intonaco: {}, persiane: {} };
-        const what = [
-            clean.palazzoNome != null ? (clean.palazzoNome ? `nome «${clean.palazzoNome}»` : 'nome tolto') : '',
-            clean.ultimoPiano != null ? `ultimo piano ${clean.ultimoPiano}` : '',
-            clean.palazzoIntonaco ? `intonaco ${(L.intonaco[clean.palazzoIntonaco] || [clean.palazzoIntonaco])[0].toLowerCase()}` : '',
-            clean.palazzoPersiane ? `persiane ${(L.persiane[clean.palazzoPersiane] || [clean.palazzoPersiane])[0].toLowerCase()}` : ''
-        ].filter(Boolean).join(', ');
-        if (!confirm(`Salvare l'aspetto del palazzo su ${props.length} ${props.length === 1 ? 'interno' : 'interni'}?\n\n${what}`)) return false;
-        try {
-            const batch = db.batch();
-            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ...clean, palazzoLookAt: firebase.firestore.FieldValue.serverTimestamp(), palazzoLookBy: S.profile?.id || '' }));
-            await batch.commit();
-            props.forEach(p => Object.assign(p, clean));
-            logActivity('palazzo_look_saved', 'property', { ids: props.map(p => p.id), fields: Object.keys(clean) });
-            toast('success', 'Palazzo aggiornato', what);
-            return true;
-        } catch (err) { toast('error', 'Salvataggio non riuscito', err.message); return false; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1499,7 +1506,9 @@ Valentyne - BOOM Rome`
         if (isAdmin()) return S.documents;
         // Tenant/landlord see their own + shared docs for their properties
         const myPropIds = isTenant() ? getMyContracts().map(c => c.propertyId) : getMyProperties().map(p => p.id);
-        return S.documents.filter(d => d.userId === S.profile.id || (d.shared && myPropIds.includes(d.propertyId)));
+        // Mai un documento ANNULLATO (es. la ricevuta di un incasso registrato
+        // per errore): resta in archivio per l'operatore, non per le parti.
+        return (S.documents || []).filter(d => d && d.voided !== true && (d.userId === S.profile.id || ((d.shared === true || d.shared === 'true') && myPropIds.includes(d.propertyId))));
     }
 
     // Get owner/admin contact for tenant
@@ -3231,8 +3240,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Own documents (both roles) + per la proprietaria quelli condivisi da
         // BOOM sui suoi interni (letti sopra), senza doppioni.
-        const docs = await db.collection('documents').where('userId', '==', myUid).get();
-        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        // Per la proprietaria una lettura che fallisce si DICE (come sopra) e
+        // non butta via il resto: i suoi documenti restano quelli di prima.
+        try {
+            const docs = await db.collection('documents').where('userId', '==', myUid).get();
+            S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        } catch (e) {
+            if (!isLandlord()) throw e;
+            console.warn('[landlord load] documents', e && e.message);
+            S.documents = (S.documents || []).filter(d => d.userId === myUid);
+            S.scopedLoadError = (S.scopedLoadError ? S.scopedLoadError.replace(/\. I numeri.*$/, '') + ', i tuoi documenti' : 'Non sono riuscito a leggere i tuoi documenti')
+                + '. I numeri potrebbero essere incompleti: tocca Riprova.';
+            if (!silent) toast('error', 'Dati incompleti', S.scopedLoadError);
+        }
         if (isLandlord()) (S._landlordShared || []).forEach(d => { if (!S.documents.some(x => x.id === d.id)) S.documents.push(d); });
 
         // Inbox: per la proprietaria NON si legge. L'inbox è dell'operatore
@@ -5011,6 +5031,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'bonifica': m.innerHTML = isAdmin() ? bonificaPage() : accessDenied(); break;
             case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
+        }
+        // Dati della proprietaria letti a metà: lo si dice anche su Documenti,
+        // Commercialista e Impostazioni (sul Palazzo lo dice la vista), con
+        // «Riprova» — mai una pagina che sembra completa e non lo è.
+        if (r === 'landlord' && S.scopedLoadError && S.page !== 'palazzo') {
+            m.insertAdjacentHTML('afterbegin', `<div class="card" role="alert" data-scoped-error style="border-color:var(--red);margin-bottom:14px"><div class="card-body" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;font-size:13px"><span style="flex:1;min-width:200px">⚠️ ${esc(S.scopedLoadError)}</span><button class="btn btn-sm" onclick="palazzoReload()">Riprova</button></div></div>`);
         }
         window.BOOM_PROPERTY_DOSSIER?.afterRender();
         // Post-render hooks
@@ -9507,7 +9533,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const overduePayments = payments.filter(isPaymentLate);
         const totalPaid = paid.reduce((s, p) => s + (p.amount || 0), 0);
         const totalOverdue = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
-        const unsignedContracts = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
+        // Firma DIGITALE che aspetta: un contratto su carta o un segnaposto no.
+        const unsignedContracts = contracts.filter(c => c.status === 'active' && awaitingDigitalSignature(c));
         const openMaint = maintenance.filter(m => m.status !== 'resolved');
 
         // ── Timeline: unified chronological feed ─────────────────────────────
@@ -13833,7 +13860,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card" style="margin-top:16px">
                 <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
                     <div style="flex:1"><strong>Checklist completa</strong> <span style="font-size:12px;color:var(--text-muted)">${checklist.presentCount}/${checklist.requiredCount} documenti</span></div>
-                    <button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>
+                    ${locatore.other ? '' : `<button class="btn btn-secondary btn-sm" onclick="openCedolareCalc(${totals.canoniAttesi || (contract.rent ? contract.rent*12 : 0)}, ${TP.classifyContract(contract).isConcordato})">📊 Cedolare vs IRPEF</button>`}
                     <button class="btn btn-secondary btn-sm" onclick="openIstatLetter('${prop.id}', ${year})">📈 Lettera ISTAT</button>
                 </div>
                 <div style="height:6px;background:var(--bg-elevated)"><div style="height:100%;width:${checklist.completeness}%;background:${accent};transition:width .4s"></div></div>
@@ -15792,7 +15819,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="list-content" style="flex:1;min-width:0">
                             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                                 <div class="list-title">${esc(d.name)}</div>
-                                ${isFromBoom ? `<span class="badge gold" style="font-size:9px">FROM BOOM</span>` : `<span class="badge gray" style="font-size:9px">${isEN ? 'MY UPLOAD' : 'MIO'}</span>`}
+                                ${isFromBoom ? `<span class="badge gold" style="font-size:9px">${isEN ? 'FROM BOOM' : 'DA BOOM'}</span>` : `<span class="badge gray" style="font-size:9px">${isEN ? 'MY UPLOAD' : 'MIO'}</span>`}
                                 ${d.shared ? `<span class="badge blue" style="font-size:9px">🔗 ${isEN ? 'Shared' : 'Condiviso'}</span>` : ''}
                             </div>
                             <div class="list-subtitle">${fmtDate(d.createdAt)}${d.fileName ? ' · ' + esc(d.fileName) : ''}${d.fileSize ? ' · ' + (d.fileSize/1024).toFixed(0) + ' KB' : ''}</div>
@@ -29905,16 +29932,17 @@ IBAN: ${l.iban || '-'}`;
     // PUSH NOTIFICATIONS - Browser Push API
     // ═══════════════════════════════════════════════════════════════════════════
     async function requestPushPermission() {
-        if (!('Notification' in window)) { toast('info', 'This browser does not support push notifications'); return; }
+        const en = isTenant();
+        if (!('Notification' in window)) { toast('info', en ? 'This browser does not support push notifications' : 'Questo browser non supporta le notifiche (su iPhone: installa il portale sulla schermata Home)'); return; }
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-            toast('success', 'Push notifications enabled!');
+            toast('success', en ? 'Push notifications enabled!' : 'Notifiche attivate');
             // Store preference
             if (S.profile?.id) {
                 await db.collection('users').doc(S.profile.id).update({ pushEnabled: true, pushEnabledAt: firebase.firestore.FieldValue.serverTimestamp() });
             }
         } else {
-            toast('info', 'Push notifications declined');
+            toast('info', en ? 'Push notifications declined' : 'Notifiche non attivate');
         }
     }
     
