@@ -575,6 +575,26 @@ const today = romeDay();
   const r = await T.run("applyRentFuture('c8', 'abc')");
   await check('un importo non valido si rifiuta', () => assert.equal(r, false));
 }
+{
+  // Una rata di cui non si sa la composizione (canone 900 + quota energia 60,
+  // senza le due voci): il canone nuovo non la riscrive, la lascia e lo dice.
+  const T = build();
+  const f = FIX();
+  f.payments = [
+    { id: 'pay_c9_2026-11', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-11', amount: 960, dueDate: '2026-11-05', status: 'pending' },
+    { id: 'pay_c9_2026-12', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-12', amount: 900, dueDate: '2026-12-05', status: 'pending' },
+    { id: 'pay_c9_2027-01', contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2027-01', amount: 950, rentAmount: 900, oneriAmount: 30, dueDate: '2027-01-05', status: 'pending' },
+  ];
+  T.seed(f);
+  await T.run("applyRentFuture('c9', 950)");
+  await check('canone nuovo: una rata con una parte che non conosciamo (energia, ritocchi) resta com’è e lo si dice', () => {
+    assert.equal(T.doc('payments/pay_c9_2026-11').amount, 960, 'composizione ignota: non toccata');
+    assert.equal(T.doc('payments/pay_c9_2027-01').amount, 950, 'voci che non tornano col totale: non toccata');
+    assert.equal(T.doc('payments/pay_c9_2026-12').amount, 950, 'solo canone: ricalcolata');
+    assert.match(T.confirms.at(-1), /2 rate hanno un importo che non è solo canone \+ oneri \(per esempio con la quota energia\): restano come sono/);
+    assert.equal(T.doc('contracts/c9').rent, 950);
+  });
+}
 
 // ═══ 9. Solleciti: un bonifico segnalato si verifica, non si sollecita ═════
 {
@@ -660,6 +680,11 @@ await mutant('la chiusura che lascia aperte le rate', "tx.update(db.collection('
 });
 await mutant('le rate segnalate ricalcolate col canone nuovo', "if ((st !== 'due' && st !== 'overdue') || amt == null) { skipped.push(p); return; }", "if (amt == null) { skipped.push(p); return; }", async T => {
   assert.equal(T.run("incassoFuturePlan(S.contracts.find(c=>c.id==='c7'), S.payments, 'oneri', 200, '').rows.length"), 0);
+});
+await mutant('la quota energia cancellata dal canone nuovo', "} else if (Number(contract.rent) > 0 && Math.abs(incassoRound(Number(contract.rent) * months * f) - amt) > 0.01) { unknown.push(p); return; }", "}", async T => {
+  T.store.set('payments/pay_c9_2026-11', { contractId: 'c9', propertyId: 'p9', tenantId: 't9', type: 'rent', month: '2026-11', amount: 960, dueDate: '2026-11-05', status: 'pending' });
+  await T.run("applyRentFuture('c9', 950)");
+  assert.equal(T.doc('payments/pay_c9_2026-11').amount, 960);
 });
 await mutant('il numero dalle ultime 8 cifre', "return 'RIC-' + (4294967296", "return 'RIC-' + String(id).slice(-8).toUpperCase() || (4294967296", async T => {
   assert.notEqual(T.run("incassoReceiptNumber('pay_c_a_int7_2026-10')"), T.run("incassoReceiptNumber('pay_c_a_int8_2026-10')"));

@@ -18098,8 +18098,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // pagare o in ritardo. Mai una pagata, una segnalata dall'inquilino, un
     // addebito in corso o un'annullata: lì l'inquilino ha già agito
     // sull'importo che vedeva. La rata resta canone + oneri, con le due voci.
+    // Una rata di cui non si sa di cosa è fatta (senza le due voci e con un
+    // importo diverso dal canone del contratto: la quota energia di una
+    // proposta, un ritocco a mano) NON si ricalcola: riscriverla col solo
+    // canone nuovo cancellerebbe la parte che non conosciamo. Resta, e si dice.
     function incassoFuturePlan(contract, payments, kind, value, fromMonth) {
-        const rows = [], skipped = [];
+        const rows = [], skipped = [], unknown = [];
         (payments || []).filter(p => p && p.contractId === contract.id && window.BOOM_RENT.isRentPayment(p))
             .sort((a, b) => String(a.month || '').localeCompare(String(b.month || '')))
             .forEach(p => {
@@ -18110,9 +18114,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if ((st !== 'due' && st !== 'overdue') || amt == null) { skipped.push(p); return; }
                 const months = [1, 2, 3, 6, 12].includes(Number(p.installmentMonths)) ? Number(p.installmentMonths) : 1;
                 const f = incassoPeriodFactor(p, months);
+                const hasRent = window.BOOM_RENT.amount(p.rentAmount) != null, hasOneri = window.BOOM_RENT.amount(p.oneriAmount) != null;
                 const oneriOld = window.BOOM_RENT.amount(p.oneriAmount) || 0;
-                const rentOld = window.BOOM_RENT.amount(p.rentAmount) != null ? window.BOOM_RENT.amount(p.rentAmount) : incassoRound(amt - oneriOld);
-                if (rentOld < 0) { skipped.push(p); return; }
+                const rentOld = hasRent ? window.BOOM_RENT.amount(p.rentAmount) : incassoRound(amt - oneriOld);
+                if (rentOld < 0) { unknown.push(p); return; }
+                if (hasRent || hasOneri) {
+                    // Le due voci devono tornare col totale, o non sappiamo quale vale.
+                    if (Math.abs(incassoRound(rentOld + oneriOld) - amt) > 0.01) { unknown.push(p); return; }
+                } else if (Number(contract.rent) > 0 && Math.abs(incassoRound(Number(contract.rent) * months * f) - amt) > 0.01) { unknown.push(p); return; }
                 const part = incassoRound(value * months * f);
                 const rentNew = kind === 'rent' ? part : rentOld, oneriNew = kind === 'oneri' ? part : oneriOld;
                 const to = incassoRound(rentNew + oneriNew);
@@ -18122,7 +18131,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (split) { upd.rentAmount = rentNew; upd.oneriAmount = oneriNew; }
                 rows.push({ id: p.id, month: p.month || '', from: amt, to, prorated: f < 1, upd });
             });
-        return { rows, skipped };
+        return { rows, skipped, unknown };
     }
     async function incassoApplyFuture(kind, contractId, raw, opts) {
         if (!isAdmin()) return false;
@@ -18144,6 +18153,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ? `Aggiorno il contratto e ${plan.rows.length} ${plan.rows.length === 1 ? 'rata non pagata' : 'rate non pagate'} (${incassoMonth(plan.rows[0].month) || '—'}${plan.rows.length > 1 ? ' – ' + (incassoMonth(plan.rows[plan.rows.length - 1].month) || '—') : ''}): rata nuova €${incassoEuro(full.to)}${part ? `, quella in proporzione €${incassoEuro(part.to)}` : ''}.`
                     : 'Aggiorno solo il contratto: nessuna rata da pagare da ricalcolare.')
                 + (plan.skipped.length ? `\n${plan.skipped.length} ${plan.skipped.length === 1 ? 'rata segnalata dall’inquilino o in corso resta' : 'rate segnalate dall’inquilino o in corso restano'} come ${plan.skipped.length === 1 ? 'è' : 'sono'}: correggile a mano se serve.` : '')
+                + (plan.unknown.length ? `\n${plan.unknown.length} ${plan.unknown.length === 1 ? 'rata ha un importo che non è solo canone + oneri (per esempio con la quota energia): resta com’è' : 'rate hanno un importo che non è solo canone + oneri (per esempio con la quota energia): restano come sono'}, correggile dal dettaglio.` : '')
                 + '\nLe rate già pagate non cambiano.';
             if (!confirm(msg)) return false;
             const by = auth.currentUser?.uid || S.profile?.id || '', at = new Date().toISOString();
