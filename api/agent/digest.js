@@ -71,13 +71,15 @@ export default async function handler(req, res) {
     for (const p of payments) {
       // Lo stato da BOOM_RENT: un bonifico SEGNALATO non è un ritardo, un mese
       // prima della gestione BOOM non è un arretrato, una rata dopo la
-      // chiusura del contratto (openAfterClose) va annullata.
+      // chiusura del contratto (openAfterClose) va annullata. La gestione si
+      // guarda PER PRIMA (come Gestore, Contabile, Oggi e il Palazzo): una
+      // rata tutta prima della gestione non è di nessuno, nemmeno «da annullare».
+      const pc = contractById[p.contractId] || {};
+      if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
       if (RENT.openAfterClose(p, contractById[p.contractId], new Date(now))) { afterCloseN++; continue; }
       const st = RENT.paymentState(p, new Date(now));
       if (st === 'reported') { pushRisk('med', `${p.tenantName || (contractById[p.contractId] || {}).tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} bonifico segnalato, da verificare`); continue; }
       if (st !== 'overdue') continue;
-      const pc = contractById[p.contractId] || {};
-      if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
       const due = p.dueDate ? Date.parse(p.dueDate) : null;
       if (due && due < now) { const late = Math.round((now - due) / 86400000); pushRisk(late > 7 ? 'high' : 'med', `${p.tenantName || 'Pagamento'} — €${(p.amount || 0).toLocaleString('it-IT')} in ritardo ${late}gg`); }
     }

@@ -1061,11 +1061,21 @@ function seedBigArchive(n) {
   const RENT = require('../../js/rent-engine.js');
   const PE = require('../../js/palazzo-engine.js');
   seedWorld2();
+  // Un contratto di int. 4 chiuso PRIMA della gestione BOOM (gestioneDal
+  // 2026-10, chiuso il 31/07): la rata di agosto rimasta aperta è insieme
+  // «prima della gestione» e «dopo la chiusura». La gestione vince
+  // ovunque — Palazzo, Gestore, Contabile, Oggi, snapshot e ANCHE risk.scan
+  // e il digest di Homie, che prima la contavano «da annullare».
+  seed('contracts/cOld', { propertyId: 'pD', status: 'terminated', terminatedAt: '2026-07-31', source: 'palazzo-import', signatureStatus: 'paper', tenantName: 'Vera Prima', startDate: '2025-08-01', endDate: '2026-07-31', rent: 700, type: 'studenti' });
+  seed('payments/pay_cOld_2026-08', { contractId: 'cOld', propertyId: 'pD', type: 'rent', month: '2026-08', amount: 700, dueDate: '2026-08-05', status: 'pending', source: 'palazzo-import' });
   const props = keys('properties').map(k => ({ id: k.split('/')[1], ...read(k) }));
   const cons = keys('contracts').map(k => ({ id: k.split('/')[1], ...read(k) }));
   const pays = keys('payments').map(k => ({ id: k.split('/')[1], ...read(k) }));
   const users = keys('users').map(k => ({ id: k.split('/')[1], ...read(k) }));
   const cC = cons.find(c => c.id === 'cC');
+  ok(RENT.openAfterClose(pays.find(p => p.id === 'pay_cOld_2026-08'), cons.find(c => c.id === 'cOld'), new Date(NOW))
+    && CS.paymentBeforeGestione(pays.find(p => p.id === 'pay_cOld_2026-08'), props.find(p => p.id === 'pD')),
+    'premessa: la rata di agosto di cOld è dopo la chiusura E prima della gestione');
   const AC = ['pay_cC_2026-10', 'pay_cC_2026-11'];
   ok(AC.every(id => RENT.openAfterClose(pays.find(p => p.id === id), cC, new Date(NOW))) && !RENT.openAfterClose(pays.find(p => p.id === 'pay_cC_2026-09'), cC, new Date(NOW))
     && !RENT.openAfterClose(pays.find(p => p.id === 'pay_cA_2026-09'), cons.find(c => c.id === 'cA'), new Date(NOW)),
@@ -1075,7 +1085,8 @@ function seedBigArchive(n) {
   const m = PE.model(ctx, PE.buildings(ctx)[0].key, '2026-10', { strip: false });
   const debt = (m.debtors || []).flatMap(d => d.rows.map(r => r.id));
   const acIssue = m.issues.find(i => i.code === 'afterClose') || {};
-  ok(!debt.some(id => AC.includes(id)) && AC.every(id => (acIssue.paymentIds || []).includes(id)), 'Palazzo: fuori dai debitori, fra le rate dopo la chiusura da annullare', { debt, acIssue });
+  ok(!debt.some(id => AC.includes(id)) && AC.every(id => (acIssue.paymentIds || []).includes(id)) && !(acIssue.paymentIds || []).includes('pay_cOld_2026-08'),
+    'Palazzo: fuori dai debitori, fra le rate dopo la chiusura da annullare (mai la rata prima della gestione)', { debt, acIssue });
   // Oggi.
   const O = require('../../js/oggi-engine.js');
   const oggi = O.build({ payments: pays, contracts: cons, properties: props, users }, NOW);
@@ -1110,7 +1121,8 @@ function seedBigArchive(n) {
   // Contabile: fuori dai ritardi, nell'elenco «da annullare».
   const contabile = (await import('../../api/employees/contabile.js')).default;
   const cb = await call(contabile, { headers: asCron, query: { dry: '1' } });
-  ok(!(cb.body.report.late || []).some(l => AC.includes(l.paymentId)) && AC.every(id => (cb.body.report.afterClose || []).some(x => x.paymentId === id)),
+  ok(!(cb.body.report.late || []).some(l => AC.includes(l.paymentId)) && AC.every(id => (cb.body.report.afterClose || []).some(x => x.paymentId === id))
+    && (cb.body.report.afterClose || []).length === 2,
     'contabile: le rate dopo la chiusura non sono ritardi, sono «da annullare»', { late: cb.body.report.late, afterClose: cb.body.report.afterClose });
   const MC = await importMutant('api/employees/contabile.js', '    if (RENT.openAfterClose(p, contractById[p.contractId], now)) {\n      afterClose.push(', '    if (false) {\n      afterClose.push(');
   const cm = await call(MC.default, { headers: asCron, query: { dry: '1' } });
@@ -1118,12 +1130,23 @@ function seedBigArchive(n) {
   // risk.scan, digest di Homie, Telegram /snapshot.
   const { scan } = await import('../../api/agent/risk.scan.js');
   const rs = await scan(60);
-  ok(!rs.items.some(i => i.cat === 'Pagamento in ritardo' && AC.includes(i.ref)) && rs.items.some(i => i.cat === 'Rata dopo la chiusura' && i.ref === 'pay_cC_2026-10'),
-    'risk.scan: «Rata dopo la chiusura · da annullare», mai «Pagamento in ritardo»', rs.items.map(i => i.cat + ' ' + i.ref));
+  ok(!rs.items.some(i => i.cat === 'Pagamento in ritardo' && AC.includes(i.ref)) && rs.items.some(i => i.cat === 'Rata dopo la chiusura' && i.ref === 'pay_cC_2026-10')
+    && rs.items.filter(i => i.cat === 'Rata dopo la chiusura').length === 2 && !rs.items.some(i => i.ref === 'pay_cOld_2026-08'),
+    'risk.scan: «Rata dopo la chiusura · da annullare», mai «Pagamento in ritardo»; la rata prima della gestione non c\'è', rs.items.map(i => i.cat + ' ' + i.ref));
+  {
+    const MR = await importMutant('api/agent/risk.scan.js', '    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;\n', '');
+    const rsm = await MR.scan(60);
+    ok(rsm.items.some(i => i.ref === 'pay_cOld_2026-08' && i.cat === 'Rata dopo la chiusura'), 'mutazione: con la chiusura guardata prima della gestione risk.scan dice «da annullare» una rata prima della gestione (il test lo vede)');
+  }
   const digest = (await import('../../api/agent/digest.js')).default;
   const dd = await call(digest, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
   ok(dd.statusCode === 200 && /2 rate dopo la chiusura del contratto: annullale/.test(dd.body.text || '') && !/Olga Prova — €900 in ritardo/.test(dd.body.text || ''),
-    'digest di Homie: «annullale», nessun ritardo di €900', dd.body && dd.body.text);
+    'digest di Homie: «annullale» (2, non 3: la rata prima della gestione non conta), nessun ritardo di €900', dd.body && dd.body.text);
+  {
+    const MD = await importMutant('api/agent/digest.js', '      if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;\n', '');
+    const ddm = await call(MD.default, { headers: { 'x-homie-secret': 'homie-test' }, body: {} });
+    ok(/3 rate dopo la chiusura del contratto: annullale/.test(ddm.body.text || ''), 'mutazione: senza la gestione in testa il digest conta 3 rate da annullare (il test lo vede)', ddm.body && ddm.body.text);
+  }
   const W = await import('../../api/telegram/webhook.js');
   const lines = W.snapshotLines({ payments: pays, contracts: cons, properties: props, now: new Date(NOW) }).join('\n');
   ok(/Pagamenti scaduti: 3/.test(lines) && /dopo la chiusura, da annullare: 2/.test(lines), 'Telegram /snapshot: 3 scaduti (non 4), 2 da annullare', lines);

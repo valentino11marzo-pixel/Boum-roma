@@ -87,6 +87,12 @@ export async function scan(horizon = 60) {
   const now = Date.now();
   const contractById = {}; contracts.forEach(c => { contractById[c.id] = c; });
   for (const p of payments) {
+    const pc = contractById[p.contractId] || {};
+    // PRIMA la gestione, come Gestore, Contabile, Oggi e il Palazzo: la RATA
+    // intera prima della gestione BOOM non è di nessuno — né un arretrato,
+    // né una rata «da annullare», né un bonifico da verificare (una
+    // trimestrale che arriva dentro la gestione è un arretrato vero).
+    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
     // Dopo la chiusura vera del contratto (BOOM_RENT.openAfterClose): non è
     // un ritardo, è una rata da annullare — si dice come tale.
     if (RENT.openAfterClose(p, contractById[p.contractId], new Date(now))) {
@@ -99,10 +105,6 @@ export async function scan(horizon = 60) {
       continue;
     }
     if (st !== 'overdue') continue;
-    const pc = contractById[p.contractId] || {};
-    // La RATA intera prima della gestione (una trimestrale che arriva dentro
-    // la gestione è un arretrato vero, come nel Palazzo).
-    if (CS.paymentBeforeGestione(p, propById[p.propertyId || pc.propertyId])) continue;
     const due = p.dueDate ? Date.parse(p.dueDate) : null;
     if (due && due < now) {
       const late = Math.round((now - due) / 86400000);
