@@ -51,7 +51,7 @@ function extractFn(src, name) {
 const appSrc = readFileSync(join(ROOT, 'js', 'portal-app.js'), 'utf8');
 const realWizardNav = extractFn(appSrc, 'contractWizardNav');
 const realPanels = ['esc', 'kindLabel', 'inboxPage', 'inboxConversationCard',
-  'inboxFreshness', 'portalFreshnessWarning',
+  'inboxFreshness', 'portalFreshnessWarning', 'oggiInboxScope', 'portalSearchAuthorized',
   'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble',
   'inboxComposer', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview', 'openRadarEditor']
   .map(name => extractFn(appSrc, name)).join('\n');
@@ -98,9 +98,13 @@ const HARNESS = `<!DOCTYPE html><html lang="it"><head>
 <div id="modals"></div>
 <script src="/js/conversations.js"></script>
 <script src="/js/rent-engine.js"></script>
+<script src="/js/portal-search-engine.js"></script>
 <script>
 window.__calls = [];
+// Synthetic authenticated session; Inbox scope and its record lookup stay real.
+var auth = { currentUser: { uid: 'synthetic-admin' } };
 var S = {
+  profile: { id: 'synthetic-admin', role: 'admin' }, users: [], clients: [],
   conversations: [{ id: 'synthetic-conv', contactId: 'synthetic-person', contactType: 'lead', contactName: 'Contatto Sintetico', contactPhone: '+390000000000', contactEmail: 'prova.molto.lunga@example.test', status: 'open', channel: 'mixed' }],
   messages: Array.from({ length: 30 }, function (_, i) { return { conversationId: 'synthetic-conv', direction: i % 2 ? 'out' : 'in', channel: 'email', body: 'Messaggio sintetico ' + i + ': nessun dato reale.', at: '2026-09-20T10:00:00Z' }; }),
   payments: [{ id: 'synthetic-payment', status: 'reported', amount: 1200, month: '2026-09' }]

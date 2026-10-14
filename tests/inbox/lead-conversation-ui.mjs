@@ -32,6 +32,7 @@ async function fixture(source=portal){
     const firebase={firestore:{FieldValue:{serverTimestamp:()=> '2026-09-21T12:00:00Z'}}};
     const buildNav=()=>{},logActivity=()=>{},sendBrowserNotification=()=>{};
     const renderPage=()=>{throw Error('Unexpected whole-page render')};
+    function goTo(id){if(id!=='inbox')throw Error('Unexpected navigation: '+id);S.page=id;inboxRefresh();}
     let selectedFile=null,listingImageUrl='';
     window.io={requests:[],reads:[],writes:[],subscriptions:[]};window.apiMode='bound';window.readFailure=false;window.holdAPI=false;window.holdRead=false;
     window.canonical={id:'${CID}',contactType:'lead',contactId:'${LEAD}',leadId:'${LEAD}',contactName:'Nome canonico del server',contactPhone:'+393331234567',contactEmail:'canonical@example.invalid',contactUid:'existing-contact-acl',assignedLandlordId:'existing-landlord-acl',channel:'whatsapp',status:'open',lastMessageAt:'2026-09-21T10:00:00Z',lastMessagePreview:'Cronologia canonica',unread:0};
@@ -75,7 +76,7 @@ async function fixture(source=portal){
   for(const name of ['conversations','oggi-engine','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine'])await page.addScriptTag({content:read('js/'+name+'.js')});
   const oggi=source.slice(source.indexOf('    function oggiDismissKey()'),source.indexOf('    function adminDashboard()'));
   const inbox=source.slice(source.indexOf('    var _inboxState ='),source.indexOf('    var _psState ='));
-  await page.addScriptTag({content:oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
+  await page.addScriptTag({content:oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
   await page.waitForFunction(()=>S.conversations.length===200);
   await page.evaluate(()=>{_inboxState.convId='conv-existing';_inboxState.composing='email';document.getElementById('main').innerHTML=inboxPage();});
   await page.locator('#inboxSubject').fill('Oggetto da conservare');await page.locator('#inboxBody').fill('Bozza precedente da conservare');
@@ -117,6 +118,26 @@ function replaceOnce(source,from,to){assert(source.includes(from),'Mutazione agg
 try{
   for(const mode of ['bound','new'])await check(mode+' · il CID canonico fuori lista viene letto dal server e apre la cronologia',async()=>{
     const {page,errors}=await fixture();try{await page.evaluate(mode=>{apiMode=mode;},mode);await clickOpen(page);await canonicalOpened(page);assert.deepEqual(errors,[]);}finally{await page.close();}
+  });
+  await check('dopo lo strumento WhatsApp una selezione esplicita email apre il thread e rimuove il filtro canale',async()=>{
+    const {page,errors}=await fixture();try{
+      await page.evaluate(()=>closeModal());
+      await page.waitForFunction(()=>!document.querySelector('#modals .modal'));
+      await page.evaluate(()=>{S.conversations.find(c=>c.id==='conv-existing').unread=0;oggiOpenInbox('whatsapp');});
+      assert.equal(await page.getByRole('combobox',{name:'Canale messaggi'}).inputValue(),'whatsapp');
+      assert.equal(await page.locator('#inboxTimeline').count(),0);
+      assert.doesNotMatch(await page.locator('.inbox-list-pane').innerText(),/Conversazione iniziale/);
+      await page.evaluate(()=>inboxSelect('conv-existing'));
+      await page.waitForFunction(()=>S.openConvId==='conv-existing'&&!S.openConvStatus.loading);
+      assert.equal(await page.evaluate(()=>_inboxState.convId),'conv-existing');
+      assert.equal(await page.getByRole('combobox',{name:'Canale messaggi'}).inputValue(),'all');
+      assert.match(await page.locator('.inbox-list-pane').innerText(),/Conversazione iniziale/);
+      assert.equal(await page.locator('#inboxTimeline').isVisible(),true);
+      assert.match(await page.locator('#inboxTimeline').innerText(),/Messaggio iniziale/);
+      assert.deepEqual(await page.evaluate(()=>io.requests),[]);
+      assert.deepEqual(await page.evaluate(()=>io.writes),[],'Aprire una conversazione già letta non crea scritture');
+      assert.deepEqual(errors,[]);
+    }finally{await page.close();}
   });
   await check('la pagina successiva di 200 conversazioni non nasconde quella selezionata',async()=>{
     const {page,errors}=await fixture();try{

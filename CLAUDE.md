@@ -1833,6 +1833,25 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Rilancio area casa, 13/10:** invito dal Share Hub con istruzione di fissare
+  il messaggio in chat; il cliente copia un link ordinario, sempre autenticato.
+  «Il tuo link e gli avvisi» legge le notifiche personali già esistenti tramite
+  `api/tenant/notifications`: solo destinatario verificato (o anteprima admin),
+  testo escapato, fino a 50, errore distinto dall’assenza. Nessun auto-invio nuovo
+  e nessun testo di notifica decide se una rata sia pagabile. Test `tenantworkspace`
+  e `tenantworkspaceui`; suite di accesso, pagamenti e rules per il rilascio.
+
+- **Archivio e richieste tenant, 05/10:** `/api/tenant/documents` legge l’archivio del cliente/contratto, anche in bozza; HTTPS, titolarità e condivisione esplicita, limite dichiarato. Nessuna condivisione implicita dal solo immobile.
+  `/api/tenant/maintenance` salva e modifica richieste proprie con Bearer, ID ripetibile e confronto atomico delle versioni di ticket/contratto. Stati `open`/`urgent` coerenti col portale; costi, assegnazioni e risoluzioni non vengono dal cliente.
+  `js/tenant-workspace-engine.js` centralizza i filtri; `tenant-workspace-ui.js` conserva bozze e richiesta incerta fra ridisegni/ricariche, ricerca i file e distingue errore da vuoto. Rules impediscono al client di contraffare i campi del flusso server.
+  Inoltro ai fornitori **non implementato né attivo**: destinatari e contenuto attendono conferma; nessuna chiamata anonima a `/api/agent/notify`, nessun nuovo scheduler. Le richieste compaiono nella manutenzione esistente con disponibilità e revisione.
+  Lancio limitato a carta/Apple Pay/bonifico: rimossa l’offerta di nuovi mandati SEPA, conservati stato e revoca di quelli già attivi. Prove: `tenantworkspace`, `tenantworkspaceui`, `tenantworkspacemutations`, `tenantpayments`.
+  La firma non viene chiamata «contratto attivo»: la decorrenza non prova consegna delle chiavi. La rotta richiede `verbaleConsegna` con data passata e file HTTPS; il verbale è apribile dai documenti. Prove `tenantpayments` e `scalo`.
+- **Lancio tenant, 05/10:** Share Hub include l’invito alla dashboard per il profilo tenant collegato, con URL di login senza email/token e messaggi da inviare manualmente. Nessuna sessione anonima e nessuna modifica account implicita.
+  `/login` spiega il primo accesso via recupero password, conserva la casa nel ritorno dall’email, distingue errori rete da richiesta accettata e non redirige sessioni anonime.
+  `js/tenant-access-engine.js` sceglie il contratto corrente prima dei futuri, preserva la scelta esplicita e il contratto del pagamento di ritorno; `/casa` permette di cambiare casa/periodo fra i propri contratti.
+  Lettura contratto fallita o casa non associata mostrano recupero/assistenza, mai una dashboard vuota spacciata per pronta. Limite 50 contratti dichiarato; UID verificato anche nel controller, oltre alle regole Firestore.
+  Ritorni annullamento carta e mandato SEPA conservano il contratto. Prove: `tenantaccess`, `tenantpayments`, `paymentlinks`, `sdd`; nessun pagamento o invio reale nelle suite.
 - **Confronto UX con Claude, 18/09:** `/casa` permette di segnalare il bonifico già eseguito e annullare una segnalazione erronea. `api/payments/report` ammette solo il titolare tenant; legge la versione e salva solo il flag con CAS. Mai `paid` dal client, admin preview esclusa, stato riletto dal server anche dopo errori.
   `payment_reported` ora ferma checkout autenticato, link operatore/pubblico e nuove selezioni del collector SDD; restano fuori garanzia sessioni Stripe già aperte e gare tra canali avviate prima del riscontro.
   Ricevute archiviate raggiungibili da `receiptDocId`, con ID rata verificato e URL HTTPS; nuove archiviazioni espongono il file sulla rata senza sostituire ricevute Stripe. Nessun PDF o associazione inventati.
@@ -2395,6 +2414,68 @@ Un giro solo, otto interventi, 33 suite verdi:
   Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
   caricato la pagina ricade sulla dashboard — mai una schermata vuota.
   Test: `node tests/oggi/run.mjs` (41 check).
+- **Oggi operativa (12/10/2026):** la home admin apre ricerca contestuale, coda
+  esistente e agenda visite di sette giorni Roma; messaggio e Segreteria restano
+  montati in pannelli richiudibili. Ricerca riusa Prontuario/handleSearch e filtra
+  il tipo prima del limite; nessuna preselezione né invio o AI in lettura.
+  Visite/proposte espongono errori e limiti senza svuotare la copia precedente;
+  aggiornamenti regionali conservano bozza, ricerca e pannelli aperti.
+  `oggi-workspace-engine` distingue proposte/conferme e alimenta anche il prefilling
+  delle visite. Prove: `oggiworkspace`, `oggihomeui` e regressioni Segreteria.
+- **Oggi collegata (12/10/2026):** il briefing espone tre decisioni dei seguiti
+  esistenti; la revisione resta una lettura e le proposte non approvate non
+  ereditano il badge Confermato. La barra collega record per ID tipizzati,
+  incluse persone/contratti/case; omonimie e casi ambigui restano separati.
+  `phone:<id>` apre `/chiamate?call=<id>`: lettura admin esatta anche oltre le
+  ultime 120, audio e trascrizione salvata con limiti dichiarati, nessuna AI.
+  Suite/guide riusano il Prontuario. Prove `oggiworkspace`, `oggihomeui`,
+  `phoneui`; `propertyload` include il vero helper visite estratto.
+- **Oggi senza doppioni (12/10/2026):** una sola area di lavoro filtra decisioni,
+  richieste da preparare e seguiti in corso usando i due motori esistenti; tolti
+  il briefing duplicato e i contatori ripetuti. Fonti e stato sono apribili dal caso.
+  Aprire una richiesta legge soltanto: generazione nel dialogo, su comando esplicito.
+  Errori di aggiornamento visibili anche a dettagli chiusi; ritorno da fascicolo o
+  revisione ritrova caso/filtro, ricerca e selezione. Nessuna nuova lettura o AI.
+  Prove: `oggihomeui`, `propertyoggiui`, `segretarialiveui`, `segretariafreshui`,
+  `seguitoui`, `segretariapropostaui`; anteprima con fascicolo reale e dati sintetici.
+- **Messaggio e seguito (12/10/2026):** «Scrivi e organizza» apre i modelli
+  editoriali di `oggi-workspace-engine` nello stesso dialogo del seguito. Solo
+  l’immobile verificato entra nel testo; fonte, scadenza interna e note restano fuori.
+  Copia esplicita con helper Safari, nessun invio/AI e nessun testo salvato dal confirm.
+  Bozza preservata nei conflitti; cambio pratica, fonte o contesto impone ricontrollo.
+  Prove `oggimessageui`, `hometrial`: renderer e updateFollowUp reali, IO dimostrativo
+  solo in memoria, con verifica per mutazione della guardia sull’ultimo messaggio.
+- **Prontuario / strumenti home (13/10/2026):** `homeTools(record, state, year)`
+  descrive sei ingressi reali: cliente, inventario, documento, manutenzione,
+  pagamento e verbale. Riusa il registro; un contesto assente apre il selettore,
+  un ID obsoleto/duplicato non produce azioni. Collegamenti solo per ID univoci.
+  Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
+  Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
+  con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
+- **Home strumenti connessi (13/10/2026):** sedici ingressi fissi precedono i
+  riepiloghi richiudibili; il contesto scelto resta visibile e si può togliere.
+  `homeTools` riusa le azioni reali; `homeNewClient` conserva il wizard separato.
+  WhatsApp/email aprono Inbox filtrata per canale e, per persona/cliente, ID
+  verificato: nessuna selezione automatica, scrittura o AI all’apertura.
+  Le relazioni mancanti non vengono indovinate; il filtro si toglie esplicitamente.
+  Prove: `actions`, `oggiquicktoolsui`, `oggihomeui`, `oggideskui`, Inbox.
+- **Ricerca e fonti (13/10/2026):** `portal-search-engine` riunisce 15 fonti già
+  presenti in `S`, normalizza parole/telefoni/accenti e conserva gli ID tipizzati.
+  Header, home e selettori condividono il motore; risultati a pagine e collegamenti
+  espliciti, mai identità dedotte dal nome. `portal-search-archive` estende una fonte
+  di 200 record su click (Firestore, zero AI), con limiti, errori e sessione visibili.
+  I risultati dell’archivio vengono verificati sul record canonico prima dell’apertura.
+  WhatsApp completo, posta completa e contenuto PDF restano fuori dalla ricerca;
+  Inbox accessibile solo dai collegamenti già salvati. Prove `portalsearch/searcharchive/searchui`.
+- **Home per risultato (13/10/2026):** `oggi-desk-engine` raggruppa per riferimenti
+  univoci i segnali esistenti in cinque percorsi, con apertura del passo successivo.
+  Proposte vecchie, date mancanti e collegamenti incerti restano nelle verifiche;
+  una nuova proposta valida non eredita l’attesa futura del seguito precedente.
+  urgenze, nuove richieste non collegate ed errori di lettura rimangono visibili.
+  Coda originale apribile/filtrabile, senza chiusure, invii o AI in lettura.
+  Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
+  senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
+  `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header
@@ -6510,6 +6591,15 @@ const unsub = BoomPortal.listen(
 ```
 
 ## Common Tasks
+
+**Area casa — accoglienza prima della firma (6 ottobre 2026):** il link resta
+utilizzabile dal cliente associato anche mentre le firme sono in corso.
+`tenant-access-engine.stage` distingue preparazione, firma cliente, attesa
+proprietario/co-conduttori e completamento (`complete` e legacy `completed`).
+Il pulsante apre solo il link personale restituito da `/api/sign/links`, su
+azione esplicita; l'anteprima admin non può firmare. Nessun incasso o rata
+viene creato dall'accoglienza: il piano mostra solo registrazioni esistenti.
+Verifica: `tenantaccess`, `tenantpayments`, `signtokens`, `scalo`.
 
 **Add a new apartment page**: Copy an existing `apartment_*.html`, update content and Firestore document ID.
 

@@ -206,6 +206,10 @@ const start = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(start > 0 && end > start);
 const ui = portal.slice(start, end);
+// The standalone panel also reads the home archive filter. Mount the real
+// state declaration that lives just beyond the extracted Segreteria block.
+const workspace = portal.match(/^    const oggiWorkspace = .*;$/m)?.[0];
+assert.ok(workspace, 'Stato reale della home presente per il filtro della coda');
 const listener = name => {
   const begin = portal.indexOf('    function ' + name + '(');
   assert(begin >= 0, 'Listener reale presente: ' + name);
@@ -299,7 +303,7 @@ try {
     function inboxSelect(id){const c=S.conversations.find(c=>c.id===id);if(!c)throw Error('empty Inbox: conversation absent');c.unread=0;window.__selectedConversation=id;window.__read=true}
   ` });
   await page.addScriptTag({ content: read('js/segretaria-casi-engine.js') });
-  await page.addScriptTag({ content: ui + '\n' + listeners });
+  await page.addScriptTag({ content: workspace + '\n' + ui + '\n' + listeners });
   await page.evaluate(() => { startInboxListener(); goTo('oggi'); });
   await page.waitForSelector('[data-sg-id]');
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
@@ -317,7 +321,7 @@ try {
   console.log('PASS browser: decisioni, attese e limite visibili, nessuna riga duplicata né HTML eseguito'); checks++;
 
   const clickCase = async (id, action) => {
-    await page.locator(`article[data-sg-id="${id}"] details`).evaluate(el => { el.open = true; });
+    await page.locator(`article[data-sg-id="${id}"] .sg-case-details`).evaluate(el => { el.open = true; });
     await page.locator(`article[data-sg-id="${id}"] [data-sg-action="${action}"]`).click();
   };
   await clickCase(ID, 'source');
@@ -379,7 +383,7 @@ try {
   assert.equal(posts.length, 3);
   assert.equal(posts[2].lastMessageId, 'msg-new');
   assert.equal(posts[2].practiceRef, 'contracts/c2');
-  await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => { el.open = true; });
+  await page.locator(`article[data-sg-id="${ID}"] .sg-case-details`).evaluate(el => { el.open = true; });
   await page.waitForSelector(`article[data-sg-id="${ID}"]`);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Casa Luna/);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Tecnico confermato/);
@@ -402,7 +406,7 @@ try {
   assert.deepEqual(errors, []);
   await page.waitForFunction(() => document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
-  assert.equal(await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => el.open), true);
+  assert.equal(await page.locator(`article[data-sg-id="${ID}"] .sg-case-details`).evaluate(el => el.open), true);
   console.log('PASS browser: rete in errore conserva i seguiti e segnala dati non aggiornati'); checks++;
   listFailure = false; incomplete = false;
   const beforeRecoveredRefresh = listReads;
