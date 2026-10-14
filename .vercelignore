@@ -14,3 +14,6 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+# Documentazione operativa e audit: solo repository, mai asset pubblici.
+# Nessun renderer/API usa questi file come risorsa runtime.
+**/*.md

@@ -2380,6 +2380,10 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
+e note operative restano nel repository. Verificato il problema con HTTP 200
+sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.
+Il collaudo del nuovo deploy deve confermare 404 per quei documenti.
 **14/10 — affidabilità e fonti:** cambio account e letture tardive isolati per sessione;
 fonti contratti/interventi/firme con errore esplicito e recupero limitato. Il refresh
 non annuncia successo parziale. Ripristinate azioni Interventi e metadati Regole.
