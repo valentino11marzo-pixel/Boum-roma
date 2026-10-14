@@ -1257,6 +1257,30 @@ Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
 porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
 del browser accettato, regola tolta, `?canone=` ristampato).
 
+**La revisione UX della sera (13/10)**: un audit in quattro lenti (conversione,
+visivo, accessibilità, testi), ogni rilievo verificato da un secondo agente
+contro i file e in Chromium a 390px; applicati solo quelli confermati.
+/canone: sotto il numero il rimando al PDF (sul telefono il modulo stava 2,6
+schermi più giù), il modulo prima della condivisione, «Apra il conto in PDF»
+(nessuno lo spediva: era «Riceva»), «Copia il link del PDF», chi lo prepara
+accanto al modulo, campi impilati su telefono; una cifra in mente sopra il
+pareggio dice che il libero 4+4 renderebbe di più e porta alla valutazione;
+l'elenco zone non copre più i metri, si chiude con Tab/Escape e dopo la scelta
+il cursore va ai metri; un solo annuncio breve `#rLive` invece di rileggere il
+pannello a ogni tasto. Il passaggio /canone → /owners porta `?z=&mq=` (mai dati
+personali) e /owners li pre-compila. /owners: prima la casa poi i recapiti,
+nessun link a /canone dentro il modulo, `--t4` a .5 e soglia di lettura, barra
+mobile che non raddoppia la banda finale, focus sul «fascicolo aperto». Pacchetto:
+il bottone dice quando si parte e cambia con la spunta, la tariffa
+dell'organizzazione anche nel foglio di pagamento, errore sotto il campo
+sbagliato, banner cookie (compatto) che si alza sopra la barra di pagamento
+(`html.pb-on`). La grazie del Pacchetto è tutta in italiano con le quattro tappe
+dell'email (`service-checkout` porta `&start=1|0`). Condiviso
+(`css/boom-2026.css`, 13 pagine): menu aperto sotto la nav (X visibile), menu
+chiuso fuori dal Tab, numeri di telefono interi, bersagli da 44px, piede
+legale sopra 4,5:1. Striscia di famiglia: «Pacchetto concordato» come menu e
+piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the

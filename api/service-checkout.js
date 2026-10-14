@@ -87,7 +87,11 @@ export default async function handler(req, res) {
         // campo, e il webhook non dice nulla.
         ...(body.kind === 'concordato-pack' ? { start_now: body.startNow === true ? '1' : '0' } : {}),
       },
-      success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) + '&session_id={CHECKOUT_SESSION_ID}',
+      // Il Pacchetto porta la scelta «inizio subito» alla pagina di grazie, che
+      // così dice il tempo giusto (48 ore dai dati, oppure dopo i 14 giorni).
+      success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
+        (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
+        '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });

@@ -359,6 +359,11 @@ const strip = h => h.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+{
+  const sc = readFileSync(join(R, 'api/service-checkout.js'), 'utf8');
+  ok('service-checkout: il ritorno del Pacchetto porta &start=1|0 alla pagina di grazie', /concordato-pack' \? '&start=' \+ \(body\.startNow === true \? '1' : '0'\)/.test(sc));
+}
+// ─────────────────────────────────────────────────────────────────────────
 section('in un browser vero: lo schermo dice il numero del motore');
 let chromium = null;
 try { chromium = await (await import('../_browser.mjs')).loadChromium(); } catch (e) { chromium = null; }
@@ -449,6 +454,71 @@ if (!chromium) {
       const e455 = CONTO.conto(CONTO.normalize({ z: 'C40', mq: 45.5 }).input);
       ok('/canone con 45,5 mq nell\'indirizzo: il numero è quello di 45,5 mq, non di 455', big.includes(CONTO.fmtEur(e455.fasce.A.max, 'it')) && e455.input.mq === 45.5, big);
       await pg.close(); await p2.close();
+    }
+    // ── la revisione UX del 13/10: ogni rilievo confermato ha il suo check ──
+    {
+      const { pg, errs } = await page('/canone?v=1&z=C40&mq=65&p=0.3.6.9&ask=1700');
+      const order = await pg.evaluate(() => {
+        const a = document.getElementById('pdf'), b = document.getElementById('rShare');
+        return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+      });
+      ok('/canone: il modulo del PDF viene prima dei bottoni di condivisione', order);
+      ok('/canone: sotto il numero c\'è il rimando al PDF (#rToPdf → #pdf)', (await pg.getAttribute('#rToPdf', 'href')) === '#pdf' && await pg.isVisible('#rToPdf'));
+      ok('/canone: il bottone non promette un invio («Apra il conto in PDF»)', (await pg.textContent('#gGo')).trim() === 'Apra il conto in PDF');
+      const hrefs = await pg.$$eval('#rRoute a', as => as.map(a => a.getAttribute('href')));
+      ok('/canone → /owners porta zona e metri, mai dati personali', hrefs.includes('/owners?z=C40&mq=65#contact'), hrefs);
+      const notes = await pg.textContent('#rNotes');
+      ok('/canone: cifra in mente oltre il pareggio → dice che il libero renderebbe di più', /il libero 4\+4 le renderebbe di più/.test(notes) && await pg.$('#rNotes a[href^="/owners?z=C40"]'), notes);
+      ok('/canone: il pannello del risultato non è una regione live (un annuncio breve in #rLive)', (await pg.getAttribute('#res', 'aria-live')) === null && (await pg.getAttribute('#rLive', 'aria-live')) === 'polite');
+      ok('/canone: la fascia applicata è marcata (.pick + «la sua»)', await pg.$('#rFasce.pick') && /la sua/.test(await pg.textContent('#rFasce .frow2.on')));
+      ok('/canone: nessun errore JS', errs.length === 0, errs);
+      await pg.close();
+    }
+    {
+      const { pg } = await page('/canone');
+      await pg.fill('#zIn', 'prati'); await pg.waitForTimeout(100);
+      await pg.keyboard.press('Escape');
+      ok('/canone: Escape chiude l\'elenco delle zone (aria-expanded false)', (await pg.getAttribute('#zIn', 'aria-expanded')) === 'false');
+      await pg.fill('#zIn', 'prati'); await pg.waitForTimeout(100);
+      await pg.click('#zList li[data-c="C40"]'); await pg.waitForTimeout(100);
+      ok('/canone: scelta la zona, il cursore va ai metri (la cifra non finisce nel nome)', await pg.evaluate(() => document.activeElement && document.activeElement.id === 'mq'));
+      await pg.click('#navToggle'); await pg.waitForTimeout(450);
+      const top = await pg.evaluate(() => { const b = document.getElementById('navToggle').getBoundingClientRect(); const el = document.elementFromPoint(b.left + b.width / 2, b.top + b.height / 2); return !!(el && el.closest('#navToggle')); });
+      ok('/canone: col menu aperto la X resta sopra il pannello e aria-expanded è vero', top && (await pg.getAttribute('#navToggle', 'aria-expanded')) === 'true');
+      await pg.keyboard.press('Escape'); await pg.waitForTimeout(100);
+      ok('/canone: Escape chiude il menu', (await pg.getAttribute('#navToggle', 'aria-expanded')) === 'false');
+      await pg.close();
+    }
+    {
+      const { pg, errs } = await page('/owners?z=C40&mq=65');
+      await pg.waitForTimeout(150);
+      const v = await pg.evaluate(() => ({ z: document.getElementById('fZone').value, m: document.getElementById('fSqm').value }));
+      ok('/owners da /canone: zona e metri già scritti', v.z === 'Prati' && v.m === '65', v);
+      ok('/owners: il conto compare e nella riga non c\'è una seconda porta', await pg.isVisible('#zLine') && !(await pg.$('#zLine a')));
+      const first = await pg.evaluate(() => { const z = document.getElementById('fZone'), n = document.getElementById('fName'); return !!(z.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING); });
+      ok('/owners: prima la casa (zona, metri), poi i recapiti', first);
+      ok('/owners: nessun errore JS', errs.length === 0, errs);
+      await pg.close();
+    }
+    {
+      const { pg } = await page('/pacchetto-concordato?v=1&z=C40&mq=65');
+      await pg.click('#payOpen'); await pg.waitForTimeout(350);
+      const t0 = (await pg.textContent('#sGoTx')).trim();
+      await pg.check('#sStart'); const t1 = (await pg.textContent('#sGoTx')).trim();
+      ok('Pacchetto: il bottone dice quando si parte, e cambia con la spunta', /14 giorni/.test(t0) && /subito/.test(t1), { t0, t1 });
+      await pg.click('#sGo'); await pg.waitForTimeout(100);
+      const errAt = await pg.evaluate(() => { const e = document.getElementById('sErr'), f = document.getElementById('sName'); return e.previousElementSibling === f.parentNode && f.getAttribute('aria-invalid') === 'true'; });
+      ok('Pacchetto: l\'errore sta sotto il campo sbagliato (aria-invalid)', errAt);
+      ok('Pacchetto: la tariffa dell\'organizzazione è detta anche dove si paga', /tariffa dell'organizzazione firmataria per l'attestazione è a parte/.test(await pg.textContent('#ov .note')));
+      await pg.close();
+    }
+    for (const st of ['1', '0']) {
+      const { pg } = await page('/thank-you.html?service=concordato-pack&start=' + st + '&session_id=cs_test');
+      const txt = await pg.evaluate(() => document.body.innerText);
+      ok('Grazie del Pacchetto (start=' + st + '): tutta in italiano, niente promesse da inquilino',
+        (await pg.evaluate(() => document.documentElement.lang)) === 'it' && !/30 minutes|2 minutes|What Happens Next|Back to Home/i.test(txt) &&
+        (st === '1' ? /entro 48 ore dai dati/.test(txt) : /14 giorni del recesso/.test(txt)), txt.slice(0, 300));
+      await pg.close();
     }
   } finally {
     await br.close(); srv.close();
