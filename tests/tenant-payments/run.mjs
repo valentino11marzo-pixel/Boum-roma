@@ -36,6 +36,20 @@ const basePayment = { id:'rent-sep',contractId:'contract-test',tenantId:'tenant-
 function payment(o={}){return {...basePayment,...o}}
 function element(id){return {id,attrs:{},listeners:{},innerHTML:'',textContent:'',style:{},disabled:false,classList:{add(){},remove(){},toggle(){}},querySelectorAll(){return []},addEventListener(name,fn){this.listeners[name]=fn},focus(){this.focused=true},getBoundingClientRect(){return {top:0}},scrollIntoView(){},getAttribute(name){return this.attrs[name]??null},setAttribute(name,value){this.attrs[name]=String(value)}}}
 async function flush(){for(let i=0;i<20;i++)await Promise.resolve();await new Promise(resolve=>setImmediate(resolve));for(let i=0;i<10;i++)await Promise.resolve()}
+// #bfx (the bank-transfer panel) is filled only after crypto.subtle.digest, which Node runs
+// on the libuv threadpool: it settles on the event loop, never within a fixed number of
+// microtasks. Under a parallel `npm test` ten flushes could elapse before the hash came back
+// (TypeError on bfx.onclick, ~1 run in 3). Wait on the real condition, bounded by wall-clock
+// time with real timers (the fixture's fake clock only drives the page's own timers).
+async function bankPanel(f,ready,ms=5000){
+  const deadline=Date.now()+ms;
+  for(;;){
+    await flush();if(ready(f.elements.get('bfx')))return;
+    if(Date.now()>deadline)throw new Error('bank-transfer panel #bfx did not mount within '+ms+'ms; last innerHTML: '
+      +JSON.stringify(String(f.elements.get('bfx')?.innerHTML??'(no #bfx element)').slice(0,200)));
+    await new Promise(resolve=>setTimeout(resolve,1));
+  }
+}
 function fixture({query='',mutate,now}={}){
   let clock=0,sequence=0;
   const timers=new Map(),elements=new Map(),reads=[],requests=[],queues={payments:[],contracts:[],documents:[]};
@@ -245,14 +259,14 @@ await test('bank details require both configured beneficiary and IBAN without in
 });
 await test('bank reference keeps the matching token and the actual deposit type',async()=>{
   const f=fixture();f.render([payment({type:'deposit-balance'})],{payout:{iban:'SYNTHETIC',beneficiary:'Actual configured beneficiary'}});
-  f.elements.get('payMethodBank').onclick();for(let i=0;i<10&&!f.elements.get('bfx').innerHTML;i++)await flush();
+  f.elements.get('payMethodBank').onclick();await bankPanel(f,bfx=>bfx?.innerHTML);
   const bank=f.elements.get('bfx').innerHTML;assert.match(bank,/Actual configured beneficiary/);
   assert.match(bank,/BOOM-[A-Z0-9]{6} saldo deposito cauzionale 2026-09/);assert.doesNotMatch(bank,/canone 2026-09/);
 });
 await test('clipboard denial is honest and successful retry clears the prior error',async()=>{
   const f=fixture();f.ctx.navigator.clipboard={writeText(){return Promise.reject(new Error('denied'))}};
   f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});f.elements.get('payMethodBank').onclick();
-  for(let i=0;i<10&&!f.elements.get('bfx').onclick;i++)await flush();
+  await bankPanel(f,bfx=>typeof bfx?.onclick==='function');
   const button=element('copy-test');button.textContent='Copy';button.attrs['data-copy']='SYNTHETIC';
   f.elements.get('bfx').onclick({target:{closest(){return button}}});await flush();
   assert.equal(button.textContent,'Copy');assert.match(f.elements.get('bfFeedback').textContent,/Could not copy/);
