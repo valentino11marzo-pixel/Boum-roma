@@ -140,14 +140,18 @@ try {
       assert.equal(await page.locator('#modals .modal').count(), 0);
     });
 
-    await check('Magic Sign opens the real empty editor with creation disabled', async () => {
+    await check('Magic Sign opens the real chooser and validates an empty PDF before advancing', async () => {
       await tool('magic-sign').click();
-      assert(await page.locator('#modals .ms-editor').isVisible());
+      assert(await page.locator('#msStudio').isVisible());
+      assert.equal(await page.locator('#msSaveBtn').count(), 0);
+      await page.getByRole('button', {name:/UN ALTRO DOCUMENTO PDF personalizzato/}).click();
       assert.equal(await page.locator('#msTitle').inputValue(), '');
       assert.equal(await page.locator('#msProperty').inputValue(), '');
-      assert.equal(await page.locator('#msTenant').inputValue(), '');
-      assert(await page.locator('#msSaveBtn').isDisabled());
-      await page.locator('#modals .dash-act').click();
+      await page.locator('#msNext').click();
+      assert.equal(await page.locator('#msTitle').count(), 1);
+      assert.equal(await page.locator('#msSaveBtn').count(), 0);
+      assert.match(await page.locator('#msStatus').innerText(), /PDF/i);
+      await page.getByRole('button', {name:'Chiudi Magic Sign', exact:true}).click();
       await page.waitForFunction(() => !document.querySelector('#modals .modal'));
       assert.equal(await page.locator('#modals .modal').count(), 0);
     });

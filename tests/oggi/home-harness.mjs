@@ -136,7 +136,7 @@ const quickFunctions = [
  'openModal', 'closeModal', 'getModal', 'fillPayAmount',
  'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
  'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
- 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload', 'openMagicSignEditor',
+ 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload',
  'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh'
 ].map(namedPortalFunction).join('\n');
 const inboxState = src.match(/^    var _inboxState = .+;$/m)?.[0];
@@ -144,7 +144,7 @@ if (!inboxState) throw Error('Missing production inbox state');
 const quickBoot = `
 let selectedFile = null, listingImageUrl = '', _newClientWizard = null;
 ${inboxState}
-${between(src, '    const MS_FIELD_TYPES =', '    // Lazy-load PDF.js')}
+${between(src, '    const MS_FIELD_TYPES =', '    // ============================================================================\n    // CAF Allegato B')}
 ${quickFunctions}
 S.properties.push({id:'casa-seconda',name:'Casa Aurora',address:'Via Seconda 20',rent:930});
 S.properties.push({id:'casa-$id-demo',name:'Casa Segnaposto',address:'Via Segnaposto 30',rent:800});
