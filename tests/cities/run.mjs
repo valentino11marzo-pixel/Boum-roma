@@ -13,7 +13,10 @@
 //   - a missing field silently printed as an empty string;
 //   - a city switched to live:true with [NAME] copy, a fake config value or
 //     no social card on disk (the guard must bite, and must not bite a clean page);
-//   - a waitlist city printing prices;
+//   - a desk without its list prices, or a waitlist desk with a till (14/10,
+//     v1.1 of the brief: every desk shows the prices; shown is not charged —
+//     a waitlist page carries no Stripe word, no sheet, CHECKOUT false, and
+//     the server refuses the POST);
 //   - the FAQ schema or the Offers saying something the page doesn't show;
 //   - the build overwriting a root page it did not generate;
 //   - the lead endpoint filing a city lead into the Rome machine, or the
@@ -22,11 +25,11 @@
 //     much information"): the hero column, the door, a plate, the checks or
 //     the body over its word budget; the service back in a dropdown; the
 //     fact sheet (machine content) above the FAQ;
-//   - the sisters drifting (14/10 evening): Madrid selling at prices other
-//     than the brief's, Barcelona (waitlist — no intermediation in Catalonia
-//     without AICAT registration) printing a price anywhere, in its copy, its
-//     chips or its schema; a live page linking a draft sister; the server's
-//     registry disagreeing with a page on the desk's mode.
+//   - the sisters drifting (14/10 evening): a desk selling at prices other
+//     than the brief's, a waitlist desk (Barcelona, Paris, Berlin) saying its
+//     prices are charged today, a live page linking a draft sister; the
+//     server's registry disagreeing with a page on the desk's mode, its
+//     prices or whether its till is open.
 //
 // No browser, no network: the real build functions on the real data, and
 // the real /api/city-lead handler on a Firestore in memory.
@@ -122,8 +125,8 @@ check(flaps.length === 3 && flaps.every((m) => m[1] === m[2]) && JSON.stringify(
 const visible = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 check(!/founding|cohort|spots? (left|remaining)|locked for life|refundable|€99|deposit of €|no worries|unlock|seamless|hassle-free/i.test(visible),
   'no founding spot, no cohort, no €99 deposit, no fluff words: the desk is open (BOOM_CITIES_BRIEF §5, the founder\'s brief)');
-check(!/web3forms|buy\.stripe\.com|fbq\(|connect\.facebook/i.test(html) && !/web3forms|stripe|fbq/i.test(read('assets/boom-city.js')),
-  'no third-party form service, no Stripe link, no Meta pixel: the form posts to our own API');
+check(!/web3forms|buy\.stripe\.com|fbq\(|connect\.facebook/i.test(html) && !/web3forms|buy\.stripe\.com|fbq|js\.stripe\.com/i.test(read('assets/boom-city.js')),
+  'no third-party form service, no Stripe payment link, no Stripe.js, no Meta pixel: the form and the till post to our own API');
 const copy = JSON.stringify(ams);
 check(!/[a-z.]!["\s]/i.test(copy), 'no exclamation marks in the city copy (BOOM_CITIES_BRIEF §5 copy rules)');
 
@@ -135,20 +138,27 @@ check(!/[a-z.]!["\s]/i.test(copy), 'no exclamation marks in the city copy (BOOM_
 const wordsOf = (s) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ')
   .split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length;
 const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
-const BUDGET = { heroColumn: 60, door: 110, plate: 50, checks: 170, body: 950 };
+// The door is what is read BEFORE acting: the form, up to its end states.
+// "Your file is open" and the paid landing are hidden until they are true
+// (the client never reads them next to the form), so they are excluded from
+// the body like the folded FAQ answers, and capped on their own.
+const BUDGET = { heroColumn: 60, door: 110, state: 70, plate: 50, checks: 170, body: 950 };
+const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)">[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
 for (const p of pages) {
   const m = slice(p.html, '<main id="main">', '</main>');
   const hero = wordsOf(slice(p.html, '<header class="hero">', '<!-- THE DOOR'));
-  const door = wordsOf(slice(p.html, '<div class="filecard">', '<p class="machine"'));
+  const door = wordsOf(slice(p.html, '<div class="filecard">', '<div class="sent" id="fDone">'));
+  const states = stateBlocks(m);
   const plates = [...m.matchAll(/<article class="sib[\s\S]*?<\/article>/g)].map((x) => wordsOf(x[0]));
   const checksW = wordsOf(slice(m, '<div class="flows">', '</section>'));
   const faqA = [...m.matchAll(/<div class="a">([\s\S]*?)<\/div>/g)].reduce((n, x) => n + wordsOf(x[1]), 0);
-  const body = wordsOf(m) - faqA;
+  const body = wordsOf(m) - faqA - states.reduce((a, b) => a + b, 0);
   check(hero > 0 && hero <= BUDGET.heroColumn, `${p.slug}: the hero column is ${hero} words (≤ ${BUDGET.heroColumn}) — title, one line, two proofs`);
   check(door > 0 && door <= BUDGET.door, `${p.slug}: the door reads in ${door} words (≤ ${BUDGET.door})`);
+  check(states.length >= 1 && states.every((w) => w > 0 && w <= BUDGET.state), `${p.slug}: each end state of the door ≤ ${BUDGET.state} words (${states.join(' · ')})`);
   check(plates.length === 3 && plates.every((w) => w <= BUDGET.plate), `${p.slug}: every plate ≤ ${BUDGET.plate} words (${plates.join(' · ')})`);
   check(checksW > 0 && checksW <= BUDGET.checks, `${p.slug}: the six checks in ${checksW} words (≤ ${BUDGET.checks})`);
-  check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers is ${body} words (≤ ${BUDGET.body})`);
+  check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers and the end states is ${body} words (≤ ${BUDGET.body})`);
 }
 
 // the door
@@ -217,6 +227,16 @@ check(html.includes(`<b>Full Search €500</b> · <b>Application Pack €199</b>
   'the fact sheet\'s fees row is DERIVED from the plans (the quotable ledger cannot drift)');
 check(svc.areaServed && svc.areaServed.name === 'Amsterdam' && svc.audience && svc.audience.audienceType && svc.provider['@id'] === org['@id'],
   'the Service says where, for whom and by whom');
+check((svc.offers || []).every((o) => o.availability === 'https://schema.org/InStock' && o.priceSpecification && o.priceSpecification.valueAddedTaxIncluded === true
+  && o.priceSpecification.price === o.price && o.url === `${shared.siteUrl}/amsterdam#plan-${ams.pricing.plans.find((p) => p.label === o.name).id}` && o.seller['@id'] === org['@id']),
+  'every Offer of a search desk is InStock, VAT included in its priceSpecification, and points at its plate');
+check(crumbs['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb` && wp.breadcrumb && wp.breadcrumb['@id'] === crumbs['@id'], 'the WebPage references the BreadcrumbList by id');
+check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome']), 'Organization.areaServed is derived: Rome and the LIVE desks only — a draft never lists its city (' + JSON.stringify(org.areaServed) + ')');
+{
+  const liveAms = clone(ams); liveAms.live = true;
+  const g = JSON.parse(render(liveAms).html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)[1].replace(/<\/?script[^>]*>/g, ''))['@graph'];
+  check(JSON.stringify(g.find((n) => n['@type'] === 'Organization').areaServed) === JSON.stringify(['Rome', 'Amsterdam']), 'once live, the desk\'s city joins areaServed by itself');
+}
 
 // ── 4 · the token engine never prints a hole ──────────────────────────────
 check(throws(() => fill('<p>{{nope.here}}</p>', {}, 'x'), /unresolved tokens: nope\.here/) === true,
@@ -267,9 +287,23 @@ check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{
 
 // ── 6 · structural refusals ───────────────────────────────────────────────
 {
-  const wl = clone(ams); wl.mode = 'waitlist';
-  check(throws(() => render(wl), /a waitlist city carries no price/) === true,
-    'a waitlist city that still carries prices in its plans is refused (the two modes cannot blur)');
+  const wl = JSON.parse(read('cities/barcelona.json'));
+  const wlHtml = render(wl).html;
+  check(wlHtml.includes('"CHECKOUT": false') && !wlHtml.includes('id="ov"') && wlHtml.includes('data-p="€500"'),
+    'a waitlist city carries its list prices like every desk (v1.1) — and no till');
+  const wlTill = clone(wl); wlTill.checkout = true;
+  check(throws(() => render(wlTill), /a waitlist city cannot open a checkout/) === true, 'a waitlist city with checkout:true is refused: shown is not charged');
+  const amsFlipped = clone(ams); amsFlipped.mode = 'waitlist'; delete amsFlipped.checkout; delete amsFlipped.checkoutCopy;
+  check(throws(() => render(amsFlipped), /no Stripe reference/) === true,
+    'Amsterdam\'s data flipped to waitlist is refused: its FAQ names Stripe, and a waitlist page carries no Stripe word anywhere, FAQ included');
+  const noCopy = clone(ams); delete noCopy.checkoutCopy;
+  check(throws(() => render(noCopy), /needs "checkoutCopy"/) === true, 'checkout:true without the sheet\'s copy is refused (no "undefined" on a till)');
+  const noSending = clone(ams); delete noSending.form.sending;
+  check(throws(() => render(noSending), /needs form\.sending/) === true, 'checkout:true without the in-flight button text is refused');
+  const twoFeatured = clone(ams); twoFeatured.pricing.plans[1].featured = true;
+  check(throws(() => render(twoFeatured), /at most one plan is featured/) === true, 'two featured plans are refused (the pay bar sells one)');
+  const offNoTill = clone(ams); offNoTill.checkout = false;
+  check(!/id="ov"|data-pay=/.test(render(offNoTill).html) && render(offNoTill).html.includes('"CHECKOUT": false'), 'checkout:false on a search desk: prices, no sheet, no pay button, the plates lead to the door');
   const bad = clone(ams); bad.mode = 'deposit';
   check(throws(() => render(bad), /"mode" must be "search" or "waitlist"/) === true, 'the old "deposit" mode is gone: an unknown mode is refused');
   const slug = clone(ams); slug.slug = '../index';
@@ -442,11 +476,12 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     'Rome and La Réunion are not city markets; a sourceRef city-<slug> is');
 }
 
-// ── 10 · the sisters: Madrid (search) and Barcelona (waitlist) ────────────
-// BOOM_CITIES_BRIEF.md §4: Madrid takes searches at the Amsterdam prices;
-// Barcelona opens with a registered local partner (AICAT) and shows NO price
-// anywhere — plates, chips, fact sheet, schema (§10 of the brief). The two
-// must-state sentences of §4 are asserted verbatim.
+// ── 10 · the sisters: Madrid (search) and Barcelona, Paris, Berlin (waitlist) ──
+// BOOM_CITIES_BRIEF.md §4 + v1.1 (14/10): every desk shows the brief's list
+// prices; a search desk may sell them (checkout:true → the sheet), a
+// waitlist desk shows them as list prices charged only when it opens, with
+// no till anywhere — page, config, schema. The must-state sentences of §4
+// are asserted verbatim.
 const mad = JSON.parse(read('cities/madrid.json'));
 const bcn = JSON.parse(read('cities/barcelona.json'));
 const par = JSON.parse(read('cities/paris.json'));
@@ -478,52 +513,89 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par,
   check(faqV.length === c.faq.items.length && JSON.stringify(faqV) === JSON.stringify((faqS.mainEntity || []).map((q) => ({ q: q.name, a: q.acceptedAnswer.text }))),
     `${c.slug}: FAQPage = the visible FAQ, word for word (${faqV.length})`);
 }
-// Madrid: the search desk at the brief's prices
+// Every desk: the brief's three prices, on the boards, in the chips, in the
+// fact sheet, in the schema — and equal to the server's own grid, the one
+// api/service-checkout.js charges from.
+const GRID = ['€500', '€199', '€149'];
+for (const c of [ams, mad, bcn, par, ber]) {
+  const h = pageOf(c.slug);
+  const flaps = [...h.matchAll(/<span class="flap-prezzo flap-scale" data-p="([^"]+)"/g)].map((m) => m[1]);
+  check(JSON.stringify(flaps) === JSON.stringify(GRID), `${c.slug}: the three prices on their boards — the brief's grid (§4, v1.1)`);
+  const chipsP = [...h.matchAll(/<label class="chip"><input type="radio" name="service" value="([^"]+)"><span><b>[^<]*<\/b><small>(€[\d,]+)/g)].map((m) => m[2]);
+  check(JSON.stringify(chipsP) === JSON.stringify(GRID), `${c.slug}: the same three prices in the service chips`);
+  check(h.includes('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.'), `${c.slug}: the fact sheet's fees row is derived from the plans`);
+  const reg = CITY_MARKETS[c.slug];
+  check(!!reg && c.pricing.plans.every((p) => reg.plans && reg.plans[p.id] && reg.plans[p.id].eur === Number(p.price) && reg.plans[p.id].label === p.label),
+    `${c.slug}: the page's prices are the server's (CITY_PLANS) — the till can never charge a number the page did not show`);
+  check(!!reg && (reg.checkout === true) === (c.checkout === true) && reg.mode === c.mode, `${c.slug}: registry ⇄ page agree on the mode and on whether the till is open`);
+}
+// Madrid: the search desk, selling
 {
   const h = pageOf('madrid'); const v = visibleOf(h);
-  const flapsM = [...h.matchAll(/<span class="flap-prezzo flap-scale" data-p="([^"]+)"/g)].map((m) => m[1]);
-  check(JSON.stringify(flapsM) === JSON.stringify(['€500', '€199', '€149']), 'madrid: the three prices on their boards — the Amsterdam prices, as the brief fixes them (§4)');
   const svcM = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
-  check((svcM.offers || []).map((o) => o.price).join() === '500,199,149' && svcM.areaServed.name === 'Madrid', 'madrid: the Service carries its three Offers, areaServed Madrid');
-  check(h.includes('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.'), 'madrid: the fact sheet\'s fees row is derived from the plans');
+  check((svcM.offers || []).map((o) => o.price).join() === '500,199,149' && svcM.areaServed.name === 'Madrid' && svcM.offers.every((o) => o.availability === 'https://schema.org/InStock'),
+    'madrid: the Service carries its three Offers InStock, areaServed Madrid');
   check(v.includes('You hire us; we do not act for the landlord.'), 'madrid: the brief\'s must-state sentence, verbatim (§4)');
   check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are the ones on the page — agency costs on the landlord, fianza, padrón, no regional cap');
 }
-// The waitlist desks — Barcelona, Paris and Berlin: no price anywhere
+// The two desks that sell: the till on the page, the Rome pattern
+for (const c of [ams, mad]) {
+  const h = pageOf(c.slug);
+  check(c.checkout === true && h.includes('"CHECKOUT": true') && h.includes('"CHECKOUT_ENDPOINT": "/api/service-checkout"') && h.includes(`"FEATURED": "${c.pricing.plans.find((p) => p.featured).id}"`),
+    `${c.slug}: the config opens the till and names the featured plan`);
+  const rows = [...h.matchAll(/<label class="payrow"><input type="radio" name="payplan" value="([^"]+)" data-eur="(\d+)" data-label="([^"]+)">/g)].map((m) => [m[1], m[2], m[3]]);
+  check(/<div class="ov" id="ov" role="dialog" aria-modal="true"/.test(h) && JSON.stringify(rows) === JSON.stringify(c.pricing.plans.map((p) => [p.id, String(p.price), p.label])),
+    `${c.slug}: one sheet, the three plans as rows at the plate prices`);
+  check(c.pricing.plans.every((p) => h.includes(`<button type="button" class="go" data-pay="${p.id}">${esc(p.cta)} · ${eur(p.price)}</button>`)),
+    `${c.slug}: every plate's button opens the sheet on its plan, the price on the button`);
+  const f = c.pricing.plans.find((p) => p.featured);
+  check(h.includes(`<div class="pinfo"><b>${f.label} · ${eur(f.price)}</b><small>${esc(c.checkoutCopy.paybarSub)}</small></div>`) && h.includes(`<button type="button" class="go" data-pay="${f.id}">${esc(c.paybar.cta)}</button>`),
+    `${c.slug}: the phone's pay bar sells the featured plan`);
+  check(h.includes('id="payOffer" hidden') && h.includes('id="fPaid"') && h.includes('data-word="PAID"') && h.includes('data-word="OPEN"') && h.includes(`data-sending="${esc(c.form.sending)}"`),
+    `${c.slug}: the door's end states — OPEN with the offer to pay, PAID — and the in-flight button text`);
+  check(h.includes(esc(c.checkoutCopy.fine)) && /refunded in full if we decline the search in the first call/.test(c.checkoutCopy.fine) && /Stripe/.test(c.checkoutCopy.fine) && /Egidi Immobiliare S\.r\.l\./.test(c.checkoutCopy.fine),
+    `${c.slug}: the sheet's fine print says Stripe, the invoicing entity and the refund rule`);
+  check(/<p class="alt">[^<]*<a href="#contact" id="ovTalk">/.test(h), `${c.slug}: the sheet keeps the free door one tap away`);
+  check(!h.includes('id="ov"') || h.indexOf('id="ov"') > h.indexOf('</main>'), `${c.slug}: the sheet lives outside <main> (it is the till, not page copy)`);
+  check(c.faq.items.find((q) => q.q === 'How do I pay?').a.includes('By card on this page (Stripe)'), `${c.slug}: the FAQ says how to pay: card on the page, or transfer against an invoice`);
+}
+// The waitlist desks — Barcelona, Paris and Berlin: the prices as list prices, no till
 for (const [c, mustState, facts, factsLabel] of [
   [bcn, 'Launching with a registered local partner.', [/AICAT/, /índice de referencia/, /fianza/, /padrón/], 'AICAT, the índice de referencia, fianza and padrón'],
   [par, 'Launching with a licensed partner.', [/carte professionnelle/, /loi Hoguet/, /encadrement des loyers/, /Visale/, /justificatif de domicile/], 'carte professionnelle, loi Hoguet, the encadrement des loyers, Visale and the justificatif de domicile'],
   [ber, 'Launching with a licensed partner.', [/§\s?34c GewO/, /Mietpreisbremse/, /Bestellerprinzip/, /Kaution/, /Anmeldung/, /SCHUFA/], '§34c GewO, the Mietpreisbremse, the Bestellerprinzip, Kaution, Anmeldung and SCHUFA'],
 ]) {
   const h = pageOf(c.slug);
-  const v = visibleOf(h.replace(/<select[\s\S]*?<\/select>/gi, ' '));
-  check(!/€\s?\d/.test(v) && !/\d\s?€/.test(v), `${c.slug}: no price in the text the client reads (the budget bands in the <select> are the client's own)`);
-  check(!h.includes('flap-prezzo') && !h.includes('data-p="') && !/<div class="price">/.test(h), `${c.slug}: no price board, no price line on the plates`);
-  const chipsW = [...h.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span>([\s\S]*?)<\/span><\/label>/g)];
-  check(chipsW.length === 4 && chipsW.filter((m) => m[2] !== 'unsure').every((m) => !/<small>/.test(m[3])) && chipsW.some((m) => m[2] === 'unsure' && /<small>advise me<\/small>/.test(m[3])),
-    `${c.slug}: the service chips carry the name alone — no price exists yet`);
-  const ld = JSON.stringify(ldOf(h));
-  check(!/"price"|"offers"|"priceCurrency"/.test(ld) && /"Service"/.test(ld) && /"FAQPage"/.test(ld), `${c.slug}: the Service in the schema has no Offer and no price; the FAQPage is there`);
-  check(h.includes(esc(c.pricing.note)) && h.includes('Not published yet'), `${c.slug}: the plates say why no price is shown; the fact sheet says the fees are not published yet`);
-  check(!/stripe/i.test(h), `${c.slug}: no Stripe anywhere`);
+  const v = visibleOf(h);
+  check(c.checkout !== true && h.includes('"CHECKOUT": false') && !/id="ov"|data-pay=|id="fPaid"|payOffer/.test(h), `${c.slug}: no till — CHECKOUT false, no sheet, no pay button, no paid state`);
+  check(!/stripe/i.test(h), `${c.slug}: no Stripe anywhere (shown is not charged)`);
+  check(h.includes(`<p class="pricenote">${esc(c.form.service.priceNote)}</p>`) && /charged only when the desk opens/.test(c.form.service.priceNote),
+    `${c.slug}: under the chips, one line: list prices, charged only when the desk opens`);
+  check(c.pricing.plans.every((p) => /at opening|on signing/.test(p.per)) && /Nothing is charged today/.test(c.pricing.sub) && (/Nothing is charged until the desk opens|nothing is charged until the desk opens|nothing charged until the desk opens/i.test(c.pricing.note)),
+    `${c.slug}: the plates' price lines say "at opening", the section says nothing is charged today`);
+  const ld = ldOf(h); const svcW = (ld.find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
+  check((svcW.offers || []).length === 3 && svcW.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && /charged only when the desk opens/.test(o.description) && o.priceSpecification.valueAddedTaxIncluded === true),
+    `${c.slug}: the three Offers are PreOrder and say in words that the price is charged only when the desk opens`);
   check(v.includes(mustState), `${c.slug}: the brief's must-state sentence, verbatim (§4): "${mustState}"`);
   check(facts.every((re) => re.test(v)), `${c.slug}: ${factsLabel} are on the page (§4, §5.8)`);
+  check(!/No price is shown|Not published yet|Fees published when/.test(v), `${c.slug}: no leftover of the price-less page`);
 }
-// the build keeps the two modes apart
+check(/on signing/.test(ber.pricing.plans[0].per) && /signed lease/.test(ber.pricing.note) && /two months' net cold rent plus VAT/.test(ber.pricing.note),
+  'berlin: Full Search is due on signing — the WoVermRG rule (fee on a concluded lease, cap two net cold months + VAT, no advances) is on the page, not just in the registry');
+// the build keeps shown apart from charged
 {
-  const priced = clone(bcn); priced.bref.rows[1].ddHtml = 'Flat fee from €500.';
-  check(throws(() => render(priced), /a waitlist page prints no price, found "€500/) === true, 'a waitlist city with a price in its copy is refused, naming the price');
-  const feesRow = clone(bcn); feesRow.bref.rows[2].fees = true;
-  check(throws(() => render(feesRow), /derives the fees from the plans/) === true, 'a waitlist city cannot ask the fact sheet to derive fees it does not have');
   const stripe = clone(bcn); stripe.bref.rows[0].ddHtml = '<a href="https://buy.stripe.com/x">pay</a>';
-  check(throws(() => render(stripe), /no Stripe link/) === true, 'a waitlist city with a Stripe link is refused');
-  const planPrice = clone(bcn); planPrice.pricing.plans[0].price = 500; planPrice.pricing.plans[0].per = 'flat';
-  check(throws(() => render(planPrice), /a waitlist city carries no price/) === true, 'a waitlist plan with a price is refused');
+  check(throws(() => render(stripe), /no Stripe reference/) === true, 'a waitlist city with a Stripe link is refused');
+  const till = clone(bcn); till.checkout = true; till.checkoutCopy = clone(ams.checkoutCopy); till.form.sending = 'x';
+  check(throws(() => render(till), /a waitlist city cannot open a checkout/) === true, 'a waitlist city with the till opened is refused even with the sheet\'s copy in place');
+  const noPriceW = clone(bcn); delete noPriceW.pricing.plans[0].price;
+  check(throws(() => render(noPriceW), /needs a positive price/) === true, 'a waitlist plan without its list price is refused like any other');
   const noPrice = clone(mad); delete noPrice.pricing.plans[0].price;
   check(throws(() => render(noPrice), /needs a positive price/) === true, 'a search city without a price is refused the same way');
   const flipped = clone(bcn); flipped.mode = 'search';
-  check(throws(() => render(flipped), /needs label, se, name, text, per, cta|needs a positive price/) === true,
-    'flipping Barcelona to "search" without its fees is refused: the switch needs the prices, never a silent "€undefined"');
+  const fh = render(flipped).html;
+  check(fh.includes('"CHECKOUT": false') && !/id="ov"/.test(fh) && fh.includes('data-p="€500"'),
+    'flipping Barcelona to "search" keeps its prices and opens no till by itself: the checkout is a second, explicit decision');
 }
 // the family strip: derived from the built cities, and a live page never links a draft
 {
@@ -571,6 +643,12 @@ for (const [c, mustState, facts, factsLabel] of [
     const reg = CITY_MARKETS[p.slug];
     check(!!reg && reg.mode === p.mode, `${p.slug}: the server registry agrees with the page on the desk's mode (${p.mode}) — one word, two places, no drift`);
   }
+  // a PAID order (the SERVICE webhook writes paid:true + market): the card's
+  // reply acknowledges the money instead of thanking for "your message"
+  const paidLead = { market: 'amsterdam', paid: true, name: 'Anna Keller', city: { serviceLabel: 'Full Search' } };
+  const rpaid = cityReplyText(paidLead);
+  check(isCityMarket(paidLead) && /^Hi Anna, Valentino here from BOOM 👋 Payment received for Full Search in Amsterdam — thank you\./.test(rpaid) && rpaid.endsWith(CITY_MARKETS.amsterdam.url) && !/Thanks for your message/.test(rpaid),
+    'a paid city order gets the "payment received" reply, in the right city, with the city link');
 }
 
 console.log(`\n  ${ok} passed, ${ko} failed`);

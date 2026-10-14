@@ -1141,7 +1141,9 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   design/pages-deco/genera-og-cities.py` (card HTML dai DATI della città —
   il tabellone fermo, il «from €149» = il servizio meno caro — → Chromium
   1200×630 → Pillow a palette: 97 KB, sotto i 120 del budget «card social»;
-  una città waitlist non stampa nessun «from €»).
+  dal 14/10 notte, v1.1, anche la card di un desk waitlist porta il prezzo
+  più basso, con l'etichetta «opening · from»: la card non ha spazio per la
+  frase che la pagina dice, quindi dice almeno che il desk sta aprendo).
 - **Madrid e Barcellona (14/10, sera)** — due sorelle, due modalità, dal
   brief §4: **Madrid in `mode:"search"`** ai prezzi fissati dal brief (gli
   stessi di Amsterdam: 500/199/149 IVA inclusa), **Barcellona in
@@ -1149,15 +1151,17 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   l'iscrizione AICAT: «Launching with a registered local partner» (la frase
   del brief, verbatim, nel footer; nell'hero «Opening with a registered local
   partner (AICAT)»), il rent-cap check descritto come servizio SENZA prezzo.
-  **La Fase 3 del build è questa modalità**: in waitlist i piatti hanno le ✓
-  e il bottone ma nessun tabellone né riga prezzo, i chip portano solo il
-  nome, la riga «Fees» della scheda è testo del JSON (mai derivata), il
-  `Service` nel JSON-LD non ha `offers`; e il build RIFIUTA una città
-  waitlist con un prezzo nei piani (`price/per/offerDescription` devono
+  **La Fase 3 del build era questa modalità** (SUPERATA la sera stessa dalla
+  v1.1 del brief — vedi «La cassa e i prezzi su ogni desk» qui sotto; resta
+  scritta perché spiega i test di quel pomeriggio): in waitlist i piatti
+  avevano le ✓ e il bottone ma nessun tabellone né riga prezzo, i chip il
+  solo nome, la riga «Fees» della scheda testo del JSON (mai derivata), il
+  `Service` nel JSON-LD senza `offers`; e il build RIFIUTAVA una città
+  waitlist con un prezzo nei piani (`price/per/offerDescription` dovevano
   mancare), un «€N» nel testo visibile (i `<select>` del budget del cliente
-  sono esclusi: quei soldi sono suoi), un tabellone, un `"price"` nello
-  schema, un link Stripe — e rifiuta allo stesso modo una città search
-  senza prezzi: le due modalità non si confondono, e «passare Barcellona a
+  esclusi: quei soldi sono suoi), un tabellone, un `"price"` nello
+  schema, un link Stripe — e rifiutava allo stesso modo una città search
+  senza prezzi: le due modalità non si confondevano, e «passare Barcellona a
   search» esige i prezzi, mai un «€undefined». Le frasi obbligate del brief
   sono asserite verbatim (Madrid: «You hire us; we do not act for the
   landlord.»). **La striscia di famiglia si deriva dalle città costruite**
@@ -1247,27 +1251,121 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   legalità del contratto a termine (§575 BGB). `live:false`: revisione sul
   telefono, riga in `sitemap.xml`, link dalla home, partner con permesso E
   listino conforme al WoVermRG prima di qualunque `search`.
+- **La cassa e i prezzi su ogni desk (14/10, notte — v1.1 del brief, la
+  decisione del fondatore)**: «voglio tutte le città pronte col pricing
+  adatto, come le altre cose di Roma, con motion e un upgrade di design, così
+  che ogni pagina sia una landing a sé che converte e ci fa confermare
+  l'interesse e che il prodotto funziona». Letta contro il brief: §4/§10
+  dicevano «waitlist = nessun prezzo»; il fondatore ha deciso altrimenti, e
+  la decisione è scritta in testa al brief (v1.1), non sottintesa. Quattro
+  pezzi, tutti con la stessa regola in mezzo — **mostrato ≠ incassato**:
+  1. **I prezzi di listino su OGNI desk** (500/199/149 IVA inclusa, la griglia
+     del brief, mai un prezzo per città inventato): su Barcellona, Parigi e
+     Berlino sono prezzi di listino «charged only when the desk opens» — la
+     riga sotto i chip (`form.service.priceNote`), «at opening» sulla riga
+     prezzo di ogni piatto (Berlino: Full Search «on signing», la regola del
+     WoVermRG §2–§3: compenso solo a contratto firmato, tetto due mensilità
+     nette fredde + IVA, mai anticipi — scritta in pagina, nella nota e nella
+     riga Fees), la riga «Fees» della scheda DERIVATA dai piani come sugli
+     altri desk, le `Offer` nello schema con `availability: PreOrder` e la
+     frase «charged only when the desk opens» nella description. Il build
+     esige ora `price` e `per` su ogni piano in ENTRAMBE le modalità, e
+     controlla che ogni prezzo stia su un tabellone E nel suo chip.
+  2. **La cassa** (`checkout: true`, oggi Amsterdam e Madrid — SOLO su un desk
+     `search`: il build rifiuta `checkout:true` su un waitlist, una parola
+     «Stripe», un foglio `id="ov"`, un `data-pay`, e pretende `"CHECKOUT":
+     false` nel config; il server rifiuta lo stesso POST con 400
+     `checkout_closed` — `cityOffer` in `api/_market.js`). È il binario
+     Services 2.0 di Roma: i bottoni dei piatti («Start my search · €500»),
+     la pay bar del telefono (il piano `featured`) e **l'offerta dopo il
+     lead** (la card «Your file is open» propone di pagare il servizio
+     scelto, nome ed email già nel foglio; «Not sure yet» non riceve
+     offerte) aprono UN foglio (`checkoutCopy` nel JSON: tre righe-piano col
+     prezzo, nome, email, telefono e nota facoltativi, honeypot, la via
+     gratuita a un tap) che posta `{ city, kind }` a `/api/service-checkout`
+     → Stripe al prezzo di `CITY_PLANS` (la copia che il server si fida, mai
+     il browser: un prezzo nel body è ignorato; `phone_number_collection`
+     quando il foglio lo lascia vuoto) → `success_url` = la pagina della
+     città `?paid=<piano>&session_id=…#contact` (mai il thank-you di Roma),
+     dove il JS mostra lo stato PAGATO (piano e importo, tre righe «cosa
+     succede ora», il tabellone che scrive PAID), conta UN `purchase` per
+     session id (localStorage) e ripiega la query. Il webhook SERVICE scrive
+     il lead PAGATO con `market = città`, `sourceRef city-<città>`,
+     `leadType tenant`, `intent city_order` (riassunto «AMSTERDAM — paid
+     order · Full Search · €500 paid», il telefono raccolto da Stripe se il
+     foglio non l'aveva): `isCityMarket` → il Commerciale si astiene, la card
+     Telegram porta `cityReplyText` che su `paid:true` dice «Payment
+     received for Full Search in Amsterdam», le email (operatore e cliente)
+     portano i passi del desk (`CITY_SERVICE_META`) e il link alla pagina
+     della città. Full Search è «refunded in full if we decline the search in
+     the first call» — la regola che la FAQ già diceva, ora promessa nel
+     foglio, nel prodotto Stripe e nella FAQ. I servizi di Roma invariati
+     (telefono obbligatorio, thank-you page).
+  3. **Il motion** (tutto fermo con `prefers-reduced-motion`, tutto visibile
+     senza JS via `<noscript>`): l'aereo che attraversa la rotta «ROM ✈ AMS»
+     sotto la porta (la riga `.machine` è ora rotta + promesse su due righe:
+     prima finiva a capo su una parola orfana sotto la card), i figli di un
+     blocco che arrivano un battito dopo l'altro (step, piatti, controlli,
+     righe FAQ, le ✓ del piatto in evidenza), la luce che spazza la timeline
+     una volta, il ✓ che compare sul chip scelto, l'aereo che scivola sul
+     bottone mentre l'invio è in volo (`form.sending`), il tick che si
+     disegna e il **piccolo tabellone Solari che scrive OPEN** (file aperto) o
+     **PAID** — la grammatica del tabellone delle partenze di index.html.
+  4. **GEO**: `Offer` su ogni desk con `UnitPriceSpecification`
+     `valueAddedTaxIncluded: true` (il fatto che un motore di risposta cita),
+     `url` del piatto, `InStock`/`PreOrder` per modalità; la
+     `BreadcrumbList` ha un `@id` e la `WebPage` la referenzia;
+     `Organization.areaServed` è DERIVATA (Roma + i soli desk `live:true`): una
+     bozza non mette mai la sua città lì.
+  Il budget di parole regge con una definizione più onesta: la porta è il
+  SOLO modulo (gli stati finali — file aperto, pagato — sono nascosti finché
+  non sono veri, e hanno il loro tetto, ≤ 70); il corpo esclude anche quelli.
+  Dopo i prezzi i waitlist sforavano (Parigi 961, Berlino 985): tagliata la
+  copy delle fee, non il tetto — Barcellona 935 · Parigi 946 · Berlino 949.
+  **Da verificare prima del live, oltre a quanto già aperto**: l'IVA sul
+  venduto da pagina (luogo della prestazione), la promessa di rimborso del
+  Full Search (è la regola della FAQ resa esplicita: va confermata dal
+  fondatore come politica), e su Berlino se Application Pack e Attended
+  Viewing siano «Vermittlung» (allora anche loro solo a contratto firmato).
 - **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
   in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
   confermare col commercialista PRIMA del live), il pagamento (carta o
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (235 — build, sistema, voce, budget di
-  parole, chip e ✓ dai piani, scheda dopo la FAQ, JSON-LD = pagina,
-  rifiuti, le sorelle con le invarianti waitlist e la regola della famiglia,
+- Test: `node tests/cities/run.mjs` (292 — build, sistema, voce, budget di
+  parole con la porta = il solo modulo e gli stati finali a parte, chip e ✓
+  dai piani, scheda dopo la FAQ, JSON-LD = pagina con Offer InStock/PreOrder
+  e IVA dichiarata, rifiuti — fra cui `checkout:true` su un waitlist e
+  Amsterdam ribaltata a waitlist che cade sulla parola «Stripe» della sua
+  FAQ — i prezzi del brief su ogni desk e uguali a `CITY_PLANS`, la cassa
+  sui due desk search, i waitlist senza cassa, la striscia di famiglia,
   handler VERO di `/api/city-lead` su Firestore in memoria per i cinque desk,
-  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (49, Chromium:
-  leggibile senza JS coi prezzi dei chip come testo, il tabellone che
-  scrive AMSTERDAM nello spazio riservato, prezzi che si compongono, 390px
-  senza scroll laterale coi quattro chip a una riga e la riga «searching»
-  nascosta, pay bar solo oltre l'hero, burger, nessun servizio pre-scelto e
-  il piatto che spunta il suo chip, modulo che posta JSON una volta e dice
-  l'errore sul posto, reduced motion fermo, 1440 a due colonne; Madrid,
-  Barcellona, Parigi e Berlino a 390px — tabellone nello spazio riservato, chip pari, nessun €
-  sulla pagina waitlist, il modulo che posta la SUA città).
+  la risposta a un ordine pagato, guardie in ordine nel sorgente) +
+  `node tests/cities/checkout.mjs` (39, i handler VERI di
+  `/api/service-checkout` e del webhook con lo stripe finto del loader di
+  money: cityOffer, 400 `checkout_closed` sui waitlist senza sessione, il
+  prezzo dal listino e mai dal body, successo sulla pagina della città, il
+  lead pagato col market e le due email, retry = duplicate, Roma invariata) +
+  `node tests/cities/ui.mjs` (85, Chromium: leggibile senza JS coi prezzi
+  dei chip e dei bottoni come testo, il tabellone che scrive AMSTERDAM nello
+  spazio riservato, prezzi che si compongono, 390px senza scroll laterale,
+  il foglio aperto dal piatto sul SUO piano con errori sul posto, il POST
+  `{ city, kind }` seguito fino a `?paid=` con PAID sul tabellone e UN
+  purchase, il ritorno sul ?paid= che non conta due volte, il modulo che
+  posta una volta e poi OPEN sul tabellone e l'offerta di pagare
+  precompilata, «Not sure yet» senza offerta, il checkout fallito detto nel
+  foglio, reduced motion fermo aereo compreso, lo stagger dei passi, 1440 a
+  due colonne; Madrid col foglio, Barcellona, Parigi e Berlino a 390px senza
+  foglio e col piatto che spunta il suo chip).
 
 ### POST `/api/service-checkout`
+**Dal 14/10 vende anche i piani dei desk città**: `{ city, kind }` →
+`cityOffer(city, kind)` (`api/_market.js`) decide prezzo e nome del prodotto
+da `CITY_PLANS`; un desk waitlist o senza `checkout:true` è 400
+`checkout_closed` senza sessione; il telefono è facoltativo (Stripe lo
+raccoglie), `success_url` è la pagina della città con `?paid=<kind>`. Vedi
+«BOOM Cities → La cassa e i prezzi su ogni desk».
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
 kind: `virtual-viewing` (€89), `deal-assistance` (€249),

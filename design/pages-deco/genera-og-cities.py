@@ -61,11 +61,12 @@ h1 b { color:#FFD700; font-weight:300; }
 def card(c):
     parola = re.sub(r'[^A-Z]', '', c.get('word', c['city']).upper())
     celle = ''.join(f'<i>{ch}</i>' for ch in parola)
-    # waitlist (Barcelona, Paris): no price exists yet, the card shows none
-    prezzo = ''
-    if c.get('mode') == 'search':
-        da = min(p['price'] for p in c['pricing']['plans'])
-        prezzo = f'<div class="prezzo"><u>from</u><s>&euro;{da}</s></div>'
+    # every desk shows its list prices (v1.1, 14/10); a waitlist card says the
+    # desk is opening next to the "from", because the card has no room for
+    # the sentence the page carries ("charged only when the desk opens")
+    da = min(p['price'] for p in c['pricing']['plans'])
+    da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
+    prezzo = f'<div class="prezzo"><u>{da_label}</u><s>&euro;{da}</s></div>'
     prova = ' · '.join(c['machine']['items']).replace('<', '&lt;')
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>

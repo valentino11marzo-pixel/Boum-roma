@@ -48,7 +48,7 @@
   <script type="application/ld+json">
 {{{jsonLd}}}
   </script>
-<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 {{{scrollBlock}}}
 <!-- BOOM_SOLARI:START — design/pages-deco/solari-engine.html, inlined by the build (one copy, byte for byte) -->
@@ -136,7 +136,7 @@
     <div class="h-5" id="contact">
       <div class="filecard">
         <div class="refline"><span>{{form.ref}}</span><b>{{form.refRight}}</b></div>
-        <form id="cityForm" novalidate
+        <form id="cityForm" novalidate data-sending="{{sending}}"
               data-err-name="{{form.errors.name}}" data-err-contact="{{form.errors.contact}}"
               data-err-email="{{form.errors.email}}" data-err-net="{{form.errors.net}}">
           <div class="frow two">
@@ -156,6 +156,7 @@
             <div class="chipgrid">
 {{{serviceChipsHtml}}}
             </div>
+{{{servicePriceNoteHtml}}}
           </fieldset>
 
           <details class="more">
@@ -182,13 +183,11 @@
           <p class="consent">{{form.consentLead}} <a href="/privacy">privacy</a>. {{form.consentAlt}} <a href="https://wa.me/{{contact.whatsapp}}" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:{{contact.email}}?subject=BOOM%20{{city}}">{{contact.email}}</a></p>
         </form>
 
-        <div class="sent" id="fDone">
-          <div class="tick">✓</div>
-          <h3>{{form.sentBefore}} <em>{{form.sentEm}}</em></h3>
-          <p>{{form.sentText}} <a href="mailto:{{contact.email}}" style="color:var(--gold)">{{contact.email}}</a>.</p>
-        </div>
+        <!-- the door's end states: the file open (then, where the till is open,
+             the offer to pay for the chosen service) and the paid landing -->
+{{{sentHtml}}}
       </div>
-      <p class="machine" aria-hidden="true"><i></i><b>{{machine.route}}</b>{{{machineItemsHtml}}}</p>
+      {{{machineHtml}}}
     </div>
   </header>
 
@@ -322,13 +321,10 @@
   </div>
 </footer>
 
-<div class="paybar" id="paybar">
-  <div class="pinfo">
-    <b>{{paybar.title}}</b>
-    <small>{{paybar.sub}}</small>
-  </div>
-  <a class="go" href="#contact">{{paybar.cta}}</a>
-</div>
+<!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
+{{{checkoutHtml}}}
+
+{{{paybarHtml}}}
 
 <!-- CONFIG — generated from cities/{{slug}}.json. No secrets, no keys: the form posts to our own API. -->
 <script>

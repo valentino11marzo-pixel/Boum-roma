@@ -165,8 +165,8 @@ export function b2bReplyText(lead = {}) {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam oggi; Madrid,
-// Barcellona, Parigi quando avranno la loro pagina). Stessa lezione della
+// IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam, Madrid,
+// Barcellona, Parigi, Berlino: la lista chiusa è CITY_MARKETS qui sotto). Stessa lezione della
 // Réunion, in un'altra lingua: un lead che arriva da /amsterdam cerca casa ad
 // AMSTERDAM, e il Commerciale — con il suo SYSTEM prompt sul mercato romano,
 // il catalogo `listings` che consulta e il follow-up «stai ancora cercando
@@ -184,13 +184,57 @@ export function b2bReplyText(lead = {}) {
 // with a registered local partner (AICAT in Catalonia, carte professionnelle
 // in France) and the lead is a FILE OPENED, not a search started. The city
 // JSON carries the same word; tests/cities keeps the two from drifting.
-export const CITY_MARKETS = {
-  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam', mode: 'search' },
-  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search' },
-  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner' },
-  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner' },
-  berlin:    { label: 'Berlin',    flag: '🇩🇪', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner' },
+// THE PRICE GRID OF THE CITY DESKS — the one copy the server trusts
+// (api/service-checkout.js charges from HERE, never from the browser; the
+// page JSON prints the same numbers and tests/cities pins the two together).
+// The founder's decision of 14/10 (BOOM_CITIES_BRIEF.md, v1.1): every desk
+// shows the same list prices, waitlist desks included — shown, not charged:
+// a waitlist city never opens a checkout (the build refuses it), the list
+// price is what the client will pay when the desk opens. Berlin's Full
+// Search is due only once a lease is signed (WoVermRG §2, §3: fee on a
+// concluded lease, cap two net cold months + VAT, no advances).
+export const CITY_PLANS = {
+  'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
+    desc: 'Search on the tenant\'s side: local-format dossier in 24 hours, applications within the hour, one attended viewing with live video and written report, negotiation, contract checked before you sign. Refunded in full if we decline the search in the first call.' },
+  'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
+    desc: 'The dossier that wins applications: local format in 24 hours, cover letter, income and guarantor strategy, contract review before you sign.' },
+  'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
+    desc: 'A BOOM person attends the viewing in your place: live video walkthrough, written report (light, noise, damp, neighbours, commute) and a straight recommendation.' },
 };
+
+// `checkout: true` = the page sells the plans with a Stripe Checkout (the
+// Rome Services 2.0 rail: api/service-checkout.js → the SERVICE webhook
+// branch, lead with market = the city). Only a 'search' desk may carry it;
+// cityOffer() refuses everything else, so a waitlist city cannot be charged
+// even by a hand-made POST.
+export const CITY_MARKETS = {
+  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
+  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner', plans: CITY_PLANS },
+  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  berlin:    { label: 'Berlin',    flag: '🇩🇪', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+};
+
+/**
+ * What a city page may SELL right now, by plan id — or why not.
+ * Returns { ok:true, city, plan, eur, label, name, desc, url } or
+ * { ok:false, error: 'unknown_city' | 'checkout_closed' | 'unknown_service' }.
+ * 'checkout_closed' covers a waitlist desk and a search desk that has not
+ * opened its checkout: in both cases the page shows the price and takes the
+ * file, and nobody is charged.
+ * @param {string} cityKey
+ * @param {string} planId
+ */
+export function cityOffer(cityKey, planId) {
+  const k = String(cityKey || '').toLowerCase().trim();
+  const c = CITY_MARKETS[k];
+  if (!c) return { ok: false, error: 'unknown_city' };
+  if (c.mode !== 'search' || c.checkout !== true) return { ok: false, error: 'checkout_closed' };
+  const id = String(planId || '').toLowerCase().trim();
+  const p = (c.plans || {})[id];
+  if (!p) return { ok: false, error: 'unknown_service' };
+  return { ok: true, city: k, plan: id, eur: p.eur, label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+}
 
 /** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */
 export function cityMode(lead = {}) {
@@ -240,6 +284,14 @@ export function cityReplyText(lead = {}) {
   if (!lead.moveIn) asks.push('when do you land');
   if (!(lead.budgetBand || lead.budget)) asks.push("what's the monthly budget");
   if (!(lead.city && lead.city.situation)) asks.push("who's moving");
+  // A PAID order (the page's checkout, written by the SERVICE webhook with
+  // market = the city): the money is in, the reply says so and names the next
+  // step — never a second "thanks for your message".
+  if (lead.paid === true) {
+    const plan = (lead.city && lead.city.serviceLabel) || 'your order';
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
+      `I'm opening your file now and I'll come back today with the next step and what I need from you.\n${c.url}`;
+  }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
     : 'I have your dates, budget and situation. ';

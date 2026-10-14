@@ -16,7 +16,7 @@
     "name": "BOOM Berlin — tenant-side rental desk",
     "serviceType": "Tenant-side rental search agent",
     "audience": "Internationals relocating to Berlin",
-    "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. No fees published until the desk opens; nothing from landlords or platforms, ever."
+    "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
   },
   "nav": {
     "how": "How it works",
@@ -74,7 +74,8 @@
     "service": {
       "label": "What will you need?",
       "unsure": "Not sure yet",
-      "unsureSub": "advise me"
+      "unsureSub": "advise me",
+      "priceNote": "List prices, VAT included — charged only when the desk opens."
     },
     "more": "More details (optional)",
     "phone": {
@@ -105,7 +106,8 @@
       "contact": "An email or a number — otherwise we can't reply.",
       "email": "That email looks incomplete — could you check it?",
       "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
-    }
+    },
+    "sending": "Opening your file…"
   },
   "machine": {
     "route": "ROM → BER",
@@ -129,7 +131,7 @@
       {
         "k": "2 · Opening",
         "v": "A licensed partner",
-        "s": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. The desk opens with a licensed partner, not around the rule."
+        "s": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. We open with a licensed partner, not around the rule."
       },
       {
         "k": "3 · The search",
@@ -147,10 +149,10 @@
     "tlineLand": "✓ KEYS · ÜBERGABEPROTOKOLL"
   },
   "pricing": {
-    "num": "02 — SERVICES",
-    "h2": "Three services.",
-    "h2g": "Fees published when the desk opens.",
-    "sub": "The rule is set: paid by you, nothing from landlords or platforms, inside what German law allows.",
+    "num": "02 — SERVICES & FEES",
+    "h2": "Flat fees, set now.",
+    "h2g": "Charged when the desk opens.",
+    "sub": "Paid by you, never by landlords, inside German law. Nothing is charged today.",
     "plans": [
       {
         "id": "full-search",
@@ -165,7 +167,10 @@
           "Rent brake and lease checked, Nebenkosten read"
         ],
         "featured": true,
-        "cta": "Open my file"
+        "cta": "Open my file",
+        "price": 500,
+        "per": "flat · incl. VAT · on signing",
+        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check."
       },
       {
         "id": "application-pack",
@@ -179,7 +184,10 @@
           "Cover note in German",
           "Lease review before you sign"
         ],
-        "cta": "Ask for the pack"
+        "cta": "Ask for the pack",
+        "price": 199,
+        "per": "flat · incl. VAT · at opening",
+        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review."
       },
       {
         "id": "attended-viewing",
@@ -194,10 +202,13 @@
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
         ],
-        "cta": "Ask for a viewing"
+        "cta": "Ask for a viewing",
+        "price": 149,
+        "per": "per viewing · incl. VAT · at opening",
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
       }
     ],
-    "note": "No price is shown because none is charged yet. German law caps a tenant-side fee and ties it to a signed lease; the desk publishes its fees within that rule, invoiced by Egidi Immobiliare S.r.l."
+    "note": "Nothing is charged until the desk opens, and nothing in advance: German law ties a brokerage fee to a signed lease and caps it at two months' net cold rent plus VAT. Full Search is due once you sign; invoiced by Egidi Immobiliare S.r.l."
   },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
@@ -268,15 +279,16 @@
       },
       {
         "dt": "Fees",
-        "ddHtml": "Not published yet: nothing is charged until the desk opens. German law caps a tenant-side fee and ties it to a signed lease; ours sit inside that rule. Nothing from landlords or platforms."
+        "ddHtml": "VAT included, nothing charged before the desk opens; Full Search due only on a signed lease, inside the German cap. Nothing from landlords or platforms.",
+        "fees": true
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file opened and kept ready, your questions answered the same working day. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
       },
       {
         "dt": "What we don't do",
-        "ddHtml": "We don't list homes, represent landlords, promise a date, or broker a flat in Germany before the desk opens."
+        "ddHtml": "We don't list homes, represent landlords, promise a date, or broker in Germany before the desk opens."
       },
       {
         "dt": "Reply time",
@@ -300,7 +312,7 @@
       },
       {
         "q": "What can you do for me today?",
-        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The dossier, the rent-brake check and the lease read start when the desk opens."
+        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The prices on this page are set; nothing is charged before the desk opens, and the Full Search fee only once you sign."
       },
       {
         "q": "Is my rent capped in Berlin?",

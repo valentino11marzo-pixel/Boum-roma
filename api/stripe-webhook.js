@@ -5,6 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { CITY_MARKETS, CITY_PLANS } from './_market.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -308,6 +309,36 @@ const SERVICE_META = {
   },
 };
 
+// THE CITY DESKS (BOOM_CITIES_BRIEF.md, 14/10): a plan bought from
+// /amsterdam, /madrid… arrives with metadata.city (api/service-checkout.js →
+// cityOffer). Same SERVICE rail, two differences: the lead carries the
+// MARKET (api/_market.js isCityMarket → the Commerciale stands down, the
+// Telegram card speaks of the city and says the money is in), and the next
+// steps are the desk's, not a Rome service's. Keyed by plan id, any city.
+const CITY_SERVICE_META = {
+  'full-search': {
+    emoji: '🧭',
+    next1: ['Your brief call', 'Booked today — 20 minutes, your dates, budget and situation'],
+    next2: ['Dossier in 24 hours', 'Local format: income, employer, ID, references, cover letter'],
+    next3: ['Applications within the hour', 'From the first listing that fits — you see every one'],
+    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
+  },
+  'application-pack': {
+    emoji: '📁',
+    next1: ['Send your documents', 'Reply to this email: income proof, employer letter, ID'],
+    next2: ['Dossier in 24 hours', 'Local format, cover letter in the local language and English'],
+    next3: ['Income and guarantor strategy', 'Written so a landlord reads it as safe'],
+    next4: ['Contract review', 'Before you sign — rent, deposit, charges, contract type'],
+  },
+  'attended-viewing': {
+    emoji: '🎥',
+    next1: ['Send the listing', 'Reply with the link and the slots that work for you'],
+    next2: ['We book the viewing', 'With the agent, usually within 48 hours'],
+    next3: ['Live video walkthrough', 'You join from anywhere, you ask what you want'],
+    next4: ['Written report', 'Light, noise, damp, neighbours, commute — and a straight recommendation'],
+  },
+};
+
 async function handleService(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
@@ -317,7 +348,17 @@ async function handleService(res, session, m) {
   // may carry no address at all).
   const email = (session.customer_details && session.customer_details.email)
     || m.email || session.customer_email || '';
-  const meta = SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' };
+  // A city order: metadata.city names a desk in CITY_MARKETS (written by
+  // api/service-checkout.js from cityOffer — never trusted from a browser).
+  const cityKey = String(m.city || '').toLowerCase();
+  const cityDesk = CITY_MARKETS[cityKey] || null;
+  const cityPlan = cityDesk ? ((cityDesk.plans || CITY_PLANS)[m.kind] || null) : null;
+  const meta = cityDesk
+    ? { ...(CITY_SERVICE_META[m.kind] || { emoji: '✓' }), title: `${cityDesk.label} — ${cityPlan ? cityPlan.label : (m.kind || 'order')}`, city: cityDesk }
+    : (SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' });
+  // Stripe's phone_number_collection lands in customer_details.phone: the
+  // city sheet leaves the phone optional, the checkout asks for it.
+  const phone = m.phone || (session.customer_details && session.customer_details.phone) || '';
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -325,18 +366,29 @@ async function handleService(res, session, m) {
     status: 'new',
     paid: true,
     source: 'web',
-    intent: 'service',
+    intent: cityDesk ? 'city_order' : 'service',
     name: m.name || '',
     email,
-    phone: m.phone || '',
+    phone,
     listingName: m.listing || '',
-    message: `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`,
+    message: cityDesk
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`.trim()
+      : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
     currency: session.currency || 'eur',
     stripe_session_id: session.id,
     paid_at: now,
     createdAt: now,
+    // the market, for api/_market.js (isCityMarket): the Rome machine stays
+    // out, the Commerciale stands down, the card names the city
+    ...(cityDesk ? {
+      market: cityKey,
+      sourceRef: `city-${cityKey}`,
+      leadType: 'tenant',
+      language: 'en',
+      city: { key: cityKey, label: cityDesk.label, mode: 'search', service: m.kind || null, serviceLabel: cityPlan ? cityPlan.label : null, paid: true, at: now },
+    } : {}),
   };
   let w = null;
   try { w = await writeDoc('leads', 'svc_' + docId, lead); }
@@ -357,13 +409,15 @@ async function handleService(res, session, m) {
       heading: `${meta.emoji} ${meta.title.toUpperCase()} — €${amountEur} paid`,
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
-      intro: `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
+      intro: meta.city
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a reply within the hour: the clock is running.`
+        : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
       r1_icon: '👤', r1_label: 'Client', r1_value: m.name || '—',
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
-      r3_icon: '📱', r3_label: 'Phone', r3_value: m.phone || '—',
-      r4_icon: '🏠', r4_label: 'Property', r4_value: m.listing || '—',
+      r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
+      r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
       closing: `Paid €${amountEur}. ${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/svc_${docId}.`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
@@ -374,8 +428,8 @@ async function handleService(res, session, m) {
     const it = meta.lang === 'it';
     if (email) await sendEmailJS({
       to_email: email,
-      heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
-      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
+      heading: it ? `${meta.title} — confermato` : meta.city ? `Your ${meta.title} starts now` : `Your ${meta.title} is confirmed`,
+      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : meta.city ? `BOOM ${meta.city.label} — paid, file open` : 'BOOM Rome — paid & scheduled',
       name: firstName,
       intro: it
         ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
@@ -389,8 +443,8 @@ async function handleService(res, session, m) {
       closing: it
         ? 'Per qualsiasi cosa rispondi a questa email o scrivici su WhatsApp — risponde una persona, entro 2 ore.'
         : 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
-      cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
-      portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',
+      cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
+      portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });
   } catch (err) { console.error('Client service email error:', err); }
 

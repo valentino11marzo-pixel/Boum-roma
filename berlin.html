@@ -41,11 +41,12 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=94166f9f88">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=fb85ab4885">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
+  "@id": "https://www.boomrome.com/berlin#breadcrumb",
   "itemListElement": [
     {
       "@type": "ListItem",
@@ -100,10 +101,9 @@
           "it"
         ]
       },
-      "description": "Tenant-side rental search and relocation desk for internationals. Rome and Amsterdam.",
+      "description": "Tenant-side rental search and relocation desk for internationals, born in Rome.",
       "areaServed": [
-        "Rome",
-        "Amsterdam"
+        "Rome"
       ],
       "availableLanguage": [
         "en",
@@ -121,6 +121,9 @@
       },
       "about": {
         "@id": "https://www.boomrome.com/#organization"
+      },
+      "breadcrumb": {
+        "@id": "https://www.boomrome.com/berlin#breadcrumb"
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
@@ -141,7 +144,7 @@
       "@id": "https://www.boomrome.com/berlin#service",
       "name": "BOOM Berlin — tenant-side rental desk",
       "serviceType": "Tenant-side rental search agent",
-      "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. No fees published until the desk opens; nothing from landlords or platforms, ever.",
+      "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever.",
       "provider": {
         "@id": "https://www.boomrome.com/#organization"
       },
@@ -156,7 +159,63 @@
       "availableLanguage": [
         "en"
       ],
-      "url": "https://www.boomrome.com/berlin"
+      "url": "https://www.boomrome.com/berlin",
+      "offers": [
+        {
+          "@type": "Offer",
+          "name": "Full Search",
+          "price": "500",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/PreOrder",
+          "description": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check. List price — charged only when the desk opens.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "500",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/berlin#plan-full-search",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "Application Pack",
+          "price": "199",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/PreOrder",
+          "description": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review. List price — charged only when the desk opens.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "199",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/berlin#plan-application-pack",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
+        },
+        {
+          "@type": "Offer",
+          "name": "Attended Viewing",
+          "price": "149",
+          "priceCurrency": "EUR",
+          "availability": "https://schema.org/PreOrder",
+          "description": "A BOOM person attends the viewing in your place, with live video and a written report. List price — charged only when the desk opens.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "149",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/berlin#plan-attended-viewing",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
+        }
+      ]
     },
     {
       "@type": "FAQPage",
@@ -175,7 +234,7 @@
           "name": "What can you do for me today?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The dossier, the rent-brake check and the lease read start when the desk opens."
+            "text": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The prices on this page are set; nothing is charged before the desk opens, and the Full Search fee only once you sign."
           }
         },
         {
@@ -215,7 +274,7 @@
   ]
 }
   </script>
-<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -599,7 +658,7 @@ html {
     <div class="h-5" id="contact">
       <div class="filecard">
         <div class="refline"><span>New file — Berlin · tenant side</span><b>same-day reply</b></div>
-        <form id="cityForm" novalidate
+        <form id="cityForm" novalidate data-sending="Opening your file…"
               data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply."
               data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
           <div class="frow two">
@@ -621,11 +680,12 @@ html {
                three doors and their cost are read without a tap -->
           <fieldset class="fld chips"><legend>What will you need?</legend>
             <div class="chipgrid">
-              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b></span></label>
-              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b></span></label>
-              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b></span></label>
+              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing</small></span></label>
               <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
             </div>
+            <p class="pricenote">List prices, VAT included — charged only when the desk opens.</p>
           </fieldset>
 
           <details class="more">
@@ -652,13 +712,16 @@ html {
           <p class="consent">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer WhatsApp or email? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=BOOM%20Berlin">hello@boom-rome.com</a></p>
         </form>
 
+        <!-- the door's end states: the file open (then, where the till is open,
+             the offer to pay for the chosen service) and the paid landing -->
         <div class="sent" id="fDone">
-          <div class="tick">✓</div>
+          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
+          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>
           <h3>Your file is <em>open.</em></h3>
           <p>The Berlin desk replies the same working day with where we stand — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
         </div>
       </div>
-      <p class="machine" aria-hidden="true"><i></i><b>ROM → BER</b>·<span>file open today</span>·<span>licensed partner</span>·<span>rent brake checked</span>·<span>lease read</span></p>
+      <p class="machine" aria-hidden="true"><b class="route"><span>ROM</span><span class="fly"><em>✈</em></span><span>BER</span></b><span class="items"><span>file open today</span><u>·</u><span>licensed partner</span><u>·</u><span>rent brake checked</span><u>·</u><span>lease read</span></span></p>
     </div>
   </header>
 
@@ -677,7 +740,7 @@ html {
       <div class="step"><span class="dot"></span>
         <div class="k">2 · Opening</div>
         <div class="v">A licensed partner</div>
-        <div class="s">Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. The desk opens with a licensed partner, not around the rule.</div>
+        <div class="s">Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. We open with a licensed partner, not around the rule.</div>
       </div>
       <div class="step"><span class="dot"></span>
         <div class="k">3 · The search</div>
@@ -691,16 +754,17 @@ html {
   <!-- ═══ 02 · SERVICES & FEES — three plates, the price on the board ═══ -->
   <section id="services" class="rv">
     <div class="sec-h">
-      <span class="num">02 — SERVICES</span>
-      <h2>Three services. <span class="g">Fees published when the desk opens.</span></h2>
+      <span class="num">02 — SERVICES &amp; FEES</span>
+      <h2>Flat fees, set now. <span class="g">Charged when the desk opens.</span></h2>
     </div>
-    <p class="sec-sub">The rule is set: paid by you, nothing from landlords or platforms, inside what German law allows.</p>
+    <p class="sec-sub">Paid by you, never by landlords, inside German law. Nothing is charged today.</p>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We find it. You move in.</b>
         <p>Search, applications, viewing, lease — handled.</p>
         <ul class="inc"><li>Daily search: ImmoScout24, Immowelt, Kleinanzeigen, off-market</li><li>Applications within the hour, German-format</li><li>Attended viewing, live video + report</li><li>Rent brake and lease checked, Nebenkosten read</li></ul>
+        <div class="price"><span class="flap-prezzo flap-scale" data-p="€500" aria-label="€500 flat · incl. VAT · on signing">€500</span><small>flat · incl. VAT · on signing</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
       </article>
       <article class="sib" id="plan-application-pack">
@@ -708,6 +772,7 @@ html {
         <b>You search. We make you win.</b>
         <p>The dossier that wins German applications.</p>
         <ul class="inc"><li>German-format dossier in 24 hours</li><li>SCHUFA and guarantor strategy for newcomers</li><li>Cover note in German</li><li>Lease review before you sign</li></ul>
+        <div class="price"><span class="flap-prezzo flap-scale" data-p="€199" aria-label="€199 flat · incl. VAT · at opening">€199</span><small>flat · incl. VAT · at opening</small></div>
         <a class="go" href="#contact" data-service="application-pack">Ask for the pack →</a>
       </article>
       <article class="sib" id="plan-attended-viewing">
@@ -715,10 +780,11 @@ html {
         <b>Eyes on the ground.</b>
         <p>You found it, you're abroad. We go.</p>
         <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
+        <div class="price"><span class="flap-prezzo flap-scale" data-p="€149" aria-label="€149 per viewing · incl. VAT · at opening">€149</span><small>per viewing · incl. VAT · at opening</small></div>
         <a class="go" href="#contact" data-service="attended-viewing">Ask for a viewing →</a>
       </article>
     </div>
-    <p class="feenote">No price is shown because none is charged yet. German law caps a tenant-side fee and ties it to a signed lease; the desk publishes its fees within that rule, invoiced by Egidi Immobiliare S.r.l.</p>
+    <p class="feenote">Nothing is charged until the desk opens, and nothing in advance: German law ties a brokerage fee to a signed lease and caps it at two months' net cold rent plus VAT. Full Search is due once you sign; invoiced by Egidi Immobiliare S.r.l.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -783,7 +849,7 @@ html {
       </details>
       <details>
         <summary>What can you do for me today?</summary>
-        <div class="a">Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The dossier, the rent-brake check and the lease read start when the desk opens.</div>
+        <div class="a">Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The prices on this page are set; nothing is charged before the desk opens, and the Full Search fee only once you sign.</div>
       </details>
       <details>
         <summary>Is my rent capped in Berlin?</summary>
@@ -816,13 +882,13 @@ html {
         <dd>Internationals relocating to Berlin — employees, researchers, couples and families — from abroad or already in the city.</dd>
 
         <dt>Fees</dt>
-        <dd>Not published yet: nothing is charged until the desk opens. German law caps a tenant-side fee and ties it to a signed lease; ours sit inside that rule. Nothing from landlords or platforms.</dd>
+        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included, nothing charged before the desk opens; Full Search due only on a signed lease, inside the German cap. Nothing from landlords or platforms.</dd>
 
         <dt>What we do</dt>
-        <dd>Today: your file opened and kept ready, your questions answered the same working day. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one.</dd>
+        <dd>Today: your file, opened and kept ready. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one.</dd>
 
         <dt>What we don't do</dt>
-        <dd>We don't list homes, represent landlords, promise a date, or broker a flat in Germany before the desk opens.</dd>
+        <dd>We don't list homes, represent landlords, promise a date, or broker in Germany before the desk opens.</dd>
 
         <dt>Reply time</dt>
         <dd>The same working day.</dd>
@@ -898,11 +964,11 @@ html {
   </div>
 </footer>
 
+<!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
+
+
 <div class="paybar" id="paybar">
-  <div class="pinfo">
-    <b>BOOM · Berlin</b>
-    <small>same-day reply</small>
-  </div>
+  <div class="pinfo"><b>BOOM · Berlin</b><small>same-day reply</small></div>
   <a class="go" href="#contact">Open my file</a>
 </div>
 
@@ -916,10 +982,27 @@ html {
     "LEAD_ENDPOINT": "/api/city-lead",
     "SITE_URL": "https://www.boomrome.com",
     "WHATSAPP": "393313251961",
-    "EMAIL": "hello@boom-rome.com"
+    "EMAIL": "hello@boom-rome.com",
+    "CHECKOUT": false,
+    "CHECKOUT_ENDPOINT": "/api/service-checkout",
+    "FEATURED": "full-search",
+    "PLANS": {
+      "full-search": {
+        "label": "Full Search",
+        "eur": 500
+      },
+      "application-pack": {
+        "label": "Application Pack",
+        "eur": 199
+      },
+      "attended-viewing": {
+        "label": "Attended Viewing",
+        "eur": 149
+      }
+    }
   };
 </script>
-<script src="/assets/boom-city.js?v=c0d320e291"></script>
+<script src="/assets/boom-city.js?v=349dec4ef3"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

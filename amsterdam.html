@@ -41,11 +41,12 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=94166f9f88">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=fb85ab4885">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
+  "@id": "https://www.boomrome.com/amsterdam#breadcrumb",
   "itemListElement": [
     {
       "@type": "ListItem",
@@ -100,10 +101,9 @@
           "it"
         ]
       },
-      "description": "Tenant-side rental search and relocation desk for internationals. Rome and Amsterdam.",
+      "description": "Tenant-side rental search and relocation desk for internationals, born in Rome.",
       "areaServed": [
-        "Rome",
-        "Amsterdam"
+        "Rome"
       ],
       "availableLanguage": [
         "en",
@@ -121,6 +121,9 @@
       },
       "about": {
         "@id": "https://www.boomrome.com/#organization"
+      },
+      "breadcrumb": {
+        "@id": "https://www.boomrome.com/amsterdam#breadcrumb"
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
@@ -163,21 +166,54 @@
           "name": "Full Search",
           "price": "500",
           "priceCurrency": "EUR",
-          "description": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract check."
+          "availability": "https://schema.org/InStock",
+          "description": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "500",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/amsterdam#plan-full-search",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
         },
         {
           "@type": "Offer",
           "name": "Application Pack",
           "price": "199",
           "priceCurrency": "EUR",
-          "description": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review."
+          "availability": "https://schema.org/InStock",
+          "description": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "199",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/amsterdam#plan-application-pack",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
         },
         {
           "@type": "Offer",
           "name": "Attended Viewing",
           "price": "149",
           "priceCurrency": "EUR",
-          "description": "A BOOM person attends the viewing in your place, with live video and a written report."
+          "availability": "https://schema.org/InStock",
+          "description": "A BOOM person attends the viewing in your place, with live video and a written report.",
+          "priceSpecification": {
+            "@type": "UnitPriceSpecification",
+            "price": "149",
+            "priceCurrency": "EUR",
+            "valueAddedTaxIncluded": true
+          },
+          "url": "https://www.boomrome.com/amsterdam#plan-attended-viewing",
+          "seller": {
+            "@id": "https://www.boomrome.com/#organization"
+          }
         }
       ]
     },
@@ -214,7 +250,7 @@
           "name": "What if you don't find anything?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Then we talk. The fee pays for a defined amount of work, and we say in the first call if your budget and timeline don't fit the market. We would rather decline a search than take one we don't believe in."
+            "text": "Then we talk. We say in the first call if your budget and timeline don't fit the market, and we would rather decline a search than take one we don't believe in — if we decline, Full Search is refunded in full."
           }
         },
         {
@@ -222,7 +258,7 @@
           "name": "How do I pay?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
+            "text": "By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
           }
         },
         {
@@ -246,7 +282,7 @@
   ]
 }
   </script>
-<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -630,7 +666,7 @@ html {
     <div class="h-5" id="contact">
       <div class="filecard">
         <div class="refline"><span>New file — Amsterdam · tenant side</span><b>same-day reply</b></div>
-        <form id="cityForm" novalidate
+        <form id="cityForm" novalidate data-sending="Opening your file…"
               data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply."
               data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
           <div class="frow two">
@@ -657,6 +693,7 @@ html {
               <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing</small></span></label>
               <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
             </div>
+
           </fieldset>
 
           <details class="more">
@@ -683,13 +720,28 @@ html {
           <p class="consent">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer WhatsApp or email? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=BOOM%20Amsterdam">hello@boom-rome.com</a></p>
         </form>
 
+        <!-- the door's end states: the file open (then, where the till is open,
+             the offer to pay for the chosen service) and the paid landing -->
         <div class="sent" id="fDone">
-          <div class="tick">✓</div>
+          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
+          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>
           <h3>Your file is <em>open.</em></h3>
           <p>The Amsterdam desk replies the same working day — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <div class="payoffer" id="payOffer" hidden>
+            <p>Want the work to start today?</p>
+            <button type="button" class="paybtn" id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>Pay &amp; start now</b><small>Stripe · the desk writes within the hour</small></span><span class="amt" id="payOfferAmt"></span></button>
+          </div>
+        </div>
+        <div class="sent paid" id="fPaid">
+          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
+          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>
+          <h3>Paid — your file <em>is open.</em></h3>
+          <p class="plan" id="paidPlan"></p>
+          <p>Payment received. The Amsterdam desk writes to you within the hour with the next step — by email, or WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <ul class="next"><li><b>Within the hour</b><span>an email from the desk with what we need from you</span></li><li><b>Today</b><span>your brief: dates, budget, who's moving — nothing to re-type</span></li><li><b>Then</b><span>the work exactly as described on this page, in writing</span></li></ul>
         </div>
       </div>
-      <p class="machine" aria-hidden="true"><i></i><b>ROM → AMS</b>·<span>dossier 24h</span>·<span>apply &lt;1h</span>·<span>viewing attended</span>·<span>contract checked</span></p>
+      <p class="machine" aria-hidden="true"><b class="route"><span>ROM</span><span class="fly"><em>✈</em></span><span>AMS</span></b><span class="items"><span>dossier 24h</span><u>·</u><span>apply &lt;1h</span><u>·</u><span>viewing attended</span><u>·</u><span>contract checked</span></span></p>
     </div>
   </header>
 
@@ -733,7 +785,7 @@ html {
         <p>Search, applications, viewing, contract — handled.</p>
         <ul class="inc"><li>Daily search: Pararius, Funda, agencies, off-market</li><li>Applications within the hour</li><li>One attended viewing, live video + report (extra €149)</li><li>Rent negotiated, contract checked, BRP supported</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€500" aria-label="€500 flat · incl. VAT">€500</span><small>flat · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="full-search">Start my search →</a>
+        <button type="button" class="go" data-pay="full-search">Start my search · €500</button>
       </article>
       <article class="sib" id="plan-application-pack">
         <div class="se"><span>Application Pack</span></div>
@@ -741,7 +793,7 @@ html {
         <p>The paperwork that wins Dutch applications.</p>
         <ul class="inc"><li>Dutch-format dossier in 24 hours</li><li>Motivation letter, Dutch + English</li><li>Income and guarantor strategy</li><li>Contract review before you sign</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€199" aria-label="€199 flat · incl. VAT">€199</span><small>flat · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="application-pack">Get the pack →</a>
+        <button type="button" class="go" data-pay="application-pack">Get the pack · €199</button>
       </article>
       <article class="sib" id="plan-attended-viewing">
         <div class="se"><span>Attended Viewing</span></div>
@@ -749,10 +801,10 @@ html {
         <p>You found it, you're abroad. We go.</p>
         <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€149" aria-label="€149 per viewing · incl. VAT">€149</span><small>per viewing · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="attended-viewing">Book a viewing →</a>
+        <button type="button" class="go" data-pay="attended-viewing">Book a viewing · €149</button>
       </article>
     </div>
-    <p class="feenote">Card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms.</p>
+    <p class="feenote">Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -825,11 +877,11 @@ html {
       </details>
       <details>
         <summary>What if you don't find anything?</summary>
-        <div class="a">Then we talk. The fee pays for a defined amount of work, and we say in the first call if your budget and timeline don't fit the market. We would rather decline a search than take one we don't believe in.</div>
+        <div class="a">Then we talk. We say in the first call if your budget and timeline don't fit the market, and we would rather decline a search than take one we don't believe in — if we decline, Full Search is refunded in full.</div>
       </details>
       <details>
         <summary>How do I pay?</summary>
-        <div class="a">Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
+        <div class="a">By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
       </details>
       <details>
         <summary>I'm moving from Rome with BOOM. Does my file carry over?</summary>
@@ -936,12 +988,31 @@ html {
   </div>
 </footer>
 
-<div class="paybar" id="paybar">
-  <div class="pinfo">
-    <b>BOOM · Amsterdam</b>
-    <small>same-day reply</small>
+<!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Start with BOOM Amsterdam" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
+  <div class="sheet">
+    <div class="sh"><h3>Start with BOOM Amsterdam</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
+    <p class="note">Choose the service and pay by card: the work starts today, and the desk writes to you within the hour.</p>
+    <div class="payrows" role="radiogroup" aria-label="Service">
+      <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>Search, applications, viewing, contract — handled.</small></span><em>€500</em></label>
+      <label class="payrow"><input type="radio" name="payplan" value="application-pack" data-eur="199" data-label="Application Pack"><span><b>Application Pack</b><small>The paperwork that wins Dutch applications.</small></span><em>€199</em></label>
+      <label class="payrow"><input type="radio" name="payplan" value="attended-viewing" data-eur="149" data-label="Attended Viewing"><span><b>Attended Viewing</b><small>You found it, you're abroad. We go.</small></span><em>€149</em></label>
+    </div>
+    <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Anna Keller"></div>
+    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
+    <div class="fld"><label for="sPhone">Phone / WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
+    <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.pararius.com/… · move-in 1 February"></div>
+    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
+    <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>Pay &amp; start</b><small>Stripe checkout · one minute</small></span><span class="amt" id="sGoAmt"></span></button>
+    <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Open a file, no payment</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></p>
+    <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.</p>
   </div>
-  <a class="go" href="#contact">Start my search</a>
+</div>
+
+<div class="paybar" id="paybar">
+  <div class="pinfo"><b>Full Search · €500</b><small>pay now · Stripe · the work starts today</small></div>
+  <button type="button" class="go" data-pay="full-search">Start →</button>
 </div>
 
 <!-- CONFIG — generated from cities/amsterdam.json. No secrets, no keys: the form posts to our own API. -->
@@ -954,10 +1025,27 @@ html {
     "LEAD_ENDPOINT": "/api/city-lead",
     "SITE_URL": "https://www.boomrome.com",
     "WHATSAPP": "393313251961",
-    "EMAIL": "hello@boom-rome.com"
+    "EMAIL": "hello@boom-rome.com",
+    "CHECKOUT": true,
+    "CHECKOUT_ENDPOINT": "/api/service-checkout",
+    "FEATURED": "full-search",
+    "PLANS": {
+      "full-search": {
+        "label": "Full Search",
+        "eur": 500
+      },
+      "application-pack": {
+        "label": "Application Pack",
+        "eur": 199
+      },
+      "attended-viewing": {
+        "label": "Attended Viewing",
+        "eur": 149
+      }
+    }
   };
 </script>
-<script src="/assets/boom-city.js?v=c0d320e291"></script>
+<script src="/assets/boom-city.js?v=349dec4ef3"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

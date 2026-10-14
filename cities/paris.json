@@ -16,7 +16,7 @@
     "name": "BOOM Paris — tenant-side rental desk (chasseur immobilier)",
     "serviceType": "Tenant-side rental search agent",
     "audience": "Internationals relocating to Paris",
-    "description": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet). On the tenant's side only: rent checked against the encadrement des loyers, lease read before signing, French-format dossier locatif, attended viewings with live video and written report, proof of address from day one. No fees published until the desk opens; nothing from landlords or platforms, ever."
+    "description": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet). On the tenant's side only: rent checked against the encadrement des loyers, lease read before signing, French-format dossier locatif, attended viewings with live video and written report, proof of address from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
   },
   "nav": {
     "how": "How it works",
@@ -74,7 +74,8 @@
     "service": {
       "label": "What will you need?",
       "unsure": "Not sure yet",
-      "unsureSub": "advise me"
+      "unsureSub": "advise me",
+      "priceNote": "List prices, VAT included — charged only when the desk opens."
     },
     "more": "More details (optional)",
     "phone": {
@@ -105,7 +106,8 @@
       "contact": "An email or a number — otherwise we can't reply.",
       "email": "That email looks incomplete — could you check it?",
       "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
-    }
+    },
+    "sending": "Opening your file…"
   },
   "machine": {
     "route": "ROM → PAR",
@@ -147,10 +149,10 @@
     "tlineLand": "✓ KEYS · ÉTAT DES LIEUX"
   },
   "pricing": {
-    "num": "02 — SERVICES",
-    "h2": "Three services.",
-    "h2g": "Fees published when the desk opens.",
-    "sub": "The rule is already set: flat fees, paid by you, nothing from landlords or platforms.",
+    "num": "02 — SERVICES & FEES",
+    "h2": "Flat fees, set now.",
+    "h2g": "Charged when the desk opens.",
+    "sub": "The same flat fees as every BOOM desk, paid by you, never by landlords. Nothing is charged today.",
     "plans": [
       {
         "id": "full-search",
@@ -165,7 +167,10 @@
           "Rent cap and lease checked, charges read"
         ],
         "featured": true,
-        "cta": "Open my file"
+        "cta": "Open my file",
+        "price": 500,
+        "per": "flat · incl. VAT · at opening",
+        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check."
       },
       {
         "id": "application-pack",
@@ -179,7 +184,10 @@
           "Cover note in French",
           "Lease review before you sign"
         ],
-        "cta": "Ask for the pack"
+        "cta": "Ask for the pack",
+        "price": 199,
+        "per": "flat · incl. VAT · at opening",
+        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review."
       },
       {
         "id": "attended-viewing",
@@ -194,10 +202,13 @@
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
         ],
-        "cta": "Ask for a viewing"
+        "cta": "Ask for a viewing",
+        "price": 149,
+        "per": "per viewing · incl. VAT · at opening",
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
       }
     ],
-    "note": "No price is shown because none is charged yet. When the desk opens: card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l."
+    "note": "List prices: nothing is charged until the desk opens with its licensed partner; then card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l."
   },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
@@ -268,11 +279,12 @@
       },
       {
         "dt": "Fees",
-        "ddHtml": "Not published yet: nothing is charged until the desk opens. The rule is set — flat fees, VAT included, no percentage of the rent, nothing from landlords or platforms."
+        "ddHtml": "VAT included, charged only when the desk opens. No percentage of the rent, nothing from landlords or platforms.",
+        "fees": true
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file opened and kept ready, your questions answered the same working day. When the desk opens: French-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent cap and lease checked, proof of address from day one."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: French-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent cap and lease checked, proof of address from day one."
       },
       {
         "dt": "What we don't do",
@@ -300,7 +312,7 @@
       },
       {
         "q": "What can you do for me today?",
-        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Paris. The rent-cap check and the lease read are services of the desk: we say exactly what they cost when it opens."
+        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Paris. The prices on this page are set; nothing is charged until the desk opens and the work starts."
       },
       {
         "q": "Is my rent capped in Paris?",

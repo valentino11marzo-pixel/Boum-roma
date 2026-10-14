@@ -105,7 +105,8 @@
       "contact": "An email or a number — otherwise we can't reply.",
       "email": "That email looks incomplete — could you check it?",
       "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
-    }
+    },
+    "sending": "Opening your file…"
   },
   "machine": {
     "route": "ROM → AMS",
@@ -206,7 +207,7 @@
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
       }
     ],
-    "note": "Card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
+    "note": "Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
   },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
@@ -318,11 +319,11 @@
       },
       {
         "q": "What if you don't find anything?",
-        "a": "Then we talk. The fee pays for a defined amount of work, and we say in the first call if your budget and timeline don't fit the market. We would rather decline a search than take one we don't believe in."
+        "a": "Then we talk. We say in the first call if your budget and timeline don't fit the market, and we would rather decline a search than take one we don't believe in — if we decline, Full Search is refunded in full."
       },
       {
         "q": "How do I pay?",
-        "a": "Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
+        "a": "By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
       },
       {
         "q": "I'm moving from Rome with BOOM. Does my file carry over?",
@@ -347,6 +348,49 @@
   "paybar": {
     "title": "BOOM · Amsterdam",
     "sub": "same-day reply",
-    "cta": "Start my search"
+    "cta": "Start →"
+  },
+  "checkout": true,
+  "checkoutCopy": {
+    "title": "Start with BOOM Amsterdam",
+    "note": "Choose the service and pay by card: the work starts today, and the desk writes to you within the hour.",
+    "noteLabel": "A listing you already found, or anything we should know",
+    "notePlaceholder": "https://www.pararius.com/… · move-in 1 February",
+    "btn": "Pay & start",
+    "btnSub": "Stripe checkout · one minute",
+    "altLead": "Prefer to talk first?",
+    "altLink": "Open a file, no payment",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
+    "errors": {
+      "name": "Your name, so we know who we're working for.",
+      "email": "A valid email — the invoice and your file go there.",
+      "phone": "That number looks incomplete — could you check it?",
+      "net": "Checkout hiccuped on our side — try again, or open a file and we'll send a payment link."
+    },
+    "offer": {
+      "lead": "Want the work to start today?",
+      "cta": "Pay & start now",
+      "sub": "Stripe · the desk writes within the hour"
+    },
+    "paid": {
+      "before": "Paid — your file",
+      "em": "is open.",
+      "text": "Payment received. The Amsterdam desk writes to you within the hour with the next step — by email, or WhatsApp if you left a number. Questions? Write to",
+      "next": [
+        [
+          "Within the hour",
+          "an email from the desk with what we need from you"
+        ],
+        [
+          "Today",
+          "your brief: dates, budget, who's moving — nothing to re-type"
+        ],
+        [
+          "Then",
+          "the work exactly as described on this page, in writing"
+        ]
+      ]
+    },
+    "paybarSub": "pay now · Stripe · the work starts today"
   }
 }

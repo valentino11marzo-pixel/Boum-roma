@@ -29,13 +29,19 @@
 //     copy like [NAME], config values like REPLACE_ME / 39XXXXXXXXXX, or an
 //     og-<slug>.png that does not exist on disk (a card that 404s on every
 //     WhatsApp forward: the exact defect tests/seo was built to catch);
-//   - a `mode: "waitlist"` city (Barcelona, Paris — BOOM_CITIES_BRIEF.md §4:
-//     no intermediation in Catalonia without AICAT registration, carte
-//     professionnelle in France) that carries a price anywhere: in its plans,
-//     in its copy, in the chips, in the JSON-LD. The waitlist page describes
-//     the three services and opens the file; the prices arrive with the
-//     registered partner. A `mode: "search"` city without prices is refused
-//     the same way: the two modes cannot blur;
+//   - a plan without a price, in either mode (BOOM_CITIES_BRIEF.md v1.1, the
+//     founder's decision of 14/10: EVERY desk shows the list prices — a
+//     `mode: "waitlist"` city (Barcelona, Paris, Berlin — §4: no
+//     intermediation in Catalonia without AICAT registration, carte
+//     professionnelle in France, §34c GewO + WoVermRG in Germany) shows them
+//     as list prices, charged only when the desk opens, and in the schema
+//     as Offers with availability PreOrder);
+//   - a waitlist city that opens a checkout: `checkout: true`, a Stripe
+//     reference or the checkout sheet on a waitlist page. Shown is not
+//     charged: nobody pays a desk that cannot legally run the search yet.
+//     The server refuses the same (api/_market.js cityOffer);
+//   - a search city with `checkout: true` and no checkout copy, or whose
+//     prices differ from the page's own plans;
 //   - overwriting a root .html it did not generate (a slug like "index"
 //     would otherwise replace the homepage).
 // A city with `live: false` builds, carries <meta name="robots"
@@ -122,15 +128,27 @@ const R = {
   // The service chips are built from the plans: one price, one place. Radio
   // buttons in a visible grid (never a dropdown: the three doors and their
   // cost must be read without a tap) + "not sure yet". None is pre-checked —
-  // the server reads a missing service as "service to decide".
-  // In waitlist mode the chip is the service name alone: no price exists yet.
+  // the server reads a missing service as "service to decide". Every desk
+  // prints the price (v1.1); a waitlist desk adds one line under the grid
+  // (form.service.priceNote) saying it is charged only when the desk opens.
   serviceChips: (c) => [
     ...list(c, 'pricing.plans').map((p) =>
-      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b>${c.mode === 'search' ? `<small>${eur(p.price)}${p.unit ? ' · ' + esc(p.unit) : ''}</small>` : ''}</span></label>`),
+      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)}${p.unit ? ' · ' + esc(p.unit) : ''}</small></span></label>`),
     `              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>${esc(c.form.service.unsure)}</b><small>${esc(c.form.service.unsureSub)}</small></span></label>`
   ].join('\n'),
 
-  machineItems: (c) => list(c, 'machine.items').map((s) => `·<span>${esc(s)}</span>`).join(''),
+  servicePriceNote: (c) => c.form.service.priceNote ? `            <p class="pricenote">${esc(c.form.service.priceNote)}</p>` : '',
+
+  // THE ROUTE. "ROM → AMS" becomes a departure line with the plane crossing it
+  // (CSS, reduced-motion safe); the four promises follow on their own row so
+  // the line never wraps on a single orphan word under the card.
+  machine: (c) => {
+    const [from, to] = String(c.machine.route || '').split('→').map((x) => x.trim());
+    const route = to
+      ? `<b class="route"><span>${esc(from)}</span><span class="fly"><em>✈</em></span><span>${esc(to)}</span></b>`
+      : `<b class="route">${esc(c.machine.route)}</b>`;
+    return `<p class="machine" aria-hidden="true">${route}<span class="items">${list(c, 'machine.items').map((x) => `<span>${esc(x)}</span>`).join('<u>·</u>')}</span></p>`;
+  },
 
   steps: (c) => list(c, 'how.steps').map((s) => [
     '      <div class="step"><span class="dot"></span>',
@@ -146,18 +164,19 @@ const R = {
   // The price is a Solari board: the text is in the node for no-JS, data-p
   // for the mount (assets/boom-city.js) — never two different numbers. What
   // the fee buys is a list of ✓ lines, never a paragraph: a client landing
-  // from abroad scans, they do not read.
+  // from abroad scans, they do not read. Where the checkout is open the
+  // plate's button opens the sheet on ITS plan (the Rome pay-plate); on every
+  // other desk it leads to the door and checks the plan's chip.
   plans: (c) => list(c, 'pricing.plans').map((p) => [
     `      <article class="sib${p.featured ? ' on' : ''}" id="plan-${esc(p.id)}">`,
-    `        <div class="se"><span>${esc(p.se)}</span></div>`,
+    `        <div class="se"><span>${esc(p.se)}</span>${p.featured && c.pricing.featuredTag ? `<span class="tag">${esc(c.pricing.featuredTag)}</span>` : ''}</div>`,
     `        <b>${esc(p.name)}</b>`,
     `        <p>${esc(p.text)}</p>`,
     `        <ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-    // waitlist: no board, no price line — the plate says what the service is, not what it costs
-    ...(c.mode === 'search'
-      ? [`        <div class="price"><span class="flap-prezzo flap-scale" data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span><small>${esc(p.per)}</small></div>`]
-      : []),
-    `        <a class="go" href="#contact" data-service="${esc(p.id)}">${esc(p.cta)} →</a>`,
+    `        <div class="price"><span class="flap-prezzo flap-scale" data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span><small>${esc(p.per)}</small></div>`,
+    c.checkout === true
+      ? `        <button type="button" class="go" data-pay="${esc(p.id)}">${esc(p.cta)} · ${eur(p.price)}</button>`
+      : `        <a class="go" href="#contact" data-service="${esc(p.id)}">${esc(p.cta)} →</a>`,
     '      </article>'
   ].join('\n')).join('\n'),
 
@@ -175,7 +194,6 @@ const R = {
   bref: (c, shared, pageUrl) => list(c, 'bref.rows').map((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) {
-      need(c.mode === 'search', `cities/${c.slug}.json`, `bref row "${r.dt}" derives the fees from the plans — a waitlist city has no prices to derive`);
       dd = list(c, 'pricing.plans').map((p) => `<b>${esc(p.label)} ${eur(p.price)}</b>${p.unit ? ' ' + esc(p.unit) : ''}`).join(' · ')
         + (dd ? '. ' + dd : '.');
     }
@@ -195,7 +213,96 @@ const R = {
     '      </details>'
   ].join('\n')).join('\n'),
 
-  footerBoom: (shared) => (shared.footerBoom || []).map((l) => `          <li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('\n')
+  footerBoom: (shared) => (shared.footerBoom || []).map((l) => `          <li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('\n'),
+
+  // THE TWO END STATES OF THE DOOR. "Your file is open" after the lead (the
+  // tick draws, a small board spells OPEN — the departure-board grammar of
+  // index.html); with the checkout open, the same card then offers to pay
+  // for the service the client chose, name and email already filled. The
+  // PAID state is what Stripe lands on (?paid=<plan>): the board spells PAID
+  // and three lines say what happens next. Both are hidden until they are
+  // true — the JS never invents a state the server did not confirm.
+  tick: () => '<div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>',
+  sent: (c, contact) => {
+    const k = c.checkout === true ? c.checkout_ : null;
+    const mail = `<a href="mailto:${esc(contact.email)}" style="color:var(--gold)">${esc(contact.email)}</a>`;
+    const open = [
+      '        <div class="sent" id="fDone">',
+      `          ${R.tick()}`,
+      '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>',
+      `          <h3>${esc(c.form.sentBefore)} <em>${esc(c.form.sentEm)}</em></h3>`,
+      `          <p>${esc(c.form.sentText)} ${mail}.</p>`,
+      ...(k ? [
+        '          <div class="payoffer" id="payOffer" hidden>',
+        `            <p>${esc(k.offer.lead)}</p>`,
+        `            <button type="button" class="paybtn" id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>${esc(k.offer.cta)}</b><small>${esc(k.offer.sub)}</small></span><span class="amt" id="payOfferAmt"></span></button>`,
+        '          </div>'
+      ] : []),
+      '        </div>'
+    ];
+    const paid = k ? [
+      '        <div class="sent paid" id="fPaid">',
+      `          ${R.tick()}`,
+      '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>',
+      `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
+      '          <p class="plan" id="paidPlan"></p>',
+      `          <p>${esc(k.paid.text)} ${mail}.</p>`,
+      `          <ul class="next">${k.paid.next.map(([a, b]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span></li>`).join('')}</ul>`,
+      '        </div>'
+    ] : [];
+    return [...open, ...paid].join('\n');
+  },
+
+  // THE CHECKOUT SHEET (the Rome Services 2.0 sheet, one per page): the three
+  // plans as rows with the price, three fields, the honeypot, one gold
+  // button, the quiet way out to the free door. Outside <main>: it is not
+  // page copy, it is the till.
+  checkout: (c, contact) => {
+    if (c.checkout !== true) return '';
+    const k = c.checkout_;
+    const rows = list(c, 'pricing.plans').map((p) =>
+      `      <label class="payrow"><input type="radio" name="payplan" value="${esc(p.id)}" data-eur="${Number(p.price)}" data-label="${esc(p.label)}"><span><b>${esc(p.label)}</b><small>${esc(p.text)}</small></span><em>${eur(p.price)}</em></label>`).join('\n');
+    return [
+      `<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="${esc(k.title)}" data-err-name="${esc(k.errors.name)}" data-err-email="${esc(k.errors.email)}" data-err-phone="${esc(k.errors.phone)}" data-err-net="${esc(k.errors.net)}">`,
+      '  <div class="sheet">',
+      `    <div class="sh"><h3>${esc(k.title)}</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>`,
+      `    <p class="note">${esc(k.note)}</p>`,
+      '    <div class="payrows" role="radiogroup" aria-label="Service">',
+      rows,
+      '    </div>',
+      `    <div class="fld"><label for="sName">${esc(c.form.name.label)}</label><input id="sName" autocomplete="name" placeholder="${esc(c.form.name.placeholder)}"></div>`,
+      `    <div class="fld"><label for="sEmail">${esc(c.form.email.label)}</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="${esc(c.form.email.placeholder)}"></div>`,
+      `    <div class="fld"><label for="sPhone">${esc(c.form.phone.label)} <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="${esc(c.form.phone.placeholder)}"></div>`,
+      `    <div class="fld"><label for="sNote">${esc(k.noteLabel)} <span class="opt">(optional)</span></label><input id="sNote" placeholder="${esc(k.notePlaceholder)}"></div>`,
+      '    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">',
+      '    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>',
+      `    <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>${esc(k.btn)}</b><small>${esc(k.btnSub)}</small></span><span class="amt" id="sGoAmt"></span></button>`,
+      `    <p class="alt">${esc(k.altLead)} <a href="#contact" id="ovTalk">${esc(k.altLink)}</a> · <a href="https://wa.me/${esc(contact.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a></p>`,
+      `    <p class="fine">${esc(k.fine)}</p>`,
+      '  </div>',
+      '</div>'
+    ].join('\n');
+  },
+
+  // The sticky bar on a phone: the free door everywhere; where the checkout
+  // is open it is the Rome pay bar — the featured plan, its price, one tap.
+  paybar: (c) => {
+    if (c.checkout === true) {
+      const f = list(c, 'pricing.plans').find((p) => p.featured) || c.pricing.plans[0];
+      return [
+        '<div class="paybar" id="paybar">',
+        `  <div class="pinfo"><b>${esc(f.label)} · ${eur(f.price)}</b><small>${esc(c.checkout_.paybarSub)}</small></div>`,
+        `  <button type="button" class="go" data-pay="${esc(f.id)}">${esc(c.paybar.cta)}</button>`,
+        '</div>'
+      ].join('\n');
+    }
+    return [
+      '<div class="paybar" id="paybar">',
+      `  <div class="pinfo"><b>${esc(c.paybar.title)}</b><small>${esc(c.paybar.sub)}</small></div>`,
+      `  <a class="go" href="#contact">${esc(c.paybar.cta)}</a>`,
+      '</div>'
+    ].join('\n');
+  }
 };
 
 // ── JSON-LD: Organization (shared) + WebPage (speakable) + Service with its
@@ -204,28 +311,32 @@ const R = {
 // (tests/seo, rule FAQ). Breadcrumb in its own block, as on every page.
 function jsonLdBreadcrumb(c, shared, pageUrl) {
   return {
-    '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+    '@context': 'https://schema.org', '@type': 'BreadcrumbList', '@id': pageUrl + '#breadcrumb',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Home', item: shared.siteUrl + '/' },
       { '@type': 'ListItem', position: 2, name: c.city, item: pageUrl }
     ]
   };
 }
-function jsonLd(c, shared, pageUrl, ogImage) {
+function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   const site = shared.siteUrl;
   const o = shared.organization;
   const orgId = site + '/#organization';
+  const waitlist = c.mode === 'waitlist';
+  // Where BOOM serves, as a fact: Rome and the desks that are LIVE. A draft
+  // never puts its city in the Organization's areaServed.
+  const served = ['Rome', ...cities.filter((x) => x.live === true).map((x) => x.city)];
   return {
     '@context': 'https://schema.org',
     '@graph': [
       {
         '@type': 'Organization', '@id': orgId, name: o.name, legalName: o.legalName, url: site, logo: o.logo,
         founder: o.founder, address: o.address, vatID: o.vatID, contactPoint: o.contactPoint,
-        description: o.description, areaServed: o.areaServed, availableLanguage: ['en', 'it']
+        description: o.description, areaServed: served, availableLanguage: ['en', 'it']
       },
       {
         '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, inLanguage: 'en',
-        isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId },
+        isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
         primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
         speakable: { '@type': 'SpeakableSpecification', cssSelector: ['.hero .sub', '.enbref'] }
       },
@@ -235,14 +346,19 @@ function jsonLd(c, shared, pageUrl, ogImage) {
         areaServed: { '@type': 'City', name: c.city },
         audience: { '@type': 'Audience', audienceType: c.service.audience },
         availableLanguage: ['en'], url: pageUrl,
-        // Offers only where a price is sold (BOOM_CITIES_BRIEF.md §8): a
-        // waitlist Service carries no price, in the schema as on the page.
-        ...(c.mode === 'search' ? {
-          offers: c.pricing.plans.map((p) => ({
-            '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: 'EUR',
-            description: p.offerDescription || p.text
-          }))
-        } : {})
+        // Offers on every desk (v1.1), honest about availability: InStock
+        // where the desk takes searches, PreOrder where it opens later — the
+        // price is a list price, charged only when the desk opens, and the
+        // Offer says so in words. VAT is included on the page: the
+        // priceSpecification states it (the GEO fact an answer engine quotes).
+        offers: c.pricing.plans.map((p) => ({
+          '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: 'EUR',
+          availability: waitlist ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
+          description: (p.offerDescription || p.text) + (waitlist ? ' List price — charged only when the desk opens.' : ''),
+          priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: 'EUR', valueAddedTaxIncluded: true },
+          url: pageUrl + '#plan-' + p.id,
+          seller: { '@id': orgId }
+        }))
       },
       {
         '@type': 'FAQPage', inLanguage: 'en',
@@ -309,13 +425,30 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(p.label && p.se && p.name && p.text && p.cta, where, `plan "${p.id}" needs label, se, name, text, cta`);
     need(Array.isArray(p.includes) && p.includes.length >= 2 && p.includes.length <= 5 && p.includes.every((x) => typeof x === 'string' && x.trim()),
       where, `plan "${p.id}" needs includes: 2–5 lines of what the fee buys`);
-    if (waitlist) {
-      need(p.price === undefined && p.per === undefined && p.offerDescription === undefined, where,
-        `plan "${p.id}": a waitlist city carries no price, per or offerDescription (BOOM_CITIES_BRIEF.md §4 — fees arrive with the registered partner)`);
-    } else {
-      need(p.per, where, `plan "${p.id}" needs label, se, name, text, per, cta`);
-      need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
+    // Every desk prints its list prices (v1.1): a plan without one is a hole,
+    // in search mode and in waitlist mode alike. Shown ≠ charged: the
+    // waitlist page says so in its own words (pricing.note, the price note).
+    need(p.per, where, `plan "${p.id}" needs label, se, name, text, per, cta`);
+    need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
+  }
+  need(plans.filter((p) => p.featured).length <= 1, where, 'at most one plan is featured (the pay bar sells it)');
+  // The checkout is a decision per desk, explicit and only where the desk
+  // takes searches: a waitlist city cannot be charged for a search it cannot
+  // run (the server refuses the same — api/_market.js cityOffer).
+  need(city.checkout === undefined || typeof city.checkout === 'boolean', where, '"checkout" must be true or false when present');
+  need(!(waitlist && city.checkout === true), where, 'a waitlist city cannot open a checkout: shown is not charged (BOOM_CITIES_BRIEF.md v1.1)');
+  if (city.checkout === true) {
+    const k = city.checkoutCopy;
+    need(k && typeof k === 'object', where, 'checkout:true needs "checkoutCopy" (the sheet, the offer after the lead, the paid state)');
+    for (const f of ['title', 'note', 'noteLabel', 'notePlaceholder', 'btn', 'btnSub', 'altLead', 'altLink', 'fine', 'paybarSub']) {
+      need(typeof k[f] === 'string' && k[f].trim(), where, `checkoutCopy.${f} is required`);
     }
+    for (const f of ['name', 'email', 'phone', 'net']) need(k.errors && typeof k.errors[f] === 'string' && k.errors[f].trim(), where, `checkoutCopy.errors.${f} is required`);
+    for (const f of ['lead', 'cta', 'sub']) need(k.offer && typeof k.offer[f] === 'string' && k.offer[f].trim(), where, `checkoutCopy.offer.${f} is required`);
+    need(k.paid && ['before', 'em', 'text'].every((f) => typeof k.paid[f] === 'string' && k.paid[f].trim())
+      && Array.isArray(k.paid.next) && k.paid.next.length === 3 && k.paid.next.every((x) => Array.isArray(x) && x.length === 2 && x.every((y) => typeof y === 'string' && y.trim())),
+      where, 'checkoutCopy.paid needs before, em, text and next: exactly three [label, line] pairs');
+    need(typeof city.form.sending === 'string' && city.form.sending.trim(), where, 'checkout:true needs form.sending (the button while the send is in flight)');
   }
 
   // The board word: the city, letters only, upper-case — the drum has no
@@ -324,19 +457,31 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(word.length >= 2 && word.length <= 12, where, `board word "${word}" must be 2–12 letters (override with "word")`);
 
   const cfg = city.config || {};
+  const featured = plans.find((p) => p.featured) || plans[0];
   const config = {
     SLUG: city.slug, CITY: city.city, WORD: word, MODE: city.mode,
     LEAD_ENDPOINT: '/api/city-lead', SITE_URL: site,
-    WHATSAPP: cfg.WHATSAPP || shared.contact.whatsapp, EMAIL: cfg.EMAIL || shared.contact.email
+    WHATSAPP: cfg.WHATSAPP || shared.contact.whatsapp, EMAIL: cfg.EMAIL || shared.contact.email,
+    // the till: false on every desk that does not sell (the JS mounts no
+    // sheet, accepts no ?paid=); the plans travel for the paid state and GA
+    CHECKOUT: city.checkout === true,
+    CHECKOUT_ENDPOINT: '/api/service-checkout',
+    FEATURED: featured.id,
+    PLANS: Object.fromEntries(plans.map((p) => [p.id, { label: p.label, eur: Number(p.price) }]))
   };
+  const contact = { ...shared.contact, whatsapp: config.WHATSAPP, email: config.EMAIL };
+  // checkout_ is the validated copy block the renderers read (never printed
+  // as a token: it is an object)
+  const cityForRender = { ...city, checkout_: city.checkout === true ? city.checkoutCopy : null };
 
   const data = {
     ...city,
     config,
+    sending: city.form.sending || '',
     word,
     wordEm: (word.length * CELL_EM).toFixed(2),
     entity: shared.entity,
-    contact: { ...shared.contact, whatsapp: config.WHATSAPP, email: config.EMAIL },
+    contact,
     siteUrl: site,
     pageUrl,
     ogImage,
@@ -345,7 +490,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
       : '<meta name="robots" content="noindex">',
     jsonLdBreadcrumb: scriptJson(jsonLdBreadcrumb(city, shared, pageUrl), ''),
-    jsonLd: scriptJson(jsonLd(city, shared, pageUrl, ogImage), ''),
+    jsonLd: scriptJson(jsonLd(city, shared, pageUrl, ogImage, cities), ''),
     configJson: scriptJson(config, '  '),
     assetVersion,
     scrollBlock: frags.scrollBlock,
@@ -354,7 +499,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     trustHtml: R.trust(city),
     budgetOptionsHtml: R.budgetOptions(city),
     serviceChipsHtml: R.serviceChips(city),
-    machineItemsHtml: R.machineItems(city),
+    servicePriceNoteHtml: R.servicePriceNote(city),
+    machineHtml: R.machine(city),
+    sentHtml: R.sent(cityForRender, contact),
+    checkoutHtml: R.checkout(cityForRender, contact),
+    paybarHtml: R.paybar(cityForRender),
     stepsHtml: R.steps(city),
     tlineHtml: R.tline(city),
     plansHtml: R.plans(city),
@@ -373,21 +522,21 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   // The guard the whole file is for: the gold of the public site, never the portal's.
   need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700 (boom-2026.css); #D4AF37 is the portal gold');
-  // A waitlist page shows no price anywhere — visible text, boards, schema
-  // (BOOM_CITIES_BRIEF.md §10). The client's own budget bands in the <select>
-  // are theirs, not ours: they are the one place a € may stand.
-  if (waitlist) {
-    const visible = html
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
-      .replace(/<select[\s\S]*?<\/select>/gi, ' ').replace(/<[^>]+>/g, ' ');
-    const priced = visible.match(/€\s?\d[\d.,]*|\d[\d.,]*\s?€/);
-    need(!priced, where, `a waitlist page prints no price, found "${priced && priced[0]}"`);
-    need(!/flap-prezzo|data-p="/.test(html), where, 'a waitlist page mounts no price board');
-    for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
-      need(!/"price"|"offers"|"priceCurrency"/.test(m[1]), where, 'a waitlist page declares no Offer and no price in its JSON-LD');
-    }
-    need(!/stripe/i.test(html), where, 'a waitlist page carries no Stripe link');
+  // Every price on the page is one of the plans', printed where the client
+  // reads it: on its board (text + data-p, the same number) and in its chip.
+  for (const p of plans) {
+    need(html.includes(`data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span>`), where, `plan "${p.id}": its price ${eur(p.price)} is not on a board`);
+    need(html.includes(`value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)}`), where, `plan "${p.id}": its price is not in its chip`);
   }
+  // Shown is not charged. A waitlist page carries no till: no Stripe word, no
+  // sheet, the config says CHECKOUT false — and the JS mounts nothing. The
+  // server refuses the same POST (api/_market.js cityOffer → checkout_closed).
+  if (waitlist) {
+    need(!/stripe/i.test(html), where, 'a waitlist page carries no Stripe reference');
+    need(!/id="ov"|data-pay=|id="fPaid"/.test(html), where, 'a waitlist page mounts no checkout sheet and no pay button');
+    need(html.includes('"CHECKOUT": false'), where, 'a waitlist page declares CHECKOUT false');
+  }
+  if (city.checkout !== true) need(!/id="ov"|data-pay=/.test(html), where, 'a desk without checkout mounts no sheet and no pay button');
 
   const placeholders = findPlaceholders(html, city, { root });
   if (city.live && placeholders.length) {

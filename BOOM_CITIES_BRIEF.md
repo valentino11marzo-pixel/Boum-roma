@@ -1,6 +1,12 @@
 # BOOM Cities — Engineering & Product Brief for Claude Code
 
-Status: v1 · 13 Oct 2026 · Owner: Valentino Egidi · Reference implementation: `amsterdam.html` (in repo root)
+Status: v1.1 · 14 Oct 2026 (v1: 13 Oct) · Owner: Valentino Egidi · Reference implementation: `amsterdam.html` (in repo root)
+
+**v1.1 — the founder's decision of 14 Oct 2026 (evening), which supersedes §4, §5.7, §7, §8 and §10 where they say "no prices on waitlist pages":**
+- **Every desk shows the same list prices** — Full Search €500 · Application Pack €199 · Attended Viewing €149, VAT included — waitlist desks included (Barcelona, Paris, Berlin). On a waitlist desk they are **list prices, shown and not charged**: the page says so under the service chips, on each plate's price line ("at opening"), in the fees row of the fact sheet and in the schema (Offers with `availability: PreOrder` and the sentence "charged only when the desk opens"). Berlin's Full Search is due only once a lease is signed (WoVermRG §2–§3: fee on a concluded lease, cap two net cold months + VAT, no advances).
+- **Shown is not charged.** A waitlist desk never carries a till: no Stripe word, no checkout sheet, `CHECKOUT: false` in the page config; the build refuses `checkout: true` on a waitlist city and the server refuses the POST (`api/_market.js` `cityOffer` → `checkout_closed`). Nobody pays a desk that cannot legally run the search yet.
+- **A search desk may sell** behind an explicit `checkout: true` (today Amsterdam and Madrid), through the Rome Services 2.0 rail: the plates' buttons, the phone's pay bar and the offer after the lead open one sheet → `POST /api/service-checkout { city, kind }` → Stripe Checkout at the price in `CITY_PLANS` (the server's grid, never the browser's) → the SERVICE webhook writes a PAID lead with `market = <city>` (the Commerciale stands down, the Telegram card says "payment received") → Stripe lands the client back on the city page (`?paid=<plan>`), which shows the paid state. The free door (the file) stays the primary door; the till is the second step for the client who has decided. Full Search is refunded in full if BOOM declines the search in the first call (the FAQ's rule, now a promise).
+- The reason: a standalone landing page per city that can convert and measure real interest, not only intent — "let us really confirm the interest and that the product works". Still open before any `live: true`: VAT place of supply (commercialista), the partners of Barcelona/Paris/Berlin, Berlin's fee list under the WoVermRG.
 
 This file is the contract for the "city pages" build. Read it fully before touching code.
 Rules of engagement: no autonomous scope changes, no fabricated content, no stock photos of people,
@@ -156,7 +162,7 @@ Copy rules: short sentences, no exclamation marks, no "unlock/seamless/hassle-fr
 ## 10. Acceptance criteria (definition of done, per page)
 
 - [ ] Builds from JSON with zero unresolved tokens; `live: true` pages contain no `[PLACEHOLDER]`.
-- [ ] Mode-correct: waitlist pages show no prices and no Stripe link anywhere, including schema.
+- [ ] Mode-correct (v1.1): every page shows the list prices; a waitlist page says they are charged only when the desk opens (chips, plates, fact sheet, schema `PreOrder`) and carries no Stripe word, no checkout sheet, `CHECKOUT: false`; a search page sells only behind `checkout: true`.
 - [ ] Legal block matches §4 verbatim; nothing added.
 - [ ] Modules A/B/C work on iOS Safari and Android Chrome; degrade gracefully without JS.
 - [ ] Forms tested end-to-end (Web3Forms receipt + Stripe test link) on mobile.
