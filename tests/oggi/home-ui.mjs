@@ -22,7 +22,7 @@ try{
   await check(width+' home utile prima dei pannelli lunghi, senza invii',async()=>{
    assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),false);
    assert.equal(await page.locator('#ogQueueArchive').evaluate(e=>e.open),false);
-   assert.equal(await page.locator('#ogDeskFold').evaluate(e=>e.open),false);
+   assert.equal(await page.locator('#ogDeskFold').evaluate(e=>e.open),true);
    assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(),16);
    assert.equal(await page.locator('#ogQuickTools').evaluate(e=>!!(e.compareDocumentPosition(document.getElementById('ogDeskFold'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
    assert.equal(await page.locator('#ogWorkBriefing').count(),0);
@@ -165,7 +165,7 @@ try{
    assert.equal(action[2].time,expected);
   });
   await check(width+' aggiornamento e nascondi conservano bozza, ricerca e pannelli',async()=>{
-   await page.getByRole('button',{name:/Chiedi alla segreteria/}).click();await page.locator('#ogOwnerInstruction').fill('Bozza da conservare');
+   await page.getByRole('button',{name:'Prepara una risposta',exact:true}).click();await page.locator('#ogOwnerInstruction').fill('Bozza da conservare');
    await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('#ogOwnerTools > summary').click();
    await page.evaluate(()=>{document.getElementById('ogOwnerTools').open=true;oggiDismiss(window.__oggiLast[0].id);});await page.waitForTimeout(220);
    assert.equal(await page.locator('#ogOwnerInstruction').inputValue(),'Bozza da conservare');assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),true);

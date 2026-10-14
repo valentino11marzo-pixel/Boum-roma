@@ -2329,6 +2329,24 @@ contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
 Un giro solo, otto interventi, 33 suite verdi:
+- **Home e navigazione unica (14/10/2026):** sei destinazioni principali, tutti i 38
+  handler conservati nel menu; quattro tab mobile e Menu. Strumenti Home e catalogo
+  leggono `BOOM_ACTIONS.homeTools`, con lo stesso contesto. «Incassi» apre la lista;
+  «Nuova rata» resta un'azione esplicita. Lavoro da seguire visibile subito; ricerche
+  e filtri precedono i riepiloghi in Immobili/Contratti/Interventi. Nessuna nuova AI.
+  Prove `portalnavigationui`, `portalworkspaceui`, `oggiquicktoolsui`, `actions`.
+- **Inbox → seguito operativo (14/10/2026):** «Prendi in carico» legge l'ultimo
+  ingresso persistito e riusa il motore seguiti; fonte/caso ambiguo richiede scelta.
+  Stesso evento non duplica né riapre un caso concluso; nuovo evento può crearne uno.
+  Conferma/chiusura vincolate alla versione conversazione e, per presa manuale,
+  rilettura messaggi dopo commit: un ingresso concorrente richiede nuova verifica.
+  Prove `inboxtakecharge`, `inboxtakechargeui`, `inboxtakechargeraces`, `seguito`.
+  `portaljourneyui` prova Home→casa→Inbox→conferma nella stessa sessione, con IO demo.
+- **Spazio ai messaggi su mobile (14/10/2026):** contatto, azioni e seguito occupavano
+  quasi tutta la conversazione. «Prossimo passo e dettagli» li raccoglie in un pannello
+  espandibile con sintesi dello stato; apertura conservata nello stesso thread/sessione.
+  Timeline di almeno 160px senza tastiera, compositore e bozza preservati. Prove
+  `portaljourneyui`, `portalworkspaceui`, `mobileui`, `inboxtakechargeui`, `inboxconnected`.
 - **Comunicazioni nel contesto (14/10/2026):** da home/fascicolo/contratto si apre
   Inbox per ID tipizzato; `inbox-context-engine` accetta solo riferimenti certi.
   Letture mirate anche senza Oggi già caricata; tetti e riferimenti mancanti sono

@@ -36,7 +36,7 @@ try {
       assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(), 16);
       assert.equal(await page.locator('#ogQuickTools [data-og-tool="home:new-client"]').count(), 0);
       assert.equal(await tool('new-client').count(), 1);
-      assert.equal(await page.locator('#ogDeskFold').evaluate(el => el.open), false);
+      assert.equal(await page.locator('#ogDeskFold').evaluate(el => el.open), true);
     };
     const noWrites = async () => {
       assert.deepEqual(await page.evaluate(() => ({ writes: testIO.writes, demoWrites: testIO.demoWrites, responses: testIO.responses })), { writes: [], demoWrites: [], responses: [] });
@@ -46,6 +46,14 @@ try {
     const close = async () => {
       await page.locator('#modals .modal-close').first().click();
       await page.waitForFunction(() => !document.querySelector('#modals .modal'));
+    };
+    const openNewPayment = async () => {
+      // Incassi navigation remains the declared router boundary. Creation
+      // uses the real catalog renderer and its explicit button, then getModal.
+      await page.evaluate(() => goTo('boom-tools'));
+      await page.getByRole('button', { name: '＋ Nuova rata', exact: true }).click();
+      assert.match(await page.locator('#modals .modal-title').innerText(), /Registra Pagamento/);
+      assert.equal(await page.locator('#mForm [name="contractId"] option[value="contratto-chiuso"]').count(), 0, 'A terminated contract is never selectable for a new payment');
     };
     const select = async (kind, query, text) => {
       await page.locator('#ogWorkKind').selectOption(kind);
@@ -75,7 +83,7 @@ try {
       console.log('PASS ' + width + ' ' + name);
     };
 
-    await check('sixteen visible launchers precede the folded desk and open blank native forms', async () => {
+    await check('sixteen visible launchers precede the open desk; explicit creation opens blank native forms', async () => {
       assert.deepEqual(await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.ogTool)), ids.map(id => 'home:' + id));
       for (const id of ids) assert.equal(await tool(id).isVisible(), true);
       assert.equal(await page.locator('#ogQuickTools').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('ogDeskFold')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
@@ -96,11 +104,15 @@ try {
       assert.equal(await page.locator('#mForm [name="title"]').inputValue(), '');
       await close();
       await tool('payment').click();
-      assert.match(await page.locator('#modals .modal-title').innerText(), /Registra Pagamento/);
+      assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['goTo', 'payments']);
+      assert.equal(await page.locator('#modals .modal').count(), 0, 'Incassi opens consultation without creating a payment');
+      await page.locator('#toasts button').click();
+      await openNewPayment();
       assert.equal(await page.locator('#mForm select[name="contractId"]').inputValue(), '');
       assert.equal(await page.locator('#pAmount').inputValue(), '');
       assert.equal(await page.locator('#mForm select[name="contractId"]').evaluate(el => el.required), true);
       await close();
+      await page.getByRole('button', { name: '← Home', exact: true }).click();
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     });
 
@@ -237,14 +249,21 @@ try {
       await popup('inventory', '/inventario', { p: 'casa-seconda' });
     });
 
-    await check('contract launches preserve exact contract and property; payment change fills the real amount', async () => {
+    await check('contract launches preserve exact references; explicit payment selection fills the real amount', async () => {
       await select('contract', 'BOOM-SECONDO', 'Persona Seconda');
       await tool('payment').click();
+      assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['goTo', 'payments']);
+      assert.equal(await page.locator('#modals .modal').count(), 0);
+      await page.locator('#toasts button').click();
+      await openNewPayment();
+      assert.equal(await page.locator('#mForm [name="contractId"]').inputValue(), '', 'Consultation does not silently preassign a new payment');
+      await page.locator('#mForm [name="contractId"]').selectOption('contratto-secondo');
       assert.equal(await page.locator('#mForm [name="contractId"]').inputValue(), 'contratto-secondo');
-      assert.equal(await page.locator('#pAmount').inputValue(), '930', 'Production fillPayAmount ran from the dispatched change');
+      assert.equal(await page.locator('#pAmount').inputValue(), '930', 'Production fillPayAmount ran from the explicit select change');
       await page.locator('#pAmount').fill('925');
       assert.equal(await page.locator('#mForm [name="status"]').inputValue(), 'pending');
       await close();
+      await page.getByRole('button', { name: '← Home', exact: true }).click();
       await tool('maintenance').click();
       assert.equal(await page.locator('#mForm [name="propertyId"]').inputValue(), 'casa-seconda');
       await close();
@@ -277,17 +296,17 @@ try {
       await popup('inventory', '/inventario', { p: 'casa-$id-demo' });
     });
 
-    await check('inactive contract disables payment and the handler enforces it too', async () => {
+    await check('inactive contract still permits reading Incassi without opening a creation form', async () => {
       await select('contract', 'BOOM-CHIUSO', 'Persona Seconda');
-      assert.equal(await tool('payment').isDisabled(), true);
-      assert.match(await tool('payment').innerText(), /non è attivo/);
-      await page.evaluate(() => oggiQuickTool('home:payment'));
+      assert.equal(await tool('payment').isEnabled(), true);
+      await tool('payment').click();
+      assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['goTo', 'payments']);
       assert.equal(await page.locator('#modals .modal').count(), 0);
       assert.equal(context.pages().length, 1);
     });
 
     for (const change of ['removed', 'duplicate', 'inactive']) {
-      await check('stale ' + change + ' context cannot open the rendered action', async () => {
+      await check('changed ' + change + ' context never creates a payment; missing identities cannot navigate', async () => {
         await select('contract', 'BOOM-SECONDO', 'Persona Seconda');
         await page.evaluate(change => {
           const item = testState.contracts.find(c => c.id === 'contratto-secondo');
@@ -296,6 +315,8 @@ try {
           if (change === 'inactive') item.status = 'terminated';
         }, change);
         await tool('payment').click();
+        const navigations = await page.evaluate(() => testIO.actions.filter(a => a[0] === 'goTo'));
+        assert.deepEqual(navigations, change === 'inactive' ? [['goTo', 'payments']] : []);
         assert.equal(await page.locator('#modals .modal').count(), 0);
         assert.equal(context.pages().length, 1);
       });

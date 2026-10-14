@@ -268,7 +268,7 @@ homeCheck('sedici strumenti stabili aprono pagine e moduli senza scelta implicit
   assert.deepEqual(bare.map(a => [a.fn, a.args]), [
     ['goTo', ['properties']], ['goTo', ['users']], ['oggiOpenInbox', ['whatsapp']], ['oggiOpenInbox', ['email']],
     ['goTo', ['viewings']], ['open', ['/chiamate']], ['openDocUploadModal', []], ['openMagicSignEditor', []],
-    ['open', ['/inventario']], ['open', ['/verbale']], ['openModal', ['addMaintenance']], ['openModal', ['addPayment']],
+    ['open', ['/inventario']], ['open', ['/verbale']], ['openModal', ['addMaintenance']], ['goTo', ['payments']],
     ['goTo', ['invoices']], ['goTo', ['listings']], ['goTo', ['templates']], ['goTo', ['rules']]
   ]);
   assert(bare.every(a => a.label && a.description && a.icon && !a.prefill && !a.disabled));
@@ -298,11 +298,12 @@ homeCheck('documento persona usa users, senza attribuirle contratti o case', () 
   assert.equal(homeAction(rows, 'maintenance').prefill, undefined);
   assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario']);
 });
-homeCheck('contratto: verbale, inventario e pagamento esatti; casa tramite ID', () => {
+homeCheck('contratto: verbale e inventario esatti; incassi consultabili e casa tramite ID', () => {
   const rows = home('contract', 'c1');
   assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario?c=c1']);
   assert.deepEqual(homeAction(rows, 'handover').args, ['/verbale?c=c1']);
-  assert.deepEqual(homeAction(rows, 'payment').prefill, { field: 'contractId', value: 'c1' });
+  assert.deepEqual([homeAction(rows, 'payment').fn, homeAction(rows, 'payment').args], ['goTo', ['payments']]);
+  assert.equal(homeAction(rows, 'payment').prefill, undefined);
   assert.deepEqual(homeAction(rows, 'maintenance').prefill, { field: 'propertyId', value: 'p1' });
   assert.deepEqual([homeAction(rows, 'properties').fn, homeAction(rows, 'properties').args], ['viewProperty', ['p1']]);
   assert.deepEqual([homeAction(rows, 'magic-sign').fn, homeAction(rows, 'magic-sign').args], ['viewContractSignatures', ['c1']]);
@@ -324,9 +325,9 @@ homeCheck('Inbox conserva il tipo del contatto e non deduce il destinatario da c
     }
   }
 });
-homeCheck('contratto non attivo: pagamento disabilitato con motivo, nessun ripiego', () => {
+homeCheck('contratto non attivo: consultazione incassi disponibile senza aprire una registrazione', () => {
   const a = homeAction(home('contract', 'closed'), 'payment');
-  assert.equal(a.disabled, true); assert.equal(a.reason, 'Il contratto selezionato non è attivo'); assert.equal(a.prefill, undefined);
+  assert.equal(a.disabled, undefined); assert.deepEqual([a.fn, a.args], ['goTo', ['payments']]); assert.equal(a.prefill, undefined);
 });
 homeCheck('record obsoleto, tipo errato, ID vuoto o duplicato non diventano strumenti globali', () => {
   for (const rec of [{}, { kind: 'lead', id: 'c1' }, { kind: 'contract', id: 'p1' }, { kind: 'property', id: 'gone' },
@@ -396,7 +397,7 @@ homeCheck('gli strumenti aprono le interfacce, senza generazione o invio implici
     assert.deepEqual([homeAction(rows, 'automations').fn, homeAction(rows, 'automations').args], ['goTo', ['rules']]);
   }
 });
-homeCheck('mutazioni: unicità record, relazione per ID e contratto attivo sono necessarie', () => {
+homeCheck('mutazioni: unicità record, relazione per ID e consultazione incassi sono necessarie', () => {
   const source = read('js/portal-actions.js');
   const mutated = (from, to) => {
     assert(source.includes(from)); const sandbox = { module: { exports: {} } };
@@ -407,8 +408,8 @@ homeCheck('mutazioni: unicità record, relazione per ID e contratto attivo sono 
   checkUnique(P); assert.throws(() => checkUnique(mutated('matches.length !== 1', 'matches.length === 0')), assert.AssertionError);
   const checkHouse = api => assert.equal(homeAction(home('contract', 'c1', homeState, api), 'maintenance').prefill?.value, 'p1');
   checkHouse(P); assert.throws(() => checkHouse(mutated('p.id === row.propertyId', 'p.name === row.propertyName')), assert.AssertionError);
-  const checkActive = api => assert.equal(homeAction(home('contract', 'closed', homeState, api), 'payment').disabled, true);
-  checkActive(P); assert.throws(() => checkActive(mutated("row.status === 'active'", 'true')), assert.AssertionError);
+  const checkPayment = api => assert.equal(homeAction(home('contract', 'closed', homeState, api), 'payment').fn, 'goTo');
+  checkPayment(P); assert.throws(() => checkPayment(mutated("['payment', 'go:payments'", "['payment', 'new:addPayment'")), assert.AssertionError);
   const checkInboxKind = api => assert.equal(homeAction(home('client', 'crm1', homeState, api), 'email').args[1].kind, 'client');
   checkInboxKind(P); assert.throws(() => checkInboxKind(mutated('kind: kind, id: row.id', "kind: 'person', id: row.id")), assert.AssertionError);
   const checkNoRun = api => assert.equal(homeAction(api.homeTools(null, {}, 2027), 'automations').fn, 'goTo');

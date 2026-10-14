@@ -44,19 +44,30 @@ try{
   });
   for(const section of ['properties','contracts','maintenance']){
    await fresh(section);const first=await page.locator('.list-item').first().boundingBox();measurements.push({width,section,firstRowTop:first?.y});
-   await check(section+' fits and keeps the first record within the first screen',async()=>{assert(first&&first.y<650);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:join(artifacts,section+'-'+width+'.png')})});
+   await check(section+' fits and keeps the first record within the first screen',async()=>{assert(first&&first.y<420);assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));await page.screenshot({path:join(artifacts,section+'-'+width+'.png')})});
+   if(section==='properties')await check('property search and status combine; an empty result has an explicit explanation',async()=>{
+    await page.locator('#propertySearch').fill('Aurora');assert.equal(await page.locator('.property-item:visible').count(),1);
+    await page.locator('[data-filter="off_market"]').click();assert.equal(await page.locator('.property-item:visible').count(),0);assert(await page.locator('#propertiesEmptySearch').isVisible());
+    await page.locator('#propertySearch').fill('');assert.equal(await page.locator('.property-item:visible').count(),1);assert.equal(await page.locator('#propertiesEmptySearch').isVisible(),false);
+   });
    if(section==='contracts')await check('future draft is Bozza; status and search combine without changing canonical records',async()=>{
     const original=await page.evaluate(()=>JSON.stringify(S.contracts));
     assert.match(await page.locator('.contract-item[data-status="draft"]').innerText(),/Bozza/i);assert.doesNotMatch(await page.locator('.contract-item[data-status="draft"]').innerText(),/Scaduto/i);
     await page.locator('[data-contract-filter="draft"]').click();assert.equal(await page.locator('.contract-item:visible').count(),1);
     await page.locator('#contractSearch').fill('Aurora');assert.equal(await page.locator('.contract-item:visible').count(),1);
-    await page.locator('#contractSearch').fill('Nessun immobile');assert.equal(await page.locator('.contract-item:visible').count(),0);
+    await page.locator('#contractSearch').fill('Nessun immobile');assert.equal(await page.locator('.contract-item:visible').count(),0);assert(await page.locator('#contractsEmptySearch').isVisible());
     await page.locator('#contractSearch').fill('');assert.equal(await page.locator('.contract-item:visible').count(),1);
     assert.equal(await page.evaluate(()=>{contractsPage();return JSON.stringify(S.contracts)}),original);
    });
    if(section==='maintenance')await check('urgent comes first and rendering preserves canonical maintenance order',async()=>{
     assert.equal(await page.locator('.maintenance-item').first().getAttribute('data-priority'),'urgent');
     assert.deepEqual(await page.evaluate(()=>{const before=JSON.stringify(S.maintenance);maintenancePage();return[before===JSON.stringify(S.maintenance),S.maintenance.map(m=>m.id)]}),[true,['ordinary','urgent']]);
+   });
+   if(section==='maintenance')await check('maintenance search combines with status and filtering works without a global event',async()=>{
+    await page.locator('#maintenanceSearch').fill('cucina');assert.equal(await page.locator('.maintenance-item:visible').count(),1);
+    await page.locator('[data-maintenance-filter="resolved"]').click();assert.equal(await page.locator('.maintenance-item:visible').count(),0);assert(await page.locator('#maintenanceEmptySearch').isVisible());
+    await page.evaluate(()=>filterMaintenance('urgent'));assert.equal(await page.locator('.maintenance-item:visible').count(),1);assert.equal(await page.locator('[data-maintenance-filter="urgent"]').getAttribute('aria-pressed'),'true');
+    assert.equal(await page.locator('#maintenanceSearch').inputValue(),'cucina');
    });
   }
   await fresh('inbox');
@@ -69,7 +80,7 @@ try{
   });
   if(width<=920){
    await check('thread replaces list, back restores list and conversation draft',async()=>{
-    assert.equal(await page.locator('.inbox-list-pane').isVisible(),false);assert(await page.locator('.inbox-back').isVisible());await page.screenshot({path:join(artifacts,'inbox-thread-'+width+'.png')});
+    assert.equal(await page.locator('.inbox-list-pane').isVisible(),false);assert(await page.locator('.inbox-back').isVisible());assert((await page.locator('#inboxTimeline').boundingBox()).height>=160);await page.screenshot({path:join(artifacts,'inbox-thread-'+width+'.png')});
     await page.locator('.inbox-back').click();assert(await page.locator('.inbox-list-pane').isVisible());assert.equal(await page.locator('#inboxSearch').inputValue(),'Persona');
     await page.locator('[onclick="inboxSelect(\'conversation-1\')"]').click();assert.equal(await page.locator('#inboxBody').inputValue(),'');await page.locator('.inbox-back').click();
     await page.locator('[onclick="inboxSelect(\'conversation-0\')"]').click();assert.equal(await page.locator('#inboxBody').inputValue(),'Bozza da conservare');assert.equal(await page.locator('#inboxSubject').inputValue(),'Oggetto da conservare');

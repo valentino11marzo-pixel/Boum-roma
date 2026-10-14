@@ -1475,3 +1475,129 @@
 .inbox-channel-context label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
 .inbox-channel-context select{flex:1;max-width:220px}
 .inbox-channel-context p{margin:10px 0 0;font-size:12px;line-height:1.5;color:var(--text-secondary);overflow-wrap:anywhere}
+
+/* One rhythm for the working lists: find, filter, open. Counts live with filters. */
+.portal-records-head{gap:16px;margin-bottom:18px}
+.portal-records-head .page-title{font-size:clamp(24px,3vw,32px);line-height:1.2}
+.portal-records-toolbar{padding:0;margin:0 0 14px;gap:10px}
+.card>.portal-records-toolbar{padding:14px;margin:0;border-bottom:1px solid var(--border)}
+.portal-records-toolbar>.form-input{flex-basis:100%;min-height:46px}
+.portal-records-filters{gap:6px}
+.portal-records-filters .btn{min-height:44px;white-space:nowrap}
+.portal-records-extras{margin:0 0 14px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-secondary)}
+.portal-records-extras>summary{cursor:pointer;min-height:44px;padding:12px 0}
+.portal-records-extra-actions{display:flex;gap:8px;flex-wrap:wrap;padding:6px 0 14px}
+.portal-records-empty{padding:20px;color:var(--text-secondary);font-size:14px;line-height:1.5}
+.portal-records-empty[hidden]{display:none}
+.inbox-follow-up{font-size:13px;line-height:1.45;max-height:240px;overflow:auto;flex-shrink:0;background:var(--bg-card)}
+.inbox-follow-up-head>strong{font-size:12px;font-weight:600;color:var(--text-secondary)}
+.inbox-follow-up .sg-footnote{font-size:12px;line-height:1.5;margin:5px 0;color:var(--text-secondary);overflow-wrap:anywhere}
+.inbox-follow-up-item{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:10px;align-items:start}
+.inbox-follow-up-item>strong{font-size:12px;color:var(--gold);grid-column:1}
+.inbox-follow-up-item>.sg-footnote{grid-column:1;color:var(--text)}
+.inbox-follow-up-item>.btn{grid-column:2;grid-row:1 / span 2;align-self:center;min-height:44px}
+.inbox-follow-up .inbox-follow-up-meta{font-size:11px;color:var(--text-muted);margin-bottom:0}
+@media(max-width:920px){
+ .portal-records-head{margin-bottom:14px;gap:10px}
+ .portal-records-head .page-subtitle{margin-top:6px;font-size:13px}
+ .portal-records-filters{flex-wrap:nowrap;overflow-x:auto;max-width:100%;padding-bottom:3px;scrollbar-width:thin}
+ .portal-records-filters .btn{flex-shrink:0;font-size:12px}
+ .portal-records-toolbar{display:block;min-width:0}
+ .portal-records-toolbar>.form-input{width:100%;margin-bottom:9px}
+ .portal-records-extras{margin-bottom:10px}
+}
+
+/* Home and navigation grammar: records first, secondary tools retain their routes. */
+.portal-nav-primary { margin-bottom:8px; }
+.portal-nav-group { margin:0 10px; border-top:1px solid var(--border); }
+.portal-nav-group > summary { min-height:44px; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 8px; cursor:pointer; color:var(--text-secondary); font-size:11px; font-weight:500; list-style:none; }
+.portal-nav-group > summary::-webkit-details-marker { display:none; }
+.portal-nav-group > summary::after { content:'+'; font-size:17px; font-weight:400; }
+.portal-nav-group[open] > summary { color:var(--text); }
+.portal-nav-group[open] > summary::after { content:'−'; }
+.portal-nav-group > .nav-section { margin:0 0 8px; padding:0; }
+.portal-nav-group > .nav-section > .nav-label { display:none; }
+.portal-nav-group .nav-item { margin-left:0; margin-right:0; }
+.portal-nav-primary .nav-item:focus-visible,.portal-nav-group .nav-item:focus-visible,.portal-nav-group > summary:focus-visible { outline:2px solid var(--gold); outline-offset:-2px; border-radius:8px; }
+.ow-home.portal-home .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.ow-home.portal-home .ow-header { margin-bottom:14px; gap:14px; }
+.ow-home.portal-home .ow-header h1 { font-size:28px; letter-spacing:-.7px; margin-top:3px; }
+.ow-home.portal-home .ow-workbench { margin-bottom:12px; }
+.ow-home.portal-home .ow-toolbox { padding:12px; margin:12px 0 16px; border-radius:14px; }
+.ow-home.portal-home .ow-active-context { padding-bottom:8px; margin-bottom:8px; min-height:44px; }
+.ow-home.portal-home .ow-active-context small { font-size:9px; margin-bottom:3px; }
+.ow-home.portal-home .ow-active-context strong { font-size:14px; }
+.ow-home.portal-home .ow-tools-grid { grid-template-columns:repeat(6,minmax(0,1fr)); gap:4px 8px; }
+.ow-home.portal-home .ow-tool { min-height:68px; padding:4px 2px; gap:6px; }
+.ow-home.portal-home .ow-tool-icon { width:38px; height:38px; border-radius:11px; }
+.ow-home.portal-home .ow-tool-icon svg { width:21px; height:21px; }
+.ow-home.portal-home .ow-tool-copy strong { font-size:12px; }
+.ow-home.portal-home .ow-shortcuts { margin-top:8px; padding-top:4px; gap:0 18px; }
+.ow-home.portal-home .portal-home-work { padding:0; }
+.ow-home.portal-home .portal-home-work > summary { padding:12px 16px; }
+.ow-home.portal-home .portal-home-work > section { padding:14px 16px; }
+.ow-home.portal-home .portal-home-work > summary > span { font-size:18px; }
+.ow-home.portal-home .od-heading { margin-bottom:10px; gap:12px; }
+.ow-home.portal-home .od-heading h2 { font-size:18px; margin-bottom:4px; }
+.ow-home.portal-home .od-heading p:not(.ow-eyebrow) { font-size:12px; }
+.ow-home.portal-home .od-areas { margin:12px 0; gap:6px; }
+.ow-home.portal-home .od-areas button { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px; min-height:48px; }
+.ow-home.portal-home .od-areas strong { margin:0; font-size:18px; }
+.ow-home.portal-home .od-case { padding:14px 0; gap:14px; }
+.ow-home.portal-home .od-case h3 { font-size:15px; }
+.portal-catalog { max-width:1200px; margin:0 auto; }
+.portal-catalog .page-header { margin-bottom:16px; }
+.portal-catalog-context { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--border); padding:0 0 14px; margin-bottom:16px; font-size:13px; color:var(--text-secondary); }
+.portal-catalog-context > span { min-width:0; overflow-wrap:anywhere; }
+.portal-catalog-context strong { color:var(--text); font-weight:500; }
+.portal-catalog-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.portal-catalog-tool { display:flex; align-items:center; gap:12px; width:100%; min-height:84px; padding:14px; border:1px solid var(--border); border-radius:12px; background:var(--bg-card); color:var(--text); text-align:left; font:inherit; cursor:pointer; }
+.portal-catalog-tool > span:nth-child(2) { flex:1; min-width:0; }
+.portal-catalog-tool strong { display:block; font-size:14px; font-weight:500; }
+.portal-catalog-tool small { display:block; font-size:12px; line-height:1.5; color:var(--text-secondary); margin-top:4px; overflow-wrap:anywhere; }
+.portal-catalog-icon { flex:0 0 36px; display:grid; place-items:center; color:var(--gold); }
+.portal-catalog-icon svg { width:24px; height:24px; }
+.portal-catalog-tool > span:last-child { color:var(--text-muted); }
+.portal-catalog-tool:hover:not(:disabled) { border-color:var(--gold); background:var(--bg-elevated); }
+.portal-catalog-tool:disabled { cursor:not-allowed; }
+.portal-catalog-tool:disabled strong { color:var(--text-secondary); }
+.portal-catalog :is(button,summary):focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+.portal-catalog-create { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin:20px 0; padding:16px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border); }
+.portal-catalog-create h2 { font-size:14px; font-weight:500; margin:0 auto 0 0; }
+.portal-catalog-extra { border-bottom:1px solid var(--border); }
+.portal-catalog-extra > summary { display:flex; align-items:center; justify-content:space-between; min-height:52px; padding:12px 0; font-size:13px; cursor:pointer; list-style:none; }
+.portal-catalog-extra > summary::-webkit-details-marker { display:none; }
+.portal-catalog-extra > summary::after { content:'+'; color:var(--gold); font-size:18px; }
+.portal-catalog-extra[open] > summary::after { content:'−'; }
+.portal-catalog-specialists { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; margin:0 0 16px; }
+.portal-catalog-specialist { display:flex; align-items:center; gap:12px; min-height:52px; padding:12px; background:var(--bg-card); color:var(--text); border:1px solid var(--border); border-radius:8px; text-align:left; font:inherit; cursor:pointer; }
+.portal-catalog-specialist strong { flex:1; font-size:13px; font-weight:500; }
+@media(max-width:920px) {
+ .ow-home.portal-home .ow-header h1 { font-size:24px; }
+ .ow-home.portal-home .ow-tools-grid { grid-template-columns:repeat(4,minmax(0,1fr)); gap:4px 2px; }
+ .ow-home.portal-home .ow-tool-copy strong { font-size:11px; }
+ .ow-home.portal-home .ow-active-context strong { font-size:13px; }
+ .ow-home.portal-home .ow-toolbox { padding:10px 8px 6px; }
+ .ow-home.portal-home .ow-shortcuts { column-gap:12px; }
+ .ow-home.portal-home .ow-shortcuts button { font-size:11px; }
+ .ow-home.portal-home .portal-home-work > summary,.ow-home.portal-home .portal-home-work > section { padding:12px; }
+ .ow-home.portal-home .od-areas { display:flex; overflow:auto; scrollbar-width:thin; padding-bottom:4px; }
+ .ow-home.portal-home .od-areas button { flex:0 0 auto; min-width:116px; max-width:150px; }
+ .ow-home.portal-home .od-areas span { font-size:11px; }
+ .portal-catalog-grid,.portal-catalog-specialists { grid-template-columns:minmax(0,1fr); }
+ .portal-catalog-tool { min-height:76px; padding:12px; }
+ .portal-catalog-context { align-items:flex-start; gap:10px; }
+ .portal-catalog-context > button { flex:0 0 120px; white-space:normal; }
+ .portal-catalog-create h2 { flex:0 0 100%; }
+ .portal-catalog-create .btn { flex:1; white-space:normal; }
+}
+
+/* The search already chooses context; show a context row only once a record is selected. */
+.ow-home.portal-home #ogQuickContext:not(:has([onclick="oggiClearContext()"])) { display:none; }
+
+@media(max-width:920px) {
+ .ow-home.portal-home .ow-shortcuts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; }
+ .ow-home.portal-home .ow-shortcuts button { min-width:0; justify-content:center; text-align:center; padding:6px 0; line-height:1.4; }
+ .ow-home.portal-home .od-alert { flex-direction:row; align-items:center; gap:10px; padding:8px 10px; }
+ .ow-home.portal-home .od-alert .ow-link { flex:0 0 100px; min-height:44px; text-align:right; font-size:11px; }
+}

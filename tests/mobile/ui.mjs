@@ -50,6 +50,10 @@ function extractFn(src, name) {
 }
 const appSrc = readFileSync(join(ROOT, 'js', 'portal-app.js'), 'utf8');
 const realWizardNav = extractFn(appSrc, 'contractWizardNav');
+const followUpStart = appSrc.indexOf('    function inboxFollowUpState()');
+const followUpEnd = appSrc.indexOf('    function inboxThreadPanel(', followUpStart);
+if (followUpStart < 0 || followUpEnd <= followUpStart) throw Error('Blocco reale dei seguiti Inbox non trovato');
+const realFollowUp = appSrc.slice(followUpStart, followUpEnd);
 const realPanels = ['esc', 'kindLabel', 'inboxPage', 'inboxConversationCard',
   'inboxFreshness', 'portalFreshnessWarning', 'oggiInboxScope', 'portalSearchAuthorized',
   'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble',
@@ -122,6 +126,7 @@ function portalFreshnessMount() { __calls.push(['portalFreshnessMount']); }
 function submitRentReportReview() { __calls.push(['reviewRent']); }
 function saveRadarSearch() { __calls.push(['saveRadarSearch', document.getElementById('radName').value]); }
 ${realPanels}
+${realFollowUp}
 let contractWizardStep = 0;
 function toggleSidebar() { __calls.push(['toggleSidebar']); }
 function toast(t, ti, m) { __calls.push(['toast', t, ti]); }
@@ -356,9 +361,9 @@ await check('la tab bar esiste, visibile, con 4 sezioni + Menu', () => page.eval
   const t = document.querySelector('.pm-tabbar');
   return t && !t.hidden && t.querySelectorAll('.pm-tab').length === 5 && getComputedStyle(t).position === 'fixed';
 }));
-await check('le 4 pinnate sono le preferite del ruolo, in ordine', () => page.evaluate(() =>
+await check('le 4 pinnate sono le preferite disponibili del ruolo, in ordine', () => page.evaluate(() =>
   JSON.stringify([...document.querySelectorAll('.pm-tab[data-target]')].map(b => b.dataset.target)) ===
-  JSON.stringify(['dashboard', 'contracts', 'payments', 'viewings'])
+  JSON.stringify(['contracts', 'dashboard', 'payments', 'viewings'])
 ));
 await check('il badge Contratti è specchiato dalla sidebar (4)', () => page.evaluate(() => {
   const b = document.querySelector('.pm-tab[data-target="contracts"] .pm-tab-badge');

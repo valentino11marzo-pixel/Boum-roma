@@ -5,6 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { html as propertyHtml } from '../property-dossier/harness.mjs';
 import { quickToolsHtml } from '../oggi/home-harness.mjs';
+import { journeyHtml, journeyData, journeyCases } from './journey-harness.mjs';
 const ROOT=join(dirname(fileURLToPath(import.meta.url)),'../..');
 const source=readFileSync(join(ROOT,'js/portal-app.js'),'utf8');
 export function extract(name){
@@ -48,9 +49,24 @@ export const html=propertyHtml
  .replace('<script src="/js/rent-engine.js">','<script src="/js/conversations.js"></script><script src="/js/inbox-context-engine.js"></script><script src="/js/portal-search-engine.js"></script><script src="/js/rent-engine.js">')
  .replace("goTo(location.hash.slice(1)||'properties');",seed+"\ngoTo(location.hash.slice(1)||'users');window.testReady=true;");
 const home=quickToolsHtml.replace('function goTo(id,fromHistory=false){',"function goTo(id,fromHistory=false){if(['users','properties','contracts','maintenance','inbox'].includes(id)){location.href='/#'+id;return;}");
-export function createHarnessServer(){return createServer((req,res)=>{
+export function createHarnessServer(){return createServer(async(req,res)=>{
  const path=new URL(req.url,'http://localhost').pathname;
+ if(path==='/workspace-api'){
+  const fixture=await import('../inbox/take-charge-fixture.mjs');
+  let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192){res.statusCode=413;res.end();return;}}
+  let body;try{body=raw?JSON.parse(raw):{};}catch{res.statusCode=400;res.end();return;}
+  if(!['GET','POST'].includes(req.method)||(req.method==='POST'&&!['start','confirm','close'].includes(body.op))){res.statusCode=405;res.end();return;}
+  const answer=await fixture.call({method:req.method,body,query:Object.fromEntries(new URL(req.url,'http://localhost').searchParams)});
+  res.statusCode=answer.code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(answer));return;
+ }
  if(req.method!=='GET'){res.statusCode=405;res.end('Read-only preview');return;}
+ if(path==='/workspace'){
+  const fixture=await import('../inbox/take-charge-fixture.mjs');fixture.reset();
+  // Each reload resets only the local synthetic database.
+  for(const [collection,rows] of Object.entries(journeyData))if(Array.isArray(rows))for(const row of rows)fixture.put(collection+'/'+row.id,row);
+  for(const row of journeyCases)fixture.put('operatorTasks/'+row.id,row);
+  res.setHeader('Content-Type','text/html; charset=utf-8');res.end(journeyHtml);return;
+ }
  if(path==='/'||path==='/home'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(path==='/home'?home:html);return;}
  if(/^\/(css|js)\/[a-z0-9-]+\.(css|js)$/.test(path)){res.setHeader('Content-Type',path.endsWith('.css')?'text/css':'text/javascript');try{res.end(readFileSync(join(ROOT,path)));return;}catch{}}
  res.statusCode=404;res.end('Not in this preview');

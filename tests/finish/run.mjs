@@ -109,7 +109,7 @@ const row = app.slice(rowStart, rowStart + 3600);
 ok(/class="list-item clickable contract-item"/.test(row), 'la riga resta .list-item.clickable.contract-item (M2 la trasforma in card)');
 ok(/data-status="\$\{esc\(c\.status\)\}"/.test(row) && /data-expiring30/.test(row) && /data-expiring60/.test(row),
   'i data-attribute dei filtri sono intatti (filterContracts li legge)');
-ok(/onclick="viewContract\('\$\{c\.id\}'\)"/.test(row), 'il tap sulla riga apre ancora il contratto');
+ok(/onclick="viewContract\(\$\{rentActionArg\(c\.id\)\}\)"/.test(row), 'il tap sulla riga apre il contratto con ID codificato');
 ok(/refinalizeContract\('\$\{c\.id\}'\)/.test(row) && /event\.stopPropagation\(\)/.test(row),
   '"Da rifinire · Rigenera" è ancora cliccabile senza aprire la riga');
 // ogni CONDIZIONE del vecchio arcobaleno sopravvive nel grappolo
@@ -125,9 +125,16 @@ ok(/totalInst > 0 \|\| c\.deposit/.test(row) && /totalInst > 0 \? `<span class="
 ok(/\(c\.rent \|\| 0\)\.toLocaleString\('it-IT'\)/.test(row), 'il canone usa i separatori italiani (€1.200, non €1200)');
 
 // ── 6. Le strisce mantengono filtri VIVI, incluso il nuovo riepilogo canoni ──
-for (const [fn, n] of [['filterContracts', 5], ['filterUsers', 5], ['filterMaintenance', 5]]) {
+for (const [fn, n] of [['filterUsers', 5]]) {
   const hits = [...app.matchAll(new RegExp(`<div class="stat-card[^"]*" onclick="${fn}\\('([^']+)'\\)"`, 'g'))];
   ok(hits.length === n, `${fn}: ${n} stat-card, tutte cliccabili (trovate ${hits.length})`);
+}
+for (const [fn, attr, filters] of [
+  ['filterContracts', 'data-contract-filter', ['all','active','expiring30','expiring60','expired','draft','terminated','closed']],
+  ['filterMaintenance', 'data-maintenance-filter', ['all','open','in_progress','urgent','resolved']]
+]) {
+  const hits = [...app.matchAll(new RegExp(`<button[^>]*${attr}="([^"]+)"[^>]*onclick="${fn}\\('([^']+)'\\)"`, 'g'))];
+  ok(hits.length === filters.length && hits.every(m=>m[1]===m[2]) && filters.every(f=>hits.some(m=>m[1]===f)), `${fn}: tutti gli stati restano selezionabili una volta dalla barra filtri`);
 }
 await behavior('canoni: quattro riepiloghi leggibili filtrano davvero le rate e i totali del periodo', () => {
   const stats = buttons(renderedPayments).filter(b => /\bclass="rent-stat"/.test(b.attrs));
@@ -237,7 +244,7 @@ await behavior('payments: le azioni finanziarie non compaiono durante un incasso
 ok(!/🚨 Diffida|⚠️ 2° Sollecito/.test(app), 'payments: i livelli di sollecito hanno perso le emoji');
 
 const maintR = rowOf('class="list-item clickable maintenance-item"');
-ok(/data-status="\$\{m\.status\}"/.test(maintR) && /data-priority="\$\{m\.priority\}"/.test(maintR),
+ok(/data-status="\$\{esc\(m\.status\)\}"/.test(maintR) && /data-priority="\$\{esc\(m\.priority\)\}"/.test(maintR),
   'maintenance: data-status e data-priority intatti');
 ok(/updateMaintenanceStatus\('\$\{m\.id\}','in_progress'\)/.test(maintR) && /'resolved'\)/.test(maintR),
   'maintenance: avvia/completa lavorano ancora');

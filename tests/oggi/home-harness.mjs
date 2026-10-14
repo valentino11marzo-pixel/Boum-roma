@@ -142,16 +142,17 @@ const namedPortalFunction = name => {
  return src.slice(match.index, match.index + 5 + next);
 };
 const quickFunctions = [
- 'openModal', 'closeModal', 'getModal', 'fillPayAmount',
+ 'openModal', 'closeModal', 'getModal', 'fillPayAmount', 'boomToolsPage',
  'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
  'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
  'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload',
- 'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh'
+ 'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh', 'stopOpenConvListener'
 ].map(namedPortalFunction).join('\n');
 const inboxState = src.match(/^    var _inboxState = .+;$/m)?.[0];
 if (!inboxState) throw Error('Missing production inbox state');
 const quickBoot = `
 let selectedFile = null, listingImageUrl = '', _newClientWizard = null;
+const ROME_ZONES = [];
 ${inboxState}
 ${between(src, '    const MS_FIELD_TYPES =', '    // ============================================================================\n    // CAF Allegato B')}
 ${quickFunctions}
@@ -166,5 +167,5 @@ goTo(location.hash.slice(1)||'oggi',true);
 export const quickToolsHtml = html
  .replace("function openModal(...args){demoAction('openModal',...args);}", '')
  .replace('window.open=(...args)=>demoAction(\'open\',...args);', '')
- .replace("if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);", "if(id==='inbox'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=inboxPage();return;}if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);")
+ .replace("if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);", "if(id==='boom-tools'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=boomToolsPage();return;}if(id==='inbox'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=inboxPage();return;}if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);")
  .replace("goTo(location.hash.slice(1)||'oggi',true);", quickBoot);

@@ -527,11 +527,28 @@ body.pm-on .inbox-compose-slot>div>div{flex-wrap:wrap}
 body.pm-on .inbox-compose-slot .inbox-compose-actions{position:sticky;bottom:0;background:var(--bg-card);padding:6px 0 0;z-index:1}
 body.pm-on.pm-kb .inbox-workspace[data-thread-open="true"] .inbox-thread-pane{top:var(--pm-vtop,0px);bottom:auto;height:var(--pm-vh,100dvh);z-index:110;padding:0 8px 8px}
 body.pm-on.pm-kb .inbox-thread-card .inbox-thread-head{padding:6px 12px!important}
-body.pm-on.pm-kb .inbox-thread-head>div:last-child,
-body.pm-on.pm-kb .inbox-thread-head>div:first-child>div:last-child{display:none!important}
+body.pm-on.pm-kb .inbox-thread-info{display:none!important}
 body.pm-on.pm-kb .inbox-thread-card .inbox-compose-slot{max-height:calc(100% - 98px)}
 
 body.pm-on.pm-kb .inbox-compose-tabs,
 body.pm-on.pm-kb .inbox-compose-template{display:none!important}
 body.pm-on .inbox-thread-head .btn,
 body.pm-on .inbox-compose-tabs .btn:not(.btn-primary){background:var(--bg-input);color:var(--text-secondary);border-color:var(--border)}
+
+/* Thread information stays available without displacing the conversation. */
+body.pm-on .inbox-thread-card .inbox-back{margin:4px 10px 0;padding:8px 10px}
+body.pm-on .inbox-thread-card .inbox-thread-head{padding:6px 12px 8px!important}
+body.pm-on .inbox-thread-info{flex:0 0 auto;min-width:0;border-bottom:1px solid var(--border)}
+body.pm-on .inbox-thread-info>summary{position:relative;min-height:44px;padding:10px 32px 10px 12px;display:flex;flex-direction:column;justify-content:center;gap:3px;list-style:none;cursor:pointer;font-size:12px;line-height:1.35}
+body.pm-on .inbox-thread-info>summary::-webkit-details-marker{display:none}
+body.pm-on .inbox-thread-info>summary::after{position:absolute;right:14px;top:12px;content:'+';font-size:18px;color:var(--gold)}
+body.pm-on .inbox-thread-info[open]>summary::after{content:'−'}
+body.pm-on .inbox-thread-info>summary small{font-size:11px;color:var(--gold)}
+body.pm-on .inbox-thread-info>summary:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+body.pm-on .inbox-thread-info-body{max-height:168px;overflow-y:auto;overscroll-behavior:contain;padding:0 12px 10px;scrollbar-width:thin}
+body.pm-on .inbox-thread-contact{margin:0 0 8px!important;overflow-wrap:anywhere;line-height:1.5}
+body.pm-on .inbox-thread-actions{gap:6px!important}
+body.pm-on .inbox-thread-actions .btn{min-height:44px;padding:8px 10px}
+body.pm-on .inbox-thread-info-body .inbox-follow-up{max-height:none;margin:10px 0 0!important;padding:10px!important}
+body.pm-on .inbox-thread-info-body>.inbox-follow-up~div{margin:10px 0 0!important;padding:10px!important}
+body.pm-on:not(.pm-kb) .inbox-thread-card #inboxTimeline{min-height:160px}

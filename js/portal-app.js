@@ -4190,59 +4190,54 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const radarFound = (S.leads || []).filter(l => (l.source || '').startsWith('radar') && (l.status === 'new' || !l.status)).length;
             const unreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             
-            sb.innerHTML = `
-                <div class="nav-section"><div class="nav-label">Operativo</div>
-                    <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
-                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Gestione</div>
-                    <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
-                    <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
-                    <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
-                    <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
-                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Canoni ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
-                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Tools</div>
-                    <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
-                    <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
-                    <div class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
-                    <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
-                    <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
-                    <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Dati</div>
-                    <div class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
-                    <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Console</div>
-                    <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
-                    <div class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
-                    <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
-                    <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
-                    <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
-                    <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
-                    <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
-                    <div class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
-                    <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Sistema</div>
-                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
-                    <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
-                    <div class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
-                </div>
-                <div class="sidebar-footer">
-                    <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
-                    <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
-                </div>`;
+            const openGroups = new Set([...sb.querySelectorAll('.portal-nav-group[open]')].map(group => group.dataset.navGroup));
+            sb.innerHTML = `<div class="nav-section portal-nav-primary"><div class="nav-label">Il tuo lavoro</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Persone</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Incassi ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
+</div>
+<details class="portal-nav-group" data-nav-group="work" ${openGroups.has('work') || ['dashboard', 'leads', 'clienti', 'viewings', 'maintenance'].includes(S.page) ? 'open' : ''}><summary>Affitti e relazioni</summary><div class="nav-section"><div class="nav-label">Affitti e relazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Agenda ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="records" ${openGroups.has('records') || ['invoices', 'burocrazia', 'documents', 'commercialista'].includes(S.page) ? 'open' : ''}><summary>Documenti e contabilità</summary><div class="nav-section"><div class="nav-label">Documenti e contabilità</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="tools" ${openGroups.has('tools') || ['boom-tools', 'adminflats', 'photo-studio', 'underwriting', 'relet', 'landlords', 'innesto', 'bonifica'].includes(S.page) ? 'open' : ''}><summary>Strumenti e catalogo</summary><div class="nav-section"><div class="nav-label">Strumenti e catalogo</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Strumenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Archivio proprietari</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="console" ${openGroups.has('console') || ['squadra', 'rules', 'activity-log'].includes(S.page) ? 'open' : ''}><summary>Console e sistema</summary><div class="nav-section"><div class="nav-label">Console e sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
+</div></details>
+<div class="sidebar-footer"><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div></div>`;
         } else if (r === 'landlord') {
             const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
             const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
@@ -6072,10 +6067,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
 
     // HOME OPERATIVA: UI state only; domain data stays in the existing records.
-    const oggiWorkspace = { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: false, user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' };
+    const oggiWorkspace = { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' };
     function oggiWorkspaceResetUser() {
         const uid = auth.currentUser?.uid || null;
-        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: false, user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' });
+        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' });
     }
     window.oggiOpenSection = function(id) {
         if (!isAdmin() || !['ogOwnerTools', 'ogFollowTools'].includes(id)) return;
@@ -6233,15 +6228,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         ].filter(Boolean);
         const summary = document.getElementById('ogDeskSummary');
         if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Scadenze e richieste', issues.length ? 'Aggiornamento da verificare' : 'Dati caricati'].join(' · ');
-        panel.innerHTML = `<header class="od-heading"><div><p class="ow-eyebrow">IL LAVORO DA SBLOCCARE</p><h2>Il prossimo passo.</h2><p>Casa, persona e azioni collegate. Scegli il lavoro da sbloccare.</p></div><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></header>
+        panel.innerHTML = `
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
+            ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
             ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
             ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
-            ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
             <div class="od-areas" role="group" aria-label="Scegli il lavoro">${model.areas.map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
             <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}</div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Vedi i passaggi</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Seguiti confermati con un ricontrollo futuro.</small></button></div>
+            <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
             <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
         panel.onclick = event => {
             const button = event.target.closest('button');
@@ -6342,7 +6338,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const P = window.BOOM_ACTIONS;
         const ids = ['console:/chiamate', 'console:/risposte', 'console:/media-studio', 'console:/manuale'];
         const descriptions = { '/chiamate': 'Audio, trascrizioni e riepiloghi salvati', '/risposte': 'Testi pronti e link da copiare', '/media-studio': 'Foto e reel dagli annunci', '/manuale': 'Istruzioni e informazioni della casa' };
-        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
+        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('boom-tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
     }
     function oggiQuickContext() {
         const selected = oggiWorkspace.selected;
@@ -6522,8 +6518,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
             <div id="ogWorkResults" aria-live="polite"></div><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio <span>Estendi la ricerca</span></summary><div id="ogSearchSources"></div></details>
-        </section><section class="ow-toolbox" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-head"><h2 id="ogToolsTitle">I tuoi strumenti.</h2><p>Un tocco, il lavoro già aperto.</p></div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
-            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Chiedi alla segreteria ↗</button><a href="/media-studio" target="_blank" rel="noopener">Foto e reel ↗</a><button type="button" onclick="goTo('tools')">Tutti gli strumenti ↗</button></nav>
+        </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
         </section>`;
     }
     async function oggiLoadViewings() {
@@ -6595,11 +6591,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         oggiWorkspaceResetUser();
         if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
         const name = (S.profile?.name || 'Valentino').split(' ')[0];
-        return `<div class="ow-home">
+        return `<div class="ow-home portal-home">
             <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
             ${oggiWorkspacePanel()}
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
-            <details class="ow-fold" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il lavoro da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
             <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
@@ -10811,49 +10807,49 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
+        return `<div class="page-header portal-records-head">
             <div><h1 class="page-title">Immobili</h1><div class="page-subtitle">${stats.all} immobili · €${monthlyRent.toLocaleString('it-IT')}/mese affittati</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportPropertiesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addProperty')">+ Nuovo</button>
             </div>
         </div>
-        <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('available', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=available]'))"><div class="stat-label">Disponibili</div><div class="stat-value text-green">${stats.available}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('negotiation', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=negotiation]'))"><div class="stat-label">In trattativa</div><div class="stat-value text-orange">${stats.negotiation}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('rented', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=rented]'))"><div class="stat-label">Affittati</div><div class="stat-value text-red">${stats.rented}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('off_market', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=off_market]'))"><div class="stat-label">Fuori mercato</div><div class="stat-value" style="color:var(--text-muted)">${stats.off_market}</div></div>
-        </div>
         <div class="card">
-            <div style="display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
-                <button class="btn btn-sm" data-filter="all" onclick="filterProperties('all', this)">Tutti</button>
-                <button class="btn btn-sm btn-secondary" data-filter="available" onclick="filterProperties('available', this)">🟢 Disp.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="negotiation" onclick="filterProperties('negotiation', this)">🟡 Tratt.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="rented" onclick="filterProperties('rented', this)">🔴 Aff.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="off_market" onclick="filterProperties('off_market', this)">⚫ Off</button>
-                <input type="search" id="propertySearch" class="form-input" placeholder="🔎 Cerca nome, indirizzo, zona, proprietario, inquilino…" oninput="searchProperties(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="propertySearch">Cerca negli immobili</label>
+                <input type="search" id="propertySearch" class="form-input" placeholder="Cerca immobile, indirizzo o persona" oninput="searchProperties(this.value)" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato immobili">
+                <button class="btn btn-sm" data-filter="all" aria-pressed="true" onclick="filterProperties('all', this)">Tutti (${stats.all})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="available" aria-pressed="false" onclick="filterProperties('available', this)">Disponibili (${stats.available})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="negotiation" aria-pressed="false" onclick="filterProperties('negotiation', this)">In trattativa (${stats.negotiation})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="rented" aria-pressed="false" onclick="filterProperties('rented', this)">Affittati (${stats.rented})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="off_market" aria-pressed="false" onclick="filterProperties('off_market', this)">Fuori mercato (${stats.off_market})</button>
+                </div>
             </div>
             <div class="card-body flush">${all.length === 0
                 ? '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Inizia aggiungendo il tuo primo immobile</div><button class="btn" onclick="openModal(\'addProperty\')" style="margin-top:12px">+ Aggiungi primo immobile</button></div>'
                 : all.map(propertyRow).join('')
-            }</div>
+            }</div><p id="propertiesEmptySearch" class="portal-records-empty" role="status" hidden>Nessun immobile corrisponde alla ricerca e ai filtri.</p>
         </div>`;
     }
 
     function filterProperties(filter, btn) {
         if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
+        document.querySelectorAll('#main [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
         searchProperties(document.getElementById('propertySearch')?.value || '');
     }
 
     function searchProperties(q) {
         const term = (q || '').toLowerCase().trim();
         const filter = document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all';
+        let visible = 0;
         document.querySelectorAll('.property-item').forEach(item => {
             const matchesState = filter === 'all' || (item.dataset.avail || 'available') === filter;
-            item.style.display = matchesState && (item.dataset.search || '').includes(term) ? '' : 'none';
+            const show = matchesState && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('propertiesEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.properties || []).length;
     }
 
     function exportPropertiesCSV() {
@@ -10902,11 +10898,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Condizioni, handler e data-attribute sono IDENTICI a prima —
             // filterContracts e il layer mobile (M2) leggono questa riga.
             const totalInst = paidCount + pendingCount;
-            return `<div class="list-item clickable contract-item" data-status="${esc(c.status)}" data-search="${esc([c.ref, p?.name, p?.address, t?.name, l?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
+            return `<div class="list-item clickable contract-item" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewContract(${rentActionArg(c.id)})}" data-status="${esc(c.status)}" data-search="${esc([c.ref, p?.name, p?.address, t?.name, l?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract(${rentActionArg(c.id)})">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p?.name || 'Immobile'}</span>
+                        <span style="font-weight:600">${esc(p?.name || 'Immobile')}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
                         <span class="li-flags">
                         ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
@@ -10917,7 +10913,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
+                        <b>${esc(t?.name || 'Persona da collegare')}</b>${l?.name ? `<span class="sep">·</span>${esc(l.name)}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
                     ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
                         ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
@@ -10931,48 +10927,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">📋 Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
                 <div class="page-actions">
                     ${expiring30.length > 0 ? `<span class="badge red">${expiring30.length} urgenti</span>` : ''}
                     ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
-                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
-                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
                     <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Apri le firme di un contratto o prepara un PDF">✨ Magic Sign</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
 
-            ${renderSignRequestsSection()}
+            <details class="portal-records-extras"><summary>Strumenti e firme PDF${(S.signRequests || []).length ? ' · '+(S.signRequests || []).length+' richieste' : ''}</summary><div class="portal-records-extra-actions">
+                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
+                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
+            </div>${renderSignRequestsSection()}</details>
 
-            <!-- Stats -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterContracts('all')">
-                    <div class="stat-value">${S.contracts.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card green" onclick="filterContracts('active')">
-                    <div class="stat-value">${active.length}</div>
-                    <div class="stat-label">Attivi</div>
-                </div>
-                <div class="stat-card red" onclick="filterContracts('expiring30')">
-                    <div class="stat-value">${expiring30.length}</div>
-                    <div class="stat-label">Entro 30 giorni</div>
-                </div>
-                <div class="stat-card orange" onclick="filterContracts('expiring60')">
-                    <div class="stat-value">${expiring60.length}</div>
-                    <div class="stat-label">31–60 giorni</div>
-                </div>
-                <div class="stat-card" onclick="filterContracts('closed')">
-                    <div class="stat-value">${expired.length + terminated.length}</div>
-                    <div class="stat-label">Conclusi</div>
-                </div>
-            </div>
-
-            <div class="portal-list-toolbar"><label class="sr-only" for="contractSearch">Cerca nei contratti</label><input id="contractSearch" class="form-input" type="search" placeholder="Cerca immobile, persona o riferimento" oninput="filterContracts()" autocomplete="off">
-            <div class="portal-list-filters" style="display:flex;gap:6px;flex-wrap:wrap">
-                <button class="btn btn-sm contract-filter active" data-contract-filter="all" onclick="filterContracts('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="active" onclick="filterContracts('active')">✓ Attivi</button>
+            <div class="portal-list-toolbar portal-records-toolbar"><label class="sr-only" for="contractSearch">Cerca nei contratti</label><input id="contractSearch" class="form-input" type="search" placeholder="Cerca immobile, persona o riferimento" oninput="filterContracts()" autocomplete="off">
+            <div class="portal-list-filters portal-records-filters">
+                <button class="btn btn-sm contract-filter active" data-contract-filter="all" onclick="filterContracts('all')">Tutti (${S.contracts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="active" onclick="filterContracts('active')">Attivi (${active.length})</button>
                 ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" data-contract-filter="expiring30" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
                 ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" data-contract-filter="expiring60" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
                 <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="expired" onclick="filterContracts('expired')">Scaduti</button>
@@ -10987,7 +10960,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (a.status === 'active' && b.status !== 'active') return -1;
                 if (a.status !== 'active' && b.status === 'active') return 1;
                 return da - db;
-            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div><p id="contractsEmptySearch" class="portal-records-empty" role="status" hidden>Nessun contratto corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterContracts(filter) {
@@ -10998,14 +10971,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
             button.setAttribute('aria-pressed', String(active));
         });
+        let visible = 0;
         document.querySelectorAll('.contract-item').forEach(item => {
             const status = item.dataset.status;
             let show = filter === 'all' || filter === status;
             if (filter === 'expiring30') show = item.dataset.expiring30 === 'true';
             if (filter === 'expiring60') show = item.dataset.expiring60 === 'true';
             if (filter === 'closed') show = status === 'expired' || status === 'terminated';
-            item.style.display = show && (item.dataset.search || '').includes(term) ? '' : 'none';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('contractsEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.contracts || []).length;
     }
 
     // The collection records remain authoritative; this view only groups them.
@@ -11485,7 +11461,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();viewMaintenance(${rentActionArg(m.id)})}" data-status="${esc(m.status)}" data-priority="${esc(m.priority)}" data-search="${esc([m.title, m.description, p?.name, p?.address, u?.name, owner?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" onclick="viewMaintenance(${rentActionArg(m.id)})" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -11497,7 +11473,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
+                        <b>${esc(p?.name || 'Immobile da collegare')}</b><span class="sep">·</span>${esc(u?.name || 'Persona da collegare')}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -11509,235 +11485,54 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">🔧 Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
                 <div class="page-actions">
                     ${urgent.length > 0 ? `<span class="badge red">${urgent.length} urgenti</span>` : ''}
                     <button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button>
                 </div>
             </div>
 
-            ${urgent.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
-                <span class="alert-icon">🚨</span>
-                <div class="alert-content">
-                    <div class="alert-title">${urgent.length} Manutenzioni Urgenti</div>
-                    <div class="alert-text">Ci sono richieste urgenti che richiedono attenzione immediata.</div>
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="maintenanceSearch">Cerca negli interventi</label><input id="maintenanceSearch" class="form-input" type="search" placeholder="Cerca intervento, immobile o persona" oninput="filterMaintenance()" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato interventi">
+                    <button class="btn btn-sm maintenance-filter active" data-maintenance-filter="all" aria-pressed="true" onclick="filterMaintenance('all')">Tutti (${S.maintenance.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="open" aria-pressed="false" onclick="filterMaintenance('open')">Aperti (${open.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="in_progress" aria-pressed="false" onclick="filterMaintenance('in_progress')">In corso (${inProgress.length})</button>
+                    ${urgent.length > 0 ? `<button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="urgent" aria-pressed="false" onclick="filterMaintenance('urgent')">Urgenti (${urgent.length})</button>` : ''}
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="resolved" aria-pressed="false" onclick="filterMaintenance('resolved')">Risolti (${resolved.length})</button>
                 </div>
-            </div>` : ''}
-
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterMaintenance('all')">
-                    <div class="stat-value">${S.maintenance.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card orange" onclick="filterMaintenance('open')">
-                    <div class="stat-value">${open.length}</div>
-                    <div class="stat-label">Aperte</div>
-                </div>
-                <div class="stat-card blue" onclick="filterMaintenance('in_progress')">
-                    <div class="stat-value">${inProgress.length}</div>
-                    <div class="stat-label">In corso</div>
-                </div>
-                <div class="stat-card red" onclick="filterMaintenance('urgent')">
-                    <div class="stat-value">${urgent.length}</div>
-                    <div class="stat-label">Urgenti</div>
-                </div>
-                <div class="stat-card green" onclick="filterMaintenance('resolved')">
-                    <div class="stat-value">${resolved.length}</div>
-                    <div class="stat-label">Risolte</div>
-                </div>
-            </div>
-
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm maintenance-filter active" onclick="filterMaintenance('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('open')">📋 Aperte</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('in_progress')">🔧 In Corso</button>
-                ${urgent.length > 0 ? `<button class="btn btn-sm btn-danger maintenance-filter" onclick="filterMaintenance('urgent')">🚨 Urgenti (${urgent.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('resolved')">✔ Risolte</button>
             </div>
 
             <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.slice().sort((a,b) => {
                 // Sort: urgent first, then open, then in_progress, then resolved
-                const priorityOrder = { urgent: 0, normal: 1, low: 2 };
+                const priorityOrder = { urgent: 0, high: 1, medium: 2, normal: 2, low: 3 };
                 const statusOrder = { open: 0, in_progress: 1, resolved: 2 };
                 if (a.status !== 'resolved' && b.status === 'resolved') return -1;
                 if (a.status === 'resolved' && b.status !== 'resolved') return 1;
-                if ((priorityOrder[a.priority] ?? 1) !== (priorityOrder[b.priority] ?? 1)) return (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1);
+                if ((priorityOrder[a.priority] ?? 2) !== (priorityOrder[b.priority] ?? 2)) return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
                 return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
-            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Tutto funziona perfettamente!</div></div>'}</div></div>`;
+            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Nessun intervento registrato.</div></div>'}</div><p id="maintenanceEmptySearch" class="portal-records-empty" role="status" hidden>Nessun intervento corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterMaintenance(filter) {
-        document.querySelectorAll('.maintenance-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.maintenance-filter.active')?.dataset.maintenanceFilter || 'all';
+        const term = (document.getElementById('maintenanceSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.maintenance-filter').forEach(button => {
+            const active = button.dataset.maintenanceFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        let visible = 0;
         document.querySelectorAll('.maintenance-item').forEach(item => {
             const status = item.dataset.status;
-            const priority = item.dataset.priority;
-            let show = filter === 'all';
-            if (filter === 'open') show = status === 'open';
-            if (filter === 'in_progress') show = status === 'in_progress';
-            if (filter === 'resolved') show = status === 'resolved';
-            if (filter === 'urgent') show = priority === 'urgent' && status !== 'resolved';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || status === filter;
+            if (filter === 'urgent') show = item.dataset.priority === 'urgent' && status !== 'resolved';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('maintenanceEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.maintenance || []).length;
     }
-
-    async function updateMaintenanceStatus(id, newStatus) {
-        try {
-            await db.collection('maintenance').doc(id).update({
-                status: newStatus,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
-            });
-            logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
-
-            const m = S.maintenance.find(x => x.id === id);
-            const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
-            
-            // Notify requester if resolved
-            if (newStatus === 'resolved' && m?.userId) {
-                await notifyMaintenanceResolved(m);
-            }
-            
-            // Notify tenant when work starts (in_progress)
-            if (newStatus === 'in_progress' && m?.userId) {
-                await createNotification(
-                    m.userId,
-                    'maintenance',
-                    '🔧 Maintenance In Progress',
-                    `Work has started on your request "${m.title}" for ${property?.name || 'your apartment'}. We'll update you when it's complete.`,
-                    { maintenanceId: id, propertyId: m.propertyId }
-                );
-                // Also notify landlord
-                if (property?.ownerId && property.ownerId !== m.userId) {
-                    await createNotification(
-                        property.ownerId,
-                        'maintenance',
-                        '🔧 Manutenzione in corso',
-                        `Lavori iniziati per "${m.title}" - ${property?.name || 'immobile'}`,
-                        { maintenanceId: id, propertyId: m.propertyId }
-                    );
-                }
-            }
-            goTo('maintenance');
-        } catch (err) {
-            toast('error', 'Errore: ' + err.message);
-        }
-    }
-
-    // ============================================
-    // RULES ENGINE - Sistema di Automazioni BOOM
-    // ============================================
-
-    // Definizioni dei trigger disponibili
-    const RULE_TRIGGERS = {
-        'payment_late_5': {
-            icon: '💳', name: 'Pagamento in ritardo (5 giorni)',
-            description: 'Si attiva quando un pagamento è in ritardo da 5 giorni',
-            category: 'payments'
-        },
-        'payment_late_15': {
-            icon: '⚠️', name: 'Pagamento in ritardo (15 giorni)',
-            description: 'Escalation - pagamento in ritardo da 15 giorni',
-            category: 'payments'
-        },
-        'payment_late_30': {
-            icon: '🚨', name: 'Pagamento in ritardo (30 giorni)',
-            description: 'Critico - pagamento in ritardo da 30 giorni',
-            category: 'payments'
-        },
-        'payment_due_soon': {
-            icon: '📅', name: 'Pagamento in scadenza (3 giorni)',
-            description: 'Reminder preventivo per pagamenti in scadenza',
-            category: 'payments'
-        },
-        'contract_expiring_60': {
-            icon: '📋', name: 'Contratto in scadenza (60 giorni)',
-            description: 'Avviso anticipato per rinnovo contratto',
-            category: 'contracts'
-        },
-        'contract_expiring_30': {
-            icon: '📋', name: 'Contratto in scadenza (30 giorni)',
-            description: 'Urgente: contratto in scadenza tra 30 giorni',
-            category: 'contracts'
-        },
-        'contract_expired': {
-            icon: '🔴', name: 'Contratto scaduto',
-            description: 'Il contratto è già scaduto',
-            category: 'contracts'
-        },
-        'maintenance_new': {
-            icon: '🔧', name: 'Nuova manutenzione',
-            description: 'Quando viene creata una nuova richiesta',
-            category: 'maintenance'
-        },
-        'maintenance_urgent': {
-            icon: '🚨', name: 'Manutenzione urgente',
-            description: 'Quando una richiesta è marcata come urgente',
-            category: 'maintenance'
-        },
-        'maintenance_old': {
-            icon: '⏰', name: 'Manutenzione vecchia (7+ giorni)',
-            description: 'Ticket aperto da più di 7 giorni',
-            category: 'maintenance'
-        },
-        'new_tenant': {
-            icon: '👤', name: 'Nuovo inquilino',
-            description: 'Quando viene aggiunto un nuovo inquilino',
-            category: 'users'
-        },
-        'tenant_bad_score': {
-            icon: '📉', name: 'Inquilino a rischio',
-            description: 'Inquilino con punteggio pagamenti < 70%',
-            category: 'users'
-        }
-    };
-
-    // Definizioni delle azioni disponibili
-    const RULE_ACTIONS = {
-        'notify_telegram': {
-            icon: '📱', name: 'Notifica Telegram',
-            description: 'Invia notifica al canale Telegram BOOM',
-            requiresTarget: false
-        },
-        'notify_tenant': {
-            icon: '👤', name: 'Notifica Inquilino',
-            description: 'Invia notifica all\'inquilino via email/WhatsApp',
-            requiresTarget: true
-        },
-        'notify_landlord': {
-            icon: '🏠', name: 'Notifica Proprietario',
-            description: 'Invia notifica al proprietario',
-            requiresTarget: true
-        },
-        'notify_admin': {
-            icon: '👑', name: 'Notifica Admin',
-            description: 'Invia notifica agli admin',
-            requiresTarget: false
-        },
-        'create_task': {
-            icon: '✅', name: 'Crea Task',
-            description: 'Crea un task nel sistema',
-            requiresTarget: false
-        },
-        'send_reminder': {
-            icon: '🔔', name: 'Invia Reminder',
-            description: 'Invia reminder automatico',
-            requiresTarget: true
-        },
-        'escalate': {
-            icon: '📈', name: 'Escalation',
-            description: 'Escalation al livello superiore',
-            requiresTarget: false
-        },
-        'generate_report': {
-            icon: '📊', name: 'Genera Report',
-            description: 'Genera un report automatico',
-            requiresTarget: false
-        }
-    };
 
     function rulesPage() {
         // Get rules from S.rules or empty array
@@ -12639,6 +12434,112 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         inboxRefresh();
     };
 
+    function inboxFollowUpState() {
+        const uid = auth.currentUser?.uid;
+        if (!uid || !isAdmin()) return null;
+        if (_inboxState.followUps?.uid !== uid) _inboxState.followUps = { uid, rows: {} };
+        return _inboxState.followUps;
+    }
+    async function inboxFollowUpRequest(cid, body) {
+        if (!isAdmin() || !auth.currentUser || !/^[\w.-]{1,180}$/.test(cid)) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const token = await user.getIdToken();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            const response = await fetch('/api/segretaria/follow-up' + (body ? '' : '?conversationId=' + encodeURIComponent(cid)), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    function inboxFollowUpError(error) {
+        return ({ conversation_cases_incomplete: 'Lettura parziale: apri Segreteria per verificare tutti i casi prima di crearne uno.',
+            case_selection_required: 'Questa conversazione ha più casi: scegli quello da aggiornare.',
+            case_selection_changed: 'I casi sono cambiati. Aggiorna e scegli nuovamente.',
+            new_message_reload: 'Il messaggio è cambiato. Aggiorna prima di prendere in carico.',
+            identity_not_verified: 'Il collegamento della conversazione è da verificare prima della presa in carico.',
+            conversation_missing: 'La conversazione non è più disponibile.' })[error?.code]
+            || 'Seguiti non aggiornati. Riprova; nessun invio è stato avviato.';
+    }
+    function inboxFollowUpPanel(conv) {
+        const state = inboxFollowUpState();
+        if (!state) return '';
+        const entry = state.rows[conv.id], rows = entry?.data?.rows || [];
+        const hasActive = rows.some(t => t.status === 'open' && t.followUp.open !== false);
+        const button = (label, id) => `<button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" ${id ? `data-case="${esc(id)}" onclick="inboxFollowUpOpen(this.dataset.cid,this.dataset.case)"` : 'onclick="inboxTakeCharge(this.dataset.cid)"'} ${entry?.busy ? 'disabled' : ''}>${label}</button>`;
+        const newer = entry?.data?.source && (S.messages || []).some(m => m.conversationId === conv.id && m.direction === 'in'
+            && +(m.at?.toDate ? m.at.toDate() : new Date(m.at)) > Date.parse(entry.data.source.at));
+        return `<section class="inbox-follow-up" aria-label="Seguito operativo" style="margin:10px 18px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
+            <div class="inbox-follow-up-head" style="display:flex;gap:8px;align-items:center;justify-content:space-between"><strong>Seguito operativo</strong>${button(entry?.busy ? 'Verifico…' : hasActive ? 'Aggiorna seguiti' : 'Prendi in carico')}</div>
+            ${entry?.error ? `<p role="alert" class="sg-footnote">${esc(entry.error)}</p>` : ''}
+            ${entry?.data?.incomplete ? '<p class="sg-footnote" role="status">Lettura parziale: sono mostrati al massimo 30 casi. Nessun nuovo caso verrà creato.</p>' : ''}
+            ${entry?.data && !entry.data.source ? '<p class="sg-footnote" role="status">Ultimo messaggio ricevuto non verificabile: serve una fonte salvata con data certa.</p>' : ''}
+            ${rows.length > 1 ? '<p class="sg-footnote">Più casi: scegli quello pertinente. Nessuna associazione automatica.</p>' : ''}
+            ${rows.map(task => { const f = task.followUp, closed = task.status === 'done';
+                const confirmed = !closed && !newer && !entry.error && entry.data.source && !entry.data.sourceUnavailable && f.confirmed && !f.needsReview && !f.ambiguous;
+                const when = Date.parse(f.checkAt), check = Number.isFinite(when) ? new Date(when).toLocaleString('it-IT', {timeZone:'Europe/Rome',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Da impostare';
+                return `<div class="inbox-follow-up-item" style="margin-top:8px" data-inbox-follow-up="${esc(task.id)}"><strong>${closed ? 'Chiuso con esito' : confirmed ? 'Confermato' : 'Da verificare'}</strong>
+                    <p class="sg-footnote">${esc(closed ? f.outcome || 'Esito registrato' : f.nextAction || 'Prossima azione da confermare')}<br>${closed ? '' : `${esc(f.waitingLabel || 'Responsabile da confermare')} · ${confirmed ? 'Ricontrollo' : 'Ricontrollo da confermare'}: ${esc(check)}`}</p>
+                    ${button(closed ? 'Leggi esito' : 'Apri seguito',task.id)}</div>`;
+            }).join('')}
+            ${entry?.data ? `<p class="sg-footnote inbox-follow-up-meta">Verificato alle ${esc(new Date(entry.readAt).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'}))}${newer ? ' · Nuovo messaggio: rileggi prima di confermare.' : ''}</p>` : '<p class="sg-footnote">Collega pratica, responsabile e ricontrollo. Nessun messaggio viene inviato.</p>'}
+        </section>`;
+    }
+    async function inboxFollowUpLoad(cid) {
+        const state = inboxFollowUpState();
+        if (!state) return null;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        const data = await inboxFollowUpRequest(cid);
+        if (inboxFollowUpState() !== state) return null;
+        entry.data = data; entry.readAt = Date.now(); entry.error = '';
+        return data;
+    }
+    window.inboxTakeCharge = async function(cid) {
+        const state = inboxFollowUpState();
+        if (!state || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        if (entry.busy) return;
+        const hadActive = !!entry.data?.rows?.some(t => t.status === 'open' && t.followUp.open !== false);
+        entry.busy = true; entry.error = ''; inboxRefresh();
+        let openId = null;
+        try {
+            const data = await inboxFollowUpLoad(cid);
+            if (!data || _inboxState.convId !== cid) return;
+            const active = data.rows.filter(t => t.status === 'open' && t.followUp.open !== false);
+            if (!hadActive && active.length <= 1 && !data.incomplete && data.source) {
+                const result = await inboxFollowUpRequest(cid, { op: 'start', conversationId: cid, messageId: data.source.id, ...(active.length ? {taskId:active[0].id} : {}) });
+                await inboxFollowUpLoad(cid);
+                openId = result.task?.id;
+            } else if (!hadActive && active.length === 1) openId = active[0].id;
+        } catch (error) { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); }
+        finally { entry.busy = false; if (inboxFollowUpState() === state && _inboxState.convId === cid) { inboxRefresh(); if (openId) inboxFollowUpOpen(cid, openId); } }
+    };
+    window.inboxFollowUpOpen = async function(cid, id) {
+        const state = inboxFollowUpState(), entry = state?.rows[cid];
+        const task = entry?.data?.rows?.find(t => t.id === id && t.followUp?.conversationId === cid);
+        if (!task || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        if (oggiSegretaria.userId !== state.uid) {
+            oggiSegretariaStopLive(); oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, {userId:state.uid, rows:[], dossiers:{}, receipts:{}, loaded:false, loading:false, error:'', monitoring:null});
+        }
+        oggiSegretaria.rows = [...oggiSegretaria.rows.filter(t => t.id !== id), task];
+        await oggiSegretariaOpen(id, task.status === 'done' ? 'Questo seguito è già chiuso: nessuna riapertura.' : '', task.status === 'done' ? 'review' : 'edit', false);
+        if (inboxFollowUpState() !== state) return;
+        const observer = new MutationObserver(() => {
+            if (document.getElementById('sgFollowModal')) return;
+            observer.disconnect();
+            inboxFollowUpLoad(cid).catch(error => { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); })
+                .finally(() => { if (inboxFollowUpState() === state && _inboxState.convId === cid) inboxRefresh(); });
+        });
+        observer.observe(document.getElementById('modals'), {childList:true});
+    };
+
     function inboxThreadPanel(conv) {
         const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
         const days = BOOM_INBOX.groupByDay(msgs);
@@ -12664,6 +12565,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const bindingNotice = !bindingCode ? '' : `<p class="sg-notice sg-notice--warning" role="status">⚠ ${esc(conv.conversationBindingStatus === 'unavailable'
             ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
             : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
+        const followUpMarkup = inboxFollowUpPanel(conv);
+        // Reuse the panel's verified labels; the summary does not decide case state.
+        const infoPreview = document.createElement('div');
+        infoPreview.innerHTML = followUpMarkup;
+        const followUpItems = infoPreview.querySelectorAll('.inbox-follow-up-item');
+        const followUpLabel = infoPreview.querySelector('[role="alert"]') ? 'Da verificare'
+            : followUpItems.length > 1 ? followUpItems.length + ' seguiti'
+            : infoPreview.querySelector('.inbox-follow-up-item > strong')?.textContent || '';
+        const infoLabel = [followUpLabel, conv.needsReply ? 'Da rispondere' : ''].filter(Boolean).join(' · ');
+        const previous = document.querySelector('.inbox-thread-card');
+        const sameThread = previous?.dataset.inboxConversation === conv.id && previous?.dataset.inboxUser === (auth.currentUser?.uid || '');
+        const infoOpen = sameThread ? previous.querySelector('.inbox-thread-info')?.open : !window.matchMedia?.('(max-width:920px)').matches;
         return `
         <div class="card inbox-thread-card" data-inbox-conversation="${esc(conv.id)}" data-inbox-user="${esc(auth.currentUser?.uid || '')}" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
             <button type="button" class="inbox-back btn btn-secondary" onclick="inboxRefresh('back')" style="display:none">← Conversazioni</button>
@@ -12675,21 +12588,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <span class="badge" style="font-size:10px">${kindLabel(conv.contactType || 'lead')}</span>
                         ${conv.status && conv.status !== 'open' ? `<span class="badge" style="font-size:10px;background:rgba(255,149,0,0.15);color:var(--orange)">${conv.status}</span>` : ''}
                     </div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+                </div>
+
+            </div>
+
+            <details class="inbox-thread-info" ${infoOpen ? 'open' : ''}>
+                <summary><span>Prossimo passo e dettagli</span>${infoLabel ? `<small>${esc(infoLabel)}</small>` : ''}</summary>
+                <div class="inbox-thread-info-body">
+                    <div class="inbox-thread-contact" style="font-size:11px;color:var(--text-secondary);margin-top:2px">
                         ${conv.contactPhone ? '📱 '+esc(conv.contactPhone) : ''}
                         ${conv.contactPhone && conv.contactEmail ? ' · ' : ''}
                         ${conv.contactEmail ? '✉ '+esc(conv.contactEmail) : ''}
                     </div>
-                </div>
-                <div style="display:flex;gap:6px">
+                <div class="inbox-thread-actions" style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl ? `<a class="btn btn-sm" href="${waUrl}" target="_blank" rel="noopener" style="font-size:11px" title="Apri WhatsApp Web/App">📱 WhatsApp</a>` : ''}
                     ${conv.contactType === 'lead' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','lead')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${conv.contactType === 'pfs' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','pfsClient')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxToggleStatus('${conv.id}')" style="font-size:11px">${conv.status === 'closed' ? 'Riapri' : 'Chiudi'}</button>` : ''}
                 </div>
-            </div>
-
-            ${inboxHomieBanner(conv)}
+                    ${followUpMarkup}
+                    ${inboxHomieBanner(conv)}
+                </div>
+            </details>
             ${bindingNotice}
             ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
@@ -27319,26 +27239,13 @@ IBAN: ${l.iban || '-'}`;
     // ==========================================
 
     function boomToolsPage() {
-        // Each tool maps to an existing entrypoint. Anything we don't already
-        // ship is gated behind isAdmin() so we don't expose half-built features.
-        const tools = [
-            { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
-            { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
-            { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
-            { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
-        ];
-
-        const toolGrid = tools.map(t => `
-            <div class="tool-card" onclick="${t.action}" role="button" tabindex="0">
-                <div class="tool-icon">${t.icon}</div>
-                <div class="tool-title">${t.title}</div>
-                <div class="tool-desc">${t.desc}</div>
-                <div class="tool-meta">
-                    ${t.tags.map(tag => `<span class="tool-tag${tag.cls ? ' ' + tag.cls : ''}">${tag.label}</span>`).join('')}
-                </div>
-            </div>
-        `).join('');
-
+        if (!isAdmin()) return accessDenied();
+        oggiWorkspaceResetUser();
+        const registry = window.BOOM_ACTIONS;
+        const tools = registry?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
+        const selected = oggiQuickContext();
+        const specialists = ['tool:msgportali','tool:msgclienti','console:/pfs-command','tool:docparser'].map(id => registry?.ACTIONS.find(action => action.id === id)).filter(Boolean);
+        const actionButton = action => `<button type="button" class="portal-catalog-specialist" onclick="${esc('window[' + JSON.stringify(action.fn) + '](...' + JSON.stringify(action.args) + ')')}"><span aria-hidden="true">${esc(action.icon)}</span><strong>${esc(action.label)}</strong><span aria-hidden="true">↗</span></button>`;
         // Group zones by popularity — popular ones get gold treatment up top
         const popular = (ROME_ZONES || []).filter(z => z.popular);
         const other = (ROME_ZONES || []).filter(z => !z.popular);
@@ -27347,25 +27254,19 @@ IBAN: ${l.iban || '-'}`;
                  onmouseover="this.style.borderColor='rgba(212,175,55,0.4)'"
                  onmouseout="this.style.borderLeftColor='${isPop ? 'var(--gold)' : 'var(--border-strong)'}';this.style.borderTopColor='var(--border)';this.style.borderRightColor='var(--border)';this.style.borderBottomColor='var(--border)'">
                 <div style="font-size:13px;font-weight:500;letter-spacing:-0.1px">${esc(z.name)}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Avg <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Media <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
             </div>
         `;
 
-        return `
-            <div class="dash-hero">
-                <div class="dash-hero-text">
-                    <h1 class="dash-hero-title">BOOM Tools<span style="color:var(--gold)">.</span></h1>
-                    <p class="dash-hero-sub">Console operativa BOOM — generatori messaggi, scraper portali, AI document parsing</p>
-                </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px">
-                ${toolGrid}
-            </div>
-
-            <section class="dash-section">
+        return `<section class="portal-catalog">
+            <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
+            <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
+            <section class="portal-catalog-create" aria-label="Nuove registrazioni"><h2>Crea una registrazione</h2><button type="button" class="btn btn-secondary" onclick="openModal('addPayment')">＋ Nuova rata</button><button type="button" class="btn btn-secondary" onclick="openModal('addMaintenance')">＋ Nuovo intervento</button></section>
+            <details class="portal-catalog-extra"><summary>Strumenti specialistici</summary><div class="portal-catalog-specialists">${specialists.map(actionButton).join('')}</div></details>
+            <details class="portal-catalog-extra"><summary>Riferimenti delle zone di Roma</summary><section class="dash-section">
                 <div class="dash-section-head">
-                    <h2 class="dash-section-title">Roma · Zone Reference</h2>
+                    <h2 class="dash-section-title">Roma · Riferimenti delle zone</h2>
                     <span class="dash-section-count">${(ROME_ZONES || []).length}</span>
                 </div>
                 ${popular.length ? `
@@ -27380,8 +27281,8 @@ IBAN: ${l.iban || '-'}`;
                         ${other.map(z => zoneCard(z, false)).join('')}
                     </div>
                 ` : ''}
-            </section>
-        `;
+            </section></details>
+        </section>`;
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
