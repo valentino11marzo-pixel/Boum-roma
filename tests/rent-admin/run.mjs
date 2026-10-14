@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {createRequire} from 'node:module';
+import {sessionHelpers} from '../portal-session/source.mjs';
 const require=createRequire(import.meta.url), {build}=require('./fixture.cjs'), R=require('../../js/rent-engine.js');
 const {source,fragment,links,fixture}=build();
 const elements=new Map(), calls=[];
@@ -56,7 +57,7 @@ await run("markPaymentPaid('p1')");check('fresh SEPA processing blocks stale man
 console.log(`${count} admin rent checks passed in total.`);
 const loadStart=source.indexOf('    async function loadData()');
 const loadEnd=source.indexOf('\n    async function ',loadStart+10);
-vm.runInContext(source.slice(loadStart,loadEnd),ctx);
+vm.runInContext(sessionHelpers(source)+'\n'+source.slice(loadStart,loadEnd),ctx);
 ctx.S.profile={id:'admin',role:'admin'};ctx.performance={now:()=>0};ctx.checkAlerts=()=>{};ctx.loadDataFresh=async()=>{};
 ctx.localStorage={getItem:()=>JSON.stringify({uid:'admin',role:'admin',timestamp:Date.now(),data:{payments:[{id:'stale',status:'pending',amount:100}]}})};
 ctx.setTimeout=()=>0;

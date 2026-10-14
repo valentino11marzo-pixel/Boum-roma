@@ -2391,6 +2391,9 @@ Home → Fonti → «Verifica collegamenti» legge metadati; Inbox → «Importa
 legge solo la conversazione scelta (3 giorni, massimo 8), senza AI né invii.
 Il battito WhatsApp non prova importazione completa. Test `portalsessionui`,
 `mailsource`, `mailsourceui`, `maintenanceactions`; bozze e sessioni preservate.
+L'avviso di fonte indisponibile sta sopra la shell, non tra le colonne: prima
+restringeva ogni schermata fino a renderla inutilizzabile sul telefono. `misura`
+verifica tutte le sezioni con errore presente e successivo recupero, da 375 a 1440 px.
 Un giro solo, otto interventi, 33 suite verdi:
 - **Home e navigazione unica (14/10/2026):** sei destinazioni principali, tutti i 38
   handler conservati nel menu; quattro tab mobile e Menu. Strumenti Home e catalogo

@@ -19,6 +19,7 @@
 //    scheda di calcolo brandizzata a pagina 2 — stessi fatti del modulo ARPE.
 // Uso: node tests/mandato/run.mjs   (MANDATO_DUMP=1 salva i PDF in /tmp)
 import { register } from 'node:module';
+import { conditionalFirestore } from '../preagreement/conditional-firestore.mjs';
 import fs from 'node:fs';
 register('../notify/loader.mjs', import.meta.url);
 
@@ -150,6 +151,9 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+
+// Preserve real commit versions and all-or-nothing guards used by the lock.
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB:store,fields:toFsFields,unfields:fromFsFields});
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},

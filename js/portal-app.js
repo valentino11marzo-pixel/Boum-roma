@@ -2410,7 +2410,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!node && main?.parentElement) {
             node = document.createElement('div'); node.id = 'portalSourceNotice'; node.setAttribute('role', 'status');
             node.style.cssText = 'padding:10px 16px;color:var(--orange);border-bottom:1px solid var(--border)';
-            main.parentElement.insertBefore(node, main);
+            // The notice spans the shell. Inside .layout it would become a
+            // third flex column and squeeze every page while a source is down.
+            const anchor = main.closest('.layout') || main;
+            anchor.parentElement.insertBefore(node, anchor);
         }
         if (node) node.textContent = issues.map(([key, entry]) => (labels[key] || key) + ': '
             + (entry.state === 'cached' ? 'copia locale, conferma server in attesa' : entry.state === 'loading' ? 'verifica in corso' : 'aggiornamento non riuscito; conservo gli ultimi dati'))

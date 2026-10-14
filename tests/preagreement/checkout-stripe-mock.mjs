@@ -14,6 +14,6 @@ export default class Stripe {
       if(key)io.idempotent.set(key,{params:structuredClone(params),session});
       if(io.loseResponse){io.loseResponse=false;throw Error('synthetic_response_lost');}
       return session;
-    }, retrieve:async id=>{const row=globalThis.paCheckoutIO.sessions?.[id];if(!row)throw Error('synthetic_session_missing');return structuredClone(row);} } };
+    }, list:async()=>({data:globalThis.paCheckoutIO.listSessions||[],has_more:false}), retrieve:async id=>{const row=globalThis.paCheckoutIO.sessions?.[id];if(!row)throw Error('synthetic_session_missing');return structuredClone(row);} } };
   }
 }

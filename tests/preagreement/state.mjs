@@ -19,7 +19,7 @@ import { conditionalFirestore } from './conditional-firestore.mjs';
 //   node tests/preagreement/state.mjs
 
 import { register } from 'node:module';
-register('../money/loader.mjs', import.meta.url);
+register('./checkout-loader.mjs', import.meta.url);
 
 process.env.STRIPE_SECRET_KEY = 'sk_test_x';
 process.env.FIREBASE_API_KEY = 'k';
@@ -125,7 +125,7 @@ const PA = (over = {}) => ({
   ...over,
 });
 const TENANT = { fullName: 'Xenia Petrova', email: 'xenia@example.com', phone: '+393331234567' };
-const seed = (pa, id = 'pa_x') => { DB.clear(); WRITES = 0; globalThis.__stripeCalls = []; globalThis.__stripeSessions = []; DB.set('preAgreements/' + id, pa); DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' }); return id; };
+const seed = (pa, id = 'pa_x') => { DB.clear(); WRITES = 0; globalThis.__stripeCalls = []; globalThis.__stripeSessions = []; globalThis.paCheckoutIO = { checkouts:globalThis.__stripeCalls, sessions:{}, idempotent:new Map(), get listSessions(){return globalThis.__stripeSessions;} }; DB.set('preAgreements/' + id, pa); DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' }); return id; };
 const get = (id = 'pa_x') => DB.get('preAgreements/' + id);
 
 const submit = (await import('../../api/preagreement/submit.js')).default;
