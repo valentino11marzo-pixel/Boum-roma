@@ -101,6 +101,8 @@ const board = (page) => page.evaluate(() => {
   check((await page.textContent('#flapCity')).trim() === 'AMSTERDAM', 'without JS the title still says AMSTERDAM, as text');
   const prices = await page.$$eval('.flap-prezzo', (els) => els.map((e) => e.textContent.trim()));
   check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, in the plates');
+  const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
+  check(JSON.stringify(chipTxt) === JSON.stringify(['€500', '€199', '€149 · per viewing', 'advise me']), 'without JS the service chips show their prices as text');
   const wa = await page.getAttribute('.consent a[href^="https://wa.me/"]', 'href');
   check(wa === 'https://wa.me/393313251961', 'the WhatsApp link is a real href to the real number');
   await ctx.close();
@@ -116,6 +118,13 @@ const board = (page) => page.evaluate(() => {
     `the board lands in the space the hero reserved — ${CELL_EM}em/cell: reserved ${b.minW.toFixed(1)}px, cells ${b.contentW.toFixed(1)}px (no layout jump)`);
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   check(scrollW <= 390, `390px: no horizontal scroll (scrollWidth ${scrollW})`);
+  check(await page.$eval('.serving', (e) => getComputedStyle(e).display === 'none'),
+    '390px: the "searching daily on" line is not between the title and the door (it is the first ✓ of Full Search)');
+  const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+  const chipCols = await page.$$eval('.chip', (els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().left))).size);
+  check(chipH.length === 4 && new Set(chipH).size === 1 && chipH[0] <= 60 && chipCols === 2, `390px: four service chips in a 2×2 grid, one line each (${chipH.join('/')}px)`);
+  check(await page.evaluate(() => document.getElementById('enbref').getBoundingClientRect().top > document.getElementById('faq').getBoundingClientRect().top),
+    'the fact sheet sits below the FAQ: human content first, machine content after');
   check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'at the top the pay bar is off: the door itself is on screen');
   const rvBefore = await page.$eval('#services', (e) => getComputedStyle(e).opacity);
   await page.evaluate(() => document.getElementById('services').scrollIntoView());
@@ -132,9 +141,15 @@ const board = (page) => page.evaluate(() => {
   check(!(await page.$eval('#mobileMenu', (e) => e.classList.contains('active'))), 'a menu link closes it');
 
   // the door: a plate preselects, an empty send says why, a full send posts once
+  const picked = () => page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; });
+  check(await picked() === '', 'no service is pre-checked when the page opens');
   await tap(page, '#plan-application-pack .go');
   await page.waitForTimeout(400);
-  check(await page.inputValue('#fService') === 'application-pack', 'a plate\'s button preselects its service in the door');
+  check(await picked() === 'application-pack', 'a plate\'s button checks its service chip in the door');
+  await tap(page, '.chip.unsure');
+  check(await picked() === 'unsure', 'tapping a chip changes the choice (the chip is the radio\'s label)');
+  await tap(page, '#plan-application-pack .go');
+  await page.waitForTimeout(400);
   await tap(page, '#fGo');
   const errName = await page.textContent('#fErr');
   check(st.posts.length === 0 && await page.$eval('#fErr', (e) => e.classList.contains('on')) && errName === await page.getAttribute('#cityForm', 'data-err-name'),
@@ -195,6 +210,7 @@ const board = (page) => page.evaluate(() => {
   check(geo.twoCols && Math.abs(geo.cardTop - geo.h1Top) < 120, 'the door sits beside the title: the corridor and the door');
   check(await page.isVisible('.nav-links .nav-cta') && !(await page.isVisible('#navToggle')), '1440px: desktop nav with its CTA, no burger');
   check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no pay bar');
+  check(await page.$eval('.serving', (e) => getComputedStyle(e).display !== 'none'), '1440px: the "searching daily on" line is back under the proofs');
   await ctx.close();
 }
 

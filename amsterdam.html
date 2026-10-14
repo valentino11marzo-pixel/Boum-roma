@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=b03b4c53c9">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=da70e5cbb8">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -190,7 +190,7 @@
           "name": "Isn't it illegal for agents to charge tenants in the Netherlands?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It is illegal for an agent to charge you when they also act for the landlord, which is what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. That is exactly what we are, and it is the only reason we can negotiate on your side."
+            "text": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. That is what we are."
           }
         },
         {
@@ -198,7 +198,7 @@
           "name": "How fast will I have an apartment?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Budget and move-in date decide it. A complete Dutch-format dossier and applications inside the hour are what shorten it — that is the work we do. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else."
+            "text": "Budget and move-in date decide it. A complete Dutch-format dossier and applications inside the hour are what shorten it. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else."
           }
         },
         {
@@ -222,7 +222,7 @@
           "name": "How do I pay?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "By card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. We take nothing from landlords, their agents or listing platforms."
+            "text": "Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
           }
         },
         {
@@ -586,7 +586,7 @@ html {
     <a href="#services" class="mobile-menu-link">Services</a>
     <a href="#checks" class="mobile-menu-link">Before you sign</a>
     <a href="#faq" class="mobile-menu-link">FAQ</a>
-    <a href="/apartments" class="mobile-menu-link">Rome · apartments</a>
+    <a href="/" class="mobile-menu-link">BOOM Rome</a>
   </div>
   <a href="#contact" class="mobile-menu-cta">Start my search</a>
 </div>
@@ -594,9 +594,7 @@ html {
 <!-- the product family: a city desk is part of the BOOM suite, not an island -->
 <div class="fam" aria-label="BOOM suite">
   <a class="on" href="/amsterdam" aria-current="page">Amsterdam</a>
-  <a href="/apartments">Rome · apartments</a>
-  <a href="/executive">Executive Roma</a>
-  <a href="/services">Services</a>
+  <a href="/">BOOM Rome</a>
 </div>
 
 <main id="main">
@@ -616,16 +614,15 @@ html {
         (function(){var f=document.getElementById('flapCity');
           if(f){f.style.display='inline-block';f.style.minWidth='8.10em';
                 f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="sub h-3">Tenant-side search for internationals: a Dutch-format dossier in 24 hours, applications within the hour of a listing going live, a BOOM person at the viewing, the contract checked before you sign. Paid by you — never by landlords.</p>
+      <p class="sub h-3">A Dutch-format dossier in 24 hours, applications within the hour, a BOOM person at every viewing. Paid by you — never by landlords.</p>
       <div class="trust h-4">
         <span>★ <b>4.9</b> on Google · 47 reviews</span>
-        <span><span class="c">✓</span> <b>500+</b> internationals housed by BOOM</span>
-        <span><span class="c">✓</span> English · Dutch-format paperwork</span>
+        <span><span class="c">✓</span> <b>500+</b> internationals housed</span>
       </div>
       <p class="serving h-4">Searching daily on — <b>Pararius · Funda · agencies · off-market</b></p>
     </div>
 
-    <!-- THE DOOR: five fields, everything else folds away -->
+    <!-- THE DOOR: four fields and the service chips, everything else folds away -->
     <div class="h-5" id="contact">
       <div class="filecard">
         <div class="refline"><span>New file — Amsterdam · tenant side</span><b>same-day reply</b></div>
@@ -647,12 +644,16 @@ html {
               <option>€3,500+</option>
             </select></div>
           </div>
-          <div class="fld"><label for="fService">Service</label><select id="fService" name="service">
-            <option value="full-search">Full Search — €500</option>
-            <option value="application-pack">Application Pack — €199</option>
-            <option value="attended-viewing">Attended Viewing — €149 per viewing</option>
-            <option value="unsure">Not sure yet — advise me</option>
-          </select></div>
+          <!-- the service: chips with the price in view, never a dropdown — the
+               three doors and their cost are read without a tap -->
+          <fieldset class="fld chips"><legend>What do you need?</legend>
+            <div class="chipgrid">
+              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing</small></span></label>
+              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
+            </div>
+          </fieldset>
 
           <details class="more">
             <summary>More details (optional)</summary>
@@ -698,17 +699,17 @@ html {
       <div class="step"><span class="dot"></span>
         <div class="k">1 · Brief</div>
         <div class="v">A 20-minute call</div>
-        <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads on paper. We tell you what your budget buys in Amsterdam today.</div>
+        <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads on paper. We tell you what your budget buys today.</div>
       </div>
       <div class="step"><span class="dot"></span>
         <div class="k">2 · Dossier &amp; applications</div>
         <div class="v">Dutch-format, in 24 hours</div>
-        <div class="s">Income proof, employer statement, ID, references, a motivation letter in Dutch and English. Then we apply within the hour of a listing going live.</div>
+        <div class="s">Income proof, employer statement, ID, references, motivation letter in Dutch and English. Then we apply within the hour of a listing going live.</div>
       </div>
       <div class="step"><span class="dot"></span>
         <div class="k">3 · Viewing &amp; contract</div>
         <div class="v">A BOOM person in the room</div>
-        <div class="s">Live video walkthrough and a written report. Rent, deposit, service costs and contract type checked against Dutch law before you sign. Then keys and BRP registration.</div>
+        <div class="s">Live video walkthrough and a written report. Rent, deposit, service costs and contract type checked against Dutch law before you sign. Then keys and BRP.</div>
       </div>
     </div>
     <div class="tline" aria-hidden="true"><b>01</b> BRIEF <span class="sep">→</span> <b>02</b> DOSSIER 24H <span class="sep">→</span> <b>03</b> APPLICATIONS &lt;1H <span class="sep">→</span> <b>04</b> VIEWING ATTENDED <span class="sep">→</span> <b>05</b> CONTRACT CHECKED <span class="sep">→</span> <span class="land">✓ KEYS · BRP</span></div>
@@ -720,31 +721,34 @@ html {
       <span class="num">02 — SERVICES &amp; FEES</span>
       <h2>Flat fees. <span class="g">No percentage of your rent.</span></h2>
     </div>
-    <p class="sec-sub">Three services, one rule: you pay for the work, and only you pay.</p>
+    <p class="sec-sub">You pay for the work, and only you pay. VAT included.</p>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We find it. You move in.</b>
-        <p>Daily search across Pararius, Funda, agency networks and off-market. Applications within the hour. One attended viewing with live video and written report — extra viewings €149 each. Rent and deposit negotiated, contract checked, BRP registration supported.</p>
+        <p>Search, applications, viewing, contract — handled.</p>
+        <ul class="inc"><li>Daily search: Pararius, Funda, agencies, off-market</li><li>Applications within the hour</li><li>One attended viewing, live video + report (extra €149)</li><li>Rent negotiated, contract checked, BRP supported</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€500" aria-label="€500 flat · incl. VAT">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Start my search →</a>
       </article>
       <article class="sib" id="plan-application-pack">
         <div class="se"><span>Application Pack</span></div>
         <b>You search. We make you win.</b>
-        <p>Dutch-format dossier in 24 hours, motivation letter in Dutch and English, income and guarantor strategy, application templates for Pararius, Funda and agencies, contract review before you sign.</p>
+        <p>The paperwork that wins Dutch applications.</p>
+        <ul class="inc"><li>Dutch-format dossier in 24 hours</li><li>Motivation letter, Dutch + English</li><li>Income and guarantor strategy</li><li>Contract review before you sign</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€199" aria-label="€199 flat · incl. VAT">€199</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="application-pack">Get the pack →</a>
       </article>
       <article class="sib" id="plan-attended-viewing">
         <div class="se"><span>Attended Viewing</span></div>
         <b>Eyes on the ground.</b>
-        <p>You found it, you're abroad. A BOOM person attends in your place, films it live and writes down light, noise, damp, neighbours and commute. A straight recommendation.</p>
+        <p>You found it, you're abroad. We go.</p>
+        <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
         <div class="price"><span class="flap-prezzo flap-scale" data-p="€149" aria-label="€149 per viewing · incl. VAT">€149</span><small>per viewing · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="attended-viewing">Book a viewing →</a>
       </article>
     </div>
-    <p class="feenote">Paid by card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords, their agents or listing platforms.</p>
+    <p class="feenote">Card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -753,7 +757,7 @@ html {
       <span class="num">03 — BEFORE YOU SIGN</span>
       <h2>Six things we check <span class="g">before you sign.</span></h2>
     </div>
-    <p class="sec-sub">Dutch rental law protects the tenant more than most internationals are told. These are the six points we put in writing on every contract.</p>
+    <p class="sec-sub">Six points we put in writing on every contract.</p>
     <div class="flows">
       <div class="flow" id="check-deposit"><span class="n">I</span><div>
         <b>The deposit cap<span class="at">2 months max</span></b>
@@ -761,23 +765,23 @@ html {
       </div></div>
       <div class="flow" id="check-brp"><span class="n">II</span><div>
         <b>Registration<span class="at">BRP · BSN</span></b>
-        <p>A landlord cannot forbid you from registering at the address. No registration means no BSN, no bank, no healthcare. We confirm it in writing before you pay anything.</p>
+        <p>A landlord cannot forbid registration at the address. No BRP, no BSN, no bank. We confirm it in writing before you pay.</p>
       </div></div>
       <div class="flow" id="check-wws"><span class="n">III</span><div>
         <b>The points system<span class="at">WWS</span></b>
-        <p>Many Amsterdam homes fall under rent regulation by the points system. An asking rent above the legal maximum is leverage. We run the check.</p>
+        <p>Many Amsterdam homes fall under the points system. An asking rent above the legal maximum is leverage. We run the check.</p>
       </div></div>
       <div class="flow" id="check-service-costs"><span class="n">IV</span><div>
         <b>Service costs<span class="at">servicekosten</span></b>
-        <p>&quot;Rent €1,800 + €250 service costs&quot; often hides charges the law does not allow. We separate what is legitimate from what is padding.</p>
+        <p>&quot;€1,800 + €250 service costs&quot; often hides charges the law does not allow. We separate legitimate from padding.</p>
       </div></div>
       <div class="flow" id="check-contract"><span class="n">V</span><div>
         <b>Contract type<span class="at">since 2024</span></b>
-        <p>Since 2024 the default rental contract in the Netherlands is indefinite. Fixed-term offers are the exception and come with conditions. We check which one you are being handed.</p>
+        <p>Since 2024 the default contract is indefinite. Fixed-term offers are the exception, with conditions. We check which one you are handed.</p>
       </div></div>
       <div class="flow" id="check-income"><span class="n">VI</span><div>
         <b>Income rules<span class="at">on paper</span></b>
-        <p>New job, freelance, paid in a non-euro currency: there is a right way to present each one. We write it so a Dutch landlord reads it as safe.</p>
+        <p>New job, freelance, non-euro salary: each has a right way to be presented. We write it so a Dutch landlord reads it as safe.</p>
       </div></div>
     </div>
   </section>
@@ -796,35 +800,6 @@ html {
     </div>
   </section>
 
-  <!-- ═══ in brief — written to be quoted (GEO) ═══ -->
-  <section id="enbref-wrap" class="rv">
-    <div class="enbref" id="enbref">
-      <h2>BOOM Amsterdam — fact sheet<span class="ref">REF · AMSTERDAM / TENANT SIDE</span></h2>
-      <dl>
-        <dt>Who</dt>
-        <dd>BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only.</dd>
-
-        <dt>For whom</dt>
-        <dd>Internationals relocating to Amsterdam — employees, researchers, couples and families — searching from abroad or already in the city.</dd>
-
-        <dt>Fees</dt>
-        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. No percentage of the rent, nothing from landlords or platforms.</dd>
-
-        <dt>What we do</dt>
-        <dd>Dutch-format dossier in <b>24 hours</b>, applications <b>within the hour</b> of a listing going live, attended viewings with live video and a written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing.</dd>
-
-        <dt>What we don't do</dt>
-        <dd>We don't list homes, we don't represent landlords, we don't promise a date.</dd>
-
-        <dt>Reply time</dt>
-        <dd>The same working day.</dd>
-
-        <dt>Contact</dt>
-        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961">WhatsApp +39 331 325 1961</a> · <a href="https://www.boomrome.com/amsterdam" style="color:var(--t2)">boomrome.com/amsterdam</a></dd>
-      </dl>
-    </div>
-  </section>
-
   <!-- ═══ FAQ — the depth, folded away ═══ -->
   <section id="faq" class="rv">
     <div class="sec-h">
@@ -834,11 +809,11 @@ html {
     <div class="faq">
       <details>
         <summary>Isn't it illegal for agents to charge tenants in the Netherlands?</summary>
-        <div class="a">It is illegal for an agent to charge you when they also act for the landlord, which is what most &quot;free&quot; agencies do. An agent you hire, who works only for you, may charge you for the work. That is exactly what we are, and it is the only reason we can negotiate on your side.</div>
+        <div class="a">It is illegal for an agent to charge you when they also act for the landlord — what most &quot;free&quot; agencies do. An agent you hire, who works only for you, may charge you for the work. That is what we are.</div>
       </details>
       <details>
         <summary>How fast will I have an apartment?</summary>
-        <div class="a">Budget and move-in date decide it. A complete Dutch-format dossier and applications inside the hour are what shorten it — that is the work we do. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else.</div>
+        <div class="a">Budget and move-in date decide it. A complete Dutch-format dossier and applications inside the hour are what shorten it. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else.</div>
       </details>
       <details>
         <summary>Do I need to be in Amsterdam?</summary>
@@ -850,7 +825,7 @@ html {
       </details>
       <details>
         <summary>How do I pay?</summary>
-        <div class="a">By card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. We take nothing from landlords, their agents or listing platforms.</div>
+        <div class="a">Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
       </details>
       <details>
         <summary>I'm moving from Rome with BOOM. Does my file carry over?</summary>
@@ -860,6 +835,35 @@ html {
         <summary>What do you do with my data?</summary>
         <div class="a">It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will.</div>
       </details>
+    </div>
+  </section>
+
+  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human content: it sits below the FAQ ═══ -->
+  <section id="enbref-wrap" class="rv">
+    <div class="enbref" id="enbref">
+      <h2>BOOM Amsterdam — fact sheet<span class="ref">REF · AMSTERDAM / TENANT SIDE</span></h2>
+      <dl>
+        <dt>Who</dt>
+        <dd>BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only.</dd>
+
+        <dt>For whom</dt>
+        <dd>Internationals relocating to Amsterdam — employees, researchers, couples and families — from abroad or already in the city.</dd>
+
+        <dt>Fees</dt>
+        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. No percentage of the rent, nothing from landlords or platforms.</dd>
+
+        <dt>What we do</dt>
+        <dd>Dutch-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing.</dd>
+
+        <dt>What we don't do</dt>
+        <dd>We don't list homes, we don't represent landlords, we don't promise a date.</dd>
+
+        <dt>Reply time</dt>
+        <dd>The same working day.</dd>
+
+        <dt>Contact</dt>
+        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961">WhatsApp +39 331 325 1961</a> · <a href="https://www.boomrome.com/amsterdam" style="color:var(--t2)">boomrome.com/amsterdam</a></dd>
+      </dl>
     </div>
   </section>
 
@@ -949,7 +953,7 @@ html {
     "EMAIL": "hello@boom-rome.com"
   };
 </script>
-<script src="/assets/boom-city.js?v=7c08c4b2db"></script>
+<script src="/assets/boom-city.js?v=c0d320e291"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

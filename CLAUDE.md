@@ -1054,12 +1054,13 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   (la grammatica Executive v4 — `STUDIO_EXECUTIVE_UIX.md`,
   `STUDIO_EXECUTIVE_CONVERSIONE.md`: oro `#FFD700`, lockup
   `BOOM │ AMSTERDAM · TENANT SIDE` unico elemento di marca nuovo, layer tech
-  quieto, **il form È l'hero** — `.filecard`, 5 campi visibili + «More
-  details», ~45 parole prima della porta — poi 01 come funziona (`.steps` +
-  `.tline`), 02 servizi e prezzi (tre `.sib` con il **prezzo sul tabellone
-  Solari**), 03 sei controlli prima della firma (`.flows`), banda `.truth`,
-  scheda `.enbref` citabile (GEO), FAQ visibile = FAQPage, banda finale,
-  footer con l'entità e la dichiarazione tenant-side, `.paybar` mobile).
+  quieto, **il form È l'hero** — `.filecard`, 4 campi visibili + i **chip
+  del servizio** + «More details», ~50 parole prima della porta — poi 01
+  come funziona (`.steps` + `.tline`), 02 servizi e prezzi (tre `.sib` con
+  il **prezzo sul tabellone Solari** e le ✓ di cosa compra la tariffa), 03
+  sei controlli prima della firma (`.flows`), banda `.truth`, FAQ visibile =
+  FAQPage, scheda `.enbref` citabile (GEO) DOPO la FAQ, banda finale, footer
+  con l'entità e la dichiarazione tenant-side, `.paybar` mobile).
 - **Il Solari**: il nome della città nel titolo È un tabellone a palette
   (`#flapCity`, una cella per lettera, `show` a 600ms, `giro` ogni 19s a
   scheda visibile, fermo con reduced-motion), e i tre prezzi sono tabelloni
@@ -1113,6 +1114,29 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   marchio GENERATED. `live:false` → `noindex` nei primi 4000 caratteri
   (regola 8 di `tests/seo`); per andare live servono anche la riga in
   `sitemap.xml` e il link dalla home.
+- **La dieta (14/10, sera — «il cliente atterra qui e riceve troppe
+  informazioni»)**, misurata sulle parole visibili della pagina costruita,
+  non a sensazione: colonna hero **71 → 51** parole (sottotitolo a una
+  frase, due prove invece di tre, la riga «searching daily on» nascosta
+  sotto i 640px: lo stesso fatto è la prima ✓ di Full Search), corpo senza
+  le risposte FAQ **988 → 897**, controlli 178 → 153, risposte FAQ ≤ 42
+  parole. Tre mosse di forma oltre al taglio: (1) **il servizio è una
+  griglia 2×2 di chip radio col prezzo in vista** (`R.serviceChips`,
+  `fieldset.chips` — una tendina nascondeva le tre porte e il loro costo
+  dietro un tap; nessun chip pre-spuntato: il server legge «service to
+  decide», il bottone del piatto spunta il SUO chip; il radio resta
+  nell'albero per tastiera, screen reader e invio senza JS; la regola
+  `.chips .chip` deve battere `.fld label` di boom-2026, altrimenti le
+  micro-maiuscole con 1,8px di tracking fanno andare a capo il nome a
+  390px); (2) **i piatti dicono cosa compra la tariffa in ✓ righe**
+  (`includes[]`, 2–5 per piano, il build rifiuta fuori da quel range), una
+  riga di testo e basta; (3) **il contenuto macchina dopo quello umano**:
+  la scheda `.enbref` sta sotto la FAQ, la striscia di famiglia è
+  «Amsterdam · BOOM Rome» e il menu mobile porta alla home, non al
+  catalogo di Roma. **Il budget è nel test** (`tests/cities/run.mjs`, per
+  ogni pagina costruita: hero ≤ 60 parole, porta ≤ 110, ogni piatto ≤ 50,
+  controlli ≤ 170, corpo senza FAQ ≤ 950): la pagina non può ingrassare di
+  nuovo senza che una suite lo dica.
 - **La card social** si genera dal repo: `python3
   design/pages-deco/genera-og-cities.py` (card HTML dai DATI della città —
   il tabellone fermo, il «from €149» = il servizio meno caro — → Chromium
@@ -1123,12 +1147,15 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (117 — build, sistema, voce, JSON-LD =
-  pagina, rifiuti, handler VERO di `/api/city-lead` su Firestore in memoria,
-  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (27,
-  Chromium: leggibile senza JS, il tabellone che scrive AMSTERDAM nello
-  spazio riservato, prezzi che si compongono, 390px senza scroll laterale,
-  pay bar solo oltre l'hero, burger, modulo che posta JSON una volta e dice
+- Test: `node tests/cities/run.mjs` (129 — build, sistema, voce, budget di
+  parole, chip e ✓ dai piani, scheda dopo la FAQ, JSON-LD = pagina,
+  rifiuti, handler VERO di `/api/city-lead` su Firestore in memoria, guardie
+  in ordine nel sorgente) + `node tests/cities/ui.mjs` (34, Chromium:
+  leggibile senza JS coi prezzi dei chip come testo, il tabellone che
+  scrive AMSTERDAM nello spazio riservato, prezzi che si compongono, 390px
+  senza scroll laterale coi quattro chip a una riga e la riga «searching»
+  nascosta, pay bar solo oltre l'hero, burger, nessun servizio pre-scelto e
+  il piatto che spunta il suo chip, modulo che posta JSON una volta e dice
   l'errore sul posto, reduced motion fermo, 1440 a due colonne).
 
 ### POST `/api/service-checkout`

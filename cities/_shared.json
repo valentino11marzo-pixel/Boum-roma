@@ -26,9 +26,7 @@
     "areaServed": ["Rome", "Amsterdam"]
   },
   "family": [
-    { "label": "Rome · apartments", "href": "/apartments" },
-    { "label": "Executive Roma", "href": "/executive" },
-    { "label": "Services", "href": "/services" }
+    { "label": "BOOM Rome", "href": "/" }
   ],
   "footerBoom": [
     { "label": "Home", "href": "/" },

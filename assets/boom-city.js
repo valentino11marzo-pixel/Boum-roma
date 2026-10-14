@@ -46,12 +46,13 @@
     [].forEach.call(document.querySelectorAll('.flap-prezzo'), monta);
   })();
 
-  /* ── a plate's button preselects its service in the door ─────────────── */
+  /* ── a plate's button preselects its service chip in the door ────────── */
   [].forEach.call(document.querySelectorAll('[data-service]'), function (a) {
     a.addEventListener('click', function () {
-      var s = document.getElementById('fService');
-      if (s) s.value = a.getAttribute('data-service');
-      boomTrack('select_item', { item_id: a.getAttribute('data-service'), source_page: C.SLUG });
+      var id = a.getAttribute('data-service');
+      var r = document.querySelector('input[name="service"][value="' + id + '"]');
+      if (r) r.checked = true;
+      boomTrack('select_item', { item_id: id, source_page: C.SLUG });
     });
   });
 
@@ -63,6 +64,7 @@
     var err = document.getElementById('fErr');
     var go = document.getElementById('fGo');
     var v = function (id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; };
+    var service = function () { var r = form.querySelector('input[name="service"]:checked'); return r ? r.value : ''; };
     var fail = function (key) { err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on'); };
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
@@ -81,7 +83,7 @@
         body: JSON.stringify({
           city: C.SLUG,
           name: name, email: email, phone: phone,
-          moveIn: v('fMoveIn'), budget: v('fBudget'), service: v('fService'),
+          moveIn: v('fMoveIn'), budget: v('fBudget'), service: service(),
           situation: v('fSituation'), areas: v('fAreas'), message: v('fMsg'),
           company: v('fCompany')
         })

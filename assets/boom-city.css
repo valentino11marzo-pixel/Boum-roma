@@ -72,12 +72,15 @@ section[id],#contact{scroll-margin-top:150px}
 .trust .c{color:var(--green)}
 .serving{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.8px;color:var(--t4);text-transform:uppercase;line-height:2}
 .serving b{color:var(--t2);font-weight:400}
+/* on a phone the "searching daily on" line is one more thing to read between
+   the title and the door; the same fact is the first ✓ of Full Search */
+@media(max-width:640px){.serving{display:none}}
 
 /* the door: the file card */
 .filecard{border:1px solid var(--line-gold);border-radius:20px;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(255,215,0,.04);padding:24px 24px 20px}
 @media(max-width:640px){.filecard{padding:20px 18px 16px}}
 .refline{display:flex;justify-content:space-between;gap:12px;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:16px}
-.refline b{color:var(--gold);font-weight:400}
+.refline b{color:var(--gold);font-weight:400;white-space:nowrap;text-align:right}
 .frow{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
 @media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .filecard .fld{margin-top:12px}
@@ -86,6 +89,23 @@ section[id],#contact{scroll-margin-top:150px}
   background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);
   background-position:calc(100% - 19px) 21px,calc(100% - 14px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 .fld select:focus{border-color:var(--line-gold)}
+/* THE SERVICE AS CHIPS. A dropdown hides the three doors and their price
+   behind a tap; a 2×2 grid of radio chips shows them. The radio stays in
+   the tree (keyboard, screen reader, no-JS submit), the chip is its label. */
+.chips{border:0;padding:0;min-width:0}
+.chips legend{display:block;padding:0;font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);margin-bottom:6px}
+.chipgrid{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,1fr))}
+/* .fld label (boom-2026) is (0,1,1): the chip rule must outrank it, or the
+   micro-caps and the 1.8px tracking reach the chip and wrap its name on 390px */
+.chips .chip{position:relative;display:block;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13px;color:var(--t1)}
+.chip input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.chip span{display:flex;flex-direction:column;gap:2px;min-height:50px;justify-content:center;border:1px solid var(--line);border-radius:12px;background:var(--input);padding:9px 12px;transition:border-color .3s,background .3s,box-shadow .3s}
+.chip b{font-weight:400;font-size:13px;color:var(--t1);line-height:1.3}
+.chip small{font-size:10.5px;letter-spacing:.6px;color:var(--gold)}
+.chip.unsure small{color:var(--t3)}
+.chip:hover span{border-color:var(--line-gold)}
+.chip input:checked+span{border-color:var(--gold);background:var(--gold-faint);box-shadow:inset 0 0 0 1px var(--gold)}
+.chip input:focus-visible+span{outline:2px solid var(--gold);outline-offset:2px}
 /* optional details fold away: 5 fields visible, the rest on request */
 .more{margin-top:14px;border:1px solid var(--line-soft);border-radius:12px;background:rgba(255,255,255,.015)}
 .more summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
@@ -113,7 +133,11 @@ section[id],#contact{scroll-margin-top:150px}
 .plates .sib .se{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .plates .sib.on .se{color:var(--gold)}
 .plates .sib b{font-size:19px;font-weight:300;margin-top:8px}
-.plates .sib p{font-size:12.5px;color:var(--t3);margin-top:8px;min-height:0;line-height:1.6;flex:1}
+.plates .sib p{font-size:12.5px;color:var(--t3);margin-top:8px;min-height:0;line-height:1.6}
+/* what the fee buys: ✓ lines, scanned not read */
+.plates .inc{list-style:none;margin:12px 0 0;padding:0;flex:1}
+.plates .inc li{position:relative;padding-left:18px;font-size:12.5px;color:var(--t2);line-height:1.55;margin-top:6px}
+.plates .inc li::before{content:'✓';position:absolute;left:0;top:1px;color:var(--gold);font-size:11px}
 .plates .price{margin-top:16px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
 .plates .price .flap-prezzo{font-size:28px;font-weight:300;color:var(--oro-flap);letter-spacing:0;white-space:nowrap;display:inline-block;min-height:1.27em}
 .plates .price .flap-prezzo .fc2{margin-right:.06em}

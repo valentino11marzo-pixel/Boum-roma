@@ -17,7 +17,11 @@
 //   - the FAQ schema or the Offers saying something the page doesn't show;
 //   - the build overwriting a root page it did not generate;
 //   - the lead endpoint filing a city lead into the Rome machine, or the
-//     Commerciale drafting a Rome reply to someone moving to Amsterdam.
+//     Commerciale drafting a Rome reply to someone moving to Amsterdam;
+//   - the page fattening again (14/10: "the client is going to receive too
+//     much information"): the hero column, the door, a plate, the checks or
+//     the body over its word budget; the service back in a dropdown; the
+//     fact sheet (machine content) above the FAQ.
 //
 // No browser, no network: the real build functions on the real data, and
 // the real /api/city-lead handler on a Firestore in memory.
@@ -118,13 +122,42 @@ check(!/web3forms|buy\.stripe\.com|fbq\(|connect\.facebook/i.test(html) && !/web
 const copy = JSON.stringify(ams);
 check(!/[a-z.]!["\s]/i.test(copy), 'no exclamation marks in the city copy (BOOM_CITIES_BRIEF §5 copy rules)');
 
+// the word budget: a landing client scans, they do not read. Measured on
+// 14/10 after the diet (hero column 71→51 words, main 1233→1117, plates
+// 53/42/41→47/39/41, checks 178→153): the ceilings sit just above, so the
+// page cannot fatten again without this suite saying so. FAQ answers are
+// folded behind <details> and excluded from the body budget.
+const wordsOf = (s) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ')
+  .split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length;
+const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
+const BUDGET = { heroColumn: 60, door: 110, plate: 50, checks: 170, body: 950 };
+for (const p of pages) {
+  const m = slice(p.html, '<main id="main">', '</main>');
+  const hero = wordsOf(slice(p.html, '<header class="hero">', '<!-- THE DOOR'));
+  const door = wordsOf(slice(p.html, '<div class="filecard">', '<p class="machine"'));
+  const plates = [...m.matchAll(/<article class="sib[\s\S]*?<\/article>/g)].map((x) => wordsOf(x[0]));
+  const checksW = wordsOf(slice(m, '<div class="flows">', '</section>'));
+  const faqA = [...m.matchAll(/<div class="a">([\s\S]*?)<\/div>/g)].reduce((n, x) => n + wordsOf(x[1]), 0);
+  const body = wordsOf(m) - faqA;
+  check(hero > 0 && hero <= BUDGET.heroColumn, `${p.slug}: the hero column is ${hero} words (≤ ${BUDGET.heroColumn}) — title, one line, two proofs`);
+  check(door > 0 && door <= BUDGET.door, `${p.slug}: the door reads in ${door} words (≤ ${BUDGET.door})`);
+  check(plates.length === 3 && plates.every((w) => w <= BUDGET.plate), `${p.slug}: every plate ≤ ${BUDGET.plate} words (${plates.join(' · ')})`);
+  check(checksW > 0 && checksW <= BUDGET.checks, `${p.slug}: the six checks in ${checksW} words (≤ ${BUDGET.checks})`);
+  check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers is ${body} words (≤ ${BUDGET.body})`);
+}
+
 // the door
 check(html.includes('<form id="cityForm" novalidate') && read('assets/boom-city.js').includes("fetch(C.LEAD_ENDPOINT || '/api/city-lead'")
   && html.includes('"LEAD_ENDPOINT": "/api/city-lead"'), 'the form posts to /api/city-lead');
 check(/<input id="fCompany" name="company"[^>]*tabindex="-1"[^>]*aria-hidden="true">/.test(html)
   && !/<label[^>]*>[^<]*ompany/.test(html), 'the honeypot is a hidden field named company, and no visible field shares the name');
-const visibleFields = (html.match(/<(input|select|textarea) id="f(Name|Email|MoveIn|Budget|Service)"/g) || []).length;
-check(visibleFields === 5, `five visible fields, the rest behind "More details" (${visibleFields})`);
+const visibleFields = (html.match(/<(input|select|textarea) id="f(Name|Email|MoveIn|Budget)"/g) || []).length;
+const chips = [...html.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span><b>([^<]*)<\/b><small>([^<]*)<\/small><\/span><\/label>/g)];
+check(visibleFields === 4 && chips.length === ams.pricing.plans.length + 1 && html.indexOf('class="fld chips"') < html.indexOf('<details class="more">'),
+  `four visible fields + the service chips, the rest behind "More details" (${visibleFields} fields, ${chips.length} chips)`);
+check(!/fService/.test(html) && !/fService/.test(read('assets/boom-city.js')) && /input\[name="service"\]:checked/.test(read('assets/boom-city.js')),
+  'the service is never a dropdown: the three doors and their price are read without a tap, and the JS reads the checked chip');
+check(!/<input type="radio" name="service"[^>]*checked/.test(html), 'no chip is pre-checked: the service is the client\'s choice, or "service to decide"');
 check(html.includes('<details class="more">') && /id="fPhone"[\s\S]*<\/details>/.test(html.slice(html.indexOf('<details class="more">'))),
   'phone, situation, neighbourhoods and the message fold away');
 check(html.includes(`href="https://wa.me/${shared.contact.whatsapp}"`) && html.includes(`mailto:${shared.contact.email}`) && !/39X{4,}/.test(html),
@@ -165,10 +198,16 @@ const offers = (svc.offers || []).map((o) => [o.name, o.price]);
 check(JSON.stringify(offers) === JSON.stringify(ams.pricing.plans.map((p) => [p.label, String(p.price)]))
   && JSON.stringify(plateIds) === JSON.stringify(ams.pricing.plans.map((p) => p.id)),
   `every Offer is a plate on the page at the price on its board: ${offers.map((o) => o.join(' €')).join(' · ')}`);
-const optionPrices = [...html.matchAll(/<option value="([^"]+)">[^<]* — €([\d,]+)/g)].map((m) => [m[1], m[2].replace(/,/g, '')]);
-check(optionPrices.length === 3 && optionPrices.every(([id, p]) => ams.pricing.plans.some((pl) => pl.id === id && String(pl.price) === p))
-  && html.includes(`<option value="unsure">${esc(ams.form.service.unsure)}</option>`),
-  'the form\'s service prices come from the plans (one price, one place) + "not sure yet"');
+const chipPrices = chips.filter((m) => m[2] !== 'unsure').map((m) => [m[2], m[3], m[4]]);
+check(chipPrices.length === 3 && chipPrices.every(([id, label, small]) => ams.pricing.plans.some((pl) => pl.id === id && pl.label === label && small.startsWith(eur(pl.price))))
+  && chips.some((m) => m[2] === 'unsure' && m[3] === esc(ams.form.service.unsure) && m[4] === esc(ams.form.service.unsureSub)),
+  'the chips\' prices come from the plans (one price, one place) + "not sure yet · advise me"');
+check(ams.pricing.plans.every((p) => html.includes(`<ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`)),
+  'what each fee buys is a ✓ list on its plate, straight from includes[] — never a paragraph');
+check(html.indexOf('id="enbref"') > html.indexOf('id="faq"') && html.indexOf('id="enbref"') < html.indexOf('class="band rv"'),
+  'the fact sheet (machine content) sits AFTER the FAQ and before the final band: human content first');
+check(html.includes('<a href="/" class="mobile-menu-link">BOOM Rome</a>') && !/Rome · apartments/.test(html),
+  'the menu leads to BOOM Rome, never to the Rome catalogue (a tenant landing for Amsterdam is not shopping Rome flats)');
 check(html.includes(`<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.`),
   'the fact sheet\'s fees row is DERIVED from the plans (the quotable ledger cannot drift)');
 check(svc.areaServed && svc.areaServed.name === 'Amsterdam' && svc.audience && svc.audience.audienceType && svc.provider['@id'] === org['@id'],
@@ -233,9 +272,13 @@ check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{
   const live = clone(ams); delete live.live;
   check(throws(() => render(live), /"live" must be true or false/) === true, '"live" must be explicit');
   const dup = clone(ams); dup.pricing.plans[1].id = 'full-search';
-  check(throws(() => render(dup), /must be unique/) === true, 'two plans cannot share an id (the select and the plates key on it)');
+  check(throws(() => render(dup), /must be unique/) === true, 'two plans cannot share an id (the chips and the plates key on it)');
   const nolabel = clone(ams); delete nolabel.pricing.plans[2].label;
-  check(throws(() => render(nolabel), /needs label, se, name, text, per, cta/) === true, 'a plan without its label is refused (the Offer and the select print it)');
+  check(throws(() => render(nolabel), /needs label, se, name, text, per, cta/) === true, 'a plan without its label is refused (the Offer and the chips print it)');
+  const noinc = clone(ams); noinc.pricing.plans[0].includes = ['one'];
+  check(throws(() => render(noinc), /needs includes: 2–5 lines/) === true, 'a plan with fewer than two ✓ lines is refused (a plate must say what the fee buys)');
+  const longinc = clone(ams); longinc.pricing.plans[0].includes = ['a', 'b', 'c', 'd', 'e', 'f'];
+  check(throws(() => render(longinc), /needs includes: 2–5 lines/) === true, 'and more than five is a paragraph in disguise');
   const price = clone(ams); price.pricing.plans[0].price = 'call us';
   check(throws(() => render(price), /needs a positive price/) === true, 'a plan price must be a positive number');
   const nosteps = clone(ams); nosteps.how.steps = [];

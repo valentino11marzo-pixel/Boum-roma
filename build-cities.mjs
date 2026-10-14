@@ -101,11 +101,14 @@ const R = {
 
   budgetOptions: (c) => list(c, 'form.budgetOptions').map((o) => `              <option>${esc(o)}</option>`).join('\n'),
 
-  // The service <select> is built from the plans: one price, one place.
-  serviceOptions: (c) => [
+  // The service chips are built from the plans: one price, one place. Radio
+  // buttons in a visible grid (never a dropdown: the three doors and their
+  // cost must be read without a tap) + "not sure yet". None is pre-checked —
+  // the server reads a missing service as "service to decide".
+  serviceChips: (c) => [
     ...list(c, 'pricing.plans').map((p) =>
-      `            <option value="${esc(p.id)}">${esc(p.label)} — ${eur(p.price)}${p.unit ? ' ' + esc(p.unit) : ''}</option>`),
-    `            <option value="unsure">${esc(c.form.service.unsure)}</option>`
+      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)}${p.unit ? ' · ' + esc(p.unit) : ''}</small></span></label>`),
+    `              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>${esc(c.form.service.unsure)}</b><small>${esc(c.form.service.unsureSub)}</small></span></label>`
   ].join('\n'),
 
   machineItems: (c) => list(c, 'machine.items').map((s) => `·<span>${esc(s)}</span>`).join(''),
@@ -122,12 +125,15 @@ const R = {
     .join(' <span class="sep">→</span> ') + ` <span class="sep">→</span> <span class="land">${esc(c.how.tlineLand)}</span>`,
 
   // The price is a Solari board: the text is in the node for no-JS, data-p
-  // for the mount (assets/boom-city.js) — never two different numbers.
+  // for the mount (assets/boom-city.js) — never two different numbers. What
+  // the fee buys is a list of ✓ lines, never a paragraph: a client landing
+  // from abroad scans, they do not read.
   plans: (c) => list(c, 'pricing.plans').map((p) => [
     `      <article class="sib${p.featured ? ' on' : ''}" id="plan-${esc(p.id)}">`,
     `        <div class="se"><span>${esc(p.se)}</span></div>`,
     `        <b>${esc(p.name)}</b>`,
     `        <p>${esc(p.text)}</p>`,
+    `        <ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
     `        <div class="price"><span class="flap-prezzo flap-scale" data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span><small>${esc(p.per)}</small></div>`,
     `        <a class="go" href="#contact" data-service="${esc(p.id)}">${esc(p.cta)} →</a>`,
     '      </article>'
@@ -275,6 +281,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(/^[a-z0-9-]+$/.test(p.id || '') && !ids.has(p.id), where, `plan id "${p.id}" must be unique, lowercase and dashed`);
     ids.add(p.id);
     need(p.label && p.se && p.name && p.text && p.per && p.cta, where, `plan "${p.id}" needs label, se, name, text, per, cta`);
+    need(Array.isArray(p.includes) && p.includes.length >= 2 && p.includes.length <= 5 && p.includes.every((x) => typeof x === 'string' && x.trim()),
+      where, `plan "${p.id}" needs includes: 2–5 lines of what the fee buys`);
     need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
   }
 
@@ -313,7 +321,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     familyHtml: R.family(shared, city),
     trustHtml: R.trust(city),
     budgetOptionsHtml: R.budgetOptions(city),
-    serviceOptionsHtml: R.serviceOptions(city),
+    serviceChipsHtml: R.serviceChips(city),
     machineItemsHtml: R.machineItems(city),
     stepsHtml: R.steps(city),
     tlineHtml: R.tline(city),

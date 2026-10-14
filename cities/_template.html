@@ -97,7 +97,7 @@
     <a href="#services" class="mobile-menu-link">{{nav.services}}</a>
     <a href="#checks" class="mobile-menu-link">{{nav.checks}}</a>
     <a href="#faq" class="mobile-menu-link">{{nav.faq}}</a>
-    <a href="/apartments" class="mobile-menu-link">Rome · apartments</a>
+    <a href="/" class="mobile-menu-link">BOOM Rome</a>
   </div>
   <a href="#contact" class="mobile-menu-cta">{{nav.cta}}</a>
 </div>
@@ -132,7 +132,7 @@
       <p class="serving h-4">{{hero.servingLead}} — <b>{{hero.servingNames}}</b></p>
     </div>
 
-    <!-- THE DOOR: five fields, everything else folds away -->
+    <!-- THE DOOR: four fields and the service chips, everything else folds away -->
     <div class="h-5" id="contact">
       <div class="filecard">
         <div class="refline"><span>{{form.ref}}</span><b>{{form.refRight}}</b></div>
@@ -150,9 +150,13 @@
 {{{budgetOptionsHtml}}}
             </select></div>
           </div>
-          <div class="fld"><label for="fService">{{form.service.label}}</label><select id="fService" name="service">
-{{{serviceOptionsHtml}}}
-          </select></div>
+          <!-- the service: chips with the price in view, never a dropdown — the
+               three doors and their cost are read without a tap -->
+          <fieldset class="fld chips"><legend>{{form.service.label}}</legend>
+            <div class="chipgrid">
+{{{serviceChipsHtml}}}
+            </div>
+          </fieldset>
 
           <details class="more">
             <summary>{{form.more}}</summary>
@@ -236,16 +240,6 @@
     </div>
   </section>
 
-  <!-- ═══ in brief — written to be quoted (GEO) ═══ -->
-  <section id="enbref-wrap" class="rv">
-    <div class="enbref" id="enbref">
-      <h2>{{bref.h2}}<span class="ref">{{bref.ref}}</span></h2>
-      <dl>
-{{{brefHtml}}}
-      </dl>
-    </div>
-  </section>
-
   <!-- ═══ FAQ — the depth, folded away ═══ -->
   <section id="faq" class="rv">
     <div class="sec-h">
@@ -254,6 +248,16 @@
     </div>
     <div class="faq">
 {{{faqHtml}}}
+    </div>
+  </section>
+
+  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human content: it sits below the FAQ ═══ -->
+  <section id="enbref-wrap" class="rv">
+    <div class="enbref" id="enbref">
+      <h2>{{bref.h2}}<span class="ref">{{bref.ref}}</span></h2>
+      <dl>
+{{{brefHtml}}}
+      </dl>
     </div>
   </section>
 
