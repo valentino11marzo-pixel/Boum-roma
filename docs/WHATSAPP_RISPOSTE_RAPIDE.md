@@ -5,7 +5,7 @@
 > I testi vivono in una copia sola, letta anche dalla pagina `/risposte`
 > (da cui si copiano col pollice) e dai test.
 
-**14 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
+**15 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
 
 Le altre 15 restano nel mazzo: vivono qui e su `/risposte`, si cercano e si
 copiano quando capita il caso raro, senza occupare uno slot nel telefono. L'app ne accetta
@@ -78,7 +78,7 @@ Si sincronizzano poi sul telefono da sole.
 Apri **`/risposte`** sul telefono (o sul computer, è la stessa pagina): ogni risposta ha
 il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
 
-### Le 14 da caricare
+### Le 15 da caricare
 
 - `/enlead` — Primo contatto — la telefonata
 - `/engone` — Quella casa è andata
@@ -94,6 +94,7 @@ il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
 - `/enblock` — Chiudere
 - `/itciao` — Primo contatto in italiano
 - `/prciao` — Primo contatto col proprietario
+- `/prriaffitto` — Riaffitto (mezza mensilità)
 
 Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.
 
@@ -501,7 +502,7 @@ Il conto completo: https://www.boomrome.com/your-money
 ```
 <sub>Pronta così com'è — 420 caratteri</sub>
 
-### Proprietario · Italiano — 2
+### Proprietario · Italiano — 3
 
 *Sempre in italiano e sempre col LEI. È il cliente che ci affida un bene.*
 
@@ -518,9 +519,26 @@ Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale
 
 Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. https://www.boomrome.com/canone
+Mi dica zona e metri quadri: le scrivo quanto rende. Il concordato lo calcola qui: https://www.boomrome.com/canone
 ```
-<sub>Da riempire: [NOME] — 505 caratteri</sub>
+<sub>Da riempire: [NOME] — 507 caratteri</sub>
+
+#### `/prriaffitto` · Riaffitto (mezza mensilità) ⭐
+
+**Quando:** «Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari. Sì: se la casa l'abbiamo già affittata noi è il passo 2 della scala di /owners (mezza mensilità); se no, è una prima locazione (niente provvigione, solo le pratiche). La risposta dice entrambe le cose.
+
+**Vende contro:** i mesi di casa vuota fra un inquilino e l'altro
+
+```
+Sì, possiamo fare solo il riaffitto, senza altri impegni.
+
+Se l'abbiamo già affittata noi: mezza mensilità del nuovo canone + IVA (su €1.400, €854 in tutto), solo se il nuovo inquilino firma, registrazione compresa; l'attestazione, se serve, €189. Se è la prima volta con noi: niente provvigione, solo le pratiche (€278 IVA inclusa, €89 senza attestazione).
+
+Mi dice quando esce l'inquilino? La mostriamo già con quella data.
+
+https://www.boomrome.com/owners#costi
+```
+<sub>Pronta così com'è — 464 caratteri</sub>
 
 #### `/prpack` · Pacchetto concordato (€349) · 🪑 panchina
 
@@ -531,13 +549,13 @@ Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero
 ```
 Il vantaggio è la cedolare al 10% invece del 21%. Il fastidio sono verifica del canone, contratto conforme, attestazione e registrazione RLI.
 
-Ce ne occupiamo noi: €349 una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia.
+Ce ne occupiamo noi: €349 IVA inclusa, una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela dico prima.
 
 https://www.boomrome.com/pacchetto-concordato
 
-Se mi manda i dati glielo calcolo sui suoi numeri, prima di decidere.
+Il conto della sua casa lo vede subito qui, prima di decidere: https://www.boomrome.com/canone
 ```
-<sub>Pronta così com'è — 380 caratteri</sub>
+<sub>Pronta così com'è — 505 caratteri</sub>
 
 ### Aziende ed enti — 1
 

@@ -114,9 +114,22 @@ export const RESEARCH_URL    = 'https://www.boomrome.com/research';
  */
 export function isB2B(lead = {}) {
   if (!lead || typeof lead !== 'object') return false;
+  // La Réunion ha la SUA guardia (isReunion, sempre valutata prima): un
+  // propriétaire di Saint-Pierre non è un proprietario romano.
+  if (isReunion(lead)) return false;
   if (String(lead.source || '').toLowerCase() === 'partner') return true;
   if (String(lead.leadType || '').toLowerCase() === 'company') return true;
-  return /^partner-/.test(String(lead.intent || '').toLowerCase());
+  // IL PROPRIETARIO ROMANO (30/09/2026). Il calcolatore /canone scrive
+  // `leadType:'landlord'` da mesi con `source:'web'`, e questa funzione non
+  // lo vedeva: il Commerciale redigeva per lui la prima risposta con la
+  // persona dell'INQUILINO («ti andrebbe di fissare una visita?») e il
+  // follow-up «stai ancora cercando casa a Roma?» — a chi una casa la OFFRE.
+  // Ora anche la pagina /owners scrive qui (api/owner-lead.js): chi offre un
+  // immobile parla con la voce del proprietario, mai con quella dell'inquilino.
+  if (String(lead.leadType || '').toLowerCase() === 'landlord') return true;
+  const intent = String(lead.intent || '').toLowerCase();
+  if (intent === 'owner') return true;
+  return /^partner-/.test(intent);
 }
 
 /**
@@ -146,15 +159,7 @@ export function b2bReplyText(lead = {}) {
   const kind = String(lead && lead.partner && lead.partner.kind || '').toLowerCase();
   const url = kind === 'university' ? UNIVERSITIES_URL : kind === 'research' ? RESEARCH_URL : CORPORATE_URL;
 
-  if (b2bSide(lead) === 'owner') {
-    return en
-      ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for telling us about your property.\n` +
-         `To give you a straight answer: which zone, when does it free up, furnished or not? ` +
-         `I'll come back today with what we'd do and the numbers in writing.`)
-      : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per averci scritto del tuo immobile.\n` +
-         `Per darti una risposta seria: che zona, da quando è libero, arredato o no? ` +
-         `Ti torno in giornata con cosa faremmo e i numeri per iscritto.`);
-  }
+  if (b2bSide(lead) === 'owner') return ownerReplyText(lead);
   return en
     ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for reaching out about housing for your people.\n` +
        `To move fast: how many people, from when, and for roughly how long? ` +
@@ -162,4 +167,129 @@ export function b2bReplyText(lead = {}) {
     : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per il contatto: sistemare le vostre persone a Roma è esattamente il nostro lavoro.\n` +
        `Per fare presto: quante persone, da quando e per quanto tempo? ` +
        `Ti torno in giornata con opzioni reali e la forma contrattuale giusta per ogni soggiorno.\n${url}`);
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un PROPRIETARIO romano.
+ *
+ * Due regole della dottrina delle risposte rapide (js/whatsapp-replies.js,
+ * famiglia `pr`): «Sempre in italiano e sempre col LEI — è il cliente che ci
+ * affida un bene», e la prova è un meccanismo, mai un aggettivo. Più una
+ * regola nuova, nata con la pagina /owners: NON si richiede ciò che il
+ * proprietario ha già scritto nel modulo. La vecchia versione chiedeva «che
+ * zona, da quando è libero, arredato o no?» a chi l'aveva appena detto.
+ *
+ * La lingua: le SUE parole (la nota nel modulo, o il messaggio) battono la
+ * dichiarazione; senza parole vale la lingua della pagina che ha scelto.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function ownerReplyText(lead = {}) {
+  const o = (lead && lead.owner) || {};
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const langSrc = o.note != null || lead.owner
+    ? { message: o.note || '', language: o.lang || lead.language }
+    : lead;
+  const en = replyLang(langSrc) !== 'it';
+  const zone = o.zone || lead.zone || null;
+  const FREE = {
+    it: { now: 'libero da subito', soon: 'libero entro tre mesi', later: 'libero più avanti', rented: 'oggi affittato' },
+    en: { now: 'free now', soon: 'free within three months', later: 'free later on', rented: 'currently let' },
+  };
+  const FURN = {
+    it: { yes: 'arredato', partial: 'parzialmente arredato', no: 'vuoto' },
+    en: { yes: 'furnished', partial: 'part-furnished', no: 'unfurnished' },
+  };
+  const L = en ? 'en' : 'it';
+  const known = [];
+  if (o.sqm) known.push(`${Math.round(o.sqm)} ${en ? 'sqm' : 'mq'}`);
+  if (o.furnished && FURN[L][o.furnished]) known.push(FURN[L][o.furnished]);
+  if (o.freeFrom && FREE[L][o.freeFrom]) known.push(FREE[L][o.freeFrom]);
+  // Il riaffitto (secondo passo della scala di /owners): la casa la
+  // conosciamo già, quindi NON si chiede se è arredata; si chiede DI QUALE
+  // casa si tratta e quando esce l'inquilino. Il prezzo non si scrive qui:
+  // un messaggio già pronto non deve impegnare BOOM su una cifra.
+  const relet = o.goal === 'relet';
+  // Il proprietario che ha fatto il conto su /canone: la risposta CITA il
+  // conto (zona, metri, massimo, il PDF) e non richiede nulla di ciò che il
+  // conto sa già — né la zona, né i metri, né se è arredata (l'arredo non
+  // alza il massimo concordato). Si chiede solo se la casa è libera, se non
+  // l'ha detto, e si propone la verifica delle dotazioni a voce.
+  // Chi ha chiesto di affittarla, trovare l'inquilino o riaffittare riceve la
+  // risposta del SUO passo: il conto si cita in una riga, non la sostituisce.
+  const askedService = ['full', 'find', 'relet'].indexOf(o.goal) !== -1;
+  if (o.conto && o.conto.zone && !askedService) return contoReply(o, first, en);
+  const missing = [];
+  if (!zone) missing.push(relet ? (en ? 'which property it is' : 'di quale immobile si tratta')
+    : (en ? 'which area it is in' : 'in che zona si trova'));
+  // La pagina, a «oggi è affittata», chiede di scrivere la scadenza nelle
+  // note: se l'ha scritta, il messaggio non gliela richiede.
+  const saysWhen = /\b\d{1,2}\s*[\/.\-]\s*\d{1,2}\b|\b\d{1,2}\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic|jan|jun|jul|aug|sep|oct|dec)|\b(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|january|february|march|april|june|july|august|september|october|november|december)\b|\bscad|\bexpir|\bfino al\b|\buntil\b|\bends?\b/i
+    .test(String(o.note || ''));
+  if (relet && o.freeFrom === 'rented') { if (!saysWhen) missing.push(en ? 'when the current tenant moves out' : 'quando esce l\'inquilino attuale'); }
+  else if (!o.freeFrom) missing.push(en ? 'when it frees up' : 'da quando è libero');
+  if (!o.furnished && !relet) missing.push(en ? 'whether it is furnished' : 'se è arredato');
+  const join = (arr, and) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ' + and + ' ' + arr[arr.length - 1];
+
+  if (en) {
+    return [
+      relet
+        ? `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for writing to us about re-letting your property${zone ? ' in ' + zone : ''}.`
+        : `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for telling us about your property${zone ? ' in ' + zone : ''}.`,
+      known.length ? `I've noted: ${known.join(', ')}.` : null,
+      o.conto && o.conto.zone ? `I also saw your calculation: on agreed rent the maximum is ${contoRange(o.conto, true)} a month${o.conto.pdfUrl ? ' (PDF: ' + o.conto.pdfUrl + ')' : ''}.` : null,
+      missing.length ? `So I can give you a straight answer, could you tell me ${join(missing, 'and')}?` : null,
+      relet ? `I'll come back today with the new rent and the re-letting terms, in writing.`
+        : `I'll come back today with what we would do and the numbers in writing.`,
+    ].filter(Boolean).join('\n');
+  }
+  return [
+    relet
+      ? `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto per riaffittare il suo immobile${zone ? ' a ' + zone : ''}.`
+      : `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto del suo immobile${zone ? ' a ' + zone : ''}.`,
+    known.length ? `Ho annotato: ${known.join(', ')}.` : null,
+    o.conto && o.conto.zone ? `Ho visto anche il conto che ha fatto: a canone concordato il massimo è ${contoRange(o.conto, false)} al mese${o.conto.pdfUrl ? ' (PDF: ' + o.conto.pdfUrl + ')' : ''}.` : null,
+    missing.length ? `Per darle una risposta seria, mi dice ${join(missing, 'e')}?` : null,
+    relet ? `Le torno in giornata con il nuovo canone e le condizioni del riaffitto, per iscritto.`
+      : `Le torno in giornata con cosa faremmo e i numeri per iscritto.`,
+  ].filter(Boolean).join('\n');
+}
+
+const eurIt = n => '€' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+const eurEn = n => '€' + String(Math.round(Number(n) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+function contoRange(c, en) {
+  const E = en ? eurEn : eurIt;
+  if (c.declared) return E(c.max);
+  if (!c.fasce.C) return E(c.fasce.A);
+  return en ? `between ${E(c.fasce.A)} and ${E(c.fasce.C)}` : `tra ${E(c.fasce.A)} e ${E(c.fasce.C)}`;
+}
+function contoReply(o, first, en) {
+  const c = o.conto;
+  const E = en ? eurEn : eurIt;
+  const where = `${c.zone.label}, ${Math.round(c.mq)} ${en ? 'sqm' : 'mq'}`;
+  let num;
+  if (c.declared) {
+    num = en ? `on the agreed-rent tables the maximum is ${E(c.max)} a month (band ${c.fascia})`
+      : `sulle tabelle dell'Accordo il massimo a canone concordato è ${E(c.max)} al mese (fascia ${c.fascia})`;
+  } else if (!c.fasce.C) {
+    num = en ? `on the agreed-rent tables the maximum is ${E(c.fasce.A)} a month (band A)`
+      : `sulle tabelle dell'Accordo il massimo a canone concordato è ${E(c.fasce.A)} al mese (fascia A)`;
+  } else {
+    num = en ? `on the agreed-rent tables the maximum is between ${E(c.fasce.A)} and ${E(c.fasce.C)} a month, depending on its features`
+      : `sulle tabelle dell'Accordo il massimo a canone concordato è tra ${E(c.fasce.A)} e ${E(c.fasce.C)} al mese, secondo le dotazioni`;
+  }
+  const free = o.freeFrom;
+  const ask = !free ? (en ? 'Is the home free at the moment, or already let?' : 'La casa oggi è libera o già affittata?') : null;
+  const next = free === 'rented'
+    ? (en ? 'If the tenant is already there, the concordato is paperwork: lease, attestation and registration. I can tell you exactly what is needed.'
+      : 'Se l\'inquilino c\'è già, il concordato è una questione di carte: contratto, attestazione e registrazione. Le dico esattamente cosa serve.')
+    : (en ? 'If you like, I can call you to go through the features together: they decide the band, and they must hold up at the attestation.'
+      : 'Se vuole, la chiamo per verificare insieme le dotazioni: decidono la fascia, e devono reggere all\'attestazione.');
+  return [
+    en ? `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma. I saw the calculation you ran for your home in ${where}: ${num}.`
+      : `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Ho visto il conto che ha fatto per la sua casa a ${where}: ${num}.`,
+    c.pdfUrl ? (en ? `Here it is in PDF: ${c.pdfUrl}` : `Glielo lascio in PDF: ${c.pdfUrl}`) : null,
+    ask,
+    next,
+  ].filter(Boolean).join('\n');
 }

@@ -121,7 +121,7 @@
     <a href="/portal" style="color:var(--gold, #D4AF37);text-decoration:none;font-size:12px;letter-spacing:1px;display:inline-block;margin-bottom:8px">← Portale</a>
     <div class="mark">BOOM · WhatsApp Business</div>
     <h1>Risposte rapide</h1>
-    <p class="lead"><b>Carichi 14 risposte nell'app, una volta sola.</b> Poi in chat digiti
+    <p class="lead"><b>Carichi <span class="n-inst">15</span> risposte nell'app, una volta sola.</b> Poi in chat digiti
       <b>/</b> e la scorciatoia, e il messaggio è già scritto. Le altre restano qui: quando
       serve un caso raro, cerchi e copi al volo — senza occupare uno slot nel telefono.
       <span id="hdr-n"></span></p>
@@ -149,10 +149,10 @@
         È la via più veloce per caricarle tutte: si incolla con Ctrl+V invece di digitare sul telefono,
         e si sincronizzano poi sul telefono da sole.</li>
       <li>Per ognuna: <b>Copia</b> qui → incolla il messaggio → scrivi la scorciatoia (senza la barra) → salva.
-        <b>Sono 14</b>, circa 10 minuti in tutto.</li>
+        <b>Sono <span class="n-inst">15</span></b>, circa 10 minuti in tutto.</li>
     </ol>
     <div class="note">
-      <b>Ne carichi 14, non 50.</b> Sono quelle che useresti questa settimana — le altre 38 vivono
+      <b>Ne carichi <span class="n-inst">15</span>, non 50.</b> Sono quelle che useresti questa settimana — le altre <span class="n-bench">15</span> vivono
       qui e si copiano quando capita il caso raro (Réunion, ricercatori, link di firma…). Il tasto ✓
       su ogni scheda ricorda quali hai già caricato, così puoi finire in un secondo momento.
     </div>
@@ -378,6 +378,11 @@
     + '<span style="color:var(--gold)">[LINK]</span> e li incolli tu.';
   lk.appendChild(warn);
 
+  // I conteggi del testo si leggono dal modulo: scritti a mano erano
+  // invecchiati (14 e 38 quando le risposte erano già altre).
+  var nInst = WA.installed().length;
+  Array.prototype.forEach.call(document.querySelectorAll('.n-inst'), function (el) { el.textContent = nInst; });
+  Array.prototype.forEach.call(document.querySelectorAll('.n-bench'), function (el) { el.textContent = WA.REPLIES.length - nInst; });
   document.getElementById('hdr-n').textContent =
     WA.REPLIES.length + ' risposte pronte, in ' + WA.FAMILIES.length + ' famiglie.';
   render();
