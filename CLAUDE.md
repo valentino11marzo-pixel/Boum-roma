@@ -147,6 +147,14 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
+- **Produzione da un ramo ≠ main (14/10/2026)**: quando la produzione gira su
+  un deploy di un ramo (Codex lo fa per i rilasci in corso), il primo merge
+  su main RIAVVIA la produzione da main e toglie dal sito quello che main non
+  ha — successo col merge di #288: per ore la Home connessa e il rilascio
+  tenant sono spariti. Prima di unire su main, guarda cosa serve la
+  produzione (`list_deployments` target production, `githubCommitRef`); se
+  è un altro ramo, prima si integra, poi si unisce. Un deploy già READY non
+  si annulla: si ripara con un nuovo deploy della build integrata.
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
 - **Function configuration limit (21/09)**: Vercel rejects more than 50
