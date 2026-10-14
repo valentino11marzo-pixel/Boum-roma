@@ -10,11 +10,15 @@ const server=createServer((req,res)=>{res.setHeader('Content-Type','text/html; c
 await new Promise(r=>server.listen(0,'127.0.0.1',r));
 const base='http://127.0.0.1:'+server.address().port;
 const artifactsDir=await mkdtemp(join(tmpdir(),'boom-home-ui-'));
+// CI used to fail after midnight Rome but before midnight UTC. Keep that
+// boundary deterministic while ordinary timers and rendering continue to run.
+const fixtureNow=new Date('2026-10-14T22:25:00Z');
 let browser,checks=0;const check=async(name,fn)=>{await fn();console.log('PASS '+name);checks++;};
 try{
  browser=await chromium.launch(launchOptions({headless:true}));
  for(const width of [1440,390,320]){
-  const page=await browser.newPage({viewport:{width,height:1000}});page.setDefaultTimeout(4000);
+  const page=await browser.newPage({viewport:{width,height:1000},timezoneId:'UTC'});page.setDefaultTimeout(4000);
+  await page.clock.setFixedTime(fixtureNow);
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   const openDetails=async selector=>{if(!await page.locator(selector).evaluate(e=>e.open))await page.locator(selector+' > summary').click();};
   await page.route('**/*',r=>r.request().url().startsWith(base)?r.continue():r.abort());
@@ -188,7 +192,7 @@ try{
   await page.screenshot({path:join(artifactsDir,'home-'+width+'.png'),fullPage:true});
   await page.close();
  }
- const page=await browser.newPage();await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
+ const page=await browser.newPage({timezoneId:'UTC'});await page.clock.setFixedTime(fixtureNow);await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
  await check('cambio identità scarta una lettura vecchia e non mostra la vecchia agenda',async()=>{
   await page.evaluate(()=>{testIO.holdViewings=true;window.oldRead=oggiLoadViewings();});
   await page.waitForFunction(()=>testIO.pendingReads.length===1);
@@ -196,6 +200,21 @@ try{
   assert.doesNotMatch(await page.locator('#ogAgendaPanel').innerText(),/Casa Aurora/);
   await page.evaluate(async()=>{testIO.holdViewings=false;testIO.pendingReads.shift()();await oldRead;});
   assert.doesNotMatch(await page.locator('#ogAgendaPanel').innerText(),/Casa Aurora/);
+ });
+ await page.close();
+ for(const timezoneId of ['UTC','Europe/Rome'])for(const [instant,day] of [
+  ['2026-10-14T21:59:59Z','2026-10-14'],['2026-10-14T22:00:00Z','2026-10-15'],
+  ['2026-12-14T22:59:59Z','2026-12-14'],['2026-12-14T23:00:00Z','2026-12-15']
+ ])await check('agenda fixture attraversa mezzanotte Roma · '+timezoneId+' · '+instant,async()=>{
+  const p=await browser.newPage({viewport:{width:390,height:1000},timezoneId});
+  try{
+   await p.clock.setFixedTime(new Date(instant));await p.goto(base);await p.waitForFunction(()=>oggiSegretaria.loaded);
+   assert.equal(await p.evaluate(()=>S._viewingsSource),'ready');
+   assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible(),true);
+   assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Giardino',{exact:true}).isVisible(),true);
+   assert.deepEqual(await p.evaluate(()=>oggiWorkspace.agenda.map(v=>[v.id,v.dateKey,v.label])),[['v-demo',day,'Oggi'],['v-proposta',day,'Oggi']]);
+   assert.equal(await p.evaluate(()=>testIO.writes.length),0);
+  }finally{await p.close();}
  });
  console.log(checks+' verifiche home superate. Screenshot diagnostici: '+artifactsDir);
 }finally{await browser?.close();await new Promise(r=>server.close(r));}
