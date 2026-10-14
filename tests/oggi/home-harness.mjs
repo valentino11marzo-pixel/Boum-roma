@@ -24,7 +24,7 @@ const followUpMutations = ['clean','inputText','precondition'].map(name=>{
 }).join('\n')+'\n'+between(followUpSource,'export function checkTimestamp(','export async function captureFollowUp(')
  +'\nconst TZ="Europe/Rome";\n'+between(availabilitySource,'function romeCalendarParts(','const hhmm =')
  +'\n'+between(followUpSource,'export async function updateFollowUp(');
-const scripts = ['oggi-engine','oggi-workspace-engine','oggi-desk-engine','portal-search-engine','portal-search-archive','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
+const scripts = ['oggi-engine','oggi-workspace-engine','oggi-desk-engine','portal-search-engine','portal-search-archive','inbox-context-engine','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
 export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span><small style="display:block;margin-top:4px;font-weight:400">Le modifiche durano fino al ricaricamento.</small></div><div class="demo-brand">BOOM <button type="button" onclick="oggiSegretariaOpen('sg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','','message')" style="float:right;font:12px sans-serif;letter-spacing:0;padding:10px 14px;border:1px solid #d4af37;border-radius:8px;background:none;color:#d4af37;cursor:pointer">Prova un intervento ↗</button></div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
 window.testIO={reads:[],writes:[],demoWrites:[],responses:[],actions:[],failViewings:false,failProposals:false,holdViewings:false,pendingReads:[]};
 const now=new Date(), today=now.toISOString().slice(0,10);
@@ -82,7 +82,15 @@ function innestoOpenFor(...args){demoAction('innestoOpenFor',...args);}
 function confirmViewingModal(id){const row=S.viewingRequests.find(v=>v.id===id);demoAction('confirmViewingModal',id,viewingWhenLocal(row));}
 function rescheduleViewingModal(id){demoAction('rescheduleViewingModal',id);}
 window.open=(...args)=>demoAction('open',...args);
-const db={collection(name){testIO.reads.push(name);return {orderBy(){return this;},limit(){return this;},where(){return this;},onSnapshot(next){next({docs:[]});return()=>{};},async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');const list=name==='viewingRequests'?S.viewingRequests:[];return {docs:list.map(v=>({id:v.id,data:()=>({...v})}))};},doc(){testIO.writes.push(name);throw Error('No writes in preview');}}}};
+const db={collection(name){
+ testIO.reads.push(name);const filters=[];let cap=Infinity;
+ const data=()=>name==='conversations'?S.conversations.filter(row=>S.conversations.filter(c=>c.id===row.id).length===1):name==='operatorTasks'?testIO.followUps:name==='viewingRequests'?S.viewingRequests:[];
+ const snap=row=>({id:row.id,exists:true,data:()=>({...row})});
+ return {orderBy(){return this;},limit(n){cap=n;return this;},where(field,op,value){filters.push({field,value});return this;},onSnapshot(next){next({docs:[]});return()=>{};},
+ async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');let list=data();if(['conversations','operatorTasks'].includes(name))list=list.filter(row=>filters.every(f=>f.field.split('.').reduce((v,k)=>v?.[k],row)===f.value));return{docs:list.slice(0,cap).map(snap)};},
+ doc(id){return{async get(){const row=data().find(r=>r.id===id);return row?snap(row):{exists:false,id};},async update(){testIO.writes.push(name);throw Error('No writes in preview');},async set(){testIO.writes.push(name);throw Error('No writes in preview');}}}
+ };
+}};
 function demoDossier(task){return {practices:task?.followUp.practiceRef?[{ref:task.followUp.practiceRef,propertyRefs:['properties/casa-demo']}]:[],identityAmbiguous:!!task?.followUp.ambiguous};}
 async function fsGetVersioned(path){
  const task=testIO.followUps.find(t=>'operatorTasks/'+t.id===path);
@@ -113,6 +121,7 @@ window.fetch=async(url,options={})=>{
  return id?(task?response(200,{task,dossier:demoDossier(task)}):response(404,{error:'case_not_found'}))
   :response(200,{rows:testIO.followUps.filter(t=>t.status==='open'),monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}});
 };
+${between(src, '    function jsq(v)', '    function safeToDate(')}
 ${search}
 ${clock}
 ${copy}

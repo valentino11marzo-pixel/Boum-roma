@@ -2329,6 +2329,20 @@ contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
 Un giro solo, otto interventi, 33 suite verdi:
+- **Comunicazioni nel contesto (14/10/2026):** da home/fascicolo/contratto si apre
+  Inbox per ID tipizzato; `inbox-context-engine` accetta solo riferimenti certi.
+  Letture mirate anche senza Oggi già caricata; tetti e riferimenti mancanti sono
+  dichiarati. Snapshot più recenti e cambi di associazione prevalgono sulle risposte lente.
+  Email Inbox usa `message:{subject,text}` fino a SMTP, senza il vecchio template vuoto;
+  doppio click protetto, recupero del solo storico senza reinvio. Apertura ≠ risposta.
+  Prove `inboxconnected`, `inboxleadui`; Gmail/HOMIE completi non sono implicati.
+- **Portal da telefono (14/10/2026):** Persone mette ricerca/lista prima dei riepiloghi.
+  Inbox passa da lista a conversazione, con ritorno, bozza per thread, focus e selezione
+  preservati anche dopo aggiornamento lazy o realtime. Compositore raggiungibile con
+  tastiera; desktop conserva due colonne. Contratti distingue Bozza/Scaduto/Terminato
+  e ricerca insieme ai filtri; manutenzioni urgenti precedono le normali senza mutare S.
+  Ricerca globale Persone apre `viewUser`, funzione reale. Prove `portalworkspaceui`,
+  `mobileui`, `searchui`, `segretariafreshui`, `finish`; tastiera simulata via VisualViewport.
 - **`POST /api/notify/send`** — il ponte email del portal. `sendBoomEmail()`
   (stessa firma, 16 chiamanti intatti) ora POSTa qui con Bearer admin/owner/
   landlord; il server veste il vecchio template "notification" nel design

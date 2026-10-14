@@ -143,6 +143,7 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/portal-actions.js'
             || url.pathname === '/js/portal-search-engine.js'
             || url.pathname === '/js/portal-search-archive.js'
+            || url.pathname === '/js/inbox-context-engine.js'
             || url.pathname === '/js/tenant-access-engine.js'
             || url.pathname === '/js/tenant-workspace-engine.js'
             || url.pathname === '/js/tenant-workspace-ui.js'

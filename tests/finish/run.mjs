@@ -107,7 +107,7 @@ const rowStart = app.indexOf('const totalInst = paidCount + pendingCount;');
 ok(rowStart > -1, 'la riga ridisegnata esiste (totalInst)');
 const row = app.slice(rowStart, rowStart + 3600);
 ok(/class="list-item clickable contract-item"/.test(row), 'la riga resta .list-item.clickable.contract-item (M2 la trasforma in card)');
-ok(/data-status="\$\{c\.status\}"/.test(row) && /data-expiring30/.test(row) && /data-expiring60/.test(row),
+ok(/data-status="\$\{esc\(c\.status\)\}"/.test(row) && /data-expiring30/.test(row) && /data-expiring60/.test(row),
   'i data-attribute dei filtri sono intatti (filterContracts li legge)');
 ok(/onclick="viewContract\('\$\{c\.id\}'\)"/.test(row), 'il tap sulla riga apre ancora il contratto');
 ok(/refinalizeContract\('\$\{c\.id\}'\)/.test(row) && /event\.stopPropagation\(\)/.test(row),

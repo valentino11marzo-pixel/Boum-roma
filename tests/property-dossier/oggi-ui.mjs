@@ -11,7 +11,7 @@ import { html as propertyHtml, extract } from './harness.mjs';
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const source = readFileSync(join(ROOT, 'js/portal-app.js'), 'utf8');
 const oggi = source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
-const inboxListeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(extract).join('\n');
+const inboxListeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh'].map(extract).join('\n');
 const toast = source.slice(source.indexOf('    function toast('), source.indexOf("    console.log('🚀 BOOM Portal"));
 assert(oggi.includes('oggiSegretariaRestorePropertyContext'), 'Exercise the actual integrated Oggi code');
 const caseId = n => 'sg_' + n.toString(16).padStart(32, '0');
@@ -59,7 +59,7 @@ const html = propertyHtml
   .replace('</head>', '<link rel="stylesheet" href="/css/segretaria.css"></head>')
   .replace('<script src="/js/rent-engine.js">', engines + '<script src="/js/rent-engine.js">')
   .replace("async function loadDataFresh(){BOOM_PROPERTY_DOSSIER", "async function loadDataFresh(){testIO.coreRefreshes++;BOOM_PROPERTY_DOSSIER")
-  .replace(boot, boundary + oggi + inboxListeners + toast + '\nwindow.testCases=oggiSegretaria;\n' + "startInboxListener();goTo(location.hash.slice(1)||'oggi');");
+  .replace(boot, boundary + oggi + inboxListeners + '\n' + toast + '\nwindow.testCases=oggiSegretaria;\n' + "startInboxListener();goTo(location.hash.slice(1)||'oggi');");
 
 const server = createServer(async (req, res) => {
   try {

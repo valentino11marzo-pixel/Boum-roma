@@ -192,6 +192,10 @@ try {
       await page.evaluate(() => { document.getElementById('toasts').replaceChildren(); handleSearch('Omonimo Unico', 'lead'); });
       await page.locator('[data-search-index]').click();
       assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewLead', 'same-lead']);
+      await page.evaluate(() => { document.getElementById('toasts').replaceChildren(); handleSearch('Omonimo Unico', 'person'); });
+      await page.locator('[data-search-index]').click();
+      assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewUser', 'same-person']);
+      assert.match(portalSource, /function viewUser\(id\)/, 'Person route exists in production');
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       assert.deepEqual(errors, []);
       assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);

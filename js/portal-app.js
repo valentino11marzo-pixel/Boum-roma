@@ -798,7 +798,7 @@ Valentyne - BOOM Rome`
             if (origin.page === 'oggi' && origin.context?.taskId)
                 oggiSegretaria.propertyReturn = { ...origin.context, scroll: origin.scroll, afterGeneration: oggiSegretaria.generation + (oggiSegretaria.loading ? 0 : 1) };
         },
-        actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
+        actions: { communications: id => inboxOpenContext({kind:'property',id}), contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
             task: id => editTask(id), person: id => viewUser(id),
             payment: (unit, month, id) => openRentUnit(unit, month, id),
             edit: property => openModal('editProperty', property),
@@ -2811,20 +2811,46 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     })(),
                     oggiLoadViewings(),
                     (async () => {
+                        const user = auth.currentUser, profileId = S.profile?.id;
+                        const conversationsRevision = S.inboxDataRevision || 0, messagesRevision = S.inboxMessagesRevision || 0;
+                        const current = () => auth.currentUser === user && S.profile?.id === profileId && isAdmin();
+                        if (!user || !current()) return;
                         try {
                             const [convs, msgs] = await Promise.all([
                                 db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
                                 db.collection('messages').orderBy('at', 'desc').limit(500).get()
                             ]);
-                            S.conversations = rows(convs); S.messages = rows(msgs);
-                        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+                            if (!current()) return;
+                            // A delayed one-shot must not replace a newer realtime snapshot.
+                            if ((S.inboxDataRevision || 0) === conversationsRevision) {
+                                S.conversations = rows(convs);
+                                const selected = S.inboxExactConversation;
+                                if (S.page === 'inbox' && selected?.user === user && selected.id === S.openConvId) {
+                                    const latest = S.conversations.find(c => c.id === selected.id);
+                                    if (latest) selected.row = latest;
+                                    else S.conversations.push(selected.row);
+                                }
+                            }
+                            if ((S.inboxMessagesRevision || 0) === messagesRevision) {
+                                const openId = S.openConvId;
+                                // The global 500-message window does not replace the selected thread.
+                                S.messages = openId ? rows(msgs).filter(m => m.conversationId !== openId)
+                                    .concat((S.messages || []).filter(m => m.conversationId === openId)) : rows(msgs);
+                            }
+                        } catch (e) {
+                            console.warn('Inbox load:', e.message);
+                            if (current() && !['live', 'cached'].includes(S.inboxFeed?.state)) {
+                                S.inboxFeed = { state: 'error' }; inboxFreshnessUpdate();
+                            }
+                        }
                     })(),
                 ]);
 
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
                 if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
                 cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
-                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
+                if (S.page === 'inbox') inboxLiveRefresh();
+                else if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings') renderPage();
                 buildNav();
             }, isSafariDesktop ? 1500 : 500);
             
@@ -3370,6 +3396,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         S.inboxListener = q.onSnapshot({ includeMetadataChanges: true }, snapshot => {
             if (!active || !current()) return;
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
             S.inboxFeed = { state: snapshot.metadata?.fromCache ? 'cached' : 'live' };
             inboxFreshnessUpdate();
             const changed = !received || typeof snapshot.docChanges !== 'function' || snapshot.docChanges().length > 0;
@@ -3426,6 +3453,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 if (!active || !current()) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.inboxMessagesRevision = (S.inboxMessagesRevision || 0) + 1;
                 S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
@@ -4780,7 +4808,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const user = auth.currentUser;
         const fresh = await portalSearchEnsure(record);
         if (!fresh || auth.currentUser !== user || !portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
-        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUserProfile', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
+        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUser', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
         if (fresh.kind === 'proposal') return window.open('/pre-agreement-admin', '_blank', 'noopener');
         if (fresh.kind === 'payment') {
             const payment = S.payments.find(p => p.id === fresh.id);
@@ -5068,31 +5096,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return navigator.onLine === false || ['cached', 'error'].includes(S.inboxFeed?.state);
     }
     function inboxLiveRefresh() {
-        if (S.page !== 'inbox') return;
-        const focused = document.activeElement;
-        const saved = ['inboxBody', 'inboxSubject', 'inboxTpl'].map(id => {
-            const el = document.getElementById(id);
-            return el && { id, value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection, scroll: el.scrollTop, focused: focused === el };
-        }).filter(Boolean);
-        const searchFocused = focused?.matches('#main input[type="search"]');
-        const searchSelection = searchFocused && [focused.selectionStart, focused.selectionEnd];
-        const panes = [...document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline')].map(el => el.scrollTop);
-        const main = document.getElementById('main');
-        if (main) main.innerHTML = inboxPage();
-        for (const field of saved) {
-            const replacement = document.getElementById(field.id);
-            if (!replacement) continue;
-            replacement.value = field.value;
-            if (field.focused) replacement.focus({ preventScroll: true });
-            if (typeof field.start === 'number') replacement.setSelectionRange(field.start, field.end, field.direction);
-            replacement.scrollTop = field.scroll;
-        }
-        if (searchFocused) {
-            const search = main?.querySelector('input[type="search"]');
-            if (search) { search.focus({ preventScroll: true }); search.setSelectionRange(...searchSelection); }
-        }
-        document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline').forEach((el, i) => { if (panes[i] !== undefined) el.scrollTop = panes[i]; });
+        inboxRefresh('live');
     }
+
     function portalFreshnessStop(page) {
         if (page && portalFreshness.page !== page) return;
         if (portalFreshness.page === 'inbox' && (S.page !== 'inbox' || portalFreshness.user !== auth.currentUser)) stopOpenConvListener();
@@ -6193,7 +6199,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const open = new Set([...target.querySelectorAll('details[open]')].map(d => d.dataset.owFold));
         const focused = target.contains(document.activeElement) ? document.activeElement : null;
         const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
-        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${['person','client','lead','pfsClient','property','contract'].includes(record.kind) ? `<button type="button" class="btn btn-sm" onclick="inboxOpenContext({kind:'${jsq(record.kind)}',id:'${jsq(record.id)}'})">Comunicazioni collegate ↗</button>` : ''}${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
             ${conversations.length ? `<div class="ow-related" aria-label="Conversazioni collegate">${conversations.map((c, i) => `<button type="button" onclick="oggiWorkspaceConversation(${i})"><small>Conversazione · ${esc(c.channel || 'Inbox')}</small><strong>Apri messaggi ↗</strong><span>${esc(c.contactName || record.label)}</span></button>`).join('')}</div><p class="ow-hint">Conversazioni già collegate al contatto nel portale; lo storico HOMIE non è incluso.</p>` : ''}
             <details data-ow-fold="cases" ${open.has('cases') ? 'open' : ''}><summary>Seguiti collegati <span>${tasks.length}</span></summary>${oggiSegretaria.error || oggiSegretaria.incomplete ? '<p class="ow-source-note">La lettura dei seguiti è parziale o non aggiornata.</p>' : ''}${!oggiSegretaria.loaded ? '<p class="ow-hint">Lettura dei seguiti in corso.</p>' : tasks.length ? tasks.slice(0, 4).map(oggiWorkCaseCard).join('') + (tasks.length > 4 ? '<p class="ow-hint">Mostrati 4 di '+tasks.length+' seguiti collegati. <button type="button" class="ow-link" onclick="oggiOpenSection(\'ogFollowTools\')">Apri tutti i seguiti</button></p>' : '') : '<p class="ow-hint">Nessun seguito collegato in questo elenco. Le richieste da associare restano in Segreteria.</p>'}</details><p class="ow-hint">Collegamenti salvati nel portale. Le omonimie non vengono unite.</p></div>`;
         if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
@@ -6409,26 +6415,110 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             field.dispatchEvent(new Event('change', { bubbles: true }));
         }
     };
-    // Channel entry is read-only. Exact IDs filter the loaded conversations;
-    // no automatic inboxSelect (which marks a thread read), guessing or sending.
+    function inboxContextRows() {
+        const context = S.inboxContext;
+        const rows = new Map((S.conversations || []).map(c => [c.id, c]));
+        if (context?.user === auth.currentUser && portalSearchAuthorized()) for (const row of context.rows) if (!rows.has(row.id)) rows.set(row.id, row);
+        return [...rows.values()];
+    }
+    function inboxContextCurrent(proof) {
+        const rows = (S.conversations || []).filter(c=>c.id===proof.id);
+        return rows.length===1 ? rows[0] : rows.length ? null : proof;
+    }
+    function inboxContextMember(row, context) {
+        if (!row || row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') return false;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,context.caseRows || []);
+        if (!target?.available) return false;
+        if (target.contacts.length) return target.contacts.some(identity => window.BOOM_INBOX_CONTEXT.matches(row,identity));
+        const proof = context.rows.find(c=>c.id===row.id);
+        return target.conversationIds.includes(row.id) && proof && row.contactType===proof.contactType && row.contactId===proof.contactId;
+    }
+    function inboxContextNotice() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return '';
+        const changed = context.rows.some(proof=>!inboxContextMember(inboxContextCurrent(proof),context));
+        const status = context.loading ? 'Lettura in corso…' : context.error ? 'Lettura non riuscita. Riprova.' : context.incomplete || changed ? 'Elenco parziale · riferimenti da verificare.' : 'Conversazioni collegate lette dal server.';
+        return `<section class="sg-notice" aria-label="Comunicazioni del contesto"><strong>${esc(context.label)}</strong> <span role="status">${esc(status)}</span><div><button type="button" class="btn btn-sm" onclick="inboxReturnContext()">← Torna al contesto</button> <button type="button" class="btn btn-sm" onclick="inboxContextLoad()" ${context.loading ? 'disabled' : ''}>Riprova lettura</button></div><details><summary>Fonti e copertura</summary><p>WhatsApp ed email già registrati nel portale. Questa lettura non sincronizza Gmail né HOMIE. Per casa e contratto sono inclusi solo i seguiti confermati con riferimenti verificabili. Lettura limitata a 100 seguiti e 50 conversazioni; i riferimenti mancanti restano da verificare.${context.error ? ' Conservo i dati già letti: possono essere superati.' : ''}</p></details></section>`;
+    }
+    window.inboxContextLoad = async function() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return;
+        const generation = context.generation = (context.generation || 0) + 1, revision = S.inboxDataRevision || 0;
+        const current = () => S.inboxContext === context && context.user === auth.currentUser && portalSearchAuthorized() && context.generation === generation;
+        context.loading = true; context.error = false; inboxRefresh();
+        try {
+            let incomplete = false;
+            // Exact indexed references work even when Home/Segreteria was never mounted.
+            if (['property','contract'].includes(context.record.kind)) {
+                const field = context.record.kind==='property' ? 'propertyRef' : 'practiceRef';
+                const prefix = context.record.kind==='property' ? 'properties/' : 'contracts/';
+                const snap = await db.collection('operatorTasks').where('followUp.'+field,'==',prefix+context.record.id).limit(101).get({source:'server'});
+                if (!current()) return;
+                incomplete = snap.docs.length >= 101;
+                context.caseRows = snap.docs.slice(0,100).map(doc=>({...doc.data(),id:doc.id}));
+            }
+            if (!current()) return;
+            const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record, S, context.caseRows || []);
+            if (!target?.available) throw Error('record_unavailable');
+            const found = new Map(); incomplete = incomplete || target.unresolvedCount > 0;
+            for (const identity of target.contacts) {
+                const snap = await db.collection('conversations').where('contactId','==',identity.contactId).limit(51).get({source:'server'});
+                if (!current()) return;
+                if (snap.docs.length >= 51) incomplete = true;
+                for (const doc of snap.docs.slice(0,50)) { const row = {...doc.data(),id:doc.id}; if (window.BOOM_INBOX_CONTEXT.matches(row,identity)) found.set(row.id,row); }
+            }
+            if (target.conversationIds.length > 50) incomplete = true;
+            for (const id of target.conversationIds.slice(0,50)) {
+                const snap = await db.collection('conversations').doc(id).get({source:'server'});
+                if (!current()) return;
+                if (!snap.exists) { incomplete = true; continue; }
+                const row = {...snap.data(),id:snap.id || id};
+                if (row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') { incomplete = true; continue; }
+                found.set(id,row);
+            }
+            if (!current()) return;
+            context.rows = [...found.values()]; context.incomplete = !!incomplete; context.readAt = new Date().toISOString();
+            const newer = (S.inboxDataRevision || 0) !== revision, existing = new Map((S.conversations || []).map(c=>[c.id,c]));
+            S.conversations = [...(S.conversations || []).filter(c=>!found.has(c.id)),...context.rows.map(row=>newer&&existing.has(row.id)?existing.get(row.id):row)];
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
+        } catch { if (current()) context.error = true; }
+        finally { if (current()) { context.loading = false; inboxRefresh(); } }
+    };
+    window.inboxOpenContext = function(record, channel = 'all') {
+        if (!portalSearchAuthorized() || !['all','whatsapp','email'].includes(channel)) return;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(record,S,oggiSegretaria.rows);
+        if (!target?.available) return toast('warning','Contesto non disponibile','Riapri il record dai dati aggiornati.');
+        const origin = {page:S.page,arg:S.pageArg,scroll:window.scrollY,record:{kind:record.kind,id:record.id},modal:document.body.classList.contains('modal-open') || !!document.querySelector('.modal-overlay.active')};
+        if (origin.modal && (record.kind !== 'contract' || document.querySelector('.modal-overlay.active')?.dataset.inboxContract !== record.id)) return toast('warning','Chiudi prima il modulo aperto.');
+        if (origin.modal) closeModal();
+        inboxRefresh('remember'); stopOpenConvListener();
+        S.inboxContext = {record:origin.record,label:target.label,user:auth.currentUser,rows:[],origin,loading:true,error:false,incomplete:false};
+        Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null});
+        goTo('inbox'); inboxContextLoad();
+    };
+    window.inboxReturnContext = function() {
+        const context=S.inboxContext;
+        if (!context || context.user!==auth.currentUser || !portalSearchAuthorized()) return;
+        const origin=context.origin; inboxRefresh('remember'); S.inboxContext=null; stopOpenConvListener();
+        goTo(origin.page,origin.arg);
+        if (origin.modal && origin.record.kind==='contract') viewContract(origin.record.id);
+        requestAnimationFrame(()=>window.scrollTo(0,origin.scroll || 0));
+    };
     window.oggiOpenInbox = function(channel, record) {
-        if (!portalSearchAuthorized() || !['whatsapp', 'email'].includes(channel)) return;
-        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning', 'Completa o chiudi prima il modulo aperto.');
-        if (record && (!['person', 'client'].includes(record.kind) || !window.BOOM_PORTAL_SEARCH?.recordFor(record.kind, record.id, S))) return toast('warning', 'Il contatto non è più disponibile. Ripeti la ricerca.');
-        Object.assign(_inboxState, { channel, filter: 'all', search: '', convId: null, homeContext: record ? { kind: record.kind, id: record.id, user: auth.currentUser?.uid } : null });
-        goTo('inbox');
+        if (!portalSearchAuthorized() || !['whatsapp','email'].includes(channel)) return;
+        if (record) return inboxOpenContext(record,channel);
+        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning','Completa o chiudi prima il modulo aperto.');
+        S.inboxContext=null; Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null}); goTo('inbox');
     };
     function oggiInboxScope() {
-        const scope = _inboxState.homeContext;
-        if (!scope) return null;
-        const record = portalSearchAuthorized() && scope.user === auth.currentUser?.uid && window.BOOM_PORTAL_SEARCH?.recordFor(scope.kind, scope.id, S);
-        const types = scope.kind === 'person' ? ['tenant', 'landlord'] : scope.kind === 'client' ? ['client'] : [];
-        return { label: record?.label || 'Contatto non più disponibile', ids: record ? (S.conversations || []).filter(c => c.contactId === scope.id && types.includes(c.contactType) && (S.conversations || []).filter(other => other.id === c.id).length === 1).map(c => c.id) : [] };
+        const context=S.inboxContext;
+        if (context) { const valid = context.user===auth.currentUser && portalSearchAuthorized() && window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,oggiSegretaria.rows)?.available; return {label:valid?context.label:'Contesto non disponibile',ids:valid?context.rows.filter(c=>inboxContextMember(inboxContextCurrent(c),context)).map(c=>c.id):[]}; }
+        const scope=_inboxState.homeContext; if(!scope)return null;
+        const record=portalSearchAuthorized()&&scope.user===auth.currentUser?.uid&&window.BOOM_PORTAL_SEARCH?.recordFor(scope.kind,scope.id,S);
+        const types=scope.kind==='person'?['tenant','landlord']:scope.kind==='client'?['client']:[];
+        return{label:record?.label||'Contatto non più disponibile',ids:record?(S.conversations||[]).filter(c=>c.contactId===scope.id&&types.includes(c.contactType)).map(c=>c.id):[]};
     }
-    window.oggiClearInboxScope = function() {
-        if (!portalSearchAuthorized()) return;
-        _inboxState.homeContext = null; _inboxState.convId = null; inboxRefresh();
-    };
+    window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
             <div id="ogWorkResults" aria-live="polite"></div><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio <span>Estendi la ricerca</span></summary><div id="ogSearchSources"></div></details>
@@ -10476,11 +10566,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 extraInfo = `<span class="sep">·</span>${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
+            return `<div class="list-item clickable user-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click()}" data-search="${esc([u.name,u.email,u.phone,property?.name,...ownedProps.map(p=>p.name)].filter(Boolean).join(' '))}" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-                        ${u.name}
+                        ${esc(u.name)}
                         <span class="li-flags">
                         ${u.id === S.profile.id ? '<span class="li-flag">Tu</span>' : ''}
                         ${overduePayments.length > 0 ? '<span class="li-flag red">In ritardo</span>' : ''}
@@ -10490,12 +10580,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        ${u.email || 'No email'}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
+                        ${esc(u.email || 'Email non presente')}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
-                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
+                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Richiedi dati" aria-label="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPerson('${u.id}','user')" title="Apri scheda 360°">📂</button>
                     <span class="badge ${r.color}">${r.icon} ${r.label}</span>
                 </div>
@@ -10503,10 +10593,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         return `<div class="page-header">
-                <div><h1 class="page-title">👥 Utenti</h1><p class="page-subtitle">${S.users.length} utenti ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
+                <div><h1 class="page-title">Persone</h1><p class="page-subtitle">${S.users.length} persone ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
                 <div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div>
             </div>
 
+            <div class="portal-list-toolbar users-toolbar" id="usersToolbar" data-filter="all">
+                <label class="portal-list-search" for="userSearch"><span class="sr-only">Cerca una persona</span><input type="search" class="form-input" id="userSearch" placeholder="Nome, email, telefono o immobile" oninput="filterUsers()" autocomplete="off"></label>
+                <div class="portal-list-filters" role="group" aria-label="Filtra persone">
+                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
+                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
+                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
+            </div></div>
+
+            <p class="portal-list-count" id="usersResultCount" role="status">${S.users.length} persone</p>
+            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-title">Nessuna persona</div></div>'}<div id="usersEmptySearch" class="empty-state" hidden><div class="empty-title">Nessuna persona trovata</div><p>Prova un altro nome o togli il filtro.</p><button class="btn btn-secondary" onclick="document.getElementById('userSearch').value='';filterUsers('all')">Mostra tutte</button></div></div></div>
+            <details class="portal-list-extras users-extras"><summary>Riepiloghi e inviti <span>${landlordsIncomplete.length ? landlordsIncomplete.length + ' proprietari con dati da completare' : 'Onboarding e statistiche'}</span></summary><div class="portal-list-extras-body">
             <!-- Onboarding Link -->
             <div class="card" style="margin-bottom:16px;border:2px solid var(--gold)">
                 <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 16px">
@@ -10561,32 +10665,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>` : ''}
             </div>` : ''}
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
-                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
-                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
-            </div>
-
-            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
+            </div></details>`;
     }
 
     function filterUsers(filter) {
-        document.querySelectorAll('.user-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        const toolbar = document.getElementById('usersToolbar');
+        if (!toolbar) return;
+        if (typeof filter === 'string') toolbar.dataset.filter = filter;
+        filter = toolbar.dataset.filter || 'all';
+        const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const words = normalize(document.getElementById('userSearch')?.value).split(' ').filter(Boolean);
+        document.querySelectorAll('.user-filter').forEach(button => {
+            const active = button.getAttribute('onclick') === "filterUsers('" + filter + "')";
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active); button.setAttribute('aria-pressed', String(active));
+        });
+        let count = 0;
         document.querySelectorAll('.user-item').forEach(item => {
             const role = item.dataset.role;
-            const overdue = item.dataset.overdue === 'true';
-            const incomplete = item.dataset.incomplete === 'true';
-            let show = filter === 'all'
-                    || role === filter
-                    || (filter === 'overdue' && overdue)
-                    || (filter === 'landlord-incomplete' && role === 'landlord' && incomplete);
+            const matches = filter === 'all' || role === filter || (filter === 'overdue' && item.dataset.overdue === 'true') || (filter === 'landlord-incomplete' && role === 'landlord' && item.dataset.incomplete === 'true');
+            const text = normalize(item.dataset.search);
+            const show = matches && words.every(word => text.includes(word));
             item.style.display = show ? '' : 'none';
+            if (show) count++;
         });
+        const result = document.getElementById('usersResultCount');
+        if (result) result.textContent = count + (count === 1 ? ' persona' : ' persone');
+        const empty = document.getElementById('usersEmptySearch');
+        if (empty) empty.hidden = count > 0 || !(S.users || []).length;
     }
 
     // Ask a single landlord to complete their profile via the existing form-landlord.html.
@@ -10765,7 +10870,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function contractsPage() {
         const active = S.contracts.filter(c => c.status === 'active');
-        const expired = S.contracts.filter(c => c.status !== 'active');
+        const expired = S.contracts.filter(c => c.status === 'expired');
+        const terminated = S.contracts.filter(c => c.status === 'terminated');
+        const drafts = S.contracts.filter(c => c.status === 'draft');
         const expiring30 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d >= 0 && d <= 30; });
         const expiring60 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d > 30 && d <= 60; });
         const monthlyRent = active.reduce((s, c) => s + (c.rent || 0), 0);
@@ -10783,7 +10890,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const overdueCount = payments.filter(x => x.status === 'pending' && isOverdue(x.dueDate)).length;
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✓', text: 'Attivo' };
-            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '✗', text: 'Scaduto' };
+            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '○', text: ({ draft: 'Bozza', expired: 'Scaduto', terminated: 'Terminato', cancelled: 'Annullato' })[c.status] || 'Stato da verificare' };
             else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
             else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
 
@@ -10795,7 +10902,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Condizioni, handler e data-attribute sono IDENTICI a prima —
             // filterContracts e il layer mobile (M2) leggono questa riga.
             const totalInst = paidCount + pendingCount;
-            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
+            return `<div class="list-item clickable contract-item" data-status="${esc(c.status)}" data-search="${esc([c.ref, p?.name, p?.address, t?.name, l?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -10831,7 +10938,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
                     <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
                     <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
-                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Carica un PDF e posiziona i campi firma con drag-and-drop">✨ Magic Sign</button>
+                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Apri le firme di un contratto o prepara un PDF">✨ Magic Sign</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
@@ -10856,22 +10963,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="stat-value">${expiring60.length}</div>
                     <div class="stat-label">31–60 giorni</div>
                 </div>
-                <div class="stat-card" onclick="filterContracts('expired')">
-                    <div class="stat-value">${expired.length}</div>
-                    <div class="stat-label">Scaduti</div>
+                <div class="stat-card" onclick="filterContracts('closed')">
+                    <div class="stat-value">${expired.length + terminated.length}</div>
+                    <div class="stat-label">Conclusi</div>
                 </div>
             </div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm contract-filter active" onclick="filterContracts('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('active')">✓ Attivi</button>
-                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
-                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('expired')">Scaduti</button>
-            </div>
+            <div class="portal-list-toolbar"><label class="sr-only" for="contractSearch">Cerca nei contratti</label><input id="contractSearch" class="form-input" type="search" placeholder="Cerca immobile, persona o riferimento" oninput="filterContracts()" autocomplete="off">
+            <div class="portal-list-filters" style="display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn btn-sm contract-filter active" data-contract-filter="all" onclick="filterContracts('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="active" onclick="filterContracts('active')">✓ Attivi</button>
+                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" data-contract-filter="expiring30" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
+                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" data-contract-filter="expiring60" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="expired" onclick="filterContracts('expired')">Scaduti</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="draft" onclick="filterContracts('draft')">Bozze (${drafts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="terminated" onclick="filterContracts('terminated')">Terminati</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="closed" onclick="filterContracts('closed')">Conclusi</button>
+            </div></div>
 
-            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.slice().sort((a,b) => {
                 const da = daysUntil(a.endDate) ?? 9999;
                 const db = daysUntil(b.endDate) ?? 9999;
                 if (a.status === 'active' && b.status !== 'active') return -1;
@@ -10881,18 +10991,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function filterContracts(filter) {
-        document.querySelectorAll('.contract-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.contract-filter.active')?.dataset.contractFilter || 'all';
+        const term = (document.getElementById('contractSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.contract-filter').forEach(button => {
+            const active = button.dataset.contractFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
         document.querySelectorAll('.contract-item').forEach(item => {
             const status = item.dataset.status;
-            const exp30 = item.dataset.expiring30 === 'true';
-            const exp60 = item.dataset.expiring60 === 'true';
-            let show = filter === 'all';
-            if (filter === 'active') show = status === 'active';
-            if (filter === 'expiring30') show = exp30;
-            if (filter === 'expiring60') show = exp60;
-            if (filter === 'expired') show = status !== 'active';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || filter === status;
+            if (filter === 'expiring30') show = item.dataset.expiring30 === 'true';
+            if (filter === 'expiring60') show = item.dataset.expiring60 === 'true';
+            if (filter === 'closed') show = status === 'expired' || status === 'terminated';
+            item.style.display = show && (item.dataset.search || '').includes(term) ? '' : 'none';
         });
     }
 
@@ -11446,14 +11558,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('resolved')">✔ Risolte</button>
             </div>
 
-            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.slice().sort((a,b) => {
                 // Sort: urgent first, then open, then in_progress, then resolved
                 const priorityOrder = { urgent: 0, normal: 1, low: 2 };
                 const statusOrder = { open: 0, in_progress: 1, resolved: 2 };
                 if (a.status !== 'resolved' && b.status === 'resolved') return -1;
                 if (a.status === 'resolved' && b.status !== 'resolved') return 1;
-                if ((priorityOrder[a.priority] || 1) !== (priorityOrder[b.priority] || 1)) return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
-                return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
+                if ((priorityOrder[a.priority] ?? 1) !== (priorityOrder[b.priority] ?? 1)) return (priorityOrder[a.priority] ?? 1) - (priorityOrder[b.priority] ?? 1);
+                return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
             }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Tutto funziona perfettamente!</div></div>'}</div></div>`;
     }
 
@@ -12206,13 +12318,60 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════
     var _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
 
-    function inboxRefresh() {
-        // Re-render only the inbox if we're on it. Used after a Firestore write.
-        if (S.page === 'inbox') {
-            const m = document.getElementById('main');
-            if (m) m.innerHTML = inboxPage();
-            buildNav();
+    function inboxRefresh(reason) {
+        if (S.page !== 'inbox') return;
+        const main = document.getElementById('main');
+        if (!main) return;
+        const user = auth.currentUser?.uid;
+        if (!user || S.profile?.id !== user) { _inboxState.view = null; return; }
+        let view = _inboxState.view;
+        if (!view || view.user !== user) view = _inboxState.view = { user, drafts: Object.create(null), listScroll: 0, pageScroll: 0 };
+        const oldThread = main.querySelector('[data-inbox-conversation]');
+        const oldId = oldThread?.dataset.inboxConversation;
+        const focused = document.activeElement;
+        const input = focused?.matches('#inboxBody,#inboxSubject,#inboxTpl,#inboxSearch') ? { id: focused.id, start: focused.selectionStart, end: focused.selectionEnd, direction: focused.selectionDirection } : null;
+        const fields = ['inboxBody', 'inboxSubject', 'inboxTpl'];
+        if (oldId && oldThread.dataset.inboxUser === user) {
+            const draft = view.drafts[oldId] || {};
+            fields.forEach(id => { const el = document.getElementById(id); if (el) { draft[id] = el.value; (draft.scroll || (draft.scroll = {}))[id] = el.scrollTop; } });
+            draft.composeScroll = main.querySelector('.inbox-compose-slot')?.scrollTop || 0;
+            view.drafts[oldId] = draft;
         }
+        const list = main.querySelector('.inbox-conversations');
+        if (list?.getClientRects().length) view.listScroll = list.scrollTop;
+        if (!oldId) view.pageScroll = window.scrollY;
+        const timeline = document.getElementById('inboxTimeline');
+        const timelineTop = timeline?.scrollTop;
+        const nearEnd = timeline && timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 48;
+        if (reason === 'remember') return;
+        if (reason === 'back') {
+            _inboxState.convId = null;
+            if (typeof stopOpenConvListener === 'function') stopOpenConvListener();
+        }
+        main.innerHTML = inboxPage();
+        const currentId = main.querySelector('[data-inbox-conversation]')?.dataset.inboxConversation;
+        const draft = currentId && view.drafts[currentId];
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el && draft[id] != null) el.value = draft[id]; });
+        const compose = main.querySelector('.inbox-compose-slot');
+        if (compose && draft) compose.scrollTop = draft.composeScroll || 0;
+        const newList = main.querySelector('.inbox-conversations');
+        if (newList) newList.scrollTop = view.listScroll;
+        const newTimeline = document.getElementById('inboxTimeline');
+        if (newTimeline) newTimeline.scrollTop = currentId !== oldId || nearEnd ? newTimeline.scrollHeight : timelineTop || 0;
+        if (input && (input.id === 'inboxSearch' || currentId === oldId)) {
+            const replacement = document.getElementById(input.id);
+            if (replacement) {
+                replacement.focus({ preventScroll: true });
+                if (typeof input.start === 'number') replacement.setSelectionRange(input.start, input.end, input.direction);
+            }
+        } else if (reason === 'back') {
+            window.scrollTo(0, view.pageScroll);
+            main.querySelector('.inbox-list-pane')?.focus({ preventScroll: true });
+        } else if (currentId && currentId !== oldId) {
+            main.querySelector('.inbox-back')?.focus({ preventScroll: true });
+        }
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el) el.scrollTop = draft.scroll?.[id] || 0; });
+        if (reason !== 'live') buildNav();
     }
 
     // The operator's universe of contactable people: tenants (users.role=tenant),
@@ -12308,11 +12467,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Append a message and update the conversation's last-message preview.
     // Direction: 'out' = sent by operator. 'in' = received from contact. 'note' = internal.
     async function inboxLogMessage(conv, opts) {
-        const body = String(opts.body || '').trim();
+        const user = opts.user || auth.currentUser;
+        if (auth.currentUser !== user) throw new Error('session_changed');
+        const body = opts.exactText ? String(opts.body || '') : String(opts.body || '').trim();
         if (!body) { toast('warning', 'Messaggio vuoto'); return null; }
         const direction = opts.direction || 'out';
         const channel = opts.channel || 'note';
-        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const now = opts.at ? new Date(opts.at) : firebase.firestore.FieldValue.serverTimestamp();
         const msg = {
             conversationId: conv.id,
             direction,
@@ -12323,10 +12484,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             assignedLandlordId: conv.assignedLandlordId || null,
             at: now,
         };
-        if (opts.subject) msg.subject = String(opts.subject).slice(0, 200);
-        const ref = await db.collection('messages').add(msg);
+        if (opts.subject) msg.subject = opts.exactText ? String(opts.subject) : String(opts.subject).slice(0, 200);
+        if (opts.emailMessageId) msg.emailMessageId = opts.emailMessageId;
+        const ref = opts.id ? db.collection('messages').doc(opts.id) : await db.collection('messages').add(msg);
+        if (opts.id) await ref.set(msg);
+        if (auth.currentUser !== user) throw new Error('session_changed');
         const localMsg = { id: ref.id, ...msg, at: new Date() };
-        S.messages = [localMsg, ...(S.messages || [])];
+        S.messages = [localMsg, ...(S.messages || []).filter(m => m.id !== ref.id)];
         // Update conversation header (admin only — rules allow update only for admin).
         if (isAdmin()) {
             const update = {
@@ -12336,8 +12500,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
             // Inbound bumps unread; outbound clears it.
             if (direction === 'in') update.unread = (conv.unread || 0) + 1;
-            else if (direction === 'out') update.unread = 0;
+            else if (direction === 'out') { update.unread = 0; update.needsReply = false; }
             await db.collection('conversations').doc(conv.id).update(update);
+            if (auth.currentUser !== user) throw new Error('session_changed');
             Object.assign(conv, update, { lastMessageAt: new Date() });
         }
         logActivity('Messaggio ' + direction, 'inbox', { convId: conv.id, channel, preview: BOOM_INBOX.preview(body, 60) });
@@ -12348,7 +12513,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxPage() {
         if (!isAdmin() && !isLandlord()) return accessDenied();
         setTimeout(portalFreshnessMount, 0);
-        const convs = (S.conversations || []).slice().sort((a, b) => {
+        const convs = inboxContextRows().slice().sort((a, b) => {
             const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
             const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
             return tb - ta;
@@ -12357,25 +12522,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const channel = _inboxState.channel;
         const q = (_inboxState.search || '').toLowerCase().trim();
         const homeScope = oggiInboxScope();
-        const filtered = convs.filter(c => {
-            if (homeScope && !homeScope.ids.includes(c.id)) return false;
+        const scopedConvs = homeScope ? convs.filter(c => homeScope.ids.includes(c.id)) : convs;
+        const filtered = scopedConvs.filter(c => {
             if (filter === 'todo') { if (!c.needsReply) return false; }
             else if (filter !== 'all' && (c.status || 'open') !== filter) return false;
             if (channel !== 'all' && c.channel !== channel && c.channel !== 'mixed') return false;
             if (q && !((c.contactName || '') + ' ' + (c.contactPhone || '') + ' ' + (c.contactEmail || '') + ' ' + (c.lastMessagePreview || '')).toLowerCase().includes(q)) return false;
             return true;
         });
-        const totalUnread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
-        const todoCount = convs.filter(c => c.needsReply).length;
+        const totalUnread = scopedConvs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        const todoCount = scopedConvs.filter(c => c.needsReply).length;
         // If selection is gone (e.g. after filter change) clear it.
         if (_inboxState.convId && !filtered.some(c => c.id === _inboxState.convId)) _inboxState.convId = null;
         const selected = _inboxState.convId ? filtered.find(c => c.id === _inboxState.convId) || convs.find(c => c.id === _inboxState.convId) : null;
 
         return `
-        <div class="page-header">
+        ${inboxContextNotice()}
+        <div class="page-header inbox-page-header">
             <div>
                 <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
-                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${scopedConvs.length} conversazioni</div>
                 <p id="inboxFreshness" role="status" style="color:${portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'};font-size:12px;margin:8px 0 0">${esc(inboxFreshness())}</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -12384,12 +12550,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
+        <div class="inbox-workspace" id="inboxWorkspace" data-thread-open="${!!selected}" style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
             <!-- LEFT: conversation list -->
-            <div class="card inbox-list-pane" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
+            <div class="card inbox-list-pane" tabindex="-1" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
                 <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
-                    <div class="inbox-channel-context"><label>Canale <select class="input" aria-label="Canale messaggi" onchange="_inboxState.channel=this.value;_inboxState.convId=null;inboxRefresh()"><option value="all" ${channel === 'all' ? 'selected' : ''}>Tutti</option><option value="whatsapp" ${channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option></select></label>${homeScope ? `<p>Contatto: <strong>${esc(homeScope.label)}</strong> <button type="button" class="btn btn-sm" onclick="oggiClearInboxScope()">Tutti i contatti</button></p>` : ''}</div>
-                    <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
+                    <div class="inbox-channel-context"><label>Canale <select class="input" aria-label="Canale messaggi" onchange="_inboxState.channel=this.value;_inboxState.convId=null;inboxRefresh()"><option value="all" ${channel === 'all' ? 'selected' : ''}>Tutti</option><option value="whatsapp" ${channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option></select></label>${homeScope ? `<p>Contesto: <strong>${esc(homeScope.label)}</strong> <button type="button" class="btn btn-sm" onclick="oggiClearInboxScope()">Tutti i contatti</button></p>` : ''}</div>
+                    <input class="input" id="inboxSearch" aria-label="Cerca una conversazione" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         <button class="btn btn-sm ${_inboxState.filter==='todo'?'btn-primary':''}" onclick="_inboxState.filter='todo';inboxRefresh()" style="font-size:11px;padding:4px 10px">⚡ Da rispondere${todoCount?` <span class="badge gold" style="font-size:9px">${todoCount}</span>`:''}</button>
                         ${['open','snoozed','closed','all'].map(s => `
@@ -12397,7 +12563,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         `).join('')}
                     </div>
                 </div>
-                <div style="overflow-y:auto;flex:1">
+                <div class="inbox-conversations" style="overflow-y:auto;flex:1">
                     ${filtered.length ? filtered.map(c => inboxConversationCard(c, c.id === _inboxState.convId)).join('') :
                         `<div class="empty-state" style="padding:32px"><div class="empty-icon">📭</div><div class="empty-title">Nessuna conversazione</div><div class="empty-subtitle" style="font-size:12px">${isAdmin() ? 'Inizia una nuova conversazione dalla barra in alto.' : 'Le conversazioni a te assegnate compaiono qui.'}</div></div>`
                     }
@@ -12405,7 +12571,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- RIGHT: thread + composer -->
-            <div>
+            <div class="inbox-thread-pane">
                 ${selected ? inboxThreadPanel(selected) : `
                     <div class="card" style="padding:48px;text-align:center">
                         <div style="font-size:48px;margin-bottom:16px">💬</div>
@@ -12453,16 +12619,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     window.inboxSelect = function(convId) {
         _inboxState.convId = convId;
-        const conv = (S.conversations || []).find(c => c.id === convId);
+        const conv = inboxContextRows().find(c => c.id === convId);
+        if (conv && S.inboxContext?.user === auth.currentUser) { S.inboxExactConversation = {id:conv.id,row:conv,user:auth.currentUser}; S.conversations = [conv,...(S.conversations||[]).filter(c=>c.id!==conv.id)]; }
         if (conv) {
             const scope = oggiInboxScope(), q = (_inboxState.search || '').trim().toLowerCase();
             const statusHidden = _inboxState.filter === 'todo' ? !conv.needsReply : _inboxState.filter !== 'all' && (conv.status || 'open') !== _inboxState.filter;
             const channelHidden = _inboxState.channel !== 'all' && conv.channel !== 'mixed' && conv.channel !== _inboxState.channel;
             const searchHidden = q && ![conv.contactName, conv.contactPhone, conv.contactEmail, conv.lastMessagePreview].join(' ').toLowerCase().includes(q);
+            if (scope && !scope.ids.includes(convId)) S.inboxContext = null;
             if ((scope && !scope.ids.includes(convId)) || statusHidden || channelHidden || searchHidden) Object.assign(_inboxState, { filter: 'all', channel: 'all', search: '', homeContext: null });
         }
         if (conv && (conv.unread || 0) > 0 && isAdmin()) {
-            db.collection('conversations').doc(convId).update({ unread: 0, needsReply: false }).catch(()=>{});
+            db.collection('conversations').doc(convId).update({ unread: 0 }).catch(()=>{});
             conv.unread = 0;
         }
         // Attach a live thread listener so Homie's inbound messages appear in
@@ -12497,9 +12665,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
             : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
         return `
-        <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+        <div class="card inbox-thread-card" data-inbox-conversation="${esc(conv.id)}" data-inbox-user="${esc(auth.currentUser?.uid || '')}" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+            <button type="button" class="inbox-back btn btn-secondary" onclick="inboxRefresh('back')" style="display:none">← Conversazioni</button>
             <!-- Header -->
-            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="inbox-thread-head" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px">
                         <div style="font-weight:500;font-size:15px">${esc(conv.contactName || 'Senza nome')}</div>
@@ -12533,7 +12702,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- Composer -->
-            ${inboxComposer(conv)}
+            <div class="inbox-compose-slot" oninput="inboxRefresh('remember')" onchange="inboxRefresh('remember')">${inboxComposer(conv)}</div>
         </div>
         `;
     }
@@ -12666,13 +12835,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (active === 'email' && !canEmail) active = canWa ? 'whatsapp' : 'note';
         return `
         <div style="border-top:1px solid var(--border);padding:12px 18px;background:var(--bg-card)">
-            <div style="display:flex;gap:6px;margin-bottom:10px">
+            <div class="inbox-compose-tabs" style="display:flex;gap:6px;margin-bottom:10px">
                 ${canWa ?    `<button class="btn btn-sm ${active==='whatsapp'?'btn-primary':''}" onclick="_inboxState.composing='whatsapp';inboxRefresh()" style="font-size:11px">📱 WhatsApp</button>` : ''}
                 ${canEmail ? `<button class="btn btn-sm ${active==='email'?'btn-primary':''}"    onclick="_inboxState.composing='email';inboxRefresh()" style="font-size:11px">✉ Email</button>` : ''}
                 <button class="btn btn-sm ${active==='note'?'btn-primary':''}" onclick="_inboxState.composing='note';inboxRefresh()" style="font-size:11px">✎ Nota interna</button>
                 ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxLogInboundModal('${conv.id}')" style="font-size:11px;margin-left:auto">+ Messaggio ricevuto</button>` : ''}
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <div class="inbox-compose-template" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                 <select class="input" id="inboxTpl" onchange="inboxApplyTemplate(this.value, '${conv.id}')" style="font-size:11px;padding:6px;flex:1;min-width:200px">
                     <option value="">— Template rapidi —</option>
                     ${BOOM_INBOX.TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join('')}
@@ -12682,7 +12851,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <input id="inboxSubject" class="input" placeholder="Oggetto email" style="font-size:13px;margin-bottom:8px">
             ` : ''}
             <textarea id="inboxBody" class="input" rows="3" placeholder="${active==='note'?'Nota interna — visibile solo al team':'Scrivi un messaggio…'}" style="font-size:13px;width:100%;resize:vertical;min-height:80px"></textarea>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <div class="inbox-compose-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
                 ${active !== 'note' ? `<button class="btn btn-sm" onclick="inboxProposeReply('${conv.id}')" title="Manda in approvazione (Tier 2)" style="background:rgba(212,175,55,0.15);color:var(--gold);border:1px solid var(--gold)">🤖 Proponi</button>` : ''}
                 ${active === 'whatsapp' ? `<button class="btn btn-primary btn-sm" onclick="inboxSendWhatsapp('${conv.id}')">📱 Apri WhatsApp</button>` : ''}
                 ${active === 'email'    ? `<button class="btn btn-primary btn-sm" onclick="inboxSendEmail('${conv.id}')">✉ Invia email</button>` : ''}
@@ -12726,27 +12895,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }, 400);
     };
 
+    const inboxEmailAttempts = new Map();
     window.inboxSendEmail = async function(convId) {
-        const conv = (S.conversations || []).find(c => c.id === convId);
-        if (!conv) return;
-        const subject = (document.getElementById('inboxSubject') || {}).value || '';
-        const body = (document.getElementById('inboxBody') || {}).value || '';
-        if (!body.trim()) { toast('warning', 'Email vuota'); return; }
-        if (!conv.contactEmail) { toast('error', 'Email del contatto mancante'); return; }
-        const ok = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, conv.contactEmail, {
-            subject: subject || 'Messaggio da BOOM',
-            title: subject || 'Messaggio da BOOM',
-            message: body,
-            action_label: '',
-            action_url: '',
-        });
-        if (ok) {
-            await inboxLogMessage(conv, { direction:'out', channel:'email', body, subject });
-            const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
-            const subj = document.getElementById('inboxSubject'); if (subj) subj.value = '';
-            inboxRefresh();
-            toast('success', 'Email inviata');
-        }
+        const user = auth.currentUser, conv = (S.conversations || []).find(c => c.id === convId);
+        if (!user || S.profile?.id !== user.uid || (!isAdmin() && !isLandlord()) || !conv || _inboxState.convId !== convId) return;
+        const subjectInput = document.getElementById('inboxSubject'), bodyInput = document.getElementById('inboxBody');
+        const subject = subjectInput?.value || 'Messaggio da BOOM', body = bodyInput?.value || '';
+        if (!body.trim() || body.length > 20000 || subject.length > 200 || /[\r\n]/.test(subject)) return toast('warning', 'Controlla il messaggio', 'Oggetto massimo 200 caratteri e testo massimo 20.000; nessun testo viene tagliato.');
+        if (!conv.contactEmail) return toast('error', 'Email del contatto mancante');
+        const key = user.uid + ':' + convId, signature = JSON.stringify([conv.contactEmail, subject, body]);
+        let attempt = inboxEmailAttempts.get(key);
+        if (attempt?.busy) return;
+        if (!attempt || attempt.signature !== signature) { attempt = { signature, user, busy: false, receipt: null, uncertain: false, id: 'portal-email-' + crypto.randomUUID() }; inboxEmailAttempts.set(key, attempt); }
+        if (attempt.uncertain) return toast('warning', 'Invio da verificare', 'Controlla la posta inviata prima di riprovare: l’esito precedente non è confermato.');
+        attempt.busy = true;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid;
+        try {
+            if (!attempt.receipt) {
+                const token = await user.getIdToken(); if (!current()) return;
+                let response, result;
+                try {
+                    response = await fetch('/api/notify/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ to: conv.contactEmail, message: { subject, text: body } }) });
+                    result = await response.json();
+                } catch { attempt.uncertain = true; throw new Error('send_unconfirmed'); }
+                if (!response.ok || !result.ok || !result.accepted) { attempt.uncertain = response.status >= 500 || response.ok; throw new Error(attempt.uncertain ? 'send_unconfirmed' : 'send_rejected'); }
+                attempt.receipt = result;
+            }
+            if (!current()) return;
+            await inboxLogMessage(conv, { direction: 'out', channel: 'email', body, subject, exactText: true,
+                id: attempt.id, emailMessageId: attempt.receipt.messageId, at: attempt.receipt.acceptedAt, user });
+            if (!current()) return;
+            const sameComposer = _inboxState.convId === convId && document.getElementById('inboxBody')?.value === body
+                && (document.getElementById('inboxSubject')?.value || 'Messaggio da BOOM') === subject;
+            if (sameComposer) { document.getElementById('inboxBody').value = ''; const input = document.getElementById('inboxSubject'); if (input) input.value = ''; }
+            const savedView = _inboxState.view, savedDraft = savedView?.user === user.uid && savedView.drafts[convId];
+            if (savedDraft?.inboxBody === body && (savedDraft.inboxSubject || 'Messaggio da BOOM') === subject) {
+                savedDraft.inboxBody = ''; savedDraft.inboxSubject = '';
+            }
+            inboxEmailAttempts.delete(key); // A completed attempt is not a new intentional send.
+            // Do not rerender another thread or erase a draft edited while SMTP was in flight.
+            if (sameComposer) inboxRefresh();
+            toast('success', 'Email accettata e registrata', 'La consegna al destinatario non è attestata da questa ricevuta.');
+        } catch (error) {
+            if (current()) toast('warning', attempt.receipt ? 'Storico non aggiornato' : 'Email non confermata', attempt.receipt
+                ? 'Il server ha accettato l’email, ma la registrazione non è completa. Riprova lo stesso testo: verrà aggiornato solo lo storico, senza reinvio.'
+                : attempt.uncertain ? 'Esito incerto: controlla la posta inviata prima di riprovare. La bozza è conservata.' : 'Invio non accettato. Correggi il messaggio o riprova; la bozza è conservata.');
+        } finally { attempt.busy = false; }
     };
 
     window.inboxSaveNote = async function(convId) {
@@ -12865,6 +13059,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _inboxState.convId = conv.id;
                 startOpenConvListener(conv.id);
             }
+            S.inboxContext = null;
             Object.assign(_inboxState, { convId: conv.id, filter: 'all', channel: 'all', search: '', homeContext: null });
             closeModal();
             inboxRefresh();
@@ -19208,7 +19403,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? '<span class="badge orange">✏️ Firma parziale</span>'
             : '<span class="badge gray">📝 Da firmare</span>';
         
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" data-inbox-contract="${esc(c.id)}"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
@@ -19315,6 +19510,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
+                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="inboxOpenContext({kind:'contract',id:'${jsq(c.id)}'})">💬 Comunicazioni</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>

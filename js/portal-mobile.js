@@ -580,6 +580,8 @@ window.__pmLoaded = true;
     function applyMain() {
         if (!st.active) return;
         var cur = currentSection();
+        var main = $('#main');
+        if (main && main.dataset.pmSection !== (cur || '')) main.dataset.pmSection = cur || '';
         if (cur && LIST_SECTIONS.indexOf(cur) !== -1) {
             $$('#main .list-item:not([data-pm-done])').forEach(listifyRow);
         }
