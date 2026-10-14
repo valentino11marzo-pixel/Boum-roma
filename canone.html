@@ -61,7 +61,7 @@
  {"@type":"Question","name":"Quanto resta in tasca con la cedolare secca?","acceptedAnswer":{"@type":"Answer","text":"Con la cedolare al 10% paga il 10% del canone e niente imposta di registro né bollo. Vale se è persona fisica e sceglie la cedolare; per la durata dell'opzione rinuncia agli aggiornamenti ISTAT del canone."}},
  {"@type":"Question","name":"Conviene di più il canone libero?","acceptedAnswer":{"@type":"Answer","text":"Dipende dal canone che il libero riuscirebbe a ottenere. Il conto le mostra la soglia: sopra quella cifra il 4+4 libero, tassato al 21% con la cedolare, renderebbe di più. Lo sconto IMU del 25% sposta la soglia ancora più in alto."}},
  {"@type":"Question","name":"Non trovo la mia zona: cosa faccio?","acceptedAnswer":{"@type":"Answer","text":"Ci scriva l'indirizzo: verifichiamo la zona sull'allegato dell'Accordo e le diciamo il conto esatto."}},
- {"@type":"Question","name":"BOOM può anche affittare la casa?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga solo le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa; la tariffa dell'organizzazione che firma l'attestazione è a parte e gliela diciamo prima."}}
+ {"@type":"Question","name":"BOOM può anche affittare la casa?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa. In entrambi i casi la tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto."}}
 ]}
   </script>
   <!-- FAQLD:END -->
@@ -632,7 +632,7 @@ html {
       <details><summary>Quanto resta in tasca con la cedolare secca?</summary><div class="a">Con la cedolare al 10% paga il 10% del canone e niente imposta di registro né bollo. Vale se è persona fisica e sceglie la cedolare; per la durata dell'opzione rinuncia agli aggiornamenti ISTAT del canone.</div></details>
       <details><summary>Conviene di più il canone libero?</summary><div class="a">Dipende dal canone che il libero riuscirebbe a ottenere. Il conto le mostra la soglia: sopra quella cifra il 4+4 libero, tassato al 21% con la cedolare, renderebbe di più. Lo sconto IMU del 25% sposta la soglia ancora più in alto.</div></details>
       <details><summary>Non trovo la mia zona: cosa faccio?</summary><div class="a">Ci scriva l'indirizzo: verifichiamo la zona sull'allegato dell'Accordo e le diciamo il conto esatto.</div></details>
-      <details><summary>BOOM può anche affittare la casa?</summary><div class="a">Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga solo le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa; la tariffa dell'organizzazione che firma l'attestazione è a parte e gliela diciamo prima.</div></details>
+      <details><summary>BOOM può anche affittare la casa?</summary><div class="a">Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa. In entrambi i casi la tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto.</div></details>
     </div>
   </section>
 
@@ -893,7 +893,7 @@ html {
 
   function renderRoute() {
     var v = $('gFree').value;
-    var prima = '<a class="' + (v === 'now' || v === 'later' ? 'lead' : '') + '" href="' + ownersHref() + '" data-analytics-label="route-owners"><b>Casa libera?</b> Affittarla con BOOM: nella prima locazione <em>€0 di provvigione</em>, pratiche €278 IVA inclusa con l\'attestazione (€89 senza). →</a>';
+    var prima = '<a class="' + (v === 'now' || v === 'later' ? 'lead' : '') + '" href="' + ownersHref() + '" data-analytics-label="route-owners"><b>Casa libera?</b> Affittarla con BOOM: nella prima locazione <em>€0 di provvigione</em>, pratiche €278 IVA inclusa con l\'attestazione, più la tariffa dell\'organizzazione firmataria; €89 senza. →</a>';
     var pack = '<a class="' + (v === 'rented' ? 'lead' : '') + '" href="' + packHref() + '" data-analytics-label="route-pack"><b>Ha già l\'inquilino?</b> Il Pacchetto concordato: verifica, contratto, pratica di attestazione e registrazione, <em>€349 IVA inclusa</em>; la tariffa dell\'organizzazione che firma l\'attestazione è a parte. →</a>';
     $('rRoute').innerHTML = v === 'rented' ? pack + prima : prima + pack;
   }

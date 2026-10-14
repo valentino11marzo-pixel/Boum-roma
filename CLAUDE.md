@@ -1135,8 +1135,20 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
 1. **Prima locazione — €0 di provvigione**: la provvigione la paga
    l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
    inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
-   attestazione €189, tariffa dell'organizzazione compresa) che apre
-   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   pratica di attestazione €189) che apre cedolare al 10% e IMU −25%, **€89**
+   senza.
+   **La tariffa dell'organizzazione firmataria per l'attestazione è A
+   PARTE**, detta prima per iscritto — come nel Pacchetto (decisione del
+   fondatore, 14/10/2026: la scala diceva «compresa», il Pacchetto «a
+   parte»). `tests/owners` pretende che ogni blocco con €189 o €278 lo dica
+   (pagine, JSON-LD, riga, llms.txt frase per frase, FAQ del sito, WhatsApp,
+   PDF del conto) e vieta «compresa»; la forma breve «pratiche €89–278»
+   (meta, chip, outreach) resta, come le meta del Pacchetto. E niente più
+   «paga SOLO le pratiche» / «only the paperwork» (prezzo esaustivo che non
+   lo è): il test lo vieta anche nell'outreach. Aperto:
+   `ASPI_DEFAULTS.costoAsseverazione` conta ancora €100 come costo BOOM, e
+   chi incassa la tariffa (l'organizzazione dal proprietario, o BOOM che la
+   rifattura) non è scritto nel codice. €278 si scrive PRIMA di €89:
    quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
    `requiresAsseverazione:true` e il default di fatturazione è «completo» —
    presentare €89 come base era il prezzo raro spacciato per normale. Per
@@ -1148,7 +1160,9 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
    `tests/owners` li legge da lì.
 2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
    condominio e utenze), registrazione compresa, solo se il nuovo inquilino
-   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   firma; la pratica di attestazione, se serve, €189, più la tariffa
+   dell'organizzazione firmataria.
+   Si scrive SEMPRE col totale
    accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
    (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
    può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,

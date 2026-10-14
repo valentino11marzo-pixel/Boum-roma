@@ -270,14 +270,14 @@ Mi dica zona e metri quadri: le scrivo quanto rende. Il concordato lo calcola qu
     {
       sc: 'prriaffitto', fam: 'pr', star: true,
       title: 'Riaffitto (mezza mensilità)',
-      when: '«Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari. Sì: se la casa l\'abbiamo già affittata noi è il passo 2 della scala di /owners (mezza mensilità); se no, è una prima locazione (niente provvigione, solo le pratiche). La risposta dice entrambe le cose.',
+      when: '«Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari. Sì: se la casa l\'abbiamo già affittata noi è il passo 2 della scala di /owners (mezza mensilità); se no, è una prima locazione (niente provvigione, le pratiche). La risposta dice entrambe le cose.',
       // Il prezzo è quello pubblicato su /owners: mezza mensilità + IVA,
       // registrazione compresa; l'attestazione è l'ASPI_DEFAULTS di
       // api/fiscal/_aspi.js (tests/whatsapp/replies la lega a quel numero).
       sell: { service: null, anchor: 'i mesi di casa vuota fra un inquilino e l\'altro' },
-      text: `Sì, possiamo fare solo il riaffitto, senza altri impegni.
+      text: `Sì: solo il riaffitto, senza altri impegni.
 
-Se l'abbiamo già affittata noi: mezza mensilità del nuovo canone + IVA (su €1.400, €854 in tutto), solo se il nuovo inquilino firma, registrazione compresa; l'attestazione, se serve, €189. Se è la prima volta con noi: niente provvigione, solo le pratiche (€278 IVA inclusa, €89 senza attestazione).
+Se l'abbiamo già affittata noi: mezza mensilità del canone + IVA (su €1.400, €854 in tutto), solo se il nuovo inquilino firma, registrazione compresa; la pratica di attestazione, se serve, €189. Se è la prima volta con noi: niente provvigione, pratiche €278 IVA inclusa (€89 senza attestazione). La tariffa dell'organizzazione firmataria per l'attestazione è a parte.
 
 Mi dice quando esce l'inquilino? La mostriamo già con quella data.
 
