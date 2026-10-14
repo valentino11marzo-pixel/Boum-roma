@@ -1,6 +1,7 @@
 // api/city-lead.js
 // Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
-// /barcelona; Paris when its data exists — BOOM_CITIES_BRIEF.md). A city in
+// /barcelona, /paris, /berlin — the closed list is CITY_MARKETS in
+// _market.js; BOOM_CITIES_BRIEF.md). A city in
 // `mode: 'waitlist'` (Barcelona: no intermediation in Catalonia without AICAT
 // registration) files the SAME tenant lead, but says so: intent
 // `city_waitlist`, summary head "BARCELONA — waitlist", so the operator never

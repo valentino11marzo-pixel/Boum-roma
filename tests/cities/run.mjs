@@ -450,13 +450,14 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
 const mad = JSON.parse(read('cities/madrid.json'));
 const bcn = JSON.parse(read('cities/barcelona.json'));
 const par = JSON.parse(read('cities/paris.json'));
+const ber = JSON.parse(read('cities/berlin.json'));
 const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
 const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && [mad, bcn, par].every((c) => c.live === false),
-  'madrid is a search desk, barcelona and paris waitlist desks (brief §4); all drafts until the founder reviews them on a phone');
-for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par, 'PARIS', 5]]) {
+check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && ber.mode === 'waitlist' && [mad, bcn, par, ber].every((c) => c.live === false),
+  'madrid is a search desk, barcelona, paris and berlin waitlist desks (brief §4; Berlin: §34c GewO + WoVermRG); all drafts until the founder reviews them on a phone');
+for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par, 'PARIS', 5], [ber, 'BERLIN', 6]]) {
   const h = pageOf(c.slug);
   const v = visibleOf(h);
   check(h.includes(GENERATED_MARK) && /<meta name="robots" content="noindex">/.test(h.slice(0, 4000)) && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`),
@@ -488,10 +489,11 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par,
   check(v.includes('You hire us; we do not act for the landlord.'), 'madrid: the brief\'s must-state sentence, verbatim (§4)');
   check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are the ones on the page — agency costs on the landlord, fianza, padrón, no regional cap');
 }
-// The waitlist desks — Barcelona and Paris: no price anywhere
+// The waitlist desks — Barcelona, Paris and Berlin: no price anywhere
 for (const [c, mustState, facts, factsLabel] of [
   [bcn, 'Launching with a registered local partner.', [/AICAT/, /índice de referencia/, /fianza/, /padrón/], 'AICAT, the índice de referencia, fianza and padrón'],
   [par, 'Launching with a licensed partner.', [/carte professionnelle/, /loi Hoguet/, /encadrement des loyers/, /Visale/, /justificatif de domicile/], 'carte professionnelle, loi Hoguet, the encadrement des loyers, Visale and the justificatif de domicile'],
+  [ber, 'Launching with a licensed partner.', [/§\s?34c GewO/, /Mietpreisbremse/, /Bestellerprinzip/, /Kaution/, /Anmeldung/, /SCHUFA/], '§34c GewO, the Mietpreisbremse, the Bestellerprinzip, Kaution, Anmeldung and SCHUFA'],
 ]) {
   const h = pageOf(c.slug);
   const v = visibleOf(h.replace(/<select[\s\S]*?<\/select>/gi, ' '));
@@ -532,8 +534,8 @@ for (const [c, mustState, facts, factsLabel] of [
   check(JSON.stringify(hrefs(B)) === JSON.stringify(['/amsterdam', '/madrid', '/']), 'a DRAFT page links every sister: the review needs to see the suite');
   check(!hrefs(M).includes('/madrid') && !hrefs(A).includes('/amsterdam'), 'a page is never in its own strip');
   const strip = (pageOf('barcelona').match(/<div class="fam"[\s\S]*?<\/div>/) || [''])[0];
-  check(/<a class="on" href="\/barcelona" aria-current="page">Barcelona<\/a>[\s\S]*<a href="\/amsterdam">Amsterdam<\/a>[\s\S]*<a href="\/madrid">Madrid<\/a>[\s\S]*<a href="\/paris">Paris<\/a>[\s\S]*<a href="\/">BOOM Rome<\/a>/.test(strip),
-    'barcelona (draft): the strip reads Barcelona · Amsterdam · Madrid · Paris · BOOM Rome');
+  check(/<a class="on" href="\/barcelona" aria-current="page">Barcelona<\/a>[\s\S]*<a href="\/amsterdam">Amsterdam<\/a>[\s\S]*<a href="\/berlin">Berlin<\/a>[\s\S]*<a href="\/madrid">Madrid<\/a>[\s\S]*<a href="\/paris">Paris<\/a>[\s\S]*<a href="\/">BOOM Rome<\/a>/.test(strip),
+    'barcelona (draft): the strip reads Barcelona · Amsterdam · Berlin · Madrid · Paris · BOOM Rome');
 }
 // the door, per desk: a waitlist lead is a FILE OPENED, said so everywhere the operator reads
 {
@@ -558,6 +560,13 @@ for (const [c, mustState, facts, factsLabel] of [
   const rp = cityReplyText(p.lead);
   check(rp.includes('opening with a licensed partner') && !rp.includes('registered local partner') && !rp.includes("how we'd run it") && rp.endsWith(CITY_MARKETS.paris.url),
     'paris: the reply names the LICENSED partner (loi Hoguet), never Barcelona\'s registered one, and promises no search');
+  const g = await call({ ...ANNA, city: 'berlin', areas: 'Prenzlauer Berg' }, '10.3.0.4');
+  check(g.code === 200 && g.lead.market === 'berlin' && g.lead.intent === 'city_waitlist' && /^BERLIN — waitlist \(desk opening with a registered partner\)/.test(g.lead.message)
+    && g.notif.summary.startsWith('🇩🇪 BERLIN · waitlist · Anna Keller') && cityLabel(g.lead) === '🇩🇪 Berlin',
+    'berlin: a waitlist lead with the German flag, said as waitlist on the summary and the card', g.lead && g.lead.message);
+  const rg = cityReplyText(g.lead);
+  check(rg.includes('opening with a licensed partner') && !rg.includes("how we'd run it") && rg.endsWith(CITY_MARKETS.berlin.url),
+    'berlin: the reply says the desk is opening with a licensed partner (§34c GewO) and promises no search');
   for (const p of pages) {
     const reg = CITY_MARKETS[p.slug];
     check(!!reg && reg.mode === p.mode, `${p.slug}: the server registry agrees with the page on the desk's mode (${p.mode}) — one word, two places, no drift`);

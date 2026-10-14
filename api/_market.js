@@ -189,6 +189,7 @@ export const CITY_MARKETS = {
   madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search' },
   barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner' },
   paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner' },
+  berlin:    { label: 'Berlin',    flag: '🇩🇪', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner' },
 };
 
 /** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */

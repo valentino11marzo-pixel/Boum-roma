@@ -1,0 +1,338 @@
+{
+  "slug": "berlin",
+  "city": "Berlin",
+  "country": "DE",
+  "iata": "BER",
+  "live": false,
+  "mode": "waitlist",
+  "config": {},
+  "meta": {
+    "title": "Tenant-side rental agent in Berlin — BOOM",
+    "description": "BOOM Berlin works only for the tenant and opens with a licensed partner. Open your file today: rent-brake check, lease read, German dossier, attended viewings.",
+    "ogTitle": "BOOM Berlin — an agent on your side of the table",
+    "ogDescription": "Tenant-side desk for internationals moving to Berlin, opening with a licensed partner. Rent-brake check, lease read, German-format dossier, attended viewings. Paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Berlin — tenant-side rental desk",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Internationals relocating to Berlin",
+    "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. No fees published until the desk opens; nothing from landlords or platforms, ever."
+  },
+  "nav": {
+    "how": "How it works",
+    "services": "Services",
+    "checks": "Before you sign",
+    "faq": "FAQ",
+    "cta": "Open my file",
+    "desk": "tenant side"
+  },
+  "hero": {
+    "eyebrow": "BOOM · Berlin · desk opening",
+    "h1Before": "Your home in",
+    "h1Em": "Found by someone on your side.",
+    "sub": "Opening with a licensed partner (§34c GewO). Open your file now: the search starts the day the desk does — on your side, never the landlord's.",
+    "trust": [
+      {
+        "star": true,
+        "b": "4.9",
+        "t": "on Google · 47 reviews"
+      },
+      {
+        "check": true,
+        "b": "500+",
+        "t": "internationals housed"
+      }
+    ],
+    "servingLead": "From day one, searching",
+    "servingNames": "ImmoScout24 · Immowelt · Kleinanzeigen · WG-Gesucht"
+  },
+  "form": {
+    "ref": "New file — Berlin · tenant side",
+    "refRight": "same-day reply",
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "email": {
+      "label": "Email",
+      "placeholder": "anna@company.com"
+    },
+    "moveIn": {
+      "label": "Move-in",
+      "placeholder": "March 2027"
+    },
+    "budget": {
+      "label": "Monthly budget (warm)"
+    },
+    "budgetOptions": [
+      "Under €1,000",
+      "€1,000 – €1,500",
+      "€1,500 – €2,200",
+      "€2,200 – €3,000",
+      "€3,000+"
+    ],
+    "service": {
+      "label": "What will you need?",
+      "unsure": "Not sure yet",
+      "unsureSub": "advise me"
+    },
+    "more": "More details (optional)",
+    "phone": {
+      "label": "Phone / WhatsApp",
+      "placeholder": "+49 …"
+    },
+    "situation": {
+      "label": "Who's moving",
+      "placeholder": "Couple, relocating with employer"
+    },
+    "areas": {
+      "label": "Neighbourhoods",
+      "placeholder": "Prenzlauer Berg, Kreuzberg, Charlottenburg…"
+    },
+    "message": {
+      "label": "Anything else",
+      "placeholder": "Start date, pets, parking, a listing you already found…"
+    },
+    "submit": "Open my file",
+    "submitSub": "same-day reply · no commitment",
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "sentBefore": "Your file is",
+    "sentEm": "open.",
+    "sentText": "The Berlin desk replies the same working day with where we stand — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    }
+  },
+  "machine": {
+    "route": "ROM → BER",
+    "items": [
+      "file open today",
+      "licensed partner",
+      "rent brake checked",
+      "lease read"
+    ]
+  },
+  "how": {
+    "num": "01 — HOW IT WORKS",
+    "h2": "From your file",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · File",
+        "v": "Open it today",
+        "s": "Budget warm and cold, move-in date, districts, who's moving, how your income reads to a German landlord. We reply the same working day."
+      },
+      {
+        "k": "2 · Opening",
+        "v": "A licensed partner",
+        "s": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. The desk opens with a licensed partner, not around the rule."
+      },
+      {
+        "k": "3 · The search",
+        "v": "Then as in every BOOM city",
+        "s": "The dossier, applications within the hour, a BOOM person at the viewing, rent brake and lease checked before you sign."
+      }
+    ],
+    "tline": [
+      "FILE OPEN",
+      "PARTNER LICENSED",
+      "SEARCH",
+      "VIEWING ATTENDED",
+      "RENT BRAKE + LEASE CHECKED"
+    ],
+    "tlineLand": "✓ KEYS · ÜBERGABEPROTOKOLL"
+  },
+  "pricing": {
+    "num": "02 — SERVICES",
+    "h2": "Three services.",
+    "h2g": "Fees published when the desk opens.",
+    "sub": "The rule is set: paid by you, nothing from landlords or platforms, inside what German law allows.",
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "se": "Full Search · end to end",
+        "name": "We find it. You move in.",
+        "text": "Search, applications, viewing, lease — handled.",
+        "includes": [
+          "Daily search: ImmoScout24, Immowelt, Kleinanzeigen, off-market",
+          "Applications within the hour, German-format",
+          "Attended viewing, live video + report",
+          "Rent brake and lease checked, Nebenkosten read"
+        ],
+        "featured": true,
+        "cta": "Open my file"
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "se": "Application Pack",
+        "name": "You search. We make you win.",
+        "text": "The dossier that wins German applications.",
+        "includes": [
+          "German-format dossier in 24 hours",
+          "SCHUFA and guarantor strategy for newcomers",
+          "Cover note in German",
+          "Lease review before you sign"
+        ],
+        "cta": "Ask for the pack"
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "se": "Attended Viewing",
+        "name": "Eyes on the ground.",
+        "text": "You found it, you're abroad. We go.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "cta": "Ask for a viewing"
+      }
+    ],
+    "note": "No price is shown because none is charged yet. German law caps a tenant-side fee and ties it to a signed lease; the desk publishes its fees within that rule, invoiced by Egidi Immobiliare S.r.l."
+  },
+  "checks": {
+    "num": "03 — BEFORE YOU SIGN",
+    "h2": "Six things we check",
+    "h2g": "before you sign.",
+    "sub": "Six points we put in writing on every Berlin lease.",
+    "items": [
+      {
+        "id": "rentcap",
+        "title": "The rent brake",
+        "at": "Mietpreisbremse",
+        "text": "At signing the rent may not exceed the local comparative rent by more than ten percent, exceptions aside. We check, furniture surcharge included."
+      },
+      {
+        "id": "fees",
+        "title": "Who may charge you",
+        "at": "Bestellerprinzip · §34c GewO",
+        "text": "Whoever orders the agent pays. One you hire is paid only once you sign, within a legal cap. We open with a licensed partner."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "Kaution",
+        "text": "At most three months' cold rent, in three instalments, kept apart from the landlord's money. Anything more is not legal."
+      },
+      {
+        "id": "warm",
+        "title": "Cold or warm",
+        "at": "Kaltmiete · Warmmiete",
+        "text": "The listed rent is often cold. We read the Nebenkosten advance, what it covers, and what the yearly settlement can add."
+      },
+      {
+        "id": "anmeldung",
+        "title": "Registration",
+        "at": "Anmeldung · Wohnungsgeberbestätigung",
+        "text": "You register within two weeks of moving in; the landlord owes you the confirmation form. We make sure it comes with the keys."
+      },
+      {
+        "id": "dossier",
+        "title": "The dossier",
+        "at": "SCHUFA · Selbstauskunft",
+        "text": "Landlords want SCHUFA, payslips, proof of no arrears, ID. Newcomers lack the German ones. We build the file so it reads right."
+      }
+    ]
+  },
+  "truth": {
+    "h3": "We'll also tell you",
+    "h3em": "what's wrong with it.",
+    "p": "A tenancy that goes wrong costs us more than a lost fee — so we write down what we saw, before you sign.",
+    "flags": [
+      "asking rent above the Mietpreisbremse",
+      "a deposit above three cold months",
+      "a furniture surcharge hiding the real rent",
+      "an agent fee before you have signed"
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Berlin — fact sheet",
+    "ref": "REF · BERLIN / TENANT SIDE",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Berlin, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (§34c GewO)</b>. Hired and paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Internationals relocating to Berlin — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Fees",
+        "ddHtml": "Not published yet: nothing is charged until the desk opens. German law caps a tenant-side fee and ties it to a signed lease; ours sit inside that rule. Nothing from landlords or platforms."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Today: your file opened and kept ready, your questions answered the same working day. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, represent landlords, promise a date, or broker a flat in Germany before the desk opens."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "faq": {
+    "num": "04 — QUESTIONS",
+    "h2": "The questions",
+    "h2g": "we get asked.",
+    "items": [
+      {
+        "q": "Why isn't BOOM taking searches in Berlin yet?",
+        "a": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap. We open with a licensed partner. Your file waits, ready."
+      },
+      {
+        "q": "What can you do for me today?",
+        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The dossier, the rent-brake check and the lease read start when the desk opens."
+      },
+      {
+        "q": "Is my rent capped in Berlin?",
+        "a": "Berlin applies the Mietpreisbremse: at signing the rent may not exceed the local comparative rent by more than ten percent, with exceptions for new builds, modernised flats and a higher previous rent. Furnished flats hide a lot in the surcharge. We check."
+      },
+      {
+        "q": "Do I need to be in Berlin?",
+        "a": "No. When the desk opens, a BOOM person attends viewings in your place, with live video and a written report. The lease is read and signed remotely. You arrive for the keys and the Übergabeprotokoll."
+      },
+      {
+        "q": "Who pays the agent in Germany?",
+        "a": "Whoever orders the agent. A landlord's agent cannot charge you. An agent you hire may charge you only once the lease is signed, at most two months' net cold rent plus VAT. That is the rule we open under."
+      },
+      {
+        "q": "What do you do with my data?",
+        "a": "It is used to answer you and to open your file, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+      }
+    ]
+  },
+  "band": {
+    "h2": "Someone in Berlin",
+    "h2em": "on your side.",
+    "p": "One minute now — a reply the same working day."
+  },
+  "footer": {
+    "tagline": "Born in Rome, built for people who move countries. The same rules in Berlin: one side of the table, everything in writing — and a licensed partner before the first search.",
+    "statement": "Launching with a licensed partner. BOOM Berlin acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not broker a tenancy in Germany before the desk opens with its licensed partner.",
+    "status": "Opening — same-day replies"
+  },
+  "paybar": {
+    "title": "BOOM · Berlin",
+    "sub": "same-day reply",
+    "cta": "Open my file"
+  }
+}

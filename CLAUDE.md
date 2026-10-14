@@ -1040,7 +1040,7 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   link).
 
 ### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `api/city-lead.js` + `BOOM_CITIES_BRIEF.md`) — 14/10/2026
-Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi), lato inquilino,
+Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi, Berlino), lato inquilino,
 in inglese. Il contratto è `BOOM_CITIES_BRIEF.md` (fuori dal deploy: budget e
 zone grigie legali sono interni). **La Fase 1 (13/10) era un'estrazione
 pixel-identica della pagina scritta a mano — e il fondatore l'ha bocciata**:
@@ -1211,24 +1211,60 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   `live:false`: per il live servono la revisione sul telefono, la riga in
   `sitemap.xml`, il link dalla home e il partner licenziato prima di
   qualunque passaggio a `search` (che esige i prezzi, come per Barcellona).
+- **Berlino (14/10, notte)** — la quinta città, FUORI dal brief (§0 ne elenca
+  quattro; §1 prevede «una quinta città è un JSON + copy», ma §4 non ha un
+  blocco legale per Berlino: ogni fatto in pagina è quindi da verificare col
+  legale, nessuno viene dal brief). `mode:"waitlist"`, e non per prudenza
+  generica: in Germania chi intermedia locazioni abitative ha bisogno del
+  permesso del **§34c GewO**, e il **WoVermRG** (legge sulla mediazione di
+  alloggi) fissa COME si paga un agente lato inquilino — il **Bestellerprinzip**
+  (paga chi incarica), compenso dovuto SOLO a contratto firmato (§2 c. 1),
+  tetto di **due mensilità nette fredde + IVA** (§3 c. 2), divieto di
+  anticipi. Un «Full Search €500 quando il lavoro parte» sarebbe illecito così
+  com'è anche col permesso in mano: Berlino non può aprire in `search` con la
+  griglia prezzi di Amsterdam, e il passaggio a `search` esige un listino
+  ridisegnato su quella legge, non solo il partner. In pagina: «Launching with
+  a licensed partner.» (la frase di Parigi), nessun prezzo, i sei controlli
+  sono i fatti tedeschi — la **Mietpreisbremse** (al massimo +10% sul canone
+  comparativo locale, eccezioni dichiarate, il supplemento arredo come
+  nascondiglio), chi può farsi pagare (Bestellerprinzip · §34c GewO), la
+  **Kaution** (tre mensilità fredde in tre rate, separata dal patrimonio del
+  locatore, §551 BGB), Kaltmiete · Warmmiete e il conguaglio Nebenkosten,
+  l'**Anmeldung** entro due settimane con la Wohnungsgeberbestätigung (§19
+  BMG), il dossier **SCHUFA** · Selbstauskunft. Portali: ImmoScout24 ·
+  Immowelt · Kleinanzeigen · WG-Gesucht; budget «warm». Registro
+  `CITY_MARKETS.berlin` (🇩🇪, `partner: 'a licensed partner'`): lead
+  `intent:'city_waitlist'`, card «🇩🇪 BERLIN · waitlist · …», risposta che
+  dice che il desk sta aprendo. Budget rispettato dopo il taglio (corpo
+  979 → 946): hero 55 · controlli 165 · corpo 946. `og-berlin.png` dal repo
+  (92 KB). **Da verificare col legale prima del live**: il permesso §34c
+  (partner o Egidi stessa — è un permesso dell'ufficio commercio, non un
+  esame), la MaBV e l'obbligo di formazione; se Application Pack e Attended
+  Viewing sono «Vermittlung» (allora niente anticipo e solo a firma) o
+  servizi a sé; la Mietpreisbremse (proroga e eccezioni: nuova costruzione,
+  modernizzazione, canone precedente più alto; il supplemento arredo); la
+  Kaution e le tre rate; l'Anmeldung e i tempi reali degli uffici; la
+  legalità del contratto a termine (§575 BGB). `live:false`: revisione sul
+  telefono, riga in `sitemap.xml`, link dalla home, partner con permesso E
+  listino conforme al WoVermRG prima di qualunque `search`.
 - **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
   in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
   confermare col commercialista PRIMA del live), il pagamento (carta o
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (211 — build, sistema, voce, budget di
+- Test: `node tests/cities/run.mjs` (235 — build, sistema, voce, budget di
   parole, chip e ✓ dai piani, scheda dopo la FAQ, JSON-LD = pagina,
   rifiuti, le sorelle con le invarianti waitlist e la regola della famiglia,
-  handler VERO di `/api/city-lead` su Firestore in memoria per i quattro desk,
-  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (45, Chromium:
+  handler VERO di `/api/city-lead` su Firestore in memoria per i cinque desk,
+  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (49, Chromium:
   leggibile senza JS coi prezzi dei chip come testo, il tabellone che
   scrive AMSTERDAM nello spazio riservato, prezzi che si compongono, 390px
   senza scroll laterale coi quattro chip a una riga e la riga «searching»
   nascosta, pay bar solo oltre l'hero, burger, nessun servizio pre-scelto e
   il piatto che spunta il suo chip, modulo che posta JSON una volta e dice
   l'errore sul posto, reduced motion fermo, 1440 a due colonne; Madrid,
-  Barcellona e Parigi a 390px — tabellone nello spazio riservato, chip pari, nessun €
+  Barcellona, Parigi e Berlino a 390px — tabellone nello spazio riservato, chip pari, nessun €
   sulla pagina waitlist, il modulo che posta la SUA città).
 
 ### POST `/api/service-checkout`
