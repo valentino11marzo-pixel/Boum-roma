@@ -2344,6 +2344,139 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // Session proof shared by boot, reads and subscriptions. A generation also
+    // distinguishes logout/login of the SAME uid while an old read is pending.
+    var portalSessionGeneration = 0, portalLoadGeneration = 0;
+    const portalSessionDefaults = { ...S };
+    function portalSessionProof() {
+        return { generation: portalSessionGeneration, uid: auth.currentUser?.uid,
+            profileId: S.profile?.id, role: S.profile?.role };
+    }
+    function portalSessionCurrent(proof) {
+        return !!proof.uid && proof.generation === portalSessionGeneration && auth.currentUser?.uid === proof.uid
+            && S.profile?.id === proof.profileId && S.profile?.role === proof.role;
+    }
+    function portalSessionReset() {
+        portalSessionGeneration++; portalLoadGeneration++;
+        authProcessed = false; authRetryCount = 0;
+        stopSessionCheck();
+        for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
+            stopSignRequestsListener, stopRadarListener, stopInboxListener, stopHeartbeatListener,
+            stopMaintenanceListener, stopLeadsListener, stopAgentFeedListener]) stop();
+        portalSourcesStop();
+        oggiSegretariaStopLive(); oggiSegretaria.generation++;
+        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false });
+        window.portalSearchReset?.();
+        if (typeof _inboxState !== 'undefined') _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
+        const lang = S.lang, isOnline = navigator.onLine;
+        const generations = Object.fromEntries(Object.entries(S).filter(([key]) => /Generation$/.test(key)));
+        for (const key of Object.keys(S)) delete S[key];
+        Object.assign(S, portalSessionDefaults, generations, { user: null, profile: null, page: 'dashboard', lang, isOnline });
+        for (const key of Object.keys(S)) if (Array.isArray(S[key])) S[key] = [];
+        for (const key of ['pfsClients','pfsProperties','pfsActivities','landlords','viewingRequests','conversations','messages']) S[key] = [];
+        S.registrationStatuses = {};
+        invalidateRentSnapshot();
+        document.getElementById('app')?.classList.remove('active');
+        for (const id of ['main','modals','sidebar','searchContainer','toasts','headerName','headerAvatar','headerRole','headerBadge']) {
+            const node = document.getElementById(id); if (node) node.replaceChildren();
+        }
+        document.body.classList.remove('modal-open');
+        document.getElementById('portalSourceNotice')?.remove();
+    }
+    function portalRead(promise) {
+        let timer;
+        return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 15000); })])
+            .finally(() => clearTimeout(timer));
+    }
+    function portalDataRender() {
+        if (S.page === 'oggi') {
+            oggiScheduleUpdate();
+            if (typeof oggiWorkspace !== 'undefined' && oggiWorkspace.selected && !document.querySelector('.modal-overlay.active')) oggiWorkspaceShow(oggiWorkspace.selected, false);
+            return;
+        }
+        if (S.page === 'inbox') { inboxLiveRefresh(); return; }
+        const focus = document.activeElement;
+        if (document.querySelector('.modal-overlay.active') || document.body.classList.contains('modal-open')
+            || (document.getElementById('main')?.contains(focus) && focus?.matches('input,textarea,select,[contenteditable="true"]'))) return;
+        renderPage(); buildNav(); portalSourcesNotice();
+    }
+    function portalSourcesNotice() {
+        const labels = { contracts:'Contratti', maintenance:'Manutenzioni', signRequests:'Firme', core:'Dati principali',
+            listings:'Annunci', leads:'Lead', activityLog:'Attività', tasks:'Scadenze e attività', pfs:'Ricerca immobili', inbox:'Conversazioni', viewings:'Visite' };
+        const issues = Object.entries(S.sourceFreshness || {}).filter(([, entry]) => entry.state !== 'live');
+        let node = document.getElementById('portalSourceNotice');
+        const main = document.getElementById('main');
+        if (!issues.length || !S.profile) { node?.remove(); return; }
+        if (!node && main?.parentElement) {
+            node = document.createElement('div'); node.id = 'portalSourceNotice'; node.setAttribute('role', 'status');
+            node.style.cssText = 'padding:10px 16px;color:var(--orange);border-bottom:1px solid var(--border)';
+            main.parentElement.insertBefore(node, main);
+        }
+        if (node) node.textContent = issues.map(([key, entry]) => (labels[key] || key) + ': '
+            + (entry.state === 'cached' ? 'copia locale, conferma server in attesa' : entry.state === 'loading' ? 'verifica in corso' : 'aggiornamento non riuscito; conservo gli ultimi dati'))
+            .join(' · ') + '. Contratti, manutenzioni e firme riprovano automaticamente. Per le altre fonti usa Aggiorna i dati.';
+    }
+    function portalSourceStatus(name, state) {
+        S.sourceFreshness ||= {};
+        S.sourceFreshness[name] = { ...S.sourceFreshness[name], state,
+            ...(state === 'live' ? { verifiedAt: Date.now() } : {}) };
+        portalSourcesNotice();
+    }
+    function portalSourcesStop() {
+        document.removeEventListener('visibilitychange', portalSourcesRecover);
+        window.removeEventListener('online', portalSourcesRecover);
+        window.removeEventListener('pageshow', portalSourcesRecover);
+        for (const timer of Object.values(S.sourceRetryTimers || {})) clearTimeout(timer);
+    }
+    function portalSourcesRecover() {
+        if (!auth.currentUser || !isAdmin() || !S.sourceFreshness || document.hidden || navigator.onLine === false) return;
+        for (const [name, restart] of [['contracts', startContractsListener], ['maintenance', startMaintenanceListener], ['signRequests', startSignRequestsListener]]) {
+            if (S.sourceFreshness?.[name]?.state === 'error') restart();
+        }
+        portalSourcesNotice();
+    }
+    function portalListenSource(name, query, next, restart) {
+        const proof = portalSessionProof();
+        let active = true, unsubscribe, watchdog;
+        const current = () => active && portalSessionCurrent(proof);
+        const stop = () => { active = false; clearTimeout(watchdog); clearTimeout(S.sourceRetryTimers?.[name]); unsubscribe?.(); };
+        const failed = () => {
+            if (!current()) return;
+            stop();
+            if (!restart) { console.warn('[Portal] Subscription stopped:', name); return; }
+            portalSourceStatus(name, 'error');
+            const attempt = (S.sourceRetryAttempts ||= {})[name] = (S.sourceRetryAttempts[name] || 0) + 1;
+            const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt - 1, 5));
+            (S.sourceRetryTimers ||= {})[name] = setTimeout(() => {
+                if (!portalSessionCurrent(proof)) return;
+                if (navigator.onLine !== false && !document.hidden) restart();
+            }, delay);
+        };
+        if (restart) {
+            clearTimeout(S.sourceRetryTimers?.[name]);
+            portalSourceStatus(name, S.sourceFreshness?.[name]?.state || 'loading');
+            document.addEventListener('visibilitychange', portalSourcesRecover);
+            window.addEventListener('online', portalSourcesRecover);
+            window.addEventListener('pageshow', portalSourcesRecover);
+            watchdog = setTimeout(failed, 15000);
+        }
+        const received = snapshot => {
+            if (!current()) return;
+            (S.dataRevisions ||= {})[name] = (S.dataRevisions[name] || 0) + 1;
+            if (restart) {
+                const cached = snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites;
+                portalSourceStatus(name, cached ? 'cached' : 'live');
+                if (!cached) { clearTimeout(watchdog); (S.sourceRetryAttempts ||= {})[name] = 0; }
+            }
+            next(snapshot);
+        };
+        try { unsubscribe = restart ? query.onSnapshot({ includeMetadataChanges: true }, received, failed) : query.onSnapshot(received, failed); }
+        catch { failed(); }
+        if (!active) unsubscribe?.();
+        return stop;
+    }
+    // End shared session/source helpers.
+
     // Track if auth already processed
     let authProcessed = false;
     let authRetryCount = 0;
@@ -2389,8 +2522,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
+        if ((u?.uid || null) !== (auth.currentUser?.uid || null)) return;
         if (u) cancelLoginRedirect();
-        if (authProcessed && u) return;
+        if (authProcessed && u?.uid === S.user?.uid) return;
+        if (!u || S.user?.uid !== u.uid) portalSessionReset();
+        const generation = ++portalSessionGeneration;
+        const current = () => generation === portalSessionGeneration && auth.currentUser?.uid === u?.uid;
         
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
@@ -2417,23 +2554,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.user = u;
                 try {
                     const tDoc = await db.collection('users').doc(tenantSession.tenantId).get();
+                    if (!current()) return;
                     if (tDoc.exists) {
                         S.profile = Object.assign({ id: tenantSession.tenantId }, tDoc.data());
                         if (!S.profile.role) S.profile.role = 'tenant';
                         await loadData();
+                        if (!current()) return;
                         showApp();
                         startSessionCheck();
-                        setTimeout(() => readBoomBridge(), 800);
+                        setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                         return;
                     } else {
                         console.warn('[Auth] Tenant user doc missing — clearing session');
                         localStorage.removeItem('boomTenantSession');
                     }
                 } catch (e) {
+                    if (!current()) return;
                     console.error('[Auth] Magic-link tenant load failed:', e);
                     localStorage.removeItem('boomTenantSession');
                 }
             }
+            if (!current()) return;
             console.log('Anonymous user (no tenant session) — signing out...');
             await auth.signOut();
             return;
@@ -2451,6 +2592,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     docP,
                     new Promise((_, rej) => setTimeout(() => rej(new Error('profile_lookup_timeout')), 15000))
                 ]);
+                if (!current()) return;
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
                     // lastLogin è telemetria: MAI awaitarla sul boot path. Una
@@ -2468,30 +2610,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             new Promise((_, rej) => setTimeout(() => rej(new Error('data_load_timeout')), 20000))
                         ]);
                     } catch (loadErr) {
+                        if (!current()) return;
                         console.warn('[Auth] loadData slow/failed — entering app anyway:', loadErr.message);
                         // Show a one-time toast once the app is on screen.
-                        setTimeout(() => { try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
+                        setTimeout(() => { if (!current()) return; try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
                     }
+                    if (!current()) return;
                     showApp();
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
-                    setTimeout(() => { if (typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
-                    setTimeout(() => readBoomBridge(), 800);
+                    setTimeout(() => { if (current() && typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
+                    setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                 } else {
                     console.log('Creating new user document via /api/profile/bootstrap...');
                     // Le rules negano il create non-admin da client: il profilo
                     // nasce server-side (ruolo sempre tenant, least privilege).
                     const idToken = await u.getIdToken();
+                    if (!current()) return;
                     const bootRes = await fetch('/api/profile/bootstrap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                         body: JSON.stringify({ name: u.displayName || '' })
                     });
                     const boot = await bootRes.json().catch(() => ({}));
+                    if (!current()) return;
                     if (!bootRes.ok || !boot.ok) throw new Error('Creazione profilo non riuscita (' + (boot.error || bootRes.status) + ')');
                     location.reload();
                 }
             } catch (e) { 
+                if (!current()) return;
                 console.error('Auth error:', e);
                 // Retry logic for Safari (desktop and mobile)
                 if (isSafari && authRetryCount < maxAuthRetries) {
@@ -2501,10 +2648,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     // Actually retry loading user data after brief delay
                     setTimeout(async () => {
                         try {
+                            if (!current()) return;
                             const retryDoc = await db.collection('users').doc(u.uid).get();
+                            if (!current()) return;
                             if (retryDoc.exists) {
                                 S.profile = { id: u.uid, ...retryDoc.data() };
                                 await loadData();
+                                if (!current()) return;
                                 showApp();
                                 startSessionCheck();
                                 authProcessed = true;
@@ -2526,6 +2676,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     });
 
     async function loadData() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return { ok: false, stale: true };
         console.log('Loading data...');
         const startTime = performance.now();
         
@@ -2542,7 +2694,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const cacheKey = 'boom_data_cache';
         const cacheFresh = 5 * 60 * 1000;        // sotto: refresh rilassato
         const cacheUsable = 24 * 60 * 60 * 1000; // sotto: boot istantaneo + refresh subito
-        const cached = localStorage.getItem(cacheKey);
+        let cached;
+        try { cached = localStorage.getItem(cacheKey); } catch {}
         if (cached) {
             try {
                 const { data, timestamp, uid, role } = JSON.parse(cached);
@@ -2550,20 +2703,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const age = Date.now() - timestamp;
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
-                    Object.assign(S, data);
+                    for (const [key, value] of Object.entries(data || {})) {
+                        if (Array.isArray(value) && key !== 'user' && key !== 'profile') S[key] = value;
+                    }
+                    for (const key of ['core','contracts','maintenance']) portalSourceStatus(key, 'cached');
                     invalidateRentSnapshot();
                     window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
-                    setTimeout(() => loadDataFresh(true), age < cacheFresh ? 2000 : 0);
-                    return;
+                    setTimeout(() => { if (portalSessionCurrent(proof)) return loadDataFresh(true); }, age < cacheFresh ? 2000 : 0);
+                    return { ok: true, cached: true };
                 }
                 if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
 
-        await loadDataFresh(false);
+        return loadDataFresh(false);
     }
     
     // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
@@ -2575,7 +2731,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
             const snap = await db.collection(collection)
-                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2586,7 +2742,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let i = 0; i < unique.length; i += 30) {
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
-            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            const snap = await db.collection(collection).where(field, 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2596,84 +2752,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // queries pass Firestore Security Rules (which reject unconstrained
     // collection reads for landlord/tenant). Admin-only ops collections are
     // emptied, never fetched.
-    async function loadDataScoped(silent, startTime) {
+    async function loadDataScoped(silent, startTime, current) {
         const myUid = S.profile.id;
+        const next = {};
+        let inboxOK = true;
         // Admin-only collections: stay empty for landlord/tenant.
-        S.clients = []; S.invoices = []; S.rules = []; S.ruleExecutions = [];
-        S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
-        S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
-        S.landlords = []; S.viewingRequests = [];
-        S.conversations = []; S.messages = [];
+        next.clients = []; next.invoices = []; next.rules = []; next.ruleExecutions = [];
+        next.listings = []; next.leads = []; next.activityLog = []; next.deadlines = [];
+        next.tasks = []; next.pfsClients = []; next.pfsProperties = []; next.pfsActivities = [];
+        next.landlords = []; next.viewingRequests = [];
+        next.conversations = S.conversations || []; next.messages = S.messages || [];
         // The viewer needs their own user doc (+ admin contacts surface lazily).
-        S.users = [{ id: myUid, ...S.profile }];
+        next.users = [{ id: myUid, ...S.profile }];
 
-        if (isLandlord()) {
-            const props = await db.collection('properties').where('ownerId', '==', myUid).get();
-            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.properties.map(p => p.id);
+        const landlord = isLandlord();
+        if (landlord) {
+            const props = await db.collection('properties').where('ownerId', '==', myUid).get({ source: 'server' });
+            next.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.properties.map(p => p.id);
             const [contracts, payments, maint] = await Promise.all([
                 fetchWhereInChunked('contracts', 'propertyId', propIds),
                 fetchWhereInChunked('payments', 'propertyId', propIds),
                 fetchWhereInChunked('maintenance', 'propertyId', propIds)
             ]);
-            S.contracts = contracts;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.contracts = contracts;
+            next.payments = payments;
+            next.maintenance = maint;
             // Tenants on those contracts (so names render) — read-allowed since
             // admin rule covers users; landlords read tenant docs via rules only
             // if permitted. Keep minimal: skip cross-user fetch, render by id.
         } else { // tenant
-            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get();
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.contracts.map(c => c.propertyId);
+            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get({ source: 'server' });
+            next.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.contracts.map(c => c.propertyId);
             const [props, payments, maint] = await Promise.all([
                 fetchByIdsChunked('properties', propIds),
-                db.collection('payments').where('tenantId', '==', myUid).get()
+                db.collection('payments').where('tenantId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
-                db.collection('maintenance').where('userId', '==', myUid).get()
+                db.collection('maintenance').where('userId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
             ]);
-            S.properties = props;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.properties = props;
+            next.payments = payments;
+            next.maintenance = maint;
         }
 
         // Own documents (both roles).
-        const docs = await db.collection('documents').where('userId', '==', myUid).get();
-        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        const docs = await db.collection('documents').where('userId', '==', myUid).get({ source: 'server' });
+        next.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
 
         // Inbox: scoped reads. Landlord sees conversations assigned to them.
         // Tenant sees own (contactUid == myUid). Either way the rule allows it.
         try {
-            const field = isLandlord() ? 'assignedLandlordId' : 'contactUid';
-            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get();
-            S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
-            const convIds = S.conversations.map(c => c.id);
+            const field = landlord ? 'assignedLandlordId' : 'contactUid';
+            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get({ source: 'server' });
+            next.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
+            const convIds = next.conversations.map(c => c.id);
             if (convIds.length) {
                 const msgs = await fetchWhereInChunked('messages', 'conversationId', convIds);
-                S.messages = msgs;
+                next.messages = msgs;
             }
-        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox scoped load:', e.message); }
+        } catch (e) { inboxOK = false; if (current()) portalSourceStatus('inbox', 'error'); }
+
+        if (!current()) return { ok: false, stale: true };
+        Object.assign(S, next);
+        portalSourceStatus('core', 'live');
+        if (inboxOK) portalSourceStatus('inbox', 'live');
 
         // Auto-overdue marking on the viewer's own pending payments.
         const today = new Date().toISOString().split('T')[0];
-        S.payments.forEach(function (p) {
+        next.payments.forEach(function (p) {
             if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
         });
 
-        cacheData();
+        if (inboxOK) cacheData();
         checkAlerts();
-        if (silent) {
-            // Refresh in background dopo un boot dalla cache (percorso SWR):
-            // riallinea la UI ai dati appena arrivati — ma mai sotto un modal
-            // aperto, un re-render cancellerebbe l'input dell'utente. È lo
-            // stesso comportamento del percorso admin (blocco lazy → render).
-            const modals = document.getElementById('modals');
-            if (!modals || !modals.children.length) {
-                try { renderPage(); buildNav(); } catch (e) { console.warn('Silent refresh render:', e); }
-            }
-        }
+        if (silent) portalDataRender();
         console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+        return { ok: inboxOK };
     }
 
     function cacheData() {
@@ -2682,7 +2838,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // load non finiva (audit 2026-08, I2). Ora copre tutto lo stato, e la
         // serializzazione (potenzialmente MB) gira in idle, mai sul percorso
         // critico del main thread.
+        const proof = portalSessionProof(), generation = portalLoadGeneration;
         const snapshot = () => {
+            if (!portalSessionCurrent(proof) || generation !== portalLoadGeneration) return;
             try {
                 localStorage.setItem('boom_data_cache', JSON.stringify({
                     timestamp: Date.now(),
@@ -2703,16 +2861,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else setTimeout(snapshot, 300);
     }
 
-    async function loadDataFresh(silent) {
-        const startTime = performance.now();
+    async function loadDataFresh(silent, waitForLazy = false) {
+        const startTime = performance.now(), proof = portalSessionProof();
+        const generation = ++portalLoadGeneration;
+        let expired = false;
+        const current = () => !expired && generation === portalLoadGeneration && portalSessionCurrent(proof);
+        if (!current()) return { ok: false, stale: true };
+        const revisions = { ...S.dataRevisions };
+        portalSourceStatus('core', 'loading');
         // Landlord / tenant take the scoped path so their queries satisfy
         // Firestore rules; admin keeps the full bulk load below.
         if (!isAdmin()) {
-            try { return await loadDataScoped(silent, startTime); }
+            try { return await portalRead(loadDataScoped(silent, startTime, current)); }
             catch (e) {
+                if (!current()) return { ok: false, stale: true };
+                expired = true; portalSourceStatus('core', 'error');
                 console.error('Scoped load error:', e);
                 if (!silent) toast('error', 'Errore caricamento', e.message);
-                return;
+                return { ok: false };
             }
         }
         try {
@@ -2724,25 +2890,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // nulla e costava ~2 round-trip extra a ogni boot admin.
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('loading');
             console.log('Loading core data...');
-            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
+            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get({ source: 'server' }) nudi —
             // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
             // larghi (oggi non tagliano nulla), NON orderBy+limit: un orderBy su
             // un campo che i doc legacy non hanno li NASCONDEREBBE in silenzio.
-            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await Promise.all([
-                db.collection('users').limit(800).get(),
-                db.collection('properties').limit(400).get(),
-                db.collection('contracts').limit(800).get(),
-                db.collection('payments').limit(3000).get(),
-                db.collection('maintenance').limit(600).get(),
-                db.collection('clients').limit(1200).get(),
-                db.collection('documents').limit(1500).get(),
-                db.collection('invoices').limit(1200).get(),
-                db.collection('rules').limit(200).get(),
-                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
-            ]);
+            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await portalRead(Promise.all([
+                db.collection('users').limit(800).get({ source: 'server' }),
+                db.collection('properties').limit(400).get({ source: 'server' }),
+                db.collection('contracts').limit(800).get({ source: 'server' }),
+                db.collection('payments').limit(3000).get({ source: 'server' }),
+                db.collection('maintenance').limit(600).get({ source: 'server' }),
+                db.collection('clients').limit(1200).get({ source: 'server' }),
+                db.collection('documents').limit(1500).get({ source: 'server' }),
+                db.collection('invoices').limit(1200).get({ source: 'server' }),
+                db.collection('rules').limit(200).get({ source: 'server' }),
+                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get({ source: 'server' })
+            ]));
+            if (!current()) return { ok: false, stale: true };
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.contracts || 0) === (revisions.contracts || 0)) S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
             invalidateRentSnapshot();
             // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
@@ -2754,73 +2921,79 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.payments.forEach(function(p) {
                 if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
             });
-            S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.maintenance || 0) === (revisions.maintenance || 0)) S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
             S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
+            portalSourceStatus('core', 'live');
+            for (const name of ['contracts', 'maintenance']) if (!S[name + 'Listener']) portalSourceStatus(name, 'live');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
-            
-            // Cache core data (tagged with uid + role for shared-device safety)
-            cacheData();
             
             // LAZY LOAD: dati non-critici, dopo che l'app è visibile.
             // I 6 gruppi erano SEQUENZIALI (ogni try await-ava il precedente):
             // 6 round-trip in fila = 1,5-3s di sola latenza su mobile. Ora
             // partono INSIEME; ogni gruppo tiene il proprio catch, quindi un
             // gruppo che fallisce non tocca gli altri (audit 2026-08, I1).
-            setTimeout(async () => {
+            const lazy = async () => {
+                if (!current()) return { ok: false, stale: true };
+                let lazyOK = true;
+                const read = async (name, work) => {
+                    if (!current()) return;
+                    let active = true;
+                    const valid = () => active && current();
+                    try { await portalRead(work(valid)); if (current()) portalSourceStatus(name, 'live'); }
+                    catch { lazyOK = false; if (current()) portalSourceStatus(name, 'error'); }
+                    finally { active = false; }
+                };
                 const rows = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 await Promise.all([
-                    (async () => {
-                        try { S.listings = rows(await db.collection('listings').limit(400).get()); }
-                        catch (e) { S.listings = []; }
-                    })(),
-                    (async () => {
-                        try { S.leads = rows(await db.collection('leads').orderBy('createdAt', 'desc').limit(100).get()); }
-                        catch (e) { S.leads = []; }
-                    })(),
-                    (async () => {
-                        try { S.activityLog = rows(await db.collection('activityLog').orderBy('timestamp', 'desc').limit(200).get()); }
-                        catch (e) { S.activityLog = []; }
-                    })(),
-                    (async () => {
+                    ...[['listings', 'listings', 400], ['leads', 'leads', 100], ['activityLog', 'activityLog', 200]].map(([name, collection, limit]) => read(name, async valid => {
+                        const revision = S.dataRevisions?.[name] || 0;
+                        let query = db.collection(collection);
+                        if (name === 'leads') query = query.orderBy('createdAt', 'desc');
+                        if (name === 'activityLog') query = query.orderBy('timestamp', 'desc');
+                        const snap = await query.limit(limit).get({ source: 'server' });
+                        if (valid() && (S.dataRevisions?.[name] || 0) === revision) S[name] = rows(snap);
+                    })),
+                    read('tasks', async valid => {
                         window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('loading');
                         try {
-                            const [deadlines, tasks] = await Promise.all([
-                                db.collection('deadlines').limit(1500).get(),
-                                db.collection('tasks').limit(800).get()
-                            ]);
+                            const [deadlines, tasks] = await portalRead(Promise.all([
+                                db.collection('deadlines').limit(1500).get({ source: 'server' }),
+                                db.collection('tasks').limit(800).get({ source: 'server' })
+                            ]));
+                            if (!valid()) return;
                             S.deadlines = rows(deadlines); S.tasks = rows(tasks);
                             window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('ready');
-                        } catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze e attività'); }
-                    })(),
+                        } catch (e) { if (valid()) window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); throw e; }
+                    }),
+                    read('pfs', async valid => {
+                        const [pfsClients, pfsProperties, pfsActivities, landlords] = await portalRead(Promise.all([
+                            db.collection('pfsClients').limit(500).get({ source: 'server' }),
+                            db.collection('pfsProperties').limit(1500).get({ source: 'server' }),
+                            db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get({ source: 'server' }),
+                            db.collection('landlords').limit(500).get({ source: 'server' })
+                        ]));
+                        if (!valid()) return;
+                        S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
+                        S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
+                    }),
+                    read('viewings', async valid => { const ok = await oggiLoadViewings(); if (!ok) throw Error('viewings_unavailable'); }),
                     (async () => {
-                        try {
-                            const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
-                                db.collection('pfsClients').limit(500).get(),
-                                db.collection('pfsProperties').limit(1500).get(),
-                                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
-                                db.collection('landlords').limit(500).get()
-                            ]);
-                            S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
-                            S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
-                        } catch (e) { S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = []; }
-                    })(),
-                    oggiLoadViewings(),
-                    (async () => {
+                        let active = true;
                         const user = auth.currentUser, profileId = S.profile?.id;
                         const conversationsRevision = S.inboxDataRevision || 0, messagesRevision = S.inboxMessagesRevision || 0;
-                        const current = () => auth.currentUser === user && S.profile?.id === profileId && isAdmin();
-                        if (!user || !current()) return;
+                        const inboxCurrent = () => active && current() && auth.currentUser === user && S.profile?.id === profileId && isAdmin();
+                        if (!user || !inboxCurrent()) return;
                         try {
-                            const [convs, msgs] = await Promise.all([
-                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
-                                db.collection('messages').orderBy('at', 'desc').limit(500).get()
-                            ]);
-                            if (!current()) return;
+                            const [convs, msgs] = await portalRead(Promise.all([
+                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get({ source: 'server' }),
+                                db.collection('messages').orderBy('at', 'desc').limit(500).get({ source: 'server' })
+                            ]));
+                            if (!inboxCurrent()) return;
                             // A delayed one-shot must not replace a newer realtime snapshot.
                             if ((S.inboxDataRevision || 0) === conversationsRevision) {
                                 S.conversations = rows(convs);
@@ -2837,29 +3010,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 S.messages = openId ? rows(msgs).filter(m => m.conversationId !== openId)
                                     .concat((S.messages || []).filter(m => m.conversationId === openId)) : rows(msgs);
                             }
+                            portalSourceStatus('inbox', 'live');
                         } catch (e) {
+                            lazyOK = false;
+                            if (inboxCurrent()) portalSourceStatus('inbox', 'error');
                             console.warn('Inbox load:', e.message);
-                            if (current() && !['live', 'cached'].includes(S.inboxFeed?.state)) {
+                            if (inboxCurrent() && !['live', 'cached'].includes(S.inboxFeed?.state)) {
                                 S.inboxFeed = { state: 'error' }; inboxFreshnessUpdate();
                             }
-                        }
+                        } finally { active = false; }
                     })(),
                 ]);
 
+                if (!current()) return { ok: false, stale: true };
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
-                if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
-                cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
-                if (S.page === 'inbox') inboxLiveRefresh();
-                else if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings') renderPage();
-                buildNav();
-            }, isSafariDesktop ? 1500 : 500);
-            
-            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+                if (lazyOK) cacheData();
+                portalDataRender();
+                return { ok: lazyOK };
+            };
+            const completion = waitForLazy ? lazy() : new Promise(resolve => setTimeout(() => { const pending = lazy(); resolve(pending); return pending; }, isSafariDesktop ? 1500 : 500));
             if (!silent) checkAlerts();
+            if (waitForLazy) return await completion;
+            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+            return { ok: true, completion };
         } catch (e) { 
+            if (!current()) return { ok: false, stale: true };
+            expired = true; portalSourceStatus('core', 'error');
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('error');
             console.error('Load data error:', e);
-            if (!silent) toast('error', 'Errore caricamento', e.message); 
+            if (!silent) toast('error', 'Errore caricamento', e.message);
+            return { ok: false };
         }
     }
 
@@ -3117,11 +3297,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.notifListener) S.notifListener();
         
         // Listen for notifications for this user
-        S.notifListener = db.collection('notifications')
+        S.notifListener = portalListenSource('notif', db.collection('notifications')
             .where('userId', '==', S.profile.id)
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
                 updateReminderBadge();
@@ -3140,7 +3320,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const latest = newUnread[0];
                     sendBrowserNotification(latest.title || 'BOOM', latest.message || 'New notification');
                 }
-            }, err => console.error('Notification listener error:', err));
+            });
     }
     
     function stopNotificationListener() {
@@ -3160,13 +3340,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // iniziale riscaricava la collezione INTERA una seconda volta.
         if (!S.profile?.id || !isAdmin()) return;
         if (S.contractsListener) S.contractsListener();
-        S.contractsListener = db.collection('contracts').limit(800)
-            .onSnapshot(snapshot => {
+        S.contractsListener = portalListenSource('contracts', db.collection('contracts').limit(800)
+            , snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
                 oggiScheduleUpdate();
-                if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
-            }, err => console.error('Contracts listener error:', err));
+                if (S.page === 'dashboard' || S.page === 'contracts') portalDataRender();
+            }, startContractsListener);
     }
 
     function stopContractsListener() {
@@ -3183,15 +3363,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startActionQueueListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.actionQueueListener) S.actionQueueListener();
-        S.actionQueueListener = db.collection('action_queue')
+        S.actionQueueListener = portalListenSource('actionQueue', db.collection('action_queue')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
                 oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
-            }, err => console.error('Action queue listener error:', err));
+            });
     }
 
     function stopActionQueueListener() {
@@ -3208,11 +3388,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startHeartbeatListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.heartbeatListener) S.heartbeatListener();
-        S.heartbeatListener = db.collection('heartbeat').doc('mac')
-            .onSnapshot(doc => {
+        S.heartbeatListener = portalListenSource('heartbeat', db.collection('heartbeat').doc('mac')
+            , doc => {
                 S.homieHeartbeat = doc.exists ? doc.data() : null;
                 if (S.page === 'command-center') renderPage();
-            }, err => console.error('Heartbeat listener error:', err));
+            });
         // Re-render periodically so the dot ages even without new pings.
         if (!S._hbTick) S._hbTick = setInterval(() => { if (S.page === 'command-center') renderPage(); }, 30000);
     }
@@ -3229,8 +3409,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.maintenanceListener) S.maintenanceListener();
         S._maintSeen = new Set((S.maintenance || []).map(m => m.id));
-        S.maintenanceListener = db.collection('maintenance').limit(600)
-            .onSnapshot(snapshot => {
+        S.maintenanceListener = portalListenSource('maintenance', db.collection('maintenance').limit(600)
+            , snapshot => {
                 S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
                 const firstRun = !S._maintInit; S._maintInit = true;   // don't alert for pre-existing tickets on login
@@ -3246,8 +3426,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 }
                 buildNav();
                 oggiScheduleUpdate();
-                if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Maintenance listener error:', err));
+                if (S.page === 'maintenance' || S.page === 'dashboard') portalDataRender();
+            }, startMaintenanceListener);
     }
     function stopMaintenanceListener() {
         if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
@@ -3264,8 +3444,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.leadsListener) S.leadsListener();
         S._leadsSeen = new Set((S.leads || []).map(l => l.id));
         S._leadsInit = false;
-        S.leadsListener = db.collection('leads').orderBy('createdAt', 'desc').limit(100)
-            .onSnapshot(snapshot => {
+        S.leadsListener = portalListenSource('leads', db.collection('leads').orderBy('createdAt', 'desc').limit(100)
+            , snapshot => {
                 S.leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const firstRun = !S._leadsInit; S._leadsInit = true;   // niente avvisi per l'arretrato al login
                 const fresh = firstRun ? [] : S.leads.filter(l => !S._leadsSeen.has(l.id)
@@ -3282,7 +3462,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 buildNav();
                 oggiScheduleUpdate();
                 if (S.page === 'leads') renderPage();
-            }, err => console.error('Leads listener error:', err));
+            });
     }
     function stopLeadsListener() {
         if (S.leadsListener) { S.leadsListener(); S.leadsListener = null; }
@@ -3297,10 +3477,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.agentFeedListener) S.agentFeedListener();
         S._agentSeen = new Set((S.agentFeed || []).map(a => a.id));
-        S.agentFeedListener = db.collection('agentNotifications')
+        S.agentFeedListener = portalListenSource('agentFeed', db.collection('agentNotifications')
             .where('status', '==', 'pending')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
@@ -3315,7 +3495,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
                 }
                 if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Agent feed listener error:', err));
+            });
     }
     function stopAgentFeedListener() {
         if (S.agentFeedListener) { S.agentFeedListener(); S.agentFeedListener = null; }
@@ -3339,13 +3519,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startSignRequestsListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.signRequestsListener) S.signRequestsListener();
-        S.signRequestsListener = db.collection('signRequests')
+        S.signRequestsListener = portalListenSource('signRequests', db.collection('signRequests')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.signRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (S.page === 'contracts') renderPage();
-            }, err => console.error('Sign requests listener error:', err));
+                if (S.page === 'contracts') portalDataRender();
+            }, startSignRequestsListener);
     }
 
     function stopSignRequestsListener() {
@@ -3359,13 +3539,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startRadarListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.radarListener) S.radarListener();
-        S.radarListener = db.collection('radarSearches')
+        S.radarListener = portalListenSource('radar', db.collection('radarSearches')
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.radarSearches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if (S.page === 'property-radar') renderPage();
-            }, err => console.error('Radar listener error:', err));
+            });
     }
 
     function stopRadarListener() {
@@ -4016,12 +4196,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function refresh() { 
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             await loadData(); 
+            if (!portalSessionCurrent(proof)) return;
             await loadRegistrations();
+            if (!portalSessionCurrent(proof)) return;
             renderPage(); 
             buildNav(); 
         } catch (e) {
+            if (!portalSessionCurrent(proof)) return;
             console.error('Refresh error:', e);
             toast('error', 'Errore aggiornamento', 'Ricarica la pagina');
         }
@@ -4102,12 +4287,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Force refresh data (clear cache and reload)
     async function forceRefreshData() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         window.portalSearchReset?.();
-        localStorage.removeItem('boom_data_cache');
         toast('info', 'Ricaricamento dati...');
-        await loadDataFresh(false);
-        renderPage();
-        toast('success', 'Dati aggiornati!');
+        const result = await loadDataFresh(false, true);
+        if (!portalSessionCurrent(proof) || result?.stale) return;
+        portalSourcesRecover();
+        portalDataRender();
+        if (result?.ok && !Object.values(S.sourceFreshness || {}).some(entry => entry.state !== 'live')) toast('success', 'Dati aggiornati!');
+        else toast('warning', 'Aggiornamento incompleto', 'Conservo gli ultimi dati disponibili. Controlla le fonti segnalate e riprova.');
+        return result;
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
 
@@ -4758,7 +4948,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const meta = E.KINDS[kind], scan = reader?.state(kind), count = (state[meta.collection] || []).length;
             const status = scan?.status === 'loading' ? 'Lettura in corso…' : scan?.status === 'error' ? 'Lettura non riuscita · dati precedenti conservati' : scan?.complete ? 'Scansione terminata' : scan?.rows?.length ? scan.rows.length + ' record letti dal database · archivio ancora parziale' : 'Completezza non verificata';
             return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
-        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
+        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><button type="button" class="btn btn-sm btn-secondary" onclick="portalMailCheckSources()" ${S.mailSources?.checking ? 'disabled' : ''}>${S.mailSources?.checking ? 'Verifico collegamenti…' : 'Verifica collegamenti'}</button><p class="ow-hint" role="status" id="portalMailSourceStatus">${esc(S.mailSources?.summary || 'Controlla configurazione e ultimo giro registrato. Non legge nuove email e non attiva HOMIE.')}</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
         target.onclick = event => {
             if (event.target.closest('[data-search-reset]')) { window.portalSearchReset(); return; }
             const button = event.target.closest('[data-search-source]');
@@ -11534,6 +11724,165 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const empty = document.getElementById('maintenanceEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.maintenance || []).length;
     }
 
+    async function updateMaintenanceStatus(id, newStatus) {
+        const user = auth.currentUser;
+        if (!user || S.profile?.id !== user.uid || !isAdmin() || !['in_progress', 'resolved'].includes(newStatus)) return;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid && isAdmin();
+        try {
+            await db.collection('maintenance').doc(id).update({
+                status: newStatus,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
+            });
+            if (!current()) return;
+            logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
+
+            const m = S.maintenance.find(x => x.id === id);
+            const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
+
+            // Notify requester if resolved
+            if (newStatus === 'resolved' && m?.userId) {
+                await notifyMaintenanceResolved(m);
+            }
+
+            // Notify tenant when work starts (in_progress)
+            if (newStatus === 'in_progress' && m?.userId) {
+                await createNotification(
+                    m.userId,
+                    'maintenance',
+                    '🔧 Maintenance In Progress',
+                    `Work has started on your request "${m.title}" for ${property?.name || 'your apartment'}. We'll update you when it's complete.`,
+                    { maintenanceId: id, propertyId: m.propertyId }
+                );
+                // Also notify landlord
+                if (property?.ownerId && property.ownerId !== m.userId) {
+                    await createNotification(
+                        property.ownerId,
+                        'maintenance',
+                        '🔧 Manutenzione in corso',
+                        `Lavori iniziati per "${m.title}" - ${property?.name || 'immobile'}`,
+                        { maintenanceId: id, propertyId: m.propertyId }
+                    );
+                }
+            }
+            if (current()) goTo('maintenance');
+        } catch (err) {
+            if (current()) toast('error', 'Errore: ' + err.message);
+        }
+    }
+
+    // ============================================
+    // RULES ENGINE - Sistema di Automazioni BOOM
+    // ============================================
+
+    // Definizioni dei trigger disponibili
+    const RULE_TRIGGERS = {
+        'payment_late_5': {
+            icon: '💳', name: 'Pagamento in ritardo (5 giorni)',
+            description: 'Si attiva quando un pagamento è in ritardo da 5 giorni',
+            category: 'payments'
+        },
+        'payment_late_15': {
+            icon: '⚠️', name: 'Pagamento in ritardo (15 giorni)',
+            description: 'Escalation - pagamento in ritardo da 15 giorni',
+            category: 'payments'
+        },
+        'payment_late_30': {
+            icon: '🚨', name: 'Pagamento in ritardo (30 giorni)',
+            description: 'Critico - pagamento in ritardo da 30 giorni',
+            category: 'payments'
+        },
+        'payment_due_soon': {
+            icon: '📅', name: 'Pagamento in scadenza (3 giorni)',
+            description: 'Reminder preventivo per pagamenti in scadenza',
+            category: 'payments'
+        },
+        'contract_expiring_60': {
+            icon: '📋', name: 'Contratto in scadenza (60 giorni)',
+            description: 'Avviso anticipato per rinnovo contratto',
+            category: 'contracts'
+        },
+        'contract_expiring_30': {
+            icon: '📋', name: 'Contratto in scadenza (30 giorni)',
+            description: 'Urgente: contratto in scadenza tra 30 giorni',
+            category: 'contracts'
+        },
+        'contract_expired': {
+            icon: '🔴', name: 'Contratto scaduto',
+            description: 'Il contratto è già scaduto',
+            category: 'contracts'
+        },
+        'maintenance_new': {
+            icon: '🔧', name: 'Nuova manutenzione',
+            description: 'Quando viene creata una nuova richiesta',
+            category: 'maintenance'
+        },
+        'maintenance_urgent': {
+            icon: '🚨', name: 'Manutenzione urgente',
+            description: 'Quando una richiesta è marcata come urgente',
+            category: 'maintenance'
+        },
+        'maintenance_old': {
+            icon: '⏰', name: 'Manutenzione vecchia (7+ giorni)',
+            description: 'Ticket aperto da più di 7 giorni',
+            category: 'maintenance'
+        },
+        'new_tenant': {
+            icon: '👤', name: 'Nuovo inquilino',
+            description: 'Quando viene aggiunto un nuovo inquilino',
+            category: 'users'
+        },
+        'tenant_bad_score': {
+            icon: '📉', name: 'Inquilino a rischio',
+            description: 'Inquilino con punteggio pagamenti < 70%',
+            category: 'users'
+        }
+    };
+
+    // Definizioni delle azioni disponibili
+    const RULE_ACTIONS = {
+        'notify_telegram': {
+            icon: '📱', name: 'Notifica Telegram',
+            description: 'Invia notifica al canale Telegram BOOM',
+            requiresTarget: false
+        },
+        'notify_tenant': {
+            icon: '👤', name: 'Notifica Inquilino',
+            description: 'Invia notifica all\'inquilino via email/WhatsApp',
+            requiresTarget: true
+        },
+        'notify_landlord': {
+            icon: '🏠', name: 'Notifica Proprietario',
+            description: 'Invia notifica al proprietario',
+            requiresTarget: true
+        },
+        'notify_admin': {
+            icon: '👑', name: 'Notifica Admin',
+            description: 'Invia notifica agli admin',
+            requiresTarget: false
+        },
+        'create_task': {
+            icon: '✅', name: 'Crea Task',
+            description: 'Crea un task nel sistema',
+            requiresTarget: false
+        },
+        'send_reminder': {
+            icon: '🔔', name: 'Invia Reminder',
+            description: 'Invia reminder automatico',
+            requiresTarget: true
+        },
+        'escalate': {
+            icon: '📈', name: 'Escalation',
+            description: 'Escalation al livello superiore',
+            requiresTarget: false
+        },
+        'generate_report': {
+            icon: '📊', name: 'Genera Report',
+            description: 'Genera un report automatico',
+            requiresTarget: false
+        }
+    };
+
     function rulesPage() {
         // Get rules from S.rules or empty array
         const rules = S.rules || [];
@@ -12540,6 +12889,79 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         observer.observe(document.getElementById('modals'), {childList:true});
     };
 
+    // Explicit connection checks and bounded imports. State is a disposable
+    // session projection; incoming messages remain owned by Firestore listeners.
+    function portalMailState() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return null;
+        if (!S.mailSources || !portalSessionCurrent(S.mailSources.proof))
+            S.mailSources = { proof: portalSessionProof(), checking: false, summary: '', syncBusy: false, sync: {} };
+        return S.mailSources;
+    }
+    function portalMailError(code) {
+        return ({ invalid_or_expired_token: 'Sessione scaduta: accedi nuovamente.', forbidden: 'Questa verifica richiede un amministratore.',
+            conversation_not_found: 'La conversazione non è più disponibile.', conversation_email_missing: 'Manca un indirizzo email valido per questa conversazione.',
+            email_identity_ambiguous: 'Email condivisa o collegamento incerto: verifica la scheda della persona prima di importare.',
+            imap_unconfigured: 'Connessione email non configurata sul server. Il collegamento Gmail di Codex è separato.' })[code]
+            || 'Verifica non completata. Riprova; nessuna risposta automatica è stata avviata.';
+    }
+    async function portalMailRequest(state, body, current) {
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), body ? 65000 : 15000);
+        try {
+            const token = await user.getIdToken();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const response = await fetch('/api/segretaria/scan-replies' + (body ? '' : '?status=1'), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const data = await response.json();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    window.portalMailCheckSources = async function() {
+        const state = portalMailState();
+        if (!state || state.checking) return;
+        state.checking = true; state.summary = 'Verifico lo stato registrato sul server…'; portalSearchSourcesRender();
+        try {
+            const data = await portalMailRequest(state, null, () => S.mailSources === state);
+            if (!data) return;
+            const e = data.email, w = data.whatsapp, last = e.lastScan;
+            const stamp = value => value ? new Date(value).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+            const email = !e.configured ? 'Email: connessione non configurata.' : e.healthy
+                ? 'Email: ultimo giro verificato ' + stamp(last.checkedAt) + '.'
+                : last?.incomplete ? 'Email: ultimo giro parziale ' + stamp(last.checkedAt) + '.'
+                : last?.failed ? 'Email: ultimo giro non riuscito.' : last?.fresh === false
+                ? 'Email: ultimo controllo non recente (' + stamp(last.checkedAt) + ').' : 'Email: configurata, lettura non ancora verificata.';
+            state.summary = email + ' Copertura: solo conversazioni affidate o con un seguito aperto, ultimi 3 giorni; non tutta la casella. '
+                + (w.bridgeFresh ? 'HOMIE: battito recente, ricezione WhatsApp non verificata.'
+                    : 'HOMIE: nessun battito recente. Ricezione WhatsApp non verificata.') + ' Nessuna automazione è stata attivata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && S.mailSources === state) state.summary = portalMailError(error.code); }
+        finally { state.checking = false; if (portalSessionCurrent(state.proof) && S.mailSources === state) portalSearchSourcesRender(); }
+    };
+    window.inboxImportEmail = async function(cid) {
+        const state = portalMailState(), conv = (S.conversations || []).find(c => c.id === cid);
+        if (!state || state.syncBusy || _inboxState.convId !== cid || S.page !== 'inbox' || !conv?.contactEmail || conv.conversationBindingConflict) return;
+        const email = conv.contactEmail, entry = state.sync[cid] || (state.sync[cid] = {});
+        const current = () => S.mailSources === state && S.page === 'inbox' && _inboxState.convId === cid
+            && (S.conversations || []).find(c => c.id === cid)?.contactEmail === email;
+        state.syncBusy = true; entry.busy = true; entry.summary = 'Leggo le email recenti di questa conversazione…'; inboxRefresh();
+        try {
+            const data = await portalMailRequest(state, { mode: 'sync_only', conversationId: cid }, current);
+            if (!data) { entry.summary = 'Vista cambiata: esito non verificato qui. Riprova per rileggere.'; return; }
+            const counts = `${data.imported || 0} importate · ${data.scanned || 0} lette · ${data.duplicates || 0} già presenti`;
+            const pending = (data.deferred || 0) + (data.deferredSenders || 0);
+            entry.summary = data.skipped === 'imap_unconfigured' ? portalMailError(data.skipped)
+                : counts + (data.incomplete || data.errors || data.trackingErrors
+                    ? ` · Lettura parziale${pending ? ': ' + pending + ' da verificare al prossimo giro' : ''}. Riprova.` : ' · Lettura terminata per questo mittente.')
+                    + ' Nessuna risposta inviata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && current()) entry.summary = portalMailError(error.code); }
+        finally { state.syncBusy = false; entry.busy = false; if (portalSessionCurrent(state.proof) && current()) inboxRefresh(); }
+    };
+
     function inboxThreadPanel(conv) {
         const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
         const days = BOOM_INBOX.groupByDay(msgs);
@@ -12606,6 +13028,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${conv.contactType === 'pfs' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','pfsClient')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxToggleStatus('${conv.id}')" style="font-size:11px">${conv.status === 'closed' ? 'Riapri' : 'Chiudi'}</button>` : ''}
                 </div>
+                    ${isAdmin() && canEmail ? `<section aria-label="Importazione email" style="padding:8px 0"><button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" onclick="inboxImportEmail(this.dataset.cid)" ${S.mailSources?.syncBusy || bindingCode ? 'disabled' : ''}>${S.mailSources?.sync?.[conv.id]?.busy ? 'Importazione in corso…' : 'Importa email recenti'}</button><p class="sg-footnote" role="status" style="font-size:12px;line-height:1.4;margin:6px 0;color:var(--text-secondary)">${esc(S.mailSources?.sync?.[conv.id]?.summary || 'Solo questo mittente · ultimi 3 giorni · massimo 8 email per giro. Nessuna AI o risposta automatica.')}</p></section>` : ''}
                     ${followUpMarkup}
                     ${inboxHomieBanner(conv)}
                 </div>
@@ -12751,8 +13174,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const canWa    = !!conv.contactPhone;
         // Fallback active tab if the current one is unavailable.
         let active = tab;
+        if (!['whatsapp', 'email', 'note'].includes(active)) active = canWa ? 'whatsapp' : canEmail ? 'email' : 'note';
         if (active === 'whatsapp' && !canWa) active = canEmail ? 'email' : 'note';
         if (active === 'email' && !canEmail) active = canWa ? 'whatsapp' : 'note';
+        _inboxState.composing = active;
         return `
         <div style="border-top:1px solid var(--border);padding:12px 18px;background:var(--bg-card)">
             <div class="inbox-compose-tabs" style="display:flex;gap:6px;margin-bottom:10px">
@@ -14696,6 +15121,126 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // await sul percorso di render).
     // ═══════════════════════════════════════════════════════════════════
 
+    // Costs are observed estimates, never a provider invoice. Only an explicit
+    // save changes the existing settings/ai budget; opening does not enable it.
+    function aiCostsCurrent(state) {
+        return !!state && S.aiCosts === state && portalSessionCurrent(state.proof) && isAdmin()
+            && document.getElementById('aiCostsModal') === state.modal;
+    }
+    function aiCostsRender(state) {
+        if (!state || !portalSessionCurrent(state.proof) || S.aiCosts !== state) return;
+        const host = document.getElementById('aiCostsContent');
+        if (!host || host.closest('#aiCostsModal') !== state.modal) return;
+        const data = state.data, usage = data?.usage, budget = data?.budget;
+        const amount = value => typeof value === 'number' && Number.isFinite(value) && value >= 0
+            ? value.toLocaleString('it-IT', { style: 'currency', currency: 'USD', maximumFractionDigits: 6 }) : 'Non disponibile';
+        const available = period => usage?.[period + 'Available'] === true && usage?.[period + 'Priced'] === true;
+        const metric = (label, value) => `<div style="min-width:0"><dt style="font-size:12px;color:var(--text-secondary)">${label}</dt><dd style="margin:5px 0 0;font-size:20px">${esc(value)}</dd></div>`;
+        const ready = !!data && ['ready', 'disabled'].includes(budget?.state) && typeof data.cfg?.budget?.enabled === 'boolean';
+        const disabled = state.loading || state.saving || !ready;
+        host.innerHTML = `${state.loading ? '<p role="status">Leggo costi e impostazioni registrati…</p>' : ''}
+            <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">Stime cloud registrate nel portale, in USD. Non sono le fatture dei fornitori.</p>
+            <dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0">
+                ${metric('Oggi' + (usage?.day ? ' · ' + esc(usage.day) : ''), available('today') ? amount(usage.today?.total?.cloud?.usd) : 'Non disponibile')}
+                ${metric('Questo mese', available('month') ? amount(usage.month?.total?.cloud?.usd) : 'Non disponibile')}
+            </dl>
+            ${data && (!available('today') || !available('month')) ? '<p style="font-size:12px;color:var(--orange)" role="status">Lettura dei costi incompleta. I valori mancanti non sono zero.</p>' : ''}
+            <section style="border-top:1px solid var(--border);padding-top:16px"><h4 style="margin:0 0 8px;font-size:14px">Limite giornaliero Anthropic</h4>
+                <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">${budget?.state === 'ready'
+                    ? 'Attivo · ' + esc(amount(budget.dailyUsd)) + '/giorno, fuso Roma.' : budget?.state === 'disabled'
+                    ? 'Disattivato. Nessun limite viene attivato aprendo questo pannello.' : 'Stato del limite non verificabile. Rileggi prima di modificarlo.'}</p>
+                ${budget?.state === 'ready' ? `<dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0">
+                    ${metric('Conteggiato nel limite', amount(budget.accountedUsd))}${metric('Riservato, non fatturato', amount(budget.heldUsd))}
+                    ${metric('Disponibile nel limite', amount(budget.remainingUsd))}</dl>` : ''}
+                <form id="aiCostsForm" onsubmit="saveAICosts(event)" novalidate>
+                    <label style="display:flex;gap:10px;align-items:center;padding:10px 0;font-size:13px"><input id="aiBudgetEnabled" type="checkbox" ${state.enabled ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="aiCostsDraft()">Attiva il limite giornaliero</label>
+                    <label for="aiDailyUsd" class="form-label">Importo scelto da te · USD al giorno</label>
+                    <input id="aiDailyUsd" class="form-input" type="number" inputmode="decimal" min="0" step="any" placeholder="Inserisci un importo" value="${esc(state.cap || '')}" ${disabled || !state.enabled ? 'disabled' : ''} oninput="aiCostsDraft()">
+                    <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">Il limite riguarda Anthropic Messages. Esclude STT, Codex/chat, ElevenLabs, Telnyx e TIM. Le riserve coprono richieste in corso o esiti incerti: non sono addebiti confermati.</p>
+                    <p id="aiCostsFeedback" role="${state.error ? 'alert' : 'status'}" style="font-size:13px;line-height:1.5;color:var(--${state.error ? 'orange' : 'text-secondary'})">${esc(state.error || state.message || '')}</p>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn btn-secondary" onclick="aiCostsRead()" ${state.loading || state.saving ? 'disabled' : ''}>Rileggi</button><button type="submit" class="btn btn-primary" ${disabled ? 'disabled' : ''}>${state.saving ? 'Salvo…' : 'Salva limite'}</button></div>
+                </form>
+            </section>`;
+    }
+    function aiCostsDraft() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.enabled = document.getElementById('aiBudgetEnabled').checked;
+        const input = document.getElementById('aiDailyUsd'); state.cap = input.value; input.disabled = !state.enabled;
+        state.error = ''; state.message = '';
+        const feedback = document.getElementById('aiCostsFeedback'); if (feedback) feedback.textContent = '';
+    }
+    async function aiCostsRequest(state, patch) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            if (!aiCostsCurrent(state)) return null;
+            const response = await fetch('/api/ai/status?probe=0', { method: patch ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(patch ? { 'Content-Type': 'application/json' } : {}) },
+                ...(patch ? { body: JSON.stringify(patch) } : {}) });
+            if (!aiCostsCurrent(state)) return null;
+            const data = await response.json();
+            if (!aiCostsCurrent(state)) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    async function aiCostsRead() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.loading = true; state.error = ''; state.data = null; aiCostsRender(state);
+        try {
+            const data = await aiCostsRequest(state);
+            if (!data) return;
+            state.data = data; state.enabled = data.cfg?.budget?.enabled === true;
+            state.cap = typeof data.cfg?.budget?.dailyUsd === 'number' ? String(data.cfg.budget.dailyUsd) : '';
+        } catch { if (aiCostsCurrent(state)) state.error = 'Costi o impostazioni non disponibili. Riprova: nessuna modifica è stata salvata.'; }
+        finally { state.loading = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    async function saveAICosts(event) {
+        event?.preventDefault();
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving || !state.data || state.data.budget?.state === 'unavailable') return;
+        aiCostsDraft();
+        const amount = Number(state.cap);
+        if (state.enabled && (!state.cap.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.ceil(amount * 1000000)))) {
+            state.error = 'Inserisci un importo giornaliero positivo in USD prima di attivare il limite.'; aiCostsRender(state); return;
+        }
+        const patch = { budget: state.enabled ? { enabled: true, dailyUsd: amount } : { enabled: false } };
+        state.saving = true; state.error = ''; state.message = ''; aiCostsRender(state);
+        let saved = false;
+        try {
+            const result = await aiCostsRequest(state, patch);
+            if (!result) return;
+            saved = true; state.message = result.cfg.budget.enabled ? 'Limite salvato.' : 'Limite disattivato.';
+            state.data = await aiCostsRequest(state);
+            if (!aiCostsCurrent(state)) return;
+            if (!state.data) throw { code: 'unavailable' };
+            state.enabled = state.data.cfg.budget.enabled === true;
+            state.cap = typeof state.data.cfg.budget.dailyUsd === 'number' ? String(state.data.cfg.budget.dailyUsd) : '';
+        } catch (error) {
+            if (aiCostsCurrent(state)) {
+                if (saved) state.data = null;
+                state.error = saved ? 'Limite salvato; lettura aggiornata non riuscita. Rileggi per verificare i costi.' : error.code === 'rejected'
+                    ? 'Limite rifiutato dal server. Correggi l’importo e riprova.' : 'Salvataggio non confermato. Rileggi prima di riprovare; il valore inserito è conservato.';
+            }
+        } finally { state.saving = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    function closeAICosts() {
+        if (!document.getElementById('aiCostsModal')) return;
+        S.aiCosts = null; document.getElementById('modals').replaceChildren(); document.body.classList.remove('modal-open');
+    }
+    function openAICosts() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return;
+        if (document.querySelector('.modal-overlay.active')) return;
+        const host = document.getElementById('modals');
+        if (!host) return;
+        host.innerHTML = '<div class="modal-overlay active" id="aiCostsModal" role="dialog" aria-modal="true" aria-labelledby="aiCostsTitle"><div class="modal" style="max-width:520px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column"><div class="modal-header" style="flex-shrink:0"><h3 id="aiCostsTitle" class="modal-title">Costi AI</h3><button type="button" class="modal-close" aria-label="Chiudi costi AI" onclick="closeAICosts()">×</button></div><div id="aiCostsContent" class="modal-body" style="max-height:none;min-height:0;overflow-y:auto"></div></div></div>';
+        document.body.classList.add('modal-open');
+        S.aiCosts = { proof: portalSessionProof(), modal: document.getElementById('aiCostsModal'), loading: false, saving: false, enabled: false, cap: '', data: null };
+        aiCostsRead();
+    }
+
     function squadraPage() {
         const SQ = window.BOOM_SQUADRA;
         if (!SQ) return `<div class="page-header"><div class="page-title">La Squadra</div></div>
@@ -14820,6 +15365,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="page-title">La Squadra</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">${SQ.TEAM.length} dipendenti automatici · ${roll.ok} al lavoro · ${roll.warn + roll.err} da guardare · ${roll.off} senza battito</div>
           </div>
+          <button type="button" class="btn btn-secondary" onclick="openAICosts()">Costi AI</button>
         </div>
 
         <!-- La riga che nessuna pagina diceva: chi può parlare ai clienti da solo. -->
@@ -24126,12 +24672,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return false;
         console.log('Loading registrations...');
         try {
             const [regsSnap, statusSnap] = await Promise.all([
                 db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
             ]);
+            if (!portalSessionCurrent(proof)) return false;
             console.log('Registrations loaded:', regsSnap.docs.length, 'docs');
             console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
             
@@ -24151,6 +24700,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             buildNav();
             return true;
         } catch (err) { 
+            if (!portalSessionCurrent(proof)) return false;
             console.error('Error loading registrations:', err);
             toast('error', 'Errore caricamento registrazioni: ' + err.message);
             throw err;
@@ -31834,10 +32384,13 @@ IBAN: ${l.iban || '-'}`;
     // dalle Impostazioni e valgono ovunque senza deploy.
 
     async function loadCompanySettings() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             // Mai sul percorso critico del boot (lezione dell'audit Safari):
             // se la lettura si blocca, il portale parte lo stesso con i default.
             const doc = await db.collection('settings').doc('company').get();
+            if (!portalSessionCurrent(proof)) return;
             const remote = doc.exists ? doc.data() : {};
             const merged = window.BOOM_DATAOPS.mergeCompany(COMPANY, remote);
             Object.assign(COMPANY, merged.company);   // COMPANY è const: si muta, non si riassegna

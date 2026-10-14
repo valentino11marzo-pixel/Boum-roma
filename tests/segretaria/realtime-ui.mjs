@@ -1,6 +1,7 @@
 // Listener Firestore e regioni Oggi/Inbox reali, con soli confini di rete simulati.
 // node tests/segretaria/realtime-ui.mjs (BOOM_PLAYWRIGHT / BOOM_CHROME se necessari)
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
@@ -50,7 +51,8 @@ async function fixture(source = portal, mobile = false) {
     const db={collection(name){
       const query={name,filter:null,sort:null,max:Infinity,
         where(field,op,value){this.filter=[field,value];return this},orderBy(field,dir){this.sort=[field,dir];return this},limit(n){this.max=n;return this},
-        onSnapshot(next,error){
+        onSnapshot(...args){
+          const [next,error]=args.filter(arg=>typeof arg==='function');
           const key=name==='messages'?name+':'+this.filter[1]:name;
           const sub={query:this,next,error};window.subscriptions[key]=sub;
           if(name==='messages'){
@@ -65,7 +67,7 @@ async function fixture(source = portal, mobile = false) {
     window.emit=(name,rows=[])=>window.subscriptions[name].next({docs:rows.map(r=>({id:r.id,data:()=>r}))});
   ` });
   for (const name of ['js/oggi-engine.js', 'js/oggi-desk-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
-  await page.addScriptTag({ content: body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + `
+  await page.addScriptTag({ content: sessionHelpers(source) + '\n' + body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + `
     document.getElementById('main').innerHTML=oggiPage();
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });

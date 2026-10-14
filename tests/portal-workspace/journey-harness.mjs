@@ -51,6 +51,7 @@ goTo=function(section,...args){
 };
 window.fetch=async(url,options={})=>{
  const parsed=new URL(String(url),location.origin);
+ if(parsed.origin===location.origin&&parsed.pathname==='/api/segretaria/scan-replies')return realNetworkFetch('/mail-source-api'+parsed.search,options);
  if(parsed.origin!==location.origin||parsed.pathname!=='/api/segretaria/follow-up')throw Error('No external IO or generation in preview');
  const result=await realNetworkFetch('/workspace-api'+parsed.search,{method:options.method||'GET',headers:{'Content-Type':'application/json'},body:options.body,signal:options.signal});
  const data=await result.clone().json();

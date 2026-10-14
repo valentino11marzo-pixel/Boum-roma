@@ -29,13 +29,22 @@ senza cambiare l'array condiviso. Le righe contratto si aprono anche da tastiera
 | Record BOOM | Motori e renderer reali; relazioni per ID tipizzato | Una relazione mancante non viene dedotta dal nome |
 | Comunicazioni | Query mirate a `conversations` e seguiti confermati in `operatorTasks` | 100 seguiti / 50 conversazioni; incompletezza dichiarata |
 | Presa in carico | Handler reale, fonte persistita, ricevute deterministiche e modulo esistente | 30 casi per conversazione; fonte tra 100 messaggi recenti. Ambiguità/incompletezza bloccano l'azione |
-| Gmail Workspace | Profilo `valentino@boom-rome.com` accessibile dal connettore della chat | Non prova che il portal abbia ricevuto tutte le email |
+| Gmail Workspace | Profilo accessibile; una notifica immobiliare odierna corrisponde al lead visibile nel portal live | Verifica puntuale, non sincronizzazione di tutta la casella |
 | Email dal portal | Payload corretto, oggetto/testo integri fino a SMTP simulato e storico | Collaudo autenticato SMTP reale ancora da fare; ricevuta ≠ consegna al destinatario |
-| HOMIE / WhatsApp | Riutilizzati messaggi già registrati e percorsi esistenti | Nessuna riattivazione di HOMIE o prova di sincronizzazione completa |
+| HOMIE / WhatsApp | SSH funzionante; ricevitore e forwarder già attivi, checkpoint ispezionato senza leggere chat personali | Invii in HOLD preservati; battito recente non significa tutti i messaggi importati |
 
-Lo scanner email esistente non è un innocuo «Aggiorna»: legge solo parte della posta
-e può avviare preparazioni AI. Non viene avviato dall'apertura di queste schermate.
-Questo lotto non introduce modelli, chiamate AI, dipendenze o nuovi segreti.
+La Home offre «Verifica collegamenti»: legge stato/configurazione delle fonti su richiesta.
+In Inbox, «Importa email recenti» usa il nuovo percorso `sync_only` per la sola
+conversazione scelta: tre giorni, massimo otto email, identità verificata, nessuna AI
+o risposta automatica. Messaggio e intestazione sono atomici; identità cambiata
+o verifica incompleta dei metadati (massimo 500 conversazioni) fermano l’importazione.
+Il cron esistente resta distinto. Il primo compositore sceglie
+un canale effettivamente disponibile: una email mostra subito oggetto e invio.
+
+HOMIE il 14/10 conserva 11.122 elementi trattenuti nel checkpoint: storico da rivedere,
+identità non risolta, media e cancellazioni. Non sono 11.122 incarichi da assegnare a
+Valentino né prova di altrettante conversazioni perse. Non si importa indiscriminatamente
+lo storico: classificazione delle chat personali e risoluzione identità restano necessarie.
 
 ## Verifica e limiti della preview
 
@@ -70,37 +79,46 @@ La protezione di retry email vive nella sessione browser: dopo ricaricamento o c
 non sostituisce una coda server durevole. Un esito incerto chiede verifica e non reinvia
 automaticamente. Nessun invio a clienti o modifica di record reali in questo lotto.
 
-## Rilascio e prossimo collaudo
+## Affidabilità chiusa nel candidato
 
-Ramo `codex/portal-mobile-connected-20261014`, base Magic Sign #289 e main `3808a5f0`
-integrato. Nessun merge su main o deploy di produzione eseguito da questo lotto.
-La preview non certifica un rilascio: servono CI del candidato e verifica autenticata.
-La sessione portal trovata era scaduta; richiesto accesso nella scheda Login già aperta.
+- **Sessione e fonti:** account A → logout → B, risposte tardive e stessa utenza
+  riaperta non riusano dati della sessione precedente. Errori delle fonti visibili,
+  recupero limitato e nessun «aggiornato» se una lettura è fallita. Bozze preservate.
+- **Proposte e pagamento:** lock per tutti i mesi con precondizioni; errori di lettura
+  fermano l'avanzamento. Tentativo Checkout persistito, stessa chiave Stripe nei
+  retry, sessione precedente verificata prima di aprirne una nuova. Esito incerto
+  resta da verificare, non viene trasformato in un secondo addebito.
+- **Consegna:** email T+3 soltanto dopo verbale con data e PDF validi; la decorrenza
+  contrattuale non viene presentata come ingresso avvenuto.
+- **Interventi:** ripristinate le azioni di avanzamento/risoluzione e i metadati Regole
+  rimossi accidentalmente nel riassetto del menu. Ruolo e sessione verificati.
+- **Costi:** La Squadra → Costi AI mostra stime registrate e un limite Anthropic
+  facoltativo. Prima dell'esecuzione prenota atomicamente il costo; richieste o
+  prezzi ignoti fermano il cloud quando il limite è attivo. Nessun limite attivato
+  senza un importo scelto. Spento, il limite non impedisce consumi.
 
-La PR #290 resta in bozza: include #289, quindi non va unita separatamente dalla sua
-revisione. Main verificato su GitHub durante questo lavoro: `3808a5f0`; già integrato.
-La chat «Rivedi i materiali cloud di BOOM» conserva le decisioni contrattuali e via dei
-Latini: questo lotto non riscrive quelle decisioni né interviene sulle firme reali.
+I contatori reali letti il 14/10 riportano circa 92,37 USD nel mese, 89,12 USD per
+`segretaria.prepare`, 0,18 USD oggi. Sono stime del portal, non la fattura né i crediti
+Codex. Il nuovo limite copre Anthropic Messages: STT, ElevenLabs, Telnyx/TIM e questa
+chat restano separati. Riserve incerte trattenute, massimo 2.048 tentativi al giorno;
+il fallback server-side di Innesto non prezzabile viene fermato con limite attivo.
 
-## Aperto nell'audit generale, prima di dichiarare affidabile l'intero sistema
+Prove aggiunte: `portalsessionui` (24, incluse mutazioni), `palockrecovery` (20+4),
+`maintenanceactions` (7), `mailsource` (55, sei mutazioni), `mailsourceui` (14),
+`aibudget` (26, cinque mutazioni), `aibudgetui` (16) e `journey`
+(runner reale con IO in memoria, 57 verifiche e due mutazioni). Le prove simulate
+non sostituiscono il collaudo autenticato del deploy.
 
-Il dettaglio resta in `MAGIC_SIGN_E_PORTAL_AUDIT_2026-10-13.md`; non è stato cancellato
-perché le nuove schermate funzionano. Priorità successive, con ambito distinto:
+## Rilascio e confini
 
-| Priorità | Rilievo | Criterio di chiusura |
-|---|---|---|
-| P1 | Cambio account può conservare vecchio profilo nel browser; nessun bypass server dimostrato | Isolamento completo A→logout→B, anche con risposte tardive; coordinare proprietà boot |
-| P1 | Ripresa Checkout di proposta accettata senza riacquisizione sicura del lucchetto | Disponibilità atomica e prova di due proposte concorrenti, senza doppi incassi |
-| P1 | Errori di alcuni listener contratti/interventi/firme non mostrati né recuperati | Ogni fonte espone errore/freschezza, un recupero e una sola sottoscrizione |
-| P2 | Aggiornamento globale può dichiarare successo dopo errore assorbito | Esito vero per fonte, nessun «Dati aggiornati» falso |
-| P2 | Budget AI contabilizzato dopo il consumo | Prenotazione prima dell'esecuzione, retry inclusi |
+Ramo `codex/portal-mobile-connected-20261014`, PR #290 (include Magic Sign #289).
+Main `3808a5f0` è integrato, ma il live effettivo trovato serviva `960f3e2b` dal ramo
+Claude: anche quel commit è stato integrato per conservare il lavoro già pubblicato.
+Nessun merge su main eseguito da questo lotto. Stato attuale: candidato in collaudo,
+non ancora dichiarato pubblicato; la prova finale del rilascio va registrata sotto.
 
-L'obiettivo non è aggiungere un'altra chat: ogni richiesta deve diventare un'attività
-rintracciabile con una prossima azione. Per automatizzare gli invii servono poi
-sincronizzazione misurata, destinatario certo, ricevuta server durevole e budget prima
-dell'esecuzione. Sono requisiti ancora da chiudere, non capacità già consegnate.
-
-Prossimo collaudo sui dati reali: una conversazione di lavoro nota, confronto con Gmail
-e WhatsApp alla fonte, verifica immobile/pratica, destinatario e stato prima di qualsiasi
-invio. Solo dopo si abilita un'automazione misurabile. HOMIE fermo non diventa attivo per
-il solo fatto che la chat può accedervi. Revisione Magic Sign separata, come richiesto.
+Restano espliciti: sincronizzazione WhatsApp incompleta, invii sospesi preservati,
+email in uscita senza coda durevole oltre la sessione, copertura parziale del contesto
+AI, nessuna certificazione legale dei documenti. Il nuovo portal non riattiva da solo
+HOMIE, non invia messaggi di prova ai clienti e non certifica disponibilità o firme
+senza la fonte canonica. La revisione del Magic Sign resta separata dalle firme reali.

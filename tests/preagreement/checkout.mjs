@@ -1,3 +1,4 @@
+import { conditionalFirestore } from './conditional-firestore.mjs';
 // Real submit/pay, locks, conversion and catalog. Synthetic external IO only.
 import assert from 'node:assert/strict';
 import { register } from 'node:module';
@@ -33,12 +34,14 @@ globalThis.fetch = async (url,opts={}) => {
   if(method==='DELETE'){DB.delete(path);return json({});}
   return DB.has(path)?json({name:path,fields:fields(DB.get(path))}):json({error:{status:'NOT_FOUND'}},404);
 };
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB,fields,unfields,onWrite:path=>io.writes.push(path),fail:writes=>io.failLock&&writes.some(w=>w.update?.name.includes('/propertyLocks/'))});
+
 const submit=(await import('../../api/preagreement/submit.js')).default;
 const pay=(await import('../../api/preagreement/pay.js')).default;
 const lookup=(await import('../../api/preagreement/lookup.js')).default;
 const token='a'.repeat(32),tenant={fullName:'Synthetic Tenant',email:'tenant@example.invalid',phone:'+39000000000'};
 const seed=(over={})=>{
-  DB.clear();Object.assign(io,{checkouts:[],writes:[],failStripe:false,failLock:false});globalThis.__mails=[];
+  DB.clear();Object.assign(io,{checkouts:[],writes:[],sessions:{},idempotent:new Map(),failStripe:false,failLock:false});globalThis.__mails=[];
   process.env.STRIPE_SECRET_KEY='sk_synthetic';
   DB.set('preAgreements/pa1',{token,status:'sent',propertyId:'property1',autoConvert:true,property:{address:'Synthetic street'},lease:{startDate:'2027-01-01',endDate:'2027-12-31',months:12},money:{rent:900,dueAtSigning:900.49},tenant,...over});
   DB.set('properties/property1',{name:'Synthetic property',ownerId:'owner1'});DB.set('users/tenant1',{id:'tenant1',role:'tenant',name:tenant.fullName,email:tenant.email});
@@ -52,11 +55,11 @@ const tests={
   async lock(){seed();io.failLock=true;const r=await drive(submit);assert.equal(r.code,503);assert.equal(r.body.error,'property_lock_unavailable');assert.equal(get().status,'sent');assert.equal(io.checkouts.length,0);noContract();assert(!io.writes.includes('preAgreements/pa1'));},
   async unlockable(){seed({propertyId:null,property:{}});assert.equal((await drive(submit)).code,503);assert.equal(io.checkouts.length,0);noContract();},
   async held(){seed();await drive(submit);const original=get();DB.set('preAgreements/pa1',{...original,status:'sent'});for(const [key,value]of DB)if(key.startsWith('propertyLocks/'))DB.set(key,{...value,paId:'another',firm:true});io.checkouts=[];const r=await drive(submit);assert.equal(r.code,409);assert.equal(r.body.error,'property_taken');assert.equal(get().status,'reserve');assert.equal(io.checkouts.length,0);noContract();},
-  async exact(){seed();const r=await drive(submit,{addons:['cleaning-premium']});assert.equal(r.code,200);assert.deepEqual(io.checkouts[0].line_items.map(l=>l.price_data.unit_amount),[90049,11900]);assert.equal(get().paymentTerms.totalCents,101949);await drive(pay);assert.deepEqual(io.checkouts[1],io.checkouts[0],'First and resumed Checkout have identical accepted amounts and items');noContract();},
-  async snapshot(){seed();await drive(submit,{addons:['cleaning-premium']});const first=structuredClone(io.checkouts[0]);get().money.dueAtSigning=1200;get().addons[0].eur=199;get().addonsEur=199;await drive(pay);assert.deepEqual(io.checkouts[1],first,'Later mutable fields cannot reprice accepted Checkout');},
+  async exact(){seed();const r=await drive(submit,{addons:['cleaning-premium']});assert.equal(r.code,200);assert.deepEqual(io.checkouts[0].line_items.map(l=>l.price_data.unit_amount),[90049,11900]);assert.equal(get().paymentTerms.totalCents,101949);assert.equal((await drive(pay)).code,200);assert.equal(io.checkouts.length,1,'Resume reuses the existing verified Checkout');assert.deepEqual([...io.idempotent.values()][0].params,io.checkouts[0],'Accepted amounts and items remain identical');noContract();},
+  async snapshot(){seed();await drive(submit,{addons:['cleaning-premium']});const first=structuredClone(io.checkouts[0]);get().money.dueAtSigning=1200;get().addons[0].eur=199;get().addonsEur=199;assert.equal((await drive(pay)).code,200,'Mutable fields cannot reprice accepted Checkout');assert.equal(io.checkouts.length,1);assert.deepEqual([...io.idempotent.values()][0].params,first,'Original accepted Checkout remains immutable');},
   async displayedAmount(){seed();await drive(submit,{addons:['cleaning-premium']});assert.equal((await drive(lookup)).body.pa.paymentDueEur,1019.49);get().money.dueAtSigning=1200;assert.equal((await drive(lookup)).body.pa.paymentDueEur,1019.49,'Lookup uses the accepted snapshot before mutable money');seed({status:'accepted',addons:[{kind:'cleaning-premium',label:'Accepted cleaning',eur:110.25}],addonsEur:110.25});assert.equal((await drive(lookup)).body.pa.paymentDueEur,1010.74,'Legacy display equals its resumed Checkout');},
   async legacy(){seed({status:'accepted',addons:[{kind:'cleaning-premium',label:'Previously accepted cleaning',eur:110.25}],addonsEur:110.25});assert.equal((await drive(pay)).code,200);assert.deepEqual(io.checkouts[0].line_items.map(l=>l.price_data.unit_amount),[90049,11025]);},
-  async addonsOnly(){seed({money:{rent:900,dueAtSigning:0}});await drive(submit,{addons:['cleaning-premium']});assert.deepEqual(io.checkouts[0].line_items.map(l=>l.price_data.unit_amount),[11900]);noContract();await drive(pay);assert.deepEqual(io.checkouts[1],io.checkouts[0]);},
+  async addonsOnly(){seed({money:{rent:900,dueAtSigning:0}});await drive(submit,{addons:['cleaning-premium']});assert.deepEqual(io.checkouts[0].line_items.map(l=>l.price_data.unit_amount),[11900]);noContract();assert.equal((await drive(pay)).code,200);assert.equal(io.checkouts.length,1);assert.deepEqual([...io.idempotent.values()][0].params,io.checkouts[0]);},
   async free(){seed({money:{rent:900,dueAtSigning:0}});assert.equal((await drive(submit)).code,200);assert.equal(io.checkouts.length,0);assert(DB.has('contracts/pa_pa1'),'The legitimate zero-due conversion still runs');},
   async bounds(){for(const amount of [49.99,20000.01,-1,'invalid']){seed({money:{dueAtSigning:amount}});assert.equal((await drive(submit)).code,409);assert.equal(get().status,'sent');assert.equal(io.checkouts.length,0);noContract();}},
   async corrupt(){seed();await drive(submit);get().paymentTerms.totalCents++;io.checkouts=[];assert.equal((await drive(pay)).code,409);assert.equal(io.checkouts.length,0);},

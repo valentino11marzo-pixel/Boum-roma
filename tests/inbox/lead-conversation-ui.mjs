@@ -1,5 +1,6 @@
 // Canonical lead conversation: real portal handlers/renderers, synthetic IO only.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { loadChromium, launchOptions } from '../_browser.mjs';
@@ -14,13 +15,13 @@ const named=(name,source=portal)=>{
 };
 // Exercise the real Inbox lazy block and its completion render, without loading unrelated sections.
 function lazyInbox(source) {
-  const read=source.indexOf("db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get()");
+  const read=source.indexOf("db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get({ source: 'server' })");
   const start=source.lastIndexOf('                    (async () => {',read);
   const end=source.indexOf('                    })(),',read);
   const renderStart=source.indexOf("                console.log('Lazy data loaded:'",end);
-  const renderEnd=source.indexOf('                buildNav();',renderStart)+'                buildNav();'.length;
+  const renderEnd=source.indexOf('                portalDataRender();',renderStart)+'                portalDataRender();'.length;
   assert(start>=0 && end>start && renderStart>end && renderEnd>renderStart,'Real lazy Inbox boundaries');
-  return 'window.runInboxLazy=async()=>{const startTime=performance.now();const rows=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));await '+source.slice(start,end)+'                    })();\n'+source.slice(renderStart,renderEnd)+'};';
+  return 'window.runInboxLazy=async()=>{const startTime=performance.now();let lazyOK=true;const proof=portalSessionProof();const current=()=>portalSessionCurrent(proof);const rows=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));await '+source.slice(start,end)+'                    })();\n'+source.slice(renderStart,renderEnd)+'};';
 }
 const CID='conv_whatsapp_393331234567', LEAD='lead-demo';
 const chromium=await loadChromium();assert(chromium,'Playwright necessario (BOOM_PLAYWRIGHT)');
@@ -87,7 +88,7 @@ async function fixture(source=portal){
   for(const name of ['conversations','oggi-engine','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine'])await page.addScriptTag({content:read('js/'+name+'.js')});
   const oggi=source.slice(source.indexOf('    function oggiDismissKey()'),source.indexOf('    function adminDashboard()'));
   const inbox=source.slice(source.indexOf('    var _inboxState ='),source.indexOf('    var _psState ='));
-  await page.addScriptTag({content:oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
+  await page.addScriptTag({content:sessionHelpers(source)+'\n'+oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
   await page.addScriptTag({content:lazyInbox(source)});
   await page.waitForFunction(()=>S.conversations.length===200);
   await page.evaluate(()=>{_inboxState.convId='conv-existing';_inboxState.composing='email';document.getElementById('main').innerHTML=inboxPage();});
@@ -274,7 +275,7 @@ try{
     for(const [label,from,to,mode] of [
       ['snapshot ignorato','if ((S.inboxDataRevision || 0) === conversationsRevision) {','if (true) {','race'],
       ['errore svuota dati',"console.warn('Inbox load:', e.message);","S.conversations=[];S.messages=[];console.warn('Inbox load:', e.message);",'error'],
-      ['render distruttivo',"if (S.page === 'inbox') inboxLiveRefresh();","if (S.page === 'inbox') renderPage();",'success']
+      ['render distruttivo',"if (S.page === 'inbox') { inboxLiveRefresh(); return; }","if (S.page === 'inbox') { renderPage(); return; }",'success']
     ])await check('mutazione lazy Inbox · '+label,async()=>{
       const source=replaceOnce(portal,from,to);
       await assert.rejects(()=>lazyPreserves(mode,source),error=>/AssertionError/.test(error.name)||/Unexpected whole-page render/.test(error.message),'Il difetto deve rompere una prova semantica');

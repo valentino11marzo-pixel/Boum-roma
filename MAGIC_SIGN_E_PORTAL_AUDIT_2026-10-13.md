@@ -34,14 +34,14 @@ L'audit copre i percorsi principali di firma, proposta, pagamento, consegna, agg
 | P1 | Il fallback legacy nel browser scrive firme direttamente su Firestore. | Rendere obbligatoria la pagina/server di firma; senza token valido fermare e spiegare il recupero. |
 | P1 | Checkout fallito con importo dovuto permette la conversione in contratto. | Conversione automatica solo a dovuto zero; il pagamento verificato mantiene il proprio percorso. |
 | P1 | Errore nel controllo di disponibilità non ferma accettazione e Checkout. | Errore esplicito e nessun avanzamento finché la disponibilità non è verificabile. |
-| P1 aperto | Una proposta accettata può riprendere il Checkout anche se nel frattempo il lucchetto è passato a un'altra proposta pagata. Inoltre `_lock.js` assorbe alcuni errori interni di lettura. | Correggere insieme riacquisizione, precondizioni e recupero del lucchetto; il blocco degli errori propagati in questo ramo non risolve questo caso. |
+| P1 corretto nel candidato 14/10 | Una proposta accettata può riprendere il Checkout anche se nel frattempo il lucchetto è passato a un'altra proposta pagata. Inoltre `_lock.js` assorbe alcuni errori interni di lettura. | Riacquisizione atomica, errori chiusi, rollback condizionato e Checkout persistito; 20 scenari + 4 mutazioni su recupero/concorrenza, sessione Stripe pagata o incerta non riaperta. |
 | P1 | €900,49 + €119 diventano €1.019 al primo Checkout e €900 alla ripresa. | Un solo snapshot accettato, in centesimi, con le stesse voci anche sul retry e sul riepilogo. |
 | P1 | Il verbale viene dichiarato firmato con nomi vuoti o immagini di firma illeggibili. | Validare prima di archiviazione e invio; nessun PDF “firmato” se una firma dichiarata manca. |
-| P2 | Il journey dichiara avvenuto l'ingresso dalla sola decorrenza contrattuale. | Lotto successivo: usare la consegna attestata, distinguendo rinvio, decorrenza e ingresso. |
-| P1 | Cambio account A → logout → B può conservare il profilo A nell'interfaccia. | Lotto sessione coordinato con il proprietario del boot; non è stato dimostrato un bypass delle autorizzazioni server. |
-| P1 | Alcuni listener contratti/manutenzioni/firme smettono di aggiornare senza avviso utile. | Lotto dati: freschezza per fonte, recupero e una sola sottoscrizione per sessione. |
-| P2 | Una vecchia lettura lazy di Inbox può sostituire dati realtime più recenti e svuotare la bozza. | Lotto dati: scarto dei risultati obsoleti e percorso di refresh che preserva la composizione. |
-| P2 | Il conteggio AI avviene dopo il consumo, non è un tetto preventivo globale. | Lotto costi: prenotazione atomica del budget prima della chiamata, inclusi retry e fallback. |
+| P2 | Il journey dichiara avvenuto l'ingresso dalla sola decorrenza contrattuale. | Corretto 14/10: verbaleConsegna con data e URL PDF validi; T+3 a 3–6 giorni dalla consegna, T-30/T-1 dichiarano decorrenza prevista. |
+| P1 | Cambio account A → logout → B può conservare il profilo A nell'interfaccia. | Corretto 14/10: generazione sessione e caricamento, reset immediato, risposte tardive scartate; prove A→logout→B e stessa utenza. Nessun bypass server era dimostrato. |
+| P1 | Alcuni listener contratti/manutenzioni/firme smettono di aggiornare senza avviso utile. | Corretto 14/10: errore/freschezza per fonte, retry limitato, una sottoscrizione per sessione e nessun falso successo globale. |
+| P2 | Una vecchia lettura lazy di Inbox può sostituire dati realtime più recenti e svuotare la bozza. | Corretto 14/10: risultati obsoleti scartati e refresh che preserva composizione e realtime. |
+| P2 | Il conteggio AI avviene dopo il consumo, non è un tetto preventivo globale. | Implementato 14/10: limite Anthropic facoltativo, prenotazione atomica prima della chiamata, retry/fallback inclusi; costo ignoto fermato. Non attivato e non copre tutti i fornitori. |
 | P2 | Il contesto dell'AI omette alcuni stati canonici di firma, registrazione e disponibilità. | Lotto contesto: portare fatti e riferimenti verificati, senza dedurre lo stato da riassunti. |
 
 ## Cosa conservare
@@ -53,7 +53,7 @@ L'audit copre i percorsi principali di firma, proposta, pagamento, consegna, agg
 
 ## Ordine dei lavori oltre Magic Sign
 
-1. **Chiudere firma e denaro:** nuovo editor e correzioni riprodotte in questo ramo, preview su dati sintetici, verifica regressioni e rilascio coordinato. Resta prioritario il lucchetto alla ripresa del pagamento: i test attuali non certificano l'intero ciclo di disponibilità.
+1. **Chiudere firma e denaro:** nuovo editor e correzioni riprodotte in questo ramo, preview su dati sintetici, verifica regressioni e rilascio coordinato. Il lotto 14/10 include recupero del lucchetto e idempotenza Checkout; restano dichiarati i casi legacy e gli esiti non verificabili.
 2. **Rendere affidabile ciò che leggi:** isolamento della sessione, aggiornamento delle fonti e conservazione delle bozze. Senza questo, “tutto interconnesso” può mostrare informazioni vecchie.
 3. **Automatizzare solo su fatti e budget:** consegna reale prima del journey, budget prima dell'AI, stato canonico nel contesto. La misura utile è un'attività conclusa senza tuo intervento, non il numero di messaggi prodotti.
 
@@ -63,13 +63,13 @@ L'audit copre i percorsi principali di firma, proposta, pagamento, consegna, agg
 - **PDF dal telefono:** scegli due firmatari, posizioni le firme con tap, correggi un campo e controlli il riepilogo; i link sono per le persone mostrate e un retry non crea una seconda richiesta.
 - **Guasto o ambiguità:** originale modificato, destinatario incompleto, firme simultanee o Storage indisponibile non producono “completo” falso. Le firme valide restano recuperabili e l'interfaccia indica cosa manca.
 
-## Stato della consegna
+## Verifica Magic Sign del 13 ottobre; aggiornamenti del 14 nel registro Portal
 
 Implementazione completata sul ramo `codex/magic-sign-rebuild-20261013`; produzione non modificata. Preview locale: `http://127.0.0.1:8799/`, con il vero editor e PDF.js 3.11.174, contatti sintetici e servizi simulati. I link della preview non arrivano a clienti.
 
 Verifiche completate: 26 controlli browser del nuovo editor a 1280/390 px; 17 scenari degli handler custom e 7 mutazioni; 3 prove della pagina firmatario collegata agli handler reali; 14 controlli del pannello dei contratti BOOM; 14 scenari Checkout più 5 mutazioni; 30 controlli del verbale più 2 mutazioni. Sono passate anche le regressioni di denaro, consenso proposta, blocchi, stato proposta, commissioni, parità, mandati, notifiche, token, finalizzazione, PDF contratto, download, firme, lingua e revisioni. Sintassi: 103 pagine, 72 file JS e vercel.json validi.
 
-Le prove di rete sono simulate: nessun addebito, invio o firma reale. La CI remota e un collaudo autenticato del candidato restano verifiche distinte; non sono implicite nei risultati locali. L'audit conserva gli aperti P1: soprattutto disponibilità alla ripresa del pagamento, isolamento delle sessioni e fonti che smettono di aggiornarsi. Il nuovo editor non rende automaticamente risolti questi problemi.
+Le prove di rete sono simulate: nessun addebito, invio o firma reale. La CI remota e un collaudo autenticato del candidato restano verifiche distinte; non sono implicite nei risultati locali. Il lotto 14/10 chiude con prove dedicate recupero del pagamento, isolamento delle sessioni e fonti in errore. Il rilascio e il collaudo autenticato sono registrati in `BOOM_PORTAL_MOBILE_2026-10-14.md`; non si deducono dalla sola presenza del nuovo editor.
 
 ### Limiti espliciti del nuovo protocollo
 

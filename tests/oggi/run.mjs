@@ -338,9 +338,9 @@ ok(/#q=\(\.\+\)|#q=/.test(consoleSrc) && /decodeURIComponent\(hq\)/.test(console
 // chi cerca "registrare un contratto" non guarda li'. E il badge leggeva
 // contractRegistrationStatus, che si carica solo APRENDO la pagina —
 // quindi al boot la sidebar taceva proprio mentre un termine correva.
-const gestione = app.slice(app.indexOf('>Gestione<'), app.indexOf('>Tools<'));
-ok(gestione.includes("goTo('burocrazia')"), 'Burocrazia vive in GESTIONE, accanto ai Contratti — non sepolta in Tools');
-ok(gestione.indexOf("goTo('contracts')") < gestione.indexOf("goTo('burocrazia')"), 'e sta subito DOPO Contratti: il percorso mentale e\' quello');
+const gestione = app.slice(app.indexOf('data-nav-group="records"'), app.indexOf('data-nav-group="tools"'));
+ok(gestione.includes("goTo('burocrazia')"), 'Burocrazia vive in Documenti e contabilità, prima degli strumenti');
+ok(app.indexOf("goTo('contracts')") < app.indexOf("goTo('burocrazia')") && gestione.includes("goTo('documents')"), 'Contratti è una destinazione principale; Burocrazia resta accanto ai documenti');
 ok(/const daRegistrare = \(S\.contracts \|\| \[\]\)/.test(app) && /daRegistrare\?/.test(app),
   'il badge si conta dai CONTRATTI (disponibili al boot), non da una collection che arriva dopo');
 

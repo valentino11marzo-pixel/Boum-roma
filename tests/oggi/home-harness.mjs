@@ -18,6 +18,8 @@ const between = (source, start, end) => {
  return source.slice(from,to).replace(/^export /gm,'');
 };
 const copy = between(src, '    async function copyToClipboard(', '    // Un solo pannello');
+const sourceChecks = between(src, '    function portalMailState(', '    function inboxThreadPanel(');
+const sessionProof = between(src, '    function portalSessionProof(', '    function portalSessionReset(');
 const followUpMutations = ['clean','inputText','precondition'].map(name=>{
  const line=followUpSource.split('\n').find(line=>line.startsWith('const '+name+' ='));
  if(!line)throw Error('Missing follow-up helper: '+name);return line;
@@ -103,7 +105,9 @@ async function fsCommit(operations){
  Object.assign(task,structuredClone(op.fields));testIO.demoWrites.push({id:task.id,fields:structuredClone(op.fields)});
 }
 ${followUpMutations}
+const sourcePreviewFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{
+ if(new URL(String(url),location.origin).pathname==='/api/segretaria/scan-replies')return sourcePreviewFetch('/mail-source-api'+new URL(String(url),location.origin).search,options);
  const parsed=new URL(String(url),'https://example.invalid'),method=options.method||'GET';
  if(parsed.origin!=='https://example.invalid'||parsed.pathname!=='/api/segretaria/follow-up'||!['GET','POST'].includes(method)){
   if(method!=='GET')testIO.writes.push(String(url));throw Error('No sending, AI or external requests in preview');
@@ -123,6 +127,9 @@ window.fetch=async(url,options={})=>{
 };
 ${between(src, '    function jsq(v)', '    function safeToDate(')}
 ${search}
+var portalSessionGeneration=0;
+${sessionProof}
+${sourceChecks}
 ${clock}
 ${copy}
 ${oggi}

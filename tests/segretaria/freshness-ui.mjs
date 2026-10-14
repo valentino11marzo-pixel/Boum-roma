@@ -1,5 +1,6 @@
 // Freshness claims and foreground recovery: actual Oggi/Inbox code, fake IO only.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -82,6 +83,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
   for (const name of ['oggi-engine', 'oggi-desk-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine'])
     await page.addScriptTag({ content: read('js/' + name + '.js') });
   await page.addScriptTag({ content: read('js/conversations.js') });
+  await page.addScriptTag({ content: sessionHelpers(source) });
   if(globalOnline){
     const start=source.indexOf("    window.addEventListener('online', () => {");
     const end=source.indexOf("    window.addEventListener('offline', () => {",start);

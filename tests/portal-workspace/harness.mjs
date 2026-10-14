@@ -51,6 +51,14 @@ export const html=propertyHtml
 const home=quickToolsHtml.replace('function goTo(id,fromHistory=false){',"function goTo(id,fromHistory=false){if(['users','properties','contracts','maintenance','inbox'].includes(id)){location.href='/#'+id;return;}");
 export function createHarnessServer(){return createServer(async(req,res)=>{
  const path=new URL(req.url,'http://localhost').pathname;
+ if(path==='/mail-source-api'){
+  const fixture=await import('../segretaria/mail-source-fixture.mjs');
+  if(!globalThis.__mail)fixture.resetTransport();
+  let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192){res.statusCode=413;res.end();return;}}
+  let body;try{body=raw?JSON.parse(raw):{};}catch{res.statusCode=400;res.end();return;}
+  const answer=await fixture.call({method:req.method,body,query:Object.fromEntries(new URL(req.url,'http://localhost').searchParams)});
+  res.statusCode=answer.code;res.setHeader('Content-Type','application/json');res.end(JSON.stringify(answer));return;
+ }
  if(path==='/workspace-api'){
   const fixture=await import('../inbox/take-charge-fixture.mjs');
   let raw='';for await(const chunk of req){raw+=chunk;if(raw.length>8192){res.statusCode=413;res.end();return;}}

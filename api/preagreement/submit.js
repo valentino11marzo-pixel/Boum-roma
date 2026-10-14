@@ -14,15 +14,15 @@
 // are jointly and severally liable per the document's conditions).
 // Response: { ok, ref, checkoutUrl|null }
 
-import Stripe from 'stripe';
-import { fsList, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { openProposalCheckout } from './_payment-session.js';
+import { fsList, fsGetVersioned, fsCommit, readJson, logActivity } from '../homie/_lib.js';
 import { sendPaEmails } from './_notify.js';
 import { maybeAutoConvert } from './_auto.js';
 import { paExpired } from './lookup.js';
-import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
+import { acquireLock } from './_lock.js';
 import { paidOnRecord } from './_state.js';
 import { normalizeAddons, addonsTotal } from './_addons.js';
-import { paymentTermsFor, checkoutParams } from './_checkout.js';
+import { paymentTermsFor } from './_checkout.js';
 import { tgSend } from '../telegram/_lib.js';
 import { PA_CONSENT_TEXT, PA_CONSENT_HASH, PA_MANDATE_TEXT, PA_MANDATE_HASH } from './_consent.js';
 import MANDATO from '../../js/mandato-engine.js';
@@ -75,7 +75,9 @@ export default async function handler(req, res) {
     const rows = await fsList('preAgreements', { filter: { field: 'token', op: 'EQUAL', value: token }, limit: 1 });
     const hit = rows && rows[0];
     if (!hit) return res.status(404).json({ ok: false, error: 'not_found' });
-    const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
+    const id = hit.id, proposalSnapshot = await fsGetVersioned('preAgreements/' + id);
+    const data = proposalSnapshot?.data;
+    if (!data || data.token !== token) return res.status(404).json({ ok: false, error: 'not_found' });
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
     // IL PAGAMENTO È TERMINALE, E SI GUARDA IL FATTO NON L'ETICHETTA.
     // Un secondo invio del modulo su una proposta GIÀ PAGATA (pagina rimasta
@@ -141,7 +143,7 @@ export default async function handler(req, res) {
     const dueNow = paymentTerms.totalCents / 100;
     let lock;
     try {
-      lock = await acquireLock({ pa: data, paId: id, firm: dueNow <= 0 });
+      lock = await acquireLock({ pa: data, paId: id, firm: dueNow <= 0, proposalVersion: proposalSnapshot.updateTime });
     } catch (e) {
       console.error('[pa/submit] lucchetto non verificabile:', e.message);
       return res.status(503).json({ ok: false, error: 'property_lock_unavailable' });
@@ -151,13 +153,13 @@ export default async function handler(req, res) {
       // NON respingiamo: questa persona ha appena compilato documento,
       // identità e firma. La parcheggiamo come riserva, non parte nessun
       // pagamento, nessun contratto — e l'operatore lo sa entro un minuto.
-      await fsPatch(`preAgreements/${id}`, {
+      await fsCommit([{docPath:`preAgreements/${id}`,precondition:{updateTime:proposalSnapshot.updateTime},fields:{
         tenant, tenants: signed,
         status: 'reserve',
         reserveOf: lock.by || null,
         reserveAt: acceptedAt,
         consent, mandate, approvedTerms,
-      });
+      }}]);
       await logActivity('preagreement_reserve', 'preagreement', {
         id, tenant: fullName, heldBy: lock.by, address: (data.property || {}).address,
       }, 'web').catch(() => {});
@@ -174,12 +176,12 @@ export default async function handler(req, res) {
       });
     }
     if (!lock?.ok) return res.status(503).json({ ok: false, error: 'property_lock_unavailable' });
-    await fsPatch(`preAgreements/${id}`, {
+    await fsCommit([...lock.guards, {docPath:`preAgreements/${id}`,precondition:{updateTime:lock.proposalVersion},fields:{
       tenant, tenants: signed, status: 'accepted', ref,
       acceptedAt,
       addons, addonsEur, paymentTerms,
       consent, mandate, approvedTerms,
-    });
+    }}]);
     await logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
       .catch(() => {});
 
@@ -189,10 +191,8 @@ export default async function handler(req, res) {
     const due = dueNow;   // già calcolato per il lucchetto qui sopra
     if (due > 0 && process.env.STRIPE_SECRET_KEY) {
       try {
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-        const session = await stripe.checkout.sessions.create(checkoutParams({ ...data, token, ref, tenant }, paymentTerms));
-        checkoutUrl = session.url;
-        await fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
+        const checkout = await openProposalCheckout({ id, token });
+        if (checkout.code === 200) checkoutUrl = checkout.checkoutUrl;
       } catch (e) {
         console.error('[preagreement/submit] stripe failed:', e.message);
       }

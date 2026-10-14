@@ -10,6 +10,13 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'aibudgetui', file: 'tests/ai/budget-ui.mjs', what: 'costi reali e limite esplicito, errori e sessioni a 390/1280 senza chiamate AI' },
+  { name: 'aibudget', file: 'tests/ai/budget.mjs', what: 'prenotazione preventiva budget cloud, concorrenza, costi ignoti e ruoli; mutazioni' },
+  { name: 'maintenanceactions', file: 'tests/portal-workspace/maintenance-actions.mjs', what: 'azioni manutenzione reali, errori, ruoli e cambio sessione' },
+  { name: 'mailsourceui', file: 'tests/segretaria/mail-source-ui.mjs', what: 'fonti e importazione Inbox a 390/1280, bozze e corse di sessione' },
+  { name: 'mailsource', file: 'tests/segretaria/mail-source.mjs', what: 'stato fonti e importazione email manuale limitata senza AI né invii; mutazioni' },
+  { name: 'palockrecovery', file: 'tests/preagreement/lock-recovery.mjs', what: 'lock concorrenti, recupero Stripe e idempotenza dopo esito incerto; mutazioni' },
+  { name: 'portalsessionui', file: 'tests/portal-session/ui.mjs', what: 'isolamento sessioni, fonti in errore e retry senza perdere bozze; mutazioni' },
   { name: 'portalsearch', file: 'tests/search/run.mjs', what: 'ricerca tipizzata condivisa, campi reali e collegamenti per ID' },
   { name: 'searcharchive', file: 'tests/search/archive.mjs', what: 'archivio su richiesta a pagine, permessi e corse di sessione' },
   { name: 'searchui', file: 'tests/search/ui.mjs', what: 'ricerca reale della home e header, pagine e apertura dei record canonici' },

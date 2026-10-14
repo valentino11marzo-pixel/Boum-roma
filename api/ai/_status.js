@@ -5,8 +5,9 @@
 // sta tutto in js/ai-registry.js (puro, testato).
 
 import REG from '../../js/ai-registry.js';
-import { fsGet, fsList, fsPatch } from '../homie/_lib.js';
+import { fsGet, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { aiSignal } from '../_budget.js';
+import { budgetSnapshot } from '../_ai-budget.js';
 import { loadAiSettings, forgetAiSettings, localAuthHeaders } from '../_ai.js';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -40,13 +41,14 @@ export async function probeLocal(cfg, { timeoutMs = 4000 } = {}) {
 export async function usageWindow(now = Date.now()) {
   const day = romeDay(now);
   const first = day.slice(0, 8) + '01';
-  let today = null, month = [];
-  try { today = await fsGet('aiUsage/' + day); } catch { today = null; }
+  let today = null, month = [], todayAvailable=true, monthAvailable=true;
+  try { today = await fsGet('aiUsage/' + day); } catch { todayAvailable=false; }
   try {
     month = await fsList('aiUsage', { filter: { field: 'day', op: 'GREATER_THAN_OR_EQUAL', value: first }, limit: 40 });
-  } catch { month = today ? [today] : []; }
+  } catch { monthAvailable=false; month = today ? [today] : []; }
   if (today && !month.some(d => d && d.day === day)) month.push(today);
-  return { day, today: REG.usageSummary(today ? [today] : []), month: REG.usageSummary(month) };
+  const unpriced=docs=>docs.some(d=>Object.values(d?.p||{}).some(p=>p.cloud?.unpriced>0 || p.cloud?.ok>0 && (typeof p.cloud.usd!=='number'||!Number.isFinite(p.cloud.usd)||p.cloud.usd<0)));
+  return { day, todayAvailable, monthAvailable, todayPriced:todayAvailable&&!unpriced(today?[today]:[]), monthPriced:monthAvailable&&!unpriced(month), today: REG.usageSummary(today ? [today] : []), month: REG.usageSummary(month) };
 }
 
 /** I verdetti dell'ombra, per scopo. */
@@ -60,13 +62,13 @@ export async function shadowVerdicts(cfg) {
 /** La fotografia completa. `probe:false` salta la sonda (per i test e per Telegram a mano). */
 export async function aiSnapshot({ probe = true, fresh = false, now = Date.now() } = {}) {
   const { cfg, rejected } = await loadAiSettings({ fresh });
-  const [local, usage, shadow] = await Promise.all([
+  const [local, usage, shadow, budget] = await Promise.all([
     probe ? probeLocal(cfg) : Promise.resolve({ configured: !!cfg.local.url, enabled: !!cfg.local.enabled, reachable: null, models: [], ms: 0, error: '' }),
     usageWindow(now),
-    shadowVerdicts(cfg),
+    shadowVerdicts(cfg), budgetSnapshot(now),
   ]);
   const rows = REG.statusRows(cfg);
-  return { ok: true, cfg: { local: { ...cfg.local, url: local.url || '' }, purposes: cfg.purposes, shadow: cfg.shadow }, rejected, local, rows, usage, shadow };
+  return { ok: true, cfg: { local: { ...cfg.local, url: local.url || '' }, purposes: cfg.purposes, shadow: cfg.shadow, budget:cfg.budget }, rejected, local, rows, usage, shadow, budget };
 }
 
 /**
@@ -76,9 +78,11 @@ export async function aiSnapshot({ probe = true, fresh = false, now = Date.now()
  * local:{…}, shadow:{…}.
  */
 export async function setAiSettings(patch) {
-  const raw = (await fsGet('settings/ai').catch(() => null)) || {};
+  const snapshot=await fsGetVersioned('settings/ai');
+  const raw=snapshot?.data || {};
   const next = { ...raw };
   if (patch.local && typeof patch.local === 'object') next.local = { ...(raw.local || {}), ...patch.local };
+  if (patch.budget && typeof patch.budget === 'object') next.budget = { ...(raw.budget || {}), ...patch.budget };
   if (patch.shadow && typeof patch.shadow === 'object') next.shadow = { ...(raw.shadow || {}), ...patch.shadow };
   if (patch.purposes && typeof patch.purposes === 'object') {
     next.purposes = { ...(raw.purposes || {}) };
@@ -87,6 +91,7 @@ export async function setAiSettings(patch) {
   // la validazione è quella del registro: la STESSA che il server applica a runtime
   const { cfg, rejected } = REG.mergeSettings(next);
   const touched = [
+    ...(patch.budget ? ['budget', 'budget.enabled', 'budget.dailyUsd', ...Object.keys(patch.budget).map(k=>'budget.'+k)] : []),
     ...(patch.local ? Object.keys(patch.local).map(k => 'local.' + k) : []),
     ...(patch.shadow ? Object.keys(patch.shadow).map(k => 'shadow.' + k) : []),
     ...(patch.purposes ? Object.entries(patch.purposes).flatMap(([k, v]) => Object.keys(v || {}).map(f => 'purposes.' + k + '.' + f)) : []),
@@ -102,8 +107,8 @@ export async function setAiSettings(patch) {
   // del 23/09/2026 ha spento LOCAL_AI_URL esattamente cosi'.
   const localKeys = new Set(Object.keys(next.local || {}));
   const localOut = Object.fromEntries(Object.entries(cfg.local).filter(([k, v]) => localKeys.has(k) && v !== '' && v != null));
-  const doc = { local: localOut, purposes: cfg.purposes, shadow: cfg.shadow, updatedAt: new Date() };
-  await fsPatch('settings/ai', doc);
+  const doc = { local: localOut, purposes: cfg.purposes, shadow: cfg.shadow, ...(patch.budget ? {budget:cfg.budget} : raw.budget ? {budget:raw.budget} : {}), updatedAt: new Date() };
+  await fsCommit([{docPath:'settings/ai',fields:doc,precondition:snapshot?{updateTime:snapshot.updateTime}:{exists:false}}]);
   forgetAiSettings();
   return { ok: true, cfg, rejected };
 }
@@ -134,9 +139,10 @@ export async function aiStatusMessage({ probe = true } = {}) {
   const msg = [
     '<b>🧠 La Centrale AI</b>',
     localLine,
+    s.budget.state==='unavailable' ? '⚠️ Limite AI: stato non disponibile; chiamate cloud bloccate se non verificabile' : s.budget.enabled ? 'Limite preventivo Anthropic: '+REG.fmtUsd(s.budget.dailyUsd)+'/giorno · riserve '+REG.fmtUsd(s.budget.heldUsd)+' (esito da verificare)' : 'Limite preventivo Anthropic: disattivato',
     '',
-    `<b>Oggi</b>: cloud ${REG.fmtUsd(t.cloud.usd)} (${REG.fmtEur(t.cloud.usd)}) su ${t.cloud.calls} chiamate · locale ${t.local.calls} chiamate · ricadute ${t.cloud.fallback}`,
-    `<b>Mese</b>: cloud ${REG.fmtUsd(m.cloud.usd)} (${REG.fmtEur(m.cloud.usd)}) su ${m.cloud.calls} chiamate · locale ${m.local.calls} · ${s.usage.month.days} giorni misurati`,
+    !s.usage.todayAvailable || !s.usage.todayPriced ? '<b>Oggi</b>: lettura consumi non disponibile' : `<b>Oggi</b>: cloud ${REG.fmtUsd(t.cloud.usd)} (${REG.fmtEur(t.cloud.usd)}) su ${t.cloud.calls} chiamate · locale ${t.local.calls} chiamate · ricadute ${t.cloud.fallback}`,
+    !s.usage.monthAvailable || !s.usage.monthPriced ? '<b>Mese</b>: lettura consumi parziale o non disponibile' : `<b>Mese</b>: cloud ${REG.fmtUsd(m.cloud.usd)} (${REG.fmtEur(m.cloud.usd)}) su ${m.cloud.calls} chiamate · locale ${m.local.calls} · ${s.usage.month.days} giorni misurati`,
     '',
     'Per scopo — ☁️ cloud · 🌗 shadow (cloud risponde, locale si misura) · 🏠 local (ricade sul cloud se fallisce):',
     ...lines,

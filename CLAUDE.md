@@ -1358,10 +1358,11 @@ dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
 **13/10 — stesso importo, anche al secondo tentativo.** `_checkout.js`
 congela `paymentTerms` in centesimi all'accettazione (add-on inclusi);
 submit/pay/lookup e il riepilogo usano quella foto. Checkout fallito non
-converte; errori propagati del lucchetto sospendono l'accettazione. Restano
-aperti retry su lucchetto scaduto e catch permissivi interni a `_lock.js`:
-non è una certificazione della disponibilità globale. Prove: `pacheckout`
-(handler e mutazioni), `paconsenso` (errori e importi nel browser).
+converte; errori di lettura del lucchetto sospendono accettazione e ripresa.
+**14/10:** riacquisizione condizionata per tutti i mesi; rilascio/rollback non
+cancellano il nuovo titolare. `_payment-session.js` persiste il tentativo e
+riusa la chiave Stripe: una sessione pagata o incerta non ne apre una seconda.
+Prove: `pacheckout`, `palockrecovery` (concorrenza e mutazioni), `paconsenso`.
 
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
@@ -2357,6 +2358,11 @@ Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
 PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
 
 ### Journey consapevole (contesto nel `_run.js`)
+**14/10:** T+3 richiede `verbaleConsegna.at` valido/non futuro e URL HTTPS,
+salvati dal flusso verbale solo dopo firme e PDF; parte 3–6 giorni dopo la consegna.
+La sola decorrenza non prova ingresso: T-30/T-1 la dichiarano prevista, con
+appuntamento da concordare. Step/flag, prezzi e regole upsell conservati.
+Prove `journey`: runner reale con IO in memoria, nessun invio, due mutazioni.
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
 invece del generico "se manca qualcosa"; con rate scadute (`late`, una
@@ -2374,6 +2380,13 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**14/10 — affidabilità e fonti:** cambio account e letture tardive isolati per sessione;
+fonti contratti/interventi/firme con errore esplicito e recupero limitato. Il refresh
+non annuncia successo parziale. Ripristinate azioni Interventi e metadati Regole.
+Home → Fonti → «Verifica collegamenti» legge metadati; Inbox → «Importa email recenti»
+legge solo la conversazione scelta (3 giorni, massimo 8), senza AI né invii.
+Il battito WhatsApp non prova importazione completa. Test `portalsessionui`,
+`mailsource`, `mailsourceui`, `maintenanceactions`; bozze e sessioni preservate.
 Un giro solo, otto interventi, 33 suite verdi:
 - **Home e navigazione unica (14/10/2026):** sei destinazioni principali, tutti i 38
   handler conservati nel menu; quattro tab mobile e Menu. Strumenti Home e catalogo
@@ -4009,6 +4022,13 @@ tetto, scan-replies di main, scope senza lista bianca) + `tests/scheda`
 e nella fattura Firestore dei giorni successivi.
 
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
+**14/10 — limite facoltativo:** `settings/ai.budget` resta spento senza scelta admin.
+Quando attivo, token-count e prenotazione atomica in `aiUsage/<giorno-Roma>.budgetV1`
+precedono Anthropic; retry/fallback condividono limite e deadline. Prezzo, lettura
+o esito ignoti fermano la chiamata o trattengono la riserva. È una stima preventiva,
+non un limite di fattura: esclusi Codex, STT, ElevenLabs, Telnyx/TIM. La Squadra →
+Costi AI mostra oggi/mese, riserve e impostazione esplicita; dati mancanti non zero.
+`/api/ai/status` richiede ruolo admin effettivo; HOMIE/cron sola lettura. Test `aibudget`.
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
 propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
 la spesa AI era una riga di fattura a fine mese, mai un numero per scopo. Le

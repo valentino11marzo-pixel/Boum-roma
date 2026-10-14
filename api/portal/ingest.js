@@ -59,8 +59,7 @@ import { PDFDocument } from 'pdf-lib';
 import { requireRole } from '../_auth.js';
 import { fsList } from '../homie/_lib.js';
 import { parseModelJson, jsonFailureLine, jsonFailureHint } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
-import { recordUsage } from '../_ai.js';
+import { recordUsage, anthropicFetch } from '../_ai.js';
 import { CATS } from '../documents/_smista.js';
 import D from '../../js/dataops-engine.js';
 import FIELDS from '../../js/contract-fields.js';
@@ -538,15 +537,9 @@ async function askModel(content) {
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content }],
   });
-  const call = (o) => fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(AI_MS),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: Object.assign({
-      'x-api-key': key,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    }, o.fallback ? { 'anthropic-beta': FALLBACK_BETA } : {}),
-    body: JSON.stringify(build(o)),
+  const call = (o) => anthropicFetch(build(o), {
+    timeoutMs:AI_MS,
+    headers:o.fallback ? { 'anthropic-beta': FALLBACK_BETA } : {},
   });
   // La scala dei 400 di FORMA — nessuno costa un token, la richiesta viene
   // rifiutata prima che il modello legga: (1) il beta del ripiego
@@ -561,7 +554,7 @@ async function askModel(content) {
     const resp = await call(o);
     if (resp.status !== 400) {
       if (!resp.ok) return { ok: false, status: resp.status, text: await resp.text() };
-      return { ok: true, data: await resp.json(), forced: o.forced };
+      return { ok: true, data: await resp.json(), budgetCovered:resp.budgetCovered===true, forced: o.forced };
     }
     const t = await resp.text();
     if (o.fallback && /fallback|beta/i.test(t)) { o.fallback = false; continue; }
@@ -711,6 +704,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   try {
     out = await askModel(content);
   } catch (e) {
+    if(e?.code?.startsWith('ai_budget_'))return {status:503,ok:false,error:e.code,detail:'Lettura fermata prima della chiamata: limite AI o costo non verificabile. Controlla la Centrale AI.'};
     const timedOut = e && (e.name === 'TimeoutError' || e.name === 'AbortError');
     console.error('[' + tag + '] ai ' + (timedOut ? 'timeout' : 'failed') + ' files=' + files.length + ' ms=' + (Date.now() - t0));
     await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: false, ms: Date.now() - t0, model: MODEL });
@@ -753,7 +747,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   // perché una scrittura lanciata senza await muore col congelamento della
   // funzione (la lezione del 13/09); non lancia mai, un contatore fallito
   // non tocca la lettura ottenuta.
-  await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: true, ms, model: data.model || MODEL, usage: data.usage || null });
+  await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: true, ms, model: data.model || MODEL, usage: data.usage || null, budgetCovered:out.budgetCovered===true });
   if (data.stop_reason === 'refusal') {
     console.error('[' + tag + '] refusal files=' + files.length);
     return { status: 502, ok: false, error: 'ai_refused', detail: 'Il modello ha rifiutato di leggere questo materiale. Se contiene solo un documento d\'identità o un contratto, riprova con una foto più nitida o incolla il testo.' };

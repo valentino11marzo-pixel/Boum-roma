@@ -1,3 +1,4 @@
+import { conditionalFirestore } from './conditional-firestore.mjs';
 // tests/preagreement/state.mjs
 // LO STATO DI UNA PROPOSTA — il difetto che ha fatto sembrare NON PAGATO un
 // deal incassato, e che ha piantato il passo successivo.
@@ -99,6 +100,8 @@ globalThis.fetch = async (url, opts = {}) => {
   if (!DB.has(clean)) return json({ error: { status: 'NOT_FOUND' } }, 404);
   return json({ name: clean, fields: flds(DB.get(clean)) });
 };
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB,fields:flds,unfields:unflds,onWrite:()=>{WRITES++;}});
+
 
 // ── req/res ───────────────────────────────────────────────────────────────
 const mkRes = () => ({

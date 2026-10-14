@@ -8,10 +8,9 @@
 // Method: POST   Body: { token }
 // Response: { ok, checkoutUrl } | 400/404/409/410
 
-import Stripe from 'stripe';
-import { fsList, fsPatch, readJson } from '../homie/_lib.js';
+import { openProposalCheckout } from './_payment-session.js';
+import { fsList, readJson } from '../homie/_lib.js';
 import { paidOnRecord } from './_state.js';
-import { paymentTermsFor, checkoutParams } from './_checkout.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -38,17 +37,8 @@ export default async function handler(req, res) {
     if (paidOnRecord(pa)) return res.status(409).json({ ok: false, error: 'already_paid' });
     if (pa.status !== 'accepted') return res.status(409).json({ ok: false, error: 'not_accepted' });
 
-    let paymentTerms;
-    try { paymentTerms = paymentTermsFor(pa); }
-    catch { return res.status(409).json({ ok: false, error: 'invalid_payment_terms' }); }
-    const due = paymentTerms.totalCents;
-    if (!(due > 0)) return res.status(409).json({ ok: false, error: 'nothing_due' });
-    if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ ok: false, error: 'payments_unavailable' });
-
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const session = await stripe.checkout.sessions.create(checkoutParams({ ...pa, token }, paymentTerms));
-    await fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
-    return res.status(200).json({ ok: true, checkoutUrl: session.url, paymentDueEur: due / 100 });
+    const result = await openProposalCheckout({ id, token });
+    return res.status(result.code).json({ ok: result.code === 200, ...result });
   } catch (e) {
     console.error('[preagreement/pay] failed:', e.message);
     return res.status(500).json({ ok: false, error: 'pay_failed' });

@@ -1,6 +1,7 @@
 // Production home/header/search/reader/registry, synthetic Firestore and leaf
 // navigation IO. No search, hydration, relationship or permission handler mocks.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { html } from '../oggi/home-harness.mjs';
@@ -331,6 +332,7 @@ try {
     await page.waitForSelector('.ow-selection');
     assert.equal(await page.locator('#ogContextDetails > summary strong').innerText(), 'Oltrecaricati canonico');
     assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 200);
+    await page.addScriptTag({ content: sessionHelpers(portalSource) });
     await page.evaluate(async source => {
       window.refreshReads = [];
       localStorage.setItem('boom_data_cache', 'synthetic stale cache');
@@ -340,12 +342,13 @@ try {
         async silent => {
           refreshReads.push({ silent, archived: portalSearchReader().state('document').rows.length, canonical: portalSearchCache.canonical.size });
           S.documents = [{ id: 'archive-200', name: 'Documento aggiornato dal server' }];
+          return { ok: true };
         }, renderPreview, toast
       );
       await refresh();
     }, refreshSource);
     assert.deepEqual(await page.evaluate(() => refreshReads), [{ silent: false, archived: 0, canonical: 0 }]);
-    assert.equal(await page.evaluate(() => localStorage.getItem('boom_data_cache')), null);
+    assert.equal(await page.evaluate(() => localStorage.getItem('boom_data_cache')), 'synthetic stale cache', 'The refresh handler retains the prior cache until its loader commits a verified replacement');
     await page.waitForFunction(() => document.querySelector('#ogContextDetails > summary strong')?.textContent === 'Documento aggiornato dal server');
     assert.equal(await page.evaluate(() => portalSearchRecords('Archivio', 'document').total), 0);
     assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);

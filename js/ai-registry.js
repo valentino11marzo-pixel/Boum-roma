@@ -173,7 +173,8 @@
   var DEFAULTS = {
     local: { enabled: false, url: '', model: '', visionModel: '', sttUrl: '', sttModel: '', timeoutMs: 20000, fallback: true },
     purposes: {},                       // { 'leads.brain': { mode:'shadow', cloudModel?, localModel? } }
-    shadow: { minSample: 30, minAgree: 90 }
+    shadow: { minSample: 30, minAgree: 90 },
+    budget: { enabled: false, dailyUsd: null }
   };
   var LIMITS = { timeoutMs: [2000, 55000], minSample: [5, 500], minAgree: [50, 100] };
   /* Un URL locale è https (tunnel) oppure http SOLO su rete privata: il
@@ -186,11 +187,28 @@
 
   function mergeSettings(raw) {
     var cfg = {
-      local: {}, purposes: {}, shadow: { minSample: DEFAULTS.shadow.minSample, minAgree: DEFAULTS.shadow.minAgree }
+      local: {}, purposes: {}, shadow: { minSample: DEFAULTS.shadow.minSample, minAgree: DEFAULTS.shadow.minAgree }, budget: { enabled: false, dailyUsd: null }
     };
     Object.keys(DEFAULTS.local).forEach(function (k) { cfg.local[k] = DEFAULTS.local[k]; });
     var rejected = [];
     if (!raw || typeof raw !== 'object') return { cfg: cfg, rejected: rejected };
+
+    var B = raw.budget;
+    if (B != null) {
+      if (typeof B !== 'object' || Array.isArray(B)) rejected.push({ key: 'budget', why: 'serve un oggetto' });
+      else {
+        if (B.enabled != null && typeof B.enabled !== 'boolean') rejected.push({ key: 'budget.enabled', why: 'serve true o false esplicito' });
+        cfg.budget.enabled = B.enabled === true;
+        if (B.dailyUsd != null) {
+          if (typeof B.dailyUsd !== 'number' || !isFinite(B.dailyUsd) || B.dailyUsd <= 0 || !Number.isSafeInteger(Math.ceil(B.dailyUsd * 1000000)))
+            rejected.push({ key: 'budget.dailyUsd', why: 'serve un importo USD positivo rappresentabile in microdollari' });
+          else cfg.budget.dailyUsd = B.dailyUsd;
+        }
+        if (cfg.budget.enabled && cfg.budget.dailyUsd == null && !rejected.some(function(r){return r.key==='budget.dailyUsd';}))
+          rejected.push({ key: 'budget.dailyUsd', why: 'un limite esplicito è obbligatorio per attivare' });
+        Object.keys(B).forEach(function(k){if(k!=='enabled' && k!=='dailyUsd')rejected.push({key:'budget.'+k,why:'campo sconosciuto'});});
+      }
+    }
 
     var L = raw.local && typeof raw.local === 'object' ? raw.local : {};
     cfg.local.enabled = L.enabled === true;
@@ -396,12 +414,36 @@
     return mode === 'cloud' ? 'shadow' : mode === 'shadow' ? 'local' : 'cloud';
   }
 
+  // Verified first-party standard prices: https://platform.claude.com/docs/en/about-claude/pricing
+  // 2026-10-14. Reservation covers worst 1h cache writes on all input plus
+  // 10%+64 input tokens estimation margin; NOT an exact provider billing cap.
+  function reserveMicros(model, inputTokens, maxTokens) {
+    var p = PRICES[model];
+    if (!p || !Number.isSafeInteger(inputTokens) || inputTokens < 0 || !Number.isSafeInteger(maxTokens) || maxTokens <= 0) return null;
+    var n = Math.ceil((Math.ceil(inputTokens * 1.1) + 64) * p.in * 2 + maxTokens * p.out);
+    return Number.isSafeInteger(n) ? n : null;
+  }
+  function billedMicros(model, usage) {
+    var p=PRICES[model];
+    if (!p || !usage || !Number.isSafeInteger(usage.input_tokens) || usage.input_tokens < 0 || !Number.isSafeInteger(usage.output_tokens) || usage.output_tokens < 0) return null;
+    var cr=usage.cache_read_input_tokens || 0, cw=usage.cache_creation_input_tokens || 0;
+    if (![cr,cw].every(function(n){return Number.isSafeInteger(n)&&n>=0;})) return null;
+    var c=usage.cache_creation, writePrice=cw*2;
+    if (c) {
+      var a=c.ephemeral_5m_input_tokens || 0,b=c.ephemeral_1h_input_tokens || 0;
+      if (![a,b].every(function(n){return Number.isSafeInteger(n)&&n>=0;}) || a+b!==cw) return null;
+      writePrice=a*1.25+b*2;
+    }
+    var n=Math.ceil((usage.input_tokens+cr*0.1+writePrice)*p.in+usage.output_tokens*p.out);
+    return Number.isSafeInteger(n)?n:null;
+  }
+
   var API = {
     MODES: MODES, PRICES: PRICES, STT_PRICES: STT_PRICES, EUR_PER_USD: EUR_PER_USD,
     PURPOSES: PURPOSES, DEFAULTS: DEFAULTS, LIMITS: LIMITS, FIELDS: FIELDS,
     purposeOf: purposeOf, byCode: byCode, slugOf: slugOf, keyOfSlug: keyOfSlug,
     mergeSettings: mergeSettings, resolvePolicy: resolvePolicy,
-    costUsd: costUsd, sttCostUsd: sttCostUsd, tierOf: tierOf,
+    reserveMicros: reserveMicros, billedMicros: billedMicros, costUsd: costUsd, sttCostUsd: sttCostUsd, tierOf: tierOf,
     agreement: agreement, shadowVerdict: shadowVerdict,
     usageSummary: usageSummary, fmtUsd: fmtUsd, fmtEur: fmtEur, statusRows: statusRows, nextMode: nextMode
   };
