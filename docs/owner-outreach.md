@@ -9,7 +9,8 @@ annuity. **Treat supply acquisition as seriously as demand.**
 **The page to send:** **https://www.boomrome.com/owners**
 **Core promise to owners:** *international, verified tenants · registered
 leases · the rent and a statement on the 1st of every month · first letting
-with no commission (paperwork only, €89–278 VAT incl.).* Never promise
+with no commission (the owner pays the paperwork, €89–278 VAT incl.; with
+the attestation, the signatory organisation's fee is separate).* Never promise
 "reliable/guaranteed income": the only written solvency commitment is the
 tailored 2–3 year mandate, within its cap and term.
 
@@ -65,7 +66,7 @@ ricercatori) per affitti a medio termine.
 Possiamo portarle un inquilino selezionato e affidabile, gestendo noi contratto
 registrato, deposito, incassi e scadenze — lei riceve il canone e un rendiconto
 il primo del mese, niente no-show né perditempo. La prima locazione con noi è
-senza provvigione per lei: paga solo le pratiche del contratto, €89–278 IVA
+senza provvigione per lei: paga le pratiche del contratto, €89–278 IVA
 inclusa.
 
 Posso proporle un inquilino verificato per il suo appartamento? Le bastano due
@@ -88,7 +89,7 @@ owner — registered lease, rent collection and deadlines.
 If you own a flat in Rome but don't want the hassle (or you're abroad), we keep
 it occupied with good people and handle it all in English. You get the rent and
 a statement on the 1st of every month; the first letting carries no commission
-(lease paperwork only, €89–278 VAT included).
+(lease paperwork, €89–278 VAT included).
 
 Could we place a vetted tenant in your apartment this season?
 2-minute overview: https://www.boomrome.com/owners
@@ -102,7 +103,7 @@ Best,
 Buongiorno! Ho visto il suo annuncio a {{zona}}. Siamo BOOM (agenzia di Roma):
 le portiamo inquilini internazionali verificati, contratto registrato e incassi
 tracciati: lei riceve il canone e un rendiconto il primo del mese. Prima
-locazione senza provvigione: paga solo le pratiche, €89–278 IVA inclusa.
+locazione senza provvigione: paga le pratiche, €89–278 IVA inclusa.
 Le interessa una proposta?
 boomrome.com/owners
 ```

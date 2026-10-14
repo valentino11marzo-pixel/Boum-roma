@@ -29,6 +29,7 @@
 // Run: node tests/owners/run.mjs
 
 import { readFileSync, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { isB2B, b2bSide, b2bReplyText, ownerReplyText, isReunion } from '../../api/_market.js';
 
 const R = new URL('../../', import.meta.url).pathname;
@@ -422,6 +423,46 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro|zero pensieri|reliable income|zero stress|guaranteed rent|1 month rent or 10%|won'?t stay empty|resta(?:rà)? mai vuota|average:? \d+ days/i;
   const hits = Object.entries({ vis, ldText, hint, llmsOwn, faqOwn, outreach }).filter(([, t]) => GRATIS.test(t)).map(([k, t]) => k + ': ' + t.match(GRATIS)[0]);
   ok('mai «gratis» / «no fee» / «reddito sicuro» / «guaranteed rent» — pagina, dati, riga, llms, FAQ del sito, outreach', hits.length === 0, hits);
+  // La tariffa dell'organizzazione firmataria per l'attestazione è A PARTE,
+  // come nel Pacchetto (14/10/2026: la scala diceva €189 «tariffa
+  // dell'organizzazione compresa», il Pacchetto €349 «a parte» — due regole
+  // per la stessa tariffa). Dove si legge il prezzo dell'attestazione (€189)
+  // o le pratiche con l'attestazione (€278), lo STESSO blocco dice che la
+  // tariffa è a parte; la forma breve «pratiche €89–278» (meta, chip,
+  // outreach) resta com'è, come le meta del Pacchetto. Blocco = un <span>
+  // di lingua, un paragrafo, una risposta FAQ, una stringa dei dati
+  // strutturati, una voce della riga, una risposta WhatsApp, un paragrafo
+  // del PDF.
+  {
+    const ATT = /€\s?189\b|\b189 euro|€\s?278\b|\b278 euro|eur\(P\.(?:primaLocazione|attestazione)\)/;
+    const FEE = /tariffa dell(?:'|\\')organizzazione|organi[sz]ation(?:'|\\')?s fee|fee of the (?:signatory )?organi[sz]ation/;
+    const INCL = /tariffa dell'organizzazione compresa|organi[sz]ation'?s fee included/i;
+    const blocks = (t) => t.replace(/<!--[\s\S]*?-->|<style[\s\S]*?<\/style>/g, ' ')
+      .replace(/<\/(?:span|p|div|li|dd|dt|summary|h[1-6])>|","|":"|\n/g, ' ¦ ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').split('¦');
+    const WA = createRequire(import.meta.url)('../../js/whatsapp-replies.js');
+    const sources = {
+      owners: html, canone: read('canone.html'), pacchetto: read('pacchetto-concordato.html'),
+      services: read('services.html'), faq: faqHtml, llms: read('llms.txt'),
+      contoPdf: read('api/owners/_conto-pdf.js'),
+    };
+    const lacking = [];
+    // llms.txt è fatto di paragrafi lunghi su più temi: lì il blocco è la
+    // FRASE (un accenno alla tariffa in una frase non copre l'altra).
+    const unit = (k, t) => k === 'llms' ? blocks(t).flatMap(b => b.split(/\.\s/)) : blocks(t);
+    for (const [k, t] of Object.entries(sources)) for (const b of unit(k, t)) if (ATT.test(b) && !FEE.test(b)) lacking.push(k + ': …' + b.trim().slice(0, 140));
+    for (const r of WA.REPLIES) if (ATT.test(r.text) && !FEE.test(r.text)) lacking.push('whatsapp /' + r.sc);
+    ok('dove c\'è il prezzo dell\'attestazione (€189 o €278 con l\'attestazione), lo stesso blocco dice che la tariffa dell\'organizzazione è a parte — pagine, dati, riga, llms, FAQ del sito, WhatsApp, PDF', lacking.length === 0, lacking);
+    const incl = Object.entries({ ...sources, whatsapp: WA.REPLIES.map(r => r.text).join(' ') }).filter(([, t]) => INCL.test(t)).map(([k]) => k);
+    ok('mai «tariffa dell\'organizzazione compresa» / «organisation\'s fee included»', incl.length === 0, incl);
+    // Con una tariffa di terzi in più, «paga SOLO le pratiche» è un prezzo
+    // esaustivo che non lo è (art. 21 c.1 lett. d Cod. cons.): si dice «paga
+    // le pratiche», e la tariffa a parte accanto.
+    const SOLO = /paga(?:no)? solo le pratiche|\bsolo le pratiche \(|pays? only the (?:lease )?paperwork|just the paperwork|paperwork only/i;
+    const solo = Object.entries({ ...sources, whatsapp: WA.REPLIES.map(r => r.text).join(' '), outreach: read('docs/owner-outreach.md') })
+      .filter(([, t]) => SOLO.test(t)).map(([k, t]) => k + ': ' + t.match(SOLO)[0]);
+    ok('mai «paga solo le pratiche» / «only the paperwork» dove c\'è la tariffa a parte', solo.length === 0, solo);
+  }
   ok('la FAQ generale del sito dice la stessa scala (€0 con le pratiche, 61%, link a /owners#costi)',
     /€0 commission/.test(faqOwn) && faqOwn.includes('€' + reg) && faqOwn.includes('€' + (reg + ass)) && /61% of one month/.test(faqOwn) && /\/owners#costi|boomrome\.com\/owners/.test(faqHtml));
   ok('i modelli di outreach, dove dicono «senza provvigione», dicono anche il prezzo delle pratiche',

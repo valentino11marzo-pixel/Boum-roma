@@ -104,7 +104,7 @@
   var PRICES = {
     registrazione: 89,
     attestazione: 189,
-    primaLocazione: 278,   // registrazione + attestazione, IVA inclusa
+    primaLocazione: 278,   // registrazione + attestazione, IVA inclusa (la tariffa dell'organizzazione a parte)
     pacchetto: 349,
   };
 

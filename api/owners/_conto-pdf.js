@@ -182,9 +182,9 @@ export async function buildContoPdf(snap) {
 
   // Il passo dopo
   kicker('Il passo dopo');
-  para(`Casa libera — la affittiamo noi. Nella prima locazione ${eur(0)} di provvigione per lei: paga solo le pratiche del contratto, ${eur(P.primaLocazione)} IVA inclusa con l'attestazione di rispondenza (${eur(P.registrazione)} senza).`, 9.5);
+  para(`Casa libera — la affittiamo noi. Nella prima locazione ${eur(0)} di provvigione per lei: paga le pratiche del contratto, ${eur(P.primaLocazione)} IVA inclusa con l'attestazione di rispondenza (${eur(P.registrazione)} senza); la tariffa dell'organizzazione firmataria per l'attestazione è a parte e gliela diciamo prima.`, 9.5);
   y -= 3;
-  para(`Inquilino già trovato — Pacchetto canone concordato, ${eur(P.pacchetto)} IVA inclusa: verifica del canone, contratto conforme, pratica di attestazione e registrazione. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela diciamo prima; se la casa non può rientrare in fascia, i ${eur(P.pacchetto)} le tornano indietro.`, 9.5);
+  para(`Inquilino già trovato — Pacchetto canone concordato, ${eur(P.pacchetto)} IVA inclusa: verifica del canone, contratto conforme, pratica di attestazione e registrazione. La tariffa dell'organizzazione firmataria per l'attestazione è a parte e gliela diciamo prima; se dalla verifica risulta che la casa non può essere affittata a canone concordato, i ${eur(P.pacchetto)} le tornano indietro.`, 9.5);
   y -= 6;
   para('Valentino, fondatore di BOOM — +39 331 325 1961 · boomrome.com/owners', 9.5, INK, bold);
 

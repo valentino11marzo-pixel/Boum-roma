@@ -147,6 +147,14 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
+- **Produzione da un ramo ≠ main (14/10/2026)**: quando la produzione gira su
+  un deploy di un ramo (Codex lo fa per i rilasci in corso), il primo merge
+  su main RIAVVIA la produzione da main e toglie dal sito quello che main non
+  ha — successo col merge di #288: per ore la Home connessa e il rilascio
+  tenant sono spariti. Prima di unire su main, guarda cosa serve la
+  produzione (`list_deployments` target production, `githubCommitRef`); se
+  è un altro ramo, prima si integra, poi si unisce. Un deploy già READY non
+  si annulla: si ripara con un nuovo deploy della build integrata.
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
 - **Function configuration limit (21/09)**: Vercel rejects more than 50
@@ -1127,8 +1135,20 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
 1. **Prima locazione — €0 di provvigione**: la provvigione la paga
    l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
    inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
-   attestazione €189, tariffa dell'organizzazione compresa) che apre
-   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   pratica di attestazione €189) che apre cedolare al 10% e IMU −25%, **€89**
+   senza.
+   **La tariffa dell'organizzazione firmataria per l'attestazione è A
+   PARTE**, detta prima per iscritto — come nel Pacchetto (decisione del
+   fondatore, 14/10/2026: la scala diceva «compresa», il Pacchetto «a
+   parte»). `tests/owners` pretende che ogni blocco con €189 o €278 lo dica
+   (pagine, JSON-LD, riga, llms.txt frase per frase, FAQ del sito, WhatsApp,
+   PDF del conto) e vieta «compresa»; la forma breve «pratiche €89–278»
+   (meta, chip, outreach) resta, come le meta del Pacchetto. E niente più
+   «paga SOLO le pratiche» / «only the paperwork» (prezzo esaustivo che non
+   lo è): il test lo vieta anche nell'outreach. Aperto:
+   `ASPI_DEFAULTS.costoAsseverazione` conta ancora €100 come costo BOOM, e
+   chi incassa la tariffa (l'organizzazione dal proprietario, o BOOM che la
+   rifattura) non è scritto nel codice. €278 si scrive PRIMA di €89:
    quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
    `requiresAsseverazione:true` e il default di fatturazione è «completo» —
    presentare €89 come base era il prezzo raro spacciato per normale. Per
@@ -1140,7 +1160,9 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
    `tests/owners` li legge da lì.
 2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
    condominio e utenze), registrazione compresa, solo se il nuovo inquilino
-   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   firma; la pratica di attestazione, se serve, €189, più la tariffa
+   dell'organizzazione firmataria.
+   Si scrive SEMPRE col totale
    accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
    (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
    può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,
@@ -1256,6 +1278,30 @@ L. 431/98) — e lo passava nella cassa del Pacchetto come `?canone=`.
 Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
 porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
 del browser accettato, regola tolta, `?canone=` ristampato).
+
+**La revisione UX della sera (13/10)**: un audit in quattro lenti (conversione,
+visivo, accessibilità, testi), ogni rilievo verificato da un secondo agente
+contro i file e in Chromium a 390px; applicati solo quelli confermati.
+/canone: sotto il numero il rimando al PDF (sul telefono il modulo stava 2,6
+schermi più giù), il modulo prima della condivisione, «Apra il conto in PDF»
+(nessuno lo spediva: era «Riceva»), «Copia il link del PDF», chi lo prepara
+accanto al modulo, campi impilati su telefono; una cifra in mente sopra il
+pareggio dice che il libero 4+4 renderebbe di più e porta alla valutazione;
+l'elenco zone non copre più i metri, si chiude con Tab/Escape e dopo la scelta
+il cursore va ai metri; un solo annuncio breve `#rLive` invece di rileggere il
+pannello a ogni tasto. Il passaggio /canone → /owners porta `?z=&mq=` (mai dati
+personali) e /owners li pre-compila. /owners: prima la casa poi i recapiti,
+nessun link a /canone dentro il modulo, `--t4` a .5 e soglia di lettura, barra
+mobile che non raddoppia la banda finale, focus sul «fascicolo aperto». Pacchetto:
+il bottone dice quando si parte e cambia con la spunta, la tariffa
+dell'organizzazione anche nel foglio di pagamento, errore sotto il campo
+sbagliato, banner cookie (compatto) che si alza sopra la barra di pagamento
+(`html.pb-on`). La grazie del Pacchetto è tutta in italiano con le quattro tappe
+dell'email (`service-checkout` porta `&start=1|0`). Condiviso
+(`css/boom-2026.css`, 13 pagine): menu aperto sotto la nav (X visibile), menu
+chiuso fuori dal Tab, numeri di telefono interi, bersagli da 44px, piede
+legale sopra 4,5:1. Striscia di famiglia: «Pacchetto concordato» come menu e
+piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
