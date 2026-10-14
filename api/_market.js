@@ -187,8 +187,8 @@ export function b2bReplyText(lead = {}) {
 export const CITY_MARKETS = {
   amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam', mode: 'search' },
   madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search' },
-  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist' },
-  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist' },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner' },
+  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner' },
 };
 
 /** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */
@@ -245,7 +245,7 @@ export function cityReplyText(lead = {}) {
   // A waitlist desk never promises a search it cannot run yet: the reply says
   // where the desk stands and what can be done today.
   const next = cityMode(lead) === 'waitlist'
-    ? `The ${c.label} desk is opening with a registered local partner, so I can't start a search there yet. I'll come back today with where we stand and what we can already do for you.`
+    ? `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. I'll come back today with where we stand and what we can already do for you.`
     : "I'll come back today with how we'd run it and the next step.";
   return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
     `${q}${next}\n${c.url}`;

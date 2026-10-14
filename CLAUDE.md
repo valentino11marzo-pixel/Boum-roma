@@ -1181,24 +1181,54 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   `live:false`: per il live servono la revisione sul telefono, la riga in
   `sitemap.xml`, il link dalla home e — per Barcellona — il partner AICAT
   prima di qualunque passaggio a `search`.
+- **Parigi (14/10, notte)** — la terza sorella, in `mode:"waitlist"` dal
+  brief §4: in Francia cercare casa per conto dell'inquilino è
+  *transaction* (loi Hoguet) e il chasseur immobilier esige la **carte
+  professionnelle**, quindi «Launching with a licensed partner.» (la frase
+  del brief, verbatim, nel footer; nell'hero «Opening with a licensed
+  partner (carte professionnelle)») e nessun prezzo da nessuna parte — le
+  STESSE guardie di Barcellona. I sei controlli sono i fatti francesi:
+  l'**encadrement des loyers** (loyer de référence e majoré, complément
+  giustificato), chi può farsi pagare (loi Hoguet · ALUR: gli onorari
+  all'inquilino sono capati per legge), il **dépôt de garantie** (un mese
+  vuoto, due ammobiliato), i tre bail (vide · meublé · mobilité), il
+  **justificatif de domicile** dal primo giorno, garant · **Visale**. Il
+  registro del server (`CITY_MARKETS`) porta `partner` sui desk waitlist
+  («a licensed partner» per Parigi, «a registered local partner» per
+  Barcellona) e `cityReplyText` lo nomina: un lead Parigi nasce
+  `intent:'city_waitlist'`, card «🇫🇷 PARIS · waitlist · …», e la risposta
+  precompilata dice che il desk sta aprendo invece di promettere una
+  ricerca. Budget rispettato dopo il taglio dei controlli (178 → 167):
+  hero 55 · controlli 167 · corpo 943. `og-paris.png` dal repo (92 KB, il
+  tabellone fermo su PARIS, nessun «from €»). **Da verificare col legale
+  prima del live**: il partner con carte professionnelle *transaction* e
+  garanzia finanziaria; dove vale l'encadrement (Paris intra-muros, i
+  comuni limitrofi a parte) e il complément de loyer; il bail mobilité
+  (1–10 mesi, senza deposito, solo per certe situazioni — mai per un
+  soggiorno lungo, la pagina lo segnala come bandiera rossa); l'eleggibilità
+  Visale (under 30 e nuove assunzioni: non prometterla a chi non rientra);
+  il bail come justificatif de domicile presso banca e préfecture.
+  `live:false`: per il live servono la revisione sul telefono, la riga in
+  `sitemap.xml`, il link dalla home e il partner licenziato prima di
+  qualunque passaggio a `search` (che esige i prezzi, come per Barcellona).
 - **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
   in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
   confermare col commercialista PRIMA del live), il pagamento (carta o
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (187 — build, sistema, voce, budget di
+- Test: `node tests/cities/run.mjs` (211 — build, sistema, voce, budget di
   parole, chip e ✓ dai piani, scheda dopo la FAQ, JSON-LD = pagina,
   rifiuti, le sorelle con le invarianti waitlist e la regola della famiglia,
-  handler VERO di `/api/city-lead` su Firestore in memoria per i tre desk,
-  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (41, Chromium:
+  handler VERO di `/api/city-lead` su Firestore in memoria per i quattro desk,
+  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (45, Chromium:
   leggibile senza JS coi prezzi dei chip come testo, il tabellone che
   scrive AMSTERDAM nello spazio riservato, prezzi che si compongono, 390px
   senza scroll laterale coi quattro chip a una riga e la riga «searching»
   nascosta, pay bar solo oltre l'hero, burger, nessun servizio pre-scelto e
   il piatto che spunta il suo chip, modulo che posta JSON una volta e dice
-  l'errore sul posto, reduced motion fermo, 1440 a due colonne; Madrid e
-  Barcellona a 390px — tabellone nello spazio riservato, chip pari, nessun €
+  l'errore sul posto, reduced motion fermo, 1440 a due colonne; Madrid,
+  Barcellona e Parigi a 390px — tabellone nello spazio riservato, chip pari, nessun €
   sulla pagina waitlist, il modulo che posta la SUA città).
 
 ### POST `/api/service-checkout`

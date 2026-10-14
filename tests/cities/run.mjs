@@ -449,13 +449,14 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
 // must-state sentences of §4 are asserted verbatim.
 const mad = JSON.parse(read('cities/madrid.json'));
 const bcn = JSON.parse(read('cities/barcelona.json'));
+const par = JSON.parse(read('cities/paris.json'));
 const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
 const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-check(mad.mode === 'search' && bcn.mode === 'waitlist' && mad.live === false && bcn.live === false,
-  'madrid is a search desk, barcelona a waitlist desk (brief §4); both drafts until the founder reviews them on a phone');
-for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9]]) {
+check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && [mad, bcn, par].every((c) => c.live === false),
+  'madrid is a search desk, barcelona and paris waitlist desks (brief §4); all drafts until the founder reviews them on a phone');
+for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par, 'PARIS', 5]]) {
   const h = pageOf(c.slug);
   const v = visibleOf(h);
   check(h.includes(GENERATED_MARK) && /<meta name="robots" content="noindex">/.test(h.slice(0, 4000)) && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`),
@@ -487,21 +488,24 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9]]) {
   check(v.includes('You hire us; we do not act for the landlord.'), 'madrid: the brief\'s must-state sentence, verbatim (§4)');
   check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are the ones on the page — agency costs on the landlord, fianza, padrón, no regional cap');
 }
-// Barcelona: the waitlist desk — no price anywhere
-{
-  const h = pageOf('barcelona');
+// The waitlist desks — Barcelona and Paris: no price anywhere
+for (const [c, mustState, facts, factsLabel] of [
+  [bcn, 'Launching with a registered local partner.', [/AICAT/, /índice de referencia/, /fianza/, /padrón/], 'AICAT, the índice de referencia, fianza and padrón'],
+  [par, 'Launching with a licensed partner.', [/carte professionnelle/, /loi Hoguet/, /encadrement des loyers/, /Visale/, /justificatif de domicile/], 'carte professionnelle, loi Hoguet, the encadrement des loyers, Visale and the justificatif de domicile'],
+]) {
+  const h = pageOf(c.slug);
   const v = visibleOf(h.replace(/<select[\s\S]*?<\/select>/gi, ' '));
-  check(!/€\s?\d/.test(v) && !/\d\s?€/.test(v), 'barcelona: no price in the text the client reads (the budget bands in the <select> are the client\'s own)');
-  check(!h.includes('flap-prezzo') && !h.includes('data-p="') && !/<div class="price">/.test(h), 'barcelona: no price board, no price line on the plates');
-  const chipsB = [...h.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span>([\s\S]*?)<\/span><\/label>/g)];
-  check(chipsB.length === 4 && chipsB.filter((m) => m[2] !== 'unsure').every((m) => !/<small>/.test(m[3])) && chipsB.some((m) => m[2] === 'unsure' && /<small>advise me<\/small>/.test(m[3])),
-    'barcelona: the service chips carry the name alone — no price exists yet');
+  check(!/€\s?\d/.test(v) && !/\d\s?€/.test(v), `${c.slug}: no price in the text the client reads (the budget bands in the <select> are the client's own)`);
+  check(!h.includes('flap-prezzo') && !h.includes('data-p="') && !/<div class="price">/.test(h), `${c.slug}: no price board, no price line on the plates`);
+  const chipsW = [...h.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span>([\s\S]*?)<\/span><\/label>/g)];
+  check(chipsW.length === 4 && chipsW.filter((m) => m[2] !== 'unsure').every((m) => !/<small>/.test(m[3])) && chipsW.some((m) => m[2] === 'unsure' && /<small>advise me<\/small>/.test(m[3])),
+    `${c.slug}: the service chips carry the name alone — no price exists yet`);
   const ld = JSON.stringify(ldOf(h));
-  check(!/"price"|"offers"|"priceCurrency"/.test(ld) && /"Service"/.test(ld) && /"FAQPage"/.test(ld), 'barcelona: the Service in the schema has no Offer and no price; the FAQPage is there');
-  check(h.includes(esc(bcn.pricing.note)) && h.includes('Not published yet'), 'barcelona: the plates say why no price is shown; the fact sheet says the fees are not published yet');
-  check(!/stripe/i.test(h), 'barcelona: no Stripe anywhere');
-  check(v.includes('Launching with a registered local partner.'), 'barcelona: the brief\'s must-state sentence, verbatim (§4)');
-  check(/AICAT/.test(v) && /índice de referencia/.test(v) && /fianza/.test(v) && /padrón/.test(v), 'barcelona: AICAT, the índice de referencia, fianza and padrón are on the page (§4, §5.8)');
+  check(!/"price"|"offers"|"priceCurrency"/.test(ld) && /"Service"/.test(ld) && /"FAQPage"/.test(ld), `${c.slug}: the Service in the schema has no Offer and no price; the FAQPage is there`);
+  check(h.includes(esc(c.pricing.note)) && h.includes('Not published yet'), `${c.slug}: the plates say why no price is shown; the fact sheet says the fees are not published yet`);
+  check(!/stripe/i.test(h), `${c.slug}: no Stripe anywhere`);
+  check(v.includes(mustState), `${c.slug}: the brief's must-state sentence, verbatim (§4): "${mustState}"`);
+  check(facts.every((re) => re.test(v)), `${c.slug}: ${factsLabel} are on the page (§4, §5.8)`);
 }
 // the build keeps the two modes apart
 {
@@ -528,8 +532,8 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9]]) {
   check(JSON.stringify(hrefs(B)) === JSON.stringify(['/amsterdam', '/madrid', '/']), 'a DRAFT page links every sister: the review needs to see the suite');
   check(!hrefs(M).includes('/madrid') && !hrefs(A).includes('/amsterdam'), 'a page is never in its own strip');
   const strip = (pageOf('barcelona').match(/<div class="fam"[\s\S]*?<\/div>/) || [''])[0];
-  check(/<a class="on" href="\/barcelona" aria-current="page">Barcelona<\/a>[\s\S]*<a href="\/amsterdam">Amsterdam<\/a>[\s\S]*<a href="\/madrid">Madrid<\/a>[\s\S]*<a href="\/">BOOM Rome<\/a>/.test(strip),
-    'barcelona (draft): the strip reads Barcelona · Amsterdam · Madrid · BOOM Rome');
+  check(/<a class="on" href="\/barcelona" aria-current="page">Barcelona<\/a>[\s\S]*<a href="\/amsterdam">Amsterdam<\/a>[\s\S]*<a href="\/madrid">Madrid<\/a>[\s\S]*<a href="\/paris">Paris<\/a>[\s\S]*<a href="\/">BOOM Rome<\/a>/.test(strip),
+    'barcelona (draft): the strip reads Barcelona · Amsterdam · Madrid · Paris · BOOM Rome');
 }
 // the door, per desk: a waitlist lead is a FILE OPENED, said so everywhere the operator reads
 {
@@ -547,6 +551,13 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9]]) {
   const rb = cityReplyText(b.lead);
   check(cityMode(b.lead) === 'waitlist' && rb.includes('opening with a registered local partner') && !rb.includes("how we'd run it") && rb.endsWith(CITY_MARKETS.barcelona.url),
     'barcelona: the pre-written reply says the desk is opening and never promises a search it cannot run');
+  const p = await call({ ...ANNA, city: 'paris', areas: 'Le Marais' }, '10.3.0.3');
+  check(p.code === 200 && p.lead.market === 'paris' && p.lead.intent === 'city_waitlist' && /^PARIS — waitlist \(desk opening with a registered partner\)/.test(p.lead.message)
+    && p.notif.summary.startsWith('🇫🇷 PARIS · waitlist · Anna Keller') && cityLabel(p.lead) === '🇫🇷 Paris',
+    'paris: a waitlist lead with the French flag, said as waitlist on the summary and the card', p.lead && p.lead.message);
+  const rp = cityReplyText(p.lead);
+  check(rp.includes('opening with a licensed partner') && !rp.includes('registered local partner') && !rp.includes("how we'd run it") && rp.endsWith(CITY_MARKETS.paris.url),
+    'paris: the reply names the LICENSED partner (loi Hoguet), never Barcelona\'s registered one, and promises no search');
   for (const p of pages) {
     const reg = CITY_MARKETS[p.slug];
     check(!!reg && reg.mode === p.mode, `${p.slug}: the server registry agrees with the page on the desk's mode (${p.mode}) — one word, two places, no drift`);

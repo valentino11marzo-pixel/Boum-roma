@@ -215,7 +215,7 @@ const board = (page) => page.evaluate(() => {
 }
 
 // ── the sisters at 390px: Madrid (search) and Barcelona (waitlist) ────────
-for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA']]) {
+for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['paris', 'PARIS']]) {
   const { ctx, page, st } = await open({ slug });
   await page.waitForTimeout(2600);
   const b = await board(page);
@@ -223,10 +223,10 @@ for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA']]) {
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
   check(scrollW <= 390 && chipH.length === 4 && new Set(chipH).size === 1, `${slug}: 390px, no horizontal scroll, four chips in one even grid (${chipH.join('/')}px)`);
-  if (slug === 'barcelona') {
+  if (slug === 'barcelona' || slug === 'paris') {
     const priceNodes = await page.$$eval('.flap-prezzo, .plates .price, .chip small', (els) => els.map((e) => e.textContent.trim()));
     const txt = await page.evaluate(() => { const m = document.querySelector('main').cloneNode(true); m.querySelectorAll('select').forEach((s) => s.remove()); return m.textContent; });
-    check(JSON.stringify(priceNodes) === JSON.stringify(['advise me']) && !/€\s?\d/.test(txt), 'barcelona: no price on the plates, no board, no € in the page the client reads');
+    check(JSON.stringify(priceNodes) === JSON.stringify(['advise me']) && !/€\s?\d/.test(txt), `${slug}: no price on the plates, no board, no € in the page the client reads`);
   }
   await tap(page, '#plan-application-pack .go');
   await page.waitForTimeout(400);
