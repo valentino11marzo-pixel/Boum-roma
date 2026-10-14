@@ -163,3 +163,74 @@ export function b2bReplyText(lead = {}) {
        `Per fare presto: quante persone, da quando e per quanto tempo? ` +
        `Ti torno in giornata con opzioni reali e la forma contrattuale giusta per ogni soggiorno.\n${url}`);
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// IL TERZO MERCATO: LE CITTÀ (BOOM_CITIES_BRIEF.md — Amsterdam oggi; Madrid,
+// Barcellona, Parigi quando avranno la loro pagina). Stessa lezione della
+// Réunion, in un'altra lingua: un lead che arriva da /amsterdam cerca casa ad
+// AMSTERDAM, e il Commerciale — con il suo SYSTEM prompt sul mercato romano,
+// il catalogo `listings` che consulta e il follow-up «stai ancora cercando
+// casa a Roma?» — gli scriverebbe una prima risposta che parla di un'altra
+// città. La card Telegram, senza guardia, gli manderebbe il link
+// /apartments di Roma.
+//
+// La regola è la stessa: si riconosce il mercato dalla porta (`market` o
+// `sourceRef` scritti da api/city-lead.js), il Commerciale SI ASTIENE, e la
+// card porta il messaggio giusto già scritto — in inglese, firmato Valentino
+// perché il numero WhatsApp da cui parte è il suo.
+
+export const CITY_MARKETS = {
+  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam' },
+  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid' },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona' },
+  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris' },
+};
+
+/**
+ * Da quale città (fuori Roma) viene questo lead — la chiave di CITY_MARKETS
+ * o null. Due indizi perché due campi lo portano: `market` (la porta) e
+ * `sourceRef` `city-<slug>` (ripresa manuale, import). Roma e la Réunion
+ * non sono città di questa lista: restano nelle loro macchine.
+ * @param {object} lead
+ * @returns {string|null}
+ */
+export function cityMarketOf(lead = {}) {
+  if (!lead || typeof lead !== 'object') return null;
+  const m = String(lead.market || '').toLowerCase();
+  if (CITY_MARKETS[m]) return m;
+  const ref = /^city-([a-z]+)$/.exec(String(lead.sourceRef || '').toLowerCase());
+  if (ref && CITY_MARKETS[ref[1]]) return ref[1];
+  return null;
+}
+
+/** Il lead cerca casa in una città BOOM fuori Roma? */
+export const isCityMarket = lead => cityMarketOf(lead) !== null;
+
+/** «🇳🇱 Amsterdam» per la card Telegram; stringa vuota se non è una città. */
+export function cityLabel(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k ? `${CITY_MARKETS[k].flag} ${CITY_MARKETS[k].label}` : '';
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un lead di città: in inglese (la
+ * pagina è in inglese e la persona si sta trasferendo da fuori), con le SOLE
+ * domande che il modulo non ha già risposto, e il link della SUA pagina —
+ * mai /apartments di Roma.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function cityReplyText(lead = {}) {
+  const k = cityMarketOf(lead);
+  const c = k ? CITY_MARKETS[k] : { label: 'your city', url: 'https://www.boomrome.com' };
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const asks = [];
+  if (!lead.moveIn) asks.push('when do you land');
+  if (!(lead.budgetBand || lead.budget)) asks.push("what's the monthly budget");
+  if (!(lead.city && lead.city.situation)) asks.push("who's moving");
+  const q = asks.length
+    ? `To set up the search properly: ${asks.join(', ')}? `
+    : 'I have your dates, budget and situation. ';
+  return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
+    `${q}I'll come back today with how we'd run it and the next step.\n${c.url}`;
+}

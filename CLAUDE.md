@@ -1039,46 +1039,97 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
 
-### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `BOOM_CITIES_BRIEF.md`) — 13/10/2026
+### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `api/city-lead.js` + `BOOM_CITIES_BRIEF.md`) — 14/10/2026
 Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi), lato inquilino,
-in inglese. Il contratto è `BOOM_CITIES_BRIEF.md` (fuori dal deploy:
-budget e zone grigie legali sono interni). **Fase 1 fatta**: la pagina
-Amsterdam scritta a mano è diventata template + dati, e la pagina generata è
-**identica pixel per pixel** all'originale (Chromium, pagina intera e stato
-dopo l'invio, 390 e 1440px).
-- `cities/_template.html` (`{{a.b}}` = valore escapato, `{{{a.b}}}` = HTML
-  grezzo; nel JSON un campo che finisce in `Html` è markup fidato, tutto il
-  resto si escapa) · `cities/_shared.json` (**l'unico posto del dominio**,
-  `siteUrl`, + l'entità legale, stampata uguale in ogni footer e
-  Organization) · `cities/<città>.json` · `assets/boom-city.css` e
-  `assets/boom-city.js` condivisi, linkati con `?v=<hash>` del contenuto.
-- `npm run build:cities` scrive `/<slug>.html` (committata: Vercel serve il
-  repo così com'è); `--check` esce 1 se una pagina committata non è ciò che
-  i dati costruiscono. **Il build rifiuta invece di stampare il falso**:
-  token senza valore (mai una stringa vuota), `live:true` con segnaposto
-  (testo tra parentesi quadre visibile, config `REPLACE_ME`/`39XXXXXXXXXX`,
-  statistica senza `source {url, date}` — §5.3), `mode:"waitlist"` finché la
-  Fase 3 non la costruisce (il template stampa prezzi e Stripe), e
-  sovrascrivere una pagina alla radice senza il marchio GENERATED (uno slug
-  `index` avrebbe sostituito la home).
-- Differenze volute dall'originale, invisibili con JS acceso: host
-  `www.boomrome.com` (l'apex reindirizza; il vecchio `@id` apex era
-  un'organizzazione diversa da quella del sito); `noindex` finché
-  `live:false` (la regola 8 di `tests/seo` lo pretende per una pagina fuori
-  sitemap); il reveal nasconde SOLO con la classe `js` (senza JS
-  l'originale lasciava invisibili per sempre statistiche, piani e controlli)
-  e rispetta `prefers-reduced-motion`; i link WhatsApp/Stripe sono href al
-  build; lo schema FAQ ripete le risposte VISIBILI (l'originale le parafrasava).
-- **Aperto, non deciso qui**: Web3Forms contro la pipeline `leads` (la
-  lezione di `api/leads/web.js` — servirebbe la guardia mercato di
-  `api/_market.js`, o il Commerciale risponde con Roma), Payment Link non
-  legato al lead, contatore «posti rimasti» (reale o da togliere), oro
-  `#D4AF37` contro il `#FFD700` del sito pubblico, Organization «BOOM»
-  sullo stesso `@id` di «BOOM Rome», frasi senza fonte nella pagina
-  («98% success rate», «most chosen» su un servizio senza clienti, «agents
-  typically charge a full month's rent»).
-- Test: `node tests/cities/run.mjs` (39) + `node tests/cities/ui.mjs` (17,
-  Chromium: leggibile senza JS, modulo dall'invio all'errore).
+in inglese. Il contratto è `BOOM_CITIES_BRIEF.md` (fuori dal deploy: budget e
+zone grigie legali sono interni). **La Fase 1 (13/10) era un'estrazione
+pixel-identica della pagina scritta a mano — e il fondatore l'ha bocciata**:
+«non è nelle nostre vene, non rispetta il minimo di qualità che abbiamo
+raggiunto, con tutto il motion design Solari». Giusto: era una landing a
+parte (Inter da Google Fonts, oro `#D4AF37` del portal, spirale disegnata a
+mano al posto del marchio, «founding cohort · 10 posti · deposito €99
+rimborsabile», Web3Forms + Stripe + pixel Meta). **Il 14/10 la pagina è
+stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
+- **Sistema**: `css/boom-2026.css` + il layer città `assets/boom-city.css`
+  (la grammatica Executive v4 — `STUDIO_EXECUTIVE_UIX.md`,
+  `STUDIO_EXECUTIVE_CONVERSIONE.md`: oro `#FFD700`, lockup
+  `BOOM │ AMSTERDAM · TENANT SIDE` unico elemento di marca nuovo, layer tech
+  quieto, **il form È l'hero** — `.filecard`, 5 campi visibili + «More
+  details», ~45 parole prima della porta — poi 01 come funziona (`.steps` +
+  `.tline`), 02 servizi e prezzi (tre `.sib` con il **prezzo sul tabellone
+  Solari**), 03 sei controlli prima della firma (`.flows`), banda `.truth`,
+  scheda `.enbref` citabile (GEO), FAQ visibile = FAQPage, banda finale,
+  footer con l'entità e la dichiarazione tenant-side, `.paybar` mobile).
+- **Il Solari**: il nome della città nel titolo È un tabellone a palette
+  (`#flapCity`, una cella per lettera, `show` a 600ms, `giro` ogni 19s a
+  scheda visibile, fermo con reduced-motion), e i tre prezzi sono tabelloni
+  che si compongono entrando in vista — lo STESSO montatore di
+  `apartments.html`. Il motore è INLINATO dal build dalla sua sorgente unica
+  (`design/pages-deco/solari-engine.html`, byte per byte, fra i marcatori
+  `BOOM_SOLARI`), come il contratto di scorrimento (`css/boom-scroll.css` +
+  `js/boom-scroll.js`). **Lo spazio si riserva prima** (la lezione DAYS di
+  index): `CELL_EM = 0.90` em dell'host per cella — la cella del motore è
+  0.84em (il `--cw` dichiarato sulla cella vince su quello calibrato
+  sull'host) + .06em di margine — pinnato in Chromium: riservato 210px, celle
+  208px a 390px. Il titolo a `.72em` tiene AMSTERDAM e BARCELONA (9 lettere)
+  in una colonna da 390px; un nome oltre 12 lettere è rifiutato (override
+  `"word"`), gli accenti cadono (il rullo non li ha).
+- **La voce**: attività avviata, nessun «founding», nessun contatore di
+  posti, nessun deposito, nessun punto esclamativo (test sui dati). Promesse
+  dichiarabili e basta: dossier olandese in 24h, candidature entro l'ora,
+  visita presenziata con video in diretta e rapporto scritto, contratto
+  controllato sulla legge olandese, BRP confermata per iscritto; mai una
+  data, mai una statistica senza fonte (la sezione «problema» con le tre
+  cifre non sorgenti è sparita).
+- **La porta**: `POST /api/city-lead` (pattern di `executive-lead`:
+  honeypot `company`, nome + email|telefono, clip, rate limit per IP; città
+  da LISTA CHIUSA → 400 `unknown_city`; servizio da lista chiusa, «service
+  to decide» mai un'etichetta inventata; la fascia di budget resta verbatim
+  e il numero è il suo tetto). Scrive nello schema `leads` come TENANT
+  (`market:'amsterdam'`, `intent:'city_search'`, `sourceRef:'city-amsterdam'`,
+  riassunto «AMSTERDAM — tenant-side search · Full Search · €1,500 –
+  €2,000/month · move-in … · chi si trasferisce · zone. parole sue»). **Il
+  terzo mercato in `api/_market.js`** (`CITY_MARKETS`, `isCityMarket`,
+  `cityLabel`, `cityReplyText`): il Commerciale SI ASTIENE (guardia PRIMA di
+  `proposeFirstReply`, come Réunion e B2B) e la card Telegram porta il
+  messaggio inglese già scritto — firmato Valentino perché il numero è il
+  suo — col link di `/amsterdam` e SOLO le domande che il modulo non ha già
+  risposto; mai `/apartments` di Roma. Nessuna chiave nel browser, nessun
+  servizio terzo: la pagina paga solo gtag (consent default negato) +
+  `boom-consent.js` + `boom-track.js` come Executive.
+- `cities/_template.html` (`{{a.b}}` = escapato, `{{{a.b}}}` = HTML; nel
+  JSON un campo che finisce in `Html` è markup fidato) ·
+  `cities/_shared.json` (**l'unico posto del dominio**, entità legale,
+  contatti VERI `393313251961`/`hello@boom-rome.com`, organizzazione,
+  famiglia) · `cities/<città>.json` · `assets/boom-city.css|js` con
+  `?v=<hash>` del contenuto. `npm run build:cities` scrive `/<slug>.html`
+  (committata); `--check` esce 1 se stantia. **Il build rifiuta invece di
+  stampare il falso**: token senza valore, `live:true` con segnaposto
+  (testo tra parentesi quadre, config `REPLACE_ME`/`39XXXXXXXXXX`) o **senza
+  `og-<slug>.png` su disco**, `mode:"waitlist"` finché la Fase 3 non la
+  costruisce (stampa prezzi), `#D4AF37` ovunque (anche nell'HTML fidato),
+  piani senza label/prezzo o con id doppio, un file che non è il motore
+  Solari al posto del motore, sovrascrivere una pagina alla radice senza il
+  marchio GENERATED. `live:false` → `noindex` nei primi 4000 caratteri
+  (regola 8 di `tests/seo`); per andare live servono anche la riga in
+  `sitemap.xml` e il link dalla home.
+- **La card social** si genera dal repo: `python3
+  design/pages-deco/genera-og-cities.py` (card HTML dai DATI della città —
+  il tabellone fermo, il «from €149» = il servizio meno caro — → Chromium
+  1200×630 → Pillow a palette: 97 KB, sotto i 120 del budget «card social»).
+- **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
+  in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
+  confermare col commercialista PRIMA del live), il pagamento (carta o
+  bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
+  in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
+  `500+` sono i numeri BOOM già pubblicati su /executive.
+- Test: `node tests/cities/run.mjs` (117 — build, sistema, voce, JSON-LD =
+  pagina, rifiuti, handler VERO di `/api/city-lead` su Firestore in memoria,
+  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (27,
+  Chromium: leggibile senza JS, il tabellone che scrive AMSTERDAM nello
+  spazio riservato, prezzi che si compongono, 390px senza scroll laterale,
+  pay bar solo oltre l'hero, burger, modulo che posta JSON una volta e dice
+  l'errore sul posto, reduced motion fermo, 1440 a due colonne).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0

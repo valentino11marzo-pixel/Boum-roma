@@ -1,19 +1,40 @@
 {
-  "_comment": "Shared by every city page. siteUrl is the ONE place the domain lives: moving the city pages off boomrome.com is this line plus a rebuild (BOOM_CITIES_BRIEF.md §0/§2). The entity block is printed identically in every footer and Organization schema (§8).",
+  "_comment": "Shared by every city page. siteUrl is the ONE place the domain lives: moving the city pages off boomrome.com is this line plus a rebuild (BOOM_CITIES_BRIEF.md §0/§2). entity + contact are printed identically in every footer, consent line and Organization schema (§8) — the same strings executive.html prints.",
   "siteUrl": "https://www.boomrome.com",
   "entity": {
     "legalName": "Egidi Immobiliare S.r.l.",
-    "address": "Via dei Coronari 181/184, 00186 Rome, Italy",
+    "address": "Via dei Coronari 181/184, 00186 Roma",
+    "registeredOffice": "Viale Liegi 42, 00198 Roma",
     "vat": "17322991005",
-    "trademark": "BOOM® is a registered EU trade mark."
+    "rea": "RM-1710623",
+    "trademark": "BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l."
+  },
+  "contact": {
+    "whatsapp": "393313251961",
+    "phoneDisplay": "+39 331 325 1961",
+    "email": "hello@boom-rome.com"
   },
   "organization": {
     "name": "BOOM",
     "legalName": "Egidi Immobiliare S.r.l.",
+    "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
     "founder": { "@type": "Person", "name": "Valentino Egidi" },
     "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressCountry": "IT" },
     "vatID": "IT17322991005",
-    "description": "Tenant-side rental search and relocation service for internationals. Founded in Rome, expanding to Amsterdam.",
+    "contactPoint": { "@type": "ContactPoint", "contactType": "customer service", "telephone": "+39-331-325-1961", "email": "hello@boom-rome.com", "availableLanguage": ["en", "it"] },
+    "description": "Tenant-side rental search and relocation desk for internationals. Rome and Amsterdam.",
     "areaServed": ["Rome", "Amsterdam"]
-  }
+  },
+  "family": [
+    { "label": "Rome · apartments", "href": "/apartments" },
+    { "label": "Executive Roma", "href": "/executive" },
+    { "label": "Services", "href": "/services" }
+  ],
+  "footerBoom": [
+    { "label": "Home", "href": "/" },
+    { "label": "Apartments in Rome", "href": "/apartments" },
+    { "label": "Executive Roma", "href": "/executive" },
+    { "label": "Services", "href": "/services" },
+    { "label": "Welcome to Rome Kit", "href": "/welcome-to-rome" }
+  ]
 }
