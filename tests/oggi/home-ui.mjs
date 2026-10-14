@@ -213,6 +213,9 @@ try{
    assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible(),true);
    assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Giardino',{exact:true}).isVisible(),true);
    assert.deepEqual(await p.evaluate(()=>oggiWorkspace.agenda.map(v=>[v.id,v.dateKey,v.label])),[['v-demo',day,'Oggi'],['v-proposta',day,'Oggi']]);
+   assert.equal(await p.evaluate(()=>[...S.contracts.map(r=>r.createdAt),...S.maintenance.map(r=>r.createdAt),
+    ...testIO.followUps.map(r=>r.followUp.lastInboundAt)].every(at=>Date.parse(at)===Date.now()-2*3600000)),true,
+    'creazione e messaggi ricevuti precedono sempre il clock della fixture di due ore');
    assert.equal(await p.evaluate(()=>testIO.writes.length),0);
   }finally{await p.close();}
  });

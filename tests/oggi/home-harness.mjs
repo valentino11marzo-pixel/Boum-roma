@@ -33,19 +33,20 @@ ${romeCalendar}
 // The preview's appointments belong to today's Rome calendar date, like
 // the actual agenda; UTC midnight must not turn them into yesterday's rows.
 const now=new Date(), today=romeDateKey(now);
+const recentAt=new Date(now.getTime()-2*3600000).toISOString();
 const isoAt=h=>today+'T'+h+':00:00Z';
 const auth={currentUser:{uid:'demo-admin',getIdToken:async()=> 'not-a-credential'}};
 const S={page:'oggi',profile:{id:'demo-admin',name:'Valentino',role:'admin'},_paLoaded:true,_paUser:auth.currentUser,preAgreements:[],
  users:[{id:'p-demo',role:'tenant',name:'Persona Demo',email:'demo@example.invalid'}],
  properties:[{id:'casa-demo',name:'Casa Aurora',address:'Indirizzo dimostrativo · Roma'}],
- contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:isoAt('08'),rent:1400}],
+ contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:recentAt,rent:1400}],
  clients:Array.from({length:15},(_,i)=>({id:'cliente-'+i,name:'Aurora Cliente '+i})),
  actionQueue:[],payments:[],leads:[],documents:[],tasks:[],deadlines:[],conversations:[],messages:[],inboxFeed:{state:'live'},inboxListener:()=>{},
- maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:isoAt('08')}],
+ maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:recentAt}],
  viewingRequests:[{id:'v-demo',propertyName:'Casa Aurora',clientName:'Persona Demo',status:'confirmed',confirmedDateTime:isoAt('13')},{id:'v-proposta',propertyName:'Casa Giardino',clientName:'Nuovo contatto · demo',status:'rescheduled',confirmedDateTime:isoAt('09'),proposedDateTime:isoAt('15')}],
  _viewingsSource:'ready',_viewingsUser:auth.currentUser,_viewingsReadAt:now.toISOString(),_viewingsPartial:false};
 window.testState=S;window.testAuth=auth;
-const caseRow=(letter,fields)=>({id:'sg_'+letter.repeat(32),source:'segretaria',status:'open',followUp:{open:true,conversationId:'conv-'+letter,contactName:'Persona Demo',lastMessageId:'phone:demo-call',lastInboundAt:isoAt('08'),preview:'Buongiorno, il tecnico può passare domani dalle 10 alle 12. Chi avvisa il portiere?',practiceRef:'contracts/contratto-demo',propertyRef:'properties/casa-demo',nextAction:'Confermare l’accesso al tecnico',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:new Date(now.getTime()-60000).toISOString(),confirmed:true,needsReview:false,ambiguous:false,...fields}});
+const caseRow=(letter,fields)=>({id:'sg_'+letter.repeat(32),source:'segretaria',status:'open',followUp:{open:true,conversationId:'conv-'+letter,contactName:'Persona Demo',lastMessageId:'phone:demo-call',lastInboundAt:recentAt,preview:'Buongiorno, il tecnico può passare domani dalle 10 alle 12. Chi avvisa il portiere?',practiceRef:'contracts/contratto-demo',propertyRef:'properties/casa-demo',nextAction:'Confermare l’accesso al tecnico',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:new Date(now.getTime()-60000).toISOString(),confirmed:true,needsReview:false,ambiguous:false,...fields}});
 testIO.followUps=[caseRow('a',{}),caseRow('b',{contactName:'Giuliano · da identificare',lastMessageId:'wa-demo',preview:'Per le chiavi ci vediamo lì domani? Non so ancora a che ora.',nextAction:'Chiarire immobile e orario per le chiavi',practiceRef:null,propertyRef:null,confirmed:false,needsReview:true,ambiguous:true,intakeTiming:{status:'ambiguous'}})];
 S.conversations=[{id:'conv-a',contactType:'tenant',contactId:'p-demo',contactName:'Persona Demo'},{id:'conv-b',contactType:'phone',contactId:'unknown',contactName:'Giuliano · da identificare'}];
 const isAdmin=()=>S.profile?.role==='admin';
