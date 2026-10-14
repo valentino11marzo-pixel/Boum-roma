@@ -21,7 +21,12 @@
 //   - the page fattening again (14/10: "the client is going to receive too
 //     much information"): the hero column, the door, a plate, the checks or
 //     the body over its word budget; the service back in a dropdown; the
-//     fact sheet (machine content) above the FAQ.
+//     fact sheet (machine content) above the FAQ;
+//   - the sisters drifting (14/10 evening): Madrid selling at prices other
+//     than the brief's, Barcelona (waitlist — no intermediation in Catalonia
+//     without AICAT registration) printing a price anywhere, in its copy, its
+//     chips or its schema; a live page linking a draft sister; the server's
+//     registry disagreeing with a page on the desk's mode.
 //
 // No browser, no network: the real build functions on the real data, and
 // the real /api/city-lead handler on a Firestore in memory.
@@ -30,7 +35,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, BuildError, esc, eur, GENERATED_MARK, CELL_EM
+  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, CELL_EM
 } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
@@ -263,8 +268,8 @@ check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{
 // ── 6 · structural refusals ───────────────────────────────────────────────
 {
   const wl = clone(ams); wl.mode = 'waitlist';
-  check(throws(() => render(wl), /waitlist" is not built yet/) === true,
-    'mode "waitlist" is refused until Phase 3 builds it (this template prints prices)');
+  check(throws(() => render(wl), /a waitlist city carries no price/) === true,
+    'a waitlist city that still carries prices in its plans is refused (the two modes cannot blur)');
   const bad = clone(ams); bad.mode = 'deposit';
   check(throws(() => render(bad), /"mode" must be "search" or "waitlist"/) === true, 'the old "deposit" mode is gone: an unknown mode is refused');
   const slug = clone(ams); slug.slug = '../index';
@@ -274,7 +279,7 @@ check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{
   const dup = clone(ams); dup.pricing.plans[1].id = 'full-search';
   check(throws(() => render(dup), /must be unique/) === true, 'two plans cannot share an id (the chips and the plates key on it)');
   const nolabel = clone(ams); delete nolabel.pricing.plans[2].label;
-  check(throws(() => render(nolabel), /needs label, se, name, text, per, cta/) === true, 'a plan without its label is refused (the Offer and the chips print it)');
+  check(throws(() => render(nolabel), /needs label, se, name, text, cta/) === true, 'a plan without its label is refused (the Offer and the chips print it)');
   const noinc = clone(ams); noinc.pricing.plans[0].includes = ['one'];
   check(throws(() => render(noinc), /needs includes: 2–5 lines/) === true, 'a plan with fewer than two ✓ lines is refused (a plate must say what the fee buys)');
   const longinc = clone(ams); longinc.pricing.plans[0].includes = ['a', 'b', 'c', 'd', 'e', 'f'];
@@ -346,7 +351,7 @@ globalThis.fetch = async (url, opts = {}) => {
   return { ok: true, status: 200, json: async () => ({}) };
 };
 const { default: handler, bandCeiling, SERVICES } = await import('../../api/city-lead.js');
-const { isCityMarket, cityMarketOf, cityLabel, cityReplyText, isReunion, isB2B, CITY_MARKETS } = await import('../../api/_market.js');
+const { isCityMarket, cityMarketOf, cityLabel, cityReplyText, cityMode, isReunion, isB2B, CITY_MARKETS } = await import('../../api/_market.js');
 const plain = (v) => {
   if (v == null) return null;
   if ('stringValue' in v) return v.stringValue;
@@ -435,6 +440,117 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     && /isCityMarket\(l\)\s*\?\s*cityLabel\(l\)/.test(notif), 'the Telegram card: the city label and the city reply, before the Rome text');
   check(!isCityMarket({ market: 'roma', intent: 'executive_relocation' }) && !isCityMarket({ market: 'reunion' }) && isCityMarket({ sourceRef: 'city-paris' }),
     'Rome and La Réunion are not city markets; a sourceRef city-<slug> is');
+}
+
+// ── 10 · the sisters: Madrid (search) and Barcelona (waitlist) ────────────
+// BOOM_CITIES_BRIEF.md §4: Madrid takes searches at the Amsterdam prices;
+// Barcelona opens with a registered local partner (AICAT) and shows NO price
+// anywhere — plates, chips, fact sheet, schema (§10 of the brief). The two
+// must-state sentences of §4 are asserted verbatim.
+const mad = JSON.parse(read('cities/madrid.json'));
+const bcn = JSON.parse(read('cities/barcelona.json'));
+const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
+const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
+const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
+const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+check(mad.mode === 'search' && bcn.mode === 'waitlist' && mad.live === false && bcn.live === false,
+  'madrid is a search desk, barcelona a waitlist desk (brief §4); both drafts until the founder reviews them on a phone');
+for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9]]) {
+  const h = pageOf(c.slug);
+  const v = visibleOf(h);
+  check(h.includes(GENERATED_MARK) && /<meta name="robots" content="noindex">/.test(h.slice(0, 4000)) && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`),
+    `${c.slug}: a generated draft — noindex in the first 4000 chars, canonical from siteUrl`);
+  check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-label="${c.city}">${word}</span>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`),
+    `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells × ${CELL_EM}em`);
+  check(h.includes(`class="bl-desk">${c.city}<br>tenant side</span>`) && h.includes(`<p class="footer-statement">${esc(c.footer.statement)}</p>`),
+    `${c.slug}: the lockup BOOM │ ${word} · TENANT SIDE and the tenant-side statement in the footer`);
+  check(!/founding|cohort|spots? (left|remaining)|locked for life|refundable|€99|deposit of €|no worries|unlock|seamless|hassle-free|waitlist open|join the waitlist|coming soon/i.test(v),
+    `${c.slug}: no founding spot, no cohort, no counter, no "waitlist open" badge — an established desk, told straight`);
+  check(!/[a-z.]!["\s]/i.test(JSON.stringify(c)), `${c.slug}: no exclamation marks in the copy`);
+  const og = fs.readFileSync(path.join(R, `og-${c.slug}.png`));
+  check(og.subarray(0, 8).equals(PNG) && og.readUInt32BE(16) === 1200 && og.readUInt32BE(20) === 630 && og.length <= 120 * 1024
+    && (h.match(new RegExp(`og-${c.slug}\\.png`, 'g')) || []).length >= 3,
+    `${c.slug}: og-${c.slug}.png is a real 1200×630 PNG in the social-card budget (${Math.round(og.length / 1024)} KB), declared by the page`);
+  const faqV = [...h.matchAll(/<details>\s*<summary>([\s\S]*?)<\/summary>\s*<div class="a">([\s\S]*?)<\/div>\s*<\/details>/g)].map((m) => ({ q: decode(m[1]), a: decode(m[2]) }));
+  const faqS = ((ldOf(h).find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || []).find((n) => n['@type'] === 'FAQPage') || {};
+  check(faqV.length === c.faq.items.length && JSON.stringify(faqV) === JSON.stringify((faqS.mainEntity || []).map((q) => ({ q: q.name, a: q.acceptedAnswer.text }))),
+    `${c.slug}: FAQPage = the visible FAQ, word for word (${faqV.length})`);
+}
+// Madrid: the search desk at the brief's prices
+{
+  const h = pageOf('madrid'); const v = visibleOf(h);
+  const flapsM = [...h.matchAll(/<span class="flap-prezzo flap-scale" data-p="([^"]+)"/g)].map((m) => m[1]);
+  check(JSON.stringify(flapsM) === JSON.stringify(['€500', '€199', '€149']), 'madrid: the three prices on their boards — the Amsterdam prices, as the brief fixes them (§4)');
+  const svcM = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
+  check((svcM.offers || []).map((o) => o.price).join() === '500,199,149' && svcM.areaServed.name === 'Madrid', 'madrid: the Service carries its three Offers, areaServed Madrid');
+  check(h.includes('<b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing.'), 'madrid: the fact sheet\'s fees row is derived from the plans');
+  check(v.includes('You hire us; we do not act for the landlord.'), 'madrid: the brief\'s must-state sentence, verbatim (§4)');
+  check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are the ones on the page — agency costs on the landlord, fianza, padrón, no regional cap');
+}
+// Barcelona: the waitlist desk — no price anywhere
+{
+  const h = pageOf('barcelona');
+  const v = visibleOf(h.replace(/<select[\s\S]*?<\/select>/gi, ' '));
+  check(!/€\s?\d/.test(v) && !/\d\s?€/.test(v), 'barcelona: no price in the text the client reads (the budget bands in the <select> are the client\'s own)');
+  check(!h.includes('flap-prezzo') && !h.includes('data-p="') && !/<div class="price">/.test(h), 'barcelona: no price board, no price line on the plates');
+  const chipsB = [...h.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span>([\s\S]*?)<\/span><\/label>/g)];
+  check(chipsB.length === 4 && chipsB.filter((m) => m[2] !== 'unsure').every((m) => !/<small>/.test(m[3])) && chipsB.some((m) => m[2] === 'unsure' && /<small>advise me<\/small>/.test(m[3])),
+    'barcelona: the service chips carry the name alone — no price exists yet');
+  const ld = JSON.stringify(ldOf(h));
+  check(!/"price"|"offers"|"priceCurrency"/.test(ld) && /"Service"/.test(ld) && /"FAQPage"/.test(ld), 'barcelona: the Service in the schema has no Offer and no price; the FAQPage is there');
+  check(h.includes(esc(bcn.pricing.note)) && h.includes('Not published yet'), 'barcelona: the plates say why no price is shown; the fact sheet says the fees are not published yet');
+  check(!/stripe/i.test(h), 'barcelona: no Stripe anywhere');
+  check(v.includes('Launching with a registered local partner.'), 'barcelona: the brief\'s must-state sentence, verbatim (§4)');
+  check(/AICAT/.test(v) && /índice de referencia/.test(v) && /fianza/.test(v) && /padrón/.test(v), 'barcelona: AICAT, the índice de referencia, fianza and padrón are on the page (§4, §5.8)');
+}
+// the build keeps the two modes apart
+{
+  const priced = clone(bcn); priced.bref.rows[1].ddHtml = 'Flat fee from €500.';
+  check(throws(() => render(priced), /a waitlist page prints no price, found "€500/) === true, 'a waitlist city with a price in its copy is refused, naming the price');
+  const feesRow = clone(bcn); feesRow.bref.rows[2].fees = true;
+  check(throws(() => render(feesRow), /derives the fees from the plans/) === true, 'a waitlist city cannot ask the fact sheet to derive fees it does not have');
+  const stripe = clone(bcn); stripe.bref.rows[0].ddHtml = '<a href="https://buy.stripe.com/x">pay</a>';
+  check(throws(() => render(stripe), /no Stripe link/) === true, 'a waitlist city with a Stripe link is refused');
+  const planPrice = clone(bcn); planPrice.pricing.plans[0].price = 500; planPrice.pricing.plans[0].per = 'flat';
+  check(throws(() => render(planPrice), /a waitlist city carries no price/) === true, 'a waitlist plan with a price is refused');
+  const noPrice = clone(mad); delete noPrice.pricing.plans[0].price;
+  check(throws(() => render(noPrice), /needs a positive price/) === true, 'a search city without a price is refused the same way');
+  const flipped = clone(bcn); flipped.mode = 'search';
+  check(throws(() => render(flipped), /needs label, se, name, text, per, cta|needs a positive price/) === true,
+    'flipping Barcelona to "search" without its fees is refused: the switch needs the prices, never a silent "€undefined"');
+}
+// the family strip: derived from the built cities, and a live page never links a draft
+{
+  const A = { slug: 'amsterdam', city: 'Amsterdam', live: true }, B = { slug: 'barcelona', city: 'Barcelona', live: false }, M = { slug: 'madrid', city: 'Madrid', live: true };
+  const all = [M, B, A];
+  const hrefs = (c) => familyFor(c, all, shared).map((f) => f.href);
+  check(JSON.stringify(hrefs(A)) === JSON.stringify(['/madrid', '/']), 'a LIVE page links only its live sisters (alphabetical), then BOOM Rome — never a draft nobody has approved');
+  check(JSON.stringify(hrefs(B)) === JSON.stringify(['/amsterdam', '/madrid', '/']), 'a DRAFT page links every sister: the review needs to see the suite');
+  check(!hrefs(M).includes('/madrid') && !hrefs(A).includes('/amsterdam'), 'a page is never in its own strip');
+  const strip = (pageOf('barcelona').match(/<div class="fam"[\s\S]*?<\/div>/) || [''])[0];
+  check(/<a class="on" href="\/barcelona" aria-current="page">Barcelona<\/a>[\s\S]*<a href="\/amsterdam">Amsterdam<\/a>[\s\S]*<a href="\/madrid">Madrid<\/a>[\s\S]*<a href="\/">BOOM Rome<\/a>/.test(strip),
+    'barcelona (draft): the strip reads Barcelona · Amsterdam · Madrid · BOOM Rome');
+}
+// the door, per desk: a waitlist lead is a FILE OPENED, said so everywhere the operator reads
+{
+  const m = await call({ ...ANNA, city: 'madrid', areas: 'Chamberí' }, '10.3.0.1');
+  check(m.code === 200 && m.lead.market === 'madrid' && m.lead.intent === 'city_search' && /^MADRID — tenant-side search · Full Search/.test(m.lead.message) && m.notif.summary.startsWith('🇪🇸 MADRID · Anna Keller'),
+    'madrid: a search lead — intent city_search, summary head MADRID — tenant-side search, the Spanish flag on the card', m.lead && m.lead.message);
+  const rm = cityReplyText(m.lead);
+  check(cityMode(m.lead) === 'search' && rm.includes("how we'd run it") && rm.endsWith(CITY_MARKETS.madrid.url) && cityLabel(m.lead) === '🇪🇸 Madrid', 'madrid: the reply promises the search and links /madrid');
+  const b = await call({ ...ANNA, city: 'barcelona', areas: 'Gràcia' }, '10.3.0.2');
+  check(b.code === 200 && b.lead.market === 'barcelona' && b.lead.intent === 'city_waitlist' && b.lead.city.mode === 'waitlist'
+    && /^BARCELONA — waitlist \(desk opening with a registered partner\) · Full Search/.test(b.lead.message),
+    'barcelona: a waitlist lead — intent city_waitlist, the summary says the desk is opening, never "search"', b.lead && b.lead.message);
+  check(b.notif.summary.startsWith('🇪🇸 BARCELONA · waitlist · Anna Keller') && b.lead.leadType === 'tenant' && isCityMarket(b.lead) && !isReunion(b.lead) && !isB2B(b.lead),
+    'barcelona: the Telegram card says waitlist; still a tenant in a city market (the Commerciale stands down, the Rome machine stays out)');
+  const rb = cityReplyText(b.lead);
+  check(cityMode(b.lead) === 'waitlist' && rb.includes('opening with a registered local partner') && !rb.includes("how we'd run it") && rb.endsWith(CITY_MARKETS.barcelona.url),
+    'barcelona: the pre-written reply says the desk is opening and never promises a search it cannot run');
+  for (const p of pages) {
+    const reg = CITY_MARKETS[p.slug];
+    check(!!reg && reg.mode === p.mode, `${p.slug}: the server registry agrees with the page on the desk's mode (${p.mode}) — one word, two places, no drift`);
+  }
 }
 
 console.log(`\n  ${ok} passed, ${ko} failed`);

@@ -61,7 +61,11 @@ h1 b { color:#FFD700; font-weight:300; }
 def card(c):
     parola = re.sub(r'[^A-Z]', '', c.get('word', c['city']).upper())
     celle = ''.join(f'<i>{ch}</i>' for ch in parola)
-    da = min(p['price'] for p in c['pricing']['plans'])
+    # waitlist (Barcelona, Paris): no price exists yet, the card shows none
+    prezzo = ''
+    if c.get('mode') == 'search':
+        da = min(p['price'] for p in c['pricing']['plans'])
+        prezzo = f'<div class="prezzo"><u>from</u><s>&euro;{da}</s></div>'
     prova = ' · '.join(c['machine']['items']).replace('<', '&lt;')
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>
@@ -69,7 +73,7 @@ def card(c):
 <div class="dentro">
   <div class="marchio"><span>BOOM</span><i>{c['city']} &middot; {c['nav']['desk']}</i></div>
   <h1>Your home in<br><span class="tab">{celle}</span><br><b>{c['hero']['h1Em']}</b></h1>
-  <div class="prezzo"><u>from</u><s>&euro;{da}</s></div>
+  {prezzo}
   <div class="fondo">
     <span><span class="punto"></span>{prova}</span>
     <span class="sito">BOOMROME.COM/{c['slug'].upper()}</span>

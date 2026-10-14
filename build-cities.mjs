@@ -29,8 +29,13 @@
 //     copy like [NAME], config values like REPLACE_ME / 39XXXXXXXXXX, or an
 //     og-<slug>.png that does not exist on disk (a card that 404s on every
 //     WhatsApp forward: the exact defect tests/seo was built to catch);
-//   - `mode: "waitlist"` — not built yet (Phase 3): this template prints
-//     prices and sells three services, which a waitlist page must never do;
+//   - a `mode: "waitlist"` city (Barcelona, Paris — BOOM_CITIES_BRIEF.md §4:
+//     no intermediation in Catalonia without AICAT registration, carte
+//     professionnelle in France) that carries a price anywhere: in its plans,
+//     in its copy, in the chips, in the JSON-LD. The waitlist page describes
+//     the three services and opens the file; the prices arrive with the
+//     registered partner. A `mode: "search"` city without prices is refused
+//     the same way: the two modes cannot blur;
 //   - overwriting a root .html it did not generate (a slug like "index"
 //     would otherwise replace the homepage).
 // A city with `live: false` builds, carries <meta name="robots"
@@ -92,9 +97,22 @@ const list = (city, dotted) => {
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
 // ── the array renderers ────────────────────────────────────────────────────
+// THE FAMILY STRIP is derived from the built cities, never kept by hand (a
+// fifth city is a JSON file, BOOM_CITIES_BRIEF.md §1): the sister cities in
+// alphabetical order, then what _shared.json adds (BOOM Rome). One rule, so
+// a client never lands on a page nobody has approved: a LIVE page links only
+// live sisters; a draft page links every sister, because the review needs to
+// see the suite. The page itself is never in its own strip.
+export function familyFor(city, cities, shared) {
+  const sisters = (cities || [])
+    .filter((c) => c.slug !== city.slug && (city.live !== true || c.live === true))
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+    .map((c) => ({ label: c.city, href: `/${c.slug}` }));
+  return [...sisters, ...(shared.family || []).filter((f) => f.href !== `/${city.slug}`)];
+}
+
 const R = {
-  family: (shared, c) => (shared.family || []).filter((f) => f.href !== `/${c.slug}`)
-    .map((f) => `  <a href="${esc(f.href)}">${esc(f.label)}</a>`).join('\n'),
+  family: (fam) => fam.map((f) => `  <a href="${esc(f.href)}">${esc(f.label)}</a>`).join('\n'),
 
   trust: (c) => list(c, 'hero.trust').map((t) =>
     `        <span>${t.star ? '★ ' : t.check ? '<span class="c">✓</span> ' : ''}${t.b ? `<b>${esc(t.b)}</b> ` : ''}${esc(t.t)}</span>`).join('\n'),
@@ -105,9 +123,10 @@ const R = {
   // buttons in a visible grid (never a dropdown: the three doors and their
   // cost must be read without a tap) + "not sure yet". None is pre-checked —
   // the server reads a missing service as "service to decide".
+  // In waitlist mode the chip is the service name alone: no price exists yet.
   serviceChips: (c) => [
     ...list(c, 'pricing.plans').map((p) =>
-      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)}${p.unit ? ' · ' + esc(p.unit) : ''}</small></span></label>`),
+      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b>${c.mode === 'search' ? `<small>${eur(p.price)}${p.unit ? ' · ' + esc(p.unit) : ''}</small>` : ''}</span></label>`),
     `              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>${esc(c.form.service.unsure)}</b><small>${esc(c.form.service.unsureSub)}</small></span></label>`
   ].join('\n'),
 
@@ -134,7 +153,10 @@ const R = {
     `        <b>${esc(p.name)}</b>`,
     `        <p>${esc(p.text)}</p>`,
     `        <ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-    `        <div class="price"><span class="flap-prezzo flap-scale" data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span><small>${esc(p.per)}</small></div>`,
+    // waitlist: no board, no price line — the plate says what the service is, not what it costs
+    ...(c.mode === 'search'
+      ? [`        <div class="price"><span class="flap-prezzo flap-scale" data-p="${eur(p.price)}" aria-label="${eur(p.price)} ${esc(p.per)}">${eur(p.price)}</span><small>${esc(p.per)}</small></div>`]
+      : []),
     `        <a class="go" href="#contact" data-service="${esc(p.id)}">${esc(p.cta)} →</a>`,
     '      </article>'
   ].join('\n')).join('\n'),
@@ -153,6 +175,7 @@ const R = {
   bref: (c, shared, pageUrl) => list(c, 'bref.rows').map((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) {
+      need(c.mode === 'search', `cities/${c.slug}.json`, `bref row "${r.dt}" derives the fees from the plans — a waitlist city has no prices to derive`);
       dd = list(c, 'pricing.plans').map((p) => `<b>${esc(p.label)} ${eur(p.price)}</b>${p.unit ? ' ' + esc(p.unit) : ''}`).join(' · ')
         + (dd ? '. ' + dd : '.');
     }
@@ -212,10 +235,14 @@ function jsonLd(c, shared, pageUrl, ogImage) {
         areaServed: { '@type': 'City', name: c.city },
         audience: { '@type': 'Audience', audienceType: c.service.audience },
         availableLanguage: ['en'], url: pageUrl,
-        offers: c.pricing.plans.map((p) => ({
-          '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: 'EUR',
-          description: p.offerDescription || p.text
-        }))
+        // Offers only where a price is sold (BOOM_CITIES_BRIEF.md §8): a
+        // waitlist Service carries no price, in the schema as on the page.
+        ...(c.mode === 'search' ? {
+          offers: c.pricing.plans.map((p) => ({
+            '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: 'EUR',
+            description: p.offerDescription || p.text
+          }))
+        } : {})
       },
       {
         '@type': 'FAQPage', inLanguage: 'en',
@@ -259,14 +286,13 @@ export function fragments(root = ROOT) {
   };
 }
 
-export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT }) {
+export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city] }) {
   const where = `cities/${city.slug}.json`;
   need(/^[a-z0-9-]+$/.test(city.slug || ''), where, 'slug must be lowercase letters, digits and dashes');
   need(typeof city.live === 'boolean', where, '"live" must be true or false');
   need(city.mode === 'search' || city.mode === 'waitlist', where, '"mode" must be "search" or "waitlist"');
-  need(city.mode === 'search', where,
-    'mode "waitlist" is not built yet (Phase 3): this template prints prices and sells three services, which a waitlist page must never do');
   need(typeof city.city === 'string' && city.city.trim(), where, '"city" is required');
+  const waitlist = city.mode === 'waitlist';
 
   const site = shared.siteUrl;
   need(/^https:\/\/[^/]+$/.test(site || ''), 'cities/_shared.json', 'siteUrl must be https://host with no trailing slash');
@@ -280,10 +306,16 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   for (const p of plans) {
     need(/^[a-z0-9-]+$/.test(p.id || '') && !ids.has(p.id), where, `plan id "${p.id}" must be unique, lowercase and dashed`);
     ids.add(p.id);
-    need(p.label && p.se && p.name && p.text && p.per && p.cta, where, `plan "${p.id}" needs label, se, name, text, per, cta`);
+    need(p.label && p.se && p.name && p.text && p.cta, where, `plan "${p.id}" needs label, se, name, text, cta`);
     need(Array.isArray(p.includes) && p.includes.length >= 2 && p.includes.length <= 5 && p.includes.every((x) => typeof x === 'string' && x.trim()),
       where, `plan "${p.id}" needs includes: 2–5 lines of what the fee buys`);
-    need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
+    if (waitlist) {
+      need(p.price === undefined && p.per === undefined && p.offerDescription === undefined, where,
+        `plan "${p.id}": a waitlist city carries no price, per or offerDescription (BOOM_CITIES_BRIEF.md §4 — fees arrive with the registered partner)`);
+    } else {
+      need(p.per, where, `plan "${p.id}" needs label, se, name, text, per, cta`);
+      need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
+    }
   }
 
   // The board word: the city, letters only, upper-case — the drum has no
@@ -318,7 +350,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     assetVersion,
     scrollBlock: frags.scrollBlock,
     solariEngine: frags.solariEngine,
-    familyHtml: R.family(shared, city),
+    familyHtml: R.family(familyFor(city, cities, shared)),
     trustHtml: R.trust(city),
     budgetOptionsHtml: R.budgetOptions(city),
     serviceChipsHtml: R.serviceChips(city),
@@ -341,6 +373,21 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   // The guard the whole file is for: the gold of the public site, never the portal's.
   need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700 (boom-2026.css); #D4AF37 is the portal gold');
+  // A waitlist page shows no price anywhere — visible text, boards, schema
+  // (BOOM_CITIES_BRIEF.md §10). The client's own budget bands in the <select>
+  // are theirs, not ours: they are the one place a € may stand.
+  if (waitlist) {
+    const visible = html
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<select[\s\S]*?<\/select>/gi, ' ').replace(/<[^>]+>/g, ' ');
+    const priced = visible.match(/€\s?\d[\d.,]*|\d[\d.,]*\s?€/);
+    need(!priced, where, `a waitlist page prints no price, found "${priced && priced[0]}"`);
+    need(!/flap-prezzo|data-p="/.test(html), where, 'a waitlist page mounts no price board');
+    for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
+      need(!/"price"|"offers"|"priceCurrency"/.test(m[1]), where, 'a waitlist page declares no Offer and no price in its JSON-LD');
+    }
+    need(!/stripe/i.test(html), where, 'a waitlist page carries no Stripe link');
+  }
 
   const placeholders = findPlaceholders(html, city, { root });
   if (city.live && placeholders.length) {
@@ -365,14 +412,17 @@ export function buildAll({ root = ROOT } = {}) {
     js: hash(path.join(root, 'assets/boom-city.js'))
   };
   const frags = fragments(root);
-  return fs.readdirSync(dir)
+  // Every city is read before any is rendered: the family strip of one page
+  // is made of the others.
+  const cities = fs.readdirSync(dir)
     .filter((f) => f.endsWith('.json') && !f.startsWith('_'))
     .sort()
     .map((f) => {
       const city = readJson(path.join(dir, f));
       need(city.slug === f.replace(/\.json$/, ''), `cities/${f}`, `slug "${city.slug}" must match the file name`);
-      return renderCity({ template, shared, city, assetVersion, frags, root });
+      return city;
     });
+  return cities.map((city) => renderCity({ template, shared, city, assetVersion, frags, root, cities }));
 }
 
 // Writes (or, with check, compares) every page. Every page is validated

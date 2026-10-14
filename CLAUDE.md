@@ -1140,23 +1140,66 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
 - **La card social** si genera dal repo: `python3
   design/pages-deco/genera-og-cities.py` (card HTML dai DATI della città —
   il tabellone fermo, il «from €149» = il servizio meno caro — → Chromium
-  1200×630 → Pillow a palette: 97 KB, sotto i 120 del budget «card social»).
+  1200×630 → Pillow a palette: 97 KB, sotto i 120 del budget «card social»;
+  una città waitlist non stampa nessun «from €»).
+- **Madrid e Barcellona (14/10, sera)** — due sorelle, due modalità, dal
+  brief §4: **Madrid in `mode:"search"`** ai prezzi fissati dal brief (gli
+  stessi di Amsterdam: 500/199/149 IVA inclusa), **Barcellona in
+  `mode:"waitlist"`** perché in Catalogna l'intermediazione esige
+  l'iscrizione AICAT: «Launching with a registered local partner» (la frase
+  del brief, verbatim, nel footer; nell'hero «Opening with a registered local
+  partner (AICAT)»), il rent-cap check descritto come servizio SENZA prezzo.
+  **La Fase 3 del build è questa modalità**: in waitlist i piatti hanno le ✓
+  e il bottone ma nessun tabellone né riga prezzo, i chip portano solo il
+  nome, la riga «Fees» della scheda è testo del JSON (mai derivata), il
+  `Service` nel JSON-LD non ha `offers`; e il build RIFIUTA una città
+  waitlist con un prezzo nei piani (`price/per/offerDescription` devono
+  mancare), un «€N» nel testo visibile (i `<select>` del budget del cliente
+  sono esclusi: quei soldi sono suoi), un tabellone, un `"price"` nello
+  schema, un link Stripe — e rifiuta allo stesso modo una città search
+  senza prezzi: le due modalità non si confondono, e «passare Barcellona a
+  search» esige i prezzi, mai un «€undefined». Le frasi obbligate del brief
+  sono asserite verbatim (Madrid: «You hire us; we do not act for the
+  landlord.»). **La striscia di famiglia si deriva dalle città costruite**
+  (`familyFor`: sorelle in ordine alfabetico, poi BOOM Rome; una pagina
+  LIVE linka SOLO sorelle live — un cliente non atterra mai su una bozza che
+  nessuno ha approvato — una bozza le linka tutte, perché la revisione deve
+  vedere la suite). Il registro del server (`CITY_MARKETS.<slug>.mode`) e
+  il JSON portano la stessa parola, e il test li confronta: un lead
+  Barcellona nasce `intent:'city_waitlist'`, riassunto «BARCELONA — waitlist
+  (desk opening with a registered partner) · …», card Telegram «🇪🇸
+  BARCELONA · waitlist · …», e `cityReplyText` dice che il desk sta aprendo
+  invece di promettere una ricerca. **Da verificare col legale prima del
+  live, oltre al brief** (il brief §4 copre: costi d'agenzia sul locatore
+  ex Ley 12/2023, fianza 1 mese + max 2 di garanzie aggiuntive, nessun tetto
+  regionale a Madrid, zona tesa e índice de referencia a Barcellona, AICAT):
+  le frasi sul contratto «de temporada» che non tutela come la vivienda
+  habitual, il padrón da cui dipendono tessera sanitaria e posto a scuola,
+  le consuetudini su nómina/aval/garante, Habitaclia fra i portali. Budget
+  di parole rispettato dopo la dieta (Madrid: hero 51 · controlli 169 ·
+  corpo 910; Barcellona: hero 55 · controlli 166 · corpo 932). Entrambe
+  `live:false`: per il live servono la revisione sul telefono, la riga in
+  `sitemap.xml`, il link dalla home e — per Barcellona — il partner AICAT
+  prima di qualunque passaggio a `search`.
 - **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
   in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
   confermare col commercialista PRIMA del live), il pagamento (carta o
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (129 — build, sistema, voce, budget di
+- Test: `node tests/cities/run.mjs` (187 — build, sistema, voce, budget di
   parole, chip e ✓ dai piani, scheda dopo la FAQ, JSON-LD = pagina,
-  rifiuti, handler VERO di `/api/city-lead` su Firestore in memoria, guardie
-  in ordine nel sorgente) + `node tests/cities/ui.mjs` (34, Chromium:
+  rifiuti, le sorelle con le invarianti waitlist e la regola della famiglia,
+  handler VERO di `/api/city-lead` su Firestore in memoria per i tre desk,
+  guardie in ordine nel sorgente) + `node tests/cities/ui.mjs` (41, Chromium:
   leggibile senza JS coi prezzi dei chip come testo, il tabellone che
   scrive AMSTERDAM nello spazio riservato, prezzi che si compongono, 390px
   senza scroll laterale coi quattro chip a una riga e la riga «searching»
   nascosta, pay bar solo oltre l'hero, burger, nessun servizio pre-scelto e
   il piatto che spunta il suo chip, modulo che posta JSON una volta e dice
-  l'errore sul posto, reduced motion fermo, 1440 a due colonne).
+  l'errore sul posto, reduced motion fermo, 1440 a due colonne; Madrid e
+  Barcellona a 390px — tabellone nello spazio riservato, chip pari, nessun €
+  sulla pagina waitlist, il modulo che posta la SUA città).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0

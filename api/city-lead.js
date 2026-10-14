@@ -1,6 +1,10 @@
 // api/city-lead.js
-// Public lead-capture for the BOOM city pages (/amsterdam today; Madrid,
-// Barcelona and Paris when their data exists — BOOM_CITIES_BRIEF.md).
+// Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
+// /barcelona; Paris when its data exists — BOOM_CITIES_BRIEF.md). A city in
+// `mode: 'waitlist'` (Barcelona: no intermediation in Catalonia without AICAT
+// registration) files the SAME tenant lead, but says so: intent
+// `city_waitlist`, summary head "BARCELONA — waitlist", so the operator never
+// reads a file opened as a search to start.
 //
 // The design decision that carries the file is the same as executive-lead:
 // this person is a TENANT — someone searching a home for themselves — so the
@@ -79,6 +83,7 @@ export default async function handler(req, res) {
   const cityKey = String(body.city || '').toLowerCase().trim();
   const city = CITY_MARKETS[cityKey];
   if (!city) return res.status(400).json({ ok: false, error: 'unknown_city' });
+  const waitlist = city.mode === 'waitlist';
 
   const name  = clip(body.name, 120);
   const email = clip(body.email, 160);
@@ -111,7 +116,7 @@ export default async function handler(req, res) {
   if (situation) parts.push(situation);
   if (areas) parts.push(areas);
   const summary = [
-    `${city.label.toUpperCase()} — tenant-side search · ${parts.join(' · ')}.`,
+    `${city.label.toUpperCase()} — ${waitlist ? 'waitlist (desk opening with a registered partner)' : 'tenant-side search'} · ${parts.join(' · ')}.`,
     message,
   ].filter(Boolean).join(' ');
 
@@ -132,7 +137,7 @@ export default async function handler(req, res) {
     budgetBand,
     budgetKind: 'monthly',
     moveIn,
-    intent: 'city_search',
+    intent: waitlist ? 'city_waitlist' : 'city_search',
     status: 'new',
     grade: null,
     propertyAddress: null,
@@ -142,6 +147,7 @@ export default async function handler(req, res) {
     city: {
       key: cityKey,
       label: city.label,
+      mode: waitlist ? 'waitlist' : 'search',
       service,
       serviceLabel: service ? SERVICES[service] : null,
       situation,
@@ -161,7 +167,7 @@ export default async function handler(req, res) {
     // means the operator hears about it on the next pulse instead of now.
     fsCreate('agentNotifications', {
       type: 'lead.new',
-      summary: `${city.flag} ${city.label.toUpperCase()} · ${name}` +
+      summary: `${city.flag} ${city.label.toUpperCase()}${waitlist ? ' · waitlist' : ''} · ${name}` +
         (service && service !== 'unsure' ? ` · ${SERVICES[service]}` : '') +
         (budgetBand ? ` · ${budgetBand}` : '') +
         (moveIn ? ` · ${moveIn}` : ''),

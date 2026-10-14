@@ -50,7 +50,7 @@ const srv = http.createServer((req, res) => {
 const base = `http://127.0.0.1:${srv.address().port}`;
 const browser = await chromium.launch(launchOptions());
 
-async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference' } = {}) {
+async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam' } = {}) {
   const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: 844 }, reducedMotion });
   const page = await ctx.newPage();
   const st = { errors: [], posts: [], foreign: [] };
@@ -67,7 +67,7 @@ async function open({ js = true, width = 390, api = { status: 200, body: { ok: t
     if (!/googletagmanager\.com/.test(u)) st.foreign.push(u);   // gtag is the one third party every BOOM page loads
     return r.abort();
   });
-  await page.goto(`${base}/amsterdam`, { waitUntil: 'load' });
+  await page.goto(`${base}/${slug}`, { waitUntil: 'load' });
   return { ctx, page, st };
 }
 // Fixed chrome (the family strip at the top, the pay bar at the bottom) sits
@@ -211,6 +211,33 @@ const board = (page) => page.evaluate(() => {
   check(await page.isVisible('.nav-links .nav-cta') && !(await page.isVisible('#navToggle')), '1440px: desktop nav with its CTA, no burger');
   check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no pay bar');
   check(await page.$eval('.serving', (e) => getComputedStyle(e).display !== 'none'), '1440px: the "searching daily on" line is back under the proofs');
+  await ctx.close();
+}
+
+// ── the sisters at 390px: Madrid (search) and Barcelona (waitlist) ────────
+for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA']]) {
+  const { ctx, page, st } = await open({ slug });
+  await page.waitForTimeout(2600);
+  const b = await board(page);
+  check(b.cells === word.length && b.letters === word && Math.abs(b.minW - b.contentW) < 4, `${slug}: the board spells ${word} in the space the hero reserved (${b.contentW.toFixed(0)}px)`);
+  const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
+  const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
+  check(scrollW <= 390 && chipH.length === 4 && new Set(chipH).size === 1, `${slug}: 390px, no horizontal scroll, four chips in one even grid (${chipH.join('/')}px)`);
+  if (slug === 'barcelona') {
+    const priceNodes = await page.$$eval('.flap-prezzo, .plates .price, .chip small', (els) => els.map((e) => e.textContent.trim()));
+    const txt = await page.evaluate(() => { const m = document.querySelector('main').cloneNode(true); m.querySelectorAll('select').forEach((s) => s.remove()); return m.textContent; });
+    check(JSON.stringify(priceNodes) === JSON.stringify(['advise me']) && !/€\s?\d/.test(txt), 'barcelona: no price on the plates, no board, no € in the page the client reads');
+  }
+  await tap(page, '#plan-application-pack .go');
+  await page.waitForTimeout(400);
+  await page.fill('#fName', 'Test Person');
+  await page.fill('#fEmail', 'test@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  let sent = {};
+  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
+  check(st.posts.length === 1 && sent.city === slug && sent.service === 'application-pack' && st.errors.length === 0,
+    `${slug}: the form posts city "${slug}" once, with the plate's chip chosen, and no JS error`, JSON.stringify(sent) + ' ' + st.errors.join('|'));
   await ctx.close();
 }
 

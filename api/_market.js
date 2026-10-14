@@ -179,12 +179,23 @@ export function b2bReplyText(lead = {}) {
 // card porta il messaggio giusto già scritto — in inglese, firmato Valentino
 // perché il numero WhatsApp da cui parte è il suo.
 
+// `mode` is the desk's state (BOOM_CITIES_BRIEF.md §4), read by the lead
+// door: 'search' = the desk takes searches today; 'waitlist' = the desk opens
+// with a registered local partner (AICAT in Catalonia, carte professionnelle
+// in France) and the lead is a FILE OPENED, not a search started. The city
+// JSON carries the same word; tests/cities keeps the two from drifting.
 export const CITY_MARKETS = {
-  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam' },
-  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid' },
-  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona' },
-  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris' },
+  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam', mode: 'search' },
+  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search' },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist' },
+  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist' },
 };
+
+/** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */
+export function cityMode(lead = {}) {
+  const k = cityMarketOf(lead);
+  return k && CITY_MARKETS[k].mode === 'waitlist' ? 'waitlist' : 'search';
+}
 
 /**
  * Da quale città (fuori Roma) viene questo lead — la chiave di CITY_MARKETS
@@ -231,6 +242,11 @@ export function cityReplyText(lead = {}) {
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
     : 'I have your dates, budget and situation. ';
+  // A waitlist desk never promises a search it cannot run yet: the reply says
+  // where the desk stands and what can be done today.
+  const next = cityMode(lead) === 'waitlist'
+    ? `The ${c.label} desk is opening with a registered local partner, so I can't start a search there yet. I'll come back today with where we stand and what we can already do for you.`
+    : "I'll come back today with how we'd run it and the next step.";
   return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
-    `${q}I'll come back today with how we'd run it and the next step.\n${c.url}`;
+    `${q}${next}\n${c.url}`;
 }

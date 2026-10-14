@@ -1,0 +1,348 @@
+{
+  "slug": "madrid",
+  "city": "Madrid",
+  "country": "ES",
+  "iata": "MAD",
+  "live": false,
+  "mode": "search",
+  "config": {},
+  "meta": {
+    "title": "Tenant-side rental agent in Madrid — BOOM",
+    "description": "BOOM Madrid works only for the tenant: Spanish-format file in 24 hours, applications within the hour, viewings attended, the contract checked before you sign.",
+    "ogTitle": "BOOM Madrid — an agent on your side of the table",
+    "ogDescription": "Tenant-side rental search for internationals moving to Madrid. Spanish-format file in 24 hours, applications within the hour, attended viewings, contract checked. Flat fees, paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Madrid — tenant-side rental search (agente del inquilino)",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Internationals relocating to Madrid",
+    "description": "Rental search in Madrid on the tenant's side only: Spanish-format application file in 24 hours, applications within the hour of a listing going live, attended viewings with live video and written report, negotiation of rent, deposit and guarantees, contract check against the LAU, empadronamiento supported. Flat fees paid by the tenant, nothing from landlords or platforms."
+  },
+  "nav": {
+    "how": "How it works",
+    "services": "Services",
+    "checks": "Before you sign",
+    "faq": "FAQ",
+    "cta": "Start my search",
+    "desk": "tenant side"
+  },
+  "hero": {
+    "eyebrow": "BOOM · Madrid · tenant-side agent",
+    "h1Before": "Your home in",
+    "h1Em": "Found by someone on your side.",
+    "sub": "A Spanish-format file in 24 hours, applications within the hour, a BOOM person at every viewing. Paid by you — never by landlords.",
+    "trust": [
+      {
+        "star": true,
+        "b": "4.9",
+        "t": "on Google · 47 reviews"
+      },
+      {
+        "check": true,
+        "b": "500+",
+        "t": "internationals housed"
+      }
+    ],
+    "servingLead": "Searching daily on",
+    "servingNames": "Idealista · Fotocasa · agencies · off-market"
+  },
+  "form": {
+    "ref": "New file — Madrid · tenant side",
+    "refRight": "same-day reply",
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "email": {
+      "label": "Email",
+      "placeholder": "anna@company.com"
+    },
+    "moveIn": {
+      "label": "Move-in",
+      "placeholder": "February 2027"
+    },
+    "budget": {
+      "label": "Monthly budget"
+    },
+    "budgetOptions": [
+      "Under €1,000",
+      "€1,000 – €1,500",
+      "€1,500 – €2,000",
+      "€2,000 – €3,000",
+      "€3,000+"
+    ],
+    "service": {
+      "label": "What do you need?",
+      "unsure": "Not sure yet",
+      "unsureSub": "advise me"
+    },
+    "more": "More details (optional)",
+    "phone": {
+      "label": "Phone / WhatsApp",
+      "placeholder": "+34 …"
+    },
+    "situation": {
+      "label": "Who's moving",
+      "placeholder": "Couple, relocating with employer"
+    },
+    "areas": {
+      "label": "Neighbourhoods",
+      "placeholder": "Chamberí, Salamanca, Malasaña…"
+    },
+    "message": {
+      "label": "Anything else",
+      "placeholder": "Start date, pets, parking, a listing you already found…"
+    },
+    "submit": "Start my search",
+    "submitSub": "same-day reply · no commitment",
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "sentBefore": "Your file is",
+    "sentEm": "open.",
+    "sentText": "The Madrid desk replies the same working day — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    }
+  },
+  "machine": {
+    "route": "ROM → MAD",
+    "items": [
+      "file 24h",
+      "apply <1h",
+      "viewing attended",
+      "contract checked"
+    ]
+  },
+  "how": {
+    "num": "01 — HOW IT WORKS",
+    "h2": "From the first call",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · Brief",
+        "v": "A 20-minute call",
+        "s": "Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Spanish landlord. We tell you what your budget buys today."
+      },
+      {
+        "k": "2 · File & applications",
+        "v": "Spanish-format, in 24 hours",
+        "s": "Payslips or contract, NIE or passport, references, bank statements, a presentation letter in Spanish. Then we apply within the hour of a listing going live."
+      },
+      {
+        "k": "3 · Viewing & contract",
+        "v": "A BOOM person in the room",
+        "s": "Live video walkthrough and a written report. Rent, deposit, guarantees and contract type checked against the LAU before you sign. Then keys and padrón."
+      }
+    ],
+    "tline": [
+      "BRIEF",
+      "FILE 24H",
+      "APPLICATIONS <1H",
+      "VIEWING ATTENDED",
+      "CONTRACT CHECKED"
+    ],
+    "tlineLand": "✓ KEYS · PADRÓN"
+  },
+  "pricing": {
+    "num": "02 — SERVICES & FEES",
+    "h2": "Flat fees.",
+    "h2g": "No percentage of your rent.",
+    "sub": "You pay for the work, and only you pay. VAT included.",
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "se": "Full Search · end to end",
+        "name": "We find it. You move in.",
+        "text": "Search, applications, viewing, contract — handled.",
+        "includes": [
+          "Daily search: Idealista, Fotocasa, agencies, off-market",
+          "Applications within the hour",
+          "One attended viewing, live video + report (extra €149)",
+          "Rent negotiated, contract checked, padrón supported"
+        ],
+        "price": 500,
+        "per": "flat · incl. VAT",
+        "featured": true,
+        "cta": "Start my search",
+        "offerDescription": "Search, Spanish-format application file, applications within the hour, one attended viewing, negotiation and contract check."
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "se": "Application Pack",
+        "name": "You search. We make you win.",
+        "text": "The file that wins Spanish applications.",
+        "includes": [
+          "Spanish-format file in 24 hours",
+          "Presentation letter in Spanish",
+          "Income, aval and guarantor strategy",
+          "Contract review before you sign"
+        ],
+        "price": 199,
+        "per": "flat · incl. VAT",
+        "cta": "Get the pack",
+        "offerDescription": "Spanish-format rental application file in 24 hours, presentation letter, income and guarantor strategy, contract review."
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "se": "Attended Viewing",
+        "name": "Eyes on the ground.",
+        "text": "You found it, you're abroad. We go.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "price": 149,
+        "per": "per viewing · incl. VAT",
+        "cta": "Book a viewing",
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
+      }
+    ],
+    "note": "Card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
+  },
+  "checks": {
+    "num": "03 — BEFORE YOU SIGN",
+    "h2": "Six things we check",
+    "h2g": "before you sign.",
+    "sub": "Six points we put in writing on every contract.",
+    "items": [
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "fianza",
+        "text": "One month by law. Extra guarantees are capped at two months' rent. Agents still ask for more. We don't let them."
+      },
+      {
+        "id": "fees",
+        "title": "Who pays the agent",
+        "at": "Ley 12/2023",
+        "text": "The landlord pays their own agent. A fee charged to you is a red flag. You hire us; we do not act for the landlord."
+      },
+      {
+        "id": "rent",
+        "title": "The rent",
+        "at": "no regional cap",
+        "text": "No regional cap in Madrid: the asking price is the market. We say if it is out of line and read the update clause."
+      },
+      {
+        "id": "contract",
+        "title": "Contract type",
+        "at": "LAU",
+        "text": "A habitual-residence lease protects you in ways a 'temporada' lease does not. We check which one you are handed, and which charges land on you."
+      },
+      {
+        "id": "padron",
+        "title": "Registration",
+        "at": "padrón · NIE",
+        "text": "Registered at the town hall with your contract: health card and school place hang on it. We confirm it before you pay."
+      },
+      {
+        "id": "income",
+        "title": "Income rules",
+        "at": "nómina · aval",
+        "text": "Payslips, a bank guarantee, a Spanish guarantor: each landlord asks differently. New job, foreign salary, freelance — we write it so it passes."
+      }
+    ]
+  },
+  "truth": {
+    "h3": "We'll also tell you",
+    "h3em": "what's wrong with it.",
+    "p": "A tenancy that goes wrong costs us more than a lost fee — so we write down what we saw, before you sign.",
+    "flags": [
+      "a deposit above the legal cap",
+      "an agent fee charged to you",
+      "a 'temporada' lease for a long stay",
+      "a rent out of line with the street"
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Madrid — fact sheet",
+    "ref": "REF · MADRID / TENANT SIDE",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Madrid, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Internationals relocating to Madrid — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Fees",
+        "fees": true,
+        "ddHtml": "VAT included. No percentage of the rent, nothing from landlords or platforms."
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Spanish-format file in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings with live video and written report, negotiation, contract check against the LAU, padrón supported."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, we don't represent landlords, we don't promise a date."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "faq": {
+    "num": "04 — QUESTIONS",
+    "h2": "The questions",
+    "h2g": "we get asked.",
+    "items": [
+      {
+        "q": "Isn't it the landlord who pays the agent in Spain now?",
+        "a": "Yes: the landlord bears their own agency costs. That rule covers the landlord's agent. You can still hire your own, who works only for you, and pay for that work. That is what we are, and we never take anything from landlords or their agents."
+      },
+      {
+        "q": "How fast will I have an apartment?",
+        "a": "Budget and move-in date decide it. A complete Spanish-format file and applications inside the hour are what shorten it. Nobody can promise a date in Madrid. Anyone who does is selling you something else."
+      },
+      {
+        "q": "Do I need to be in Madrid?",
+        "a": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "Then we talk. The fee pays for a defined amount of work, and we say in the first call if your budget and timeline don't fit the market. We would rather decline a search than take one we don't believe in."
+      },
+      {
+        "q": "How do I pay?",
+        "a": "Card or bank transfer when the work starts, against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
+      },
+      {
+        "q": "What do you do with my data?",
+        "a": "It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+      }
+    ]
+  },
+  "band": {
+    "h2": "Someone in Madrid",
+    "h2em": "on your side.",
+    "p": "One minute now — a reply the same working day."
+  },
+  "footer": {
+    "tagline": "Born in Rome, built for people who move countries. The same rules in Madrid: one side of the table, flat fees, everything in writing.",
+    "statement": "You hire us; we do not act for the landlord. BOOM Madrid acts solely as a tenant-side search agent: we do not list properties, represent landlords, or receive remuneration from landlords or their agents.",
+    "status": "Operational — same-day replies"
+  },
+  "paybar": {
+    "title": "BOOM · Madrid",
+    "sub": "same-day reply",
+    "cta": "Start my search"
+  }
+}
