@@ -423,7 +423,7 @@ Il conto completo: ${SITE}/your-money`,
       sell: { service: 'concordato-pack', anchor: 'il 21% di tasse invece del 10%' },
       text: `Il vantaggio è la cedolare al 10% invece del 21%. Il fastidio sono verifica del canone, contratto conforme, attestazione e registrazione RLI.
 
-Ce ne occupiamo noi: €349 IVA inclusa, una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela dico prima.
+Ce ne occupiamo noi: €349 IVA inclusa, una volta sola per immobile, rimborsati per intero se il concordato non è possibile per l'immobile. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela dico prima.
 
 ${SITE}/pacchetto-concordato
 

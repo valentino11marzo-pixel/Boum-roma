@@ -25,7 +25,7 @@
     <meta property="og:site_name" content="BOOM">
     <meta property="og:locale" content="it_IT">
     <meta property="og:title" content="Pacchetto canone concordato — cedolare al 10%, senza pratiche">
-    <meta property="og:description" content="Verifica del canone, contratto conforme, attestazione e registrazione RLI seguite da BOOM. €349 IVA inclusa, rimborso se la casa non rientra in fascia.">
+    <meta property="og:description" content="Verifica del canone, contratto conforme, attestazione e registrazione RLI seguite da BOOM. €349 IVA inclusa, rimborso se il concordato non è possibile per la sua casa.">
     <meta property="og:url" content="https://www.boomrome.com/pacchetto-concordato">
     <meta property="og:image" content="https://www.boomrome.com/og-pacchetto.png">
     <meta property="og:image:secure_url" content="https://www.boomrome.com/og-pacchetto.png">
@@ -57,7 +57,7 @@
  {"@type":"Question","name":"Cosa vi serve da me?","acceptedAnswer":{"@type":"Answer","text":"Indirizzo e metri quadri (o la visura catastale), lo stato della casa e, se c'è, il vecchio contratto. Per la registrazione, i documenti di locatore e conduttore. Basta una foto per documento."}},
  {"@type":"Question","name":"L'attestazione di rispondenza è obbligatoria?","acceptedAnswer":{"@type":"Answer","text":"Per i contratti concordati stipulati senza l'assistenza delle organizzazioni firmatarie, sì: senza attestazione le agevolazioni fiscali sono a rischio (DM 16 gennaio 2017). La pratica la seguiamo noi con un'organizzazione firmataria dell'Accordo; la sua tariffa è a parte e gliela diciamo prima."}},
  {"@type":"Question","name":"Ho già un contratto o un inquilino in corso?","acceptedAnswer":{"@type":"Answer","text":"Si passa al concordato alla scadenza, oppure prima con l'accordo dell'inquilino e un nuovo contratto. Le diciamo noi la strada più pulita per il suo caso."}},
- {"@type":"Question","name":"E se il canone che voglio non rientra?","acceptedAnswer":{"@type":"Answer","text":"Glielo diciamo subito, col massimo della sua zona: a canone concordato la parte sopra il massimo è nulla e l'attestazione non si rilascia. Se il concordato non è possibile per la sua casa, le rimborsiamo il pacchetto."}},
+ {"@type":"Question","name":"E se il canone che voglio non rientra?","acceptedAnswer":{"@type":"Answer","text":"Il massimo della sua zona lo vede prima di pagare, nel conto della sua casa, e la verifica lo conferma: a canone concordato la parte sopra il massimo è nulla e l'attestazione non si rilascia. Se dalla verifica risulta che la sua casa non può essere affittata a canone concordato, le rimborsiamo il pacchetto."}},
  {"@type":"Question","name":"Posso recedere dopo l'acquisto?","acceptedAnswer":{"@type":"Answer","text":"Sì, entro 14 giorni dall'acquisto, con una email a hello@boom-rome.com. Se ci chiede di iniziare subito e poi recede, le rimborsiamo il pacchetto meno la parte di lavoro già svolta; a pratica completata il recesso non è più possibile. Se non ci chiede di iniziare subito, cominciamo allo scadere dei 14 giorni."}}
 ]}
   </script>
@@ -76,7 +76,7 @@
   "speakable":{"@type":"SpeakableSpecification","cssSelector":[".chero .sub",".brief p"]}},
  {"@type":"Service","@id":"https://www.boomrome.com/pacchetto-concordato#service","serviceType":"Contratto a canone concordato con attestazione e registrazione",
   "name":"Pacchetto canone concordato","url":"https://www.boomrome.com/pacchetto-concordato",
-  "description":"Verifica del canone sulle tabelle dell'Accordo territoriale di Roma, contratto a canone concordato conforme (3+2, transitorio o studenti), pratica di attestazione di rispondenza con un'organizzazione firmataria e registrazione RLI all'Agenzia delle Entrate. 349 euro IVA inclusa, una volta per immobile; la tariffa dell'organizzazione per l'attestazione è a parte e detta prima. Rimborso integrale se l'immobile non può rientrare in fascia. Non comprende la ricerca dell'inquilino.",
+  "description":"Verifica del canone sulle tabelle dell'Accordo territoriale di Roma, contratto a canone concordato conforme (3+2, transitorio o studenti), pratica di attestazione di rispondenza con un'organizzazione firmataria e registrazione RLI all'Agenzia delle Entrate. 349 euro IVA inclusa, una volta per immobile; la tariffa dell'organizzazione per l'attestazione è a parte e detta prima. Rimborso integrale se dalla verifica risulta che l'immobile non può essere affittato a canone concordato. Non comprende la ricerca dell'inquilino.",
   "provider":{"@id":"https://www.boomrome.com/#organization"},"areaServed":{"@type":"City","name":"Roma"},
   "audience":{"@type":"Audience","audienceType":"Proprietari di casa a Roma con un inquilino"},
   "offers":{"@type":"Offer","price":"349","priceCurrency":"EUR","availability":"https://schema.org/InStock","url":"https://www.boomrome.com/pacchetto-concordato",
@@ -357,7 +357,7 @@ html {
     <a href="#pacchetto" class="mobile-menu-link">Cosa comprende</a>
     <a href="#come" class="mobile-menu-link">Come funziona</a>
     <a href="#faq" class="mobile-menu-link">FAQ</a>
-    <a href="/canone" class="mobile-menu-link">Calcola il canone</a>
+    <a href="/canone" class="mobile-menu-link">Calcolo del canone</a>
     <a href="/owners" class="mobile-menu-link">Affittarla con BOOM</a>
   </div>
   <a href="#pacchetto" class="mobile-menu-cta">Attivi il pacchetto</a>
@@ -365,7 +365,7 @@ html {
 
 <div class="fam" aria-label="BOOM Proprietari">
   <a href="/owners">Proprietari</a>
-  <a href="/canone">Calcola il canone</a>
+  <a href="/canone">Calcolo del canone</a>
   <a class="on" href="/pacchetto-concordato" aria-current="page">Pacchetto concordato</a>
   <a href="/login">Area proprietario</a>
 </div>
@@ -376,7 +376,7 @@ html {
     <p class="eyebrow">Pacchetto canone concordato · Roma</p>
     <h1>Cedolare al 10%, <em>senza pratiche.</em></h1>
     <p class="sub">Ha già l'inquilino? Il contratto conforme all'Accordo di Roma, la pratica di attestazione di rispondenza e la registrazione all'Agenzia delle Entrate le seguiamo noi. Lei firma.</p>
-    <p class="proof"><span><b>€349</b> IVA inclusa, una volta</span><span>Rimborso se la casa non rientra in fascia</span><span>Firma anche digitale</span></p>
+    <p class="proof"><span><b>€349</b> IVA inclusa, una volta</span><span>Rimborso se il concordato non è possibile per la sua casa</span><span>Firma anche digitale</span></p>
 
     <div class="calcbar" id="calcBar" hidden>
       <p class="k">Il conto della sua casa</p>
@@ -410,9 +410,9 @@ html {
         <p class="once">IVA inclusa · una volta sola, per immobile</p>
         <button type="button" class="paybtn" id="payOpen" data-analytics-label="pack-attiva">
           <span class="lk" aria-hidden="true">→</span>
-          <span class="tx"><b>Attivi il pacchetto</b><small>Pagamento sicuro Stripe · rimborso se non rientra in fascia</small></span>
+          <span class="tx"><b>Attivi il pacchetto</b><small>Pagamento sicuro Stripe · rimborso se il concordato non è possibile</small></span>
         </button>
-        <p class="safe">Se dopo la verifica la casa <b>non può rientrare in fascia</b>: rimborso integrale. La tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto. Recesso entro 14 giorni dall'acquisto.</p>
+        <p class="safe">Se dalla verifica risulta che la casa <b>non può essere affittata a canone concordato</b>: rimborso integrale. La tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto. Recesso entro 14 giorni dall'acquisto.</p>
         <div class="person sm">
           <img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="44" height="44" loading="lazy">
           <p><b>Valentino</b>, fondatore di BOOM · Egidi Immobiliare S.r.l. Preferisce parlarne prima? <a href="tel:+393313251961">+39 331 325 1961</a> · <a href="https://wa.me/393313251961?text=Buongiorno%2C%20vorrei%20informazioni%20sul%20Pacchetto%20canone%20concordato" target="_blank" rel="noopener" data-analytics-label="pack-wa-plate">WhatsApp</a></p>
@@ -446,7 +446,7 @@ html {
     <div class="sec-h"><span class="num">02 — IL PERCORSO</span><h2>Come funziona</h2></div>
     <ol class="flowl">
       <li><span class="n">1</span><div><b>Attivi il pacchetto</b><p>€349 IVA inclusa, via Stripe. Poi ci manda indirizzo, metri e, se li ha, visura o vecchio contratto. Basta una foto.</p></div></li>
-      <li><span class="n">2</span><div><b>Verifica in 48 ore</b><p>Dai dati, da quando la pratica parte: fascia, canone massimo e bozza del contratto. Se la casa non rientra in fascia: rimborso integrale.</p></div></li>
+      <li><span class="n">2</span><div><b>Verifica in 48 ore</b><p>Dai dati, da quando la pratica parte: fascia, canone massimo e bozza del contratto. Se il concordato non è possibile per la sua casa: rimborso integrale.</p></div></li>
       <li><span class="n">3</span><div><b>Attestazione e firma</b><p>La pratica con l'organizzazione firmataria la seguiamo noi. Firma in presenza o digitale, anche a distanza.</p></div></li>
       <li><span class="n">4</span><div><b>Registrazione e fascicolo</b><p>RLI all'Agenzia delle Entrate nei termini e fascicolo PDF per il commercialista.</p></div></li>
     </ol>
@@ -457,7 +457,7 @@ html {
     <div class="brief">
       <p class="k">Risposta breve</p>
       <h2>Che cos'è il Pacchetto canone concordato?</h2>
-      <p>È il servizio di BOOM per i proprietari a Roma che hanno già un inquilino: verifica del canone sulle tabelle dell'Accordo territoriale di Roma, contratto conforme (3+2, transitorio o studenti), pratica di attestazione di rispondenza con un'organizzazione firmataria e registrazione all'Agenzia delle Entrate. Costa €349 IVA inclusa, una volta per immobile, con rimborso se la casa non può rientrare in fascia. Non comprende la tariffa dell'organizzazione per l'attestazione, detta prima, né la ricerca dell'inquilino. BOOM è un marchio di Egidi Immobiliare S.r.l., P.IVA 17322991005.</p>
+      <p>È il servizio di BOOM per i proprietari a Roma che hanno già un inquilino: verifica del canone sulle tabelle dell'Accordo territoriale di Roma, contratto conforme (3+2, transitorio o studenti), pratica di attestazione di rispondenza con un'organizzazione firmataria e registrazione all'Agenzia delle Entrate. Costa €349 IVA inclusa, una volta per immobile, con rimborso integrale se dalla verifica risulta che la casa non può essere affittata a canone concordato. Non comprende la tariffa dell'organizzazione per l'attestazione, detta prima, né la ricerca dell'inquilino. BOOM è un marchio di Egidi Immobiliare S.r.l., P.IVA 17322991005.</p>
     </div>
   </section>
 
@@ -470,7 +470,7 @@ html {
       <details><summary>Cosa vi serve da me?</summary><div class="a">Indirizzo e metri quadri (o la visura catastale), lo stato della casa e, se c'è, il vecchio contratto. Per la registrazione, i documenti di locatore e conduttore. Basta una foto per documento.</div></details>
       <details><summary>L'attestazione di rispondenza è obbligatoria?</summary><div class="a">Per i contratti concordati stipulati senza l'assistenza delle organizzazioni firmatarie, sì: senza attestazione le agevolazioni fiscali sono a rischio (DM 16 gennaio 2017). La pratica la seguiamo noi con un'organizzazione firmataria dell'Accordo; la sua tariffa è a parte e gliela diciamo prima.</div></details>
       <details><summary>Ho già un contratto o un inquilino in corso?</summary><div class="a">Si passa al concordato alla scadenza, oppure prima con l'accordo dell'inquilino e un nuovo contratto. Le diciamo noi la strada più pulita per il suo caso.</div></details>
-      <details><summary>E se il canone che voglio non rientra?</summary><div class="a">Glielo diciamo subito, col massimo della sua zona: a canone concordato la parte sopra il massimo è nulla e l'attestazione non si rilascia. Se il concordato non è possibile per la sua casa, le rimborsiamo il pacchetto.</div></details>
+      <details><summary>E se il canone che voglio non rientra?</summary><div class="a">Il massimo della sua zona lo vede prima di pagare, nel conto della sua casa, e la verifica lo conferma: a canone concordato la parte sopra il massimo è nulla e l'attestazione non si rilascia. Se dalla verifica risulta che la sua casa non può essere affittata a canone concordato, le rimborsiamo il pacchetto.</div></details>
       <details><summary>Posso recedere dopo l'acquisto?</summary><div class="a">Sì, entro 14 giorni dall'acquisto, con una email a hello@boom-rome.com. Se ci chiede di iniziare subito e poi recede, le rimborsiamo il pacchetto meno la parte di lavoro già svolta; a pratica completata il recesso non è più possibile. Se non ci chiede di iniziare subito, cominciamo allo scadere dei 14 giorni.</div></details>
     </div>
   </section>
@@ -478,7 +478,7 @@ html {
   <div class="band2" data-analytics-section="contatto">
     <img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="84" height="84" loading="lazy">
     <div class="tx">
-      <h2>Preferisce parlarne prima? <em>La richiamo io.</em></h2>
+      <h2>Preferisce parlarne prima? <em>Mi chiami o mi scriva.</em></h2>
       <p>Sono Valentino, fondatore di BOOM. Le dico per iscritto cosa serve per il suo contratto e cosa costa, prima che paghi qualcosa.</p>
       <div class="acts">
         <a class="sbtn" href="tel:+393313251961">+39 331 325 1961</a>
@@ -509,7 +509,7 @@ html {
         <h4 class="footer-links-title">Proprietari</h4>
         <ul class="footer-links-list">
           <li><a href="/owners">Affittarla con BOOM</a></li>
-          <li><a href="/canone">Calcola il canone</a></li>
+          <li><a href="/canone">Calcolo del canone</a></li>
           <li><a href="/pacchetto-concordato">Pacchetto concordato</a></li>
           <li><a href="/meteo">Il meteo del mercato</a></li>
           <li><a href="/login">Area proprietario</a></li>
@@ -540,8 +540,8 @@ html {
 </footer>
 
 <div class="paybar" id="paybar">
-  <div class="pinfo"><b>Pacchetto canone concordato</b><small>€349 IVA inclusa · rimborso se non rientra</small></div>
-  <button type="button" class="go" id="payBar" data-analytics-label="pack-paybar">Attivi</button>
+  <div class="pinfo"><b>Pacchetto canone concordato</b><small>€349 IVA inclusa · rimborso se il concordato non è possibile</small></div>
+  <button type="button" class="go" id="payBar" data-analytics-label="pack-paybar">Lo attivi</button>
 </div>
 
 <!-- IL CHECKOUT: nome, recapiti, indirizzo; il recesso detto prima del pagamento. -->
@@ -593,7 +593,7 @@ var CALC=null;
     var rg=C.rangeText(r,'it'),one=r.declared||!r.fasce.C;
     var t='La sua casa a <b>'+where+'</b>: a canone concordato il massimo è <b>'+rg+' al mese</b>'+
       (r.declared?', fascia '+r.fascia+'.':one?' (fascia A).':', secondo le dotazioni.');
-    t+=' <a href="/canone?'+C.encode(r.input)+'">Rivedi il conto</a>';
+    t+=' <a href="/canone?'+C.encode(r.input)+'">Riveda il conto</a>';
     CALC={qs:C.encode(r.input),line:'Dal conto: '+where+(r.declared?', fascia '+r.fascia:'')+', massimo '+rg+'/mese'};
     $('calcTxt').innerHTML=t;
     $('calcBar').hidden=false;
