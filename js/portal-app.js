@@ -26468,7 +26468,7 @@ IBAN: ${l.iban || '-'}`;
         // Each tool maps to an existing entrypoint. Anything we don't already
         // ship is gated behind isAdmin() so we don't expose half-built features.
         const tools = [
-            { icon:'🔗', title:'SmartLink annunci', desc:'Crea una scheda BOOM con foto autorizzate, quartiere e contatto diretto. La fonte resta privata.', action:"openExternalSmartLink()", tags:[{label:'Nuovo · URL → link', cls:'green'}] },
+            { icon:'🔗', title:'SmartLink Studio', desc:'Da un annuncio a una scheda BOOM: foto ottimizzate, copertina, quartiere e link pronto da condividere.', action:"openExternalSmartLink()", tags:[{label:'Nuovo · URL → link', cls:'green'}] },
             { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
             { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
             { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
@@ -26532,30 +26532,36 @@ IBAN: ${l.iban || '-'}`;
     }
     function openExternalSmartLink() {
         if (!isAdmin()) return;
+        smartLinkBusy=false;
+        smartLinkClearPhotos();
         document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-          <div class="modal lg" style="max-width:650px">
-            <div class="modal-header"><h2>🔗 SmartLink annunci</h2><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body">
-              <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:18px">Incolla l'annuncio e verifica i dati. Il cliente vedrà solo la scheda BOOM, senza accesso alla fonte.</p>
-              <div class="form-group"><label class="form-label" for="sl_source">Link annuncio *</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_source" type="url" class="form-input" style="flex:1;min-width:230px" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onchange="smartLinkExtract()"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkExtract()">Leggi annuncio</button></div>
-                <div id="sl_status" role="status" style="font-size:12px;color:var(--text-secondary);margin-top:8px">Immobiliare.it, Idealista, Subito, Casafari e Casa.it.</div>
+        <div class="modal-overlay active" onclick="if(event.target===this)smartLinkClose()">
+          <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
+            <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
+            <div class="modal-body sl-studio-body">
+              <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onchange="smartLinkExtract()"><button type="button" class="btn btn-secondary" onclick="smartLinkExtract()">Leggi dati</button></div><p id="sl_status" role="status" class="sl-hint">Immobiliare.it, Idealista, Subito, Casafari e Casa.it. Il cliente non vedrà la fonte.</p></section>
+              <div class="sl-studio-grid">
+                <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
+                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Scegli immagini pubblicabili da BOOM. Verranno ottimizzate e liberate dai metadati della fotocamera.</p><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi foto</strong><small>Trascina qui o scegli dal dispositivo · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Scegli fotografie" onchange="smartLinkPhotosChanged()"><p id="sl_photo_status" role="status" class="sl-hint">Nessuna foto selezionata.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto selezionate"></div><label class="sl-no-photo"><input id="sl_no_photos" type="checkbox"> Crea senza foto per ora</label></section>
               </div>
-              <div class="form-row"><div class="form-group"><label class="form-label" for="sl_title">Titolo</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Titolo dell'annuncio"></div><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div></div>
-              <div class="form-row"><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Se indicata"></div><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div>
-              <div class="form-group"><label class="form-label" for="sl_note">Nota BOOM (facoltativa)</label><textarea id="sl_note" class="form-textarea" rows="2" maxlength="400" placeholder="Una nota utile scritta da te, senza copiare la descrizione dell'annuncio"></textarea></div>
-              <div class="form-group"><label class="form-label" for="sl_photos">Foto pubblicabili da BOOM (massimo 12)</label><input id="sl_photos" type="file" class="form-input" multiple accept="image/jpeg,image/png,image/webp" onchange="smartLinkPhotosChanged()"><div id="sl_photo_status" style="font-size:12px;color:var(--text-secondary);margin-top:6px">Carica immagini autorizzate: la prima sarà la copertina. Max 8 MB ciascuna.</div><div id="sl_photo_preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
-              <div class="form-group"><label class="form-label" for="sl_area_query">Area indicativa sulla mappa</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_area_query" class="form-input" style="flex:1;min-width:190px" placeholder="Es. Cipro, Roma" oninput="delete this.dataset.area"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkSearchArea()">Cerca area</button></div><div id="sl_area_status" role="status" style="font-size:12px;color:var(--text-secondary);margin-top:7px">Scegli una zona, non l’indirizzo esatto.</div><div id="sl_area_results" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"></div></div>
-              <div style="padding:11px 13px;border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.5">Il link mostra i dati rilevati oggi, non certifica disponibilità, prezzo attuale o visita effettuata.</div>
-              <div id="sl_result" style="margin-top:16px"></div>
-              <input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+              <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><label class="form-label" for="sl_area_query">Area indicativa sulla mappa</label><div class="sl-inline"><input id="sl_area_query" class="form-input" placeholder="Es. Cipro, Roma" oninput="delete this.dataset.area"><button type="button" class="btn btn-secondary" onclick="smartLinkSearchArea()">Cerca area</button></div><p id="sl_area_status" role="status" class="sl-hint">Scegli una zona, non l’indirizzo esatto.</p><div id="sl_area_results" class="sl-area-results"></div></section>
+              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
             </div>
-            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM</button></div>
+            <div class="modal-footer sl-studio-footer"><button class="btn btn-secondary" onclick="smartLinkClose()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM ↗</button></div>
           </div>
         </div>`;
         document.getElementById('sl_source')?.focus();
     }
+
+    let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
+    function smartLinkClearPhotos() {
+        smartLinkPhotoGeneration++;
+        smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
+        smartLinkPhotoItems = [];
+        smartLinkPhotoPending = Promise.resolve();
+        smartLinkPhotoPreparing = false;
+    }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkClearPhotos(); closeModal(); }
 
     function smartLinkSourceChanged() {
         const source = document.getElementById('sl_source');
@@ -26563,7 +26569,8 @@ IBAN: ${l.iban || '-'}`;
         if (!source || source.dataset.draftSource === canonical) return;
         source.dataset.draftSource = canonical;
         ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
-        document.getElementById('sl_photos').value=''; smartLinkPhotosChanged();
+        document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
+        document.getElementById('sl_no_photos').checked=false;
         const area=document.getElementById('sl_area_query'); area.value=''; delete area.dataset.area;
         document.getElementById('sl_area_status').textContent='Scegli la zona del nuovo annuncio.';
         document.getElementById('sl_area_results').replaceChildren();
@@ -26590,13 +26597,56 @@ IBAN: ${l.iban || '-'}`;
         } catch { status.textContent = 'Lettura non riuscita. Puoi completare i campi che vuoi mostrare al cliente.'; }
     }
 
-    function smartLinkPhotosChanged() {
-        const files = [...(document.getElementById('sl_photos')?.files || [])];
-        const box = document.getElementById('sl_photo_preview');
-        box.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src));
+    function smartLinkRenderPhotos(message) {
+        const box=document.getElementById('sl_photo_preview'), status=document.getElementById('sl_photo_status');
+        if (!box || !status) return;
         box.replaceChildren();
-        document.getElementById('sl_photo_status').textContent = files.length > 12 ? 'Massimo 12 foto: riduci la selezione.' : files.length ? files.length + ' foto selezionate.' : 'Nessuna foto selezionata.';
-        files.slice(0, 12).forEach(file => { const img = document.createElement('img'); img.src = URL.createObjectURL(file); img.alt = file.name; img.style.cssText = 'width:58px;height:58px;object-fit:cover;border-radius:6px'; box.append(img); });
+        status.textContent=message || (smartLinkPhotoItems.length ? `${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.` : 'Nessuna foto selezionata.');
+        smartLinkPhotoItems.forEach((item,i) => {
+            const card=document.createElement('div'); card.className='sl-photo-card'+(i===0?' is-cover':'');
+            const img=document.createElement('img'); img.src=item.url; img.alt=`Foto ${i+1}: ${item.name}`; img.loading='lazy';
+            const label=document.createElement('span'); label.textContent=i===0?'COPERTINA':String(i+1).padStart(2,'0'); label.className='sl-photo-label';
+            const actions=document.createElement('div'); actions.className='sl-photo-actions';
+            const add=(symbol,title,fn) => { const button=document.createElement('button'); button.type='button'; button.textContent=symbol; button.title=title; button.setAttribute('aria-label',title); button.addEventListener('click',fn); actions.append(button); };
+            if (i>0) add('★','Imposta come copertina',() => smartLinkMovePhoto(i,0));
+            if (i>0) add('←','Sposta prima',() => smartLinkMovePhoto(i,i-1));
+            if (i<smartLinkPhotoItems.length-1) add('→','Sposta dopo',() => smartLinkMovePhoto(i,i+1));
+            add('×','Rimuovi foto '+(i+1),() => { if (smartLinkPhotoPreparing) return; const [removed]=smartLinkPhotoItems.splice(i,1); URL.revokeObjectURL(removed.url); smartLinkRenderPhotos(); });
+            card.append(img,label,actions); box.append(card);
+        });
+    }
+    function smartLinkMovePhoto(from,to) {
+        if (smartLinkPhotoPreparing) return;
+        const [item]=smartLinkPhotoItems.splice(from,1); smartLinkPhotoItems.splice(to,0,item); smartLinkRenderPhotos();
+    }
+    function smartLinkPhotoDrop(event) {
+        event.preventDefault(); event.currentTarget.classList.remove('dragging');
+        if (smartLinkBusy) return;
+        smartLinkPhotosChanged(event.dataTransfer.files);
+    }
+    function smartLinkPhotosChanged(selected) {
+        if (smartLinkBusy) return;
+        const files=[...(selected || document.getElementById('sl_photos')?.files || [])];
+        const picker=document.getElementById('sl_photos'); if (picker) picker.value='';
+        if (!files.length) return;
+        if (smartLinkPhotoPreparing) { smartLinkRenderPhotos('Attendi che le foto selezionate siano pronte.'); return; }
+        if (smartLinkPhotoItems.length+files.length>12) { smartLinkRenderPhotos('Puoi inserire al massimo 12 foto.'); return; }
+        const generation=smartLinkPhotoGeneration;
+        const priorCount=smartLinkPhotoItems.length;
+        smartLinkPhotoPreparing=true;
+        smartLinkPhotoPending=(async () => {
+            try {
+                for (let i=0;i<files.length;i++) {
+                    smartLinkRenderPhotos(`Ottimizzo foto ${i+1} di ${files.length}…`);
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(files[i]);
+                    if (generation!==smartLinkPhotoGeneration) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:files[i].name});
+                }
+                document.getElementById('sl_no_photos').checked=false;
+                smartLinkRenderPhotos();
+            } catch (e) { if (generation===smartLinkPhotoGeneration) { smartLinkPhotoItems.splice(priorCount).forEach(item=>URL.revokeObjectURL(item.url)); smartLinkRenderPhotos(e.message); } }
+            finally { if (generation===smartLinkPhotoGeneration) smartLinkPhotoPreparing=false; }
+        })();
     }
 
     async function smartLinkSearchArea() {
@@ -26640,18 +26690,23 @@ IBAN: ${l.iban || '-'}`;
         if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
         const btn = document.getElementById('sl_create');
         if (btn.disabled || btn.dataset.created === '1') return;
+        smartLinkBusy=true;
+        document.querySelector('.sl-studio-body').inert=true;
         btn.disabled = true; btn.textContent = 'Preparo la scheda…';
         let created = false;
         try {
-            const files = [...(document.getElementById('sl_photos')?.files || [])];
-            if (files.length > 12 || files.some(f => f.size > 8_000_000 || !['image/jpeg','image/png','image/webp'].includes(f.type))) throw new Error('Scegli fino a 12 foto JPG, PNG o WebP, massimo 8 MB ciascuna.');
+            await smartLinkPhotoPending;
+            const files=[...smartLinkPhotoItems];
+            if (!files.length && !document.getElementById('sl_no_photos').checked) throw new Error('Aggiungi almeno una foto oppure seleziona “Crea senza foto per ora”.');
             const key=value('key'), images=[];
             for (let i=0;i<files.length;i++) {
                 btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
-                const ext=files[i].type === 'image/jpeg' ? 'jpg' : files[i].type.split('/')[1];
+                const ext=files[i].blob.type === 'image/jpeg' ? 'jpg' : 'webp';
                 const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
-                await ref.put(files[i], {contentType:files[i].type});
-                images.push(await ref.getDownloadURL());
+                await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                const url=await ref.getDownloadURL();
+                if (!window.BOOM_SMARTLINK.validImageUrl(url,key)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                images.push(url);
             }
             const mapRaw=document.getElementById('sl_area_query')?.dataset.area;
             const map=mapRaw ? window.BOOM_SMARTLINK.cleanMap(JSON.parse(mapRaw)) : null;
@@ -26661,10 +26716,11 @@ IBAN: ${l.iban || '-'}`;
             if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
             created = true;
             const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
+            document.getElementById('sl_result').classList.remove('is-error');
             document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
             toast('success', 'SmartLink BOOM creato');
-        } catch (e) { toast('error', 'SmartLink non creato', e.message); }
-        finally { btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM'; }
+        } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
+        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM ↗'; }
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.

@@ -1281,3 +1281,45 @@
             td:last-child,th:last-child{position:sticky;right:0;background:var(--bg-card);box-shadow:-8px 0 12px -6px rgba(0,0,0,.55)}
             tr:hover td:last-child{background:var(--bg-elevated)}
         }
+
+/* SmartLink Studio: spazio di lavoro dentro BOOM Tools. */
+.sl-studio{max-width:960px;max-height:min(92vh,1000px);display:flex;flex-direction:column;border-radius:18px}
+.sl-studio-header{background:radial-gradient(circle at 86% 0,rgba(212,175,55,.12),transparent 42%),#0b0b0c;align-items:flex-start}
+.sl-studio-header h2{font-size:30px;line-height:1.1;letter-spacing:-.05em;font-weight:300;margin:8px 0}
+.sl-studio-header h2 span{color:var(--gold)}
+.sl-studio-header p{font-size:13px;color:var(--text-secondary);margin:0}
+.sl-kicker,.sl-step{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.sl-studio-body{max-height:none;min-height:0;flex:1;overscroll-behavior:contain;padding:24px}
+.sl-section{min-width:0;padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid var(--border)}
+.sl-section:last-of-type{margin-bottom:0}
+.sl-step{display:flex;align-items:center;gap:12px;margin-bottom:17px}
+.sl-step span{color:#fff;font-size:15px;letter-spacing:0;text-transform:none;font-weight:400}
+.sl-inline{display:flex;align-items:stretch;gap:9px}
+.sl-inline .form-input{flex:1;min-width:0}
+.sl-inline .btn{flex:none}
+.sl-hint{font-size:12px;line-height:1.5;color:var(--text-secondary);margin:9px 0 0}
+.sl-studio-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px}
+.sl-studio-grid .sl-section{padding:0 0 25px}
+.sl-studio-grid .form-group{margin-bottom:15px}
+.sl-drop{margin-top:16px;min-height:132px;border:1px dashed rgba(212,175,55,.44);background:linear-gradient(135deg,rgba(212,175,55,.07),rgba(255,255,255,.015));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.sl-drop:hover,.sl-drop.dragging,.sl-drop:focus-visible{border-color:var(--gold);background:rgba(212,175,55,.1);outline:none}
+.sl-drop-icon{font-size:27px;font-weight:200;line-height:1;color:var(--gold)}
+.sl-drop strong{font-size:14px;font-weight:500}
+.sl-drop small{font-size:11px;color:var(--text-secondary)}
+.sl-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sl-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:9px;margin-top:11px}
+.sl-photo-card{position:relative;aspect-ratio:1;border:1px solid var(--border);overflow:hidden;background:#161616}
+.sl-photo-card.is-cover{border-color:var(--gold)}
+.sl-photo-card img{width:100%;height:100%;display:block;object-fit:cover}
+.sl-photo-label{position:absolute;top:5px;left:5px;background:rgba(0,0,0,.78);padding:3px 5px;color:var(--gold);font-size:9px;letter-spacing:.1em}
+.sl-photo-actions{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:3px;padding:5px;background:linear-gradient(transparent,rgba(0,0,0,.92))}
+.sl-photo-actions button{width:25px;height:25px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.75);color:#fff;border-radius:5px;font-size:14px;line-height:1}
+.sl-photo-actions button:hover,.sl-photo-actions button:focus-visible{color:var(--gold);border-color:var(--gold)}
+.sl-no-photo{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--text-secondary);cursor:pointer}
+.sl-no-photo input{accent-color:var(--gold)}
+.sl-area-results{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.sl-publish-note{font-size:12px;line-height:1.6;color:var(--text-secondary);padding:13px 15px;border:1px solid var(--border);background:rgba(255,255,255,.025)}
+.sl-result{margin-top:15px}
+.sl-result.is-error{color:#ff9a9a;font-size:13px}
+.sl-studio-footer{flex:none}
+@media(max-width:720px){.sl-studio{max-height:100%;border-radius:0}.sl-studio-grid{grid-template-columns:1fr;gap:0}.sl-studio-body{padding:18px}.sl-inline{flex-wrap:wrap}.sl-inline .form-input{flex-basis:100%}.sl-inline .btn{min-height:42px}.sl-studio-header h2{font-size:26px}.sl-studio-footer .btn{min-height:46px}}

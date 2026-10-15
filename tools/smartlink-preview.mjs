@@ -60,7 +60,9 @@ const server = createServer(async (req, res) => {
     }
     if (url.pathname === '/css/smartlink.css') return html(res, 'css/smartlink.css', 'text/css');
     if (url.pathname === '/js/smartlink-engine.js') return html(res, 'js/smartlink-engine.js', 'text/javascript');
+    if (url.pathname === '/js/smartlink-photo.js') return html(res, 'js/smartlink-photo.js', 'text/javascript');
     if (url.pathname === '/js/smartlink-page.js') return html(res, 'js/smartlink-page.js', 'text/javascript');
+    if (url.pathname === '/design/home-live-deco/logo-live.svg') return html(res, 'design/home-live-deco/logo-live.svg', 'image/svg+xml');
     if (/^\/preview-photo\/[A-Za-z0-9_-]+$/.test(url.pathname)) {
       const photo = photos.get(url.pathname.slice(15));
       if (!photo) return json(res, 404, { ok:false, error:'not_found' });

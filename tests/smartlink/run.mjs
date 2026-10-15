@@ -5,6 +5,7 @@ process.env.FIREBASE_API_KEY = 'test-key';
 process.env.FIREBASE_ADMIN_EMAIL = 'test@example.com';
 process.env.FIREBASE_ADMIN_PASS = 'test-pass';
 const RULES = (await import('../../js/smartlink-engine.js')).default;
+const PHOTO = (await import('../../js/smartlink-photo.js')).default;
 const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
 const { default: create } = await import('../../api/smartlink/create.js');
@@ -52,6 +53,21 @@ globalThis.fetch = async (input, opts={}) => {
   return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2}</script></html>', { headers:{ 'content-type':'text/html' } });
 };
 try {
+  const oldBitmap=globalThis.createImageBitmap, oldDocument=globalThis.document;
+  let canvas, closed=0, webpSupported=true;
+  globalThis.createImageBitmap=async () => ({width:4000,height:2000,close(){closed++;}});
+  globalThis.document={createElement: () => canvas={width:0,height:0,getContext:()=>({drawImage(){}}),toBlob(cb,type){cb(new Blob(['pixels'],{type:webpSupported ? type : type === 'image/webp' ? 'image/png' : type}));}}};
+  try {
+    const source=new Blob(['camera-metadata'],{type:'image/jpeg'});
+    const optimized=await PHOTO.prepare(source);
+    assert.equal(optimized.type,'image/webp'); assert.equal(canvas.width,2400); assert.equal(canvas.height,1200);
+    assert.notEqual(await optimized.text(),await source.text());
+    webpSupported=false;
+    assert.equal((await PHOTO.prepare(source)).type,'image/jpeg');
+    await assert.rejects(PHOTO.prepare(new Blob(['x'],{type:'text/plain'})));
+    assert.equal(closed,2);
+  } finally { globalThis.createImageBitmap=oldBitmap; globalThis.document=oldDocument; }
+
   docs.set('users/admin', { name:'projects/test/databases/(default)/documents/users/admin', fields:toFsFields({ role:'admin' }) });
   docs.set('users/tenant', { name:'projects/test/databases/(default)/documents/users/tenant', fields:toFsFields({ role:'tenant' }) });
 
