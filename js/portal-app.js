@@ -19957,6 +19957,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return true;
         } catch (err) {
             console.error('PDF generation error:', err);
+            // 4+4 / canone libero: nessun modello. Mai un Allegato B al suo posto.
+            if (err && err.code === 'no_template' && typeof showToast === 'function') {
+                showToast('Contratto 4+4 / canone libero: non esiste un modello. Il PDF non è stato generato (nessun transitorio al suo posto).', 'error');
+            }
             return false;
         }
     }

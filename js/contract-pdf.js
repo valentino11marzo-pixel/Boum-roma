@@ -1180,9 +1180,25 @@
   // Dispatcher: il tipo decide il modello (studenti → Allegato C, 3+2 →
   // Allegato A, tutto il resto → Allegato B transitorio) — stessa regola di
   // generateContractPDF.
+  // Il 4+4 / canone libero NON ha un modello qui: prima finiva in «tutto il
+  // resto → Allegato B» e usciva un contratto TRANSITORIO con l'esigenza
+  // transitoria e la durata di un 4+4 — un contratto riconducibile per legge
+  // e firmato su un testo sbagliato. Si rifiuta con un codice leggibile
+  // (stessa regola di mandato-engine.modelOfContract): meglio nessun PDF che
+  // il PDF del contratto sbagliato.
+  function isFreeMarket(contract) {
+    const t = String((contract && contract.type) || '');
+    return /4\s*\+\s*4|canone libero|^\s*(libero|ordinari[ao])\s*$/i.test(t);
+  }
+
   function build(env) {
     if (!env || !env.jsPDF) throw new Error('contract-pdf: jsPDF constructor required');
     if (!env.contract) throw new Error('contract-pdf: contract required');
+    if (isFreeMarket(env.contract)) {
+      const e = new Error('contract-pdf: nessun modello per il tipo «' + env.contract.type + '» (4+4 / canone libero): il PDF non si genera');
+      e.code = 'no_template';
+      throw e;
+    }
     return (env.contract.type === 'studenti') ? buildAllegatoC(env) : is32(env.contract) ? buildAllegatoA(env) : buildAllegatoB(env);
   }
 
@@ -1192,6 +1208,7 @@
     buildAllegatoC: buildAllegatoC,
     buildAllegatoA: buildAllegatoA,
     is32: is32,
+    isFreeMarket: isFreeMarket,
     fmtDate: fmtDate,
     monthsBetween: monthsBetween,
     impiantiClause: impiantiClause,

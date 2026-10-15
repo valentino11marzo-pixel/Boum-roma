@@ -209,7 +209,7 @@ ok(/export function overlapConflict\(/.test(convS)
   && convS.indexOf('const overlap = await findOverlap(') < convS.indexOf("await fsCreate('contracts', contract, contractId);")
   && /if \(overlap && force !== true && !dryRun\) return \{ ok: false, error: 'overlap', overlap \};/.test(convS),
   '1.2 convert: la guardia sovrapposizioni DOPO il riconoscimento dell\'orfana (un contratto vicino non può bloccare il SUO) e PRIMA della creazione, scavalcabile solo con force:true, mai in dryRun');
-ok(/out\.error === 'overlap' \? 409/.test(convS) && /out\.error === 'overlap' \? 409/.test(src('api/preagreement/send-sign.js')) && /contract\.overlap_blocked/.test(src('api/preagreement/_auto.js')),
+ok(/out\.error === 'overlap'( \|\| out\.error === 'no_template')?\)? \? 409/.test(convS) && /out\.error === 'overlap'( \|\| out\.error === 'no_template')?\)? \? 409/.test(src('api/preagreement/send-sign.js')) && /contract\.overlap_blocked/.test(src('api/preagreement/_auto.js')),
   '1.2: 409 overlap dalla porta HTTP e da send-sign; il contratto automatico bloccato AVVISA (agentNotifications)');
 ok(/^\s+unit,$/m.test(convS) && /const unit = clip\(\(pa\.property \|\| \{\}\)\.unit, 40\) \|\| '';/.test(convS), '1.2 convert: l\'interno viaggia sul contratto (due stanze si distinguono)');
 ok(/cvForce/.test(cons) && /body\.force=true/.test(cons) && /j\.error==='overlap'/.test(cons) && /Crea comunque/.test(cons),
@@ -256,6 +256,27 @@ ok(/if \(contract\.landlordSignature\) return \{ asked: false, why: 'signed' \};
   'puntini: la richiesta al locatore NON parte se ha firmato, se non manca niente o senza email; il testo è quello del dizionario');
 ok(/sel\('tIdDocType','ID document type',''\)/.test(src('pre-agreement.html')) && /idDocType: docCode\(/.test(src('api/preagreement/submit.js')) && /docType: t\.idDocType \|\| ''/.test(convS) && /transitionalDocs: uploads\.some\(u => u && u\.kind === 'extra'\)/.test(convS),
   'puntini: tipo di documento e attestazione dell\'esigenza viaggiano dalla proposta al contratto');
+
+// IL 4+4 NON È UN TRANSITORIO (15/10/2026): la console offriva «4+4 Residential»
+// e il dispatcher mandava «tutto il resto» all'Allegato B — un contratto libero
+// stampato come transitorio. Ora il tipo è riconosciuto e il PDF si rifiuta.
+{
+  const M = (await import('../../js/mandato-engine.js')).default;
+  const CP = (await import('../../js/contract-pdf.js')).default;
+  ok(leaseType(undefined, { type: '4+4 Residential' }) === '4+4' && leaseType('4+4', {}) === '4+4' && leaseType(undefined, { type: 'Canone libero' }) === '4+4',
+    'leaseType: il 4+4 / canone libero è riconosciuto, non ricade sul transitorio');
+  ok(M.modelOfContract({ type: '4+4' }) === '4+4' && M.modelOfContract({ type: 'transitorio' }) === 'transitorio', 'modelOfContract: 4+4 distinto dal transitorio');
+  let threw = null;
+  try { CP.build({ jsPDF: function () { throw new Error('non deve impaginare'); }, contractId: 'x', contract: { type: '4+4' } }); } catch (e) { threw = e; }
+  ok(threw && threw.code === 'no_template', 'contract-pdf: un 4+4 NON viene impaginato come Allegato B (errore no_template prima di jsPDF)');
+  ok(/art\.5 c\.2/.test(M.lawRefOf({ type: 'Student Housing (Allegato C)' })) && /art\.2 c\.3/.test(M.lawRefOf({ type: '3+2 Concordato' }))
+     && /art\.5 c\.1/.test(M.lawRefOf({ type: 'Transitional Lease' })) && /art\.2 c\.1/.test(M.lawRefOf({ type: '4+4 Residential' })),
+    'lawRefOf: la proposta cita la legge del SUO tipo (prima sempre «transitorio art.5 c.1»)');
+  ok(/MANDATO\.lawRefOf\(l\)/.test(src('api/preagreement/create.js')) && /MANDATO\.lawRefOf\(data\.lease\)/.test(src('api/preagreement/lookup.js')) && /MANDATO\.lawRefOf\(le\)/.test(src('api/preagreement/_notify.js')),
+    'lawRef derivato dal tipo in create, lookup (proposte vecchie comprese) ed email');
+  ok(/value="4\+4 Residential" disabled/.test(cons), 'la console non offre più il 4+4 come scelta firmabile');
+  ok(/out\.error === 'no_template'/.test(src('api/preagreement/_auto.js')) && /contract\.no_template/.test(src('api/preagreement/_auto.js')), 'il contratto automatico bloccato sul 4+4 avvisa l\'operatore');
+}
 
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

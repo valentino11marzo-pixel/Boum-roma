@@ -3038,6 +3038,20 @@ locato», «E'» → «È», «dei presente» → «del presente»).
   `pDur`), Foglio/Fascicolo/verbale/inventario (a parole), Pack e iter ASPI
   (nessuna «attestazione esigenza» chiesta o segnata mancante).
 
+**IL 4+4 NON È UN TRANSITORIO** (15/10/2026). La console proponeva «4+4
+Residential» e `contract-pdf.js` mandava «tutto il resto» all'Allegato B:
+un contratto a canone libero usciva impaginato come transitorio. In più il
+riferimento di legge della proposta (`lawRef`) era scritto fisso «uso
+transitorio · art.5 c.1» anche su studenti e 3+2, e il cliente firmava la
+proposta con la legge sbagliata. Ora `modelOfLease`/`modelOfContract`
+(js/mandato-engine.js) riconoscono `'4+4'`; `contract-pdf.build` lo RIFIUTA
+(`err.code='no_template'`, prima di jsPDF) e `convert` risponde 409
+`no_template` senza scrivere nulla (il contratto automatico avvisa con
+`contract.no_template`); la console non offre più il 4+4. `lawRefOf(lease)`
+deriva la legge dal tipo in console, create, lookup (anche sulle proposte
+vecchie) ed email. Il 4+4 tornerà quando esiste un modello. Test:
+`tests/firma` (in coda) e `tests/money` §7b.
+
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
 Allegato B` — ma delle TRE strade che creano un contratto, due non

@@ -77,13 +77,34 @@
   // Il tipo di contratto DECIDE il modello (Allegato B/C/A). Una copia sola:
   // convert.leaseType delega qui. Il chiamante esplicito vince, altrimenti
   // si legge la tendina della console sulla proposta.
+  // Il 4+4 (canone libero, art. 2 c. 1 L.431/98) NON ha un modello nel
+  // repo: prima cadeva nel «tutto il resto → transitorio» e una proposta
+  // «4+4 Residential» diventava un contratto Allegato B con l'esigenza
+  // transitoria su quattro anni. Ora si riconosce e si nomina: chi lo legge
+  // (convert, contract-pdf) si FERMA invece di stampare il modello sbagliato.
+  // «Ordinaria» (Innesto: «Ordinaria / altro») è la stessa cosa: nessun
+  // modello a cui ricondurla.
+  const FREE_RE = /4\s*\+\s*4|canone libero|^\s*(libero|ordinari[ao])\s*$/i;
   function modelOfLease(explicit, lease) {
-    if (explicit === 'studenti' || explicit === 'transitorio' || explicit === '3+2') return explicit;
+    if (explicit === 'studenti' || explicit === 'transitorio' || explicit === '3+2' || explicit === '4+4') return explicit;
     const t = String((lease || {}).type || '');
     if (/student/i.test(t)) return 'studenti';
     if (/3\s*\+\s*2|allegato a\b/i.test(t)) return '3+2';
+    if (FREE_RE.test(t)) return '4+4';
     return 'transitorio';
   }
+
+  // Il riferimento di legge che la proposta stampa sotto il tipo. Prima la
+  // console mandava SEMPRE «uso transitorio · art.5 c.1», anche su una
+  // proposta studenti o 3+2: il cliente firmava un documento che citava la
+  // legge di un altro contratto. Si deriva dal modello, mai dal client.
+  const LAW_REF = {
+    transitorio: 'uso transitorio · L.431/98 art.5 c.1',
+    studenti: 'studenti universitari · L.431/98 art.5 c.2',
+    '3+2': 'canone concordato · L.431/98 art.2 c.3',
+    '4+4': 'canone libero · L.431/98 art.2 c.1',
+  };
+  function lawRefOf(lease) { return LAW_REF[modelOfLease(undefined, lease)]; }
 
   const cadence = (n) => ([1, 2, 3, 6, 12].includes(Number(n)) ? Number(n) : 1);
   const num = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0; };
@@ -94,6 +115,7 @@
     const t = String((c || {}).type || '').toLowerCase();
     if (t === 'studenti') return 'studenti';
     if (t === '32' || /^3\s*\+\s*2$/.test(t) || t === 'concordato') return '3+2';
+    if (FREE_RE.test(t)) return '4+4';
     return 'transitorio';
   }
 
@@ -226,7 +248,7 @@
       : d.label + ': ' + fmt(d.from) + ' → ' + fmt(d.to)).join(' · ');
   }
 
-  const API = { VERSION, LABELS, normText, normClauses, modelOfLease, modelOfContract, termsFromProposal, termsFromContract, proposalPropertyId, alignPropertyToSnapshot, termsForMandate, canonical, diffTerms, describeDiff };
+  const API = { VERSION, LABELS, LAW_REF, normText, normClauses, modelOfLease, lawRefOf, modelOfContract, termsFromProposal, termsFromContract, proposalPropertyId, alignPropertyToSnapshot, termsForMandate, canonical, diffTerms, describeDiff };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_MANDATO = API;
 })(typeof window !== 'undefined' ? window : this);
