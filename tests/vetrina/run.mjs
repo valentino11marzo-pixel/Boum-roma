@@ -110,12 +110,17 @@ const ctx = await browser.newContext({
   viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
 const page = await ctx.newPage();
 const errs = [];
+const catalogRequests = [];
 page.on('pageerror', (e) => errs.push(String(e).split('\n')[0]));
+page.on('request', (r) => {
+  if (r.url().includes('/api/listings') || r.url().includes('firestore.googleapis.com'))
+    catalogRequests.push(r.url());
+});
 await page.route('**/*', (r) => {
   const u = r.request().url();
-  if (u.includes('firestore.googleapis.com'))
+  if (u.includes('/api/listings?format=firestore'))
     return r.fulfill({ status: 200, contentType: 'application/json',
-      body: JSON.stringify(FINTO) });
+      body: JSON.stringify({ ok: true, count: FINTO.documents.length, ...FINTO }) });
   if (u.startsWith('http://127.0.0.1:' + PORT + '/')) return r.continue();
   if (u.includes('firebasestorage'))
     return r.fulfill({ status: 200, contentType: 'image/png', body: PNG });
@@ -188,6 +193,9 @@ await check('ordinamento «nuove»: la nata oggi apre il muro',
   () => r.prima.id === 'nuova1');
 await check('senza foto di casa nostra la carta non nasce', () => !r.fantasma);
 await check('status draft resta fuori', () => !r.bozza);
+await check('la vetrina legge solo la proiezione API, non Firestore diretto',
+  () => catalogRequests.some(u => u.includes('/api/listings?format=firestore'))
+    && !catalogRequests.some(u => u.includes('firestore.googleapis.com')));
 await check('il lavoro storico dell\'idrante continua (build → Rented)',
   () => r.buildRented);
 

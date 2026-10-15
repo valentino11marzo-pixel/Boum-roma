@@ -33,12 +33,14 @@ import { gzipSync } from 'node:zlib';
 import { fsList } from '../homie/_lib.js';
 import GEO from '../../js/boom-geo.js';
 import DISPO from '../../js/dispo-engine.js';
+import { isPublicListing } from '../_public-listing.js';
 
 const ISTAT_ROMA = '058091';
 const AGENCY_EMAIL = process.env.FEED_AGENCY_EMAIL || process.env.GMAIL_USER || '';
 
-export const feedKey = () =>
-  crypto.createHash('sha256').update('feed-immobiliare:' + (process.env.HOMIE_SECRET || 'boom')).digest('hex').slice(0, 32);
+export const feedKey = () => process.env.HOMIE_SECRET
+  ? crypto.createHash('sha256').update('feed-immobiliare:' + process.env.HOMIE_SECRET).digest('hex').slice(0, 32)
+  : null;
 
 const cdata = (s) => '<![CDATA[' + String(s == null ? '' : s).replace(/\]\]>/g, ']]]]><![CDATA[>') + ']]>';
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -61,9 +63,9 @@ export const typologyId = (l) => TYPOLOGY[String(l.type || '').toLowerCase()] ||
 // il segmento del blocco anticipato. Resta fuori solo ciò di cui non
 // sappiamo quando si libera. Vetrina, feed e Pubblicista leggono questa.
 export const publishable = (l) => {
-  if (!l.name || !(Number(l.price) > 0)) return false;
+  if (!isPublicListing(l) || !l.name || !(Number(l.price) > 0)) return false;
   return DISPO.marketLane({
-    ...l, status: l.availabilityStatus || l.status || 'available',
+    ...l, status: l.status || l.availabilityStatus,
   }).lane !== 'closed';
 };
 
@@ -140,8 +142,10 @@ export function buildFeed(listings, opts = {}) {
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
+  const expectedKey = feedKey();
+  if (!expectedKey) return res.status(503).json({ ok: false, error: 'feed_unconfigured' });
   const k = String(req.query?.k || '');
-  if (!k || !crypto.timingSafeEqual(Buffer.from(k.padEnd(32).slice(0, 32)), Buffer.from(feedKey()))) {
+  if (!k || !crypto.timingSafeEqual(Buffer.from(k.padEnd(32).slice(0, 32)), Buffer.from(expectedKey))) {
     return res.status(401).json({ ok: false, error: 'bad_key' });
   }
   try {
@@ -149,11 +153,10 @@ export default async function handler(req, res) {
     const opts = { extended: req.query?.core !== '1' };
     const wantId = String(req.query?.id || '');
     if (wantId) {
-      // Nodo singolo per il PUT REST: qui anche un NON pubblicabile ha senso
-      // (il Mac può doverlo leggere per capire cosa c'è) — ma se non è
-      // pubblicabile lo diciamo con un 404 esplicito, mai con un nodo vuoto.
+      // Il Mac chiede un nodo per il PUT REST. Un ID privato è indistinguibile
+      // da uno inesistente; una casa pubblica ma chiusa conserva il 409.
       const one = listings.find((l) => l.id === wantId);
-      if (!one) return res.status(404).json({ ok: false, error: 'listing_not_found' });
+      if (!one || !isPublicListing(one)) return res.status(404).json({ ok: false, error: 'listing_not_found' });
       if (!publishable(one)) return res.status(409).json({ ok: false, error: 'not_publishable' });
       res.setHeader('Content-Type', 'application/xml; charset=utf-8');
       return res.status(200).send('<?xml version="1.0" encoding="UTF-8"?>\n' + propertyNode(one, opts) + '\n');

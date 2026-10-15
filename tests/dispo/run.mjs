@@ -112,10 +112,19 @@ ok(D.resolve({}, TODAY).kind === 'unknown', 'nessun campo → unknown');
    ───────────────────────────────────────────────────────────────────── */
 console.log('\n▸ label(): un posto solo, così le pagine non si contraddicono');
 
-ok(/available now/i.test(D.label({ availableDate: 'Subito' }, 'en', TODAY).text), 'EN · ora');
-ok(/disponibile ora/i.test(D.label({ availableDate: 'Subito' }, 'it', TODAY).text), 'IT · ora');
-ok(/free from/i.test(D.label({ availableFrom: '2026-09-01' }, 'en', TODAY).text), 'EN · dal…');
-ok(/libera dal/i.test(D.label({ availableFrom: '2026-09-01' }, 'it', TODAY).text), 'IT · dal…');
+ok(/available now/i.test(D.label({ status: 'available', availableDate: 'Subito' }, 'en', TODAY).text), 'EN · ora');
+ok(/disponibile ora/i.test(D.label({ status: 'available', availableDate: 'Subito' }, 'it', TODAY).text), 'IT · ora');
+ok(/free from/i.test(D.label({ status: 'available', availableFrom: '2026-09-01' }, 'en', TODAY).text), 'EN · dal…');
+ok(/libera dal/i.test(D.label({ status: 'available', availableFrom: '2026-09-01' }, 'it', TODAY).text), 'IT · dal…');
+ok(D.marketLane({ availableDate: 'Subito' }, TODAY).lane === 'closed'
+  && D.label({ availableDate: 'Subito' }, 'en', TODAY).text === 'Availability to confirm',
+  'senza stato, anche «Subito» non dichiara una casa libera');
+ok(D.marketLane({ status: 'draft', availableDate: 'Subito' }, TODAY).lane === 'closed'
+  && D.laneCopy({ status: 'draft', availableDate: 'Subito' }, 'it', TODAY).short === 'Disponibilità da confermare',
+  'stato fuori grammatica non diventa available');
+ok(D.needsAvailabilityReview({ status: 'rented', availableDate: '2026-07-01' }, TODAY)
+  && !D.needsAvailabilityReview({ status: 'rented', availableFrom: '2027-07-01' }, TODAY),
+  'data libera storica di una casa affittata richiede revisione, quella contrattuale futura no');
 ok(D.label({ status: 'waitlist' }, 'en', TODAY).tone === 'waitlist', 'waitlist ha voce propria');
 
 // LA REGRESSIONE COSTOSA, asserita sulle parole finali:
@@ -267,6 +276,7 @@ const DB = new Map([
   ['listings/levico', { name: 'Levico', zone: 'Trieste', status: 'available', availableDate: 'Sep 2026' }],
   ['listings/cavour', { name: 'Bilocale Cavour', zone: 'Monti', status: 'available', availableDate: '' }],
   ['listings/vecchia', { name: 'Casa Vecchia', zone: 'Prati', status: 'rented', availableDate: '' }],
+  ['listings/senzastato', { name: 'Stato ignoto', zone: 'Prati', availableDate: 'Subito' }],
 ]);
 const enc = (v) => (v === null || v === undefined) ? { nullValue: null }
   : typeof v === 'number' ? (Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v })
@@ -326,6 +336,10 @@ out = await call('GET');
 ok(out.code === 200 && out.payload.ok, 'GET col segreto del bot → il quadro');
 ok(out.payload.listings[0].kind === 'unknown',
   'la lista di lavoro mette per PRIMI quelli senza data', out.payload.listings.map(l => l.name));
+const senzaStato = out.payload.listings.find(l => l.id === 'senzastato');
+ok(senzaStato && senzaStato.status === 'unknown' && senzaStato.lane === 'closed'
+  && senzaStato.vetrina === 'Disponibilità da confermare',
+  'GET reale: un listing senza status non diventa disponibile');
 
 out = await call('POST', { text: 'Levico dal 1 settembre, Cavour subito' });
 ok(out.code === 200 && out.payload.dry === true, 'POST {text} senza apply NON scrive: mostra il piano');

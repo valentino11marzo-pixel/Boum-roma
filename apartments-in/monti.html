@@ -742,20 +742,17 @@ html {
 })();
 </script>
 
-<!-- Firebase + Firestore for live listings -->
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script>
-firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
-const db=firebase.firestore();
 
 (async function loadZoneListings(){
   const grid=document.getElementById('listingsGrid');
   const matchAttr=grid.getAttribute('data-zone-match')||'';
   const terms=matchAttr.toLowerCase().split('|').filter(Boolean);
   try{
-    const snap=await db.collection('listings').get();
-    const all=snap.docs.map(d=>({id:d.id,...d.data()}));
+    const response=await fetch('/api/listings',{cache:'no-store'});
+    const payload=response.ok?await response.json():null;
+    if(!payload||!payload.ok||!Array.isArray(payload.listings))throw new Error('catalog_unavailable');
+    const all=payload.listings;
     const matched=all.filter(l=>{
       const s=(l.status||l.availabilityStatus||'').toLowerCase();
       if(s==='rented'||s==='affittato'||s==='off_market')return false;

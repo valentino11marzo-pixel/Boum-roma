@@ -10,6 +10,8 @@
 // that would break the chat UX.
 
 import { ai } from './_ai.js';
+import DISPO from '../js/dispo-engine.js';
+import { projectPublicListing } from './_public-listing.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '64kb' } } };
 
@@ -25,7 +27,7 @@ const RATE_MAX = 12;     // requests / window / IP
 const RATE_WINDOW_MS = 60_000;
 
 const WHATSAPP = '+39 331 325 1961';
-const FALLBACK = `I couldn't reach our AI just now — but our team can answer instantly. Message BOOM on WhatsApp at ${WHATSAPP}, or apply on this page and we'll reply within 2 hours.`;
+const FALLBACK = `I couldn't reach our AI just now — but our team can help. Message BOOM on WhatsApp at ${WHATSAPP} for current details and alternatives.`;
 
 const rl = new Map(); // ip -> { c, t }
 function clientIp(req) {
@@ -76,15 +78,16 @@ async function readListing(id) {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings/${encodeURIComponent(id)}?key=${FB_KEY}`;
   let r = await fetch(url);
   if (r.status === 403) { const t = await adminToken(); if (t) r = await fetch(url, { headers: { Authorization: `Bearer ${t}` } }); }
-  if (!r.ok) return null;
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('listing_read_failed');
   const doc = await r.json();
   const f = doc.fields || {};
   const d = {};
   for (const k in f) d[k] = fv(f[k]);
-  return d;
+  return projectPublicListing(id, d);
 }
 
-function buildContext(d) {
+export function buildContext(d) {
   const pick = (...keys) => { for (const k of keys) if (d[k] != null && d[k] !== '') return d[k]; return undefined; };
   const lines = [];
   lines.push(`Name: ${pick('name') || 'This apartment'}`);
@@ -96,28 +99,29 @@ function buildContext(d) {
   if (d.floor) lines.push(`Floor: ${d.floor}`);
   if (d.type) lines.push(`Type: ${d.type}`);
   if (d.furnished) lines.push(`Furnished: ${d.furnished}`);
-  if (d.availableDate) lines.push(`Available from: ${d.availableDate}`);
+  lines.push(`Listing lane: ${DISPO.marketLane(d).lane}`);
+  lines.push(`Availability: ${DISPO.laneCopy(d, 'en').long}`);
+  if (d.videoUrl || d.youtubeUrl) lines.push('Video tour: available for this home');
   if (Array.isArray(d.features) && d.features.length) lines.push(`Features & amenities: ${d.features.slice(0, 40).join(', ')}`);
   if (Array.isArray(d.tags) && d.tags.length) lines.push(`Tags: ${d.tags.slice(0, 20).join(', ')}`);
-  if (d.description) lines.push(`Description: ${String(d.description).slice(0, 1600)}`);
+  // A residual availableDate on a closed home makes the older commercial
+  // description unsafe to repeat, including in the model's private context.
+  if (d.description && !DISPO.needsAvailabilityReview(d))
+    lines.push(`Description: ${String(d.description).slice(0, 1600)}`);
   return lines.join('\n');
 }
 
-const SYSTEM = `You are the BOOM concierge for one specific rental apartment in Rome. You speak for BOOM (boomrome.com), a premium, transparency-first rental agency.
+export const SYSTEM = `You are the BOOM concierge for one specific rental apartment in Rome. You speak for BOOM (boomrome.com), a rental agency.
 
-Answer the visitor's question about THIS apartment — warmly, concisely (2-5 sentences), and honestly. Use ONLY the apartment facts provided plus the BOOM policies below. Never invent specifics (exact address, precise availability, floor, size, price) that aren't in the facts; if asked for something not provided, say you'll connect them with the team.
+Answer the visitor's question about THIS apartment — warmly, concisely (2-5 sentences), and honestly. Use ONLY the apartment facts provided plus the BOOM guidance below. Never invent specifics (exact address, precise availability, floor, size, price) that aren't in the facts; if asked for something not provided, say you'll connect them with the team.
 
-BOOM policies (always true):
-- Agency fee: either one month's rent, OR 10% of the annual rent — it varies by apartment, and we always tell you which before you sign.
-- Security deposit: one month, fully refundable, held safe with guarantees under Italian law, returned at move-out minus only documented damage.
-- Move-in: as fast as 48 hours. We reply within 2 hours. No fee to apply.
-- Contract: a legal, registered Italian lease, available in English.
-- Payments: securely via Stripe, by card, in English.
-- Reserve & hold: from €300, fully refundable, deducted from your first month — takes the home off-market while we process your application.
-- Utilities (electricity, water, gas, internet, TARI waste tax, condo fees) are billed separately to you; we help you set them all up.
-- Every listing is video-verified. No hidden fees. 24/7 WhatsApp support.
+BOOM guidance:
+- Explain only the rent, deposit, agency fee, move-in date, photos and video tour that appear in the apartment facts. If a figure or condition is missing, say BOOM will confirm it before any payment or signature.
+- BOOM can help with a written pre-agreement and an Italian registered lease; the exact terms depend on this home and the applicant.
+- A hold or payment is available only when BOOM confirms eligibility and offers it for this home. Do not promise a specific refund, move-in speed or response time without verified facts.
+- Utilities and services vary by home. Ask BOOM to confirm what is included.
 
-For viewings, exact availability, or anything you don't know: invite them to apply (the form on this page) or message BOOM on WhatsApp at ${WHATSAPP}. If the question isn't about this apartment, renting with BOOM, or living in Rome, gently steer back. Plain text only — no markdown, no headers, no bullet symbols.`;
+Use the Listing lane in the facts: when it is closed, do not invite an application or hold; offer WhatsApp help to check this home and alternatives. For now or ahead, you may point to the application form, but ask BOOM to confirm dates and terms. For viewings or anything you do not know, offer WhatsApp at ${WHATSAPP}. If the question is not about this apartment, renting with BOOM, or living in Rome, gently steer back. Plain text only — no markdown, no headers, no bullet symbols.`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -130,12 +134,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ answer: FALLBACK });
-
   const ip = clientIp(req);
   if (!rateOk(ip)) {
     res.setHeader('Retry-After', '60');
-    return res.status(200).json({ answer: `You're asking fast! Give me a few seconds — or message us on WhatsApp at ${WHATSAPP} and we'll jump right in.` });
+    return res.status(200).json({ answer: `You're asking fast! Please try again shortly, or message BOOM on WhatsApp at ${WHATSAPP} for help.` });
   }
 
   const body = (req.body && typeof req.body === 'object') ? req.body : {};
@@ -143,8 +145,12 @@ export default async function handler(req, res) {
   const question = String(body.question || '').trim().slice(0, Q_MAX);
   if (!id || !question) return res.status(400).json({ error: 'Missing id or question' });
 
-  let context = '';
-  try { const d = await readListing(id); if (d) context = buildContext(d); } catch { /* answer from policy */ }
+  let listing;
+  try { listing = await readListing(id); }
+  catch { return res.status(200).json({ answer: FALLBACK }); }
+  if (!listing) return res.status(404).json({ error: 'listing_not_found' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ answer: FALLBACK });
+  const context = buildContext(listing);
 
   const messages = [];
   if (Array.isArray(body.history)) {
@@ -157,7 +163,7 @@ export default async function handler(req, res) {
   }
   messages.push({
     role: 'user',
-    content: `Apartment facts:\n${context || '(facts unavailable — answer from BOOM policy and invite them to ask the team for specifics)'}\n\nVisitor question: ${question}`,
+    content: `Apartment facts:\n${context}\n\nVisitor question: ${question}`,
   });
 
   try {

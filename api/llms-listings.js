@@ -8,9 +8,10 @@
 //
 // Served at /llms-listings.txt (vercel.json rewrite), referenced from
 // llms.txt and robots.txt. Same resilient Firestore read as /api/listings
-// (public first, admin fallback), edge-cached 10 minutes.
+// (public first, admin fallback), edge-cached 2 minutes.
 
 import DISPO from '../js/dispo-engine.js';
+import { projectPublicListing } from './_public-listing.js';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
@@ -37,10 +38,11 @@ function fv(v) {
 
 function parseDoc(doc) {
   if (!doc || !doc.name) return null;
-  const out = { id: doc.name.split('/').pop() };
+  const id = doc.name.split('/').pop();
+  const raw = {};
   const f = doc.fields || {};
-  for (const k in f) out[k] = fv(f[k]);
-  return out;
+  for (const k in f) raw[k] = fv(f[k]);
+  return projectPublicListing(id, raw);
 }
 
 async function adminToken() {
@@ -101,26 +103,17 @@ function availability(l, today) {
       ? 'reservable ahead — occupied now, free from ' + lane.iso
       : 'reservable ahead — occupied now, release date on request';
   }
-  if (String(l.status || '').toLowerCase() === 'waitlist') {
-    return 'waitlist — currently occupied, can be reserved ahead';
-  }
-  // Prima qui c'era `return 'available now'` come fallback: un annuncio con
-  // la data scritta a mano ("Sep 2026", "da concordare") veniva dichiarato
-  // LIBERO ORA ai motori di risposta. Su questa superficie è più grave che in
-  // pagina: un'AI cita il fatto e lo ripete a chi non ha ancora visto il sito.
-  const r = DISPO.resolve(l, today);
-  if (r.kind === 'now') return 'available now';
-  if (r.kind === 'date') return 'available from ' + r.iso;
+  // Un testo illeggibile resta ignoto anche se la corsia è trattabile.
+  // Stato `available` esplicito senza data conserva il verdetto del motore.
+  if (lane.lane === 'now' && !lane.dateUnreadable) return 'available now';
   return 'availability on request — ask BOOM for the exact date';
 }
 
 export default async function handler(req, res) {
   try {
     const all = await resilient(readAll);
-    const rentable = all.filter((l) => {
-      const s = String(l.status || 'available').toLowerCase();
-      return (s === 'available' || s === 'waitlist') && l.name && l.price;
-    });
+    const rentable = all.filter((l) => l && l.name && Number(l.price) > 0
+      && DISPO.marketLane(l).lane !== 'closed');
     const today = new Date().toISOString().slice(0, 10);
     rentable.sort((a, b) =>
       (a.status === 'waitlist') - (b.status === 'waitlist') ||
@@ -129,7 +122,9 @@ export default async function handler(req, res) {
 
     // «disponibili» sono quelle in cui si entra ORA: una available con data
     // futura stava nel conteggio delle libere e gonfiava la promessa.
-    const nowN = rentable.filter((l) => DISPO.marketLane(l, today).lane === 'now').length;
+    const nowN = rentable.filter((l) => DISPO.marketLane(l, today).lane === 'now'
+      && !DISPO.marketLane(l, today).dateUnreadable).length;
+    const aheadN = rentable.filter((l) => DISPO.marketLane(l, today).lane === 'ahead').length;
 
     const out = [];
     out.push('# BOOM Rome — Live rental inventory');
@@ -140,7 +135,7 @@ export default async function handler(req, res) {
     out.push('> move-in from approval. Operated by Egidi Immobiliare S.r.l., a registered Italian');
     out.push('> agency (Via dei Coronari 181/184, 00186 Roma). Site guide: https://www.boomrome.com/llms.txt');
     out.push('');
-    out.push(`_${rentable.length} homes (${nowN} available now, ${rentable.length - nowN} occupied but reservable ahead with a known release date) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 10 minutes_`);
+    out.push(`_${rentable.length} homes (${nowN} available now, ${aheadN} reservable ahead, ${rentable.length - nowN - aheadN} availability on request) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 2 minutes_`);
     out.push('');
 
     for (const l of rentable) {
@@ -176,7 +171,7 @@ export default async function handler(req, res) {
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400');
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120');
     return res.end(out.join('\n'));
   } catch (e) {
     res.statusCode = 503;

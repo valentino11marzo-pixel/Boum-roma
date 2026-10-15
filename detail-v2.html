@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <title>BOOM — Listing Experience V2 (Preview)</title>
-<link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -535,9 +534,9 @@ function exYT(u){if(!u)return null;var m=String(u).match(/(?:youtube\.com\/watch
 
 var D=null, IMGS=[], lbIdx=0;
 
-fetch('https://firestore.googleapis.com/v1/projects/'+PROJECT+'/databases/(default)/documents/listings/'+encodeURIComponent(id)+'?key='+KEY)
+fetch('/api/listings?id='+encodeURIComponent(id),{cache:'no-store'})
  .then(function(r){if(!r.ok)throw 0;return r.json();})
- .then(function(doc){var f=doc.fields||{},d={};for(var k in f)d[k]=fv(f[k]);render(d);})
+ .then(function(payload){if(!payload||!payload.listing)throw 0;render(payload.listing);})
  .catch(function(){ $('boot').classList.add('off'); $('err').style.display='block'; });
 
 function render(d){
@@ -556,8 +555,8 @@ function render(d){
   if(zone){zEl.textContent=zone; if(slug)zEl.href='/apartments-in/'+slug;}else zEl.style.display='none';
   var price=rent?fmt(rent):'—';
   $('heroPrice').textContent=price; $('barPrice').textContent=price; $('barName').textContent=name;
-  var st=String(d.status||'available').toLowerCase(), bd=$('heroBadges');
-  bd.innerHTML = (/rented|affittato/.test(st)?'<span class="hbadge" style="color:#FF6B60;background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.35)">● Rented</span>':/waitlist/.test(st)?'<span class="hbadge" style="color:#FF9500;background:rgba(255,149,0,.12);border-color:rgba(255,149,0,.3)">● Waitlist</span>':'<span class="hbadge av">● Available</span>')
+  var st=String(d.status||d.availabilityStatus||'').toLowerCase(), bd=$('heroBadges');
+  bd.innerHTML = (/rented|affittato/.test(st)?'<span class="hbadge" style="color:#FF6B60;background:rgba(255,59,48,.15);border-color:rgba(255,59,48,.35)">● Rented</span>':/waitlist/.test(st)?'<span class="hbadge" style="color:#FF9500;background:rgba(255,149,0,.12);border-color:rgba(255,149,0,.3)">● Waitlist</span>':st==='available'?'<span class="hbadge av">● Available</span>':'<span class="hbadge">● Availability to confirm</span>')
     +'<span class="hbadge vf">✓ Verified by BOOM</span>'+(vId?'<span class="hbadge vd">▶ Video tour</span>':'');
 
   // facts

@@ -61,6 +61,8 @@ const SUITES = [
   { name: 'geo',      file: 'tests/geo/run.mjs',          what: 'precisione dei pin: portone, strada o quartiere — mai spacciati' },
   { name: 'tempi',    file: 'tests/tempi/run.mjs',        what: 'i tempi porta-a-porta dal GTFS: il builder misura sulla rete vera (fixture zip round-trip), la griglia non inventa mai dove non copre, e le pagine degradano alla stima dichiarata' },
   { name: 'dispo',    file: 'tests/dispo/run.mjs',        what: 'date di disponibilità: una data illeggibile non diventa MAI "libera ora", un messaggio aggiorna tutte le case, e una data sola non si spalma su chi non è stato nominato' },
+  { name: 'catalogtruth', file: 'tests/catalog-truth/run.mjs', what: 'catalogo: stato ignoto non diventa libero, la scheda SSR nasconde un testo con data residua e la candidatura è confermata solo dal server' },
+  { name: 'catalogprivacy', file: 'tests/catalog-privacy-server/run.mjs', what: 'proiezione pubblica coerente su catalogo, motori e feed; gli endpoint cron richiedono auth anche in dry run' },
   { name: 'vetrina',  file: 'tests/vetrina/run.mjs',      what: 'l\'innesto della vetrina: un annuncio nato DOPO la build appare e viene contato, i filtri lo mordono, e senza foto o con stato ignoto la carta non nasce' },
   { name: 'prenota',  file: 'tests/prenota/run.mjs',      what: 'la corsia del pre-blocco: una casa occupata con data nota si PRENOTA (e la data si vede ovunque), l\'affittata si apre solo col contratto — mai su un testo residuo — e l\'anno che il motore deduce lo dichiara all\'operatore' },
   { name: 'parser',   file: 'tests/parser/run.mjs',      what: 'Doc Parser: si apre con l\'ID token dell\'admin (mai un segreto nel browser), e un non-admin non spende un token' },

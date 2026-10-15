@@ -14,8 +14,11 @@
 //      rules are locked to admins)
 // Edge-cached so a broken-rules state never hammers Firestore.
 //
-// GET /api/listings        → { ok, count, listings:[{id, ...fields}] }
-// GET /api/listings?id=xyz → { ok, listing:{id, ...fields} | null }
+// GET /api/listings        → { ok, count, listings:[{id, ...publicFields}] }
+// GET /api/listings?id=xyz → { ok, listing:{id, ...publicFields} | null }
+
+import { projectPublicListing } from './_public-listing.js';
+import { toFsFields } from './homie/_lib.js';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
@@ -43,10 +46,11 @@ function fv(v) {
 
 function parseDoc(doc) {
   if (!doc || !doc.name) return null;
-  const out = { id: doc.name.split('/').pop() };
+  const id = doc.name.split('/').pop();
+  const out = {};
   const f = doc.fields || {};
   for (const k in f) out[k] = fv(f[k]);
-  return out;
+  return projectPublicListing(id, out);
 }
 
 // Sign in as the admin user (email/password) to obtain an ID token.
@@ -108,13 +112,22 @@ async function resilient(fn) {
 export default async function handler(req, res) {
   const id = ((req.query && req.query.id) || '').toString().trim();
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120, stale-while-revalidate=600');
+  // A withdrawn listing must leave the shared catalog after a bounded TTL.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120');
   try {
     if (id) {
       const listing = await resilient((t) => readOne(id, t));
       return res.status(200).json({ ok: true, listing });
     }
     const listings = await resilient((t) => readAll(t));
+    if (req.query?.format === 'firestore') {
+      // Temporary compatibility shape for the existing home/grid/board code.
+      // Its fields come only from the same public projection as the plain API.
+      const documents = listings.map(({ id: listingId, ...fields }) => ({
+        name: `${FS}/listings/${listingId}`, fields: toFsFields(fields),
+      }));
+      return res.status(200).json({ ok: true, count: documents.length, documents });
+    }
     return res.status(200).json({ ok: true, count: listings.length, listings });
   } catch (e) {
     res.setHeader('Cache-Control', 'no-store');

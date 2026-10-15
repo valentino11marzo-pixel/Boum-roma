@@ -105,7 +105,7 @@ async function loadCatalog() {
     zone: l.zone || l.neighborhood || '',
     address: l.address || '',
     type: l.type || '',
-    status: String(l.status || l.availabilityStatus || 'available').toLowerCase(),
+    status: String(l.status || l.availabilityStatus || '').toLowerCase(),
     availableFrom: l.availableFrom,
     availableDate: l.availableDate,
   }));
