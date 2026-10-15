@@ -213,7 +213,7 @@ function faqPageJsonLd() {
     ],
     [
       'What contracts does BOOM use in Rome?',
-      'Fully legal Italian contracts — transitorio (1–18 months), rent-controlled 3+2 and student formats. Every contract is registered with the Agenzia delle Entrate.',
+      'Fully legal Italian contracts — transitorio (3–18 months), rent-controlled 3+2 and student formats. Every contract is registered with the Agenzia delle Entrate.',
     ],
     [
       'Can I view a Rome apartment remotely before signing?',

@@ -549,6 +549,15 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   const offer = (svc.find(s => /pacchetto/.test(s['@id'])) || {}).offers || {};
   ok('l\'offerta del Pacchetto dichiara il prezzo del catalogo', offer.price === '349' && offer.priceCurrency === 'EUR', offer);
   ok('«in breve» dichiara cosa NON facciamo', /Cosa non facciamo/.test(vis) && /Non subaffittiamo/.test(vis));
+  // Con BOOM si affitta da 3 mesi in su (decisione del fondatore, 15/10/2026):
+  // la pagina diceva «da un mese in su» e «transitorio da 1 a 18 mesi». La
+  // regola di classe sta in tests/verita; qui il proprietario legge il minimo
+  // vero nei tre punti in cui la pagina parla di durata, in entrambe le lingue.
+  ok('il minimo è 3 mesi dove la pagina parla di durata (scheda, contratti, FAQ — IT e EN)',
+    /solo contratti registrati, da tre mesi in su/.test(vis) && /only registered leases, from three months up/.test(vis)
+    && /con BOOM da 3 a 18 mesi/.test(vis) && /3 to 18 months with BOOM/.test(vis)
+    && /transitorio per chi è qui per lavoro \(con noi da 3 a 18 mesi\)/.test(vis) && /transitional for people here for work \(3 to 18 months with us\)/.test(vis)
+    && !/da un mese in su|from one month up|1–18 mesi|1–18 months|da 1 a 18 mesi|from 1 to 18 months/.test(html));
 }
 {
   // /owners?lang=en è lo STESSO file e si auto-canonicalizza su /owners: un

@@ -178,6 +178,45 @@ console.log('\n\x1b[1m▸ il lead è un TENANT dentro la macchina esistente\x1b[
   ok('una lingua inventata cade sull\'inglese, MAI sull\'italiano', r.lead.language === 'en');
 }
 
+// Con BOOM si affitta da 3 mesi in su (decisione del fondatore, 15/10/2026).
+// Il modulo non offre piu' «1–3 mesi»; il server pero' deve continuare ad
+// accettare un valore vecchio (pagina in cache, POST a mano) — un contatto non
+// si perde per una durata — e deve DIRLO all'operatore prima che risponda.
+console.log('\n\x1b[1m▸ la durata: da 3 mesi in su, anche per un valore vecchio\x1b[0m');
+{
+  const { belowMinimum, MIN_MONTHS } = await import('../../api/executive-lead.js');
+  ok('il minimo del server è 3 mesi', MIN_MONTHS === 3, MIN_MONTHS);
+  ok('«1-3», «2» e «0-3» partono sotto il minimo; «3-6», «12-18», vuoto e testo no',
+    belowMinimum('1-3') && belowMinimum('2') && belowMinimum(' 0-3') && !belowMinimum('3-6') && !belowMinimum('12-18')
+    && !belowMinimum('') && !belowMinimum(null) && !belowMinimum('sei mesi'));
+  const r = await call({ ...EXEC, duration: '1-3' });
+  ok('un «1-3» storico entra comunque (200, lead scritto)', r.code === 200 && !!r.lead, r.code);
+  ok('...e il riassunto lo segnala all\'operatore', /1-3 mesi \(sotto il minimo BOOM di 3 mesi: da chiarire\)/.test(String(r.lead && r.lead.message)), r.lead && r.lead.message);
+  ok('...anche nel dato del lead (executive.belowMinimum)', r.lead && r.lead.executive && r.lead.executive.belowMinimum === true);
+  const { replyLang } = await import('../../api/_lang.js');
+  ok('...e la nota in italiano non sposta la lingua della risposta: resta inglese', r.lead && replyLang(r.lead) === 'en', r.lead && r.lead.message);
+  const r2 = await call({ ...EXEC, duration: '3-6' });
+  ok('«3-6» non è sotto il minimo: nessuna segnalazione', /3-6 mesi/.test(String(r2.lead.message)) && !/sotto il minimo/.test(String(r2.lead.message))
+    && r2.lead.executive.belowMinimum === false, r2.lead.message);
+}
+{
+  const page = readFileSync(new URL('../../executive.html', import.meta.url), 'utf8');
+  // Le durate del modulo vivono nel dizionario PH (inglese e italiano): si
+  // leggono le coppie [valore, etichetta] che la pagina mette nel <select>.
+  const liste = [...page.matchAll(/duration:(\[\[[^\n]*?\]\])/g)].map((m) => JSON.parse(m[1].replace(/'/g, '"')));
+  const valori = liste.map((l) => l.map(([v]) => v).filter(Boolean));
+  ok('il modulo ha la durata in due lingue', liste.length === 2, liste.length);
+  ok('...con le stesse fasce in entrambe', valori.length === 2 && valori[0].join() === valori[1].join(), valori);
+  ok('...e nessuna fascia parte sotto i 3 mesi: la prima è il minimo vero', valori.every((l) => l.length && l.every((v) => !belowMinimumPage(v)) && /^3-/.test(l[0])), valori);
+  ok('le etichette dicono le stesse fasce dei valori («3–6 months» / «3–6 mesi»)',
+    liste.every((l) => l.filter(([v]) => v).every(([v, t]) => t.replace('–', '-').startsWith(v))), liste);
+  ok('la scheda e la FAQ dicono «3–18» in inglese e in italiano, mai «1–18»',
+    /on assignment for <b>3–18 months<\/b>/.test(page) && /con un incarico da <b>3 a 18 mesi<\/b>/.test(page)
+    && /residential lease: 3 to 18 months with BOOM/.test(page) && /con BOOM da 3 a 18 mesi/.test(page)
+    && !/\b1\s*(?:–|-|to|a)\s*18\s*(?:months|mesi|MONTHS)|1–18 <span/.test(page));
+}
+function belowMinimumPage(v) { const m = String(v).match(/^\s*(\d{1,2})/); return !!m && Number(m[1]) < 3; }
+
 console.log('\n\x1b[1m▸ il limite per IP esiste davvero\x1b[0m');
 {
   const ip = '203.0.113.77';
@@ -263,6 +302,44 @@ console.log('\n\x1b[1m▸ essere trovati (SEO) ed essere citati (motori di rispo
   ok('l\'immagine social esiste ed è un vero PNG', isPng);
   ok('nel formato dei social (1200×630)', w === 1200 && h === 630, { w, h });
   ok('la pagina la dichiara (og + twitter)', (page.match(/og-executive\.png/g) || []).length >= 2);
+
+  // LA CARD DICE LA DURATA DELLA PAGINA (15/10/2026). La card vecchia, fatta
+  // fuori dal repo, diceva «Transitional lease · 1–18 months» accanto
+  // all'og:description gia' corretta in «3–18», e nessun test poteva vederlo:
+  // un PNG non si cerca col grep. Ora la genera il repo
+  // (design/pages-deco/genera-og-executive.py), che legge la fascia
+  // dall'og:description e scrive nel PNG il testo che ha stampato (chunk iTXt
+  // «Description» e «Software»): una card fatta a mano, senza firma, qui cade.
+  const scritte = {};
+  for (let i = 8; i + 12 <= og.length;) {
+    const len = og.readUInt32BE(i), tipo = og.toString('latin1', i + 4, i + 8), d = og.subarray(i + 8, i + 8 + len);
+    if (tipo === 'iTXt') {
+      const z = d.indexOf(0);
+      let p = d.indexOf(0, z + 3) + 1;          // chiave \0 · compressione · metodo · lingua \0
+      p = d.indexOf(0, p) + 1;                  // chiave tradotta \0
+      if (z > 0 && d[z + 1] === 0) scritte[d.toString('latin1', 0, z)] = d.toString('utf8', p);
+    }
+    i += 12 + len;
+  }
+  const generatore = 'design/pages-deco/genera-og-executive.py';
+  let sorgente = '';
+  try { sorgente = readFileSync(new URL(generatore, root), 'utf8'); } catch { /* resta vuota: il check sotto cade */ }
+  ok('la card l\'ha generata il repo, e dice da quale sorgente', scritte.Software === generatore && sorgente.length > 0,
+    scritte.Software || '(nessuna firma nel PNG: card fatta fuori dal repo)');
+  const ogDesc = (page.match(/<meta property="og:description" content="([^"]*)"/) || [])[1] || '';
+  const fasciaPagina = (ogDesc.match(/\((\d{1,2})\s*[–-]\s*(\d{1,2}) months\)/) || []).slice(1).map(Number);
+  const fasceCard = [...String(scritte.Description || '').matchAll(/(\d{1,2})\s*[–-]\s*(\d{1,2})\s*months/gi)]
+    .map((m) => [Number(m[1]), Number(m[2])]);
+  ok('la card dice la fascia del transitorio della pagina, e parte da 3 mesi',
+    fasciaPagina.length === 2 && fasciaPagina[0] >= 3 && fasceCard.length === 1
+    && fasceCard[0][0] === fasciaPagina[0] && fasceCard[0][1] === fasciaPagina[1],
+    { pagina: fasciaPagina, card: fasceCard });
+  ok('...e nessuna durata sotto i 3 mesi nel resto del suo testo', !!scritte.Description
+    && !/\b(?:1|2|one|two|a)\s*(?:[–\-−]|to)\s*\d{1,2}\s*-?months?\b|\b(?:from|minimum)\s+(?:1|one|a)\s+month/i.test(scritte.Description),
+    scritte.Description);
+  ok('la sorgente della card legge la durata dalla pagina e non la scrive a mano',
+    /og:description/.test(sorgente) && /int\(fascia\.group\(1\)\) < 3/.test(sorgente)
+    && !/\b\d{1,2}\s*[–-]\s*\d{1,2}\s*months\b/i.test(sorgente));
 
   const title = (page.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
   const desc = (page.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';

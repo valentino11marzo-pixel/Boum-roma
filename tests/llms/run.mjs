@@ -27,7 +27,9 @@
 //  (f) ogni riga che linka /<chiave del catalogo>) cita il prezzo del
 //      catalogo (api/_catalog.js);
 //  (g) l'ultima sezione è «## Optional» (llmstxt.org), e i fatti dell'azienda
-//      e dei contatti ci sono.
+//      e dei contatti ci sono;
+//  (h) con BOOM si affitta da 3 mesi in su: i fatti chiave lo dicono, e
+//      nessuna fascia BOOM parte da 1 mese (decisione del fondatore, 15/10).
 //
 // Ogni regola è una funzione pura sul testo: la stessa che giudica il file
 // vero giudica anche una copia ROTTA apposta (in coda), e su quella deve
@@ -208,6 +210,20 @@ const FACTS = [
 ];
 const ruleFacts = (t) => FACTS.filter((f) => !t.includes(f));
 
+/* (h) la durata: con BOOM si affitta da 3 mesi in su (decisione del
+   fondatore, 15/10/2026). Il file presentava il transitorio come «1–18
+   months» in tre punti e il pubblico come «medium term (1 to 12+ months)»:
+   un assistente avrebbe risposto «sì» a «can I rent for one month with
+   BOOM?». Ora i fatti chiave lo dicono in chiaro, ed e' la riga che un motore
+   cita. La regola di classe, con l'eccezione di legge, e' in tests/verita:
+   qui le forme che c'erano nel file che i motori leggono per primi. */
+function ruleDurata(t) {
+  const out = [];
+  if (!/^- Lease length: 3 months minimum for every lease through BOOM in Rome\b/m.test(t)) out.push('i fatti chiave non dicono il minimo di 3 mesi');
+  for (const m of t.matchAll(/\b1\s*(?:–|-|to)\s*1[28]\+?\s*months\b|\bfrom (?:one|1|a) month\b|\bone month up\b/gi)) out.push(`«${m[0]}»`);
+  return out;
+}
+
 /* ── il file vero ────────────────────────────────────────────────────── */
 let r;
 r = ruleBanned(LLMS);
@@ -230,6 +246,8 @@ r = ruleStructure(LLMS);
 ok('(g) struttura llmstxt.org: H1, sintesi, Before you rent / Guides / Company / Contact, e «## Optional» in coda', r.length === 0, r);
 r = ruleFacts(LLMS);
 ok('    …i fatti dell\'azienda e dei contatti, e le frasi che le altre suite pretendono', r.length === 0, r);
+r = ruleDurata(LLMS);
+ok('(h) la durata: i fatti chiave dicono il minimo di 3 mesi, e nessuna fascia BOOM parte da 1 mese', r.length === 0, r);
 
 /* ── le guardie mordono: ogni regola, su una copia rotta, deve fallire ── */
 const firstUrl = (p) => `https://www.boomrome.com${p}`;
@@ -253,6 +271,8 @@ const MUT = [
   ['(f) prezzo del catalogo cambiato sulla riga', () => rulePrices(LLMS.split('\n').map((l) => l.includes('/' + catKey + ')')
     ? l.split('€' + PRICES[catKey]).join('€' + (Number(PRICES[catKey]) + 1)) : l).join('\n'))],
   ['(g) Optional non più in coda', () => ruleStructure(LLMS + '\n## Extra\n- x')],
+  ['(h) «medium term (1 to 12+ months)»', () => ruleDurata(LLMS.replace('(3 to 12+ months)', '(1 to 12+ months)'))],
+  ['(h) il minimo di 3 mesi tolto dai fatti chiave', () => ruleDurata(LLMS.replace(/^- Lease length:.*\n/m, ''))],
 ];
 const muti = MUT.filter(([, f]) => f().length === 0).map(([n]) => n);
 ok(`ogni regola morde su una copia rotta (${MUT.length} mutazioni, tutte prese)`, muti.length === 0 && someLinked && catKey, muti);

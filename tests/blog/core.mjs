@@ -189,6 +189,16 @@ for (const [f, pubblicato] of Object.entries(POSTS)) {
   check(/brought back to the 4\+4 duration of art\. 2, c\. 1, L\. 431\/1998/.test(s),
     'blog-contract-types: la trappola del transitorio cita la riconduzione (Allegato B art. 3)');
   check(/art\. 3, c\. 6, L\. 431\/1998/.test(s), 'blog-contract-types: il recesso per gravi motivi cita art. 3, c. 6, L. 431/1998');
+  // Con BOOM si affitta da 3 mesi in su (decisione del fondatore, 15/10/2026).
+  // La guida spiega la LEGGE (il transitorio ammette da 1 a 18 mesi), ma dove
+  // la dice dice anche il minimo BOOM, nello stesso paragrafo: chi la legge
+  // non deve uscirne con «BOOM affitta da un mese». La regola di classe e' in
+  // tests/verita; qui i tre punti della guida che la dicono.
+  check(/A transitorio instead lasts 1–18 months by law \(with BOOM, at least 3 months\)/.test(s)
+    && /1&ndash;18 months by law; 3&ndash;18 with BOOM/.test(s)
+    && /By law, minimum 1 month and maximum 18 months; with BOOM the minimum is 3 months\./.test(s)
+    && !/<p>Minimum 1 month/.test(s),
+    'blog-contract-types: dove dice i 1–18 mesi di legge dice anche il minimo BOOM di 3 mesi (risposta breve, tabella, scheda)');
 }
 
 // ── 4b · la guida visti: date oneste, niente numeri non verificati ──────
