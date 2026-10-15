@@ -19,6 +19,7 @@
 //    scheda di calcolo brandizzata a pagina 2 — stessi fatti del modulo ARPE.
 // Uso: node tests/mandato/run.mjs   (MANDATO_DUMP=1 salva i PDF in /tmp)
 import { register } from 'node:module';
+import { conditionalFirestore } from '../preagreement/conditional-firestore.mjs';
 import fs from 'node:fs';
 register('../notify/loader.mjs', import.meta.url);
 
@@ -150,6 +151,9 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+
+// Preserve real commit versions and all-or-nothing guards used by the lock.
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB:store,fields:toFsFields,unfields:fromFsFields});
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},
@@ -788,7 +792,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('convert.js: la base del mandato è la FOTO della proposta (pa.approvedTerms), mai il contratto — il contratto si VERIFICA (diff), non fa da base',
     /const terms = snap \? snap\.terms : MANDATO\.termsFromProposal\(pa/.test(cv) && /const termsHash = snap \? snap\.hash : mandateTermsHash\(terms\)/.test(cv)
     // il contratto si confronta allineato alla foto (l'immobile nato dalla proposta, §12)
-    && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId \}\)\)/.test(cv) && !/termsFingerprint\(contract\)/.test(cv));
+    && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId, propertyMatch \}\)\)/.test(cv) && !/termsFingerprint\(contract\)/.test(cv));
 }
 
 // ═══ 10. Il bug della pagina RLI: numeri da rliFacts (L2 per tutti, importo per durata) ═══
@@ -1440,7 +1444,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   // le giunzioni sulla sorgente
   const cons = R('pre-agreement-admin.html'), app = R('js/portal-app.js'), sf = R('api/preagreement/sign-for.js'), sh = R('api/magic-sign/_shared.js'), cv = R('api/preagreement/convert.js');
   check('server: mandateCheck e tenantMandateFor confrontano con termsForMandate; l\'id dell\'immobile nato dalla proposta in UNA copia',
-    /const current = MANDATO\.termsForMandate\(contract, m\);/.test(sh) && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId \}\)\)/.test(cv) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(cv));
+    /const current = MANDATO\.termsForMandate\(contract, m\);/.test(sh) && /MANDATO\.diffTerms\(terms, MANDATO\.termsForMandate\(contract, \{ terms, paId, propertyMatch \}\)\)/.test(cv) && /export const propertyIdForPa = \(paId\) => MANDATO\.proposalPropertyId\(paId\);/.test(cv));
   check('sign-for: 🏠 e 📋 fanno nascere il contratto dalla STESSA funzione (convertIfMissing), 📋 non arma il mandato',
     (sf.match(/const fail = await convertIfMissing\(\);/g) || []).length === 2 && /if \(op === 'landlord-scheda'\)/.test(sf)
     && !/askLandlordMandate: true/.test(sf.slice(sf.indexOf("if (op === 'landlord-scheda')"), sf.indexOf("if (op === 'ask-landlord-mandate')"))));
@@ -1455,7 +1459,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('console: dopo ✍️ col proprietario di turno, il SUO link firma subito, dalla risposta',
     /if\(j\.landlordPending&&j\.landlordSignUrl\)showLandlordSignLink\(d,j\.landlordSignUrl,!j\.askLandlordMandate\);/.test(cons) && /function showLandlordSignLink\(d,url,offerMandate\)/.test(cons));
   check('console: ✍️ senza contratto (lo dice il SERVER, hasContract) annuncia la nascita nella stessa conferma e manda createProperty/propertyId',
-    /var needsContract=st\.hasContract===false;/.test(cons) && /if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare',await existingPropFor\(d\)\)\);/.test(cons)
+    /var needsContract=st\.hasContract===false;/.test(cons) && /var same=needsContract\?await existingPropFor\(d\):null;\n    if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare',same\)\);/.test(cons)
     && /if\(needsContract\)\{if\(d\.propertyId\)body\.propertyId=d\.propertyId;else body\.createProperty=true;\}/.test(cons)
     && /return ask\(contractBirthText\(d,purpose,await existingPropFor\(d\)\)\+'\\n\\nProcedere\?'\);/.test(cons));
   check('console: prima di creare un immobile dalla proposta (📋 🏠 ✍️) si cerca la casa GIÀ nel portal con lo stesso abbinamento di → Contratto (una copia), escluso l\'immobile nato da questa proposta',

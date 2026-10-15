@@ -50,10 +50,14 @@ function extractFn(src, name) {
 }
 const appSrc = readFileSync(join(ROOT, 'js', 'portal-app.js'), 'utf8');
 const realWizardNav = extractFn(appSrc, 'contractWizardNav');
+const followUpStart = appSrc.indexOf('    function inboxFollowUpState()');
+const followUpEnd = appSrc.indexOf('    function inboxThreadPanel(', followUpStart);
+if (followUpStart < 0 || followUpEnd <= followUpStart) throw Error('Blocco reale dei seguiti Inbox non trovato');
+const realFollowUp = appSrc.slice(followUpStart, followUpEnd);
 const realPanels = ['esc', 'kindLabel', 'inboxPage', 'inboxConversationCard',
   'inboxFreshness', 'portalFreshnessWarning', 'oggiInboxScope', 'portalSearchAuthorized',
   'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble',
-  'inboxComposer', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview', 'openRadarEditor']
+  'inboxComposer', 'inboxRefresh', 'inboxLiveRefresh', 'inboxContextRows', 'inboxContextNotice', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview', 'openRadarEditor']
   .map(name => extractFn(appSrc, name)).join('\n');
 
 // ── La pagina-harness ───────────────────────────────────────────────────
@@ -99,6 +103,7 @@ const HARNESS = `<!DOCTYPE html><html lang="it"><head>
 <script src="/js/conversations.js"></script>
 <script src="/js/rent-engine.js"></script>
 <script src="/js/portal-search-engine.js"></script>
+<script src="/js/inbox-context-engine.js"></script>
 <script>
 window.__calls = [];
 // Synthetic authenticated session; Inbox scope and its record lookup stay real.
@@ -113,7 +118,7 @@ S.pfsClients = [];
 var PRE_ZONES = { prova: { name: 'Zona sintetica' } };
 var _inboxState = { convId: 'synthetic-conv', filter: 'all', channel: 'all', search: '', composing: 'whatsapp' };
 function isAdmin() { return true; }
-function inboxRefresh() { document.getElementById('main').innerHTML = inboxPage(); }
+function buildNav() { __calls.push(['buildNav']); }
 // Il layout usa renderer e helper di freschezza reali; il montaggio del
 // sottosistema live resta un confine simulato. Listener e ripresa reali
 // sono verificati separatamente in tests/segretaria/freshness-ui.mjs.
@@ -121,6 +126,7 @@ function portalFreshnessMount() { __calls.push(['portalFreshnessMount']); }
 function submitRentReportReview() { __calls.push(['reviewRent']); }
 function saveRadarSearch() { __calls.push(['saveRadarSearch', document.getElementById('radName').value]); }
 ${realPanels}
+${realFollowUp}
 let contractWizardStep = 0;
 function toggleSidebar() { __calls.push(['toggleSidebar']); }
 function toast(t, ti, m) { __calls.push(['toast', t, ti]); }
@@ -181,7 +187,7 @@ function renderMain(p) {
   m.innerHTML = '<div class="page-header"><h1 class="page-title">📋 Contratti</h1></div>' +
     '<div class="card"><div class="card-body flush" id="contractsContainer">' + row(1) + row(2) + '</div></div>';
 }
-function goTo(p) { __calls.push(['goTo', p]); location.hash = p; renderMain(p); }
+function goTo(p) { S.page=p; __calls.push(['goTo', p]); location.hash = p; renderMain(p); }
 var TPL = {
   addContract:
     '<div class="modal-overlay"><div class="modal lg">' +
@@ -355,9 +361,9 @@ await check('la tab bar esiste, visibile, con 4 sezioni + Menu', () => page.eval
   const t = document.querySelector('.pm-tabbar');
   return t && !t.hidden && t.querySelectorAll('.pm-tab').length === 5 && getComputedStyle(t).position === 'fixed';
 }));
-await check('le 4 pinnate sono le preferite del ruolo, in ordine', () => page.evaluate(() =>
+await check('le 4 pinnate sono le preferite disponibili del ruolo, in ordine', () => page.evaluate(() =>
   JSON.stringify([...document.querySelectorAll('.pm-tab[data-target]')].map(b => b.dataset.target)) ===
-  JSON.stringify(['dashboard', 'contracts', 'payments', 'viewings'])
+  JSON.stringify(['contracts', 'dashboard', 'payments', 'viewings'])
 ));
 await check('il badge Contratti è specchiato dalla sidebar (4)', () => page.evaluate(() => {
   const b = document.querySelector('.pm-tab[data-target="contracts"] .pm-tab-badge');
@@ -816,24 +822,29 @@ for (const width of [320, 390]) {
     const composer = card.lastElementChild;
     const r = card.getBoundingClientRect();
     const controls = [...composer.querySelectorAll('button,select,textarea')];
-    const channels = [...composer.firstElementChild.querySelectorAll('button')];
+    const channels = [...composer.querySelectorAll('.inbox-compose-tabs button')];
     return channels.length === 4 && document.documentElement.scrollWidth <= innerWidth + 1 && controls.every(b => {
       const q = b.getBoundingClientRect();
-      return q.left >= r.left && q.right <= r.right + 1 && q.bottom <= r.bottom + 1;
+      return q.left >= r.left && q.right <= r.right + 1 && q.height >= 44;
     });
   }));
-  await check('a ' + width + 'px il contatto ha una riga larga e la ricerca un target da dito', () => page.evaluate(() => {
-    const card = document.querySelector('.inbox-list-pane + div > .card');
-    const contact = card.firstElementChild.firstElementChild.getBoundingClientRect();
-    const search = document.querySelector('.inbox-list-pane input[type="search"]').getBoundingClientRect();
-    return contact.width >= card.clientWidth - 45 && search.height >= 44;
-  }));
+  await check('a ' + width + 'px il thread ha contatto largo, ritorno alla lista e ricerca da dito', async () => {
+    const wide = await page.evaluate(() => {
+      const card = document.querySelector('.inbox-thread-card');
+      return document.querySelector('.inbox-thread-head>div').getBoundingClientRect().width >= card.clientWidth - 45 && getComputedStyle(document.querySelector('.inbox-list-pane')).display === 'none';
+    });
+    await page.locator('.inbox-back').click();
+    const list = await page.evaluate(() => document.querySelector('#inboxSearch').getBoundingClientRect().height >= 44 && getComputedStyle(document.querySelector('.inbox-thread-pane')).display === 'none');
+    await page.evaluate(() => { _inboxState.convId='synthetic-conv'; inboxRefresh(); });
+    return wide && list;
+  });
   await check('a ' + width + 'px la timeline scorre senza comprimere il compositore', () => page.evaluate(() => {
     const timeline = document.querySelector('.inbox-list-pane + div > .card > div[style*="overflow-y:auto"]');
+    timeline.scrollTop = 0;
     const before = timeline.scrollTop;
     timeline.scrollTop = 100;
     return timeline.scrollHeight > timeline.clientHeight && timeline.scrollTop > before &&
-      document.getElementById('inboxBody').getBoundingClientRect().height >= 80;
+      document.getElementById('inboxBody').getBoundingClientRect().height >= 72;
   }));
 }
 

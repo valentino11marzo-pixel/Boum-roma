@@ -12,9 +12,9 @@
 //
 // COME. Un documento di lucchetto PER OGNI MESE della locazione, a id
 // deterministico: `propertyLocks/<immobile>__<YYYY-MM>`. Creato con
-// fsCreate(..., docId), che su documento esistente riceve 409 da Firestore —
-// quindi è un compare-and-set atomico vero, non un "leggi poi scrivi" che due
-// tocchi nello stesso secondo attraversano entrambi.
+// fsCommit con precondizioni sulla versione di TUTTI i mesi: anche il
+// subentro a una presa scaduta è atomico. Errori di lettura fermano il
+// pagamento; cleanup e spazzino non cancellano una presa subentrata.
 //
 // Perché un doc per mese e non uno per immobile: due proposte sullo stesso
 // appartamento per periodi che non si toccano sono LEGITTIME (libero da
@@ -28,7 +28,8 @@
 // nulla da pagare) il lucchetto diventa definitivo.
 
 import crypto from 'node:crypto';
-import { fsCreate, fsGet, fsPatch, fsDelete, fsList } from '../homie/_lib.js';
+import { fsGetVersioned, fsCommit, fsDelete, fsList } from '../homie/_lib.js';
+import { paidOnRecord } from './_state.js';
 
 export const HOLD_HOURS = 48;
 
@@ -125,64 +126,66 @@ export function lockLive(lock, now = Date.now()) {
 // unità» (resolve.js, admin). Vale SOLO nel confronto casa-intera ⇄ stanza e
 // SOLO contro chi non ha dichiarato l'interno: due interni dichiarati uguali
 // restano un conflitto, qualunque cosa si dichiari.
-export async function acquireLock({ pa, paId, firm = false, allow = [] }) {
-  const base = propertyKey(pa);
-  const key = lockKey(pa);
-  if (!key) return { ok: false, reason: 'unlockable' };
-  const months = leaseMonths(pa.lease);
-  if (!months.length) return { ok: false, reason: 'unlockable' };
-  const unit = unitOf(pa);
-  const allowed = new Set((Array.isArray(allow) ? allow : []).map(String));
-
-  const now = new Date();
-  const mine = {
-    paId: String(paId), key, baseKey: base,
-    unit: unit || null,
-    ref: (pa.tenant || {}).fullName || null,
-    heldAt: now.toISOString(),
-    firm: !!firm,
-    address: ((pa.property || {}).address) || null,
-  };
-
-  const taken = [];
-  for (const m of months) {
-    const id = lockId(key, m);
-    try {
-      await fsCreate('propertyLocks', { ...mine, month: m }, id);
-      taken.push(id);
-    } catch (e) {
-      if (!e || !e.exists) {                     // errore vero: si rilascia e si alza
-        await releaseLocks(taken);
-        throw e;
-      }
-      // Esiste: di chi è, ed è ancora valido?
-      let held = null;
-      try { held = await fsGet('propertyLocks/' + id); } catch (_) {}
-      if (held && String(held.paId) === String(paId)) { taken.push(id); continue; }  // già nostro
-      if (held && lockLive(held)) {
-        await releaseLocks(taken);
-        return heldBy(held, m, now, { unit: normUnit(held.unit) || unit || null, level: unit ? 'unit' : 'whole', sameUnit: !!unit });
-      }
-      // Scaduto (riserva che non ha pagato): lo si prende sovrascrivendo.
-      try { await fsPatch('propertyLocks/' + id, { ...mine, month: m }); taken.push(id); }
-      catch (err) { await releaseLocks(taken); throw err; }
+export async function acquireLock({ pa, paId, firm = false, allow = [], renew = false, proposalVersion = null }) {
+  const base = propertyKey(pa), key = lockKey(pa), months = leaseMonths(pa.lease);
+  if (!key || !months.length) return { ok: false, reason: 'unlockable' };
+  const unit = unitOf(pa), allowed = new Set((Array.isArray(allow) ? allow : []).map(String));
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const now = new Date(), snapshots = await Promise.all(months.map(m => fsGetVersioned('propertyLocks/' + lockId(key, m))));
+    const proposalGuards = new Map();
+    for (let i = 0; i < snapshots.length; i++) {
+      const held = snapshots[i]?.data;
+      if (!held || String(held.paId) === String(paId)) continue;
+      const effective = await effectiveHolding(held, now.getTime(), proposalGuards);
+      if (effective) return heldBy(effective, months[i], now, { unit: normUnit(held.unit) || unit || null, level: unit ? 'unit' : 'whole', sameUnit: !!unit });
     }
+    const entries = months.map((month, i) => {
+      const before = snapshots[i], owned = before && String(before.data.paId) === String(paId);
+      const fields = { paId:String(paId), key, baseKey:base, unit:unit || null, month,
+        ref:pa.tenant?.fullName || null, address:pa.property?.address || null,
+        heldAt:owned && !renew ? before.data.heldAt : now.toISOString(), firm:!!firm || !!(owned && before.data.firm) };
+      return { id:lockId(key,month), before, fields };
+    });
+    const guards = [...proposalGuards].map(([id, snapshot]) => snapshot
+      ? {docPath:'preAgreements/'+id, fields:{}, precondition:{updateTime:snapshot.updateTime}}
+      : {docPath:'preAgreements/'+id, assertAbsent:true});
+    if (proposalVersion) guards.push({docPath:'preAgreements/'+paId, fields:{}, precondition:{updateTime:proposalVersion}});
+    let commit;
+    try {
+      commit = await fsCommit([...entries.map(e => ({docPath:'propertyLocks/'+e.id,fields:e.fields,
+        precondition:e.before ? {updateTime:e.before.updateTime} : {exists:false}})), ...guards]);
+    } catch (error) { if (!error.conflict || proposalVersion) throw error; continue; }
+    entries.forEach((e,i) => { e.updateTime = commit.writeResults[i].updateTime; });
+    try {
+      const conflict = unit ? await wholeHolding({base,months,paId,unit,allowed,now}) : await unitHolding({base,months,paId,now});
+      if (conflict) { await rollback(entries); return conflict; }
+    } catch (error) { await rollback(entries); throw error; }
+    return {ok:true,key,months,unit:unit || null,
+      guards:entries.map(e=>({docPath:'propertyLocks/'+e.id,fields:{},precondition:{updateTime:e.updateTime}})),
+      proposalVersion:proposalVersion ? commit.writeResults[entries.length + guards.length - 1].updateTime : null};
   }
+  throw new Error('Property lock changed concurrently');
+}
 
-  // ── Il secondo controllo: casa intera ⇄ stanza ─────────────────────────
-  let conflict = null;
-  try {
-    conflict = unit
-      ? await wholeHolding({ base, months, paId, unit, allowed, now })
-      : await unitHolding({ base, months, paId, now });
-  } catch (e) {
-    // Il controllo incrociato non ha potuto leggere: i propri mesi sono presi
-    // e il confronto stessa-chiave (quello che conta di più) è già passato.
-    // Si registra, non si blocca una chiusura legittima.
-    console.error('[pa/lock] controllo incrociato non verificabile:', e.message);
+// A paid proposal cannot lose protection because its webhook has not yet
+// firmed the lock. An unreadable owner is unknown, never an expired vacancy.
+async function effectiveHolding(held, now, guards) {
+  if (lockLive(held, now)) return held;
+  if (!held.paId) throw new Error('Property lock owner unavailable');
+  const snapshot = await fsGetVersioned('preAgreements/' + held.paId);
+  if (guards) guards.set(String(held.paId), snapshot);
+  return paidOnRecord(snapshot?.data) ? {...held,firm:true} : null;
+}
+async function rollback(entries) {
+  for (const entry of entries) {
+    try {
+      if (!entry.before) await fsDelete('propertyLocks/' + entry.id, {updateTime:entry.updateTime});
+      else {
+        const fields = Object.fromEntries(Object.keys(entry.fields).map(key=>[key,entry.before.data[key] ?? null]));
+        await fsCommit([{docPath:'propertyLocks/'+entry.id,fields,precondition:{updateTime:entry.updateTime}}]);
+      }
+    } catch (error) { if (!error.conflict) throw error; }
   }
-  if (conflict) { await releaseLocks(taken); return conflict; }
-  return { ok: true, key, months, unit: unit || null };
 }
 
 function heldBy(held, month, now, extra = {}) {
@@ -203,15 +206,16 @@ function heldBy(held, month, now, extra = {}) {
 async function wholeHolding({ base, months, paId, unit, allowed, now }) {
   const units = new Map();
   for (const m of months) {
-    let held = null;
-    try { held = await fsGet('propertyLocks/' + lockId(base, m)); } catch (_) { held = null; }
-    if (!held || String(held.paId) === String(paId) || !lockLive(held, now.getTime())) continue;
+    const snapshot = await fsGetVersioned('propertyLocks/' + lockId(base, m));
+    let held = snapshot?.data;
+    if (!held || String(held.paId) === String(paId)) continue;
+    held = await effectiveHolding(held, now.getTime());
+    if (!held) continue;
     let theirs = normUnit(held.unit);
     if (!theirs && held.paId) {
       if (!units.has(held.paId)) {
-        let hp = null;
-        try { hp = await fsGet('preAgreements/' + held.paId); } catch (_) {}
-        units.set(held.paId, unitOf(hp));
+        const hp = await fsGetVersioned('preAgreements/' + held.paId);
+        units.set(held.paId, unitOf(hp?.data));
       }
       theirs = units.get(held.paId);
     }
@@ -225,12 +229,14 @@ async function wholeHolding({ base, months, paId, unit, allowed, now }) {
 // Io sono la casa intera: qualcuno tiene una STANZA per uno dei miei mesi?
 async function unitHolding({ base, months, paId, now }) {
   const rows = await fsList('propertyLocks', { filter: { field: 'baseKey', op: 'EQUAL', value: base }, limit: 400 });
+  if (rows.length >= 400) throw new Error('Property lock coverage incomplete');
   const want = new Set(months);
   for (const lk of rows || []) {
     if (!lk || !normUnit(lk.unit)) continue;                         // la casa intera la copre già l'id
     if (String(lk.paId) === String(paId) || !want.has(lk.month)) continue;
-    if (!lockLive(lk, now.getTime())) continue;
-    return heldBy(lk, lk.month, now, { unit: normUnit(lk.unit), level: 'unit' });
+    const held = await effectiveHolding(lk, now.getTime());
+    if (!held) continue;
+    return heldBy(held, lk.month, now, { unit: normUnit(lk.unit), level: 'unit' });
   }
   return null;
 }
@@ -247,83 +253,47 @@ function candidateIds(pa, month) {
 // scade più.
 export async function confirmLock({ pa, paId }) {
   if (!lockKey(pa)) return 0;
-  let n = 0;
-  for (const m of leaseMonths(pa.lease)) {
-    for (const id of candidateIds(pa, m)) {
-      try {
-        const held = await fsGet('propertyLocks/' + id);
-        if (held && String(held.paId) === String(paId)) {
-          await fsPatch('propertyLocks/' + id, { firm: true, firmAt: new Date().toISOString() });
-          n++;
-          break;
-        }
-      } catch (_) { /* best-effort: un lucchetto non confermato scade, non rompe */ }
+  for (let attempt=0; attempt<3; attempt++) {
+    const entries=[];
+    for (const month of leaseMonths(pa.lease)) {
+      for (const id of candidateIds(pa,month)) {
+        const snapshot=await fsGetVersioned('propertyLocks/'+id);
+        if (snapshot && String(snapshot.data.paId)===String(paId)) { entries.push({id,snapshot}); break; }
+      }
     }
+    if (!entries.length) return 0;
+    try { await fsCommit(entries.map(e=>({docPath:'propertyLocks/'+e.id,fields:{firm:true,firmAt:new Date().toISOString()},precondition:{updateTime:e.snapshot.updateTime}}))); return entries.length; }
+    catch(error) { if(!error.conflict)throw error; }
+  }
+  throw new Error('Property lock changed concurrently');
+}
+
+export async function releaseLock({ pa, paId }) {
+  let n=0;
+  for (const month of leaseMonths(pa?.lease)) for (const id of candidateIds(pa,month)) {
+    const snapshot=await fsGetVersioned('propertyLocks/'+id);
+    if (!snapshot || String(snapshot.data.paId)!==String(paId)) continue;
+    try { await fsDelete('propertyLocks/'+id,{updateTime:snapshot.updateTime}); n++; }
+    catch(error) { if(!error.conflict)throw error; }
   }
   return n;
 }
 
-// Revoca / annullamento: l'immobile torna disponibile.
-export async function releaseLock({ pa, paId }) {
-  if (!lockKey(pa)) return 0;
-  const ids = [];
-  for (const m of leaseMonths(pa.lease)) {
-    for (const id of candidateIds(pa, m)) {
-      try {
-        const held = await fsGet('propertyLocks/' + id);
-        if (held && String(held.paId) === String(paId)) ids.push(id);
-      } catch (_) {}
-    }
-  }
-  return releaseLocks(ids);
-}
-
-// ─── Lo spazzino ──────────────────────────────────────────────────────────
-// La console revoca una proposta con una scrittura client-side su Firestore:
-// nessun endpoint da agganciare, quindi il lucchetto resterebbe appeso e
-// l'appartamento congelato. Questa passata gira dentro reminder-cron e libera
-// tutto ciò che non ha più diritto di tenere l'immobile — comprese le
-// modifiche fatte a mano sul database.
-//
-// Rilascia quando: la proposta non esiste più · è stata revocata · è tornata
-// in bozza/inviata (l'accettazione è stata annullata) · oppure è una presa non
-// confermata più vecchia della finestra.
-export async function sweepLocks({ limit = 400 } = {}) {
-  const out = { checked: 0, released: 0 };
-  let locks = [];
-  try { locks = await fsList('propertyLocks', { limit }); } catch (e) {
-    console.error('[pa/lock] sweep list:', e.message);
-    return out;
-  }
-  const paCache = new Map();
-  const now = Date.now();
-  for (const lk of locks || []) {
+// Re-read each candidate before deleting it. Read failures preserve ownership;
+// the caller receives an explicit error count rather than fictitious vacancy.
+export async function sweepLocks({limit=400}={}) {
+  const out={checked:0,released:0,errors:0};
+  const locks=await fsList('propertyLocks',{limit});
+  for (const row of locks) {
     out.checked++;
-    const keep = await (async () => {
-      if (!lk.paId) return false;
-      if (!lock_alive_shape(lk, now)) return false;
-      if (!paCache.has(lk.paId)) {
-        let pa = null;
-        try { pa = await fsGet('preAgreements/' + lk.paId); } catch (_) {}
-        paCache.set(lk.paId, pa);
-      }
-      const pa = paCache.get(lk.paId);
-      if (!pa) return false;                                   // proposta sparita
-      return ['accepted', 'paid'].includes(String(pa.status));  // solo chi ha chiuso tiene
-    })();
-    if (!keep) {
-      try { await fsDelete('propertyLocks/' + lk.id); out.released++; } catch (_) {}
-    }
+    try {
+      const snapshot=await fsGetVersioned('propertyLocks/'+row.id);
+      if (!snapshot)continue;
+      const held=snapshot.data, pa=held.paId ? await fsGetVersioned('preAgreements/'+held.paId) : null;
+      if (paidOnRecord(pa?.data)) continue;
+      if (lockLive(held) && ['accepted','paid'].includes(String(pa?.data.status))) continue;
+      await fsDelete('propertyLocks/'+row.id,{updateTime:snapshot.updateTime,guards:held.paId ? [{docPath:'preAgreements/'+held.paId,...(pa ? {updateTime:pa.updateTime} : {exists:false})}] : []}); out.released++;
+    } catch(error) { if(!error.conflict)out.errors++; }
   }
   return out;
-}
-// Stessa regola di lockLive, ma su un documento già letto dalla lista.
-const lock_alive_shape = (lk, now) => lockLive(lk, now);
-
-async function releaseLocks(ids) {
-  let n = 0;
-  for (const id of ids || []) {
-    try { await fsDelete('propertyLocks/' + id); n++; } catch (_) {}
-  }
-  return n;
 }

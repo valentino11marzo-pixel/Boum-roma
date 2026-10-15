@@ -798,7 +798,7 @@ Valentyne - BOOM Rome`
             if (origin.page === 'oggi' && origin.context?.taskId)
                 oggiSegretaria.propertyReturn = { ...origin.context, scroll: origin.scroll, afterGeneration: oggiSegretaria.generation + (oggiSegretaria.loading ? 0 : 1) };
         },
-        actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
+        actions: { communications: id => inboxOpenContext({kind:'property',id}), contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
             task: id => editTask(id), person: id => viewUser(id),
             payment: (unit, month, id) => openRentUnit(unit, month, id),
             edit: property => openModal('editProperty', property),
@@ -2344,6 +2344,143 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // Session proof shared by boot, reads and subscriptions. A generation also
+    // distinguishes logout/login of the SAME uid while an old read is pending.
+    var portalSessionGeneration = 0, portalLoadGeneration = 0;
+    const portalSessionDefaults = { ...S };
+    function portalSessionProof() {
+        return { generation: portalSessionGeneration, uid: auth.currentUser?.uid,
+            profileId: S.profile?.id, role: S.profile?.role };
+    }
+    function portalSessionCurrent(proof) {
+        return !!proof.uid && proof.generation === portalSessionGeneration && auth.currentUser?.uid === proof.uid
+            && S.profile?.id === proof.profileId && S.profile?.role === proof.role;
+    }
+    function portalSessionReset() {
+        portalSessionGeneration++; portalLoadGeneration++;
+        window.BOOM_MAILBOX?.reset();
+        authProcessed = false; authRetryCount = 0;
+        stopSessionCheck();
+        for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
+            stopSignRequestsListener, stopRadarListener, stopInboxListener, stopHeartbeatListener,
+            stopMaintenanceListener, stopLeadsListener, stopAgentFeedListener]) stop();
+        portalSourcesStop();
+        oggiSegretariaStopLive(); oggiSegretaria.generation++;
+        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false });
+        window.portalSearchReset?.();
+        if (typeof _inboxState !== 'undefined') _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
+        const lang = S.lang, isOnline = navigator.onLine;
+        const generations = Object.fromEntries(Object.entries(S).filter(([key]) => /Generation$/.test(key)));
+        for (const key of Object.keys(S)) delete S[key];
+        Object.assign(S, portalSessionDefaults, generations, { user: null, profile: null, page: 'dashboard', lang, isOnline, lastActivity: Date.now() });
+        for (const key of Object.keys(S)) if (Array.isArray(S[key])) S[key] = [];
+        for (const key of ['pfsClients','pfsProperties','pfsActivities','landlords','viewingRequests','conversations','messages']) S[key] = [];
+        S.registrationStatuses = {};
+        invalidateRentSnapshot();
+        document.getElementById('app')?.classList.remove('active');
+        for (const id of ['main','modals','sidebar','searchContainer','toasts','headerName','headerAvatar','headerRole','headerBadge']) {
+            const node = document.getElementById(id); if (node) node.replaceChildren();
+        }
+        document.body.classList.remove('modal-open');
+        document.getElementById('portalSourceNotice')?.remove();
+    }
+    function portalRead(promise) {
+        let timer;
+        return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 15000); })])
+            .finally(() => clearTimeout(timer));
+    }
+    function portalDataRender() {
+        if (S.page === 'oggi') {
+            oggiScheduleUpdate();
+            if (typeof oggiWorkspace !== 'undefined' && oggiWorkspace.selected && !document.querySelector('.modal-overlay.active')) oggiWorkspaceShow(oggiWorkspace.selected, false);
+            return;
+        }
+        if (S.page === 'inbox') { inboxLiveRefresh(); return; }
+        const focus = document.activeElement;
+        if (document.querySelector('.modal-overlay.active') || document.body.classList.contains('modal-open')
+            || (document.getElementById('main')?.contains(focus) && focus?.matches('input,textarea,select,[contenteditable="true"]'))) return;
+        renderPage(); buildNav(); portalSourcesNotice();
+    }
+    function portalSourcesNotice() {
+        const labels = { contracts:'Contratti', maintenance:'Manutenzioni', signRequests:'Firme', core:'Dati principali',
+            listings:'Annunci', leads:'Lead', activityLog:'Attività', tasks:'Scadenze e attività', pfs:'Ricerca immobili', inbox:'Conversazioni', viewings:'Visite' };
+        const issues = Object.entries(S.sourceFreshness || {}).filter(([, entry]) => entry.state !== 'live');
+        let node = document.getElementById('portalSourceNotice');
+        const main = document.getElementById('main');
+        if (!issues.length || !S.profile) { node?.remove(); return; }
+        if (!node && main?.parentElement) {
+            node = document.createElement('div'); node.id = 'portalSourceNotice'; node.setAttribute('role', 'status');
+            node.style.cssText = 'padding:10px 16px;color:var(--orange);border-bottom:1px solid var(--border)';
+            // The notice spans the shell. Inside .layout it would become a
+            // third flex column and squeeze every page while a source is down.
+            const anchor = main.closest('.layout') || main;
+            anchor.parentElement.insertBefore(node, anchor);
+        }
+        if (node) node.textContent = issues.map(([key, entry]) => (labels[key] || key) + ': '
+            + (entry.state === 'cached' ? 'copia locale, conferma server in attesa' : entry.state === 'loading' ? 'verifica in corso' : 'aggiornamento non riuscito; conservo gli ultimi dati'))
+            .join(' · ') + '. Contratti, manutenzioni e firme riprovano automaticamente. Per le altre fonti usa Aggiorna i dati.';
+    }
+    function portalSourceStatus(name, state) {
+        S.sourceFreshness ||= {};
+        S.sourceFreshness[name] = { ...S.sourceFreshness[name], state,
+            ...(state === 'live' ? { verifiedAt: Date.now() } : {}) };
+        portalSourcesNotice();
+    }
+    function portalSourcesStop() {
+        document.removeEventListener('visibilitychange', portalSourcesRecover);
+        window.removeEventListener('online', portalSourcesRecover);
+        window.removeEventListener('pageshow', portalSourcesRecover);
+        for (const timer of Object.values(S.sourceRetryTimers || {})) clearTimeout(timer);
+    }
+    function portalSourcesRecover() {
+        if (!auth.currentUser || !isAdmin() || !S.sourceFreshness || document.hidden || navigator.onLine === false) return;
+        for (const [name, restart] of [['contracts', startContractsListener], ['maintenance', startMaintenanceListener], ['signRequests', startSignRequestsListener]]) {
+            if (S.sourceFreshness?.[name]?.state === 'error') restart();
+        }
+        portalSourcesNotice();
+    }
+    function portalListenSource(name, query, next, restart) {
+        const proof = portalSessionProof();
+        let active = true, unsubscribe, watchdog;
+        const current = () => active && portalSessionCurrent(proof);
+        const stop = () => { active = false; clearTimeout(watchdog); clearTimeout(S.sourceRetryTimers?.[name]); unsubscribe?.(); };
+        const failed = () => {
+            if (!current()) return;
+            stop();
+            if (!restart) { console.warn('[Portal] Subscription stopped:', name); return; }
+            portalSourceStatus(name, 'error');
+            const attempt = (S.sourceRetryAttempts ||= {})[name] = (S.sourceRetryAttempts[name] || 0) + 1;
+            const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt - 1, 5));
+            (S.sourceRetryTimers ||= {})[name] = setTimeout(() => {
+                if (!portalSessionCurrent(proof)) return;
+                if (navigator.onLine !== false && !document.hidden) restart();
+            }, delay);
+        };
+        if (restart) {
+            clearTimeout(S.sourceRetryTimers?.[name]);
+            portalSourceStatus(name, S.sourceFreshness?.[name]?.state || 'loading');
+            document.addEventListener('visibilitychange', portalSourcesRecover);
+            window.addEventListener('online', portalSourcesRecover);
+            window.addEventListener('pageshow', portalSourcesRecover);
+            watchdog = setTimeout(failed, 15000);
+        }
+        const received = snapshot => {
+            if (!current()) return;
+            (S.dataRevisions ||= {})[name] = (S.dataRevisions[name] || 0) + 1;
+            if (restart) {
+                const cached = snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites;
+                portalSourceStatus(name, cached ? 'cached' : 'live');
+                if (!cached) { clearTimeout(watchdog); (S.sourceRetryAttempts ||= {})[name] = 0; }
+            }
+            next(snapshot);
+        };
+        try { unsubscribe = restart ? query.onSnapshot({ includeMetadataChanges: true }, received, failed) : query.onSnapshot(received, failed); }
+        catch { failed(); }
+        if (!active) unsubscribe?.();
+        return stop;
+    }
+    // End shared session/source helpers.
+
     // Track if auth already processed
     let authProcessed = false;
     let authRetryCount = 0;
@@ -2389,8 +2526,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
+        if ((u?.uid || null) !== (auth.currentUser?.uid || null)) return;
         if (u) cancelLoginRedirect();
-        if (authProcessed && u) return;
+        if (authProcessed && u?.uid === S.user?.uid) return;
+        if (!u || S.user?.uid !== u.uid) portalSessionReset();
+        const generation = ++portalSessionGeneration;
+        window.BOOM_MAILBOX?.reset();
+        const current = () => generation === portalSessionGeneration && auth.currentUser?.uid === u?.uid;
         
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
@@ -2417,23 +2559,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.user = u;
                 try {
                     const tDoc = await db.collection('users').doc(tenantSession.tenantId).get();
+                    if (!current()) return;
                     if (tDoc.exists) {
                         S.profile = Object.assign({ id: tenantSession.tenantId }, tDoc.data());
                         if (!S.profile.role) S.profile.role = 'tenant';
                         await loadData();
+                        if (!current()) return;
                         showApp();
                         startSessionCheck();
-                        setTimeout(() => readBoomBridge(), 800);
+                        setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                         return;
                     } else {
                         console.warn('[Auth] Tenant user doc missing — clearing session');
                         localStorage.removeItem('boomTenantSession');
                     }
                 } catch (e) {
+                    if (!current()) return;
                     console.error('[Auth] Magic-link tenant load failed:', e);
                     localStorage.removeItem('boomTenantSession');
                 }
             }
+            if (!current()) return;
             console.log('Anonymous user (no tenant session) — signing out...');
             await auth.signOut();
             return;
@@ -2451,6 +2597,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     docP,
                     new Promise((_, rej) => setTimeout(() => rej(new Error('profile_lookup_timeout')), 15000))
                 ]);
+                if (!current()) return;
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
                     // lastLogin è telemetria: MAI awaitarla sul boot path. Una
@@ -2468,30 +2615,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             new Promise((_, rej) => setTimeout(() => rej(new Error('data_load_timeout')), 20000))
                         ]);
                     } catch (loadErr) {
+                        if (!current()) return;
                         console.warn('[Auth] loadData slow/failed — entering app anyway:', loadErr.message);
                         // Show a one-time toast once the app is on screen.
-                        setTimeout(() => { try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
+                        setTimeout(() => { if (!current()) return; try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
                     }
+                    if (!current()) return;
                     showApp();
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
-                    setTimeout(() => { if (typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
-                    setTimeout(() => readBoomBridge(), 800);
+                    setTimeout(() => { if (current() && typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
+                    setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                 } else {
                     console.log('Creating new user document via /api/profile/bootstrap...');
                     // Le rules negano il create non-admin da client: il profilo
                     // nasce server-side (ruolo sempre tenant, least privilege).
                     const idToken = await u.getIdToken();
+                    if (!current()) return;
                     const bootRes = await fetch('/api/profile/bootstrap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                         body: JSON.stringify({ name: u.displayName || '' })
                     });
                     const boot = await bootRes.json().catch(() => ({}));
+                    if (!current()) return;
                     if (!bootRes.ok || !boot.ok) throw new Error('Creazione profilo non riuscita (' + (boot.error || bootRes.status) + ')');
                     location.reload();
                 }
             } catch (e) { 
+                if (!current()) return;
                 console.error('Auth error:', e);
                 // Retry logic for Safari (desktop and mobile)
                 if (isSafari && authRetryCount < maxAuthRetries) {
@@ -2501,10 +2653,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     // Actually retry loading user data after brief delay
                     setTimeout(async () => {
                         try {
+                            if (!current()) return;
                             const retryDoc = await db.collection('users').doc(u.uid).get();
+                            if (!current()) return;
                             if (retryDoc.exists) {
                                 S.profile = { id: u.uid, ...retryDoc.data() };
                                 await loadData();
+                                if (!current()) return;
                                 showApp();
                                 startSessionCheck();
                                 authProcessed = true;
@@ -2526,6 +2681,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     });
 
     async function loadData() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return { ok: false, stale: true };
         console.log('Loading data...');
         const startTime = performance.now();
         
@@ -2542,7 +2699,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const cacheKey = 'boom_data_cache';
         const cacheFresh = 5 * 60 * 1000;        // sotto: refresh rilassato
         const cacheUsable = 24 * 60 * 60 * 1000; // sotto: boot istantaneo + refresh subito
-        const cached = localStorage.getItem(cacheKey);
+        let cached;
+        try { cached = localStorage.getItem(cacheKey); } catch {}
         if (cached) {
             try {
                 const { data, timestamp, uid, role } = JSON.parse(cached);
@@ -2550,20 +2708,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const age = Date.now() - timestamp;
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
-                    Object.assign(S, data);
+                    for (const [key, value] of Object.entries(data || {})) {
+                        if (Array.isArray(value) && key !== 'user' && key !== 'profile') S[key] = value;
+                    }
+                    for (const key of ['core','contracts','maintenance']) portalSourceStatus(key, 'cached');
                     invalidateRentSnapshot();
                     window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
-                    setTimeout(() => loadDataFresh(true), age < cacheFresh ? 2000 : 0);
-                    return;
+                    setTimeout(() => { if (portalSessionCurrent(proof)) return loadDataFresh(true); }, age < cacheFresh ? 2000 : 0);
+                    return { ok: true, cached: true };
                 }
                 if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
 
-        await loadDataFresh(false);
+        return loadDataFresh(false);
     }
     
     // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
@@ -2575,7 +2736,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
             const snap = await db.collection(collection)
-                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2586,7 +2747,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let i = 0; i < unique.length; i += 30) {
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
-            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            const snap = await db.collection(collection).where(field, 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2596,84 +2757,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // queries pass Firestore Security Rules (which reject unconstrained
     // collection reads for landlord/tenant). Admin-only ops collections are
     // emptied, never fetched.
-    async function loadDataScoped(silent, startTime) {
+    async function loadDataScoped(silent, startTime, current) {
         const myUid = S.profile.id;
+        const next = {};
+        let inboxOK = true;
         // Admin-only collections: stay empty for landlord/tenant.
-        S.clients = []; S.invoices = []; S.rules = []; S.ruleExecutions = [];
-        S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
-        S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
-        S.landlords = []; S.viewingRequests = [];
-        S.conversations = []; S.messages = [];
+        next.clients = []; next.invoices = []; next.rules = []; next.ruleExecutions = [];
+        next.listings = []; next.leads = []; next.activityLog = []; next.deadlines = [];
+        next.tasks = []; next.pfsClients = []; next.pfsProperties = []; next.pfsActivities = [];
+        next.landlords = []; next.viewingRequests = [];
+        next.conversations = S.conversations || []; next.messages = S.messages || [];
         // The viewer needs their own user doc (+ admin contacts surface lazily).
-        S.users = [{ id: myUid, ...S.profile }];
+        next.users = [{ id: myUid, ...S.profile }];
 
-        if (isLandlord()) {
-            const props = await db.collection('properties').where('ownerId', '==', myUid).get();
-            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.properties.map(p => p.id);
+        const landlord = isLandlord();
+        if (landlord) {
+            const props = await db.collection('properties').where('ownerId', '==', myUid).get({ source: 'server' });
+            next.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.properties.map(p => p.id);
             const [contracts, payments, maint] = await Promise.all([
                 fetchWhereInChunked('contracts', 'propertyId', propIds),
                 fetchWhereInChunked('payments', 'propertyId', propIds),
                 fetchWhereInChunked('maintenance', 'propertyId', propIds)
             ]);
-            S.contracts = contracts;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.contracts = contracts;
+            next.payments = payments;
+            next.maintenance = maint;
             // Tenants on those contracts (so names render) — read-allowed since
             // admin rule covers users; landlords read tenant docs via rules only
             // if permitted. Keep minimal: skip cross-user fetch, render by id.
         } else { // tenant
-            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get();
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.contracts.map(c => c.propertyId);
+            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get({ source: 'server' });
+            next.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.contracts.map(c => c.propertyId);
             const [props, payments, maint] = await Promise.all([
                 fetchByIdsChunked('properties', propIds),
-                db.collection('payments').where('tenantId', '==', myUid).get()
+                db.collection('payments').where('tenantId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
-                db.collection('maintenance').where('userId', '==', myUid).get()
+                db.collection('maintenance').where('userId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
             ]);
-            S.properties = props;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.properties = props;
+            next.payments = payments;
+            next.maintenance = maint;
         }
 
         // Own documents (both roles).
-        const docs = await db.collection('documents').where('userId', '==', myUid).get();
-        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        const docs = await db.collection('documents').where('userId', '==', myUid).get({ source: 'server' });
+        next.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
 
         // Inbox: scoped reads. Landlord sees conversations assigned to them.
         // Tenant sees own (contactUid == myUid). Either way the rule allows it.
         try {
-            const field = isLandlord() ? 'assignedLandlordId' : 'contactUid';
-            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get();
-            S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
-            const convIds = S.conversations.map(c => c.id);
+            const field = landlord ? 'assignedLandlordId' : 'contactUid';
+            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get({ source: 'server' });
+            next.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
+            const convIds = next.conversations.map(c => c.id);
             if (convIds.length) {
                 const msgs = await fetchWhereInChunked('messages', 'conversationId', convIds);
-                S.messages = msgs;
+                next.messages = msgs;
             }
-        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox scoped load:', e.message); }
+        } catch (e) { inboxOK = false; if (current()) portalSourceStatus('inbox', 'error'); }
+
+        if (!current()) return { ok: false, stale: true };
+        Object.assign(S, next);
+        portalSourceStatus('core', 'live');
+        if (inboxOK) portalSourceStatus('inbox', 'live');
 
         // Auto-overdue marking on the viewer's own pending payments.
         const today = new Date().toISOString().split('T')[0];
-        S.payments.forEach(function (p) {
+        next.payments.forEach(function (p) {
             if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
         });
 
-        cacheData();
+        if (inboxOK) cacheData();
         checkAlerts();
-        if (silent) {
-            // Refresh in background dopo un boot dalla cache (percorso SWR):
-            // riallinea la UI ai dati appena arrivati — ma mai sotto un modal
-            // aperto, un re-render cancellerebbe l'input dell'utente. È lo
-            // stesso comportamento del percorso admin (blocco lazy → render).
-            const modals = document.getElementById('modals');
-            if (!modals || !modals.children.length) {
-                try { renderPage(); buildNav(); } catch (e) { console.warn('Silent refresh render:', e); }
-            }
-        }
+        if (silent) portalDataRender();
         console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+        return { ok: inboxOK };
     }
 
     function cacheData() {
@@ -2682,7 +2843,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // load non finiva (audit 2026-08, I2). Ora copre tutto lo stato, e la
         // serializzazione (potenzialmente MB) gira in idle, mai sul percorso
         // critico del main thread.
+        const proof = portalSessionProof(), generation = portalLoadGeneration;
         const snapshot = () => {
+            if (!portalSessionCurrent(proof) || generation !== portalLoadGeneration) return;
             try {
                 localStorage.setItem('boom_data_cache', JSON.stringify({
                     timestamp: Date.now(),
@@ -2703,16 +2866,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else setTimeout(snapshot, 300);
     }
 
-    async function loadDataFresh(silent) {
-        const startTime = performance.now();
+    async function loadDataFresh(silent, waitForLazy = false) {
+        const startTime = performance.now(), proof = portalSessionProof();
+        const generation = ++portalLoadGeneration;
+        let expired = false;
+        const current = () => !expired && generation === portalLoadGeneration && portalSessionCurrent(proof);
+        if (!current()) return { ok: false, stale: true };
+        const revisions = { ...S.dataRevisions };
+        portalSourceStatus('core', 'loading');
         // Landlord / tenant take the scoped path so their queries satisfy
         // Firestore rules; admin keeps the full bulk load below.
         if (!isAdmin()) {
-            try { return await loadDataScoped(silent, startTime); }
+            try { return await portalRead(loadDataScoped(silent, startTime, current)); }
             catch (e) {
+                if (!current()) return { ok: false, stale: true };
+                expired = true; portalSourceStatus('core', 'error');
                 console.error('Scoped load error:', e);
                 if (!silent) toast('error', 'Errore caricamento', e.message);
-                return;
+                return { ok: false };
             }
         }
         try {
@@ -2724,25 +2895,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // nulla e costava ~2 round-trip extra a ogni boot admin.
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('loading');
             console.log('Loading core data...');
-            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
+            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get({ source: 'server' }) nudi —
             // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
             // larghi (oggi non tagliano nulla), NON orderBy+limit: un orderBy su
             // un campo che i doc legacy non hanno li NASCONDEREBBE in silenzio.
-            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await Promise.all([
-                db.collection('users').limit(800).get(),
-                db.collection('properties').limit(400).get(),
-                db.collection('contracts').limit(800).get(),
-                db.collection('payments').limit(3000).get(),
-                db.collection('maintenance').limit(600).get(),
-                db.collection('clients').limit(1200).get(),
-                db.collection('documents').limit(1500).get(),
-                db.collection('invoices').limit(1200).get(),
-                db.collection('rules').limit(200).get(),
-                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
-            ]);
+            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await portalRead(Promise.all([
+                db.collection('users').limit(800).get({ source: 'server' }),
+                db.collection('properties').limit(400).get({ source: 'server' }),
+                db.collection('contracts').limit(800).get({ source: 'server' }),
+                db.collection('payments').limit(3000).get({ source: 'server' }),
+                db.collection('maintenance').limit(600).get({ source: 'server' }),
+                db.collection('clients').limit(1200).get({ source: 'server' }),
+                db.collection('documents').limit(1500).get({ source: 'server' }),
+                db.collection('invoices').limit(1200).get({ source: 'server' }),
+                db.collection('rules').limit(200).get({ source: 'server' }),
+                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get({ source: 'server' })
+            ]));
+            if (!current()) return { ok: false, stale: true };
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.contracts || 0) === (revisions.contracts || 0)) S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
             invalidateRentSnapshot();
             // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
@@ -2754,86 +2926,125 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.payments.forEach(function(p) {
                 if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
             });
-            S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.maintenance || 0) === (revisions.maintenance || 0)) S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
             S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
+            portalSourceStatus('core', 'live');
+            for (const name of ['contracts', 'maintenance']) if (!S[name + 'Listener']) portalSourceStatus(name, 'live');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
-            
-            // Cache core data (tagged with uid + role for shared-device safety)
-            cacheData();
             
             // LAZY LOAD: dati non-critici, dopo che l'app è visibile.
             // I 6 gruppi erano SEQUENZIALI (ogni try await-ava il precedente):
             // 6 round-trip in fila = 1,5-3s di sola latenza su mobile. Ora
             // partono INSIEME; ogni gruppo tiene il proprio catch, quindi un
             // gruppo che fallisce non tocca gli altri (audit 2026-08, I1).
-            setTimeout(async () => {
+            const lazy = async () => {
+                if (!current()) return { ok: false, stale: true };
+                let lazyOK = true;
+                const read = async (name, work) => {
+                    if (!current()) return;
+                    let active = true;
+                    const valid = () => active && current();
+                    try { await portalRead(work(valid)); if (current()) portalSourceStatus(name, 'live'); }
+                    catch { lazyOK = false; if (current()) portalSourceStatus(name, 'error'); }
+                    finally { active = false; }
+                };
                 const rows = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 await Promise.all([
-                    (async () => {
-                        try { S.listings = rows(await db.collection('listings').limit(400).get()); }
-                        catch (e) { S.listings = []; }
-                    })(),
-                    (async () => {
-                        try { S.leads = rows(await db.collection('leads').orderBy('createdAt', 'desc').limit(100).get()); }
-                        catch (e) { S.leads = []; }
-                    })(),
-                    (async () => {
-                        try { S.activityLog = rows(await db.collection('activityLog').orderBy('timestamp', 'desc').limit(200).get()); }
-                        catch (e) { S.activityLog = []; }
-                    })(),
-                    (async () => {
+                    ...[['listings', 'listings', 400], ['leads', 'leads', 100], ['activityLog', 'activityLog', 200]].map(([name, collection, limit]) => read(name, async valid => {
+                        const revision = S.dataRevisions?.[name] || 0;
+                        let query = db.collection(collection);
+                        if (name === 'leads') query = query.orderBy('createdAt', 'desc');
+                        if (name === 'activityLog') query = query.orderBy('timestamp', 'desc');
+                        const snap = await query.limit(limit).get({ source: 'server' });
+                        if (valid() && (S.dataRevisions?.[name] || 0) === revision) S[name] = rows(snap);
+                    })),
+                    read('tasks', async valid => {
                         window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('loading');
                         try {
-                            const [deadlines, tasks] = await Promise.all([
-                                db.collection('deadlines').limit(1500).get(),
-                                db.collection('tasks').limit(800).get()
-                            ]);
+                            const [deadlines, tasks] = await portalRead(Promise.all([
+                                db.collection('deadlines').limit(1500).get({ source: 'server' }),
+                                db.collection('tasks').limit(800).get({ source: 'server' })
+                            ]));
+                            if (!valid()) return;
                             S.deadlines = rows(deadlines); S.tasks = rows(tasks);
                             window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('ready');
-                        } catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze e attività'); }
-                    })(),
+                        } catch (e) { if (valid()) window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); throw e; }
+                    }),
+                    read('pfs', async valid => {
+                        const [pfsClients, pfsProperties, pfsActivities, landlords] = await portalRead(Promise.all([
+                            db.collection('pfsClients').limit(500).get({ source: 'server' }),
+                            db.collection('pfsProperties').limit(1500).get({ source: 'server' }),
+                            db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get({ source: 'server' }),
+                            db.collection('landlords').limit(500).get({ source: 'server' })
+                        ]));
+                        if (!valid()) return;
+                        S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
+                        S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
+                    }),
+                    read('viewings', async valid => { const ok = await oggiLoadViewings(); if (!ok) throw Error('viewings_unavailable'); }),
                     (async () => {
+                        let active = true;
+                        const user = auth.currentUser, profileId = S.profile?.id;
+                        const conversationsRevision = S.inboxDataRevision || 0, messagesRevision = S.inboxMessagesRevision || 0;
+                        const inboxCurrent = () => active && current() && auth.currentUser === user && S.profile?.id === profileId && isAdmin();
+                        if (!user || !inboxCurrent()) return;
                         try {
-                            const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
-                                db.collection('pfsClients').limit(500).get(),
-                                db.collection('pfsProperties').limit(1500).get(),
-                                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
-                                db.collection('landlords').limit(500).get()
-                            ]);
-                            S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
-                            S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
-                        } catch (e) { S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = []; }
-                    })(),
-                    oggiLoadViewings(),
-                    (async () => {
-                        try {
-                            const [convs, msgs] = await Promise.all([
-                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
-                                db.collection('messages').orderBy('at', 'desc').limit(500).get()
-                            ]);
-                            S.conversations = rows(convs); S.messages = rows(msgs);
-                        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+                            const [convs, msgs] = await portalRead(Promise.all([
+                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get({ source: 'server' }),
+                                db.collection('messages').orderBy('at', 'desc').limit(500).get({ source: 'server' })
+                            ]));
+                            if (!inboxCurrent()) return;
+                            // A delayed one-shot must not replace a newer realtime snapshot.
+                            if ((S.inboxDataRevision || 0) === conversationsRevision) {
+                                S.conversations = rows(convs);
+                                const selected = S.inboxExactConversation;
+                                if (S.page === 'inbox' && selected?.user === user && selected.id === S.openConvId) {
+                                    const latest = S.conversations.find(c => c.id === selected.id);
+                                    if (latest) selected.row = latest;
+                                    else S.conversations.push(selected.row);
+                                }
+                            }
+                            if ((S.inboxMessagesRevision || 0) === messagesRevision) {
+                                const openId = S.openConvId;
+                                // The global 500-message window does not replace the selected thread.
+                                S.messages = openId ? rows(msgs).filter(m => m.conversationId !== openId)
+                                    .concat((S.messages || []).filter(m => m.conversationId === openId)) : rows(msgs);
+                            }
+                            portalSourceStatus('inbox', 'live');
+                        } catch (e) {
+                            lazyOK = false;
+                            if (inboxCurrent()) portalSourceStatus('inbox', 'error');
+                            console.warn('Inbox load:', e.message);
+                            if (inboxCurrent() && !['live', 'cached'].includes(S.inboxFeed?.state)) {
+                                S.inboxFeed = { state: 'error' }; inboxFreshnessUpdate();
+                            }
+                        } finally { active = false; }
                     })(),
                 ]);
 
+                if (!current()) return { ok: false, stale: true };
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
-                if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
-                cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
-                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
-                buildNav();
-            }, isSafariDesktop ? 1500 : 500);
-            
-            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+                if (lazyOK) cacheData();
+                portalDataRender();
+                return { ok: lazyOK };
+            };
+            const completion = waitForLazy ? lazy() : new Promise(resolve => setTimeout(() => { const pending = lazy(); resolve(pending); return pending; }, isSafariDesktop ? 1500 : 500));
             if (!silent) checkAlerts();
+            if (waitForLazy) return await completion;
+            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+            return { ok: true, completion };
         } catch (e) { 
+            if (!current()) return { ok: false, stale: true };
+            expired = true; portalSourceStatus('core', 'error');
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('error');
             console.error('Load data error:', e);
-            if (!silent) toast('error', 'Errore caricamento', e.message); 
+            if (!silent) toast('error', 'Errore caricamento', e.message);
+            return { ok: false };
         }
     }
 
@@ -3091,11 +3302,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.notifListener) S.notifListener();
         
         // Listen for notifications for this user
-        S.notifListener = db.collection('notifications')
+        S.notifListener = portalListenSource('notif', db.collection('notifications')
             .where('userId', '==', S.profile.id)
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
                 updateReminderBadge();
@@ -3114,7 +3325,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const latest = newUnread[0];
                     sendBrowserNotification(latest.title || 'BOOM', latest.message || 'New notification');
                 }
-            }, err => console.error('Notification listener error:', err));
+            });
     }
     
     function stopNotificationListener() {
@@ -3134,13 +3345,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // iniziale riscaricava la collezione INTERA una seconda volta.
         if (!S.profile?.id || !isAdmin()) return;
         if (S.contractsListener) S.contractsListener();
-        S.contractsListener = db.collection('contracts').limit(800)
-            .onSnapshot(snapshot => {
+        S.contractsListener = portalListenSource('contracts', db.collection('contracts').limit(800)
+            , snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
                 oggiScheduleUpdate();
-                if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
-            }, err => console.error('Contracts listener error:', err));
+                if (S.page === 'dashboard' || S.page === 'contracts') portalDataRender();
+            }, startContractsListener);
     }
 
     function stopContractsListener() {
@@ -3157,15 +3368,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startActionQueueListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.actionQueueListener) S.actionQueueListener();
-        S.actionQueueListener = db.collection('action_queue')
+        S.actionQueueListener = portalListenSource('actionQueue', db.collection('action_queue')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
                 oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
-            }, err => console.error('Action queue listener error:', err));
+            });
     }
 
     function stopActionQueueListener() {
@@ -3182,11 +3393,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startHeartbeatListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.heartbeatListener) S.heartbeatListener();
-        S.heartbeatListener = db.collection('heartbeat').doc('mac')
-            .onSnapshot(doc => {
+        S.heartbeatListener = portalListenSource('heartbeat', db.collection('heartbeat').doc('mac')
+            , doc => {
                 S.homieHeartbeat = doc.exists ? doc.data() : null;
                 if (S.page === 'command-center') renderPage();
-            }, err => console.error('Heartbeat listener error:', err));
+            });
         // Re-render periodically so the dot ages even without new pings.
         if (!S._hbTick) S._hbTick = setInterval(() => { if (S.page === 'command-center') renderPage(); }, 30000);
     }
@@ -3203,8 +3414,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.maintenanceListener) S.maintenanceListener();
         S._maintSeen = new Set((S.maintenance || []).map(m => m.id));
-        S.maintenanceListener = db.collection('maintenance').limit(600)
-            .onSnapshot(snapshot => {
+        S.maintenanceListener = portalListenSource('maintenance', db.collection('maintenance').limit(600)
+            , snapshot => {
                 S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
                 const firstRun = !S._maintInit; S._maintInit = true;   // don't alert for pre-existing tickets on login
@@ -3220,8 +3431,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 }
                 buildNav();
                 oggiScheduleUpdate();
-                if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Maintenance listener error:', err));
+                if (S.page === 'maintenance' || S.page === 'dashboard') portalDataRender();
+            }, startMaintenanceListener);
     }
     function stopMaintenanceListener() {
         if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
@@ -3238,8 +3449,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.leadsListener) S.leadsListener();
         S._leadsSeen = new Set((S.leads || []).map(l => l.id));
         S._leadsInit = false;
-        S.leadsListener = db.collection('leads').orderBy('createdAt', 'desc').limit(100)
-            .onSnapshot(snapshot => {
+        S.leadsListener = portalListenSource('leads', db.collection('leads').orderBy('createdAt', 'desc').limit(100)
+            , snapshot => {
                 S.leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const firstRun = !S._leadsInit; S._leadsInit = true;   // niente avvisi per l'arretrato al login
                 const fresh = firstRun ? [] : S.leads.filter(l => !S._leadsSeen.has(l.id)
@@ -3256,7 +3467,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 buildNav();
                 oggiScheduleUpdate();
                 if (S.page === 'leads') renderPage();
-            }, err => console.error('Leads listener error:', err));
+            });
     }
     function stopLeadsListener() {
         if (S.leadsListener) { S.leadsListener(); S.leadsListener = null; }
@@ -3271,10 +3482,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.agentFeedListener) S.agentFeedListener();
         S._agentSeen = new Set((S.agentFeed || []).map(a => a.id));
-        S.agentFeedListener = db.collection('agentNotifications')
+        S.agentFeedListener = portalListenSource('agentFeed', db.collection('agentNotifications')
             .where('status', '==', 'pending')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
@@ -3289,7 +3500,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
                 }
                 if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Agent feed listener error:', err));
+            });
     }
     function stopAgentFeedListener() {
         if (S.agentFeedListener) { S.agentFeedListener(); S.agentFeedListener = null; }
@@ -3313,13 +3524,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startSignRequestsListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.signRequestsListener) S.signRequestsListener();
-        S.signRequestsListener = db.collection('signRequests')
+        S.signRequestsListener = portalListenSource('signRequests', db.collection('signRequests')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.signRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (S.page === 'contracts') renderPage();
-            }, err => console.error('Sign requests listener error:', err));
+                if (S.page === 'contracts') portalDataRender();
+            }, startSignRequestsListener);
     }
 
     function stopSignRequestsListener() {
@@ -3333,13 +3544,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startRadarListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.radarListener) S.radarListener();
-        S.radarListener = db.collection('radarSearches')
+        S.radarListener = portalListenSource('radar', db.collection('radarSearches')
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.radarSearches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if (S.page === 'property-radar') renderPage();
-            }, err => console.error('Radar listener error:', err));
+            });
     }
 
     function stopRadarListener() {
@@ -3370,6 +3581,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         S.inboxListener = q.onSnapshot({ includeMetadataChanges: true }, snapshot => {
             if (!active || !current()) return;
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
             S.inboxFeed = { state: snapshot.metadata?.fromCache ? 'cached' : 'live' };
             inboxFreshnessUpdate();
             const changed = !received || typeof snapshot.docChanges !== 'function' || snapshot.docChanges().length > 0;
@@ -3426,6 +3638,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 if (!active || !current()) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.inboxMessagesRevision = (S.inboxMessagesRevision || 0) + 1;
                 S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
@@ -3988,12 +4201,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function refresh() { 
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             await loadData(); 
+            if (!portalSessionCurrent(proof)) return;
             await loadRegistrations();
+            if (!portalSessionCurrent(proof)) return;
             renderPage(); 
             buildNav(); 
         } catch (e) {
+            if (!portalSessionCurrent(proof)) return;
             console.error('Refresh error:', e);
             toast('error', 'Errore aggiornamento', 'Ricarica la pagina');
         }
@@ -4074,12 +4292,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Force refresh data (clear cache and reload)
     async function forceRefreshData() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         window.portalSearchReset?.();
-        localStorage.removeItem('boom_data_cache');
         toast('info', 'Ricaricamento dati...');
-        await loadDataFresh(false);
-        renderPage();
-        toast('success', 'Dati aggiornati!');
+        const result = await loadDataFresh(false, true);
+        if (!portalSessionCurrent(proof) || result?.stale) return;
+        portalSourcesRecover();
+        portalDataRender();
+        if (result?.ok && !Object.values(S.sourceFreshness || {}).some(entry => entry.state !== 'live')) toast('success', 'Dati aggiornati!');
+        else toast('warning', 'Aggiornamento incompleto', 'Conservo gli ultimi dati disponibili. Controlla le fonti segnalate e riprova.');
+        return result;
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
 
@@ -4162,59 +4385,54 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const radarFound = (S.leads || []).filter(l => (l.source || '').startsWith('radar') && (l.status === 'new' || !l.status)).length;
             const unreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             
-            sb.innerHTML = `
-                <div class="nav-section"><div class="nav-label">Operativo</div>
-                    <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
-                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Gestione</div>
-                    <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
-                    <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
-                    <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
-                    <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
-                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Canoni ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
-                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Tools</div>
-                    <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
-                    <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
-                    <div class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
-                    <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
-                    <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
-                    <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Dati</div>
-                    <div class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
-                    <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Console</div>
-                    <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
-                    <div class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
-                    <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
-                    <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
-                    <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
-                    <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
-                    <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
-                    <div class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
-                    <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Sistema</div>
-                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
-                    <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
-                    <div class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
-                </div>
-                <div class="sidebar-footer">
-                    <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
-                    <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
-                </div>`;
+            const openGroups = new Set([...sb.querySelectorAll('.portal-nav-group[open]')].map(group => group.dataset.navGroup));
+            sb.innerHTML = `<div class="nav-section portal-nav-primary"><div class="nav-label">Il tuo lavoro</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Persone</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Incassi ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
+</div>
+<details class="portal-nav-group" data-nav-group="work" ${openGroups.has('work') || ['dashboard', 'leads', 'clienti', 'viewings', 'maintenance'].includes(S.page) ? 'open' : ''}><summary>Affitti e relazioni</summary><div class="nav-section"><div class="nav-label">Affitti e relazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Agenda ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="records" ${openGroups.has('records') || ['invoices', 'burocrazia', 'documents', 'commercialista'].includes(S.page) ? 'open' : ''}><summary>Documenti e contabilità</summary><div class="nav-section"><div class="nav-label">Documenti e contabilità</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="tools" ${openGroups.has('tools') || ['boom-tools', 'adminflats', 'photo-studio', 'underwriting', 'relet', 'landlords', 'innesto', 'bonifica'].includes(S.page) ? 'open' : ''}><summary>Strumenti e catalogo</summary><div class="nav-section"><div class="nav-label">Strumenti e catalogo</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Strumenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Archivio proprietari</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="console" ${openGroups.has('console') || ['squadra', 'rules', 'activity-log'].includes(S.page) ? 'open' : ''}><summary>Console e sistema</summary><div class="nav-section"><div class="nav-label">Console e sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
+</div></details>
+<div class="sidebar-footer"><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div></div>`;
         } else if (r === 'landlord') {
             const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
             const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
@@ -4704,14 +4922,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         Object.entries(E.KINDS).forEach(([kind, source]) => {
             const existing = Array.isArray(S[source.collection]) ? S[source.collection] : [];
             const scanned = reader.state(kind).rows;
-            const ids = new Set(scanned.map(row => row.id));
-            state[source.collection] = existing.filter(row => !ids.has(row.id)).concat(scanned);
+            // Archive pages only extend the live projection. They must not
+            // roll back a record refreshed by a listener or an explicit load.
+            const rows = new Map(scanned.map(row => [row.id, row]));
             session.canonical.forEach((row, key) => {
                 if (!key.startsWith(kind + ':')) return;
                 const id = key.slice(kind.length + 1);
-                state[source.collection] = state[source.collection].filter(r => r.id !== id);
-                if (row) state[source.collection].push(row);
+                if (row) rows.set(id, row); else rows.delete(id);
             });
+            existing.forEach(row => rows.set(row.id, row));
+            state[source.collection] = Array.from(rows.values());
         });
         return state;
     }
@@ -4735,7 +4955,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const meta = E.KINDS[kind], scan = reader?.state(kind), count = (state[meta.collection] || []).length;
             const status = scan?.status === 'loading' ? 'Lettura in corso…' : scan?.status === 'error' ? 'Lettura non riuscita · dati precedenti conservati' : scan?.complete ? 'Scansione terminata' : scan?.rows?.length ? scan.rows.length + ' record letti dal database · archivio ancora parziale' : 'Completezza non verificata';
             return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
-        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
+        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già registrati nel portale sono nell’Inbox. «Cerca nelle email» consulta la casella collegata, su richiesta, separatamente dalle schede BOOM. Lo storico completo WhatsApp di HOMIE non è incluso.</p><button type="button" class="btn btn-sm btn-secondary" onclick="portalMailCheckSources()" ${S.mailSources?.checking ? 'disabled' : ''}>${S.mailSources?.checking ? 'Verifico collegamenti…' : 'Verifica collegamenti'}</button><p class="ow-hint" role="status" id="portalMailSourceStatus">${esc(S.mailSources?.summary || 'Controlla configurazione e ultimo giro registrato. Non legge nuove email e non attiva HOMIE.')}</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
         target.onclick = event => {
             if (event.target.closest('[data-search-reset]')) { window.portalSearchReset(); return; }
             const button = event.target.closest('[data-search-source]');
@@ -4760,12 +4980,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!portalSearchAuthorized()) return null;
         if (session.hydration.has(key)) return session.hydration.get(key);
         const user = auth.currentUser, generation = session.generation;
+        const startedRow = (S[source.collection] || []).find(row => row.id === record.id);
         // A result outside the initial load must be re-read before opening a
         // handler. Never hydrate from a stale scan or after an account switch.
         const pending = (async () => { try {
             const snap = await db.collection(source.collection).doc(record.id).get({ source: 'server' });
             if (auth.currentUser !== user || !portalSearchAuthorized() || session !== portalSearchCache || generation !== session.generation) return null;
-            if (!snap.exists) { session.canonical.set(key, null); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
+            const currentRow = (S[source.collection] || []).find(row => row.id === record.id);
+            if (currentRow !== startedRow) return currentRow ? E.recordFor(record.kind, record.id, S) : null;
+            if (!snap.exists) { session.canonical.set(key, null); S[source.collection] = (S[source.collection] || []).filter(row => row.id !== record.id); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
             const row = { ...snap.data(), id: snap.id };
             session.canonical.set(key, row);
             S[source.collection] = (S[source.collection] || []).filter(r => r.id !== row.id).concat(row);
@@ -4780,8 +5003,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const user = auth.currentUser;
         const fresh = await portalSearchEnsure(record);
         if (!fresh || auth.currentUser !== user || !portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
-        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUserProfile', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
-        if (fresh.kind === 'proposal') return window.open('/pre-agreement-admin', '_blank', 'noopener');
+        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUser', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
+        if (fresh.kind === 'proposal') {
+            const ref = S.preAgreements.find(row => row.id === fresh.id)?.ref;
+            return window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank', 'noopener');
+        }
         if (fresh.kind === 'payment') {
             const payment = S.payments.find(p => p.id === fresh.id);
             if (payment?.contractId && S.contracts.some(c => c.id === payment.contractId)) return viewContract(payment.contractId);
@@ -4793,6 +5019,40 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     
+    // Mailbox adapter: exact email matches describe existing records only.
+    // The mailbox module owns no identity links or persisted portal state.
+    let portalMailboxInitialized = false;
+    function portalMailboxRecords(emails) {
+        if (!portalSearchAuthorized() || !window.BOOM_PORTAL_SEARCH) return [];
+        const E = window.BOOM_PORTAL_SEARCH, state = portalSearchState();
+        const wanted = new Set(emails.map(email => String(email).trim().toLowerCase()).filter(Boolean)), result = new Map();
+        for (const kind of ['person', 'client', 'lead', 'pfsClient', 'landlord']) {
+            for (const row of state[E.KINDS[kind].collection] || []) {
+                const email = [row.email, row.contactEmail, row.leadEmail].find(value => typeof value === 'string' && wanted.has(value.trim().toLowerCase()));
+                if (!email) continue;
+                const record = E.recordFor(kind, row.id, state);
+                if (record) result.set(kind + ':' + row.id, {...record, typeLabel:E.KINDS[kind].label, matchedEmail:email.trim()});
+            }
+        }
+        return [...result.values()];
+    }
+    function portalOpenMailbox(query) {
+        if (!portalSearchAuthorized()) return;
+        const mailbox = window.BOOM_MAILBOX;
+        if (!mailbox) return toast('warning', 'La ricerca email non è disponibile. Ricarica il portale.');
+        if (!portalMailboxInitialized) {
+            mailbox.init({
+                getSession: () => portalSearchAuthorized() ? {...portalSessionProof(), user:auth.currentUser} : null,
+                isCurrent: proof => portalSessionCurrent(proof) && portalSearchAuthorized() && auth.currentUser === proof.user,
+                getToken: proof => proof.user.getIdToken(),
+                findRecordsByEmail: portalMailboxRecords,
+                openRecord: record => portalSearchOpen(record)
+            });
+            portalMailboxInitialized = true;
+        }
+        return mailbox.open(typeof query === 'string' ? query : document.getElementById('ogWorkQuery')?.value || '', {search:true});
+    }
+
     // Close search on click outside
     document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch, #searchResults')) document.getElementById('searchResults')?.remove(); });
 
@@ -5068,31 +5328,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return navigator.onLine === false || ['cached', 'error'].includes(S.inboxFeed?.state);
     }
     function inboxLiveRefresh() {
-        if (S.page !== 'inbox') return;
-        const focused = document.activeElement;
-        const saved = ['inboxBody', 'inboxSubject', 'inboxTpl'].map(id => {
-            const el = document.getElementById(id);
-            return el && { id, value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection, scroll: el.scrollTop, focused: focused === el };
-        }).filter(Boolean);
-        const searchFocused = focused?.matches('#main input[type="search"]');
-        const searchSelection = searchFocused && [focused.selectionStart, focused.selectionEnd];
-        const panes = [...document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline')].map(el => el.scrollTop);
-        const main = document.getElementById('main');
-        if (main) main.innerHTML = inboxPage();
-        for (const field of saved) {
-            const replacement = document.getElementById(field.id);
-            if (!replacement) continue;
-            replacement.value = field.value;
-            if (field.focused) replacement.focus({ preventScroll: true });
-            if (typeof field.start === 'number') replacement.setSelectionRange(field.start, field.end, field.direction);
-            replacement.scrollTop = field.scroll;
-        }
-        if (searchFocused) {
-            const search = main?.querySelector('input[type="search"]');
-            if (search) { search.focus({ preventScroll: true }); search.setSelectionRange(...searchSelection); }
-        }
-        document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline').forEach((el, i) => { if (panes[i] !== undefined) el.scrollTop = panes[i]; });
+        inboxRefresh('live');
     }
+
     function portalFreshnessStop(page) {
         if (page && portalFreshness.page !== page) return;
         if (portalFreshness.page === 'inbox' && (S.page !== 'inbox' || portalFreshness.user !== auth.currentUser)) stopOpenConvListener();
@@ -6066,10 +6304,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
 
     // HOME OPERATIVA: UI state only; domain data stays in the existing records.
-    const oggiWorkspace = { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: false, user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' };
+    const oggiWorkspace = { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' };
     function oggiWorkspaceResetUser() {
         const uid = auth.currentUser?.uid || null;
-        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: false, user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' });
+        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' });
     }
     window.oggiOpenSection = function(id) {
         if (!isAdmin() || !['ogOwnerTools', 'ogFollowTools'].includes(id)) return;
@@ -6193,7 +6431,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const open = new Set([...target.querySelectorAll('details[open]')].map(d => d.dataset.owFold));
         const focused = target.contains(document.activeElement) ? document.activeElement : null;
         const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
-        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${['person','client','lead','pfsClient','property','contract'].includes(record.kind) ? `<button type="button" class="btn btn-sm" onclick="inboxOpenContext({kind:'${jsq(record.kind)}',id:'${jsq(record.id)}'})">Comunicazioni collegate ↗</button>` : ''}${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
             ${conversations.length ? `<div class="ow-related" aria-label="Conversazioni collegate">${conversations.map((c, i) => `<button type="button" onclick="oggiWorkspaceConversation(${i})"><small>Conversazione · ${esc(c.channel || 'Inbox')}</small><strong>Apri messaggi ↗</strong><span>${esc(c.contactName || record.label)}</span></button>`).join('')}</div><p class="ow-hint">Conversazioni già collegate al contatto nel portale; lo storico HOMIE non è incluso.</p>` : ''}
             <details data-ow-fold="cases" ${open.has('cases') ? 'open' : ''}><summary>Seguiti collegati <span>${tasks.length}</span></summary>${oggiSegretaria.error || oggiSegretaria.incomplete ? '<p class="ow-source-note">La lettura dei seguiti è parziale o non aggiornata.</p>' : ''}${!oggiSegretaria.loaded ? '<p class="ow-hint">Lettura dei seguiti in corso.</p>' : tasks.length ? tasks.slice(0, 4).map(oggiWorkCaseCard).join('') + (tasks.length > 4 ? '<p class="ow-hint">Mostrati 4 di '+tasks.length+' seguiti collegati. <button type="button" class="ow-link" onclick="oggiOpenSection(\'ogFollowTools\')">Apri tutti i seguiti</button></p>' : '') : '<p class="ow-hint">Nessun seguito collegato in questo elenco. Le richieste da associare restano in Segreteria.</p>'}</details><p class="ow-hint">Collegamenti salvati nel portale. Le omonimie non vengono unite.</p></div>`;
         if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
@@ -6227,15 +6465,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         ].filter(Boolean);
         const summary = document.getElementById('ogDeskSummary');
         if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Scadenze e richieste', issues.length ? 'Aggiornamento da verificare' : 'Dati caricati'].join(' · ');
-        panel.innerHTML = `<header class="od-heading"><div><p class="ow-eyebrow">IL LAVORO DA SBLOCCARE</p><h2>Il prossimo passo.</h2><p>Casa, persona e azioni collegate. Scegli il lavoro da sbloccare.</p></div><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></header>
+        panel.innerHTML = `
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
+            ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
             ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
             ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
-            ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
             <div class="od-areas" role="group" aria-label="Scegli il lavoro">${model.areas.map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
             <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}</div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Vedi i passaggi</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Seguiti confermati con un ricontrollo futuro.</small></button></div>
+            <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
             <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
         panel.onclick = event => {
             const button = event.target.closest('button');
@@ -6336,7 +6575,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const P = window.BOOM_ACTIONS;
         const ids = ['console:/chiamate', 'console:/risposte', 'console:/media-studio', 'console:/manuale'];
         const descriptions = { '/chiamate': 'Audio, trascrizioni e riepiloghi salvati', '/risposte': 'Testi pronti e link da copiare', '/media-studio': 'Foto e reel dagli annunci', '/manuale': 'Istruzioni e informazioni della casa' };
-        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
+        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('boom-tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
     }
     function oggiQuickContext() {
         const selected = oggiWorkspace.selected;
@@ -6409,31 +6648,116 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             field.dispatchEvent(new Event('change', { bubbles: true }));
         }
     };
-    // Channel entry is read-only. Exact IDs filter the loaded conversations;
-    // no automatic inboxSelect (which marks a thread read), guessing or sending.
+    function inboxContextRows() {
+        const context = S.inboxContext;
+        const rows = new Map((S.conversations || []).map(c => [c.id, c]));
+        if (context?.user === auth.currentUser && portalSearchAuthorized()) for (const row of context.rows) if (!rows.has(row.id)) rows.set(row.id, row);
+        return [...rows.values()];
+    }
+    function inboxContextCurrent(proof) {
+        const rows = (S.conversations || []).filter(c=>c.id===proof.id);
+        return rows.length===1 ? rows[0] : rows.length ? null : proof;
+    }
+    function inboxContextMember(row, context) {
+        if (!row || row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') return false;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,context.caseRows || []);
+        if (!target?.available) return false;
+        if (target.contacts.length) return target.contacts.some(identity => window.BOOM_INBOX_CONTEXT.matches(row,identity));
+        const proof = context.rows.find(c=>c.id===row.id);
+        return target.conversationIds.includes(row.id) && proof && row.contactType===proof.contactType && row.contactId===proof.contactId;
+    }
+    function inboxContextNotice() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return '';
+        const changed = context.rows.some(proof=>!inboxContextMember(inboxContextCurrent(proof),context));
+        const status = context.loading ? 'Lettura in corso…' : context.error ? 'Lettura non riuscita. Riprova.' : context.incomplete || changed ? 'Elenco parziale · riferimenti da verificare.' : 'Conversazioni collegate lette dal server.';
+        return `<section class="sg-notice" aria-label="Comunicazioni del contesto"><strong>${esc(context.label)}</strong> <span role="status">${esc(status)}</span><div><button type="button" class="btn btn-sm" onclick="inboxReturnContext()">← Torna al contesto</button> <button type="button" class="btn btn-sm" onclick="inboxContextLoad()" ${context.loading ? 'disabled' : ''}>Riprova lettura</button></div><details><summary>Fonti e copertura</summary><p>WhatsApp ed email già registrati nel portale. Questa lettura non sincronizza Gmail né HOMIE. Per casa e contratto sono inclusi solo i seguiti confermati con riferimenti verificabili. Lettura limitata a 100 seguiti e 50 conversazioni; i riferimenti mancanti restano da verificare.${context.error ? ' Conservo i dati già letti: possono essere superati.' : ''}</p></details></section>`;
+    }
+    window.inboxContextLoad = async function() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return;
+        const generation = context.generation = (context.generation || 0) + 1, revision = S.inboxDataRevision || 0;
+        const current = () => S.inboxContext === context && context.user === auth.currentUser && portalSearchAuthorized() && context.generation === generation;
+        context.loading = true; context.error = false; inboxRefresh();
+        try {
+            let incomplete = false;
+            // Exact indexed references work even when Home/Segreteria was never mounted.
+            if (['property','contract'].includes(context.record.kind)) {
+                const field = context.record.kind==='property' ? 'propertyRef' : 'practiceRef';
+                const prefix = context.record.kind==='property' ? 'properties/' : 'contracts/';
+                const snap = await db.collection('operatorTasks').where('followUp.'+field,'==',prefix+context.record.id).limit(101).get({source:'server'});
+                if (!current()) return;
+                incomplete = snap.docs.length >= 101;
+                context.caseRows = snap.docs.slice(0,100).map(doc=>({...doc.data(),id:doc.id}));
+            }
+            if (!current()) return;
+            const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record, S, context.caseRows || []);
+            if (!target?.available) throw Error('record_unavailable');
+            const found = new Map(); incomplete = incomplete || target.unresolvedCount > 0;
+            for (const identity of target.contacts) {
+                const snap = await db.collection('conversations').where('contactId','==',identity.contactId).limit(51).get({source:'server'});
+                if (!current()) return;
+                if (snap.docs.length >= 51) incomplete = true;
+                for (const doc of snap.docs.slice(0,50)) { const row = {...doc.data(),id:doc.id}; if (window.BOOM_INBOX_CONTEXT.matches(row,identity)) found.set(row.id,row); }
+            }
+            if (target.conversationIds.length > 50) incomplete = true;
+            for (const id of target.conversationIds.slice(0,50)) {
+                const snap = await db.collection('conversations').doc(id).get({source:'server'});
+                if (!current()) return;
+                if (!snap.exists) { incomplete = true; continue; }
+                const row = {...snap.data(),id:snap.id || id};
+                if (row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') { incomplete = true; continue; }
+                found.set(id,row);
+            }
+            if (!current()) return;
+            context.rows = [...found.values()]; context.incomplete = !!incomplete; context.readAt = new Date().toISOString();
+            const newer = (S.inboxDataRevision || 0) !== revision, existing = new Map((S.conversations || []).map(c=>[c.id,c]));
+            S.conversations = [...(S.conversations || []).filter(c=>!found.has(c.id)),...context.rows.map(row=>newer&&existing.has(row.id)?existing.get(row.id):row)];
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
+        } catch { if (current()) context.error = true; }
+        finally { if (current()) { context.loading = false; inboxRefresh(); } }
+    };
+    window.inboxOpenContext = function(record, channel = 'all') {
+        if (!portalSearchAuthorized() || !['all','whatsapp','email'].includes(channel)) return;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(record,S,oggiSegretaria.rows);
+        if (!target?.available) return toast('warning','Contesto non disponibile','Riapri il record dai dati aggiornati.');
+        const origin = {page:S.page,arg:S.pageArg,scroll:window.scrollY,record:{kind:record.kind,id:record.id},modal:document.body.classList.contains('modal-open') || !!document.querySelector('.modal-overlay.active')};
+        if (origin.modal && (record.kind !== 'contract' || document.querySelector('.modal-overlay.active')?.dataset.inboxContract !== record.id)) return toast('warning','Chiudi prima il modulo aperto.');
+        if (origin.modal) closeModal();
+        inboxRefresh('remember'); stopOpenConvListener();
+        S.inboxContext = {record:origin.record,label:target.label,user:auth.currentUser,rows:[],origin,loading:true,error:false,incomplete:false};
+        Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null});
+        goTo('inbox'); inboxContextLoad();
+    };
+    window.inboxReturnContext = function() {
+        const context=S.inboxContext;
+        if (!context || context.user!==auth.currentUser || !portalSearchAuthorized()) return;
+        const origin=context.origin; inboxRefresh('remember'); S.inboxContext=null; stopOpenConvListener();
+        goTo(origin.page,origin.arg);
+        if (origin.modal && origin.record.kind==='contract') viewContract(origin.record.id);
+        requestAnimationFrame(()=>window.scrollTo(0,origin.scroll || 0));
+    };
     window.oggiOpenInbox = function(channel, record) {
-        if (!portalSearchAuthorized() || !['whatsapp', 'email'].includes(channel)) return;
-        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning', 'Completa o chiudi prima il modulo aperto.');
-        if (record && (!['person', 'client'].includes(record.kind) || !window.BOOM_PORTAL_SEARCH?.recordFor(record.kind, record.id, S))) return toast('warning', 'Il contatto non è più disponibile. Ripeti la ricerca.');
-        Object.assign(_inboxState, { channel, filter: 'all', search: '', convId: null, homeContext: record ? { kind: record.kind, id: record.id, user: auth.currentUser?.uid } : null });
-        goTo('inbox');
+        if (!portalSearchAuthorized() || !['whatsapp','email'].includes(channel)) return;
+        if (record) return inboxOpenContext(record,channel);
+        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning','Completa o chiudi prima il modulo aperto.');
+        S.inboxContext=null; Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null}); goTo('inbox');
     };
     function oggiInboxScope() {
-        const scope = _inboxState.homeContext;
-        if (!scope) return null;
-        const record = portalSearchAuthorized() && scope.user === auth.currentUser?.uid && window.BOOM_PORTAL_SEARCH?.recordFor(scope.kind, scope.id, S);
-        const types = scope.kind === 'person' ? ['tenant', 'landlord'] : scope.kind === 'client' ? ['client'] : [];
-        return { label: record?.label || 'Contatto non più disponibile', ids: record ? (S.conversations || []).filter(c => c.contactId === scope.id && types.includes(c.contactType) && (S.conversations || []).filter(other => other.id === c.id).length === 1).map(c => c.id) : [] };
+        const context=S.inboxContext;
+        if (context) { const valid = context.user===auth.currentUser && portalSearchAuthorized() && window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,oggiSegretaria.rows)?.available; return {label:valid?context.label:'Contesto non disponibile',ids:valid?context.rows.filter(c=>inboxContextMember(inboxContextCurrent(c),context)).map(c=>c.id):[]}; }
+        const scope=_inboxState.homeContext; if(!scope)return null;
+        const record=portalSearchAuthorized()&&scope.user===auth.currentUser?.uid&&window.BOOM_PORTAL_SEARCH?.recordFor(scope.kind,scope.id,S);
+        const types=scope.kind==='person'?['tenant','landlord']:scope.kind==='client'?['client']:[];
+        return{label:record?.label||'Contatto non più disponibile',ids:record?(S.conversations||[]).filter(c=>c.contactId===scope.id&&types.includes(c.contactType)).map(c=>c.id):[]};
     }
-    window.oggiClearInboxScope = function() {
-        if (!portalSearchAuthorized()) return;
-        _inboxState.homeContext = null; _inboxState.convId = null; inboxRefresh();
-    };
+    window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
-            <div id="ogWorkResults" aria-live="polite"></div><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio <span>Estendi la ricerca</span></summary><div id="ogSearchSources"></div></details>
-        </section><section class="ow-toolbox" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-head"><h2 id="ogToolsTitle">I tuoi strumenti.</h2><p>Un tocco, il lavoro già aperto.</p></div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
-            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Chiedi alla segreteria ↗</button><a href="/media-studio" target="_blank" rel="noopener">Foto e reel ↗</a><button type="button" onclick="goTo('tools')">Tutti gli strumenti ↗</button></nav>
+            <div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
+            <div id="ogWorkResults" aria-live="polite"></div>
+        </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
         </section>`;
     }
     async function oggiLoadViewings() {
@@ -6505,11 +6829,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         oggiWorkspaceResetUser();
         if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
         const name = (S.profile?.name || 'Valentino').split(' ')[0];
-        return `<div class="ow-home">
+        return `<div class="ow-home portal-home">
             <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
             ${oggiWorkspacePanel()}
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
-            <details class="ow-fold" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il lavoro da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
             <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
@@ -10476,11 +10800,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 extraInfo = `<span class="sep">·</span>${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
+            return `<div class="list-item clickable user-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click()}" data-search="${esc([u.name,u.email,u.phone,property?.name,...ownedProps.map(p=>p.name)].filter(Boolean).join(' '))}" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-                        ${u.name}
+                        ${esc(u.name)}
                         <span class="li-flags">
                         ${u.id === S.profile.id ? '<span class="li-flag">Tu</span>' : ''}
                         ${overduePayments.length > 0 ? '<span class="li-flag red">In ritardo</span>' : ''}
@@ -10490,12 +10814,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        ${u.email || 'No email'}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
+                        ${esc(u.email || 'Email non presente')}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
-                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
+                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Richiedi dati" aria-label="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPerson('${u.id}','user')" title="Apri scheda 360°">📂</button>
                     <span class="badge ${r.color}">${r.icon} ${r.label}</span>
                 </div>
@@ -10503,10 +10827,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         return `<div class="page-header">
-                <div><h1 class="page-title">👥 Utenti</h1><p class="page-subtitle">${S.users.length} utenti ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
+                <div><h1 class="page-title">Persone</h1><p class="page-subtitle">${S.users.length} persone ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
                 <div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div>
             </div>
 
+            <div class="portal-list-toolbar users-toolbar" id="usersToolbar" data-filter="all">
+                <label class="portal-list-search" for="userSearch"><span class="sr-only">Cerca una persona</span><input type="search" class="form-input" id="userSearch" placeholder="Nome, email, telefono o immobile" oninput="filterUsers()" autocomplete="off"></label>
+                <div class="portal-list-filters" role="group" aria-label="Filtra persone">
+                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
+                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
+                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
+            </div></div>
+
+            <p class="portal-list-count" id="usersResultCount" role="status">${S.users.length} persone</p>
+            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-title">Nessuna persona</div></div>'}<div id="usersEmptySearch" class="empty-state" hidden><div class="empty-title">Nessuna persona trovata</div><p>Prova un altro nome o togli il filtro.</p><button class="btn btn-secondary" onclick="document.getElementById('userSearch').value='';filterUsers('all')">Mostra tutte</button></div></div></div>
+            <details class="portal-list-extras users-extras"><summary>Riepiloghi e inviti <span>${landlordsIncomplete.length ? landlordsIncomplete.length + ' proprietari con dati da completare' : 'Onboarding e statistiche'}</span></summary><div class="portal-list-extras-body">
             <!-- Onboarding Link -->
             <div class="card" style="margin-bottom:16px;border:2px solid var(--gold)">
                 <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 16px">
@@ -10561,32 +10899,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>` : ''}
             </div>` : ''}
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
-                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
-                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
-            </div>
-
-            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
+            </div></details>`;
     }
 
     function filterUsers(filter) {
-        document.querySelectorAll('.user-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        const toolbar = document.getElementById('usersToolbar');
+        if (!toolbar) return;
+        if (typeof filter === 'string') toolbar.dataset.filter = filter;
+        filter = toolbar.dataset.filter || 'all';
+        const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const words = normalize(document.getElementById('userSearch')?.value).split(' ').filter(Boolean);
+        document.querySelectorAll('.user-filter').forEach(button => {
+            const active = button.getAttribute('onclick') === "filterUsers('" + filter + "')";
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active); button.setAttribute('aria-pressed', String(active));
+        });
+        let count = 0;
         document.querySelectorAll('.user-item').forEach(item => {
             const role = item.dataset.role;
-            const overdue = item.dataset.overdue === 'true';
-            const incomplete = item.dataset.incomplete === 'true';
-            let show = filter === 'all'
-                    || role === filter
-                    || (filter === 'overdue' && overdue)
-                    || (filter === 'landlord-incomplete' && role === 'landlord' && incomplete);
+            const matches = filter === 'all' || role === filter || (filter === 'overdue' && item.dataset.overdue === 'true') || (filter === 'landlord-incomplete' && role === 'landlord' && item.dataset.incomplete === 'true');
+            const text = normalize(item.dataset.search);
+            const show = matches && words.every(word => text.includes(word));
             item.style.display = show ? '' : 'none';
+            if (show) count++;
         });
+        const result = document.getElementById('usersResultCount');
+        if (result) result.textContent = count + (count === 1 ? ' persona' : ' persone');
+        const empty = document.getElementById('usersEmptySearch');
+        if (empty) empty.hidden = count > 0 || !(S.users || []).length;
     }
 
     // Ask a single landlord to complete their profile via the existing form-landlord.html.
@@ -10706,49 +11045,49 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
+        return `<div class="page-header portal-records-head">
             <div><h1 class="page-title">Immobili</h1><div class="page-subtitle">${stats.all} immobili · €${monthlyRent.toLocaleString('it-IT')}/mese affittati</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportPropertiesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addProperty')">+ Nuovo</button>
             </div>
         </div>
-        <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('available', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=available]'))"><div class="stat-label">Disponibili</div><div class="stat-value text-green">${stats.available}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('negotiation', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=negotiation]'))"><div class="stat-label">In trattativa</div><div class="stat-value text-orange">${stats.negotiation}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('rented', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=rented]'))"><div class="stat-label">Affittati</div><div class="stat-value text-red">${stats.rented}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('off_market', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=off_market]'))"><div class="stat-label">Fuori mercato</div><div class="stat-value" style="color:var(--text-muted)">${stats.off_market}</div></div>
-        </div>
         <div class="card">
-            <div style="display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
-                <button class="btn btn-sm" data-filter="all" onclick="filterProperties('all', this)">Tutti</button>
-                <button class="btn btn-sm btn-secondary" data-filter="available" onclick="filterProperties('available', this)">🟢 Disp.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="negotiation" onclick="filterProperties('negotiation', this)">🟡 Tratt.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="rented" onclick="filterProperties('rented', this)">🔴 Aff.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="off_market" onclick="filterProperties('off_market', this)">⚫ Off</button>
-                <input type="search" id="propertySearch" class="form-input" placeholder="🔎 Cerca nome, indirizzo, zona, proprietario, inquilino…" oninput="searchProperties(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="propertySearch">Cerca negli immobili</label>
+                <input type="search" id="propertySearch" class="form-input" placeholder="Cerca immobile, indirizzo o persona" oninput="searchProperties(this.value)" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato immobili">
+                <button class="btn btn-sm" data-filter="all" aria-pressed="true" onclick="filterProperties('all', this)">Tutti (${stats.all})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="available" aria-pressed="false" onclick="filterProperties('available', this)">Disponibili (${stats.available})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="negotiation" aria-pressed="false" onclick="filterProperties('negotiation', this)">In trattativa (${stats.negotiation})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="rented" aria-pressed="false" onclick="filterProperties('rented', this)">Affittati (${stats.rented})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="off_market" aria-pressed="false" onclick="filterProperties('off_market', this)">Fuori mercato (${stats.off_market})</button>
+                </div>
             </div>
             <div class="card-body flush">${all.length === 0
                 ? '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Inizia aggiungendo il tuo primo immobile</div><button class="btn" onclick="openModal(\'addProperty\')" style="margin-top:12px">+ Aggiungi primo immobile</button></div>'
                 : all.map(propertyRow).join('')
-            }</div>
+            }</div><p id="propertiesEmptySearch" class="portal-records-empty" role="status" hidden>Nessun immobile corrisponde alla ricerca e ai filtri.</p>
         </div>`;
     }
 
     function filterProperties(filter, btn) {
         if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
+        document.querySelectorAll('#main [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
         searchProperties(document.getElementById('propertySearch')?.value || '');
     }
 
     function searchProperties(q) {
         const term = (q || '').toLowerCase().trim();
         const filter = document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all';
+        let visible = 0;
         document.querySelectorAll('.property-item').forEach(item => {
             const matchesState = filter === 'all' || (item.dataset.avail || 'available') === filter;
-            item.style.display = matchesState && (item.dataset.search || '').includes(term) ? '' : 'none';
+            const show = matchesState && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('propertiesEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.properties || []).length;
     }
 
     function exportPropertiesCSV() {
@@ -10765,7 +11104,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function contractsPage() {
         const active = S.contracts.filter(c => c.status === 'active');
-        const expired = S.contracts.filter(c => c.status !== 'active');
+        const expired = S.contracts.filter(c => c.status === 'expired');
+        const terminated = S.contracts.filter(c => c.status === 'terminated');
+        const drafts = S.contracts.filter(c => c.status === 'draft');
         const expiring30 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d >= 0 && d <= 30; });
         const expiring60 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d > 30 && d <= 60; });
         const monthlyRent = active.reduce((s, c) => s + (c.rent || 0), 0);
@@ -10783,7 +11124,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const overdueCount = payments.filter(x => x.status === 'pending' && isOverdue(x.dueDate)).length;
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✓', text: 'Attivo' };
-            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '✗', text: 'Scaduto' };
+            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '○', text: ({ draft: 'Bozza', expired: 'Scaduto', terminated: 'Terminato', cancelled: 'Annullato' })[c.status] || 'Stato da verificare' };
             else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
             else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
 
@@ -10795,11 +11136,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Condizioni, handler e data-attribute sono IDENTICI a prima —
             // filterContracts e il layer mobile (M2) leggono questa riga.
             const totalInst = paidCount + pendingCount;
-            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
+            return `<div class="list-item clickable contract-item" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewContract(${rentActionArg(c.id)})}" data-status="${esc(c.status)}" data-search="${esc([c.ref, p?.name, p?.address, t?.name, l?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract(${rentActionArg(c.id)})">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p?.name || 'Immobile'}</span>
+                        <span style="font-weight:600">${esc(p?.name || 'Immobile')}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
                         <span class="li-flags">
                         ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
@@ -10810,7 +11151,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
+                        <b>${esc(t?.name || 'Persona da collegare')}</b>${l?.name ? `<span class="sep">·</span>${esc(l.name)}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
                     ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
                         ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
@@ -10824,76 +11165,61 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">📋 Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
                 <div class="page-actions">
                     ${expiring30.length > 0 ? `<span class="badge red">${expiring30.length} urgenti</span>` : ''}
                     ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
-                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
-                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
-                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Carica un PDF e posiziona i campi firma con drag-and-drop">✨ Magic Sign</button>
+                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Apri le firme di un contratto o prepara un PDF">✨ Magic Sign</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
 
-            ${renderSignRequestsSection()}
+            <details class="portal-records-extras"><summary>Strumenti e firme PDF${(S.signRequests || []).length ? ' · '+(S.signRequests || []).length+' richieste' : ''}</summary><div class="portal-records-extra-actions">
+                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
+                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
+            </div>${renderSignRequestsSection()}</details>
 
-            <!-- Stats -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterContracts('all')">
-                    <div class="stat-value">${S.contracts.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card green" onclick="filterContracts('active')">
-                    <div class="stat-value">${active.length}</div>
-                    <div class="stat-label">Attivi</div>
-                </div>
-                <div class="stat-card red" onclick="filterContracts('expiring30')">
-                    <div class="stat-value">${expiring30.length}</div>
-                    <div class="stat-label">Entro 30 giorni</div>
-                </div>
-                <div class="stat-card orange" onclick="filterContracts('expiring60')">
-                    <div class="stat-value">${expiring60.length}</div>
-                    <div class="stat-label">31–60 giorni</div>
-                </div>
-                <div class="stat-card" onclick="filterContracts('expired')">
-                    <div class="stat-value">${expired.length}</div>
-                    <div class="stat-label">Scaduti</div>
-                </div>
-            </div>
+            <div class="portal-list-toolbar portal-records-toolbar"><label class="sr-only" for="contractSearch">Cerca nei contratti</label><input id="contractSearch" class="form-input" type="search" placeholder="Cerca immobile, persona o riferimento" oninput="filterContracts()" autocomplete="off">
+            <div class="portal-list-filters portal-records-filters">
+                <button class="btn btn-sm contract-filter active" data-contract-filter="all" onclick="filterContracts('all')">Tutti (${S.contracts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="active" onclick="filterContracts('active')">Attivi (${active.length})</button>
+                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" data-contract-filter="expiring30" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
+                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" data-contract-filter="expiring60" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="expired" onclick="filterContracts('expired')">Scaduti</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="draft" onclick="filterContracts('draft')">Bozze (${drafts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="terminated" onclick="filterContracts('terminated')">Terminati</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="closed" onclick="filterContracts('closed')">Conclusi</button>
+            </div></div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm contract-filter active" onclick="filterContracts('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('active')">✓ Attivi</button>
-                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
-                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('expired')">Scaduti</button>
-            </div>
-
-            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.slice().sort((a,b) => {
                 const da = daysUntil(a.endDate) ?? 9999;
                 const db = daysUntil(b.endDate) ?? 9999;
                 if (a.status === 'active' && b.status !== 'active') return -1;
                 if (a.status !== 'active' && b.status === 'active') return 1;
                 return da - db;
-            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div><p id="contractsEmptySearch" class="portal-records-empty" role="status" hidden>Nessun contratto corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterContracts(filter) {
-        document.querySelectorAll('.contract-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.contract-filter.active')?.dataset.contractFilter || 'all';
+        const term = (document.getElementById('contractSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.contract-filter').forEach(button => {
+            const active = button.dataset.contractFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        let visible = 0;
         document.querySelectorAll('.contract-item').forEach(item => {
             const status = item.dataset.status;
-            const exp30 = item.dataset.expiring30 === 'true';
-            const exp60 = item.dataset.expiring60 === 'true';
-            let show = filter === 'all';
-            if (filter === 'active') show = status === 'active';
-            if (filter === 'expiring30') show = exp30;
-            if (filter === 'expiring60') show = exp60;
-            if (filter === 'expired') show = status !== 'active';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || filter === status;
+            if (filter === 'expiring30') show = item.dataset.expiring30 === 'true';
+            if (filter === 'expiring60') show = item.dataset.expiring60 === 'true';
+            if (filter === 'closed') show = status === 'expired' || status === 'terminated';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('contractsEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.contracts || []).length;
     }
 
     // The collection records remain authoritative; this view only groups them.
@@ -11373,7 +11699,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();viewMaintenance(${rentActionArg(m.id)})}" data-status="${esc(m.status)}" data-priority="${esc(m.priority)}" data-search="${esc([m.title, m.description, p?.name, p?.address, u?.name, owner?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" onclick="viewMaintenance(${rentActionArg(m.id)})" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -11385,7 +11711,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
+                        <b>${esc(p?.name || 'Immobile da collegare')}</b><span class="sep">·</span>${esc(u?.name || 'Persona da collegare')}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -11397,98 +11723,76 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">🔧 Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
                 <div class="page-actions">
                     ${urgent.length > 0 ? `<span class="badge red">${urgent.length} urgenti</span>` : ''}
                     <button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button>
                 </div>
             </div>
 
-            ${urgent.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
-                <span class="alert-icon">🚨</span>
-                <div class="alert-content">
-                    <div class="alert-title">${urgent.length} Manutenzioni Urgenti</div>
-                    <div class="alert-text">Ci sono richieste urgenti che richiedono attenzione immediata.</div>
-                </div>
-            </div>` : ''}
-
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterMaintenance('all')">
-                    <div class="stat-value">${S.maintenance.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card orange" onclick="filterMaintenance('open')">
-                    <div class="stat-value">${open.length}</div>
-                    <div class="stat-label">Aperte</div>
-                </div>
-                <div class="stat-card blue" onclick="filterMaintenance('in_progress')">
-                    <div class="stat-value">${inProgress.length}</div>
-                    <div class="stat-label">In corso</div>
-                </div>
-                <div class="stat-card red" onclick="filterMaintenance('urgent')">
-                    <div class="stat-value">${urgent.length}</div>
-                    <div class="stat-label">Urgenti</div>
-                </div>
-                <div class="stat-card green" onclick="filterMaintenance('resolved')">
-                    <div class="stat-value">${resolved.length}</div>
-                    <div class="stat-label">Risolte</div>
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="maintenanceSearch">Cerca negli interventi</label><input id="maintenanceSearch" class="form-input" type="search" placeholder="Cerca intervento, immobile o persona" oninput="filterMaintenance()" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato interventi">
+                    <button class="btn btn-sm maintenance-filter active" data-maintenance-filter="all" aria-pressed="true" onclick="filterMaintenance('all')">Tutti (${S.maintenance.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="open" aria-pressed="false" onclick="filterMaintenance('open')">Aperti (${open.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="in_progress" aria-pressed="false" onclick="filterMaintenance('in_progress')">In corso (${inProgress.length})</button>
+                    ${urgent.length > 0 ? `<button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="urgent" aria-pressed="false" onclick="filterMaintenance('urgent')">Urgenti (${urgent.length})</button>` : ''}
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="resolved" aria-pressed="false" onclick="filterMaintenance('resolved')">Risolti (${resolved.length})</button>
                 </div>
             </div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm maintenance-filter active" onclick="filterMaintenance('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('open')">📋 Aperte</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('in_progress')">🔧 In Corso</button>
-                ${urgent.length > 0 ? `<button class="btn btn-sm btn-danger maintenance-filter" onclick="filterMaintenance('urgent')">🚨 Urgenti (${urgent.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('resolved')">✔ Risolte</button>
-            </div>
-
-            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.slice().sort((a,b) => {
                 // Sort: urgent first, then open, then in_progress, then resolved
-                const priorityOrder = { urgent: 0, normal: 1, low: 2 };
+                const priorityOrder = { urgent: 0, high: 1, medium: 2, normal: 2, low: 3 };
                 const statusOrder = { open: 0, in_progress: 1, resolved: 2 };
                 if (a.status !== 'resolved' && b.status === 'resolved') return -1;
                 if (a.status === 'resolved' && b.status !== 'resolved') return 1;
-                if ((priorityOrder[a.priority] || 1) !== (priorityOrder[b.priority] || 1)) return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
-                return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
-            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Tutto funziona perfettamente!</div></div>'}</div></div>`;
+                if ((priorityOrder[a.priority] ?? 2) !== (priorityOrder[b.priority] ?? 2)) return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
+                return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Nessun intervento registrato.</div></div>'}</div><p id="maintenanceEmptySearch" class="portal-records-empty" role="status" hidden>Nessun intervento corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterMaintenance(filter) {
-        document.querySelectorAll('.maintenance-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.maintenance-filter.active')?.dataset.maintenanceFilter || 'all';
+        const term = (document.getElementById('maintenanceSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.maintenance-filter').forEach(button => {
+            const active = button.dataset.maintenanceFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        let visible = 0;
         document.querySelectorAll('.maintenance-item').forEach(item => {
             const status = item.dataset.status;
-            const priority = item.dataset.priority;
-            let show = filter === 'all';
-            if (filter === 'open') show = status === 'open';
-            if (filter === 'in_progress') show = status === 'in_progress';
-            if (filter === 'resolved') show = status === 'resolved';
-            if (filter === 'urgent') show = priority === 'urgent' && status !== 'resolved';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || status === filter;
+            if (filter === 'urgent') show = item.dataset.priority === 'urgent' && status !== 'resolved';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('maintenanceEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.maintenance || []).length;
     }
 
     async function updateMaintenanceStatus(id, newStatus) {
+        const user = auth.currentUser;
+        if (!user || S.profile?.id !== user.uid || !isAdmin() || !['in_progress', 'resolved'].includes(newStatus)) return;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid && isAdmin();
         try {
             await db.collection('maintenance').doc(id).update({
                 status: newStatus,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
             });
+            if (!current()) return;
             logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
 
             const m = S.maintenance.find(x => x.id === id);
             const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
-            
+
             // Notify requester if resolved
             if (newStatus === 'resolved' && m?.userId) {
                 await notifyMaintenanceResolved(m);
             }
-            
+
             // Notify tenant when work starts (in_progress)
             if (newStatus === 'in_progress' && m?.userId) {
                 await createNotification(
@@ -11509,9 +11813,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     );
                 }
             }
-            goTo('maintenance');
+            if (current()) goTo('maintenance');
         } catch (err) {
-            toast('error', 'Errore: ' + err.message);
+            if (current()) toast('error', 'Errore: ' + err.message);
         }
     }
 
@@ -12206,13 +12510,60 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════
     var _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
 
-    function inboxRefresh() {
-        // Re-render only the inbox if we're on it. Used after a Firestore write.
-        if (S.page === 'inbox') {
-            const m = document.getElementById('main');
-            if (m) m.innerHTML = inboxPage();
-            buildNav();
+    function inboxRefresh(reason) {
+        if (S.page !== 'inbox') return;
+        const main = document.getElementById('main');
+        if (!main) return;
+        const user = auth.currentUser?.uid;
+        if (!user || S.profile?.id !== user) { _inboxState.view = null; return; }
+        let view = _inboxState.view;
+        if (!view || view.user !== user) view = _inboxState.view = { user, drafts: Object.create(null), listScroll: 0, pageScroll: 0 };
+        const oldThread = main.querySelector('[data-inbox-conversation]');
+        const oldId = oldThread?.dataset.inboxConversation;
+        const focused = document.activeElement;
+        const input = focused?.matches('#inboxBody,#inboxSubject,#inboxTpl,#inboxSearch') ? { id: focused.id, start: focused.selectionStart, end: focused.selectionEnd, direction: focused.selectionDirection } : null;
+        const fields = ['inboxBody', 'inboxSubject', 'inboxTpl'];
+        if (oldId && oldThread.dataset.inboxUser === user) {
+            const draft = view.drafts[oldId] || {};
+            fields.forEach(id => { const el = document.getElementById(id); if (el) { draft[id] = el.value; (draft.scroll || (draft.scroll = {}))[id] = el.scrollTop; } });
+            draft.composeScroll = main.querySelector('.inbox-compose-slot')?.scrollTop || 0;
+            view.drafts[oldId] = draft;
         }
+        const list = main.querySelector('.inbox-conversations');
+        if (list?.getClientRects().length) view.listScroll = list.scrollTop;
+        if (!oldId) view.pageScroll = window.scrollY;
+        const timeline = document.getElementById('inboxTimeline');
+        const timelineTop = timeline?.scrollTop;
+        const nearEnd = timeline && timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 48;
+        if (reason === 'remember') return;
+        if (reason === 'back') {
+            _inboxState.convId = null;
+            if (typeof stopOpenConvListener === 'function') stopOpenConvListener();
+        }
+        main.innerHTML = inboxPage();
+        const currentId = main.querySelector('[data-inbox-conversation]')?.dataset.inboxConversation;
+        const draft = currentId && view.drafts[currentId];
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el && draft[id] != null) el.value = draft[id]; });
+        const compose = main.querySelector('.inbox-compose-slot');
+        if (compose && draft) compose.scrollTop = draft.composeScroll || 0;
+        const newList = main.querySelector('.inbox-conversations');
+        if (newList) newList.scrollTop = view.listScroll;
+        const newTimeline = document.getElementById('inboxTimeline');
+        if (newTimeline) newTimeline.scrollTop = currentId !== oldId || nearEnd ? newTimeline.scrollHeight : timelineTop || 0;
+        if (input && (input.id === 'inboxSearch' || currentId === oldId)) {
+            const replacement = document.getElementById(input.id);
+            if (replacement) {
+                replacement.focus({ preventScroll: true });
+                if (typeof input.start === 'number') replacement.setSelectionRange(input.start, input.end, input.direction);
+            }
+        } else if (reason === 'back') {
+            window.scrollTo(0, view.pageScroll);
+            main.querySelector('.inbox-list-pane')?.focus({ preventScroll: true });
+        } else if (currentId && currentId !== oldId) {
+            main.querySelector('.inbox-back')?.focus({ preventScroll: true });
+        }
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el) el.scrollTop = draft.scroll?.[id] || 0; });
+        if (reason !== 'live') buildNav();
     }
 
     // The operator's universe of contactable people: tenants (users.role=tenant),
@@ -12308,11 +12659,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Append a message and update the conversation's last-message preview.
     // Direction: 'out' = sent by operator. 'in' = received from contact. 'note' = internal.
     async function inboxLogMessage(conv, opts) {
-        const body = String(opts.body || '').trim();
+        const user = opts.user || auth.currentUser;
+        if (auth.currentUser !== user) throw new Error('session_changed');
+        const body = opts.exactText ? String(opts.body || '') : String(opts.body || '').trim();
         if (!body) { toast('warning', 'Messaggio vuoto'); return null; }
         const direction = opts.direction || 'out';
         const channel = opts.channel || 'note';
-        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const now = opts.at ? new Date(opts.at) : firebase.firestore.FieldValue.serverTimestamp();
         const msg = {
             conversationId: conv.id,
             direction,
@@ -12323,10 +12676,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             assignedLandlordId: conv.assignedLandlordId || null,
             at: now,
         };
-        if (opts.subject) msg.subject = String(opts.subject).slice(0, 200);
-        const ref = await db.collection('messages').add(msg);
+        if (opts.subject) msg.subject = opts.exactText ? String(opts.subject) : String(opts.subject).slice(0, 200);
+        if (opts.emailMessageId) msg.emailMessageId = opts.emailMessageId;
+        const ref = opts.id ? db.collection('messages').doc(opts.id) : await db.collection('messages').add(msg);
+        if (opts.id) await ref.set(msg);
+        if (auth.currentUser !== user) throw new Error('session_changed');
         const localMsg = { id: ref.id, ...msg, at: new Date() };
-        S.messages = [localMsg, ...(S.messages || [])];
+        S.messages = [localMsg, ...(S.messages || []).filter(m => m.id !== ref.id)];
         // Update conversation header (admin only — rules allow update only for admin).
         if (isAdmin()) {
             const update = {
@@ -12336,8 +12692,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
             // Inbound bumps unread; outbound clears it.
             if (direction === 'in') update.unread = (conv.unread || 0) + 1;
-            else if (direction === 'out') update.unread = 0;
+            else if (direction === 'out') { update.unread = 0; update.needsReply = false; }
             await db.collection('conversations').doc(conv.id).update(update);
+            if (auth.currentUser !== user) throw new Error('session_changed');
             Object.assign(conv, update, { lastMessageAt: new Date() });
         }
         logActivity('Messaggio ' + direction, 'inbox', { convId: conv.id, channel, preview: BOOM_INBOX.preview(body, 60) });
@@ -12348,7 +12705,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxPage() {
         if (!isAdmin() && !isLandlord()) return accessDenied();
         setTimeout(portalFreshnessMount, 0);
-        const convs = (S.conversations || []).slice().sort((a, b) => {
+        const convs = inboxContextRows().slice().sort((a, b) => {
             const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
             const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
             return tb - ta;
@@ -12357,25 +12714,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const channel = _inboxState.channel;
         const q = (_inboxState.search || '').toLowerCase().trim();
         const homeScope = oggiInboxScope();
-        const filtered = convs.filter(c => {
-            if (homeScope && !homeScope.ids.includes(c.id)) return false;
+        const scopedConvs = homeScope ? convs.filter(c => homeScope.ids.includes(c.id)) : convs;
+        const filtered = scopedConvs.filter(c => {
             if (filter === 'todo') { if (!c.needsReply) return false; }
             else if (filter !== 'all' && (c.status || 'open') !== filter) return false;
             if (channel !== 'all' && c.channel !== channel && c.channel !== 'mixed') return false;
             if (q && !((c.contactName || '') + ' ' + (c.contactPhone || '') + ' ' + (c.contactEmail || '') + ' ' + (c.lastMessagePreview || '')).toLowerCase().includes(q)) return false;
             return true;
         });
-        const totalUnread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
-        const todoCount = convs.filter(c => c.needsReply).length;
+        const totalUnread = scopedConvs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        const todoCount = scopedConvs.filter(c => c.needsReply).length;
         // If selection is gone (e.g. after filter change) clear it.
         if (_inboxState.convId && !filtered.some(c => c.id === _inboxState.convId)) _inboxState.convId = null;
         const selected = _inboxState.convId ? filtered.find(c => c.id === _inboxState.convId) || convs.find(c => c.id === _inboxState.convId) : null;
 
         return `
-        <div class="page-header">
+        ${inboxContextNotice()}
+        <div class="page-header inbox-page-header">
             <div>
                 <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
-                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${scopedConvs.length} conversazioni</div>
                 <p id="inboxFreshness" role="status" style="color:${portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'};font-size:12px;margin:8px 0 0">${esc(inboxFreshness())}</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -12384,12 +12742,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
+        <div class="inbox-workspace" id="inboxWorkspace" data-thread-open="${!!selected}" style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
             <!-- LEFT: conversation list -->
-            <div class="card inbox-list-pane" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
+            <div class="card inbox-list-pane" tabindex="-1" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
                 <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
-                    <div class="inbox-channel-context"><label>Canale <select class="input" aria-label="Canale messaggi" onchange="_inboxState.channel=this.value;_inboxState.convId=null;inboxRefresh()"><option value="all" ${channel === 'all' ? 'selected' : ''}>Tutti</option><option value="whatsapp" ${channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option></select></label>${homeScope ? `<p>Contatto: <strong>${esc(homeScope.label)}</strong> <button type="button" class="btn btn-sm" onclick="oggiClearInboxScope()">Tutti i contatti</button></p>` : ''}</div>
-                    <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
+                    <div class="inbox-channel-context"><label>Canale <select class="input" aria-label="Canale messaggi" onchange="_inboxState.channel=this.value;_inboxState.convId=null;inboxRefresh()"><option value="all" ${channel === 'all' ? 'selected' : ''}>Tutti</option><option value="whatsapp" ${channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option></select></label>${homeScope ? `<p>Contesto: <strong>${esc(homeScope.label)}</strong> <button type="button" class="btn btn-sm" onclick="oggiClearInboxScope()">Tutti i contatti</button></p>` : ''}</div>
+                    <input class="input" id="inboxSearch" aria-label="Cerca una conversazione" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         <button class="btn btn-sm ${_inboxState.filter==='todo'?'btn-primary':''}" onclick="_inboxState.filter='todo';inboxRefresh()" style="font-size:11px;padding:4px 10px">⚡ Da rispondere${todoCount?` <span class="badge gold" style="font-size:9px">${todoCount}</span>`:''}</button>
                         ${['open','snoozed','closed','all'].map(s => `
@@ -12397,7 +12755,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         `).join('')}
                     </div>
                 </div>
-                <div style="overflow-y:auto;flex:1">
+                <div class="inbox-conversations" style="overflow-y:auto;flex:1">
                     ${filtered.length ? filtered.map(c => inboxConversationCard(c, c.id === _inboxState.convId)).join('') :
                         `<div class="empty-state" style="padding:32px"><div class="empty-icon">📭</div><div class="empty-title">Nessuna conversazione</div><div class="empty-subtitle" style="font-size:12px">${isAdmin() ? 'Inizia una nuova conversazione dalla barra in alto.' : 'Le conversazioni a te assegnate compaiono qui.'}</div></div>`
                     }
@@ -12405,7 +12763,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- RIGHT: thread + composer -->
-            <div>
+            <div class="inbox-thread-pane">
                 ${selected ? inboxThreadPanel(selected) : `
                     <div class="card" style="padding:48px;text-align:center">
                         <div style="font-size:48px;margin-bottom:16px">💬</div>
@@ -12453,22 +12811,203 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     window.inboxSelect = function(convId) {
         _inboxState.convId = convId;
-        const conv = (S.conversations || []).find(c => c.id === convId);
+        const conv = inboxContextRows().find(c => c.id === convId);
+        if (conv && S.inboxContext?.user === auth.currentUser) { S.inboxExactConversation = {id:conv.id,row:conv,user:auth.currentUser}; S.conversations = [conv,...(S.conversations||[]).filter(c=>c.id!==conv.id)]; }
         if (conv) {
             const scope = oggiInboxScope(), q = (_inboxState.search || '').trim().toLowerCase();
             const statusHidden = _inboxState.filter === 'todo' ? !conv.needsReply : _inboxState.filter !== 'all' && (conv.status || 'open') !== _inboxState.filter;
             const channelHidden = _inboxState.channel !== 'all' && conv.channel !== 'mixed' && conv.channel !== _inboxState.channel;
             const searchHidden = q && ![conv.contactName, conv.contactPhone, conv.contactEmail, conv.lastMessagePreview].join(' ').toLowerCase().includes(q);
+            if (scope && !scope.ids.includes(convId)) S.inboxContext = null;
             if ((scope && !scope.ids.includes(convId)) || statusHidden || channelHidden || searchHidden) Object.assign(_inboxState, { filter: 'all', channel: 'all', search: '', homeContext: null });
         }
         if (conv && (conv.unread || 0) > 0 && isAdmin()) {
-            db.collection('conversations').doc(convId).update({ unread: 0, needsReply: false }).catch(()=>{});
+            db.collection('conversations').doc(convId).update({ unread: 0 }).catch(()=>{});
             conv.unread = 0;
         }
         // Attach a live thread listener so Homie's inbound messages appear in
         // real time while this conversation is open.
         startOpenConvListener(convId);
         inboxRefresh();
+    };
+
+    function inboxFollowUpState() {
+        const uid = auth.currentUser?.uid;
+        if (!uid || !isAdmin()) return null;
+        if (_inboxState.followUps?.uid !== uid) _inboxState.followUps = { uid, rows: {} };
+        return _inboxState.followUps;
+    }
+    async function inboxFollowUpRequest(cid, body) {
+        if (!isAdmin() || !auth.currentUser || !/^[\w.-]{1,180}$/.test(cid)) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const token = await user.getIdToken();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            const response = await fetch('/api/segretaria/follow-up' + (body ? '' : '?conversationId=' + encodeURIComponent(cid)), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    function inboxFollowUpError(error) {
+        return ({ conversation_cases_incomplete: 'Lettura parziale: apri Segreteria per verificare tutti i casi prima di crearne uno.',
+            case_selection_required: 'Questa conversazione ha più casi: scegli quello da aggiornare.',
+            case_selection_changed: 'I casi sono cambiati. Aggiorna e scegli nuovamente.',
+            new_message_reload: 'Il messaggio è cambiato. Aggiorna prima di prendere in carico.',
+            identity_not_verified: 'Il collegamento della conversazione è da verificare prima della presa in carico.',
+            conversation_missing: 'La conversazione non è più disponibile.' })[error?.code]
+            || 'Seguiti non aggiornati. Riprova; nessun invio è stato avviato.';
+    }
+    function inboxFollowUpPanel(conv) {
+        const state = inboxFollowUpState();
+        if (!state) return '';
+        const entry = state.rows[conv.id], rows = entry?.data?.rows || [];
+        const hasActive = rows.some(t => t.status === 'open' && t.followUp.open !== false);
+        const button = (label, id) => `<button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" ${id ? `data-case="${esc(id)}" onclick="inboxFollowUpOpen(this.dataset.cid,this.dataset.case)"` : 'onclick="inboxTakeCharge(this.dataset.cid)"'} ${entry?.busy ? 'disabled' : ''}>${label}</button>`;
+        const newer = entry?.data?.source && (S.messages || []).some(m => m.conversationId === conv.id && m.direction === 'in'
+            && +(m.at?.toDate ? m.at.toDate() : new Date(m.at)) > Date.parse(entry.data.source.at));
+        return `<section class="inbox-follow-up" aria-label="Seguito operativo" style="margin:10px 18px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
+            <div class="inbox-follow-up-head" style="display:flex;gap:8px;align-items:center;justify-content:space-between"><strong>Seguito operativo</strong>${button(entry?.busy ? 'Verifico…' : hasActive ? 'Aggiorna seguiti' : 'Prendi in carico')}</div>
+            ${entry?.error ? `<p role="alert" class="sg-footnote">${esc(entry.error)}</p>` : ''}
+            ${entry?.data?.incomplete ? '<p class="sg-footnote" role="status">Lettura parziale: sono mostrati al massimo 30 casi. Nessun nuovo caso verrà creato.</p>' : ''}
+            ${entry?.data && !entry.data.source ? '<p class="sg-footnote" role="status">Ultimo messaggio ricevuto non verificabile: serve una fonte salvata con data certa.</p>' : ''}
+            ${rows.length > 1 ? '<p class="sg-footnote">Più casi: scegli quello pertinente. Nessuna associazione automatica.</p>' : ''}
+            ${rows.map(task => { const f = task.followUp, closed = task.status === 'done';
+                const confirmed = !closed && !newer && !entry.error && entry.data.source && !entry.data.sourceUnavailable && f.confirmed && !f.needsReview && !f.ambiguous;
+                const when = Date.parse(f.checkAt), check = Number.isFinite(when) ? new Date(when).toLocaleString('it-IT', {timeZone:'Europe/Rome',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Da impostare';
+                return `<div class="inbox-follow-up-item" style="margin-top:8px" data-inbox-follow-up="${esc(task.id)}"><strong>${closed ? 'Chiuso con esito' : confirmed ? 'Confermato' : 'Da verificare'}</strong>
+                    <p class="sg-footnote">${esc(closed ? f.outcome || 'Esito registrato' : f.nextAction || 'Prossima azione da confermare')}<br>${closed ? '' : `${esc(f.waitingLabel || 'Responsabile da confermare')} · ${confirmed ? 'Ricontrollo' : 'Ricontrollo da confermare'}: ${esc(check)}`}</p>
+                    ${button(closed ? 'Leggi esito' : 'Apri seguito',task.id)}</div>`;
+            }).join('')}
+            ${entry?.data ? `<p class="sg-footnote inbox-follow-up-meta">Verificato alle ${esc(new Date(entry.readAt).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'}))}${newer ? ' · Nuovo messaggio: rileggi prima di confermare.' : ''}</p>` : '<p class="sg-footnote">Collega pratica, responsabile e ricontrollo. Nessun messaggio viene inviato.</p>'}
+        </section>`;
+    }
+    async function inboxFollowUpLoad(cid) {
+        const state = inboxFollowUpState();
+        if (!state) return null;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        const data = await inboxFollowUpRequest(cid);
+        if (inboxFollowUpState() !== state) return null;
+        entry.data = data; entry.readAt = Date.now(); entry.error = '';
+        return data;
+    }
+    window.inboxTakeCharge = async function(cid) {
+        const state = inboxFollowUpState();
+        if (!state || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        if (entry.busy) return;
+        const hadActive = !!entry.data?.rows?.some(t => t.status === 'open' && t.followUp.open !== false);
+        entry.busy = true; entry.error = ''; inboxRefresh();
+        let openId = null;
+        try {
+            const data = await inboxFollowUpLoad(cid);
+            if (!data || _inboxState.convId !== cid) return;
+            const active = data.rows.filter(t => t.status === 'open' && t.followUp.open !== false);
+            if (!hadActive && active.length <= 1 && !data.incomplete && data.source) {
+                const result = await inboxFollowUpRequest(cid, { op: 'start', conversationId: cid, messageId: data.source.id, ...(active.length ? {taskId:active[0].id} : {}) });
+                await inboxFollowUpLoad(cid);
+                openId = result.task?.id;
+            } else if (!hadActive && active.length === 1) openId = active[0].id;
+        } catch (error) { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); }
+        finally { entry.busy = false; if (inboxFollowUpState() === state && _inboxState.convId === cid) { inboxRefresh(); if (openId) inboxFollowUpOpen(cid, openId); } }
+    };
+    window.inboxFollowUpOpen = async function(cid, id) {
+        const state = inboxFollowUpState(), entry = state?.rows[cid];
+        const task = entry?.data?.rows?.find(t => t.id === id && t.followUp?.conversationId === cid);
+        if (!task || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        if (oggiSegretaria.userId !== state.uid) {
+            oggiSegretariaStopLive(); oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, {userId:state.uid, rows:[], dossiers:{}, receipts:{}, loaded:false, loading:false, error:'', monitoring:null});
+        }
+        oggiSegretaria.rows = [...oggiSegretaria.rows.filter(t => t.id !== id), task];
+        await oggiSegretariaOpen(id, task.status === 'done' ? 'Questo seguito è già chiuso: nessuna riapertura.' : '', task.status === 'done' ? 'review' : 'edit', false);
+        if (inboxFollowUpState() !== state) return;
+        const observer = new MutationObserver(() => {
+            if (document.getElementById('sgFollowModal')) return;
+            observer.disconnect();
+            inboxFollowUpLoad(cid).catch(error => { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); })
+                .finally(() => { if (inboxFollowUpState() === state && _inboxState.convId === cid) inboxRefresh(); });
+        });
+        observer.observe(document.getElementById('modals'), {childList:true});
+    };
+
+    // Explicit connection checks and bounded imports. State is a disposable
+    // session projection; incoming messages remain owned by Firestore listeners.
+    function portalMailState() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return null;
+        if (!S.mailSources || !portalSessionCurrent(S.mailSources.proof))
+            S.mailSources = { proof: portalSessionProof(), checking: false, summary: '', syncBusy: false, sync: {} };
+        return S.mailSources;
+    }
+    function portalMailError(code) {
+        return ({ invalid_or_expired_token: 'Sessione scaduta: accedi nuovamente.', forbidden: 'Questa verifica richiede un amministratore.',
+            conversation_not_found: 'La conversazione non è più disponibile.', conversation_email_missing: 'Manca un indirizzo email valido per questa conversazione.',
+            email_identity_ambiguous: 'Email condivisa o collegamento incerto: verifica la scheda della persona prima di importare.',
+            imap_unconfigured: 'Connessione email non configurata sul server. Il collegamento Gmail di Codex è separato.' })[code]
+            || 'Verifica non completata. Riprova; nessuna risposta automatica è stata avviata.';
+    }
+    async function portalMailRequest(state, body, current) {
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), body ? 65000 : 15000);
+        try {
+            const token = await user.getIdToken();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const response = await fetch('/api/segretaria/scan-replies' + (body ? '' : '?status=1'), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const data = await response.json();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    window.portalMailCheckSources = async function() {
+        const state = portalMailState();
+        if (!state || state.checking) return;
+        state.checking = true; state.summary = 'Verifico lo stato registrato sul server…'; portalSearchSourcesRender();
+        try {
+            const data = await portalMailRequest(state, null, () => S.mailSources === state);
+            if (!data) return;
+            const e = data.email, w = data.whatsapp, last = e.lastScan;
+            const stamp = value => value ? new Date(value).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+            const email = !e.configured ? 'Email: connessione non configurata.' : e.healthy
+                ? 'Email: ultimo giro verificato ' + stamp(last.checkedAt) + '.'
+                : last?.incomplete ? 'Email: ultimo giro parziale ' + stamp(last.checkedAt) + '.'
+                : last?.failed ? 'Email: ultimo giro non riuscito.' : last?.fresh === false
+                ? 'Email: ultimo controllo non recente (' + stamp(last.checkedAt) + ').' : 'Email: configurata, lettura non ancora verificata.';
+            state.summary = email + ' Copertura: solo conversazioni affidate o con un seguito aperto, ultimi 3 giorni; non tutta la casella. '
+                + (w.bridgeFresh ? 'HOMIE: battito recente, ricezione WhatsApp non verificata.'
+                    : 'HOMIE: nessun battito recente. Ricezione WhatsApp non verificata.') + ' Nessuna automazione è stata attivata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && S.mailSources === state) state.summary = portalMailError(error.code); }
+        finally { state.checking = false; if (portalSessionCurrent(state.proof) && S.mailSources === state) portalSearchSourcesRender(); }
+    };
+    window.inboxImportEmail = async function(cid) {
+        const state = portalMailState(), conv = (S.conversations || []).find(c => c.id === cid);
+        if (!state || state.syncBusy || _inboxState.convId !== cid || S.page !== 'inbox' || !conv?.contactEmail || conv.conversationBindingConflict) return;
+        const email = conv.contactEmail, entry = state.sync[cid] || (state.sync[cid] = {});
+        const current = () => S.mailSources === state && S.page === 'inbox' && _inboxState.convId === cid
+            && (S.conversations || []).find(c => c.id === cid)?.contactEmail === email;
+        state.syncBusy = true; entry.busy = true; entry.summary = 'Leggo le email recenti di questa conversazione…'; inboxRefresh();
+        try {
+            const data = await portalMailRequest(state, { mode: 'sync_only', conversationId: cid }, current);
+            if (!data) { entry.summary = 'Vista cambiata: esito non verificato qui. Riprova per rileggere.'; return; }
+            const counts = `${data.imported || 0} importate · ${data.scanned || 0} lette · ${data.duplicates || 0} già presenti`;
+            const pending = (data.deferred || 0) + (data.deferredSenders || 0);
+            entry.summary = data.skipped === 'imap_unconfigured' ? portalMailError(data.skipped)
+                : counts + (data.incomplete || data.errors || data.trackingErrors
+                    ? ` · Lettura parziale${pending ? ': ' + pending + ' da verificare al prossimo giro' : ''}. Riprova.` : ' · Lettura terminata per questo mittente.')
+                    + ' Nessuna risposta inviata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && current()) entry.summary = portalMailError(error.code); }
+        finally { state.syncBusy = false; entry.busy = false; if (portalSessionCurrent(state.proof) && current()) inboxRefresh(); }
     };
 
     function inboxThreadPanel(conv) {
@@ -12496,31 +13035,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const bindingNotice = !bindingCode ? '' : `<p class="sg-notice sg-notice--warning" role="status">⚠ ${esc(conv.conversationBindingStatus === 'unavailable'
             ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
             : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
+        const followUpMarkup = inboxFollowUpPanel(conv);
+        // Reuse the panel's verified labels; the summary does not decide case state.
+        const infoPreview = document.createElement('div');
+        infoPreview.innerHTML = followUpMarkup;
+        const followUpItems = infoPreview.querySelectorAll('.inbox-follow-up-item');
+        const followUpLabel = infoPreview.querySelector('[role="alert"]') ? 'Da verificare'
+            : followUpItems.length > 1 ? followUpItems.length + ' seguiti'
+            : infoPreview.querySelector('.inbox-follow-up-item > strong')?.textContent || '';
+        const infoLabel = [followUpLabel, conv.needsReply ? 'Da rispondere' : ''].filter(Boolean).join(' · ');
+        const previous = document.querySelector('.inbox-thread-card');
+        const sameThread = previous?.dataset.inboxConversation === conv.id && previous?.dataset.inboxUser === (auth.currentUser?.uid || '');
+        const infoOpen = sameThread ? previous.querySelector('.inbox-thread-info')?.open : !window.matchMedia?.('(max-width:920px)').matches;
         return `
-        <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+        <div class="card inbox-thread-card" data-inbox-conversation="${esc(conv.id)}" data-inbox-user="${esc(auth.currentUser?.uid || '')}" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+            <button type="button" class="inbox-back btn btn-secondary" onclick="inboxRefresh('back')" style="display:none">← Conversazioni</button>
             <!-- Header -->
-            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="inbox-thread-head" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px">
                         <div style="font-weight:500;font-size:15px">${esc(conv.contactName || 'Senza nome')}</div>
                         <span class="badge" style="font-size:10px">${kindLabel(conv.contactType || 'lead')}</span>
                         ${conv.status && conv.status !== 'open' ? `<span class="badge" style="font-size:10px;background:rgba(255,149,0,0.15);color:var(--orange)">${conv.status}</span>` : ''}
                     </div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+                </div>
+
+            </div>
+
+            <details class="inbox-thread-info" ${infoOpen ? 'open' : ''}>
+                <summary><span>Prossimo passo e dettagli</span>${infoLabel ? `<small>${esc(infoLabel)}</small>` : ''}</summary>
+                <div class="inbox-thread-info-body">
+                    <div class="inbox-thread-contact" style="font-size:11px;color:var(--text-secondary);margin-top:2px">
                         ${conv.contactPhone ? '📱 '+esc(conv.contactPhone) : ''}
                         ${conv.contactPhone && conv.contactEmail ? ' · ' : ''}
                         ${conv.contactEmail ? '✉ '+esc(conv.contactEmail) : ''}
                     </div>
-                </div>
-                <div style="display:flex;gap:6px">
+                <div class="inbox-thread-actions" style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl ? `<a class="btn btn-sm" href="${waUrl}" target="_blank" rel="noopener" style="font-size:11px" title="Apri WhatsApp Web/App">📱 WhatsApp</a>` : ''}
                     ${conv.contactType === 'lead' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','lead')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${conv.contactType === 'pfs' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','pfsClient')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxToggleStatus('${conv.id}')" style="font-size:11px">${conv.status === 'closed' ? 'Riapri' : 'Chiudi'}</button>` : ''}
                 </div>
-            </div>
-
-            ${inboxHomieBanner(conv)}
+                    ${isAdmin() && canEmail ? `<section aria-label="Importazione email" style="padding:8px 0"><button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" onclick="inboxImportEmail(this.dataset.cid)" ${S.mailSources?.syncBusy || bindingCode ? 'disabled' : ''}>${S.mailSources?.sync?.[conv.id]?.busy ? 'Importazione in corso…' : 'Importa email recenti'}</button><p class="sg-footnote" role="status" style="font-size:12px;line-height:1.4;margin:6px 0;color:var(--text-secondary)">${esc(S.mailSources?.sync?.[conv.id]?.summary || 'Solo questo mittente · ultimi 3 giorni · massimo 8 email per giro. Nessuna AI o risposta automatica.')}</p></section>` : ''}
+                    ${followUpMarkup}
+                    ${inboxHomieBanner(conv)}
+                </div>
+            </details>
             ${bindingNotice}
             ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
@@ -12533,7 +13093,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- Composer -->
-            ${inboxComposer(conv)}
+            <div class="inbox-compose-slot" oninput="inboxRefresh('remember')" onchange="inboxRefresh('remember')">${inboxComposer(conv)}</div>
         </div>
         `;
     }
@@ -12662,17 +13222,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const canWa    = !!conv.contactPhone;
         // Fallback active tab if the current one is unavailable.
         let active = tab;
+        if (!['whatsapp', 'email', 'note'].includes(active)) active = canWa ? 'whatsapp' : canEmail ? 'email' : 'note';
         if (active === 'whatsapp' && !canWa) active = canEmail ? 'email' : 'note';
         if (active === 'email' && !canEmail) active = canWa ? 'whatsapp' : 'note';
+        _inboxState.composing = active;
         return `
         <div style="border-top:1px solid var(--border);padding:12px 18px;background:var(--bg-card)">
-            <div style="display:flex;gap:6px;margin-bottom:10px">
+            <div class="inbox-compose-tabs" style="display:flex;gap:6px;margin-bottom:10px">
                 ${canWa ?    `<button class="btn btn-sm ${active==='whatsapp'?'btn-primary':''}" onclick="_inboxState.composing='whatsapp';inboxRefresh()" style="font-size:11px">📱 WhatsApp</button>` : ''}
                 ${canEmail ? `<button class="btn btn-sm ${active==='email'?'btn-primary':''}"    onclick="_inboxState.composing='email';inboxRefresh()" style="font-size:11px">✉ Email</button>` : ''}
                 <button class="btn btn-sm ${active==='note'?'btn-primary':''}" onclick="_inboxState.composing='note';inboxRefresh()" style="font-size:11px">✎ Nota interna</button>
                 ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxLogInboundModal('${conv.id}')" style="font-size:11px;margin-left:auto">+ Messaggio ricevuto</button>` : ''}
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <div class="inbox-compose-template" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                 <select class="input" id="inboxTpl" onchange="inboxApplyTemplate(this.value, '${conv.id}')" style="font-size:11px;padding:6px;flex:1;min-width:200px">
                     <option value="">— Template rapidi —</option>
                     ${BOOM_INBOX.TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join('')}
@@ -12682,7 +13244,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <input id="inboxSubject" class="input" placeholder="Oggetto email" style="font-size:13px;margin-bottom:8px">
             ` : ''}
             <textarea id="inboxBody" class="input" rows="3" placeholder="${active==='note'?'Nota interna — visibile solo al team':'Scrivi un messaggio…'}" style="font-size:13px;width:100%;resize:vertical;min-height:80px"></textarea>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <div class="inbox-compose-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
                 ${active !== 'note' ? `<button class="btn btn-sm" onclick="inboxProposeReply('${conv.id}')" title="Manda in approvazione (Tier 2)" style="background:rgba(212,175,55,0.15);color:var(--gold);border:1px solid var(--gold)">🤖 Proponi</button>` : ''}
                 ${active === 'whatsapp' ? `<button class="btn btn-primary btn-sm" onclick="inboxSendWhatsapp('${conv.id}')">📱 Apri WhatsApp</button>` : ''}
                 ${active === 'email'    ? `<button class="btn btn-primary btn-sm" onclick="inboxSendEmail('${conv.id}')">✉ Invia email</button>` : ''}
@@ -12726,27 +13288,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }, 400);
     };
 
+    const inboxEmailAttempts = new Map();
     window.inboxSendEmail = async function(convId) {
-        const conv = (S.conversations || []).find(c => c.id === convId);
-        if (!conv) return;
-        const subject = (document.getElementById('inboxSubject') || {}).value || '';
-        const body = (document.getElementById('inboxBody') || {}).value || '';
-        if (!body.trim()) { toast('warning', 'Email vuota'); return; }
-        if (!conv.contactEmail) { toast('error', 'Email del contatto mancante'); return; }
-        const ok = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, conv.contactEmail, {
-            subject: subject || 'Messaggio da BOOM',
-            title: subject || 'Messaggio da BOOM',
-            message: body,
-            action_label: '',
-            action_url: '',
-        });
-        if (ok) {
-            await inboxLogMessage(conv, { direction:'out', channel:'email', body, subject });
-            const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
-            const subj = document.getElementById('inboxSubject'); if (subj) subj.value = '';
-            inboxRefresh();
-            toast('success', 'Email inviata');
-        }
+        const user = auth.currentUser, conv = (S.conversations || []).find(c => c.id === convId);
+        if (!user || S.profile?.id !== user.uid || (!isAdmin() && !isLandlord()) || !conv || _inboxState.convId !== convId) return;
+        const subjectInput = document.getElementById('inboxSubject'), bodyInput = document.getElementById('inboxBody');
+        const subject = subjectInput?.value || 'Messaggio da BOOM', body = bodyInput?.value || '';
+        if (!body.trim() || body.length > 20000 || subject.length > 200 || /[\r\n]/.test(subject)) return toast('warning', 'Controlla il messaggio', 'Oggetto massimo 200 caratteri e testo massimo 20.000; nessun testo viene tagliato.');
+        if (!conv.contactEmail) return toast('error', 'Email del contatto mancante');
+        const key = user.uid + ':' + convId, signature = JSON.stringify([conv.contactEmail, subject, body]);
+        let attempt = inboxEmailAttempts.get(key);
+        if (attempt?.busy) return;
+        if (!attempt || attempt.signature !== signature) { attempt = { signature, user, busy: false, receipt: null, uncertain: false, id: 'portal-email-' + crypto.randomUUID() }; inboxEmailAttempts.set(key, attempt); }
+        if (attempt.uncertain) return toast('warning', 'Invio da verificare', 'Controlla la posta inviata prima di riprovare: l’esito precedente non è confermato.');
+        attempt.busy = true;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid;
+        try {
+            if (!attempt.receipt) {
+                const token = await user.getIdToken(); if (!current()) return;
+                let response, result;
+                try {
+                    response = await fetch('/api/notify/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ to: conv.contactEmail, message: { subject, text: body } }) });
+                    result = await response.json();
+                } catch { attempt.uncertain = true; throw new Error('send_unconfirmed'); }
+                if (!response.ok || !result.ok || !result.accepted) { attempt.uncertain = response.status >= 500 || response.ok; throw new Error(attempt.uncertain ? 'send_unconfirmed' : 'send_rejected'); }
+                attempt.receipt = result;
+            }
+            if (!current()) return;
+            await inboxLogMessage(conv, { direction: 'out', channel: 'email', body, subject, exactText: true,
+                id: attempt.id, emailMessageId: attempt.receipt.messageId, at: attempt.receipt.acceptedAt, user });
+            if (!current()) return;
+            const sameComposer = _inboxState.convId === convId && document.getElementById('inboxBody')?.value === body
+                && (document.getElementById('inboxSubject')?.value || 'Messaggio da BOOM') === subject;
+            if (sameComposer) { document.getElementById('inboxBody').value = ''; const input = document.getElementById('inboxSubject'); if (input) input.value = ''; }
+            const savedView = _inboxState.view, savedDraft = savedView?.user === user.uid && savedView.drafts[convId];
+            if (savedDraft?.inboxBody === body && (savedDraft.inboxSubject || 'Messaggio da BOOM') === subject) {
+                savedDraft.inboxBody = ''; savedDraft.inboxSubject = '';
+            }
+            inboxEmailAttempts.delete(key); // A completed attempt is not a new intentional send.
+            // Do not rerender another thread or erase a draft edited while SMTP was in flight.
+            if (sameComposer) inboxRefresh();
+            toast('success', 'Email accettata e registrata', 'La consegna al destinatario non è attestata da questa ricevuta.');
+        } catch (error) {
+            if (current()) toast('warning', attempt.receipt ? 'Storico non aggiornato' : 'Email non confermata', attempt.receipt
+                ? 'Il server ha accettato l’email, ma la registrazione non è completa. Riprova lo stesso testo: verrà aggiornato solo lo storico, senza reinvio.'
+                : attempt.uncertain ? 'Esito incerto: controlla la posta inviata prima di riprovare. La bozza è conservata.' : 'Invio non accettato. Correggi il messaggio o riprova; la bozza è conservata.');
+        } finally { attempt.busy = false; }
     };
 
     window.inboxSaveNote = async function(convId) {
@@ -12865,6 +13452,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _inboxState.convId = conv.id;
                 startOpenConvListener(conv.id);
             }
+            S.inboxContext = null;
             Object.assign(_inboxState, { convId: conv.id, filter: 'all', channel: 'all', search: '', homeContext: null });
             closeModal();
             inboxRefresh();
@@ -14581,6 +15169,126 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // await sul percorso di render).
     // ═══════════════════════════════════════════════════════════════════
 
+    // Costs are observed estimates, never a provider invoice. Only an explicit
+    // save changes the existing settings/ai budget; opening does not enable it.
+    function aiCostsCurrent(state) {
+        return !!state && S.aiCosts === state && portalSessionCurrent(state.proof) && isAdmin()
+            && document.getElementById('aiCostsModal') === state.modal;
+    }
+    function aiCostsRender(state) {
+        if (!state || !portalSessionCurrent(state.proof) || S.aiCosts !== state) return;
+        const host = document.getElementById('aiCostsContent');
+        if (!host || host.closest('#aiCostsModal') !== state.modal) return;
+        const data = state.data, usage = data?.usage, budget = data?.budget;
+        const amount = value => typeof value === 'number' && Number.isFinite(value) && value >= 0
+            ? value.toLocaleString('it-IT', { style: 'currency', currency: 'USD', maximumFractionDigits: 6 }) : 'Non disponibile';
+        const available = period => usage?.[period + 'Available'] === true && usage?.[period + 'Priced'] === true;
+        const metric = (label, value) => `<div style="min-width:0"><dt style="font-size:12px;color:var(--text-secondary)">${label}</dt><dd style="margin:5px 0 0;font-size:20px">${esc(value)}</dd></div>`;
+        const ready = !!data && ['ready', 'disabled'].includes(budget?.state) && typeof data.cfg?.budget?.enabled === 'boolean';
+        const disabled = state.loading || state.saving || !ready;
+        host.innerHTML = `${state.loading ? '<p role="status">Leggo costi e impostazioni registrati…</p>' : ''}
+            <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">Stime cloud registrate nel portale, in USD. Non sono le fatture dei fornitori.</p>
+            <dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0">
+                ${metric('Oggi' + (usage?.day ? ' · ' + esc(usage.day) : ''), available('today') ? amount(usage.today?.total?.cloud?.usd) : 'Non disponibile')}
+                ${metric('Questo mese', available('month') ? amount(usage.month?.total?.cloud?.usd) : 'Non disponibile')}
+            </dl>
+            ${data && (!available('today') || !available('month')) ? '<p style="font-size:12px;color:var(--orange)" role="status">Lettura dei costi incompleta. I valori mancanti non sono zero.</p>' : ''}
+            <section style="border-top:1px solid var(--border);padding-top:16px"><h4 style="margin:0 0 8px;font-size:14px">Limite giornaliero Anthropic</h4>
+                <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">${budget?.state === 'ready'
+                    ? 'Attivo · ' + esc(amount(budget.dailyUsd)) + '/giorno, fuso Roma.' : budget?.state === 'disabled'
+                    ? 'Disattivato. Nessun limite viene attivato aprendo questo pannello.' : 'Stato del limite non verificabile. Rileggi prima di modificarlo.'}</p>
+                ${budget?.state === 'ready' ? `<dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0">
+                    ${metric('Conteggiato nel limite', amount(budget.accountedUsd))}${metric('Riservato, non fatturato', amount(budget.heldUsd))}
+                    ${metric('Disponibile nel limite', amount(budget.remainingUsd))}</dl>` : ''}
+                <form id="aiCostsForm" onsubmit="saveAICosts(event)" novalidate>
+                    <label style="display:flex;gap:10px;align-items:center;padding:10px 0;font-size:13px"><input id="aiBudgetEnabled" type="checkbox" ${state.enabled ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="aiCostsDraft()">Attiva il limite giornaliero</label>
+                    <label for="aiDailyUsd" class="form-label">Importo scelto da te · USD al giorno</label>
+                    <input id="aiDailyUsd" class="form-input" type="number" inputmode="decimal" min="0" step="any" placeholder="Inserisci un importo" value="${esc(state.cap || '')}" ${disabled || !state.enabled ? 'disabled' : ''} oninput="aiCostsDraft()">
+                    <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">Il limite riguarda Anthropic Messages. Esclude STT, Codex/chat, ElevenLabs, Telnyx e TIM. Le riserve coprono richieste in corso o esiti incerti: non sono addebiti confermati.</p>
+                    <p id="aiCostsFeedback" role="${state.error ? 'alert' : 'status'}" style="font-size:13px;line-height:1.5;color:var(--${state.error ? 'orange' : 'text-secondary'})">${esc(state.error || state.message || '')}</p>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn btn-secondary" onclick="aiCostsRead()" ${state.loading || state.saving ? 'disabled' : ''}>Rileggi</button><button type="submit" class="btn btn-primary" ${disabled ? 'disabled' : ''}>${state.saving ? 'Salvo…' : 'Salva limite'}</button></div>
+                </form>
+            </section>`;
+    }
+    function aiCostsDraft() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.enabled = document.getElementById('aiBudgetEnabled').checked;
+        const input = document.getElementById('aiDailyUsd'); state.cap = input.value; input.disabled = !state.enabled;
+        state.error = ''; state.message = '';
+        const feedback = document.getElementById('aiCostsFeedback'); if (feedback) feedback.textContent = '';
+    }
+    async function aiCostsRequest(state, patch) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            if (!aiCostsCurrent(state)) return null;
+            const response = await fetch('/api/ai/status?probe=0', { method: patch ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(patch ? { 'Content-Type': 'application/json' } : {}) },
+                ...(patch ? { body: JSON.stringify(patch) } : {}) });
+            if (!aiCostsCurrent(state)) return null;
+            const data = await response.json();
+            if (!aiCostsCurrent(state)) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    async function aiCostsRead() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.loading = true; state.error = ''; state.data = null; aiCostsRender(state);
+        try {
+            const data = await aiCostsRequest(state);
+            if (!data) return;
+            state.data = data; state.enabled = data.cfg?.budget?.enabled === true;
+            state.cap = typeof data.cfg?.budget?.dailyUsd === 'number' ? String(data.cfg.budget.dailyUsd) : '';
+        } catch { if (aiCostsCurrent(state)) state.error = 'Costi o impostazioni non disponibili. Riprova: nessuna modifica è stata salvata.'; }
+        finally { state.loading = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    async function saveAICosts(event) {
+        event?.preventDefault();
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving || !state.data || state.data.budget?.state === 'unavailable') return;
+        aiCostsDraft();
+        const amount = Number(state.cap);
+        if (state.enabled && (!state.cap.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.ceil(amount * 1000000)))) {
+            state.error = 'Inserisci un importo giornaliero positivo in USD prima di attivare il limite.'; aiCostsRender(state); return;
+        }
+        const patch = { budget: state.enabled ? { enabled: true, dailyUsd: amount } : { enabled: false } };
+        state.saving = true; state.error = ''; state.message = ''; aiCostsRender(state);
+        let saved = false;
+        try {
+            const result = await aiCostsRequest(state, patch);
+            if (!result) return;
+            saved = true; state.message = result.cfg.budget.enabled ? 'Limite salvato.' : 'Limite disattivato.';
+            state.data = await aiCostsRequest(state);
+            if (!aiCostsCurrent(state)) return;
+            if (!state.data) throw { code: 'unavailable' };
+            state.enabled = state.data.cfg.budget.enabled === true;
+            state.cap = typeof state.data.cfg.budget.dailyUsd === 'number' ? String(state.data.cfg.budget.dailyUsd) : '';
+        } catch (error) {
+            if (aiCostsCurrent(state)) {
+                if (saved) state.data = null;
+                state.error = saved ? 'Limite salvato; lettura aggiornata non riuscita. Rileggi per verificare i costi.' : error.code === 'rejected'
+                    ? 'Limite rifiutato dal server. Correggi l’importo e riprova.' : 'Salvataggio non confermato. Rileggi prima di riprovare; il valore inserito è conservato.';
+            }
+        } finally { state.saving = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    function closeAICosts() {
+        if (!document.getElementById('aiCostsModal')) return;
+        S.aiCosts = null; document.getElementById('modals').replaceChildren(); document.body.classList.remove('modal-open');
+    }
+    function openAICosts() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return;
+        if (document.querySelector('.modal-overlay.active')) return;
+        const host = document.getElementById('modals');
+        if (!host) return;
+        host.innerHTML = '<div class="modal-overlay active" id="aiCostsModal" role="dialog" aria-modal="true" aria-labelledby="aiCostsTitle"><div class="modal" style="max-width:520px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column"><div class="modal-header" style="flex-shrink:0"><h3 id="aiCostsTitle" class="modal-title">Costi AI</h3><button type="button" class="modal-close" aria-label="Chiudi costi AI" onclick="closeAICosts()">×</button></div><div id="aiCostsContent" class="modal-body" style="max-height:none;min-height:0;overflow-y:auto"></div></div></div>';
+        document.body.classList.add('modal-open');
+        S.aiCosts = { proof: portalSessionProof(), modal: document.getElementById('aiCostsModal'), loading: false, saving: false, enabled: false, cap: '', data: null };
+        aiCostsRead();
+    }
+
     function squadraPage() {
         const SQ = window.BOOM_SQUADRA;
         if (!SQ) return `<div class="page-header"><div class="page-title">La Squadra</div></div>
@@ -14705,6 +15413,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="page-title">La Squadra</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">${SQ.TEAM.length} dipendenti automatici · ${roll.ok} al lavoro · ${roll.warn + roll.err} da guardare · ${roll.off} senza battito</div>
           </div>
+          <button type="button" class="btn btn-secondary" onclick="openAICosts()">Costi AI</button>
         </div>
 
         <!-- La riga che nessuna pagina diceva: chi può parlare ai clienti da solo. -->
@@ -19208,7 +19917,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? '<span class="badge orange">✏️ Firma parziale</span>'
             : '<span class="badge gray">📝 Da firmare</span>';
         
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" data-inbox-contract="${esc(c.id)}"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
@@ -19315,6 +20024,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
+                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="inboxOpenContext({kind:'contract',id:'${jsq(c.id)}'})">💬 Comunicazioni</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
@@ -20015,214 +20725,349 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (window._pdfJsLoading) return window._pdfJsLoading;
         window._pdfJsLoading = new Promise((resolve, reject) => {
             const s = document.createElement('script');
+            const fail = error => { clearTimeout(timer); window._pdfJsLoading = null; reject(error); };
+            const timer = setTimeout(() => { s.remove(); fail(new Error('PDF.js load timeout')); }, 20000);
             s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
             s.onload = () => {
                 try {
                     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-                    resolve(window.pdfjsLib);
-                } catch (e) { reject(e); }
+                    clearTimeout(timer); resolve(window.pdfjsLib);
+                } catch (e) { fail(e); }
             };
-            s.onerror = () => reject(new Error('PDF.js load failed'));
+            s.onerror = () => fail(new Error('PDF.js load failed'));
             document.head.appendChild(s);
         });
         return window._pdfJsLoading;
     }
 
-    // ── Editor ──────────────────────────────────────────────────────────────
-    function openMagicSignEditor() {
-        _msEdit = { pdfBytes: null, fileName: '', pageCount: 0, fields: [], propertyId: '', title: '' };
-        const tenants = S.users.filter(u => u.role === 'tenant');
-        const landlords = S.users.filter(u => u.role === 'landlord');
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✨ Magic Sign — Contratto personalizzato</div>
-                    <div class="ms-ed-sub">Carica un PDF, trascina i campi firma, invia a inquilino e locatore.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">Titolo</label>
-                    <input class="ms-ed-input" id="msTitle" placeholder="Es. Contratto comodato Via Veneto" oninput="_msEdit.title=this.value">
-                    <label class="ms-ed-label">Immobile (opzionale)</label>
-                    <select class="ms-ed-input" id="msProperty" onchange="_msEdit.propertyId=this.value">
-                        <option value="">— Nessuno —</option>
-                        ${S.properties.map(p => `<option value="${p.id}">${esc(p.name || 'Immobile')}</option>`).join('')}
-                    </select>
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Inquilino</label>
-                    <select class="ms-ed-input" id="msTenant">
-                        <option value="">— Email manuale —</option>
-                        ${tenants.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msTenantEmail" placeholder="email inquilino" style="margin-top:6px">
-                    <label class="ms-ed-label">Locatore</label>
-                    <select class="ms-ed-input" id="msLandlord">
-                        <option value="">— Email manuale —</option>
-                        ${landlords.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msLandlordEmail" placeholder="email locatore" style="margin-top:6px">
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Campi — trascina sul documento</label>
-                    <div class="ms-palette">
-                        ${Object.entries(MS_FIELD_TYPES).map(([k, t]) => `
-                            <div class="ms-chip" draggable="true" data-fieldtype="${k}" ondragstart="_msDragStart(event,'${k}')">
-                                <span>${t.icon}</span> ${t.label}
-                            </div>`).join('')}
-                    </div>
-                    <div class="ms-ed-hint">Suggerimento: clicca un campo posizionato per eliminarlo.</div>
-                    <button class="ms-cta" id="msSaveBtn" disabled onclick="saveMagicSignRequest()">Crea richiesta di firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap" id="msCanvasWrap">
-                    <div class="ms-drop" id="msDrop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="_msFileDrop(event)">
-                        <div class="ms-drop-icon">📄</div>
-                        <div class="ms-drop-title">Trascina qui il PDF del contratto</div>
-                        <div class="ms-drop-sub">oppure</div>
-                        <label class="btn"><input type="file" accept="application/pdf" style="display:none" onchange="_msFileInput(event)"> Scegli file</label>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>`;
-        // Pre-fill manual email when a user is picked
-        setTimeout(() => {
-            const tSel = document.getElementById('msTenant'), lSel = document.getElementById('msLandlord');
-            tSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === tSel.value); if (u) document.getElementById('msTenantEmail').value = u.email || ''; });
-            lSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === lSel.value); if (u) document.getElementById('msLandlordEmail').value = u.email || ''; });
-        }, 50);
+    // ── Editor: ephemeral draft; creation and signing stay server-side. ───────
+    function openMagicSignEditor(context) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return toast('error', 'Accedi come amministratore');
+        if (_msEdit && document.getElementById('msStudio')) return;
+        const propertyId = context?.propertyId && S.properties.some(p => p.id === context.propertyId) ? context.propertyId : '';
+        _msEdit = { uid: auth.currentUser.uid, step: 'choose', pdfBytes: null, pdfDoc: null, fileName: '', pageCount: 0,
+            fields: [], propertyId, title: '', page: 1, selectedType: 'sig_tenant', selectedFieldId: null, undo: [],
+            signers: { tenant: { enabled: true, userId: '', name: '', email: '' }, landlord: { enabled: true, userId: '', name: '', email: '' } },
+            dirty: false, busy: false, loading: false, renderGeneration: 0, submission: null, returnFocus: document.activeElement };
+        window.addEventListener('beforeunload', _msBeforeUnload);
+        _msStudioRender();
     }
-
-    function _msFileInput(e) { const f = e.target.files?.[0]; if (f) _msLoadFile(f); }
-    function _msFileDrop(e) {
-        e.preventDefault();
-        document.getElementById('msDrop')?.classList.remove('over');
-        const f = e.dataTransfer.files?.[0];
-        if (f) _msLoadFile(f);
+    function _msCurrent(state = _msEdit) {
+        return !!state && state === _msEdit && auth.currentUser?.uid === state.uid && S.profile?.id === state.uid && isAdmin();
     }
-
+    function _msBeforeUnload(event) {
+        if (!_msEdit?.dirty) return;
+        event.preventDefault(); event.returnValue = '';
+    }
+    function _msRoleLabel(role) { return role === 'tenant' ? 'Inquilino' : 'Locatore'; }
+    function _msEnabledRoles() { return Object.keys(_msEdit.signers).filter(role => _msEdit.signers[role].enabled); }
+    function _msDirty() { if (_msEdit && !_msEdit.submission) _msEdit.dirty = true; }
+    function _msExit() {
+        const state = _msEdit;
+        if (state?.busy) return;
+        state?.renderTask?.cancel();
+        state?.pdfDoc?.destroy().catch(() => {});
+        _msEdit = null;
+        window.removeEventListener('beforeunload', _msBeforeUnload);
+        document.getElementById('modals').innerHTML = '';
+        document.body.classList.remove('modal-open');
+        if (state?.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
+    }
+    function _msRequestClose() {
+        if (!_msEdit || _msEdit.busy) return;
+        if (!_msEdit.dirty) return _msExit();
+        if (document.getElementById('msDiscard')) return;
+        document.getElementById('msStudio').insertAdjacentHTML('beforeend', `<div class="ms-discard" id="msDiscard" role="alertdialog" aria-modal="true" aria-labelledby="msDiscardTitle"><div><h3 id="msDiscardTitle">Chiudere la preparazione?</h3><p>${_msEdit.submission ? 'La creazione potrebbe essere già riuscita. Puoi riprovare con la stessa richiesta oppure controllare le richieste nella sezione Contratti.' : 'Il PDF e i campi di questa bozza non saranno conservati.'}</p><div class="ms-actions"><button type="button" class="ms-primary" onclick="document.getElementById('msDiscard').remove();document.getElementById('msClose').focus()">Continua a lavorare</button><button type="button" class="ms-secondary" onclick="_msExit()">Chiudi preparazione</button></div></div></div>`);
+        document.querySelector('#msDiscard button').focus();
+    }
+    function _msStudioKeys(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault(); event.stopPropagation();
+            const discard = document.getElementById('msDiscard');
+            if (discard) { discard.remove(); document.getElementById('msClose')?.focus(); } else _msRequestClose();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const root = document.getElementById('msDiscard') || document.getElementById('msStudio');
+        const items = [...root.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length);
+        if (!items.length) return;
+        if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    }
+    function _msStudioRender() {
+        const state = _msEdit;
+        if (!_msCurrent(state)) return;
+        const steps = ['document', 'signers', 'fields', 'review'], labels = ['Documento', 'Firmatari', 'Campi', 'Riepilogo'];
+        const index = steps.indexOf(state.step), title = { choose: 'Che cosa vuoi far firmare?', boom: 'Scegli il contratto BOOM.', document: 'Parti dal documento.', signers: 'Chi deve firmare?', fields: 'Metti le firme al posto giusto.', review: 'Tutto pronto per la firma.' }[state.step];
+        const sub = { choose: 'Apri una pratica esistente o prepara un PDF personalizzato.', boom: 'Ritrovi le parti, il documento e le firme già presenti.', document: 'Carica il PDF definitivo e dagli un nome riconoscibile.', signers: 'Ogni persona riceverà il proprio link personale.', fields: 'Scegli un campo, poi tocca il punto sul PDF.', review: 'Controlla documento, persone e posizione dei campi.' }[state.step];
+        document.body.classList.add('modal-open');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)">
+          <header class="ms-studio-head"><div><p class="ms-kicker">BOOM <span>/</span> MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">${title}</h2><p class="ms-subtitle">${sub}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msRequestClose()" ${state.busy ? 'disabled' : ''}>×</button></header>
+          ${index >= 0 ? `<nav class="ms-steps" aria-label="Preparazione della firma">${steps.map((step, i) => `<button type="button" onclick="_msGo('${step}')" ${i > index || state.submission || state.busy ? 'disabled' : ''} ${i === index ? 'aria-current="step"' : ''}><span>${i < index ? '✓' : i + 1}</span>${labels[i]}</button>`).join('')}</nav>` : ''}
+          <div class="ms-studio-body" id="msStudioBody">${_msStudioContent()}</div>
+          <div class="ms-status" id="msStatus" role="status" aria-live="polite"></div>
+          ${index >= 0 ? `<footer class="ms-studio-footer"><button type="button" class="ms-secondary" onclick="_msGo('${index === 0 ? 'choose' : steps[index - 1]}')" ${state.busy || state.submission ? 'disabled' : ''}>Indietro</button><p>${index === 3 ? 'Crea i link. La condivisione è il passo successivo.' : state.fileName ? esc(state.fileName) : 'La bozza resta aperta finché lavori qui.'}</p>${index === 3 ? `<button type="button" class="ms-primary" id="msSaveBtn" onclick="saveMagicSignRequest()" ${state.busy ? 'disabled' : ''}>${state.busy ? 'Creazione in corso…' : state.submission ? 'Riprova creazione link' : 'Crea link di firma'}</button>` : `<button type="button" class="ms-primary" id="msNext" onclick="_msNext()" ${state.loading ? 'disabled' : ''}>${state.loading ? 'Leggo il PDF…' : index === 2 ? 'Vai al riepilogo' : 'Continua'} <span aria-hidden="true">→</span></button>`}</footer>` : ''}
+        </section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
+        if (['document', 'fields', 'review'].includes(state.step) && state.pdfDoc) _msRenderEditor();
+    }
+    function _msStudioContent() {
+        const state = _msEdit;
+        if (state.step === 'choose') return `<div class="ms-choices"><button type="button" class="ms-choice" onclick="_msGo('boom')"><span class="ms-choice-symbol" aria-hidden="true">↗</span><span class="ms-kicker">PRATICA ESISTENTE</span><strong>Contratto BOOM</strong><span>Apri Firma ora sul contratto già in archivio.</span><b>Trova contratto <span aria-hidden="true">→</span></b></button><button type="button" class="ms-choice" onclick="_msGo('document')"><span class="ms-choice-symbol" aria-hidden="true">＋</span><span class="ms-kicker">UN ALTRO DOCUMENTO</span><strong>PDF personalizzato</strong><span>Carica un PDF e indica dove devono firmare.</span><b>Prepara PDF <span aria-hidden="true">→</span></b></button></div><p class="ms-footnote">I contratti BOOM conservano il loro percorso di firma e i collegamenti alla pratica.</p>`;
+        if (state.step === 'boom') {
+            const contracts = (S.contracts || []).filter(c => !state.propertyId || c.propertyId === state.propertyId);
+            return `<div class="ms-narrow"><label class="ms-label" for="msBoomContract">Contratto in archivio</label><select class="ms-input" id="msBoomContract"><option value="">Scegli un contratto</option>${contracts.map(c => { const p = S.properties.find(p => p.id === c.propertyId), u = S.users.find(u => u.id === c.tenantId); return `<option value="${esc(c.id)}">${esc(p?.name || p?.address || c.propertyName || 'Immobile')} · ${esc(u?.name || c.tenantName || c.id)}${c.signatureStatus === 'complete' ? ' · già firmato' : ''}</option>`; }).join('')}</select><p class="ms-help">${contracts.length ? 'Apri il pannello con il documento e le parti già collegati.' : 'Nessun contratto caricato in questo contesto. Apri la sezione Contratti per trovare la pratica.'}</p><div class="ms-actions"><button type="button" class="ms-secondary" onclick="_msGo('choose')">Indietro</button><button type="button" class="ms-primary" onclick="_msOpenBoom()">Apri Firma ora</button></div></div>`;
+        }
+        if (state.step === 'document') return `<div class="ms-document-layout"><div class="ms-form-column"><div class="ms-upload ${state.pdfDoc ? 'ms-upload-ready' : ''}" id="msDrop" ondragover="event.preventDefault()" ondrop="_msFileDrop(event)"><span class="ms-upload-icon" aria-hidden="true">${state.pdfDoc ? '✓' : '↑'}</span><strong>${state.pdfDoc ? esc(state.fileName) : 'Il tuo PDF, pronto da firmare'}</strong><p>${state.pdfDoc ? state.pageCount + (state.pageCount === 1 ? ' pagina' : ' pagine') + ' · documento caricato' : 'Scegli il file oppure trascinalo qui. PDF fino a 15 MB.'}</p><label class="ms-secondary ms-file-label">${state.pdfDoc ? 'Sostituisci PDF' : 'Scegli PDF'}<input id="msFile" type="file" accept="application/pdf,.pdf" onchange="_msFileInput(event)" ${state.loading ? 'disabled' : ''}></label></div><label class="ms-label" for="msTitle">Nome del documento</label><input class="ms-input" id="msTitle" maxlength="180" value="${esc(state.title)}" placeholder="Es. Accordo di consegna · Via Roma" oninput="_msEdit.title=this.value;_msDirty()"><label class="ms-label" for="msProperty">Immobile <span>facoltativo</span></label><select class="ms-input" id="msProperty" onchange="_msEdit.propertyId=this.value;_msDirty()"><option value="">Nessun immobile collegato</option>${S.properties.map(p => `<option value="${esc(p.id)}" ${p.id === state.propertyId ? 'selected' : ''}>${esc(p.name || p.address || 'Immobile')}</option>`).join('')}</select></div>${_msViewer()}</div>`;
+        if (state.step === 'signers') return `<div class="ms-recipient-intro"><span class="ms-doc-badge">PDF</span><div><strong>${esc(state.title || state.fileName)}</strong><p>${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'} · scegli le parti richieste</p></div></div><div class="ms-signers">${['tenant', 'landlord'].map(role => _msSignerCard(role)).join('')}</div><p class="ms-footnote">Un contatto in archivio mantiene la propria email. Per usare un indirizzo diverso, scegli “Contatto manuale”.</p>`;
+        if (state.step === 'fields') return `<div class="ms-fields-layout"><aside class="ms-fields-sidebar"><p class="ms-label">Aggiungi un campo</p><div class="ms-palette-v2">${Object.entries(MS_FIELD_TYPES).filter(([, meta]) => state.signers[meta.role].enabled).map(([type, meta]) => `<button type="button" draggable="true" data-ms-type="${type}" class="ms-palette-button ms-role-${meta.role}" aria-pressed="${state.selectedType === type}" onclick="_msChooseField('${type}')" ondragstart="_msDragStart(event,'${type}')"><strong>${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'}</strong><span>${_msRoleLabel(meta.role)}</span></button>`).join('')}</div><p class="ms-help" id="msPlacementHint">Scegli un campo, poi tocca il PDF. Da tastiera: Invio sul documento aggiunge al centro; le frecce spostano il campo selezionato.</p><div id="msFieldTools">${_msFieldTools()}</div></aside>${_msViewer()}</div>`;
+        const prop = S.properties.find(p => p.id === state.propertyId);
+        return `<div class="ms-review-layout"><div class="ms-review-summary"><p class="ms-kicker">DOCUMENTO</p><h3>${esc(state.title || state.fileName)}</h3><p class="ms-help">${esc(state.fileName)} · ${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'}${prop ? '<br>' + esc(prop.name || prop.address) : ''}</p><div class="ms-review-people">${_msEnabledRoles().map(role => { const person = state.signers[role], fields = state.fields.filter(f => f.role === role); return `<article class="ms-review-person ms-role-${role}"><span class="ms-kicker">${_msRoleLabel(role)}</span><strong>${esc(person.name)}</strong><span>${esc(person.email)}</span><p>${fields.filter(f => f.kind === 'signature').length} ${fields.filter(f => f.kind === 'signature').length === 1 ? 'firma' : 'firme'} · ${fields.length} ${fields.length === 1 ? 'campo' : 'campi'} · ${[...new Set(fields.map(f => f.page))].sort((a,b) => a-b).map(p => 'pag. ' + p).join(', ')}</p></article>`; }).join('')}</div><p class="ms-review-note">Ogni link apre questo documento con i campi della persona indicata. Dopo la creazione puoi copiarlo o aprire WhatsApp ed email per condividerlo.</p></div>${_msViewer()}</div>`;
+    }
+    function _msSignerCard(role) {
+        const person = _msEdit.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+        const users = S.users.filter(u => u.role === role);
+        return `<section class="ms-signer-card ms-role-${role} ${person.enabled ? '' : 'ms-signer-off'}"><label class="ms-signer-toggle"><input type="checkbox" id="${prefix}Enabled" ${person.enabled ? 'checked' : ''} onchange="_msToggleSigner('${role}',this.checked)"><span>${_msRoleLabel(role)}</span><small>${person.enabled ? 'Firma richiesta' : 'Non richiesto'}</small></label>${person.enabled ? `<label class="ms-label" for="${prefix}">Persona</label><select class="ms-input" id="${prefix}" onchange="_msPickSigner('${role}',this.value)"><option value="">Contatto manuale</option>${users.map(u => `<option value="${esc(u.id)}" ${u.id === person.userId ? 'selected' : ''}>${esc(u.name || u.email || u.id)}</option>`).join('')}</select><label class="ms-label" for="${prefix}Name">Nome e cognome</label><input class="ms-input" id="${prefix}Name" autocomplete="name" maxlength="140" value="${esc(person.name)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.name=this.value;_msDirty()"><label class="ms-label" for="${prefix}Email">Email</label><input type="email" class="ms-input" id="${prefix}Email" autocomplete="email" inputmode="email" maxlength="254" value="${esc(person.email)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.email=this.value;_msDirty()">${person.userId ? `<button type="button" class="ms-text-button" onclick="_msManualSigner('${role}')">Usa un contatto manuale</button>` : '<p class="ms-help">Controlla l’indirizzo prima di creare il link.</p>'}` : '<p class="ms-help">Nessun campo né link verrà creato per questa parte.</p>'}</section>`;
+    }
+    function _msPickSigner(role, id) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const user = S.users.find(u => u.id === id && u.role === role);
+        Object.assign(_msEdit.signers[role], { userId: user?.id || '', name: user?.name || '', email: user?.email || '' });
+        _msDirty(); _msStudioRender();
+    }
+    function _msManualSigner(role) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        _msEdit.signers[role].userId = ''; _msDirty(); _msStudioRender();
+        document.getElementById(role === 'tenant' ? 'msTenantEmail' : 'msLandlordEmail')?.focus();
+    }
+    function _msToggleSigner(role, enabled) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!enabled && _msEdit.fields.some(f => f.role === role) && !confirm('Rimuovere questa parte e i suoi campi dal PDF?')) { _msStudioRender(); return; }
+        _msEdit.signers[role].enabled = enabled;
+        if (!enabled) { _msEdit.fields = _msEdit.fields.filter(f => f.role !== role); _msEdit.undo = []; }
+        if (!enabled && MS_FIELD_TYPES[_msEdit.selectedType]?.role === role) _msEdit.selectedType = 'sig_' + (_msEnabledRoles()[0] || 'tenant');
+        _msDirty(); _msStudioRender();
+    }
+    function _msShowError(message, inputId) {
+        const target = document.getElementById('msStatus');
+        if (target) { target.textContent = message; target.classList.add('ms-status-error'); }
+        const input = inputId && document.getElementById(inputId);
+        if (input) { input.setAttribute('aria-invalid', 'true'); input.focus(); }
+        return false;
+    }
+    function _msValidate(step) {
+        const state = _msEdit;
+        if (step === 'document') {
+            if (!state.pdfBytes || !state.pdfDoc || !state.pageCount) return _msShowError('Scegli un PDF leggibile per continuare.', 'msFile');
+            if (!state.title.trim()) return _msShowError('Dai un nome al documento.', 'msTitle');
+        }
+        if (step === 'signers') {
+            if (!_msEnabledRoles().length) return _msShowError('Scegli almeno una persona che deve firmare.');
+            for (const role of _msEnabledRoles()) {
+                const person = state.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+                if (!person.name.trim()) return _msShowError('Inserisci il nome del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Name');
+                const input = document.createElement('input'); input.type = 'email'; input.required = true; input.value = person.email.trim();
+                if (!input.checkValidity() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) return _msShowError('Controlla l’email del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Email');
+                if (person.userId) {
+                    const canonical = S.users.find(u => u.id === person.userId && u.role === role);
+                    if (!canonical || canonical.email !== person.email || canonical.name !== person.name) return _msShowError('Il contatto è cambiato. Selezionalo di nuovo oppure usa un contatto manuale.', prefix);
+                }
+            }
+        }
+        if (step === 'fields') {
+            for (const role of _msEnabledRoles()) if (!state.fields.some(f => f.role === role && f.kind === 'signature')) return _msShowError('Aggiungi almeno una firma per ' + _msRoleLabel(role).toLowerCase() + '. Data e sigla non sostituiscono la firma.');
+        }
+        return true;
+    }
+    function _msGo(step) {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading || _msEdit.submission) return;
+        _msEdit.step = step; _msStudioRender();
+    }
+    function _msNext() {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading) return;
+        if (!_msValidate(_msEdit.step)) return;
+        _msGo({ document: 'signers', signers: 'fields', fields: 'review' }[_msEdit.step]);
+    }
+    function _msOpenBoom() {
+        if (!_msCurrent()) return;
+        const id = document.getElementById('msBoomContract')?.value;
+        if (!(S.contracts || []).some(c => c.id === id)) return _msShowError('Scegli il contratto da aprire.', 'msBoomContract');
+        if (_msEdit.dirty && !confirm('Lasciare la bozza PDF e aprire il contratto BOOM?')) return;
+        _msExit(); openFirmaOra(id);
+    }
+    function _msFileInput(event) { const file = event.target.files?.[0]; if (file) _msLoadFile(file); }
+    function _msFileDrop(event) { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file) _msLoadFile(file); }
     async function _msLoadFile(file) {
-        if (file.type !== 'application/pdf') return toast('error', 'File non valido', 'Serve un PDF');
-        if (file.size > 15 * 1024 * 1024) return toast('error', 'PDF troppo grande', 'Max 15MB');
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.loading || state.busy || state.submission) return;
+        if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return _msShowError('Scegli un file PDF.');
+        if (file.size > 15 * 1024 * 1024) return _msShowError('Il PDF supera 15 MB. Riduci il file e riprova.');
+        if (state.fields.length && !confirm('Sostituire il PDF? I campi già posizionati verranno rimossi.')) return;
+        state.loading = true; _msStudioRender();
+        let doc;
         try {
-            toast('info', 'Caricamento PDF…');
-            const buf = await file.arrayBuffer();
-            _msEdit.pdfBytes = new Uint8Array(buf);
-            _msEdit.fileName = file.name;
-            _msEdit.fields = [];
-            await _msRenderEditor();
-            document.getElementById('msSaveBtn').disabled = false;
-        } catch (e) { toast('error', 'Errore lettura PDF', e.message); }
-    }
-
-    async function _msRenderEditor() {
-        const pdfjs = await ensurePdfJs();
-        // PDF.js consumes the buffer — give it a copy so _msEdit.pdfBytes stays intact for upload.
-        const doc = await pdfjs.getDocument({ data: _msEdit.pdfBytes.slice() }).promise;
-        _msEdit.pageCount = doc.numPages;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        wrap.classList.add('loaded');
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page';
-            pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            pageDiv.ondragover = (ev) => ev.preventDefault();
-            pageDiv.ondrop = (ev) => _msDropOnPage(ev, i);
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const bytes = new Uint8Array(await file.arrayBuffer()), pdfjs = await ensurePdfJs();
+            doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+            for (let index = 1; index <= doc.numPages; index++) {
+                const page = await doc.getPage(index);
+                if (page.rotate % 360) { await doc.destroy(); throw new Error('unsupported_pdf_geometry'); }
+            }
+            if (!_msCurrent(state)) { doc.destroy(); return; }
+            if (!doc.numPages) throw new Error('PDF senza pagine');
+            state.pdfDoc?.destroy().catch(() => {});
+            Object.assign(state, { pdfBytes: bytes, pdfDoc: doc, fileName: file.name, pageCount: doc.numPages, page: 1, fields: [], undo: [], selectedFieldId: null });
+            if (!state.title) state.title = file.name.replace(/\.pdf$/i, '');
+            _msDirty(); state.loading = false; _msStudioRender();
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.loading = false; _msStudioRender(); _msShowError(error.message === 'unsupported_pdf_geometry' ? 'Questo PDF contiene pagine ruotate. Esportalo nuovamente con le pagine già orientate, poi carica la nuova copia.' : 'Non riesco a leggere questo PDF. Verifica che non sia protetto da password e scegli un file valido.');
         }
     }
-
-    function _msDragStart(e, fieldType) { e.dataTransfer.setData('text/plain', fieldType); }
-
-    function _msDropOnPage(e, pageNum) {
-        e.preventDefault();
-        const fieldType = e.dataTransfer.getData('text/plain');
-        const meta = MS_FIELD_TYPES[fieldType];
-        if (!meta) return;
-        const pageDiv = e.currentTarget;
-        const rect = pageDiv.getBoundingClientRect();
-        const xr = (e.clientX - rect.left) / rect.width;
-        const yr = (e.clientY - rect.top) / rect.height;
-        const field = {
-            id: 'f' + Date.now() + Math.floor(Math.random() * 1000),
-            page: pageNum, type: fieldType, kind: meta.kind, role: meta.role,
-            xr: Math.max(0, Math.min(xr - meta.w / 2, 1 - meta.w)),
-            yr: Math.max(0, Math.min(yr - meta.h / 2, 1 - meta.h)),
-            wr: meta.w, hr: meta.h
-        };
-        _msEdit.fields.push(field);
-        _msRenderFieldMarker(field, pageDiv);
+    function _msViewer() {
+        const state = _msEdit;
+        if (!state.pdfDoc) return '<div class="ms-preview-empty"><span aria-hidden="true">PDF</span><strong>Qui vedrai il documento.</strong><p>Controlla il PDF prima di preparare le firme.</p></div>';
+        return `<section class="ms-viewer" aria-label="Anteprima del documento"><div class="ms-page-toolbar"><span id="msPageLabel">Pagina ${state.page} di ${state.pageCount}</span><div><button type="button" class="ms-icon-button" aria-label="Pagina precedente" onclick="_msPage(-1)" ${state.page <= 1 ? 'disabled' : ''}>←</button><button type="button" class="ms-icon-button" aria-label="Pagina successiva" onclick="_msPage(1)" ${state.page >= state.pageCount ? 'disabled' : ''}>→</button></div></div><div class="ms-canvas-wrap" id="msCanvasWrap"><p class="ms-help">Preparo l’anteprima…</p></div></section>`;
     }
-
-    function _msRenderFieldMarker(field, pageDiv) {
-        const meta = MS_FIELD_TYPES[field.type];
-        const el = document.createElement('div');
-        el.className = 'ms-field ms-field-' + meta.role;
-        el.dataset.fieldId = field.id;
-        el.style.left = (field.xr * 100) + '%';
-        el.style.top = (field.yr * 100) + '%';
-        el.style.width = (field.wr * 100) + '%';
-        el.style.height = (field.hr * 100) + '%';
-        el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-        el.title = 'Clicca per eliminare';
-        el.onclick = (ev) => { ev.stopPropagation(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== field.id); el.remove(); };
-        pageDiv.appendChild(el);
-    }
-
-    async function saveMagicSignRequest() {
-        if (!_msEdit?.pdfBytes) return toast('error', 'Carica un PDF');
-        if (_msEdit.fields.length === 0) return toast('error', 'Aggiungi almeno un campo firma');
-        const title = (document.getElementById('msTitle').value || '').trim() || _msEdit.fileName || 'Contratto';
-        const tenantId = document.getElementById('msTenant').value || null;
-        const landlordId = document.getElementById('msLandlord').value || null;
-        const tenantEmail = (document.getElementById('msTenantEmail').value || '').trim();
-        const landlordEmail = (document.getElementById('msLandlordEmail').value || '').trim();
-        const roles = new Set(_msEdit.fields.map(f => f.role));
-        if (roles.has('tenant') && !tenantId && !tenantEmail) return toast('error', 'Manca l\'inquilino', 'Hai campi inquilino ma nessun firmatario');
-        if (roles.has('landlord') && !landlordId && !landlordEmail) return toast('error', 'Manca il locatore', 'Hai campi locatore ma nessun firmatario');
-
-        const btn = document.getElementById('msSaveBtn');
-        btn.disabled = true; btn.textContent = 'Caricamento…';
+    async function _msRenderEditor() {
+        const state = _msEdit, wrap = document.getElementById('msCanvasWrap');
+        if (!_msCurrent(state) || !state.pdfDoc || !wrap) return;
+        const generation = ++state.renderGeneration; state.renderTask?.cancel();
         try {
-            const reqId = 'sr' + Date.now();
-            const path = `signRequests/${reqId}/original.pdf`;
-            await storage.ref(path).put(new Blob([_msEdit.pdfBytes], { type: 'application/pdf' }));
-            const originalPdfUrl = await storage.ref(path).getDownloadURL();
-            const tUser = tenantId ? S.users.find(u => u.id === tenantId) : null;
-            const lUser = landlordId ? S.users.find(u => u.id === landlordId) : null;
-            const signers = {};
-            if (roles.has('tenant')) signers.tenant = { name: tUser?.name || 'Inquilino', email: tUser?.email || tenantEmail, userId: tenantId, token: _msToken(), signatureImg: null, signedAt: null };
-            if (roles.has('landlord')) signers.landlord = { name: lUser?.name || 'Locatore', email: lUser?.email || landlordEmail, userId: landlordId, token: _msToken(), signatureImg: null, signedAt: null };
-
-            await db.collection('signRequests').doc(reqId).set({
-                title, propertyId: _msEdit.propertyId || null,
-                originalPdfUrl, originalPdfPath: path,
-                pageCount: _msEdit.pageCount,
-                fields: _msEdit.fields,
-                signers,
-                requiredRoles: [...roles],
-                signedPdfUrl: null, signedPdfPath: null,
-                status: 'sent',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: S.profile.id
-            });
-            logActivity('Magic Sign richiesta creata', 'contract', { reqId, title, roles: [...roles] });
-            toast('success', 'Richiesta creata');
-            _msShowSendPanel(reqId, title, signers);
-        } catch (e) {
-            console.error(e); btn.disabled = false; btn.textContent = 'Crea richiesta di firma';
-            toast('error', 'Errore', e.message);
+            const page = await state.pdfDoc.getPage(state.page);
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !wrap.isConnected) return;
+            const base = page.getViewport({ scale: 1 }), width = Math.min(850, Math.max(220, wrap.clientWidth - 24));
+            const viewport = page.getViewport({ scale: width / base.width * Math.min(window.devicePixelRatio || 1, 2) });
+            const pageDiv = document.createElement('div'); pageDiv.className = 'ms-page'; pageDiv.dataset.page = state.page;
+            pageDiv.style.width = width + 'px'; pageDiv.style.aspectRatio = base.width + ' / ' + base.height;
+            const canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+            canvas.setAttribute('aria-hidden', 'true'); pageDiv.appendChild(canvas); wrap.replaceChildren(pageDiv);
+            if (state.step === 'fields') {
+                pageDiv.tabIndex = 0; pageDiv.setAttribute('role', 'group'); pageDiv.setAttribute('aria-label', 'Pagina ' + state.page + '. Tocca per aggiungere il campo selezionato; Invio lo aggiunge al centro.');
+                pageDiv.onclick = event => _msPlaceField(state.selectedType, state.page, event.clientX, event.clientY, pageDiv);
+                pageDiv.ondragover = event => event.preventDefault(); pageDiv.ondrop = event => _msDropOnPage(event, state.page);
+                pageDiv.onkeydown = event => { if (event.target === pageDiv && ['Enter', ' '].includes(event.key)) { event.preventDefault(); _msAddField(state.selectedType, state.page, .5, .5); } };
+            }
+            state.renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+            await state.renderTask.promise;
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !pageDiv.isConnected) return;
+            pageDiv.querySelectorAll('.ms-field').forEach(el => el.remove());
+            state.fields.filter(f => f.page === state.page).forEach(field => _msRenderFieldMarker(field, pageDiv));
+        } catch (error) { if (error?.name !== 'RenderingCancelledException' && _msCurrent(state) && generation === state.renderGeneration) _msShowError('Anteprima non disponibile. Torna al documento e riprova.'); }
+    }
+    function _msPage(delta) {
+        if (!_msCurrent() || _msEdit.busy) return;
+        const page = _msEdit.page + delta; if (page < 1 || page > _msEdit.pageCount) return;
+        _msEdit.page = page;
+        const viewer = document.querySelector('#msStudio .ms-viewer'); if (viewer) viewer.outerHTML = _msViewer();
+        _msRenderEditor();
+    }
+    function _msChooseField(type) {
+        if (!_msCurrent() || !MS_FIELD_TYPES[type] || !_msEdit.signers[MS_FIELD_TYPES[type].role].enabled) return;
+        _msEdit.selectedType = type;
+        document.querySelectorAll('[data-ms-type]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.msType === type)));
+        const status = document.getElementById('msStatus'); if (status) { status.textContent = MS_FIELD_TYPES[type].label + ': tocca il punto sul PDF.'; status.classList.remove('ms-status-error'); }
+    }
+    function _msDragStart(event, type) { _msChooseField(type); event.dataTransfer.setData('text/plain', type); }
+    function _msDropOnPage(event, pageNum) { event.preventDefault(); _msPlaceField(event.dataTransfer.getData('text/plain'), pageNum, event.clientX, event.clientY, event.currentTarget); }
+    function _msPlaceField(type, page, x, y, element) { const rect = element.getBoundingClientRect(); _msAddField(type, page, (x - rect.left) / rect.width, (y - rect.top) / rect.height); }
+    function _msRememberFields() { _msEdit.undo.push(_msEdit.fields.map(f => ({ ...f }))); if (_msEdit.undo.length > 30) _msEdit.undo.shift(); }
+    function _msAddField(type, page, x, y) {
+        const meta = MS_FIELD_TYPES[type];
+        if (!_msCurrent() || _msEdit.step !== 'fields' || _msEdit.submission || !meta || !_msEdit.signers[meta.role].enabled) return;
+        if (_msEdit.fields.length >= 100) return _msShowError('Hai raggiunto 100 campi per documento.');
+        _msRememberFields();
+        const field = { id: 'f' + _msToken(), page, type, kind: meta.kind, role: meta.role, xr: Math.max(0, Math.min(x - meta.w / 2, 1 - meta.w)), yr: Math.max(0, Math.min(y - meta.h / 2, 1 - meta.h)), wr: meta.w, hr: meta.h };
+        _msEdit.fields.push(field); _msEdit.selectedFieldId = field.id; _msDirty(); _msRefreshFields();
+        document.getElementById('msStatus').textContent = meta.label + ' aggiunta a pagina ' + page + '.';
+    }
+    function _msRenderFieldMarker(field, pageDiv) {
+        const meta = MS_FIELD_TYPES[field.type], editable = _msEdit?.step === 'fields';
+        const element = document.createElement(editable ? 'button' : 'div');
+        if (editable) element.type = 'button';
+        element.className = 'ms-field ms-field-' + field.role + (field.id === _msEdit?.selectedFieldId ? ' ms-field-selected' : '');
+        element.dataset.fieldId = field.id;
+        Object.assign(element.style, { left: field.xr * 100 + '%', top: field.yr * 100 + '%', width: field.wr * 100 + '%', height: field.hr * 100 + '%' });
+        element.innerHTML = `<span class="ms-field-tag">${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'} · ${_msRoleLabel(field.role)}</span>`;
+        element.setAttribute('aria-label', meta.label + ', pagina ' + field.page + '. Seleziona per modificare.');
+        if (editable) { element.onclick = event => { event.stopPropagation(); _msSelectField(field.id); }; element.onkeydown = event => _msFieldKeys(event, field.id); }
+        pageDiv.appendChild(element);
+    }
+    function _msFieldTools() {
+        const state = _msEdit, selected = state.fields.find(f => f.id === state.selectedFieldId);
+        return `<div class="ms-field-summary"><strong>${state.fields.length} ${state.fields.length === 1 ? 'campo posizionato' : 'campi posizionati'}</strong><button type="button" class="ms-text-button" onclick="_msUndo()" ${state.undo.length ? '' : 'disabled'}>Annulla ultima modifica</button></div>${selected ? `<div class="ms-selected-field"><p>${MS_FIELD_TYPES[selected.type].label} <span>· pagina ${selected.page}</span></p><div class="ms-move-controls" aria-label="Sposta il campo selezionato"><button type="button" aria-label="Sposta a sinistra" onclick="_msMoveField(-.01,0)">←</button><button type="button" aria-label="Sposta in alto" onclick="_msMoveField(0,-.01)">↑</button><button type="button" aria-label="Sposta in basso" onclick="_msMoveField(0,.01)">↓</button><button type="button" aria-label="Sposta a destra" onclick="_msMoveField(.01,0)">→</button><button type="button" class="ms-remove" onclick="_msRemoveField()">Rimuovi</button></div></div>` : ''}<div class="ms-field-list" aria-label="Campi del documento">${state.fields.map((field, i) => `<button type="button" data-ms-field="${field.id}" aria-pressed="${field.id === state.selectedFieldId}" onclick="_msSelectField('${field.id}',true)"><span>${i + 1}</span>${MS_FIELD_TYPES[field.type].label}<small>Pag. ${field.page}</small></button>`).join('')}</div>`;
+    }
+    function _msRefreshFields() {
+        const tools = document.getElementById('msFieldTools'); if (tools) tools.innerHTML = _msFieldTools();
+        const page = document.querySelector('#msCanvasWrap .ms-page');
+        if (page) { page.querySelectorAll('.ms-field').forEach(el => el.remove()); _msEdit.fields.filter(f => f.page === _msEdit.page).forEach(field => _msRenderFieldMarker(field, page)); }
+    }
+    function _msSelectField(id, reveal) {
+        if (!_msCurrent()) return;
+        const field = _msEdit.fields.find(f => f.id === id); if (!field) return;
+        _msEdit.selectedFieldId = id;
+        if (reveal && _msEdit.page !== field.page) { _msEdit.page = field.page; _msStudioRender(); }
+        else _msRefreshFields();
+        if (!reveal) document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msFieldKeys(event, id) {
+        if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Delete','Backspace'].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation(); _msEdit.selectedFieldId = id;
+        if (event.key === 'Delete' || event.key === 'Backspace') return _msRemoveField();
+        const d = event.shiftKey ? .02 : .005;
+        _msMoveField(event.key === 'ArrowLeft' ? -d : event.key === 'ArrowRight' ? d : 0, event.key === 'ArrowUp' ? -d : event.key === 'ArrowDown' ? d : 0);
+        document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msMoveField(dx, dy) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const field = _msEdit.fields.find(f => f.id === _msEdit.selectedFieldId); if (!field) return;
+        _msRememberFields(); field.xr = Math.max(0, Math.min(1 - field.wr, field.xr + dx)); field.yr = Math.max(0, Math.min(1 - field.hr, field.yr + dy)); _msDirty(); _msRefreshFields();
+    }
+    function _msRemoveField() {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!_msEdit.fields.some(f => f.id === _msEdit.selectedFieldId)) return;
+        _msRememberFields(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== _msEdit.selectedFieldId); _msEdit.selectedFieldId = null; _msDirty(); _msRefreshFields();
+        document.querySelector('#msFieldTools .ms-text-button')?.focus();
+    }
+    function _msUndo() {
+        if (!_msCurrent() || _msEdit.submission || !_msEdit.undo.length) return;
+        _msEdit.fields = _msEdit.undo.pop(); _msEdit.selectedFieldId = _msEdit.fields.at(-1)?.id || null; _msDirty(); _msRefreshFields();
+    }
+    async function saveMagicSignRequest() {
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.busy || state.loading) return;
+        if (!state.submission) for (const step of ['document', 'signers', 'fields']) {
+            if (!_msValidate(step)) { state.step = step; _msStudioRender(); _msValidate(step); return; }
+        }
+        if (state.step !== 'review') { state.step = 'review'; _msStudioRender(); return; }
+        if (!state.submission) {
+            const reqId = 'sr-' + crypto.randomUUID();
+            const signers = Object.fromEntries(_msEnabledRoles().map(role => { const person = state.signers[role]; return [role, { name: person.name.trim(), email: person.email.trim(), userId: person.userId || null }]; }));
+            state.submission = { reqId, title: state.title.trim(), propertyId: state.propertyId || null, originalPdfPath: `signRequests/${reqId}/original.pdf`, pageCount: state.pageCount, fields: state.fields.map(f => ({ ...f })), signers, requiredRoles: _msEnabledRoles() };
+        }
+        state.busy = true; _msStudioRender();
+        try {
+            const token = await auth.currentUser.getIdToken(); if (!_msCurrent(state)) throw new Error('session_changed');
+            if (!state.submission.originalPdfUrl) {
+                const ref = storage.ref(state.submission.originalPdfPath);
+                if (!state.uploadComplete) { await ref.put(new Blob([state.pdfBytes], { type: 'application/pdf' })); state.uploadComplete = true; }
+                state.submission.originalPdfUrl = await ref.getDownloadURL();
+            }
+            if (!_msCurrent(state)) throw new Error('session_changed');
+            const result = await _msCreateRequest(state.submission, token);
+            if (!result.ok || !state.submission.requiredRoles.every(role => result.signers?.[role]?.token)) throw new Error(result.error || 'creation_unconfirmed');
+            if (!_msCurrent(state)) return;
+            state.busy = false; state.dirty = false;
+            window.removeEventListener('beforeunload', _msBeforeUnload);
+            _msShowSendPanel(result.reqId || state.submission.reqId, state.submission.title, result.signers);
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.busy = false;
+            if (error.message === 'unsupported_pdf_geometry') {
+                state.submission = null; state.uploadComplete = false; state.step = 'document'; _msStudioRender();
+                _msShowError('Il PDF ha pagine ruotate o ritagliate. Esporta una nuova copia con pagine già orientate e senza ritagli, poi sostituisci il PDF. La bozza resta disponibile.'); return;
+            }
+            _msStudioRender();
+            _msShowError(error.message === 'session_changed' ? 'La sessione è cambiata. Accedi di nuovo e verifica le richieste in Contratti.' : 'Non ho conferma della creazione. La bozza è conservata: Riprova usa la stessa richiesta e non crea nuovi link.');
         }
     }
 
@@ -20242,218 +21087,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else { try { document.execCommand('copy'); done(); } catch (_) {} }
     }
     function _msShowSendPanel(reqId, title, signers) {
-        const card = (role, label, s) => {
-            if (!s) return '';
-            const link = _msSignLink(reqId, role, s.token);
-            const user = s.userId ? S.users.find(u => u.id === s.userId) : null;
-            const phone = String((user && (user.phone || user.telefono)) || '').replace(/\D/g, '');
-            const who = esc(s.name || label) + (s.email ? ' · ' + esc(s.email) : '');
-            const waMsg = encodeURIComponent(`Ciao ${s.name || ''}, ecco il link per firmare "${title}" dal tuo telefono: ${link}`);
-            const wa = phone ? `https://wa.me/${phone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
-            const mailto = `mailto:${encodeURIComponent(s.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent('Apri questo link per firmare dal telefono:\n\n' + link)}`;
-            return `
-            <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg-elevated)">
-                <div style="font-size:13px;margin-bottom:8px">${role === 'tenant' ? '👤' : '🏠'} <b>${label}</b> · <span style="color:var(--text-secondary)">${who}</span></div>
-                <input class="ms-ed-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()" style="font-size:12px">
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="_msCopyLink('mslink-${role}')">📋 Copia link</button>
-                    <a class="btn btn-sm btn-secondary" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>
-                    <a class="btn btn-sm btn-secondary" href="${esc(mailto)}">✉️ Email</a>
-                </div>
-            </div>`;
+        const card = (role, signer) => {
+            const link = _msSignLink(reqId, role, signer.token);
+            const user = signer.userId ? S.users.find(u => u.id === signer.userId) : null;
+            const phone = String(user?.phone || user?.telefono || '').replace(/\D/g, '');
+            const text = `Ciao ${signer.name || ''}, ecco il link personale per firmare “${title}”: ${link}`;
+            const wa = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+            const mailto = `mailto:${encodeURIComponent(signer.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent(text)}`;
+            return `<article class="ms-link-card ms-role-${role}"><p class="ms-kicker">${_msRoleLabel(role)}</p><h3>${esc(signer.name || _msRoleLabel(role))}</h3><p class="ms-help">${esc(signer.email || '')}</p><label class="ms-label" for="mslink-${role}">Link personale</label><input class="ms-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()"><div class="ms-actions"><button type="button" class="ms-primary" onclick="_msCopyLink('mslink-${role}')">Copia link</button><a class="ms-secondary" href="${esc(link)}" target="_blank" rel="noopener">Apri firma ↗</a></div><div class="ms-share-options"><a href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Prepara WhatsApp ↗</a><a href="${esc(mailto)}">Prepara email ↗</a></div></article>`;
         };
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal" style="max-width:560px">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✅ Richiesta di firma creata</div>
-                    <div class="ms-ed-sub">${esc(title)} — invia il link a ciascuna parte: ognuno firma dal proprio telefono.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;max-height:70vh;overflow:auto">
-                ${card('tenant', 'Inquilino', signers.tenant)}
-                ${card('landlord', 'Locatore', signers.landlord)}
-                <div style="font-size:11px;color:var(--text-muted)">Puoi ritrovare e re-inviare questi link quando vuoi dalla lista delle richieste di firma.</div>
-                <button class="btn" onclick="closeModal()">Fatto</button>
-            </div>
-          </div>
-        </div>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio ms-studio-success" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)"><header class="ms-studio-head"><div><p class="ms-kicker">BOOM / MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">I link sono pronti.</h2><p class="ms-subtitle">${esc(title)}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msExit()">×</button></header><div class="ms-studio-body"><p class="ms-success-notice"><span aria-hidden="true">✓</span> Richiesta creata. Nessun messaggio inviato.</p><p class="ms-help">Condividi il link personale con ciascun firmatario, oppure apri la firma se la persona è qui con te.</p><div class="ms-ready-links">${Object.entries(signers).filter(([role, signer]) => ['tenant','landlord'].includes(role) && signer?.token).map(([role, signer]) => card(role, signer)).join('')}</div><p class="ms-footnote">Ritrovi questi link e lo stato delle firme nella sezione Contratti → Magic Sign.</p></div><footer class="ms-studio-footer"><p>Documento e campi sono fissati a questa richiesta.</p><button type="button" class="ms-primary" onclick="_msExit()">Fatto</button></footer></section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
     }
 
     // ── Sign flow ─────────────────────────────────────────────────────────────
     async function openMagicSignRequest(reqId, role) {
+        if (!['tenant', 'landlord'].includes(role)) return toast('error', 'Firmatario non previsto');
         const req = S.signRequests.find(r => r.id === reqId) || (await db.collection('signRequests').doc(reqId).get()).data();
-        if (!req) return toast('error', 'Richiesta non trovata');
-        if (!req.signers?.[role]) return toast('error', 'Ruolo non previsto per questa firma');
-        if (req.signers[role].signedAt) return toast('info', 'Già firmato', req.signers[role].name + ' ha già firmato');
-        // Unified signing: open the premium /sign page (tailored-PDF mode) for
-        // this role's token instead of the legacy in-portal editor.
-        var _ctok = req.signers[role] && req.signers[role].token;
-        if (_ctok) { window.open('/sign?csign=' + encodeURIComponent(reqId) + '&role=' + role + '&t=' + encodeURIComponent(_ctok), '_blank', 'noopener'); return; }
-        _msSign = { reqId, role, req, signatureImg: null };
-        const roleFields = (req.fields || []).filter(f => f.role === role);
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✍ Firma — ${esc(req.title || 'Contratto')}</div>
-                    <div class="ms-ed-sub">Firmi come <strong style="color:var(--gold)">${role === 'tenant' ? 'Inquilino' : 'Locatore'}</strong> · ${roleFields.length} camp${roleFields.length === 1 ? 'o' : 'i'} da apporre</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">La tua firma</label>
-                    <div class="ms-pad-wrap signing-pad">
-                        <canvas id="msCustomPad" class="ms-pad"></canvas>
-                    </div>
-                    <div style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn btn-secondary btn-sm" onclick="_msPad&&_msPad.clear()">Pulisci</button>
-                        <button class="btn btn-sm" onclick="_msApplySignature()">Apponi su documento</button>
-                    </div>
-                    <div class="ms-ed-hint">Disegna la firma, poi premi “Apponi”. Comparirà in tutti i tuoi campi. Le date si compilano da sole.</div>
-                    <button class="ms-cta" id="msConfirmBtn" disabled onclick="confirmMagicSignRole()">Conferma e firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap loaded" id="msCanvasWrap"></div>
-            </div>
-          </div>
-        </div>`;
-        try {
-            const buf = await fetch(req.originalPdfUrl).then(r => r.arrayBuffer());
-            _msSign.pdfBytes = new Uint8Array(buf);
-            await _msRenderSignView(role);
-            const canvas = document.getElementById('msCustomPad');
-            if (canvas) _msPad = new SignaturePadCanvas(canvas);
-        } catch (e) { toast('error', 'Errore caricamento PDF', e.message); }
+        if (!req?.signers?.[role]) return toast('error', 'Richiesta o firmatario non disponibile');
+        if (req.signers[role].signedAt && !['finalization_pending', 'finalizing', 'finalization_failed'].includes(req.status)) return toast('info', 'Firma già registrata');
+        const token = req.signers[role].token;
+        if (!token) return toast('error', 'Link di firma non disponibile', 'Verifica la richiesta in Contratti. Non è possibile firmare questa copia dal portale.');
+        if (!req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta in Contratti prima di firmare.');
+        window.open(_msSignLink(reqId, role, token), '_blank', 'noopener');
     }
 
     async function _msRenderSignView(role) {
-        const pdfjs = await ensurePdfJs();
-        const doc = await pdfjs.getDocument({ data: _msSign.pdfBytes.slice() }).promise;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page'; pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-            // Overlay this role's field placeholders
-            (_msSign.req.fields || []).filter(f => f.page === i && f.role === role).forEach(f => {
-                const el = document.createElement('div');
-                el.className = 'ms-field ms-field-' + role + ' ms-field-todo';
-                el.dataset.fieldId = f.id;
-                el.style.left = (f.xr * 100) + '%'; el.style.top = (f.yr * 100) + '%';
-                el.style.width = (f.wr * 100) + '%'; el.style.height = (f.hr * 100) + '%';
-                const meta = MS_FIELD_TYPES[f.type];
-                el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-                pageDiv.appendChild(el);
-            });
-        }
+        if (_msSign?.reqId) return openMagicSignRequest(_msSign.reqId, role || _msSign.role);
+        return toast('error', 'Apri il link personale dalla richiesta di firma');
     }
-
-    function _msApplySignature() {
-        if (!_msPad || _msPad.isEmpty()) return toast('error', 'Disegna prima la firma');
-        _msSign.signatureImg = _msPad.toDataURL();
-        const today = new Date().toLocaleDateString('it-IT');
-        document.querySelectorAll('#msCanvasWrap .ms-field-todo').forEach(el => {
-            const f = _msSign.req.fields.find(x => x.id === el.dataset.fieldId);
-            const meta = MS_FIELD_TYPES[f.type];
-            el.classList.remove('ms-field-todo'); el.classList.add('ms-field-done');
-            if (meta.kind === 'date') el.innerHTML = `<span class="ms-field-fill">${today}</span>`;
-            else el.innerHTML = `<img src="${_msSign.signatureImg}" style="width:100%;height:100%;object-fit:contain">`;
-        });
-        document.getElementById('msConfirmBtn').disabled = false;
-        toast('success', 'Firma applicata', 'Controlla e conferma');
-    }
-
+    function _msApplySignature() { return toast('error', 'Usa il link personale per apporre la firma'); }
     async function confirmMagicSignRole() {
-        const { reqId, role, signatureImg } = _msSign;
-        if (!signatureImg) return toast('error', 'Apponi prima la firma');
-        const btn = document.getElementById('msConfirmBtn');
-        btn.disabled = true; btn.textContent = 'Firma in corso…';
-        try {
-            const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip).catch(() => 'unknown');
-            const update = {};
-            update[`signers.${role}.signatureImg`] = signatureImg;
-            update[`signers.${role}.signedAt`] = firebase.firestore.FieldValue.serverTimestamp();
-            update[`signers.${role}.signIP`] = ip;
-            update[`signers.${role}.signUA`] = navigator.userAgent;
-            await db.collection('signRequests').doc(reqId).update(update);
-
-            // Recompute completion against the freshest doc
-            const fresh = (await db.collection('signRequests').doc(reqId).get()).data();
-            const required = fresh.requiredRoles || Object.keys(fresh.signers || {});
-            const allSigned = required.every(r => fresh.signers?.[r]?.signedAt || (r === role));
-            if (allSigned) {
-                toast('info', 'Generazione PDF firmato…');
-                const signedUrl = await _buildSignedPdf(reqId, fresh, role, signatureImg);
-                await db.collection('signRequests').doc(reqId).update({ status: 'complete', signedPdfUrl: signedUrl, fullySignedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                logActivity('Magic Sign completato', 'contract', { reqId, title: fresh.title });
-            } else {
-                await db.collection('signRequests').doc(reqId).update({ status: 'partial' });
-                logActivity('Magic Sign firmato (parziale)', 'contract', { reqId, role });
-            }
-            _msPad = null; _msSign = null;
-            closeModal();
-            toast('success', allSigned ? 'Contratto firmato da tutti' : 'Firma registrata', allSigned ? 'PDF firmato disponibile' : 'In attesa dell\'altra parte');
-        } catch (e) { console.error(e); btn.disabled = false; btn.textContent = 'Conferma e firma'; toast('error', 'Errore', e.message); }
+        // Compatibility for old buttons: only the version-bound /sign flow
+        // may collect a signature. No client Firestore or signed-PDF write.
+        if (!_msSign?.reqId || !_msSign?.role) return toast('error', 'Apri il link personale dalla richiesta di firma');
+        return openMagicSignRequest(_msSign.reqId, _msSign.role);
     }
-
-    // Embed every signed role's signature/date/initials into the original PDF.
-    // `justSignedRole`/`justSignedImg` cover the role that signed in this session,
-    // whose serverTimestamp may not yet be readable on the fetched doc.
-    async function _buildSignedPdf(reqId, req, justSignedRole, justSignedImg) {
-        const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
-        const srcBytes = _msSign?.pdfBytes || new Uint8Array(await fetch(req.originalPdfUrl).then(r => r.arrayBuffer()));
-        const pdf = await PDFDocument.load(srcBytes);
-        const font = await pdf.embedFont(StandardFonts.Helvetica);
-        const pages = pdf.getPages();
-        // Cache embedded PNGs per role
-        const pngCache = {};
-        for (const f of (req.fields || [])) {
-            const page = pages[f.page - 1];
-            if (!page) continue;
-            const pw = page.getWidth(), ph = page.getHeight();
-            const x = f.xr * pw;
-            const w = f.wr * pw, h = f.hr * ph;
-            const yTop = f.yr * ph;
-            const y = ph - yTop - h; // top-left ratio → pdf-lib bottom-left
-            const meta = MS_FIELD_TYPES[f.type];
-            const signer = req.signers?.[f.role] || {};
-            const sigImg = f.role === justSignedRole ? justSignedImg : signer.signatureImg;
-            if (meta.kind === 'date') {
-                const dateStr = new Date().toLocaleDateString('it-IT');
-                page.drawText(dateStr, { x, y: y + h * 0.3, size: Math.max(8, h * 0.6), font, color: rgb(0.05, 0.05, 0.05) });
-            } else if (sigImg) {
-                if (!pngCache[f.role + '_' + (sigImg.length)]) {
-                    pngCache[f.role + '_' + (sigImg.length)] = await pdf.embedPng(sigImg);
-                }
-                const png = pngCache[f.role + '_' + (sigImg.length)];
-                page.drawImage(png, { x, y, width: w, height: h });
-            }
-        }
-        const out = await pdf.save();
-        const path = `signRequests/${reqId}/signed.pdf`;
-        await storage.ref(path).put(new Blob([out], { type: 'application/pdf' }));
-        return await storage.ref(path).getDownloadURL();
-    }
+    async function _buildSignedPdf() { throw new Error('La finalizzazione della firma avviene dal link personale.'); }
 
     function copyMagicSignLink(reqId, role) {
         const req = S.signRequests.find(r => r.id === reqId);
-        const token = req?.signers?.[role]?.token || '';
-        const url = `https://boomrome.com/sign?csign=${reqId}&role=${role}&t=${token}`;
-        navigator.clipboard.writeText(url);
-        toast('success', 'Link copiato', `Firma ${role === 'tenant' ? 'inquilino' : 'locatore'}`);
+        const token = req?.signers?.[role]?.token;
+        if (!token || !req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta prima di condividerli.');
+        navigator.clipboard.writeText(_msSignLink(reqId, role, token)).then(() => toast('success', 'Link copiato', _msRoleLabel(role))).catch(() => toast('error', 'Copia non riuscita', 'Apri il link personale dalla richiesta.'));
+    }
+
+    async function _msCreateRequest(payload, token) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 65000);
+        try {
+            const response = await fetch('/api/sign/custom/create', { method: 'POST', signal: controller.signal,
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'creation_unconfirmed');
+            return result;
+        } finally { clearTimeout(timer); }
+    }
+    const _msLegacyBusy = new Set();
+    async function _msPrepareLegacy(reqId) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid || _msLegacyBusy.has(reqId)) return;
+        const req = (S.signRequests || []).find(r => r.id === reqId), user = auth.currentUser;
+        if (!req) return toast('error', 'Richiesta non disponibile');
+        if (Object.values(req.signers || {}).some(signer => signer.signedAt)) return toast('warning', 'Firme già presenti: serve una verifica', 'Questa richiesta non viene modificata.');
+        _msLegacyBusy.add(reqId);
+        const button = [...document.querySelectorAll('[data-ms-prepare]')].find(el => el.dataset.msPrepare === reqId);
+        if (button) { button.disabled = true; button.textContent = 'Preparazione…'; }
+        try {
+            const token = await user.getIdToken();
+            const result = await _msCreateRequest({ reqId, title: req.title, propertyId: req.propertyId || null, contractId: req.contractId || null, leadId: req.leadId || null,
+                originalPdfUrl: req.originalPdfUrl, originalPdfPath: req.originalPdfPath, pageCount: req.pageCount,
+                fields: req.fields, signers: req.signers, requiredRoles: req.requiredRoles || Object.keys(req.signers || {}), migrateLegacy: true }, token);
+            if (auth.currentUser !== user || !isAdmin()) return;
+            Object.assign(req, { signers: result.signers, documentVersion: result.documentVersion, documentHash: result.documentHash, status: result.status || 'ready' });
+            // Existing globals are retained; this panel only shares prepared links.
+            _msEdit = { uid: user.uid, dirty: false, busy: false, returnFocus: button };
+            document.body.classList.add('modal-open');
+            _msShowSendPanel(reqId, req.title, result.signers);
+        } catch (error) {
+            toast('error', 'Preparazione non confermata', error.message === 'legacy_signed_review_required' ? 'La richiesta contiene firme e richiede una verifica.' : 'Riprova dalla stessa richiesta. Se il PDF non è leggibile, prepara una nuova richiesta.');
+        } finally { _msLegacyBusy.delete(reqId); if (button?.isConnected) { button.disabled = false; button.textContent = 'Prepara i link'; } }
     }
 
     async function deleteSignRequest(reqId) {
@@ -20499,9 +21210,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderSignRequestsSection() {
         const reqs = S.signRequests || [];
         if (reqs.length === 0) return '';
-        const statusMeta = { sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, complete: { c: 'green', t: 'Completo' } };
+        const statusMeta = { ready: { c: 'orange', t: 'Link pronti' }, sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, finalization_pending: { c: 'orange', t: 'Firme raccolte · PDF da completare' }, finalizing: { c: 'blue', t: 'Firme raccolte · PDF in preparazione' }, finalization_failed: { c: 'red', t: 'Firme raccolte · PDF da completare' }, complete: { c: 'green', t: 'Completo' } };
         return `<details class="dash-extras" style="margin:0 0 16px;border:1px solid var(--border);border-radius:12px;padding:14px 16px" open>
-            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">contratti personalizzati con firma drag-and-drop</span></summary>
+            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">documenti personalizzati e link personali</span></summary>
             <div class="dash-list" style="margin-top:12px">
                 ${reqs.slice(0, 12).map(r => {
                     const sm = statusMeta[r.status] || statusMeta.sent;
@@ -20510,9 +21221,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         const done = !!s.signedAt;
                         return `<span class="badge ${done ? 'green' : 'gray'}" style="font-size:9px">${role === 'tenant' ? 'Inq.' : 'Loc.'} ${done ? '✓' : '○'}</span>`;
                     }).join(' ');
-                    const signBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const legacy = !r.documentVersion || !r.documentHash;
+                    const hasSignatures = Object.values(r.signers || {}).some(signer => signer.signedAt);
+                    const recoveryRole = !legacy && ['finalization_pending', 'finalizing', 'finalization_failed'].includes(r.status) && Object.keys(r.signers || {}).find(role => r.signers[role]?.signedAt && r.signers[role]?.token);
+                    const recoveryBtn = recoveryRole ? `<button class="dash-act dash-act-primary" data-ms-recover="${esc(r.id)}" onclick="openMagicSignRequest(${jsq(r.id)},${jsq(recoveryRole)})">Recupera PDF</button>` : '';
+                    const signBtns = legacy ? (hasSignatures ? '<span class="badge orange">Preparazione da verificare</span>' : `<button class="dash-act dash-act-primary" data-ms-prepare="${esc(r.id)}" onclick="_msPrepareLegacy(${jsq(r.id)})">Prepara i link</button>`) : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="openMagicSignRequest('${r.id}','${role}')" title="Firma come ${role}">✍ ${role === 'tenant' ? 'Inq.' : 'Loc.'}</button>`).join('');
-                    const linkBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const linkBtns = legacy ? '' : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="copyMagicSignLink('${r.id}','${role}')" title="Copia link firma ${role}">🔗</button>`).join('');
                     return `<div class="dash-row" data-tone="${sm.c === 'green' ? 'gold' : sm.c === 'blue' ? 'blue' : 'orange'}">
                         <span class="dash-row-icon">📝</span>
@@ -20521,7 +21236,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div class="dash-row-secondary">${prop ? '🏠 ' + esc(prop.name) + ' · ' : ''}${(r.fields || []).length} campi</div>
                         </div>
                         <div class="dash-row-actions">
-                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : signBtns + linkBtns}
+                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : recoveryBtn || signBtns + linkBtns}
                             <button class="dash-act dash-act-danger" onclick="deleteSignRequest('${r.id}')">✕</button>
                         </div>
                     </div>`;
@@ -21698,12 +22413,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${extra || ''}
             </div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-            <div class="modal"><div class="modal-header"><h3 class="modal-title">🖊 Firma ora</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal ms-firma-panel"><div class="modal-header"><h3 class="modal-title">Magic Sign</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">Apri il link su <b>questo</b> dispositivo e fai firmare col dito. La firma resta quella della persona che firma — data, ora e dispositivo finiscono nel certificato come sempre.</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px"><strong>${esc((p && (p.address || p.name)) || c.propertyAddress || 'Contratto BOOM')}</strong><br>Scegli chi deve firmare. Se è con te, apri la firma su questo dispositivo.</div>
                 ${row('👤', tdele ? 'Conduttore — firmi TU per mandato' : 'Conduttore', tdele ? `per conto di ${(t && t.name) || c.tenantName || ''}` : ((t && t.name) || c.tenantName), tDone, tLink)}
                 ${row('🏠', dele ? 'Locatore — firmi TU per delega' : 'Locatore', dele ? `per conto di ${dele.onBehalfOf || (ll && ll.name) || ''}` : ((ll && ll.name) || c.landlordName), lDone, lLink)}
-                <div class="card" style="margin-top:14px"><div class="card-body" style="padding:12px 14px">
+                <button class="btn btn-secondary" style="margin-top:14px" data-contract-id="${esc(c.id)}" onclick="openShareHub(this.dataset.contractId)">Condividi i link</button>
+                <details class="ms-deleghe" style="margin-top:20px" ${mandBroken || lmBroken ? 'open' : ''}>
+                <summary style="cursor:pointer;font-size:13px;padding:12px 0">Mandati e deleghe${mandBroken || lmBroken ? ' · condizioni da verificare' : dele || tdele ? ' · delega attiva' : ''}</summary>
+                <div class="card" style="margin-top:6px"><div class="card-body" style="padding:12px 14px">
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato / delega del proprietario</div>
                     ${lDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il locatore ha già firmato' + (c.landlordSignedByDelegate ? ' — per ' + (c.landlordSignedByDelegate.mandateHash ? 'mandato' : 'delega') + ', da ' + esc(c.landlordSignedByDelegate.name || '') : '') + ': la delega non si tocca più.</div>'
                         : lmand && lmBroken
@@ -21736,6 +22454,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${coNote}
                 </div></div>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Senza mandato scritto, al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
+                </details>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
     }
@@ -24001,12 +24720,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return false;
         console.log('Loading registrations...');
         try {
             const [regsSnap, statusSnap] = await Promise.all([
                 db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
             ]);
+            if (!portalSessionCurrent(proof)) return false;
             console.log('Registrations loaded:', regsSnap.docs.length, 'docs');
             console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
             
@@ -24026,6 +24748,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             buildNav();
             return true;
         } catch (err) { 
+            if (!portalSessionCurrent(proof)) return false;
             console.error('Error loading registrations:', err);
             toast('error', 'Errore caricamento registrazioni: ' + err.message);
             throw err;
@@ -27114,26 +27837,13 @@ IBAN: ${l.iban || '-'}`;
     // ==========================================
 
     function boomToolsPage() {
-        // Each tool maps to an existing entrypoint. Anything we don't already
-        // ship is gated behind isAdmin() so we don't expose half-built features.
-        const tools = [
-            { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
-            { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
-            { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
-            { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
-        ];
-
-        const toolGrid = tools.map(t => `
-            <div class="tool-card" onclick="${t.action}" role="button" tabindex="0">
-                <div class="tool-icon">${t.icon}</div>
-                <div class="tool-title">${t.title}</div>
-                <div class="tool-desc">${t.desc}</div>
-                <div class="tool-meta">
-                    ${t.tags.map(tag => `<span class="tool-tag${tag.cls ? ' ' + tag.cls : ''}">${tag.label}</span>`).join('')}
-                </div>
-            </div>
-        `).join('');
-
+        if (!isAdmin()) return accessDenied();
+        oggiWorkspaceResetUser();
+        const registry = window.BOOM_ACTIONS;
+        const tools = registry?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
+        const selected = oggiQuickContext();
+        const specialists = ['tool:msgportali','tool:msgclienti','console:/pfs-command','tool:docparser'].map(id => registry?.ACTIONS.find(action => action.id === id)).filter(Boolean);
+        const actionButton = action => `<button type="button" class="portal-catalog-specialist" onclick="${esc('window[' + JSON.stringify(action.fn) + '](...' + JSON.stringify(action.args) + ')')}"><span aria-hidden="true">${esc(action.icon)}</span><strong>${esc(action.label)}</strong><span aria-hidden="true">↗</span></button>`;
         // Group zones by popularity — popular ones get gold treatment up top
         const popular = (ROME_ZONES || []).filter(z => z.popular);
         const other = (ROME_ZONES || []).filter(z => !z.popular);
@@ -27142,25 +27852,19 @@ IBAN: ${l.iban || '-'}`;
                  onmouseover="this.style.borderColor='rgba(212,175,55,0.4)'"
                  onmouseout="this.style.borderLeftColor='${isPop ? 'var(--gold)' : 'var(--border-strong)'}';this.style.borderTopColor='var(--border)';this.style.borderRightColor='var(--border)';this.style.borderBottomColor='var(--border)'">
                 <div style="font-size:13px;font-weight:500;letter-spacing:-0.1px">${esc(z.name)}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Avg <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Media <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
             </div>
         `;
 
-        return `
-            <div class="dash-hero">
-                <div class="dash-hero-text">
-                    <h1 class="dash-hero-title">BOOM Tools<span style="color:var(--gold)">.</span></h1>
-                    <p class="dash-hero-sub">Console operativa BOOM — generatori messaggi, scraper portali, AI document parsing</p>
-                </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px">
-                ${toolGrid}
-            </div>
-
-            <section class="dash-section">
+        return `<section class="portal-catalog">
+            <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
+            <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
+            <section class="portal-catalog-create" aria-label="Nuove registrazioni"><h2>Crea una registrazione</h2><button type="button" class="btn btn-secondary" onclick="openModal('addPayment')">＋ Nuova rata</button><button type="button" class="btn btn-secondary" onclick="openModal('addMaintenance')">＋ Nuovo intervento</button></section>
+            <details class="portal-catalog-extra"><summary>Strumenti specialistici</summary><div class="portal-catalog-specialists">${specialists.map(actionButton).join('')}</div></details>
+            <details class="portal-catalog-extra"><summary>Riferimenti delle zone di Roma</summary><section class="dash-section">
                 <div class="dash-section-head">
-                    <h2 class="dash-section-title">Roma · Zone Reference</h2>
+                    <h2 class="dash-section-title">Roma · Riferimenti delle zone</h2>
                     <span class="dash-section-count">${(ROME_ZONES || []).length}</span>
                 </div>
                 ${popular.length ? `
@@ -27175,8 +27879,8 @@ IBAN: ${l.iban || '-'}`;
                         ${other.map(z => zoneCard(z, false)).join('')}
                     </div>
                 ` : ''}
-            </section>
-        `;
+            </section></details>
+        </section>`;
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
@@ -31728,10 +32432,13 @@ IBAN: ${l.iban || '-'}`;
     // dalle Impostazioni e valgono ovunque senza deploy.
 
     async function loadCompanySettings() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             // Mai sul percorso critico del boot (lezione dell'audit Safari):
             // se la lettura si blocca, il portale parte lo stesso con i default.
             const doc = await db.collection('settings').doc('company').get();
+            if (!portalSessionCurrent(proof)) return;
             const remote = doc.exists ? doc.data() : {};
             const merged = window.BOOM_DATAOPS.mergeCompany(COMPANY, remote);
             Object.assign(COMPANY, merged.company);   // COMPANY è const: si muta, non si riassegna

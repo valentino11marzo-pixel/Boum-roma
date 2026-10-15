@@ -1,5 +1,6 @@
 // Canonical lead conversation: real portal handlers/renderers, synthetic IO only.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { loadChromium, launchOptions } from '../_browser.mjs';
@@ -12,6 +13,16 @@ const named=(name,source=portal)=>{
   const next=source.slice(start+5).search(/\n    (?:async )?function /);
   return source.slice(start,start+5+next);
 };
+// Exercise the real Inbox lazy block and its completion render, without loading unrelated sections.
+function lazyInbox(source) {
+  const read=source.indexOf("db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get({ source: 'server' })");
+  const start=source.lastIndexOf('                    (async () => {',read);
+  const end=source.indexOf('                    })(),',read);
+  const renderStart=source.indexOf("                console.log('Lazy data loaded:'",end);
+  const renderEnd=source.indexOf('                portalDataRender();',renderStart)+'                portalDataRender();'.length;
+  assert(start>=0 && end>start && renderStart>end && renderEnd>renderStart,'Real lazy Inbox boundaries');
+  return 'window.runInboxLazy=async()=>{const startTime=performance.now();let lazyOK=true;const proof=portalSessionProof();const current=()=>portalSessionCurrent(proof);const rows=snap=>snap.docs.map(d=>({id:d.id,...d.data()}));await '+source.slice(start,end)+'                    })();\n'+source.slice(renderStart,renderEnd)+'};';
+}
 const CID='conv_whatsapp_393331234567', LEAD='lead-demo';
 const chromium=await loadChromium();assert(chromium,'Playwright necessario (BOOM_PLAYWRIGHT)');
 const browser=await chromium.launch(launchOptions({headless:true}));
@@ -30,7 +41,7 @@ async function fixture(source=portal){
     const S={page:'inbox',profile:{id:'admin',role:'admin',name:'Operatore demo'},isOnline:true,users:[{id:'tenant-demo',role:'tenant',name:'Inquilino demo'}],leads:[{id:'${LEAD}',name:'Lead demo',phone:'+393331234567',email:'lead@example.invalid'}],clients:[],pfsClients:[],actionQueue:[],contracts:[],maintenance:[],properties:[],conversations:[],messages:[]};
     const auth={currentUser:{uid:'admin',getIdToken:async()=> 'synthetic-token'}};
     const firebase={firestore:{FieldValue:{serverTimestamp:()=> '2026-09-21T12:00:00Z'}}};
-    const buildNav=()=>{},logActivity=()=>{},sendBrowserNotification=()=>{};
+    const buildNav=()=>{},logActivity=()=>{},sendBrowserNotification=()=>{},cacheData=()=>{};
     const renderPage=()=>{throw Error('Unexpected whole-page render')};
     function goTo(id){if(id!=='inbox')throw Error('Unexpected navigation: '+id);S.page=id;inboxRefresh();}
     let selectedFile=null,listingImageUrl='';
@@ -38,7 +49,7 @@ async function fixture(source=portal){
     window.canonical={id:'${CID}',contactType:'lead',contactId:'${LEAD}',leadId:'${LEAD}',contactName:'Nome canonico del server',contactPhone:'+393331234567',contactEmail:'canonical@example.invalid',contactUid:'existing-contact-acl',assignedLandlordId:'existing-landlord-acl',channel:'whatsapp',status:'open',lastMessageAt:'2026-09-21T10:00:00Z',lastMessagePreview:'Cronologia canonica',unread:0};
     window.feedRows=Array.from({length:200},(_,i)=>({id:i?'conv-other-'+i:'conv-existing',contactName:i?'Altro contatto '+i:'Conversazione iniziale',contactEmail:'demo@example.invalid',status:'open',channel:'email',unread:0,lastMessageAt:'2026-09-21T09:00:00Z'}));
     window.records=new Map([[canonical.id,structuredClone(canonical)],...feedRows.map(row=>[row.id,structuredClone(row)])]);
-    window.subscriptions={};window.fastTimeout=false;
+    window.subscriptions={};window.fastTimeout=false;window.lazyReads=[];
     const nativeTimeout=window.setTimeout.bind(window);
     window.setTimeout=(fn,ms,...args)=>nativeTimeout(fn,fastTimeout && ms>=5000?60:ms,...args);
     window.fetch=async(url,options={})=>{
@@ -58,6 +69,7 @@ async function fixture(source=portal){
       if(!['conversations','messages'].includes(name))throw Error('Unexpected collection: '+name);
       return {filter:null,maximum:null,
         where(field,op,value){this.filter=[field,op,value];return this;},orderBy(){return this;},limit(n){this.maximum=n;return this;},
+        get(){return new Promise((resolve,reject)=>lazyReads.push({name,resolve:rows=>resolve(snapshot(rows)),reject}));},
         doc(id){return {
           async get(options){io.reads.push({name,id,options});if(holdRead)await new Promise(resolve=>window.releaseRead=resolve);if(readFailure)throw Error('permission-denied');const row=records.get(id);return {id,exists:!!row,data:()=>structuredClone(row)};},
           async set(payload,options){io.writes.push({name,id,op:'set',payload,options});records.set(id,{...(records.get(id)||{}),...structuredClone(payload),id});},
@@ -76,7 +88,8 @@ async function fixture(source=portal){
   for(const name of ['conversations','oggi-engine','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine'])await page.addScriptTag({content:read('js/'+name+'.js')});
   const oggi=source.slice(source.indexOf('    function oggiDismissKey()'),source.indexOf('    function adminDashboard()'));
   const inbox=source.slice(source.indexOf('    var _inboxState ='),source.indexOf('    var _psState ='));
-  await page.addScriptTag({content:oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
+  await page.addScriptTag({content:sessionHelpers(source)+'\n'+oggi+'\n'+inbox+'\n'+['isAdmin','isLandlord','isTenant','portalSearchAuthorized','esc','closeModal','startInboxListener','stopInboxListener','startOpenConvListener','stopOpenConvListener'].map(name=>named(name,source)).join('\n')+'\n'+source.slice(source.indexOf('    function toast('),source.indexOf("    console.log('🚀 BOOM Portal"))+'\nstartInboxListener();'});
+  await page.addScriptTag({content:lazyInbox(source)});
   await page.waitForFunction(()=>S.conversations.length===200);
   await page.evaluate(()=>{_inboxState.convId='conv-existing';_inboxState.composing='email';document.getElementById('main').innerHTML=inboxPage();});
   await page.locator('#inboxSubject').fill('Oggetto da conservare');await page.locator('#inboxBody').fill('Bozza precedente da conservare');
@@ -113,6 +126,32 @@ async function blockedRole(page,role){
   await page.evaluate(async role=>{S.profile.role=role;try{await inboxFindOrCreateConversation('lead',S.leads[0]);}catch{}await inboxCreateFromModal();},role);
   assert.deepEqual(await page.evaluate(()=>io.requests),[],'Un ruolo senza autorizzazione non chiama il risolutore lead');
   assert.deepEqual(await page.evaluate(()=>io.writes),[]);assert.equal(await page.evaluate(()=>_inboxState.convId),'conv-existing');
+}
+async function lazyPreserves(mode,source=portal){
+    const {page,errors}=await fixture(source);try{
+      await clickOpen(page);await canonicalOpened(page);
+      await page.evaluate(()=>{_inboxState.composing='email';inboxRefresh();});
+      await page.locator('#inboxSubject').fill('Oggetto della chat canonica');
+      await page.locator('#inboxBody').fill('Bozza che non deve sparire');
+      await page.locator('#inboxBody').focus();
+      await page.evaluate(()=>{document.getElementById('inboxBody').setSelectionRange(3,10,'backward');window.pendingLazy=runInboxLazy();});
+      await page.waitForFunction(()=>lazyReads.length===2);
+      await page.evaluate(mode=>{
+        if(mode==='race'){
+          emitPage([{...feedRows[0],lastMessagePreview:'Anteprima realtime più recente'},...feedRows.slice(1)]);
+          emitMessages(subscriptions['messages:'+canonical.id],[{id:'fresh-message',conversationId:canonical.id,body:'Messaggio realtime più recente',direction:'in',channel:'whatsapp',at:'2026-09-21T12:00:00Z'}]);
+        }
+        lazyReads.splice(0).forEach(read=>mode==='error'?read.reject(Error('unavailable')):read.resolve(read.name==='conversations'?feedRows:[{id:'old-message',conversationId:canonical.id,body:'Cronologia superata',direction:'in',at:'2026-09-20T10:00:00Z'}]));
+      },mode);
+      await page.evaluate(()=>pendingLazy);
+      assert.equal(await page.evaluate(()=>_inboxState.convId),CID,'La lettura limitata non rimuove la conversazione verificata');
+      assert.equal(await page.evaluate(()=>S.conversations.find(c=>c.id===canonical.id)?.contactName),'Nome canonico del server');
+      assert.match(await page.locator('#inboxTimeline').innerText(),mode==='race'?/Messaggio realtime più recente/:/Cronologia canonica/);
+      assert.doesNotMatch(await page.locator('#inboxTimeline').innerText(),/Cronologia superata/);
+      if(mode==='race')assert.equal(await page.evaluate(()=>S.conversations.find(c=>c.id==='conv-existing').lastMessagePreview),'Anteprima realtime più recente');
+      assert.deepEqual(await page.evaluate(()=>{const body=document.getElementById('inboxBody');return{body:body.value,subject:document.getElementById('inboxSubject').value,focus:document.activeElement.id,selection:[body.selectionStart,body.selectionEnd,body.selectionDirection]};}),{body:'Bozza che non deve sparire',subject:'Oggetto della chat canonica',focus:'inboxBody',selection:[3,10,'backward']});
+      assert.deepEqual(await page.evaluate(()=>io.writes),[]);assert.equal(await page.evaluate(()=>io.requests.length),1,'Nessuna nuova chiamata API/AI');assert.deepEqual(errors,[]);
+    }finally{await page.close();}
 }
 function replaceOnce(source,from,to){assert(source.includes(from),'Mutazione agganciata al codice reale');assert.equal(source.split(from).length,2,'Mutazione univoca');return source.replace(from,to);}
 try{
@@ -214,7 +253,34 @@ try{
       const writes=await page.evaluate(()=>io.writes);assert.equal(writes.length,1);assert.equal(writes[0].op,'set');assert.equal(writes[0].id,result.expected);assert.deepEqual(writes[0].options,{merge:true});assert.deepEqual(errors,[]);
     }finally{await page.close();}
   });
+  for(const mode of ['race','success','error'])await check('lazy Inbox '+mode+' · dati realtime, chat fuori200 e bozza restano integri',()=>lazyPreserves(mode));
+  await check('lazy Inbox · snapshot messaggi della chat precedente resta fresco cambiando selezione',async()=>{
+    const {page,errors}=await fixture();try{
+      await clickOpen(page);await canonicalOpened(page);
+      await page.evaluate(()=>{window.pendingLazy=runInboxLazy();});
+      await page.waitForFunction(()=>lazyReads.length===2);
+      await page.evaluate(()=>{
+        emitMessages(subscriptions['messages:'+canonical.id],[{id:'fresh-message',conversationId:canonical.id,body:'Aggiornamento prima del cambio chat',direction:'in',at:'2026-09-21T12:00:00Z'}]);
+        inboxSelect('conv-existing');
+      });
+      await page.waitForFunction(()=>S.openConvId==='conv-existing'&&!S.openConvStatus.loading);
+      await page.evaluate(()=>{lazyReads.splice(0).forEach(read=>read.resolve(read.name==='conversations'?feedRows:[]));});
+      await page.evaluate(()=>pendingLazy);
+      assert.equal(await page.evaluate(()=>S.messages.find(m=>m.id==='fresh-message')?.body),'Aggiornamento prima del cambio chat');
+      assert.equal(await page.evaluate(()=>_inboxState.convId),'conv-existing');
+      assert.match(await page.locator('#inboxTimeline').innerText(),/Messaggio iniziale/);assert.deepEqual(await page.evaluate(()=>io.writes),[]);assert.deepEqual(errors,[]);
+    }finally{await page.close();}
+  });
   if(!process.env.TEST_BASELINE){
+    for(const [label,from,to,mode] of [
+      ['snapshot ignorato','if ((S.inboxDataRevision || 0) === conversationsRevision) {','if (true) {','race'],
+      ['errore svuota dati',"console.warn('Inbox load:', e.message);","S.conversations=[];S.messages=[];console.warn('Inbox load:', e.message);",'error'],
+      ['render distruttivo',"if (S.page === 'inbox') { inboxLiveRefresh(); return; }","if (S.page === 'inbox') { renderPage(); return; }",'success']
+    ])await check('mutazione lazy Inbox · '+label,async()=>{
+      const source=replaceOnce(portal,from,to);
+      await assert.rejects(()=>lazyPreserves(mode,source),error=>/AssertionError/.test(error.name)||/Unexpected whole-page render/.test(error.message),'Il difetto deve rompere una prova semantica');
+    });
+
     await check('mutazione · il ripristino di conv_lead locale viene rilevato dal percorso reale',async()=>{
       const source=replaceOnce(portal,"        if (kind === 'lead') return inboxResolveLeadConversation(contact);",'        // MUTATION: fallback locale anche per lead.');
       const {page,errors}=await fixture(source);try{await clickOpen(page);await assert.rejects(()=>canonicalOpened(page),/risolutore server/);assert.deepEqual(errors,[]);}finally{await page.close();}

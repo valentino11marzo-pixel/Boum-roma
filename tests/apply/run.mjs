@@ -1,3 +1,4 @@
+import { sessionHelpers } from '../portal-session/source.mjs';
 // tests/apply/run.mjs — chi fa APPLY dal sito arriva all'operatore.
 //
 // LA LEZIONE DEL 30 SETTEMBRE 2026 («chi fa apply per la casa non lo vedo:
@@ -475,17 +476,17 @@ section('6. Il portal: listener vivo sui lead');
   let cb = null, query = null;
   const S = { profile: { id: 'admin', role: 'admin' }, page: 'oggi', leads: [{ id: 'x1', status: 'new' }] };
   const ctx = vm.createContext({
-    S, isAdmin: () => true, console,
+    S, auth: { currentUser: { uid: 'admin' } }, isAdmin: () => true, console,
     toast: (...a2) => calls.toast.push(a2), sendBrowserNotification: (...a2) => calls.notif.push(a2),
     buildNav: () => calls.nav++, oggiScheduleUpdate: () => calls.oggi++, renderPage: () => calls.render++,
-    setTimeout: () => 0, document: { hidden: true, getElementById: () => null },
+    setTimeout: () => 0, clearTimeout() {}, document: { hidden: true, getElementById: () => null },
     db: { collection: (name) => { query = { name }; const q = {
       orderBy: (f, d) => { query.orderBy = [f, d]; return q; },
       limit: n => { query.limit = n; return q; },
       onSnapshot: (next) => { cb = next; return () => { query.stopped = true; }; },
     }; return q; } },
   });
-  vm.runInContext(src.slice(a, b), ctx);
+  vm.runInContext(sessionHelpers(src) + '\n' + src.slice(a, b), ctx);
   vm.runInContext('startLeadsListener()', ctx);
   ok('stessa query del boot: leads per createdAt desc, 100', query.name === 'leads' && query.orderBy[0] === 'createdAt' && query.orderBy[1] === 'desc' && query.limit === 100);
   const snap = rows => ({ docs: rows.map(r => ({ id: r.id, data: () => r })) });

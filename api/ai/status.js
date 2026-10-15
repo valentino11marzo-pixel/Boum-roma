@@ -16,13 +16,19 @@
 // resta dell'operatore.
 
 import { requireCronOrAdmin } from '../pfs/_guard.js';
-import { readJson } from '../homie/_lib.js';
+import { readJson, fsGet } from '../homie/_lib.js';
 import { aiSnapshot, setAiSettings } from './_status.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
+  if(String(actor).startsWith('admin:')) {
+    let profile;
+    try { profile=await fsGet('users/'+String(actor).slice(6)); }
+    catch { return res.status(503).json({ok:false,error:'role_unavailable'}); }
+    if(profile?.role!=='admin')return res.status(403).json({ok:false,error:'admin_required'});
+  }
 
   if (req.method === 'GET') {
     const probe = String((req.query && req.query.probe) || '1') !== '0';
@@ -50,13 +56,17 @@ export default async function handler(req, res) {
     patch.purposes = { ...(patch.purposes || {}), [body.purpose]: v };
   }
   if (body && body.local && typeof body.local === 'object') patch.local = body.local;
+  if (body && body.budget != null) {
+    if(typeof body.budget!=='object'||Array.isArray(body.budget))return res.status(400).json({ok:false,error:'invalid_budget'});
+    patch.budget=body.budget;
+  }
   if (body && body.shadow && typeof body.shadow === 'object') patch.shadow = body.shadow;
   if (!Object.keys(patch).length) return res.status(400).json({ ok: false, error: 'nothing_to_set' });
 
   try {
     const r = await setAiSettings(patch);
     if (!r.ok) return res.status(400).json({ ok: false, error: 'rejected', rejected: r.rejected });
-    return res.status(200).json({ ok: true, cfg: { local: r.cfg.local, purposes: r.cfg.purposes, shadow: r.cfg.shadow }, rejected: r.rejected });
+    return res.status(200).json({ ok: true, cfg: { local: r.cfg.local, purposes: r.cfg.purposes, shadow: r.cfg.shadow, budget:r.cfg.budget }, rejected: r.rejected });
   } catch (e) {
     return res.status(500).json({ ok: false, error: 'write_failed', detail: String(e && e.message || e).slice(0, 120) });
   }

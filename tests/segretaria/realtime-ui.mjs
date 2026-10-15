@@ -1,6 +1,7 @@
 // Listener Firestore e regioni Oggi/Inbox reali, con soli confini di rete simulati.
 // node tests/segretaria/realtime-ui.mjs (BOOM_PLAYWRIGHT / BOOM_CHROME se necessari)
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
@@ -13,8 +14,14 @@ const named = (source, name) => {
   return source.slice(start, end);
 };
 const body = source => source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
+const inboxFollowUpBody = source => {
+  const start = source.indexOf('    function inboxFollowUpState()');
+  const end = source.indexOf('    function inboxThreadPanel(', start);
+  assert(start >= 0 && end > start, 'Blocco reale dei seguiti Inbox presente');
+  return source.slice(start, end);
+};
 const listeners = source => ['startActionQueueListener', 'startContractsListener', 'startMaintenanceListener',
-  'startOpenConvListener', 'stopOpenConvListener', 'inboxThreadPanel'].map(n => named(source, n)).join('\n');
+  'startOpenConvListener', 'stopOpenConvListener', 'inboxThreadPanel', 'inboxRefresh'].map(n => named(source, n)).join('\n');
 const chromium = await loadChromium();
 assert.ok(chromium, 'Playwright necessario per verificare i listener nel browser');
 const browser = await chromium.launch(launchOptions());
@@ -38,14 +45,14 @@ async function fixture(source = portal, mobile = false) {
     const kindLabel=()=>'',inboxHomieBanner=()=>'',inboxMessageBubble=m=>'<p data-message="'+m.id+'">'+m.id+'</p>';
     const inboxComposer=()=>'<textarea id="inboxBody"></textarea>';
     function inboxPage(){return inboxThreadPanel({id:_inboxState.convId})}
-    function inboxRefresh(){if(S.page==='inbox')document.getElementById('main').innerHTML=inboxThreadPanel({id:_inboxState.convId})}
     window.apiCalls=0;window.holdRequests=false;window.held=[];window.apiRows=[];window.apiMonitoring=null;window.apiPages=null;window.apiRequests=[];window.holdCursor=null;
     window.apiWrites=0;window.fetch=async(url,options={})=>{window.apiCalls++;window.apiRequests.push(url);if(options.method==='POST')window.apiWrites++;const after=new URL(url,'https://local.test').searchParams.get('after');const payload=window.apiPages?window.apiPages[after||'first']:{ok:true,rows:window.apiRows,monitoring:window.apiMonitoring,task:window.apiRows.find(t=>String(url).includes(t.id)),dossier:{practices:[]}};if(window.holdRequests||(after&&after===window.holdCursor))await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>payload}};
     window.subscriptions={};window.unsubscribed=0;window.messageRows=[];
     const db={collection(name){
       const query={name,filter:null,sort:null,max:Infinity,
         where(field,op,value){this.filter=[field,value];return this},orderBy(field,dir){this.sort=[field,dir];return this},limit(n){this.max=n;return this},
-        onSnapshot(next,error){
+        onSnapshot(...args){
+          const [next,error]=args.filter(arg=>typeof arg==='function');
           const key=name==='messages'?name+':'+this.filter[1]:name;
           const sub={query:this,next,error};window.subscriptions[key]=sub;
           if(name==='messages'){
@@ -60,7 +67,7 @@ async function fixture(source = portal, mobile = false) {
     window.emit=(name,rows=[])=>window.subscriptions[name].next({docs:rows.map(r=>({id:r.id,data:()=>r}))});
   ` });
   for (const name of ['js/oggi-engine.js', 'js/oggi-desk-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
-  await page.addScriptTag({ content: body(source) + '\n' + listeners(source) + `
+  await page.addScriptTag({ content: sessionHelpers(source) + '\n' + body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + `
     document.getElementById('main').innerHTML=oggiPage();
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });

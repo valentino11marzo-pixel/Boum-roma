@@ -24,7 +24,7 @@ const listener = name => {
   assert(next >= 0, 'Fine listener reale: ' + name);
   return portal.slice(start, start + 5 + next);
 };
-const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(listener).join('\n');
+const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh'].map(listener).join('\n');
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-proposta-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
 assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-proposta-engine.js'"));
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-esecuzione-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));

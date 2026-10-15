@@ -1355,6 +1355,15 @@ dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
 `og-meteo.png`, headless_shell 1200×630). Test: `node tests/scalo/run.mjs`.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
+**13/10 — stesso importo, anche al secondo tentativo.** `_checkout.js`
+congela `paymentTerms` in centesimi all'accettazione (add-on inclusi);
+submit/pay/lookup e il riepilogo usano quella foto. Checkout fallito non
+converte; errori di lettura del lucchetto sospendono accettazione e ripresa.
+**14/10:** riacquisizione condizionata per tutti i mesi; rilascio/rollback non
+cancellano il nuovo titolare. `_payment-session.js` persiste il tentativo e
+riusa la chiave Stripe: una sessione pagata o incerta non ne apre una seconda.
+Prove: `pacheckout`, `palockrecovery` (concorrenza e mutazioni), `paconsenso`.
+
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
@@ -2349,6 +2358,11 @@ Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
 PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
 
 ### Journey consapevole (contesto nel `_run.js`)
+**14/10:** T+3 richiede `verbaleConsegna.at` valido/non futuro e URL HTTPS,
+salvati dal flusso verbale solo dopo firme e PDF; parte 3–6 giorni dopo la consegna.
+La sola decorrenza non prova ingresso: T-30/T-1 la dichiarano prevista, con
+appuntamento da concordare. Step/flag, prezzi e regole upsell conservati.
+Prove `journey`: runner reale con IO in memoria, nessun invio, due mutazioni.
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
 invece del generico "se manca qualcosa"; con rate scadute (`late`, una
@@ -2366,7 +2380,61 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
+con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
+mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);
+ripiego INBOX dichiarato. Riferimenti firmati per account/utente/UIDVALIDITY, testo
+limitato a 256 KiB, nessun allegato scaricato, flag letto, importazione, invio o AI.
+Ricerca: le copie archivio non coprono più i record aggiornati; le letture tardive
+non annullano gli snapshot. Nuova sessione azzera l'inattività precedente e il lettore
+posta. Prove `mailbox`, `mailboxui`, `searchui`, `portalsessionui` (incluse mutazioni).
+**Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
+e note operative restano nel repository. Verificato il problema con HTTP 200
+sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.
+Il collaudo del nuovo deploy deve confermare 404 per quei documenti.
+**14/10 — affidabilità e fonti:** cambio account e letture tardive isolati per sessione;
+fonti contratti/interventi/firme con errore esplicito e recupero limitato. Il refresh
+non annuncia successo parziale. Ripristinate azioni Interventi e metadati Regole.
+Home → Fonti → «Verifica collegamenti» legge metadati; Inbox → «Importa email recenti»
+legge solo la conversazione scelta (3 giorni, massimo 8), senza AI né invii.
+Il battito WhatsApp non prova importazione completa. Test `portalsessionui`,
+`mailsource`, `mailsourceui`, `maintenanceactions`; bozze e sessioni preservate.
+L'avviso di fonte indisponibile sta sopra la shell, non tra le colonne: prima
+restringeva ogni schermata fino a renderla inutilizzabile sul telefono. `misura`
+verifica tutte le sezioni con errore presente e successivo recupero, da 375 a 1440 px.
 Un giro solo, otto interventi, 33 suite verdi:
+- **Home e navigazione unica (14/10/2026):** sei destinazioni principali, tutti i 38
+  handler conservati nel menu; quattro tab mobile e Menu. Strumenti Home e catalogo
+  leggono `BOOM_ACTIONS.homeTools`, con lo stesso contesto. «Incassi» apre la lista;
+  «Nuova rata» resta un'azione esplicita. Lavoro da seguire visibile subito; ricerche
+  e filtri precedono i riepiloghi in Immobili/Contratti/Interventi. Nessuna nuova AI.
+  Prove `portalnavigationui`, `portalworkspaceui`, `oggiquicktoolsui`, `actions`.
+- **Inbox → seguito operativo (14/10/2026):** «Prendi in carico» legge l'ultimo
+  ingresso persistito e riusa il motore seguiti; fonte/caso ambiguo richiede scelta.
+  Stesso evento non duplica né riapre un caso concluso; nuovo evento può crearne uno.
+  Conferma/chiusura vincolate alla versione conversazione e, per presa manuale,
+  rilettura messaggi dopo commit: un ingresso concorrente richiede nuova verifica.
+  Prove `inboxtakecharge`, `inboxtakechargeui`, `inboxtakechargeraces`, `seguito`.
+  `portaljourneyui` prova Home→casa→Inbox→conferma nella stessa sessione, con IO demo.
+- **Spazio ai messaggi su mobile (14/10/2026):** contatto, azioni e seguito occupavano
+  quasi tutta la conversazione. «Prossimo passo e dettagli» li raccoglie in un pannello
+  espandibile con sintesi dello stato; apertura conservata nello stesso thread/sessione.
+  Timeline di almeno 160px senza tastiera, compositore e bozza preservati. Prove
+  `portaljourneyui`, `portalworkspaceui`, `mobileui`, `inboxtakechargeui`, `inboxconnected`.
+- **Comunicazioni nel contesto (14/10/2026):** da home/fascicolo/contratto si apre
+  Inbox per ID tipizzato; `inbox-context-engine` accetta solo riferimenti certi.
+  Letture mirate anche senza Oggi già caricata; tetti e riferimenti mancanti sono
+  dichiarati. Snapshot più recenti e cambi di associazione prevalgono sulle risposte lente.
+  Email Inbox usa `message:{subject,text}` fino a SMTP, senza il vecchio template vuoto;
+  doppio click protetto, recupero del solo storico senza reinvio. Apertura ≠ risposta.
+  Prove `inboxconnected`, `inboxleadui`; Gmail/HOMIE completi non sono implicati.
+- **Portal da telefono (14/10/2026):** Persone mette ricerca/lista prima dei riepiloghi.
+  Inbox passa da lista a conversazione, con ritorno, bozza per thread, focus e selezione
+  preservati anche dopo aggiornamento lazy o realtime. Compositore raggiungibile con
+  tastiera; desktop conserva due colonne. Contratti distingue Bozza/Scaduto/Terminato
+  e ricerca insieme ai filtri; manutenzioni urgenti precedono le normali senza mutare S.
+  Ricerca globale Persone apre `viewUser`, funzione reale. Prove `portalworkspaceui`,
+  `mobileui`, `searchui`, `segretariafreshui`, `finish`; tastiera simulata via VisualViewport.
 - **`POST /api/notify/send`** — il ponte email del portal. `sendBoomEmail()`
   (stessa firma, 16 chiamanti intatti) ora POSTa qui con Bearer admin/owner/
   landlord; il server veste il vecchio template "notification" nel design
@@ -2665,6 +2733,13 @@ checklist commercialista si spunta da sola) e lo invia IN ALLEGATO:
 conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
+
+**13/10 — una firma dichiarata deve comparire sul PDF.** Nomi vuoti e
+immagini di firma vuote/corrotte bloccano il verbale prima di Storage,
+archivio e notifiche; una foto accessoria resta best-effort. La pagina
+chiede di correggere il nome o riapporre la firma, senza suggerire un retry
+cieco. Il decoder PDF è reale nei test `verbale`; `verbalemutations`
+ripristina i due difetti e deve far cadere le verifiche.
 
 ### L'inventario dal video (`POST /api/contracts/inventario` + `/inventario`)
 Il verbale rinviava agli arredi con UNA riga: *"completa degli arredi e delle
@@ -3195,6 +3270,11 @@ Test: `node tests/firma/run.mjs` (32 check) + `node tests/firma/ui.mjs`
 nessuno dica il tipo** nasce comunque Allegato C.
 
 ### 🖊 Firma ora (riga contratto → `openFirmaOra`)
+**13/10 — prima la firma, poi le opzioni.** Il pannello mostra immobile,
+parti e link; mandati/deleghe restano in un dettaglio aperto automaticamente
+se le condizioni divergono. Logica di firma e titolarità invariata;
+`firmastudio` prova desktop/telefono e il conflitto sempre visibile.
+
 Firmare, non solo sollecitare: il pannello apre il link VERO della parte
 (`/sign?sign=<token>`) sul dispositivo dell'operatore — il cliente firma
 col dito davanti a lui, e data/ora/dispositivo finiscono nel certificato
@@ -3205,6 +3285,16 @@ schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
 il documento dice «firma X per conto di Y». **Al posto del conduttore non
 si firma mai SENZA MANDATO SCRITTO** — quella non è una delega, è una firma
 falsa, e la riga è scritta nel pannello, non lasciata al buonsenso.
+
+### Magic Sign personalizzato — studio guidato (13/10/2026)
+Documento → firmatari → campi con tap/tastiera → riepilogo; contratti BOOM
+rimandano alla firma esistente. Crea link non invia messaggi; retry e bozza
+mantengono la stessa richiesta. Creazione admin solo dal server, originale
+congelato e impronta verificata su get/submit; firme con CAS, finalizzazione
+con lease e recupero senza rifirmare. Legacy parziali senza impronta richiedono
+revisione; PDF ruotati/ritagliati fuori standard vengono rifiutati esplicitamente.
+Test `magicsigncustom`, `magicsigncustommutations`, `magicsigncustomui` e
+`magicsigncustomsigner` (pagina+handler reali, IO sintetico; dopo ui per cache PDF.js).
 
 ### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
 Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
@@ -3762,8 +3852,9 @@ tre difetti veri:
   annulla e collega da → Contratto, oppure procedi se è un altro interno.
   Avverte, non blocca. L'immobile nato da QUESTA proposta (`prop_pa_<id>`)
   non è un doppione. Da sapere: collegare una casa del portal a una proposta
-  accettata senza immobile rende il mandato del conduttore non spendibile
-  (immobile diverso dalla foto) — lì firma il conduttore col suo link.
+  accettata senza immobile lascia il mandato del conduttore spendibile SOLO
+  se è la stessa casa — stesso indirizzo e stesso interno (15/10, sezione
+  sotto); altrimenti firma il conduttore col suo link.
 - **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
   contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
@@ -3792,6 +3883,53 @@ niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
 ricerca della casa spenta (anche solo su ✍️), la casa della proposta contata
 come doppione, testo che ignora la casa trovata, → Contratto senza
 preselezione, conferma senza `await`.
+
+### 🏠 La casa della proposta già nel portal — stesso indirizzo e stesso interno (15/10/2026)
+«Fallo valere con stesso indirizzo e interno.» Il mandato di una proposta
+accettata senza immobile collegato fotografa un INDIRIZZO e valeva solo
+sull'immobile nato dalla proposta (`prop_pa_<id>`). Ora vale anche sul record
+del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero è Viale
+Angelico 9 (BOOM-MUPU8OMY): pagata col mandato, non collegata, appartamento
+già nel portal.
+- **La regola, una copia** (`js/mandato-engine.js`: `homeKey`, `homeMatch`,
+  `homeCheck`; server e console): via e civico normalizzati (accenti,
+  «V.le/P.za/Lungot.», «n.»/«civico» davanti al numero, scala e piano dopo,
+  città, CAP, quartiere dopo la virgola) e interno con la regola del lucchetto
+  («Int. 11» = «11»). Interno non dichiarato combacia SOLO con interno non
+  dichiarato (casa intera, come lucchetto e sovrapposizioni) e l'etichetta lo
+  dice. Fail-closed: senza civico, senza tipo di via o con parole dopo il
+  civico non combacia mai. Backup del 12/10: illeggibili 1 immobile su 30 e 3
+  proposte su 26, tutti senza civico.
+- **L'interno approvato sta nella foto** (`termsFromProposal` → `unit`,
+  fuori dall'impronta: i mandati già dati restano validi). Foto più vecchie:
+  l'interno della proposta, salvo interno dichiarato dopo dalla console
+  (`unitDeclaredAt`) o indirizzo ritoccato → `unit_unknown`, nessun riscontro.
+- **Il riscontro resta sul mandato** (`tenantMandate.propertyMatch
+  {propertyId, by:'address+unit', home, label, at}`), scritto da conversione e
+  mandato dato dopo; `termsForMandate` allinea SOLO quel record (spostato
+  altrove = cambio di condizioni). Firma, lookup e portal non rileggono
+  l'immobile.
+- **✍️ Firmo io ricontrolla l'immobile di ADESSO** (`healTenantMandate` in
+  sign-for): `status` lo dice senza scrivere (`plan.home`); `sign` scrive il
+  riscontro, aggiunto o tolto, PRIMA di `mandateCheck`. I contratti convertiti
+  prima della regola si sanano; un immobile ritoccato dopo non è più la casa
+  (409 col perché). Una lettura fallita dell'immobile non tocca niente.
+- **Console**: la stessa casa viene prima del somigliante (`homeTwin` in
+  `propGuess`); 📋 🏠 ✍️ fanno nascere il contratto su quel record
+  (`propertyId`, mai un doppione) e la conferma nomina indirizzo e interno; il
+  preflight di → Contratto dice se il mandato sarà spendibile e perché no
+  (`convert` dryRun → `mandate`). Senza il motore resta l'avviso del
+  somigliante.
+- **Da sapere (Angelico 9)**: il record W0lE1 e la nuova proposta NON
+  dichiarano l'interno → riscontro sì, «interno non dichiarato su entrambi».
+  Il contratto vivo su W0lE1 nacque da una proposta con interno «11»: se è
+  l'interno 11, va scritto sull'immobile, e da lì la proposta senza interno
+  non combacia più. La sovrapposizione (fino al 30/01/2027, la nuova dal
+  1/01/2027) resta un 409 da decidere in → Contratto.
+Test: `node tests/mandato/casa.mjs` (51 check, handler veri; 19 mutazioni
+prese su motore, conversione, mandato dato dopo, sign-for e console) e
+`tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
+senza motore).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
@@ -3947,6 +4085,13 @@ tetto, scan-replies di main, scope senza lista bianca) + `tests/scheda`
 e nella fattura Firestore dei giorni successivi.
 
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
+**14/10 — limite facoltativo:** `settings/ai.budget` resta spento senza scelta admin.
+Quando attivo, token-count e prenotazione atomica in `aiUsage/<giorno-Roma>.budgetV1`
+precedono Anthropic; retry/fallback condividono limite e deadline. Prezzo, lettura
+o esito ignoti fermano la chiamata o trattengono la riserva. È una stima preventiva,
+non un limite di fattura: esclusi Codex, STT, ElevenLabs, Telnyx/TIM. La Squadra →
+Costi AI mostra oggi/mese, riserve e impostazione esplicita; dati mancanti non zero.
+`/api/ai/status` richiede ruolo admin effettivo; HOMIE/cron sola lettura. Test `aibudget`.
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
 propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
 la spesa AI era una riga di fattura a fine mese, mai un numero per scopo. Le

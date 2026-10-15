@@ -76,7 +76,10 @@ globalThis.fetch = async (rawURL, opts = {}) => {
       const path = operation.update.name.split('/documents/')[1];
       const data = Object.fromEntries(Object.entries(operation.update.fields || {}).map(([k, v]) => [k, dec(v)]));
       save(path, operation.updateMask ? { ...(DB.get(path) || {}), ...data } : data);
-      const write = { path, data: structuredClone(DB.get(path)) };
+      const write = { path, data: structuredClone(DB.get(path)),
+        noopGuard: Object.keys(operation.update.fields || {}).length === 0
+          && Array.isArray(operation.updateMask?.fieldPaths) && operation.updateMask.fieldPaths.length === 0
+          && typeof operation.currentDocument?.updateTime === 'string' };
       writes.push(write); allWrites.push(write);
       results.push({ updateTime: versions.get(path) });
     }
@@ -531,7 +534,8 @@ try {
 
   ok('nessun modello, Telegram, rete calendario o email chiamati', network.length === 0 && globalThis.__mails.length === 0, network);
   ok('nessuna coda di invio o calendario scritta', allWrites.every(w => w.path.startsWith('operatorTasks/')
-    || /^heartbeat\/segretaria-(event|case)-/.test(w.path))
+    || /^heartbeat\/segretaria-(event|case)-/.test(w.path)
+    || (w.path.startsWith('conversations/') && w.noopGuard === true))
     && allWrites.filter(w => w.path.startsWith('operatorTasks/')).every(w => w.data.calendarize === false));
 } finally {
   Date.now = realNow;

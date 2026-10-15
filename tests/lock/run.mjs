@@ -1,3 +1,4 @@
+import { conditionalFirestore } from '../preagreement/conditional-firestore.mjs';
 // tests/lock/run.mjs
 // IL LUCCHETTO SULL'IMMOBILE — il pezzo che impedisce a due candidati di
 // chiudere lo stesso appartamento per lo stesso periodo, pagando entrambi.
@@ -74,6 +75,8 @@ globalThis.fetch = async (url, opts = {}) => {
   if (m === 'DELETE') { DB.delete(path); return json({}); }
   throw new Error('metodo imprevisto ' + m);
 };
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB,fields:flds,unfields:unflds});
+
 
 const L = await import('../../api/preagreement/_lock.js');
 

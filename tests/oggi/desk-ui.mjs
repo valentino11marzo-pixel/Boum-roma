@@ -15,8 +15,7 @@ const items = page => page.locator('#ogDeskPanel [data-desk-item]');
 const itemIds = page => items(page).evaluateAll(nodes => nodes.map(node => node.dataset.deskItem));
 const fresh = async page => {
   await page.goto(base); await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
-  assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), false);
-  await page.locator('#ogDeskFold > summary').click();
+  assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), true);
   await page.waitForSelector('#ogDeskPanel [data-desk-area]');
 };
 const archiveOpen = page => page.locator('#ogQueueArchive').evaluate(node => node.open);
@@ -36,6 +35,12 @@ try {
       assert.equal(await page.evaluate(() => !!(document.getElementById('ogDeskPanel').compareDocumentPosition(document.getElementById('ogQueueArchive')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
       assert.equal(await page.locator('#ogWorkQueue').isVisible(), false);
       assert((await items(page).count()) <= 5);
+      await page.locator('#ogDeskFold > summary').click();
+      assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), false);
+      assert.equal(await page.locator('#ogDeskPanel').isVisible(), false);
+      await page.locator('#ogDeskFold > summary').click();
+      assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), true);
+      assert.equal(await page.locator('#ogDeskPanel').isVisible(), true);
       assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);
     });
     await check(width + ' tutte le urgenze raggiungibili in pagine da cinque e aperture senza scritture', async () => {

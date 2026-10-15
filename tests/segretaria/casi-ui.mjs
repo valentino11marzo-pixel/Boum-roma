@@ -217,7 +217,7 @@ const listener = name => {
   assert(next >= 0, 'Fine listener reale: ' + name);
   return portal.slice(begin, begin + 5 + next);
 };
-const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(listener).join('\n');
+const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh'].map(listener).join('\n');
 const browser = await chromium.launch(launchOptions());
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Rome' });

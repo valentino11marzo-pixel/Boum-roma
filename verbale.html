@@ -315,7 +315,8 @@ $('go').addEventListener('click',function(){
   }).then(function(r){return r.json().then(function(j){return{s:r.status,j:j}})})
   .then(function(x){
     if(!x.j||!x.j.ok){btn.disabled=false;btn.textContent='🔑 Genera verbale e invia';
-      showErr('Non riuscito ['+((x.j&&x.j.error)||x.s)+'] — riprova.');return}
+      var error=x.j&&x.j.error;
+      showErr(error==='signer_name_required'?'Inserisci il nome di ogni persona che firma.':error==='signature_unreadable'?'Una firma non è leggibile. Cancellala e falla apporre di nuovo prima di salvare.':'Non riuscito ['+(error||x.s)+'] — riprova.');return}
     $('app').style.display='none';$('success').style.display='block';
     $('sPdf').href=x.j.url;window.scrollTo(0,0);
   }).catch(function(e){btn.disabled=false;btn.textContent='🔑 Genera verbale e invia';showErr('Rete: '+e.message)});

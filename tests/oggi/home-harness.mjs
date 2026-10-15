@@ -18,29 +18,35 @@ const between = (source, start, end) => {
  return source.slice(from,to).replace(/^export /gm,'');
 };
 const copy = between(src, '    async function copyToClipboard(', '    // Un solo pannello');
+const sourceChecks = between(src, '    function portalMailState(', '    function inboxThreadPanel(');
+const sessionProof = between(src, '    function portalSessionProof(', '    function portalSessionReset(');
+const romeCalendar = '\nconst TZ="Europe/Rome";\n'+between(availabilitySource,'function romeCalendarParts(','const hhmm =');
 const followUpMutations = ['clean','inputText','precondition'].map(name=>{
  const line=followUpSource.split('\n').find(line=>line.startsWith('const '+name+' ='));
  if(!line)throw Error('Missing follow-up helper: '+name);return line;
 }).join('\n')+'\n'+between(followUpSource,'export function checkTimestamp(','export async function captureFollowUp(')
- +'\nconst TZ="Europe/Rome";\n'+between(availabilitySource,'function romeCalendarParts(','const hhmm =')
  +'\n'+between(followUpSource,'export async function updateFollowUp(');
-const scripts = ['oggi-engine','oggi-workspace-engine','oggi-desk-engine','portal-search-engine','portal-search-archive','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
-export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span><small style="display:block;margin-top:4px;font-weight:400">Le modifiche durano fino al ricaricamento.</small></div><div class="demo-brand">BOOM <button type="button" onclick="oggiSegretariaOpen('sg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','','message')" style="float:right;font:12px sans-serif;letter-spacing:0;padding:10px 14px;border:1px solid #d4af37;border-radius:8px;background:none;color:#d4af37;cursor:pointer">Prova un intervento ↗</button></div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
+const scripts = ['oggi-engine','oggi-workspace-engine','oggi-desk-engine','portal-search-engine','portal-search-archive','portal-mailbox','inbox-context-engine','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
+export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','portal-mailbox','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span><small style="display:block;margin-top:4px;font-weight:400">Le modifiche durano fino al ricaricamento.</small></div><div class="demo-brand">BOOM <button type="button" onclick="oggiSegretariaOpen('sg_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','','message')" style="float:right;font:12px sans-serif;letter-spacing:0;padding:10px 14px;border:1px solid #d4af37;border-radius:8px;background:none;color:#d4af37;cursor:pointer">Prova un intervento ↗</button></div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
 window.testIO={reads:[],writes:[],demoWrites:[],responses:[],actions:[],failViewings:false,failProposals:false,holdViewings:false,pendingReads:[]};
-const now=new Date(), today=now.toISOString().slice(0,10);
+${romeCalendar}
+// The preview's appointments belong to today's Rome calendar date, like
+// the actual agenda; UTC midnight must not turn them into yesterday's rows.
+const now=new Date(), today=romeDateKey(now);
+const recentAt=new Date(now.getTime()-2*3600000).toISOString();
 const isoAt=h=>today+'T'+h+':00:00Z';
 const auth={currentUser:{uid:'demo-admin',getIdToken:async()=> 'not-a-credential'}};
 const S={page:'oggi',profile:{id:'demo-admin',name:'Valentino',role:'admin'},_paLoaded:true,_paUser:auth.currentUser,preAgreements:[],
  users:[{id:'p-demo',role:'tenant',name:'Persona Demo',email:'demo@example.invalid'}],
  properties:[{id:'casa-demo',name:'Casa Aurora',address:'Indirizzo dimostrativo · Roma'}],
- contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:isoAt('08'),rent:1400}],
+ contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:recentAt,rent:1400}],
  clients:Array.from({length:15},(_,i)=>({id:'cliente-'+i,name:'Aurora Cliente '+i})),
  actionQueue:[],payments:[],leads:[],documents:[],tasks:[],deadlines:[],conversations:[],messages:[],inboxFeed:{state:'live'},inboxListener:()=>{},
- maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:isoAt('08')}],
+ maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:recentAt}],
  viewingRequests:[{id:'v-demo',propertyName:'Casa Aurora',clientName:'Persona Demo',status:'confirmed',confirmedDateTime:isoAt('13')},{id:'v-proposta',propertyName:'Casa Giardino',clientName:'Nuovo contatto · demo',status:'rescheduled',confirmedDateTime:isoAt('09'),proposedDateTime:isoAt('15')}],
  _viewingsSource:'ready',_viewingsUser:auth.currentUser,_viewingsReadAt:now.toISOString(),_viewingsPartial:false};
 window.testState=S;window.testAuth=auth;
-const caseRow=(letter,fields)=>({id:'sg_'+letter.repeat(32),source:'segretaria',status:'open',followUp:{open:true,conversationId:'conv-'+letter,contactName:'Persona Demo',lastMessageId:'phone:demo-call',lastInboundAt:isoAt('08'),preview:'Buongiorno, il tecnico può passare domani dalle 10 alle 12. Chi avvisa il portiere?',practiceRef:'contracts/contratto-demo',propertyRef:'properties/casa-demo',nextAction:'Confermare l’accesso al tecnico',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:new Date(now.getTime()-60000).toISOString(),confirmed:true,needsReview:false,ambiguous:false,...fields}});
+const caseRow=(letter,fields)=>({id:'sg_'+letter.repeat(32),source:'segretaria',status:'open',followUp:{open:true,conversationId:'conv-'+letter,contactName:'Persona Demo',lastMessageId:'phone:demo-call',lastInboundAt:recentAt,preview:'Buongiorno, il tecnico può passare domani dalle 10 alle 12. Chi avvisa il portiere?',practiceRef:'contracts/contratto-demo',propertyRef:'properties/casa-demo',nextAction:'Confermare l’accesso al tecnico',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:new Date(now.getTime()-60000).toISOString(),confirmed:true,needsReview:false,ambiguous:false,...fields}});
 testIO.followUps=[caseRow('a',{}),caseRow('b',{contactName:'Giuliano · da identificare',lastMessageId:'wa-demo',preview:'Per le chiavi ci vediamo lì domani? Non so ancora a che ora.',nextAction:'Chiarire immobile e orario per le chiavi',practiceRef:null,propertyRef:null,confirmed:false,needsReview:true,ambiguous:true,intakeTiming:{status:'ambiguous'}})];
 S.conversations=[{id:'conv-a',contactType:'tenant',contactId:'p-demo',contactName:'Persona Demo'},{id:'conv-b',contactType:'phone',contactId:'unknown',contactName:'Giuliano · da identificare'}];
 const isAdmin=()=>S.profile?.role==='admin';
@@ -82,7 +88,15 @@ function innestoOpenFor(...args){demoAction('innestoOpenFor',...args);}
 function confirmViewingModal(id){const row=S.viewingRequests.find(v=>v.id===id);demoAction('confirmViewingModal',id,viewingWhenLocal(row));}
 function rescheduleViewingModal(id){demoAction('rescheduleViewingModal',id);}
 window.open=(...args)=>demoAction('open',...args);
-const db={collection(name){testIO.reads.push(name);return {orderBy(){return this;},limit(){return this;},where(){return this;},onSnapshot(next){next({docs:[]});return()=>{};},async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');const list=name==='viewingRequests'?S.viewingRequests:[];return {docs:list.map(v=>({id:v.id,data:()=>({...v})}))};},doc(){testIO.writes.push(name);throw Error('No writes in preview');}}}};
+const db={collection(name){
+ testIO.reads.push(name);const filters=[];let cap=Infinity;
+ const data=()=>name==='conversations'?S.conversations.filter(row=>S.conversations.filter(c=>c.id===row.id).length===1):name==='operatorTasks'?testIO.followUps:name==='viewingRequests'?S.viewingRequests:[];
+ const snap=row=>({id:row.id,exists:true,data:()=>({...row})});
+ return {orderBy(){return this;},limit(n){cap=n;return this;},where(field,op,value){filters.push({field,value});return this;},onSnapshot(next){next({docs:[]});return()=>{};},
+ async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');let list=data();if(['conversations','operatorTasks'].includes(name))list=list.filter(row=>filters.every(f=>f.field.split('.').reduce((v,k)=>v?.[k],row)===f.value));return{docs:list.slice(0,cap).map(snap)};},
+ doc(id){return{async get(){const row=data().find(r=>r.id===id);return row?snap(row):{exists:false,id};},async update(){testIO.writes.push(name);throw Error('No writes in preview');},async set(){testIO.writes.push(name);throw Error('No writes in preview');}}}
+ };
+}};
 function demoDossier(task){return {practices:task?.followUp.practiceRef?[{ref:task.followUp.practiceRef,propertyRefs:['properties/casa-demo']}]:[],identityAmbiguous:!!task?.followUp.ambiguous};}
 async function fsGetVersioned(path){
  const task=testIO.followUps.find(t=>'operatorTasks/'+t.id===path);
@@ -95,7 +109,9 @@ async function fsCommit(operations){
  Object.assign(task,structuredClone(op.fields));testIO.demoWrites.push({id:task.id,fields:structuredClone(op.fields)});
 }
 ${followUpMutations}
+const sourcePreviewFetch=window.fetch.bind(window);
 window.fetch=async(url,options={})=>{
+ if(new URL(String(url),location.origin).pathname==='/api/segretaria/scan-replies')return sourcePreviewFetch('/mail-source-api'+new URL(String(url),location.origin).search,options);
  const parsed=new URL(String(url),'https://example.invalid'),method=options.method||'GET';
  if(parsed.origin!=='https://example.invalid'||parsed.pathname!=='/api/segretaria/follow-up'||!['GET','POST'].includes(method)){
   if(method!=='GET')testIO.writes.push(String(url));throw Error('No sending, AI or external requests in preview');
@@ -113,7 +129,11 @@ window.fetch=async(url,options={})=>{
  return id?(task?response(200,{task,dossier:demoDossier(task)}):response(404,{error:'case_not_found'}))
   :response(200,{rows:testIO.followUps.filter(t=>t.status==='open'),monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}});
 };
+${between(src, '    function jsq(v)', '    function safeToDate(')}
 ${search}
+var portalSessionGeneration=0;
+${sessionProof}
+${sourceChecks}
 ${clock}
 ${copy}
 ${oggi}
@@ -133,18 +153,19 @@ const namedPortalFunction = name => {
  return src.slice(match.index, match.index + 5 + next);
 };
 const quickFunctions = [
- 'openModal', 'closeModal', 'getModal', 'fillPayAmount',
+ 'openModal', 'closeModal', 'getModal', 'fillPayAmount', 'boomToolsPage',
  'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
  'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
- 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload', 'openMagicSignEditor',
- 'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh'
+ 'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload',
+ 'inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'kindLabel', 'inboxRefresh', 'stopOpenConvListener'
 ].map(namedPortalFunction).join('\n');
 const inboxState = src.match(/^    var _inboxState = .+;$/m)?.[0];
 if (!inboxState) throw Error('Missing production inbox state');
 const quickBoot = `
 let selectedFile = null, listingImageUrl = '', _newClientWizard = null;
+const ROME_ZONES = [];
 ${inboxState}
-${between(src, '    const MS_FIELD_TYPES =', '    // Lazy-load PDF.js')}
+${between(src, '    const MS_FIELD_TYPES =', '    // ============================================================================\n    // CAF Allegato B')}
 ${quickFunctions}
 S.properties.push({id:'casa-seconda',name:'Casa Aurora',address:'Via Seconda 20',rent:930});
 S.properties.push({id:'casa-$id-demo',name:'Casa Segnaposto',address:'Via Segnaposto 30',rent:800});
@@ -157,5 +178,5 @@ goTo(location.hash.slice(1)||'oggi',true);
 export const quickToolsHtml = html
  .replace("function openModal(...args){demoAction('openModal',...args);}", '')
  .replace('window.open=(...args)=>demoAction(\'open\',...args);', '')
- .replace("if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);", "if(id==='inbox'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=inboxPage();return;}if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);")
+ .replace("if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);", "if(id==='boom-tools'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=boomToolsPage();return;}if(id==='inbox'){oggiSegretariaStopLive();S.page=id;document.getElementById('main').innerHTML=inboxPage();return;}if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);")
  .replace("goTo(location.hash.slice(1)||'oggi',true);", quickBoot);

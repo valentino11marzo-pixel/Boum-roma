@@ -26,7 +26,7 @@ function htmlFor(source) {
   assert(start >= 0 && end > start);
   const workspace = source.match(/^    const oggiWorkspace = .+;$/m)?.[0];
   assert(workspace, 'Dichiarazione reale dello stato workspace presente');
-  const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener']
+  const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh']
     .map(name => source.slice(...functionRange(source, name))).join('\n');
   const result = {};
   vm.runInNewContext(fixtureSource + '\nresult.html = html;', {

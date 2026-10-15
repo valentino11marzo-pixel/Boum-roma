@@ -77,8 +77,8 @@
     [
         ['addContract', '📋', 'Nuovo contratto',   'contratto nuovo locazione stipula', 'n c'],
         ['addProperty', '🏠', 'Nuovo immobile',    'immobile casa appartamento nuovo',  'n i'],
-        ['addUser',     '👥', 'Nuovo utente',      'utente inquilino proprietario anagrafica', 'n u'],
-        ['addPayment',  '💳', 'Registra pagamento','pagamento rata incasso registra',   'n p'],
+        ['addUser',     '👥', 'Nuova persona',      'utente inquilino proprietario anagrafica', 'n u'],
+        ['addPayment',  '💳', 'Nuova rata','pagamento rata incasso registra',   'n p'],
         ['addInvoice',  '🧾', 'Nuova fattura',     'fattura fatturazione emetti',       'n f'],
         ['addMaintenance', '🔧', 'Nuova manutenzione', 'manutenzione guasto intervento riparazione', ''],
         ['addTask',     '✅', 'Nuovo task',        'task attività promemoria da fare',  ''],
@@ -236,7 +236,7 @@
     [
         ['dashboard',   '📊', 'Oggi — dashboard',    'oggi dashboard home riepilogo'],
         ['contracts',   '📋', 'Contratti',           'contratti locazioni fascicolo pack verbale firme'],
-        ['payments',    '💳', 'Pagamenti',           'pagamenti rate incassi scaduti canone'],
+        ['payments',    '💳', 'Incassi',           'pagamenti rate incassi scaduti canone'],
         ['viewings',    '📅', 'Visite',              'visite appuntamenti viewing sopralluoghi'],
         ['leads',       '📬', 'Lead',                'lead richieste contatti pipeline'],
         ['clienti',     '👥', 'Clienti',             'clienti crm pfs anagrafiche'],
@@ -246,7 +246,7 @@
         ['maintenance', '🔧', 'Manutenzioni',        'manutenzioni guasti interventi'],
         ['documents',   '📁', 'Documenti',           'documenti archivio file caricati'],
         ['templates',   '📜', 'Template documenti',  'template modelli documenti moduli'],
-        ['users',       '👤', 'Utenti',              'utenti account ruoli'],
+        ['users',       '👤', 'Persone',              'utenti account ruoli'],
         ['commercialista', '🧮', 'Commercialista',   'commercialista fiscale tasse taxpack'],
         ['burocrazia',  '📝', 'Burocrazia',          'burocrazia registrazioni rli adempimenti'],
         ['inbox',       '📨', 'Inbox',               'inbox messaggi whatsapp conversazioni'],
@@ -434,7 +434,7 @@
         ['inventory', 'console:/inventario', 'Inventario', 'Scegli immobile o contratto e prepara il rilievo.'],
         ['handover', 'console:/verbale', 'Consegna', 'Scegli il contratto e prepara chiavi, letture e firme.'],
         ['maintenance', 'new:addMaintenance', 'Interventi', 'Descrivi un nuovo problema e scegli l’immobile.'],
-        ['payment', 'new:addPayment', 'Incassi', 'Registra un pagamento scegliendo contratto, importo e stato.'],
+        ['payment', 'go:payments', 'Incassi', 'Apri gli incassi per unità, verifica le rate e i pagamenti.'],
         ['invoices', 'go:invoices', 'Fatture', 'Apri le fatture e i relativi strumenti.'],
         ['listings', 'go:listings', 'Annunci', 'Apri il catalogo degli annunci.'],
         ['templates', 'go:templates', 'Modelli', 'Scegli un modello di documento.'],
@@ -525,9 +525,6 @@
             tool('maintenance').description = 'Descrivi un problema dell’immobile collegato.';
         }
         if (kind === 'contract') {
-            var payment = tool('payment');
-            if (row.status === 'active') payment.prefill = { field: 'contractId', value: row.id };
-            else { payment.disabled = true; payment.reason = 'Il contratto selezionato non è attivo'; }
             contextual('magic-sign', 'viewContractSignatures').description = 'Consulta lo stato delle firme del contratto scelto.';
             contextual('handover', 'open', '/verbale?').description = 'Apri il verbale del contratto scelto.';
         }
