@@ -40,6 +40,17 @@ export async function maybeAutoConvert({ pa, paId }) {
           });
         } catch (e) { console.warn('[pa/_auto] overlap notice:', e.message); }
       }
+      if (out.error === 'no_template') {
+        try {
+          await fsCreate('agentNotifications', {
+            type: 'contract.no_template',
+            summary: `⚠ Contratto automatico NON creato per ${pa.ref || paId} (${(pa.tenant || {}).fullName || 'conduttore'}): la proposta è un ${(pa.lease || {}).type || '4+4'} e per il canone libero non c'è un modello di contratto. Nessun contratto transitorio al suo posto: va deciso il modello.`,
+            priority: 'high', ref: { collection: 'preAgreements', id: paId },
+            dedupKey: 'notemplate-' + paId, status: 'pending',
+            actor: 'preagreement-auto', createdAt: new Date().toISOString(), attempts: 0,
+          });
+        } catch (e) { console.warn('[pa/_auto] no_template notice:', e.message); }
+      }
       return out;
     }
     if (!out.already) {
