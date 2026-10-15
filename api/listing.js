@@ -109,7 +109,12 @@ function injectSeo(html, d, id) {
   const name = String(d.name || 'Apartment').trim();
   const zone = String(d.zone || d.neighborhood || '').trim();
   const sqm = num(d.sqm || d.size);
-  const beds = num(d.beds || d.bedrooms);
+  // le camere con UNA regola (js/listing-facts.js): il campo strutturato
+  // prima del testo libero del bot. Con `num(d.beds || d.bedrooms)` «Capri 2
+  // Bed» usciva «1 bedroom» (primo numero di «Living , 1 bedroom with
+  // balcony , 1 bedroom…») e il bilocale di Via dei Cappellari «3 bedrooms».
+  // 0 = monolocale: qui non ha una parola, quindi si tace (if (beds) sotto).
+  const beds = FACTS.bedroomsOf(d);
   const baths = num(d.bathrooms);
   const price = d.price ? Number(d.price) : null;
   const canonical = 'https://www.boomrome.com/listing/' + encodeURIComponent(id);
@@ -298,8 +303,11 @@ function injectSeo(html, d, id) {
   if (price) facts.push('<li>Agency fee: €' + FACTS.agencyFeeEur(price).toLocaleString('en-US') + ' incl. VAT, once (10% of one year\'s rent + 22% VAT)</li>');
   facts.push('<li>' + esc(avail) + '</li>');
   if (sqm) facts.push('<li>Size: ' + esc(sqm) + ' m²</li>');
-  if (beds) facts.push('<li>' + beds + (beds > 1 ? ' bedrooms' : ' bedroom') +
-    (baths ? ' · ' + baths + (baths > 1 ? ' bathrooms' : ' bathroom') : '') + '</li>');
+  // i bagni non dipendono più dalle camere: un monolocale (0) li perdeva
+  // insieme alla riga che per lui tace
+  const rooms = [beds && beds + (beds > 1 ? ' bedrooms' : ' bedroom'),
+    baths && baths + (baths > 1 ? ' bathrooms' : ' bathroom')].filter(Boolean);
+  if (rooms.length) facts.push('<li>' + rooms.join(' · ') + '</li>');
   if (d.videoUrl) facts.push('<li>Video tour available on this page</li>');
   facts.push('<li>Registered Italian standard-form lease (L. 431/98), explained in English · English support' + (quick ? ' · move-in in as little as 48 hours from approval' : '') + '</li>');
   const noscript = '<noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">' +

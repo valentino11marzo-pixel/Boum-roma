@@ -102,7 +102,11 @@ function buildContext(d) {
   lines.push(`Name: ${pick('name') || 'This apartment'}`);
   const zone = pick('zone', 'neighborhood'); if (zone) lines.push(`Neighborhood: ${zone}, Rome`);
   const price = pick('price'); if (price) lines.push(`Monthly rent: €${Number(price).toLocaleString('en-US')}`);
-  const beds = pick('beds', 'bedrooms'); if (beds != null) lines.push(`Bedrooms: ${beds}`);
+  // le camere con la regola unica (js/listing-facts.js): `pick('beds',
+  // 'bedrooms')` dava al modello il testo libero del bot — «Bedrooms: Living
+  // , 1 bedroom with balcony , 1 bedroom…» su Capri (2 camere), «Bedrooms:
+  // 3» sul bilocale di Via dei Cappellari. 0 = monolocale: si tace.
+  const beds = FACTS.bedroomsOf(d); if (beds) lines.push(`Bedrooms: ${beds}`);
   if (d.bathrooms != null) lines.push(`Bathrooms: ${d.bathrooms}`);
   const sqm = pick('sqm', 'size'); if (sqm) lines.push(`Size: ${sqm} m²`);
   if (d.floor) lines.push(`Floor: ${d.floor}`);
@@ -138,6 +142,7 @@ BOOM policies (always true):
 - Move-in: as fast as 48 hours from approval when the home is free now (the Availability line in the facts says whether it is); occupied homes can be reserved ahead for their release date. No fee to apply.
 - Support: a person replies on WhatsApp during office hours (Rome time); messages sent out of hours are answered the next working morning. Gas, fire or flooding: call 112 first, then WhatsApp us.
 - Contract: Italy's official standard-form lease, registered with the Agenzia delle Entrate and explained in English; the pre-agreement, signing page, receipts and support are in English.
+- Lease length: every lease through BOOM is at least 3 months (Terms of service); a transitional lease runs up to 18 months. If someone needs less than 3 months, say BOOM can't offer that stay — never confirm a shorter one.
 - Payments: securely via Stripe, by card, in English.
 - Reserve & hold: from €300, fully refundable, deducted from your first month — takes the home off-market while we process your application.
 - Bills: whether they are included is stated for this home (billsIncluded in the facts). Where they are not, electricity, water, gas, internet, TARI and condo fees are billed separately and we help you set them up.

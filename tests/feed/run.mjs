@@ -22,7 +22,10 @@ const EXACT = {
   address: 'Via del Pigneto 112', type: 'bilocale', sqm: 55, beds: 1, bathrooms: 1,
   images: ['https://firebasestorage.googleapis.com/v0/b/x/o/a.jpg?alt=media', 'https://firebasestorage.googleapis.com/v0/b/x/o/b.jpg?alt=media'],
   geo: { lat: 41.8891, lng: 12.5432, src: 'nominatim', q: 'Via del Pigneto 112, Roma' },
-  updatedAt: '2026-08-01T10:20:30.000Z', description: 'Luminoso bilocale ristrutturato — piano 2°',
+  updatedAt: '2026-08-01T10:20:30.000Z',
+  // le lingue come le scrive il catalogo (bot, sweep, Media Studio):
+  // `description` è l'inglese, `descriptionIt` l'italiano
+  description: 'Bright renovated one-bedroom — 2nd floor', descriptionIt: 'Luminoso bilocale ristrutturato — piano 2°',
 };
 const ZONE = {
   id: 'lst_centro', name: 'Studio Centro', price: 900, availabilityStatus: 'available',
@@ -56,6 +59,42 @@ check('em-dash e accenti sopravvivono nel CDATA', node.includes('ristrutturato �
 const nodeZone = propertyNode(ZONE);
 check('pin di zona: mai map="exact"', !nodeZone.includes('map="exact"'));
 check('pin di zona: indirizzo display="no"', nodeZone.includes('display="no"'));
+
+// <rooms> sono i LOCALI (15/10/2026): il nodo portava le camere, quindi un
+// bilocale arrivava come «1 locale», cioè un monolocale. Le camere vengono
+// dalla regola unica (FACTS.bedroomsOf), più il soggiorno; una stanza e un
+// tipo che contraddice le camere non dichiarano locali.
+check('<rooms> = locali: il bilocale con 1 camera è 2 locali', node.includes('<rooms>2</rooms>'));
+check('<rooms> tace sulla stanza e sul tipo conteso',
+  !propertyNode({ ...EXACT, type: 'Room', bedrooms: 1 }).includes('<rooms>')
+  && !propertyNode({ ...EXACT, type: 'trilocale', bedrooms: 3 }).includes('<rooms>'));
+check('<rooms> legge il campo strutturato, non il testo libero («3» su un bilocale)',
+  propertyNode({ ...EXACT, beds: '3', bedrooms: 1 }).includes('<rooms>2</rooms>'));
+// …e solo quando il TIPO nomina i locali (15/10/2026, dalla revisione):
+// camere + 1 da sole sono una stima di convenzione, e il portale la
+// riceverebbe come dato dell'annuncio
+check('<rooms> tace quando il tipo non nomina i locali (Loft, Duplex, «2 Bedroom flat»), anche con le camere note',
+  !propertyNode({ ...EXACT, type: 'Loft', bedrooms: 1 }).includes('<rooms>')
+  && !propertyNode({ ...EXACT, type: 'Duplex', bedrooms: 1 }).includes('<rooms>')
+  && !propertyNode({ ...EXACT, type: ' Spacious 2 Bedroom flat ', bedrooms: 2 }).includes('<rooms>'));
+check('<rooms> tace sul bilocale di cui non si sanno le camere',
+  !propertyNode({ ...EXACT, beds: undefined, bedrooms: undefined }).includes('<rooms>'));
+check('<rooms>1</rooms> sul monolocale (studio, 0 camere): il tipo conferma il conto',
+  propertyNode({ ...ZONE, bedrooms: 0 }).includes('<rooms>1</rooms>'));
+
+// Le lingue delle descrizioni (15/10/2026): il nodo language="it" portava
+// `description || descriptionIt`, cioè l'inglese dichiarato italiano su
+// ogni casa del catalogo
+const descr = (n, lang) => (n.match(new RegExp('<description language="' + lang + '"><!\\[CDATA\\[([\\s\\S]*?)\\]\\]></description>')) || [])[1];
+check('descrizione: language="it" = descriptionIt, language="en" = description',
+  descr(node, 'it') === EXACT.descriptionIt && descr(node, 'en') === EXACT.description);
+const soloEn = propertyNode({ ...EXACT, descriptionIt: undefined });
+check('senza descriptionIt il nodo it tace: mai l\'inglese sotto language="it"',
+  !soloEn.includes('language="it"') && descr(soloEn, 'en') === EXACT.description);
+check('descriptionEn vince su description per il nodo en; un testo di soli spazi non conta',
+  descr(propertyNode({ ...EXACT, descriptionEn: 'Override EN' }), 'en') === 'Override EN'
+  && descr(propertyNode({ ...EXACT, descriptionEn: '   ' }), 'en') === EXACT.description
+  && !propertyNode({ ...EXACT, descriptionIt: '   ' }).includes('language="it"'));
 
 // core=1: fuori i nodi in attesa di XSD
 const core = propertyNode(EXACT, { extended: false });

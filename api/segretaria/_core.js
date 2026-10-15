@@ -25,6 +25,7 @@ import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
 import { CATALOG } from '../_catalog.js';
+import FACTS from '../../js/listing-facts.js';
 
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const ts = v => v && v.toMillis ? v.toMillis() : (v && v._seconds ? v._seconds * 1000 : (v ? new Date(v).getTime() || 0 : 0));
@@ -50,7 +51,8 @@ const blockedReply = gate => ({ acted: false, blocked: true, whyCode: gate.whyCo
 
 // ─── I fatti: solo fonti vere ────────────────────────────────────────────
 
-async function propertyFacts(lead) {
+// (esportata per tests/catalogo/letture.mjs: i fatti che il modello legge)
+export async function propertyFacts(lead) {
   const pid = lead && (lead.propertyId || lead.listingId);
   if (!pid) return { pid: null, available: null, lines: [] };
   let l = null;
@@ -59,11 +61,15 @@ async function propertyFacts(lead) {
   if (!l) return { pid, available: null, lines: [] };
   const st = String(l.status || '').toLowerCase();
   const gone = /rented|affittat|off_market|reserved|unavailable/.test(st);
+  // le camere con la regola unica (js/listing-facts.js): con `bedrooms ||
+  // beds`, se il campo strutturato mancava o era 0 (monolocale) si ricadeva
+  // sul testo libero del bot e lo si stampava intero davanti a «camere»
+  const camere = FACTS.bedroomsOf(l);
   const facts = [
     l.name || null,
     l.price ? `€${l.price}/mese` : null,
     l.sqm ? `${l.sqm}mq` : null,
-    l.bedrooms || l.beds ? `${l.bedrooms || l.beds} camere` : null,
+    camere ? `${camere} camere` : null,
     l.zone ? `zona ${l.zone}` : null,
     (l.availableFrom || l.availableDate) ? `libero da ${l.availableFrom || l.availableDate}` : null,
     `link: https://www.boomrome.com/listing/${pid}`,

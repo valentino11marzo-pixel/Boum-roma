@@ -18,6 +18,7 @@
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
+import FACTS from '../../js/listing-facts.js';
 
 const SITE = 'https://www.boomrome.com';
 
@@ -35,7 +36,19 @@ function isRentable(l) {
 export function matches(criteria, l) {
   const c = criteria || {};
   if (c.budgetMax && Number(l.price) > Number(c.budgetMax)) return false;
-  if (c.beds  && Number(l.beds  || 0) < Number(c.beds))  return false;
+  // le camere della casa con la regola unica (js/listing-facts.js). Prima
+  // `Number(l.beds || 0)`: sul testo libero del bot dava NaN, e NaN < 2 è
+  // falso — «2+ camere» lasciava passare qualunque casa scritta a parole.
+  // «N+ camere»: camere ignote valgono 0, come nella griglia della vetrina
+  // (data-letti), quindi non passano. «Studio» (il chip della vetrina salva
+  // beds 0, api/search/save.js lo conserva): SOLO un monolocale dichiarato,
+  // bedroomsOf === 0. Fino al 15/10/2026 lo 0 era falso e valeva «qualsiasi»:
+  // chi cercava un monolocale riceveva bilocali e trilocali. Qui il Segugio è
+  // più severo della griglia — che scrive data-letti 0 anche per camere
+  // ignote — perché una email che chiama «Studio» una casa di cui non sappiamo
+  // le camere è una promessa, non un filtro. `beds` assente = qualsiasi.
+  if (c.beds === 0 ? FACTS.bedroomsOf(l) !== 0
+    : (c.beds && (FACTS.bedroomsOf(l) || 0) < Number(c.beds))) return false;
   if (c.baths && Number(l.bathrooms || l.baths || 0) < Number(c.baths)) return false;
   if (c.furnished && !(l.furnished === true || norm(l.furnished) === 'yes' || norm(l.furnished) === 'furnished')) return false;
   if (c.video && !l.videoUrl) return false;
@@ -66,13 +79,20 @@ export function matches(criteria, l) {
 
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
 
-function digestHtml(search, hits) {
+// Le camere nel digest: «N bed», «Studio» per un monolocale (0 camere),
+// niente quando non si sanno. Prima `${l.beds || 'Studio'} bed` mandava
+// all'iscritto il testo libero del bot («Living , 1 bedroom with balcony , 1
+// bedroom… bed») e chiamava «Studio» qualunque casa senza il campo.
+const bedLine = (l) => { const n = FACTS.bedroomsOf(l); return n === 0 ? 'Studio · ' : n ? n + ' bed · ' : ''; };
+
+// (esportata per tests/catalogo/letture.mjs)
+export function digestHtml(search, hits) {
   const rows = hits.map(l => `
     <tr><td style="padding:12px 0;border-bottom:1px solid #eee">
       <a href="${SITE}/listing/${encodeURIComponent(l.id)}" style="color:#111;text-decoration:none">
         <strong style="font-size:15px">${(l.name || 'Apartment').replace(/</g, '&lt;')}</strong><br>
         <span style="color:#666;font-size:13px">${(l.zone || 'Rome').replace(/</g, '&lt;')}
-        · ${l.beds || 'Studio'} bed · ${l.sqm ? l.sqm + ' m² · ' : ''}<strong style="color:#111">${eur(l.price)}/mo</strong>
+        · ${bedLine(l)}${l.sqm ? l.sqm + ' m² · ' : ''}<strong style="color:#111">${eur(l.price)}/mo</strong>
         ${(() => { const m = DISPO.marketLane(l); return m.lane === 'ahead'
           ? (m.iso ? ` · <em>free from ${m.iso} — reservable now</em>`
             : ' · <em>reservable ahead</em>') : ''; })()}</span><br>

@@ -181,7 +181,10 @@ export default async function handler(req, res) {
       const spec = [];
       const sqm = num(l.sqm || l.size);
       if (sqm) spec.push(sqm + ' m²');
-      const beds = num(l.beds || l.bedrooms);
+      // le camere con la regola unica (js/listing-facts.js): il testo libero
+      // `beds` («3» su un bilocale) non decide più cosa un'AI ripete;
+      // 0 = monolocale, e qui non ha una parola: si tace
+      const beds = FACTS.bedroomsOf(l);
       if (beds) spec.push(beds + (beds > 1 ? ' bedrooms' : ' bedroom'));
       const baths = num(l.bathrooms);
       if (baths) spec.push(baths + (baths > 1 ? ' bathrooms' : ' bathroom'));

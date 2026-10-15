@@ -639,6 +639,21 @@ ${footerHtml()}
 firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
 const db=firebase.firestore();
 
+// Le camere: la STESSA regola di js/listing-facts.js (bedroomsOf), copiata qui
+// perche' la pagina non carica quel file. Prima la card leggeva l.beds||l.bedrooms,
+// cioe' il testo libero del bot: «Living , 1 bedroom with balcony , 1 bedroom… bed».
+// Il campo strutturato vince (0 = monolocale, e la card tace); il testo vale
+// solo se il campo manca o non e' un intero 0-10. tests/catalogo/letture.mjs
+// pretende che le due copie diano lo stesso numero su tutto il catalogo.
+function bedroomsOf(l){
+  l=l||{};
+  var b=l.bedrooms;
+  if(b!==null&&b!==undefined&&String(b).trim()!==''){var n=Number(String(b).trim());if(Number.isInteger(n)&&n>=0&&n<=10)return n;}
+  var m=String(l.beds==null?'':l.beds).match(/[0-9]+/);
+  if(m){var k=parseInt(m[0],10);if(k>=1&&k<=10)return k;}
+  return null;
+}
+
 (async function loadZoneListings(){
   const grid=document.getElementById('listingsGrid');
   const matchAttr=grid.getAttribute('data-zone-match')||'';
@@ -664,7 +679,7 @@ const db=firebase.firestore();
     grid.innerHTML=matched.map(l=>{
       const price=l.price?'€'+Number(l.price).toLocaleString():'—';
       const sqm=l.sqm||l.size;
-      const beds=l.beds||l.bedrooms;
+      const beds=bedroomsOf(l);
       const lc=(window.BOOM_DISPO&&l._lane)?BOOM_DISPO.laneCopy(l._lane,'en').short:'';
       const meta=[sqm&&sqm+'m²',beds&&(beds+' bed'+(beds>1?'s':'')),lc].filter(Boolean).join(' · ');
       const img=l.image||(l.images&&l.images[0])||'';

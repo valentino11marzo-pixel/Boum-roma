@@ -24,6 +24,7 @@ import { replyLang } from '../_lang.js';
 import { isReunion, isB2B } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
 import { runBudget } from '../_budget.js';
+import FACTS from '../../js/listing-facts.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
   reportEmployeeHealth, saveReport,
@@ -49,6 +50,8 @@ LA REGOLA PIÙ IMPORTANTE — lo stato dell'immobile:
 - Se non sai quale immobile: chiedi con garbo a cosa si riferisce.
 
 RISPONDI A CIÒ CHE HANNO CHIESTO: se chiedono spese incluse, arredamento, durata, animali, disponibilità da una data — affronta quel punto per primo. Non usare un testo generico. Se un'informazione non ce l'hai, dillo e prometti di verificarla.
+
+DURATA: con BOOM si affitta da 3 mesi in su (Condizioni); il transitorio arriva a 18 mesi. Mai proporre un mese.
 
 QUALIFICA CON UNA SOLA DOMANDA: la più utile che manca (data di ingresso, budget, quante persone). Mai un interrogatorio.
 
@@ -181,7 +184,8 @@ async function run({ dry }) {
 // What the draft MUST know before writing a word: is that home still free?
 // Answering "yes it's available" about a rented flat is the single worst
 // thing an assistant can do — it burns the lead and the reputation at once.
-async function propertyContext(lead) {
+// (esportata per tests/catalogo/letture.mjs: i fatti che il modello legge)
+export async function propertyContext(lead) {
   const pid = lead.propertyId || lead.listingId;
   if (!pid) return { line: null, available: null };
   let l = null;
@@ -190,11 +194,14 @@ async function propertyContext(lead) {
   if (!l) return { line: null, available: null };
   const st = String(l.status || 'available').toLowerCase();
   const gone = /rented|affittat|off_market|reserved|unavailable/.test(st);
+  // le camere con la regola unica: `l.beds` è il testo libero del bot, e il
+  // modello leggeva «Living , 1 bedroom with balcony , 1 bedroom… camere»
+  const camere = FACTS.bedroomsOf(l);
   const facts = [
     l.name || null,
     l.price ? `€${l.price}/mese` : null,
     l.sqm ? `${l.sqm}mq` : null,
-    l.beds ? `${l.beds} camere` : null,
+    camere ? `${camere} camere` : null,
     l.furnished === 'yes' ? 'arredato' : l.furnished === 'no' ? 'non arredato' : null,
     l.availableDate ? `libero da ${l.availableDate}` : null,
   ].filter(Boolean).join(' · ');

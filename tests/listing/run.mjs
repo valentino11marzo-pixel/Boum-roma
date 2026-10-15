@@ -54,6 +54,16 @@ import FACTS from '../../js/listing-facts.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(here, '..', '..');
 const src = (p) => readFileSync(join(ROOT, p), 'utf8');
+// la casa d'esempio del template: il nome di CASE[0], letto dal file — i
+// nomi cambiano (scripts/catalogo-nomi.mjs, 15/10/2026: «Bilocale
+// Trastevere» è diventata il nome della via), la regola no: un nome fisso
+// qui farebbe passare il controllo a vuoto. Senza CASE[0] leggibile i
+// controlli cadono: un esempio introvabile non è un esempio assente.
+const ESEMPIO = (() => {
+  const m = src('apartment-detail.html').match(/var CASE = \[\{"id": "[^"]*", "nome": ("(?:[^"\\]|\\.)*")/);
+  return m ? JSON.parse(m[1]) : null;
+})();
+const haEsempio = (t) => ESEMPIO == null || String(t).includes(ESEMPIO);
 
 let pass = 0, fail = 0;
 function check(name, ok, detail) {
@@ -194,7 +204,7 @@ const A = OUT.A.body, B = OUT.B.body, C = OUT.C.body, D = OUT.D.body;
 for (const id of ['A', 'B', 'C', 'D']) {
   const h = OUT[id].body, v = noScriptsStylesNoscript(h);
   const h1s = [...v.matchAll(/<h1[^>]*>([^<]*)<\/h1>/g)].map((m) => m[1]);
-  check(`${id}: nessuna casa d'esempio («Bilocale Trastevere») fuori da noscript/script`, !/Bilocale Trastevere/.test(v));
+  check(`${id}: nessuna casa d'esempio («${ESEMPIO}») fuori da noscript/script`, !haEsempio(v));
   check(`${id}: un solo <h1>, ed è il nome della casa`, h1s.length === 1 && h1s[0] === DOCS[id].name, JSON.stringify(h1s));
   check(`${id}: il noscript non porta un secondo <h1>`, !/<h1/.test(noscriptOf(h)));
 }
@@ -546,6 +556,16 @@ console.log('\n/api/ask-listing — le politiche che il codice applica davvero')
   check('SYSTEM: niente «filmed» (l\'inventario video non è universale), il verbale di consegna firmato sì',
     !/film/i.test(SYSTEM) && /recorded at check-in in a signed handover report \(verbale di consegna\) and checked against it at move-out/.test(SYSTEM));
   check('FALLBACK: nessuna promessa in ore', !/\d+ hours?/.test((s.match(/const FALLBACK = `([^`]*)`/) || [])[1] || 'x'));
+  // la durata (15/10/2026, decisione del fondatore): con BOOM almeno 3 mesi
+  // — lo dicono le Condizioni (terms.html) —, il transitorio fino a 18; chi
+  // chiede meno di 3 mesi riceve un no, mai una conferma
+  const DURATA = /- Lease length: every lease through BOOM is at least 3 months \(Terms of service\); a transitional lease runs up to 18 months\. If someone needs less than 3 months, say BOOM can't offer that stay — never confirm a shorter one\./;
+  check('SYSTEM: la durata fra le politiche — almeno 3 mesi (Condizioni), transitorio fino a 18, sotto i 3 mesi un no',
+    DURATA.test(SYSTEM) && SYSTEM.indexOf('- Lease length:') > SYSTEM.indexOf('BOOM policies (always true):'));
+  check('SYSTEM: nessuna durata sotto i 3 mesi («1 month», «one month», «1–18», «from 1 month»)',
+    !/\b(?:1|one)[- ]month\b|\b1\s*[–-]\s*18\b|from (?:1|one) month/i.test(SYSTEM));
+  check('le Condizioni dicono davvero il minimo di 3 mesi che il SYSTEM cita',
+    /All leases through BOOM have a minimum duration of 3 months/.test(src('terms.html')));
   // il giro vero: i fatti mandati al modello portano billsIncluded e i mesi di deposito
   // settings/ai assente (404 → null) = budget di default, spento: la chiamata passa
   const ENV_ADMIN = { e: process.env.FIREBASE_ADMIN_EMAIL, p: process.env.FIREBASE_ADMIN_PASS };
@@ -561,6 +581,10 @@ console.log('\n/api/ask-listing — le politiche che il codice applica davvero')
   check('i fatti al modello: billsIncluded: true e depositMonths: 2',
     typeof user === 'string' && /billsIncluded: true/.test(user) && /depositMonths: 2/.test(user), user && user.slice(0, 300));
   check('i fatti al modello: onorario IVA compresa di QUESTA casa', typeof user === 'string' && /€2,635 incl\. VAT/.test(user));
+  const sysSent = ANTHROPIC_BODY ? (Array.isArray(ANTHROPIC_BODY.system)
+    ? ANTHROPIC_BODY.system.map((b) => (b && b.text) || '').join('\n') : String(ANTHROPIC_BODY.system || '')) : '';
+  check('al modello arriva il SYSTEM con la riga della durata (il prompt spedito, non solo la sorgente)',
+    DURATA.test(sysSent), sysSent.slice(0, 200));
   check('la risposta arriva', res.statusCode === 200 && /Fine\./.test(res.body), res.body);
   check('A: al modello «Availability: Available now.»', typeof user === 'string' && /^Availability: Available now\.$/m.test(user), user);
   // la corsia arriva al modello: un'affittata col contratto non è «libera»
@@ -947,7 +971,7 @@ if (!chromium) {
       const { pg, out, errs } = await apri('/listing/NUOVA42');
       check('casa chiesta e sconosciuta (503, nata dopo la build): «This home is temporarily unavailable», mai la casa d\'esempio',
         out.h1.length === 1 && out.h1[0] === 'This home is temporarily unavailable'
-        && !/Bilocale Trastevere/.test(out.h1.join() + out.title) && /temporarily unavailable/.test(out.title), JSON.stringify(out.h1));
+        && !haEsempio(out.h1.join() + out.title) && /temporarily unavailable/.test(out.title), JSON.stringify(out.h1));
       check('…Retry e WhatsApp al posto dell\'indirizzo',
         /id="riprovaCasa"[^>]*>Retry<\/a>/.test(out.dove) && /href="https:\/\/wa\.me\/393313251961[^"]*"[^>]*>WhatsApp BOOM<\/a>/.test(out.dove), out.dove);
       check('…APPLY, hold, soldi e barra di decisione nascosti',

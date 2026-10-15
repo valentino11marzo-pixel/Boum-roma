@@ -29,6 +29,7 @@
 
 import { parseBudgetRange, normalizeForMatch } from '../homie/_match.js';
 import { replyLang } from '../_lang.js';
+import FACTS from '../../js/listing-facts.js';
 
 // ── quanto vale un lead che invecchia ──────────────────────────────────────
 // Mai zero: una persona che cercava casa due mesi fa è ancora una persona, e
@@ -118,10 +119,12 @@ export function leadCriteria(lead, listingById = new Map(), knownZones = []) {
   }
 
   // camere: parole > la casa chiesta
+  // (le camere della casa con la regola unica, js/listing-facts.js: prima
+  // vinceva il testo libero `beds` — «3» sul bilocale di Via dei Cappellari)
   let beds = bedsFromText(text);
   if (beds == null && asked) {
-    const b = Number(asked.beds != null ? asked.beds : asked.bedrooms);
-    if (Number.isFinite(b)) beds = b;
+    const b = FACTS.bedroomsOf(asked);
+    if (b != null) beds = b;
   }
 
   // zone: parole + la zona della casa chiesta + il campo esplicito
@@ -191,9 +194,10 @@ export function scoreLeadForListing(crit, listing, lead = {}, now = Date.now()) 
     reasons.push('budget non dichiarato');
   }
 
-  // camere (0–30)
-  const have = Number(listing.beds != null ? listing.beds : listing.bedrooms);
-  if (crit.beds != null && Number.isFinite(have)) {
+  // camere (0–30) — della casa, con la regola unica; ignote = né premio né
+  // condanna, come prima un NaN
+  const have = FACTS.bedroomsOf(listing);
+  if (crit.beds != null && have != null) {
     if (have === crit.beds) { base += 30; reasons.push(`${have} camere ✓`); }
     else if (Math.abs(have - crit.beds) === 1) { base += 15; reasons.push(`${have} camere (ne cercava ${crit.beds})`); }
     else reasons.push(`${have} camere (ne cercava ${crit.beds})`);
