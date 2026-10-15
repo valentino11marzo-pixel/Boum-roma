@@ -21,6 +21,7 @@
 // Firestore/Storage/Identity su stub in-memory. Dati sintetici.
 // Uso: node tests/mandato/casa.mjs
 import { register } from 'node:module';
+import { conditionalFirestore } from '../preagreement/conditional-firestore.mjs';
 register('../notify/loader.mjs', import.meta.url);
 
 process.env.FIREBASE_API_KEY = 'k';
@@ -147,6 +148,9 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+
+// The real lock carries commit versions into its subsequent atomic guards.
+globalThis.fetch = conditionalFirestore(globalThis.fetch, { DB: store, fields: toFsFields, unfields: fromFsFields });
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},
