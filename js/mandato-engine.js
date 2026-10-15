@@ -113,6 +113,9 @@
       v: VERSION,
       propertyId: pa.propertyId || null,
       address: normText((pa.property || {}).address) || null,
+      // l'interno che il cliente ha visto accettando: come l'indirizzo, non
+      // entra nell'impronta — serve a riconoscere la casa (homeCheck)
+      unit: normText((pa.property || {}).unit) || null,
       landlord: normText((pa.landlord || {}).name) || null,
       tenants: list.map(t => normText((t || {}).fullName)).filter(Boolean),
       model: modelOfLease(undefined, le),
@@ -139,6 +142,7 @@
       v: VERSION,
       propertyId: c.propertyId || null,
       address: null,
+      unit: null,
       landlord: normText(c.landlordName) || null,
       tenants: [c.tenantName].concat((Array.isArray(c.coTenants) ? c.coTenants : []).map(x => (x || {}).name))
         .map(normText).filter(Boolean),
@@ -174,11 +178,14 @@
     const s = String(paId == null ? '' : paId).trim();
     return s ? PA_PROPERTY_PREFIX + s : null;
   }
-  function alignPropertyToSnapshot(snapshot, current, paId) {
+  // matchedId: il record del portal già riconosciuto come la casa della
+  // proposta (stesso indirizzo e interno, homeCheck → propertyMatch).
+  function alignPropertyToSnapshot(snapshot, current, paId, matchedId) {
     if (!snapshot || !current) return current;
     if (snapshot.propertyId != null && snapshot.propertyId !== '') return current;
     const born = proposalPropertyId(paId);
-    if (!born || current.propertyId !== born) return current;
+    const same = (born && current.propertyId === born) || (matchedId && current.propertyId === matchedId);
+    if (!same) return current;
     return Object.assign({}, current, { propertyId: null });
   }
   // Le condizioni di ADESSO lette dal contratto, nella forma in cui si
@@ -188,12 +195,153 @@
   function termsForMandate(contract, mandate) {
     const m = mandate || {};
     const c = contract || {};
-    return alignPropertyToSnapshot(m.terms, termsFromContract(c), m.paId || c.preAgreementId);
+    const pm = m.propertyMatch && m.propertyMatch.by === 'address+unit' ? m.propertyMatch.propertyId : null;
+    return alignPropertyToSnapshot(m.terms, termsFromContract(c), m.paId || c.preAgreementId, pm);
+  }
+
+  // LA CASA DELLA PROPOSTA GIÀ NEL PORTAL (15/10/2026 — «fallo valere con
+  // stesso indirizzo e interno»). Una proposta accettata senza immobile
+  // collegato fotografa un INDIRIZZO; se il contratto nasce su un record del
+  // portal con lo stesso indirizzo e lo stesso interno, quel record È la casa
+  // che il cliente ha approvato. Le regole sono strette di proposito — è la
+  // base su cui BOOM firma al posto del cliente:
+  //   · si confrontano via e civico normalizzati (maiuscole, accenti,
+  //     punteggiatura, le abbreviazioni comuni, «n.»/«civico» davanti al
+  //     numero, scala e piano dopo, città e CAP, il quartiere dopo la
+  //     virgola) e l'interno, con la normalizzazione del lucchetto
+  //     (_lock.js normUnit): «Int. 11» = «11». Un interno non dichiarato
+  //     combacia solo con un interno non dichiarato: per BOOM è la casa
+  //     intera a quell'indirizzo (lucchetto e sovrapposizioni la leggono
+  //     così), e la console lo DICE prima della firma;
+  //   · l'interno approvato è quello della FOTO (unit, dal 15/10); per una
+  //     foto più vecchia quello della proposta, che dopo l'accettazione non
+  //     si modifica — salvo l'interno dichiarato dalla console (resolve:
+  //     unitDeclaredAt) o un indirizzo ritoccato: lì l'interno che il
+  //     cliente ha visto non è più ricostruibile, e il riscontro non c'è;
+  //   · un indirizzo che non si legge con certezza (nessun tipo di via,
+  //     nessun civico, parole dopo il civico) NON combacia mai: fra un
+  //     mandato inservibile e una firma sulla casa sbagliata, il primo.
+  // Il riscontro si prende dove ci sono entrambi i dati (conversione,
+  // mandato dato dopo, ✍️ Firmo io) e resta scritto sul mandato
+  // (propertyMatch): firma, lookup e portal lo leggono senza rileggere
+  // l'immobile. Vale per QUEL record: un contratto spostato su un altro
+  // immobile torna un cambio di condizioni.
+  function normUnit(v) {
+    return String(v == null ? '' : v).trim().toLowerCase()
+      .replace(/^int(erno)?\.?\s*/, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, '')
+      .slice(0, 24);
+  }
+  const STREET_TYPES = ['via', 'viale', 'piazza', 'piazzale', 'piazzetta', 'largo', 'corso', 'vicolo', 'vico',
+    'lungotevere', 'circonvallazione', 'borgo', 'salita', 'clivo', 'strada', 'stradone', 'galleria',
+    'passeggiata', 'rampa', 'scalinata', 'traversa', 'lungomare', 'contrada', 'localita', 'discesa'];
+  const CITY_WORDS = ['roma', 'rome', 'rm', 'italia', 'italy'];
+  const ABBREV = [
+    [/\bv\.\s*le\b/g, 'viale'], [/\bvle\b/g, 'viale'],
+    [/\bp\.\s*zza\b/g, 'piazza'], [/\bp\.\s*za\b/g, 'piazza'], [/\bpzza\b/g, 'piazza'],
+    [/\bp\.\s*le\b/g, 'piazzale'],
+    [/\bl\.\s*go\b/g, 'largo'], [/\bc\.\s*so\b/g, 'corso'],
+    [/\bv\.\s*lo\b/g, 'vicolo'], [/\bvic\./g, 'vicolo'],
+    [/\bl\.\s*re\b/g, 'lungotevere'], [/\blungot\./g, 'lungotevere'],
+    [/\bcirc\.\s*ne\b/g, 'circonvallazione'],
+    [/(^|,)\s*v\.\s+/g, '$1via '],
+  ];
+  const isCivic = (t) => /^\d{1,4}(?:[a-z]|bis|ter)?$/.test(t);
+  // { street, civic, unit } o null quando l'indirizzo non si legge con certezza.
+  function homeKey(address) {
+    let s = String(address == null ? '' : address).toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u2019'`\u00b4]/g, ' ');
+    for (const [re, to] of ABBREV) s = s.replace(re, to);
+    let unit = '';
+    s = s.replace(/\b(?:int|interno)\b\.?\s*([a-z0-9]+)/g, (m0, u) => { if (!unit) unit = u; return ' '; });
+    // «n. 52», «n° 52», «nr 52», «civico 52»: il numero resta, l'etichetta no
+    // («Via N. Sauro 12» resta com'è: dopo la N non c'è un numero)
+    s = s.replace(/\b(?:n|nr|num|numero|civico|civ)\b\s*[.\u00b0\u00ba]?\s*(?=\d)/g, ' ');
+    s = s.replace(/(\d)\s*\/\s*([a-z])\b/g, '$1$2').replace(/(\d)\s+(bis|ter)\b/g, '$1$2');
+    // scala, piano, palazzina DOPO il civico non sono l'indirizzo
+    s = s.replace(/(\d[a-z]?)\s*,?\s*\b(?:scala|sc|piano|palazzina|pal|edificio|lotto)\b\.?\s*[a-z0-9]+\b/g, '$1');
+    const segs = s.split(/[,;]/)
+      .map(x => x.replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean))
+      .filter(a => a.length);
+    let si = -1, ti = -1;
+    for (let i = 0; i < segs.length && si < 0; i++) {
+      const k = segs[i].findIndex(t => STREET_TYPES.indexOf(t) >= 0);
+      if (k >= 0) { si = i; ti = k; }
+    }
+    if (si < 0) return null;
+    const seg = segs[si];
+    let end = seg.length;
+    while (end > ti + 1 && (CITY_WORDS.indexOf(seg[end - 1]) >= 0 || /^\d{5}$/.test(seg[end - 1]))) end--;
+    let civic = null, nameEnd = end;
+    if (end - 2 > ti && /^[a-z]$/.test(seg[end - 1]) && isCivic(seg[end - 2]) && /^\d+$/.test(seg[end - 2])) {
+      civic = seg[end - 2] + seg[end - 1]; nameEnd = end - 2;              // «12 a»
+    } else if (end - 1 > ti && isCivic(seg[end - 1])) {
+      civic = seg[end - 1]; nameEnd = end - 1;                              // «via x 12»
+    } else if (end === seg.length && ti > 0 && isCivic(seg[ti - 1])) {
+      civic = seg[ti - 1];                                                  // «12 via x»
+    } else if (end === seg.length && segs[si + 1] && isCivic(segs[si + 1][0])) {
+      const nx = segs[si + 1];                                              // «via x, 12»
+      civic = nx[0] + (nx[1] && /^[a-z]$/.test(nx[1]) && /^\d+$/.test(nx[0]) ? nx[1] : '');
+    }
+    if (!civic) return null;
+    const name = seg.slice(ti, nameEnd);
+    if (name.length < 2) return null;
+    return { street: name.join(' '), civic, unit };
+  }
+  // approved / record: { address, unit } (record: anche `interno`).
+  function homeMatch(approved, record) {
+    const a = approved || {}, r = record || {};
+    const A = homeKey(a.address), B = homeKey(r.address);
+    if (!A || !B) return { match: false, reason: 'address_unreadable', approved: A, record: B };
+    if (A.street !== B.street || A.civic !== B.civic) return { match: false, reason: 'address', approved: A, record: B };
+    const ua = normUnit(a.unit) || normUnit(A.unit);
+    const ub = normUnit(r.unit) || normUnit(r.interno) || normUnit(B.unit);
+    if (ua !== ub) return { match: false, reason: 'unit', approved: A, record: B, approvedUnit: ua, recordUnit: ub };
+    const where = A.street + ' ' + A.civic;
+    return { match: true, unit: ua || null, key: where + (ua ? ' int ' + ua : ''), label: where + (ua ? ', int. ' + ua : ' (interno non dichiarato su entrambi)') };
+  }
+  // Serve il riscontro? Solo con la foto SENZA immobile e un contratto su un
+  // record che non è quello nato dalla proposta (quello vale già). null =
+  // non serve; { match:false, reason:'property_missing' } = serve, manca il
+  // record (chi chiama lo legge e richiama).
+  function homeCheck(o) {
+    o = o || {};
+    const terms = o.terms || {}, c = o.contract || {};
+    if (terms.propertyId != null && terms.propertyId !== '') return null;
+    const pid = c.propertyId || null;
+    if (!pid || pid === proposalPropertyId(o.paId || c.preAgreementId)) return null;
+    if (!o.property) return { propertyId: pid, match: false, reason: 'property_missing' };
+    const pa = o.pa || {}, p = pa.property || {};
+    let unit;
+    if (Object.prototype.hasOwnProperty.call(terms, 'unit')) unit = terms.unit;            // la foto
+    else if (pa.unitDeclaredAt || (terms.address && normText(p.address) !== terms.address)) {
+      return { propertyId: pid, match: false, reason: 'unit_unknown' };
+    } else unit = p.unit;                                                                     // foto vecchia
+    return Object.assign({ propertyId: pid }, homeMatch({ address: terms.address || p.address, unit }, o.property));
+  }
+  // Ciò che si scrive sul mandato quando combacia (o null).
+  function propertyMatchFrom(check, at) {
+    if (!check || check.match !== true) return null;
+    return { propertyId: check.propertyId, by: 'address+unit', home: check.key, label: check.label, at: at || new Date().toISOString() };
+  }
+  // In parole, per la console: perché il record collegato non è la casa.
+  function describeHome(check) {
+    if (!check || check.match) return '';
+    const shown = (k) => k ? (k.street + ' ' + k.civic) : 'non leggibile';
+    if (check.reason === 'unit') return 'interno diverso: proposta «' + (check.approvedUnit || '—') + '», immobile «' + (check.recordUnit || '—') + '»';
+    if (check.reason === 'address') return 'indirizzo diverso: proposta «' + shown(check.approved) + '», immobile «' + shown(check.record) + '»';
+    if (check.reason === 'address_unreadable') return 'indirizzo non leggibile con certezza (serve via e civico): proposta «' + shown(check.approved) + '», immobile «' + shown(check.record) + '»';
+    if (check.reason === 'unit_unknown') return 'l\'interno che il cliente ha approvato non è ricostruibile (proposta ritoccata o interno dichiarato dopo l\'accettazione)';
+    if (check.reason === 'property_missing') return 'immobile del contratto non trovato';
+    return 'casa diversa';
   }
 
   // La forma che si HASHA (server) e si confronta (browser): chiavi in
-  // ordine fisso, l'indirizzo escluso (è un dato della proposta che il
-  // contratto non porta — entra nel diff SOLO se entrambi i lati lo hanno).
+  // ordine fisso, indirizzo e interno esclusi (sono dati della proposta che
+  // il contratto non porta — l'indirizzo entra nel diff SOLO se entrambi i
+  // lati lo hanno, l'interno serve solo a riconoscere la casa).
   const KEYS = ['v', 'propertyId', 'landlord', 'tenants', 'model', 'startDate', 'endDate',
     'rent', 'deposit', 'accessoryCharges', 'billEnergyCredit', 'installmentMonths', 'cedolare', 'clauses'];
   function canonical(terms) {
@@ -229,4 +377,7 @@
   const API = { VERSION, LABELS, normText, normClauses, modelOfLease, modelOfContract, termsFromProposal, termsFromContract, proposalPropertyId, alignPropertyToSnapshot, termsForMandate, canonical, diffTerms, describeDiff };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_MANDATO = API;
+  // la casa della proposta già nel portal (15/10/2026): lo stesso oggetto
+  // esportato, quindi visibile da server e portal
+  Object.assign(API, { normUnit, homeKey, homeMatch, homeCheck, propertyMatchFrom, describeHome });
 })(typeof window !== 'undefined' ? window : this);

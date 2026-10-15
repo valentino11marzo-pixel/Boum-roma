@@ -349,6 +349,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 <script src="/js/boom-portal.js"></script>
 <script>if(window.BoomPortal&&BoomPortal.bugButton)BoomPortal.bugButton('pre-agreement-admin');</script>
 <script src="/js/canone-engine.js"></script>
+<script src="/js/mandato-engine.js"></script>
 <script>
 (function(){
 'use strict';
@@ -761,10 +762,14 @@ function preflightLines(j){
     (c.cotenants||[]).forEach(function(ct){who.push('Co-conduttore '+ct.name+': '+ct.missing.join(', '))});
     out.push({k:'dots',n:n,t:n?('Il PDF stamperebbe '+n+' puntin'+(n===1?'o':'i')+' — '+who.join(' · ')):(who.length?'PDF completo; per la registrazione mancano — '+who.join(' · '):'✓ Nessun puntino: identità e termini completi.')});
   }
+  /* il mandato del conduttore su QUESTO immobile (convert dryRun, 15/10/2026) */
+  var md=j&&j.mandate;
+  if(md&&md.ok&&md.home&&md.home.match)out.push({k:'mandate',t:'✓ Mandato del conduttore valido su questa casa: stesso indirizzo e stesso interno della proposta ('+md.home.label+').'});
+  else if(md&&md.ok===false)out.push({k:'mandate',warn:true,t:'⚠ Su questo immobile il mandato del conduttore NON sarà spendibile'+(md.home&&md.home.text?' — '+md.home.text:(md.diff?' ('+md.diff+')':''))+': firmerà il conduttore col suo link, oppure scegli la casa della proposta.'});
   return out;
 }
 function preflightHtml(j){
-  return preflightLines(j).map(function(l){return '<div style="margin-top:4px;'+(l.k==='overlap'?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
+  return preflightLines(j).map(function(l){return '<div style="margin-top:4px;'+((l.k==='overlap'||l.warn)?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
     +(j&&j.overlap?'<label class="dele" style="margin-top:8px"><input type="checkbox" id="cvForce"><span><b>Crea comunque</b> — è un’altra stanza/interno non modellato, oppure sostituisce quello in corso.</span></label>':'');
 }
 function ask(msg){return (typeof confirm==='function')?confirm(msg):true;}
@@ -798,10 +803,12 @@ window.signFor=async function(id,btn){
     var needsContract=st.hasContract===false;
     if(p.signatureStatus==='complete'){restore();alert('Il contratto è già firmato da entrambe le parti.');return;}
     if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
-    if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
+    if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+(p.home&&!p.home.match&&p.home.text?' — '+p.home.text:'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
     var lines=[];
-    if(needsContract)lines.push(contractBirthText(d,'firmare',await existingPropFor(d)));
+    var same=needsContract?await existingPropFor(d):null;
+    if(needsContract)lines.push(contractBirthText(d,'firmare',same));
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
+    if(!p.tenantSigned&&p.home&&p.home.match)lines.push('La casa del contratto è quella della proposta, già nel portal: '+p.home.label+' — stesso indirizzo e stesso interno.');
     if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
     var lm=p.landlordMandate||null;
     if(!p.landlordSigned){
@@ -821,6 +828,7 @@ window.signFor=async function(id,btn){
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id,contractVersion:p.contractVersion||1,ackUploadedPdf:!!p.uploadedPdf};
     if(needsContract){if(d.propertyId)body.propertyId=d.propertyId;else body.createProperty=true;}
+    if(needsContract&&!d.propertyId&&same&&same.exact){delete body.createProperty;body.propertyId=same.id;}
     if(!p.landlordSigned&&!lm&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link (o gli chiedi il mandato dalla riga).')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
@@ -882,6 +890,7 @@ window.askLandlordMandateFor=async function(id,opt){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   /* dopo ✍️ il contratto esiste già anche se la riga non l'ha ancora riletto */
   if(!(opt&&opt.contractKnown)&&!(await confirmContractBirth(d,'chiedere il mandato al proprietario')))return;
+  var twin=(opt&&opt.contractKnown)?null:await homeTarget(d);if(twin)d=Object.assign({},d,{propertyId:twin.id});
   try{
     var tok=await USER.getIdToken();
     var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'ask-landlord-mandate',id:id,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
@@ -904,6 +913,9 @@ window.askLandlordMandateFor=async function(id,opt){
    Scheda di Chiara Tavolieri non esisteva). */
 function contractBirthText(d,purpose,same){
   var addr=((d.property||{}).address)||'';
+  if(!d.propertyId&&same&&same.exact)return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso sull’immobile che c’è GIÀ nel portal: «'+same.name+(same.address&&same.address!==same.name?' — '+same.address:'')+'» — stesso indirizzo e stesso interno della proposta ('+same.homeLabel+'). Nessun doppione'
+    +((d.mandate&&d.mandate.given)?', e il mandato del conduttore vale su questa casa.':'.')
+    +'\n\nSe NON è la stessa casa, annulla e scegli da → Contratto.';
   return 'Il contratto di questa proposta non esiste ancora: per '+purpose+' lo creo adesso'
     +(d.propertyId?'.':', insieme all’immobile «'+addr+'» (dalla proposta: nel portal non è collegato a nessun immobile).')
     +(same
@@ -981,6 +993,7 @@ window.sendLandlordScheda=async function(id,btn){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   var ll=d.landlord||{};
   if(!(await confirmContractBirth(d,'mandare la Scheda a '+(ll.name||'il proprietario'))))return;
+  var twin=await homeTarget(d);if(twin)d=Object.assign({},d,{propertyId:twin.id});
   var was=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Preparo…';}
   try{
@@ -1186,7 +1199,7 @@ window.draftPdf=async function(id,btn){
     var ov=document.createElement('div');ov.className='cvov';ov.id='draftov';
     ov.innerHTML='<div class="cvbox"><h3>📄 Bozza del contratto</h3>'
       +'<div class="sub2">Lo stesso documento che <b>→ Contratto</b> scriverebbe: nessun contratto, profilo o immobile è stato creato. '+(j.draftPdfSame?'Identica alla bozza precedente. ':'')+'Il cliente la trova sulla sua pagina accanto al mandato, a soldi ricevuti.</div>'
-      +L.map(function(l){return '<div style="font-size:12.5px;margin-top:4px;'+(l.k==='overlap'?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
+      +L.map(function(l){return '<div style="font-size:12.5px;margin-top:4px;'+((l.k==='overlap'||l.warn)?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
       +'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><a class="pbtn prim" href="'+j.draftPdfUrl+'" target="_blank" rel="noopener">Apri la bozza (PDF)</a><button class="pbtn" id="draftClose">Chiudi</button></div></div>';
     document.body.appendChild(ov);
     ov.querySelector('#draftClose').onclick=function(){ov.remove();};
@@ -1490,7 +1503,7 @@ async function loadProps(){
   PROPS=[];
   try{
     var snap=await firebase.firestore().collection('properties').limit(200).get();
-    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||'',
+    snap.forEach(function(doc){var v=doc.data();PROPS.push({id:doc.id,name:v.name||v.title||doc.id,address:v.address||'',zone:v.zone||'',unit:v.unit||'',interno:v.interno||'',
       sqm:+v.sqm||0,furnished:!!v.furnished,energyClass:v.energyClass||'',floor:v.floor||'',canoneZonaCod:v.canoneZonaCod||'',
       features:(Array.isArray(v.features)?v.features:[]).concat(Array.isArray(v.amenities)?v.amenities:[])});});
     PROPS.sort(function(a,b){return String(a.name).localeCompare(String(b.name))});
@@ -1505,9 +1518,32 @@ function propGuess(d,props){
   var norm=function(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'')};
   props=props||[];
   return (d&&d.propertyId?props.find(function(p){return p.id===d.propertyId}):null)
+    ||homeTwin(d,props)
     ||(norm(addr)?props.find(function(p){return p.address&&norm(addr).indexOf(norm(p.address).slice(0,14))===0}):null)
     ||(norm(addr)?props.find(function(p){return norm(p.address)&&norm(addr).indexOf(norm(p.address).slice(0,10))>=0}):null)
     ||null;
+}
+/* LA STESSA CASA (15/10/2026 — «fallo valere con stesso indirizzo e
+   interno»): il record del portal con lo stesso indirizzo e lo stesso interno
+   della proposta, con la regola del server (BOOM_MANDATO.homeCheck, una
+   copia). Su quello il mandato del conduttore vale e non nasce un doppione.
+   Senza il motore si ricade sull'abbinamento somigliante, che avvisa. */
+function homeTwin(d,props){
+  var M=window.BOOM_MANDATO;
+  if(!M||!M.homeCheck||!d)return null;
+  var T=(d.approvedTerms&&d.approvedTerms.terms)||M.termsFromProposal(d);
+  for(var i=0;i<(props||[]).length;i++){
+    var p=props[i],c=M.homeCheck({terms:T,pa:d,paId:d.id,contract:{propertyId:p.id},property:p});
+    if(c&&c.match)return Object.assign({},p,{exact:true,homeLabel:c.label});
+  }
+  return null;
+}
+/* 📋 🏠 ✍️ su una proposta senza contratto: se la stessa casa è già nel
+   portal il contratto nasce LÌ (propertyId), non su un immobile nuovo */
+async function homeTarget(d){
+  if(!d||d.propertyId||contractIdOf(d))return null;
+  var g=await existingPropFor(d);
+  return (g&&g.exact)?g:null;
 }
 window.closeConvert=function(){var o=document.getElementById('cvov');if(o)o.remove();};
 window.convertPA=async function(id){

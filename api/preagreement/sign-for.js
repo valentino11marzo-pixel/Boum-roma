@@ -134,6 +134,43 @@ export function signPlan(contract, opSig) {
   };
 }
 
+// LA CASA, RICONTROLLATA (15/10/2026 — «fallo valere con stesso indirizzo e
+// interno»). Il mandato di una proposta senza immobile collegato vale sul
+// record del portal con lo STESSO indirizzo e lo STESSO interno
+// (MANDATO.homeCheck): la conversione lo scrive sul mandato (propertyMatch).
+// Qui lo si ricalcola sull'immobile di ADESSO — un contratto convertito
+// prima della regola non lo porta, e un immobile ritoccato dopo può non
+// essere più la casa approvata. Pura sul dato già letto: il mandato come
+// DEVE essere ora (riscontro aggiunto, tolto o invariato) e se va riscritto.
+export function healTenantMandate({ contract, pa, paId, property, at }) {
+  const m = contract && contract.tenantMandate;
+  if (!m || m.given !== true || !(Number(m.termsVersion) >= 2) || !m.terms) return null;
+  const home = MANDATO.homeCheck({ terms: m.terms, pa, paId: m.paId || paId, contract, property });
+  if (!home) return null;
+  const had = (m.propertyMatch && m.propertyMatch.by === 'address+unit') ? m.propertyMatch : null;
+  const pm = MANDATO.propertyMatchFrom(home, at);
+  if ((!had && !pm) || (had && pm && had.propertyId === pm.propertyId && had.home === pm.home)) return { home, changed: false, mandate: m };
+  const next = { ...m };
+  if (pm) next.propertyMatch = pm; else delete next.propertyMatch;
+  const diff = MANDATO.diffTerms(next.terms, MANDATO.termsForMandate(contract, next));
+  next.termsMatch = diff.length === 0;
+  next.termsDiff = diff.map(d => d.key);
+  next.termsCheckedAt = at || new Date().toISOString();
+  return { home, changed: true, mandate: next };
+}
+// L'immobile si rilegge solo quando serve (foto senza immobile, contratto su
+// un record che non è quello nato dalla proposta). Una lettura FALLITA non
+// tocca niente: si tiene il riscontro che c'è.
+async function homeHealFor(contract, pa, paId, at) {
+  const m = contract && contract.tenantMandate;
+  if (!m || m.given !== true || !m.terms || (m.terms.propertyId != null && m.terms.propertyId !== '')) return null;
+  if (!contract.propertyId || contract.propertyId === MANDATO.proposalPropertyId(m.paId || paId)) return null;
+  let property;
+  try { property = await fsGet('properties/' + contract.propertyId); } catch (_) { return null; }
+  return healTenantMandate({ contract, pa, paId, property, at });
+}
+const homeOut = (h) => h ? { match: h.home.match === true, label: h.home.label || '', reason: h.home.reason || null, text: MANDATO.describeHome(h.home) } : null;
+
 // magic-sign/submit IN-PROCESS (stesso trucco di employees/_fiducia.js):
 // l'handler resta una funzione Vercel E una libreria. Tutte le guardie
 // (mandato, termini, sequenza, already_signed, otp) e il finalize restano
@@ -222,7 +259,9 @@ export default async function handler(req, res) {
   if (contract && !contractId) contractId = 'pa_' + paId;
 
   if (op === 'status') {
-    const plan = contract ? signPlan(contract, opSig) : {
+    // la casa ricontrollata IN MEMORIA: il piano dice la verità senza scrivere
+    const heal = (contract && !contract.tenantSignature) ? await homeHealFor(contract, pa, paId, nowISO) : null;
+    const plan = contract ? signPlan(heal ? { ...contract, tenantMandate: heal.mandate } : contract, opSig) : {
       signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true,
       mandate: (pa.mandate && pa.mandate.given) ? { at: pa.mandate.at || null, ref: pa.ref || null } : null,
       mandateOk: !!(pa.mandate && pa.mandate.given), mandateReason: (pa.mandate && pa.mandate.given) ? null : 'mandate_missing',
@@ -230,6 +269,7 @@ export default async function handler(req, res) {
       coTenantsPending: [], operatorSignature: !!opSig,
       canSignTenant: !!(pa.mandate && pa.mandate.given) && !!opSig, canSignLandlord: false,
     };
+    if (heal) plan.home = homeOut(heal);
     return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan, landlordMandateUrl: contract ? landlordMandateUrl(contractId) : null });
   }
 
@@ -389,10 +429,19 @@ export default async function handler(req, res) {
 
   // ── 1. IL CONDUTTORE, per mandato ────────────────────────────────────
   if (!sig0.tenantSigned) {
+    // la casa ricontrollata sull'immobile di ADESSO, e scritta sul mandato
+    // PRIMA della firma: submit (in-process, rilegge il contratto) e lookup
+    // leggono il riscontro dal mandato
+    const heal = await homeHealFor(contract, pa, paId, nowISO);
+    if (heal && heal.changed) {
+      await fsPatch('contracts/' + contractId, { tenantMandate: heal.mandate });
+      contract.tenantMandate = heal.mandate;
+    }
     const chk = mandateCheck(contract);
     if (!chk.ok) {
       return res.status(errStatus(chk.reason)).json({
         ok: false, error: chk.reason, contractId,
+        ...(heal && !heal.home.match ? { home: homeOut(heal) } : {}),
         changed: (chk.diff || []).map(d => d.key), changedText: MANDATO.describeDiff(chk.diff || []),
         landlordSignUrl: signUrl(toks.landlord),
         tenantSignUrl: signUrl(toks.tenant),
