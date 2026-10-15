@@ -11,6 +11,8 @@ import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+import { runInNewContext } from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -111,13 +113,29 @@ ok(ctx.every((a) => P.KINDS[a.need]), 'ogni azione contestuale punta a un tipo d
 ok(Object.values(P.KINDS).every((k) => k.ask && k.icon && k.label && k.via.length),
   'ogni tipo di record sa come si chiama, come si chiede e come si riconosce');
 
-// La riga di handleSearch che apre un contratto DEVE essere `viewContract('id')`:
-// è così che il selettore riconosce il tipo. Se cambia, il selettore smette
-// di trovare quel tipo — silenziosamente. Questo è il test che lo impedisce.
-const hs = app.slice(app.indexOf('function handleSearch'), app.indexOf('function handleSearch') + 4200);
-for (const [kind, k] of Object.entries(P.KINDS)) {
-  const found = k.via.some((fn) => new RegExp(`action: \`${fn}\\('`).test(hs));
-  ok(found, `tipo "${kind}": handleSearch produce davvero una riga ${k.via.join('/')}(...)`);
+// Il selettore legge la stessa API dati della home e dell'header. Il motore
+// reale verifica anche il filtro prima del limite, senza manipolare la tendina.
+const searchEngine = require(join(ROOT, 'js', 'portal-search-engine.js'));
+const sharedState = {
+  clients: Array.from({ length: 20 }, (_, i) => ({ id: 'crm-' + i, name: 'Rossi CRM ' + i })),
+  properties: [{ id: 'house-rossi', name: 'Casa Rossi' }],
+  users: [{ id: 'person-rossi', name: 'Rossi Persona', role: 'tenant' }],
+  contracts: [{ id: 'contract-rossi', propertyId: 'house-rossi', tenantId: 'person-rossi' }]
+};
+const sharedCalls = [];
+const sharedHost = {
+  portalSearchRecords(query, kind, limit) {
+    sharedCalls.push([query, kind, limit]);
+    return searchEngine.search(query, sharedState, { kind, limit });
+  },
+  handleSearch() { throw Error('Shared data search must not rebuild the dropdown'); }
+};
+for (const [kind, expected] of [['property', 'house-rossi'], ['person', 'person-rossi'], ['contract', 'contract-rossi'], ['client', 'crm-0']]) {
+  const records = P.findRecords('rossi', kind, sharedHost);
+  ok(records.some(record => record.id === expected) && records.every(record => record.kind === kind),
+    `findRecords: l'API condivisa trova il ${kind} anche oltre i primi clienti`);
+  ok(records.length <= 12 && JSON.stringify(sharedCalls.at(-1)) === JSON.stringify(['rossi', kind, 12]),
+    `findRecords: ${kind} usa il filtro e il limite espliciti, senza DOM`);
 }
 
 // I segnaposto diventano valori, e restano dati per tutto il percorso
@@ -136,9 +154,8 @@ ok(P.run(aFasc, ctxWin) === false && fasc === null, 'un\'azione contestuale SENZ
 ok(P.run(aFasc, ctxWin, { id: '' }) === false && fasc === null, 'un record senza id non conta come record');
 ok(P.run(aFasc, ctxWin, { id: 'ct7' }) === true && fasc === 'ct7', 'col record scelto parte con l\'id VERO');
 
-// ── 10. Il selettore guida la ricerca VERA (nessun secondo indice) ──────
-// Si costruisce la tendina ESATTAMENTE come la disegna portal-app.js e si
-// pretende che findRecords tenga solo le righe del tipo chiesto.
+// ── 10. Compatibilità con un portal legacy senza API dati condivisa ────
+// Il fallback continua a riconoscere solo le righe del tipo chiesto.
 function fakeWinWithSearch() {
   const rows = [];
   const mk = (onclick, label, sub) => ({
@@ -228,6 +245,195 @@ for (const a of P.ACTIONS.filter((x) => x.fn === 'open' && !x.need)) {
   const why = servedOk(a.args[0]);
   ok(!why, `"${a.label}" apre una pagina servita in produzione${why ? ' — ' + why : ''}`);
 }
+
+// ── 15. La home apre gli strumenti veri, senza indovinare il contesto ──
+const homeCheck = (name, fn) => {
+  try { fn(); ok(true, 'home: ' + name); } catch (error) { ok(false, 'home: ' + name); console.error(error.message); }
+};
+const homeState = {
+  properties: [{ id: 'p1', name: 'Casa comune' }, { id: 'p2', name: 'Casa comune' }],
+  contracts: [{ id: 'c1', propertyId: 'p1', propertyName: 'Casa comune', status: 'active' },
+    { id: 'closed', propertyId: 'p2', status: 'completed' }],
+  users: [{ id: 'u1', name: 'Persona comune' }], clients: [{ id: 'crm1', name: 'Persona comune' }]
+};
+const home = (kind, id, state = homeState, api = P) => api.homeTools({ kind, id }, state, 2027);
+const homeAction = (rows, id) => rows.find(a => a.id === 'home:' + id);
+const bare = P.homeTools(null, {}, 2027);
+homeCheck('sedici strumenti stabili aprono pagine e moduli senza scelta implicita', () => {
+  assert.deepEqual(bare.map(a => a.id), ['home:properties', 'home:people', 'home:whatsapp', 'home:email',
+    'home:appointments', 'home:calls', 'home:document', 'home:magic-sign', 'home:inventory', 'home:handover',
+    'home:maintenance', 'home:payment', 'home:invoices', 'home:listings', 'home:templates', 'home:automations']);
+  assert.deepEqual(bare.map(a => a.label), ['Immobili', 'Persone', 'WhatsApp', 'Email', 'Agenda', 'Chiamate',
+    'Documenti', 'Magic Sign', 'Inventario', 'Consegna', 'Interventi', 'Incassi', 'Fatture', 'Annunci', 'Modelli', 'Automazioni']);
+  assert.deepEqual(bare.map(a => [a.fn, a.args]), [
+    ['goTo', ['properties']], ['goTo', ['users']], ['oggiOpenInbox', ['whatsapp']], ['oggiOpenInbox', ['email']],
+    ['goTo', ['viewings']], ['open', ['/chiamate']], ['openDocUploadModal', []], ['openMagicSignEditor', []],
+    ['open', ['/inventario']], ['open', ['/verbale']], ['openModal', ['addMaintenance']], ['goTo', ['payments']],
+    ['goTo', ['invoices']], ['goTo', ['listings']], ['goTo', ['templates']], ['goTo', ['rules']]
+  ]);
+  assert(bare.every(a => a.label && a.description && a.icon && !a.prefill && !a.disabled));
+  assert.deepEqual(P.homeTools(undefined, undefined, 2027), bare);
+});
+homeCheck('un cliente CRM precompila il wizard, una persona omonima non lo fa', () => {
+  const global = P.homeNewClient(null, homeState);
+  assert.equal(global.id, 'home:new-client'); assert.equal(global.fn, 'openNewClientWizard'); assert.deepEqual(global.args, []);
+  assert.deepEqual(P.homeNewClient({ kind: 'client', id: 'crm1' }, homeState).args, ['crmClient', 'crm1']);
+  assert.deepEqual(P.homeNewClient({ kind: 'person', id: 'u1' }, homeState).args, []);
+  assert.deepEqual([homeAction(home('client', 'crm1'), 'people').fn, homeAction(home('client', 'crm1'), 'people').args], ['viewClient', ['crm1']]);
+  assert.deepEqual(homeAction(home('client', 'crm1'), 'document').args, []);
+});
+homeCheck('immobile: inventario, documento e manutenzione sullo stesso ID', () => {
+  const rows = home('property', 'p1');
+  assert.deepEqual([homeAction(rows, 'properties').fn, homeAction(rows, 'properties').args], ['viewProperty', ['p1']]);
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario?p=p1']);
+  assert.deepEqual([homeAction(rows, 'document').fn, homeAction(rows, 'document').args], ['openDocUploadForProperty', ['p1', 2027]]);
+  assert.deepEqual(homeAction(rows, 'maintenance').prefill, { field: 'propertyId', value: 'p1' });
+  assert.equal(homeAction(rows, 'payment').prefill, undefined);
+  assert.deepEqual(homeAction(rows, 'handover').args, ['/verbale']);
+});
+homeCheck('documento persona usa users, senza attribuirle contratti o case', () => {
+  const rows = home('person', 'u1');
+  assert.deepEqual([homeAction(rows, 'people').fn, homeAction(rows, 'people').args], ['openPerson', ['u1']]);
+  assert.deepEqual([homeAction(rows, 'document').fn, homeAction(rows, 'document').args], ['openUserDocUpload', ['u1']]);
+  assert.equal(homeAction(rows, 'maintenance').prefill, undefined);
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario']);
+});
+homeCheck('contratto: verbale e inventario esatti; incassi consultabili e casa tramite ID', () => {
+  const rows = home('contract', 'c1');
+  assert.deepEqual(homeAction(rows, 'inventory').args, ['/inventario?c=c1']);
+  assert.deepEqual(homeAction(rows, 'handover').args, ['/verbale?c=c1']);
+  assert.deepEqual([homeAction(rows, 'payment').fn, homeAction(rows, 'payment').args], ['goTo', ['payments']]);
+  assert.equal(homeAction(rows, 'payment').prefill, undefined);
+  assert.deepEqual(homeAction(rows, 'maintenance').prefill, { field: 'propertyId', value: 'p1' });
+  assert.deepEqual([homeAction(rows, 'properties').fn, homeAction(rows, 'properties').args], ['viewProperty', ['p1']]);
+  assert.deepEqual([homeAction(rows, 'magic-sign').fn, homeAction(rows, 'magic-sign').args], ['viewContractSignatures', ['c1']]);
+  assert.deepEqual(homeAction(rows, 'people').args, ['users']);
+  assert.equal(homeAction(rows, 'document').fn, 'openDocUploadModal');
+});
+homeCheck('Inbox conserva il tipo del contatto e non deduce il destinatario da contratto o casa', () => {
+  const sameId = { ...homeState, users: [{ id: 'same', name: 'Omonimo', role: 'tenant' }], clients: [{ id: 'same', name: 'Omonimo' }] };
+  for (const channel of ['whatsapp', 'email']) {
+    for (const kind of ['person', 'client']) {
+      const a = homeAction(home(kind, 'same', sameId), channel);
+      assert.equal(a.fn, 'oggiOpenInbox'); assert.deepEqual(a.args, [channel, { kind, id: 'same' }]);
+      const calls = [];
+      assert.equal(P.run(a, { oggiOpenInbox: (...args) => calls.push(args) }), true);
+      assert.deepEqual(calls, [[channel, { kind, id: 'same' }]]);
+    }
+    for (const [kind, id] of [['property', 'p1'], ['contract', 'c1']]) {
+      assert.deepEqual(homeAction(home(kind, id), channel).args, [channel]);
+    }
+  }
+});
+homeCheck('contratto non attivo: consultazione incassi disponibile senza aprire una registrazione', () => {
+  const a = homeAction(home('contract', 'closed'), 'payment');
+  assert.equal(a.disabled, undefined); assert.deepEqual([a.fn, a.args], ['goTo', ['payments']]); assert.equal(a.prefill, undefined);
+});
+homeCheck('record obsoleto, tipo errato, ID vuoto o duplicato non diventano strumenti globali', () => {
+  for (const rec of [{}, { kind: 'lead', id: 'c1' }, { kind: 'contract', id: 'p1' }, { kind: 'property', id: 'gone' },
+    { kind: 'property', id: '' }, { kind: 'property', id: '  ' }, { kind: 'property', id: 1 }, { kind: 'toString', id: 'p1' }]) {
+    assert.deepEqual(P.homeTools(rec, homeState, 2027), []);
+    assert.equal(P.homeNewClient(rec, homeState), null);
+  }
+  assert.deepEqual(home('property', 'p1', { ...homeState, properties: [...homeState.properties, { id: 'p1' }] }), []);
+  assert.deepEqual(home('person', 'u1', { ...homeState, users: null }), []);
+  assert.equal(P.homeNewClient({ kind: 'client', id: 'crm1' }, { ...homeState, clients: [...homeState.clients, { id: 'crm1' }] }), null);
+});
+homeCheck('casa mancante, duplicata o indicata solo per nome non precompila la manutenzione', () => {
+  for (const state of [
+    { ...homeState, properties: homeState.properties.filter(p => p.id !== 'p1') },
+    { ...homeState, properties: [...homeState.properties, { id: 'p1' }] },
+    { ...homeState, contracts: [{ id: 'c1', propertyName: 'Casa comune', status: 'active' }] }
+  ]) {
+    const rows = home('contract', 'c1', state);
+    assert.equal(homeAction(rows, 'maintenance').prefill, undefined);
+    assert.deepEqual([homeAction(rows, 'properties').fn, homeAction(rows, 'properties').args], ['goTo', ['properties']]);
+    assert.deepEqual(homeAction(rows, 'magic-sign').args, ['c1']);
+  }
+});
+homeCheck('gli ID nei link restano dati e non aggiungono parametri', () => {
+  const id = 'c&x=#/ spazio';
+  const rows = home('contract', id, { contracts: [{ id, status: 'active' }] });
+  for (const key of ['inventory', 'handover']) {
+    const url = new URL(homeAction(rows, key).args[0], 'https://example.invalid');
+    assert.equal(url.searchParams.get('c'), id); assert.equal([...url.searchParams].length, 1); assert.equal(url.hash, '');
+  }
+});
+homeCheck('anno esplicito e indipendenza da ruoli, clock e stato mutabile', () => {
+  const freeze = value => { Object.values(value).forEach(v => { if (v && typeof v === 'object') freeze(v); }); return Object.freeze(value); };
+  const frozen = freeze(structuredClone(homeState));
+  const registryBefore = JSON.stringify(P.ACTIONS);
+  const first = P.homeTools({ kind: 'property', id: 'p1' }, frozen, 2028);
+  assert.deepEqual(homeAction(first, 'document').args, ['p1', 2028]);
+  first[0].args.push('mutated');
+  assert.deepEqual(P.homeNewClient({ kind: 'property', id: 'p1' }, { ...frozen, profile: { role: 'tenant' } }).args, []);
+  assert.deepEqual(homeAction(P.homeTools({ kind: 'property', id: 'p1' }, frozen, 2028), 'properties').args, ['p1']);
+  const contactTools = home('person', 'u1'); homeAction(contactTools, 'whatsapp').args[1].id = 'changed';
+  assert.equal(homeAction(contactTools, 'email').args[1].id, 'u1');
+  assert.equal(homeAction(home('person', 'u1'), 'whatsapp').args[1].id, 'u1');
+  assert.equal(JSON.stringify(P.ACTIONS), registryBefore);
+  assert.equal(homeAction(P.homeTools({ kind: 'property', id: 'p1' }, frozen), 'document').disabled, true);
+});
+homeCheck('ogni funzione, pagina e campo di prefill corrisponde al prodotto', () => {
+  const rows = [...bare, ...home('property', 'p1'), ...home('person', 'u1'), ...home('contract', 'c1'), ...home('client', 'crm1'),
+    P.homeNewClient(null, homeState), P.homeNewClient({ kind: 'client', id: 'crm1' }, homeState)];
+  for (const a of rows) {
+    assert(NATIVE.has(a.fn) || new RegExp(`function ${a.fn}\\s*\\(|window\\.${a.fn}\\s*=`).test(app));
+    assert(P.ACTIONS.some(registered => registered.fn === a.fn));
+    if (a.fn === 'open') assert.equal(servedOk(a.args[0]), null);
+    if (a.fn === 'goTo') assert(app.includes(`case '${a.args[0]}':`));
+    if (a.prefill) {
+      assert.equal(a.fn, 'openModal');
+      const start = app.indexOf(`if (type === '${a.args[0]}')`), end = app.indexOf('\n', start);
+      assert(app.slice(start, end).includes(`name="${a.prefill.field}"`));
+    }
+  }
+});
+homeCheck('gli strumenti aprono le interfacce, senza generazione o invio impliciti', () => {
+  const allowed = new Set(['goTo', 'open', 'oggiOpenInbox', 'openDocUploadModal', 'openMagicSignEditor', 'openModal',
+    'viewProperty', 'openPerson', 'viewClient', 'openDocUploadForProperty', 'openUserDocUpload', 'viewContractSignatures']);
+  for (const rows of [bare, home('property', 'p1'), home('contract', 'c1'), home('person', 'u1'), home('client', 'crm1')]) {
+    for (const a of rows) assert(allowed.has(a.fn), a.fn);
+    assert.deepEqual([homeAction(rows, 'automations').fn, homeAction(rows, 'automations').args], ['goTo', ['rules']]);
+  }
+});
+homeCheck('mutazioni: unicità record, relazione per ID e consultazione incassi sono necessarie', () => {
+  const source = read('js/portal-actions.js');
+  const mutated = (from, to) => {
+    assert(source.includes(from)); const sandbox = { module: { exports: {} } };
+    runInNewContext(source.replace(from, to), sandbox); return sandbox.module.exports;
+  };
+  const duplicated = { ...homeState, properties: [...homeState.properties, { id: 'p1' }] };
+  const checkUnique = api => assert.equal(home('property', 'p1', duplicated, api).length, 0);
+  checkUnique(P); assert.throws(() => checkUnique(mutated('matches.length !== 1', 'matches.length === 0')), assert.AssertionError);
+  const checkHouse = api => assert.equal(homeAction(home('contract', 'c1', homeState, api), 'maintenance').prefill?.value, 'p1');
+  checkHouse(P); assert.throws(() => checkHouse(mutated('p.id === row.propertyId', 'p.name === row.propertyName')), assert.AssertionError);
+  const checkPayment = api => assert.equal(homeAction(home('contract', 'closed', homeState, api), 'payment').fn, 'goTo');
+  checkPayment(P); assert.throws(() => checkPayment(mutated("['payment', 'go:payments'", "['payment', 'new:addPayment'")), assert.AssertionError);
+  const checkInboxKind = api => assert.equal(homeAction(home('client', 'crm1', homeState, api), 'email').args[1].kind, 'client');
+  checkInboxKind(P); assert.throws(() => checkInboxKind(mutated('kind: kind, id: row.id', "kind: 'person', id: row.id")), assert.AssertionError);
+  const checkNoRun = api => assert.equal(homeAction(api.homeTools(null, {}, 2027), 'automations').fn, 'goTo');
+  checkNoRun(P); assert.throws(() => checkNoRun(mutated("['automations', 'go:rules'", "['automations', 'tool:rules'")), assert.AssertionError);
+});
+
+// Run the actual satellite boot: even a single contract waits for a choice.
+const verbale = read('verbale.html');
+const boot = verbale.slice(verbale.indexOf('BoomPortal.requireAuth('), verbale.indexOf('function loadContract('));
+const nodes = {}, opened = [], reads = [];
+await runInNewContext(boot, {
+  BoomPortal: { requireAuth: async () => ({ user: {}, profile: { role: 'admin' } }) },
+  $: id => nodes[id] ||= { style: {} }, URLSearchParams, location: { search: '' },
+  firebase: { firestore: () => ({ collection: name => ({ limit: count => ({ get: async () => {
+    reads.push([name, count]); return { forEach: cb => cb({ id: 'one-contract', data: () => ({ status: 'active' }) }) };
+  } }) }) }) },
+  esc: String, dIT: String, loadContract: (_db, id) => opened.push(id), showErr: message => { throw Error(message); }
+});
+homeCheck('il vero /verbale senza ID aspetta il selettore, anche con un solo contratto', () => {
+  assert.deepEqual(reads, [['contracts', 200]]); assert.deepEqual(opened, []);
+  assert(nodes.fContract.innerHTML.startsWith('<option value="">Scegli…</option>'));
+  nodes.fContract.onchange.call({ value: '' }); assert.deepEqual(opened, []);
+  nodes.fContract.onchange.call({ value: 'one-contract' }); assert.deepEqual(opened, ['one-contract']);
+});
 
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `Niente più funzioni sepolte — ${pass} passed, 0 failed`);

@@ -5,7 +5,7 @@
 > I testi vivono in una copia sola, letta anche dalla pagina `/risposte`
 > (da cui si copiano col pollice) e dai test.
 
-**14 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
+**15 risposte da caricare nell'app** — circa 10 minuti, una volta sola.
 
 Le altre 15 restano nel mazzo: vivono qui e su `/risposte`, si cercano e si
 copiano quando capita il caso raro, senza occupare uno slot nel telefono. L'app ne accetta
@@ -78,7 +78,7 @@ Si sincronizzano poi sul telefono da sole.
 Apri **`/risposte`** sul telefono (o sul computer, è la stessa pagina): ogni risposta ha
 il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
 
-### Le 14 da caricare
+### Le 15 da caricare
 
 - `/enlead` — Primo contatto — la telefonata
 - `/engone` — Quella casa è andata
@@ -94,6 +94,7 @@ il tasto **Copia**. Copia → incolla nell'app → scorciatoia → avanti.
 - `/enblock` — Chiudere
 - `/itciao` — Primo contatto in italiano
 - `/prciao` — Primo contatto col proprietario
+- `/prriaffitto` — Riaffitto (mezza mensilità)
 
 Tutto il resto è nel mazzo qui sotto: si copia dalla pagina quando serve.
 
@@ -149,15 +150,15 @@ https://www.boomrome.com/apartments
 Here is every euro, including the ones that come back to you.
 
 Rent: exactly what the listing says. Nothing appears later.
-Deposit: yours. I film the flat on the way in and on the way out, so its condition is never a matter of opinion.
-My fee: 10% of the year, once, and only if you actually move in.
+Deposit: yours, checked at move-out against the signed check-in report.
+My fee: 10% of one year's rent + 22% VAT, once, at the time your pre-agreement states — written before you pay anything.
 €300 to hold a home: refundable, and deducted from the above.
 
 The arithmetic in full: https://www.boomrome.com/your-money
 
-If an agency won't put this list in writing, that tells you what you need to know.
+If an agency won't put this in writing, that tells you what you need to know.
 ```
-<sub>Pronta così com'è — 507 caratteri</sub>
+<sub>Pronta così com'è — 517 caratteri</sub>
 
 #### `/endocs` · Documenti — la stessa lista per tutti ⭐
 
@@ -493,15 +494,15 @@ Se preferisci, dimmi quando posso chiamarti: in due minuti capiamo se ha senso.
 Ogni euro, compresi quelli che tornano indietro.
 
 Canone: quello scritto sull'annuncio. Dopo non compare nient'altro.
-Deposito: suo. Filmo la casa il giorno dell'ingresso e il giorno dell'uscita, così non è questione di opinioni.
-Commissione: 10% del canone annuo, una volta sola e solo se entra davvero.
+Deposito: suo. All'uscita la casa si confronta col verbale di consegna firmato all'ingresso: non è questione di opinioni.
+Commissione: 10% del canone annuo + IVA 22%, una volta sola, quando lo indica la proposta — scritta prima di pagare qualsiasi cosa.
 €300 per bloccarla: rimborsabili e scalati da quanto sopra.
 
 Il conto completo: https://www.boomrome.com/your-money
 ```
-<sub>Pronta così com'è — 420 caratteri</sub>
+<sub>Pronta così com'è — 487 caratteri</sub>
 
-### Proprietario · Italiano — 2
+### Proprietario · Italiano — 3
 
 *Sempre in italiano e sempre col LEI. È il cliente che ci affida un bene.*
 
@@ -518,9 +519,26 @@ Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale
 
 Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. https://www.boomrome.com/canone
+Mi dica zona e metri quadri: le scrivo quanto rende. Il concordato lo calcola qui: https://www.boomrome.com/canone
 ```
-<sub>Da riempire: [NOME] — 505 caratteri</sub>
+<sub>Da riempire: [NOME] — 507 caratteri</sub>
+
+#### `/prriaffitto` · Riaffitto (mezza mensilità) ⭐
+
+**Quando:** «Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari. Sì: se la casa l'abbiamo già affittata noi è il passo 2 della scala di /owners (mezza mensilità); se no, è una prima locazione (niente provvigione, le pratiche). La risposta dice entrambe le cose.
+
+**Vende contro:** i mesi di casa vuota fra un inquilino e l'altro
+
+```
+Sì: solo il riaffitto, senza altri impegni.
+
+Se l'abbiamo già affittata noi: mezza mensilità del canone + IVA (su €1.400, €854 in tutto), solo se il nuovo inquilino firma, registrazione compresa; la pratica di attestazione, se serve, €189. Se è la prima volta con noi: niente provvigione, pratiche €278 IVA inclusa (€89 senza attestazione). La tariffa dell'organizzazione firmataria per l'attestazione è a parte.
+
+Mi dice quando esce l'inquilino? La mostriamo già con quella data.
+
+https://www.boomrome.com/owners#costi
+```
+<sub>Pronta così com'è — 519 caratteri</sub>
 
 #### `/prpack` · Pacchetto concordato (€349) · 🪑 panchina
 
@@ -531,13 +549,13 @@ Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero
 ```
 Il vantaggio è la cedolare al 10% invece del 21%. Il fastidio sono verifica del canone, contratto conforme, attestazione e registrazione RLI.
 
-Ce ne occupiamo noi: €349 una volta sola per immobile, rimborsati per intero se l'immobile non può rientrare in fascia.
+Ce ne occupiamo noi: €349 IVA inclusa, una volta sola per immobile, rimborsati per intero se il concordato non è possibile per l'immobile. La tariffa dell'organizzazione che firma l'attestazione è a parte e gliela dico prima.
 
 https://www.boomrome.com/pacchetto-concordato
 
-Se mi manda i dati glielo calcolo sui suoi numeri, prima di decidere.
+Il conto della sua casa lo vede subito qui, prima di decidere: https://www.boomrome.com/canone
 ```
-<sub>Pronta così com'è — 380 caratteri</sub>
+<sub>Pronta così com'è — 511 caratteri</sub>
 
 ### Aziende ed enti — 1
 
@@ -550,13 +568,13 @@ Se mi manda i dati glielo calcolo sui suoi numeri, prima di decidere.
 **Vende contro:** un dipendente che arriva e non ha dove dormire
 
 ```
-For companies moving people to Rome: one contact, homes we have seen ourselves, compliant leases in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
+For companies moving people to Rome: one contact, homes we have seen ourselves, compliant Italian leases explained in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
 
 https://www.boomrome.com/corporate
 
 How many people, and when do they land?
 ```
-<sub>Pronta così com'è — 286 caratteri</sub>
+<sub>Pronta così com'è — 304 caratteri</sub>
 
 ### Link personali — 2
 
@@ -569,11 +587,11 @@ How many people, and when do they land?
 ```
 [NOME], the contract is ready — no printer and no appointment: [LINK]
 
-Read it (English, and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
+Read it (the page is in English and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
 
 Anything you want changed, tell me before you sign: after registration it is a different conversation.
 ```
-<sub>Da riempire: [NOME] · [LINK] — 327 caratteri</sub>
+<sub>Da riempire: [NOME] · [LINK] — 341 caratteri</sub>
 
 #### `/oppay` · Link di pagamento · 🪑 panchina
 
@@ -661,11 +679,10 @@ Tutti verificati: un test controlla che ognuno sia una rotta vera del sito.
 | Link | Cosa è |
 |---|---|
 | `https://www.boomrome.com/how-it-works` | I passi dal primo messaggio alle chiavi |
-| `https://www.boomrome.com/your-money` | Ogni euro spiegato: canone, deposito, commissione 10% |
+| `https://www.boomrome.com/your-money` | Ogni euro spiegato: canone, deposito, commissione 10% + IVA 22% |
 | `https://www.boomrome.com/faq` | Le domande ricorrenti, già risposte |
 | `https://www.boomrome.com/about` | Chi siamo — da mandare a chi diffida |
 | `https://www.boomrome.com/contact` | Tutti i modi per raggiungerci |
-| `https://www.boomrome.com/deals` | Promozioni e offerte in corso |
 
 ### Servizi a pagamento
 

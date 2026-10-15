@@ -117,6 +117,7 @@ globalThis.fetch = async (url, opts = {}) => {
       store.set(clean, flat);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + clean });
     }
+    if (globalThis.__fail503 && globalThis.__fail503.has(clean)) return new Response('unavailable', { status: 503 });
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
     return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields: toFsFieldsShallow(doc) });
@@ -136,7 +137,8 @@ const mkReq = (body, headers = {}) => ({ method: 'POST', headers, body });
 
 const {
   ASPI_DEFAULTS, mergeAspiSettings, aspiChecklist, checklistBlocked, checklistMissing,
-  kindPrice, kindCost, defaultKind, sendAspiRequest, maybeAutoAspi,
+  kindPrice, kindCost, defaultKind, sendAspiRequest, maybeAutoAspi, billKindFor,
+  billPlan, reletFrom,
 } = await import('../../api/fiscal/_aspi.js');
 
 // ═══ 1. Le manopole: default sani, override solo con valori buoni ═══
@@ -257,6 +259,12 @@ store.set('users/own1', { name: 'Mario Bianchi' });
     && [...store.keys()].filter(k => k.startsWith('invoices/')).length === nInv
     && r3.body.invoice && r3.body.invoice.created === false
     && store.get('contracts/c1').aspiRequestCount === 2);
+  // ...e il re-invio della STESSA pratica si dice come tale: è la stessa
+  // fattura (coverKind === requested), quindi il pannello lo mostra come
+  // successo, non come «correggila da Fatture».
+  check('re-invio: la fattura che copre è la STESSA della richiesta (coverKind === requested)',
+    r3.body.invoice.overlap === true && r3.body.invoice.reason === 'covered'
+    && r3.body.invoice.coverKind === 'completo' && r3.body.invoice.requested === 'completo');
 }
 
 // ═══ 5. Settings vincono sui default · bill:false non fattura ═══
@@ -276,6 +284,132 @@ store.set('users/own1', { name: 'Mario Bianchi' });
   await handler(mkReq({ op: 'send', contractId: 'c2b', kind: 'registrazione', bill: false }, { authorization: 'Bearer faketoken' }), rb);
   check('bill:false → email sì, nessuna fattura', rb.code === 200 && !store.has('invoices/aspi_registrazione_c2b'));
   store.delete('settings/registrazione');
+}
+
+// ═══ 5b. Il RIAFFITTO: si invia tutto, si fattura la sola attestazione ═══
+// La scala di /owners (30/09/2026): sul riaffitto la registrazione è compresa
+// nella mezza mensilità. Senza questa manopola il primo riaffitto sarebbe
+// stato fatturato €278 contro la promessa pubblicata — «registrazione
+// compresa» vale solo se la macchina sa non fatturarla.
+{
+  check('billKindFor: solo sottoinsiemi della richiesta, l\'ignoto torna alla richiesta',
+    billKindFor('completo', 'asseverazione') === 'asseverazione' && billKindFor('completo', 'registrazione') === 'registrazione'
+    && billKindFor('completo', 'pack') === 'completo' && billKindFor('completo', undefined) === 'completo'
+    && billKindFor('registrazione', 'asseverazione') === 'registrazione' && billKindFor('asseverazione', 'completo') === 'asseverazione');
+
+  store.set('contracts/c6', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  const r = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c6', kind: 'completo', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r);
+  const inv = store.get('invoices/aspi_asseverazione_c6');
+  check('riaffitto: la richiesta parte completa, la fattura è la sola attestazione (€189)',
+    r.code === 200 && r.body.kind === 'completo' && r.body.billKind === 'asseverazione'
+    && !!inv && inv.amount === 189 && /attestazione/i.test(inv.service) && !store.has('invoices/aspi_completo_c6'));
+  check('...e l\'email al referente resta quella della variante completa', /attestazione/i.test(mails()[mails().length - 1].subject)
+    && store.get('contracts/c6').aspiRequestKind === 'completo');
+
+  store.set('contracts/c7', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  const r7 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c7', kind: 'registrazione', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r7);
+  check('mai fatturare ciò che non si è chiesto: registrazione + billKind attestazione → €89 di registrazione',
+    r7.code === 200 && store.get('invoices/aspi_registrazione_c7')?.amount === 89 && !store.has('invoices/aspi_asseverazione_c7'));
+
+  // c1 ha già la fattura «completo» (§4): cambiare idea su cosa fatturare
+  // non deve MAI produrre una seconda fattura sullo stesso servizio.
+  const nInv = [...store.keys()].filter(k => k.startsWith('invoices/')).length;
+  const r1 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c1', kind: 'completo', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r1);
+  check('fattura «completo» già emessa + re-invio «solo attestazione» → nessuna seconda fattura (doppio incasso)',
+    r1.code === 200 && [...store.keys()].filter(k => k.startsWith('invoices/')).length === nInv
+    && !store.has('invoices/aspi_asseverazione_c1') && r1.body.invoice && r1.body.invoice.created === false && r1.body.invoice.overlap === true);
+
+  // Il contrario vale uguale: una fattura «solo attestazione» impedisce il «completo».
+  const r6b = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c6', kind: 'completo' }, { authorization: 'Bearer faketoken' }), r6b);
+  check('...e al contrario: attestazione già fatturata, il «completo» non si aggiunge sopra',
+    r6b.code === 200 && !store.has('invoices/aspi_completo_c6') && r6b.body.invoice && r6b.body.invoice.overlap === true);
+
+  // Registrazione e attestazione NON si sovrappongono: due richieste distinte, due fatture legittime.
+  const r7b = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c7', kind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r7b);
+  check('registrazione e attestazione in due tempi restano due fatture (servizi diversi)',
+    r7b.code === 200 && store.get('invoices/aspi_asseverazione_c7')?.amount === 189 && store.get('invoices/aspi_registrazione_c7')?.amount === 89);
+  check('...con due numeri distinti (-R / -A): due fatture non portano lo stesso numero',
+    store.get('invoices/aspi_asseverazione_c7').number !== store.get('invoices/aspi_registrazione_c7').number
+    && /-A$/.test(store.get('invoices/aspi_asseverazione_c7').number) && /-R$/.test(store.get('invoices/aspi_registrazione_c7').number));
+
+  // billPlan: cosa COPRONO le fatture esistenti, non un sì/no di sovrapposizione.
+  check('billPlan: coperto → niente; vuoto → la variante; sola registrazione + completo → la sola attestazione; sola attestazione + completo → niente (riaffitto)',
+    billPlan('completo', ['completo']).create === null && billPlan('asseverazione', ['completo']).create === null
+    && billPlan('completo', []).create === 'completo' && billPlan('registrazione', ['asseverazione']).create === 'registrazione'
+    && billPlan('completo', ['registrazione']).create === 'asseverazione'
+    && billPlan('completo', ['asseverazione']).create === null && billPlan('completo', ['asseverazione']).reason === 'relet_guard');
+
+  // Il caso che l'overlap sì/no perdeva: prima «solo registrazione», poi il completo.
+  store.set('contracts/c8', { ...baseContract, propertyId: 'p8', tenantId: 'u8' });
+  const r8a = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c8', kind: 'registrazione' }, { authorization: 'Bearer faketoken' }), r8a);
+  const r8b = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c8', kind: 'completo' }, { authorization: 'Bearer faketoken' }), r8b);
+  check('registrazione fatturata, poi completo → nasce la SOLA attestazione (€189), mai un «completo» sopra',
+    r8b.code === 200 && store.get('invoices/aspi_registrazione_c8')?.amount === 89
+    && store.get('invoices/aspi_asseverazione_c8')?.amount === 189 && !store.has('invoices/aspi_completo_c8')
+    && r8b.body.invoice && r8b.body.invoice.created === true && r8b.body.invoice.partial === true);
+
+  // Una lettura fallita NON vale «assente»: prima partiva la seconda fattura.
+  store.set('contracts/c9', { ...baseContract, propertyId: 'p9', tenantId: 'u9' });
+  store.set('invoices/aspi_completo_c9', { amount: 278, status: 'pending' });
+  globalThis.__fail503 = new Set(['invoices/aspi_completo_c9']);
+  const r9 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c9', kind: 'completo', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r9);
+  globalThis.__fail503 = null;
+  check('lettura delle fatture fallita (503) → nessuna fattura nuova, errore DICHIARATO (l\'email parte comunque)',
+    r9.code === 200 && !store.has('invoices/aspi_asseverazione_c9')
+    && r9.body.invoice && r9.body.invoice.created === false && r9.body.invoice.error === 'overlap_check_failed');
+  const alert9 = [...store.entries()].find(([k, v]) => k.startsWith('agentNotifications/') && v.type === 'aspi.invoice_unverified' && v.contractId === 'c9');
+  check('...e parte un avviso urgente (→ Telegram): sul percorso automatico nessuno vedrebbe il toast',
+    !!alert9 && alert9[1].priority === 'high' && /Solo la fattura/.test(alert9[1].body));
+
+  // Il recupero NON rimanda l'email ad ASPI: op:'bill' fattura e basta.
+  store.set('contracts/c12', { ...baseContract, propertyId: 'p12', tenantId: 'u12', aspiRequestKind: 'completo' });
+  const nMailB = mails().length;
+  const rb = mkRes();
+  await handler(mkReq({ op: 'bill', contractId: 'c12' }, { authorization: 'Bearer faketoken' }), rb);
+  check('«Solo la fattura» (op:bill): fattura creata, NESSUNA email ad ASPI',
+    rb.code === 200 && rb.body.ok && store.get('invoices/aspi_completo_c12')?.amount === 278 && mails().length === nMailB);
+  const rb2 = mkRes();
+  await handler(mkReq({ op: 'bill', contractId: 'c12' }, { authorization: 'Bearer faketoken' }), rb2);
+  check('...e ripremerlo non crea una seconda fattura', rb2.body.invoice && rb2.body.invoice.created === false
+    && rb2.body.invoice.coverKind === 'completo' && [...store.keys()].filter(k => k.startsWith('invoices/') && k.endsWith('_c12')).length === 1);
+  const rbx = mkRes();
+  await handler(mkReq({ op: 'bill', contractId: 'c12' }, {}), rbx);
+  check('...e senza admin niente (401/403)', rbx.code === 401 || rbx.code === 403);
+
+  // Il riaffitto dai FATTI: un contratto BOOM firmato prima, sullo stesso immobile, con un altro inquilino.
+  const prev = { id: 'old', propertyId: 'P', finalizedAt: '2025-09-01', startDate: '2025-09-01', tenantId: 'a' };
+  const cur = { id: 'new', propertyId: 'P', startDate: '2026-09-01', tenantId: 'b' };
+  check('reletFrom: contratto precedente finalizzato → riaffitto; stesso inquilino, stanza diversa, non finalizzato, successivo → no; il flag esplicito vince',
+    reletFrom(cur, [prev]).relet === true && reletFrom(cur, [prev]).previousId === 'old'
+    && reletFrom(cur, [{ ...prev, tenantId: 'b' }]).relet === false
+    && reletFrom({ ...cur, unit: '2' }, [{ ...prev, unit: '1' }]).relet === false
+    && reletFrom(cur, [{ ...prev, finalizedAt: null }]).relet === false
+    && reletFrom(cur, [{ ...prev, startDate: '2027-01-01' }]).relet === false
+    && reletFrom({ ...cur, relet: false }, [prev]).relet === false && reletFrom({ ...cur, relet: true }, []).relet === true);
+
+  // Il pannello legge dal server cosa esiste e se è un riaffitto.
+  store.set('contracts/c10prev', { ...baseContract, propertyId: 'p10', tenantId: 'old10', finalizedAt: '2025-09-01T00:00:00Z', startDate: '2025-09-01' });
+  store.set('contracts/c10', { ...baseContract, propertyId: 'p10', tenantId: 'new10', startDate: '2026-09-01' });
+  const rs = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'c10' }, { authorization: 'Bearer faketoken' }), rs);
+  const rs8 = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'c8' }, { authorization: 'Bearer faketoken' }), rs8);
+  check('status: billing dice riaffitto (col contratto precedente) e le fatture ASPI già emesse',
+    rs.code === 200 && rs.body.billing && rs.body.billing.relet === true && rs.body.billing.previousId === 'c10prev'
+    && Array.isArray(rs.body.billing.invoices) && rs.body.billing.invoices.length === 0
+    && rs8.body.billing.relet === false && rs8.body.billing.invoices.map(x => x.kind).sort().join() === 'asseverazione,registrazione');
+  // Il pannello dice PRIMA cosa fatturerebbe ogni variante (piano dal server).
+  check('status: il piano per ogni variante — su c8 (registrazione + attestazione) niente da fatturare; su c10 il completo intero',
+    rs8.body.billing.plans && rs8.body.billing.plans.completo.create === null && rs8.body.billing.plans.registrazione.create === null
+    && rs.body.billing.plans.completo.create === 'completo' && rs.body.billing.plans.asseverazione.create === 'asseverazione');
 }
 
 // ═══ 6. Senza PDF niente invio · 'registered' non si degrada ═══
@@ -315,6 +449,28 @@ store.set('users/own1', { name: 'Mario Bianchi' });
   store.set('settings/registrazione', { auto: true });
   const on = await maybeAutoAspi({ ...store.get('contracts/c1'), id: 'c1' });
   check('auto ON: la richiesta parte da sola alla firma completa', on.ok === true && mails().length === nMail + 1);
+
+  // Zero tap sul RIAFFITTO: si invia tutto, si fattura la sola attestazione;
+  // sulla sola registrazione non si fattura niente (compresa nella mezza mensilità).
+  const ar = await maybeAutoAspi({ ...store.get('contracts/c10'), id: 'c10' });
+  check('auto sul riaffitto: parte il completo, fattura la SOLA attestazione (€189), mai €278',
+    ar.ok === true && ar.kind === 'completo' && ar.billKind === 'asseverazione'
+    && store.get('invoices/aspi_asseverazione_c10')?.amount === 189 && !store.has('invoices/aspi_completo_c10'));
+  store.set('contracts/c11', { ...baseContract, requiresAsseverazione: false, propertyId: 'p10', tenantId: 'new11', startDate: '2026-10-01' });
+  const nInv = [...store.keys()].filter(k => k.startsWith('invoices/')).length;
+  const ar2 = await maybeAutoAspi({ ...store.get('contracts/c11'), id: 'c11' });
+  check('auto sul riaffitto con la sola registrazione: si invia, NESSUNA fattura (registrazione compresa)',
+    ar2.ok === true && ar2.kind === 'registrazione' && ar2.invoice === null
+    && [...store.keys()].filter(k => k.startsWith('invoices/')).length === nInv);
+  // Zero tap + lettura fallita: la fattura non nasce, ma l'avviso SÌ (la
+  // finalize non ripassa: senza avviso l'incasso si perderebbe in silenzio).
+  store.set('contracts/c13', { ...baseContract, propertyId: 'p13', tenantId: 'u13' });
+  globalThis.__fail503 = new Set(['invoices/aspi_registrazione_c13']);
+  const ar3 = await maybeAutoAspi({ ...store.get('contracts/c13'), id: 'c13' });
+  globalThis.__fail503 = null;
+  check('auto + lettura fallita: nessuna fattura, avviso aspi.invoice_unverified scritto',
+    ar3.ok === true && ar3.invoice && ar3.invoice.error === 'overlap_check_failed' && !store.has('invoices/aspi_completo_c13')
+    && [...store.values()].some(v => v && v.type === 'aspi.invoice_unverified' && v.contractId === 'c13'));
   store.delete('settings/registrazione');
 }
 
@@ -428,10 +584,37 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
     portal.includes('function openAspi') && portal.includes('function sendAspi')
     && portal.split("openAspi('${c.id}')").length >= 3
     && portal.includes("op: 'status', contractId") && portal.includes("op: 'send', contractId"));
-  const panel = portal.slice(portal.indexOf('function openAspi'), portal.indexOf('window.sendAspi ='));
+  // dall'etichetta della fattura (_aspiRenderKind) fino all'invio: anche le
+  // opzioni «Cosa fatturare», costruite lì, leggono i prezzi dal server
+  const panel = portal.slice(portal.indexOf('function _aspiRenderKind'), portal.indexOf('window.sendAspi ='));
   check('portal: il pannello legge prezzi e checklist dal SERVER — nessun € hardcodato nel pannello',
-    portal.includes('st.settings.prezzi[kind]') && panel.includes('s.prezzi.completo') && panel.includes('s.prezzi.registrazione')
+    portal.includes('const p = st.settings.prezzi;') && portal.includes('€${p[pl.create]}') && panel.includes('s.prezzi.completo') && panel.includes('s.prezzi.registrazione')
     && !/€\d/.test(panel));
+}
+
+{
+  const pa = fs.readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const rg = fs.readFileSync(new URL('../../api/fiscal/registra.js', import.meta.url), 'utf8');
+  check('pannello: la tendina «Riaffitto — solo attestazione» esiste e il send porta billKind',
+    /id="aspiBillKind"/.test(pa) && /\['asseverazione', `Riaffitto/.test(pa) && /JSON\.stringify\(\{ op: 'send', contractId, kind, billKind, bill, note \}\)/.test(pa));
+  check('pannello: sulla sola registrazione c\'è «Riaffitto — nessuna fattura» e il send non fattura',
+    /\['none', 'Riaffitto — registrazione compresa/.test(pa) && /const bill = !!document\.getElementById\('aspiBill'\)\?\.checked && sel !== 'none';/.test(pa));
+  check('pannello: le fatture già emesse e il riaffitto si vedono prima; l\'etichetta segue il PIANO del server; c\'è «Solo la fattura»',
+    pa.includes('Fatture ASPI già emesse: ') && pa.includes('st.billing && st.billing.relet')
+    && pa.includes('plans[billKind]') && pa.includes("sendAspiBill('${contractId}')") && pa.includes("op: 'bill', contractId"));
+  // La mappa esito → messaggio, eseguita davvero (estratta dal sorgente).
+  const src = pa.slice(pa.indexOf('function _aspiInvoiceMsg'), pa.indexOf('window._aspiInvoiceMsg ='));
+  const msg = new Function(src + '; return _aspiInvoiceMsg;')();
+  const same = msg({ id: 'aspi_completo_x', amount: 278, created: false, overlap: true, reason: 'covered', requested: 'completo', coverKind: 'completo' });
+  const cross = msg({ id: 'aspi_completo_x', amount: 278, created: false, overlap: true, reason: 'covered', requested: 'asseverazione', coverKind: 'completo' });
+  const guard = msg({ id: 'aspi_asseverazione_x', amount: 189, created: false, overlap: true, reason: 'relet_guard', requested: 'completo', coverKind: 'asseverazione' });
+  const err = msg({ id: null, created: false, error: 'overlap_check_failed' });
+  const part = msg({ id: 'aspi_asseverazione_x', amount: 189, created: true, partial: true, requested: 'completo' });
+  check('messaggi: re-invio della stessa pratica = successo; altra fattura, riaffitto, lettura fallita = avviso; parziale detto',
+    same.level === 'success' && /già emessa/.test(same.txt) && cross.level === 'error' && /coperta/.test(cross.txt)
+    && guard.level === 'error' && /Solo la registrazione/.test(guard.txt) && err.level === 'error' && /Solo la fattura/.test(err.txt)
+    && part.level === 'success' && /non ancora fatturata/.test(part.txt), { same, cross, guard, err, part });
+  check('registra.js passa billKind alla richiesta', /billKind: clip\(b\.billKind, 20\)/.test(rg));
 }
 
 // ═══ Esito ═══

@@ -134,6 +134,10 @@ r = await call(pay, post({ paymentId: 'rent' }, 'tenant'));
 check('Stripe complete before webhook blocks portal recharge', r.code === 409 && r.body.error === 'payment_processing' && stripe.calls.length === before);
 check('Stripe completion never marks Firestore paid without webhook', store.get('payments/rent').status === 'pending');
 
+installment('portal-cancel');
+r = await call(pay, post({ paymentId: 'portal-cancel' }, 'tenant'));
+check('authenticated checkout cancellation preserves selected contract', r.code === 200 && new URL(stripe.calls.at(-1).cancel_url).searchParams.get('contract') === 'ctr1');
+
 installment('return-without-session');
 before = stripe.calls.length;
 for (const status of ['success', 'cancel']) {

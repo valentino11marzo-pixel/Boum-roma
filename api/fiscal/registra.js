@@ -6,7 +6,13 @@
 //       La checklist per ENTRAMBE le varianti + le manopole in vigore: il
 //       pannello del portal disegna DA QUI, mai da una copia locale (la
 //       console non può mostrare una regola diversa da quella applicata).
-//   { op:'send', contractId, kind?, note?, bill? }
+//     + billing: { relet, reletBy, previousId, invoices[] } — il riaffitto
+//       dedotto dai fatti (reletOf) e le fatture ASPI già emesse: il pannello
+//       preseleziona cosa fatturare e mostra cosa esiste già.
+//   { op:'send', contractId, kind?, billKind?, note?, bill? }
+//   { op:'bill', contractId, kind?, billKind? }
+//     → SOLO la fattura (billAspi), senza rimandare l'email ad ASPI: il
+//       recupero quando all'invio le fatture esistenti non si leggevano.
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
 //   { op:'registered', contractId, date, code?, base64?, contentType?, name?, notify?, resend? }
@@ -20,6 +26,7 @@ import { requireRole, setCors } from '../_auth.js';
 import { withProfileDocs } from '../sign/_iddocs.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
+  reletOf, aspiInvoicesOf, billAspi, billPlansFor, billKindFor, ASPI_KINDS,
 } from './_aspi.js';
 import { parseReceiptInput, recordRegistration } from './_ricevuta.js';
 
@@ -42,6 +49,8 @@ export default async function handler(req, res) {
     if (op === 'send') {
       const out = await sendAspiRequest(contractId, {
         kind: clip(b.kind, 20),
+        // cosa si fattura: sul riaffitto solo l'attestazione (vedi billKindFor)
+        billKind: clip(b.billKind, 20),
         note: b.note,
         bill: b.bill,
       });
@@ -55,6 +64,25 @@ export default async function handler(req, res) {
       return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 502)).json(out);
     }
 
+    if (op === 'bill') {
+      const contract = await fsGet('contracts/' + contractId);
+      if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
+      contract.id = contractId;
+      const property = (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
+      if (!contract.tenantName && contract.tenantId) {
+        const t = await fsGet('users/' + contract.tenantId).catch(() => null); if (t && t.name) contract.tenantName = t.name;
+      }
+      if (!contract.landlordName && property.ownerId) {
+        const l = await fsGet('users/' + property.ownerId).catch(() => null); if (l && l.name) contract.landlordName = l.name;
+      }
+      const k = clip(b.kind, 20);
+      const kind = ASPI_KINDS.includes(k) ? k : (ASPI_KINDS.includes(contract.aspiRequestKind) ? contract.aspiRequestKind : defaultKind(contract));
+      const billKind = billKindFor(kind, clip(b.billKind, 20));
+      const settings = await loadAspiSettings();
+      const invoice = await billAspi({ contractId, contract, property, settings, billKind });
+      return res.status(200).json({ ok: true, kind, billKind, invoice });
+    }
+
     // op:'status' — la fotografia per il pannello.
     const contract = await fsGet('contracts/' + contractId);
     if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
@@ -64,6 +92,10 @@ export default async function handler(req, res) {
 
     contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
     const settings = await loadAspiSettings();
+    const [relet, invoices] = await Promise.all([
+      reletOf(contract),
+      aspiInvoicesOf(contractId).catch(() => null),   // null = non lo so (lo dice il pannello)
+    ]);
     return res.status(200).json({
       ok: true,
       settings: {
@@ -73,6 +105,13 @@ export default async function handler(req, res) {
         costi: { registrazione: kindCost('registrazione', settings), completo: kindCost('completo', settings), asseverazione: kindCost('asseverazione', settings) },
       },
       kind: defaultKind(contract),
+      billing: {
+        relet: relet ? relet.relet : null,
+        reletBy: relet ? relet.by : null,
+        previousId: relet && relet.previousId ? relet.previousId : null,
+        invoices,
+        plans: billPlansFor(invoices),   // cosa fatturerebbe ogni variante, adesso
+      },
       kinds: {
         registrazione: aspiChecklist(contract, property, 'registrazione'),
         completo: aspiChecklist(contract, property, 'completo'),

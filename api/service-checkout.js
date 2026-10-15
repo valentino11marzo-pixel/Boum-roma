@@ -80,8 +80,18 @@ export default async function handler(req, res) {
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
         amount_eur: String(svc.eur),
+        // Codice del consumo (artt. 50 c.3, 57 c.3, 59): sul Pacchetto
+        // concordato il cliente che chiede di iniziare durante i 14 giorni del
+        // recesso lo dice con una spunta sua; senza, si comincia allo scadere
+        // dei 14 giorni. Le altre pagine non hanno ancora la spunta: niente
+        // campo, e il webhook non dice nulla.
+        ...(body.kind === 'concordato-pack' ? { start_now: body.startNow === true ? '1' : '0' } : {}),
       },
-      success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) + '&session_id={CHECKOUT_SESSION_ID}',
+      // Il Pacchetto porta la scelta «inizio subito» alla pagina di grazie, che
+      // così dice il tempo giusto (48 ore dai dati, oppure dopo i 14 giorni).
+      success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
+        (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
+        '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });

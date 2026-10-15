@@ -208,7 +208,10 @@ console.log('\n\x1b[1m▸ la voce B2B: chi è ente e chi no\x1b[0m');
   const uni = b2bReplyText({ name: 'Mark', source: 'partner', intent: 'partner-university', partner: { kind: 'university' }, message: 'We place students every semester.' });
   ok('all\'università il SUO link, non quello corporate', uni.includes('boomrome.com/universities'));
   const own = b2bReplyText({ name: 'Giulia', source: 'partner', intent: 'owner', partner: { kind: 'owner' }, message: 'Salve, vorrei proporvi il mio appartamento a Prati, sono disponibile quando volete.' });
-  ok('al proprietario si chiede del SUO immobile, in italiano', /zona/.test(own) && /^Ciao Giulia/.test(own));
+  // Col LEI: la dottrina delle risposte rapide, famiglia `pr` («sempre col
+  // LEI — è il cliente che ci affida un bene»). Il vecchio «Ciao Giulia» dava
+  // del tu a chi ci affida una casa (vedi tests/owners).
+  ok('al proprietario si chiede del SUO immobile, in italiano e col Lei', /zona/.test(own) && /^Buongiorno Giulia/.test(own) && /suo immobile/.test(own), own);
   ok('...mai quante persone deve alloggiare', !/quante persone/.test(own), own);
   ok('le due voci org/owner sono davvero diverse', hr !== own);
 }
@@ -313,6 +316,132 @@ console.log('\n\x1b[1m▸ essere trovati (SEO) ed essere citati (motori di rispo
   ok('la home la linka (chi arriva da solo la trova)', index.includes('href="/executive"'));
   const corp = readFileSync(new URL('corporate.html', root), 'utf8');
   ok('lo sportello corporate rimanda il singolo qui (reciprocità)', corp.includes('href="/executive"'));
+}
+
+console.log('\n\x1b[1m▸ cosa la pagina promette: vero, uguale nei dati e in pagina\x1b[0m');
+{
+  const root = new URL('../../', import.meta.url);
+  const page = readFileSync(new URL('executive.html', root), 'utf8');
+  const parsed = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => JSON.parse(m[1]));
+
+  // Il contratto è il modello ufficiale italiano, spiegato in inglese: in
+  // inglese sono proposta, pagina di firma, ricevute e assistenza. Un motore
+  // che cita «English-language lease» promette un documento che non esiste.
+  const claims = page.match(/.{0,40}(English-language|anche in inglese|English contract).{0,30}/gi) || [];
+  ok('nessuna promessa di un contratto in inglese (meta, dati, pagina)', claims.length === 0, claims.slice(0, 3));
+  ok('il contratto è detto per quello che è: modello italiano, spiegato in inglese',
+    /registered Italian lease \(the official standard form, walked through with you in English\) plus the English pre-agreement that fixes its terms/.test(page)
+    && /il modello ufficiale italiano, spiegato in inglese/.test(page));
+
+  // Il FAQPage è la pagina: ogni risposta marcata è la risposta inglese
+  // visibile, parola per parola (tag tolti).
+  const faq = parsed.find(b => b && b['@type'] === 'FAQPage');
+  const strip = t => String(t).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const diverge = (faq ? faq.mainEntity : []).filter(q => {
+    const m = page.match(new RegExp(`<summary><span class="l-en">${esc(q.name)}</span>[\\s\\S]*?<div class="a"><span class="l-en">([\\s\\S]*?)</span><span class="l-it">`));
+    return !m || strip(m[1]) !== q.acceptedAnswer.text;
+  }).map(q => q.name);
+  ok('ogni risposta del FAQPage è la risposta inglese visibile, parola per parola', faq && faq.mainEntity.length >= 8 && diverge.length === 0, diverge);
+
+  // La provvigione è quella che il codice calcola (api/preagreement/create.js:
+  // 10% di un'annualità + IVA 22%): l'IVA si dice, sempre.
+  const cost = (faq ? faq.mainEntity : []).find(q => q.name === 'What does it cost?');
+  ok('il costo dichiara la provvigione col 22% di IVA (dati strutturati)', cost && /10% of one year's rent plus 22% VAT/.test(cost.acceptedAnswer.text), cost && cost.acceptedAnswer.text);
+  const costIt = page.match(/<summary><span class="l-en">What does it cost\?<\/span>[\s\S]*?<span class="l-it">([\s\S]*?)<\/span><\/div>/);
+  ok('...e la versione italiana anche (IVA al 22%)', costIt && /10% di un'annualità più IVA al 22%/.test(costIt[1]));
+  const create = readFileSync(new URL('api/preagreement/create.js', root), 'utf8');
+  ok('...che è ciò che il codice applica davvero (10% + IVA 22% di default)', /num\(m\.feePct, 10\)/.test(create) && /num\(m\.feeVatPct, 22\)/.test(create));
+
+  // L'uscita anticipata la decide il contratto: sul transitorio BOOM
+  // (js/contract-pdf.js, Allegato B art. 10) il conduttore recede per GRAVI
+  // MOTIVI con tre mesi di preavviso per raccomandata; fuori da lì serve
+  // l'accordo del locatore. Nessun «costo di uscita» è noto dal primo giorno.
+  const exitClaims = page.match(/.{0,40}(exact cost of leaving|quanto costa esattamente andare via).{0,30}/gi) || [];
+  ok('nessuna promessa di un «costo esatto» per andare via prima', exitClaims.length === 0, exitClaims.slice(0, 2));
+  const early = (faq ? faq.mainEntity : []).find(q => /cut short/.test(q.name));
+  const tpl = readFileSync(new URL('js/contract-pdf.js', root), 'utf8');
+  ok('l\'uscita anticipata è detta come la scrive il contratto (gravi motivi, 3 mesi, raccomandata), IT compreso',
+    early && /withdraw for serious reasons \(gravi motivi\) with 3 months' notice by registered letter/.test(early.acceptedAnswer.text)
+    && /si può recedere per gravi motivi con tre mesi di preavviso per raccomandata/.test(page)
+    && /facoltà di recedere per gravi motivi dal contratto previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima/.test(tpl),
+    early && early.acceptedAnswer.text);
+
+  // L'entità è la stessa di tutto il sito.
+  const graph = (parsed.find(b => b && Array.isArray(b['@graph'])) || {})['@graph'] || [];
+  const org = graph.find(n => n['@id'] === 'https://www.boomrome.com/#organization') || {};
+  ok('#organization è il RealEstateAgent «BOOM Rome» di Egidi Immobiliare S.r.l.',
+    org['@type'] === 'RealEstateAgent' && org.name === 'BOOM Rome' && org.legalName === 'Egidi Immobiliare S.r.l.'
+    && org.vatID === 'IT17322991005' && org.telephone === '+39-331-325-1961', org);
+  ok('...con la sede vera', org.address && org.address.streetAddress === 'Via dei Coronari 181/184' && org.address.postalCode === '00186'
+    && org.address.addressLocality === 'Roma' && org.address.addressCountry === 'IT', org.address);
+  ok('...e senza voti o recensioni nei dati', !/AggregateRating|"Review"/.test(page));
+
+  // /executive?lang=it è lo STESSO file e si canonicalizza su /executive.
+  ok('canonical inglese, nessun hreflang verso un URL ?lang= che si canonicalizza altrove',
+    page.includes('<link rel="canonical" href="https://www.boomrome.com/executive">') && !/hreflang="[^"]+" href="[^"]*\?lang=/.test(page));
+  ok('...og:locale en_US con l\'alternate it_IT restano', page.includes('<meta property="og:locale" content="en_US">') && page.includes('<meta property="og:locale:alternate" content="it_IT">'));
+
+  // Il voto rimanda alla scheda Google, senza cambiare i numeri.
+  ok('il voto ★ 4.9 · 47 è un link a Google, tracciato',
+    /<a href="https:\/\/share\.google\/xikmVxQCRuKOdWcND" target="_blank" rel="noopener"[^>]*onclick="boomTrack\('reviews_view',\{source_page:'executive'\}\)"><span>★ <b>4\.9<\/b> <span class="l-en">on Google · 47 reviews<\/span>/.test(page));
+
+  // Conversione CONFERMATA solo dove il server ha risposto ok.
+  const sub = page.slice(page.indexOf("fetch('/api/executive-lead'"));
+  const okBranch = sub.slice(sub.indexOf('if(!j||!j.ok)throw'), sub.indexOf('.catch('));
+  const errBranch = sub.slice(sub.indexOf('.catch('), sub.indexOf('});', sub.indexOf('.catch(')));
+  ok('boom-conversion «Executive lead sent» parte nel ramo di successo...',
+    sub.indexOf('if(!j||!j.ok)throw') > -1 && /dispatchEvent\(new CustomEvent\('boom-conversion',\{detail:\{label:'Executive lead sent',section:'form'\}\}\)\)/.test(okBranch));
+  ok('...e mai nel ramo d\'errore (un solo punto di emissione)', !/boom-conversion/.test(errBranch) && (page.match(/boom-conversion/g) || []).length === 1);
+}
+
+console.log('\n\x1b[1m▸ in un browser vero: la conversione parte solo a lead arrivato\x1b[0m');
+{
+  const { loadChromium, launchOptions } = await import('../_browser.mjs');
+  const chromium = await loadChromium();
+  if (!chromium) console.log('  SKIP: playwright non disponibile — la prova in browser non gira');
+  else {
+    const http = await import('node:http');
+    const path = await import('node:path');
+    const fs = await import('node:fs');
+    const R = new URL('../../', import.meta.url).pathname;
+    const srv = http.createServer((rq, rs) => {
+      let u = rq.url.split('?')[0]; if (u === '/executive') u = '/executive.html';
+      const f = path.join(R, u);
+      fs.readFile(f, (e, d) => e ? (rs.statusCode = 404, rs.end())
+        : (rs.setHeader('content-type', f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html'), rs.end(d)));
+    }).listen(0);
+    const port = srv.address().port;
+    const br = await chromium.launch(await launchOptions());
+    try {
+      for (const [mode, status, body] of [['ok', 200, '{"ok":true,"id":"x"}'], ['errore', 500, '{"ok":false,"error":"server"}']]) {
+        const pg = await br.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        const errs = []; pg.on('pageerror', e => errs.push(e.message));
+        await pg.addInitScript(() => { window.__conv = []; addEventListener('boom-conversion', e => window.__conv.push(e.detail)); });
+        let hits = 0;
+        await pg.route('**/*', async r => {
+          const u = r.request().url();
+          if (u.includes('/api/executive-lead')) { hits++; return r.fulfill({ status, contentType: 'application/json', body }); }
+          return u.startsWith(`http://localhost:${port}`) ? r.continue() : r.abort();
+        });
+        await pg.goto(`http://localhost:${port}/executive`, { waitUntil: 'load' });
+        await pg.click('#fGo');
+        const before = await pg.evaluate(() => window.__conv.length);
+        await pg.fill('#fName', 'Anna Keller'); await pg.fill('#fEmail', 'anna@example.com');
+        await pg.click('#fGo'); await pg.waitForTimeout(250);
+        const conv = await pg.evaluate(() => window.__conv);
+        if (mode === 'ok') {
+          ok('[ok] modulo vuoto: nessuna conversione; risposta ok: UNA conversione confermata',
+            before === 0 && hits === 1 && conv.length === 1 && conv[0].label === 'Executive lead sent' && conv[0].section === 'form'
+            && (await pg.isVisible('#fDone')) && errs.length === 0, { before, hits, conv, errs });
+        } else {
+          ok('[errore] la porta risponde 500: il modulo lo dice e NESSUNA conversione',
+            hits === 1 && conv.length === 0 && (await pg.isVisible('#exForm')) && (await pg.isVisible('#fErr')), { hits, conv });
+        }
+        await pg.close();
+      }
+    } finally { await br.close(); srv.close(); }
+  }
 }
 
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}Executive: ${pass} passed, ${fail} failed\x1b[0m\n`);

@@ -220,6 +220,7 @@ await setup(authReq('tok-ten', { contractId: 'ct3' }), r);
 await new Promise((x) => setTimeout(x, 30));
 const sess = S.sessions.at(-1);
 check('start → Checkout mode=setup sepa_debit con metadata SDD_SETUP', r.code === 200 && String(r.body.url).includes('stripe.test') && sess.mode === 'setup' && sess.payment_method_types[0] === 'sepa_debit' && sess.metadata.service === 'SDD_SETUP' && sess.metadata.contractId === 'ct3');
+check('ritorno e annullamento mandato conservano la casa scelta', new URL(sess.success_url).searchParams.get('contract') === 'ct3' && new URL(sess.cancel_url).searchParams.get('contract') === 'ct3');
 check('il customer nasce una volta e si persiste subito (riuso sui retry)', S.customers.length === 1 && store.get('contracts/ct3').sdd.customerId === 'cus_test_1');
 
 r = mkRes2();

@@ -39,6 +39,11 @@
 //   { op:'ask-landlord-mandate', id, propertyId?, createProperty? }
 //                                arma la richiesta sulla Scheda del locatore
 //                                (contratto creato se manca) → { url, message }
+//   { op:'landlord-scheda', id, propertyId?, createProperty? }
+//                                la Scheda del locatore per i SUOI DATI (12/10/
+//                                2026): contratto creato se manca, cosa gli
+//                                manca, link e messaggio dal dizionario, email
+//                                se c'è → { url, message, missing, phone, email }
 //   { op:'sign', id, landlordDelegate?, landlordBasis?, propertyId?,
 //     createProperty?, force? }  firma (conduttore per mandato → locatore per
 //                                mandato, o per delega dichiarata)
@@ -52,6 +57,8 @@ import { mandateCheck, landlordMandateCheck } from '../magic-sign/_shared.js';
 import msSubmit, { MS_CONSENT_TEXT } from '../magic-sign/submit.js';
 import { signatureState } from './send-sign.js';
 import { schedaUrl } from '../profile/_scheda.js';
+import { landlordGaps, askLandlordScheda } from './_askscheda.js';
+import FIELDS from '../../js/contract-fields.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
@@ -126,6 +133,43 @@ export function signPlan(contract, opSig) {
     canSignLandlord: !sig.landlordSigned && ((lm && lchk.ok) || (!!dele && !lm)) && (sig.tenantSigned || chk.ok) && coPending.length === 0 && !!opSig,
   };
 }
+
+// LA CASA, RICONTROLLATA (15/10/2026 — «fallo valere con stesso indirizzo e
+// interno»). Il mandato di una proposta senza immobile collegato vale sul
+// record del portal con lo STESSO indirizzo e lo STESSO interno
+// (MANDATO.homeCheck): la conversione lo scrive sul mandato (propertyMatch).
+// Qui lo si ricalcola sull'immobile di ADESSO — un contratto convertito
+// prima della regola non lo porta, e un immobile ritoccato dopo può non
+// essere più la casa approvata. Pura sul dato già letto: il mandato come
+// DEVE essere ora (riscontro aggiunto, tolto o invariato) e se va riscritto.
+export function healTenantMandate({ contract, pa, paId, property, at }) {
+  const m = contract && contract.tenantMandate;
+  if (!m || m.given !== true || !(Number(m.termsVersion) >= 2) || !m.terms) return null;
+  const home = MANDATO.homeCheck({ terms: m.terms, pa, paId: m.paId || paId, contract, property });
+  if (!home) return null;
+  const had = (m.propertyMatch && m.propertyMatch.by === 'address+unit') ? m.propertyMatch : null;
+  const pm = MANDATO.propertyMatchFrom(home, at);
+  if ((!had && !pm) || (had && pm && had.propertyId === pm.propertyId && had.home === pm.home)) return { home, changed: false, mandate: m };
+  const next = { ...m };
+  if (pm) next.propertyMatch = pm; else delete next.propertyMatch;
+  const diff = MANDATO.diffTerms(next.terms, MANDATO.termsForMandate(contract, next));
+  next.termsMatch = diff.length === 0;
+  next.termsDiff = diff.map(d => d.key);
+  next.termsCheckedAt = at || new Date().toISOString();
+  return { home, changed: true, mandate: next };
+}
+// L'immobile si rilegge solo quando serve (foto senza immobile, contratto su
+// un record che non è quello nato dalla proposta). Una lettura FALLITA non
+// tocca niente: si tiene il riscontro che c'è.
+async function homeHealFor(contract, pa, paId, at) {
+  const m = contract && contract.tenantMandate;
+  if (!m || m.given !== true || !m.terms || (m.terms.propertyId != null && m.terms.propertyId !== '')) return null;
+  if (!contract.propertyId || contract.propertyId === MANDATO.proposalPropertyId(m.paId || paId)) return null;
+  let property;
+  try { property = await fsGet('properties/' + contract.propertyId); } catch (_) { return null; }
+  return healTenantMandate({ contract, pa, paId, property, at });
+}
+const homeOut = (h) => h ? { match: h.home.match === true, label: h.home.label || '', unit: h.home.unit || null, where: h.home.where || '', reason: h.home.reason || null, text: MANDATO.describeHome(h.home) } : null;
 
 // magic-sign/submit IN-PROCESS (stesso trucco di employees/_fiducia.js):
 // l'handler resta una funzione Vercel E una libreria. Tutte le guardie
@@ -215,7 +259,9 @@ export default async function handler(req, res) {
   if (contract && !contractId) contractId = 'pa_' + paId;
 
   if (op === 'status') {
-    const plan = contract ? signPlan(contract, opSig) : {
+    // la casa ricontrollata IN MEMORIA: il piano dice la verità senza scrivere
+    const heal = (contract && !contract.tenantSignature) ? await homeHealFor(contract, pa, paId, nowISO) : null;
+    const plan = contract ? signPlan(heal ? { ...contract, tenantMandate: heal.mandate } : contract, opSig) : {
       signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true,
       mandate: (pa.mandate && pa.mandate.given) ? { at: pa.mandate.at || null, ref: pa.ref || null } : null,
       mandateOk: !!(pa.mandate && pa.mandate.given), mandateReason: (pa.mandate && pa.mandate.given) ? null : 'mandate_missing',
@@ -223,7 +269,62 @@ export default async function handler(req, res) {
       coTenantsPending: [], operatorSignature: !!opSig,
       canSignTenant: !!(pa.mandate && pa.mandate.given) && !!opSig, canSignLandlord: false,
     };
+    if (heal) plan.home = homeOut(heal);
     return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan, landlordMandateUrl: contract ? landlordMandateUrl(contractId) : null });
+  }
+
+  // Il contratto nasce qui se manca (idempotente, come 🖊): la Scheda del
+  // locatore è del CONTRATTO. Una copia per 🏠 mandato e 📋 Scheda. Restituisce
+  // null se il contratto c'è, altrimenti la risposta d'errore della conversione.
+  let created = false, propertyCreated = false;
+  const convertIfMissing = async () => {
+    if (contract) return null;
+    const out = await convertPaToContract({
+      pa, paId, propertyId: b.propertyId || pa.propertyId,
+      actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
+    });
+    if (!out.ok) {
+      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+      return { code, body: { ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) } };
+    }
+    contractId = out.contractId;
+    created = !out.already;
+    propertyCreated = !!out.propertyCreated;
+    try { contract = await fsGet('contracts/' + contractId); } catch (_) { contract = null; }
+    if (!contract) return { code: 500, body: { ok: false, error: 'contract_missing' } };
+    return null;
+  };
+
+  // ── 📋 LA SCHEDA DEL PROPRIETARIO, PER I SUOI DATI (12/10/2026) ───────
+  // «Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i
+  // suoi dati»: la proposta pagata (BOOM-MUCHJ6LC) non aveva contratto, e la
+  // console non offriva nessun modo di mandare la Scheda al proprietario se
+  // non DENTRO la richiesta del mandato. Qui: contratto creato se manca,
+  // cosa gli manca letto come lo legge il PDF (landlordGaps), link e
+  // messaggio dal dizionario (missingMessage, IT), email se c'è (la stessa
+  // di 🖊, askLandlordScheda). Nessun mandato armato: è un'altra domanda.
+  if (op === 'landlord-scheda') {
+    const fail = await convertIfMissing();
+    if (fail) return res.status(fail.code).json(fail.body);
+    const { missing, property } = await landlordGaps(contractId, contract);
+    const url = schedaUrl(contractId, 'landlord');
+    const propLabel = (property && (property.name || property.address)) || ((pa.property || {}).address) || '';
+    const name = contract.landlordName || ((pa.landlord || {}).name) || (property && property.ownerName) || '';
+    const message = FIELDS.missingMessage('landlord', missing, { name, url, propLabel });
+    const email = String(contract.landlordEmail || ((pa.landlord || {}).email) || '').trim();
+    const phone = String(contract.landlordPhone || ((pa.landlord || {}).phone) || '').trim();
+    const locked = !!contract.landlordSignature;
+    let emailed = false;
+    if (!locked && missing.length && email && EMAIL_RE.test(email)) {
+      try { emailed = !!(await askLandlordScheda({ contractId, contract, pa, actor: auth.email || auth.uid })).asked; }
+      catch (e) { console.warn('[pa/sign-for] landlord scheda email:', e.message); }
+    }
+    await logActivity('preagreement_landlord_scheda', 'contract', { paId, contractId, created, missing: missing.length, emailed }, auth.email || 'admin');
+    return res.status(200).json({
+      ok: true, contractId, created, propertyCreated, url, message, locked,
+      missing: missing.map(m => ({ key: m.key, label: m.label })),
+      phone: phone || null, email: email || null, emailed,
+    });
   }
 
   // ── 🏠 CHIEDI IL MANDATO AL PROPRIETARIO ─────────────────────────────
@@ -233,19 +334,8 @@ export default async function handler(req, res) {
   // contratto nasce qui se manca (idempotente, come 🖊): la Scheda è del
   // contratto, e il mandato copre le condizioni di QUEL contratto.
   if (op === 'ask-landlord-mandate') {
-    if (!contract) {
-      const out = await convertPaToContract({
-        pa, paId, propertyId: b.propertyId || pa.propertyId,
-        actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
-      });
-      if (!out.ok) {
-        const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
-        return res.status(code).json({ ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
-      }
-      contractId = out.contractId;
-      try { contract = await fsGet('contracts/' + contractId); } catch (_) { contract = null; }
-      if (!contract) return res.status(500).json({ ok: false, error: 'contract_missing' });
-    }
+    const fail = await convertIfMissing();
+    if (fail) return res.status(fail.code).json(fail.body);
     if (contract.landlordSignature) return res.status(410).json({ ok: false, error: 'already_signed', contractId });
     const already = !!(contract.landlordMandate && contract.landlordMandate.given === true);
     if (!already && contract.askLandlordMandate !== true) {
@@ -274,7 +364,7 @@ export default async function handler(req, res) {
       } catch (e) { console.warn('[pa/sign-for] ask landlord mandate email:', e.message); }
     }
     await logActivity('preagreement_ask_landlord_mandate', 'contract', { paId, contractId, emailed, already }, auth.email || 'admin');
-    return res.status(200).json({ ok: true, contractId, url, message, phone: phone || null, email: email || null, emailed, already, at: already ? (contract.landlordMandate.at || null) : null });
+    return res.status(200).json({ ok: true, contractId, created, propertyCreated, url, message, phone: phone || null, email: email || null, emailed, already, at: already ? (contract.landlordMandate.at || null) : null });
   }
   if (op !== 'sign') return res.status(400).json({ ok: false, error: 'bad_op' });
 
@@ -339,10 +429,19 @@ export default async function handler(req, res) {
 
   // ── 1. IL CONDUTTORE, per mandato ────────────────────────────────────
   if (!sig0.tenantSigned) {
+    // la casa ricontrollata sull'immobile di ADESSO, e scritta sul mandato
+    // PRIMA della firma: submit (in-process, rilegge il contratto) e lookup
+    // leggono il riscontro dal mandato
+    const heal = await homeHealFor(contract, pa, paId, nowISO);
+    if (heal && heal.changed) {
+      await fsPatch('contracts/' + contractId, { tenantMandate: heal.mandate });
+      contract.tenantMandate = heal.mandate;
+    }
     const chk = mandateCheck(contract);
     if (!chk.ok) {
       return res.status(errStatus(chk.reason)).json({
         ok: false, error: chk.reason, contractId,
+        ...(heal && !heal.home.match ? { home: homeOut(heal) } : {}),
         changed: (chk.diff || []).map(d => d.key), changedText: MANDATO.describeDiff(chk.diff || []),
         landlordSignUrl: signUrl(toks.landlord),
         tenantSignUrl: signUrl(toks.tenant),

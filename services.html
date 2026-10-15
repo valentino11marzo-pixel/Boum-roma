@@ -53,6 +53,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/og-home.png",
@@ -75,14 +76,14 @@
   </script>
   <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"ItemList","name":"BOOM Rome services","itemListElement":[
- {"@type":"ListItem","position":1,"item":{"@type":"Service","name":"Property Finding","url":"https://www.boomrome.com/property-finding","offers":{"@type":"Offer","price":"350","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":2,"item":{"@type":"Service","name":"Remote Move Pack","url":"https://www.boomrome.com/remote-move-pack","offers":{"@type":"Offer","price":"299","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":3,"item":{"@type":"Service","name":"Deal Assistance","url":"https://www.boomrome.com/deal-assistance","offers":{"@type":"Offer","price":"249","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":4,"item":{"@type":"Service","name":"Virtual Viewing","url":"https://www.boomrome.com/virtual-viewing","offers":{"@type":"Offer","price":"89","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":5,"item":{"@type":"Service","name":"Deposit Recovery","url":"https://www.boomrome.com/deposit-recovery","offers":{"@type":"Offer","price":"99","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":6,"item":{"@type":"Service","name":"Contract Check Express","url":"https://www.boomrome.com/contract-check-express","offers":{"@type":"Offer","price":"49","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":7,"item":{"@type":"Service","name":"Concierge","url":"https://www.boomrome.com/concierge","offers":{"@type":"Offer","price":"390","priceCurrency":"EUR"}}},
- {"@type":"ListItem","position":8,"item":{"@type":"Service","name":"Pacchetto Canone Concordato","url":"https://www.boomrome.com/pacchetto-concordato","offers":{"@type":"Offer","price":"349","priceCurrency":"EUR"}}}
+ {"@type":"ListItem","position":1,"item":{"@type":"Service","@id":"https://www.boomrome.com/property-finding#service","name":"Property Finding","url":"https://www.boomrome.com/property-finding","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"350","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":2,"item":{"@type":"Service","@id":"https://www.boomrome.com/remote-move-pack#service","name":"Remote Move Pack","url":"https://www.boomrome.com/remote-move-pack","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"299","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":3,"item":{"@type":"Service","@id":"https://www.boomrome.com/deal-assistance#service","name":"Deal Assistance","url":"https://www.boomrome.com/deal-assistance","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"249","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":4,"item":{"@type":"Service","@id":"https://www.boomrome.com/virtual-viewing#service","name":"Virtual Viewing","url":"https://www.boomrome.com/virtual-viewing","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"89","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":5,"item":{"@type":"Service","@id":"https://www.boomrome.com/deposit-recovery#service","name":"Deposit Recovery","url":"https://www.boomrome.com/deposit-recovery","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"99","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":6,"item":{"@type":"Service","@id":"https://www.boomrome.com/contract-check-express#service","name":"Contract Check Express","url":"https://www.boomrome.com/contract-check-express","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"49","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":7,"item":{"@type":"Service","@id":"https://www.boomrome.com/concierge#service","name":"Concierge","url":"https://www.boomrome.com/concierge","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"AggregateOffer","lowPrice":"15","priceCurrency":"EUR"}}},
+ {"@type":"ListItem","position":8,"item":{"@type":"Service","@id":"https://www.boomrome.com/pacchetto-concordato#service","name":"Pacchetto Canone Concordato","url":"https://www.boomrome.com/pacchetto-concordato","provider":{"@id":"https://www.boomrome.com/#organization"},"offers":{"@type":"Offer","price":"349","priceCurrency":"EUR"}}}
 ]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
@@ -261,7 +262,7 @@ html {
       <div class="svc">
         <div class="top"><h3>Property Finding</h3><span class="price">€350<small>deducted from fee</small></span></div>
         <p>We run the whole hunt for you — on-market and off-market — verify what we find, and negotiate the deal. The flagship service.</p>
-        <span class="when">Refunded if we find no match</span>
+        <span class="when">3 matching options in 15 days, or the €350 back</span>
         <a class="go" href="/property-finding">See how it works →</a>
       </div>
       <div class="svc">
@@ -295,15 +296,15 @@ html {
         <a class="go" href="/deposit-recovery">Start recovery →</a>
       </div>
       <div class="svc">
-        <div class="top"><h3>Concierge</h3><span class="price">from €390<small>quoted per move</small></span></div>
+        <div class="top"><h3>Concierge</h3><span class="price">from €15<small>per task · full landing from €390</small></span></div>
         <p>The whole landing: codice fiscale before arrival, utilities, SIM, residency, healthcare. One dedicated human on WhatsApp for the first month.</p>
-        <span class="when">Single tasks from €15</span>
+        <span class="when">Full landing quoted per move — the list before you pay</span>
         <a class="go" href="/concierge">See the full landing →</a>
       </div>
       <div class="svc">
         <div class="top"><h3>Free Contract Check</h3><span class="price">€0</span></div>
         <p>Not sure you need the paid review? Send us the contract and we'll tell you if something looks wrong. No catch — we'd rather you didn't get scammed.</p>
-        <span class="when">Answer within a day</span>
+        <span class="when">A person replies in office hours (Rome time)</span>
         <a class="go" href="/contract-check">Send a contract →</a>
       </div>
     </div>
@@ -314,25 +315,25 @@ html {
   </section>
 
   <section class="rv" id="landlords">
-    <div class="sec-h"><span class="num">PER I PROPRIETARI</span><h2>Affitti casa tua? <span class="g">Il canone concordato conviene.</span></h2></div>
+    <div class="sec-h"><span class="num">PER I PROPRIETARI</span><h2>Ha una casa da affittare? <span class="g">Prima faccia il conto.</span></h2></div>
     <div class="grid">
       <div class="svc own">
-        <div class="top"><h3>Calcolatore canone</h3><span class="price">gratis</span></div>
-        <p>Il canone concordato massimo legale per il tuo immobile, calcolato sulle 90+ micro-zone dell'Accordo di Roma 2023 — e quanto risparmi con la cedolare al 10%.</p>
-        <span class="when">30 secondi, nessun dato richiesto</span>
-        <a class="go" href="/canone">Calcola il tuo canone →</a>
+        <div class="top"><h3>Il conto della sua casa</h3><span class="price">gratis</span></div>
+        <p>Il massimo a canone concordato per la sua casa sulle tabelle dell'Accordo territoriale di Roma, zona per zona, e quanto le resta con la cedolare al 10%.</p>
+        <span class="when">Un minuto, nessun dato richiesto</span>
+        <a class="go" href="/canone">Faccia il conto →</a>
       </div>
       <div class="svc own">
-        <div class="top"><h3>Pacchetto Concordato</h3><span class="price">€349<small>una tantum</small></span></div>
-        <p>Verifica ufficiale, contratto conforme, attestazione di rispondenza e registrazione RLI — gestiti da noi. Tu firmi, il fisco scende.</p>
-        <span class="when">Rimborso se non rientri in fascia</span>
-        <a class="go" href="/pacchetto-concordato">Attiva il pacchetto →</a>
+        <div class="top"><h3>Pacchetto Concordato</h3><span class="price">€349<small>IVA inclusa</small></span></div>
+        <p>Per chi ha già l'inquilino: verifica del canone, contratto conforme, pratica di attestazione e registrazione RLI, seguite da noi. La tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto.</p>
+        <span class="when">Rimborso se il concordato non è possibile per la casa</span>
+        <a class="go" href="/pacchetto-concordato">Il pacchetto →</a>
       </div>
       <div class="svc own">
-        <div class="top"><h3>Affitta con BOOM</h3><span class="price">su misura</span></div>
-        <p>Inquilini internazionali verificati, contratto digitale, incassi riconciliati e burocrazia gestita. La casa lavora, tu no.</p>
-        <span class="when">Si parte da un immobile, senza impegno</span>
-        <a class="go" href="/owners">Scopri BOOM per i proprietari →</a>
+        <div class="top"><h3>Affittarla con BOOM</h3><span class="price">€0<small>provvigione</small></span></div>
+        <p>Prima locazione: la provvigione la paga l'inquilino, Lei paga le pratiche del contratto: €278 IVA inclusa con l'attestazione, €89 senza; la tariffa dell'organizzazione firmataria per l'attestazione è a parte. Contratto firmato online, incasso e rendiconto il 1° del mese.</p>
+        <span class="when">Valutazione gratuita, senza impegno</span>
+        <a class="go" href="/owners">BOOM per i proprietari →</a>
       </div>
       <div class="svc own">
         <div class="top"><h3>Per aziende e università</h3><span class="price">convenzione</span></div>

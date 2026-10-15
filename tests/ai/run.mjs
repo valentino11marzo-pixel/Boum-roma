@@ -181,7 +181,7 @@ let cloud = { status: 200, text: '{"ok":true}', usage: { input_tokens: 1000, out
 let local = { status: 200, text: '{"ok":true}', usage: { prompt_tokens: 900, completion_tokens: 150 }, model: 'qwen3:14b', throw: false };
 let commitStatus = 200, settingsThrow = false;
 const json = (o, status = 200) => new Response(JSON.stringify(o), { status, headers: { 'content-type': 'application/json' } });
-const toDoc = (path, obj) => ({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(obj) });
+const toDoc = (path, obj) => ({ updateTime:'2026-10-14T00:00:00.000Z', name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(obj) });
 const fromFields = (fields) => { const o = {}; for (const [k, v] of Object.entries(fields || {})) o[k] = fsValToJs(v); return o; };
 function setDeep(obj, path, fn) {
   const parts = path.split('.'); let cur = obj;
@@ -393,8 +393,9 @@ const LOCAL = { enabled: true, url: 'http://127.0.0.1:11434', model: 'qwen3:14b'
   ok(r.text === '{"ok":true}' && commits.length === 1, 'un :commit che fallisce non fa fallire la risposta');
   reset(null);
   settingsThrow = true;
-  const r2 = await ai({ purpose: 'leads.brain', system: 'S', user: 'x' });
-  ok(r2.backend === 'cloud', 'settings/ai irraggiungibile → cloud (fail-open)');
+  let settingsError;
+  try { await ai({ purpose: 'leads.brain', system: 'S', user: 'x' }); } catch(e) { settingsError=e; }
+  ok(settingsError?.code==='ai_budget_settings_unavailable' && cloudCalls.length===0, 'settings/ai irraggiungibile → cloud fermato: budget ignoto');
   reset(null);
   let err = null;
   try { await ai({ purpose: 'nope.nope', system: 'S', user: 'x' }); } catch (e) { err = e; }

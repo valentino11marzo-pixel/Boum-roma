@@ -54,10 +54,10 @@ const basePA = (over = {}) => ({
 const browser = await chromium.launch(launchOptions());
 const errs = [];
 
-async function open(pa, { submitDelay = 0 } = {}) {
+async function open(pa, { submitDelay = 0, submitError = null, payError = null } = {}) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: 'reduce' });
   const page = await ctx.newPage();
-  const posts = { submit: [], mandate: [] };
+  const posts = { submit: [], mandate: [], pay: [] };
   page.on('pageerror', (e) => errs.push(e.message));
   await page.route('**/*', async (r) => {
     const u = r.request().url();
@@ -65,7 +65,12 @@ async function open(pa, { submitDelay = 0 } = {}) {
     if (u.includes('/api/preagreement/submit')) {
       posts.submit.push(JSON.parse(r.request().postData() || '{}'));
       if (submitDelay) await new Promise((res) => setTimeout(res, submitDelay));
+      if (submitError) return r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ ok: false, error: submitError }) });
       return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ ok: true, ref: 'BOOM-TEST' }) });
+    }
+    if (u.includes('/api/preagreement/pay')) {
+      posts.pay.push(JSON.parse(r.request().postData() || '{}'));
+      return r.fulfill({ status: 409, contentType: 'application/json', body: JSON.stringify({ ok: false, error: payError || 'payments_unavailable' }) });
     }
     if (u.includes('/api/preagreement/mandate')) {
       posts.mandate.push(JSON.parse(r.request().postData() || '{}'));
@@ -187,6 +192,29 @@ console.log('\n\x1b[1mLe giunzioni sulla sorgente\x1b[0m');
   check('il bottone del passo 4 non dipende più dalla spunta', !/btn\.disabled=!\(ok&&ok\.checked\)/.test(src));
   check('il vecchio «Tick the consent box above to enable signing» non c\'è più', !/Tick the consent box above/.test(src));
   check('la stampa (replica su carta) nasconde le righe da spuntare', /\.consent,\.agree,\.full,/.test(src));
+}
+
+for (const [label, fields, amount] of [
+  ['snapshot', { money: { dueAtSigning: 1200 }, paymentDueEur: 1019.49 }, '€1,019.49'],
+  ['legacy', { money: { dueAtSigning: 900.49 }, addons: [{ kind: 'cleaning-premium', eur: 119 }] }, '€1,019.49'],
+  ['soli add-on', { money: { dueAtSigning: 0 }, paymentDueEur: 119 }, '€119'],
+]) {
+  const { ctx, page, posts } = await open(basePA({ status: 'accepted', ...fields }), { payError: 'invalid_payment_terms' });
+  await page.waitForSelector('#payNowBtn');
+  check(label + ': il bottone mostra il totale accettato, inclusi centesimi e add-on', (await page.textContent('#payNowBtn')).includes(amount));
+  await page.click('#payNowBtn');
+  await page.waitForFunction(() => document.getElementById('payNowError').textContent.includes('verification'));
+  check(label + ': errore importi leggibile, senza falsa conferma', /No payment was started.*WhatsApp/.test(await page.textContent('#payNowError')));
+  check(label + ': importo e possibilità di riprova conservati', !(await page.$eval('#payNowBtn', b => b.disabled)) && (await page.textContent('#payNowBtn')).includes(amount) && posts.pay.length === 1);
+  await ctx.close();
+}
+for (const code of ['property_lock_unavailable', 'invalid_payment_terms']) {
+  const { ctx, page, posts } = await open(basePA(), { submitError: code });
+  await toStep4(page); await page.click('#okRow b'); await page.click('#abarBtn');
+  await page.waitForFunction(() => document.getElementById('paErr').textContent.includes('No payment was started'));
+  check(code + ': la risposta spiega come recuperare', /WhatsApp/.test(await page.textContent('#paErr')));
+  check(code + ': modulo e consenso restano disponibili', posts.submit.length === 1 && await page.$eval('#paOk', e => e.checked) && !(await page.$eval('#abarBtn', e => e.disabled)));
+  await ctx.close();
 }
 
 await browser.close();

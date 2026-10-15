@@ -53,6 +53,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/og-home.png",
@@ -77,6 +78,7 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://www.boomrome.com/remote-move-pack#service",
   "serviceType": "Remote apartment rental assistance",
   "name": "Remote Move Pack — close from abroad",
   "description": "Two live video viewings, clause-by-clause contract review in English, landlord verification, negotiation and arrival setup for renting an apartment in Rome from abroad. €299, credited toward the agency fee on BOOM homes.",
@@ -524,7 +526,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   .breve-d > summary .breve-sot { opacity:.75; } }
 </style>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/remote-move-pack#webpage","url":"https://www.boomrome.com/remote-move-pack","name":"Remote Move Pack — rent in Rome from abroad","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-remote-move-pack.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
+{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/remote-move-pack#webpage","url":"https://www.boomrome.com/remote-move-pack","name":"Remote Move Pack — rent in Rome from abroad","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"mainEntity":{"@id":"https://www.boomrome.com/remote-move-pack#service"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-remote-move-pack.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
 </script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -672,7 +674,7 @@ html {
           <div class="tot"><span>You land</span><b>keys + utilities ready</b></div>
           <div class="stamp">✓ Closed from Boston</div>
         </div>
-        <div class="deliv"><span class="chip">🎥 Live on video</span><span class="chip">🛡️ Contract in English</span><span class="chip">🤝 We negotiate</span><span class="chip">🔌 Arrival set up</span></div>
+        <div class="deliv"><span class="chip">🎥 Live on video</span><span class="chip">🛡️ Contract review in English</span><span class="chip">🤝 We negotiate</span><span class="chip">🔌 Arrival set up</span></div>
       </div>
     </div>
   </header>
@@ -840,14 +842,14 @@ html {
       <p class="r-det">If an advertiser is unreachable and the visit cannot happen, that
         part comes back. And if you rent one of BOOM's own homes, the €299 is
         <b>credited toward your agency fee</b>.</p>
-      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Our terms, in writing <i>→</i></a></div>
+      <div class="prove"><a href="/terms" target="_blank" rel="noopener">Our terms, in writing <i>→</i></a></div>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="m6">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>Check us, don't trust us</span></div>
       <div class="verifica">
       <div class="vf"><b>The company</b><p>Egidi Immobiliare S.r.l. — P.IVA
         17322991005, REA RM-1710623, Via dei Coronari 181, Roma.
-        <a href="/terms.html">Terms →</a></p></div>
+        <a href="/terms">Terms →</a></p></div>
       <div class="vf"><b>The trademark</b><p>Registered EU trademark
         019317594 — look it up yourself on
         <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
@@ -889,7 +891,7 @@ html {
             target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
           <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
             rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
-          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          <a href="/terms">Terms &amp; fees §4</a>. Card payments run
           through Stripe with a receipt — never a transfer to an individual.</dd>
       </dl>
       </details>
@@ -1315,7 +1317,7 @@ function paySheet(){
       t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
   if (!can || !dep || !v1 || !v2 || !v3) return;
   var TETTO = 3;   /* L. 392/1978 art. 11 */
-  var PREAV = 3;   /* L. 431/1998 art. 4 */
+  var PREAV = 3;   /* recesso per gravi motivi: tre mesi nei modelli transitorio e studenti (js/contract-pdf.js) */
 
   function eur(n) {
     var i = Math.round(Math.abs(n)).toString(), fuori = '';

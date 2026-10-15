@@ -357,18 +357,6 @@ body.pm-on #sgFollowModal .sg-decision-sheet{max-height:100%}
    il compositore sforava di lato e poteva essere tagliato in fondo. */
 body.pm-on [style*="grid-template-columns:minmax(280px,360px) 1fr"]{grid-template-columns:minmax(0,1fr)!important}
 body.pm-on .inbox-list-pane + div{min-width:0}
-body.pm-on .inbox-list-pane + div > .card{max-height:none!important}
-body.pm-on .inbox-list-pane + div > .card > div:first-child,
-body.pm-on .inbox-list-pane + div > .card > div:last-child{flex-shrink:0}
-body.pm-on .inbox-list-pane + div > .card > div:first-child > div{min-width:0;overflow-wrap:anywhere}
-body.pm-on .inbox-list-pane + div > .card > div:first-child > div:first-child{flex:1 1 100%!important}
-body.pm-on .inbox-list-pane + div > .card > div:first-child > div > div:first-child,
-body.pm-on .inbox-list-pane + div > .card > div:first-child > div:last-child,
-body.pm-on .inbox-list-pane + div > .card > div:last-child > div{flex-wrap:wrap}
-body.pm-on .inbox-list-pane + div > .card > div[style*="overflow-y:auto"]{
-    flex:none!important;max-height:45dvh;min-height:120px;
-    overflow-wrap:anywhere;overscroll-behavior:contain;
-}
 body.pm-on #inboxTpl{min-width:0!important;max-width:100%}
 body.pm-on .inbox-list-pane input[type="search"],
 body.pm-on .inbox-list-pane + div .input{
@@ -492,3 +480,75 @@ body.pm-on .pm-autowiz .modal-footer{display:none!important}
     border:1px solid rgba(212,175,55,.35)!important;
 }
 .pm-menu-back .ico{color:var(--gold)}
+
+/* Operational lists: the first record takes precedence over repeated totals. */
+body.pm-on .main:is([data-pm-section="users"],[data-pm-section="properties"],[data-pm-section="contracts"],[data-pm-section="maintenance"]) > .page-header{margin-bottom:14px;padding-bottom:14px;gap:10px}
+body.pm-on .main:is([data-pm-section="properties"],[data-pm-section="contracts"],[data-pm-section="maintenance"]) > .stats-grid{display:flex;gap:8px!important;overflow-x:auto;scrollbar-width:thin;padding-bottom:5px;margin-bottom:14px!important;overscroll-behavior-x:contain}
+body.pm-on .main:is([data-pm-section="properties"],[data-pm-section="contracts"],[data-pm-section="maintenance"]) > .stats-grid > .stat-card{flex:0 0 108px;min-height:70px;padding:11px 13px}
+body.pm-on .portal-list-toolbar{display:flex;flex-direction:column;gap:10px;margin-bottom:12px;min-width:0}
+body.pm-on .portal-list-search{display:block;min-width:0;width:100%;flex:0 0 auto}
+body.pm-on .portal-list-toolbar>.form-input{flex:0 0 auto;width:100%;min-height:46px;font-size:16px}
+body.pm-on .portal-list-search .form-input{width:100%;min-width:0;min-height:46px;font-size:16px}
+body.pm-on .portal-list-filters{display:flex;flex-wrap:nowrap!important;gap:6px;overflow-x:auto;max-width:100%;padding-bottom:4px;scrollbar-width:thin;overscroll-behavior-x:contain}
+body.pm-on .portal-list-filters .btn{flex:0 0 auto;white-space:nowrap;min-height:44px}
+body.pm-on .portal-list-count{font-size:12px;color:var(--text-secondary);margin:10px 0}
+body.pm-on .portal-list-extras{border:1px solid var(--border);border-radius:14px;margin-top:18px;background:var(--bg-card)}
+body.pm-on .portal-list-extras>summary{padding:14px 16px;min-height:48px;cursor:pointer;font-size:14px;line-height:1.4}
+body.pm-on .portal-list-extras>summary>span{display:block;font-size:12px;color:var(--text-secondary);margin-top:3px}
+body.pm-on .portal-list-extras-body{padding:0 12px 12px}
+body.pm-on .portal-list-extras-body #onboardingLink{min-width:0;width:100%}
+body.pm-on .user-item .list-content{flex:1 1 calc(100% - 64px);overflow-wrap:anywhere}
+body.pm-on .user-item .list-subtitle{white-space:normal}
+body.pm-on .user-item .pm-act-primary{height:auto;min-height:44px;line-height:1.35;padding:10px 12px}
+body.pm-on #usersEmptySearch[hidden]{display:none}
+
+/* Inbox is a list OR a conversation on a phone; desktop keeps both panes. */
+body.pm-on .inbox-workspace[data-thread-open="false"] .inbox-thread-pane{display:none}
+body.pm-on .inbox-workspace[data-thread-open="true"] .inbox-list-pane{display:none!important}
+body.pm-on:has(.inbox-workspace[data-thread-open="true"]) .inbox-page-header{display:none}
+body.pm-on .inbox-workspace .inbox-list-pane{max-height:calc(var(--pm-vh,100dvh) - 260px - var(--safe-t) - var(--safe-b))!important;min-height:240px}
+body.pm-on .inbox-channel-context label{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px}
+body.pm-on .inbox-channel-context select{min-height:44px;min-width:150px;padding:8px 12px;border:1px solid var(--border);border-radius:10px;background:var(--bg-input);color:var(--text);font:inherit;font-size:16px}
+body.pm-on .inbox-workspace[data-thread-open="true"] .inbox-thread-pane{position:fixed;inset:calc(64px + var(--safe-t)) 0 calc(var(--pm-tab-h) + var(--safe-b));z-index:90;padding:0 10px 8px;background:var(--bg)}
+body.pm-on .inbox-thread-pane>.inbox-thread-card{height:100%;max-height:none!important;min-height:0;border-radius:14px;margin:0}
+body.pm-on .inbox-thread-card .inbox-back{display:flex!important;align-self:flex-start;align-items:center;flex-shrink:0;min-height:44px;margin:8px 12px 0;padding:10px 12px;font-size:13px}
+body.pm-on .inbox-thread-card .inbox-thread-head{padding:10px 12px!important;gap:8px!important;flex-shrink:0}
+body.pm-on .inbox-thread-head>div{min-width:0;overflow-wrap:anywhere}
+body.pm-on .inbox-thread-head>div:first-child{flex:1 1 100%!important}
+body.pm-on .inbox-thread-head>div:first-child>div:first-child{flex-wrap:wrap;gap:6px!important}
+body.pm-on .inbox-thread-head .badge{flex-shrink:0;white-space:nowrap}
+body.pm-on .inbox-thread-head>div:last-child{flex-wrap:wrap}
+body.pm-on .inbox-thread-card #inboxTimeline{flex:1 1 120px!important;min-height:48px;max-height:none;padding:12px!important;overflow-wrap:anywhere;overscroll-behavior:contain}
+body.pm-on .inbox-thread-card .inbox-compose-slot{flex:0 1 auto!important;min-height:0;max-height:58%;overflow-y:auto;overscroll-behavior:contain}
+body.pm-on .inbox-compose-slot>div{padding:10px 12px!important}
+body.pm-on .inbox-compose-slot .input{min-height:44px;min-width:0;max-width:100%;font-size:16px!important;box-sizing:border-box}
+body.pm-on .inbox-compose-slot textarea{min-height:72px!important;resize:vertical}
+body.pm-on .inbox-compose-slot>div>div{flex-wrap:wrap}
+body.pm-on .inbox-compose-slot .inbox-compose-actions{position:sticky;bottom:0;background:var(--bg-card);padding:6px 0 0;z-index:1}
+body.pm-on.pm-kb .inbox-workspace[data-thread-open="true"] .inbox-thread-pane{top:var(--pm-vtop,0px);bottom:auto;height:var(--pm-vh,100dvh);z-index:110;padding:0 8px 8px}
+body.pm-on.pm-kb .inbox-thread-card .inbox-thread-head{padding:6px 12px!important}
+body.pm-on.pm-kb .inbox-thread-info{display:none!important}
+body.pm-on.pm-kb .inbox-thread-card .inbox-compose-slot{max-height:calc(100% - 98px)}
+
+body.pm-on.pm-kb .inbox-compose-tabs,
+body.pm-on.pm-kb .inbox-compose-template{display:none!important}
+body.pm-on .inbox-thread-head .btn,
+body.pm-on .inbox-compose-tabs .btn:not(.btn-primary){background:var(--bg-input);color:var(--text-secondary);border-color:var(--border)}
+
+/* Thread information stays available without displacing the conversation. */
+body.pm-on .inbox-thread-card .inbox-back{margin:4px 10px 0;padding:8px 10px}
+body.pm-on .inbox-thread-card .inbox-thread-head{padding:6px 12px 8px!important}
+body.pm-on .inbox-thread-info{flex:0 0 auto;min-width:0;border-bottom:1px solid var(--border)}
+body.pm-on .inbox-thread-info>summary{position:relative;min-height:44px;padding:10px 32px 10px 12px;display:flex;flex-direction:column;justify-content:center;gap:3px;list-style:none;cursor:pointer;font-size:12px;line-height:1.35}
+body.pm-on .inbox-thread-info>summary::-webkit-details-marker{display:none}
+body.pm-on .inbox-thread-info>summary::after{position:absolute;right:14px;top:12px;content:'+';font-size:18px;color:var(--gold)}
+body.pm-on .inbox-thread-info[open]>summary::after{content:'−'}
+body.pm-on .inbox-thread-info>summary small{font-size:11px;color:var(--gold)}
+body.pm-on .inbox-thread-info>summary:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+body.pm-on .inbox-thread-info-body{max-height:168px;overflow-y:auto;overscroll-behavior:contain;padding:0 12px 10px;scrollbar-width:thin}
+body.pm-on .inbox-thread-contact{margin:0 0 8px!important;overflow-wrap:anywhere;line-height:1.5}
+body.pm-on .inbox-thread-actions{gap:6px!important}
+body.pm-on .inbox-thread-actions .btn{min-height:44px;padding:8px 10px}
+body.pm-on .inbox-thread-info-body .inbox-follow-up{max-height:none;margin:10px 0 0!important;padding:10px!important}
+body.pm-on .inbox-thread-info-body>.inbox-follow-up~div{margin:10px 0 0!important;padding:10px!important}
+body.pm-on:not(.pm-kb) .inbox-thread-card #inboxTimeline{min-height:160px}

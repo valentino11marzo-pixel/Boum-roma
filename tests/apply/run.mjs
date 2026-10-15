@@ -1,3 +1,4 @@
+import { sessionHelpers } from '../portal-session/source.mjs';
 // tests/apply/run.mjs — chi fa APPLY dal sito arriva all'operatore.
 //
 // LA LEZIONE DEL 30 SETTEMBRE 2026 («chi fa apply per la casa non lo vedo:
@@ -356,6 +357,108 @@ section('5. notify-pending manda la card di Berk (handler vero)');
   ok('notify-pending: i vecchi già notificati NON ripartono', !TG.some(t => /Vecchio \d/.test(t.body.text || '')));
 }
 
+// ── 5b. il secondo invio dello STESSO modulo non duplica niente ──────────
+// La pagina dice «riprova» su qualunque risposta non OK. Ma la porta scrive
+// il lead PRIMA di aspettare l'SMTP (fino a 8s): una connessione mobile che
+// cade dopo la scrittura mostra l'errore, il candidato ripreme Invia e
+// nascevano un SECONDO lead, una seconda conferma, un secondo avviso
+// all'operatore e una seconda card Telegram. Ora la pagina manda un
+// `requestId` (uno per caricamento) e il lead ha id `apply_<requestId>`:
+// Firestore risponde 409 sul secondo create e la porta risponde 200
+// duplicate:true senza rimandare niente.
+section('5b. Idempotenza: lo stesso requestId = un lead, una conferma, un avviso, una card');
+{
+  const leadsNow = () => [...DB.keys()].filter(k => k.startsWith('leads/'));
+  const actsNow = () => [...DB.keys()].filter(k => k.startsWith('activityLog/')).length;
+  const cron = async (h, method = 'POST') => { const r = mockRes(); await h({ method, headers: { authorization: 'Bearer cron-test' }, query: {} }, r); return r; };
+  const RID = '8f14e45f-ceea-467a-9d3b-1c2f3a4b5c6d';
+  const body = () => pageBody({ name: 'Rete Lenta', email: 'lenta@example.com', phone: '+39 333 765 4321', requestId: RID });
+
+  resetMails();
+  const n0 = leadsNow().length, a0 = actsNow();
+  const r1 = await post(applyHandler, body());
+  ok('primo invio: 200 con id deterministico apply_<requestId>', r1.statusCode === 200 && r1.body.id === 'apply_' + RID && !r1.body.duplicate, r1.body);
+  const l1 = docOf('leads/apply_' + RID) || { raw: {} };
+  ok('primo invio: lead scritto, con il requestId in raw', l1.status === 'new' && l1.raw.requestId === RID, l1 && l1.raw);
+  ok('primo invio: due email (candidato + operatore)', mails().length === 2, mails().map(m => m.to));
+  const a1 = actsNow();
+  const stamps1 = JSON.stringify([l1.ackEmailAt, l1.operatorEmailAt]);
+
+  // la risposta è andata persa: il candidato ripreme Invia
+  resetMails();
+  TG.length = 0;
+  const r2 = await post(applyHandler, body());
+  ok('secondo invio: 200 ok, stesso id, duplicate:true', r2.statusCode === 200 && r2.body.ok === true && r2.body.id === 'apply_' + RID && r2.body.duplicate === true, r2.body);
+  ok('secondo invio: NESSUN lead in più', leadsNow().length === n0 + 1, leadsNow().length - n0);
+  ok('secondo invio: NESSUNA email (né conferma né avviso)', mails().length === 0, mails().map(m => m.to));
+  ok('secondo invio: la porta non manda nulla a Telegram', TG.length === 0);
+  ok('secondo invio: nessuna voce di attività in più', actsNow() === a1 && a1 === a0 + 1, { a0, a1, now: actsNow() });
+  const l2 = docOf('leads/apply_' + RID) || {};
+  ok('secondo invio: il lead resta quello di prima (timbri invariati)', JSON.stringify([l2.ackEmailAt, l2.operatorEmailAt]) === stamps1);
+
+  // la card Telegram: Brain + notify-pending veri → UNA card, anche dopo un terzo invio
+  await cron(brainHandler);
+  TG.length = 0;
+  await cron(notifyHandler, 'GET');
+  const cards = () => TG.filter(t => t.method === 'sendMessage' && /Rete Lenta/.test(t.body.text || '')).length;
+  ok('notify-pending: UNA card per la candidatura', cards() === 1, TG.map(t => (t.body.text || '').slice(0, 60)));
+  resetMails();
+  const r3 = await post(applyHandler, body());
+  TG.length = 0;
+  await cron(notifyHandler, 'GET');
+  ok('terzo invio dopo la card: duplicate, nessuna email, nessuna seconda card', r3.body.duplicate === true && mails().length === 0 && cards() === 0, { r3: r3.body, cards: cards() });
+
+  // doppio tocco: due richieste insieme
+  resetMails();
+  const RID2 = 'f00dbabe-0000-4000-8000-000000000002';
+  const [p1, p2] = await Promise.all([
+    post(applyHandler, pageBody({ name: 'Doppio Tocco', email: 'doppio@example.com', requestId: RID2 })),
+    post(applyHandler, pageBody({ name: 'Doppio Tocco', email: 'doppio@example.com', requestId: RID2 })),
+  ]);
+  ok('doppio tocco: entrambe 200 con lo stesso id', p1.statusCode === 200 && p2.statusCode === 200 && p1.body.id === 'apply_' + RID2 && p2.body.id === 'apply_' + RID2, [p1.body, p2.body]);
+  ok('doppio tocco: una sola è il duplicato', [p1, p2].filter(r => r.body.duplicate === true).length === 1);
+  ok('doppio tocco: due email in tutto, non quattro', mails().length === 2, mails().map(m => m.to));
+
+  // il fallback della pagina senza crypto.randomUUID: Date.now() + base36
+  resetMails();
+  const fb = String(Date.now()) + Math.random().toString(36).slice(2);
+  const f1 = await post(applyHandler, pageBody({ name: 'Senza Uuid', email: 'su@example.com', requestId: fb }));
+  const f2 = await post(applyHandler, pageBody({ name: 'Senza Uuid', email: 'su@example.com', requestId: fb }));
+  ok('requestId di ripiego (Date.now()+base36): accettato e idempotente', f1.body.id === 'apply_' + fb && f2.body.duplicate === true && mails().length === 2, [f1.body, f2.body]);
+
+  // requestId non valido → comportamento di prima (id automatico)
+  for (const [name, bad] of [['corto', 'abc1234'], ['con /', 'aaaa/bbbb'], ['65 caratteri', 'a'.repeat(65)], ['spazi', 'abc def ghi'], ['oggetto', { x: 1 }], ['numero', 12345678]]) {
+    resetMails();
+    const r = await post(applyHandler, pageBody({ name: 'Id ' + name, email: 'id@example.com', requestId: bad }));
+    ok('requestId ' + name + ': ignorato, id automatico, email normali', r.statusCode === 200 && !/^apply_/.test(r.body.id) && !r.body.duplicate && mails().length === 2, r.body);
+  }
+  // un requestId «strano» ma nella grammatica resta un id Firestore valido
+  // (gli id riservati sono quelli che INIZIANO con __: qui c'è il prefisso)
+  resetMails();
+  const px = await post(applyHandler, pageBody({ name: 'Proto', email: 'proto@example.com', requestId: '__proto__' }));
+  ok('requestId «__proto__»: id apply___proto__, nessun effetto collaterale', px.statusCode === 200 && px.body.id === 'apply___proto__' && !!docOf('leads/apply___proto__') && mails().length === 2, px.body);
+  // due invii SENZA requestId: due lead, come prima (nessun cambiamento)
+  resetMails();
+  const s1 = await post(applyHandler, pageBody({ name: 'Senza Rid', email: 'srid@example.com' }));
+  const s2 = await post(applyHandler, pageBody({ name: 'Senza Rid', email: 'srid@example.com' }));
+  ok('senza requestId: comportamento invariato (due invii = due lead, due coppie di email)', s1.body.id !== s2.body.id && !s2.body.duplicate && mails().length === 4);
+
+  // il requestId non scavalca honeypot e validazione
+  resetMails();
+  const hp = await post(applyHandler, pageBody({ company: 'Bot', requestId: 'hp-00000001' }));
+  ok('honeypot con requestId: skip, niente scritto', hp.body.id === 'skip' && !DB.has('leads/apply_hp-00000001') && mails().length === 0);
+  const nv = await post(applyHandler, { email: 'x@example.com', requestId: 'nv-00000001' });
+  ok('senza nome con requestId: 400, niente scritto', nv.statusCode === 400 && !DB.has('leads/apply_nv-00000001'));
+
+  // un Firestore giù NON diventa un duplicato
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (u, o) => (String(u).includes('documentId=apply_down') ? { ok: false, status: 503, json: async () => ({}), text: async () => 'unavailable' } : realFetch(u, o));
+  resetMails();
+  const dn = await post(applyHandler, pageBody({ name: 'Firestore Giu', requestId: 'down-0000001' }));
+  globalThis.fetch = realFetch;
+  ok('Firestore 503 con requestId: 500 store_failed, nessuna email, mai un finto duplicato', dn.statusCode === 500 && dn.body.error === 'store_failed' && mails().length === 0, dn.body);
+}
+
 // ── 6. il portal vede il lead senza ricaricare ───────────────────────────
 section('6. Il portal: listener vivo sui lead');
 {
@@ -373,17 +476,17 @@ section('6. Il portal: listener vivo sui lead');
   let cb = null, query = null;
   const S = { profile: { id: 'admin', role: 'admin' }, page: 'oggi', leads: [{ id: 'x1', status: 'new' }] };
   const ctx = vm.createContext({
-    S, isAdmin: () => true, console,
+    S, auth: { currentUser: { uid: 'admin' } }, isAdmin: () => true, console,
     toast: (...a2) => calls.toast.push(a2), sendBrowserNotification: (...a2) => calls.notif.push(a2),
     buildNav: () => calls.nav++, oggiScheduleUpdate: () => calls.oggi++, renderPage: () => calls.render++,
-    setTimeout: () => 0, document: { hidden: true, getElementById: () => null },
+    setTimeout: () => 0, clearTimeout() {}, document: { hidden: true, getElementById: () => null },
     db: { collection: (name) => { query = { name }; const q = {
       orderBy: (f, d) => { query.orderBy = [f, d]; return q; },
       limit: n => { query.limit = n; return q; },
       onSnapshot: (next) => { cb = next; return () => { query.stopped = true; }; },
     }; return q; } },
   });
-  vm.runInContext(src.slice(a, b), ctx);
+  vm.runInContext(sessionHelpers(src) + '\n' + src.slice(a, b), ctx);
   vm.runInContext('startLeadsListener()', ctx);
   ok('stessa query del boot: leads per createdAt desc, 100', query.name === 'leads' && query.orderBy[0] === 'createdAt' && query.orderBy[1] === 'desc' && query.limit === 100);
   const snap = rows => ({ docs: rows.map(r => ({ id: r.id, data: () => r })) });

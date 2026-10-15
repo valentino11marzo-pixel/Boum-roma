@@ -53,7 +53,31 @@ CARD = [
     ('og-welcome-to-rome', 'Welcome to Rome Kit', 'Everything nobody<br><b>tells you.</b>',
      'Codice fiscale · residency · tessera sanitaria · SIM · bank · transport',
      None),
+    # La pagina dei proprietari parla italiano e col Lei: la card che gira su
+    # WhatsApp e' la prima frase che un proprietario legge di noi. Prima
+    # condivideva og-home, cioe' «Rome rentals for internationals» — la card
+    # dell'INQUILINO, mandata a chi una casa la offre.
+    ('og-owners', 'Proprietari', 'Lei riceve il canone<br>e un rendiconto.<br><b>Il resto è nostro.</b>',
+     'Inquilini selezionati · contratto firmato online e registrato · rendiconto il 1° del mese',
+     None),
+    # Il conto della sua casa (/canone): la card che parte col link del conto
+    # mandato al coniuge o al commercialista. Nessun numero: il numero è della
+    # casa di chi la manda, e una card uguale per tutti non può saperlo.
+    ('og-canone', 'Il conto della sua casa', 'Quanto può chiedere<br><b>a canone concordato.</b>',
+     'Tabelle dell\'Accordo di Roma, zona per zona · il netto con la cedolare al 10%',
+     None),
+    # Il Pacchetto: prima condivideva og-home, la card dell'INQUILINO.
+    ('og-pacchetto', 'Pacchetto concordato', 'Cedolare al 10%,<br><b>senza pratiche.</b>',
+     'Verifica del canone · contratto conforme · attestazione e registrazione seguite da noi',
+     EUR['concordato-pack']),
 ]
+
+# `python3 genera-og-servizi.py og-owners` rigenera SOLO le card nominate:
+# ricomprimere le altre otto cambierebbe byte senza cambiare niente.
+import sys
+SOLO = set(sys.argv[1:])
+if SOLO:
+    CARD = [c for c in CARD if c[0] in SOLO]
 
 STILE = '''* { margin:0; padding:0; box-sizing:border-box; }
 body { width:1200px; height:630px; background:#050505; overflow:hidden;
@@ -76,6 +100,7 @@ body { width:1200px; height:630px; background:#050505; overflow:hidden;
 h1 { font-weight:200; font-size:74px; line-height:1.06; letter-spacing:-.6px;
   max-width:15.5ch; }
 h1 b { color:#FFD700; font-weight:300; }
+h1.lunga { font-size:62px; max-width:17ch; }
 .prezzo { position:absolute; right:76px; top:132px; text-align:right; }
 .prezzo u { display:block; text-decoration:none; font-size:12px;
   letter-spacing:5px; color:#8a877e; text-transform:uppercase;
@@ -92,18 +117,24 @@ h1 b { color:#FFD700; font-weight:300; }
 
 
 def html(occhiello, titolo, prova, eur):
-    if eur:
+    if eur and occhiello == 'Pacchetto concordato':
+        blocco = f'<div class="prezzo"><u>IVA inclusa</u><s>&euro;{eur}</s></div>'
+    elif eur:
         blocco = f'<div class="prezzo"><u>from</u><s>&euro;{eur}</s></div>'
+    elif occhiello == 'Il conto della sua casa':
+        blocco = '<div class="prezzo"><u>il calcolo</u><s>gratis</s></div>'
     elif occhiello == 'Welcome to Rome Kit':
         blocco = '<div class="prezzo"><u>the guide</u><s>free</s></div>'
+    elif occhiello == 'Proprietari':
+        blocco = '<div class="prezzo"><u>valutazione</u><s>gratis</s></div>'
     else:
         blocco = '<div class="prezzo"><u>per task</u><s>quote</s></div>'
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
-  <div class="marchio"><span>BOOM</span><i>Rome &middot; {occhiello}</i></div>
-  <h1>{titolo}</h1>{blocco}
+  <div class="marchio"><span>BOOM</span><i>{'Roma' if occhiello in ('Proprietari', 'Il conto della sua casa', 'Pacchetto concordato') else 'Rome'} &middot; {occhiello}</i></div>
+  <h1{' class="lunga"' if titolo.count('<br>') > 1 else ''}>{titolo}</h1>{blocco}
   <div class="fondo">
     <span><span class="punto"></span>{prova}</span>
     <span class="sito">BOOMROME.COM</span>

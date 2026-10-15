@@ -16,8 +16,21 @@
 //         income(number), guarantor(bool),
 //         household('solo'|'couple'|'family'|'flatmates'),
 //         occupation('employed'|'self-employed'|'student'|'relocating'),
-//         moveIn('YYYY-MM-DD'), durationMonths(number) }
-// Response 200: { ok: true, id } | 4xx/5xx: { ok: false, error }
+//         moveIn('YYYY-MM-DD'), durationMonths(number),
+//         requestId(/^[\w-]{8,64}$/, optional — one per page load) }
+// Response 200: { ok: true, id } | { ok: true, id, duplicate: true }
+//           | 4xx/5xx: { ok: false, error }
+//
+// IDEMPOTENZA (15/10/2026). La pagina dice «riprova» su qualunque risposta
+// non OK, ma qui il lead si scrive PRIMA di aspettare l'SMTP (fino a 8s): una
+// connessione mobile che cade dopo la scrittura mostrava l'errore, il
+// candidato ripremeva Invia e nascevano un secondo lead, una seconda
+// conferma, un secondo avviso all'operatore e una seconda card Telegram.
+// Ora la pagina manda `requestId` (crypto.randomUUID() una volta per
+// caricamento) e il lead ha id `apply_<requestId>`: Firestore risponde 409
+// sul secondo create e qui si risponde 200 duplicate:true SENZA rimandare
+// email né scrivere attività (la card Telegram nasce dal lead, che è uno).
+// Senza requestId (o con uno malformato) tutto resta com'era.
 //
 // LA LEZIONE DEL 30 SETTEMBRE 2026 («chi fa apply per la casa non lo vedo:
 // né nei lead del portal, né via email»). Letto nei log e nella casella,
@@ -37,6 +50,7 @@ import { fsCreate, fsPatch, logActivity } from './homie/_lib.js';
 // (la lezione nodemailer del 2026-07)
 import { sendEmail } from './agent/_lib.js';
 import { shell, para, fine, btn, btn2, row, hero } from './preagreement/_notify.js';
+import { attributionFromReq } from './_attribution.js';
 
 // Dove arriva l'avviso di candidatura. Stessa convenzione delle altre email
 // all'operatore (sign/_notify, fiscal/_aspi, ops/*); LEADS_NOTIFY_EMAIL la
@@ -99,6 +113,13 @@ export function signersOf(v) {
   const n = Math.floor(Number(v));
   return Number.isFinite(n) && n >= 1 && n <= 10 ? n : null;
 }
+// La chiave di idempotenza della pagina (crypto.randomUUID(), oppure
+// Date.now() + base36): solo una stringa [A-Za-z0-9_-] di 8–64 caratteri,
+// perché diventa parte di un id Firestore. Tutto il resto → null, e la
+// candidatura va come prima (id automatico).
+export function requestIdOf(v) {
+  return typeof v === 'string' && /^[\w-]{8,64}$/.test(v) ? v : null;
+}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -138,6 +159,7 @@ export default async function handler(req, res) {
   const commute    = (body.commute && typeof body.commute === 'object')
     ? { place: clip(body.commute.place, 60), km: num(body.commute.km), label: clip(body.commute.label, 60) }
     : null;
+  const requestId  = requestIdOf(body.requestId);
 
   // Human-readable qualification snapshot for the portal inbox.
   const parts = [];
@@ -179,18 +201,35 @@ export default async function handler(req, res) {
     tier: null,
     ingestedBy: 'apply-lead',
     sourceRef: null,
+    // primo contatto consentito (cookie boom_attr di js/boom-track.js), mai bloccante
+    attribution: attributionFromReq(req, body),
     raw: {
       kind, waitlist, income, incomeBand, guarantor, guarantorType,
       household, occupation, signers,
-      moveIn, durationMonths: durationM, commute, ip,
+      moveIn, durationMonths: durationM, commute, ip, requestId,
       ua: clip(req.headers['user-agent'], 300),
     },
     createdAt: now,
     ingestedAt: now,
   };
 
+  // Il secondo invio dello stesso modulo (stesso requestId): il lead c'è già,
+  // e con lui le email partite (o in partenza) dal primo. Si risponde come la
+  // prima volta e basta. Un altro errore di Firestore resta un errore: mai un
+  // finto doppione.
+  const docId = requestId ? 'apply_' + requestId : undefined;
+  let id;
   try {
-    const { id } = await fsCreate('leads', lead);
+    ({ id } = await fsCreate('leads', lead, docId));
+  } catch (err) {
+    if (docId && err && err.exists) return res.status(200).json({ ok: true, id: docId, duplicate: true });
+    console.error('[apply-lead]', err && err.message);
+    return res.status(500).json({ ok: false, error: 'store_failed' });
+  }
+
+  // Da qui il lead è salvato: qualunque intoppo dopo è un 200 con l'id, mai
+  // un 500 che inviterebbe a riprovare una candidatura già arrivata.
+  try {
     try {
       await logActivity(
         'Apply lead: ' + name + (lead.propertyTitle ? ' → ' + lead.propertyTitle : ''),
@@ -201,7 +240,8 @@ export default async function handler(req, res) {
     } catch { /* activity log is best-effort */ }
 
     // Due email, in parallelo e sotto lo STESSO tetto di 8s: al candidato
-    // la conferma (la pagina promette «a person replies within 2 hours»),
+    // la conferma (la pagina promette una risposta «during office hours
+    // (Rome time)» — mai un numero di ore: decisione del fondatore),
     // all'operatore l'avviso con tutto ciò che il candidato ha dichiarato.
     // Best-effort: un SMTP lento non fa mai fallire la candidatura già
     // salvata. Il timbro sul lead SOLO per l'email partita davvero — prima
@@ -220,11 +260,10 @@ export default async function handler(req, res) {
       else console.error('[apply-lead] ' + sends[i][0] + ':', r.reason && r.reason.message);
     });
     if (Object.keys(stamp).length) { try { await fsPatch('leads/' + id, stamp); } catch {} }
-    return res.status(200).json({ ok: true, id });
   } catch (err) {
-    console.error('[apply-lead]', err && err.message);
-    return res.status(500).json({ ok: false, error: 'store_failed' });
+    console.error('[apply-lead] after store, lead ' + id + ':', err && err.message);
   }
+  return res.status(200).json({ ok: true, id });
 }
 
 // ── Le due email, pure (si testano senza SMTP) ─────────────────────────────
@@ -245,8 +284,8 @@ export function applicantEmail(lead) {
     html: shell(
       para(`Hi ${primo},`)
       + para(`your ${cosa} for <b>${casa}</b> just reached us — a person
-          with a name reads it and replies within 2 hours (office hours,
-          Rome time).`)
+          with a name reads it and replies during office hours (Rome time);
+          sent out of hours, it is answered the next working morning.`)
       + para(`If it moves forward, the next step is your written
           pre-agreement: a private link with the exact figures — rent,
           deposit, fee, dates — before a single euro moves.`)
@@ -305,7 +344,7 @@ export function operatorEmail(lead, id) {
         note: esc(casaTxt) })
       + `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 22px">${rows}</table>`
       + para(lead.email
-        ? 'Il candidato ha già ricevuto la conferma automatica, che promette una risposta entro 2 ore. <b>Rispondi a questa email</b> per scrivergli direttamente.'
+        ? 'Il candidato ha già ricevuto la conferma automatica, che promette una risposta in orario d’ufficio. <b>Rispondi a questa email</b> per scrivergli direttamente.'
         : 'Nessuna email lasciata: si risponde su WhatsApp o al telefono.')
       + reply
       + btn2(`${SITE}/portal#leads`, 'Apri i lead nel portal')

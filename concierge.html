@@ -52,6 +52,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/og-home.png",
@@ -76,17 +77,18 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://www.boomrome.com/concierge#service",
   "serviceType": "Relocation concierge",
   "name": "Concierge — relocation end-to-end",
   "description": "Everything beyond the apartment: codice fiscale, utilities, SIM, residence registration, healthcare enrollment. In English, one human on WhatsApp for your first month.",
   "url": "https://www.boomrome.com/concierge",
   "provider": { "@id": "https://www.boomrome.com/#organization" },
   "areaServed": { "@type": "City", "name": "Rome" },
-  "offers": { "@type": "AggregateOffer", "lowPrice": "15", "highPrice": "390", "priceCurrency": "EUR", "url": "https://www.boomrome.com/concierge" }
+  "offers": { "@type": "AggregateOffer", "lowPrice": "15", "priceCurrency": "EUR", "url": "https://www.boomrome.com/concierge" }
 }
   </script>
   <script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does Concierge pricing work?", "acceptedAnswer": {"@type": "Answer", "text": "Per task or per move. You pay for what you use. Single tasks start at €15; a typical full landing — codice fiscale, utilities, SIM, registrations — starts around €390. You see the list before you pay, and nothing renews: there is no subscription and no retainer."}}, {"@type": "Question", "name": "Can you get my codice fiscale before I arrive?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — before you land. With a simple power of attorney we obtain it remotely, so the bank, the contract and the SIM are ready on day one. It is the single piece of paper that unlocks everything else in Italy, and the one that strands people for weeks when it is missing."}}, {"@type": "Question", "name": "Do I need to speak Italian for any of this?", "acceptedAnswer": {"@type": "Answer", "text": "No. That is the service. We translate every appointment, every form and every phone call. Not the words on a page — the actual conversation at the counter, where a missing document sends you home and back again."}}, {"@type": "Question", "name": "What if I only need one thing?", "acceptedAnswer": {"@type": "Answer", "text": "Perfect. Take one. Every task on the menu is bookable alone: SIM setup €40, healthcare enrollment €120, visa support €200. Pick exactly what you need and nothing more — the packs exist because people often want several, not because you have to."}}, {"@type": "Question", "name": "How fast do you respond?", "acceptedAnswer": {"@type": "Answer", "text": "A human, within two hours. On WhatsApp, every day. For your first month in Rome you have a dedicated contact — the same person, not a queue — because the first month is when everything breaks at once."}}]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How does Concierge pricing work?", "acceptedAnswer": {"@type": "Answer", "text": "Per task or per move. You pay for what you use. Single tasks start at €15; a typical full landing — codice fiscale, utilities, SIM, registrations — starts around €390. You see the list before you pay, and nothing renews: there is no subscription and no retainer."}}, {"@type": "Question", "name": "Can you get my codice fiscale before I arrive?", "acceptedAnswer": {"@type": "Answer", "text": "Yes — before you land. With a simple power of attorney we obtain it remotely, so the bank, the contract and the SIM are ready on day one. It is the single piece of paper that unlocks everything else in Italy, and the one that strands people for weeks when it is missing."}}, {"@type": "Question", "name": "Do I need to speak Italian for any of this?", "acceptedAnswer": {"@type": "Answer", "text": "No. That is the service. We translate every appointment, every form and every phone call. Not the words on a page — the actual conversation at the counter, where a missing document sends you home and back again."}}, {"@type": "Question", "name": "What if I only need one thing?", "acceptedAnswer": {"@type": "Answer", "text": "Perfect. Take one. Every task on the menu is bookable alone: SIM setup €40, healthcare enrollment €120, visa support €200. Pick exactly what you need and nothing more — the packs exist because people often want several, not because you have to."}}, {"@type": "Question", "name": "How fast do you respond?", "acceptedAnswer": {"@type": "Answer", "text": "A person, during office hours. On WhatsApp, Rome time; messages sent out of hours are answered the next working morning. For your first month in Rome you have a dedicated contact — the same person, not a queue — because the first month is when everything breaks at once."}}]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
@@ -548,7 +550,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   .breve-d > summary .breve-sot { opacity:.75; } }
 </style>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/concierge#webpage","url":"https://www.boomrome.com/concierge","name":"BOOM Concierge — the administrative landing in Rome","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-concierge.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
+{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/concierge#webpage","url":"https://www.boomrome.com/concierge","name":"BOOM Concierge — the administrative landing in Rome","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"mainEntity":{"@id":"https://www.boomrome.com/concierge#service"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-concierge.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
 </script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -677,7 +679,7 @@ html {
       <h1>Land on Monday. <em>Live by Friday.</em></h1>
       <p class="sub">Codice fiscale, utilities, SIM, residence registration, healthcare — the part of moving to Italy nobody warns you about. We do it in English, before you even land.</p>
       <div class="ctarow">
-        <a class="paybtn" style="max-width:360px" href="https://wa.me/393313251961?text=Hi!%20I'm%20moving%20to%20Rome%20—%20tell%20me%20about%20the%20Concierge." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge',intent:'concierge_start'})"><span class="lk">✦</span><span class="tx"><b>Talk to your concierge</b><small>WhatsApp · a human replies within 2 hours</small></span><span class="amt">→</span></a>
+        <a class="paybtn" style="max-width:360px" href="https://wa.me/393313251961?text=Hi!%20I'm%20moving%20to%20Rome%20—%20tell%20me%20about%20the%20Concierge." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge',intent:'concierge_start'})"><span class="lk">✦</span><span class="tx"><b>Talk to your concierge</b><small>WhatsApp · a person replies during office hours (Rome time)</small></span><span class="amt">→</span></a>
         <a class="cta-ghost" href="https://wa.me/393313251961?text=Hi!%20I'm%20moving%20to%20Rome%20—%20tell%20me%20about%20the%20Concierge." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})">Questions? WhatsApp →</a>
       </div>
       <div class="proof"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered Italian agency</span><span>★ 4.9 on Google · 47 reviews</span></div>
@@ -701,7 +703,7 @@ html {
       <div class="libro">
         <div class="lp"><span class="lp-t">You pay <b>per task or per move</b>.</span><i class="lp-v">no subscription</i></div><div class="lp"><span class="lp-t">Single tasks from <b>€15</b> — SIM €40, healthcare €120.</span><i class="lp-v">à la carte</i></div><div class="lp"><span class="lp-t">A full landing — codice fiscale, utilities, SIM, registrations.</span><i class="lp-v">from ~€390</i></div><div class="lp"><span class="lp-t">Every appointment, form and phone call <b>translated</b>.</span><i class="lp-v">included</i></div><div class="lp tot"><span class="lp-t">You pay for <b>what you take</b>. Nothing else.</span><i class="lp-v">the whole rule</i></div>
       </div>
-      <p class="reg-nota">A human answers on WhatsApp within 2 hours · dedicated contact for your first month</p>
+      <p class="reg-nota">A person answers on WhatsApp during office hours (Rome time) · dedicated contact for your first month</p>
     </div>
   </section>
 
@@ -827,14 +829,15 @@ html {
         <span class="r-num">05</span>
         <span class="r-tema">The speed</span>
         <span class="r-q">How fast do you respond?</span>
-        <span class="r-cifra"><span class="r-colpo">2h</span>
-          <span class="r-colpo-eti">on WhatsApp, every day</span></span>
+        <span class="r-cifra"><span class="r-colpo">1</span>
+          <span class="r-colpo-eti">dedicated contact</span></span>
         <span class="r-azione"><span class="r-apri"></span>
           <span class="r-piu" aria-hidden="true"></span></span>
       </summary>
       <div class="r-corpo">
-      <p class="r-lead">A human, <b>within two hours</b>.</p>
-      <p class="r-det">On WhatsApp, every day. For your first month in Rome you have a
+      <p class="r-lead">A person, <b>during office hours</b>.</p>
+      <p class="r-det">On WhatsApp, Rome time; messages sent out of hours are answered
+        the next working morning. For your first month in Rome you have a
         dedicated contact — the same person, not a queue — because the first
         month is when everything breaks at once.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
@@ -910,7 +913,7 @@ html {
     </details>
         <div class="cs-basta" id="csBasta">
           <p>Enough? <b>Tell us what you need.</b></p>
-          <a class="paybtn" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a human answers within 2 hours</small></span><span class="amt">→</span></a>
+          <a class="paybtn" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a person replies during office hours (Rome time)</small></span><span class="amt">→</span></a>
         </div>
       </div>
     </div>
@@ -926,7 +929,7 @@ html {
       <dl>
         <dt>What it is</dt><dd>The administrative landing in Italy handled for you: codice fiscale, utilities, SIM, residence registration, healthcare enrolment, and the appointments in between.</dd>
         <dt>Price</dt><dd><b>Per task or per move — single tasks from €15, a full landing package typically from €390. You pay only for what you take.</b></dd>
-        <dt>What you get</dt><dd>The task itself, done: forms filled, appointments booked and attended, every call and office visit translated. A human answers on WhatsApp within 2 hours, and you have a dedicated contact for your first month.</dd>
+        <dt>What you get</dt><dd>The task itself, done: forms filled, appointments booked and attended, every call and office visit translated. A person answers on WhatsApp during office hours (Rome time), and you have a dedicated contact for your first month.</dd>
         <dt>What it is not</dt><dd class="no">Not immigration advice and not a visa service: we prepare and accompany, we do not decide, and we cannot obtain a permit you are not entitled to. Not a rental service — that is the rest of the catalogue.</dd>
         <dt>Who it is for</dt><dd>Anyone who has just arrived in Rome, or is about to, and does not want to spend the first month in queues in a language they do not speak.</dd>
         <dt>Provided by</dt>
@@ -936,7 +939,7 @@ html {
             target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
           <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
             rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
-          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          <a href="/terms">Terms &amp; fees §4</a>. Card payments run
           through Stripe with a receipt — never a transfer to an individual.</dd>
       </dl>
       </details>
@@ -947,7 +950,7 @@ html {
   <section class="chiusa" id="chiusura">
     <div class="container">
       <h2>Land on Monday.<br><span>Live by Friday.</span></h2>
-      <a class="paybtn" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a human answers within 2 hours</small></span><span class="amt">→</span></a>
+      <a class="paybtn" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a person replies during office hours (Rome time)</small></span><span class="amt">→</span></a>
       <p class="chiusa-nota">No subscription, no retainer — you pay per task or per move.</p>
     </div>
   </section>
@@ -964,7 +967,7 @@ html {
   <div class="band rv">
     <h2>Your first week, <em>already handled.</em></h2>
     <p>Tell us your move today — most of the list is done before your flight boards.</p>
-    <a class="paybtn" style="max-width:430px;margin:22px auto 0" href="https://wa.me/393313251961?text=Hi!%20I'm%20moving%20to%20Rome%20—%20tell%20me%20about%20the%20Concierge." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge',intent:'concierge_band'})"><span class="lk">✦</span><span class="tx"><b>Talk to your concierge</b><small>WhatsApp · a human replies within 2 hours</small></span><span class="amt">→</span></a>
+    <a class="paybtn" style="max-width:430px;margin:22px auto 0" href="https://wa.me/393313251961?text=Hi!%20I'm%20moving%20to%20Rome%20—%20tell%20me%20about%20the%20Concierge." rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge',intent:'concierge_band'})"><span class="lk">✦</span><span class="tx"><b>Talk to your concierge</b><small>WhatsApp · a person replies during office hours (Rome time)</small></span><span class="amt">→</span></a>
   </div>
 </main>
 
@@ -1112,7 +1115,7 @@ function conTab(k){
 
 <div class="hud" id="hud" aria-label="Your progress and the way to reach us">
   <span class="hud-stato" id="hudStato">6 questions · <b>tap one</b></span>
-  <a class="hud-vai" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a human answers within 2 hours</small></span><span class="amt">→</span></a>
+  <a class="hud-vai" href="https://wa.me/393313251961?text=Hi!%20I%27d%20like%20a%20Concierge%20quote." target="_blank" rel="noopener" onclick="boomTrack('generate_lead',{channel:'whatsapp',source_page:'concierge'})"><span class="lk">💬</span><span class="tx"><b>Get a quote</b><small>a person replies in office hours</small></span><span class="amt">→</span></a>
 </div>
 <script>
 /* LA CONSOLE — il progresso e' del visitatore. Righe <details> native:
@@ -1299,7 +1302,7 @@ function conTab(k){
       t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
   if (!can || !dep || !v1 || !v2 || !v3) return;
   var TETTO = 3;   /* L. 392/1978 art. 11 */
-  var PREAV = 3;   /* L. 431/1998 art. 4 */
+  var PREAV = 3;   /* recesso per gravi motivi: tre mesi nei modelli transitorio e studenti (js/contract-pdf.js) */
 
   function eur(n) {
     var i = Math.round(Math.abs(n)).toString(), fuori = '';

@@ -72,7 +72,11 @@ export default async function handler(req, res) {
   try { contract = await fsGet('contracts/' + cid); } catch (_) { contract = null; }
   let onContract = false, termsMatch = null;
   if (contract && !contract.tenantSignature) {
-    const tm = tenantMandateFor(paNow, id, { ...contract, id: cid });
+    // l'immobile del contratto: se è un record del portal con lo stesso
+    // indirizzo e interno della proposta, il mandato lo riconosce (15/10/2026)
+    let property = null;
+    if (contract.propertyId) { try { property = await fsGet('properties/' + contract.propertyId); } catch (_) { property = null; } }
+    const tm = tenantMandateFor(paNow, id, { ...contract, id: cid }, property);
     // il documento del mandato: la proposta accettata col testo firmato,
     // accanto al contratto (best-effort, come alla conversione)
     try {

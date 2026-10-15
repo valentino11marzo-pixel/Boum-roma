@@ -193,10 +193,25 @@
   (function () {
     var q = document.getElementById('fq');
     var attesa;
+    /* la SearchAction che le pagine dichiarano (/apartments?q=…): chi
+       arriva da un motore con una parola la trova già nel campo, e il
+       primo aggiorna() in coda a via() la applica al muro */
+    try { var qIn = new URLSearchParams(location.search).get('q'); if (qIn) { q.value = qIn.slice(0, 80); stato.q = q.value.trim().toLowerCase(); } } catch (e) {}
+    /* e la parola resta nell'URL: refresh, back e link condiviso tengono
+       la stessa ricerca (l'hash dei filtri non si tocca) */
+    function scriviQ() {
+      try {
+        var u = new URL(location.href);
+        if (stato.q) u.searchParams.set('q', q.value.trim());
+        else u.searchParams.delete('q');
+        history.replaceState(null, '', u.pathname + u.search + u.hash);
+      } catch (e) {}
+    }
     q.addEventListener('input', function () {
       clearTimeout(attesa);
       attesa = setTimeout(function () {
         stato.q = q.value.trim().toLowerCase(); aggiorna();
+        scriviQ();
       }, 160);
     });
     [].slice.call(document.querySelectorAll('.gruppo button')).forEach(function (b) {
@@ -232,6 +247,7 @@
       bud.classList.remove('scelto'); chi.classList.remove('scelto');
       if (window.__quandoVeste) window.__quandoVeste();
       aggiorna();
+      scriviQ();
     });
     /* quante ne hai messe da parte */
     function conteggio() {
@@ -456,8 +472,9 @@
     var img = per('img', c), st = per('.casa-stato', c);
     var p = +c.dataset.prezzo || 0, mesi = +c.dataset.cauzione || 1;
     /* la STESSA aritmetica della pagina casa: onorario 10% del canone
-       annuo, deposito = mesi di cauzione — mai due versioni dei soldi */
-    var fee = Math.round(p * 12 * .10);
+       annuo + IVA 22% (quello che la proposta chiede davvero), deposito =
+       mesi di cauzione — mai due versioni dei soldi */
+    var fee = Math.round(p * 12 * .10 * 1.22);
     return { id: id, href: c.getAttribute('href'),
       nome: (per('.nome', c) || {}).textContent || '',
       zona: c.dataset.zona || '', foto: img ? img.src : '',
@@ -604,7 +621,7 @@
       fila('of which deposit', function (x) {
         return '<span class="verde">' + eu(x.cauzione) +
           '</span> · comes back'; }) +
-      fila('Agency fee', function (x) { return eu(x.fee); }) +
+      fila('Agency fee incl. VAT', function (x) { return eu(x.fee); }) +
       fila('Status', function (x) { return x.stato || '—'; }) +
       fila('Beds', function (x) {
         return x.letti === 0 ? 'Studio' : x.letti; }) +

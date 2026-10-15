@@ -379,6 +379,13 @@ console.log('\n\x1b[1m▸ être trouvé : SEO, et être CITÉ : les moteurs de r
 
   const sitemap = readFileSync(new URL('sitemap.xml', root), 'utf8');
   ok('sitemap.xml la liste', sitemap.includes('https://www.boomrome.com/reunion'));
+
+  // ── /reunion?lang=en est le MÊME fichier et se canonicalise sur /reunion :
+  //    un hreflang vers ?lang=en déclare une URL jamais canonique (Google
+  //    écarte l'annotation). L'anglais reste dit par og:locale:alternate.
+  ok('canonical française, aucun hreflang vers une URL ?lang= qui se canonicalise ailleurs',
+    page.includes('<link rel="canonical" href="https://www.boomrome.com/reunion">') && !/hreflang="[^"]+" href="[^"]*\?lang=/.test(page));
+  ok('...og:locale fr_FR et l\'alternate en_US restent', page.includes('<meta property="og:locale" content="fr_FR">') && page.includes('<meta property="og:locale:alternate" content="en_US">'));
 }
 
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}La Réunion: ${pass} passed, ${fail} failed\x1b[0m\n`);

@@ -223,16 +223,16 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 .footer-brand-logo svg{width: 80px; height: 80px; opacity: 0.9;}
 .footer-brand-logo span{font-family: var(--font-display); font-size: 32px; font-weight: 300; letter-spacing: 4px;}
 .footer-tagline{font-size: 14px; color: var(--text-secondary); line-height: 1.7; margin-bottom: var(--space-lg);}
-.footer-company{font-size: 12px; color: var(--text-tertiary); line-height: 1.8;}
-.footer-company strong{color: var(--text-secondary);}
+.footer-company{font-size: 12.5px; color: rgba(250,250,250,0.6); line-height: 1.8;}
+.footer-company strong{color: var(--text-primary);}
 /* Menzione di marchio: sta sotto i dati societari e non compete con nulla —
    un gradino sotto .footer-company per corpo e opacità. */
-.footer-tm{font-size: 11px; font-weight: 300; color: rgba(250,250,250,0.30); line-height: 1.7; margin-top: 10px;}
+.footer-tm{font-size: 11px; font-weight: 300; color: rgba(250,250,250,0.5); line-height: 1.7; margin-top: 10px;}
 .footer-links-title{font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--gold); margin-bottom: var(--space-lg);}
 .footer-links-list{list-style: none;}
 .footer-links-list a{display: block; font-size: 13px; color: var(--text-secondary); padding: var(--space-xs) 0; transition: color 0.3s ease;}
 .footer-links-list a:hover{color: var(--text-primary);}
-.footer-bottom{display: flex; flex-direction: column; gap: var(--space-md); align-items: center; padding-top: var(--space-xl); border-top: 1px solid var(--border-subtle); font-size: 11px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 1px;}
+.footer-bottom{display: flex; flex-direction: column; gap: var(--space-md); align-items: center; padding-top: var(--space-xl); border-top: 1px solid var(--border-subtle); font-size: 11px; color: rgba(250,250,250,0.55); text-transform: uppercase; letter-spacing: 1px;}
 @media (min-width: 640px){.footer-bottom{flex-direction: row; justify-content: space-between;}}
 .footer-status{display: flex; align-items: center; gap: var(--space-sm);}
 .footer-status-dot{width: 6px; height: 6px; background: var(--green); border-radius: 50%; animation: pulse 2s ease-in-out infinite;}
@@ -252,6 +252,18 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 .nav.scrolled{padding:var(--space-md) 0;background:#060607}
 .nav .container{padding:0 20px}
 .mobile-menu{z-index:60}
+/* col menu aperto la barra sale sopra il pannello: logo e X restano visibili e toccabili */
+.nav:has(.nav-toggle.active){z-index:61}
+/* il menu chiuso esce anche dall'ordine del tasto Tab (prima era solo spostato fuori schermo) */
+.mobile-menu{visibility:hidden;transition:transform .4s var(--ease-out),visibility 0s linear .4s}
+.mobile-menu.active{visibility:visible;transition:transform .4s var(--ease-out),visibility 0s}
+/* un numero di telefono non va a capo a metà */
+a[href^="tel:"],.nw{white-space:nowrap}
+/* bersagli da toccare col dito (44px) senza cambiare l'altezza di nav e striscia */
+.sheet .x{min-width:44px;min-height:44px;display:inline-grid;place-items:center;padding:0;margin:-10px -12px -10px 0;font-size:26px}
+.paybar .go{min-height:44px}
+.fam a{position:relative}
+.fam a::before{content:"";position:absolute;left:0;right:0;top:-8px;bottom:-8px}
 footer.footer{background:none}
 /* polish: the page you are on, visible in the chrome */
 .nav-link[aria-current="page"]{color:var(--gold)}

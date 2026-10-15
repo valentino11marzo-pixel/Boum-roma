@@ -104,12 +104,16 @@ export function mandateTermsHash(terms) {
 //    presa all'accettazione; il diff dice cosa è cambiato (portal, sign.html);
 //  · legacy v1 (mandati nati prima della v2): resta il confronto
 //    termsFingerprint — versionato, non rotto.
+// L'immobile nato dalla STESSA proposta (prop_pa_<paId>) vale come
+// l'indirizzo su cui il mandato è stato dato quando la foto non aveva un
+// immobile collegato (termsForMandate, 12/10/2026): prima ogni proposta
+// senza immobile collegato produceva un mandato mai spendibile.
 // Una copia sola: submit (409), lookup (avviso), convert (registrazione).
 export function mandateCheck(contract) {
   const m = contract && contract.tenantMandate;
   if (!m || m.given !== true || !m.termsHash) return { ok: false, version: 0, reason: 'mandate_missing', diff: [] };
   if (Number(m.termsVersion) >= 2) {
-    const current = MANDATO.termsFromContract(contract);
+    const current = MANDATO.termsForMandate(contract, m);
     const ok = mandateTermsHash(current) === m.termsHash;
     const diff = ok ? [] : MANDATO.diffTerms(m.terms || {}, current);
     return { ok, version: 2, reason: ok ? null : 'mandate_terms_changed', diff, current };

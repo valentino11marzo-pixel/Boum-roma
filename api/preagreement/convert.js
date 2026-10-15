@@ -157,7 +157,9 @@ export function propertyFromPa({ pa, paId, actor = 'system' }) {
     createdBy: 'preagreement_convert:' + actor,
   };
 }
-export const propertyIdForPa = (paId) => 'prop_pa_' + paId;
+// L'id dell'immobile nato dalla proposta in UNA copia: il motore del mandato
+// lo riconosce come l'indirizzo approvato (termsForMandate).
+export const propertyIdForPa = (paId) => MANDATO.proposalPropertyId(paId);
 
 // La scheda `users` del conduttore, nella forma che i lettori (Allegato,
 // Scheda, dizionario) conoscono. UNA copia: la usa il bootstrap vero e il
@@ -276,11 +278,19 @@ async function landlordCtxOf(property, contract) {
 // VERIFICA, non la base. termsHash è la stessa impronta che
 // magic-sign/submit ricalcola al momento della firma (un canone o una data
 // ritoccati dopo = 409 mandate_terms_changed, mai una firma).
-export function tenantMandateFor(pa, paId, contract) {
+//
+// LA CASA (15/10/2026): una proposta accettata senza immobile collegato ha
+// approvato un INDIRIZZO. Vale come quell'indirizzo l'immobile nato dalla
+// proposta (prop_pa_<id>) e — con `property`, il record su cui il contratto
+// nasce — un immobile del portal con lo STESSO indirizzo e lo STESSO interno
+// (MANDATO.homeCheck): il riscontro resta scritto sul mandato (propertyMatch).
+export function tenantMandateFor(pa, paId, contract, property) {
   const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
   const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
   const termsHash = snap ? snap.hash : mandateTermsHash(terms);
-  const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
+  const propertyMatch = MANDATO.propertyMatchFrom(MANDATO.homeCheck({ terms, pa, paId, contract, property }));
+  // l'immobile creato DA questa proposta, o la stessa casa già nel portal, è l'indirizzo approvato (termsForMandate)
+  const diff = MANDATO.diffTerms(terms, MANDATO.termsForMandate(contract, { terms, paId, propertyMatch }));
   return {
     given: true,
     at: pa.mandate.at || null,
@@ -293,6 +303,7 @@ export function tenantMandateFor(pa, paId, contract) {
     termsHash,
     terms,
     termsSource: snap ? (snap.source || 'proposal-at-acceptance') : 'proposal-at-conversion',
+    ...(propertyMatch ? { propertyMatch } : {}),
     // La verifica: il contratto riproduce le condizioni approvate? Se no
     // (es. modello scelto a mano diverso dalla proposta), il mandato resta
     // registrato ma DICHIARATO non spendibile: il server rifiuterà la firma
@@ -300,6 +311,20 @@ export function tenantMandateFor(pa, paId, contract) {
     termsMatch: diff.length === 0,
     termsDiff: diff.map(d => d.key),
     termsCheckedAt: new Date().toISOString(),
+  };
+}
+// Il mandato nel preflight (dryRun): la console lo dice PRIMA del tap — su
+// QUESTO immobile il mandato del conduttore sarà spendibile? E se è un
+// immobile del portal, perché sì (stessa casa) o perché no (interno
+// diverso, indirizzo illeggibile…). null = nessun mandato sulla proposta.
+export function mandatePreflight(pa, paId, contract, property) {
+  if (!(pa && pa.mandate && pa.mandate.given === true)) return null;
+  const m = contract.tenantMandate || tenantMandateFor(pa, paId, contract, property);
+  const home = MANDATO.homeCheck({ terms: m.terms, pa, paId, contract, property });
+  return {
+    ok: m.termsMatch === true,
+    diff: m.termsMatch === true ? '' : MANDATO.describeDiff(MANDATO.diffTerms(m.terms, MANDATO.termsForMandate(contract, m))),
+    home: home ? { match: home.match === true, label: home.label || '', unit: home.unit || null, where: home.where || '', reason: home.reason || null, text: MANDATO.describeHome(home) } : null,
   };
 }
 // ── Core conversion, shared by the console handler and the auto pipeline ──
@@ -594,7 +619,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // una firma). Senza `pa.mandate.given` il contratto NON ha mandato e la
   // firma al posto del conduttore resta impossibile (403 mandate_missing).
   if (pa.mandate && pa.mandate.given === true) {
-    contract.tenantMandate = tenantMandateFor(pa, paId, contract);
+    contract.tenantMandate = tenantMandateFor(pa, paId, contract, property);
   }
 
   // (contractId: dichiarato sopra, prima del riconoscimento dell'orfana.)
@@ -613,6 +638,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       ok: true, dryRun: true, contractId, propertyId: propId, exists,
       overlap: overlap || null,
       completeness: preflightOf({ contract, property, tenantUser, landlord }),
+      mandate: mandatePreflight(pa, paId, contract, property),
     };
     // LA BOZZA PRIMA DELLA CONVERSIONE (21/09/2026 — «scaricare il contratto
     // auto creato dalle cose del pre-agreement»): lo STESSO impaginato che

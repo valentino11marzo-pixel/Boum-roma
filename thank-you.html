@@ -290,7 +290,9 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -307,8 +309,10 @@
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -379,7 +383,7 @@
         <h1>Thank You!</h1>
         
         <p class="thank-you-message">
-            Your request has been received successfully. We'll review it and get back to you within 2 hours (usually much faster).
+            Your request has been received. A person replies on WhatsApp during office hours (Rome time); messages sent out of hours are answered the next working morning.
         </p>
 
         <div class="info-box">
@@ -397,13 +401,9 @@
             
             <div class="info-item">
                 <span class="info-icon">✓</span>
-                <span>If urgent, we'll reach out via WhatsApp within 30 minutes</span>
+                <span>Urgent? Message us on WhatsApp. Gas, fire or flooding: call 112 first, then WhatsApp us.</span>
             </div>
-            
-            <div class="info-item">
-                <span class="info-icon">✓</span>
-                <span>Average response time: 2 minutes (yes, really)</span>
-            </div>
+
         </div>
 
         <div class="ty-review" id="tyReview">
@@ -454,12 +454,47 @@
             gtag('event','purchase',{transaction_id:p.get('session_id'),value:SVC_EUR[kind]||0,currency:'EUR',items:[{item_id:'svc_'+kind,item_name:kind,price:SVC_EUR[kind]||0,quantity:1}]});
           }
         }
-        // Compratore italiano (Pacchetto Concordato): la pagina parla la sua lingua.
+        // Compratore italiano (Pacchetto Concordato): TUTTA la pagina parla la
+        // sua lingua e dice le stesse quattro tappe dell'email di conferma
+        // (SERVICE_META['concordato-pack'] in api/stripe-webhook.js). Niente
+        // promesse da inquilino («30 minuti», «2 minuti»): non sono sue.
         if(!p.get('review') && p.get('service')==='concordato-pack'){
+          var st=p.get('start');
+          document.documentElement.lang='it';
+          document.title='Pacchetto concordato attivato — BOOM Roma';
           var hIt=document.querySelector('.thank-you-container h1');
           var mIt=document.querySelector('.thank-you-message');
-          if(hIt) hIt.textContent='Grazie! Pacchetto attivato.';
-          if(mIt) mIt.textContent='Pagamento ricevuto. Controlla l\'email: ti abbiamo scritto cosa ci serve per partire (bastano indirizzo e visura, anche in foto). Verifica ufficiale entro 48 ore.';
+          if(hIt) hIt.textContent='Grazie. Il pacchetto è attivo.';
+          if(mIt) mIt.textContent='Pagamento ricevuto. Le abbiamo scritto un\'email con cosa ci serve per partire: basta rispondere con visura o vecchio contratto, anche in foto. '+
+            (st==='1' ? 'Ci ha chiesto di iniziare subito: la verifica del canone arriva entro 48 ore dai dati.'
+              : st==='0' ? 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso. Se preferisce anticipare, ce lo scriva.'
+              : 'Se ci ha chiesto di iniziare subito, la verifica del canone arriva entro 48 ore dai dati; altrimenti partiamo allo scadere dei 14 giorni del recesso.');
+          var ib=document.querySelector('.info-box');
+          if(ib){
+            var steps=[['Ci mandi i dati dell\'immobile','Risponda all\'email di conferma: visura o vecchio contratto'],
+              ['Verifica del canone','Entro 48 ore dai dati, da quando la pratica parte: fascia, massimo e bozza del contratto'],
+              ['Attestazione di rispondenza','Pratica seguita con l\'organizzazione firmataria (tariffa a parte, detta prima)'],
+              ['Registrazione RLI','Contratto registrato e fascicolo completo in PDF']];
+            ib.innerHTML='';
+            var h3=document.createElement('h3');h3.textContent='Cosa succede adesso';ib.appendChild(h3);
+            steps.forEach(function(x){
+              var d=document.createElement('div');d.className='info-item';
+              var i=document.createElement('span');i.className='info-icon';i.textContent='✓';
+              var t=document.createElement('span');t.textContent=x[0]+' — '+x[1];
+              d.appendChild(i);d.appendChild(t);ib.appendChild(d);
+            });
+            var rc=document.createElement('div');rc.className='info-item';
+            var ri=document.createElement('span');ri.className='info-icon';ri.textContent='↩';
+            var rt=document.createElement('span');rt.textContent='Per recedere entro 14 giorni basta una email a hello@boom-rome.com.';
+            rc.appendChild(ri);rc.appendChild(rt);ib.appendChild(rc);
+          }
+          var home=document.querySelector('.btn-home');
+          if(home){home.textContent='Torna su BOOM';home.setAttribute('href','/canone');}
+          var wa=document.querySelector('.whatsapp-link');
+          if(wa){
+            wa.setAttribute('href','https://wa.me/393313251961?text='+encodeURIComponent('Buongiorno, ho appena attivato il Pacchetto canone concordato.'));
+            var sp=wa.querySelectorAll('span');if(sp[1])sp[1].textContent='Preferisce parlarne? Ci scriva su WhatsApp: risponde una persona';
+          }
         }
       }catch(e){}
     })();

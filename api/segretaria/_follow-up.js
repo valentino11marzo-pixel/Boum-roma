@@ -5,6 +5,7 @@ import { fsGet, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { romeDateKey } from '../viewings/_avail.js';
 import INTAKE from '../../js/segretaria-intake-engine.js';
 import PRIORITY from '../../js/segretaria-priority-engine.js';
+import SEG from '../../js/segretaria-engine.js';
 import { cleanOwnerTarget } from './_owner-target.js';
 
 export const FOLLOW_UP_LIMIT = 200;
@@ -105,7 +106,7 @@ export function checkTimestamp(value) {
 }
 
 export async function captureFollowUp({ cid, conv, messageId, messageVersion, text, now = Date.now(), preserveNewer = false,
-  origin = null, ownerCommandTarget = null }) {
+  origin = null, ownerCommandTarget = null, sourceGuards = [], manualIntake = null, expectedTaskId = null }) {
   if (!idPart(cid) || typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
   origin = origin === 'owner-command' ? origin : null;
   ownerCommandTarget = origin ? cleanOwnerTarget(ownerCommandTarget, cid) : null;
@@ -119,7 +120,17 @@ export async function captureFollowUp({ cid, conv, messageId, messageVersion, te
   // also stop an older retry rolling a newer message or a closed card back.
   for (let attempt = 0; attempt < 3; attempt++) {
     const receipt = await fsGet(receiptPath);
-    if (receipt) return fsGet('operatorTasks/' + receipt.taskId);
+    if (receipt) {
+      const existing = await fsGetVersioned('operatorTasks/' + receipt.taskId);
+      if (!manualIntake || !existing || existing.data.status !== 'open') return existing?.data || null;
+      if (expectedTaskId && receipt.taskId !== expectedTaskId) throw new Error('case_selection_changed');
+      if (existing.data.manualIntake?.sourceMessageId === manualIntake.sourceMessageId) return existing.data;
+      try {
+        await fsCommit([...sourceGuards, { docPath: 'operatorTasks/' + receipt.taskId,
+          fields: { manualIntake }, precondition: precondition(existing) }]);
+        return { ...existing.data, manualIntake };
+      } catch (error) { if (!error.conflict) throw error; continue; }
+    }
     const cursor = await fsGetVersioned(cursorPath);
     // One open case is the current context, but a new message still needs review.
     // With multiple cases we create an unassigned intake; no practice is guessed.
@@ -129,8 +140,9 @@ export async function captureFollowUp({ cid, conv, messageId, messageVersion, te
     const active = known.filter(t => t.status === 'open' && t.followUp);
     const at = new Date(now).toISOString();
     let current = null, keepClosed = false;
-    if (active.length === 1 && known.length < 30) {
-      current = await fsGetVersioned('operatorTasks/' + active[0].id);
+    if (expectedTaskId || (active.length === 1 && known.length < 30)) {
+      if (expectedTaskId && !active.some(t=>t.id===expectedTaskId)) throw new Error('case_selection_changed');
+      current = await fsGetVersioned('operatorTasks/' + (expectedTaskId || active[0].id));
       if (!current || current.data.status !== 'open') continue;
     }
     // A historical event preceding an already completed case is evidence for
@@ -187,8 +199,10 @@ export async function captureFollowUp({ cid, conv, messageId, messageVersion, te
         ...(mayAdvance ? { checkAt, checkBasis } : {}) },
       ...(mayAdvance ? { due: romeDateKey(new Date(checkAt)) } : {}), updatedAt: new Date(now),
     } : row;
+    if (manualIntake && !keepClosed) fields.manualIntake = manualIntake;
     try {
       await fsCommit([
+        ...sourceGuards,
         { docPath: receiptPath, fields: { taskId: id, at }, precondition: { exists: false } },
         { docPath: cursorPath, fields: cursor && Date.parse(cursor.data.at) > now
           ? cursor.data : { taskId: id, at }, precondition: precondition(cursor) },
@@ -239,7 +253,7 @@ export async function listFollowUps({ afterId = null, maxPages = 5 } = {}) {
     scope: afterId !== null || incomplete ? 'page' : 'all' };
 }
 
-export async function updateFollowUp({ id, input, actor, dossier, now = Date.now() }) {
+export async function updateFollowUp({ id, input, actor, dossier, now = Date.now(), sourceGuards = [] }) {
   if (!/^sg_[a-f0-9]{32}$/.test(String(id || ''))) return { code: 400, error: 'invalid_case' };
   const snapshot = await fsGetVersioned('operatorTasks/' + id);
   const cur = snapshot?.data;
@@ -249,7 +263,7 @@ export async function updateFollowUp({ id, input, actor, dossier, now = Date.now
   if (input.op === 'close') {
     const outcome = inputText(input.outcome, 500);
     if (!outcome) return { code: 400, error: 'outcome_required' };
-    try { await fsCommit([{ docPath: 'operatorTasks/' + id, precondition: precondition(snapshot),
+    try { await fsCommit([...sourceGuards, { docPath: 'operatorTasks/' + id, precondition: precondition(snapshot),
       fields: { status: 'done', doneAt: new Date(now), doneVia: 'segretaria',
         followUp: { ...cur.followUp, open: false, outcome, closedBy: actor, needsReview: false } } }]); }
     catch (e) { if (e.conflict) return { code: 409, error: 'new_message_reload' }; throw e; }
@@ -272,8 +286,65 @@ export async function updateFollowUp({ id, input, actor, dossier, now = Date.now
     nextAction, waitingOn, waitingLabel, checkAt: new Date(checkTime).toISOString(), checkBasis: 'confermato dall’operatore',
     confirmed: !!practiceRef, ambiguous: !practiceRef, needsReview: !practiceRef,
     confirmedAt: new Date(now).toISOString(), confirmedBy: actor };
-  try { await fsCommit([{ docPath: 'operatorTasks/' + id, precondition: precondition(snapshot),
+  try { await fsCommit([...sourceGuards, { docPath: 'operatorTasks/' + id, precondition: precondition(snapshot),
     fields: { followUp, due: romeDateKey(new Date(checkTime)), updatedAt: new Date(now) } }]); }
   catch (e) { if (e.conflict) return { code: 409, error: 'new_message_reload' }; throw e; }
   return { code: 200, id, followUp };
+}
+
+// Manual enrolment reads persisted evidence. It never enables preparation or sends.
+function intakeEvent(row) {
+  if (typeof row.emailMessageId === 'string' && row.emailMessageId) return 'mail_' + SEG.textHash(row.emailMessageId);
+  if (row.source === 'phone') {
+    const refs = [row.phoneCallId, typeof row.sourceRef === 'string' ? row.sourceRef.replace(/^phoneCalls\//, '') : null].filter(idPart);
+    if (new Set(refs).size === 1) return 'phone:' + refs[0];
+    if (refs.length) return null;
+  }
+  if (typeof row.waMessageId === 'string' && row.waMessageId) return row.waMessageId;
+  return row.id;
+}
+export async function conversationFollowUps(cid) {
+  if (!validFollowUpCursor(cid)) return { code:400, error:'invalid_conversation' };
+  const conversation = await fsGetVersioned('conversations/' + cid);
+  if (!conversation) return { code:404, error:'conversation_missing' };
+  const [known, messages] = await Promise.all([
+    fsList('operatorTasks',{filter:{field:'followUp.conversationId',op:'EQUAL',value:cid},limit:31}),
+    fsList('messages',{filter:{field:'conversationId',op:'EQUAL',value:cid},orderBy:{field:'at',direction:'DESCENDING'},limit:101}),
+  ]);
+  const rows = known.slice(0,30).filter(t=>t.source==='segretaria' && t.followUp?.conversationId===cid);
+  const inbound = messages.slice(0,100).filter(m=>m.conversationId===cid && m.direction==='in');
+  const latest=inbound[0], at=latest && checkTimestamp(latest.at instanceof Date?latest.at.toISOString():latest.at);
+  const invalid = latest && (!Number.isFinite(at) || at>Date.now() || !validFollowUpCursor(latest.id)
+    || inbound.some((m,i)=>i>0 && checkTimestamp(m.at instanceof Date?m.at.toISOString():m.at)===at));
+  const source = latest && !invalid && typeof latest.body==='string' && latest.body.trim() && intakeEvent(latest)
+    ? {id:latest.id,eventId:intakeEvent(latest),at:new Date(at).toISOString()} : null;
+  return {code:200,conversation,rows,source,incomplete:known.length>=31 || (!source && messages.length>=101),
+    sourceUnavailable:!!invalid || (!source && messages.length>=101)};
+}
+export async function startConversationFollowUp({cid,messageId,actor,taskId=null}) {
+  const found=await conversationFollowUps(cid);
+  if(found.code!==200)return found;
+  if(found.incomplete)return {code:409,error:'conversation_cases_incomplete'};
+  if(!found.source || found.source.id!==messageId)return {code:409,error:'new_message_reload'};
+  const conv=found.conversation.data;
+  if(conv.conversationBindingConflict || conv.conversationBindingStatus==='unavailable')return {code:409,error:'identity_not_verified'};
+  const active=found.rows.filter(t=>t.status==='open'&&t.followUp.open!==false);
+  if(active.length>1&&!taskId)return {code:409,error:'case_selection_required'};
+  if(taskId&&!active.some(t=>t.id===taskId))return {code:409,error:'case_selection_changed'};
+  const closed=found.rows.filter(t=>t.status==='done'&&(t.followUp.lastMessageId===found.source.eventId
+    || Date.parse(t.followUp.lastInboundAt)>=Date.parse(found.source.at)));
+  if(!active.length&&closed.length>1)return {code:409,error:'case_selection_required'};
+  if(!active.length&&closed.length)return {code:200,task:closed[0],alreadyClosed:true};
+  const message=await fsGetVersioned('messages/'+messageId);
+  if(!message || message.data.direction!=='in' || typeof message.data.body!=='string' || !message.data.body.trim() || message.data.conversationId!==cid || intakeEvent(message.data)!==found.source.eventId
+    || checkTimestamp(message.data.at instanceof Date?message.data.at.toISOString():message.data.at)!==Date.parse(found.source.at))return {code:409,error:'new_message_reload'};
+  const sourceGuards=[{docPath:'conversations/'+cid,fields:{},precondition:{updateTime:found.conversation.updateTime}},
+    {docPath:'messages/'+messageId,fields:{},precondition:{updateTime:message.updateTime}}];
+  let task;
+  try { task=await captureFollowUp({cid,conv,messageId:found.source.eventId,messageVersion:message.updateTime,text:message.data.body,
+    now:Date.parse(found.source.at),preserveNewer:true,sourceGuards,expectedTaskId:taskId||active[0]?.id||null,
+    manualIntake:{actor,at:new Date().toISOString(),sourceMessageId:messageId}});
+  } catch(error) { if(error.message==='case_selection_changed') return {code:409,error:'case_selection_changed'};
+    if(error.message==='Follow-up changed concurrently') return {code:409,error:'new_message_reload'}; throw error; }
+  return {code:200,task,alreadyClosed:task.status==='done'};
 }
