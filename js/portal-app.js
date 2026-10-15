@@ -4426,6 +4426,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/catalogo','_blank')" title="Nomi dall'indirizzo vero e correzioni dei dati degli annunci, con l'anteprima di ogni scrittura"><span class="nav-icon">🏷️</span> Catalogo</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
@@ -10653,7 +10654,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_transitorio')">
                                 <span style="flex:1;text-align:left">⏱️ Locazione Transitoria</span>
-                                <span class="badge gray">1-18 mesi</span>
+                                <span class="badge gray" title="Con BOOM la locazione transitoria parte da 3 mesi; la legge (L. 431/98, art. 5 c. 1) ammette da 1 a 18">3-18 mesi (legge 1-18)</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_studenti')">
                                 <span style="flex:1;text-align:left">🎓 Locazione Studenti</span>
@@ -17228,7 +17229,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}<div class="perito-slot" data-pid="${l.id}" data-zone="${esc(l.zone||'')}" style="font-size:10px;font-weight:400;color:var(--text-muted);margin-top:3px;line-height:1.4"></div></td>
                                     <td>
                                         <small style="color:var(--text-secondary)">
-                                            ${l.beds || (l.bedrooms ? l.bedrooms + ' cam' : '—')} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
+                                            ${listingRoomsCell(l)} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
                                             ${l.floor || '—'} · ${l.type || 'Appartamento'}
                                         </small>
                                     </td>
@@ -17288,6 +17289,150 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // I FATTI DELL'ANNUNCIO NEL MODULO — camere, arredo, chi ha scritto
+    // la descrizione (15/10/2026)
+    //
+    // Il modulo era l'ultima superficie con regole sue, e le applicava a
+    // ogni salvataggio: precompilava `data.bedrooms || 1` e scriveva
+    // `parseInt(..) || 1`, così un monolocale (0) tornava 1 e un valore
+    // ignoto diventava 1 — annullando le correzioni di /catalogo
+    // (XcAnljWiqqx2s7msgWUR, bedrooms 0); non aveva un campo per l'arredo;
+    // e riscriveva `description` lasciando descriptionSource 'ai', quindi
+    // una correzione a mano restava «della macchina» e la rigenerazione
+    // dopo la cancellava. Le regole sono quelle del resto del sito:
+    //  · camere = FACTS.bedroomsOf (js/listing-facts.js) in ENTRAMBE le
+    //    direzioni, passandole SOLO il campo strutturato: aprire e salvare
+    //    non promuove mai il numero del testo libero `beds` a fatto;
+    //  · arredo = 'yes' | 'partial' | 'no' come lo legge la macchina delle
+    //    descrizioni (api/wizard/describe.js, furnishingOf), '' = non
+    //    dichiarato — che NON è 'no';
+    //  · su un annuncio che esiste si scrive SOLO ciò che l'operatore ha
+    //    cambiato rispetto a come il modulo si è APERTO (vedi saveListing).
+    // ═══════════════════════════════════════════════════════════════════
+    function listingBedrooms(v) {
+        if (window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function') {
+            return BOOM_FACTS.bedroomsOf({ bedrooms: v });
+        }
+        // ripiego se /js/listing-facts.js non è arrivato: lo stesso ramo
+        // del campo strutturato di bedroomsOf (parità pinnata nei test)
+        const s = String(v == null ? '' : v).trim();
+        if (!s) return null;
+        const n = Number(s);
+        return Number.isInteger(n) && n >= 0 && n <= 10 ? n : null;
+    }
+
+    const LISTING_FURNISHED = [['', '— Non dichiarato'], ['yes', 'Arredato'], ['partial', 'In parte'], ['no', 'Vuoto (non arredato)']];
+    // la lettura è FACTS.furnishedOf (true · false · 'partial' · null), la
+    // stessa del Pubblicista e del telefono; qui la si riporta alle quattro
+    // scelte del modulo. Il booleano storico vale come yes/no.
+    function listingFurnished(v) {
+        let f;
+        if (window.BOOM_FACTS && typeof BOOM_FACTS.furnishedOf === 'function') f = BOOM_FACTS.furnishedOf(v);
+        else {
+            // ripiego se /js/listing-facts.js non è arrivato (parità pinnata nei test)
+            const s = String(v == null ? '' : v).trim().toLowerCase();
+            f = v === true || v === false ? v : s === 'yes' ? true : s === 'no' ? false : s === 'partial' ? 'partial' : null;
+        }
+        return f === true ? 'yes' : f === false ? 'no' : f === 'partial' ? 'partial' : '';
+    }
+
+    // Il valore con cui il campo si è APERTO nel modulo — non la copia in
+    // memoria (S.listings), che può essere vecchia di ore: il portale resta
+    // aperto tutto il giorno e /catalogo corregge in un'altra scheda.
+    // Due trappole del DOM, entrambe gestite qui:
+    //  · un <input type="hidden"> non ricorda il valore d'apertura (scrivere
+    //    .value ne riscrive anche l'attributo, quindi defaultValue lo segue):
+    //    per lui vale data-orig, scritto dal modulo;
+    //  · il browser «sanifica» ciò che MOSTRA (un numero non valido diventa
+    //    vuoto, gli a capo spariscono da una riga di testo): il valore
+    //    d'apertura è quello mostrato, non l'attributo grezzo — altrimenti un
+    //    campo mai toccato risulterebbe cambiato e verrebbe riscritto.
+    function listingOpenedValue(el, fallback) {
+        if (!el) return fallback;
+        if (el.hasAttribute && el.hasAttribute('data-orig')) return el.getAttribute('data-orig');
+        if (el.tagName === 'SELECT') {
+            const opts = Array.from(el.options || []);
+            const o = opts.find(x => x.defaultSelected) || opts[0];
+            return o ? o.value : '';
+        }
+        if (!('defaultValue' in el)) return fallback;
+        const v = String(el.defaultValue == null ? '' : el.defaultValue);
+        if (el.tagName !== 'INPUT') return v;
+        const type = String(el.type || 'text').toLowerCase();
+        if (type === 'number') return /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/.test(v) ? v : '';
+        if (type === 'date') {
+            const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + 'T00:00:00Z') : null;
+            return d && !isNaN(d) && d.toISOString().slice(0, 10) === v ? v : '';
+        }
+        if (type === 'url' || type === 'email') return v.replace(/[\r\n]/g, '').trim();
+        if (type === 'text' || type === 'search' || type === 'tel') return v.replace(/[\r\n]/g, '');
+        return v;
+    }
+    function listingFieldTouched(el, submitted) {
+        if (!el) return false; // campo assente dal modulo: non si scrive niente
+        const lf = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+        return lf(listingOpenedValue(el, '')) !== lf(submitted);
+    }
+
+    // La descrizione: chi l'ha scritta. Il TESTO conta, non la forma —
+    // spazi, a capo e accenti composti li cambia il textarea senza che
+    // nessuno abbia corretto niente (la stessa normalizzazione di textHash
+    // in api/wizard/describe.js). Testo cambiato → fonte 'portal:<email>' e
+    // descriptionAt; solo la forma → il testo si scrive, la fonte resta;
+    // niente → la descrizione non si scrive affatto, così un modulo aperto
+    // da un'ora non ricopre ciò che la macchina ha scritto intanto.
+    // descriptionOriginal non si tocca mai.
+    function listingDescriptionText(s) {
+        return String(s == null ? '' : s).normalize('NFC').replace(/\s+/g, ' ').trim();
+    }
+    function listingDescriptionPatch(before, after, email, at) {
+        const lf = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+        const was = lf(before), now = lf(after);
+        if (listingDescriptionText(was) !== listingDescriptionText(now)) {
+            return { description: now, descriptionSource: 'portal:' + (email || ''), descriptionAt: at || new Date().toISOString() };
+        }
+        return was !== now ? { description: now } : {};
+    }
+
+    // I campi camere / letti / arredo, uguali nei due modali (nuovo e
+    // modifica). Il numero si precompila SOLO dal campo strutturato; se
+    // manca e il testo libero ne suggerisce uno, lo si dice nel segnaposto
+    // — da confermare, mai scritto da solo.
+    function listingFactsFields(data) {
+        data = data || {};
+        const b = listingBedrooms(data.bedrooms);
+        const shown = window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function' ? BOOM_FACTS.bedroomsOf(data) : b;
+        const ph = b === null && shown !== null ? shown + ' dal testo letti — da confermare' : '0 = monolocale';
+        const f = listingFurnished(data.furnished);
+        const rawB = data.bedrooms, rawF = data.furnished;
+        const notes = [];
+        if (rawB != null && String(rawB).trim() !== '' && b === null) {
+            notes.push(`Camere salvate non leggibili: «${esc(String(rawB))}» — il sito non le usa; scrivi il numero se lo sai.`);
+        }
+        if (rawF != null && typeof rawF !== 'boolean' && String(rawF).trim() !== '' && !f) {
+            notes.push(`Arredamento salvato non riconosciuto: «${esc(String(rawF))}» — resta com'è finché non scegli.`);
+        }
+        return `<div class="form-row"><div class="form-group"><label class="form-label">Camere da letto</label><input type="number" class="form-input" name="bedrooms" value="${b === null ? '' : b}" min="0" max="10" step="1" inputmode="numeric" placeholder="${esc(ph)}"></div><div class="form-group"><label class="form-label">Config. letti</label><input type="text" class="form-input" name="beds" value="${esc(data.beds)}" placeholder="Es: 1 Bedroom, 2BR, 1 Room in 3BR"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Arredamento</label><select class="form-select" name="furnished">${LISTING_FURNISHED.map(([v, label]) => `<option value="${v}"${v === f ? ' selected' : ''}>${label}</option>`).join('')}</select></div></div>
+                <div style="font-size:11px;color:var(--text-muted);margin:-8px 0 12px">Camere: 0 = monolocale, vuoto = non dichiarato — è il numero che il sito mostra; «Config. letti» è testo libero e conta solo finché le camere sono vuote. Arredamento: vuoto = non dichiarato, e la descrizione allora non ne parla.${notes.map(n => '<br>' + n).join('')}</div>`;
+    }
+
+    // La cella «Dettagli» della tabella annunci: le camere con la regola del
+    // sito (quello che la scheda dice al cliente); il testo «Config. letti»
+    // solo accanto, in piccolo, quando aggiunge qualcosa — è lì che si vede
+    // il bilocale col «3» prima che lo legga un cliente.
+    function listingRoomsCell(l) {
+        l = l || {};
+        const b = window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function' ? BOOM_FACTS.bedroomsOf(l) : listingBedrooms(l.bedrooms);
+        const rooms = b === 0 ? 'monolocale' : b === null ? '—' : b + ' cam';
+        const t = String(l.beds == null ? '' : l.beds).trim();
+        const extra = t && t !== String(b)
+            ? ` <span style="color:var(--text-muted)" title="${esc(t)}">· letti «${esc(t.length > 32 ? t.slice(0, 31) + '…' : t)}»</span>`
+            : '';
+        return rooms + extra;
+    }
+
     async function saveListing(e) {
         e.preventDefault();
         
@@ -17301,43 +17446,75 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         if (!data.name || !data.price) return toast('error', 'Nome e prezzo obbligatori');
         
-        // Determine image URL: prefer uploaded (hidden input), then manual URL input
+        // Su un annuncio che ESISTE si scrive SOLO ciò che l'operatore ha
+        // cambiato rispetto a come il modulo si è aperto. Il portale resta
+        // aperto per ore: senza questa regola il primo «Salva» — anche solo
+        // per il prezzo — riscriveva ogni campo con la copia vecchia e
+        // annullava ciò che /catalogo (nomi, camere, zona, tipo, letti, piano,
+        // tag), il Photo Lab (copertina) o la macchina delle descrizioni
+        // avevano scritto nel frattempo. Un campo aperto vuoto (valore assente
+        // o illeggibile) e lasciato vuoto non cancella niente; un valore che
+        // c'era e che l'operatore svuota si scrive vuoto — null per le camere,
+        // «non dichiarato», mai 1 né 'no'. I derivati (l'immagine da tre
+        // sorgenti, la disponibilità da due, tag e feature dal testo) si
+        // riscrivono solo se cambia una loro sorgente. Nessun cambiamento →
+        // nessuna scrittura, nemmeno updatedAt. Un annuncio NUOVO nasce con
+        // tutto, com'era.
+        const editing = !!data.id;
+        const field = (name) => (form.querySelector ? form.querySelector('[name="' + name + '"]') : null);
+        const touched = (name) => !editing || listingFieldTouched(field(name), data[name]);
+        const list = (s) => (s ? s.split(',').map(t => t.trim()).filter(t => t) : []);
+        const WRITE = {
+            name: () => data.name,
+            address: () => data.address || '',
+            zone: () => data.zone || '',
+            price: () => parseInt(data.price) || 0,
+            type: () => data.type || 'Apartment',
+            beds: () => data.beds || '',
+            bedrooms: () => listingBedrooms(data.bedrooms),
+            furnished: () => listingFurnished(data.furnished),
+            size: () => data.size || '',
+            sqm: () => parseInt(data.sqm) || null,
+            floor: () => data.floor || '',
+            tags: () => list(data.tags),
+            features: () => list(data.features),
+            status: () => data.status || 'available',
+            file: () => data.file || ''
+        };
+        const listingData = {};
+        Object.keys(WRITE).forEach((k) => { if (touched(k)) listingData[k] = WRITE[k](); });
+
+        // L'immagine ha tre sorgenti (caricamento, campo nascosto, URL a
+        // mano): conta il RISULTATO, confrontato con l'immagine con cui il
+        // modulo si è aperto (data-orig sul campo nascosto).
         const imageUrl = data.image || data.imageUrl || listingImageUrl || '';
-        
-        // Process tags from comma-separated string to array
-        const tagsArray = data.tags ? data.tags.split(',').map(t => t.trim()).filter(t => t) : [];
-        const featuresArray = data.features ? data.features.split(',').map(t => t.trim()).filter(t => t) : [];
-        
-        const listingData = {
-            name: data.name,
-            address: data.address || '',
-            zone: data.zone || '',
-            price: parseInt(data.price) || 0,
-            type: data.type || 'Apartment',
-            beds: data.beds || '',
-            bedrooms: parseInt(data.bedrooms) || 1,
-            size: data.size || '',
-            sqm: parseInt(data.sqm) || null,
-            floor: data.floor || '',
-            image: imageUrl,
-            tags: tagsArray,
-            features: featuresArray,
-            status: data.status || 'available',
-            // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
-            // non può depositare una stringa che la vetrina non sa rileggere.
-            // È lo stesso writePatch() che usa la porta /api/listings-availability.
-            ...(window.BOOM_DISPO
+        if (!editing || imageUrl !== listingOpenedValue(field('image'), imageUrl)) listingData.image = imageUrl;
+
+        // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
+        // non può depositare una stringa che la vetrina non sa rileggere.
+        // È lo stesso writePatch() che usa la porta /api/listings-availability.
+        if (touched('availableMode') || touched('availableFromDate')) {
+            Object.assign(listingData, window.BOOM_DISPO
                 ? BOOM_DISPO.writePatch(
                     BOOM_DISPO.parseAvailability(
                         data.availableMode === 'now' ? 'Subito'
                             : data.availableMode === 'unknown' ? 'da concordare'
                                 : (data.availableFromDate || '')),
                     'portal:' + (S.user?.email || ''))
-                : { availableDate: data.availableFromDate || '' }),
-            description: data.description || '',
-            file: data.file || '',
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+                : { availableDate: data.availableFromDate || '' });
+        }
+
+        const descEl = field('description');
+        Object.assign(listingData, editing ? {} : { description: data.description || '' },
+            editing && !descEl ? {} : listingDescriptionPatch(
+                editing ? listingOpenedValue(descEl, ((S.listings || []).find(x => x.id === data.id) || {}).description) : '',
+                data.description || '', S.user?.email, new Date().toISOString()));
+
+        if (editing && !Object.keys(listingData).length) {
+            closeModal();
+            return toast('info', 'Nessuna modifica', 'L\'annuncio è rimasto com\'era: niente da salvare.');
+        }
+        listingData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
         
         try {
             if (data.id) {
@@ -18050,7 +18227,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Camere da Letto</label><input type="number" class="form-input" name="bedrooms" value="1" min="0"></div><div class="form-group"><label class="form-label">Configurazione Letti</label><input type="text" class="form-input" name="beds" placeholder="Es: 1 Bedroom, 2BR, 1 Room in 3BR"></div></div>
+                ${listingFactsFields({})}
                 <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div><div class="form-group"><label class="form-label">Formato Superficie</label><input type="text" class="form-input" name="size" placeholder="Es: 65m², 110m²"></div></div>
                 <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="Es: 2nd Floor, Ground Floor, 5th Floor"></div>
             </div>
@@ -18088,30 +18265,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (type === 'editListing') { 
             const tagsStr = Array.isArray(data.tags) ? data.tags.join(', ') : (data.tags || '');
             const featuresStr = Array.isArray(data.features) ? data.features.join(', ') : (data.features || '');
-            return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${data.name || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
-            <input type="hidden" name="id" value="${data.id}">
+            return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${esc(data.name) || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
+            <input type="hidden" name="id" value="${esc(data.id)}">
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${data.name || ''}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${data.type || ''}"></div></div>
-                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${data.address || ''}"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${data.zone || ''}" required></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${esc(data.name)}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${esc(data.type)}"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${esc(data.address)}"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${esc(data.zone)}" required></div></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${data.price || ''}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${esc(data.price)}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
                 ${(() => { const r = (window.BOOM_DISPO ? BOOM_DISPO.resolve(data) : { kind: 'unknown', iso: null }); const mode = r.kind; return `
-                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate" value="${r.iso || ''}"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date" ${mode === 'date' ? 'selected' : ''}>📅 Dalla data indicata</option><option value="now" ${mode === 'now' ? 'selected' : ''}>🟢 Subito</option><option value="unknown" ${mode === 'unknown' ? 'selected' : ''}>❓ Da concordare</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate" value="${esc(r.iso)}"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date" ${mode === 'date' ? 'selected' : ''}>📅 Dalla data indicata</option><option value="now" ${mode === 'now' ? 'selected' : ''}>🟢 Subito</option><option value="unknown" ${mode === 'unknown' ? 'selected' : ''}>❓ Da concordare</option></select></div></div>
                 ${data.availableRaw ? `<div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Parole originali: “${esc(data.availableRaw)}”</div>` : ''}`; })()}
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="${data.bedrooms || 1}" min="0"></div><div class="form-group"><label class="form-label">Config. Letti</label><input type="text" class="form-input" name="beds" value="${data.beds || ''}"></div></div>
-                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${data.sqm || ''}"></div><div class="form-group"><label class="form-label">Formato</label><input type="text" class="form-input" name="size" value="${data.size || ''}"></div></div>
-                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${data.floor || ''}"></div>
+                ${listingFactsFields(data)}
+                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${esc(data.sqm)}"></div><div class="form-group"><label class="form-label">Formato</label><input type="text" class="form-input" name="size" value="${esc(data.size)}"></div></div>
+                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${esc(data.floor)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
-                <div class="form-group"><label class="form-label">Tags</label><input type="text" class="form-input" name="tags" value="${tagsStr}"></div>
-                <div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${featuresStr}"></div>
+                <div class="form-group"><label class="form-label">Tags</label><input type="text" class="form-input" name="tags" value="${esc(tagsStr)}"></div>
+                <div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${esc(featuresStr)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📷 Immagine Principale</h4>
@@ -18126,16 +18303,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="progress-text" id="progressText">Caricamento...</div>
                 </div>
                 <div id="imagePreview"></div>
-                <input type="hidden" name="image" id="listingImageUrl" value="${data.image || ''}">
-                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
+                <input type="hidden" name="image" id="listingImageUrl" value="${esc(data.image)}" data-orig="${esc(data.image)}">
+                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${esc(data.image)}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${data.file || ''}"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${esc(data.file)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
-                <div class="form-group" style="margin-bottom:0"><textarea class="form-textarea" name="description" rows="3">${data.description || ''}</textarea></div>
+                <div class="form-group" style="margin-bottom:0"><textarea class="form-textarea" name="description" rows="3">
+${esc(data.description || '')}</textarea></div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px">${String(data.descriptionSource || '').trim() ? 'Scritta da: «' + esc(String(data.descriptionSource).trim()) + '». ' : ''}Se cambi il testo qui, la firma diventa la tua e la rigenerazione automatica non lo riscrive più.</div>
             </div>
         </form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">💾 Salva Modifiche</button></div></div></div>`;
         }
