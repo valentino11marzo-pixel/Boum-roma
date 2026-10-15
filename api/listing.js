@@ -11,15 +11,40 @@
 //
 // Fully defensive: on any failure it serves the unmodified template (which
 // still renders client-side), so a listing page can never break.
+//
+// Il corpo, non solo la testa (15/10/2026). Il template porta dentro di sé
+// la casa d'esempio del builder (CASE[0], «Bilocale Trastevere»): chi non
+// esegue JavaScript leggeva il titolo, il quartiere e lo stato di UN'ALTRA
+// casa sotto la testa giusta. Ora gli slot che il client riempie (H1, dove,
+// stato, canone, racconto, briciola di zona) li scrive anche il server, con
+// le STESSE regole del client — e ogni regex prende qualunque contenuto
+// cotto, così rifare la build non può riportare il difetto.
+// Tre esiti distinti per la lettura: documento → la casa; 404 di Firestore
+// → pagina 404 noindex (la casa non c'è più); guasto (5xx, rete) → il
+// template di sempre col codice 503 + Retry-After e senza cache, MAI un 404
+// per un'interruzione (e mai un «noindex» cacheato all'edge su una casa
+// vera). Il template è noindex: l'indicizzazione la dichiara solo chi ha
+// letto il documento.
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import DISPO from '../js/dispo-engine.js';
+import FACTS from '../js/listing-facts.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
+const SITE = 'https://www.boomrome.com';
+
+// Firestore ha risposto «non esiste»: diverso da un guasto (null).
+const NOT_FOUND = Symbol('listing_not_found');
+// Stessa lista di api/sitemap-listings.js: fuori dalla sitemap = noindex qui.
+const HIDDEN = /hidden|draft|archived|off_market/i;
+const INDEX = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
+const NOINDEX = 'noindex, follow';
+
+const NOT_FOUND_HTML = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex, follow"><title>This home is no longer listed — BOOM Rome</title><style>body{margin:0;background:#08080A;color:#fff;font:300 17px/1.6 \'Helvetica Neue\',Inter,sans-serif;display:grid;place-items:center;min-height:100vh;padding:24px}a{color:#D4AF37}</style></head><body><main><h1>This home is no longer listed</h1><p>It may have been rented or withdrawn. <a href="/apartments">See the homes available now →</a></p><p>Questions? <a href="https://wa.me/393313251961">WhatsApp BOOM</a></p></main></body></html>';
 
 let TEMPLATE;
 function readTemplate() {
@@ -58,6 +83,23 @@ function fv(v) {
 const esc = (s) => String(s == null ? '' : s)
   .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
+// Un taglio onesto: all'ultimo spazio entro n caratteri, coi puntini — mai
+// a metà parola (prima `.slice(0, 300)` tagliava l'ultima parola a metà).
+function clipWords(s, n) {
+  const t = String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+  if (t.length <= n) return t;
+  const cut = t.lastIndexOf(' ', n);
+  return (cut > 0 ? t.slice(0, cut) : t.slice(0, n)).replace(/[\s,;:.\u2013\u2014-]+$/, '') + '…';
+}
+
+// Un percorso del sito (/foto-catalogo/…) non è un'immagine per uno
+// scraper social: og:image e JSON-LD vogliono l'URL assoluto.
+const abs = (u) => {
+  const x = String(u == null ? '' : u);
+  if (x.slice(0, 2) === '//') return 'https:' + x;
+  return x.charAt(0) === '/' ? SITE + x : x;
+};
+
 // Numeric fields arrive dirty from Firestore ("1 bed", "30mq", "1+1", 2) —
 // take the FIRST number group (stripping separators would turn "1+1" into 11)
 // or drop the field, so "1 bed bedroom", "111 bedrooms" and NaN never ship.
@@ -71,6 +113,13 @@ function injectSeo(html, d, id) {
   const baths = num(d.bathrooms);
   const price = d.price ? Number(d.price) : null;
   const canonical = 'https://www.boomrome.com/listing/' + encodeURIComponent(id);
+  // la corsia, calcolata una volta: decide le parole di descrizione, fatti,
+  // stato e JSON-LD (una casa occupata non promette le 48 ore)
+  const laneM = DISPO.marketLane(d);
+  // una bozza/nascosta non è sul mercato: la corsia non la conosce (cade su
+  // «now»), quindi niente 48 ore e niente «available now» per lei
+  const hiddenDoc = HIDDEN.test(String(d.status || ''));
+  const quick = !hiddenDoc && laneM.lane === 'now' && !laneM.dateUnreadable;
 
   const title = [name, zone, 'Rome'].filter(Boolean).join(' — ') + ' | BOOM';
 
@@ -80,23 +129,41 @@ function injectSeo(html, d, id) {
   if (zone) bits.push('in ' + zone);
   bits.push('verified by BOOM Rome');
   if (price) bits.push('from €' + price.toLocaleString('en-US') + '/mo');
-  bits.push('legal contract, 48h move-in');
+  bits.push('legal contract');
+  if (hiddenDoc) bits.push('not currently on the market');
+  else if (quick) bits.push('move-in in as little as 48h');
+  else if (laneM.lane === 'ahead') {
+    // «free from 1 Mar 2027, reservable today»; senza data il badge dice
+    // già «Reserve ahead», e ripeterlo («reserve ahead, reservable…») no
+    const s = DISPO.laneCopy(laneM, 'en').short;
+    bits.push(laneM.iso ? s.charAt(0).toLowerCase() + s.slice(1) + ', reservable today' : 'reservable ahead');
+  } else if (laneM.lane === 'closed') bits.push('currently rented');
+  else bits.push('move-in date on request'); // data illeggibile: si chiede, mai «48h»
   const description = bits.join(', ') + '.';
 
   const images = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
-  const ogImage = images[0] || d.coverImage || d.image || 'https://www.boomrome.com/og-home.png';
+  // assoluta anche quando il documento porta un percorso del sito
+  // (2SwJ8yD3ITXylrEtYIlL emetteva /foto-catalogo/pigneto-palace.jpg)
+  const ogImage = abs(images[0] || d.coverImage || d.image || 'https://www.boomrome.com/og-home.png');
 
   const setName = (n, val) => {
     html = html.replace(new RegExp('<meta name="' + n + '" content="[^"]*">'),
-      '<meta name="' + n + '" content="' + esc(val) + '">');
+      () => '<meta name="' + n + '" content="' + esc(val) + '">');
   };
   const setProp = (p, val) => {
     html = html.replace(new RegExp('<meta property="' + p + '" content="[^"]*">'),
-      '<meta property="' + p + '" content="' + esc(val) + '">');
+      () => '<meta property="' + p + '" content="' + esc(val) + '">');
   };
 
-  html = html.replace(/<title>[\s\S]*?<\/title>/, '<title>' + esc(title) + '</title>');
-  html = html.replace(/<link rel="canonical" href="[^"]*">/, '<link rel="canonical" href="' + esc(canonical) + '">');
+  // La casa d'esempio del template porta il suo BreadcrumbList a due voci:
+  // la scheda ne tiene UNO, quello iniettato qui sotto (Home › Apartments › casa).
+  html = html.replace(/<script type="application\/ld\+json">\{"@context": "https:\/\/schema\.org", "@type": "BreadcrumbList"[^<]*<\/script>\n?/, '');
+  // Ogni sostituzione che porta un dato è una FUNZIONE: in una stringa di
+  // rimpiazzo $' $` $& e $$ sono pattern, non testo — un `$'` nel
+  // nome di una casa incollava il resto del template nella pagina (36 MB,
+  // 128 <body>). esc() non li tocca: il `$` non è un carattere HTML.
+  html = html.replace(/<title>[\s\S]*?<\/title>/, () => '<title>' + esc(title) + '</title>');
+  html = html.replace(/<link rel="canonical" href="[^"]*">/, () => '<link rel="canonical" href="' + esc(canonical) + '">');
   setName('description', description);
   setProp('og:title', title);
   setProp('og:description', description);
@@ -107,14 +174,19 @@ function injectSeo(html, d, id) {
   setName('twitter:title', title);
   setName('twitter:description', description);
   setName('twitter:image', ogImage);
+  // Il template è noindex (le copie /apartment-detail non sono canoniche):
+  // l'indicizzazione si dichiara SOLO qui, su un documento letto davvero.
+  const robots = hiddenDoc ? NOINDEX : INDEX;
+  setName('robots', robots);
+  setName('googlebot', robots);
 
   const ld = {
     '@context': 'https://schema.org',
     '@type': 'Apartment',
     name,
-    description: d.description ? String(d.description).slice(0, 300) : description,
+    description: d.description ? clipWords(d.description, 300) : description,
     url: canonical,
-    image: images.length ? images : [ogImage],
+    image: images.length ? images.map(abs) : [ogImage],
   };
   if (beds) ld.numberOfBedrooms = beds;
   if (baths) ld.numberOfBathroomsTotal = baths;
@@ -124,14 +196,18 @@ function injectSeo(html, d, id) {
     streetAddress: d.address || zone || 'Rome',
     addressLocality: 'Rome', addressRegion: 'Lazio', addressCountry: 'IT',
   };
-  if (price) {
+  // Una scheda nascosta/bozza/archiviata/fuori mercato non è in vendita:
+  // nessuna Offer. Prima la corsia la leggeva «now» e il JSON-LD diceva
+  // InStock sotto una description «not currently on the market» — e i
+  // crawler AI leggono il dato strutturato qualunque cosa dica il noindex.
+  if (price && !hiddenDoc) {
     // La CORSIA, non lo stato grezzo. Prima una casa in `waitlist` usciva
     // come InStock — cioè dichiarava ai motori di essere disponibile ADESSO
     // mentre dentro c'è un inquilino: il dato strutturato sbagliato finisce
     // nei rich result, dove non lo corregge nessuno. PreOrder è esattamente
     // il vocabolario di schema.org per «lo prenoti ora, lo ricevi dopo», ed
     // è ciò che rende citabile il mercato del blocco anticipato.
-    const lane = DISPO.marketLane(d);
+    const lane = laneM;
     ld.offers = {
       '@type': 'Offer', price, priceCurrency: 'EUR', url: canonical,
       availability: lane.lane === 'closed' ? 'https://schema.org/SoldOut'
@@ -189,7 +265,7 @@ function injectSeo(html, d, id) {
     '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n' +
     (videoLd ? '<script type="application/ld+json" data-seo-dynamic>' + safe(videoLd) + '</script>\n' : '') +
     '</head>';
-  html = html.replace('</head>', scripts);
+  html = html.replace('</head>', () => scripts);
 
   // No-JS baseline for AI crawlers (GPTBot, ClaudeBot, PerplexityBot…) and
   // anyone with scripts off: the page body is a client-rendered shell, so
@@ -199,8 +275,8 @@ function injectSeo(html, d, id) {
   // bloccata diceva solo «currently occupied — can be reserved ahead»: la
   // DATA, che è l'unico fatto che un motore di risposta può citare utilmente
   // ("libero da settembre 2027"), spariva. Ora la corsia la porta in chiaro.
-  const lane2 = DISPO.marketLane(d);
-  const avail = lane2.lane === 'ahead'
+  const lane2 = laneM;
+  const avail = hiddenDoc ? 'Not currently on the market.' : lane2.lane === 'ahead'
     ? (lane2.iso
       ? 'Occupied now — free from ' + lane2.iso + ' and reservable today.'
       : 'Occupied now — reservable ahead; ask BOOM for the release date.')
@@ -210,23 +286,53 @@ function injectSeo(html, d, id) {
         ? 'Availability on request — ask BOOM for the exact date.'
         : 'Available now.';
   const facts = [];
-  if (price) facts.push('<li>Monthly rent (all-in): €' + price.toLocaleString('en-US') + '</li>');
+  // Le utenze: si dice «incluse» SOLO se l'operatore ha messo l'etichetta
+  // sulla casa (js/listing-facts.js) — mai una promessa per tutto il catalogo.
+  // Le tasse del contratto: nessuna imposta «sempre dovuta». Con la cedolare
+  // secca (il default dei nostri modelli, js/contract-pdf.js cedolareOn) il
+  // contratto è esente da registro e bollo; senza, il conduttore paga metà
+  // del registro e il bollo. Gli oneri condominiali seguono la tabella
+  // allegata al contratto. Si dice «come scrive il contratto», mai una cifra.
+  if (price) facts.push('<li>Monthly rent: €' + price.toLocaleString('en-US') + (FACTS.billsIncluded(d) ? ' — listed with bills included (the pre-agreement lists which bills)' : ' — utilities (electricity, gas, water, internet) are not included; condominium charges and any registration tax or stamp duty are shared as the lease states (no registration tax or stamp duty is due when the landlord opts for the cedolare secca)') + '</li>');
+  // l'onorario con l'IVA dentro: è ciò che la proposta addebita davvero
+  if (price) facts.push('<li>Agency fee: €' + FACTS.agencyFeeEur(price).toLocaleString('en-US') + ' incl. VAT, once (10% of one year\'s rent + 22% VAT)</li>');
   facts.push('<li>' + esc(avail) + '</li>');
   if (sqm) facts.push('<li>Size: ' + esc(sqm) + ' m²</li>');
   if (beds) facts.push('<li>' + beds + (beds > 1 ? ' bedrooms' : ' bedroom') +
     (baths ? ' · ' + baths + (baths > 1 ? ' bathrooms' : ' bathroom') : '') + '</li>');
   if (d.videoUrl) facts.push('<li>Video tour available on this page</li>');
-  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support · 48h move-in</li>');
+  facts.push('<li>Registered Italian standard-form lease (L. 431/98), explained in English · English support' + (quick ? ' · move-in in as little as 48 hours from approval' : '') + '</li>');
   const noscript = '<noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">' +
-    '<h1>' + esc(name) + (zone ? ' — ' + esc(zone) : '') + ', Rome</h1>' +
-    (d.description ? '<p>' + esc(String(d.description).replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
+    // h2, non h1: l'H1 della pagina è #nomeCasa, ora scritto dal server
+    '<h2>' + esc(name) + (zone ? ' — ' + esc(zone) : '') + ', Rome</h2>' +
+    (d.description ? '<p>' + esc(clipWords(d.description, 700)) + '</p>' : '') +
     '<ul>' + facts.join('') + '</ul>' +
-    '<p>This page is interactive with JavaScript (photos, video, 3D map, online application). ' +
-    'Without it: <a href="https://wa.me/393313251961">WhatsApp BOOM (English, 24/7)</a> · ' +
+    '<p>This page is interactive with JavaScript (photos, video, map, online application). ' +
+    'Without it: <a href="https://wa.me/393313251961">WhatsApp BOOM (English)</a> · ' +
     '<a href="/apartments">all verified homes</a> · ' +
     '<a href="/llms-listings.txt">live inventory in markdown</a>.</p>' +
     '</section></noscript>';
-  html = html.replace('<body>', '<body>\n' + noscript);
+  html = html.replace('<body>', () => '<body>\n' + noscript);
+
+  // Gli slot del corpo, con le regole del client (casaDaListing in
+  // apartment-detail.html): zona = prima parte prima di «/», dove = zona ·
+  // indirizzo. Ogni regex prende QUALUNQUE contenuto cotto dal builder.
+  const zona = (zone || 'Roma').split('/')[0].trim();
+  const dove = [zona, String(d.address || '').trim()].filter(Boolean).join(' · ');
+  const prezzoTxt = price ? '€' + price.toLocaleString('en-US') : '';
+  const racconto = d.description ? clipWords(d.description, 700) : '';
+  html = html.replace(/<h1 id="nomeCasa">[^<]*<\/h1>/, () => '<h1 id="nomeCasa">' + esc(name) + '</h1>');
+  html = html.replace(/<p class="dove" id="doveCasa">[^<]*<\/p>/, () => '<p class="dove" id="doveCasa">' + esc(dove) + '</p>');
+  // lo stesso cartello del client (statoDa in apartment-detail.html): una
+  // scheda fuori mercato non dice «Available now» a chi arriva da un vecchio link
+  const statoTxt = hiddenDoc ? 'Not on the market' : DISPO.laneCopy(laneM, 'en').short;
+  html = html.replace(/<span class="stato-grande" id="statoCasa">[^<]*<\/span>/,
+    () => '<span class="stato-grande" id="statoCasa">' + esc(statoTxt) + '</span>');
+  html = html.replace(/<span class="flap-prezzo flap-scale" id="canoneCasa" data-p="[^"]*">[^<]*<\/span>/,
+    () => '<span class="flap-prezzo flap-scale" id="canoneCasa" data-p="' + esc(prezzoTxt) + '">' + esc(prezzoTxt) + '</span>');
+  if (racconto) html = html.replace(/<p id="raccontoCasa">[^<]*<\/p>/, () => '<p id="raccontoCasa">' + esc(racconto) + '</p>');
+  html = html.replace(/<a href="[^"]*" id="briZona">[^<]*<\/a>/,
+    () => '<a href="/apartments#zona=' + esc(encodeURIComponent(zona)) + '" id="briZona">' + esc(zona) + '</a>');
 
   return html;
 }
@@ -255,6 +361,7 @@ async function readListing(id) {
     const token = await adminToken();
     if (token) r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   }
+  if (r.status === 404) return NOT_FOUND;
   if (!r.ok) return null;
   const doc = await r.json();
   const f = doc.fields || {};
@@ -263,8 +370,29 @@ async function readListing(id) {
   return d;
 }
 
+// Un id che Firestore non può MAI contenere (oltre 1500 byte, riservato
+// `__x__`, `.`/`..`, con una `/`): Firestore risponde 400, non 404, e il
+// 400 finiva nel ramo «guasto» — un 503 con Retry-After per sempre, che i
+// crawler registrano come errore del server che non guarisce. Si risponde
+// 404 subito, senza chiedere niente a Firestore. (Un 400 qualunque NON è
+// «non trovato»: anche una chiave API sbagliata risponde 400.)
+export function impossibleId(id) {
+  const s = String(id == null ? '' : id);
+  if (!s) return false;
+  return Buffer.byteLength(s, 'utf8') > 1500 || /^__.*__$/.test(s)
+    || s === '.' || s === '..' || s.includes('/');
+}
+
+function notFound(res) {
+  res.statusCode = 404;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300');
+  return res.end(NOT_FOUND_HTML);
+}
+
 export default async function handler(req, res) {
   const id = ((req.query && req.query.id) || '').toString().trim();
+  if (impossibleId(id)) return notFound(res);
   const html = readTemplate();
 
   if (!html) {
@@ -275,17 +403,36 @@ export default async function handler(req, res) {
   }
 
   let out = html;
+  let injected = false;
   try {
     if (id) {
       const d = await readListing(id);
-      if (d) out = injectSeo(html, d, id);
+      if (d === NOT_FOUND) {
+        // la casa non c'è più: un 404 vero, noindex — mai il template con
+        // la casa d'esempio servito come se fosse questa
+        return notFound(res);
+      }
+      if (d) { out = injectSeo(html, d, id); injected = true; }
     }
   } catch {
-    out = html; // serve the plain template on any error
+    out = html; // serve the plain template on any error (never a 404 on an outage)
+    injected = false;
   }
 
-  res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  if (id && !injected) {
+    // Un guasto (Firestore 5xx, rete, 403 senza credenziali admin, errore
+    // nell'iniezione): il template è noindex e porta la casa d'esempio.
+    // Con un 200 cacheabile all'edge, un crawler passato in quei cinque
+    // minuti avrebbe registrato «noindex» su una casa vera. Un 503 con
+    // Retry-After Google lo riprova senza deindicizzare; il browser rende
+    // comunque il corpo; e niente cache: il prossimo giro rilegge.
+    res.statusCode = 503;
+    res.setHeader('Retry-After', '120');
+    res.setHeader('Cache-Control', 'no-store');
+    return res.end(out);
+  }
+  res.statusCode = 200;
   // s-maxage bounded + short SWR: the page self-refreshes from live data on
   // load, but the SSR snapshot itself shouldn't serve day-old numbers either
   res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600');

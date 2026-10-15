@@ -2,13 +2,13 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://www.boomrome.com/</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.00</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.95</priority>
   </url>
@@ -20,7 +20,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/canone</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.92</priority>
   </url>
@@ -35,19 +35,19 @@
          dalla sitemap: la pagina pensata per passare di telefono in telefono
          era l'unica che non dichiaravamo. -->
     <loc>https://www.boomrome.com/welcome-to-rome</loc>
-    <lastmod>2026-08-28</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/services</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/pacchetto-concordato</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -56,104 +56,106 @@
     <lastmod>2026-08-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
-    <xhtml:link rel="alternate" hreflang="fr" href="https://www.boomrome.com/reunion"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/reunion?lang=en"/>
   </url>
   <url>
     <loc>https://www.boomrome.com/executive</loc>
-    <lastmod>2026-08-10</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.88</priority>
-    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/executive"/>
-    <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/executive?lang=it"/>
   </url>
   <url>
     <loc>https://www.boomrome.com/remote-move-pack</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/match</loc>
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/trastevere</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/centro-storico</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/monti</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/prati</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/pigneto</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/testaccio</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/ostiense</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/trieste-coppede</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/san-lorenzo</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/esquilino</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/apartments-in/ponte-milvio</loc>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/faq</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/book</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-09-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -165,115 +167,73 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-47-steps</loc>
-    <lastmod>2026-04-22</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-contract-types</loc>
-    <lastmod>2026-04-19</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-cost-calculator</loc>
-    <lastmod>2026-04-29</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-neighborhood-guide</loc>
-    <lastmod>2026-05-04</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-scam-bible</loc>
-    <lastmod>2026-05-10</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-tenant-rights</loc>
-    <lastmod>2026-05-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-visa-residency</loc>
-    <lastmod>2026-05-13</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
-    <loc>https://www.boomrome.com/listing/navona</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/ripetta</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/pigneto</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/angelico</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/levico</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/piemonte</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/listing/marconi</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-  <url>
     <loc>https://www.boomrome.com/how-it-works</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/try</loc>
-    <lastmod>2026-08-19</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/universities</loc>
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/corporate</loc>
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/research</loc>
-    <lastmod>2026-06-04</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
@@ -285,7 +245,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/contract-check</loc>
-    <lastmod>2026-06-06</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
@@ -297,124 +257,109 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/property-finding</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/owners</loc>
-    <lastmod>2026-10-13</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
-    <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/owners"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/owners?lang=en"/>
-    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/owners"/>
   </url>
   <url>
     <loc>https://www.boomrome.com/deal-assistance</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.75</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/deposit-recovery</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/contract-check-express</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
-    <loc>https://www.boomrome.com/apartment-detail</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.70</priority>
-  </url>
-  <url>
     <loc>https://www.boomrome.com/about</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/contact</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/concierge</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/virtual-viewing</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.78</priority>
   </url>
   <url>
-    <loc>https://www.boomrome.com/deals</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.60</priority>
-  </url>
-  <url>
     <loc>https://www.boomrome.com/privacy</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/terms</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.30</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/skyline</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-09-01</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/moving-to-rome</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/moving-to-rome-from-us</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/moving-to-rome-from-uk</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/moving-to-rome-from-germany</loc>
-    <lastmod>2026-07-09</lastmod>
+    <lastmod>2026-08-31</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/your-money</loc>
-    <lastmod>2026-08-13</lastmod>
+    <lastmod>2026-10-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/board</loc>
-    <lastmod>2026-08-14</lastmod>
+    <lastmod>2026-09-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.60</priority>
   </url>

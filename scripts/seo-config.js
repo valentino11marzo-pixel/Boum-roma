@@ -43,11 +43,15 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   // CORE PUBLIC PAGES
   // ════════════════════════════════════════════════════════════════════
+  // TESTA SCRITTA A MANO: la home dichiara da sé entita', FAQPage e
+  // WebPage. La descrizione qui e' quella della pagina, copiata alla lettera
+  // (la sitemap e i test la leggono); il generatore la salta.
   'index.html': {
     path: '/',
-    title: 'BOOM Rome — Premium Apartment Rentals in Rome | 48-Hour Move-In',
+    manualHead: true,
+    title: 'BOOM Rome — Premium Apartment Rentals | 48-Hour Move-In',
     description:
-      'Find verified apartments for rent in Rome. Premium mid-term rentals with 48-hour move-in, full property management, and legal contracts. Trusted by 500+ expats. Zero hidden fees.',
+      'Verified mid-term apartment rentals in Rome for internationals — English-first, legal contracts, 48-hour move-in. Your landing in Rome, handled.',
     keywords: [
       'apartments for rent Rome',
       'rent apartment Rome',
@@ -61,14 +65,15 @@ const PAGES = {
     priority: 1.0,
     changefreq: 'weekly',
     breadcrumbs: [{ name: 'Home', url: '/' }],
-    schemas: ['LocalBusiness', 'FAQPage:home'],
+    schemas: ['FAQPage:home'],
   },
 
   'apartments.html': {
     path: '/apartments',
-    title: 'Apartments for Rent in Rome — Video-Verified Listings | BOOM',
+    manualHead: true,
+    title: 'Apartments in Rome — walked in person, ready to move in | BOOM',
     description:
-      'Browse video-verified apartments for rent in Rome. Centro Storico, Trastevere, Pigneto, Monti and more. 48-hour move-in, no broker fees, legal contracts. Updated daily.',
+      'Browse 19 verified apartments for rent in Rome — every home walked in person by BOOM. 5 available now, 4 to reserve with a date. Filter by zone, budget, move-in.',
     keywords: [
       'apartments Rome',
       'flats for rent Rome',
@@ -90,6 +95,7 @@ const PAGES = {
 
   'apartment-detail.html': {
     path: '/apartment-detail',
+    manualHead: true,
     title: 'Apartment Details — Rome Verified Rental | BOOM',
     description:
       'Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.',
@@ -99,7 +105,7 @@ const PAGES = {
       'rent apartment Rome',
     ],
     type: 'website',
-    robots: 'index, follow',
+    robots: 'noindex, follow',
     priority: 0.7,
     changefreq: 'daily',
     breadcrumbs: [
@@ -121,7 +127,7 @@ const PAGES = {
     path: '/about',
     title: 'About BOOM Rome — Built in Rome, For Renters | Our Story',
     description:
-      'BOOM was born from frustration with Rome\'s broken rental market. 6+ years of local expertise, 500+ happy tenants, a mission to make renting in Rome actually work.',
+      "BOOM was born from frustration with Rome's broken rental market. Helping internationals since 2019, a registered agency since 2023: renting in Rome that works.",
     keywords: ['about BOOM Rome', 'Rome rental agency', 'expat rental service Rome', 'BOOM story'],
     type: 'website',
     priority: 0.7,
@@ -137,7 +143,7 @@ const PAGES = {
     path: '/contact',
     title: 'Contact BOOM Rome — Talk to a Real Person | WhatsApp + Email',
     description:
-      'Reach BOOM Rome in seconds. WhatsApp, email, or book a call. Fast, transparent answers about apartments, contracts, and moving to Rome.',
+      'Reach BOOM Rome on WhatsApp or by email: clear, written answers about apartments, contracts and moving to Rome, from a registered Italian agency.',
     keywords: ['contact BOOM', 'BOOM Rome contact', 'Rome rental contact', 'expat help Rome'],
     type: 'website',
     priority: 0.7,
@@ -162,14 +168,18 @@ const PAGES = {
       { name: 'Home', url: '/' },
       { name: 'FAQ', url: '/faq' },
     ],
-    schemas: ['FAQPage'],
+    // Nessun FAQPage dal generatore: quello della pagina lo DERIVA
+    // scripts/faq-schema.mjs dalle card visibili. Il FAQPage generico
+    // (le cinque domande della home) qui sarebbe un secondo FAQPage con
+    // domande che /faq non pone.
   },
 
   'how-it-works.html': {
     path: '/how-it-works',
-    title: 'How BOOM Works — Apartment in Rome in 3 Steps | 48h Move-In',
+    manualHead: true,
+    title: 'How BOOM works — portal, agency, concierge | BOOM Rome',
     description:
-      'Search verified listings, book a video viewing, sign legally — move into your Rome apartment in 48 hours. Transparent, regulated, no hidden fees.',
+      'Half portal, half agency, then a concierge: a live catalogue with real dates, video viewings, a registered contract signed from your phone, and a named human.',
     keywords: ['how to rent Rome', 'BOOM process', 'Rome rental steps', 'apartment Rome process'],
     type: 'website',
     priority: 0.8,
@@ -186,9 +196,10 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   'concierge.html': {
     path: '/concierge',
-    title: 'Rome Concierge Services — Airport, Bureaucracy & Daily Support | BOOM',
+    manualHead: true,
+    title: 'Relocation Concierge Rome — Codice Fiscale & More',
     description:
-      'Your personal support system in Rome. Airport pickups, codice fiscale, bureaucracy navigation, household setup — BOOM handles the details so you enjoy la dolce vita.',
+      'The whole landing handled: codice fiscale before you arrive, utilities, SIM, residency and healthcare. One dedicated human on WhatsApp for your first month.',
     keywords: ['concierge Rome', 'expat concierge Rome', 'Rome relocation services', 'codice fiscale help'],
     type: 'website',
     priority: 0.7,
@@ -202,9 +213,10 @@ const PAGES = {
 
   'deal-assistance.html': {
     path: '/deal-assistance',
+    manualHead: true,
     title: 'Rome Rental Contract Review in English — €249 | BOOM',
     description:
-      'Found a Rome apartment? We review the Italian rental contract in English, verify the landlord and negotiate before you sign. €249; first review in 24 hours.',
+      'Found a Rome apartment? We review the Italian rental contract clause by clause, in plain English, verify the landlord and negotiate. €249; first review in 24 hours.',
     keywords: ['Rome rental contract review', 'Italian lease review English', 'landlord verification Rome', 'rental negotiation Rome'],
     type: 'website',
     priority: 0.75,
@@ -218,6 +230,7 @@ const PAGES = {
 
   'property-finding.html': {
     path: '/property-finding',
+    manualHead: true,
     title: 'Property Finder Rome — Apartment Search Service €350 | BOOM',
     description:
       'Need an apartment in Rome? A local property finder searches every portal and off-market homes, vets matches and negotiates. €350, refunded if we miss.',
@@ -234,6 +247,7 @@ const PAGES = {
 
   'virtual-viewing.html': {
     path: '/virtual-viewing',
+    manualHead: true,
     title: 'Virtual Apartment Viewing Rome — Live Video Tour €89 | BOOM',
     description:
       'Tour any Rome apartment remotely: a BOOM agent walks it live on video, checks red flags and sends HD photos plus an honest report. €89, within 48 hours.',
@@ -248,19 +262,15 @@ const PAGES = {
     schemas: ['Service:virtualViewing'],
   },
 
+  // Strumento INTERNO (pratiche di canone concordato), non una pagina di
+  // offerte: fuori dall'indice e dalla sitemap.
   'deals.html': {
-    path: '/deals',
-    title: 'Deals & Offers — BOOM Rome Rental Promotions',
-    description:
-      'Current BOOM deals: free first viewing, refundable property finding fee, referral credits, and limited-time apartment offers in Rome.',
-    keywords: ['BOOM deals Rome', 'Rome apartment deals', 'rental offers Rome'],
-    type: 'website',
-    priority: 0.6,
-    changefreq: 'weekly',
-    breadcrumbs: [
-      { name: 'Home', url: '/' },
-      { name: 'Deals', url: '/deals' },
-    ],
+    ...noindex(
+      '/deals',
+      'Pratiche canone concordato — BOOM (interno)',
+      'Strumento interno BOOM per la preparazione delle pratiche di canone concordato.'
+    ),
+    robots: 'noindex, nofollow',
   },
 
   'book.html': {
@@ -284,7 +294,7 @@ const PAGES = {
     robots: 'noindex, follow',
     title: 'Apply for a Rome Apartment — Secure Application Form | BOOM',
     description:
-      'Apply for a BOOM-verified Rome apartment. Secure form, document upload, fast review. We respond within 24 hours.',
+      'Apply for a BOOM-verified Rome apartment: secure form and document upload. A person reviews it and replies on WhatsApp during office hours (Rome time).',
     keywords: ['apartment application Rome', 'apply rental Rome', 'BOOM apartment application'],
     type: 'website',
     priority: 0.6,
@@ -389,44 +399,17 @@ const PAGES = {
     schemas: ['Blog'],
   },
 
-  'blog-47-steps.html': blogPost({
-    slug: 'blog-47-steps',
-    title: '47 Steps Between You and Your Keys — Complete Rome Rental Guide | BOOM',
-    description:
-      'The complete 47-step guide to renting an apartment in Rome. Every document, deadline, and trap — with interactive progress tracking.',
-    keywords: ['rent apartment Rome step by step', 'Rome rental checklist', 'how to rent Rome'],
-    datePublished: '2026-03-14',
-    dateModified: '2026-04-22',
-  }),
-
-  'blog-contract-types.html': blogPost({
-    slug: 'blog-contract-types',
-    title: '4+4 Contract Italy: Transitorio, 3+2 & Lease Guide | BOOM',
-    description:
-      'What is a 4+4 contract in Italy? Compare 4+4, transitorio, 3+2, student and foresteria leases: duration, renewal, rent caps, notice and tax.',
-    keywords: ['4+4 contract Italy', 'what is 4+4 contract in Italy', 'contratto transitorio', 'Italian rental contract', '3+2 contract'],
-    datePublished: '2026-03-21',
-    dateModified: '2026-10-05',
-  }),
-
-  'blog-cost-calculator.html': blogPost({
-    slug: 'blog-cost-calculator',
-    title: 'What Renting in Rome Actually Costs — Interactive Calculator | BOOM',
-    description:
-      'Interactive cost calculator for renting in Rome. Real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees exposed.',
-    keywords: ['cost of renting Rome', 'Rome rental cost calculator', 'Rome apartment hidden fees'],
-    datePublished: '2026-02-08',
-    dateModified: '2026-04-29',
-  }),
-
+  // Stesso ordine delle card in blog.html: il Blog elenca i suoi articoli
+  // (blogPost) in quest'ordine.
   'blog-neighborhood-guide.html': blogPost({
     slug: 'blog-neighborhood-guide',
-    title: 'The Real Rome Neighborhood Guide — Where to Actually Live | BOOM',
+    title: 'Rome Neighborhood Guide — Where to Actually Live',
+    headline: 'The Real Rome Neighborhood Guide — Where to Actually Live',
     description:
-      'Honest, no-BS guide to Rome\'s 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.',
+      "Honest, no-BS guide to Rome's 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices and insider tips from a Rome rental agency.",
     keywords: ['best neighborhoods Rome expat', 'where to live Rome', 'Rome neighborhood guide'],
-    datePublished: '2026-01-19',
-    dateModified: '2026-05-04',
+    datePublished: '2026-02-26',
+    dateModified: '2026-10-15',
   }),
 
   'blog-scam-bible.html': blogPost({
@@ -436,7 +419,29 @@ const PAGES = {
       '7 rental scams that cost expats thousands in Rome. Real cases, 35+ red flags, and the exact protection rules BOOM uses to keep clients safe.',
     keywords: ['Rome rental scams', 'apartment scams Italy', 'expat scams Rome', 'avoid scam apartment Rome'],
     datePublished: '2026-02-26',
-    dateModified: '2026-05-10',
+    dateModified: '2026-10-15',
+  }),
+
+  'blog-cost-calculator.html': blogPost({
+    slug: 'blog-cost-calculator',
+    title: 'What Renting in Rome Really Costs — Calculator | BOOM',
+    headline: 'What Renting in Rome Actually Costs — Interactive Calculator',
+    description:
+      'Interactive cost calculator for renting in Rome. Real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees exposed.',
+    keywords: ['cost of renting Rome', 'Rome rental cost calculator', 'Rome apartment hidden fees'],
+    datePublished: '2026-02-26',
+    dateModified: '2026-10-15',
+  }),
+
+  'blog-47-steps.html': blogPost({
+    slug: 'blog-47-steps',
+    title: '47 Steps Between You and Your Rome Keys — Full Guide',
+    headline: '47 Steps Between You and Your Keys — Complete Rome Rental Guide',
+    description:
+      'The complete 47-step guide to renting an apartment in Rome. Every document, deadline, and trap — with interactive progress tracking.',
+    keywords: ['rent apartment Rome step by step', 'Rome rental checklist', 'how to rent Rome'],
+    datePublished: '2026-02-26',
+    dateModified: '2026-10-15',
   }),
 
   'blog-tenant-rights.html': blogPost({
@@ -445,18 +450,31 @@ const PAGES = {
     description:
       'Complete guide to Italian tenant rights for expats in Rome. Deposits, eviction, maintenance, contract termination — with exact legal references and BOOM advice.',
     keywords: ['tenant rights Italy', 'Italian rental law', 'tenant deposit Rome', 'eviction rules Italy'],
-    datePublished: '2026-04-02',
-    dateModified: '2026-05-09',
+    datePublished: '2026-02-27',
+    dateModified: '2026-10-15',
   }),
 
   'blog-visa-residency.html': blogPost({
     slug: 'blog-visa-residency',
-    title: 'Rome Visa & Residency Cheat Sheet — Codice Fiscale to Residenza | BOOM',
+    title: 'Rome Visa & Residency — Codice Fiscale to Residenza',
+    headline: 'Rome Visa & Residency Cheat Sheet — Codice Fiscale to Residenza',
     description:
       'The complete expat guide to Italian bureaucracy: codice fiscale, permesso di soggiorno, residenza, anagrafe. Step-by-step timelines, documents, and tips.',
     keywords: ['codice fiscale Rome', 'permesso di soggiorno', 'residency Italy expat', 'Rome visa guide'],
-    datePublished: '2026-04-12',
-    dateModified: '2026-05-13',
+    datePublished: '2026-03-01',
+    dateModified: '2026-10-15',
+  }),
+
+  'blog-contract-types.html': blogPost({
+    slug: 'blog-contract-types',
+    title: '4+4 Contract Italy: Transitorio, 3+2 & Lease Guide | BOOM',
+    headline: '4+4 Contract Italy: Transitorio, 3+2 and Lease Guide',
+    crumb: '4+4 Contract Italy and Transitorio',
+    description:
+      'What is a 4+4 contract in Italy? Compare 4+4, transitorio, 3+2, student and foresteria leases: duration, renewal, rent caps, notice and tax.',
+    keywords: ['4+4 contract Italy', 'what is 4+4 contract in Italy', 'contratto transitorio', 'Italian rental contract', '3+2 contract'],
+    datePublished: '2026-03-01',
+    dateModified: '2026-10-15',
   }),
 
   // ════════════════════════════════════════════════════════════════════
@@ -466,7 +484,7 @@ const PAGES = {
     path: '/privacy',
     title: 'Privacy Policy — BOOM Rome',
     description:
-      'How BOOM Rome collects, processes and protects your personal data. GDPR-compliant privacy policy.',
+      'How BOOM Rome collects, processes and protects your personal data: what we store, why, for how long, and the GDPR rights you can exercise at any time.',
     keywords: ['BOOM privacy policy', 'GDPR Rome rental'],
     type: 'website',
     priority: 0.3,
@@ -481,7 +499,7 @@ const PAGES = {
     path: '/terms',
     title: 'Terms of Service — BOOM Rome',
     description:
-      'BOOM Rome terms of service for tenants, landlords and platform users. Italian-law compliant.',
+      'BOOM Rome terms of service for tenants, landlords and platform users: fees, refunds, cancellations and obligations, under Italian law. Plain English.',
     keywords: ['BOOM terms', 'BOOM Rome terms of service'],
     type: 'website',
     priority: 0.3,
@@ -507,7 +525,9 @@ const PAGES = {
   '404.html': noindex('/404', 'Page Not Found — BOOM Rome', 'We couldn\'t find that page. Browse verified apartments instead.'),
   'owner-dashboard.html': noindex('/owner-dashboard', 'Owner Dashboard — BOOM Rome', 'BOOM owner dashboard.'),
   'proppass.html': noindex('/proppass', 'PropPass — BOOM Rome', 'BOOM PropPass generator.'),
-  'pass-delivery.html': noindex('/pass-delivery', 'Pass Delivery — BOOM Rome', 'Your BOOM pass.'),
+  // Testa propria (theme-color dello scalo, font dentro il blocco SEO): il
+  // generatore la cancellerebbe.
+  'pass-delivery.html': { ...noindex('/pass-delivery', 'Pass Delivery — BOOM Rome', 'Your BOOM pass.'), manualHead: true },
 };
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -532,7 +552,12 @@ function apartmentPage({ slug, name, neighborhood, landmark, tagline, size, bedr
   };
 }
 
-function blogPost({ slug, title, description, keywords, datePublished, dateModified }) {
+// `title` e' il <title> che la pagina pubblica; `headline` e `crumb` sono il
+// titolo dell'articolo e la voce di breadcrumb dei suoi dati strutturati,
+// che possono essere piu' lunghi del <title> (≤62 caratteri). Senza, si
+// derivano dal titolo come prima.
+function blogPost({ slug, title, headline, crumb, description, keywords, datePublished, dateModified }) {
+  const head = headline || title.split(' | ')[0];
   return {
     path: `/${slug}`,
     title,
@@ -544,10 +569,10 @@ function blogPost({ slug, title, description, keywords, datePublished, dateModif
     breadcrumbs: [
       { name: 'Home', url: '/' },
       { name: 'Blog', url: '/blog' },
-      { name: title.split(' — ')[0].split(' | ')[0], url: `/${slug}` },
+      { name: crumb || head.split(' — ')[0].split(' | ')[0], url: `/${slug}` },
     ],
     schemas: ['BlogPosting'],
-    article: { datePublished, dateModified },
+    article: { headline: head, datePublished, dateModified },
   };
 }
 
@@ -578,7 +603,7 @@ try {
     path: '/apartments-in',
     title: 'Rome Neighborhoods — Where to Rent an Apartment | BOOM',
     description:
-      'Pick a Rome neighborhood. Verified apartments in Trastevere, Centro Storico, Monti, Prati, Pigneto, Testaccio, Ostiense, Trieste, San Lorenzo, Esquilino. Local guides, real rents, BOOM-managed.',
+      'Pick a Rome neighborhood: verified apartments and local guides for Trastevere, Monti, Prati, Pigneto, Testaccio, San Lorenzo and more, managed by BOOM.',
     keywords: [
       'Rome neighborhoods',
       'where to live Rome',

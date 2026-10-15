@@ -66,14 +66,29 @@ for (const grezzo of carte) {
   if (stato[1] === 'si') offerta.availability = 'https://schema.org/InStock';
   else if (stato[1] === 'poi') {
     offerta.availability = 'https://schema.org/PreOrder';
+    // «Free from 1 Mar 2027» → 2027-03-01, letto per COMPONENTI: Date.parse
+    // lavora nel fuso della macchina e toISOString in UTC, quindi a Roma
+    // scriveva il giorno prima. Senza anno scritto (la card lo omette
+    // nell'anno della build) non si indovina: niente availabilityStarts.
     const d = (stato[2] || '').replace(/^Free from\s*/i, '').trim();
-    const q = Date.parse(d);
-    if (!Number.isNaN(q)) offerta.availabilityStarts = new Date(q).toISOString().slice(0, 10);
+    const m = d.match(/^(\d{1,2})\s+([A-Za-z]{3})[a-z]*\.?\s+(\d{4})$/);
+    const MESI = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug',
+      'sep', 'oct', 'nov', 'dec'];
+    const mese = m ? MESI.indexOf(m[2].toLowerCase()) + 1 : 0;
+    if (m && mese && +m[1] >= 1 && +m[1] <= 31) {
+      offerta.availabilityStarts = m[3] + '-' + String(mese).padStart(2, '0')
+        + '-' + m[1].padStart(2, '0');
+    }
   }
 
-  const casa = { '@type': 'Apartment', name: nome, url: ORIGIN + href };
-  if (zona) casa.address = { '@type': 'PostalAddress',
-    addressLocality: 'Rome', addressRegion: zona, addressCountry: 'IT' };
+  // L'indirizzo e' quello amministrativo VERO: la regione e' il Lazio,
+  // non il quartiere. Prima la zona finiva in addressRegion («Centro»,
+  // «Parioli», «Africano» come regioni d'Italia): un dato sbagliato che un
+  // motore ripete. Il quartiere e' un luogo CONTENUTO nella citta'.
+  const casa = { '@type': 'Apartment', name: nome, url: ORIGIN + href,
+    address: { '@type': 'PostalAddress', addressLocality: 'Roma',
+      addressRegion: 'Lazio', addressCountry: 'IT' } };
+  if (zona) casa.containedInPlace = { '@type': 'Place', name: zona + ', Roma' };
   if (letti) casa.numberOfBedrooms = letti;
   if (bagni) casa.numberOfBathroomsTotal = bagni;
   if (mq) casa.floorSize = { '@type': 'QuantitativeValue', value: mq, unitCode: 'MTK' };

@@ -18,37 +18,14 @@ Disallow: /seed-listings.html
 Disallow: /boom-doc-parser
 Disallow: /boom_doc_parser.html
 
-# Authenticated user surfaces (noindex via meta, blocked here as belt-and-braces)
+# Pages that must stay out of the index but are linked from public pages (/login, /pre-arrival,
+# /client-portal, thank-you, forms) are deliberately NOT blocked here: they carry a noindex meta
+# and X-Robots-Tag. Google can only read a noindex on a page it may fetch.
+# Retired surfaces (/dashboard redirects to /portal; tenant-registration is not deployed):
 Disallow: /dashboard
 Disallow: /dashboard.html
-Disallow: /client-portal
-Disallow: /client-portal.html
-Disallow: /owner-dashboard
-Disallow: /owner-dashboard.html
 Disallow: /tenant-registration
 Disallow: /tenant-registration.html
-Disallow: /login
-Disallow: /login.html
-
-# Transactional / one-shot pages
-Disallow: /onboarding
-Disallow: /onboarding.html
-Disallow: /pre-arrival
-Disallow: /pre-arrival.html
-Disallow: /precheck
-Disallow: /precheck.html
-Disallow: /thank-you
-Disallow: /thank-you.html
-Disallow: /proppass
-Disallow: /proppass.html
-Disallow: /pass-delivery
-Disallow: /pass-delivery.html
-
-# Forms (require user input — not useful as landing pages)
-Disallow: /form-tenant
-Disallow: /form-tenant.html
-Disallow: /form-landlord
-Disallow: /form-landlord.html
 
 # Legacy / test artefacts (slated for removal)
 Disallow: /s$
@@ -58,28 +35,56 @@ Disallow: /s.html
 Disallow: /faq-page
 Disallow: /faq_page.html
 
-# API endpoints — never index
+# API endpoints — never index (vercel.json also sends X-Robots-Tag: noindex on /api/*).
+# Exception: /api/meteo serves the public per-zone market aggregates that /meteo loads
+# and that llms.txt names as the raw source; blocked, Google's renderer and AI fetchers can't read them.
+Allow: /api/meteo
 Disallow: /api/
 
 # Avoid crawling listing query-string permutations
 Disallow: /apartments?
 Disallow: /apartment-detail?
 
-# Aggressive crawlers — slow them down
+# Aggressive SEO crawlers — slowed down. RFC 9309: a crawler obeys ONLY the group naming it,
+# so this group repeats every rule of the * group (tests/crawl checks they match).
 User-agent: AhrefsBot
-Crawl-delay: 10
-
 User-agent: SemrushBot
-Crawl-delay: 10
-
 User-agent: MJ12bot
 Crawl-delay: 10
+Allow: /
+Disallow: /portal
+Disallow: /portal.html
+Disallow: /admin
+Disallow: /admin.html
+Disallow: /admin-flats
+Disallow: /admin-flats.html
+Disallow: /setup-firebase
+Disallow: /setup-firebase.html
+Disallow: /seed-listings
+Disallow: /seed-listings.html
+Disallow: /boom-doc-parser
+Disallow: /boom_doc_parser.html
+Disallow: /dashboard
+Disallow: /dashboard.html
+Disallow: /tenant-registration
+Disallow: /tenant-registration.html
+Disallow: /s$
+Disallow: /s?
+Disallow: /s/
+Disallow: /s.html
+Disallow: /faq-page
+Disallow: /faq_page.html
+Allow: /api/meteo
+Disallow: /api/
+Disallow: /apartments?
+Disallow: /apartment-detail?
 
 # AI search & answer engines — welcome.
 # BOOM wants to be discoverable and citable in AI search (ChatGPT Search,
 # Perplexity, Gemini, Claude, etc.). These crawlers follow the default
 # "User-agent: *" policy above: they may read every public page, but not the
 # internal/authenticated surfaces listed under Disallow.
+# Includes /api/meteo, the public market data feed.
 # LLM-friendly summary of the site: https://www.boomrome.com/llms.txt
 # Live rental inventory in markdown:  https://www.boomrome.com/llms-listings.txt
 

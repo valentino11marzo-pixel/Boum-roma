@@ -19,12 +19,14 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <!-- LA TESTA E' SCRITTA A MANO, come /executive e /reunion: la pagina e'
          bilingue (it canonica, en con ?lang=en) e scripts/seo-update.js
-         cancellerebbe l'alternate inglese. In seo-config.js owners.html
-         porta `manualHead: true` e lo script la salta. -->
+         cancellerebbe i JSON-LD della pagina. In seo-config.js owners.html
+         porta `manualHead: true` e lo script la salta.
+         NESSUN link alternate di lingua (15/10/2026): /owners?lang=en e' lo STESSO file e si
+         auto-canonicalizza su /owners, quindi un alternate verso ?lang=en
+         dichiara un URL che non e' mai canonico — Google lo scarta e
+         l'annotazione e' rotta. La lingua alternativa la dicono solo
+         og:locale:alternate e l'interruttore in pagina. -->
     <link rel="canonical" href="https://www.boomrome.com/owners">
-    <link rel="alternate" hreflang="it" href="https://www.boomrome.com/owners">
-    <link rel="alternate" hreflang="en" href="https://www.boomrome.com/owners?lang=en">
-    <link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/owners">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BOOM">
     <meta property="og:locale" content="it_IT">
@@ -68,7 +70,7 @@
  {"@type":"Question","name":"Che garanzie ho se l'inquilino non paga?","acceptedAnswer":{"@type":"Answer","text":"Tre, in quest'ordine. La selezione: identità scritta nel contratto, reddito e garante dichiarati nella candidatura, proposta firmata prima del contratto, di norma con un acconto già versato. Il deposito cauzionale, fino a tre mensilità come prevede la legge. E, col mandato su misura di 2 o 3 anni, la solvibilità dell'inquilino che selezioniamo è un nostro impegno scritto, entro il massimale e la durata del mandato, che le mostriamo prima della firma."}},
  {"@type":"Question","name":"Canone concordato o libero: cosa mi conviene?","acceptedAnswer":{"@type":"Answer","text":"Dipende dalla zona e dalla casa, e glielo diciamo coi numeri. A Roma i contratti transitori e per studenti, quelli di chi viene per lavoro e studio, seguono comunque le fasce dell'Accordo territoriale: glielo calcoliamo prima di pubblicare. Il concordato ha un tetto, ma con l'attestazione paga la cedolare secca al 10% invece del 21% e l'IMU ridotta del 25%: rende di più finché il libero non supera il massimo concordato di circa il 14%, a parità di altri costi. Se il mercato paga molto più del tetto, glielo scriviamo. Il conto della sua casa lo fa da sé, in un minuto, su boomrome.com/canone."}},
  {"@type":"Question","name":"Devo essere presente, o si può fare tutto dall'estero?","acceptedAnswer":{"@type":"Answer","text":"Non serve essere a Roma. Le visite le facciamo noi, dal vivo o in video; valutazione, firma, incassi e rendiconti viaggiano online, in italiano o in inglese. Il contratto lo firma dal telefono; se preferisce, ci dà un mandato a firmare e firmiamo noi per lei, sulle condizioni che ha già approvato."}},
- {"@type":"Question","name":"Come vengono incassati i canoni?","acceptedAnswer":{"@type":"Answer","text":"L'inquilino paga con carta, bonifico o addebito SEPA automatico, e ogni pagamento è riconciliato con la banca. Il primo di ogni mese le arriva il rendiconto del mese chiuso: canoni incassati, rate aperte, eventuali arretrati e interventi. Incassi e documenti restano anche nella sua area proprietario."}},
+ {"@type":"Question","name":"Come vengono incassati i canoni?","acceptedAnswer":{"@type":"Answer","text":"L'inquilino paga con carta o bonifico, e ogni pagamento è riconciliato con la banca. Il primo di ogni mese le arriva il rendiconto del mese chiuso: canoni incassati, rate aperte, eventuali arretrati e interventi. Incassi e documenti restano anche nella sua area proprietario."}},
  {"@type":"Question","name":"Che contratto usate?","acceptedAnswer":{"@type":"Answer","text":"I contratti tipo dell'Accordo territoriale di Roma del 2023: transitorio da 1 a 18 mesi per chi è qui per lavoro, il contratto per studenti universitari, o il 3+2. Firmati elettronicamente, registrati all'Agenzia delle Entrate, con verbale di consegna e inventario."}},
  {"@type":"Question","name":"E se la casa ha bisogno di lavori?","acceptedAnswer":{"@type":"Answer","text":"Glielo diciamo prima di pubblicarla, per iscritto: cosa conviene fare e cosa no. Durante la locazione l'inquilino segnala dal suo portale, noi coordiniamo l'intervento e la teniamo informata."}},
  {"@type":"Question","name":"Che fine fanno i miei dati?","acceptedAnswer":{"@type":"Answer","text":"Servono a risponderle, e a nient'altro. Nessuna rivendita, nessuna lista comprata o venduta. Può chiederne la cancellazione quando vuole, e la facciamo."}}
@@ -84,7 +86,7 @@
   "telephone":"+39-331-325-1961","email":"hello@boom-rome.com",
   "contactPoint":{"@type":"ContactPoint","contactType":"customer service","telephone":"+39-331-325-1961","email":"hello@boom-rome.com","availableLanguage":["it","en"]}},
  {"@type":"WebPage","@id":"https://www.boomrome.com/owners#page","url":"https://www.boomrome.com/owners",
-  "name":"BOOM Proprietari — affitto e gestione di case a Roma","inLanguage":"it","dateModified":"2026-09-30",
+  "name":"BOOM Proprietari — affitto e gestione di case a Roma","inLanguage":"it","dateModified":"2026-10-15",
   "mainEntity":{"@id":"https://www.boomrome.com/owners#gestione"},
   "about":{"@id":"https://www.boomrome.com/#organization"},
   "primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-owners.png","width":1200,"height":630},
@@ -92,7 +94,7 @@
   "significantLink":["https://www.boomrome.com/canone","https://www.boomrome.com/pacchetto-concordato"]},
  {"@type":"Service","@id":"https://www.boomrome.com/owners#gestione","serviceType":"Locazione e gestione immobiliare",
   "name":"Affitto e gestione della sua casa a Roma",
-  "description":"Per i proprietari di Roma: valutazione del canone sul mercato e sui contratti firmati in zona, annuncio con foto e video, visite dal vivo e in video, selezione degli inquilini (professionisti in trasferta, personale di organizzazioni internazionali e ambasciate, ricercatori, studenti universitari), contratto tipo dell'Accordo territoriale di Roma firmato elettronicamente e registrato, verbale di consegna con inventario, incasso del canone con carta, bonifico o SEPA, rendiconto il primo di ogni mese, scadenze e manutenzioni. Il prezzo in tre passi: prima locazione senza provvigione per il proprietario, che paga le pratiche del contratto, IVA inclusa: 278 euro con l'attestazione di rispondenza che apre la cedolare al 10% (registrazione 89 euro, pratica di attestazione 189 euro; la tariffa dell'organizzazione firmataria per l'attestazione è a parte, detta prima), 89 euro senza; per tutta la durata del contratto incasso, rendiconto e coordinamento delle manutenzioni sono compresi. Ogni nuovo inquilino successivo: mezza mensilità del canone più IVA, il 61% di un canone mensile IVA inclusa, registrazione compresa. Oppure un mandato su misura di 2 o 3 anni a fee annuale fissa, su preventivo scritto.",
+  "description":"Per i proprietari di Roma: valutazione del canone sul mercato e sui contratti firmati in zona, annuncio con foto e video, visite dal vivo e in video, selezione degli inquilini (professionisti in trasferta, personale di organizzazioni internazionali e ambasciate, ricercatori, studenti universitari), contratto tipo dell'Accordo territoriale di Roma firmato elettronicamente e registrato, verbale di consegna con inventario, incasso del canone con carta o bonifico, rendiconto il primo di ogni mese, scadenze e manutenzioni. Il prezzo in tre passi: prima locazione senza provvigione per il proprietario, che paga le pratiche del contratto, IVA inclusa: 278 euro con l'attestazione di rispondenza che apre la cedolare al 10% (registrazione 89 euro, pratica di attestazione 189 euro; la tariffa dell'organizzazione firmataria per l'attestazione è a parte, detta prima), 89 euro senza; per tutta la durata del contratto incasso, rendiconto e coordinamento delle manutenzioni sono compresi. Ogni nuovo inquilino successivo: mezza mensilità del canone più IVA, il 61% di un canone mensile IVA inclusa, registrazione compresa. Oppure un mandato su misura di 2 o 3 anni a fee annuale fissa, su preventivo scritto.",
   "provider":{"@id":"https://www.boomrome.com/#organization"},"audience":{"@type":"Audience","audienceType":"Proprietari di immobili residenziali a Roma"},
   "areaServed":{"@type":"City","name":"Rome"},"availableLanguage":["it","en"],"url":"https://www.boomrome.com/owners",
   "offers":[
@@ -547,7 +549,7 @@ html {
         <span class="l-en">We let and manage Rome homes for people who come here to work and study: vetted, documented tenants, a lease signed on your phone and registered, rent collected and tracked. And a person answers — not a call centre.</span>
       </p>
       <div class="trust h-4">
-        <span>★ <b>4.9</b> <span class="l-it">su Google · 47 recensioni</span><span class="l-en">on Google · 47 reviews</span></span>
+        <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank" rel="noopener" style="color:inherit;text-decoration:none" title="Google" onclick="boomTrack('reviews_view',{source_page:'owners'})"><span>★ <b>4.9</b> <span class="l-it">su Google · 47 recensioni</span><span class="l-en">on Google · 47 reviews</span></span></a>
         <span><span class="c">✓</span> <span class="l-it">Contratti <b>registrati</b> — Agenzia delle Entrate</span><span class="l-en"><b>Registered</b> leases — Agenzia delle Entrate</span></span>
         <span><span class="c">✓</span> <span class="l-it">Prima locazione: <b>€0 di provvigione</b> · pratiche €89–278, IVA inclusa</span><span class="l-en">First letting: <b>€0 commission</b> · paperwork €89–278, VAT incl.</span></span>
       </div>
@@ -660,7 +662,7 @@ html {
           <li><span><span class="l-it">Contratto tipo dell'Accordo di Roma, firmato online e registrato</span><span class="l-en">Rome's standard-form lease, e-signed and registered</span></span><span class="tg"><i>●</i>Magic Sign · RLI</span></li>
           <li><span><span class="l-it">Consegna delle chiavi con verbale: contatori, foto, firme sul telefono</span><span class="l-en">Key handover with a written record: meters, photos, signatures on the phone</span></span><span class="tg"><i>●</i><span class="l-it">Verbale</span><span class="l-en">Check-in</span></span></li>
           <li><span><span class="l-it">Inventario filmato stanza per stanza, confrontato all'uscita</span><span class="l-en">Room-by-room filmed inventory, compared at check-out</span></span><span class="tg"><i>●</i><span class="l-it">Inventario</span><span class="l-en">Inventory</span></span></li>
-          <li><span><span class="l-it">Canone con carta, bonifico o addebito SEPA, riconciliato in banca</span><span class="l-en">Rent by card, bank transfer or SEPA direct debit, reconciled against the bank</span></span><span class="tg"><i>●</i><span class="l-it">Incassi</span><span class="l-en">Rent</span></span></li>
+          <li><span><span class="l-it">Canone con carta o bonifico, riconciliato in banca</span><span class="l-en">Rent by card or bank transfer, reconciled against the bank</span></span><span class="tg"><i>●</i><span class="l-it">Incassi</span><span class="l-en">Rent</span></span></li>
           <li><span><span class="l-it">Scadenze seguite: cedolare, IMU, ISTAT (se non c'è la cedolare), rinnovi</span><span class="l-en">Deadlines tracked: tax, IMU, ISTAT indexation (without the flat tax), renewals</span></span><span class="tg"><i>●</i><span class="l-it">Scadenze</span><span class="l-en">Deadlines</span></span></li>
           <li><span><span class="l-it">Manutenzioni: l'inquilino segnala, noi coordiniamo</span><span class="l-en">Repairs: the tenant reports, we coordinate</span></span><span class="tg"><i>●</i><span class="l-it">Interventi</span><span class="l-en">Repairs</span></span></li>
           <li><span><span class="l-it">All'uscita: riconsegna e confronto con l'inventario d'ingresso</span><span class="l-en">At the end: check-out and comparison with the move-in inventory</span></span><span class="tg"><i>●</i><span class="l-it">Riconsegna</span><span class="l-en">Check-out</span></span></li>
@@ -671,7 +673,7 @@ html {
     <div class="rendi" aria-hidden="true">
       <div class="chead"><span><span class="l-it">Rendiconto · mese chiuso</span><span class="l-en">Statement · closed month</span></span><span><span class="l-it">inviato il 1° · PDF</span><span class="l-en">sent on the 1st · PDF</span></span></div>
       <div class="crows">
-        <div class="crw"><span class="k"><span class="l-it">Canone incassato</span><span class="l-en">Rent in</span></span><span class="v">€ 1.450 · <span class="l-it">il 3</span><span class="l-en">on the 3rd</span> · SEPA<i>✓</i></span></div>
+        <div class="crw"><span class="k"><span class="l-it">Canone incassato</span><span class="l-en">Rent in</span></span><span class="v">€ 1.450 · <span class="l-it">il 3</span><span class="l-en">on the 3rd</span> · <span class="l-it">bonifico</span><span class="l-en">transfer</span><i>✓</i></span></div>
         <div class="crw"><span class="k"><span class="l-it">Rate aperte</span><span class="l-en">Open instalments</span></span><span class="v"><span class="l-it">nessuna</span><span class="l-en">none</span><i>✓</i></span></div>
         <div class="crw"><span class="k"><span class="l-it">Arretrati</span><span class="l-en">Arrears</span></span><span class="v">€ 0<i>✓</i></span></div>
         <div class="crw"><span class="k"><span class="l-it">Interventi</span><span class="l-en">Repairs</span></span><span class="v"><span class="l-it">caldaia · chiuso il 12</span><span class="l-en">boiler · closed on the 12th</span><i>✓</i></span></div>
@@ -849,7 +851,7 @@ html {
       </details>
       <details>
         <summary><span class="l-it">Come vengono incassati i canoni?</span><span class="l-en">How is the rent collected?</span></summary>
-        <div class="a"><span class="l-it">L'inquilino paga con carta, bonifico o addebito SEPA automatico, e ogni pagamento è riconciliato con la banca. Il primo di ogni mese le arriva il rendiconto del mese chiuso: canoni incassati, rate aperte, eventuali arretrati e interventi. Incassi e documenti restano anche nella sua area proprietario.</span><span class="l-en">The tenant pays by card, bank transfer or automatic SEPA direct debit, and every payment is reconciled against the bank. On the 1st of each month you receive the statement for the month just closed: rent collected, open instalments, any arrears and repairs. Payments and documents also stay in your owner area.</span></div>
+        <div class="a"><span class="l-it">L'inquilino paga con carta o bonifico, e ogni pagamento è riconciliato con la banca. Il primo di ogni mese le arriva il rendiconto del mese chiuso: canoni incassati, rate aperte, eventuali arretrati e interventi. Incassi e documenti restano anche nella sua area proprietario.</span><span class="l-en">The tenant pays by card or bank transfer, and every payment is reconciled against the bank. On the 1st of each month you receive the statement for the month just closed: rent collected, open instalments, any arrears and repairs. Payments and documents also stay in your owner area.</span></div>
       </details>
       <details>
         <summary><span class="l-it">Che contratto usate?</span><span class="l-en">Which lease do you use?</span></summary>
@@ -1144,6 +1146,9 @@ document.getElementById('owForm').addEventListener('submit',function(ev){
     document.getElementById('fDone').classList.add('on');
     try{document.getElementById('fDoneH').focus();}catch(x){}
     boomTrack('sign_up',{method:'owners_form'});
+    /* conversione CONFERMATA: solo qui, dopo che il server ha risposto ok
+       (js/boom-track.js la registra); mai sul ramo d'errore. */
+    try{window.dispatchEvent(new CustomEvent('boom-conversion',{detail:{label:'Owner lead sent',section:'form'}}));}catch(x){}
   })
   .catch(function(){
     go.style.opacity=1;go.style.pointerEvents='';

@@ -73,7 +73,7 @@ export default async function handler(req, res) {
         amount_eur: String(eur),
       },
       success_url: 'https://www.boomrome.com/thank-you.html?reserved=1&amt=' + eur + '&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://www.boomrome.com/apartment-detail?id=' + encodeURIComponent(clip(listingId)),
+      cancel_url: 'https://www.boomrome.com/listing/' + encodeURIComponent(clip(listingId)),
     });
 
     return res.status(200).json({ url: session.url });

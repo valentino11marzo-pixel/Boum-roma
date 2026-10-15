@@ -24,8 +24,8 @@
 <meta name="twitter:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
 <meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
 <meta name="twitter:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
-<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
-<meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
+<meta name="robots" content="noindex, follow">
+<meta name="googlebot" content="noindex, follow">
 <meta name="author" content="BOOM Rome">
 <meta name="publisher" content="BOOM Rome">
 <meta name="theme-color" content="#030303">
@@ -44,7 +44,7 @@
 <link rel="manifest" href="/site.webmanifest">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "RealEstateAgent", "@id": "https://www.boomrome.com/#organization", "name": "BOOM Rome", "legalName": "Egidi Immobiliare S.r.l.", "url": "https://www.boomrome.com", "logo": {"@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512}, "image": "https://www.boomrome.com/og-home.png", "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.", "sameAs": ["https://www.instagram.com/boomrome", "https://www.linkedin.com/company/boomrome", "https://wa.me/393313251961"], "address": {"@type": "PostalAddress", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT"}, "areaServed": {"@type": "City", "name": "Rome"}, "priceRange": "€€-€€€"}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "RealEstateAgent", "@id": "https://www.boomrome.com/#organization", "name": "BOOM Rome", "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961", "url": "https://www.boomrome.com", "logo": {"@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512}, "image": "https://www.boomrome.com/og-home.png", "description": "Premium mid-term apartment rentals in Rome with full property management and registered Italian leases explained in English.", "sameAs": ["https://www.instagram.com/boomrome", "https://www.linkedin.com/company/boomrome", "https://wa.me/393313251961"], "address": {"@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Roma", "addressRegion": "RM", "addressCountry": "IT"}, "areaServed": {"@type": "City", "name": "Rome"}, "priceRange": "€€-€€€"}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebSite", "@id": "https://www.boomrome.com/#website", "url": "https://www.boomrome.com", "name": "BOOM Rome", "publisher": {"@id": "https://www.boomrome.com/#organization"}, "potentialAction": {"@type": "SearchAction", "target": {"@type": "EntryPoint", "urlTemplate": "https://www.boomrome.com/apartments?q={search_term_string}"}, "query-input": "required name=search_term_string"}, "inLanguage": ["en", "it"]}</script>
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Home", "item": "https://www.boomrome.com/"}, {"@type": "ListItem", "position": 2, "name": "Apartments", "item": "https://www.boomrome.com/apartments"}]}</script>
 
@@ -1986,6 +1986,9 @@ html.vivo .coro.dentro .tempo::after {
 .applica-nota { margin-top:12px; font-size:11px; line-height:1.6;
   color:var(--text-4); }
 .applica-fatto { display:none; padding:14px 0 4px; }
+/* l'errore dell'apply: si legge, non sussurra — e non dice mai «Sent» */
+#apErrore { color:var(--text-2); font-size:12.5px;
+  border-left:2px solid var(--gold); padding-left:10px; }
 .applica-fatto.si { display:block; }
 .applica-fatto b { display:block; font-family:var(--display);
   font-size:20px; font-weight:300; color:var(--gold); }
@@ -2578,10 +2581,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <div class="voci">
           <div class="voce"><span>First month's rent</span>
             <b id="voceCanone">—</b></div>
-          <div class="voce"><span>Agency fee — our only fee, once</span>
+          <div class="voce"><span>Agency fee — 10% of a year's rent + 22% VAT, once</span>
             <b id="voceOnorario">—</b></div>
           <div class="voce torna"><span>Security deposit
-            <em>comes back to you at the end — held, filmed in and out</em></span>
+            <em id="cauzioneNota">returned at the end, after the move-out check against the signed check-in report</em></span>
             <b id="voceCauzione">—</b></div>
         </div>
       </div>
@@ -2591,13 +2594,14 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <span id="chiaviOnorario">—</span> is what the whole thing costs,
           once, and this is what it buys:</p>
         <ul class="chiavi-lista">
-          <li><b>The contract, in English and Italian</b><span>A registered
-            lease under L. 431/98 — transitional or rent-controlled, depending
-            on the home — explained line by line before you sign
-            anything.</span></li>
-          <li><b>Registration with the Agenzia delle Entrate</b><span>We file
-            it. The registration tax itself goes to the State — that part is
-            not ours and never passes through us.</span></li>
+          <li><b>The lease, explained in English</b><span>Italy's official
+            standard-form lease, registered under L. 431/98 — transitional or
+            rent-controlled, depending on the home — walked through line by
+            line in English before you sign anything.</span></li>
+          <li><b>Registration with the Agenzia delle Entrate</b><span>We
+            arrange it on the landlord's behalf. Any registration tax or stamp
+            duty is split as the lease states and paid to the State (none is
+            due when the landlord opts for the cedolare secca).</span></li>
           <li><b>Signing from your phone</b><span>A private link: you sign,
             the landlord countersigns after you. No notary, no flight, no
             printer.</span></li>
@@ -2619,10 +2623,12 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg>Paid through BOOM on
           Stripe · a receipt for every line · never a transfer to a
           stranger</span>
-        <p class="chiavi-fuori"><b>What is not included:</b> utilities
-          (electricity, gas, water, internet) and the registration tax. Both
-          are paid to the providers and to the State. We never touch them and
-          we never mark them up.
+        <p class="chiavi-fuori" id="chiaviFuori"><b>What is not included:</b> utilities
+          (electricity, gas, water, internet), paid to the providers; your
+          share of condominium charges, where the lease puts it on you; and
+          any registration tax or stamp duty the lease assigns to you (none
+          under the landlord's cedolare secca option). We never mark any of
+          them up.
           <a class="sotto-vai" href="/your-money">The full money story —
             every euro, in and out →</a></p>
       </div>
@@ -2636,7 +2642,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         </div>
         <div class="durata-conto">
           <div><span>Rent for the whole stay</span><b id="durCanoni">—</b></div>
-          <div><span>Agency fee, once</span><b id="durOnorario">—</b></div>
+          <div><span>Agency fee incl. VAT, once</span><b id="durOnorario">—</b></div>
           <div class="durata-tot"><span>What the stay costs you</span>
             <b id="durTotale">—</b></div>
           <p class="durata-nota" id="durNota">—</p>
@@ -2664,7 +2670,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           home · €300</button>
       </form>
       <p class="presa-nota" id="presaNota">Card via Stripe · a receipt by
-        email · a human replies within 2 hours.</p>
+        email · a person replies on WhatsApp during office hours (Rome
+        time).</p>
     </div>
   </div>
 </section>
@@ -2811,7 +2818,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <span class="passo-eti"><i></i></span>
         <span class="passo-eti"><i></i></span>
       </div>
-      <form id="modApplica" novalidate>
+      <form id="modApplica" novalidate data-analytics-manual>
 
         <div class="ap-gruppo">
           <span class="ap-eti">1 · You</span>
@@ -2896,19 +2903,21 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           aria-hidden="true" class="ap-esca">
 
         <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-nota" id="apErrore" role="alert" hidden></p>
         <p class="applica-fede">Egidi Immobiliare S.r.l., licensed agency
           · BOOM® EU trade mark 019317594 · payments via Stripe, receipted</p>
         <p class="applica-nota">Your application goes straight to a person — a named human
-          replies within 2 hours and it becomes your written
+          replies during office hours (Rome time) and it becomes your written
           pre-agreement.</p>
       </form>
 
       <div class="applica-fatto" id="applicaFatto">
         <b>Sent. Here is exactly what happens now.</b>
         <ol class="ap-dopo">
-          <li><b>Within 2 hours</b><span>A person — with a name — reads it and
-            replies. If something rules you out for this landlord, you hear it
-            straight away, not in two weeks.</span></li>
+          <li><b>A person reads it</b><span>Someone with a name reads it and
+            replies during office hours (Rome time); sent out of hours, the
+            next working morning. If something rules you out for this
+            landlord, you hear it straight away, not in two weeks.</span></li>
           <li><b>Your pre-agreement</b><span>A private link with these exact
             figures written into it: rent, deposit, fee, dates. Nothing new
             appears later.</span></li>
@@ -2921,7 +2930,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         </ol>
         <a class="btn btn-primary" id="fattoHold" href="#presaCasa"
           style="display:none">Hold this home · €300 →</a>
-        <p class="applica-nota">Sent — a named human replies within 2 hours.</p>
+        <p class="applica-nota">Sent — a named human replies during office hours (Rome time).</p>
       </div>
     </div>
 
@@ -3023,6 +3032,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <script src="/js/dispo-engine.js"></script>
 <script src="/js/tempi-engine.js"></script>
 <script src="/js/mappa-engine.js"></script>
+<script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
    Parte al load: il motore Solari è concatenato DOPO questo script. */
@@ -3048,15 +3058,29 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
      `campi` porta availableFrom/availableDate GREZZI: solo il primo (che
      scrive il contratto alla firma) può rendere prenotabile un affittato. */
   function statoDa(s2, d2, campi) {
+    /* FUORI MERCATO: nascosta, bozza, archiviata, fuori mercato — la stessa
+       lista di api/listing.js e della sitemap. La corsia non le conosce
+       (cade su «now»): un vecchio link o una condivisione WhatsApp
+       invitava a fare APPLY su una casa che non si affitta. Niente Apply,
+       niente hold: si chiede. */
+    if (/hidden|draft|archived|off_market/.test(String(s2 || '')))
+      return { eti: 'Not on the market', lib: false, lane: 'closed',
+        cta: 'Ask about this home', spiega: '', iso: null, chiedi: false,
+        fuori: true };
     if (window.BOOM_DISPO && BOOM_DISPO.laneCopy) {
       try {
-        var lc = BOOM_DISPO.laneCopy({
+        var mL = BOOM_DISPO.marketLane({
           status: s2,
           availableFrom: (campi && campi.af) || '',
           availableDate: (campi && campi.ad) || ''
         });
+        var lc = BOOM_DISPO.laneCopy(mL);
+        /* iso = la data della CORSIA (solo su una prenotabile con data
+           certa), non `dal`: su un'affittata `dal` può essere il residuo
+           di availableDate mentre la corsia legge il contratto */
         return { eti: lc.eti || lc.short, lib: lc.lane === 'now',
-          lane: lc.lane, cta: lc.cta, spiega: lc.long };
+          lane: lc.lane, cta: lc.cta, spiega: lc.long,
+          iso: mL.iso || null, chiedi: !!mL.dateUnreadable };
       } catch (e) { /* fallback storico */ }
     }
     var oggi = new Date().toISOString().slice(0, 10), eti, lib;
@@ -3099,6 +3123,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     return {
       id: ideNuovo,
       lane: st.lane, ctaLane: st.cta, spiegaLane: st.spiega,
+      laneIso: st.iso || null, laneChiedi: !!st.chiedi, fuori: !!st.fuori,
       nome: t(d.name) || 'Apartment',
       zona: (t(d.zone || d.neighborhood) || 'Roma').split('/')[0],
       indirizzo: t(d.address),
@@ -3137,7 +3162,80 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     || (location.pathname.match(/\/listing\/([^\/?#]+)/) || [])[1];
   var c = CASE.filter(function (x) { return x.id === ide; })[0];
   if (!c && ide && window.__LISTING) c = casaDaListing(window.__LISTING, ide);
+  /* UNA CASA CHIESTA E SCONOSCIUTA. Sul ripiego 503 del server (Firestore
+     giù) una casa pubblicata DOPO la build non è nel CASE e non c'è
+     __LISTING: prima si rendeva CASE[0] («Bilocale Trastevere») sotto
+     l'URL di un'altra casa, e APPLY e hold mandavano il SUO listingId —
+     lead attribuiti alla casa sbagliata. Ora la pagina lo dice, offre di
+     riprovare e WhatsApp, e nessun modulo può partire. CASE[0] resta solo
+     per il template nudo, senza id. */
+  if (!c && ide) { casaIrraggiungibile(); return; }
   c = c || CASE[0];
+  function casaIrraggiungibile() {
+    document.title = 'This home is temporarily unavailable — BOOM Rome';
+    per('#nomeCasa').textContent = 'This home is temporarily unavailable';
+    var dv = per('#doveCasa');
+    if (dv) {
+      dv.textContent = '';
+      var rip = document.createElement('a');
+      rip.id = 'riprovaCasa';
+      rip.textContent = 'Retry';
+      /* Retry porta dove la casa PUÒ esistere. Su /listing/<id> la pagina
+         è del server (SSR): ricaricare è giusto, il guasto era momentaneo.
+         Sulla rotta statica /apartment-detail?id=<id> — dove atterra anche
+         chi annulla l'hold su Stripe (cancel_url di reserve-checkout) — non
+         c'è né SSR né __LISTING: una casa nata dopo la build lì non esiste
+         MAI, e ricaricare era un vicolo cieco. Si va alla rotta del server. */
+      if (/^\/listing\//.test(location.pathname)) {
+        rip.href = location.href;
+        rip.addEventListener('click', function (e) {
+          e.preventDefault(); location.reload(); });
+      } else {
+        var idChiaro = ide;
+        try { idChiaro = decodeURIComponent(ide); } catch (e) {}
+        rip.href = '/listing/' + encodeURIComponent(idChiaro);
+      }
+      var wa = document.createElement('a');
+      wa.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(
+        'Hi! I\u2019m asking about the home at ' + location.origin
+        + '/listing/' + ide);
+      wa.target = '_blank'; wa.rel = 'noopener';
+      wa.textContent = 'WhatsApp BOOM';
+      dv.appendChild(rip);
+      dv.appendChild(document.createTextNode(' \u00b7 '));
+      dv.appendChild(wa);
+    }
+    var stI = per('#statoCasa');
+    if (stI) { stI.textContent = 'Unavailable'; stI.className = 'stato-grande presa'; }
+    var cn = per('#canoneCasa');
+    if (cn) { cn.textContent = ''; cn.dataset.p = ''; }
+    var bz = per('#briZona');
+    if (bz) { bz.textContent = 'Rome'; bz.setAttribute('href', '/apartments'); }
+    /* niente modulo che possa partire: APPLY e hold spariscono, e un
+       submit nativo (senza i listener della regia) non va da nessuna parte */
+    ['applica', 'presaCasa', 'portaVideo'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    ['modApplica', 'presaForma'].forEach(function (id) {
+      var fm = document.getElementById(id);
+      if (fm) fm.addEventListener('submit', function (e) { e.preventDefault(); });
+    });
+    /* le sezioni che parlano di QUESTA casa (racconto, soldi, posto, FAQ
+       con le sue cifre): senza la casa resterebbero trattini e mappe vuote */
+    ['casa', 'denaro', 'posto', 'chiedi'].forEach(function (id) {
+      var sz = document.getElementById(id);
+      if (sz) sz.style.display = 'none';
+    });
+    /* la rotaia (desktop) puntava a cinque sezioni ora nascoste, e «Three
+       more, walked the same way» restava sopra una griglia vuota (le altre
+       case non si disegnano: il return è prima): via entrambe */
+    var rt = document.getElementById('rotaia');
+    if (rt) rt.style.display = 'none';
+    var al = document.getElementById('altre');
+    var alW = al && al.closest ? al.closest('.sale') : null;
+    if (alW) alW.style.display = 'none';
+  }
 
   /* ── la scena: la foto grande e il rullino ──────────────────────────── */
   var telaio = document.getElementById('telaio');
@@ -3263,7 +3361,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   }
   scriviStato();
   var rifaiDurata = function () {}, rifaiPresa = function () {},
-      rifaiPorte = function () {};
+      rifaiPorte = function () {}, rifaiCta = function () {};
   /* la chiave dei preferiti e la stessa delle altre due pagine:
      il segnaposto sopravvive al replace di navigazione del builder */
   per('#cuoreCasa').dataset.u = '/listing/' + c.id;
@@ -3283,44 +3381,62 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   })();
   /* se la casa non e libera, la CTA non finge: si entra in lista */
   /* una casa libera DA una data: la data sta nel gesto, non solo nel badge */
-  if (c.libera && c.dal) {
-    var oggiIso = new Date().toISOString().slice(0, 10);
-    if (c.dal > oggiIso) {
-      var bF = document.querySelector('#modApplica button[type="submit"]');
-      if (bF) {
-        var dF = new Date(c.dal + 'T12:00:00');
-        bF.textContent = 'Apply \u00b7 move in '
-          + dF.getDate() + ' ' + dF.toLocaleDateString('en-GB', { month: 'short' });
-      }
-    }
-  }
   /* IL PRE-BLOCCO. Su una casa occupata il vecchio testo chiedeva di
      «mettersi in lista» e di aspettare «il momento in cui si libera» —
      un'attesa senza data, che è il modo più sicuro di perdere qualcuno
      che sta programmando un trasferimento. Sedici case su ventisei di
      questo catalogo hanno invece una data di rilascio NOTA: chi guarda
      deve leggere il giorno in cui entra e poter bloccare adesso. Le
-     parole vengono da laneCopy, le stesse della card e del JSON-LD. */
-  if (!c.libera) {
+     parole vengono da laneCopy, le stesse della card e del JSON-LD.
+     È una FUNZIONE (rifaiCta) perché l'idrante la richiama quando il
+     documento vero cambia lo stato: una casa fotografata libera e poi
+     archiviata non deve continuare a dire «Send application». */
+  (function () {
     var bAp = document.querySelector('#modApplica button[type="submit"]');
     var sAp = document.getElementById('applicaSotto');
-    var chiuso = c.lane === 'closed';
-    if (bAp) bAp.textContent = c.ctaLane || (chiuso ? 'Ask about this home'
-      : 'Reserve ahead');
-    if (sAp) {
-      sAp.textContent = chiuso
-        ? 'This home is rented right now. Tell us what you need and we '
-          + 'send you the closest matches — from a person, not a robot.'
-        /* solo fatti che il sistema può mantenere: la data viene dalla
-           locazione in corso, e chi prenota lo sa per primo se cambia.
-           Nessuna promessa sui costi — l'hold ha le sue regole, e una
-           riga di marketing non può contraddire il prodotto. */
-        : (c.spiegaLane ? c.spiegaLane + ' ' : '')
-          + 'You reserve it now and sign closer to the date. The date '
-          + 'comes from the current tenancy — if it moves, you are the '
-          + 'first to know, from a person.';
-    }
-  }
+    var ctaBase = bAp ? bAp.textContent : '';
+    var sottoBase = sAp ? sAp.textContent : '';
+    rifaiCta = function () {
+      if (bAp) bAp.textContent = ctaBase;
+      if (sAp) sAp.textContent = sottoBase;
+      if (c.libera && c.dal) {
+        var oggiIso = new Date().toISOString().slice(0, 10);
+        if (c.dal > oggiIso && bAp) {
+          var dF = new Date(c.dal + 'T12:00:00');
+          bAp.textContent = 'Apply \u00b7 move in '
+            + dF.getDate() + ' ' + dF.toLocaleDateString('en-GB', { month: 'short' });
+        }
+      }
+      if (!c.libera) {
+        var chiuso = c.lane === 'closed';
+        if (bAp) bAp.textContent = c.ctaLane || (chiuso ? 'Ask about this home'
+          : 'Reserve ahead');
+        if (sAp) {
+          sAp.textContent = c.fuori
+            ? 'This home is not on the market right now. Tell us what you '
+              + 'need and we send you the closest matches — from a person, '
+              + 'not a robot.'
+            : chiuso
+            ? 'This home is rented right now. Tell us what you need and we '
+              + 'send you the closest matches — from a person, not a robot.'
+            /* solo fatti che il sistema può mantenere: la data viene dalla
+               locazione in corso, e chi prenota lo sa per primo se cambia.
+               Nessuna promessa sui costi — l'hold ha le sue regole, e una
+               riga di marketing non può contraddire il prodotto. */
+            : (c.spiegaLane ? c.spiegaLane + ' ' : '')
+              + 'You reserve it now and sign closer to the date. The date '
+              + 'comes from the current tenancy — if it moves, you are the '
+              + 'first to know, from a person.';
+        }
+      }
+      /* la barra di decisione (mobile) segue lo stesso stato */
+      var dS = document.getElementById('decStato');
+      var dV = document.getElementById('decVai');
+      if (dS) dS.textContent = c.stato;
+      if (dV) dV.textContent = c.libera ? 'Apply' : (c.fuori ? 'Ask' : 'Waitlist');
+    };
+    rifaiCta();
+  })();
 
   /* il canone sui Solari, come ovunque nel sito */
   var canone = per('#canoneCasa');
@@ -3409,29 +3525,73 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
   /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
   per('#raccontoCasa').textContent = c.racconto
-    || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
+    || 'Walked and checked by us. Ask us anything about it, or book a free '
+      + 'live video viewing on WhatsApp.';
   per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
     .map(function (x) { return '<span>' + x + '</span>'; }).join('');
 
   /* ── IL DENARO IN CHIARO ────────────────────────────────────────────
      Regole dichiarate, aritmetica visibile: la cauzione e N mensilita,
-     l'onorario il 10% del canone ANNUO (quindi non cambia con la durata,
+     l'onorario il 10% del canone ANNUO più IVA 22% — è ciò che la proposta
+     addebita davvero (api/preagreement/create.js; js/listing-facts.js per
+     le superfici server) — quindi non cambia con la durata,
      e per questo il giorno uno resta uguale mentre il soggiorno no). */
   /* la cifra grande e il giorno uno INTERO: canone + deposito + onorario.
      Nessuna voce a margine — il deposito e un pagamento vero, e torna,
      ed e scritto in verde sulla sua riga. Un numero, una storia. */
   var cauzione, onorario, totale;
+  /* LE MENSILITÀ DI DEPOSITO: il documento le dichiara solo a volte, e
+     senza la pagina mostra UNA mensilità di default. Quel numero è una
+     nostra ipotesi, non un fatto della casa: si dice che lo conferma la
+     proposta, invece di presentarlo come scritto. */
+  function cauzioneDichiarata() {
+    if (c.cauzioneDich) return true;
+    var L = (window.__LISTING && window.__LISTING_ID === c.id) ? window.__LISTING : null;
+    var m = L ? parseFloat(L.depositMonths) : NaN;
+    return isFinite(m) && m > 0;
+  }
   function contiSoldi() {
     var mesi = c.cauzioneMesi || 1;
     cauzione = c.prezzo * mesi;
-    onorario = Math.round(c.prezzo * 12 * .10);
+    onorario = Math.round(c.prezzo * 12 * .10 * 1.22);
     totale = c.prezzo + cauzione + onorario;
     per('#voceCanone').textContent = euro(c.prezzo);
     per('#voceOnorario').textContent = euro(onorario);
     per('#voceCauzione').textContent = euro(cauzione);
     per('#chiaviOnorario').textContent = euro(onorario);
+    var cn = document.getElementById('cauzioneNota');
+    if (cn) cn.textContent = cauzioneDichiarata()
+      ? 'returned at the end, after the move-out check against the signed '
+        + 'check-in report'
+      : 'one month shown, confirmed in your pre-agreement — returned at '
+        + 'the end, after the move-out check';
   }
   contiSoldi();
+
+  /* LE UTENZE: «non incluse» era scritto per ogni casa, anche per quelle
+     che l'operatore ha etichettato «All inclusive». Si legge l'etichetta
+     (js/listing-facts.js, la stessa regola del server), mai la
+     descrizione: il documento del server se c'è, altrimenti le voci della
+     fotografia di build. */
+  function bollette() {
+    var F = window.BOOM_FACTS;
+    if (!F || !F.billsIncluded) return false;
+    var doc = (window.__LISTING && window.__LISTING_ID === c.id)
+      ? window.__LISTING : { features: c.dentro || [] };
+    try { return F.billsIncluded(doc); } catch (e) { return false; }
+  }
+  (function () {
+    var cf = document.getElementById('chiaviFuori');
+    if (!cf || !bollette()) return;
+    var link = cf.querySelector('a');
+    /* «bills included», non la parola dell'etichetta: la promessa
+       globale di una volta non torna nemmeno per sbaglio (tests/listing) */
+    cf.innerHTML = '<b>Bills:</b> this home is listed with bills included '
+      + '— the pre-agreement lists exactly which bills, before you pay '
+      + 'anything. Any registration tax or stamp duty is split as the lease '
+      + 'states (none under the landlord\'s cedolare secca option). ';
+    if (link) cf.appendChild(link);
+  })();
 
   /* il totale gira sui Solari: e la cifra che conta piu di ogni altra */
   var mostraTotale = function () {};
@@ -3468,10 +3628,17 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       per('#durCanoni').textContent = euro(canoni) + '  ';
       per('#durOnorario').textContent = euro(onorario);
       per('#durTotale').textContent = euro(canoni + onorario);
+      /* legata a bollette(): una casa etichettata «bollette incluse» non
+         può leggere qui che le utenze si pagano ai fornitori */
       per('#durNota').innerHTML = 'Your <b>' + euro(cauzione) + '</b> deposit '
-        + 'is not counted here: you pay it on day one and it comes back at '
-        + 'the end. Utilities and the registration tax are paid to the '
-        + 'providers and to the State, never to us.';
+        + 'is not counted here: you pay it on day one and it is returned at '
+        + 'the end of the tenancy, after the move-out check set out in the '
+        + 'lease. '
+        + (bollette()
+          ? 'This home is listed with bills included — the pre-agreement '
+            + 'lists which.'
+          : 'Utilities are paid to the providers; condominium charges and '
+            + 'any registration tax follow the lease.');
       tasti.forEach(function (t) {
         t.classList.toggle('on', Number(t.dataset.m) === m); });
       /* chi ha scelto la durata qui non deve ridirla nell'apply */
@@ -3487,6 +3654,43 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   /* ── QUELLO CHE CI CHIEDERESTI SU WHATSAPP ──────────────────────────
      Dieci risposte, ognuna vera per quello che il sito e i documenti gia
      dicono. Le cifre vengono dalla casa aperta, non da un testo fisso. */
+  /* «Quando entro?» segue la CORSIA, non `dal`. Prima un'affittata senza
+     data diceva «This one is available now» sotto il badge «Rented» — e la
+     stessa frase finiva nel FAQPage (#faqLd) che i motori leggono. La
+     corsia viene dal motore (casaDaListing/digest); per la fotografia di
+     build, che non la porta, si deduce dal badge, e nel dubbio mai «now». */
+  function corsiaCasa() {
+    if (c.lane) return c.lane;
+    var s = String(c.stato || '');
+    var oggi = new Date().toISOString().slice(0, 10);
+    if (/^Free from/i.test(s) || (c.libera && c.dal && c.dal > oggi)) return 'ahead';
+    if (c.libera) return 'now';
+    if (/wait|reserve ahead/i.test(s)) return 'ahead';
+    return 'closed';
+  }
+  function quandoEntri() {
+    var oggi = new Date().toISOString().slice(0, 10);
+    function giorno(iso) {
+      return new Date(iso + 'T12:00:00').toLocaleDateString('en-GB',
+        { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+    var lane = corsiaCasa();
+    if (c.fuori) return ' is not on the market right now.';
+    if (lane === 'closed') return ' is rented right now.';
+    if (lane === 'ahead') {
+      /* la data della corsia; per la fotografia di build, `dal` solo se
+         ancora futura (un residuo passato non è una data di rilascio) */
+      var iso = c.laneIso || (!c.lane && c.dal && c.dal > oggi ? c.dal : null);
+      return iso
+        ? ' is free from <em>' + giorno(iso) + '</em> and can be reserved today.'
+        : ' can be reserved ahead — ask us for the release date.';
+    }
+    if (c.laneChiedi || /^Ask us/i.test(String(c.stato || '')))
+      return ': ask us for the exact move-in date.';
+    return c.dal && c.dal > oggi
+      ? ' is available from <em>' + giorno(c.dal) + '</em>.'
+      : ' is available now.';
+  }
   function scriviChiedi() {
     var lista = document.getElementById('chiediLista');
     if (!lista) return;
@@ -3499,22 +3703,29 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       ['What exactly do I pay on day one?',
        '<em>' + euro(totale) + '</em>: first month ' + euro(c.prezzo)
        + ', deposit ' + euro(cauzione) + ' and the agency fee '
-       + euro(onorario) + '. Nothing else is charged by us, ever.'],
+       + euro(onorario) + ' (10% of a year\'s rent + 22% VAT). Nothing else is charged by us.'
+       + (cauzioneDichiarata() ? ''
+         : ' The deposit is shown as one month; your pre-agreement confirms it.')],
       ['Is the deposit really coming back?',
-       'It is held, not spent, and returned after the final walkthrough. '
-       + 'The flat is filmed at move-in and at move-out, so the state of it '
-       + 'is a recording and not an argument.'],
+       'It is paid to the landlord under the lease and returned at the end '
+       + 'of the tenancy, after the home\'s condition and the lease '
+       + 'obligations are checked — the lease\'s own deposit clause. The '
+       + 'home\'s condition is recorded at check-in in a signed handover '
+       + 'report (verbale di consegna) and checked against it at move-out, '
+       + 'so its condition is a signed record and not an argument.'],
       ['How do I pay — and to whom?',
        'Through BOOM on Stripe, with a receipt for each line. Never a bank '
        + 'transfer to a private person. The counterparty is <em>Egidi '
        + 'Immobiliare S.r.l.</em>, a licensed agency — BOOM® is its EU trade '
        + 'mark 019317594.'],
       ['What kind of contract is it?',
-       'A registered lease under L. 431/98 — typically transitional '
-       + '(art. 5 c. 1); some homes offer a rent-controlled option, and the '
-       + 'listing says so. In English and Italian, explained line by line '
-       + 'before you sign. Registration with the Agenzia delle Entrate is '
-       + 'handled by us.'],
+       'Italy\'s official standard-form lease, registered under L. 431/98 — '
+       + 'typically transitional (art. 5 c. 1); some homes offer a '
+       + 'rent-controlled option, and the listing says so. It is walked '
+       + 'through line by line in English before you sign; the '
+       + 'pre-agreement, signing page and receipts are in English. '
+       + 'Registration with the Agenzia delle Entrate is handled by us on '
+       + 'the landlord\'s behalf.'],
       ['Do I have to be in Rome to sign?',
        'No. You sign from your phone with a private link, and the landlord '
        + 'countersigns after you. The keys are the only thing that needs you '
@@ -3525,19 +3736,22 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
        + 'asks for before you apply, not after.'],
       ['How fast can I actually move in?',
        'As little as <em>48 hours</em> from a signed pre-agreement, if the '
-       + 'flat is free. This one'
-       + (c.dal ? ' is available from <em>' + new Date(c.dal + 'T12:00:00')
-            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long',
-              year: 'numeric' })
-            + '</em>.' : ' is available now.')],
+       + 'flat is free. This one' + quandoEntri()],
       ['Can I hold it while I decide?',
        'Yes — a <em>€300</em> hold takes it off the market for 48 hours, one '
        + 'tap, fully refundable. It is the only way to stop someone else '
        + 'taking it while you think.'],
-      ['What is not included in the figures above?',
-       'Utilities (electricity, gas, water, internet) and the registration '
-       + 'tax. Both are paid to the providers and to the State — we never '
-       + 'touch them, and we never mark them up.']
+      bollette() ? ['Are the bills included?',
+       'This home is listed with bills included — the pre-agreement lists '
+       + 'exactly which bills, before you pay anything. Any registration '
+       + 'tax or stamp duty is split as the lease states (none under the '
+       + 'landlord\'s cedolare secca option).']
+      : ['What is not included in the figures above?',
+       'Utilities (electricity, gas, water, internet), paid to the '
+       + 'providers; your share of condominium charges, where the lease '
+       + 'puts it on you; and any registration tax or stamp duty the lease '
+       + 'assigns to you (none under the landlord\'s cedolare secca option). '
+       + 'We never mark any of them up.']
     ];
     /* domande tutte VISIBILI (regola GEO: il FAQPage afferma solo cio'
        che la pagina mostra), risposte richiudibili — la prima aperta */
@@ -3597,12 +3811,44 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     }
     stato();
 
+    var errore = f.querySelector('#apErrore');
+    var invia = f.querySelector('button[type="submit"]');
+    /* UNA candidatura anche se si riprova. Il server salva il lead e poi
+       aspetta l'SMTP: un timeout o una rete caduta DOPO il salvataggio
+       mostrava l'errore, e il nuovo tentativo creava un secondo lead (con
+       email e Telegram doppi). La chiave è una per pagina, la stessa a
+       ogni tentativo; il server la accetta con /^[\w-]{8,64}$/ e scrive
+       `apply_<requestId>` una volta sola. */
+    var apReq = (function () {
+      try {
+        if (window.crypto && typeof crypto.randomUUID === 'function')
+          return crypto.randomUUID();
+      } catch (err) { /* contesto non sicuro: si ripiega */ }
+      return Date.now().toString(36) + '-'
+        + Math.random().toString(36).slice(2, 12);
+    })();
+    function dici(t) {
+      if (!errore) return;
+      errore.textContent = t || '';
+      errore.hidden = !t;
+    }
+    var inVolo = false;
     f.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (!f.querySelector('#apNome').value.trim()
-          || !f.querySelector('#apMail').value.trim()) {
-        (f.querySelector('#apNome').value.trim()
-          ? f.querySelector('#apMail') : f.querySelector('#apNome')).focus();
+      if (inVolo) return;
+      dici('');
+      var nomeV = f.querySelector('#apNome').value.trim(),
+          mailV = f.querySelector('#apMail').value.trim(),
+          telV = (f.querySelector('#apTel') || { value: '' }).value.trim();
+      if (!nomeV) { f.querySelector('#apNome').focus(); return; }
+      /* la STESSA regola del server (api/apply-lead.js): un'email con «@»
+         e «.», oppure un telefono con almeno 6 cifre. Prima il form
+         diceva «Sent» anche quando il server rispondeva 400 */
+      var okMail = mailV.indexOf('@') >= 0 && mailV.indexOf('.') >= 0;
+      var okTel = telV.replace(/\D/g, '').length >= 6;
+      if (!okMail && !okTel) {
+        dici('Check your email address (or add a WhatsApp number) so we can reply.');
+        f.querySelector('#apMail').focus();
         return;
       }
       var d = new FormData(f);
@@ -3623,24 +3869,63 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
         /* in piu, per il pre-accordo: quante firme ci saranno */
         signers: Number(d.get('firmatari')) || 1,
+        requestId: apReq,                 /* idempotenza: un lead per pagina */
         company: d.get('company')          /* esca per i robot */
       };
-      if (VERO) {
-        /* la porta vera del pipeline: parte e non blocca, come dal vivo */
-        try { fetch('/api/apply-lead', { method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(corpo) }); } catch (err) {}
-      } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+      function fatto() {
+        f.style.display = 'none';
+        var sotto = document.getElementById('applicaSotto');
+        if (sotto) sotto.style.display = 'none';
+        var ok = document.getElementById('applicaFatto');
+        if (ok) {
+          ok.classList.add('si');
+          ok.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }
       if (window.boomTrack) boomTrack('apply_submit',
         { item_id: c.id || '', intent: c.libera ? 'apply' : 'waitlist' });
-      f.style.display = 'none';
-      var sotto = document.getElementById('applicaSotto');
-      if (sotto) sotto.style.display = 'none';
-      var fatto = document.getElementById('applicaFatto');
-      if (fatto) {
-        fatto.classList.add('si');
-        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      if (!VERO) {
+        console.info('[PREVIEW] POST /api/apply-lead →', corpo);
+        fatto();
+        return;
       }
+      /* «Sent» SOLO dopo che il server ha salvato il lead: prima la
+         richiesta partiva e la pagina diceva «Sent» comunque — anche su
+         un 400, un 429 o una rete caduta. keepalive: un tap e via non
+         uccide la richiesta in volo. */
+      inVolo = true;
+      if (invia) invia.disabled = true;
+      var KO = 'We couldn\'t send your application — please try again, '
+        + 'or message us on WhatsApp: +39 331 325 1961.';
+      (async function () {
+        try {
+          const res = await fetch('/api/apply-lead', { method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(corpo), keepalive: true });
+          var j = null;
+          try { j = await res.json(); } catch (err) { j = null; }
+          if (res.ok && j && j.ok) {
+            fatto();
+            window.dispatchEvent(new CustomEvent('boom-conversion', {
+              detail: { label: 'Application sent', section: 'apply' } }));
+            /* il lead per GA SOLO a conferma del server: il form porta
+               data-analytics-manual, quindi boom-track non lo conta al
+               submit (prima contava anche i tentativi bocciati e i 400).
+               Il consent mode lo governa come ogni altro evento. */
+            try {
+              if (window.gtag) window.gtag('event', 'generate_lead',
+                { form_id: 'modApplica', item_id: c.id || '' });
+            } catch (err) { /* l'analisi non ferma mai una candidatura */ }
+            return;
+          }
+          dici(KO);
+        } catch (err) {
+          dici(KO);
+        } finally {
+          inVolo = false;
+          if (invia) invia.disabled = false;
+        }
+      })();
     });
   })();
 
@@ -4067,20 +4352,31 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     if (m2 && m2 !== c.cauzioneMesi) {
       c.cauzioneMesi = m2; cambia = true;
     }
+    /* il documento DICHIARA le mensilità: la nota «confermato nella
+       proposta» non serve più */
+    if (m2 && !c.cauzioneDich) { c.cauzioneDich = true; cambia = true; }
     var s2 = testo('status').toLowerCase();
     if (s2) {
       var af2 = testo('availableFrom'), ad2 = testo('availableDate');
       var d2 = ((af2 || ad2).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
       var st2 = statoDa(s2, d2, { af: af2, ad: ad2 });
-      if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal) {
+      /* la corsia conta anche quando il badge non cambia: la fotografia
+         di build non la porta, e la FAQ «quando entro» la legge */
+      var corsiaNuova = st2.lane !== c.lane
+        || (st2.iso || null) !== (c.laneIso || null)
+        || !!st2.chiedi !== !!c.laneChiedi
+        || !!st2.fuori !== !!c.fuori;
+      if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal || corsiaNuova) {
         c.stato = st2.eti; c.libera = st2.lib; c.dal = d2;
         c.lane = st2.lane; c.ctaLane = st2.cta; c.spiegaLane = st2.spiega;
+        c.laneIso = st2.iso || null; c.laneChiedi = !!st2.chiedi;
+        c.fuori = !!st2.fuori;
         cambia = true;
       }
     }
     if (!cambia) return;
     scriviStato(); contiSoldi(); mostraTotale(true); mostraCanone(true);
-    rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte();
+    rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte(); rifaiCta();
   }
   /* prima sorsata: il documento gia iniettato dal server — zero rete */
   if (VERO && window.__LISTING && window.__LISTING_ID === c.id)
@@ -4165,7 +4461,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       per('#decPrezzo').textContent = euro(c.prezzo) + '/mo';
       per('#decStato').textContent = c.stato;
       var vaiB = document.getElementById('decVai');
-      if (!c.libera && vaiB) vaiB.textContent = 'Waitlist';
+      if (!c.libera && vaiB) vaiB.textContent = c.fuori ? 'Ask' : 'Waitlist';
       bar.hidden = false;
       var applica = document.getElementById('applica');
       var soglia = 520;
@@ -4625,11 +4921,18 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   })();
 
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
+  /* #canoneCasa NO: è della regia (mostraCanone), che lo svuota e lo
+     ricostruisce. Da quando il server scrive data-p, questo montaggio ne
+     costruiva un primo tabellone e lo faceva girare, poi la regia lo
+     cancellava e lo rifaceva girare: il prezzo frullava due volte. */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
+    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo:not(#canoneCasa)'));
     if (!voci.length || !BS) return;
     voci.forEach(function (host) {
       var testo = host.dataset.p || '';
+      /* il server scrive già la cifra in chiaro (chi non ha JS la legge):
+         si svuota PRIMA delle celle, o la cifra uscirebbe due volte */
+      host.textContent = '';
       var b = new BS.Board(host, testo.length, ' €,.0123456789');
       if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
       new IntersectionObserver(function (r, io) {

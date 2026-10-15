@@ -86,10 +86,10 @@ function digestHtml(search, hits) {
     <div style="background:#fff;border-radius:14px;padding:26px 24px;border:1px solid #e8e8e8">
       <div style="letter-spacing:4px;font-size:12px;color:#B8960C">B O O M &nbsp;R O M E</div>
       <h2 style="font-weight:400;margin:14px 0 4px">New home${hits.length > 1 ? 's' : ''} matching your search</h2>
-      <p style="color:#666;font-size:13.5px;margin:0 0 6px">${search.label ? 'Your search “' + String(search.label).replace(/</g, '&lt;') + '”' : 'Your saved search'} just matched ${hits.length} new listing${hits.length > 1 ? 's' : ''} — video-verified, transparent pricing.</p>
+      <p style="color:#666;font-size:13.5px;margin:0 0 6px">${search.label ? 'Your search “' + String(search.label).replace(/</g, '&lt;') + '”' : 'Your saved search'} just matched ${hits.length} new listing${hits.length > 1 ? 's' : ''} — photos, price and availability on each home's page.</p>
       <table style="width:100%;border-collapse:collapse">${rows}</table>
       <p style="margin:18px 0 0"><a href="${SITE}/apartments" style="display:inline-block;background:#D4AF37;color:#1a1407;text-decoration:none;font-weight:600;border-radius:100px;padding:11px 22px;font-size:14px">See everything →</a></p>
-      <p style="color:#999;font-size:11.5px;margin:18px 0 0">Rome moves fast — the good ones go in days. Questions? Just reply, a human answers within 2 hours.</p>
+      <p style="color:#999;font-size:11.5px;margin:18px 0 0">Rome moves fast — the good ones go in days. Questions? Just reply — a person replies during office hours (Rome time); messages sent out of hours are answered the next working morning.</p>
     </div>
     <p style="color:#aaa;font-size:11px;text-align:center;margin:14px 0 0">
       You saved this search on boomrome.com · <a href="${unsub}" style="color:#aaa">stop these alerts</a>

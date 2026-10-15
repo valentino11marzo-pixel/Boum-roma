@@ -116,13 +116,13 @@ ${SITE}/apartments`,
       text: `Here is every euro, including the ones that come back to you.
 
 Rent: exactly what the listing says. Nothing appears later.
-Deposit: yours. I film the flat on the way in and on the way out, so its condition is never a matter of opinion.
-My fee: 10% of the year, once, and only if you actually move in.
+Deposit: yours, checked at move-out against the signed check-in report.
+My fee: 10% of one year's rent + 22% VAT, once, at the time your pre-agreement states — written before you pay anything.
 €300 to hold a home: refundable, and deducted from the above.
 
 The arithmetic in full: ${SITE}/your-money
 
-If an agency won't put this list in writing, that tells you what you need to know.`,
+If an agency won't put this in writing, that tells you what you need to know.`,
     },
     {
       sc: 'endocs', fam: 'en', star: true,
@@ -410,8 +410,8 @@ No catch and no expiry — and they get exactly the treatment you got.`,
       text: `Ogni euro, compresi quelli che tornano indietro.
 
 Canone: quello scritto sull'annuncio. Dopo non compare nient'altro.
-Deposito: suo. Filmo la casa il giorno dell'ingresso e il giorno dell'uscita, così non è questione di opinioni.
-Commissione: 10% del canone annuo, una volta sola e solo se entra davvero.
+Deposito: suo. All'uscita la casa si confronta col verbale di consegna firmato all'ingresso: non è questione di opinioni.
+Commissione: 10% del canone annuo + IVA 22%, una volta sola, quando lo indica la proposta — scritta prima di pagare qualsiasi cosa.
 €300 per bloccarla: rimborsabili e scalati da quanto sopra.
 
 Il conto completo: ${SITE}/your-money`,
@@ -434,7 +434,7 @@ Il conto della sua casa lo vede subito qui, prima di decidere: ${SITE}/canone`,
       title: 'Aziende ed enti',
       when: 'HR e mobility manager: si parla di persone che atterrano e di fattura, mai di visite.',
       sell: { service: null, anchor: 'un dipendente che arriva e non ha dove dormire' },
-      text: `For companies moving people to Rome: one contact, homes we have seen ourselves, compliant leases in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
+      text: `For companies moving people to Rome: one contact, homes we have seen ourselves, compliant Italian leases explained in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
 
 ${SITE}/corporate
 
@@ -447,7 +447,7 @@ How many people, and when do they land?`,
       sell: { service: null, anchor: null },
       text: `[NOME], the contract is ready — no printer and no appointment: [LINK]
 
-Read it (English, and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
+Read it (the page is in English and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
 
 Anything you want changed, tell me before you sign: after registration it is a different conversation.`,
     },
@@ -505,11 +505,10 @@ If a bank transfer is easier, say so and I'll send the details.`,
     { group: 'Case e visite', path: '/booking', what: 'Il modulo di candidatura con caricamento documenti' },
 
     { group: 'Come funziona e prezzi', path: '/how-it-works', what: 'I passi dal primo messaggio alle chiavi' },
-    { group: 'Come funziona e prezzi', path: '/your-money', what: 'Ogni euro spiegato: canone, deposito, commissione 10%' },
+    { group: 'Come funziona e prezzi', path: '/your-money', what: 'Ogni euro spiegato: canone, deposito, commissione 10% + IVA 22%' },
     { group: 'Come funziona e prezzi', path: '/faq', what: 'Le domande ricorrenti, già risposte' },
     { group: 'Come funziona e prezzi', path: '/about', what: 'Chi siamo — da mandare a chi diffida' },
     { group: 'Come funziona e prezzi', path: '/contact', what: 'Tutti i modi per raggiungerci' },
-    { group: 'Come funziona e prezzi', path: '/deals', what: 'Promozioni e offerte in corso' },
 
     { group: 'Servizi a pagamento', path: '/services', what: 'Tutti i servizi con il prezzo, su una pagina' },
     { group: 'Servizi a pagamento', path: '/property-finding', what: 'Cerchiamo noi in tutta Roma — €350, rimborsati se non troviamo' },

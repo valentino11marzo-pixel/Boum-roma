@@ -308,14 +308,44 @@ html {
   "@context": "https://schema.org",
   "@graph": [
     {
+      "@type": "RealEstateAgent",
+      "@id": "https://www.boomrome.com/#organization",
+      "name": "BOOM Rome",
+      "legalName": "Egidi Immobiliare S.r.l.",
+      "vatID": "IT17322991005",
+      "url": "https://www.boomrome.com",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.boomrome.com/android-chrome-512x512.png",
+        "width": 512,
+        "height": 512
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.boomrome.com/#website",
+      "url": "https://www.boomrome.com",
+      "name": "BOOM Rome",
+      "publisher": {
+        "@id": "https://www.boomrome.com/#organization"
+      }
+    },
+    {
       "@type": "WebPage",
       "@id": "https://www.boomrome.com/meteo#page",
       "url": "https://www.boomrome.com/meteo",
       "name": "Rome Rental Market Weather — €/m² and Days-to-Rent by Zone",
       "description": "Median asked €/m², days-to-rent (absorption measured on listings proven gone) and 30-day price cuts, zone by zone in Rome. Zones below the sample threshold are never scored.",
       "inLanguage": "en",
-      "isPartOf": { "@id": "https://www.boomrome.com/#website" },
-      "publisher": { "@id": "https://www.boomrome.com/#organization" }
+      "isPartOf": {
+        "@id": "https://www.boomrome.com/#website"
+      },
+      "publisher": {
+        "@id": "https://www.boomrome.com/#organization"
+      },
+      "breadcrumb": {
+        "@id": "https://www.boomrome.com/meteo#breadcrumb"
+      }
     },
     {
       "@type": "Dataset",
@@ -323,15 +353,70 @@ html {
       "name": "Rome rental market statistics by zone",
       "description": "Per-zone aggregates of Rome's mid-term rental market: median asked rent per square metre with 25th–75th percentile band, median days-to-rent computed only on listings verified as gone, and count of price cuts in the last 30 days. Zones whose sample is below the minimum threshold carry no numbers.",
       "url": "https://www.boomrome.com/meteo",
-      "creator": { "@id": "https://www.boomrome.com/#organization" },
-      "temporalCoverage": "2026/..",
-      "spatialCoverage": { "@type": "City", "name": "Rome" },
+      "inLanguage": "en",
+      "creator": {
+        "@id": "https://www.boomrome.com/#organization"
+      },
+      "publisher": {
+        "@id": "https://www.boomrome.com/#organization"
+      },
       "isAccessibleForFree": true,
-      "distribution": [{
-        "@type": "DataDownload",
-        "encodingFormat": "application/json",
-        "contentUrl": "https://www.boomrome.com/api/meteo"
-      }]
+      "temporalCoverage": "2026/..",
+      "spatialCoverage": {
+        "@type": "Place",
+        "name": "Rome, Italy"
+      },
+      "keywords": [
+        "Rome rent",
+        "rent per square metre",
+        "days to rent",
+        "Rome rental market"
+      ],
+      "measurementTechnique": "Asked €/m² is the median of live listings in the zone, with the 25th–75th percentile band shown as the bar — the real spread, not a single average. Days-to-rent (absorption) is the median lifespan of listings that are proven gone: a home counts only when its listing has verifiably disappeared, in a 270-day window.",
+      "variableMeasured": [
+        {
+          "@type": "PropertyValue",
+          "name": "Median asked €/m²",
+          "unitText": "EUR per square metre per month",
+          "description": "Median of asking rents per m², with the 25th–75th percentile band"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Median days-to-rent",
+          "unitText": "days",
+          "description": "Computed only on listings verified as gone"
+        },
+        {
+          "@type": "PropertyValue",
+          "name": "Price cuts of the last 30 days",
+          "unitText": "count"
+        }
+      ],
+      "distribution": [
+        {
+          "@type": "DataDownload",
+          "encodingFormat": "application/json",
+          "contentUrl": "https://www.boomrome.com/api/meteo"
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "@id": "https://www.boomrome.com/meteo#breadcrumb",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "Home",
+          "item": "https://www.boomrome.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Rome rental market weather",
+          "item": "https://www.boomrome.com/meteo"
+        }
+      ]
     }
   ]
 }

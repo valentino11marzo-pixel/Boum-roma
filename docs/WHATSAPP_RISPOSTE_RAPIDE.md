@@ -150,15 +150,15 @@ https://www.boomrome.com/apartments
 Here is every euro, including the ones that come back to you.
 
 Rent: exactly what the listing says. Nothing appears later.
-Deposit: yours. I film the flat on the way in and on the way out, so its condition is never a matter of opinion.
-My fee: 10% of the year, once, and only if you actually move in.
+Deposit: yours, checked at move-out against the signed check-in report.
+My fee: 10% of one year's rent + 22% VAT, once, at the time your pre-agreement states — written before you pay anything.
 €300 to hold a home: refundable, and deducted from the above.
 
 The arithmetic in full: https://www.boomrome.com/your-money
 
-If an agency won't put this list in writing, that tells you what you need to know.
+If an agency won't put this in writing, that tells you what you need to know.
 ```
-<sub>Pronta così com'è — 507 caratteri</sub>
+<sub>Pronta così com'è — 517 caratteri</sub>
 
 #### `/endocs` · Documenti — la stessa lista per tutti ⭐
 
@@ -494,13 +494,13 @@ Se preferisci, dimmi quando posso chiamarti: in due minuti capiamo se ha senso.
 Ogni euro, compresi quelli che tornano indietro.
 
 Canone: quello scritto sull'annuncio. Dopo non compare nient'altro.
-Deposito: suo. Filmo la casa il giorno dell'ingresso e il giorno dell'uscita, così non è questione di opinioni.
-Commissione: 10% del canone annuo, una volta sola e solo se entra davvero.
+Deposito: suo. All'uscita la casa si confronta col verbale di consegna firmato all'ingresso: non è questione di opinioni.
+Commissione: 10% del canone annuo + IVA 22%, una volta sola, quando lo indica la proposta — scritta prima di pagare qualsiasi cosa.
 €300 per bloccarla: rimborsabili e scalati da quanto sopra.
 
 Il conto completo: https://www.boomrome.com/your-money
 ```
-<sub>Pronta così com'è — 420 caratteri</sub>
+<sub>Pronta così com'è — 487 caratteri</sub>
 
 ### Proprietario · Italiano — 3
 
@@ -568,13 +568,13 @@ Il conto della sua casa lo vede subito qui, prima di decidere: https://www.boomr
 **Vende contro:** un dipendente che arriva e non ha dove dormire
 
 ```
-For companies moving people to Rome: one contact, homes we have seen ourselves, compliant leases in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
+For companies moving people to Rome: one contact, homes we have seen ourselves, compliant Italian leases explained in English, and a single VAT invoice from an Italian company — the document your expense process actually needs.
 
 https://www.boomrome.com/corporate
 
 How many people, and when do they land?
 ```
-<sub>Pronta così com'è — 286 caratteri</sub>
+<sub>Pronta così com'è — 304 caratteri</sub>
 
 ### Link personali — 2
 
@@ -587,11 +587,11 @@ How many people, and when do they land?
 ```
 [NOME], the contract is ready — no printer and no appointment: [LINK]
 
-Read it (English, and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
+Read it (the page is in English and the terms are the ones we agreed), then sign with your finger. The signed PDF reaches you by email the moment both sides are done.
 
 Anything you want changed, tell me before you sign: after registration it is a different conversation.
 ```
-<sub>Da riempire: [NOME] · [LINK] — 327 caratteri</sub>
+<sub>Da riempire: [NOME] · [LINK] — 341 caratteri</sub>
 
 #### `/oppay` · Link di pagamento · 🪑 panchina
 
@@ -679,11 +679,10 @@ Tutti verificati: un test controlla che ognuno sia una rotta vera del sito.
 | Link | Cosa è |
 |---|---|
 | `https://www.boomrome.com/how-it-works` | I passi dal primo messaggio alle chiavi |
-| `https://www.boomrome.com/your-money` | Ogni euro spiegato: canone, deposito, commissione 10% |
+| `https://www.boomrome.com/your-money` | Ogni euro spiegato: canone, deposito, commissione 10% + IVA 22% |
 | `https://www.boomrome.com/faq` | Le domande ricorrenti, già risposte |
 | `https://www.boomrome.com/about` | Chi siamo — da mandare a chi diffida |
 | `https://www.boomrome.com/contact` | Tutti i modi per raggiungerci |
-| `https://www.boomrome.com/deals` | Promozioni e offerte in corso |
 
 ### Servizi a pagamento
 

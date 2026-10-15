@@ -348,6 +348,20 @@ const strip = h => h.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\
     /body\.kind === 'concordato-pack' \? \{ start_now/.test(sc) && /m\.start_now === '1'/.test(wh));
   ok('Pacchetto: identità legale completa nel piede (P.IVA e REA)', /P\.IVA 17322991005 · REA RM-1710623/.test(pack));
   const vc = strip(can);
+  // L'esempio della risposta breve è RICALCOLATO dal motore: se cambiano le
+  // fasce di B14 in js/canone-engine.js, la pagina sta dicendo un numero
+  // vecchio e questo check cade (verificato per mutazione).
+  {
+    const fe = n => CONTO.fmtEur(n, 'it');
+    const ex = CONTO.conto(CONTO.normalize({ z: 'B14', mq: 60 }).input);
+    const exB = CONTO.conto(CONTO.normalize({ z: 'B14', mq: 60, p: '0.1.2' }).input);
+    const want = [`${ex.sc} mq convenzionali`, `${fe(ex.fasce.A.max)} al mese in fascia A`, `${fe(ex.fasce.B.max)} in fascia B`,
+      `${fe(ex.fasce.C.max)} in fascia C`, `restano ${fe(exB.netto)} l'anno`];
+    const missing = want.filter(w => !vc.includes(w));
+    ok('/canone: l\'esempio di Trastevere (60 mq, B14) è quello che il motore calcola oggi', missing.length === 0 && exB.fascia === 'B', missing);
+    const md = (can.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
+    ok('/canone: la meta description cita lo stesso massimo in fascia B del motore', md.includes(`fino a ${fe(ex.fasce.B.max)} al mese in fascia B`), md);
+  }
   ok('/canone: l\'Accordo è citato col deposito e il protocollo, e «non è l\'attestazione»', /27(\/07\/| luglio )2023/.test(vc) && /RA\/2023\/0044852/.test(vc) && /non è l'attestazione di rispondenza/.test(vc));
   ok('/owners: niente «documento verificato», «reddito dimostrato», «un terzo del reddito»', !/documento verificato|reddito dimostrato|un terzo del reddito|ID verified|income proven/i.test(own));
   ok('/owners: l\'ISTAT detto per quello che è (non con la cedolare)', /ISTAT \(se non c'è la cedolare\)/.test(own));

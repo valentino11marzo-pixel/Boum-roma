@@ -24,6 +24,7 @@ let s = fs.readFileSync(F, 'utf8');
 const piano = (h) => h
   .replace(/<script[\s\S]*?<\/script>/g, ' ')
   .replace(/<div class="q-related"[\s\S]*?<\/div>\s*<\/div>/g, ' ')
+  .replace(/<div class="q-related"[\s\S]*$/, ' ')
   .replace(/<[^>]+>/g, ' ')
   .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&quot;/g, '"')
   .replace(/&#39;|&rsquo;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>')

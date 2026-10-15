@@ -1042,7 +1042,7 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   (EN/IT da replyLang, org vs owner — al proprietario non si chiede "quante
   persone", firmato Valentino perché qui il mercato È Roma). Il lead
   executive NON è B2B per costruzione: la macchina inquilino resta accesa.
-- Agganci: sitemap (hreflang en/it), llms.txt (sezione BOOM Executive per i
+- Agganci: sitemap (senza hreflang dal 15/10/2026: ?lang= è lo stesso file), llms.txt (sezione BOOM Executive per i
   motori di risposta), index (card For Organisations + footer), rimando
   reciproco `/corporate` ⇄ `/executive` (niente doppioni: la persona su
   /executive, l'azienda su /corporate).
@@ -1111,11 +1111,11 @@ del 1° del mese).
   riepilogo dei lead C (il voto del Brain misura un inquilino).
 - **GEO/SEO**: testa scritta a mano (`manualHead: true` in
   `scripts/seo-config.js`, e `seo-update.js` la salta — altrimenti
-  cancellerebbe l'alternate inglese e i JSON-LD), FAQPage = nove `<summary>`
+  cancellerebbe i JSON-LD), FAQPage = nove `<summary>`
   visibili, WebPage con `speakable` (`.hero .sub`, `.enbref`), due Service
   con identità distinte (gestione · Pacchetto €349 con Offer dal catalogo),
   «in breve» con la riga **cosa non facciamo** (niente subaffitto, niente
-  affitti brevi turistici), sitemap con hreflang it/en, sezione in
+  affitti brevi turistici), sitemap (senza hreflang dal 15/10/2026), sezione in
   `llms.txt`, card social `og-owners.png` generata dal repo
   (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
   rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
@@ -6269,6 +6269,76 @@ Console, tre mesi: `/canone` 773 impressioni, CTR 1,2%, query dominante
 description, H1 e risposta breve visibile ora aprono con quelle domande;
 JSON-LD e `scripts/seo-config.js` riportano la stessa promessa e la stessa
 data di modifica. Test: `node tests/seo/run.mjs`.
+
+### Il giro GEO/SEO/AI del 15/10/2026
+69 difetti confermati (frasi false che un motore di risposta cita, rotte rotte, entità doppie), 18 pacchetti.
+**Le verità condivise** — una frase sola, uguale su pagine, JSON-LD, llms.txt e prompt:
+- commissione inquilino = **10% di un anno di canone + IVA 22%, una volta** (regola A, quella che
+  `api/preagreement/create.js` incassa: `Math.round(rent*12*0.10*1.22)`); Termini §4.1 allineati,
+  valida per gli accordi firmati dal 15/10/2026. Mai «whichever is lower».
+- supporto: una persona risponde su WhatsApp in orario d'ufficio (ora di Roma), fuori orario il
+  mattino lavorativo dopo; gas, fuoco, allagamento: prima il 112. **Mai «24/7», mai un tempo di
+  risposta in cifre, mai «500+»** (decisione del fondatore).
+- contratto: il modello ufficiale italiano, registrato all'Agenzia delle Entrate e **spiegato** in
+  inglese — mai un «English-language lease». PFS: almeno 3 opzioni nei criteri scritti entro 15
+  giorni, o i €350 restituiti (Condizioni §4.2).
+- un solo nodo `#organization`: Egidi Immobiliare S.r.l., P.IVA IT17322991005, Via dei Coronari
+  181/184; nessun `#localbusiness`. `scripts/seo-update.js` non può più rimettere telefono, sede o
+  ragione sociale finti (tests/seogen lo esegue in una copia).
+**/listing/<id>** serve il CORPO della casa vera (H1, zona, stato) anche senza JS; una casa che non
+c'è risponde **404 noindex** (un guasto di Firestore no: template, mai un 404 per un'interruzione);
+bozze e nascoste noindex. /pfs e /apartments/<id> sono redirect permanenti.
+**Crawler**: `Allow: /api/meteo` prima di `Disallow: /api/` (è la fonte che llms.txt e il Dataset di
+/meteo indicano). I bot AI seguono `User-agent: *` — nessun gruppo nominato, perderebbe ogni
+Disallow (RFC 9309). La **sitemap** è a mano: niente /listing (stanno in listings-sitemap.xml),
+/apartment-detail, /deals né hreflang verso `?lang=` (stesso file, canonical altrove);
+`seo-sitemap.js` si rifiuta se perderebbe una <loc>; lastmod = data vera (questo giro: 2026-10-15).
+**Attribuzione**: dopo il consenso `js/boom-track.js` timbra il primo contatto nel cookie `boom_attr`
+(90 giorni, cancellato col diniego) e nel campo `boom_source`, che `api/_attribution.js` porta su ogni
+lead. Gli assistenti (chatgpt, perplexity, gemini, copilot, claude, you, deepseek, meta_ai, mistral,
+grok) sono il canale `ai_assistant`, riconosciuto PRIMA di Google. Una conversione confermata emette
+`boom-conversion` ({label, section}), che boom-track registra.
+**Le guardie** (tutte in `npm test`): `seo` (anche /apartments-in; articoli contati insieme, un
+BreadcrumbList che finisce sulla canonical, #organization vera, hreflang solo canonici, URL di
+llms.txt scaricabili, niente link al dominio nudo, a .html o a /pfs, SearchAction servita, Dataset
+con autore) e `verita` (frasi vietate, anche «within 2 hours» e i contatori letti con l'etichetta,
+su sitemap, modello delle schede, llms.txt, seo-config e sorgenti api), più listingssr, faqtruth,
+hometruth, tenantfee, llmstxt, zonepages, servicepages, trustpages, blogguides, blogcore, crawl, answers, seogen, attribution, consentbanner.
+**Aperte, del fondatore**: orari veri e reperibilità fuori orario; recensioni (numero, mese, URL
+Maps); revisione legale ASPI (blog-tenant-rights, passo 47, recesso in FAQ e Termini, «nullo»); date
+di prima pubblicazione del blog; cosa copre il tag «All inclusive»; SEPA se riapre; concierge
+(transfer, posta, pulizie, permessi); fasce di canone per zona con base e data; i «casi reali» della
+scam-bible; un'email pubblica sola; sede legale (Viale Liegi 42) o operativa; /deals; «500+» torna
+solo da un conteggio dei contratti firmati.
+**Il secondo giro, prima della produzione (verifica avversaria sul codice vivo)**:
+- **Analytics prima del consenso**: 14 pagine (property-finding, board, le 12 guide di quartiere
+  generate da `scripts/neighborhoods-build.js`) chiamavano `gtag('config')` senza il
+  `gtag('consent','default', …denied)` che tutte le altre hanno. Ora c'è ovunque, e
+  `tests/consent` fallisce su qualunque pagina deployata che lo perda. `grant()` concede solo
+  `analytics_storage` (nessuna pubblicità gira: gli `ad_*` restano negati) e il riquadro dice cosa
+  accende davvero (Google Analytics e il cookie di attribuzione BOOM). Sul telefono compare dopo uno
+  scorrimento di 0,25 × la finestra o 5 s dall'avvio (non dal `load`), poi resta; il rifiuto e la
+  scadenza cancellano `boom_attr`.
+- **L'attribuzione ha un limite dichiarato**: il primo contatto si conosce solo se il consenso arriva
+  sulla pagina d'arrivo o in una visita esterna successiva — il referrer di una pagina vista PRIMA del
+  consenso non si salva mai (scelta di privacy). Chi arriva da un'AI e tocca una CTA prima di scegliere
+  perde la sorgente. Il testo di `boom_source` passa da una lista bianca di caratteri
+  (`api/_attribution.js`); il `(ref: …)` di WhatsApp accetta solo i token del tracker.
+- **APPLY idempotente**: la pagina manda `requestId` (uno per caricamento), il server scrive
+  `leads/apply_<requestId>` e a un 409 risponde ok senza rimandare email né Telegram.
+- **/listing/<id>**: un id che Firestore non può avere → 404 senza lettura; nascoste/bozze/archiviate
+  «Not on the market» senza Offer; un id assente da CASE e senza `__LISTING` non ricade MAI sulla casa
+  d'esempio (prima: lead attribuiti a «Bilocale Trastevere»); i valori da Firestore entrano nel
+  template con funzioni di sostituzione (un `$'` nel nome gonfiava la pagina a 36 MB).
+- **File interni non più serviti**: `/.github/`, `firestore.rules`, `storage.rules` e ogni `*.md`
+  sono in `.vercelignore` (rispondevano 200); i bot sul Mac scaricano da GitHub raw, non dal sito.
+- **Nessun tempo di risposta in cifre** anche nelle email: stripe-webhook, matcher, viewings/_email,
+  apply-lead (tests/verita le legge); la conferma PFS dice la garanzia vera (3 opzioni in 15 giorni).
+- **I builder di `design/pages-deco/` sono indietro rispetto alle pagine pubblicate**
+  (apartment-detail, apartments, property-finding: `ld-regia`, `ld-corpo`, `deco-organi`, `ad-corpo`,
+  `pf-base`, `pfs-caccia`, `costruisci-console.py`): portano ancora frasi tolte e codice vecchio.
+  **Non ricostruire quelle pagine dai builder** senza prima portarci le modifiche delle pagine; un test
+  che li confronti è il lavoro successivo.
 
 ## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
 

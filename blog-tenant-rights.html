@@ -46,8 +46,8 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Your Rights as a Tenant in Rome — Legal Cheat Sheet | BOOM">
-  <meta property="article:published_time" content="2026-04-02">
-  <meta property="article:modified_time" content="2026-05-09">
+  <meta property="article:published_time" content="2026-02-27">
+  <meta property="article:modified_time" content="2026-10-15">
   <meta property="article:author" content="BOOM Rome">
   <meta property="article:publisher" content="https://www.boomrome.com">
   <meta property="article:section" content="Rome Rental Guides">
@@ -63,18 +63,6 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      "headline": "Your Rights as a Tenant in Rome",
-      "description": "Complete guide to Italian tenant rights for expats in Rome. Deposits, eviction rules, maintenance law, contract termination — with exact legal references and BOOM protection advice.",
-      "author": {"@type": "Organization", "name": "BOOM by Egidi Immobiliare S.r.l."},
-      "publisher": {"@type": "Organization", "name": "BOOM Rome Rentals", "url": "https://boomrome.com"},
-      "datePublished": "2026-02-27",
-      "mainEntityOfPage": "https://www.boomrome.com/blog-tenant-rights"
-    }
-    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -137,6 +125,7 @@
         .hero h1 { font-family:var(--font); font-size:clamp(34px,5.5vw,64px); font-weight:200; line-height:1.08; letter-spacing:-0.02em; opacity:0; animation:fu .8s var(--ease) .4s forwards; }
         .hero h1 em { color:var(--teal); font-style:italic; font-family:var(--font-accent); font-weight:400; }
         .hero-sub { font-size:17px; color:var(--text-2); max-width:580px; line-height:1.7; margin-top:20px; opacity:0; animation:fu .8s var(--ease) .6s forwards; }
+        .hero-by{font-size:12px;letter-spacing:1px;color:var(--text-3,#999);margin-top:14px;opacity:0;animation:fu .8s var(--ease) .7s forwards}
         @keyframes fu { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
         /* Disclaimer */
@@ -163,6 +152,9 @@
 
         /* Q&A Cards */
         .qa-list { max-width:900px; margin:0 auto; padding:0 24px 40px; position:relative; z-index:1; }
+        .qa-cat { display:none; }
+        .qa-cat.on { display:block; }
+        .qa-cat-h { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
         .qa-card { margin-bottom:10px; }
         .qa-hd { display:flex; align-items:center; gap:14px; padding:20px 24px; background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:14px; cursor:pointer; transition:all 0.3s ease; }
         .qa-hd:hover { border-color:var(--border-h); }
@@ -191,6 +183,7 @@
 
         .protect-box { padding:14px 18px; background:rgba(78,205,196,0.06); border:1px solid rgba(78,205,196,0.15); border-radius:8px; }
         .protect-text { font-size:13px; color:var(--teal); line-height:1.8; font-weight:300; }
+        .protect-text a { border-bottom:1px solid currentColor; }
 
         /* Emergency Card */
         .emergency { max-width:900px; margin:20px auto 0; padding:0 24px; position:relative; z-index:1; }
@@ -463,6 +456,8 @@
   select, textarea { font-size:16px !important; }
 }
 </style>
+<!-- Senza JavaScript: tutte le voci prerenderizzate restano aperte e leggibili. -->
+<noscript><style>.qa-cat,.qa-body,.law-box{display:block!important}.qa-cat{margin-bottom:28px}.qa-cat-h{position:static!important;width:auto!important;height:auto!important;clip:auto!important;overflow:visible!important;white-space:normal!important;font-size:13px;font-weight:400;letter-spacing:.15em;text-transform:uppercase;color:var(--text-3);margin:0 0 12px}.qa-hd{border-radius:14px 14px 0 0}.law-toggle,.cat-tabs{display:none}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -471,7 +466,9 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -488,8 +485,10 @@
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -553,6 +552,7 @@
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
+  "@id": "https://www.boomrome.com/blog-tenant-rights#article",
   "headline": "Your Rights as a Tenant in Rome — Legal Cheat Sheet",
   "description": "Complete guide to Italian tenant rights for expats in Rome. Deposits, eviction, maintenance, contract termination — with exact legal references and BOOM advice.",
   "image": "https://www.boomrome.com/og-home.png",
@@ -561,15 +561,17 @@
     "@type": "WebPage",
     "@id": "https://www.boomrome.com/blog-tenant-rights"
   },
-  "datePublished": "2026-04-02",
-  "dateModified": "2026-05-09",
+  "datePublished": "2026-02-27",
+  "dateModified": "2026-10-15",
   "author": {
-    "@type": "Organization",
-    "name": "BOOM Rome",
-    "url": "https://www.boomrome.com"
+    "@id": "https://www.boomrome.com/#organization"
   },
   "publisher": {
     "@id": "https://www.boomrome.com/#organization"
+  },
+  "inLanguage": "en",
+  "isPartOf": {
+    "@id": "https://www.boomrome.com/blog#blog"
   }
 }
   </script>
@@ -705,6 +707,7 @@ html {
     <div class="hero-ey"><div class="hero-line"></div><span class="hero-tag">BOOM Legal Guide</span></div>
     <h1>Your Rights as a<br><em>Tenant in Rome</em></h1>
     <p class="hero-sub">Italian law actually protects tenants more than almost anywhere in Europe. The problem? Most expats don't know their rights. Landlords count on that.</p>
+    <p class="hero-by">By BOOM · Egidi Immobiliare S.r.l. · Updated <time datetime="2026-10-15">15 October 2026</time></p>
 
     <div class="disclaimer">
         <p>&#9888; Disclaimer: This guide provides general information about Italian rental law. It is not legal advice. For specific situations, consult a qualified Italian lawyer (avvocato).</p>
@@ -727,8 +730,38 @@ html {
     </div>
 </div>
 
-<!-- Q&A List (rendered by JS) -->
-<div class="qa-list" id="qa-list"></div>
+<!-- Q&A List: prerendered by scripts/blog-prerender.mjs, toggled by JS -->
+<div class="qa-list" id="qa-list">
+<!-- PRERENDER:START — generated by scripts/blog-prerender.mjs from this page's data: edit the data, then run it -->
+<div class="qa-cat on" data-cat="deposit">
+<h2 class="qa-cat-h">Deposit &amp; Money</h2>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0s both;"><div class="qa-hd" onclick="toggleQ(0)"><span class="qa-q-letter" style="color:#F5A623">Q</span><h3 class="qa-q-text">Can the landlord keep my deposit for ‘wear and tear’?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#F5A62308;border-color:#F5A62325;"><div class="qa-section" style="border-color:#F5A62315;"><div class="qa-label" style="color:#F5A623"><span>A</span><div class="qa-label-line" style="background:#F5A623"></div><span>The Short Answer</span></div><p class="qa-answer">No. Normal wear and tear (usura normale) is expected and cannot be deducted from your deposit. Only actual damage beyond normal use — a broken window, a stained floor from negligence, holes in walls — can be deducted. The landlord must provide documented proof of the damage AND receipts for repairs.</p></div><div class="qa-section" style="border-color:#F5A62315;"><div class="law-toggle" onclick="toggleLaw('deposit',0,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1590 Codice Civile — the tenant returns the property in good condition, accounting for normal deterioration from use.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Take dated photos at move-in AND move-out. Create a signed verbale di consegna at both moments. Without this, disputes become he-said-she-said.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.08s both;"><div class="qa-hd" onclick="toggleQ(1)"><span class="qa-q-letter" style="color:#F5A623">Q</span><h3 class="qa-q-text">How long does the landlord have to return my deposit?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#F5A62308;border-color:#F5A62325;"><div class="qa-section" style="border-color:#F5A62315;"><div class="qa-label" style="color:#F5A623"><span>A</span><div class="qa-label-line" style="background:#F5A623"></div><span>The Short Answer</span></div><p class="qa-answer">Italian law sets no fixed number of days: the deposit is returned at the end of the lease after the handover check, minus documented damage, with the legal interest it has earned. Your lease’s deposit clause says how. If the landlord claims damages, ask for the evidence in writing.</p></div><div class="qa-section" style="border-color:#F5A62315;"><div class="law-toggle" onclick="toggleLaw('deposit',1,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 11, Legge 392/1978: the deposit may not exceed three months’ rent and earns legal interest for the tenant.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Send a formal raccomandata requesting deposit return within 30 days of key handover. If ignored, send a second one via your lawyer.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.16s both;"><div class="qa-hd" onclick="toggleQ(2)"><span class="qa-q-letter" style="color:#F5A623">Q</span><h3 class="qa-q-text">Can the landlord raise my rent whenever they want?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#F5A62308;border-color:#F5A62325;"><div class="qa-section" style="border-color:#F5A62315;"><div class="qa-label" style="color:#F5A623"><span>A</span><div class="qa-label-line" style="background:#F5A623"></div><span>The Short Answer</span></div><p class="qa-answer">No. Rent can only be adjusted according to the ISTAT index (consumer price index), and only if the contract explicitly allows it. For concordato contracts, at most 75% of the ISTAT variation applies, and if the landlord has opted for cedolare secca there is no ISTAT update at all. The landlord must send formal written notice of any increase. Mid-contract arbitrary increases are illegal.</p></div><div class="qa-section" style="border-color:#F5A62315;"><div class="law-toggle" onclick="toggleLaw('deposit',2,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Legge 431/1998, art. 2. For concordato leases the update is capped at 75% of ISTAT; with cedolare secca the landlord waives ISTAT updates.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Check your contract for the ISTAT clause. If the landlord tries to increase rent beyond ISTAT, refuse in writing and cite the law. They cannot evict you for refusing an illegal increase.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.24s both;"><div class="qa-hd" onclick="toggleQ(3)"><span class="qa-q-letter" style="color:#F5A623">Q</span><h3 class="qa-q-text">Can I be asked to pay rent in cash?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#F5A62308;border-color:#F5A62325;"><div class="qa-section" style="border-color:#F5A62315;"><div class="qa-label" style="color:#F5A623"><span>A</span><div class="qa-label-line" style="background:#F5A623"></div><span>The Short Answer</span></div><p class="qa-answer">Payments of €5,000 or more must be traceable by law. But even below this amount, paying rent in cash is a red flag — it typically means the landlord is evading taxes. If the contract is ever disputed, you’ll have no proof of payment.</p></div><div class="qa-section" style="border-color:#F5A62315;"><div class="law-toggle" onclick="toggleLaw('deposit',3,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">D.Lgs. 231/2007, art. 49 (cash payment limits).</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Always pay via bank transfer (bonifico) with a clear description. This protects you legally and creates an undeniable payment record.</p></div></div></div></div>
+</div>
+<div class="qa-cat" data-cat="maintenance">
+<h2 class="qa-cat-h">Maintenance &amp; Repairs</h2>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0s both;"><div class="qa-hd" onclick="toggleQ(0)"><span class="qa-q-letter" style="color:#45B7D1">Q</span><h3 class="qa-q-text">The boiler broke. Who pays?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#45B7D108;border-color:#45B7D125;"><div class="qa-section" style="border-color:#45B7D115;"><div class="qa-label" style="color:#45B7D1"><span>A</span><div class="qa-label-line" style="background:#45B7D1"></div><span>The Short Answer</span></div><p class="qa-answer">The landlord pays for replacement or major repairs to the boiler (extraordinary maintenance). You pay for routine maintenance like annual servicing, filter cleaning, and minor adjustments. If the boiler is old and breaks from age, that’s 100% the landlord’s responsibility.</p></div><div class="qa-section" style="border-color:#45B7D115;"><div class="law-toggle" onclick="toggleLaw('maintenance',0,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1576 Codice Civile — the landlord must maintain the property in a condition suitable for its agreed use. Art. 1609 — small maintenance falls on the tenant.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Get the boiler model and age at move-in. If it’s over 12 years old, mention this in the contract. Report any issues immediately in writing.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.08s both;"><div class="qa-hd" onclick="toggleQ(1)"><span class="qa-q-letter" style="color:#45B7D1">Q</span><h3 class="qa-q-text">There’s mold in the apartment. Can I withhold rent?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#45B7D108;border-color:#45B7D125;"><div class="qa-section" style="border-color:#45B7D115;"><div class="qa-label" style="color:#45B7D1"><span>A</span><div class="qa-label-line" style="background:#45B7D1"></div><span>The Short Answer</span></div><p class="qa-answer">If mold is caused by a structural problem (poor insulation, water infiltration), the landlord must fix it. You cannot unilaterally withhold rent — but you can request a rent reduction through formal channels, and in severe cases, terminate the contract for ‘uninhabitability.’ If the mold is caused by your behavior (not ventilating), it’s your issue.</p></div><div class="qa-section" style="border-color:#45B7D115;"><div class="law-toggle" onclick="toggleLaw('maintenance',1,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1578 Codice Civile — defects that substantially diminish the property’s suitability give the tenant the right to request resolution or rent reduction.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Document the mold with photos and timestamps. Send a raccomandata to the landlord describing the problem and requesting repair within 30 days. Keep copies of everything.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.16s both;"><div class="qa-hd" onclick="toggleQ(2)"><span class="qa-q-letter" style="color:#45B7D1">Q</span><h3 class="qa-q-text">Can I make modifications to the apartment?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#45B7D108;border-color:#45B7D125;"><div class="qa-section" style="border-color:#45B7D115;"><div class="qa-label" style="color:#45B7D1"><span>A</span><div class="qa-label-line" style="background:#45B7D1"></div><span>The Short Answer</span></div><p class="qa-answer">Only with written consent from the landlord. Any unauthorized modifications can be grounds for contract termination. Even ‘improvements’ without consent give the landlord the right to demand you restore the original condition at your expense. If you have consent, document it.</p></div><div class="qa-section" style="border-color:#45B7D115;"><div class="law-toggle" onclick="toggleLaw('maintenance',2,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1592-1593 Codice Civile — improvements made with landlord consent may be reimbursed. Without consent, the landlord has no obligation to reimburse or accept them.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Get written approval for ANY change, even painting walls. Attach the agreement to the contract as an addendum signed by both parties.</p></div></div></div></div>
+</div>
+<div class="qa-cat" data-cat="eviction">
+<h2 class="qa-cat-h">Eviction &amp; Termination</h2>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0s both;"><div class="qa-hd" onclick="toggleQ(0)"><span class="qa-q-letter" style="color:#FF6B6B">Q</span><h3 class="qa-q-text">Can the landlord kick me out before the contract ends?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#FF6B6B08;border-color:#FF6B6B25;"><div class="qa-section" style="border-color:#FF6B6B15;"><div class="qa-label" style="color:#FF6B6B"><span>A</span><div class="qa-label-line" style="background:#FF6B6B"></div><span>The Short Answer</span></div><p class="qa-answer">Almost never. During the lease the landlord can only ask a court to end it for non-payment or a serious breach of contract; personal need or a sale only allows a refusal to renew at the end of the first term. Evictions go through the courts.</p></div><div class="qa-section" style="border-color:#FF6B6B15;"><div class="law-toggle" onclick="toggleLaw('eviction',0,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 3, Legge 431/1998: the landlord can refuse to renew only at the end of the first term, and only for the reasons that article lists. Ending a lease early for non-payment or a serious breach takes a court order.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Pay rent on time via traceable methods. Follow contract terms. If the landlord threatens eviction without legal grounds, they’re bluffing. Get legal advice immediately.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.08s both;"><div class="qa-hd" onclick="toggleQ(1)"><span class="qa-q-letter" style="color:#FF6B6B">Q</span><h3 class="qa-q-text">Can the landlord refuse to renew my contract?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#FF6B6B08;border-color:#FF6B6B25;"><div class="qa-section" style="border-color:#FF6B6B15;"><div class="qa-label" style="color:#FF6B6B"><span>A</span><div class="qa-label-line" style="background:#FF6B6B"></div><span>The Short Answer</span></div><p class="qa-answer">Only at the end of the first term (4 years on a 4+4, 3 years on a 3+2), and only for one of the reasons the law lists, for example personal use of the property, its sale, or a complete renovation that requires it to be empty. The landlord must provide at least 6 months’ written notice with the specific reason cited. If they don’t renew and then don’t actually use the property for the stated reason, you can claim the lease back or compensation.</p></div><div class="qa-section" style="border-color:#FF6B6B15;"><div class="law-toggle" onclick="toggleLaw('eviction',1,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 3, comma 1, Legge 431/1998: the exhaustive list of valid reasons for refusing renewal at the first term (for 3+2 leases, art. 2, comma 5 refers to the same reasons).</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">If the landlord ended the lease for personal use and doesn’t use the flat for that reason, you can claim the lease back or compensation of at least 36 months’ rent (art. 3, L. 431/1998). Get legal advice quickly.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.16s both;"><div class="qa-hd" onclick="toggleQ(2)"><span class="qa-q-letter" style="color:#FF6B6B">Q</span><h3 class="qa-q-text">How do I terminate my contract early?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#FF6B6B08;border-color:#FF6B6B25;"><div class="qa-section" style="border-color:#FF6B6B15;"><div class="qa-label" style="color:#FF6B6B"><span>A</span><div class="qa-label-line" style="background:#FF6B6B"></div><span>The Short Answer</span></div><p class="qa-answer">It depends on the contract. In a 4+4 or 3+2 lease, the law lets you leave early only for serious reasons (gravi motivi), for example a job transfer. You give 6 months’ notice by registered letter (raccomandata). Your contract can grant a freer exit, so read its withdrawal clause. Transitional and student leases follow their own clause: in Rome’s standard forms you also need serious reasons, with at least 3 months’ notice by registered letter.</p></div><div class="qa-section" style="border-color:#FF6B6B15;"><div class="law-toggle" onclick="toggleLaw('eviction',2,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 3, comma 6, Legge 431/1998: the tenant may withdraw at any time if serious reasons occur, with 6 months’ notice by registered letter. Rome’s 2023 standard transitional and student forms (Allegati B and C): serious reasons, at least 3 months’ notice.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">State the serious reason in the letter, send it by raccomandata well in advance and keep the receipt. If your exit isn’t covered, agree any early release or replacement tenant with the landlord in writing.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.24s both;"><div class="qa-hd" onclick="toggleQ(3)"><span class="qa-q-letter" style="color:#FF6B6B">Q</span><h3 class="qa-q-text">What if the landlord sells the apartment?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#FF6B6B08;border-color:#FF6B6B25;"><div class="qa-section" style="border-color:#FF6B6B15;"><div class="qa-label" style="color:#FF6B6B"><span>A</span><div class="qa-label-line" style="background:#FF6B6B"></div><span>The Short Answer</span></div><p class="qa-answer">Your contract survives the sale. The new owner must honor all existing terms. You cannot be evicted because of a sale. As for buying it yourself, you have a right of first refusal (prelazione) only in one case: if, at the end of the first term, the landlord refuses to renew because they intend to sell (art. 3, c. 1, lett. g, L. 431/1998). Otherwise a residential tenant has no general right of first refusal.</p></div><div class="qa-section" style="border-color:#FF6B6B15;"><div class="law-toggle" onclick="toggleLaw('eviction',3,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1599 Codice Civile — the lease is binding on the buyer if it has a certain date (data certa), which registration provides.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">This is another reason contract registration is non-negotiable. A registered contract has data certa and fully protects you from a change of ownership.</p></div></div></div></div>
+</div>
+<div class="qa-cat" data-cat="rights">
+<h2 class="qa-cat-h">Your Core Rights</h2>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0s both;"><div class="qa-hd" onclick="toggleQ(0)"><span class="qa-q-letter" style="color:#4ECDC4">Q</span><h3 class="qa-q-text">Can the landlord enter my apartment without permission?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#4ECDC408;border-color:#4ECDC425;"><div class="qa-section" style="border-color:#4ECDC415;"><div class="qa-label" style="color:#4ECDC4"><span>A</span><div class="qa-label-line" style="background:#4ECDC4"></div><span>The Short Answer</span></div><p class="qa-answer">No. Once you have a signed contract and keys, the apartment is your domicile. The landlord cannot enter without your explicit permission, even if they own it. Entering without consent is a criminal offense (violazione di domicilio). The only exception is genuine emergencies (gas leak, fire, flood).</p></div><div class="qa-section" style="border-color:#4ECDC415;"><div class="law-toggle" onclick="toggleLaw('rights',0,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 614 Codice Penale — violation of domicile. Punishable by 1–4 years imprisonment.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">If the landlord enters without permission, file a police report (denuncia) immediately. Change the locks if necessary — you’re within your rights.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.08s both;"><div class="qa-hd" onclick="toggleQ(1)"><span class="qa-q-letter" style="color:#4ECDC4">Q</span><h3 class="qa-q-text">Can the landlord prohibit pets?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#4ECDC408;border-color:#4ECDC425;"><div class="qa-section" style="border-color:#4ECDC415;"><div class="qa-label" style="color:#4ECDC4"><span>A</span><div class="qa-label-line" style="background:#4ECDC4"></div><span>The Short Answer</span></div><p class="qa-answer">The building can’t, but the landlord can. Since the 2012 condominium reform (in force 2013), condominium rules may not ban owning or keeping pets. A clause in your lease is different: that rule binds the building’s regulations, not what you agree with your landlord, so read the lease before you sign and agree your pet in writing. You are still responsible for any damage your pet causes and for noise.</p></div><div class="qa-section" style="border-color:#4ECDC415;"><div class="law-toggle" onclick="toggleLaw('rights',1,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1138, comma 5, Codice Civile (added by Legge 220/2012): condominium regulations cannot prohibit owning or keeping pets. It binds the building’s regulations, not a clause agreed in your lease.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Tell the landlord about your pet before you sign and get the permission into the contract. If the draft has a no-pets clause, negotiate it before signing, not after. Unsure what a clause means? <a href="/contract-check-express">Contract Check Express</a> gives you a written verdict on your lease within 24 hours (€49).</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.16s both;"><div class="qa-hd" onclick="toggleQ(2)"><span class="qa-q-letter" style="color:#4ECDC4">Q</span><h3 class="qa-q-text">Can the landlord charge me for normal building maintenance?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#4ECDC408;border-color:#4ECDC425;"><div class="qa-section" style="border-color:#4ECDC415;"><div class="qa-label" style="color:#4ECDC4"><span>A</span><div class="qa-label-line" style="background:#4ECDC4"></div><span>The Short Answer</span></div><p class="qa-answer">No. Extraordinary condominium expenses (facade renovation, roof replacement, elevator modernization, structural work) are the landlord’s responsibility. You only pay ordinary condominio charges: cleaning, lighting, elevator maintenance, garden upkeep, portiere salary.</p></div><div class="qa-section" style="border-color:#4ECDC415;"><div class="law-toggle" onclick="toggleLaw('rights',2,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 9, Legge 392/1978 — specific allocation of condominium expenses between landlord and tenant.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Request the annual condominio breakdown. If extraordinary charges appear on your share, dispute them immediately in writing.</p></div></div></div></div>
+<div class="qa-card" style="animation:fu .6s var(--ease) 0.24s both;"><div class="qa-hd" onclick="toggleQ(3)"><span class="qa-q-letter" style="color:#4ECDC4">Q</span><h3 class="qa-q-text">What if the landlord didn’t register the contract?</h3><span class="qa-arrow">&#9660;</span></div><div class="qa-body" style="background:#4ECDC408;border-color:#4ECDC425;"><div class="qa-section" style="border-color:#4ECDC415;"><div class="qa-label" style="color:#4ECDC4"><span>A</span><div class="qa-label-line" style="background:#4ECDC4"></div><span>The Short Answer</span></div><p class="qa-answer">An unregistered lease is null under Italian law (art. 1, c. 346, L. 311/2004), and without a registered lease you cannot register your residency. Ask the landlord in writing to register it within the 30-day deadline; either party can do it at the Agenzia delle Entrate. If the landlord refuses, get legal advice: a court can bring the lease back to legal terms (art. 13, L. 431/1998).</p></div><div class="qa-section" style="border-color:#4ECDC415;"><div class="law-toggle" onclick="toggleLaw('rights',3,event)"><span class="law-label">📖 Legal Reference</span><span class="law-btn">Show Law</span></div><div class="law-box"><p class="law-text">Art. 1, c. 346, L. 311/2004 (nullity of unregistered leases); art. 13, L. 431/1998. The automatic rent reduction once set by D.Lgs. 23/2011, art. 3, cc. 8-9, no longer applies.</p></div></div><div class="qa-section" style="border-bottom:none;"><div class="qa-label" style="color:#4ECDC4">🛡️ BOOM Protection Advice</div><div class="protect-box"><p class="protect-text">Pay a deposit only against a signed written document that names the property and the amount — a signed proposal (pre-agreement) or the lease — and only by traceable payment, never cash. Then ask for the registration receipt (RLI) within 30 days of signing the lease.</p></div></div></div></div>
+</div>
+<!-- PRERENDER:END -->
+</div>
 
 <!-- Emergency Card -->
 <div class="emergency">
@@ -749,7 +782,7 @@ html {
             </div>
             <div class="emergency-item">
                 <div class="emergency-scenario">Unregistered contract discovered</div>
-                <div class="emergency-action">Report to Agenzia delle Entrate. Your rent drops to concordato minimum.</div>
+                <div class="emergency-action">Ask the landlord in writing to register it &mdash; either party can register it at the Agenzia delle Entrate. Get legal advice before reporting.</div>
             </div>
         </div>
     </div>
@@ -777,7 +810,7 @@ html {
                         <span class="upsell-chip">Contract review</span>
                         <span class="upsell-chip">Negotiation support</span>
                         <span class="upsell-chip">Registration verified</span>
-                        <span class="upsell-chip">Deposit protection</span>
+                        <span class="upsell-chip">Deposit terms checked</span>
                     </div>
                     <div class="upsell-cta-row">
                         <a href="/deal-assistance" class="upsell-cta">Get Assistance <span class="cta-arrow">&rarr;</span></a>
@@ -808,7 +841,7 @@ html {
                         <span class="upsell-chip">Curated matches</span>
                         <span class="upsell-chip">Pre-vetted landlords</span>
                         <span class="upsell-chip">Fee deducted</span>
-                        <span class="upsell-chip">5-day delivery</span>
+                        <span class="upsell-chip">3+ options in 15 days</span>
                     </div>
                     <div class="upsell-cta-row">
                         <a href="/property-finding" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a>
@@ -841,8 +874,8 @@ html {
                 <h3>Talk to a <em style="font-family:var(--font-accent);font-style:italic;color:var(--gold);">human</em></h3>
                 <p>No chatbot. No call center. Just Valentino and the BOOM team &mdash; people who actually live in Rome and know every corner of this city's rental market.</p>
                 <div class="contact-stat">
-                    <div class="contact-stat-item"><div class="contact-stat-n">2min</div><div class="contact-stat-l">Avg Response</div></div>
-                    <div class="contact-stat-item"><div class="contact-stat-n">500+</div><div class="contact-stat-l">Clients Helped</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">Human</div><div class="contact-stat-l">Replies in office hours</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">EN·IT</div><div class="contact-stat-l">Contracts explained</div></div>
                     <div class="contact-stat-item"><div class="contact-stat-n">&#8364;0</div><div class="contact-stat-l">Consult Fee</div></div>
                 </div>
                 <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
@@ -873,7 +906,7 @@ html {
                     <textarea id="cf-msg" name="message" placeholder="Tell us about your situation — need contract review, deposit dispute help, or landlord giving you trouble? We'll help."></textarea>
                 </div>
                 <button type="submit" class="form-submit">Send Message <span>&rarr;</span></button>
-                <div class="form-note">Free consultation. No commitment. Response within 2 hours.</div>
+                <div class="form-note">Free consultation. No commitment. A person replies during office hours (Rome time).</div>
             </form>
         </div>
     </div>
@@ -915,16 +948,16 @@ var categories = [
      law:"Art. 1590 Codice Civile \u2014 the tenant returns the property in good condition, accounting for normal deterioration from use.",
      protection:"Take dated photos at move-in AND move-out. Create a signed verbale di consegna at both moments. Without this, disputes become he-said-she-said."},
     {q:"How long does the landlord have to return my deposit?",
-     answer:"Italian law doesn\u2019t specify an exact timeframe, but established case law (giurisprudenza) generally considers 1\u20133 months reasonable. After that, you have grounds to demand return. If the landlord claims damages, they must provide documented evidence within this period. Interest accrues on the deposit from day one.",
-     law:"Art. 11, Legge 392/1978 (Equo Canone) and subsequent case law. The deposit also accrues legal interest annually.",
-     protection:"Send a formal raccomandata requesting deposit return within 30 days of key handover. If ignored, send a second one via your lawyer. Most landlords return it after legal pressure."},
+     answer:"Italian law sets no fixed number of days: the deposit is returned at the end of the lease after the handover check, minus documented damage, with the legal interest it has earned. Your lease\u2019s deposit clause says how. If the landlord claims damages, ask for the evidence in writing.",
+     law:"Art. 11, Legge 392/1978: the deposit may not exceed three months\u2019 rent and earns legal interest for the tenant.",
+     protection:"Send a formal raccomandata requesting deposit return within 30 days of key handover. If ignored, send a second one via your lawyer."},
     {q:"Can the landlord raise my rent whenever they want?",
-     answer:"No. Rent can only be adjusted according to the ISTAT index (consumer price index), and only if the contract explicitly allows it. For concordato contracts, only 75% of the ISTAT variation applies. The landlord must send formal written notice of any increase. Mid-contract arbitrary increases are illegal.",
-     law:"Art. 32, Legge 392/1978 for ISTAT adjustments. Legge 431/1998, Art. 2 for contract type regulations.",
+     answer:"No. Rent can only be adjusted according to the ISTAT index (consumer price index), and only if the contract explicitly allows it. For concordato contracts, at most 75% of the ISTAT variation applies, and if the landlord has opted for cedolare secca there is no ISTAT update at all. The landlord must send formal written notice of any increase. Mid-contract arbitrary increases are illegal.",
+     law:"Legge 431/1998, art. 2. For concordato leases the update is capped at 75% of ISTAT; with cedolare secca the landlord waives ISTAT updates.",
      protection:"Check your contract for the ISTAT clause. If the landlord tries to increase rent beyond ISTAT, refuse in writing and cite the law. They cannot evict you for refusing an illegal increase."},
     {q:"Can I be asked to pay rent in cash?",
-     answer:"Payments above \u20AC5,000 (reduced from previous thresholds) must be traceable by law. But even below this amount, paying rent in cash is a red flag \u2014 it typically means the landlord is evading taxes. If the contract is ever disputed, you\u2019ll have no proof of payment.",
-     law:"D.Lgs. 231/2007 (anti-money laundering). Legge 208/2015 on cash payment limits.",
+     answer:"Payments of \u20AC5,000 or more must be traceable by law. But even below this amount, paying rent in cash is a red flag \u2014 it typically means the landlord is evading taxes. If the contract is ever disputed, you\u2019ll have no proof of payment.",
+     law:"D.Lgs. 231/2007, art. 49 (cash payment limits).",
      protection:"Always pay via bank transfer (bonifico) with a clear description. This protects you legally and creates an undeniable payment record."}
   ]},
   {id:"maintenance", name:"Maintenance & Repairs", icon:"\uD83D\uDD27", color:"#45B7D1", questions:[
@@ -943,19 +976,19 @@ var categories = [
   ]},
   {id:"eviction", name:"Eviction & Termination", icon:"\uD83D\uDEAA", color:"#FF6B6B", questions:[
     {q:"Can the landlord kick me out before the contract ends?",
-     answer:"Almost never. Italian tenant protection is among the strongest in Europe. The landlord can only seek eviction for: non-payment of rent (after formal notice), serious contract violations, or urgent personal need for the property (and even this requires proof). The eviction process takes 6\u201312+ months through courts.",
-     law:"Art. 3, Legge 431/1998 \u2014 contract termination by the landlord is only permitted at the end of the first period (typically 4 years) and only for specific enumerated reasons.",
+     answer:"Almost never. During the lease the landlord can only ask a court to end it for non-payment or a serious breach of contract; personal need or a sale only allows a refusal to renew at the end of the first term. Evictions go through the courts.",
+     law:"Art. 3, Legge 431/1998: the landlord can refuse to renew only at the end of the first term, and only for the reasons that article lists. Ending a lease early for non-payment or a serious breach takes a court order.",
      protection:"Pay rent on time via traceable methods. Follow contract terms. If the landlord threatens eviction without legal grounds, they\u2019re bluffing. Get legal advice immediately."},
     {q:"Can the landlord refuse to renew my contract?",
-     answer:"Only at the end of the first 4-year period, and only for specific legal reasons: personal use of the property, sale of the property, complete renovation requiring vacancy, or government/public use. The landlord must provide at least 6 months\u2019 written notice with the specific reason cited. If they don\u2019t renew and then don\u2019t actually use the property for the stated reason, you can sue for damages.",
-     law:"Art. 3, comma 1, Legge 431/1998 \u2014 exhaustive list of valid non-renewal reasons.",
-     protection:"If the landlord claims they need the apartment for personal use but then re-rents it to someone else, you have 6 months to sue for compensation equal to 36 months of rent."},
+     answer:"Only at the end of the first term (4 years on a 4+4, 3 years on a 3+2), and only for one of the reasons the law lists, for example personal use of the property, its sale, or a complete renovation that requires it to be empty. The landlord must provide at least 6 months\u2019 written notice with the specific reason cited. If they don\u2019t renew and then don\u2019t actually use the property for the stated reason, you can claim the lease back or compensation.",
+     law:"Art. 3, comma 1, Legge 431/1998: the exhaustive list of valid reasons for refusing renewal at the first term (for 3+2 leases, art. 2, comma 5 refers to the same reasons).",
+     protection:"If the landlord ended the lease for personal use and doesn\u2019t use the flat for that reason, you can claim the lease back or compensation of at least 36 months\u2019 rent (art. 3, L. 431/1998). Get legal advice quickly."},
     {q:"How do I terminate my contract early?",
-     answer:"You can terminate at any time with 6 months\u2019 written notice via raccomandata. The notice period starts from the first day of the month following receipt. For \u2018serious reasons\u2019 (gravi motivi) \u2014 job transfer, health issues \u2014 you may negotiate a shorter notice period, but you still need to give formal notice.",
-     law:"Art. 3, comma 6, Legge 431/1998 \u2014 the tenant may withdraw for serious reasons with 6 months\u2019 notice.",
-     protection:"Send the raccomandata well in advance. Keep the receipt. Start looking for your next place immediately \u2014 6 months goes fast in Rome."},
+     answer:"It depends on the contract. In a 4+4 or 3+2 lease, the law lets you leave early only for serious reasons (gravi motivi), for example a job transfer. You give 6 months\u2019 notice by registered letter (raccomandata). Your contract can grant a freer exit, so read its withdrawal clause. Transitional and student leases follow their own clause: in Rome\u2019s standard forms you also need serious reasons, with at least 3 months\u2019 notice by registered letter.",
+     law:"Art. 3, comma 6, Legge 431/1998: the tenant may withdraw at any time if serious reasons occur, with 6 months\u2019 notice by registered letter. Rome\u2019s 2023 standard transitional and student forms (Allegati B and C): serious reasons, at least 3 months\u2019 notice.",
+     protection:"State the serious reason in the letter, send it by raccomandata well in advance and keep the receipt. If your exit isn\u2019t covered, agree any early release or replacement tenant with the landlord in writing."},
     {q:"What if the landlord sells the apartment?",
-     answer:"Your contract survives the sale. The new owner must honor all existing terms. You cannot be evicted because of a sale. Additionally, you have the right of first refusal (prelazione) to purchase the property at the same conditions offered to third parties.",
+     answer:"Your contract survives the sale. The new owner must honor all existing terms. You cannot be evicted because of a sale. As for buying it yourself, you have a right of first refusal (prelazione) only in one case: if, at the end of the first term, the landlord refuses to renew because they intend to sell (art. 3, c. 1, lett. g, L. 431/1998). Otherwise a residential tenant has no general right of first refusal.",
      law:"Art. 1599 Codice Civile \u2014 the lease is binding on the buyer if it has a certain date (data certa), which registration provides.",
      protection:"This is another reason contract registration is non-negotiable. A registered contract has data certa and fully protects you from a change of ownership."}
   ]},
@@ -965,17 +998,18 @@ var categories = [
      law:"Art. 614 Codice Penale \u2014 violation of domicile. Punishable by 1\u20134 years imprisonment.",
      protection:"If the landlord enters without permission, file a police report (denuncia) immediately. Change the locks if necessary \u2014 you\u2019re within your rights."},
     {q:"Can the landlord prohibit pets?",
-     answer:"No. Since 2013, condominium reform explicitly prohibits bans on pets in apartments. Even if your contract has a \u2018no pets\u2019 clause, it\u2019s considered void under current law. However, you are responsible for any damage your pet causes and must respect noise regulations.",
-     law:"Art. 1138, comma 5, Codice Civile (as modified by Legge 220/2012) \u2014 condominium regulations cannot prohibit pet ownership.",
-     protection:"If a landlord insists on a no-pet clause, you can sign it knowing it\u2019s unenforceable. But better to be upfront \u2014 a transparent relationship prevents future conflict."},
+     answer:"The building can\u2019t, but the landlord can. Since the 2012 condominium reform (in force 2013), condominium rules may not ban owning or keeping pets. A clause in your lease is different: that rule binds the building\u2019s regulations, not what you agree with your landlord, so read the lease before you sign and agree your pet in writing. You are still responsible for any damage your pet causes and for noise.",
+     law:"Art. 1138, comma 5, Codice Civile (added by Legge 220/2012): condominium regulations cannot prohibit owning or keeping pets. It binds the building\u2019s regulations, not a clause agreed in your lease.",
+     protection:"Tell the landlord about your pet before you sign and get the permission into the contract. If the draft has a no-pets clause, negotiate it before signing, not after. Unsure what a clause means? Contract Check Express gives you a written verdict on your lease within 24 hours (\u20ac49).",
+     link:{text:"Contract Check Express", href:"/contract-check-express"}},
     {q:"Can the landlord charge me for normal building maintenance?",
      answer:"No. Extraordinary condominium expenses (facade renovation, roof replacement, elevator modernization, structural work) are the landlord\u2019s responsibility. You only pay ordinary condominio charges: cleaning, lighting, elevator maintenance, garden upkeep, portiere salary.",
      law:"Art. 9, Legge 392/1978 \u2014 specific allocation of condominium expenses between landlord and tenant.",
      protection:"Request the annual condominio breakdown. If extraordinary charges appear on your share, dispute them immediately in writing."},
     {q:"What if the landlord didn\u2019t register the contract?",
-     answer:"An unregistered contract still exists between the parties, but it has severely limited legal protection. More importantly, since 2015, an unregistered contract can be reported by the tenant to the Agenzia delle Entrate, which triggers: automatic registration, rent set to the minimum concordato rate for the zone, and tax penalties for the landlord.",
-     law:"Art. 13, comma 1, Legge 431/1998. D.Lgs. 23/2011, Art. 3 for the automatic reduction to concordato rates.",
-     protection:"If your landlord hasn\u2019t registered within 30 days, send a raccomandata requesting registration. If they refuse, you can report it \u2014 and potentially get a significant rent reduction."}
+     answer:"An unregistered lease is null under Italian law (art. 1, c. 346, L. 311/2004), and without a registered lease you cannot register your residency. Ask the landlord in writing to register it within the 30-day deadline; either party can do it at the Agenzia delle Entrate. If the landlord refuses, get legal advice: a court can bring the lease back to legal terms (art. 13, L. 431/1998).",
+     law:"Art. 1, c. 346, L. 311/2004 (nullity of unregistered leases); art. 13, L. 431/1998. The automatic rent reduction once set by D.Lgs. 23/2011, art. 3, cc. 8-9, no longer applies.",
+     protection:"Pay a deposit only against a signed written document that names the property and the amount \u2014 a signed proposal (pre-agreement) or the lease \u2014 and only by traceable payment, never cash. Then ask for the registration receipt (RLI) within 30 days of signing the lease."}
   ]}
 ];
 
@@ -1010,57 +1044,30 @@ function toggleLaw(catId, idx, e) {
     renderQuestions();
 }
 
+// The questions are prerendered by scripts/blog-prerender.mjs (every answer,
+// law and protection is in the HTML, readable without JS): this only shows
+// the active category and toggles the expanded / law state on those nodes.
 function renderQuestions() {
     var cat = categories.find(function(c) { return c.id === activeCat; });
     var list = document.getElementById('qa-list');
-    var html = '';
-
-    cat.questions.forEach(function(item, i) {
-        var isExp = expandedQ === i;
-        var lawKey = activeCat + '-' + i;
-        var lawOn = showLaw[lawKey];
-
-        html += '<div class="qa-card" style="animation:fu .6s var(--ease) ' + (i * 0.08) + 's both;">';
-
-        // Header
-        html += '<div class="qa-hd' + (isExp ? ' on' : '') + '" onclick="toggleQ(' + i + ')" style="' +
-            (isExp ? 'background:' + cat.color + '08;border-color:' + cat.color + '25;' : '') + '">' +
-            '<span class="qa-q-letter" style="color:' + cat.color + '">Q</span>' +
-            '<span class="qa-q-text">' + item.q + '</span>' +
-            '<span class="qa-arrow' + (isExp ? ' on' : '') + '">&#9660;</span>' +
-            '</div>';
-
-        // Body
-        if (isExp) {
-            html += '<div class="qa-body on" style="background:' + cat.color + '08;border-color:' + cat.color + '25;">';
-
-            // Answer
-            html += '<div class="qa-section" style="border-color:' + cat.color + '15;">' +
-                '<div class="qa-label" style="color:' + cat.color + '"><span>A</span><div class="qa-label-line" style="background:' + cat.color + '"></div><span>The Short Answer</span></div>' +
-                '<p class="qa-answer">' + item.answer + '</p></div>';
-
-            // Legal reference
-            html += '<div class="qa-section" style="border-color:' + cat.color + '15;">' +
-                '<div class="law-toggle" onclick="toggleLaw(\'' + activeCat + '\',' + i + ',event)">' +
-                '<span class="law-label">\uD83D\uDCD6 Legal Reference</span>' +
-                '<span class="law-btn">' + (lawOn ? 'Hide' : 'Show Law') + '</span></div>';
-            if (lawOn) {
-                html += '<div class="law-box on"><p class="law-text">' + item.law + '</p></div>';
-            }
-            html += '</div>';
-
-            // BOOM Protection
-            html += '<div class="qa-section" style="border-bottom:none;">' +
-                '<div class="qa-label" style="color:#4ECDC4">\uD83D\uDEE1\uFE0F BOOM Protection Advice</div>' +
-                '<div class="protect-box"><p class="protect-text">' + item.protection + '</p></div></div>';
-
-            html += '</div>';
-        }
-
-        html += '</div>';
+    list.querySelectorAll('.qa-cat').forEach(function(w) {
+        w.classList.toggle('on', w.getAttribute('data-cat') === activeCat);
     });
+    var wrap = list.querySelector('.qa-cat[data-cat="' + activeCat + '"]');
+    if (!cat || !wrap) return;
 
-    list.innerHTML = html;
+    wrap.querySelectorAll('.qa-card').forEach(function(card, i) {
+        var isExp = expandedQ === i;
+        var lawOn = !!showLaw[activeCat + '-' + i];
+        var hd = card.querySelector('.qa-hd');
+        hd.classList.toggle('on', isExp);
+        hd.style.background = isExp ? cat.color + '08' : '';
+        hd.style.borderColor = isExp ? cat.color + '25' : '';
+        card.querySelector('.qa-arrow').classList.toggle('on', isExp);
+        card.querySelector('.qa-body').classList.toggle('on', isExp);
+        card.querySelector('.law-box').classList.toggle('on', lawOn);
+        card.querySelector('.law-btn').textContent = lawOn ? 'Hide' : 'Show Law';
+    });
 }
 
 // Initial render
@@ -1084,7 +1091,7 @@ renderQuestions();
     fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){return r.json()}).then(function(j){
       if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
-      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A person replies during office hours (Rome time). Urgent? WhatsApp us.</p></div>";
       try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
     }).catch(function(){
       if(btn){btn.disabled=false;btn.textContent=lbl;}
