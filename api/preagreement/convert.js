@@ -327,6 +327,13 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (_) { /* stale pointer — fall through and convert again */ }
   }
 
+  // NESSUN MODELLO, NESSUN CONTRATTO (15/10/2026). La console offriva
+  // «4+4 Residential» e la regola del tipo lo riconduceva al transitorio:
+  // il contratto nasceva Allegato B — esigenza transitoria, art. 5 c. 1 —
+  // su un rapporto di quattro anni. Si ferma PRIMA di ogni scrittura
+  // (immobile, profili, contratto), anche in dryRun: la console lo dice.
+  if (leaseType(type, pa.lease || {}) === '4+4') return { ok: false, error: 'no_template', model: '4+4' };
+
   let propId = propertyId || pa.propertyId;
   let property = null, propertyCreated = false;
   const canCreate = !!((pa.property || {}).address);
@@ -807,6 +814,7 @@ export default async function handler(req, res) {
       : out.error === 'no_property' ? 400
       : out.error === 'property_not_found' ? 404
       : out.error === 'overlap' ? 409
+      : out.error === 'no_template' ? 409
       : out.error === 'no_tenant_identity' ? 409 : 500;
     return res.status(code).json({ ok: false, error: out.error, status: pa.status, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
   }

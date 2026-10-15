@@ -244,7 +244,7 @@ export default async function handler(req, res) {
       actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
     });
     if (!out.ok) {
-      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : (out.error === 'overlap' || out.error === 'no_template') ? 409 : 500;
       return { code, body: { ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) } };
     }
     contractId = out.contractId;
@@ -345,7 +345,7 @@ export default async function handler(req, res) {
       actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
     });
     if (!out.ok) {
-      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+      const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : (out.error === 'overlap' || out.error === 'no_template') ? 409 : 500;
       return res.status(code).json({ ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
     }
     contractId = out.contractId;

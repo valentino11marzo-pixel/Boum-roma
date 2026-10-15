@@ -11,6 +11,7 @@ import { offeredAddons } from './_addons.js';
 import { paidOnRecord, dueAtSigning } from './_state.js';
 import { resolveCanoneInput, schedaFacts, schedaGaps } from '../fiscal/fascicolo.js';
 import CANONE from '../../js/canone-engine.js';
+import MANDATO from '../../js/mandato-engine.js';
 import { readSignTokens, signUrl } from '../sign/_tokens.js';
 
 // La scheda ARPE come la vedrebbe il contratto nato da questa proposta:
@@ -130,7 +131,9 @@ export default async function handler(req, res) {
       pa: {
         status: data.status, property: data.property, landlord: data.landlord,
         tenant: data.tenant, tenants: Array.isArray(data.tenants) ? data.tenants : null,
-        lease: data.lease, money: data.money,
+        // il riferimento di legge si DERIVA dal tipo anche sulle proposte
+        // già create (prima era sempre quello del transitorio)
+        lease: data.lease ? { ...data.lease, lawRef: MANDATO.lawRefOf(data.lease) } : data.lease, money: data.money,
         extras: Array.isArray(data.extras) ? data.extras : null,
         customClauses: Array.isArray(data.customClauses) ? data.customClauses : null,
         // uploads stay private (their URLs carry the read token) — the page
