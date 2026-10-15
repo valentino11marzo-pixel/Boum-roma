@@ -3635,8 +3635,9 @@ tre difetti veri:
   annulla e collega da → Contratto, oppure procedi se è un altro interno.
   Avverte, non blocca. L'immobile nato da QUESTA proposta (`prop_pa_<id>`)
   non è un doppione. Da sapere: collegare una casa del portal a una proposta
-  accettata senza immobile rende il mandato del conduttore non spendibile
-  (immobile diverso dalla foto) — lì firma il conduttore col suo link.
+  accettata senza immobile lascia il mandato del conduttore spendibile SOLO
+  se è la stessa casa — stesso indirizzo e stesso interno (15/10, sezione
+  sotto); altrimenti firma il conduttore col suo link.
 - **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
   contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
@@ -3665,6 +3666,53 @@ niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
 ricerca della casa spenta (anche solo su ✍️), la casa della proposta contata
 come doppione, testo che ignora la casa trovata, → Contratto senza
 preselezione, conferma senza `await`.
+
+### 🏠 La casa della proposta già nel portal — stesso indirizzo e stesso interno (15/10/2026)
+«Fallo valere con stesso indirizzo e interno.» Il mandato di una proposta
+accettata senza immobile collegato fotografa un INDIRIZZO e valeva solo
+sull'immobile nato dalla proposta (`prop_pa_<id>`). Ora vale anche sul record
+del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero è Viale
+Angelico 9 (BOOM-MUPU8OMY): pagata col mandato, non collegata, appartamento
+già nel portal.
+- **La regola, una copia** (`js/mandato-engine.js`: `homeKey`, `homeMatch`,
+  `homeCheck`; server e console): via e civico normalizzati (accenti,
+  «V.le/P.za/Lungot.», «n.»/«civico» davanti al numero, scala e piano dopo,
+  città, CAP, quartiere dopo la virgola) e interno con la regola del lucchetto
+  («Int. 11» = «11»). Interno non dichiarato combacia SOLO con interno non
+  dichiarato (casa intera, come lucchetto e sovrapposizioni) e l'etichetta lo
+  dice. Fail-closed: senza civico, senza tipo di via o con parole dopo il
+  civico non combacia mai. Backup del 12/10: illeggibili 1 immobile su 30 e 3
+  proposte su 26, tutti senza civico.
+- **L'interno approvato sta nella foto** (`termsFromProposal` → `unit`,
+  fuori dall'impronta: i mandati già dati restano validi). Foto più vecchie:
+  l'interno della proposta, salvo interno dichiarato dopo dalla console
+  (`unitDeclaredAt`) o indirizzo ritoccato → `unit_unknown`, nessun riscontro.
+- **Il riscontro resta sul mandato** (`tenantMandate.propertyMatch
+  {propertyId, by:'address+unit', home, label, at}`), scritto da conversione e
+  mandato dato dopo; `termsForMandate` allinea SOLO quel record (spostato
+  altrove = cambio di condizioni). Firma, lookup e portal non rileggono
+  l'immobile.
+- **✍️ Firmo io ricontrolla l'immobile di ADESSO** (`healTenantMandate` in
+  sign-for): `status` lo dice senza scrivere (`plan.home`); `sign` scrive il
+  riscontro, aggiunto o tolto, PRIMA di `mandateCheck`. I contratti convertiti
+  prima della regola si sanano; un immobile ritoccato dopo non è più la casa
+  (409 col perché). Una lettura fallita dell'immobile non tocca niente.
+- **Console**: la stessa casa viene prima del somigliante (`homeTwin` in
+  `propGuess`); 📋 🏠 ✍️ fanno nascere il contratto su quel record
+  (`propertyId`, mai un doppione) e la conferma nomina indirizzo e interno; il
+  preflight di → Contratto dice se il mandato sarà spendibile e perché no
+  (`convert` dryRun → `mandate`). Senza il motore resta l'avviso del
+  somigliante.
+- **Da sapere (Angelico 9)**: il record W0lE1 e la nuova proposta NON
+  dichiarano l'interno → riscontro sì, «interno non dichiarato su entrambi».
+  Il contratto vivo su W0lE1 nacque da una proposta con interno «11»: se è
+  l'interno 11, va scritto sull'immobile, e da lì la proposta senza interno
+  non combacia più. La sovrapposizione (fino al 30/01/2027, la nuova dal
+  1/01/2027) resta un 409 da decidere in → Contratto.
+Test: `node tests/mandato/casa.mjs` (51 check, handler veri; 19 mutazioni
+prese su motore, conversione, mandato dato dopo, sign-for e console) e
+`tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
+senza motore).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
