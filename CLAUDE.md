@@ -2380,6 +2380,14 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
+con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
+mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);
+ripiego INBOX dichiarato. Riferimenti firmati per account/utente/UIDVALIDITY, testo
+limitato a 256 KiB, nessun allegato scaricato, flag letto, importazione, invio o AI.
+Ricerca: le copie archivio non coprono più i record aggiornati; le letture tardive
+non annullano gli snapshot. Nuova sessione azzera l'inattività precedente e il lettore
+posta. Prove `mailbox`, `mailboxui`, `searchui`, `portalsessionui` (incluse mutazioni).
 **Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
 e note operative restano nel repository. Verificato il problema con HTTP 200
 sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.

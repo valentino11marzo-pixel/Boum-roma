@@ -2358,6 +2358,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     function portalSessionReset() {
         portalSessionGeneration++; portalLoadGeneration++;
+        window.BOOM_MAILBOX?.reset();
         authProcessed = false; authRetryCount = 0;
         stopSessionCheck();
         for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
@@ -2371,7 +2372,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const lang = S.lang, isOnline = navigator.onLine;
         const generations = Object.fromEntries(Object.entries(S).filter(([key]) => /Generation$/.test(key)));
         for (const key of Object.keys(S)) delete S[key];
-        Object.assign(S, portalSessionDefaults, generations, { user: null, profile: null, page: 'dashboard', lang, isOnline });
+        Object.assign(S, portalSessionDefaults, generations, { user: null, profile: null, page: 'dashboard', lang, isOnline, lastActivity: Date.now() });
         for (const key of Object.keys(S)) if (Array.isArray(S[key])) S[key] = [];
         for (const key of ['pfsClients','pfsProperties','pfsActivities','landlords','viewingRequests','conversations','messages']) S[key] = [];
         S.registrationStatuses = {};
@@ -2530,6 +2531,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (authProcessed && u?.uid === S.user?.uid) return;
         if (!u || S.user?.uid !== u.uid) portalSessionReset();
         const generation = ++portalSessionGeneration;
+        window.BOOM_MAILBOX?.reset();
         const current = () => generation === portalSessionGeneration && auth.currentUser?.uid === u?.uid;
         
         clearTimeout(authTimeout);
@@ -4920,14 +4922,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         Object.entries(E.KINDS).forEach(([kind, source]) => {
             const existing = Array.isArray(S[source.collection]) ? S[source.collection] : [];
             const scanned = reader.state(kind).rows;
-            const ids = new Set(scanned.map(row => row.id));
-            state[source.collection] = existing.filter(row => !ids.has(row.id)).concat(scanned);
+            // Archive pages only extend the live projection. They must not
+            // roll back a record refreshed by a listener or an explicit load.
+            const rows = new Map(scanned.map(row => [row.id, row]));
             session.canonical.forEach((row, key) => {
                 if (!key.startsWith(kind + ':')) return;
                 const id = key.slice(kind.length + 1);
-                state[source.collection] = state[source.collection].filter(r => r.id !== id);
-                if (row) state[source.collection].push(row);
+                if (row) rows.set(id, row); else rows.delete(id);
             });
+            existing.forEach(row => rows.set(row.id, row));
+            state[source.collection] = Array.from(rows.values());
         });
         return state;
     }
@@ -4951,7 +4955,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const meta = E.KINDS[kind], scan = reader?.state(kind), count = (state[meta.collection] || []).length;
             const status = scan?.status === 'loading' ? 'Lettura in corso…' : scan?.status === 'error' ? 'Lettura non riuscita · dati precedenti conservati' : scan?.complete ? 'Scansione terminata' : scan?.rows?.length ? scan.rows.length + ' record letti dal database · archivio ancora parziale' : 'Completezza non verificata';
             return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
-        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già ricevuti dal portale sono nell’Inbox. Lo storico completo di HOMIE e della posta non è incluso in questa ricerca.</p><button type="button" class="btn btn-sm btn-secondary" onclick="portalMailCheckSources()" ${S.mailSources?.checking ? 'disabled' : ''}>${S.mailSources?.checking ? 'Verifico collegamenti…' : 'Verifica collegamenti'}</button><p class="ow-hint" role="status" id="portalMailSourceStatus">${esc(S.mailSources?.summary || 'Controlla configurazione e ultimo giro registrato. Non legge nuove email e non attiva HOMIE.')}</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
+        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già registrati nel portale sono nell’Inbox. «Cerca nelle email» consulta la casella collegata, su richiesta, separatamente dalle schede BOOM. Lo storico completo WhatsApp di HOMIE non è incluso.</p><button type="button" class="btn btn-sm btn-secondary" onclick="portalMailCheckSources()" ${S.mailSources?.checking ? 'disabled' : ''}>${S.mailSources?.checking ? 'Verifico collegamenti…' : 'Verifica collegamenti'}</button><p class="ow-hint" role="status" id="portalMailSourceStatus">${esc(S.mailSources?.summary || 'Controlla configurazione e ultimo giro registrato. Non legge nuove email e non attiva HOMIE.')}</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
         target.onclick = event => {
             if (event.target.closest('[data-search-reset]')) { window.portalSearchReset(); return; }
             const button = event.target.closest('[data-search-source]');
@@ -4976,12 +4980,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!portalSearchAuthorized()) return null;
         if (session.hydration.has(key)) return session.hydration.get(key);
         const user = auth.currentUser, generation = session.generation;
+        const startedRow = (S[source.collection] || []).find(row => row.id === record.id);
         // A result outside the initial load must be re-read before opening a
         // handler. Never hydrate from a stale scan or after an account switch.
         const pending = (async () => { try {
             const snap = await db.collection(source.collection).doc(record.id).get({ source: 'server' });
             if (auth.currentUser !== user || !portalSearchAuthorized() || session !== portalSearchCache || generation !== session.generation) return null;
-            if (!snap.exists) { session.canonical.set(key, null); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
+            const currentRow = (S[source.collection] || []).find(row => row.id === record.id);
+            if (currentRow !== startedRow) return currentRow ? E.recordFor(record.kind, record.id, S) : null;
+            if (!snap.exists) { session.canonical.set(key, null); S[source.collection] = (S[source.collection] || []).filter(row => row.id !== record.id); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
             const row = { ...snap.data(), id: snap.id };
             session.canonical.set(key, row);
             S[source.collection] = (S[source.collection] || []).filter(r => r.id !== row.id).concat(row);
@@ -4997,7 +5004,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const fresh = await portalSearchEnsure(record);
         if (!fresh || auth.currentUser !== user || !portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
         const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUser', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
-        if (fresh.kind === 'proposal') return window.open('/pre-agreement-admin', '_blank', 'noopener');
+        if (fresh.kind === 'proposal') {
+            const ref = S.preAgreements.find(row => row.id === fresh.id)?.ref;
+            return window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank', 'noopener');
+        }
         if (fresh.kind === 'payment') {
             const payment = S.payments.find(p => p.id === fresh.id);
             if (payment?.contractId && S.contracts.some(c => c.id === payment.contractId)) return viewContract(payment.contractId);
@@ -5009,6 +5019,40 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     
+    // Mailbox adapter: exact email matches describe existing records only.
+    // The mailbox module owns no identity links or persisted portal state.
+    let portalMailboxInitialized = false;
+    function portalMailboxRecords(emails) {
+        if (!portalSearchAuthorized() || !window.BOOM_PORTAL_SEARCH) return [];
+        const E = window.BOOM_PORTAL_SEARCH, state = portalSearchState();
+        const wanted = new Set(emails.map(email => String(email).trim().toLowerCase()).filter(Boolean)), result = new Map();
+        for (const kind of ['person', 'client', 'lead', 'pfsClient', 'landlord']) {
+            for (const row of state[E.KINDS[kind].collection] || []) {
+                const email = [row.email, row.contactEmail, row.leadEmail].find(value => typeof value === 'string' && wanted.has(value.trim().toLowerCase()));
+                if (!email) continue;
+                const record = E.recordFor(kind, row.id, state);
+                if (record) result.set(kind + ':' + row.id, {...record, typeLabel:E.KINDS[kind].label, matchedEmail:email.trim()});
+            }
+        }
+        return [...result.values()];
+    }
+    function portalOpenMailbox(query) {
+        if (!portalSearchAuthorized()) return;
+        const mailbox = window.BOOM_MAILBOX;
+        if (!mailbox) return toast('warning', 'La ricerca email non è disponibile. Ricarica il portale.');
+        if (!portalMailboxInitialized) {
+            mailbox.init({
+                getSession: () => portalSearchAuthorized() ? {...portalSessionProof(), user:auth.currentUser} : null,
+                isCurrent: proof => portalSessionCurrent(proof) && portalSearchAuthorized() && auth.currentUser === proof.user,
+                getToken: proof => proof.user.getIdToken(),
+                findRecordsByEmail: portalMailboxRecords,
+                openRecord: record => portalSearchOpen(record)
+            });
+            portalMailboxInitialized = true;
+        }
+        return mailbox.open(typeof query === 'string' ? query : document.getElementById('ogWorkQuery')?.value || '', {search:true});
+    }
+
     // Close search on click outside
     document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch, #searchResults')) document.getElementById('searchResults')?.remove(); });
 
@@ -6710,6 +6754,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
+            <div class="portal-mailbox-entry"><span>Schede BOOM qui · posta nella casella collegata</span><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
             <div id="ogWorkResults" aria-live="polite"></div><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio <span>Estendi la ricerca</span></summary><div id="ogSearchSources"></div></details>
         </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
             <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>

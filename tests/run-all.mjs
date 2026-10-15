@@ -10,6 +10,8 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'mailbox', file: 'tests/mailbox/server.mjs', what: 'ricerca e lettura posta reali, solo admin, MIME limitato, riferimenti e timeout; zero invii o AI' },
+  { name: 'mailboxui', file: 'tests/mailbox/ui.mjs', what: 'posta dalla Home, lettore mobile, fonti esplicite, sessioni e risposte concorrenti' },
   { name: 'aibudgetui', file: 'tests/ai/budget-ui.mjs', what: 'costi reali e limite esplicito, errori e sessioni a 390/1280 senza chiamate AI' },
   { name: 'aibudget', file: 'tests/ai/budget.mjs', what: 'prenotazione preventiva budget cloud, concorrenza, costi ignoti e ruoli; mutazioni' },
   { name: 'maintenanceactions', file: 'tests/portal-workspace/maintenance-actions.mjs', what: 'azioni manutenzione reali, errori, ruoli e cambio sessione' },

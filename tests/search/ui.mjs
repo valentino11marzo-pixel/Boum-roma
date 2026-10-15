@@ -197,6 +197,11 @@ try {
       await page.locator('[data-search-index]').click();
       assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewUser', 'same-person']);
       assert.match(portalSource, /function viewUser\(id\)/, 'Person route exists in production');
+      await page.evaluate(async () => {
+        S.preAgreements = [{id:'exact-proposal',ref:'BOOM-PROVA/15',tenant:{fullName:'Cliente prova'}}];
+        await portalSearchOpen(portalSearchRecords('BOOM-PROVA/15','proposal').records[0]);
+      });
+      assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['open','/pre-agreement-admin#q=BOOM-PROVA%2F15','_blank','noopener']);
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
       assert.deepEqual(errors, []);
       assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);
@@ -255,6 +260,49 @@ try {
     await page.getByRole('button', { name: 'Apri scheda ↗', exact: true }).click();
     assert.deepEqual(await page.evaluate(() => testIO.actions.at(-1)), ['viewArchiveDoc', 'archive-200']);
     assert((await page.evaluate(() => searchIO.docs)).every(read => read.id === 'archive-200' && read.options.source === 'server'));
+  });
+  await fresh(page);
+  await check('record aggiornato prevale sulla pagina archivio e sulla copia canonica precedente', async () => {
+    await completeArchive(page);
+    await page.locator('.ow-result').click();
+    await page.waitForSelector('.ow-selection');
+    await page.evaluate(() => {
+      S.properties = [{id:'new-house', name:'Casa aggiornata'}];
+      S.documents = [{id:'archive-200', name:'Documento aggiornato', propertyId:'new-house'}];
+    });
+    assert.equal(await page.evaluate(() => portalSearchRecords('Documento aggiornato', 'document').records[0]?.id), 'archive-200');
+    assert.equal(await page.evaluate(() => portalSearchRecords('Casa aggiornata', 'document').records[0]?.id), 'archive-200');
+    assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);
+  });
+  await fresh(page);
+  await check('lettura canonica in ritardo non annulla il record appena aggiornato', async () => {
+    await completeArchive(page);
+    await page.evaluate(() => { searchIO.holdDoc = true; });
+    await page.locator('.ow-result').click();
+    await page.waitForFunction(() => searchIO.pending.length === 1);
+    await page.evaluate(async () => {
+      const pending = [...portalSearchCache.hydration.values()];
+      S.documents = [{id:'archive-200', name:'Documento ricevuto ora'}];
+      searchIO.holdDoc = false; searchIO.pending.shift().resolve(); await Promise.all(pending);
+    });
+    assert.equal(await page.evaluate(() => S.documents[0].name), 'Documento ricevuto ora');
+    assert.equal(await page.evaluate(() => portalSearchRecords('ricevuto ora', 'document').records[0]?.id), 'archive-200');
+    assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);
+  });
+  await fresh(page);
+  await check('eliminazione canonica toglie anche la vecchia copia caricata', async () => {
+    await completeArchive(page);
+    await page.locator('.ow-result').click();
+    await page.waitForSelector('.ow-selection');
+    await page.evaluate(async () => {
+      searchIO.rows = [];
+      const record = portalSearchRecords('Oltrecaricati', 'document').records[0];
+      await portalSearchEnsure(record);
+    });
+    assert.equal(await page.evaluate(() => S.documents.some(row => row.id === 'archive-200')), false);
+    assert.equal(await page.evaluate(() => portalSearchRecords('Oltrecaricati', 'document').total), 0);
+    await page.evaluate(() => { S.documents = [{id:'archive-200',name:'Documento ripristinato'}]; });
+    assert.equal(await page.evaluate(() => portalSearchRecords('ripristinato','document').records[0]?.id), 'archive-200');
   });
   await fresh(page);
   await check('errore archivio conserva i risultati e il cursore; Riprova non dichiara completezza', async () => {

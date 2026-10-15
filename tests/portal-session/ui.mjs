@@ -9,12 +9,15 @@ function part(text, from, until) { const a=text.indexOf(from),b=text.indexOf(unt
 function fn(text,name) { const marker=new RegExp('    (?:async )?function '+name+'\\(');const a=text.search(marker);assert(a>=0,name);const tail=text.slice(a+5).search(/\n    (?:async )?function /);return text.slice(a,a+5+tail); }
 const browser = await (await loadChromium()).launch(launchOptions({headless:true}));
 let checks=0;
-async function fixture(text=source) {
+async function fixture(text=source, now=null) {
  const page=await browser.newPage({viewport:{width:390,height:900}});page.setDefaultTimeout(2500);
+ if(now)await page.clock.setFixedTime(new Date(now));
  const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.setContent('<div id="loading"></div><div id="authScreen" class="hidden"><a id="authLoginLink"></a><div id="authError"></div><div id="authInfo"></div></div><div id="app"><div id="headerName"></div><div id="headerAvatar"></div><div id="headerRole"></div><div id="headerBadge"></div><nav id="nav"></nav><main id="main"></main></div><div id="modals"></div>');
  await page.addScriptTag({content:`
- window.testIO={reads:[],writes:[],subscriptions:[],held:[],hold:null,fail:null,timers:[],toasts:[],renders:0,setups:0,rows:{},storage:new Map()};
+ window.testIO={reads:[],writes:[],subscriptions:[],held:[],hold:null,fail:null,timers:[],toasts:[],renders:0,setups:0,rows:{},storage:new Map(),confirmations:[]};
+ window.confirm=message=>{testIO.confirmations.push(message);return false;};
+ let sessionCheckInterval=null;
  const nativeSetTimeout=window.setTimeout.bind(window);
  window.setTimeout=(fn,ms)=>{const task={fn,ms,active:true};testIO.timers.push(task);return task;};
  window.clearTimeout=task=>{if(task)task.active=false;};
@@ -41,14 +44,16 @@ async function fixture(text=source) {
  const renderPage=()=>{testIO.renders++;document.getElementById('main').innerHTML='<p>'+S.profile?.name+'</p>';};
  const oggiScheduleUpdate=()=>{},inboxLiveRefresh=()=>{},inboxFreshnessUpdate=()=>{},portalFreshnessStop=()=>{};
  const oggiSegretaria={generation:0},oggiSegretariaStopLive=()=>{};
- const cancelLoginRedirect=()=>{testIO.redirect=false;},scheduleLoginRedirect=()=>{testIO.redirect=true;},stopSessionCheck=()=>{},startSessionCheck=()=>{};
+ const cancelLoginRedirect=()=>{testIO.redirect=false;},scheduleLoginRedirect=()=>{testIO.redirect=true;};
  const loginUrlWithNext=()=>'/login',readBoomBridge=()=>{},setupApp=()=>{testIO.setups++;renderPage();};
  var _inboxState={convId:null};
  `});
- const fragments=[part(text,'    const S = {','    // A derived property view'),sessionHelpers(text),
+ const fragments=[part(text,'    const CONFIG = {','    // Initialize Firebase with appropriate config'),
+ part(text,'    const S = {','    // A derived property view'),
+ part(text,'    function updateActivity()', '    // RBAC & DATA FILTERS'),sessionHelpers(text),
  part(text,'    // Track if auth already processed','    // Dismissed system alerts'),
  part(text,'    function startNotificationListener()','    function isRecent('),fn(text,'isRecent'),
- ...['hideLoading','showAuth','showApp','showAuthError','forceRefreshData','oggiLoadViewings','loadRegistrations','loadCompanySettings'].map(n=>fn(text,n))];
+ ...['hideLoading','showAuth','showApp','showAuthError','logout','forceRefreshData','oggiLoadViewings','loadRegistrations','loadCompanySettings'].map(n=>fn(text,n))];
  await page.addScriptTag({content:fragments.join('\n')});
  return {page,errors,async close(){assert.deepEqual(errors,[]);assert.equal(await page.evaluate(()=>testIO.writes.every(w=>w.name==='users'&&Object.keys(w.data).join(',')==='lastLogin')),true,'only existing lastLogin telemetry is permitted');await page.close();}};
 }
@@ -78,7 +83,33 @@ const h=await fixture(text),p=h.page;try{
    assert.equal(await p.evaluate(()=>testIO.toasts.some(t=>t[0]==='success')),false);assert.match(await p.locator('#portalSourceNotice').innerText(),/Dati principali.*non riuscito/);
   }finally{await h.close();}
 }
+async function renewedSession(text=source, uid='B') {
+ const openedAt=Date.parse('2026-10-15T08:00:00Z'), renewedAt=openedAt+31*60*1000;
+ const h=await fixture(text,openedAt),p=h.page;
+ try{
+  await p.evaluate(()=>testIO.login('A'));
+  await p.clock.setFixedTime(new Date(renewedAt));
+  await p.evaluate(async uid=>{await testIO.login(null);await testIO.login(uid);},uid);
+  assert.equal(await p.evaluate(()=>S.lastActivity),renewedAt,'new session starts its own inactivity clock');
+  assert.equal(await p.evaluate(()=>testIO.timers.filter(t=>t.active&&t.ms===60000).length),1,'only the current session keeps an inactivity timer');
+  for(const elapsed of [60000,30*60*1000]){
+   await p.clock.setFixedTime(new Date(renewedAt+elapsed));
+   await p.evaluate(()=>checkSession());
+   assert.equal(await p.evaluate(()=>testIO.confirmations.length),0,'a fresh session does not inherit the old timeout');
+   assert.equal(await p.evaluate(()=>S.user.uid),uid);
+  }
+  await p.clock.setFixedTime(new Date(renewedAt+30*60*1000+1));
+  await p.evaluate(()=>checkSession());
+  assert.equal(await p.evaluate(()=>testIO.toasts.filter(t=>t[1]==='Sessione scaduta').length),1,'the original 30 minute policy still expires');
+  assert.deepEqual(await p.evaluate(()=>testIO.confirmations),['Vuoi uscire?'],'expiry still reaches the real logout confirmation');
+ }finally{await h.close();}
+}
 try {
+ for(const uid of ['A','B'])await check('fresh '+uid+' session in a 31 minute old tab gets a new inactivity clock',()=>renewedSession(source,uid));
+ await check('mutation killed: new session restores the original tab activity timestamp',async()=>{
+  const mutant=source.replace('page: \'dashboard\', lang, isOnline, lastActivity: Date.now()', 'page: \'dashboard\', lang, isOnline');assert.notEqual(mutant,source);
+  await assert.rejects(()=>renewedSession(mutant),/new session starts its own inactivity clock/);
+ });
  await check('A → null → tenant B clears data/UI and retired callbacks before B loads',()=>identityScenario());
  await check('late profile A cannot assign, show, or write telemetry after direct switch to B',async()=>{
   const h=await fixture(),p=h.page;try{
