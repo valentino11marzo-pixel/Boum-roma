@@ -75,12 +75,112 @@ function parseEuro(str) {
   return isFinite(n) && n > 0 ? n : null;
 }
 
+// ── Vendita o affitto ────────────────────────────────────────────────
+// LA LEZIONE DEL 30 SETTEMBRE 2026 (/api/meteo vuoto in produzione): l'unica
+// ricerca salvata che scriveva alla casella degli alert era una ricerca di
+// VENDITA ("Case e appartamenti a Centro", 475.000 € · 6.507 €/m²). Il parser
+// non sapeva distinguere e leggeva come canone mensile il primo numero dopo
+// un "€" — cioè i 6.507 €/m² del prezzo di vendita. Una casa in vendita
+// entrava nel radar PFS e nel libro mastro del Perito come «affitto privato
+// da €6.507/mese»: un numero inventato, proprio quello che il Perito giura
+// di non pubblicare mai. Qui si decide sulla PROVA dentro l'email: prima
+// quella STRUTTURALE che il portale stampa sui suoi link (campagna utm
+// `…_sale_…`, percorso `/vendita-case/`), poi le parole ("in vendita",
+// "€/mese") — perché la descrizione di una casa in vendita può dire "spese
+// condominiali 120 €/mese". Due segnali opposti dello stesso livello → null:
+// non si indovina.
+const SALE_STRUCT = [
+  /utm_campaign=[^&"'\s<>]*[_-]sale(?=[_\-&"'\s<>]|$)/gi,
+  /\/vendita-[a-z-]+\//gi,
+];
+const RENT_STRUCT = [
+  /utm_campaign=[^&"'\s<>]*[_-]rent(?=[_\-&"'\s<>]|$)/gi,
+  /\/affitto-[a-z-]+\//gi,
+];
+const SALE_WORDS = [/\bin vendita\b/gi];
+const RENT_WORDS = [/\bin affitto\b/gi, /€\s*(?:\/|al\s)\s*mese\b/gi, /\bal mese\b/gi];
+const countSigns = (list, text) => list.reduce((n, re) => { re.lastIndex = 0; return n + ((String(text).match(re) || []).length); }, 0);
+function verdict(saleList, rentList, text) {
+  const sale = countSigns(saleList, text), rent = countSigns(rentList, text);
+  if (sale && !rent) return 'sale';
+  if (rent && !sale) return 'rent';
+  return sale ? 'ambiguous' : null;
+}
+
+export function transactionOf(text) {
+  if (!text) return null;
+  const structural = verdict(SALE_STRUCT, RENT_STRUCT, text);
+  if (structural === 'ambiguous') return null;
+  if (structural) return structural;
+  const words = verdict(SALE_WORDS, RENT_WORDS, text);
+  return words === 'ambiguous' ? null : words;
+}
+
+// Nessun canone mensile a Roma arriva a questa cifra: sopra, il numero letto
+// è un prezzo di VENDITA (o un errore di lettura), mai un affitto. È la
+// rete sotto transactionOf, per le email che non dichiarano cosa sono.
+export const MAX_PLAUSIBLE_RENT = 30000;
+
+// Il cancello prima dell'ingestione: un annuncio entra nel radar come
+// AFFITTO solo se niente dice il contrario. Puro, così si testa.
+export function rentGate(listing, price) {
+  if (listing && listing.transaction === 'sale') return { ok: false, reason: 'sale_listing' };
+  if (Number.isFinite(price) && price > MAX_PLAUSIBLE_RENT) return { ok: false, reason: 'price_not_rent' };
+  return { ok: true };
+}
+
+// ── Il titolo dell'annuncio (dove sta la ZONA) ───────────────────────
+// Idealista scrive "Trilocale in Via Domenichino, 4, Monti, Roma" nel title
+// del link all'annuncio e come testo del link stesso. Prima si buttava via e
+// scan-inbox passava come titolo l'OGGETTO dell'email ("…della tua ricerca:
+// Case e appartamenti a Centro!") — cioè l'etichetta della RICERCA, da cui
+// inferZone non ricava niente (o, peggio, la zona della ricerca invece di
+// quella della casa). Senza zona il Perito non scrive nessuna statistica.
+function decodeEntities(s) {
+  return String(s || '')
+    .replace(/&#x([0-9a-f]+);/gi, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(+d))
+    .replace(/&(?:apos|rsquo|lsquo);/g, "'")
+    .replace(/&quot;/g, '"').replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
+function attr(tag, name) {
+  const m = new RegExp('\\b' + name + '\\s*=\\s*"([^"]*)"', 'i').exec(tag || '')
+         || new RegExp('\\b' + name + "\\s*=\\s*'([^']*)'", 'i').exec(tag || '');
+  return m ? m[1] : null;
+}
+function cleanTitle(t) {
+  const s = decodeEntities(t).replace(/\s+/g, ' ').trim();
+  return s.length >= 8 && s.length <= 160 && /[a-zà-ú]{3,}\s+\S+/i.test(s) ? s : null;
+}
+// Il titolo dal link che contiene l'occorrenza (idx dentro href): prima il
+// suo attributo title, poi il testo del link, poi il title dell'immagine
+// dentro il link. Solo dai link <a>: un id citato nel testo non ha titolo.
+function linkTitle(body, idx) {
+  const start = body.lastIndexOf('<', idx);
+  const end = body.indexOf('>', idx);
+  if (start < 0 || end < 0 || body.lastIndexOf('>', idx) > start) return null;
+  const tag = body.slice(start, end + 1);
+  if (!/^<a\b/i.test(tag)) return null;
+  const own = cleanTitle(attr(tag, 'title'));
+  if (own) return own;
+  const close = body.indexOf('</a>', end);
+  if (close < 0 || close - end > 3000) return null;
+  const inner = body.slice(end + 1, close);
+  const img = /<img\b[^>]*>/i.exec(inner);
+  return cleanTitle(inner.replace(/<[^>]+>/g, ' ')) || (img ? cleanTitle(attr(img[0], 'title')) : null);
+}
+
 // Extract listing data from the text window around one link occurrence.
 function parseWindow(text) {
-  const out = { price: null, bedrooms: null, sqm: null, title: null };
-  // "1.200 €/mese" | "€ 1.200/mese" | "1.200 € al mese" | bare "1.200 €"
-  let m = text.match(/(?:€\s*([\d.,]+)|([\d.,]+)\s*€)\s*(?:\/|al\s)?\s*mese/i)
-       || text.match(/€\s*([\d.,]+)/) || text.match(/([\d.,]+)\s*€/);
+  const out = { price: null, bedrooms: null, sqm: null };
+  // "1.200 €/mese" | "€ 1.200/mese" | "1.200 € al mese" | bare "1.200 €".
+  // Il numero seguito da "€/m²" è un PREZZO AL METRO, mai il prezzo: la
+  // vecchia terza regola (€ poi numero) scavalcava gli spazi e leggeva
+  // "475.000 €   6.507 €/m²" come 6.507.
+  let m = text.match(/(?:€\s*(\d[\d.,]*)|(\d[\d.,]*)\s*€)\s*(?:\/|al\s)?\s*mese/i)
+       || text.match(/(\d[\d.,]*)\s*€(?!\s*\/\s*m)/)
+       || text.match(/€\s*(\d[\d.,]*)(?![\d.,]*\s*(?:€\s*)?\/\s*m)/);
   if (m) out.price = parseEuro(m[1] || m[2]);
   m = text.match(/(\d+)\s*(?:cam(?:er[ae])?\.?|local[ei]|bedroom)/i);
   if (m) out.bedrooms = parseInt(m[1], 10);
@@ -90,7 +190,8 @@ function parseWindow(text) {
 }
 
 // html: full email body (HTML or plain text).
-// Returns [{ sourceUrl, source, price?, bedrooms?, sqm? }] — deduped.
+// Returns [{ sourceUrl, source, price?, bedrooms?, sqm?, title?, transaction? }]
+// — deduped. transaction: 'sale' | 'rent' | null (non dichiarato → null).
 export function extractListings(html) {
   if (!html) return [];
   let body = String(html);
@@ -103,12 +204,26 @@ export function extractListings(html) {
     re.lastIndex = 0;
     let m;
     while ((m = re.exec(body))) {
-      hits.push({ index: m.index, sourceUrl: canonical(m[1]), source: portal });
+      // Il link PRINCIPALE all'annuncio, non una sua sottopagina
+      // (".../immobile/<id>/segnalazione-immobile" porta il title "avisar
+      // que no es particular": non è il nome della casa).
+      const after = body.slice(m.index + m[0].length, m.index + m[0].length + 2);
+      const main = !/^\/[a-z]/i.test(after);
+      hits.push({ index: m.index, sourceUrl: canonical(m[1]), source: portal, main });
       if (hits.length > 200) break;
     }
   }
   if (!hits.length) return [];
   hits.sort((a, b) => a.index - b.index);
+
+  // Il titolo di ogni annuncio: il primo link principale che ne porta uno.
+  const titles = new Map();
+  for (const h of hits) {
+    if (!h.main || titles.has(h.sourceUrl)) continue;
+    const t = linkTitle(body, h.index);
+    if (t) titles.set(h.sourceUrl, t);
+  }
+  const mailTx = transactionOf(body);
 
   // Strip tags once so the per-listing windows are readable text
   const text = body.replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
@@ -119,10 +234,18 @@ export function extractListings(html) {
     if (!seen.has(h.sourceUrl)) { seen.set(h.sourceUrl, h); uniques.push(h); }
   }
 
+  const shape = (h, win, rawWin) => ({
+    sourceUrl: h.sourceUrl,
+    source: h.source,
+    ...parseWindow(win),
+    title: titles.get(h.sourceUrl) || null,
+    // La prova della SUA finestra prima; poi quella dell'email intera.
+    transaction: transactionOf(rawWin) || mailTx,
+  });
+
   if (uniques.length === 1) {
     // Single-listing alert (Idealista's usual shape): parse the whole text
-    return [{ ...uniques[0], index: undefined, ...parseWindow(text) }]
-      .map(({ index, ...rest }) => rest);
+    return [shape(uniques[0], text, body)];
   }
 
   // Multi-listing digest: window = body slice between this link and the next
@@ -130,7 +253,6 @@ export function extractListings(html) {
     const next = uniques[i + 1];
     const windowRaw = body.slice(h.index, next ? next.index : Math.min(body.length, h.index + 4000));
     const windowText = windowRaw.replace(/<[^>]+>/g, ' ');
-    const { index, ...rest } = { ...h, ...parseWindow(windowText) };
-    return rest;
+    return shape(h, windowText, windowRaw);
   });
 }
