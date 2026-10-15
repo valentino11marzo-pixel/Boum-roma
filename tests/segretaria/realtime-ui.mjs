@@ -59,13 +59,19 @@ async function fixture(source = portal, mobile = false) {
     }};
     window.emit=(name,rows=[])=>window.subscriptions[name].next({docs:rows.map(r=>({id:r.id,data:()=>r}))});
   ` });
-  for (const name of ['js/oggi-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
+  for (const name of ['js/oggi-engine.js', 'js/oggi-desk-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
   await page.addScriptTag({ content: body(source) + '\n' + listeners(source) + `
     document.getElementById('main').innerHTML=oggiPage();
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });
   await page.waitForFunction(() => oggiSegretaria.loaded);
+  await page.locator('#ogQueueArchive > summary').click();
   return { page, errors };
+}
+
+async function openOperations(page) {
+  const detail = page.locator('details[data-sg-detail="operations"]');
+  if (!await detail.evaluate(el => el.open)) await detail.locator(':scope > summary').click();
 }
 
 async function actionAppears(page) {
@@ -116,6 +122,7 @@ try {
       S.conversations=[{channel:'whatsapp',lastDirection:'in',lastMessageAt:'2026-09-17T07:00:00Z'}];
       await oggiSegretariaLoad(true);
     });
+    await openOperations(page);
     await page.getByText('Copertura degli aggiornamenti',{exact:true}).click();
     await page.locator('.sg-service-details > summary').click();
     const text = await page.locator('#sgFollowPanel').innerText();
@@ -194,6 +201,7 @@ try {
       });
       assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
       assert.equal(await backlog.locator('[data-sg-group="preparing"] .sg-count').innerText(),'111');
+      await backlog.locator('[data-ow-view="preparing"]').click();
       assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),12);
       await backlog.locator('[data-sg-action="more-preparing"]').click();
       assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),24);
@@ -210,6 +218,7 @@ try {
         const t=window.apiRows[0];t.followUp.intakeTiming={status:'ambiguous',quote:'entro le 12:00 <img src=x onerror="window.injected=true">',sourceMessageId:'old-message'};oggiSegretariaRender();
       });
       assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
+      await backlog.locator('[data-ow-view="decisions"]').click();
       assert.match(await backlog.locator('.sg-intake-timing').innerText(),/fonte precedente/);
       assert.equal(await backlog.locator('.sg-intake-timing img').count(),0);
       assert.equal(await backlog.evaluate(()=>window.injected===true),false);
@@ -232,19 +241,24 @@ try {
         window.apiMonitoring={mode:'continuous',status:'working',dailyCap:null,remainingToday:null,usedToday:1500,counts:{pending:1,current:2,retrying:0}};
         await oggiSegretariaLoad(true);
       });
-      assert.match(await continuous.locator('.sg-briefing-note').innerText(),/1 proposta pronta da rivedere.*1 richiesta da verificare/);
+      assert.equal(await continuous.locator('[data-ow-view="decisions"] span').innerText(),'2');
+      assert.equal(await continuous.locator('[data-ow-view="preparing"] span').innerText(),'1');
       assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Seguito interno'}).count(),1);
       assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Da verificare'}).count(),1);
+      await openOperations(continuous);
+      await continuous.locator('[data-ow-view="preparing"]').click();
       await continuous.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===false);
       assert.equal(await continuous.evaluate(()=>window.apiWrites),0,'consultare una richiesta non prepara né invia');
       await continuous.locator('[data-sg-modal="cancel"]').last().click();
+      await continuous.locator('[data-ow-view="decisions"]').click();
       await continuous.locator('[data-sg-id="sg_'+ '2'.repeat(32)+'"] [data-sg-action="review"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="approve"]')?.disabled===true);
       await continuous.evaluate(()=>oggiSegretariaPrepare('approve'));
       assert.equal(await continuous.evaluate(()=>window.apiWrites),0,'needs_context non approvabile anche chiamando il gestore');
       await continuous.locator('[data-sg-modal="cancel"]').last().click();
       await continuous.evaluate(async()=>{window.apiMonitoring.status='daily_cap';window.apiMonitoring.dailyCap=50;window.apiMonitoring.remainingToday=0;await oggiSegretariaLoad(true)});
+      await continuous.locator('[data-ow-view="preparing"]').click();
       await continuous.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===false);
       assert.doesNotMatch(await continuous.locator('#sgPreparationStatus').innerText(),/limite giornaliero raggiunto/);

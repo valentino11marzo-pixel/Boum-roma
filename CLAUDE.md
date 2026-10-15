@@ -1809,6 +1809,25 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Rilancio area casa, 13/10:** invito dal Share Hub con istruzione di fissare
+  il messaggio in chat; il cliente copia un link ordinario, sempre autenticato.
+  «Il tuo link e gli avvisi» legge le notifiche personali già esistenti tramite
+  `api/tenant/notifications`: solo destinatario verificato (o anteprima admin),
+  testo escapato, fino a 50, errore distinto dall’assenza. Nessun auto-invio nuovo
+  e nessun testo di notifica decide se una rata sia pagabile. Test `tenantworkspace`
+  e `tenantworkspaceui`; suite di accesso, pagamenti e rules per il rilascio.
+
+- **Archivio e richieste tenant, 05/10:** `/api/tenant/documents` legge l’archivio del cliente/contratto, anche in bozza; HTTPS, titolarità e condivisione esplicita, limite dichiarato. Nessuna condivisione implicita dal solo immobile.
+  `/api/tenant/maintenance` salva e modifica richieste proprie con Bearer, ID ripetibile e confronto atomico delle versioni di ticket/contratto. Stati `open`/`urgent` coerenti col portale; costi, assegnazioni e risoluzioni non vengono dal cliente.
+  `js/tenant-workspace-engine.js` centralizza i filtri; `tenant-workspace-ui.js` conserva bozze e richiesta incerta fra ridisegni/ricariche, ricerca i file e distingue errore da vuoto. Rules impediscono al client di contraffare i campi del flusso server.
+  Inoltro ai fornitori **non implementato né attivo**: destinatari e contenuto attendono conferma; nessuna chiamata anonima a `/api/agent/notify`, nessun nuovo scheduler. Le richieste compaiono nella manutenzione esistente con disponibilità e revisione.
+  Lancio limitato a carta/Apple Pay/bonifico: rimossa l’offerta di nuovi mandati SEPA, conservati stato e revoca di quelli già attivi. Prove: `tenantworkspace`, `tenantworkspaceui`, `tenantworkspacemutations`, `tenantpayments`.
+  La firma non viene chiamata «contratto attivo»: la decorrenza non prova consegna delle chiavi. La rotta richiede `verbaleConsegna` con data passata e file HTTPS; il verbale è apribile dai documenti. Prove `tenantpayments` e `scalo`.
+- **Lancio tenant, 05/10:** Share Hub include l’invito alla dashboard per il profilo tenant collegato, con URL di login senza email/token e messaggi da inviare manualmente. Nessuna sessione anonima e nessuna modifica account implicita.
+  `/login` spiega il primo accesso via recupero password, conserva la casa nel ritorno dall’email, distingue errori rete da richiesta accettata e non redirige sessioni anonime.
+  `js/tenant-access-engine.js` sceglie il contratto corrente prima dei futuri, preserva la scelta esplicita e il contratto del pagamento di ritorno; `/casa` permette di cambiare casa/periodo fra i propri contratti.
+  Lettura contratto fallita o casa non associata mostrano recupero/assistenza, mai una dashboard vuota spacciata per pronta. Limite 50 contratti dichiarato; UID verificato anche nel controller, oltre alle regole Firestore.
+  Ritorni annullamento carta e mandato SEPA conservano il contratto. Prove: `tenantaccess`, `tenantpayments`, `paymentlinks`, `sdd`; nessun pagamento o invio reale nelle suite.
 - **Confronto UX con Claude, 18/09:** `/casa` permette di segnalare il bonifico già eseguito e annullare una segnalazione erronea. `api/payments/report` ammette solo il titolare tenant; legge la versione e salva solo il flag con CAS. Mai `paid` dal client, admin preview esclusa, stato riletto dal server anche dopo errori.
   `payment_reported` ora ferma checkout autenticato, link operatore/pubblico e nuove selezioni del collector SDD; restano fuori garanzia sessioni Stripe già aperte e gare tra canali avviate prima del riscontro.
   Ricevute archiviate raggiungibili da `receiptDocId`, con ID rata verificato e URL HTTPS; nuove archiviazioni espongono il file sulla rata senza sostituire ricevute Stripe. Nessun PDF o associazione inventati.
@@ -2371,6 +2390,61 @@ Un giro solo, otto interventi, 33 suite verdi:
   Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
   caricato la pagina ricade sulla dashboard — mai una schermata vuota.
   Test: `node tests/oggi/run.mjs` (41 check).
+- **Oggi operativa (12/10/2026):** la home admin apre ricerca contestuale, coda
+  esistente e agenda visite di sette giorni Roma; messaggio e Segreteria restano
+  montati in pannelli richiudibili. Ricerca riusa Prontuario/handleSearch e filtra
+  il tipo prima del limite; nessuna preselezione né invio o AI in lettura.
+  Visite/proposte espongono errori e limiti senza svuotare la copia precedente;
+  aggiornamenti regionali conservano bozza, ricerca e pannelli aperti.
+  `oggi-workspace-engine` distingue proposte/conferme e alimenta anche il prefilling
+  delle visite. Prove: `oggiworkspace`, `oggihomeui` e regressioni Segreteria.
+- **Oggi collegata (12/10/2026):** il briefing espone tre decisioni dei seguiti
+  esistenti; la revisione resta una lettura e le proposte non approvate non
+  ereditano il badge Confermato. La barra collega record per ID tipizzati,
+  incluse persone/contratti/case; omonimie e casi ambigui restano separati.
+  `phone:<id>` apre `/chiamate?call=<id>`: lettura admin esatta anche oltre le
+  ultime 120, audio e trascrizione salvata con limiti dichiarati, nessuna AI.
+  Suite/guide riusano il Prontuario. Prove `oggiworkspace`, `oggihomeui`,
+  `phoneui`; `propertyload` include il vero helper visite estratto.
+- **Oggi senza doppioni (12/10/2026):** una sola area di lavoro filtra decisioni,
+  richieste da preparare e seguiti in corso usando i due motori esistenti; tolti
+  il briefing duplicato e i contatori ripetuti. Fonti e stato sono apribili dal caso.
+  Aprire una richiesta legge soltanto: generazione nel dialogo, su comando esplicito.
+  Errori di aggiornamento visibili anche a dettagli chiusi; ritorno da fascicolo o
+  revisione ritrova caso/filtro, ricerca e selezione. Nessuna nuova lettura o AI.
+  Prove: `oggihomeui`, `propertyoggiui`, `segretarialiveui`, `segretariafreshui`,
+  `seguitoui`, `segretariapropostaui`; anteprima con fascicolo reale e dati sintetici.
+- **Messaggio e seguito (12/10/2026):** «Scrivi e organizza» apre i modelli
+  editoriali di `oggi-workspace-engine` nello stesso dialogo del seguito. Solo
+  l’immobile verificato entra nel testo; fonte, scadenza interna e note restano fuori.
+  Copia esplicita con helper Safari, nessun invio/AI e nessun testo salvato dal confirm.
+  Bozza preservata nei conflitti; cambio pratica, fonte o contesto impone ricontrollo.
+  Prove `oggimessageui`, `hometrial`: renderer e updateFollowUp reali, IO dimostrativo
+  solo in memoria, con verifica per mutazione della guardia sull’ultimo messaggio.
+- **Prontuario / strumenti home (13/10/2026):** `homeTools(record, state, year)`
+  descrive sei ingressi reali: cliente, inventario, documento, manutenzione,
+  pagamento e verbale. Riusa il registro; un contesto assente apre il selettore,
+  un ID obsoleto/duplicato non produce azioni. Collegamenti solo per ID univoci.
+  Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
+  Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
+  con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
+- **Ricerca e fonti (13/10/2026):** `portal-search-engine` riunisce 15 fonti già
+  presenti in `S`, normalizza parole/telefoni/accenti e conserva gli ID tipizzati.
+  Header, home e selettori condividono il motore; risultati a pagine e collegamenti
+  espliciti, mai identità dedotte dal nome. `portal-search-archive` estende una fonte
+  di 200 record su click (Firestore, zero AI), con limiti, errori e sessione visibili.
+  I risultati dell’archivio vengono verificati sul record canonico prima dell’apertura.
+  WhatsApp completo, posta completa e contenuto PDF restano fuori dalla ricerca;
+  Inbox accessibile solo dai collegamenti già salvati. Prove `portalsearch/searcharchive/searchui`.
+- **Home per risultato (13/10/2026):** `oggi-desk-engine` raggruppa per riferimenti
+  univoci i segnali esistenti in cinque percorsi, con apertura del passo successivo.
+  Proposte vecchie, date mancanti e collegamenti incerti restano nelle verifiche;
+  una nuova proposta valida non eredita l’attesa futura del seguito precedente.
+  urgenze, nuove richieste non collegate ed errori di lettura rimangono visibili.
+  Coda originale apribile/filtrabile, senza chiusure, invii o AI in lettura.
+  Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
+  senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
+  `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header
@@ -4123,6 +4197,18 @@ Le ricevute storiche senza rata sono in «Ricevute da collegare»: documento acc
 Sollecito email, WhatsApp e colori degli importi restano nella lista; checkout distingue anche depositi e altri addebiti.
 Test: `rent` (anche mutazioni), `rentadmin` (funzioni vere, filtri, documenti, link, export e refresh) e `finish` (controlli e azioni effettivi).
 
+### Fatture BOOM: evidenze fiscali e incassi separati — 6 ottobre 2026
+La pagina `invoices` mostra il prospetto importato (Zucchetti, Stripe, Sella e costi), con fonte e data del controllo; le registrazioni interne rimangono distinte e non certificano SdI o incasso riconciliato.
+`invoice-reconciliation-engine.js` valida riferimenti, centesimi e stati, calcola i totali e segnala numeri interni mancanti/ripetuti. Nessun abbinamento per solo nome/importo, nessuna nuova fattura o sollecito automatico.
+`/api/accounting/reconciliation` richiede admin: anteprima senza scritture, conferma sul digest, snapshot immutabile e idempotente in `invoiceReconciliations`. Dati reali fuori dal repository e dagli asset pubblici; regola Firestore admin-only da pubblicare insieme al rilascio.
+`invoice-workspace.js` offre sei viste, ricerca, export JSON e recupero da errore. La data di lettura non rinnova la data delle fonti; incassi e trasferimenti non vengono sommati due volte.
+Test `invoicereconciliation`: handler reale con rete simulata, ruoli, errori, import ripetuto/concorrente, totali, escaping, mutazioni e rendering delle registrazioni legacy.
+
+**13 ottobre — lavoro quotidiano e uscite:** la vista iniziale deriva bozze, scarti, verifiche e uscite confermate/stimate, con data Roma e orizzonte di 30 giorni incluse le scadute. Le voci senza importo/data sono contate, mai trattate come zero certo.
+Lo schema v1 ammette `ledger`, `drafts`, `outgoings`, `coverage` opzionali: i vecchi digest restano identici. Mastrini Dare/Avere, bozze e costi futuri non incrementano il lordo Stripe e non attestano IVA dovuta o saldo banca.
+Le date di composizione, controllo e copertura sono distinte; riaprire il portale non aggiorna le fonti. `/banca` riusa il percorso esistente, senza avviare sync o registrare incassi.
+Test `invoicereconciliation`: schema retrocompatibile, dati sconosciuti, previsioni senza costi già pagati, escaping, import reale/idempotente delle estensioni e mutazione anti doppio conteggio. Percorso e limiti in `docs/FATTURE_WORKFLOW.md`.
+
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA o carta in corso/stato sconosciuto.
 `_checkout.js` riusa una sessione aperta della stessa rata/fattura; un completamento attende il webhook.
@@ -5813,7 +5899,7 @@ no-op), `bankRequisitions` (consent audit).
 | `POST /api/banking/sync` | **cron daily 04:15** (before the Contabile). Pulls movements (first run backfills full history), dedupes via batchGet, categorizes (prima nota rules in `_lib.js`), reconciles credits against pending `payments`: exact amount + due-date window + unique candidate + (tenant-name or month or unique-amount) → payment marked paid (`paidVia:'bank'`); weaker matches → `matchSuggestions`, confirmed by one tap in /banca. Heartbeat `teamHealth/banca`; Telegram when a consent is ≤7gg from expiry. |
 | `POST /api/banking/export` | estratto conto / prima nota CSV for the commercialista — Italian format (semicolon, DD/MM/YYYY, decimal comma, UTF-8 BOM); prima nota adds per-category period totals |
 | `POST /api/banking/scan-inbox` | **cron daily 04:05 — the primary feed now that GoCardless is closed to new signups.** Reads the Gmail mailbox over IMAP (same infra as pfs/scan-inbox). Three tiers: (1) **movement-alert emails** ("Hai ricevuto un bonifico di €1.200 da…") — amounts live in the BODY, extracted via Claude haiku, but ONLY from recognized bank sender domains (`KNOWN_BANK_DOMAINS` + `BANK_MAIL_FROM`) so a tenant writing "ti ho fatto il bonifico" never becomes a transaction; (2) **statement attachments** — CSV parsed directly, PDF via Claude document block; (3) forwarded emails, same handling. "Statement available behind login" emails yield an empty extraction and are remembered so the AI call is never repeated. Processed emails → `bankImports`; tx-level dedupe makes re-runs no-ops; per-run AI budget. Telegram recap when something lands. Heartbeat `teamHealth/banca-mail`. Setup: attiva nell'home banking gli avvisi email di movimento (e, se disponibile, l'invio dell'estratto come allegato). |
-| `POST /api/banking/import` | manual fallback: paste the home-banking CSV (column auto-detect for the common Italian exports), same dedupe+reconcile pipeline — works with zero API setup |
+| `POST /api/banking/import` | admin-only manual CSV: `action:preview` reads only; `action:import` requires the same file/account digest and `confirmed:true`. Acquires movements with suggestions only; never marks payments paid. Works without bank API setup. |
 | `POST /api/accounting/scadenzario` | unified deadline book derived live: company (IVA/LIPE/CCIAA/Redditi from `invoices` by quarter) + one group per property owner (registro, IMU, cedolare, ISTAT + contract renewals ≤120gg). `format:'ics'` → calendar file (stable UIDs, re-import updates). |
 
 All admin-gated via `api/pfs/_guard.js`. **Console**: `banca.html` (`/banca`,
@@ -5821,6 +5907,12 @@ admin-only, noindex) — linked accounts + consent status, recent movements
 with one-tap match confirmation, CSV/ICS export, manual import. The
 Contabile's morning report includes the bank picture (riconciliati/da
 confermare/consensi scaduti).
+### Import bancario manuale con verifica — 13 ottobre 2026
+Prima `/banca` caricava subito il CSV e poteva segnare canoni pagati. Ora richiede anteprima e conferma del medesimo file/conto; l'etichetta conto deve restare stabile fra gli estratti.
+Il handler manuale accetta solo admin, valida date/importi/valuta/descrizioni e respinge righe identiche ambigue. Le categorie rimangono suggerimenti, non prove fiscali.
+La pipeline condivisa ammette `reviewOnly`/`dryRun`: l'anteprima non scrive; l'acquisizione crea con ID deterministico e conserva i candidati in `matchSuggestions`, senza chiamare `applyMatch`. Retry/concorrenza non sovrascrivono movimenti esistenti.
+Il percorso email/API automatico mantiene la propria politica precedente; questo cambiamento non lo attiva né ne certifica la copertura. Suite `bankimport`: handler e UI reali, rete simulata, mutazioni su anteprima e pagamento involontario.
+
 ### `/api/photos/enhance` — the unified photo brain
 One pipeline, three doors:
 1. **Console** (`photo-lab.html`, renders the catalog unauthenticated; auth on
@@ -6534,6 +6626,15 @@ const unsub = BoomPortal.listen(
 ```
 
 ## Common Tasks
+
+**Area casa — accoglienza prima della firma (6 ottobre 2026):** il link resta
+utilizzabile dal cliente associato anche mentre le firme sono in corso.
+`tenant-access-engine.stage` distingue preparazione, firma cliente, attesa
+proprietario/co-conduttori e completamento (`complete` e legacy `completed`).
+Il pulsante apre solo il link personale restituito da `/api/sign/links`, su
+azione esplicita; l'anteprima admin non può firmare. Nessun incasso o rata
+viene creato dall'accoglienza: il piano mostra solo registrazioni esistenti.
+Verifica: `tenantaccess`, `tenantpayments`, `signtokens`, `scalo`.
 
 **Add a new apartment page**: Copy an existing `apartment_*.html`, update content and Firestore document ID.
 
