@@ -810,7 +810,9 @@ export default async function handler(req, res) {
   try {
     const _n = await import('../sign/_notify.js');
     const fullC = { ...fresh, ...upd, id: contractId };
-    if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    // A finalize riuscito il Pacchetto registrazione È l'avviso all'operatore:
+    // il milestone parte solo come rete quando il finalize non è andato.
+    if (fullySigned) { if (!finalized) await _n.notifyAdminContractSigned(fullC, propertyDoc); }
     else { await _n.notifyPartialSignature(fullC, role, propertyDoc, role === 'cotenant' ? { coIndex } : {}); }
   } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 

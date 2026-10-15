@@ -217,7 +217,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const out = await finalizeContract({ ...FULL });
   check('finalize: ok + caf inviato', out.ok === true && out.caf === true);
 
-  const caf = mailTo('valentino@boom-rome.com').filter(m => /Fascicolo completo/i.test(m.subject));
+  const caf = mailTo('valentino@boom-rome.com').filter(m => /Pacchetto registrazione/i.test(m.subject));
   check('CAF: arriva a valentino@boom-rome.com', caf.length === 1);
   check('CAF: anagrafica completa di ENTRAMBE le parti', caf.length === 1
     && caf[0].html.includes('RSSMRA85T10A562S') && caf[0].html.includes('BNCGLI70A41H501X')
@@ -225,24 +225,20 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('CAF: linka il contratto FIRMATO + certificato', caf.length === 1
     && caf[0].html.includes('contratto-firmato.pdf')
     && caf[0].html.includes('signing-certificate.pdf'));
-  // IL FOGLIO DI REGISTRAZIONE: la seconda email a valentino — pulita.
+  // UNA email all'operatore (15/10/2026): niente Foglio separato, niente
+  // milestone «firmato da tutti» quando il finalize riesce.
   const foglio = mailTo('valentino@boom-rome.com').filter(m => /^Registrazione contratto — /.test(m.subject));
-  check('foglio: arriva a valentino, oggetto archiviale senza emoji', foglio.length === 1 && out.foglio === true
-    && /^Registrazione contratto — .* — Anna Expat — 2026-09-01$/.test(foglio[0].subject));
-  check('foglio: NESSUN bottone, NESSUN link al portal, nessuna istruzione operativa', foglio.length === 1
-    && !/class="bp-btn/.test(foglio[0].html) && !/boomrome\.com\/portal/.test(foglio[0].html)
-    && !/mancano|rigenera|📦 Pack/i.test(foglio[0].html));
-  check('foglio: i numeri del modello RLI (L2, CF di entrambi, catasto a caselle, scadenza registrazione)', foglio.length === 1
-    && foglio[0].html.includes('L2 — locazione agevolata') && foglio[0].html.includes('RSSMRA85T10A562S') && foglio[0].html.includes('BNCGLI70A41H501X')
-    && /Subalterno/.test(foglio[0].html) && /Registrazione entro/.test(foglio[0].html));
-  check('foglio: contratto firmato + certificato + fascicolo + documento in allegato', foglio.length === 1
-    && ['Contratto_firmato.pdf', 'Certificato_firma_FES.pdf', 'Scheda_calcolo_canone_ARPE.pdf', 'Fascicolo_fiscale.pdf'].every(n => (foglio[0].attachments || []).some(a => a.filename === n))
-    && (foglio[0].attachments || []).some(a => /^Documento_conduttore_1/.test(a.filename)));
+  check('pacchetto unico: il Foglio non parte più dal finalize', foglio.length === 0 && out.foglio === undefined);
+  check('pacchetto unico: oggetto stabile e bottone che apre il pannello del referente', caf.length === 1
+    && /^📑 Pacchetto registrazione — .* — Anna Expat — 2026-09-01$/.test(caf[0].subject)
+    && caf[0].html.includes('/portal#aspi=ctrF') && /Controlla e invia a/i.test(caf[0].html));
+  check('pacchetto unico: porta i numeri del modello RLI (L2, catasto a caselle, scadenza registrazione)', caf.length === 1
+    && caf[0].html.includes('L2 — locazione agevolata') && /Subalterno/.test(caf[0].html) && /Registrazione entro/.test(caf[0].html));
   check('CAF: contratto firmato + certificato + scheda ARPE + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
     && (caf[0].attachments || []).length === 5
     && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Scheda_calcolo_canone_ARPE.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
         .every(n => (caf[0].attachments || []).some(a => a.filename === n))
-    && (caf[0].attachments || []).some(a => a.filename === 'Documento_identita_1_passport.jpg'));
+    && (caf[0].attachments || []).some(a => a.filename === 'Documento_conduttore_1_passport.jpg'));
 
   // Il contratto firmato: PDF sorgente (1 pagina) + pagina delle firme = 2.
   const ctrPatched = store.get('contracts/ctrF');
@@ -324,7 +320,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
     ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
     && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
-  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Fascicolo completo/i.test(m.subject));
+  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Pacchetto registrazione/i.test(m.subject));
   check('CAF: il Fascicolo Fiscale è linkato nell\'email', !!caf2 && caf2.html.includes('Fascicolo Fiscale'));
 
   const before = mails().length;
@@ -347,7 +343,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && (wt.attachments || []).length === 1
     && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
     && /Signing certificate/.test(wt.html));
-  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Fascicolo completo/i.test(m.subject));
+  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Pacchetto registrazione/i.test(m.subject));
   check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, scheda ARPE, fascicolo e identità allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
     && (caf.attachments || []).length === 4

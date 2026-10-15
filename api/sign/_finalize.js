@@ -22,11 +22,11 @@ import { wa } from '../_pdfbrand.js';
 import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
-import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
-import { maybeAutoAspi } from '../fiscal/_aspi.js';
+import { maybeAutoAspi, loadAspiSettings } from '../fiscal/_aspi.js';
 import { archiveSignedContract } from './_archive.js';
+import { mergeIdentityDocs } from './_iddocs.js';
 // Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
 // guardavano SOLO i campi del contratto mentre il PDF risale la catena
 // users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
@@ -75,10 +75,18 @@ export async function finalizeContract(contract){
   // Da qui in poi il contratto porta i campi di parte della catena users
   // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
   // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
+  const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
   try {
-    const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
     contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
   } catch (e) { console.warn('[finalize] hydrate:', e.message); }
+  // I documenti d'identità anche dai PROFILI delle parti (api/sign/_iddocs.js):
+  // pacchetto, pack e ASPI vedono il documento caricato una volta sul profilo,
+  // non solo quelli arrivati su questo contratto. Solo lettura, niente si scrive.
+  try {
+    const coUsers = await Promise.all((Array.isArray(contract.coTenants) ? contract.coTenants : [])
+      .map(x => (x && x.userId) ? fsGet(`users/${x.userId}`).catch(()=>null) : null));
+    contract = { ...contract, identityDocs: mergeIdentityDocs(contract, { tenant, landlordU: landlord, landlordR, coUsers }) };
+  } catch (e) { console.warn('[finalize] iddocs:', e.message); }
 
   // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
   // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
@@ -307,13 +315,17 @@ export async function finalizeContract(contract){
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
   catch (e) { console.warn('[finalize] early mark failed:', e.message); }
 
-  // Tre email all'operatore, tre mestieri: il milestone (breve), il
-  // FASCICOLO COMPLETO (interno: verdetto, link da copiare, pack) e il
-  // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
-  const [welcome, caf, foglio] = await Promise.all([
+  // UNA email all'operatore (15/10/2026): il PACCHETTO REGISTRAZIONE. Prima
+  // ne partivano tre nella stessa casella (milestone, fascicolo completo,
+  // foglio) che si ripetevano in buona parte. Ora il pacchetto porta tutto in
+  // allegato (contratto, certificato, scheda, fascicolo, documenti d'identità
+  // anche dai profili) e il bottone «Controlla e invia» apre nel portal il
+  // pannello del referente: si rivede, si corregge, parte con un tap. Il
+  // foglio pulito resta su richiesta (✉ Foglio, api/fiscal/foglio).
+  const referente = await loadAspiSettings().catch(() => null);
+  const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
-    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -333,7 +345,7 @@ export async function finalizeContract(contract){
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──

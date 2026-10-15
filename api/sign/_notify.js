@@ -272,26 +272,25 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
 }
 
 // ── On full completion — milestone to the operator (italiano) ────────────
+// Dal 15/10/2026 parte SOLO quando il finalize non è andato a buon fine
+// (magic-sign/submit): a finalize riuscito l'operatore riceve il Pacchetto
+// registrazione, che dice già tutto. Questa email resta la rete: il contratto
+// è completo ma le automazioni non sono ancora partite, e il watchdog del
+// reminder-cron ritenta ogni 15 minuti.
 export async function notifyAdminContractSigned(contract, property) {
   try {
     if (!ADMIN_EMAIL) return { ok: false, error: 'no_admin_email' };
     const g = await gather(contract, property);
     const ok = await trySend(ADMIN_EMAIL, `✓ Contratto firmato da tutti — ${g.propLabel}`, shell(
-      para(`Un contratto è appena diventato <b>completo</b>.`)
+      para(`Un contratto è appena diventato <b>completo</b>, ma il pacchetto di registrazione non è ancora partito: il sistema riprova da solo ogni 15 minuti.`)
       + tiles([
         { k: 'Immobile', v: esc(g.propLabel) },
         { k: 'Inquilino', v: esc(g.tenantName || '—') },
         { k: 'Canone', v: eur(contract.rent) },
       ])
-      + includes([
-        'Obbligazioni fiscali e procedurali a scadenzario',
-        'Certificato di firma FES generato',
-        'Welcome email a inquilino e proprietario',
-        `Fascicolo CAF inviato a ${esc(CAF_EMAIL)}`,
-      ])
       + btn(BASE + '/portal', 'Apri il portal')
       + fine(`Contratto <b>${esc(contract.id || '')}</b> · ${esc(g.landlordName || '')} ⇄ ${esc(g.tenantName || '')}`, 'text-align:center'),
-      `${g.propLabel} — contratto completo, automazioni partite.`));
+      `${g.propLabel} — contratto completo, pacchetto in arrivo.`));
     return { ok };
   } catch (e) { console.warn('[sign/notify] admin:', e.message); return { ok: false, error: e.message }; }
 }
@@ -359,7 +358,10 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
   return out;
 }
 
-// ── IL FASCICOLO COMPLETO (l'email interna a Valentino) ─────────────────
+// ── IL PACCHETTO REGISTRAZIONE (l'email interna a Valentino) ────────────
+// (Fino al 15/10/2026 «Fascicolo completo», affiancato dal Foglio: ora è
+// l'UNICA email all'operatore alla firma completa, col bottone che apre nel
+// portal il pannello del referente: #aspi=<contractId>.)
 // Parte UNA volta, a contratto completo (finalize è idempotente). È l'email
 // di LAVORO: in testa il VERDETTO del dizionario (contratto senza puntini?
 // registrazione possibile?), poi — la novità — per ogni parte a cui manca
@@ -368,7 +370,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // righe del Foglio di registrazione: due email, una verità), gli allegati
 // e il pack. Prima viveva in portal-app.js via EmailJS e partiva SOLO dal
 // vecchio flusso di firma nel portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord } = {}) {
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord, referente } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
@@ -395,7 +397,7 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     // budget totale ~18MB): l'email si inoltra ad ARPE/CAF senza aprire
     // nulla. Un download fallito non ferma niente — i link restano sotto.
     {
-      const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).slice(0, 6);
+      const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url).slice(0, 8);
       let budget = 18 * 1024 * 1024 - cafAtts.reduce((n, a) => n + (a.content ? a.content.length : 0), 0);
       const t0 = Date.now();
       for (let i = 0; i < idDocs.length; i++) {
@@ -404,13 +406,14 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
         if (Date.now() - t0 > 20000) break;   // tetto di tempo: i link restano nel corpo
         const isExtra = d.kind === 'extra';
         const base = String(d.name || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
-        const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_identita_') + (i + 1) + '_'
+        const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_' + (d.role === 'landlord' ? 'locatore' : (d.role === 'tenant' || d.tenantIndex != null) ? 'conduttore' : 'identita') + '_') + (i + 1) + '_'
           + base + (/\.[a-z0-9]{2,4}$/i.test(base) ? '' : '.jpg');
         const att = await fetchPdfAttachment(d.url, name, null);
         if (att && att.content.length <= budget) { cafAtts.push(att); budget -= att.content.length; }
       }
     }
     const reqType = contract.requiresAsseverazione !== false ? 'Asseverazione + Registrazione' : 'Registrazione';
+    const refName = String((referente && referente.referente) || 'il referente').trim() || 'il referente';
     const docs = Array.isArray(contract.identityDocs) ? contract.identityDocs : [];
     const docLinks = docs.slice(0, 8).map((d, i) =>
       `<a href="${esc(d.url)}" style="color:#8A6D1D">Doc ${i + 1}${d.name ? ' · ' + esc(d.name) : ''}</a>`).join('<br>') || '—';
@@ -458,7 +461,7 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const sheet = sheetRows({ contract: hydrated, property: g.prop });
 
     const html = shell(
-      para(`Fascicolo completo per la <b>${reqType.toLowerCase()}</b> del contratto <b>${esc(contract.id || '')}</b> — firmato da entrambe le parti.`)
+      para(`<b>Pacchetto registrazione pronto</b> per la ${reqType.toLowerCase()} del contratto <b>${esc(contract.id || '')}</b>, firmato da entrambe le parti. In allegato c'è tutto: contratto, certificato, scheda di calcolo e documenti d'identità. Controlla i dati e la scheda nel portal, poi lo mandi a <b>${esc(refName)}</b> con un tap.`)
       + verdictTiles
       + askBlock('tenant', missTenant, g.tenantName, schedaUrl(contract.id, 'tenant'), null, !!contract.tenantSignature)
       + cotenantBlocks
@@ -484,11 +487,11 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
               : ((packUrl || contract.registrationPackUrl) ? 'completo: contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza' : null)),
           row('Documenti identità', docLinks, null),
         ]))
-      + btn(BASE + '/portal', 'Apri nel portal')
-      + fine('Generato automaticamente alla firma completa. Il Foglio di registrazione (email pulita, da inoltrare o stampare) è partito in parallelo. La scadenza RLI è già a scadenzario nel portal.', 'text-align:center'),
+      + btn(BASE + '/portal#aspi=' + encodeURIComponent(contract.id || ''), 'Controlla e invia a ' + refName)
+      + fine('Generato automaticamente alla firma completa. Nel pannello rivedi la checklist, alleghi ciò che manca e correggi la scheda (📑 Fascicolo) prima dell\'invio. Il foglio pulito da stampare si rimanda con ✉ Foglio. La scadenza RLI è già a scadenzario nel portal.', 'text-align:center'),
       `${reqType} — ${g.propLabel} · ${comp.ready.registration ? 'pronto' : 'incompleto: ' + comp.missingKeys.length + ' dati'}`);
 
-    const subject = `📑 Fascicolo completo — ${g.propLabel} — ${g.tenantName || 'conduttore'} — ${String(contract.startDate || '').slice(0, 10)}`;
+    const subject = `📑 Pacchetto registrazione — ${g.propLabel} — ${g.tenantName || 'conduttore'} — ${String(contract.startDate || '').slice(0, 10)}`;
     const ok = await trySend(CAF_EMAIL, subject, html, cafAtts);
     return { ok, missing: comp.missingKeys };
   } catch (e) { console.warn('[sign/notify] caf:', e.message); return { ok: false, error: e.message }; }

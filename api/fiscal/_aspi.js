@@ -50,6 +50,7 @@ import { fsGet, fsCreate, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, row, para, fine } from '../preagreement/_notify.js';
 import { buildFascicolo } from './fascicolo.js';
+import { withProfileDocs } from '../sign/_iddocs.js';
 // Il dizionario del contratto: i campi di parte risalgono la catena users
 // come nel PDF, così la checklist non dice «CF mancante» a un CF che c'è.
 import FIELDS from '../../js/contract-fields.js';
@@ -272,6 +273,8 @@ export async function sendAspiRequest(contractId, opts = {}) {
   const property = (opts.preloaded && opts.preloaded.property)
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
 
+  // I documenti d'identità anche dai profili delle parti (api/sign/_iddocs.js).
+  contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
   const ov = opts.overrides || {};
   if (ov.signedPdfUrl && !contract.signedPdfUrl) contract.signedPdfUrl = ov.signedPdfUrl;
   if (ov.certUrl && !contract.signingCertificateUrl) contract.signingCertificateUrl = ov.certUrl;

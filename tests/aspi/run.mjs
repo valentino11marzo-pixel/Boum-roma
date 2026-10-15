@@ -411,7 +411,7 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
   const iCaf = finSrc.indexOf('sendCafDossier(contract');
   const iAuto = finSrc.indexOf('maybeAutoAspi(contract');
   check('sorgente _finalize: maybeAutoAspi importato staticamente e chiamato DOPO il fascicolo CAF',
-    /^import \{ maybeAutoAspi \} from '\.\.\/fiscal\/_aspi\.js';$/m.test(finSrc) && iCaf > -1 && iAuto > iCaf);
+    /^import \{ maybeAutoAspi(, loadAspiSettings)? \} from '\.\.\/fiscal\/_aspi\.js';$/m.test(finSrc) && iCaf > -1 && iAuto > iCaf);
 
   const rules = fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
   // La lista degli esclusi può crescere ('ai' porta l'URL del tunnel verso il

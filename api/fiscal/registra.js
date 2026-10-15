@@ -9,14 +9,19 @@
 //   { op:'send', contractId, kind?, note?, bill? }
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
+//   { op:'registered', contractId, date, code?, base64?, contentType?, name?, notify?, resend? }
+//     → recordRegistration (_ricevuta.js): contratto registrato in UN passo,
+//       scadenze chiuse, ricevuta archiviata e mandata alle parti.
 //
 // maxDuration 60 in vercel.json: gli allegati si scaricano da Storage.
 
 import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { withProfileDocs } from '../sign/_iddocs.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
 } from './_aspi.js';
+import { parseReceiptInput, recordRegistration } from './_ricevuta.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 
@@ -43,6 +48,13 @@ export default async function handler(req, res) {
       return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 422)).json(out);
     }
 
+    if (op === 'registered') {
+      const input = parseReceiptInput(b, { today: new Date().toISOString().slice(0, 10) });
+      if (input.error) return res.status(400).json({ ok: false, error: input.error });
+      const out = await recordRegistration(contractId, input, { force: b.resend === true });
+      return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 502)).json(out);
+    }
+
     // op:'status' — la fotografia per il pannello.
     const contract = await fsGet('contracts/' + contractId);
     if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
@@ -50,6 +62,7 @@ export default async function handler(req, res) {
     const property = contract.propertyId
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
+    contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
     const settings = await loadAspiSettings();
     return res.status(200).json({
       ok: true,
@@ -71,6 +84,9 @@ export default async function handler(req, res) {
         aspiRequestCount: contract.aspiRequestCount || 0,
         registrationStatus: contract.registrationStatus || 'pending',
         rliRegisteredAt: contract.rliRegisteredAt || null,
+        registrationCode: contract.registrationCode || null,
+        registrationReceiptUrl: contract.registrationReceiptUrl || null,
+        registrationReceiptSentAt: contract.registrationReceiptSentAt || null,
       },
     });
   } catch (e) {

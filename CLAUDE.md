@@ -2657,6 +2657,25 @@ presente sul profilo usciva «MANCANTE».
   `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
   da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
   deterministici (`itNum`, la lezione small-ICU).
+- **UN pacchetto, non tre email (15/10/2026)**. Alla firma completa
+  l'operatore riceveva «✓ firmato da tutti», il Fascicolo completo e il
+  Foglio: tre email che si ripetevano. Ora parte SOLO il **Pacchetto
+  registrazione** (`sendCafDossier`, oggetto `📑 Pacchetto registrazione —
+  <immobile> — <conduttore> — <decorrenza>`) con le righe del foglio, gli
+  allegati e il bottone **Controlla e invia a <referente>** →
+  `/portal#aspi=<contractId>` (`aspiSeedFromHash` apre il pannello ASPI dopo
+  il login). Il Foglio resta su ✉ Foglio; la milestone parte solo se il
+  finalize non è riuscito. **I documenti d'identità vengono anche dai
+  PROFILI** (`api/sign/_iddocs.js`: `users/<uid>` e `landlords/<id>`, stesso
+  URL = un file) in pacchetto, pack, foglio e iter ASPI — il proprietario con
+  tre case carica la carta d'identità una volta. **«Registrato» è un passo
+  solo** (`POST /api/fiscal/registra {op:'registered', date, code?, base64?}`
+  → `api/fiscal/_ricevuta.js`): stato, codice, scadenze RLI chiuse, ricevuta
+  su Storage e nell'archivio di ogni parte (`registration-receipt_<id>_<parte>`)
+  e in allegato a conduttori (EN) e proprietario (IT) UNA volta per file
+  (`resend:true` per rimandare). Data futura o «PDF» senza `%PDF` → 400 senza
+  scritture. Il verbale di consegna porta in allegato anche l'**inventario**
+  (solo da firebasestorage). Test: `node tests/registrazione/run.mjs`.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
