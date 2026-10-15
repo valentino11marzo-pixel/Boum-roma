@@ -3,93 +3,38 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#10120f">
+  <meta name="theme-color" content="#030303">
   <meta name="robots" content="noindex,nofollow">
-  <title>SmartLink · BOOM</title>
-  <meta name="description" content="Una selezione BOOM con collegamento all'annuncio originale.">
+  <title>Una selezione BOOM · Roma</title>
+  <meta name="description" content="Una casa selezionata da BOOM Roma. Foto, dettagli e quartiere in un'unica scheda.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Una selezione BOOM Roma">
-  <meta property="og:description" content="La scheda BOOM e il collegamento all'annuncio originale.">
+  <meta property="og:description" content="Scopri foto, dettagli e quartiere nella scheda BOOM.">
   <meta property="og:image" content="https://www.boomrome.com/og-welcome-to-rome.png">
   <link rel="icon" href="/favicon.ico">
-  <style>
-    :root{color-scheme:dark;--ink:#f5f1e8;--muted:#b2b2a7;--gold:#d5ae65;--line:#343a31;--dark:#10120f}
-    *{box-sizing:border-box}body{margin:0;background:var(--dark);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}
-    a{color:inherit}button,a{touch-action:manipulation}header{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 clamp(20px,5vw,72px);border-bottom:1px solid var(--line)}
-    .brand{text-decoration:none;font-size:24px;font-weight:700;letter-spacing:.28em;color:var(--gold)}.header-label{font-size:11px;text-transform:uppercase;letter-spacing:.18em;color:var(--muted)}
-    main{max-width:1100px;margin:auto;padding:clamp(26px,6vw,72px) clamp(20px,5vw,64px) 70px}
-    .eyebrow{display:flex;gap:10px;align-items:center;color:var(--gold);font-size:11px;font-weight:700;letter-spacing:.2em;text-transform:uppercase}.eyebrow:before{content:"";width:25px;height:1px;background:var(--gold)}
-    .layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(280px,.65fr);gap:clamp(24px,5vw,70px);align-items:start}
-    h1{font-size:clamp(38px,6vw,76px);line-height:1.03;letter-spacing:-.055em;font-weight:500;max-width:750px;margin:24px 0 20px;overflow-wrap:anywhere}
-    .sub{color:var(--muted);font-size:16px;margin:0 0 30px}.summary{display:flex;flex-wrap:wrap;gap:12px;margin:32px 0}
-    .pill{padding:11px 15px;background:#1a1f19;border:1px solid var(--line);border-radius:7px;font-size:14px}.pill strong{color:var(--ink);font-weight:600}
-    .note{border-top:1px solid var(--line);padding-top:24px;max-width:680px}.note h2,.source h2{font-size:11px;color:var(--gold);letter-spacing:.2em;text-transform:uppercase;margin:0 0 11px}.note p{white-space:pre-wrap;color:#d7d6ce;margin:0}
-    .source{background:linear-gradient(145deg,#272d23,#181c18 70%);border:1px solid #49513e;border-radius:15px;padding:27px;box-shadow:0 24px 60px #0005;position:sticky;top:28px}
-    .source .mark{font-size:47px;color:var(--gold);line-height:1;margin:5px 0 32px;font-weight:200}.source-name{font-size:22px;margin-bottom:4px}.source-status{font-size:13px;color:var(--muted);line-height:1.55;margin-bottom:25px}
-    .button{display:flex;justify-content:center;align-items:center;text-align:center;min-height:50px;padding:12px 18px;background:var(--gold);color:#191a16;border-radius:7px;text-decoration:none;font-weight:700;transition:background .2s}.button:hover{background:#eed19b}.source small{display:block;color:var(--muted);margin-top:14px;line-height:1.5}
-    .facts{display:grid;grid-template-columns:1fr 1fr;gap:15px;margin:0 0 25px}.fact{border-top:1px solid #657056;padding-top:12px}.fact span{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:var(--muted)}.fact strong{font-size:19px;font-weight:500}
-    .foot{margin-top:70px;border-top:1px solid var(--line);padding-top:22px;display:flex;justify-content:space-between;gap:20px;color:var(--muted);font-size:12px}
-    .hidden{display:none!important}.error{max-width:600px;margin:80px auto;text-align:center;padding:0 25px}.error h1{font-size:36px}.error p{color:var(--muted)}
-    @media(max-width:760px){.layout{grid-template-columns:1fr}.source{position:static;order:-1}.source .mark{display:none}.foot{display:block}.header-label{display:none}}
-  </style>
   <link rel="stylesheet" href="/css/smartlink.css">
+  <script src="/js/smartlink-engine.js" defer></script>
+  <script src="/js/smartlink-page.js" defer></script>
 </head>
 <body>
-  <header><a class="brand" href="https://www.boomrome.com/" aria-label="BOOM Roma">BOOM<span class="brand-divider"></span><span class="brand-sub">ROMA<br>LIVING</span></a><span class="header-label">● &nbsp; SMARTLINK / SELEZIONE ESTERNA</span></header>
-  <div id="loading" class="error" role="status"><p>Carico la scheda…</p></div>
-  <div id="error" class="error hidden"><h1>Link non disponibile</h1><p>La scheda potrebbe essere stata disattivata. Puoi chiedere a BOOM un nuovo collegamento.</p><a class="button" href="https://www.boomrome.com/">Vai a BOOM</a></div>
+  <header class="site-header"><a class="brand" href="https://www.boomrome.com/" aria-label="BOOM Roma">BOOM<span class="brand-divider"></span><span class="brand-sub">ROMA<br>LIVING</span></a><span class="header-label">BOOM / HOME SELECTION</span></header>
+  <div id="loading" class="state" role="status">Prepariamo la tua scheda…</div>
+  <div id="error" class="state hidden"><h1>Questa scheda non è disponibile.</h1><p>Scrivi a BOOM per ricevere un collegamento aggiornato.</p><a class="button" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contatta BOOM <span>↗</span></a></div>
   <main id="page" class="hidden">
-    <div class="topline"><span><b>BOOM /</b> Annuncio esterno</span><span>01 — ROMA</span></div>
+    <div class="topline"><span><b>BOOM /</b> Selezione Roma</span><span>LA CASA, IN CHIARO</span></div>
+    <section class="gallery" id="gallery" aria-label="Galleria fotografica" hidden>
+      <button class="gallery-main" id="gallery-main" type="button" aria-label="Apri foto a schermo intero"><img id="gallery-cover" alt="Fotografia dell'immobile" fetchpriority="high"><span class="gallery-count" id="gallery-count"></span></button>
+      <div class="gallery-thumbs" id="gallery-thumbs"></div>
+    </section>
+    <section class="gallery-empty" id="gallery-empty"><div class="gallery-empty-symbol">✦</div><div><span>BOOM / VISUAL</span><p>Foto non ancora disponibili per questa casa. Chiedile a BOOM.</p></div></section>
     <div class="layout">
-      <article>
-        <div class="eyebrow">Una casa da scoprire</div>
-        <h1 id="title"></h1>
-        <p class="sub" id="zone"></p>
-        <div class="summary" id="summary"></div>
-      </article>
-      <aside class="source">
-        <div class="mark" aria-hidden="true">↗</div>
-        <h2>CANONE INDICATO DALLA FONTE</h2>
-        <div class="hero-price" id="price">Da verificare</div>
-        <div class="price-period" id="price-period"></div>
-        <div class="source-line"></div>
-        <div class="source-heading">Diretto alla fonte.</div>
-        <div class="source-status">Annuncio pubblicato su <strong id="source"></strong>. Prezzo, caratteristiche e disponibilità possono cambiare: verifica i dettagli con l’inserzionista.</div>
-        <a class="button" id="original" target="_blank" rel="noopener noreferrer"><span>Apri l’annuncio originale</span><span aria-hidden="true">↗</span></a>
-        <small>Il collegamento apre il portale esterno.</small>
-      </aside>
+      <article class="intro"><div class="eyebrow">Una casa da scoprire</div><h1 id="title"></h1><p class="zone" id="zone"></p><div class="summary" id="summary"></div></article>
+      <aside class="contact-panel"><div class="small-label">Canone indicativo</div><div class="hero-price" id="price">Da confermare</div><div class="price-period" id="price-period"></div><div class="gold-rule"></div><h2>Scopri se è la casa giusta.</h2><p>Parla con BOOM per informazioni e disponibilità. I dati della scheda sono preliminari e possono cambiare.</p><a class="button" id="contact" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer"><span>Chiedi a BOOM</span><span aria-hidden="true">↗</span></a><small>Ti rispondiamo direttamente, senza passaggi esterni.</small></aside>
     </div>
-    <div class="details">
-      <section class="detail-copy"><div class="eyebrow">La selezione BOOM</div><h2>Le informazioni,<br>in chiaro.</h2><p>Questa scheda accompagna a un annuncio su un portale esterno. Per dettagli completi, condizioni e contatto usa la fonte originale.</p><section class="note hidden" id="note-wrap"><h3>Nota BOOM</h3><p id="note"></p></section></section>
-      <div class="detail-facts"><div><span>Fonte</span><strong id="source-row"></strong></div><div><span>Disponibilità</span><strong>Da verificare</strong></div><div><span>Scheda BOOM</span><strong id="observed">—</strong></div></div>
-    </div>
-    <div class="foot"><span>BOOM by Egidi Immobiliare S.r.l.</span><span>La scheda BOOM non sostituisce le informazioni dell'inserzionista.</span></div>
+    <section class="details"><div class="detail-copy"><div class="eyebrow">Dettagli essenziali</div><h2>Il quadro completo,<br>senza rumore.</h2><p>Le informazioni sono una prima sintesi. Disponibilità, condizioni e canone finale vengono confermati prima di una proposta.</p><div class="note hidden" id="note-wrap"><h3>Da sapere</h3><p id="note"></p></div></div><div class="detail-facts"><div><span>Zona</span><strong id="zone-row">Roma</strong></div><div><span>Disponibilità</span><strong>Da confermare</strong></div><div><span>Rilevato</span><strong id="observed">—</strong></div></div></section>
+    <section class="map-section hidden" id="map-section"><div class="map-heading"><div><div class="eyebrow">Il quartiere</div><h2>Esplora i dintorni.</h2><p id="map-subtitle">La mappa mostra un’area indicativa, non l’indirizzo esatto dell’immobile.</p></div><span class="map-badge">ZONA INDICATIVA</span></div><div class="map-grid"><div class="map-shell"><div id="map" role="region" aria-label="Mappa interattiva del quartiere"><div class="map-loading" id="map-loading">Carico la mappa…</div></div></div><div class="places"><div class="places-title">Punti di interesse <span id="places-count"></span></div><div class="filters" id="filters"><button type="button" data-category="all" class="active">Tutti</button><button type="button" data-category="metro">Trasporti</button><button type="button" data-category="spesa">Spesa</button><button type="button" data-category="universita">Istruzione</button><button type="button" data-category="verde">Verde</button></div><div class="places-list" id="places-list" role="status">Cerco luoghi nei dintorni…</div><div class="search-wrap"><label for="place-query">Un posto che ti interessa?</label><input id="place-query" type="search" placeholder="Cerca un luogo a Roma" autocomplete="off"><div id="place-results" class="place-results" role="listbox" hidden></div></div><p class="map-hint">Le distanze sono in linea d’aria dal centro dell’area e possono variare dal percorso reale.</p></div></div></section>
+    <footer><span>© BOOM by Egidi Immobiliare S.r.l.</span><span>Una selezione da verificare insieme a BOOM.</span></footer>
   </main>
-  <script>
-  (async function(){
-    const id = new URLSearchParams(location.search).get('id') || '';
-    const showError = () => { document.getElementById('loading').classList.add('hidden'); document.getElementById('error').classList.remove('hidden'); };
-    if (!/^[A-Za-z0-9_-]{20}$/.test(id)) return showError();
-    try {
-      const r = await fetch('/api/smartlink/read?id=' + encodeURIComponent(id), { cache:'no-store' });
-      if (!r.ok) return showError();
-      const body = await r.json(), d = body.listing;
-      if (!body.ok || !d || !/^https:\/\//.test(d.sourceUrl)) return showError();
-      const set = (name, value) => { document.getElementById(name).textContent = value; };
-      set('title', d.title || 'Annuncio esterno');
-      set('source', d.source || 'Portale immobiliare');
-      set('source-row', d.source || 'Portale immobiliare');
-      if (d.zone) set('zone', 'Roma · ' + d.zone); else document.getElementById('zone').classList.add('hidden');
-      if (d.price) { set('price', '€ ' + new Intl.NumberFormat('it-IT',{useGrouping:true}).format(Number(d.price))); set('price-period', '/ mese'); }
-      const summary = document.getElementById('summary');
-      [[d.sqm, 'm²'], [d.rooms, 'locali']].forEach(([value,label]) => { if (!value) return; const el = document.createElement('div'); el.className='pill'; const strong=document.createElement('strong'); strong.textContent=String(value); el.append(strong, ' ' + label); summary.append(el); });
-      if (d.note) { set('note', d.note); document.getElementById('note-wrap').classList.remove('hidden'); }
-      document.getElementById('original').href = d.sourceUrl;
-      if (d.observedAt) { const dt = new Date(d.observedAt); if (!isNaN(dt)) set('observed','Scheda creata il ' + new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',year:'numeric'}).format(dt) + '.'); }
-      document.title = (d.title || 'Annuncio') + ' · BOOM';
-      document.getElementById('loading').classList.add('hidden'); document.getElementById('page').classList.remove('hidden');
-    } catch { showError(); }
-  })();
-  </script>
+  <div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Galleria fotografica"><button type="button" id="lightbox-close" class="lightbox-close" aria-label="Chiudi">×</button><button type="button" id="lightbox-prev" class="lightbox-arrow" aria-label="Foto precedente">‹</button><img id="lightbox-image" alt=""><button type="button" id="lightbox-next" class="lightbox-arrow" aria-label="Foto successiva">›</button><span id="lightbox-count"></span></div>
 </body>
 </html>

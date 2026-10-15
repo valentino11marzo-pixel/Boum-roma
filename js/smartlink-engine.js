@@ -25,29 +25,81 @@
     } catch { return null; }
   }
   function cleanText(v, max) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max); }
+  function publicText(v, max) {
+    return cleanText(v, max).replace(/(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:immobiliare\.it|idealista\.it|subito\.it|casafari\.com|casa\.it)(?:\/[^\s]*)?/gi, '').replace(/\s+/g, ' ').trim();
+  }
   function positiveNumber(v, max) {
     if (v === '' || v == null) return null;
     const n = Number(v);
     return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : null;
   }
+  function validImageUrl(raw, key) {
+    try {
+      if (!/^[0-9a-f-]{36}$/i.test(String(key || ''))) return false;
+      const u = new URL(String(raw || ''));
+      if (u.origin !== 'https://firebasestorage.googleapis.com' || u.hash || u.username || u.password) return false;
+      const prefix = '/v0/b/boom-property-dashboards.firebasestorage.app/o/';
+      if (!u.pathname.startsWith(prefix) || u.searchParams.get('alt') !== 'media') return false;
+      const path = decodeURIComponent(u.pathname.slice(prefix.length));
+      return new RegExp('^smartlinks/' + key + '/[0-9a-f-]{36}\\.(?:jpg|jpeg|png|webp)$', 'i').test(path);
+    } catch { return false; }
+  }
+  function validPublicImageUrl(raw) {
+    try {
+      const path = decodeURIComponent(new URL(String(raw)).pathname);
+      const m = path.match(/\/o\/smartlinks\/([0-9a-f-]{36})\/[0-9a-f-]{36}\.(?:jpg|jpeg|png|webp)$/i);
+      return !!m && validImageUrl(raw, m[1]);
+    } catch { return false; }
+  }
+  function cleanImages(images, key) {
+    if (images == null) return [];
+    if (!Array.isArray(images) || images.length > 12) return null;
+    const unique = [...new Set(images.map(String))];
+    if (unique.length !== images.length || unique.some(url => !validImageUrl(url, key))) return null;
+    return unique;
+  }
+  function cleanMap(input) {
+    if (!input || typeof input !== 'object') return null;
+    const lat = Number(input.lat), lng = Number(input.lng);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 41.70 || lat > 42.05 || lng < 12.25 || lng > 12.75) return null;
+    return { lat: Math.round(lat * 10000) / 10000, lng: Math.round(lng * 10000) / 10000, label: cleanText(input.label, 70) || 'Roma', precision: 'area' };
+  }
+  function distanceKm(a, b) {
+    if (!a || !b) return null;
+    const lat1 = Number(a.lat), lng1 = Number(a.lng), lat2 = Number(b.lat), lng2 = Number(b.lng);
+    if (![lat1, lng1, lat2, lng2].every(Number.isFinite)) return null;
+    const rad = Math.PI / 180, dy = (lat2 - lat1) * rad, dx = (lng2 - lng1) * rad;
+    const h = Math.sin(dy / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dx / 2) ** 2;
+    return 12742 * Math.asin(Math.min(1, Math.sqrt(h)));
+  }
   function makeRecord(input, now) {
     const source = normalizeUrl(input.sourceUrl);
     if (!source) return null;
+    const images = cleanImages(input.images, input.idempotencyKey);
+    if (!images) return null;
+    const map = cleanMap(input.map);
+    if (input.map != null && !map) return null;
     return {
       sourceUrl: source.url,
       source: source.source,
-      title: cleanText(input.title, 130) || 'Annuncio su ' + source.source,
+      title: cleanText(input.title, 130) || 'Una casa a Roma',
       price: positiveNumber(input.price, 1000000),
       zone: cleanText(input.zone, 90),
       sqm: positiveNumber(input.sqm, 100000),
       rooms: positiveNumber(input.rooms, 100),
       note: cleanText(input.note, 400),
+      images,
+      map,
       observedAt: now,
       availability: 'Da verificare',
       active: true,
     };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, positiveNumber, makeRecord };
+  function publicRecord(d) {
+    const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
+    return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
+  }
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, distanceKm, makeRecord, publicRecord };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

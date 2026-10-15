@@ -26468,7 +26468,7 @@ IBAN: ${l.iban || '-'}`;
         // Each tool maps to an existing entrypoint. Anything we don't already
         // ship is gated behind isAdmin() so we don't expose half-built features.
         const tools = [
-            { icon:'🔗', title:'SmartLink annunci', desc:'Incolla un annuncio esterno e crea una scheda BOOM pronta da condividere, con fonte e dati da verificare.', action:"openExternalSmartLink()", tags:[{label:'Nuovo · URL → link', cls:'green'}] },
+            { icon:'🔗', title:'SmartLink annunci', desc:'Crea una scheda BOOM con foto autorizzate, quartiere e contatto diretto. La fonte resta privata.', action:"openExternalSmartLink()", tags:[{label:'Nuovo · URL → link', cls:'green'}] },
             { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
             { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
             { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
@@ -26537,14 +26537,16 @@ IBAN: ${l.iban || '-'}`;
           <div class="modal lg" style="max-width:650px">
             <div class="modal-header"><h2>🔗 SmartLink annunci</h2><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-              <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:18px">Incolla l'annuncio. BOOM prova a leggere i dati; controllali prima di creare il link. La scheda rimanda sempre alla fonte originale.</p>
+              <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:18px">Incolla l'annuncio e verifica i dati. Il cliente vedrà solo la scheda BOOM, senza accesso alla fonte.</p>
               <div class="form-group"><label class="form-label" for="sl_source">Link annuncio *</label>
-                <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_source" type="url" class="form-input" style="flex:1;min-width:230px" placeholder="https://www.immobiliare.it/annunci/…" onchange="smartLinkExtract()"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkExtract()">Leggi annuncio</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_source" type="url" class="form-input" style="flex:1;min-width:230px" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onchange="smartLinkExtract()"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkExtract()">Leggi annuncio</button></div>
                 <div id="sl_status" role="status" style="font-size:12px;color:var(--text-secondary);margin-top:8px">Immobiliare.it, Idealista, Subito, Casafari e Casa.it.</div>
               </div>
               <div class="form-row"><div class="form-group"><label class="form-label" for="sl_title">Titolo</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Titolo dell'annuncio"></div><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div></div>
               <div class="form-row"><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Se indicata"></div><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div>
               <div class="form-group"><label class="form-label" for="sl_note">Nota BOOM (facoltativa)</label><textarea id="sl_note" class="form-textarea" rows="2" maxlength="400" placeholder="Una nota utile scritta da te, senza copiare la descrizione dell'annuncio"></textarea></div>
+              <div class="form-group"><label class="form-label" for="sl_photos">Foto pubblicabili da BOOM (massimo 12)</label><input id="sl_photos" type="file" class="form-input" multiple accept="image/jpeg,image/png,image/webp" onchange="smartLinkPhotosChanged()"><div id="sl_photo_status" style="font-size:12px;color:var(--text-secondary);margin-top:6px">Carica immagini autorizzate: la prima sarà la copertina. Max 8 MB ciascuna.</div><div id="sl_photo_preview" style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"></div></div>
+              <div class="form-group"><label class="form-label" for="sl_area_query">Area indicativa sulla mappa</label><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_area_query" class="form-input" style="flex:1;min-width:190px" placeholder="Es. Cipro, Roma" oninput="delete this.dataset.area"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkSearchArea()">Cerca area</button></div><div id="sl_area_status" role="status" style="font-size:12px;color:var(--text-secondary);margin-top:7px">Scegli una zona, non l’indirizzo esatto.</div><div id="sl_area_results" style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px"></div></div>
               <div style="padding:11px 13px;border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.5">Il link mostra i dati rilevati oggi, non certifica disponibilità, prezzo attuale o visita effettuata.</div>
               <div id="sl_result" style="margin-top:16px"></div>
               <input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
@@ -26553,6 +26555,20 @@ IBAN: ${l.iban || '-'}`;
           </div>
         </div>`;
         document.getElementById('sl_source')?.focus();
+    }
+
+    function smartLinkSourceChanged() {
+        const source = document.getElementById('sl_source');
+        const canonical = window.BOOM_SMARTLINK.normalizeUrl(source?.value)?.url || '';
+        if (!source || source.dataset.draftSource === canonical) return;
+        source.dataset.draftSource = canonical;
+        ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        document.getElementById('sl_photos').value=''; smartLinkPhotosChanged();
+        const area=document.getElementById('sl_area_query'); area.value=''; delete area.dataset.area;
+        document.getElementById('sl_area_status').textContent='Scegli la zona del nuovo annuncio.';
+        document.getElementById('sl_area_results').replaceChildren();
+        document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_result').replaceChildren();
     }
 
     async function smartLinkExtract() {
@@ -26567,11 +26583,55 @@ IBAN: ${l.iban || '-'}`;
             const d = await r.json();
             if (window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value)?.url !== source.url) return;
             if (!r.ok || !d.ok) throw new Error(d.error || 'lettura non riuscita');
-            if (d.status === 'unavailable') { status.textContent = source.source + ' non ha reso leggibili i dati. Puoi completare i campi o creare il link con la sola fonte.'; return; }
+            if (d.status === 'unavailable') { status.textContent = source.source + ' non ha reso leggibili i dati. Completa i campi che vuoi mostrare al cliente.'; return; }
             const fields = { title:'sl_title', price:'sl_price', sqm:'sl_sqm', rooms:'sl_rooms' };
             Object.keys(fields).forEach(k => { const el = document.getElementById(fields[k]); if (el && !el.value && d.data?.[k]) el.value = d.data[k]; });
             status.textContent = 'Dati letti da ' + source.source + '. Controlla prezzo e caratteristiche prima di creare.';
-        } catch { status.textContent = 'Lettura non riuscita. Puoi completare i campi o creare il link con la sola fonte.'; }
+        } catch { status.textContent = 'Lettura non riuscita. Puoi completare i campi che vuoi mostrare al cliente.'; }
+    }
+
+    function smartLinkPhotosChanged() {
+        const files = [...(document.getElementById('sl_photos')?.files || [])];
+        const box = document.getElementById('sl_photo_preview');
+        box.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src));
+        box.replaceChildren();
+        document.getElementById('sl_photo_status').textContent = files.length > 12 ? 'Massimo 12 foto: riduci la selezione.' : files.length ? files.length + ' foto selezionate.' : 'Nessuna foto selezionata.';
+        files.slice(0, 12).forEach(file => { const img = document.createElement('img'); img.src = URL.createObjectURL(file); img.alt = file.name; img.style.cssText = 'width:58px;height:58px;object-fit:cover;border-radius:6px'; box.append(img); });
+    }
+
+    async function smartLinkSearchArea() {
+        const q = document.getElementById('sl_area_query')?.value.trim() || '';
+        const status = document.getElementById('sl_area_status');
+        const box = document.getElementById('sl_area_results');
+        if (q.length < 3) { status.textContent = 'Scrivi il nome di una zona di Roma.'; return; }
+        status.textContent = 'Cerco la zona…'; box.replaceChildren();
+        const addArea = candidate => {
+            const button=document.createElement('button'); button.type='button'; button.className='btn btn-sm btn-secondary'; button.textContent=candidate.label;
+            button.addEventListener('click', () => { document.getElementById('sl_area_query').value=candidate.label; document.getElementById('sl_area_query').dataset.area=JSON.stringify(candidate); status.textContent='Area scelta: '+candidate.label+' · il cliente vedrà solo una zona indicativa.'; box.replaceChildren(); });
+            box.append(button);
+        };
+        const query=q.toLocaleLowerCase('it').replace(/[^a-zàèéìòù ]/g,' ').replace(/\s+/g,' ').trim();
+        const known=Object.entries(ZONE_COORDINATES).filter(([name]) => {
+            const label=name.replace(/-/g,' ');
+            return label.includes(query) || query.includes(label);
+        }).slice(0,6);
+        if (known.length) {
+            known.forEach(([name,coords]) => addArea(window.BOOM_SMARTLINK.cleanMap({ ...coords, label:name.split('-').map(part => part[0].toUpperCase()+part.slice(1)).join(' ') + ', Roma' })));
+            status.textContent='Seleziona la zona BOOM.';
+            return;
+        }
+        try {
+            const r = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&lat=41.9028&lon=12.4964&limit=6&lang=it');
+            const d = await r.json();
+            (d.features || []).forEach(f => {
+                const p=f.properties || {}, co=f.geometry?.coordinates || [];
+                const candidate=window.BOOM_SMARTLINK.cleanMap({ lat:co[1], lng:co[0], label:[p.name,p.city].filter(Boolean).join(', ') });
+                if (!candidate) return;
+                addArea(candidate);
+            });
+            if (!box.childElementCount) status.textContent='Nessuna zona trovata a Roma. Riprova con un altro nome.';
+            else status.textContent='Seleziona un’area tra i risultati.';
+        } catch { status.textContent='Ricerca temporaneamente non disponibile. Puoi creare la scheda senza mappa.'; }
     }
 
     async function smartLinkCreate() {
@@ -26580,15 +26640,27 @@ IBAN: ${l.iban || '-'}`;
         if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
         const btn = document.getElementById('sl_create');
         if (btn.disabled || btn.dataset.created === '1') return;
-        btn.disabled = true; btn.textContent = 'Creo il link…';
+        btn.disabled = true; btn.textContent = 'Preparo la scheda…';
         let created = false;
         try {
+            const files = [...(document.getElementById('sl_photos')?.files || [])];
+            if (files.length > 12 || files.some(f => f.size > 8_000_000 || !['image/jpeg','image/png','image/webp'].includes(f.type))) throw new Error('Scegli fino a 12 foto JPG, PNG o WebP, massimo 8 MB ciascuna.');
+            const key=value('key'), images=[];
+            for (let i=0;i<files.length;i++) {
+                btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
+                const ext=files[i].type === 'image/jpeg' ? 'jpg' : files[i].type.split('/')[1];
+                const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
+                await ref.put(files[i], {contentType:files[i].type});
+                images.push(await ref.getDownloadURL());
+            }
+            const mapRaw=document.getElementById('sl_area_query')?.dataset.area;
+            const map=mapRaw ? window.BOOM_SMARTLINK.cleanMap(JSON.parse(mapRaw)) : null;
             const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:value('key'), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note') }) });
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
             if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
             created = true;
-            const msg = 'Ho trovato questo annuncio. Qui trovi la scheda BOOM e il link originale: ' + d.url;
+            const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
             document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
             toast('success', 'SmartLink BOOM creato');
         } catch (e) { toast('error', 'SmartLink non creato', e.message); }
@@ -28791,6 +28863,7 @@ IBAN: ${l.iban || '-'}`;
 
     // Zone coordinates (approx center of each zone)
     const ZONE_COORDINATES = {
+        'cipro': { lat: 41.9075, lng: 12.4475 },
         'salario': { lat: 41.9180, lng: 12.5050 },
         'trieste': { lat: 41.9200, lng: 12.5120 },
         'sallustiano': { lat: 41.9060, lng: 12.4950 },

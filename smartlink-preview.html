@@ -9,11 +9,11 @@
     :root{color-scheme:dark;--bg:#030303;--surface:#0d0d0f;--raised:#151517;--gold:#ffd700;--text:#fafafa;--soft:rgba(250,250,250,.67);--dim:rgba(250,250,250,.42);--line:rgba(255,255,255,.11)}
     *{box-sizing:border-box}html{-webkit-font-smoothing:antialiased}body{margin:0;background:var(--bg);color:var(--text);font:300 15px/1.55 -apple-system,BlinkMacSystemFont,"Helvetica Neue",Arial,sans-serif}a{color:inherit}button,input,textarea{font:inherit}button{cursor:pointer}
     body:before{content:"";position:fixed;inset:0;pointer-events:none;background:radial-gradient(circle at 83% 15%,rgba(255,215,0,.075),transparent 36%)}
-    .shell{max-width:1460px;margin:auto;padding:0 clamp(20px,4.7vw,72px)}header{height:83px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px}.brand{color:var(--gold);font-size:27px;font-weight:800;letter-spacing:-.07em;text-decoration:none}.brand i{display:inline-block;width:1px;height:21px;background:#777;transform:rotate(19deg);margin:0 17px}.brand small{display:inline-block;color:#fff;font-size:10px;line-height:1.2;letter-spacing:.2em;font-weight:600}.edition{font-size:10px;color:var(--dim);letter-spacing:.19em;text-transform:uppercase}
+    .shell{max-width:1460px;margin:auto;padding:0 clamp(20px,4.7vw,72px)}header{height:83px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px}.brand{color:var(--gold);font-size:27px;font-weight:500;letter-spacing:-.07em;text-decoration:none}.brand i{display:inline-block;width:1px;height:21px;background:#777;transform:rotate(19deg);margin:0 17px}.brand small{display:inline-block;color:#fff;font-size:10px;line-height:1.2;letter-spacing:.2em;font-weight:600}.edition{font-size:10px;color:var(--dim);letter-spacing:.19em;text-transform:uppercase}
     .hero{padding:49px 0 42px;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,360px);gap:30px;align-items:end}.eyebrow{font-size:10px;color:var(--gold);font-weight:700;letter-spacing:.25em;text-transform:uppercase;display:flex;align-items:center;gap:11px}.eyebrow:before{content:"";width:26px;height:1px;background:var(--gold)}h1{font-size:clamp(44px,5.9vw,77px);font-weight:300;letter-spacing:-.064em;line-height:1.03;margin:20px 0 15px}h1 em{font-style:normal;color:var(--gold)}.hero p{color:var(--soft);max-width:620px;margin:0;font-size:16px}.hero-aside{border-left:1px solid var(--line);padding-left:28px;color:var(--dim);font-size:12px}.hero-aside b{display:block;color:#fff;font-weight:500;font-size:14px;margin-bottom:8px}
     .workspace{display:grid;grid-template-columns:minmax(0,640px) minmax(320px,1fr);gap:clamp(25px,4.4vw,67px);padding:39px 0 76px}.section-head{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:21px}.section-head h2{margin:0;font-size:15px;letter-spacing:.01em;font-weight:500}.step{font-size:10px;color:var(--gold);letter-spacing:.18em;text-transform:uppercase;font-weight:600}.label{display:block;color:var(--soft);font-size:12px;margin:0 0 8px}.field{margin-bottom:18px}.input{width:100%;background:var(--surface);border:1px solid var(--line);border-radius:0;color:#fff;min-height:54px;padding:13px 16px;outline:none;transition:border-color .2s,box-shadow .2s}.input:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(255,215,0,.11)}.input::placeholder{color:rgba(255,255,255,.29)}textarea.input{min-height:109px;resize:vertical;line-height:1.55}.help{display:block;font-size:11px;color:var(--dim);margin:8px 0 0}.source-grid{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:12px}.grid2{display:grid;grid-template-columns:1fr 1fr;gap:13px}.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
     .btn{border:0;min-height:54px;padding:12px 19px;display:inline-flex;align-items:center;justify-content:space-between;gap:25px;text-decoration:none;font-size:13px;font-weight:700;transition:background .2s,transform .2s}.btn:hover{transform:translateY(-2px)}.btn:disabled{cursor:wait;opacity:.55;transform:none}.btn.gold{background:var(--gold);color:#050505}.btn.gold:hover{background:#ffe65a}.btn.ghost{background:#1b1b1e;color:#fff;border:1px solid var(--line)}.btn.ghost:hover{border-color:var(--gold)}.btn.slim{min-height:45px;padding:10px 13px}.action-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}.status{font-size:12px;color:var(--soft);min-height:22px;margin:10px 0 0}.status.warn{color:#ffcf76}.status.ok{color:#abe6b5}.status.error{color:#ff9a9a}.divider{height:1px;background:var(--line);margin:26px 0}.source-link{color:var(--gold);font-size:11px;text-decoration:none}.source-link:hover{text-decoration:underline}
-    .review{border:1px solid rgba(255,215,0,.17);background:linear-gradient(135deg,rgba(255,215,0,.055),rgba(255,255,255,.012));padding:26px;position:sticky;top:24px}.review .top{display:flex;justify-content:space-between;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}.review .top span{font-size:10px;letter-spacing:.18em;color:var(--gold);font-weight:700}.review .top small{font-size:10px;color:var(--dim)}.review h3{font-size:clamp(27px,3vw,41px);line-height:1.1;letter-spacing:-.05em;font-weight:300;margin:34px 0 9px;overflow-wrap:anywhere}.review .zone{color:var(--soft);font-size:13px}.review .price{font-size:42px;letter-spacing:-.06em;line-height:1.1;margin-top:33px;font-variant-numeric:tabular-nums}.review .price small{font-size:13px;color:var(--soft);letter-spacing:0}.review .facts{display:flex;flex-wrap:wrap;gap:8px;margin:21px 0}.review .facts span{border:1px solid var(--line);padding:9px 12px;color:var(--soft);font-size:12px}.review .rule{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:25px 0}.review .footnote{font-size:12px;color:var(--soft);line-height:1.65}.review .footnote b{color:#fff;font-weight:500}.review .demo{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:30px}
+    .review{border:1px solid rgba(255,215,0,.17);background:linear-gradient(135deg,rgba(255,215,0,.055),rgba(255,255,255,.012));padding:26px;position:sticky;top:24px}.review .top{display:flex;justify-content:space-between;gap:10px;padding-bottom:18px;border-bottom:1px solid var(--line)}.review .top span{font-size:10px;letter-spacing:.18em;color:var(--gold);font-weight:700}.review .top small{font-size:10px;color:var(--dim)}.review h3{font-size:clamp(27px,3vw,41px);line-height:1.1;letter-spacing:-.05em;font-weight:300;margin:34px 0 9px;overflow-wrap:anywhere}.review .zone{color:var(--soft);font-size:13px}.review .price{font-size:42px;letter-spacing:-.06em;line-height:1.1;margin-top:33px;font-variant-numeric:tabular-nums}.review .price small{font-size:13px;color:var(--soft);letter-spacing:0}.review .facts{display:flex;flex-wrap:wrap;gap:8px;margin:21px 0}.review .facts span{border:1px solid var(--line);padding:9px 12px;color:var(--soft);font-size:12px}.review .rule{height:1px;background:linear-gradient(90deg,var(--gold),transparent);margin:25px 0}.review .footnote{font-size:12px;color:var(--soft);line-height:1.65}.review .footnote b{color:#fff;font-weight:500}.review .demo{font-size:10px;color:var(--dim);letter-spacing:.12em;text-transform:uppercase;margin-top:30px}.photo-picks{display:flex;gap:7px;flex-wrap:wrap;margin-top:10px}.photo-picks img{width:74px;height:74px;object-fit:cover;border:1px solid var(--line)}.photo-picks span{font-size:12px;color:var(--soft)}
     .result{display:none;margin-top:23px;border:1px solid rgba(255,215,0,.4);background:rgba(255,215,0,.045);padding:20px}.result.show{display:block}.result h3{font-size:17px;font-weight:500;margin:0 0 7px}.result p{font-size:12px;color:var(--soft);margin:0 0 13px}.result input{font-size:11px;color:var(--gold);margin-bottom:12px}.result-actions{display:flex;gap:9px;flex-wrap:wrap}.preview-frame{display:none;margin-top:28px;border:1px solid var(--line);background:#000}.preview-frame.show{display:block}.preview-frame iframe{display:block;border:0;width:100%;height:600px}.preview-frame h3{font-size:11px;color:var(--dim);letter-spacing:.15em;text-transform:uppercase;font-weight:500;padding:15px 17px;margin:0;border-bottom:1px solid var(--line)}
     footer{border-top:1px solid var(--line);padding:23px 0 44px;display:flex;justify-content:space-between;gap:16px;color:var(--dim);font-size:11px}
     @media(max-width:950px){.workspace{grid-template-columns:1fr}.review{position:static}.hero{grid-template-columns:1fr}.hero-aside{border-left:0;border-top:1px solid var(--line);padding:15px 0 0}}
@@ -24,7 +24,7 @@
 <body>
   <div class="shell">
     <header><a class="brand" href="https://www.boomrome.com/" aria-label="BOOM Roma">BOOM<i></i><small>ROMA<br>LIVING</small></a><span class="edition">STUDIO / SMARTLINK</span></header>
-    <section class="hero"><div><div class="eyebrow">BOOM Tools · Prova locale</div><h1>Dal link alla <em>scheda.</em></h1><p>Incolla un annuncio, controlla i dati e genera una vera scheda BOOM da aprire in questa anteprima.</p></div><div class="hero-aside"><b>La fonte resta visibile.</b>La scheda mostra solo i dati che approvi e porta sempre all’annuncio originale. Disponibilità e condizioni vanno confermate.</div></section>
+    <section class="hero"><div><div class="eyebrow">BOOM Tools · Prova locale</div><h1>Dal link alla <em>scheda.</em></h1><p>Incolla un annuncio, controlla i dati e genera una vera scheda BOOM da aprire in questa anteprima.</p></div><div class="hero-aside"><b>Una scheda per il cliente.</b>Il link del portale serve a te per prepararla. La pagina condivisa mostra dettagli, foto autorizzate e dintorni, senza accesso all’annuncio originale.</div></section>
     <div class="workspace">
       <div>
         <div class="section-head"><h2>01 / Annuncio di partenza</h2><span class="step">URL → Dati</span></div>
@@ -32,15 +32,19 @@
         <div id="extract-status" class="status" role="status">Per questa prima prova ho precompilato i dati leggibili dell’annuncio che hai inviato. Controllali prima di generare.</div>
         <div class="divider"></div>
         <div class="section-head"><h2>02 / Revisione BOOM</h2><span class="step">Correggi → Genera</span></div>
-        <div class="field"><label class="label" for="title">Titolo della scheda</label><input class="input" id="title" maxlength="130" value="Bilocale a Cipro, Piazzale degli Eroi"></div>
-        <div class="grid2"><div class="field"><label class="label" for="zone">Zona</label><input class="input" id="zone" maxlength="90" value="Cipro · Piazzale degli Eroi"></div><div class="field"><label class="label" for="price">Canone mensile indicato (€)</label><input class="input" id="price" type="number" min="1" step="1" value="1500"></div></div>
+        <div class="field"><label class="label" for="title">Titolo della scheda</label><input class="input" id="title" maxlength="130" value="Bilocale a Cipro"></div>
+        <div class="grid2"><div class="field"><label class="label" for="zone">Zona</label><input class="input" id="zone" maxlength="90" value="Cipro"></div><div class="field"><label class="label" for="price">Canone mensile indicato (€)</label><input class="input" id="price" type="number" min="1" step="1" value="1500"></div></div>
         <div class="grid3"><div class="field"><label class="label" for="sqm">Superficie (m²)</label><input class="input" id="sqm" type="number" min="1" step="1" value="50"></div><div class="field"><label class="label" for="rooms">Locali</label><input class="input" id="rooms" type="number" min="1" step="1" value="2"></div><div class="field"><label class="label" for="sourceName">Fonte</label><input class="input" id="sourceName" value="Immobiliare.it" readonly></div></div>
-        <div class="field"><label class="label" for="note">Nota BOOM, facoltativa</label><textarea class="input" id="note" maxlength="400">L’annuncio indica disponibilità dal 1° novembre 2026, spese forfettarie di €200/mese e €70/mese aggiuntivi per il riscaldamento da novembre ad aprile. Verificare importi, condizioni e disponibilità con l’inserzionista.</textarea><span class="help">Queste informazioni vengono dall’annuncio pubblico e potrebbero cambiare. Non sono state copiate foto o descrizioni.</span></div>
+        <div class="field"><label class="label" for="note">Nota BOOM, facoltativa</label><textarea class="input" id="note" maxlength="400">L’annuncio indica disponibilità dal 1° novembre 2026, spese forfettarie di €200/mese e €70/mese aggiuntivi per il riscaldamento da novembre ad aprile. Verificare importi, condizioni e disponibilità con l’inserzionista.</textarea><span class="help">Queste informazioni vengono dall’annuncio pubblico e potrebbero cambiare.</span></div>
+        <div class="divider"></div>
+        <div class="section-head"><h2>03 / Foto e quartiere</h2><span class="step">Visual → Area</span></div>
+        <div class="field"><label class="label" for="photos">Foto che BOOM può pubblicare (max 12)</label><input class="input" id="photos" type="file" accept="image/jpeg,image/png,image/webp" multiple><span class="help">Scegli foto autorizzate dal tuo Mac. La prima è la copertina. Non vengono prelevate immagini dal portale.</span><div id="photo-picks" class="photo-picks"><span>Nessuna foto selezionata.</span></div></div>
+        <div class="field"><label class="label" for="area-query">Area indicativa per la mappa</label><div class="source-grid"><input class="input" id="area-query" type="search" value="Cipro, Roma" placeholder="Cerca una zona di Roma"><button class="btn ghost" id="area-search" type="button">Cerca area <span>↗</span></button></div><span class="help">Seleziona un quartiere: al cliente mostriamo un cerchio indicativo, non il civico.</span><div id="area-status" class="status">Area iniziale: Cipro, Roma · posizione indicativa.</div><div id="area-results"></div></div>
         <a class="source-link" id="source-link" href="https://www.immobiliare.it/annunci/124483437/" target="_blank" rel="noopener noreferrer">Controlla l’annuncio originale ↗</a>
         <div class="action-row"><button class="btn gold" id="create" type="button">Genera scheda BOOM <span>↗</span></button></div><div id="create-status" class="status" role="status"></div>
         <div id="result" class="result"><h3>La scheda è pronta.</h3><p>Il link qui sotto funziona su questo Mac finché la prova locale è attiva. Apri la scheda per controllare il risultato completo.</p><input class="input" id="result-url" readonly aria-label="Link della scheda generata"><div class="result-actions"><a class="btn gold slim" id="open-result" target="_blank" rel="noopener noreferrer">Apri scheda <span>↗</span></a><button class="btn ghost slim" id="copy-result" type="button">Copia link locale</button></div></div>
       </div>
-      <div><div class="review"><div class="top"><span>BOOM / SMARTLINK</span><small>ANTEPRIMA DATI</small></div><h3 id="preview-title"></h3><div class="zone" id="preview-zone"></div><div class="price" id="preview-price"></div><div class="facts" id="preview-facts"></div><div class="rule"></div><div class="footnote">Annuncio su <b id="preview-source"></b>. La scheda finale mostra sempre il collegamento alla fonte e la disponibilità da verificare.</div><div class="demo">La scheda completa appare qui dopo la generazione</div></div><div id="preview-frame" class="preview-frame"><h3>Scheda BOOM generata · vista completa</h3><iframe id="result-frame" title="Scheda BOOM generata"></iframe></div></div>
+      <div><div class="review"><div class="top"><span>BOOM / SMARTLINK</span><small>ANTEPRIMA DATI</small></div><h3 id="preview-title"></h3><div class="zone" id="preview-zone"></div><div class="price" id="preview-price"></div><div class="facts" id="preview-facts"></div><div class="rule"></div><div class="footnote">La fonte <b id="preview-source"></b> resta a disposizione dell’operatore. Il cliente vede la scheda BOOM e può contattarci direttamente.</div><div class="demo">La scheda completa appare qui dopo la generazione</div></div><div id="preview-frame" class="preview-frame"><h3>Scheda BOOM generata · vista completa</h3><iframe id="result-frame" title="Scheda BOOM generata"></iframe></div></div>
     </div>
     <footer><span>BOOM by Egidi Immobiliare S.r.l.</span><span>Anteprima locale · I link creati qui non sono pubblici</span></footer>
   </div>
@@ -51,6 +55,7 @@
     const val = id => el(id).value.trim();
     const setStatus = (id, message, tone='') => { el(id).textContent=message; el(id).className='status ' + tone; };
     let key = crypto.randomUUID();
+    let area = {lat:41.9075,lng:12.4475,label:'Cipro, Roma'};
     function render() {
       const source = BOOM_SMARTLINK.normalizeUrl(val('sourceUrl'));
       el('preview-title').textContent = val('title') || 'Titolo dell’immobile';
@@ -65,15 +70,39 @@
       el('source-link').href=source?.url || '#';
       el('source-link').hidden=!source;
     }
-    document.querySelectorAll('input:not(#result-url),textarea').forEach(input => input.addEventListener('input', () => {
+    document.querySelectorAll('input:not(#result-url):not(#photos):not(#area-query),textarea').forEach(input => input.addEventListener('input', () => {
       if (input.id==='sourceUrl') {
         for (const id of ['title','zone','price','sqm','rooms','note']) el(id).value='';
+        el('photos').value=''; el('photo-picks').querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src)); el('photo-picks').textContent='Nessuna foto selezionata.';
+        area=null; el('area-query').value=''; setStatus('area-status','Cerca e scegli l’area del nuovo annuncio.'); el('area-results').replaceChildren();
         setStatus('extract-status','Nuovo link: premi “Rileggi fonte” e completa i campi che non riesco a leggere.');
       }
       key=crypto.randomUUID();
       el('result').classList.remove('show'); el('preview-frame').classList.remove('show');
       setStatus('create-status',''); render();
     }));
+    el('photos').addEventListener('change', () => {
+      const files=[...el('photos').files].slice(0,12), box=el('photo-picks'); box.querySelectorAll('img').forEach(img => URL.revokeObjectURL(img.src)); box.replaceChildren();
+      for (const file of files) { const img=document.createElement('img'); img.src=URL.createObjectURL(file); img.alt=file.name; box.append(img); }
+      if (!files.length) box.textContent='Nessuna foto selezionata.';
+      key=crypto.randomUUID(); el('result').classList.remove('show'); el('preview-frame').classList.remove('show');
+    });
+    el('area-search').addEventListener('click', async () => {
+      const q=val('area-query'); if (q.length<3) return setStatus('area-status','Scrivi il nome di una zona.','error');
+      el('area-search').disabled=true; setStatus('area-status','Cerco la zona…');
+      try {
+        const r=await fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&lat=41.9028&lon=12.4964&limit=6&lang=it');
+        const d=await r.json(); const box=el('area-results'); box.replaceChildren();
+        for (const f of d.features || []) {
+          const p=f.properties||{}, co=f.geometry?.coordinates||[], candidate={lat:Number(co[1]),lng:Number(co[0]),label:[p.name,p.city].filter(Boolean).join(', ')};
+          if (!BOOM_SMARTLINK.cleanMap(candidate)) continue;
+          const b=document.createElement('button'); b.type='button'; b.className='btn ghost slim'; b.style.margin='5px 7px 0 0'; b.textContent=candidate.label || q;
+          b.addEventListener('click', () => { area=candidate; key=crypto.randomUUID(); box.replaceChildren(); setStatus('area-status','Area scelta: '+area.label+' · posizione indicativa.','ok'); }); box.append(b);
+        }
+        if (!box.childElementCount) setStatus('area-status','Nessuna zona trovata a Roma. Riprova con un altro nome.','warn'); else setStatus('area-status','Scegli una delle aree trovate.');
+      } catch { setStatus('area-status','Ricerca non disponibile. Resta l’area già scelta.','warn'); }
+      finally { el('area-search').disabled=false; }
+    });
     el('extract').addEventListener('click', async () => {
       const source=BOOM_SMARTLINK.normalizeUrl(val('sourceUrl'));
       if (!source) return setStatus('extract-status','URL non valido o portale non supportato.','error');
@@ -98,14 +127,22 @@
       if (!source) return setStatus('create-status','Inserisci un URL di annuncio supportato.','error');
       if (!val('title')) return setStatus('create-status','Inserisci un titolo prima di generare.','error');
       el('sourceUrl').value=source.url;
-      el('create').disabled=true; setStatus('create-status','Creo la scheda BOOM…');
+      el('create').disabled=true; setStatus('create-status','Preparo foto e scheda BOOM…');
       try {
-        const response=await fetch('/api/smartlink/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idempotencyKey:key,sourceUrl:source.url,title:val('title'),zone:val('zone'),price:val('price'),sqm:val('sqm'),rooms:val('rooms'),note:val('note')})});
+        const files=[...el('photos').files];
+        if (files.length>12 || files.some(f => f.size>8_000_000 || !['image/jpeg','image/png','image/webp'].includes(f.type))) throw new Error('Scegli fino a 12 immagini JPG, PNG o WebP, massimo 8 MB ciascuna.');
+        const images=[];
+        for (let i=0;i<files.length;i++) {
+          setStatus('create-status',`Carico la foto ${i+1} di ${files.length}…`);
+          const upload=await fetch('/api/smartlink/photo?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':files[i].type},body:files[i]});
+          const uploaded=await upload.json(); if (!uploaded.ok) throw new Error('Foto '+(i+1)+' non caricata'); images.push(uploaded.url);
+        }
+        const response=await fetch('/api/smartlink/create',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({idempotencyKey:key,sourceUrl:source.url,title:val('title'),zone:val('zone'),price:val('price'),sqm:val('sqm'),rooms:val('rooms'),note:val('note'),images,map:area})});
         const result=await response.json();
         if (!result.ok) throw new Error(result.error || 'Creazione non riuscita');
         el('result-url').value=result.url; el('open-result').href=result.url; el('result-frame').src=result.url;
         el('result').classList.add('show'); el('preview-frame').classList.add('show');
-        setStatus('create-status','Scheda creata. Aprila e prova il link alla fonte.','ok');
+        setStatus('create-status','Scheda creata. Aprila e prova foto, mappa e contatto BOOM.','ok');
       } catch(e) { setStatus('create-status','Non sono riuscito a creare la scheda: '+e.message,'error'); }
       finally { el('create').disabled=false; }
     });

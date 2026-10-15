@@ -9,6 +9,7 @@ const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
 const { default: create } = await import('../../api/smartlink/create.js');
 const { default: read } = await import('../../api/smartlink/read.js');
+const { default: pois } = await import('../../api/smartlink/pois.js');
 
 function response() {
   return { code: 200, headers: {}, setHeader(k,v){ this.headers[k]=v; return this; }, status(n){ this.code=n; return this; }, json(v){ this.body=v; return this; }, end(){ return this; } };
@@ -23,6 +24,14 @@ globalThis.fetch = async (input, opts={}) => {
     if (u.pathname.endsWith('signInWithPassword')) return Response.json({ idToken:'server-token' });
     const body = JSON.parse(opts.body || '{}');
     return Response.json({ users:[{ localId:body.idToken === 'tenant' ? 'tenant' : 'admin' }] });
+  }
+  if (u.hostname === 'overpass-api.de') {
+    assert.match(String(opts.body), /1600%2C41.9075%2C12.4475/);
+    return Response.json({ elements:[
+      { type:'node', id:1, lat:41.9078, lon:12.4480, tags:{name:'Cipro',station:'subway'} },
+      { type:'node', id:2, lat:41.9080, lon:12.4482, tags:{name:'Cipro',railway:'subway_entrance'} },
+      { type:'node', id:3, lat:41.9086, lon:12.4485, tags:{name:'Supermercato Test',shop:'supermarket'} },
+    ] });
   }
   if (u.hostname === 'firestore.googleapis.com') {
     const path = u.pathname.split('/documents/')[1] || '';
@@ -56,6 +65,21 @@ try {
   const bare = RULES.makeRecord({ sourceUrl:canonical.url }, '2026-10-15T12:00:00Z');
   assert.equal(bare.price, null);
   assert.equal(bare.availability, 'Da verificare');
+  assert.equal(bare.title, 'Una casa a Roma');
+  assert.equal(RULES.publicText('Dettagli: https://www.immobiliare.it/annunci/123/?utm=x confermati',400), 'Dettagli: confermati');
+  const scrubbed = RULES.publicRecord({ ...bare, note:'Vedi https://www.immobiliare.it/annunci/123/', map:{lat:41.9075,lng:12.4475,label:'https://www.immobiliare.it/annunci/123/ Cipro'} });
+  assert.equal(scrubbed.note, 'Vedi');
+  assert.equal(scrubbed.map.label, 'Cipro');
+  assert.deepEqual(bare.images, []);
+  assert.equal(bare.map, null);
+  const photo = 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/smartlinks%2F11111111-1111-4111-8111-111111111111%2F22222222-2222-4222-8222-222222222222.jpg?alt=media&token=public-photo';
+  assert.ok(RULES.validImageUrl(photo, '11111111-1111-4111-8111-111111111111'));
+  assert.ok(RULES.validPublicImageUrl(photo));
+  assert.equal(RULES.validImageUrl('https://www.immobiliare.it/photo.jpg', '11111111-1111-4111-8111-111111111111'), false);
+  assert.equal(RULES.validPublicImageUrl('https://www.immobiliare.it/photo.jpg'), false);
+  assert.equal(RULES.makeRecord({ sourceUrl:canonical.url, images:['https://www.immobiliare.it/photo.jpg'], idempotencyKey:'11111111-1111-4111-8111-111111111111' }, '2026-10-15T12:00:00Z'), null);
+  assert.equal(RULES.cleanMap({lat:0,lng:0,label:'Roma'}), null);
+  assert.ok(RULES.distanceKm({lat:41.9075,lng:12.4475},{lat:41.9078,lng:12.4480}) < .1);
 
   let r = response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' },'tenant'), r);
@@ -71,7 +95,7 @@ try {
   assert.equal(r.body.data.sqm, 62);
 
   r = response();
-  const createBody = { idempotencyKey:'11111111-1111-4111-8111-111111111111', sourceUrl:canonical.url, price:1200, title:'Bilocale Test', note:'Da vedere' };
+  const createBody = { idempotencyKey:'11111111-1111-4111-8111-111111111111', sourceUrl:canonical.url, price:1200, title:'Bilocale Test', note:'Da vedere', images:[photo], map:{lat:41.9075,lng:12.4475,label:'Cipro',precision:'exact'} };
   await create(request('POST',createBody,'tenant'), r);
   assert.equal(r.code, 403);
   r = response();
@@ -94,13 +118,31 @@ try {
   assert.equal(r.body.listing.title, 'Bilocale Test');
   assert.equal(r.body.listing.availability, 'Da verificare');
   assert.ok(!('createdBy' in r.body.listing));
+  assert.ok(!('sourceUrl' in r.body.listing));
+  assert.ok(!('source' in r.body.listing));
+  assert.deepEqual(r.body.listing.images, [photo]);
+  assert.equal(r.body.listing.map.precision, 'area');
+  assert.equal(r.body.listing.map.label, 'Cipro');
+  assert.equal(JSON.stringify(r.body).includes('immobiliare.it'), false);
+  assert.deepEqual(RULES.publicRecord({ ...RULES.makeRecord(createBody, '2026-10-15T12:00:00Z'), images:[photo,'https://www.immobiliare.it/photo.jpg'] }).images, [photo]);
+  r = response();
+  await pois(request('GET',{ id }), r);
+  assert.equal(r.code, 200);
+  assert.equal(r.body.points.length, 2);
+  assert.equal(r.body.points[0].category, 'metro');
   docs.get('smartlinks/' + id).fields.active = { booleanValue:false };
   r = response();
   await read(request('GET',{ id }), r);
   assert.equal(r.code, 404);
 
   const page = readFileSync(new URL('../../smartlink.html', import.meta.url), 'utf8');
-  assert.match(page, /Annuncio esterno/);
-  assert.doesNotMatch(page, /✓ Verified/);
-  console.log('SmartLink: URL sicuri, auth, fonte bloccata, estrazione, creazione, lettura pubblica e disattivazione ✓');
+  assert.match(page, /map-section/);
+  assert.match(page, /gallery/);
+  assert.doesNotMatch(page, /annuncio originale|sourceUrl|immobiliare\.it/i);
+  const portal = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  assert.match(portal, /smartLinkPhotosChanged/);
+  assert.match(portal, /smartLinkSearchArea/);
+  const storage = readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8');
+  assert.match(storage, /match \/smartlinks\/\{draftKey\}\/\{photoFile\}/);
+  console.log('SmartLink: fonte privata, auth, foto approvate, mappa indicativa, POI e scheda pubblica ✓');
 } finally { globalThis.fetch = originalFetch; }

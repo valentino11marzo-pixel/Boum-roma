@@ -10,7 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
-  { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: URL sicuri, auth admin, estrazione best effort, scheda pubblica con fonte e stato onesto' },
+  { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
   { name: 'behavior', file: 'tests/behavior/run.mjs', what: 'Behavior Intelligence: consenso, minimizzazione PII, copertura canonica, percorsi/sezioni/uscite, dashboard admin e retention' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },

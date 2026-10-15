@@ -1,4 +1,4 @@
-// L'admin pubblica una scheda BOOM di rinvio, con soli campi revisionati.
+// L'admin pubblica una scheda BOOM con soli campi revisionati.
 import crypto from 'node:crypto';
 import { requireRole } from '../_auth.js';
 import { fsCreate, fsGet, logActivity, readJson } from '../homie/_lib.js';
@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
   const record = RULES.makeRecord(body || {}, new Date().toISOString());
-  if (!record) return res.status(400).json({ ok: false, error: 'unsupported_listing_url' });
+  if (!record) return res.status(400).json({ ok: false, error: 'invalid_smartlink_data' });
   const key = String(body.idempotencyKey || '');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) {
     return res.status(400).json({ ok: false, error: 'idempotency_key_required' });
