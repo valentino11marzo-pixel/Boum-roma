@@ -17,6 +17,7 @@ import base64
 import logging
 import re
 import time
+import unicodedata
 import urllib.parse
 import requests as http_requests
 from datetime import datetime, timezone
@@ -140,6 +141,20 @@ def fs_query_available(collection):
             results.append((doc_id, fields))
     return results
 
+def fs_listing_names():
+    """I nomi di TUTTI gli annunci (anche affittati), minuscoli: per dire
+    all'operatore che un nome nuovo è già usato. Solo il campo name."""
+    body = {'structuredQuery': {'from': [{'collectionId': 'listings'}], 'select': {'fields': [{'fieldPath': 'name'}]}}}
+    r = http_requests.post(f'{fs_base()}:runQuery', headers=fs_headers(), json=body, timeout=15)
+    r.raise_for_status()
+    out = set()
+    for item in r.json():
+        doc = item.get('document') if isinstance(item, dict) else None
+        v = ((doc or {}).get('fields', {}).get('name') or {}).get('stringValue')
+        if v:
+            out.add(v.strip().lower())
+    return out
+
 def fs_update(collection, doc_id, data):
     fields = {k: python_to_firestore(v) for k, v in data.items()}
     update_mask = '&'.join([f'updateMask.fieldPaths={k}' for k in data.keys()])
@@ -195,7 +210,12 @@ ZONES = ['Prati', 'Centro', 'Trastevere', 'Testaccio', 'Monti', 'San Giovanni', 
 APARTMENT_TYPES = [('🏠 Mono', 'monolocale'), ('🏠 Bilo', 'bilocale'), ('🏠 Trilo', 'trilocale'), ('🏠 Quadri+', 'quadrilocale+')]
 SQM_OPTIONS = [('25mq','25'),('30mq','30'),('35mq','35'),('40mq','40'),('45mq','45'),('50mq','50'),('55mq','55'),('60mq','60'),('65mq','65'),('70mq','70'),('80mq','80'),('90mq','90'),('100mq','100'),('120mq','120'),('150mq+','150')]
 FLOOR_OPTIONS = [('🔻 S/T','0'),('1°','1'),('2°','2'),('3°','3'),('4°','4'),('5°','5'),('6°+','6+'),('Attico','attico')]
-BEDS_OPTIONS = [('1 letto','1'),('2 letti','2'),('3 letti','3'),('4 letti','4'),('5 letti','5'),('6+','6')]
+# CAMERE DA LETTO, non posti letto (15/10/2026): la risposta finiva anche in
+# `bedrooms`, cioè nelle camere che vetrina, scheda, feed e motori leggono con
+# FACTS.bedroomsOf (js/listing-facts.js) — «3 letti» diventava «3 camere».
+# Il monolocale non è un'opzione: lo dice già il tipo (floor_cb salta la
+# domanda). Niente «6+»: un numero arrotondato non è un dato.
+BEDS_OPTIONS = [('1 camera','1'),('2 camere','2'),('3 camere','3'),('4 camere','4'),('5 camere','5'),('6 camere','6')]
 BATHROOMS_OPTIONS = [('1 bagno','1'),('2 bagni','2'),('3 bagni','3')]
 PRICE_QUICK = [('€700','700'),('€800','800'),('€900','900'),('€1.000','1000'),('€1.100','1100'),('€1.200','1200'),('€1.300','1300'),('€1.400','1400'),('€1.500','1500'),('€1.600','1600'),('€1.800','1800'),('€2.000','2000'),('€2.200','2200'),('€2.500','2500'),('€3.000+','3000')]
 AVAILABLE_OPTIONS = [('📍 Subito','Subito'),('📅 1 Maggio','2026-05-01'),('📅 1 Giugno','2026-06-01'),('📅 1 Luglio','2026-07-01'),('📅 1 Agosto','2026-08-01'),('📅 1 Settembre','2026-09-01'),('✏️ Altra data','custom')]
@@ -262,6 +282,330 @@ def progress_bar(step, total=14):
     filled = round(step / total * 10)
     return f"[{'▓' * filled}{'░' * (10 - filled)}] {step}/{total}"
 
+# ─── Dati onesti (15/10/2026) ─────────────────────────────────────────────────
+# Da oggi vetrina, scheda, feed, Pubblicista e motori di risposta leggono le
+# camere con UNA regola (FACTS.bedroomsOf, js/listing-facts.js) e la macchina
+# delle descrizioni dice l'arredo solo se è dichiarato. Con queste regole un
+# default del bot non è più innocuo: 'furnished':'no' diventa «unfurnished»
+# pubblicato, 'beds':0 diventa «monolocale», 'availableDate':'Subito' diventa
+# «Available now». Qui stanno le funzioni pure che il bot usa per non
+# inventare — testate in tests/wizard/dati_onesti.py senza .env né rete.
+
+def _now_iso():
+    """Un ISO che JavaScript sa leggere. Prima il bot scriveva
+    isoformat() + 'Z' → «…+00:00Z», che Date.parse rifiuta (NaN): al 15/10
+    tredici annunci su ventisette portavano una data illeggibile per il sito."""
+    return datetime.now(timezone.utc).isoformat(timespec='milliseconds').replace('+00:00', 'Z')
+
+def _bedrooms_of(d):
+    """La regola UNICA delle camere, gemella di FACTS.bedroomsOf: il campo
+    strutturato `bedrooms` (intero 0–10) vince; il testo `beds` vale solo se
+    `bedrooms` manca (la prima cifra, 1–10); 0 = monolocale. Altrimenti None:
+    non lo sappiamo, e quello che non si sa non si scrive."""
+    d = d or {}
+    b = d.get('bedrooms')
+    if b is not None and str(b).strip() != '':
+        try:
+            n = float(str(b).strip())
+            if n == int(n) and 0 <= n <= 10:
+                return int(n)
+        except (ValueError, OverflowError):
+            pass
+    beds = d.get('beds')
+    m = re.search(r'[0-9]+', '' if beds is None else str(beds))
+    if m:
+        k = int(m.group(0))
+        if 1 <= k <= 10:
+            return k
+    return None
+
+def _bedrooms_label(d):
+    """Le camere a parole per le card dell'operatore; None se non si sanno."""
+    n = _bedrooms_of(d)
+    if n is None:
+        return None
+    if n == 0:
+        return 'monolocale'
+    return f"{n} camer{'a' if n == 1 else 'e'}"
+
+# Le etichette inglesi delle feature: i codici sono chiavi del DATABASE, e
+# unirli crudi pubblicava «washing_machine, double_glazing» in vetrina e in
+# /llms-listings.txt. Stesse etichette di api/wizard/describe.js.
+FEAT_LABELS_EN = {
+    'ac': 'air conditioning', 'elevator': 'elevator', 'balcony': 'balcony',
+    'terrace': 'terrace', 'washing_machine': 'washing machine', 'dishwasher': 'dishwasher',
+    'parking': 'parking space', 'storage': 'storage room', 'pets_allowed': 'pets allowed',
+    'wifi': 'WiFi included', 'double_glazing': 'double glazing', 'doorman': 'doorman',
+}
+FURN_EN = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
+
+def _template_description(d):
+    """Il testo di riserva quando /api/wizard/describe non risponde (o la sua
+    copia non passa il controllo). SOLO fatti dichiarati: niente canone (cambia,
+    e un prezzo scritto nel testo resta vecchio per sempre), l'arredo solo se
+    detto (prima «unfurnished» di default), le camere dalla regola unica (prima
+    «N beds» dai posti letto). Tiene la firma «Nsqm on floor» / «Features
+    include» che isBoilerplate (api/wizard/describe.js) riconosce: lo sweep
+    notturno lo sostituisce con una descrizione vera."""
+    d = d or {}
+    head = f"Beautiful {d.get('type') or 'apartment'} in {d.get('zone') or 'Rome'}"
+    if d.get('sqm'):
+        floor = d.get('floor')
+        head += f", {d['sqm']}sqm on floor {floor if floor not in (None, '') else 'N/A'}"
+    furn = FURN_EN.get(d.get('furnished'))
+    if furn:
+        head += f", {furn}"
+    parts = [head + '.']
+    rooms = []
+    n = _bedrooms_of(d)
+    if n == 0:
+        rooms.append('Studio, no separate bedroom')
+    elif n:
+        rooms.append(f"{n} bedroom{'s' if n > 1 else ''}")
+    try:
+        nb = int(d.get('bathrooms') or 0)
+    except (TypeError, ValueError):
+        nb = 0
+    if nb > 0:
+        rooms.append(f"{nb} bathroom{'s' if nb > 1 else ''}")
+    if rooms:
+        parts.append(', '.join(rooms) + '.')
+    feats = [FEAT_LABELS_EN.get(f, str(f).replace('_', ' ')) for f in (d.get('features') or [])]
+    if feats:
+        parts.append(f"Features include {', '.join(feats)}.")
+    return ' '.join(parts)
+
+def _describe_payload(d):
+    """Il corpo per /api/wizard/describe: i fatti dichiarati, camere comprese
+    col campo strutturato (il server le legge con FACTS.bedroomsOf)."""
+    d = d or {}
+    return {
+        'type': d.get('type'), 'zone': d.get('zone'), 'address': d.get('address'),
+        'sqm': d.get('sqm'), 'floor': d.get('floor'),
+        'beds': d.get('beds'), 'bedrooms': d.get('bedrooms'),
+        'bathrooms': d.get('bathrooms'), 'furnished': d.get('furnished'),
+        'price': d.get('price'), 'features': d.get('features', []),
+        'availableDate': d.get('availableDate'), 'concordato': d.get('concordato'),
+    }
+
+def _accept_ai_copy(d, ai):
+    """La copia di /api/wizard/describe entra SOLO se il server la consegna
+    pulita: ok, testo inglese presente, nessun problema dal suo controllo
+    (issues). Allora si timbra come testo della macchina — descriptionSource
+    'ai' + l'impronta aiHash + descriptionAt — così lo sweep e /catalogo sanno
+    che si può rigenerare finché nessuno la corregge a mano. Altrimenti False:
+    chi chiama ripiega (il template nel percorso guidato, il testo vuoto che lo
+    sweep notturno riempie nella casa dettata)."""
+    if not isinstance(ai, dict) or not ai.get('ok'):
+        return False
+    en, it = ai.get('en'), ai.get('it')
+    if not isinstance(en, str) or not en.strip() or ai.get('issues'):
+        return False
+    d['description'] = en.strip()
+    if isinstance(it, str) and it.strip():
+        d['descriptionIt'] = it.strip()
+    d['descriptionSource'] = 'ai'
+    if ai.get('aiHash'):
+        d['descriptionAiHash'] = str(ai['aiHash'])
+    d['descriptionAt'] = _now_iso()
+    return True
+
+_STREET_TAIL = re.compile(r"\s+(?:int\.?|interno|scala|sc\.)\s*\S+.*$", re.I)
+_STREET_CIVIC = re.compile(r"\s+(?:n\.?|n°|nr\.?|civico)?\s*\d+\s*[a-z]?(?:\s*/\s*\w+)?\s*$|\s+snc\s*$", re.I)
+_STREET_PREFIX = re.compile(r"^(?:via|viale|v\.le|piazza|p\.zza|p\.za|piazzale|p\.le|corso|c\.so|largo|l\.go|"
+                            r"vicolo|lungotevere|circonvallazione|passeggiata|salita|borgo|strada|clivo|rampa|"
+                            r"scalinata|galleria|vico)\.?\s+", re.I)
+_STREET_ARTICLE = re.compile(r"^(?:(?:di|del|dello|della|dei|degli|delle|in|alla|allo|al|ai|agli|alle)\s+|d['’]\s*)", re.I)
+_SMALL_WORDS = {'di', 'del', 'dello', 'della', 'dei', 'degli', 'delle', 'in', 'e', 'da', 'al', 'alla'}
+
+def _street_of(address):
+    """La via di un indirizzo senza prefisso, articoli e civico: «Via dei
+    Cappellari 4» → «Cappellari», «Via di Tor di Quinto 39» → «Tor di Quinto»,
+    «Via di S. Anna 16» → «Sant'Anna». '' se non resta niente di leggibile."""
+    s = re.split(r",|\s[-–—]\s", str(address or ''))[0].strip()
+    s = _STREET_TAIL.sub('', s)
+    for _ in range(2):
+        s = _STREET_CIVIC.sub('', s).strip()
+    s = _STREET_PREFIX.sub('', s)
+    for _ in range(3):
+        s2 = _STREET_ARTICLE.sub('', s)
+        if s2 == s:
+            break
+        s = s2
+    s = re.sub(r"^S\.\s*(?=[AEIOUaeiou])", "Sant'", s)
+    s = re.sub(r"^SS\.\s*", 'Santi ', s)
+    s = re.sub(r"^S\.\s*", 'San ', s)
+    s = re.sub(r'\s+', ' ', s).strip(" .-")
+    if not re.search(r'[A-Za-zÀ-ÿ]', s):
+        return ''
+    if s == s.lower():
+        s = ' '.join(w if w in _SMALL_WORDS else w[:1].upper() + w[1:] for w in s.split(' '))
+    return s
+
+_BED_NAME = {0: 'Studio', 1: 'One-Bed', 2: 'Two-Bed', 3: 'Three-Bed', 4: 'Four-Bed', 5: 'Five-Bed', 6: 'Six-Bed'}
+
+def _listing_name(d):
+    """Il nome dalla VIA vera, come i nomi del catalogo (js/catalogo-correzioni.js:
+    «Cappellari Flat», «Corso One-Bed», «Avignonesi Studio»). Prima il bot
+    chiamava ogni casa «<Tipo> <Zona>»: tre annunci diversi si chiamavano
+    «Bilocale Centro», e chi ne citava uno non diceva quale. Le camere dicono la
+    taglia (Studio/One-Bed/…); senza camere note «Flat». Senza via, la zona."""
+    d = d or {}
+    place = _street_of(d.get('address')) or str(d.get('zone') or '').strip() or 'Rome'
+    n = _bedrooms_of(d)
+    if n is None:
+        kind = 'Flat'
+    else:
+        kind = _BED_NAME.get(n) or f'{n}-Bed'
+    return f'{place} {kind}'
+
+def _fold(s):
+    """Minuscolo e senza accenti: «Endertà» ed «enderta» sono la stessa parola."""
+    s = unicodedata.normalize('NFD', str(s or '').lower())
+    return ''.join(c for c in s if unicodedata.category(c) != 'Mn')
+
+# Ciò che la frase deve NOMINARE perché il campo si scriva. Non si giudica il
+# valore (lo legge il modello, che ha la frase intera): si pretende che se ne
+# sia parlato. «Posto letto» non è una camera (api/wizard/interpret.js).
+_SAID = {
+    'beds': r'camer|stanz|bedroom|monolocal|\bstudio\b',
+    'furnished': r'arredat|ammobiliat|\bmobili\b|\bvuot[oa]\b|\bnud[oa]\b|spogli[oa]|furnish',
+    'availableDate': (r'\bliber[oa]\b|disponibil|\bsubito\b|immediat|\bdal\b|\bdall|\bfrom\b|available|'
+                      r'\b\d{1,2}\s*[/.-]\s*\d{1,2}\b|gennaio|febbraio|marzo|aprile|maggio|giugno|'
+                      r'luglio|agosto|settembre|ottobre|novembre|dicembre'),
+}
+_SAID_LABEL = {'beds': 'camere', 'furnished': 'arredamento', 'availableDate': 'disponibilità', 'address': 'indirizzo'}
+
+def _unsaid_fields(text, fields):
+    """I campi di una casa NUOVA che il modello ha riempito ma la frase non
+    contiene. La lezione del 28/08 (vedi _create_invents) estesa al resto: con la
+    regola unica delle camere un numero inventato diventa un fatto pubblico, e
+    col nome dalla via un indirizzo inventato finirebbe nel NOME dell'annuncio."""
+    t = _fold(text)
+    f = fields or {}
+    out = [k for k, rx in _SAID.items() if f.get(k) not in (None, '', []) and not re.search(rx, t)]
+    if f.get('address'):
+        words = re.findall(r'[a-z]{4,}', _fold(_street_of(f['address'])))
+        if words and not any(w in t for w in words):
+            out.append('address')
+    return out
+
+def _it_eur(n):
+    try:
+        return '€' + f"{int(round(float(n))):,}".replace(',', '.')
+    except (TypeError, ValueError):
+        return '€?'
+
+def _create_summary(F):
+    """Il riepilogo della card di una casa dettata, nella forma di
+    api/wizard/interpret.js — rifatto quando il bot toglie un campo, perché la
+    card non mostri ciò che non verrà scritto."""
+    F = F or {}
+    dm = F.get('depositMonths')
+    dep = ''
+    if isinstance(dm, (int, float)) and not isinstance(dm, bool) and dm > 0:
+        dep = f" · deposito {dm:g} mes{'e' if dm == 1 else 'i'}"
+        if F.get('deposit'):
+            dep += f" ({_it_eur(F['deposit'])})"
+    furn = {'yes': 'arredato', 'partial': 'parz. arredato', 'no': 'non arredato'}.get(F.get('furnished'))
+    rows = [
+        f"{F.get('type') or 'appartamento'} — {F.get('zone') or ''}" + (f", {F['address']}" if F.get('address') else ''),
+        f"{_it_eur(F.get('price'))}/mese{dep}",
+        ' · '.join(x for x in [
+            f"{F['sqm']}mq" if F.get('sqm') else None,
+            f"piano {F['floor']}" if F.get('floor') not in (None, '') else None,
+            f"{F['beds']} camere" if F.get('beds') else None,
+            f"{F['bathrooms']} bagni" if F.get('bathrooms') else None] if x),
+        ' · '.join(x for x in [
+            furn,
+            f"da {F['availableDate']}" if F.get('availableDate') else None,
+            f"{len(F['features'])} feature" if F.get('features') else None] if x),
+    ]
+    return [r for r in rows if r and r.strip()]
+
+def _drop_unsaid(text, plan):
+    """Toglie dalla casa dettata ciò che la frase non contiene e rifà il
+    riepilogo sulla parte che resta. Ritorna le etichette di ciò che ha tolto."""
+    F = plan.get('fields') or {}
+    gone = _unsaid_fields(text, F)
+    for k in gone:
+        F.pop(k, None)
+    if gone:
+        plan['summary'] = _create_summary(F)
+    return [_SAID_LABEL[k] for k in gone]
+
+def _nl_listing_fields(F):
+    """I dati di una casa DETTATA così come sono stati detti: nessun default.
+    Prima mancava l'arredo → 'no' («unfurnished» pubblicato), mancavano le
+    camere → 0 («monolocale»), mancava la data → 'Subito' («Available now»).
+    Un monolocale ha 0 camere per definizione: lì lo dice il tipo."""
+    F = F or {}
+    d = {'type': F.get('type') or 'appartamento', 'features': list(F.get('features') or []),
+         'videoUrl': F.get('videoUrl') or '', 'concordato': F.get('concordato', 'tbd')}
+    for k in ('zone', 'address', 'floor', 'furnished', 'availableDate'):
+        if F.get(k) not in (None, ''):
+            d[k] = F[k]
+    for k in ('sqm', 'bathrooms', 'price'):
+        try:
+            v = int(round(float(F.get(k) or 0)))
+        except (TypeError, ValueError):
+            v = 0
+        if v > 0:
+            d[k] = v
+    n = _bedrooms_of({'beds': F.get('beds')})
+    if n is None and d['type'] == 'monolocale':
+        n = 0
+    if n is not None:
+        d['bedrooms'] = d['beds'] = n
+    if F.get('depositMonths'):
+        d['depositMonths'] = F['depositMonths']
+    d['name'] = _listing_name(d)
+    return d
+
+def _listing_doc(d, image_urls, now):
+    """Il documento che si pubblica: SOLO i campi detti. Le chiavi strutturali
+    (stato, foto, testo, timestamp) ci sono sempre; il resto solo se dichiarato.
+    Un campo assente, vetrina e motori lo leggono «da chiedere»; un default lo
+    leggono come un fatto."""
+    d = d or {}
+    image_urls = list(image_urls or [])
+    doc = {
+        'name': d.get('name', ''), 'status': 'available', 'concordato': d.get('concordato', 'tbd'),
+        'description': d.get('description', ''), 'descriptionIt': d.get('descriptionIt', ''),
+        'features': d.get('features', []),
+        'tags': [t for t in [str(d.get('zone') or '').lower(), str(d.get('type') or '').lower(),
+                             'concordato' if d.get('concordato') is True else '',
+                             'furnished' if d.get('furnished') == 'yes' else ''] if t],
+        'image': image_urls[0] if image_urls else '', 'images': image_urls,
+        'videoUrl': d.get('videoUrl', ''), 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie',
+    }
+    for k in ('address', 'zone', 'type'):
+        if d.get(k):
+            doc[k] = d[k]
+    for k in ('price', 'bathrooms'):
+        v = d.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+            doc[k] = v
+    v = d.get('sqm')
+    if isinstance(v, (int, float)) and not isinstance(v, bool) and v > 0:
+        doc['sqm'] = doc['size'] = v
+    if d.get('floor') not in (None, ''):
+        doc['floor'] = str(d['floor'])
+    n = _bedrooms_of(d)
+    if n is not None:
+        doc['bedrooms'] = doc['beds'] = n
+    if d.get('furnished') in ('yes', 'partial', 'no'):
+        doc['furnished'] = d['furnished']
+    if d.get('availableDate'):
+        doc['availableDate'] = d['availableDate']
+    for k in ('descriptionSource', 'descriptionAiHash', 'descriptionAt'):
+        if d.get(k):
+            doc[k] = d[k]
+    if d.get('depositMonths'):
+        doc['depositMonths'] = d['depositMonths']
+        doc['deposit'] = round(d['depositMonths'] * (doc.get('price') or 0))
+    return doc
+
 def summary_text(data):
     features = ', '.join(data.get('features', [])) or 'Nessuna'
     photos_count = len(data.get('_photos', []))
@@ -270,8 +614,8 @@ def summary_text(data):
     return (f"━━━━━━━━━━━━━━━━━━━━━━\n🏠 *RIEPILOGO LISTING*\n━━━━━━━━━━━━━━━━━━━━━━\n\n"
         f"📍 *{data.get('name', 'N/A')}*\n🗺 {data.get('address', 'N/A')}, {data.get('zone', 'N/A')}\n\n"
         f"💶 *€{data.get('price', 0):,}/mese*\n📐 {data.get('sqm', '?')}mq · Piano {data.get('floor', '?')}\n"
-        f"🛏 {data.get('beds', '?')} letti · 🚿 {data.get('bathrooms', '?')} bagni\n🏷 {data.get('type', '?').title()}\n"
-        f"🪑 {furn_map.get(data.get('furnished'), '?')}\n📅 Disponibile: {data.get('availableDate', 'Subito')}\n"
+        f"🛏 {_bedrooms_label(data) or '? camere'} · 🚿 {data.get('bathrooms', '?')} bagni\n🏷 {data.get('type', '?').title()}\n"
+        f"🪑 {furn_map.get(data.get('furnished'), '?')}\n📅 Disponibile: {data.get('availableDate') or 'da concordare'}\n"
         f"📜 Concordato: {conc_map.get(data.get('concordato'), '?')}\n\n✨ *Features:* {features}\n\n"
         f"📝 _{data.get('description', 'Nessuna descrizione')}_\n\n📸 *{photos_count} foto* caricate\n"
         f"📹 Video: {'✅ ' + data.get('videoUrl') if data.get('videoUrl') else '—'}\n\n━━━━━━━━━━━━━━━━━━━━━━")
@@ -311,11 +655,19 @@ async def sqm_text(update, context):
 
 async def floor_cb(update, context):
     q = update.callback_query; await q.answer(); context.user_data['floor'] = q.data.replace('fl_', '')
-    await q.edit_message_text(f"✅ Piano {context.user_data['floor']}\n\n{progress_bar(6)}\n\n*6/14* — Posti letto?", parse_mode='Markdown', reply_markup=make_keyboard(BEDS_OPTIONS, cols=3, prefix='bed_')); return BEDS
+    if context.user_data.get('type') == 'monolocale':
+        # il tipo l'ha già detto: un monolocale non ha camere separate, e la
+        # domanda servirebbe solo a contraddirlo
+        context.user_data['bedrooms'] = context.user_data['beds'] = 0
+        await q.edit_message_text(f"✅ Piano {context.user_data['floor']} · monolocale\n\n{progress_bar(7)}\n\n*7/14* — Bagni?", parse_mode='Markdown', reply_markup=make_keyboard(BATHROOMS_OPTIONS, cols=3, prefix='bath_')); return BATHROOMS
+    await q.edit_message_text(f"✅ Piano {context.user_data['floor']}\n\n{progress_bar(6)}\n\n*6/14* — Camere da letto?", parse_mode='Markdown', reply_markup=make_keyboard(BEDS_OPTIONS, cols=3, prefix='bed_')); return BEDS
 
 async def beds_cb(update, context):
-    q = update.callback_query; await q.answer(); context.user_data['beds'] = int(q.data.replace('bed_', ''))
-    await q.edit_message_text(f"✅ {context.user_data['beds']} letti\n\n{progress_bar(7)}\n\n*7/14* — Bagni?", parse_mode='Markdown', reply_markup=make_keyboard(BATHROOMS_OPTIONS, cols=3, prefix='bath_')); return BATHROOMS
+    q = update.callback_query; await q.answer()
+    # gemelli come /modifica letti e api/wizard/interpret.js: `bedrooms` è il
+    # dato che il sito legge, `beds` resta coerente per chi legge il testo
+    context.user_data['bedrooms'] = context.user_data['beds'] = int(q.data.replace('bed_', ''))
+    await q.edit_message_text(f"✅ {_bedrooms_label(context.user_data)}\n\n{progress_bar(7)}\n\n*7/14* — Bagni?", parse_mode='Markdown', reply_markup=make_keyboard(BATHROOMS_OPTIONS, cols=3, prefix='bath_')); return BATHROOMS
 
 async def bathrooms_cb(update, context):
     q = update.callback_query; await q.answer(); context.user_data['bathrooms'] = int(q.data.replace('bath_', ''))
@@ -382,34 +734,16 @@ async def description_cb(update, context):
     label = '⏭ Senza descrizione'
     if val == 'auto':
         await q.edit_message_text("⏳ Genero la descrizione con l'AI…")
-        ai = wizard_post('/api/wizard/describe', {
-            'type': d.get('type'), 'zone': d.get('zone'), 'address': d.get('address'),
-            'sqm': d.get('sqm'), 'floor': d.get('floor'), 'beds': d.get('beds'),
-            'bathrooms': d.get('bathrooms'), 'furnished': d.get('furnished'),
-            'price': d.get('price'), 'features': d.get('features', []),
-            'availableDate': d.get('availableDate'), 'concordato': d.get('concordato'),
-        })
-        if ai and ai.get('ok') and ai.get('en'):
-            d['description'] = ai['en'].strip()
-            if ai.get('it'): d['descriptionIt'] = ai['it'].strip()
+        ai = wizard_post('/api/wizard/describe', _describe_payload(d))
+        if _accept_ai_copy(d, ai):
             label = '✅ Descrizione AI (IT/EN)'
         else:
-            # Fallback: original built-in template (AI unavailable / no secret).
-            # The feature codes are DATABASE keys — joining them raw published
-            # "washing_machine, double_glazing" on the public listing page and
-            # in /llms-listings.txt, which is what search engines and AI answer
-            # engines read. Same labels as api/wizard/describe.js.
-            furn_text = {'yes': 'fully furnished', 'partial': 'partially furnished', 'no': 'unfurnished'}
-            feat_labels = {
-                'ac': 'air conditioning', 'elevator': 'elevator', 'balcony': 'balcony',
-                'terrace': 'terrace', 'washing_machine': 'washing machine', 'dishwasher': 'dishwasher',
-                'parking': 'parking space', 'storage': 'storage room', 'pets_allowed': 'pets allowed',
-                'wifi': 'WiFi included', 'double_glazing': 'double glazing', 'doorman': 'doorman',
-            }
-            feats = [feat_labels.get(f, str(f).replace('_', ' ')) for f in d.get('features', [])]
-            feat_text = f" Features include {', '.join(feats)}." if feats else ""
-            d['description'] = f"Beautiful {d.get('type', 'apartment')} in {d.get('zone', 'Rome')}, {d.get('sqm', '')}sqm on floor {d.get('floor', 'N/A')}, {furn_text.get(d.get('furnished', 'no'), 'unfurnished')}. {d.get('beds', '')} beds, {d.get('bathrooms', '')} bathroom{'s' if d.get('bathrooms', 1) > 1 else ''}.{feat_text} €{d.get('price', 0):,}/month."
+            # il testo di riserva: SOLO fatti dichiarati (_template_description);
+            # lo sweep notturno lo riscrive con una descrizione vera
+            d['description'] = _template_description(d)
             label = '✅ Descrizione generata (modello base)'
+            if isinstance(ai, dict) and ai.get('issues'):
+                label += ' — quella AI non passava i controlli'
     else:
         d['description'] = ''
     await q.edit_message_text(f"{label}\n\n{progress_bar(14)}\n\n*14/14* — 📸 *Manda le foto!*\n\nInvia foto una alla volta o in gruppo.\n/done quando hai finito · /skip per saltare", parse_mode='Markdown'); return PHOTOS
@@ -425,7 +759,7 @@ async def photo_received(update, context):
     return PHOTOS
 
 async def photos_done(update, context):
-    d = context.user_data; d['name'] = f"{d.get('type', 'Appartamento').title()} {d.get('zone', 'Roma')}"
+    d = context.user_data; d['name'] = _listing_name(d)
     await update.message.reply_text(
         f"📹 *Video YouTube?*\n\nIncolla il link YouTube oppure tocca Salta:",
         parse_mode='Markdown',
@@ -459,8 +793,8 @@ def _share_kit(listing, url):
     top = ' · '.join(femoji[f] for f in (listing.get('features') or []) if f in femoji)
     bits = [f"🏡 {listing.get('name','Casa BOOM')} — {listing.get('zone','Roma')}"]
     facts = ' · '.join(str(x) for x in [f"{listing.get('sqm')}mq" if listing.get('sqm') else None,
-                                        f"{listing.get('beds')} camere" if listing.get('beds') else None,
-                                        f"€{listing.get('price',0):,}/mese"] if x)
+                                        _bedrooms_label(listing),
+                                        f"€{listing['price']:,}/mese" if listing.get('price') else None] if x)
     bits.append(facts)
     if top: bits.append(top)
     bits.append('✅ Verificata BOOM · contratto regolare · zero sorprese')
@@ -480,24 +814,17 @@ async def _do_publish(context, d, photo_ids):
             image_urls.append(url); logger.info(f"Uploaded {i+1}/{len(photo_ids)}")
         except Exception as e: logger.error(f"Photo upload error: {e}")
     if not d.get('description'):
-        ai = await asyncio.to_thread(wizard_post, '/api/wizard/describe', {
-            'type': d.get('type'), 'zone': d.get('zone'), 'address': d.get('address'),
-            'sqm': d.get('sqm'), 'floor': d.get('floor'), 'beds': d.get('beds'),
-            'bathrooms': d.get('bathrooms'), 'furnished': d.get('furnished'),
-            'price': d.get('price'), 'features': d.get('features', []),
-            'availableDate': d.get('availableDate'), 'concordato': d.get('concordato'),
-        })
-        if ai and ai.get('ok') and ai.get('en'):
-            d['description'] = ai['en'].strip()
-            if ai.get('it'): d['descriptionIt'] = ai['it'].strip()
-    now = datetime.now(timezone.utc).isoformat() + 'Z'
-    listing = {'name': d.get('name',''), 'address': d.get('address',''), 'zone': d.get('zone',''), 'price': d.get('price',0), 'type': d.get('type',''), 'status': 'available', 'beds': d.get('beds',0), 'bedrooms': d.get('beds',0), 'sqm': d.get('sqm',0), 'size': d.get('sqm',0), 'floor': str(d.get('floor','')), 'bathrooms': d.get('bathrooms',0), 'furnished': d.get('furnished','no'), 'availableDate': d.get('availableDate','Subito'), 'concordato': d.get('concordato','tbd'), 'description': d.get('description',''), 'descriptionIt': d.get('descriptionIt',''), 'features': d.get('features',[]), 'tags': [t for t in [d.get('zone','').lower(), d.get('type','').lower(), 'concordato' if d.get('concordato') is True else '', 'furnished' if d.get('furnished') == 'yes' else ''] if t], 'image': image_urls[0] if image_urls else '', 'images': image_urls, 'videoUrl': d.get('videoUrl', ''), 'createdAt': now, 'updatedAt': now, 'createdBy': 'homie'}
-    if d.get('depositMonths'):
-        listing['depositMonths'] = d['depositMonths']
-        listing['deposit'] = round(d['depositMonths'] * (listing['price'] or 0))
+        ai = await asyncio.to_thread(wizard_post, '/api/wizard/describe', _describe_payload(d))
+        _accept_ai_copy(d, ai)   # rifiutata → testo vuoto, lo riempie lo sweep notturno
+    listing = _listing_doc(d, image_urls, _now_iso())
+    # un nome già usato si DICE (mai un suffisso inventato): lo sceglie l'operatore
+    try:
+        dup = listing['name'].strip().lower() in await asyncio.to_thread(fs_listing_names)
+    except Exception as e:
+        logger.warning(f'listing names: {e}'); dup = False
     doc_id = await asyncio.to_thread(publish_listing, listing)
     detail_url = f"{SITE_URL}/listing/{doc_id}"
-    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing['address']}, {listing['zone']}\n💶 €{listing['price']:,}/mese\n📐 {listing['sqm']}mq · Piano {listing['floor']}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`", parse_mode='Markdown')
+    await context.bot.send_message(chat_id=ADMIN_CHAT_ID, text=f"━━━━━━━━━━━━━━━━━━━━━━\n✅ *LISTING PUBBLICATO!*\n━━━━━━━━━━━━━━━━━━━━━━\n\n🏠 *{listing['name']}*\n📍 {listing.get('address') or '—'}, {listing.get('zone') or '—'}\n💶 €{listing.get('price') or 0:,}/mese\n📐 {listing.get('sqm') or '?'}mq · Piano {listing.get('floor') or '?'}\n📸 {len(image_urls)} foto\n\n🔗 *Link per il cliente:*\n`{detail_url}`\n\n☝️ Tocca per copiare\n\n✏️ Ritocchi: /prezzo /deposito /video /modifica `{doc_id}`" + (f"\n\n⚠️ Il nome *{listing['name']}* c'è già in catalogo: cambialo con /modifica `{doc_id}` nome …" if dup else ''), parse_mode='Markdown')
     logger.info(f"Listing created: {doc_id}")
     # share kit: caption pronta per WhatsApp/Instagram (long-press to copy)
     try:
@@ -555,13 +882,13 @@ async def cmd_listings(update, context):
 async def cmd_rent(update, context):
     if not is_admin(update): return
     if not context.args: await update.message.reply_text("Uso: `/rent LISTING_ID`", parse_mode='Markdown'); return
-    try: fs_update('listings', context.args[0], {'status': 'rented', 'updatedAt': datetime.now(timezone.utc).isoformat()+'Z'}); await update.message.reply_text(f"✅ `{context.args[0]}` → affittato", parse_mode='Markdown')
+    try: fs_update('listings', context.args[0], {'status': 'rented', 'updatedAt': _now_iso()}); await update.message.reply_text(f"✅ `{context.args[0]}` → affittato", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_reactivate(update, context):
     if not is_admin(update): return
     if not context.args: await update.message.reply_text("Uso: `/reactivate LISTING_ID`", parse_mode='Markdown'); return
-    try: fs_update('listings', context.args[0], {'status': 'available', 'updatedAt': datetime.now(timezone.utc).isoformat()+'Z'}); await update.message.reply_text(f"✅ `{context.args[0]}` → riattivato", parse_mode='Markdown')
+    try: fs_update('listings', context.args[0], {'status': 'available', 'updatedAt': _now_iso()}); await update.message.reply_text(f"✅ `{context.args[0]}` → riattivato", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_delete(update, context):
@@ -585,7 +912,7 @@ EDIT_FIELDS = {
     'nome': ('name', str, None), 'indirizzo': ('address', str, None),
     'zona': ('zone', str, None), 'prezzo': ('price', 'money', None),
     'mq': ('sqm', 'int', 'size'), 'piano': ('floor', str, None),
-    'letti': ('beds', 'int', 'bedrooms'), 'bagni': ('bathrooms', 'int', None),
+    'letti': ('beds', 'int', 'bedrooms'), 'camere': ('beds', 'int', 'bedrooms'), 'bagni': ('bathrooms', 'int', None),
     'arredato': ('furnished', 'furn', None), 'disponibile': ('availableDate', str, None),
     'descrizione': ('description', str, None), 'video': ('videoUrl', str, None),
     'commissione': ('agencyFee', 'money', None), 'stato': ('status', 'status', None),
@@ -607,7 +934,7 @@ def _coerce(kind, raw):
     return str(raw).strip()
 
 def _edit_listing(doc_id, updates):
-    updates['updatedAt'] = datetime.now(timezone.utc).isoformat() + 'Z'
+    updates['updatedAt'] = _now_iso()
     fs_update('listings', doc_id, updates)
 
 async def cmd_disponibilita(update, context):
@@ -693,6 +1020,8 @@ async def cmd_modifica(update, context):
     field, kind, twin = spec
     try:
         val = _coerce(kind, raw)
+        if field == 'beds' and not 0 <= val <= 10:
+            raise ValueError('camere da 0 (monolocale) a 10')
         updates = {field: val}
         if twin: updates[twin] = val
         _edit_listing(doc_id, updates)
@@ -1124,7 +1453,10 @@ def _local_interpret(text, prev='', listings=None):
     m = re.search(r'(\d|un[oa]?|due|tre|quattro|cinque)\s*(?:camer|stanz)', t)
     if m and not re.search(r'stanz\w*\s+da\s+bagno', t):
         n = _num(m.group(1))
-        if n: updates['beds'] = int(n); summary.append(f"Camere: {int(n)}")
+        # i gemelli, come /modifica letti e api/wizard/interpret.js: il sito legge
+        # `bedrooms` (FACTS.bedroomsOf) — scrivere solo `beds` faceva dire
+        # «✅ Fatto» al bot senza cambiare niente in vetrina
+        if n: updates['beds'] = updates['bedrooms'] = int(n); summary.append(f"Camere: {int(n)}")
     m = re.search(r'(\d|un[oa]?|due|tre)\s*bagn', t)
     if m:
         n = _num(m.group(1))
@@ -1495,11 +1827,14 @@ async def _nl_process(update, context, text):
                 'aggiornare una casa esistente, nominala come compare in catalogo.')
             return
         NL_CTX.pop(chat_id, None)
+        dropped = _drop_unsaid(text, plan)
         buf = _photo_buffer(chat_id)
         plan['_photos'] = list(buf['ids']) if buf else []
         tok = os.urandom(4).hex()
         _pending_put(PENDING_NL, chat_id, plan, tok)
         lines = '\n'.join('• ' + s for s in (plan.get('summary') or []))
+        if dropped:
+            lines += f"\n⚠️ Non li hai detti, quindi non li scrivo: {', '.join(dropped)} — li aggiungi dopo con /modifica"
         F = plan['fields']
         # canone concordato traffic light: is the asked rent in the legal band?
         try:
@@ -1545,16 +1880,7 @@ async def nl_confirm_cb(update, context):
         await q.edit_message_text('⚠️ Questa proposta è scaduta o è stata sostituita — per sicurezza non ho applicato nulla. Rimanda la frase.'); return
     if plan.get('action') == 'create':
         await q.edit_message_text('⏳ *Pubblico l\'annuncio…*', parse_mode='Markdown')
-        F = plan['fields']
-        d = {
-            'type': F.get('type', 'appartamento'), 'zone': F.get('zone', ''), 'address': F.get('address', ''),
-            'sqm': F.get('sqm', 0), 'floor': F.get('floor', ''), 'beds': F.get('beds', 0),
-            'bathrooms': F.get('bathrooms', 0), 'price': F.get('price', 0),
-            'furnished': F.get('furnished', 'no'), 'availableDate': F.get('availableDate', 'Subito'),
-            'features': F.get('features', []), 'videoUrl': F.get('videoUrl', ''),
-            'concordato': F.get('concordato', 'tbd'), 'depositMonths': F.get('depositMonths'),
-        }
-        d['name'] = f"{str(d['type']).title()} {d['zone']}".strip()
+        d = _nl_listing_fields(plan['fields'])
         try:
             await _do_publish(context, d, plan.get('_photos') or [])
             PENDING_PHOTOS.pop(q.message.chat.id, None)
