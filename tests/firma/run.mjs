@@ -278,5 +278,13 @@ ok(/sel\('tIdDocType','ID document type',''\)/.test(src('pre-agreement.html')) &
   ok(/out\.error === 'no_template'/.test(src('api/preagreement/_auto.js')) && /contract\.no_template/.test(src('api/preagreement/_auto.js')), 'il contratto automatico bloccato sul 4+4 avvisa l\'operatore');
 }
 
+// IL DOPPIO ONBOARDING (15/10/2026): il «🚀 Ri-attiva» rimandava il benvenuto
+// a chi l'aveva già ricevuto dal server.
+{
+  const pa = src('js/portal-app.js');
+  ok(/let emailSent = contract\.welcomeEmailSent === true;\s*\n\s*if \(!emailSent && tenant\?\.email\)/.test(pa),
+    'activateContract: la welcome NON riparte se welcomeEmailSent è già vero');
+}
+
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

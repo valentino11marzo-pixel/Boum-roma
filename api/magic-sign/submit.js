@@ -733,6 +733,7 @@ export default async function handler(req, res) {
           filter: { field: 'contractId', op: 'EQUAL', value: contractId },
           limit: 10,
         })).filter(p => !String(p.type || '').startsWith('deposit'));
+        let scheduled = existing.length;
         if (!existing.length) {
           const writes = [];
           const pStart = new Date(fullContract.startDate);
@@ -788,7 +789,13 @@ export default async function handler(req, res) {
             });
           }
           if (writes.length) await commitWrites(writes);
+          scheduled = writes.length;
         }
+        // Il calendario c'è (appena scritto o già presente): lo si DICE sul
+        // contratto. Senza questo timbro il portal vedeva `paymentsGenerated:
+        // false` (scritto dalla conversione) e offriva «🚀 Ri-attiva
+        // onboarding», che rimandava il benvenuto.
+        if (scheduled) await fsPatch(`contracts/${contractId}`, { paymentsGenerated: true, ...(existing.length ? {} : { paymentsCount: scheduled }) });
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
     }
 

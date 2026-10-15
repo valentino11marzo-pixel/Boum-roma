@@ -3229,6 +3229,16 @@ idonei» di default. In console PA la riga mostra ora **📄 Contratto (PDF, non
 firmato)** finché le firme non sono complete: il `generatedPDF` esisteva
 dalla conversione, ma si apriva solo dal portal.
 
+**IL DOPPIO ONBOARDING (15/10/2026)**. La conversione scrive
+`paymentsGenerated:false, welcomeEmailSent:false` e il server non li
+aggiornava mai: dopo una firma completa il portal mostrava «🚀 Onboarding
+incompleto» e il «🚀 Ri-attiva onboarding» rimandava un secondo benvenuto a
+chi l'aveva già ricevuto dal finalize. Ora `magic-sign/submit` timbra
+`paymentsGenerated`/`paymentsCount` quando il calendario c'è, `_finalize`
+timbra `welcomeEmailSent` solo a benvenuto riuscito (un false non cancella un
+true), e `activateContract` non rimanda la welcome se è già partita. Test:
+`tests/notify` (§1 e §1d), `tests/firma`.
+
 ### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
 Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
 accordo 27/07/2023 prot. RA/2023/0044852 —
