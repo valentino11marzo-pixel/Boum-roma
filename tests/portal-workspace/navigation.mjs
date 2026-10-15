@@ -31,6 +31,15 @@ try{
    const tools=await page.locator('#ogQuickTools').boundingBox(),work=await page.locator('#ogDeskFold').boundingBox();measurements.push({width,toolsHeight:tools.height,workTop:work.y,columns:await page.locator('#ogQuickTools').evaluate(e=>getComputedStyle(e).gridTemplateColumns.split(' ').length)});assert(work.y<680);const priority=await page.locator('[data-desk-key="urgent"]').boundingBox();assert(priority&&priority.y+priority.height<(width<=920?784:844),'Priority action is visible above the phone tab bar');assert((await page.locator('#ogQuickTools [data-og-tool]').first().boundingBox()).height>=44);
    await page.screenshot({path:join(artifacts,'home-'+width+'.png')});
   });
+  await check('search targets stay reachable and expanded sources do not sit under the email action',async()=>{
+   const email=page.locator('.portal-mailbox-entry>button'),sources=page.locator('.portal-mailbox-entry>.ow-search-sources'),summary=sources.locator(':scope>summary');
+   for(const target of [email,summary,page.locator('#ogWorkKind'),page.locator('#ogWorkQuery')])assert((await target.boundingBox()).height>=44,'Search controls retain a 44px touch target');
+   const action=await email.boundingBox(),sourceTarget=await summary.boundingBox();assert(sourceTarget.x+sourceTarget.width<=action.x,'Source and email touch targets never overlap');
+   await summary.click();const contents=await page.locator('#ogSearchSources').boundingBox();assert(contents.y>=action.y+action.height,'Expanded sources start below the email button');
+   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+   const firstSource=page.locator('[data-search-source]').first();await firstSource.scrollIntoViewIfNeeded();assert(await firstSource.evaluate(button=>{const r=button.getBoundingClientRect();return button.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))}),'Expanded source action is not covered');
+   await page.screenshot({path:join(artifacts,'sources-'+width+'.png')});await summary.click();await page.evaluate(()=>scrollTo(0,0));
+  });
   await check('six daily destinations and all thirty-eight original navigation actions remain accessible',async()=>{
    assert.equal(await page.locator('#sidebar .nav-item').count(),38);assert.equal(await page.locator('#sidebar .portal-nav-primary .nav-item').count(),6);assert.equal(await page.locator('#sidebar .portal-nav-group').count(),4);
    assert.deepEqual(await page.locator('#sidebar .portal-nav-primary .nav-item').evaluateAll(rows=>rows.map(e=>e.getAttribute('onclick'))),['oggi','users','properties','contracts','payments','inbox'].map(id=>"goTo('"+id+"')"));

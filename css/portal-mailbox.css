@@ -1,6 +1,12 @@
 /* Mailbox is a native dialog: isolated from the portal's form/modal adapters. */
-.portal-mailbox-entry{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:10px 0 4px;color:var(--text-secondary);font-size:12px}
-.portal-mailbox-entry button{flex:none;min-height:44px}
+.portal-mailbox-entry{position:relative;margin:8px 0 0;color:var(--text-secondary);font-size:12px}
+.portal-mailbox-entry>.btn{position:absolute;top:0;right:0;width:166px;min-height:44px;padding:10px 12px;white-space:nowrap}
+.ow-home.portal-home .portal-mailbox-entry>.ow-search-sources{margin:0;padding:0;border:0}
+.ow-home.portal-home .portal-mailbox-entry>.ow-search-sources>summary{display:flex;align-items:center;gap:6px;width:calc(100% - 178px);min-height:44px;padding:6px 0;font-size:13px;line-height:18px;list-style:none}
+.portal-mailbox-entry>.ow-search-sources>summary::-webkit-details-marker{display:none}
+.portal-mailbox-entry>.ow-search-sources>summary::before{content:'›';flex:none;font-size:20px;color:var(--text-secondary)}
+.portal-mailbox-entry>.ow-search-sources[open]>summary::before{transform:rotate(90deg)}
+.portal-mailbox-entry #ogSearchSources{padding-top:8px}
 body.portal-mailbox-open{overflow:hidden}
 dialog.portal-mailbox{position:fixed;inset:0;width:min(1060px,calc(100vw - 48px));height:min(860px,calc(100dvh - 48px));max-width:none;max-height:none;margin:auto;padding:0;border:1px solid var(--border);border-radius:20px;background:var(--bg-card,#0a0a0a);color:var(--text,#fff);font:400 14px/1.5 'Helvetica Neue',Helvetica,sans-serif;box-shadow:0 30px 100px #0009;overflow:hidden}
 dialog.portal-mailbox[open]{display:flex;flex-direction:column}
@@ -57,7 +63,9 @@ dialog.portal-mailbox[open]{display:flex;flex-direction:column}
 .mb-records small,.mb-records span{font-size:12px;color:var(--text-secondary)}
 .mb-link{border:0;background:transparent;color:var(--gold);text-decoration:underline;min-height:44px;padding:8px}
 @media(max-width:680px){
-  .portal-mailbox-entry{align-items:flex-start}.portal-mailbox-entry>span{max-width:170px}
+  .ow-home.portal-home .ow-search{min-height:46px}
+  .ow-home.portal-home .ow-search select{min-height:44px;padding-top:10px;padding-bottom:10px}
+  .ow-home.portal-home .ow-search input{min-height:44px;padding-top:10px;padding-bottom:10px}
   dialog.portal-mailbox{width:100vw;height:100dvh;border-radius:0;border:0}
   .mb-header{padding:calc(12px + env(safe-area-inset-top,0px)) 16px 10px}.mb-header h2{font-size:22px}.mb-eyebrow{font-size:9px}
   .mb-search{padding:0 16px 10px}.mb-search .btn{padding:10px 18px}

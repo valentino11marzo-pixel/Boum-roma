@@ -122,7 +122,7 @@ export default async function handler(req, res) {
       : body.cursor ? verify(body.cursor, 'cursor', cfg, user.localId) : null;
     if (proof && (body.action === 'read' ? !uidOK(proof.uid) : proof.query !== hash(query) || !uidOK(proof.before))) throw fail('invalid_reference');
     client = new ImapFlow({ host: cfg.host, port: 993, secure: true, auth: { user: cfg.account, pass: cfg.pass },
-      logger: false, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: DEADLINE_MS });
+      logger: false, connectionTimeout: 10000, greetingTimeout: 10000, socketTimeout: 20000 });
     client.on('error', () => {}); // Sanitized handler response; no mailbox contents in logs.
     await run(() => client.connect());
     const folders = await run(() => client.list());
