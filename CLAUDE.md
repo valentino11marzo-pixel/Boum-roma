@@ -124,6 +124,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 
 ### SmartLink annunci esterni (BOOM Tools)
 L'admin incolla un URL Immobiliare.it, Idealista, Subito, Casafari o Casa.it in `portal.html#boom-tools`; `/api/smartlink/extract` prova a leggere pochi campi dal portale, senza promettere copertura quando la fonte blocca l'accesso. L'operatore controlla/corregge e `/api/smartlink/create` salva in `smartlinks` solo URL, titolo, canone, zona, m², locali e nota; niente foto o descrizioni copiate. `/api/smartlink/read` restituisce al pubblico solo questi campi, mai l'identità admin; le rules Firestore sono admin-only. Il link usa `/smartlink.html?id=…`, separato dal vecchio `/s.html`; test: `npm test -- smartlink`.
+La prova locale `node tools/smartlink-preview.mjs` apre `/preview` su `127.0.0.1:4177`: usa lo stesso motore di URL e la stessa estrazione della funzione Vercel, ma conserva le schede solo in memoria per la sessione di prova. `/preview` precompila il primo annuncio fornito dall'operatore; i campi restano correggibili e il tasto “Rileggi fonte” tenta una nuova lettura. La scheda pubblica usa `css/smartlink.css`, con palette BOOM nero e oro; il link locale generato non va condiviso come URL pubblico. Nessun record della prova entra in Firestore; test: `npm test -- smartlink` e verifica manuale di `/preview` → `/smartlink.html?id=…`.
 
 ## Brand & Design
 
