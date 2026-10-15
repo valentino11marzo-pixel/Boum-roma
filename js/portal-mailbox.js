@@ -73,7 +73,7 @@
     // The same deadline includes token acquisition and JSON parsing. Aborting
     // fetch alone cannot release an auth SDK promise that never settles.
     var cancelled = new Promise(function (_, reject) { controller.signal.addEventListener('abort',function () { reject({code:'mailbox_timeout'}); },{once:true}); });
-    var wait = function (operation) { return Promise.race([Promise.resolve().then(operation),cancelled]); };
+    var wait = function (operation) { return Promise.race([Promise.resolve().then(function () { if (!current() || controller.signal.aborted) throw {code:'cancelled'}; return operation(); }),cancelled]); };
     var timer = setTimeout(function () { controller.abort(); }, 65000);
     try {
       var token = await wait(function () { return adapter.getToken(currentState.session); });
@@ -99,6 +99,7 @@
   }
   function search(more) {
     if (!valid()) { reset(); return; }
+    if (state.denied) return;
     var query = (more?state.searched:state.draft).trim();
     if (query.length<3 || query.length>160 || /[\u0000-\u001f\u007f]/.test(query)) { stop();state.error=fail('invalid_query');render();dialog?.querySelector('#mailboxQuery').focus();return; }
     if (more && !state.nextCursor) return;

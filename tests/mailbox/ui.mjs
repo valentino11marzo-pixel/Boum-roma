@@ -129,6 +129,10 @@ try{
   await page.evaluate(()=>mailboxIO.pending.shift()());assert.equal(await page.locator('.mb-result').count(),0);
   await page.getByRole('button',{name:'Cerca',exact:true}).click();await ready();assert.equal(await page.evaluate(()=>mailboxIO.calls.length),2);
  });
+ await check('session reset before dispatch prevents even token acquisition',async()=>{
+  await page.evaluate(()=>{window.mailboxTokenCalls=0;auth.currentUser.getIdToken=async()=>{mailboxTokenCalls++;return 'token'};portalOpenMailbox('Aurora');BOOM_MAILBOX.reset()});
+  assert.equal(await page.evaluate(()=>mailboxTokenCalls),0);assert.equal(await page.evaluate(()=>mailboxIO.calls.length),0);assert.equal(await page.locator('#portalMailbox').count(),0);
+ });
  await check('deadline releases a pending token and its late completion never fetches',async()=>{
   await page.clock.install();
   await page.evaluate(()=>{auth.currentUser.getIdToken=()=>new Promise(resolve=>window.releaseMailboxToken=resolve)});await open();await page.waitForFunction(()=>!!window.releaseMailboxToken);
