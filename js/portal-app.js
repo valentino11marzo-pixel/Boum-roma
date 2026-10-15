@@ -20040,7 +20040,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
-                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="Conto addebito tributi, foglio di registrazione, ricevuta e invio al referente${c.aspiRequestedAt ? ' — richiesta inviata il ' + String(c.aspiRequestedAt).slice(0, 10) : ''}">🏛 Registrazione${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
@@ -25609,11 +25609,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // and *backfills missing tokens on the fly* so legacy contracts (created before
     // the wizard) also get magic-sign + form links without manual fix-ups.
     async function openShareHub(contractId) {
-        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!auth.currentUser) return;
+        const openingUid = auth.currentUser.uid;
+        const sameSession = () => !!auth.currentUser && auth.currentUser.uid === openingUid;
+        let c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
-        const prop = (S.properties || []).find(p => p.id === c.propertyId);
-        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
-        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
         // I CONTATTI DAL CONTRATTO quando manca il profilo (12/10/2026): un
         // immobile nato da una proposta non ha ownerId, e i bottoni WhatsApp
         // ed email del locatore restavano spenti («Manca il telefono») col
@@ -25625,9 +25625,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!user) return (base.name || base.phone || base.email) ? base : null;
             return { ...user, name: user.name || base.name, phone: user.phone || base.phone, email: user.email || base.email };
         };
-        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
-        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
-
         // Mount a placeholder immediately so the modal is visible while the
         // Firestore backfill is in flight. If a previous closeModal() is still
         // waiting to clear #modals, this paint will be overwritten — so we
@@ -25640,12 +25637,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div>Preparazione link…</div>
             </div></div></div>`;
 
+        // Come readContractPDF: il file firmato viene dal contratto ATTUALE.
+        // Se la lettura fallisce, nessun PDF della cache diventa condivisibile.
+        let contractVerified = false, refreshTimer;
+        try {
+            const snapshot = await Promise.race([
+                db.collection('contracts').doc(contractId).get({ source: 'server' }),
+                new Promise((_, reject) => { refreshTimer = setTimeout(() => reject(new Error('contract_read_timeout')), 12000); })
+            ]);
+            if (!sameSession()) return;
+            if (!snapshot.exists) { closeModal(); return toast('error', 'Contratto non disponibile. Aggiorna l’elenco e riprova.'); }
+            c = { ...snapshot.data(), id: contractId };
+            contractVerified = true;
+        } catch (_) { /* gli altri link mantengono il flusso esistente; il PDF resta non verificato */ }
+        finally { if (refreshTimer) clearTimeout(refreshTimer); }
+        if (!sameSession()) return;
+        const prop = (S.properties || []).find(p => p.id === c.propertyId);
+        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
+        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
+        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
+
         // I link di firma dal server (/api/sign/links): coniati nel deposito
         // signTokens se mancano, e SOLO quelli che spettano a chi chiede
         // (admin entrambi, il proprietario il suo). Il contratto non li porta.
         let signLinks = {};
         try { signLinks = await fetchSignLinks(contractId); }
         catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
+        if (!sameSession()) return;
 
         // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
         // browser non può calcolarli) — una POST restituisce entrambi i link.
@@ -25653,18 +25672,49 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let schedaLinks = null;
         try {
             const idToken = await auth.currentUser.getIdToken();
+            if (!sameSession()) return;
             const r = await fetch('/api/profile/link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                 body: JSON.stringify({ contractId })
             });
             const j = await r.json().catch(() => null);
+            if (!sameSession()) return;
             if (j && j.ok) schedaLinks = j;
         } catch (e) { console.warn('[shareHub] scheda links unavailable:', e); }
+        if (!sameSession()) return;
 
         const base = window.location.origin;
         // ---- Build the link catalogue ----
         const links = [];
+
+        // signedPdfUrl è la fonte canonica anche per i record legacy, come
+        // readContractPDF(signedOnly). generatedPDF e data URL non si condividono.
+        let signedUrl = '';
+        if (contractVerified && typeof c.signedPdfUrl === 'string') {
+            try {
+                const raw = c.signedPdfUrl.trim();
+                const url = new URL(raw);
+                if (/^https:\/\//i.test(raw) && !/[\u0000-\u0020\u007f]/.test(raw)
+                    && url.protocol === 'https:' && url.hostname && !url.username && !url.password) signedUrl = url.href;
+            } catch (_) { /* collegamento non valido: nessuna alternativa generata */ }
+        }
+        const complete = ['complete', 'completed'].includes(c.signatureStatus) || !!c.fullySignedAt
+            || !!(c.tenantSignature && c.landlordSignature && (Array.isArray(c.coTenants) ? c.coTenants : []).every(co => !co || !co.name || co.signature));
+        const signedNotice = !contractVerified ? 'Il PDF firmato non è verificabile adesso. Controlla la connessione e riapri questo pannello.'
+            : !signedUrl && (complete || c.signedPdfUrl) ? 'Il PDF firmato non è ancora disponibile per la condivisione. Contatta BOOM per verificare il documento.' : '';
+        if (signedUrl) {
+            const tenantMessage = (n) => `Hi ${n}, here is your signed lease for ${prop?.name || 'the apartment'}:\n\n{URL}\n\nPlease keep this copy with your documents.\n\n— BOOM Roma`;
+            const landlordMessage = (n) => `Gentile ${n}, ecco la copia firmata del contratto di locazione di ${prop?.name || 'questo immobile'}:\n\n{URL}\n\nLa conservi insieme ai documenti della locazione.\n\n— BOOM Roma`;
+            [
+                ['tenant', tenant, tenantMessage, 'BOOM · Your signed lease'],
+                ['landlord', landlord, landlordMessage, 'BOOM · Contratto firmato']
+            ].forEach(([audience, target, message, subject]) => links.push({
+                audience, target, icon: '📄', title: 'Contratto firmato',
+                subtitle: 'Copia PDF firmata · apri, copia il link o prepara il messaggio',
+                url: signedUrl, waText: message, emailSubj: subject, emailBody: message
+            }));
+        }
 
         // The invitation is an ordinary login URL, never an anonymous session.
         const casaUrl = window.BOOM_TENANT_ACCESS && window.BOOM_TENANT_ACCESS.inviteUrl(c, tenant);
@@ -25836,17 +25886,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;margin-bottom:8px">
-                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;font-family:monospace;font-size:10px;padding:6px 8px">
+                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;min-width:0;font-family:monospace;font-size:10px;padding:6px 8px">
                     <button class="btn btn-xs" onclick="(function(){var el=document.getElementById('${inputId}');navigator.clipboard.writeText(el.value).then(()=>{el.style.borderColor='var(--green)';toast('success','Link copiato');setTimeout(()=>el.style.borderColor='',1200);});})()" title="Copia link">📋</button>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl
-                        ? `<a href="${waUrl}" target="_blank" class="btn btn-xs btn-success">💬 WhatsApp</a>`
+                        ? `<a href="${esc(waUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-success">💬 WhatsApp</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca il telefono">💬 WA</span>`}
                     ${mailUrl
-                        ? `<a href="${mailUrl}" class="btn btn-xs btn-secondary">📧 Email</a>`
+                        ? `<a href="${esc(mailUrl)}" class="btn btn-xs btn-secondary">📧 Email</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca l'email">📧 Email</span>`}
-                    <button class="btn btn-xs btn-secondary" onclick="window.open('${lk.url}','_blank')">🔗 Apri</button>
+                    <a href="${esc(lk.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary">🔗 Apri</a>
                 </div>
             </div>`;
         };
@@ -25854,14 +25904,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tenantLinks  = links.filter(l => l.audience === 'tenant');
         const landlordLinks = links.filter(l => l.audience === 'landlord');
 
-        const colHtml = (title, who, list) => `<div>
+        const colHtml = (title, who, list) => `<div style="min-width:0">
             <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px">
                 ${title} ${who ? `<span style="color:var(--text-muted);letter-spacing:0">· ${esc(who.name || '')}</span>` : ''}
             </div>
+            ${signedNotice ? `<p role="status" style="font-size:12px;color:var(--text-muted);margin:0 0 12px">${esc(signedNotice)}</p>` : ''}
             ${list.length ? list.map((l, i) => cardHtml(l, title.charAt(0) + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
         </div>`;
 
         const propLabel = prop?.name || 'contratto';
+        if (!sameSession()) return;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header">
                 <h3 class="modal-title">🔗 Link da condividere — ${esc(propLabel)}</h3>
@@ -25869,7 +25921,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-body">
                 <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Scegli il link e verifica il destinatario. WhatsApp ed email aprono un messaggio da controllare e inviare. L’invito alla dashboard richiede l’account personale del cliente.</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px">
                     ${colHtml('👤 INQUILINO',  tenant,   tenantLinks)}
                     ${colHtml('🏠 LOCATORE',  landlord, landlordLinks)}
                 </div>

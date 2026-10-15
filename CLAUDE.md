@@ -3926,6 +3926,13 @@ tre difetti veri:
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
   («Manca il telefono») col numero scritto sul contratto. L'accesso al portale
   resta solo a chi ha un profilo.
+- **Copia firmata nello Share Hub (15/10)**: prima voce per inquilino e
+  proprietario, letta dal contratto attuale sul server. Condivide soltanto
+  `signedPdfUrl` HTTPS valido, anche sui record legacy: mai `generatedPDF`
+  o data URL. File assente o non verificabile dichiarato; Apri/Copia/WhatsApp/
+  email preparano la condivisione senza inviare. Griglia adattabile al telefono.
+  Il pulsante del contratto si chiama **Registrazione** (conto tributi, foglio,
+  ricevuta e referente). Test: `tests/share-hub/ui.mjs`, funzione reale e rete finta.
 Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
 📋 fa nascere contratto e immobile, link e messaggio della Scheda, nessuna
 email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il

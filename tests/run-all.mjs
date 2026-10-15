@@ -41,6 +41,7 @@ const SUITES = [
   { name: 'tenantworkspaceui', file: 'tests/tenant-workspace/ui.mjs', what: 'bozze conservate, retry dopo risposta persa, ricerca e stati veritieri nel controller reale' },
   { name: 'tenantworkspacemutations', file: 'tests/tenant-workspace/mutate.mjs', what: 'respinge accesso trasversale, perdita di idempotenza, revisioni obsolete e campi contraffatti' },
   { name: 'tenantaccess', file: 'tests/tenant-access/run.mjs', what: 'invito dashboard, primo accesso e contratto corretto senza invii' },
+  { name: 'sharehub', file: 'tests/share-hub/ui.mjs', what: 'copia firmata attuale condivisibile alle parti, file mancanti espliciti e isolamento sessione senza invii' },
   { name: 'tenantpayments', file: 'tests/tenant-payments/run.mjs', what: 'casa: pagamenti confermati dal server, errore esplicito, retry limitati e mutazioni' },
   { name: 'paymentlinks', file: 'tests/payment-links-safety/run.mjs', what: 'link e checkout: guardie, riuso sessione, ritorno verificato e commissioni coerenti' },
   { name: 'paymentlinkmutations', file: 'tests/payment-links-safety/mutate.mjs', what: 'i difetti ripristinati devono fallire: guardie, commissioni, ritorno e riuso checkout' },
