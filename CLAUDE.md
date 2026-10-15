@@ -1322,11 +1322,16 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   non sono veri, e hanno il loro tetto, ≤ 70); il corpo esclude anche quelli.
   Dopo i prezzi i waitlist sforavano (Parigi 961, Berlino 985): tagliata la
   copy delle fee, non il tetto — Barcellona 935 · Parigi 946 · Berlino 949.
+  **La promessa di rimborso è POLICY** (confermata dal fondatore il 15/10:
+  «keep the refund promise, it's our policy»): Full Search è rimborsato per
+  intero se BOOM declina la ricerca nella prima chiamata. Sta nel prodotto
+  Stripe (`CITY_PLANS`), nel foglio (`checkoutCopy.fine`) e nella FAQ dei
+  desk che vendono, e il build RIFIUTA un desk con la cassa aperta il cui
+  foglio non la dichiari: un desk nuovo non può aprire la cassa senza.
   **Da verificare prima del live, oltre a quanto già aperto**: l'IVA sul
-  venduto da pagina (luogo della prestazione), la promessa di rimborso del
-  Full Search (è la regola della FAQ resa esplicita: va confermata dal
-  fondatore come politica), e su Berlino se Application Pack e Attended
-  Viewing siano «Vermittlung» (allora anche loro solo a contratto firmato).
+  venduto da pagina (luogo della prestazione) e su Berlino se Application
+  Pack e Attended Viewing siano «Vermittlung» (allora anche loro solo a
+  contratto firmato).
 - **Aperto, non deciso qui**: l'IVA (prezzi «incl. VAT» su un servizio reso
   in NL da una S.r.l. italiana a consumatori: luogo della prestazione da
   confermare col commercialista PRIMA del live), il pagamento (carta o

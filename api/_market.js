@@ -192,7 +192,10 @@ export function b2bReplyText(lead = {}) {
 // a waitlist city never opens a checkout (the build refuses it), the list
 // price is what the client will pay when the desk opens. Berlin's Full
 // Search is due only once a lease is signed (WoVermRG §2, §3: fee on a
-// concluded lease, cap two net cold months + VAT, no advances).
+// concluded lease, cap two net cold months + VAT, no advances). The Full
+// Search refund rule in the product description is BOOM POLICY (the
+// founder, 15/10): refunded in full if BOOM declines the search in the
+// first call — the sheet, the FAQ and the build's guard say the same.
 export const CITY_PLANS = {
   'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
     desc: 'Search on the tenant\'s side: local-format dossier in 24 hours, applications within the hour, one attended viewing with live video and written report, negotiation, contract checked before you sign. Refunded in full if we decline the search in the first call.' },

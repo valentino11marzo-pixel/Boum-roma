@@ -302,6 +302,8 @@ check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{
   check(throws(() => render(noSending), /needs form\.sending/) === true, 'checkout:true without the in-flight button text is refused');
   const twoFeatured = clone(ams); twoFeatured.pricing.plans[1].featured = true;
   check(throws(() => render(twoFeatured), /at most one plan is featured/) === true, 'two featured plans are refused (the pay bar sells one)');
+  const noRefund = clone(ams); noRefund.checkoutCopy.fine = 'Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l.';
+  check(throws(() => render(noRefund), /must state the refund policy/) === true, 'a till whose sheet drops the refund policy is refused (BOOM policy, 15/10: refunded in full if we decline the search in the first call)');
   const offNoTill = clone(ams); offNoTill.checkout = false;
   check(!/id="ov"|data-pay=/.test(render(offNoTill).html) && render(offNoTill).html.includes('"CHECKOUT": false'), 'checkout:false on a search desk: prices, no sheet, no pay button, the plates lead to the door');
   const bad = clone(ams); bad.mode = 'deposit';

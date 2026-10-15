@@ -443,6 +443,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     for (const f of ['title', 'note', 'noteLabel', 'notePlaceholder', 'btn', 'btnSub', 'altLead', 'altLink', 'fine', 'paybarSub']) {
       need(typeof k[f] === 'string' && k[f].trim(), where, `checkoutCopy.${f} is required`);
     }
+    // BOOM policy (the founder, 15/10): Full Search is refunded in full if
+    // BOOM declines the search in the first call. A till cannot open
+    // without saying so where the client pays — the sheet's fine print.
+    need(/refunded in full if we decline the search in the first call/i.test(k.fine), where,
+      'checkoutCopy.fine must state the refund policy: "refunded in full if we decline the search in the first call" (BOOM policy, 15/10)');
     for (const f of ['name', 'email', 'phone', 'net']) need(k.errors && typeof k.errors[f] === 'string' && k.errors[f].trim(), where, `checkoutCopy.errors.${f} is required`);
     for (const f of ['lead', 'cta', 'sub']) need(k.offer && typeof k.offer[f] === 'string' && k.offer[f].trim(), where, `checkoutCopy.offer.${f} is required`);
     need(k.paid && ['before', 'em', 'text'].every((f) => typeof k.paid[f] === 'string' && k.paid[f].trim())
