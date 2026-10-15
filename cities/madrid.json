@@ -209,6 +209,215 @@
     ],
     "note": "Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
   },
+  "checkin": {
+    "num": "CHECK-IN · 20 SECONDS",
+    "h3": "Which service is yours?",
+    "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+    "steps": [
+      {
+        "id": "stage",
+        "label": "Where are you?",
+        "options": [
+          {
+            "id": "zero",
+            "t": "Haven't started",
+            "f": "you haven't started",
+            "code": "START"
+          },
+          {
+            "id": "shortlist",
+            "t": "I have a shortlist",
+            "f": "you have a shortlist",
+            "code": "SHORTLIST"
+          },
+          {
+            "id": "found",
+            "t": "Found one, need to apply",
+            "f": "you've found one and need to apply",
+            "code": "APPLYING"
+          }
+        ]
+      },
+      {
+        "id": "when",
+        "label": "Moving in",
+        "options": [
+          {
+            "id": "soon",
+            "t": "Within 4 weeks",
+            "f": "within four weeks",
+            "code": "T-4W"
+          },
+          {
+            "id": "months",
+            "t": "In 1–3 months",
+            "f": "in one to three months",
+            "code": "T-3M"
+          },
+          {
+            "id": "later",
+            "t": "Later, flexible",
+            "f": "later",
+            "code": "OPEN"
+          }
+        ]
+      },
+      {
+        "id": "where",
+        "label": "Right now",
+        "options": [
+          {
+            "id": "abroad",
+            "t": "Still abroad",
+            "f": "you're still abroad",
+            "code": "ABROAD"
+          },
+          {
+            "id": "here",
+            "t": "Already in Madrid",
+            "f": "you're already in Madrid",
+            "code": "IN TOWN"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "when": {
+          "stage": "zero"
+        },
+        "plan": "full-search",
+        "why": "Starting from zero: we search, apply, attend and check the contract against the LAU — end to end."
+      },
+      {
+        "when": {
+          "stage": "found"
+        },
+        "plan": "application-pack",
+        "why": "You found it. What wins it is the file: Spanish format, in 24 hours."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "abroad"
+        },
+        "plan": "attended-viewing",
+        "why": "You chose, you're away: a BOOM person goes, films it live and writes it down."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "here"
+        },
+        "plan": "application-pack",
+        "why": "You'll attend yourself. What wins the application is the file."
+      }
+    ],
+    "notes": {
+      "when": {
+        "soon": "Four weeks is tight: applications go out within the hour of a listing.",
+        "months": "Good timing: the file is ready before the listings are.",
+        "later": "No rush: open the file now, the search starts when you say."
+      },
+      "where": {
+        "abroad": "Viewings attended in your place — live video, written report.",
+        "here": "You attend; we prepare the file and check the contract before you sign."
+      }
+    },
+    "dossier": {
+      "label": "What do you already hold?",
+      "sub": "Tap what you have. A Spanish landlord asks for most of these eight.",
+      "items": [
+        {
+          "id": "id",
+          "t": "Passport or NIE"
+        },
+        {
+          "id": "contract",
+          "t": "Employment contract (contrato)"
+        },
+        {
+          "id": "payslips",
+          "t": "Last three payslips (nóminas)"
+        },
+        {
+          "id": "employer",
+          "t": "Employer letter or vida laboral"
+        },
+        {
+          "id": "bank",
+          "t": "Three months of bank statements"
+        },
+        {
+          "id": "reference",
+          "t": "Previous landlord reference"
+        },
+        {
+          "id": "guarantor",
+          "t": "A guarantor or bank guarantee (aval)"
+        },
+        {
+          "id": "letter",
+          "t": "Presentation letter in Spanish"
+        }
+      ],
+      "fixable": [
+        "letter",
+        "employer",
+        "reference"
+      ],
+      "resultAll": "All eight in hand. We format them the Spanish way and apply within the hour of a listing.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
+      "skipped": "Tap the papers you hold above and we say what we would fix first.",
+      "go": "Show my plan",
+      "goSub": "the plan, the price, what we would fix first"
+    },
+    "result": {
+      "eyebrow": "Your plan",
+      "readyEyebrow": "Your file",
+      "ctaSearch": "Start · {price}",
+      "ctaSearchSub": "card · the work starts today",
+      "ctaFile": "Open my file",
+      "ctaFileSub": "free · same-day reply",
+      "change": "Change my answers",
+      "share": {
+        "lead": "Know someone moving too?",
+        "whatsapp": "WhatsApp",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+      }
+    },
+    "pass": {
+      "title": "Your boarding pass",
+      "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+      "name": {
+        "label": "Passenger (optional)",
+        "placeholder": "Anna K."
+      },
+      "from": {
+        "label": "Flying in from (optional)",
+        "placeholder": "LON"
+      },
+      "save": "Save image",
+      "shareBtn": "Share",
+      "saved": "Saved",
+      "fields": {
+        "passenger": "Passenger",
+        "plan": "Plan",
+        "boarding": "Boarding",
+        "file": "File",
+        "seat": "Seat",
+        "seatValue": "Your side of the table",
+        "gate": "Gate",
+        "status": "Status",
+        "statusValue": "Tenant side"
+      },
+      "guest": "A tenant",
+      "foot": "boomrome.com/madrid",
+      "gateValue": "File 24h"
+    }
+  },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
     "h2": "Six things we check",
@@ -308,6 +517,10 @@
       {
         "q": "Isn't it the landlord who pays the agent in Spain now?",
         "a": "Yes: the landlord bears their own agency costs. That rule covers the landlord's agent. You can still hire your own, who works only for you, and pay for that work. That is what we are, and we never take anything from landlords or their agents."
+      },
+      {
+        "q": "Which service is mine?",
+        "checkin": true
       },
       {
         "q": "How fast will I have an apartment?",

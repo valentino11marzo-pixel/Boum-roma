@@ -48,7 +48,7 @@
   <script type="application/ld+json">
 {{{jsonLd}}}
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,.rail{display:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 {{{scrollBlock}}}
 <!-- BOOM_SOLARI:START — design/pages-deco/solari-engine.html, inlined by the build (one copy, byte for byte) -->
@@ -107,6 +107,9 @@
   <a class="on" href="/{{slug}}" aria-current="page">{{city}}</a>
 {{{familyHtml}}}
 </div>
+
+<!-- the rail: five dots on a wide screen, where the reader is on the page -->
+{{{railHtml}}}
 
 <main id="main">
 
@@ -171,6 +174,9 @@
             </div>
           </details>
 
+          <!-- what the Check-in learned (its three answers, the papers in hand): filled by the page, printed in the operator's summary -->
+          <input type="hidden" id="fCheckin" name="checkin" value="">
+          <input type="hidden" id="fDossier" name="dossier" value="">
           <!-- honeypot: a hidden field real people never see; the server answers 200 and writes nothing -->
           <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
@@ -210,6 +216,9 @@
       <h2>{{pricing.h2}} <span class="g">{{pricing.h2g}}</span></h2>
     </div>
     <p class="sec-sub">{{pricing.sub}}</p>
+    <!-- THE CHECK-IN (v1.2): three taps → the plan, the papers → what we'd fix
+         first, a boarding pass to post. The plates below are the whole menu. -->
+{{{checkinHtml}}}
     <div class="sibs plates">
 {{{plansHtml}}}
     </div>

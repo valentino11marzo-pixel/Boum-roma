@@ -210,6 +210,215 @@
     ],
     "note": "List prices: nothing is charged until the desk opens with its registered partner; then card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l."
   },
+  "checkin": {
+    "num": "CHECK-IN · 20 SECONDS",
+    "h3": "Which service will be yours?",
+    "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+    "steps": [
+      {
+        "id": "stage",
+        "label": "Where are you?",
+        "options": [
+          {
+            "id": "zero",
+            "t": "Haven't started",
+            "f": "you haven't started",
+            "code": "START"
+          },
+          {
+            "id": "shortlist",
+            "t": "I have a shortlist",
+            "f": "you have a shortlist",
+            "code": "SHORTLIST"
+          },
+          {
+            "id": "found",
+            "t": "Found one, need to apply",
+            "f": "you've found one and need to apply",
+            "code": "APPLYING"
+          }
+        ]
+      },
+      {
+        "id": "when",
+        "label": "Moving in",
+        "options": [
+          {
+            "id": "soon",
+            "t": "Within 4 weeks",
+            "f": "within four weeks",
+            "code": "T-4W"
+          },
+          {
+            "id": "months",
+            "t": "In 1–3 months",
+            "f": "in one to three months",
+            "code": "T-3M"
+          },
+          {
+            "id": "later",
+            "t": "Later, flexible",
+            "f": "later",
+            "code": "OPEN"
+          }
+        ]
+      },
+      {
+        "id": "where",
+        "label": "Right now",
+        "options": [
+          {
+            "id": "abroad",
+            "t": "Still abroad",
+            "f": "you're still abroad",
+            "code": "ABROAD"
+          },
+          {
+            "id": "here",
+            "t": "Already in Barcelona",
+            "f": "you're already in Barcelona",
+            "code": "IN TOWN"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "when": {
+          "stage": "zero"
+        },
+        "plan": "full-search",
+        "why": "Starting from zero: when the desk opens, Full Search — search, applications, viewing, contract."
+      },
+      {
+        "when": {
+          "stage": "found"
+        },
+        "plan": "application-pack",
+        "why": "You found it. What wins it is the file: Spanish format, ready for the day the desk opens."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "abroad"
+        },
+        "plan": "attended-viewing",
+        "why": "You chose, you're away: when the desk opens a BOOM person goes, films it live and writes it down."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "here"
+        },
+        "plan": "application-pack",
+        "why": "You'll attend yourself. What wins the application is the file."
+      }
+    ],
+    "notes": {
+      "when": {
+        "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
+        "months": "Good timing: your file is ready before the desk opens.",
+        "later": "No rush: open the file now, you hear from us the day the desk opens."
+      },
+      "where": {
+        "abroad": "When the desk opens, viewings attended in your place — live video, written report.",
+        "here": "You attend; we prepare the file and read the contract before you sign."
+      }
+    },
+    "dossier": {
+      "label": "What do you already hold?",
+      "sub": "Tap what you have. A Catalan landlord asks for most of these eight.",
+      "items": [
+        {
+          "id": "id",
+          "t": "Passport or NIE"
+        },
+        {
+          "id": "contract",
+          "t": "Employment contract (contrato)"
+        },
+        {
+          "id": "payslips",
+          "t": "Last three payslips (nóminas)"
+        },
+        {
+          "id": "employer",
+          "t": "Employer letter or vida laboral"
+        },
+        {
+          "id": "bank",
+          "t": "Three months of bank statements"
+        },
+        {
+          "id": "reference",
+          "t": "Previous landlord reference"
+        },
+        {
+          "id": "guarantor",
+          "t": "A guarantor or bank guarantee (aval)"
+        },
+        {
+          "id": "letter",
+          "t": "Presentation letter in Spanish"
+        }
+      ],
+      "fixable": [
+        "letter",
+        "employer",
+        "reference"
+      ],
+      "resultAll": "All eight in hand. Your file waits formatted the Spanish way for the day the desk opens.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
+      "skipped": "Tap the papers you hold above and we say what we would fix first.",
+      "go": "Show my plan",
+      "goSub": "the plan, the price, what we would fix first"
+    },
+    "result": {
+      "eyebrow": "Your plan",
+      "readyEyebrow": "Your file",
+      "ctaSearch": "Start · {price}",
+      "ctaSearchSub": "card · the work starts today",
+      "ctaFile": "Open my file",
+      "ctaFileSub": "free · list price, charged only when the desk opens",
+      "change": "Change my answers",
+      "share": {
+        "lead": "Know someone moving too?",
+        "whatsapp": "WhatsApp",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+      }
+    },
+    "pass": {
+      "title": "Your boarding pass",
+      "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+      "name": {
+        "label": "Passenger (optional)",
+        "placeholder": "Anna K."
+      },
+      "from": {
+        "label": "Flying in from (optional)",
+        "placeholder": "LON"
+      },
+      "save": "Save image",
+      "shareBtn": "Share",
+      "saved": "Saved",
+      "fields": {
+        "passenger": "Passenger",
+        "plan": "Plan",
+        "boarding": "Boarding",
+        "file": "File",
+        "seat": "Seat",
+        "seatValue": "Your side of the table",
+        "gate": "Gate",
+        "status": "Status",
+        "statusValue": "Tenant side"
+      },
+      "guest": "A tenant",
+      "foot": "boomrome.com/barcelona",
+      "gateValue": "Desk opening"
+    }
+  },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
     "h2": "Six things we check",
@@ -309,6 +518,10 @@
       {
         "q": "Why isn't BOOM taking searches in Barcelona yet?",
         "a": "In Catalonia, intermediation needs registration in the AICAT register. We open the desk with a registered local partner rather than work around the rule. Your file waits, ready, and you hear from us the day the desk opens."
+      },
+      {
+        "q": "Which service will be mine?",
+        "checkin": true
       },
       {
         "q": "What can you do for me today?",

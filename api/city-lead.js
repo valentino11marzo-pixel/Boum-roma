@@ -106,6 +106,11 @@ export default async function handler(req, res) {
   const situation = clip(body.situation, 160);
   const areas = clip(body.areas, 160);
   const message = clip(body.message, 1000);
+  // What the page's Check-in learned (v1.2): the three answers in words and
+  // the papers in hand ("6/8 · missing: …"). Free text from the page, so
+  // clipped like everything else; empty when the client never used it.
+  const checkin = clip(body.checkin, 80);
+  const dossier = clip(body.dossier, 200);
 
   // Human-readable summary for the portal Leads inbox + the Telegram card.
   // The operator reads THIS line: the city first (it decides the market and
@@ -116,6 +121,8 @@ export default async function handler(req, res) {
   if (moveIn) parts.push(`move-in ${moveIn}`);
   if (situation) parts.push(situation);
   if (areas) parts.push(areas);
+  if (checkin) parts.push(`check-in: ${checkin}`);
+  if (dossier) parts.push(`papers ${dossier}`);
   const summary = [
     `${city.label.toUpperCase()} — ${waitlist ? 'waitlist (desk opening with a registered partner)' : 'tenant-side search'} · ${parts.join(' · ')}.`,
     message,
@@ -153,9 +160,11 @@ export default async function handler(req, res) {
       serviceLabel: service ? SERVICES[service] : null,
       situation,
       areas,
+      checkin,
+      dossier,
       at: now.toISOString(),
     },
-    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn, situation, areas, message, ip },
+    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn, situation, areas, checkin, dossier, message, ip },
     createdAt: now,
     ingestedAt: now,
   };

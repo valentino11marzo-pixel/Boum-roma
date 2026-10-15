@@ -29,7 +29,15 @@
 //     than the brief's, a waitlist desk (Barcelona, Paris, Berlin) saying its
 //     prices are charged today, a live page linking a draft sister; the
 //     server's registry disagreeing with a page on the desk's mode, its
-//     prices or whether its till is open.
+//     prices or whether its till is open;
+//   - the Check-in (v1.2, 15/10 — the plan finder + the papers + the pass,
+//     BOOM_CITIES_BRIEF §6 module B) saying a plan its rules do not: three
+//     taps that end in no plan, a rule on a plan the page does not sell, a
+//     dossier that is not eight documents, a till button without its price,
+//     a share text without its link, a FAQ answer written by hand where the
+//     build derives it; the Check-in outside section 02 or counted as a
+//     ninth block; the rail without its sections; the server dropping the
+//     answers the page collected.
 //
 // No browser, no network: the real build functions on the real data, and
 // the real /api/city-lead handler on a Firestore in memory.
@@ -38,7 +46,8 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, CELL_EM
+  buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, CELL_EM,
+  checkinAnswer, offerAudience, faqOf, DOSSIER_N
 } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
@@ -142,8 +151,15 @@ const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); 
 // "Your file is open" and the paid landing are hidden until they are true
 // (the client never reads them next to the form), so they are excluded from
 // the body like the folded FAQ answers, and capped on their own.
-const BUDGET = { heroColumn: 60, door: 110, state: 70, plate: 50, checks: 170, body: 950 };
+// The Check-in (v1.2) is a conversation, not a block: one step shown at a
+// time, the documents after the third answer, the ticket and the pass only
+// once there is a plan. Nobody reads it top to bottom, so it is measured on
+// its own ceiling (210–220 words on 15/10) and left out of the body — the
+// same treatment as the end states. The FAQ question it adds stays in the
+// body: Paris and Berlin lost six words of copy that day to keep the 950.
+const BUDGET = { heroColumn: 60, door: 110, state: 70, plate: 50, checks: 170, body: 950, checkin: 230 };
 const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)">[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
+const checkinOf = (m) => slice(m, '<div class="checkin" id="checkin"', '<div class="sibs plates">');
 for (const p of pages) {
   const m = slice(p.html, '<main id="main">', '</main>');
   const hero = wordsOf(slice(p.html, '<header class="hero">', '<!-- THE DOOR'));
@@ -152,13 +168,15 @@ for (const p of pages) {
   const plates = [...m.matchAll(/<article class="sib[\s\S]*?<\/article>/g)].map((x) => wordsOf(x[0]));
   const checksW = wordsOf(slice(m, '<div class="flows">', '</section>'));
   const faqA = [...m.matchAll(/<div class="a">([\s\S]*?)<\/div>/g)].reduce((n, x) => n + wordsOf(x[1]), 0);
-  const body = wordsOf(m) - faqA - states.reduce((a, b) => a + b, 0);
+  const ckW = wordsOf(checkinOf(m));
+  const body = wordsOf(m) - faqA - states.reduce((a, b) => a + b, 0) - ckW;
   check(hero > 0 && hero <= BUDGET.heroColumn, `${p.slug}: the hero column is ${hero} words (≤ ${BUDGET.heroColumn}) — title, one line, two proofs`);
   check(door > 0 && door <= BUDGET.door, `${p.slug}: the door reads in ${door} words (≤ ${BUDGET.door})`);
   check(states.length >= 1 && states.every((w) => w > 0 && w <= BUDGET.state), `${p.slug}: each end state of the door ≤ ${BUDGET.state} words (${states.join(' · ')})`);
   check(plates.length === 3 && plates.every((w) => w <= BUDGET.plate), `${p.slug}: every plate ≤ ${BUDGET.plate} words (${plates.join(' · ')})`);
   check(checksW > 0 && checksW <= BUDGET.checks, `${p.slug}: the six checks in ${checksW} words (≤ ${BUDGET.checks})`);
-  check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers and the end states is ${body} words (≤ ${BUDGET.body})`);
+  check(ckW > 0 && ckW <= BUDGET.checkin, `${p.slug}: the Check-in — steps, documents, ticket, pass — in ${ckW} words (≤ ${BUDGET.checkin}), shown one step at a time`);
+  check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers, the end states and the Check-in is ${body} words (≤ ${BUDGET.body})`);
 }
 
 // the door
@@ -465,6 +483,21 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   for (let i = 0; i < 7; i++) last = await call(ANNA, '10.9.9.9');
   check(last.code === 429 && last.writes.length === 0, 'the seventh send from one IP in ten minutes is 429 and writes nothing');
 }
+// the Check-in's two hidden fields (v1.2): what the page learned reaches the
+// operator in words, on the summary line and on the record — never a code
+{
+  const ckTxt = "I have a shortlist · In 1–3 months · Still abroad";
+  const dsTxt = '3/8 · missing: Employer statement (werkgeversverklaring), Previous landlord reference, A guarantor, if your income falls short, Three months of bank statements, Motivation letter, Dutch and English';
+  const r = await call({ ...ANNA, checkin: ckTxt, dossier: dsTxt }, '10.4.0.1');
+  check(r.code === 200 && r.lead.message.includes(` · check-in: ${ckTxt} · papers ${dsTxt}. Start date is 1 Feb.`),
+    'the Check-in answers and the papers in hand are printed on the summary line, after the numbers and before their words', r.lead && r.lead.message);
+  check(r.lead.city.checkin === ckTxt && r.lead.city.dossier === dsTxt && r.lead.raw.checkin === ckTxt && r.lead.raw.dossier === dsTxt, '…and kept on city{} and raw{} for the record');
+  const long = await call({ ...ANNA, checkin: 'x'.repeat(500), dossier: 'y'.repeat(500) }, '10.4.0.2');
+  check(long.code === 200 && long.lead.city.checkin.length === 80 && long.lead.city.dossier.length === 200, 'both are clipped like every free field from the page (80 / 200)');
+  const none = await call(ANNA, '10.4.0.3');
+  check(none.code === 200 && !/check-in|papers/.test(none.lead.message) && none.lead.city.checkin === null && none.lead.city.dossier === null,
+    'a client who never used the Check-in leaves no trace of it on the lead (no "papers 0/8", no empty label)');
+}
 {
   const com = read('api/employees/commerciale.js');
   check(/import\s*\{[^}]*isCityMarket[^}]*\}\s*from\s*'\.\.\/_market\.js'/.test(com), 'the Commerciale imports the city guard from the shared rule');
@@ -651,6 +684,130 @@ check(/on signing/.test(ber.pricing.plans[0].per) && /signed lease/.test(ber.pri
   const rpaid = cityReplyText(paidLead);
   check(isCityMarket(paidLead) && /^Hi Anna, Valentino here from BOOM 👋 Payment received for Full Search in Amsterdam — thank you\./.test(rpaid) && rpaid.endsWith(CITY_MARKETS.amsterdam.url) && !/Thanks for your message/.test(rpaid),
     'a paid city order gets the "payment received" reply, in the right city, with the city link');
+}
+
+// ── 11 · THE CHECK-IN (v1.2, 15/10): the plan finder, the papers, the pass ──
+// BOOM_CITIES_BRIEF §6 module B, built as the one viral piece of the page:
+// three taps → the plan (rules in the data, first match wins), the eight
+// documents the city's landlord asks for → how many in hand and what BOOM
+// would fix first, a boarding pass to save or post, the answers in a link.
+// The same rules write the FAQ answer and the Offers' audience: one copy,
+// three readers (the page's JS, the FAQ, the schema) — none can disagree.
+{
+  const ck = checkinOf(html);
+  check(ck && (html.match(/<div class="checkin" id="checkin"/g) || []).length === 1
+    && html.indexOf('id="checkin"') > html.indexOf('<section id="services"') && html.indexOf('id="checkin"') < html.indexOf('class="sibs plates"'),
+    'the Check-in sits once, inside section 02 and before the plates: the page keeps its eight blocks (STUDIO_EXECUTIVE_CONVERSIONE)');
+  for (const s of ams.checkin.steps) {
+    const fsHtml = (ck.match(new RegExp(`<fieldset class="ck-step" data-step="${s.id}"( hidden)?>[\\s\\S]*?</fieldset>`)) || [''])[0];
+    const opts = [...fsHtml.matchAll(/<label class="ck-opt"><input type="radio" name="ck-(\w+)" value="([a-z]+)" data-code="([^"]+)"><span>([^<]*)<\/span><\/label>/g)]
+      .map((m) => [m[1], m[2], m[3], decode(m[4])]);
+    const hiddenAtFirst = / hidden>/.test(fsHtml.slice(0, 60));
+    check(fsHtml && JSON.stringify(opts) === JSON.stringify(s.options.map((o) => [s.id, o.id, o.code, o.t])) && hiddenAtFirst === (s.id !== 'stage'),
+      `checkin step "${s.id}": ${opts.length} radios, each with its pass code, ${s.id === 'stage' ? 'shown first' : 'hidden until the step before is answered'}`);
+  }
+  const docs = [...ck.matchAll(/<label class="ck-doc"><input type="checkbox" name="ck-doc" value="([a-z]+)"><span>([^<]*)<\/span><\/label>/g)].map((m) => [m[1], decode(m[2])]);
+  check(docs.length === DOSSIER_N && JSON.stringify(docs) === JSON.stringify(ams.checkin.dossier.items.map((i) => [i.id, i.t])) && /<fieldset class="ck-step ck-dossier" data-step="dossier" hidden>/.test(ck),
+    `the ${DOSSIER_N} documents a Dutch landlord asks for, as checkboxes in the order of the data, hidden until the third answer`);
+  check(/<span class="flap-tk flap-scale" id="ckPrice"><\/span>/.test(ck) && !/flap-prezzo/.test(ck),
+    'the ticket price is its own board (flap-tk): the three plate boards stay three');
+  check(/<button type="button" class="paybtn ck-start" id="ckStart" data-pay="">/.test(ck) && /<a class="ck-file" href="#contact" id="ckFile" data-service="">/.test(ck),
+    'on a desk that sells, the ticket\'s first door is the till (data-pay, pointed at the plan at runtime), the second the free file');
+  check(ck.includes(`<span class="cto">${ams.iata}</span>`) && ck.includes(`data-word="${ams.city}"`) && ck.includes('id="ckCarta" role="img"')
+    && ck.includes('id="ckName" maxlength="24"') && ck.includes('id="ckOrigin" maxlength="12"') && ck.includes(`<b>${esc(ams.checkin.pass.gateValue)}</b>`),
+    'the pass: the route lands on the IATA code, the city is a board word, name and origin are capped, the gate says what the desk promises');
+  const formHtml = slice(html, '<form id="cityForm"', '</form>');
+  check(/<input type="hidden" id="fCheckin" name="checkin" value="">/.test(formHtml) && /<input type="hidden" id="fDossier" name="dossier" value="">/.test(formHtml)
+    && formHtml.indexOf('id="fCheckin"') < formHtml.indexOf('id="fCompany"'), 'the door carries two hidden fields — the answers and the papers — before the honeypot');
+  const rail = (html.match(/<nav class="rail" aria-label="On this page">[\s\S]*?<\/nav>/) || [''])[0];
+  const railIds = [...rail.matchAll(/data-rail="(\w+)"/g)].map((m) => m[1]);
+  check(JSON.stringify(railIds) === JSON.stringify(['contact', 'how', 'services', 'checks', 'faq']) && railIds.every((id) => html.includes(`id="${id}"`)),
+    'the rail: five dots, one per section, every target an id on the page');
+  check(/<noscript><style>[^<]*\.checkin,\.rail\{display:none!important\}/.test(html), 'without JS the Check-in and the rail are hidden: they are behaviour, and the page reads whole without them');
+  const cfgAt = html.indexOf('window.BOOM_CITY = ');
+  const cfg = JSON.parse(html.slice(cfgAt + 'window.BOOM_CITY = '.length, html.indexOf('</script>', cfgAt)).trim().replace(/;$/, ''));
+  check(cfg.IATA === 'AMS' && cfg.PAGE_URL === `${shared.siteUrl}/amsterdam` && JSON.stringify(cfg.CHECKIN) === JSON.stringify(ams.checkin)
+    && ams.pricing.plans.every((p) => cfg.PLANS[p.id] && JSON.stringify(cfg.PLANS[p.id].includes) === JSON.stringify(p.includes) && cfg.PLANS[p.id].eur === Number(p.price)),
+    'the config carries the IATA code, the page URL (the share link), the Check-in data VERBATIM (the rules the page applies are the rules the FAQ was derived from) and each plan\'s ✓ lines');
+  // the derived FAQ: visible, in the schema, equal to what the Check-in says
+  const ans = checkinAnswer(ams);
+  const q = ams.faq.items.find((x) => x.checkin).q;
+  check(q === 'Which service is mine?' && faqVisible.some((f) => f.q === q && f.a === ans) && faqItems.some((f) => f.q === q && f.a === ans),
+    `the FAQ "${q}" is DERIVED from the rules — visible on the page and in the FAQPage, the same answer the Check-in gives`);
+  const ansWords = ans.split(/\s+/).length;
+  check(/^Full Search \(€500\) if you haven't started\. Application Pack \(€199\) if you've found one and need to apply, or you have a shortlist and you're already in Amsterdam\. Attended Viewing \(€149 per viewing\) if you have a shortlist and you're still abroad\. Not sure: open a file, we advise\.$/.test(ans) && ansWords <= 60,
+    `one sentence per plan, from the phrases of the options, then the free door (${ansWords} words)`);
+  check(faqOf(ams).find((f) => f.q === q).a === ans && ams.faq.items.find((x) => x.checkin).a === undefined, 'the data carries only the question; faqOf resolves the answer');
+  // the Offers' audience, third person, from the same rules
+  const aud = Object.fromEntries((svc.offers || []).map((o) => [o.name, o.audience && o.audience.audienceType]));
+  check(aud['Full Search'] === "Tenants who haven't started" && aud['Attended Viewing'] === 'Tenants who have a shortlist and are still abroad'
+    && aud['Application Pack'] === 'Tenants who have found one and need to apply, or who have a shortlist and are already in Amsterdam',
+    'every Offer names its audience in the third person, derived from the same rules (' + JSON.stringify(aud) + ')');
+  check(ams.pricing.plans.every((p) => offerAudience(ams, p.id) === aud[p.label]) && offerAudience(ams, 'nope') === null, 'offerAudience is the function the schema uses; a plan without a rule gets none');
+  // the refusals: the build will not print a Check-in that can mislead
+  const noRule = clone(ams); noRule.checkin.rules = noRule.checkin.rules.filter((r) => !(r.when.stage === 'shortlist' && r.when.where === 'here'));
+  check(throws(() => render(noRule), /leave stage=shortlist × where=here without a plan/) === true, 'rules that leave a stage × where pair without a plan are refused: three taps can never end in nothing');
+  const badPlan = clone(ams); badPlan.checkin.rules[0].plan = 'concierge';
+  check(throws(() => render(badPlan), /plan "concierge" is not one of the plans/) === true, 'a rule pointing at a plan the page does not sell is refused');
+  const badCond = clone(ams); badCond.checkin.rules[0].when = { stage: 'dreaming' };
+  check(throws(() => render(badCond), /unknown condition stage=dreaming/) === true, 'a rule on an answer that does not exist is refused');
+  const seven = clone(ams); seven.checkin.dossier.items.pop();
+  check(throws(() => render(seven), new RegExp(`exactly ${DOSSIER_N} documents`)) === true, 'seven documents are refused: the readiness reads "n of 8" and the copy says eight');
+  const fix = clone(ams); fix.checkin.dossier.fixable = ['visa'];
+  check(throws(() => render(fix), /fixable must name documents from the list/) === true, 'a "fixable" document that is not on the list is refused');
+  const noPrice = clone(ams); noPrice.checkin.result.ctaSearch = 'Start now';
+  check(throws(() => render(noPrice), /ctaSearch must carry \{price\}/) === true, 'the till button without its {price} is refused: a pay button always says the number');
+  const noUrl = clone(ams); noUrl.checkin.result.share.text = 'BOOM {city}, check in.';
+  check(throws(() => render(noUrl), /a text with \{url\}/) === true, 'a share text without {url} is refused: a share nobody can follow');
+  const handAnswer = clone(ams); handAnswer.faq.items.find((x) => x.checkin).a = 'Full Search, always.';
+  check(throws(() => render(handAnswer), /carries only the question/) === true, 'a hand-written answer on the derived FAQ item is refused: the FAQ cannot name a plan the Check-in would not');
+  const noIata = clone(ams); delete noIata.iata;
+  check(throws(() => render(noIata), /"iata" \(three upper-case letters\) is required/) === true, 'a city without its IATA code is refused: it is the destination on the pass');
+  const lowCode = clone(ams); lowCode.checkin.steps[0].options[0].code = 'start';
+  check(throws(() => render(lowCode), /code \(2–10 upper-case chars, on the pass\)/) === true, 'a lower-case pass code is refused');
+  const noNote = clone(ams); delete noNote.checkin.notes.when.later;
+  check(throws(() => render(noNote), /one line for every "when" and every "where" option/) === true, 'a missing note for an answer is refused: the ticket would print an empty line');
+  const order = clone(ams); order.checkin.steps = order.checkin.steps.slice().reverse();
+  check(throws(() => render(order), /must be exactly stage, when, where in that order/) === true, 'the three steps are stage, when, where, in that order (the share link depends on it)');
+  const noCk = clone(ams); delete noCk.checkin;
+  check(throws(() => render(noCk), /needs "checkin"/) === true, 'a city without the Check-in is refused: every desk has the same door');
+  // the sisters: every desk has it, each in its own words and its own law
+  for (const c of [mad, bcn, par, ber]) {
+    const h = pageOf(c.slug); const k = checkinOf(h);
+    const a = checkinAnswer(c);
+    const vis = [...h.matchAll(/<details>\s*<summary>([\s\S]*?)<\/summary>\s*<div class="a">([\s\S]*?)<\/div>\s*<\/details>/g)].map((m) => ({ q: decode(m[1]), a: decode(m[2]) }));
+    check(k && (h.match(/<div class="checkin" id="checkin"/g) || []).length === 1 && (k.match(/<label class="ck-doc">/g) || []).length === DOSSIER_N
+      && k.includes(`<span class="cto">${c.iata}</span>`) && k.includes(`data-word="${c.city}"`) && h.includes(`"IATA": "${c.iata}"`),
+      `${c.slug}: the Check-in once, ${DOSSIER_N} documents, the pass bound for ${c.iata}`);
+    check(vis.some((f) => f.q === c.faq.items.find((x) => x.checkin).q && f.a === a) && a.split(/\s+/).length <= 60, `${c.slug}: the derived FAQ answer is on the page (${a.split(/\s+/).length} words)`);
+    const svcC = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
+    check((svcC.offers || []).every((o) => o.audience && o.audience.audienceType === offerAudience(c, c.pricing.plans.find((p) => p.label === o.name).id)),
+      `${c.slug}: every Offer carries the audience its rules derive`);
+    if (c.mode === 'waitlist') {
+      check(/<a class="paybtn ck-start" href="#contact" id="ckStart" data-service="">/.test(k) && !/data-pay/.test(k) && / List prices, charged only when the desk opens\.$/.test(a)
+        && /charged only when the desk opens/.test(c.checkin.result.ctaFileSub) && c.pricing.plans.every((p) => /at opening|on signing/.test(p.per))
+        && c.checkin.rules.filter((r) => r.plan === 'full-search').every((r) => /when the desk opens/.test(r.why)) && !c.checkin.rules.some((r) => /\btoday\b|right now|starts now/i.test(r.why)),
+        `${c.slug}: the ticket's door is the free file, never a till; the FAQ, the file line, the price line and the Full Search "why" say the desk is opening, no "why" says today — shown is not charged`);
+    } else {
+      check(/<button type="button" class="paybtn ck-start" id="ckStart" data-pay="">/.test(k) && !/when the desk opens/.test(a), `${c.slug}: the ticket's first door is the till`);
+    }
+  }
+  check(/Due only once you sign\./.test(ber.checkin.rules.find((r) => r.plan === 'full-search').why), 'berlin: the Full Search ticket says the fee is due only once you sign (WoVermRG), on the ticket itself');
+  check(ber.checkin.dossier.items.some((i) => /SCHUFA/.test(i.t)) && par.checkin.dossier.items.some((i) => /Visale/.test(i.t)) && bcn.checkin.dossier.items.some((i) => /NIE/.test(i.t)) && ams.checkin.dossier.items.some((i) => /werkgeversverklaring/.test(i.t)),
+    'the eight documents are the CITY\'s: SCHUFA in Berlin, Visale in Paris, NIE in Barcelona, werkgeversverklaring in Amsterdam');
+  // the motion layer: CSS-only depth, everything off under reduced motion, nothing scroll-jacked
+  const css = read('assets/boom-city.css'); const js = read('assets/boom-city.js');
+  const rm = css.slice(css.indexOf('@media(prefers-reduced-motion:reduce)'));
+  check(/@supports \(animation-timeline: view\(\)\)\{/.test(css) && /\.filecard\.tilt\{transform:perspective\(1200px\)/.test(css) && /@keyframes tkt-in\{from\{opacity:0;transform:rotateY\(-22deg\)/.test(css) && /@keyframes float3d/.test(css),
+    'the depth is CSS: scroll-driven entrances behind @supports, the tilt on the file card and the pass, the ticket\'s flip, the floating pass — no WebGL, no library');
+  check(/\.filecard\.tilt,\.ck-carta\.tilt\{transform:none;transition:none\}/.test(rm) && /\.rv \.plates \.sib,\.rv \.flows \.flow\{animation:none\}/.test(rm) && /\.tech-bg\{transition:none;transform:none!important\}/.test(rm),
+    'under prefers-reduced-motion the tilt, the scroll-driven entrances and the parallax are off (the Check-in still works, still)');
+  check(/if \(ridotto \|\| !matchMedia\('\(pointer:fine\)'\)\.matches\) return;/.test(js) && !/scroll-behavior|scrollTo\(0|wheel/.test(js.slice(js.indexOf('THE CHECK-IN'))),
+    'the tilt binds only with a fine pointer and motion allowed (a thumb has no hover); nothing in the layer hijacks the scroll');
+  check(/window\.BOOM_CHECKIN = CK;/.test(js) && /\(\?:\^\|\[#&\]\)checkin=\(\[a-z\]\+\)\\\.\(\[a-z\]\+\)\\\.\(\[a-z\]\+\)\\\.\(\[0-9a-f\]\{1,2\}\|-\)/.test(js)
+    && /checkin: v\('fCheckin'\), dossier: v\('fDossier'\)/.test(js),
+    'the JS exposes the Check-in, reads the answers back from #checkin=stage.when.where.docs, and posts the two hidden fields with the lead');
+  check(!/#D4AF37/i.test(css) && !/#D4AF37/i.test(js) && !/[a-z]!["\s]/i.test(JSON.stringify([ams, mad, bcn, par, ber].map((c) => c.checkin))), 'no portal gold, no exclamation mark in the Check-in copy of any desk');
 }
 
 console.log(`\n  ${ok} passed, ${ko} failed`);

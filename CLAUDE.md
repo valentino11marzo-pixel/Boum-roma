@@ -1338,7 +1338,67 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   bonifico «quando il lavoro parte», fatturato da Egidi — nessun link Stripe
   in pagina finché non c'è il prodotto nel catalogo), `★4.9 · 47 reviews` e
   `500+` sono i numeri BOOM già pubblicati su /executive.
-- Test: `node tests/cities/run.mjs` (292 — build, sistema, voce, budget di
+- **IL CHECK-IN e la profondità (15/10 — v1.2 del brief: «augment the
+  design, UX, UI animation, motion, 3D animation… create a product that is
+  really viral… under the right section, with the right GEO»)**. Il pezzo
+  virale è il **modulo B del §6** (Dossier Readiness Check, mai costruito),
+  vestito da carta d'imbarco: **tre tap** (dove sei · quando entri · dove
+  sei ora) → il piano che danno le REGOLE del JSON (`checkin.rules`, vince la
+  prima che combacia; il build RIFIUTA regole che lasciano uno stage × where
+  senza piano, un piano che la pagina non vende, una condizione che non
+  esiste) su un **biglietto** col prezzo su un tabellone Solari SUO
+  (`flap-tk`: i tre dei piatti restano tre), le ✓ del piano e due note; gli
+  **otto documenti** che il locatore di QUELLA città chiede
+  (werkgeversverklaring · NIE · Visale · SCHUFA — il build pretende
+  esattamente 8) → «n of 8 in hand», i mancanti per nome, cosa BOOM
+  sistemerebbe per prima; la **carta d'imbarco** (nome e origine
+  facoltativi) da salvare come PNG 1080×1920 (il marchio VERO via `Path2D`
+  dal simbolo in pagina) o condividere (Web Share coi file → url → download);
+  le risposte nel link (`#checkin=stage.when.where.<maschera esadecimale dei
+  documenti | ->`: chi lo riceve atterra sullo stesso biglietto); WhatsApp e
+  Copia link. **Scrive NELLA porta e mai oltre**: spunta il chip del piano,
+  precompila il move-in, riempie due campi nascosti (`checkin`, `dossier`)
+  che `/api/city-lead` clippa (80/200) e stampa sulla riga di riepilogo
+  («· check-in: … · papers 3/8 · missing: …») e su `city{}`/`raw{}` — il file
+  e la cassa restano le due porte; sui desk che vendono il biglietto ha il
+  bottone della cassa puntato sul SUO piano, sui waitlist UNA porta, il file
+  («at opening», «charged only when the desk opens», Berlino «Due only once
+  you sign»). Sta DENTRO la sezione 02 prima dei piatti: i blocchi restano
+  otto. **Una copia, tre lettori**: le stesse regole derivano la FAQ «Which
+  service is mine?» (visibile e nel FAQPage — una risposta scritta a mano su
+  quella voce è rifiutata; 49–57 parole, sopra la dieta delle altre perché
+  ogni clausola È una regola) e l'`audience` di ogni Offer nello schema. **I
+  moduli A e C del §6 NON sono costruiti, di proposito**: il budget reality
+  check vuole dati di canone per zona che BOOM non ha per queste città e la
+  legalità vuole aritmetica legale non confermata — costruirli a stima
+  sarebbe il contenuto inventato che il brief vieta (scritto nel brief,
+  v1.2). **La profondità è solo CSS** (il «3D» del fondatore senza WebGL,
+  librerie o scroll-jacking — §0/§3 del brief allentati a questo e basta):
+  card del modulo e carta che si inclinano verso il puntatore fine (niente su
+  touch: il pollice non ha hover; var `--rx/--ry/--mx/--my`), sfondo tecnico
+  in parallasse, piatti e controlli che entrano con `animation-timeline:
+  view()` dietro `@supports` (trasformazioni individuali `rotate`/`translate`,
+  così l'hover non viene combattuto), il biglietto che si ribalta, la carta
+  che fluttua, il **rail** di cinque punti sopra i 1260px col punto acceso
+  che segue la sezione (IO, fascia −35%/−55%). **Tutto spento sotto
+  `prefers-reduced-motion`**; senza JS Check-in e rail sono nascosti
+  (`<noscript>`: sono comportamento) e la pagina si legge intera. **Il
+  budget di parole regge**: il Check-in si misura su un tetto SUO (≤ 230,
+  oggi 210–220 — si legge un passo alla volta, mai come blocco) e sta fuori
+  dal corpo come gli stati finali; la domanda FAQ che aggiunge resta nel
+  corpo, e Parigi e Berlino hanno perso sei parole di copy per restare sotto
+  i 950 (il precedente del 14/10: si taglia la copy, non il tetto). Misurato
+  in Chromium: al 390 il primo piatto sta sotto la piega della sezione (il
+  Check-in lo precede), quindi il suo tabellone gira quando il LETTORE lo
+  raggiunge, non quando arriva il titolo — il test scorre al piatto. Il PNG
+  della carta è stato guardato, non supposto: titolo e «tenant side» si
+  sovrapponevano, il codice file e il posto uscivano troncati, la card
+  lasciava vuoto un terzo della storia — ora la card è alta quanto il suo
+  contenuto e centrata, i valori lunghi si rimpiccioliscono prima di essere
+  tagliati, il lato sta sulla lamina e sulla riga di stato. Il pay bar del
+  telefono vende ancora il piano `featured`, non quello del biglietto: regola
+  precedente, lasciata — il biglietto ha il suo bottone.
+- Test: `node tests/cities/run.mjs` (355 — build, sistema, voce, budget di
   parole con la porta = il solo modulo e gli stati finali a parte, chip e ✓
   dai piani, scheda dopo la FAQ, JSON-LD = pagina con Offer InStock/PreOrder
   e IVA dichiarata, rifiuti — fra cui `checkout:true` su un waitlist e
@@ -1346,13 +1406,27 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   FAQ — i prezzi del brief su ogni desk e uguali a `CITY_PLANS`, la cassa
   sui due desk search, i waitlist senza cassa, la striscia di famiglia,
   handler VERO di `/api/city-lead` su Firestore in memoria per i cinque desk,
-  la risposta a un ordine pagato, guardie in ordine nel sorgente) +
+  la risposta a un ordine pagato, guardie in ordine nel sorgente; il
+  Check-in: passi e documenti = dati coi codici del pass, il biglietto con
+  la cassa SOLO sui desk che vendono, FAQ derivata = pagina = FAQPage,
+  audience delle Offer, config VERBATIM, rail e noscript, i due campi
+  nascosti fino al riepilogo dell'operatore, il tetto suo nel budget, tredici
+  rifiuti per mutazione, la profondità in CSS spenta sotto reduced-motion) +
   `node tests/cities/checkout.mjs` (39, i handler VERI di
   `/api/service-checkout` e del webhook con lo stripe finto del loader di
   money: cityOffer, 400 `checkout_closed` sui waitlist senza sessione, il
   prezzo dal listino e mai dal body, successo sulla pagina della città, il
   lead pagato col market e le due email, retry = duplicate, Roma invariata) +
-  `node tests/cities/ui.mjs` (85, Chromium: leggibile senza JS coi prezzi
+  `node tests/cities/ui.mjs` (126, Chromium — dal 15/10 anche il Check-in:
+  i passi uno dopo l'altro, tre tap → il biglietto giusto col prezzo girato
+  sul suo tabellone, «3 of 8» coi mancanti per nome e il metro al 38%, chip
+  e move-in scritti nella porta, il lead che posta le risposte, Copy link e
+  WhatsApp col `#checkin=`, il deep link che atterra sul biglietto e uno
+  rotto sul primo passo, la cassa dal biglietto su Amsterdam e la porta
+  gratuita su Barcellona, la carta che segue nome e origine, `passBlob()` =
+  PNG 1080×1920; il tilt solo con puntatore fine e motion ammesso, l'ingresso
+  scroll-driven dei piatti, il rail a 1440 col punto che segue, senza JS né
+  Check-in né rail: leggibile senza JS coi prezzi
   dei chip e dei bottoni come testo, il tabellone che scrive AMSTERDAM nello
   spazio riservato, prezzi che si compongono, 390px senza scroll laterale,
   il foglio aperto dal piatto sul SUO piano con errori sul posto, il POST

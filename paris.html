@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=fb85ab4885">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=1a8d978458">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -177,6 +177,10 @@
           "url": "https://www.boomrome.com/paris#plan-full-search",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
+          },
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Tenants who haven't started"
           }
         },
         {
@@ -195,6 +199,10 @@
           "url": "https://www.boomrome.com/paris#plan-application-pack",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
+          },
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Tenants who have found one and need to apply, or who have a shortlist and are already in Paris"
           }
         },
         {
@@ -213,6 +221,10 @@
           "url": "https://www.boomrome.com/paris#plan-attended-viewing",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
+          },
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Tenants who have a shortlist and are still abroad"
           }
         }
       ]
@@ -227,6 +239,14 @@
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet). We open with a licensed partner rather than work around the rule. Your file waits, ready; you hear from us the day the desk opens."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Which service will be mine?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Paris. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise. List prices, charged only when the desk opens."
           }
         },
         {
@@ -274,7 +294,7 @@
   ]
 }
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,.rail{display:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -629,6 +649,15 @@ html {
   <a href="/">BOOM Rome</a>
 </div>
 
+<!-- the rail: five dots on a wide screen, where the reader is on the page -->
+<nav class="rail" aria-label="On this page">
+  <a href="#contact" data-rail="contact"><i></i><span>Open my file</span></a>
+  <a href="#how" data-rail="how"><i></i><span>How it works</span></a>
+  <a href="#services" data-rail="services"><i></i><span>Services</span></a>
+  <a href="#checks" data-rail="checks"><i></i><span>Before you sign</span></a>
+  <a href="#faq" data-rail="faq"><i></i><span>FAQ</span></a>
+</nav>
+
 <main id="main">
 
   <!-- ═══ HERO — one door. The city on the Solari board: the brand's own voice. ═══ -->
@@ -700,6 +729,9 @@ html {
             </div>
           </details>
 
+          <!-- what the Check-in learned (its three answers, the papers in hand): filled by the page, printed in the operator's summary -->
+          <input type="hidden" id="fCheckin" name="checkin" value="">
+          <input type="hidden" id="fDossier" name="dossier" value="">
           <!-- honeypot: a hidden field real people never see; the server answers 200 and writes nothing -->
           <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
@@ -758,6 +790,99 @@ html {
       <h2>Flat fees, set now. <span class="g">Charged when the desk opens.</span></h2>
     </div>
     <p class="sec-sub">The same flat fees as every BOOM desk, paid by you, never by landlords. Nothing is charged today.</p>
+    <!-- THE CHECK-IN (v1.2): three taps → the plan, the papers → what we'd fix
+         first, a boarding pass to post. The plates below are the whole menu. -->
+<div class="checkin" id="checkin" data-copied="Link copied" data-saved="Saved">
+  <div class="ck-head">
+    <span class="ck-num">CHECK-IN · 20 SECONDS</span>
+    <h3>Which service will be yours?</h3>
+    <p>Three taps and the papers you hold: your plan, its price, what we would fix first.</p>
+  </div>
+  <div class="ck-steps" id="ckSteps">
+      <fieldset class="ck-step" data-step="stage">
+        <legend><b>01</b> Where are you?</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="zero" data-code="START"><span>Haven't started</span></label>
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="shortlist" data-code="SHORTLIST"><span>I have a shortlist</span></label>
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="found" data-code="APPLYING"><span>Found one, need to apply</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="ck-step" data-step="when" hidden>
+        <legend><b>02</b> Moving in</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-when" value="soon" data-code="T-4W"><span>Within 4 weeks</span></label>
+          <label class="ck-opt"><input type="radio" name="ck-when" value="months" data-code="T-3M"><span>In 1–3 months</span></label>
+          <label class="ck-opt"><input type="radio" name="ck-when" value="later" data-code="OPEN"><span>Later, flexible</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="ck-step" data-step="where" hidden>
+        <legend><b>03</b> Right now</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-where" value="abroad" data-code="ABROAD"><span>Still abroad</span></label>
+          <label class="ck-opt"><input type="radio" name="ck-where" value="here" data-code="IN TOWN"><span>Already in Paris</span></label>
+        </div>
+      </fieldset>
+      <fieldset class="ck-step ck-dossier" data-step="dossier" hidden>
+        <legend><b>04</b> What do you already hold?</legend>
+        <p class="ck-sub">Tap what you have. A French landlord asks for most of these eight.</p>
+        <div class="ck-docs">
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="id"><span>Passport or EU ID</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="contract"><span>Employment contract or employer attestation</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="payslips"><span>Last three payslips (bulletins de salaire)</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="tax"><span>Last tax notice (avis d'imposition)</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="address"><span>Proof of address (justificatif de domicile)</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="rent"><span>Last three rent receipts (quittances)</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="guarantor"><span>A guarantor, or Visale</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="letter"><span>A one-page presentation</span></label>
+        </div>
+        <button type="button" class="paybtn ck-go" id="ckGo"><span class="lk">✈</span><span class="tx"><b>Show my plan</b><small>the plan, the price, what we would fix first</small></span><span class="amt">→</span></button>
+      </fieldset>
+  </div>
+  <div class="ck-result" id="ckResult" hidden>
+    <article class="tkt" id="ckTkt" aria-live="polite">
+      <div class="tkt-top"><span class="ck-eyebrow">Your plan</span><span class="tkt-code" id="ckCode"></span></div>
+      <h4 id="ckPlan"></h4>
+      <div class="price"><span class="flap-tk flap-scale" id="ckPrice"></span><small id="ckPer"></small></div>
+      <p class="why" id="ckWhy"></p>
+      <ul class="inc" id="ckInc"></ul>
+      <ul class="ck-notes"><li id="ckNoteWhen"></li><li id="ckNoteWhere"></li></ul>
+      <div class="ck-ready"><span class="ck-eyebrow">Your file</span><div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div><p id="ckReady"></p></div>
+      <div class="ck-cta">
+        <a class="paybtn ck-start" href="#contact" id="ckStart" data-service=""><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · list price, charged only when the desk opens</small></span><span class="amt">→</span></a>
+      </div>
+      <div class="ck-foot"><a class="ck-change" href="#checkin" id="ckChange">Change my answers</a>
+        <div class="ck-share"><span>Know someone moving too?</span><a id="ckWa" href="#" target="_blank" rel="noopener">WhatsApp</a><button type="button" id="ckCopy">Copy link</button><span class="ck-copied" id="ckCopied" aria-live="polite"></span></div>
+      </div>
+    </article>
+    <aside class="ck-pass">
+      <h4>Your boarding pass</h4>
+      <p class="ck-passsub">Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.</p>
+      <div class="carta ck-carta" id="ckCarta" role="img" aria-label="Your boarding pass">
+        <div class="lamina" aria-hidden="true"><em>Boom · Tenant side · Boom · Tenant side</em></div>
+        <div class="ccorpo">
+          <div class="ctesta"><b>BOOM · Boarding pass</b><span class="ctype">Tenant side</span></div>
+          <div class="croute"><span class="cfrom" id="ckFrom">—</span><span class="cplane" aria-hidden="true">✈</span><span class="cto">PAR</span></div>
+          <div class="cboard flap-pass" id="ckBoard" data-word="Paris" aria-hidden="true"></div>
+          <div class="cgrid">
+            <div><small>Passenger</small><b id="ckPassenger">A tenant</b></div>
+            <div><small>Plan</small><b id="ckPassPlan">—</b></div>
+            <div><small>Boarding</small><b id="ckPassWhen">—</b></div>
+            <div><small>File</small><b id="ckPassFile">—</b></div>
+            <div><small>Gate</small><b>Desk opening</b></div>
+            <div><small>Seat</small><b>Your side of the table</b></div>
+          </div>
+          <div class="perfo" aria-hidden="true"></div>
+          <div class="cfoot"><span class="cbar" aria-hidden="true"></span><span>boomrome.com/paris</span><span class="cstatus">Status · Tenant side</span></div>
+        </div>
+      </div>
+      <div class="ck-passform">
+        <div class="fld"><label for="ckName">Passenger (optional)</label><input id="ckName" maxlength="24" autocomplete="given-name" placeholder="Anna K."></div>
+        <div class="fld"><label for="ckOrigin">Flying in from (optional)</label><input id="ckOrigin" maxlength="12" placeholder="LON"></div>
+        <div class="ck-passbtns"><button type="button" class="ck-save" id="ckSave">Save image</button><button type="button" class="ck-sharebtn" id="ckShare">Share</button><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>
+      </div>
+    </aside>
+  </div>
+</div>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
@@ -784,7 +909,7 @@ html {
         <a class="go" href="#contact" data-service="attended-viewing">Ask for a viewing →</a>
       </article>
     </div>
-    <p class="feenote">List prices: nothing is charged until the desk opens with its licensed partner; then card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l.</p>
+    <p class="feenote">List prices: nothing is charged until the desk opens with its licensed partner; then card or bank transfer, invoiced by Egidi Immobiliare S.r.l.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -793,7 +918,7 @@ html {
       <span class="num">03 — BEFORE YOU SIGN</span>
       <h2>Six things we check <span class="g">before you sign.</span></h2>
     </div>
-    <p class="sec-sub">Six points we put in writing on every Paris lease.</p>
+    <p class="sec-sub">Six points, in writing, on every Paris lease.</p>
     <div class="flows">
       <div class="flow" id="check-rentcap"><span class="n">I</span><div>
         <b>The rent cap<span class="at">encadrement des loyers</span></b>
@@ -846,6 +971,10 @@ html {
       <details>
         <summary>Why isn't BOOM taking searches in Paris yet?</summary>
         <div class="a">Searching on a client's behalf is regulated in France: a chasseur immobilier needs a carte professionnelle (loi Hoguet). We open with a licensed partner rather than work around the rule. Your file waits, ready; you hear from us the day the desk opens.</div>
+      </details>
+      <details>
+        <summary>Which service will be mine?</summary>
+        <div class="a">Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Paris. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise. List prices, charged only when the desk opens.</div>
       </details>
       <details>
         <summary>What can you do for me today?</summary>
@@ -978,9 +1107,11 @@ html {
     "SLUG": "paris",
     "CITY": "Paris",
     "WORD": "PARIS",
+    "IATA": "PAR",
     "MODE": "waitlist",
     "LEAD_ENDPOINT": "/api/city-lead",
     "SITE_URL": "https://www.boomrome.com",
+    "PAGE_URL": "https://www.boomrome.com/paris",
     "WHATSAPP": "393313251961",
     "EMAIL": "hello@boom-rome.com",
     "CHECKOUT": false,
@@ -989,20 +1120,253 @@ html {
     "PLANS": {
       "full-search": {
         "label": "Full Search",
-        "eur": 500
+        "eur": 500,
+        "per": "flat · incl. VAT · at opening",
+        "unit": "",
+        "includes": [
+          "Daily search: SeLoger, PAP, Leboncoin, agencies, off-market",
+          "Applications within the hour",
+          "Attended viewing, live video + report",
+          "Rent cap and lease checked, charges read"
+        ]
       },
       "application-pack": {
         "label": "Application Pack",
-        "eur": 199
+        "eur": 199,
+        "per": "flat · incl. VAT · at opening",
+        "unit": "",
+        "includes": [
+          "French-format dossier locatif in 24 hours",
+          "Guarantor or Visale strategy",
+          "Cover note in French",
+          "Lease review before you sign"
+        ]
       },
       "attended-viewing": {
         "label": "Attended Viewing",
-        "eur": 149
+        "eur": 149,
+        "per": "per viewing · incl. VAT · at opening",
+        "unit": "per viewing",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ]
+      }
+    },
+    "CHECKIN": {
+      "num": "CHECK-IN · 20 SECONDS",
+      "h3": "Which service will be yours?",
+      "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+      "steps": [
+        {
+          "id": "stage",
+          "label": "Where are you?",
+          "options": [
+            {
+              "id": "zero",
+              "t": "Haven't started",
+              "f": "you haven't started",
+              "code": "START"
+            },
+            {
+              "id": "shortlist",
+              "t": "I have a shortlist",
+              "f": "you have a shortlist",
+              "code": "SHORTLIST"
+            },
+            {
+              "id": "found",
+              "t": "Found one, need to apply",
+              "f": "you've found one and need to apply",
+              "code": "APPLYING"
+            }
+          ]
+        },
+        {
+          "id": "when",
+          "label": "Moving in",
+          "options": [
+            {
+              "id": "soon",
+              "t": "Within 4 weeks",
+              "f": "within four weeks",
+              "code": "T-4W"
+            },
+            {
+              "id": "months",
+              "t": "In 1–3 months",
+              "f": "in one to three months",
+              "code": "T-3M"
+            },
+            {
+              "id": "later",
+              "t": "Later, flexible",
+              "f": "later",
+              "code": "OPEN"
+            }
+          ]
+        },
+        {
+          "id": "where",
+          "label": "Right now",
+          "options": [
+            {
+              "id": "abroad",
+              "t": "Still abroad",
+              "f": "you're still abroad",
+              "code": "ABROAD"
+            },
+            {
+              "id": "here",
+              "t": "Already in Paris",
+              "f": "you're already in Paris",
+              "code": "IN TOWN"
+            }
+          ]
+        }
+      ],
+      "rules": [
+        {
+          "when": {
+            "stage": "zero"
+          },
+          "plan": "full-search",
+          "why": "Starting from zero: when the desk opens, Full Search — search, applications, viewing, lease."
+        },
+        {
+          "when": {
+            "stage": "found"
+          },
+          "plan": "application-pack",
+          "why": "You found it. What wins it is the dossier: French format, ready for the day the desk opens."
+        },
+        {
+          "when": {
+            "stage": "shortlist",
+            "where": "abroad"
+          },
+          "plan": "attended-viewing",
+          "why": "You chose, you're away: when the desk opens a BOOM person goes, films it live and writes it down."
+        },
+        {
+          "when": {
+            "stage": "shortlist",
+            "where": "here"
+          },
+          "plan": "application-pack",
+          "why": "You'll attend yourself. What wins the application is the dossier."
+        }
+      ],
+      "notes": {
+        "when": {
+          "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
+          "months": "Good timing: your dossier is ready before the desk opens.",
+          "later": "No rush: open the file now, you hear from us the day the desk opens."
+        },
+        "where": {
+          "abroad": "When the desk opens, viewings attended in your place — live video, written report.",
+          "here": "You attend; we prepare the dossier and read the lease before you sign."
+        }
+      },
+      "dossier": {
+        "label": "What do you already hold?",
+        "sub": "Tap what you have. A French landlord asks for most of these eight.",
+        "items": [
+          {
+            "id": "id",
+            "t": "Passport or EU ID"
+          },
+          {
+            "id": "contract",
+            "t": "Employment contract or employer attestation"
+          },
+          {
+            "id": "payslips",
+            "t": "Last three payslips (bulletins de salaire)"
+          },
+          {
+            "id": "tax",
+            "t": "Last tax notice (avis d'imposition)"
+          },
+          {
+            "id": "address",
+            "t": "Proof of address (justificatif de domicile)"
+          },
+          {
+            "id": "rent",
+            "t": "Last three rent receipts (quittances)"
+          },
+          {
+            "id": "guarantor",
+            "t": "A guarantor, or Visale"
+          },
+          {
+            "id": "letter",
+            "t": "A one-page presentation"
+          }
+        ],
+        "fixable": [
+          "letter",
+          "guarantor",
+          "address"
+        ],
+        "resultAll": "All eight in hand. Your dossier waits formatted the French way for the day the desk opens.",
+        "resultSome": "{have} of 8 in hand. Missing: {missing}. The presentation and the format are ours, and we walk you through Visale; for the rest we tell you exactly what to ask your employer and your bank.",
+        "skipped": "Tap the papers you hold above and we say what we would fix first.",
+        "go": "Show my plan",
+        "goSub": "the plan, the price, what we would fix first"
+      },
+      "result": {
+        "eyebrow": "Your plan",
+        "readyEyebrow": "Your file",
+        "ctaSearch": "Start · {price}",
+        "ctaSearchSub": "card · the work starts today",
+        "ctaFile": "Open my file",
+        "ctaFileSub": "free · list price, charged only when the desk opens",
+        "change": "Change my answers",
+        "share": {
+          "lead": "Know someone moving too?",
+          "whatsapp": "WhatsApp",
+          "copy": "Copy link",
+          "copied": "Link copied",
+          "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+        }
+      },
+      "pass": {
+        "title": "Your boarding pass",
+        "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+        "name": {
+          "label": "Passenger (optional)",
+          "placeholder": "Anna K."
+        },
+        "from": {
+          "label": "Flying in from (optional)",
+          "placeholder": "LON"
+        },
+        "save": "Save image",
+        "shareBtn": "Share",
+        "saved": "Saved",
+        "fields": {
+          "passenger": "Passenger",
+          "plan": "Plan",
+          "boarding": "Boarding",
+          "file": "File",
+          "seat": "Seat",
+          "seatValue": "Your side of the table",
+          "gate": "Gate",
+          "status": "Status",
+          "statusValue": "Tenant side"
+        },
+        "guest": "A tenant",
+        "foot": "boomrome.com/paris",
+        "gateValue": "Desk opening"
       }
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=349dec4ef3"></script>
+<script src="/assets/boom-city.js?v=ff363edd08"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

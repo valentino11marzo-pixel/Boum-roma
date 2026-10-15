@@ -208,13 +208,222 @@
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
       }
     ],
-    "note": "Nothing is charged until the desk opens, and nothing in advance: German law ties a brokerage fee to a signed lease and caps it at two months' net cold rent plus VAT. Full Search is due once you sign; invoiced by Egidi Immobiliare S.r.l."
+    "note": "Nothing is charged until the desk opens, nothing in advance: German law ties the fee to a signed lease and caps it at two months' net cold rent plus VAT. Full Search is due once you sign; invoiced by Egidi Immobiliare S.r.l."
+  },
+  "checkin": {
+    "num": "CHECK-IN · 20 SECONDS",
+    "h3": "Which service will be yours?",
+    "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+    "steps": [
+      {
+        "id": "stage",
+        "label": "Where are you?",
+        "options": [
+          {
+            "id": "zero",
+            "t": "Haven't started",
+            "f": "you haven't started",
+            "code": "START"
+          },
+          {
+            "id": "shortlist",
+            "t": "I have a shortlist",
+            "f": "you have a shortlist",
+            "code": "SHORTLIST"
+          },
+          {
+            "id": "found",
+            "t": "Found one, need to apply",
+            "f": "you've found one and need to apply",
+            "code": "APPLYING"
+          }
+        ]
+      },
+      {
+        "id": "when",
+        "label": "Moving in",
+        "options": [
+          {
+            "id": "soon",
+            "t": "Within 4 weeks",
+            "f": "within four weeks",
+            "code": "T-4W"
+          },
+          {
+            "id": "months",
+            "t": "In 1–3 months",
+            "f": "in one to three months",
+            "code": "T-3M"
+          },
+          {
+            "id": "later",
+            "t": "Later, flexible",
+            "f": "later",
+            "code": "OPEN"
+          }
+        ]
+      },
+      {
+        "id": "where",
+        "label": "Right now",
+        "options": [
+          {
+            "id": "abroad",
+            "t": "Still abroad",
+            "f": "you're still abroad",
+            "code": "ABROAD"
+          },
+          {
+            "id": "here",
+            "t": "Already in Berlin",
+            "f": "you're already in Berlin",
+            "code": "IN TOWN"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "when": {
+          "stage": "zero"
+        },
+        "plan": "full-search",
+        "why": "Starting from zero: when the desk opens, Full Search — search, applications, viewing, lease. Due only once you sign."
+      },
+      {
+        "when": {
+          "stage": "found"
+        },
+        "plan": "application-pack",
+        "why": "You found it. What wins it is the dossier: SCHUFA, Selbstauskunft, the lot — ready for the day the desk opens."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "abroad"
+        },
+        "plan": "attended-viewing",
+        "why": "You chose, you're away: when the desk opens a BOOM person goes, films it live and writes it down."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "here"
+        },
+        "plan": "application-pack",
+        "why": "You'll attend yourself. What wins the application is the dossier."
+      }
+    ],
+    "notes": {
+      "when": {
+        "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
+        "months": "Good timing: your dossier is ready before the desk opens.",
+        "later": "No rush: open the file now, you hear from us the day the desk opens."
+      },
+      "where": {
+        "abroad": "When the desk opens, viewings attended in your place — live video, written report.",
+        "here": "You attend; we prepare the dossier and read the lease before you sign."
+      }
+    },
+    "dossier": {
+      "label": "What do you already hold?",
+      "sub": "Tap what you have. A Berlin landlord asks for most of these eight.",
+      "items": [
+        {
+          "id": "id",
+          "t": "Passport or EU ID"
+        },
+        {
+          "id": "contract",
+          "t": "Employment contract"
+        },
+        {
+          "id": "payslips",
+          "t": "Last three payslips (Gehaltsabrechnungen)"
+        },
+        {
+          "id": "schufa",
+          "t": "SCHUFA report"
+        },
+        {
+          "id": "arrears",
+          "t": "No-arrears letter (Mietschuldenfreiheitsbescheinigung)"
+        },
+        {
+          "id": "guarantor",
+          "t": "A guarantor (Bürgschaft), if asked"
+        },
+        {
+          "id": "bank",
+          "t": "Three months of bank statements"
+        },
+        {
+          "id": "letter",
+          "t": "Tenant self-disclosure (Mieterselbstauskunft)"
+        }
+      ],
+      "fixable": [
+        "letter",
+        "schufa",
+        "arrears"
+      ],
+      "resultAll": "All eight in hand. Your dossier waits, formatted the German way, for the day the desk opens.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Selbstauskunft and the format are ours, and we tell you how a newcomer gets a SCHUFA; for the rest we tell you exactly what to ask your employer and your bank.",
+      "skipped": "Tap the papers you hold above and we say what we would fix first.",
+      "go": "Show my plan",
+      "goSub": "the plan, the price, what we would fix first"
+    },
+    "result": {
+      "eyebrow": "Your plan",
+      "readyEyebrow": "Your file",
+      "ctaSearch": "Start · {price}",
+      "ctaSearchSub": "card · the work starts today",
+      "ctaFile": "Open my file",
+      "ctaFileSub": "free · list price, charged only when the desk opens",
+      "change": "Change my answers",
+      "share": {
+        "lead": "Know someone moving too?",
+        "whatsapp": "WhatsApp",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+      }
+    },
+    "pass": {
+      "title": "Your boarding pass",
+      "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+      "name": {
+        "label": "Passenger (optional)",
+        "placeholder": "Anna K."
+      },
+      "from": {
+        "label": "Flying in from (optional)",
+        "placeholder": "LON"
+      },
+      "save": "Save image",
+      "shareBtn": "Share",
+      "saved": "Saved",
+      "fields": {
+        "passenger": "Passenger",
+        "plan": "Plan",
+        "boarding": "Boarding",
+        "file": "File",
+        "seat": "Seat",
+        "seatValue": "Your side of the table",
+        "gate": "Gate",
+        "status": "Status",
+        "statusValue": "Tenant side"
+      },
+      "guest": "A tenant",
+      "foot": "boomrome.com/berlin",
+      "gateValue": "Desk opening"
+    }
   },
   "checks": {
     "num": "03 — BEFORE YOU SIGN",
     "h2": "Six things we check",
     "h2g": "before you sign.",
-    "sub": "Six points we put in writing on every Berlin lease.",
+    "sub": "Six points, in writing, on every Berlin lease.",
     "items": [
       {
         "id": "rentcap",
@@ -261,8 +470,8 @@
     "flags": [
       "asking rent above the Mietpreisbremse",
       "a deposit above three cold months",
-      "a furniture surcharge hiding the real rent",
-      "an agent fee before you have signed"
+      "a furniture surcharge hiding the rent",
+      "an agent fee before you sign"
     ]
   },
   "bref": {
@@ -309,6 +518,10 @@
       {
         "q": "Why isn't BOOM taking searches in Berlin yet?",
         "a": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap. We open with a licensed partner. Your file waits, ready."
+      },
+      {
+        "q": "Which service will be mine?",
+        "checkin": true
       },
       {
         "q": "What can you do for me today?",

@@ -102,6 +102,116 @@ const list = (city, dotted) => {
 };
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
+// ── THE CHECK-IN (BOOM_CITIES_BRIEF.md v1.2, 15/10 — the founder: "a product
+// that is really viral and lets the client understand our offer in a clear,
+// easy way"). The brief's own §6 asked for a Dossier Readiness Check (Module
+// B) as "the single most useful page element for GEO"; it was never built.
+// This is it, folded into one device inside the services section: three
+// taps (where you are · when you move · where you are now) → the RULES say
+// which plan, in words; eight documents in the city's format → how many are
+// in hand and what BOOM would fix first; then a boarding pass to save or
+// post (the aviation grammar of /viewing and /book), with the answers in a
+// link anyone can open. The rules are DATA, read by the build (this file:
+// the FAQ answer and the Offer audiences are derived from them) and by the
+// page (assets/boom-city.js, from the config) — one copy, two readers.
+const STEP_IDS = ['stage', 'when', 'where'];
+export const DOSSIER_N = 8;
+
+export function validateCheckin(city, plans, where) {
+  const k = city.checkin;
+  need(k && typeof k === 'object', where, 'needs "checkin" (BOOM_CITIES_BRIEF.md v1.2: the plan finder + dossier readiness + boarding pass)');
+  for (const f of ['num', 'h3', 'sub']) need(typeof k[f] === 'string' && k[f].trim(), where, `checkin.${f} is required`);
+  need(Array.isArray(k.steps) && k.steps.map((s) => s.id).join() === STEP_IDS.join(), where, `checkin.steps must be exactly ${STEP_IDS.join(', ')} in that order (the hash and the JS depend on them)`);
+  const opts = {};
+  for (const s of k.steps) {
+    need(typeof s.label === 'string' && s.label.trim() && Array.isArray(s.options) && s.options.length >= 2 && s.options.length <= 4, where, `checkin.steps.${s.id} needs a label and 2–4 options`);
+    const seen = new Set();
+    for (const o of s.options) {
+      need(/^[a-z]+$/.test(o.id || '') && !seen.has(o.id), where, `checkin.steps.${s.id}: option id "${o.id}" must be unique, lowercase letters`);
+      seen.add(o.id);
+      need(typeof o.t === 'string' && o.t.trim() && typeof o.f === 'string' && o.f.trim() && typeof o.code === 'string' && /^[A-Z0-9 -]{2,10}$/.test(o.code), where,
+        `checkin.steps.${s.id}.${o.id} needs t (the chip), f (the phrase the FAQ derives) and code (2–10 upper-case chars, on the pass)`);
+    }
+    opts[s.id] = s.options.map((o) => o.id);
+  }
+  const planIds = new Set(plans.map((p) => p.id));
+  need(Array.isArray(k.rules) && k.rules.length, where, 'checkin.rules must be a non-empty array');
+  for (const r of k.rules) {
+    need(r.when && typeof r.when === 'object' && Object.keys(r.when).length, where, 'a checkin rule needs a "when" with at least one step');
+    for (const [s, o] of Object.entries(r.when)) need(opts[s] && opts[s].includes(o), where, `checkin rule: unknown condition ${s}=${o}`);
+    need(planIds.has(r.plan), where, `checkin rule: plan "${r.plan}" is not one of the plans`);
+    need(typeof r.why === 'string' && r.why.trim(), where, `checkin rule for "${r.plan}" needs a "why" (the sentence on the ticket)`);
+  }
+  // every stage × where must resolve: a client can never tap three answers
+  // and get no plan (the "when" never decides the plan, only the note)
+  for (const st of opts.stage) for (const wh of opts.where) {
+    need(k.rules.some((r) => Object.entries(r.when).every(([s, o]) => ({ stage: st, where: wh, when: opts.when[0] })[s] === o)), where,
+      `checkin.rules leave stage=${st} × where=${wh} without a plan`);
+  }
+  need(k.notes && k.notes.when && k.notes.where && opts.when.every((o) => typeof k.notes.when[o] === 'string' && k.notes.when[o].trim())
+    && opts.where.every((o) => typeof k.notes.where[o] === 'string' && k.notes.where[o].trim()), where, 'checkin.notes must carry one line for every "when" and every "where" option');
+  const d = k.dossier;
+  need(d && ['label', 'sub', 'resultAll', 'resultSome', 'skipped', 'go', 'goSub'].every((f) => typeof d[f] === 'string' && d[f].trim()), where,
+    'checkin.dossier needs label, sub, resultAll, resultSome, skipped, go, goSub');
+  need(Array.isArray(d.items) && d.items.length === DOSSIER_N && new Set(d.items.map((i) => i.id)).size === DOSSIER_N
+    && d.items.every((i) => /^[a-z]+$/.test(i.id || '') && typeof i.t === 'string' && i.t.trim()), where, `checkin.dossier.items must be exactly ${DOSSIER_N} documents with unique ids`);
+  need(Array.isArray(d.fixable) && d.fixable.length && d.fixable.every((id) => d.items.some((i) => i.id === id)), where, 'checkin.dossier.fixable must name documents from the list');
+  need(/\{have\}/.test(d.resultSome) && /\{missing\}/.test(d.resultSome), where, 'checkin.dossier.resultSome must carry {have} and {missing}');
+  const r = k.result;
+  need(r && ['eyebrow', 'readyEyebrow', 'ctaSearch', 'ctaSearchSub', 'ctaFile', 'ctaFileSub', 'change'].every((f) => typeof r[f] === 'string' && r[f].trim()), where,
+    'checkin.result needs eyebrow, readyEyebrow, ctaSearch, ctaSearchSub, ctaFile, ctaFileSub, change');
+  need(/\{price\}/.test(r.ctaSearch), where, 'checkin.result.ctaSearch must carry {price}');
+  need(r.share && ['lead', 'whatsapp', 'copy', 'copied', 'text'].every((f) => typeof r.share[f] === 'string' && r.share[f].trim()) && /\{url\}/.test(r.share.text), where,
+    'checkin.result.share needs lead, whatsapp, copy, copied and a text with {url}');
+  const p = k.pass;
+  need(p && ['title', 'sub', 'save', 'shareBtn', 'saved', 'guest', 'foot', 'gateValue'].every((f) => typeof p[f] === 'string' && p[f].trim())
+    && p.name && p.from && p.name.label && p.from.label && p.fields && ['passenger', 'plan', 'boarding', 'file', 'seat', 'seatValue', 'gate', 'status', 'statusValue'].every((f) => typeof p.fields[f] === 'string' && p.fields[f].trim()),
+    where, 'checkin.pass needs title, sub, name, from, save, shareBtn, saved, guest, foot, gateValue and its fields');
+  need(typeof city.iata === 'string' && /^[A-Z]{3}$/.test(city.iata), where, '"iata" (three upper-case letters) is required: it is the destination on the pass');
+  return opts;
+}
+
+// The FAQ answer DERIVED from the rules: the same mapping the page applies,
+// in one sentence per plan, so the visible FAQ (and its FAQPage schema) can
+// never say a different plan than the Check-in. It runs 49–57 words (15/10),
+// above the informal 42-word diet of the other answers: every clause is one
+// of the rules, and a rule left out would be a plan the FAQ hides.
+export function checkinAnswer(city) {
+  const k = city.checkin;
+  const opt = (s, o) => k.steps.find((x) => x.id === s).options.find((x) => x.id === o);
+  const byPlan = new Map();
+  for (const r of k.rules) {
+    const phrase = Object.entries(r.when).map(([s, o]) => opt(s, o).f).join(' and ');
+    if (!byPlan.has(r.plan)) byPlan.set(r.plan, []);
+    byPlan.get(r.plan).push(phrase);
+  }
+  const sentences = list(city, 'pricing.plans').filter((p) => byPlan.has(p.id))
+    .map((p) => `${p.label} (${eur(p.price)}${p.unit ? ' ' + p.unit : ''}) if ${byPlan.get(p.id).join(', or ')}.`);
+  return sentences.join(' ') + ' Not sure: open a file, we advise.' + (city.mode === 'waitlist' ? ' List prices, charged only when the desk opens.' : '');
+}
+
+// "you've found one" → "have found one": the audience of an Offer, in the
+// third person, from the same phrases.
+const who = (phrase) => phrase.replace(/\byou've\b/g, 'have').replace(/\byou haven't\b/g, "haven't").replace(/\byou have\b/g, 'have').replace(/\byou're\b/g, 'are');
+export function offerAudience(city, planId) {
+  const k = city.checkin;
+  const opt = (s, o) => k.steps.find((x) => x.id === s).options.find((x) => x.id === o);
+  const phrases = k.rules.filter((r) => r.plan === planId).map((r) => who(Object.entries(r.when).map(([s, o]) => opt(s, o).f).join(' and ')));
+  return phrases.length ? `Tenants who ${phrases.join(', or who ')}` : null;
+}
+
+// The FAQ with the derived item resolved: what the page prints and what the
+// FAQPage declares come from the same list.
+export function faqOf(city) {
+  return list(city, 'faq.items').map((f) => {
+    if (f.checkin) {
+      need(typeof f.q === 'string' && f.q.trim() && f.a === undefined, `cities/${city.slug}.json`, 'a checkin FAQ item carries only the question: the answer is derived from the rules');
+      return { q: f.q, a: checkinAnswer(city) };
+    }
+    return f;
+  });
+}
+
 // ── the array renderers ────────────────────────────────────────────────────
 // THE FAMILY STRIP is derived from the built cities, never kept by hand (a
 // fifth city is a JSON file, BOOM_CITIES_BRIEF.md §1): the sister cities in
@@ -206,12 +316,121 @@ const R = {
     return `        <dt>${esc(r.dt)}</dt>\n        <dd>${dd}</dd>`;
   }).join('\n\n'),
 
-  faq: (c) => list(c, 'faq.items').map((f) => [
+  faq: (c) => faqOf(c).map((f) => [
     '      <details>',
     `        <summary>${esc(f.q)}</summary>`,
     `        <div class="a">${esc(f.a)}</div>`,
     '      </details>'
   ].join('\n')).join('\n'),
+
+  // THE CHECK-IN. Questions as radio chips (keyboard, screen reader), the
+  // eight documents as checkboxes, ONE ticket shell the JS fills from the
+  // config (plan, price board, ✓ lines, the rule's sentence, the two notes,
+  // the readiness line), the boarding pass (the carta of /viewing: lamina,
+  // calcographic print, perforation) and the share row. Hidden without JS
+  // (the <noscript> rule): the derived FAQ carries the same mapping for a
+  // reader without a script and for every answer engine.
+  checkin: (c) => {
+    const k = c.checkin;
+    const steps = k.steps.map((s, i) => [
+      `      <fieldset class="ck-step" data-step="${esc(s.id)}"${i ? ' hidden' : ''}>`,
+      `        <legend><b>${String(i + 1).padStart(2, '0')}</b> ${esc(s.label)}</legend>`,
+      '        <div class="ck-opts">',
+      ...s.options.map((o) => `          <label class="ck-opt"><input type="radio" name="ck-${esc(s.id)}" value="${esc(o.id)}" data-code="${esc(o.code)}"><span>${esc(o.t)}</span></label>`),
+      '        </div>',
+      '      </fieldset>'
+    ].join('\n'));
+    const d = k.dossier;
+    const docs = [
+      '      <fieldset class="ck-step ck-dossier" data-step="dossier" hidden>',
+      `        <legend><b>04</b> ${esc(d.label)}</legend>`,
+      `        <p class="ck-sub">${esc(d.sub)}</p>`,
+      '        <div class="ck-docs">',
+      ...d.items.map((it) => `          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="${esc(it.id)}"><span>${esc(it.t)}</span></label>`),
+      '        </div>',
+      `        <button type="button" class="paybtn ck-go" id="ckGo"><span class="lk">✈</span><span class="tx"><b>${esc(d.go)}</b><small>${esc(d.goSub)}</small></span><span class="amt">→</span></button>`,
+      '      </fieldset>'
+    ].join('\n');
+    const r = k.result;
+    const cta = c.checkout === true
+      ? [
+        `        <button type="button" class="paybtn ck-start" id="ckStart" data-pay=""><span class="lk">🔒</span><span class="tx"><b id="ckStartTx"></b><small>${esc(r.ctaSearchSub)}</small></span><span class="amt">→</span></button>`,
+        `        <a class="ck-file" href="#contact" id="ckFile" data-service="">${esc(r.ctaFile)} <small>· ${esc(r.ctaFileSub)}</small></a>`
+      ]
+      : [
+        `        <a class="paybtn ck-start" href="#contact" id="ckStart" data-service=""><span class="lk">✈</span><span class="tx"><b>${esc(r.ctaFile)}</b><small>${esc(r.ctaFileSub)}</small></span><span class="amt">→</span></a>`
+      ];
+    const p = k.pass;
+    const F = p.fields;
+    return [
+      `<div class="checkin" id="checkin" data-copied="${esc(r.share.copied)}" data-saved="${esc(p.saved)}">`,
+      '  <div class="ck-head">',
+      `    <span class="ck-num">${esc(k.num)}</span>`,
+      `    <h3>${esc(k.h3)}</h3>`,
+      `    <p>${esc(k.sub)}</p>`,
+      '  </div>',
+      '  <div class="ck-steps" id="ckSteps">',
+      ...steps,
+      docs,
+      '  </div>',
+      '  <div class="ck-result" id="ckResult" hidden>',
+      '    <article class="tkt" id="ckTkt" aria-live="polite">',
+      `      <div class="tkt-top"><span class="ck-eyebrow">${esc(r.eyebrow)}</span><span class="tkt-code" id="ckCode"></span></div>`,
+      '      <h4 id="ckPlan"></h4>',
+      '      <div class="price"><span class="flap-tk flap-scale" id="ckPrice"></span><small id="ckPer"></small></div>',
+      '      <p class="why" id="ckWhy"></p>',
+      '      <ul class="inc" id="ckInc"></ul>',
+      '      <ul class="ck-notes"><li id="ckNoteWhen"></li><li id="ckNoteWhere"></li></ul>',
+      `      <div class="ck-ready"><span class="ck-eyebrow">${esc(r.readyEyebrow)}</span><div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div><p id="ckReady"></p></div>`,
+      '      <div class="ck-cta">',
+      ...cta,
+      '      </div>',
+      `      <div class="ck-foot"><a class="ck-change" href="#checkin" id="ckChange">${esc(r.change)}</a>`,
+      `        <div class="ck-share"><span>${esc(r.share.lead)}</span><a id="ckWa" href="#" target="_blank" rel="noopener">${esc(r.share.whatsapp)}</a><button type="button" id="ckCopy">${esc(r.share.copy)}</button><span class="ck-copied" id="ckCopied" aria-live="polite"></span></div>`,
+      '      </div>',
+      '    </article>',
+      '    <aside class="ck-pass">',
+      `      <h4>${esc(p.title)}</h4>`,
+      `      <p class="ck-passsub">${esc(p.sub)}</p>`,
+      `      <div class="carta ck-carta" id="ckCarta" role="img" aria-label="${esc(p.title)}">`,
+      `        <div class="lamina" aria-hidden="true"><em>Boom · ${esc(F.statusValue)} · Boom · ${esc(F.statusValue)}</em></div>`,
+      '        <div class="ccorpo">',
+      `          <div class="ctesta"><b>BOOM · Boarding pass</b><span class="ctype">${esc(F.statusValue)}</span></div>`,
+      `          <div class="croute"><span class="cfrom" id="ckFrom">—</span><span class="cplane" aria-hidden="true">✈</span><span class="cto">${esc(c.iata)}</span></div>`,
+      `          <div class="cboard flap-pass" id="ckBoard" data-word="${esc(c.city)}" aria-hidden="true"></div>`,
+      '          <div class="cgrid">',
+      `            <div><small>${esc(F.passenger)}</small><b id="ckPassenger">${esc(p.guest)}</b></div>`,
+      `            <div><small>${esc(F.plan)}</small><b id="ckPassPlan">—</b></div>`,
+      `            <div><small>${esc(F.boarding)}</small><b id="ckPassWhen">—</b></div>`,
+      `            <div><small>${esc(F.file)}</small><b id="ckPassFile">—</b></div>`,
+      `            <div><small>${esc(F.gate)}</small><b>${esc(p.gateValue)}</b></div>`,
+      `            <div><small>${esc(F.seat)}</small><b>${esc(F.seatValue)}</b></div>`,
+      '          </div>',
+      '          <div class="perfo" aria-hidden="true"></div>',
+      `          <div class="cfoot"><span class="cbar" aria-hidden="true"></span><span>${esc(p.foot)}</span><span class="cstatus">${esc(F.status)} · ${esc(F.statusValue)}</span></div>`,
+      '        </div>',
+      '      </div>',
+      '      <div class="ck-passform">',
+      `        <div class="fld"><label for="ckName">${esc(p.name.label)}</label><input id="ckName" maxlength="24" autocomplete="given-name" placeholder="${esc(p.name.placeholder)}"></div>`,
+      `        <div class="fld"><label for="ckOrigin">${esc(p.from.label)}</label><input id="ckOrigin" maxlength="12" placeholder="${esc(p.from.placeholder)}"></div>`,
+      `        <div class="ck-passbtns"><button type="button" class="ck-save" id="ckSave">${esc(p.save)}</button><button type="button" class="ck-sharebtn" id="ckShare">${esc(p.shareBtn)}</button><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>`,
+      '      </div>',
+      '    </aside>',
+      '  </div>',
+      '</div>'
+    ].join('\n');
+  },
+
+  // The rail: five dots on a wide screen, the page's own table of contents.
+  rail: (c) => [
+    '<nav class="rail" aria-label="On this page">',
+    `  <a href="#contact" data-rail="contact"><i></i><span>${esc(c.nav.cta)}</span></a>`,
+    `  <a href="#how" data-rail="how"><i></i><span>${esc(c.nav.how)}</span></a>`,
+    `  <a href="#services" data-rail="services"><i></i><span>${esc(c.nav.services)}</span></a>`,
+    `  <a href="#checks" data-rail="checks"><i></i><span>${esc(c.nav.checks)}</span></a>`,
+    `  <a href="#faq" data-rail="faq"><i></i><span>${esc(c.nav.faq)}</span></a>`,
+    '</nav>'
+  ].join('\n'),
 
   footerBoom: (shared) => (shared.footerBoom || []).map((l) => `          <li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('\n'),
 
@@ -357,12 +576,15 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
           description: (p.offerDescription || p.text) + (waitlist ? ' List price — charged only when the desk opens.' : ''),
           priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: 'EUR', valueAddedTaxIncluded: true },
           url: pageUrl + '#plan-' + p.id,
-          seller: { '@id': orgId }
+          seller: { '@id': orgId },
+          // who each plan is for, DERIVED from the Check-in rules (v1.2): the
+          // same mapping the page applies and the FAQ states
+          ...(offerAudience(c, p.id) ? { audience: { '@type': 'Audience', audienceType: offerAudience(c, p.id) } } : {})
         }))
       },
       {
         '@type': 'FAQPage', inLanguage: 'en',
-        mainEntity: c.faq.items.map((f) => ({
+        mainEntity: faqOf(c).map((f) => ({
           '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a }
         }))
       }
@@ -460,19 +682,25 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // accents or spaces (the Solari engine's own alphabet).
   const word = String(city.word || city.city).toUpperCase().normalize('NFD').replace(/[^A-Z]/g, '');
   need(word.length >= 2 && word.length <= 12, where, `board word "${word}" must be 2–12 letters (override with "word")`);
+  validateCheckin(city, plans, where);
 
   const cfg = city.config || {};
   const featured = plans.find((p) => p.featured) || plans[0];
   const config = {
-    SLUG: city.slug, CITY: city.city, WORD: word, MODE: city.mode,
-    LEAD_ENDPOINT: '/api/city-lead', SITE_URL: site,
+    SLUG: city.slug, CITY: city.city, WORD: word, IATA: city.iata, MODE: city.mode,
+    LEAD_ENDPOINT: '/api/city-lead', SITE_URL: site, PAGE_URL: pageUrl,
     WHATSAPP: cfg.WHATSAPP || shared.contact.whatsapp, EMAIL: cfg.EMAIL || shared.contact.email,
     // the till: false on every desk that does not sell (the JS mounts no
     // sheet, accepts no ?paid=); the plans travel for the paid state and GA
     CHECKOUT: city.checkout === true,
     CHECKOUT_ENDPOINT: '/api/service-checkout',
     FEATURED: featured.id,
-    PLANS: Object.fromEntries(plans.map((p) => [p.id, { label: p.label, eur: Number(p.price) }]))
+    // label + price for the till and GA; per, cta and the ✓ lines for the
+    // Check-in ticket (one copy: the plates print the same includes[])
+    PLANS: Object.fromEntries(plans.map((p) => [p.id, { label: p.label, eur: Number(p.price), per: p.per, unit: p.unit || '', includes: p.includes }])),
+    // the Check-in: rules, notes, documents and copy — the page applies the
+    // same rules this build derived the FAQ answer from
+    CHECKIN: city.checkin
   };
   const contact = { ...shared.contact, whatsapp: config.WHATSAPP, email: config.EMAIL };
   // checkout_ is the validated copy block the renderers read (never printed
@@ -501,6 +729,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     scrollBlock: frags.scrollBlock,
     solariEngine: frags.solariEngine,
     familyHtml: R.family(familyFor(city, cities, shared)),
+    railHtml: R.rail(city),
+    checkinHtml: R.checkin(city),
     trustHtml: R.trust(city),
     budgetOptionsHtml: R.budgetOptions(city),
     serviceChipsHtml: R.serviceChips(city),
@@ -542,6 +772,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(html.includes('"CHECKOUT": false'), where, 'a waitlist page declares CHECKOUT false');
   }
   if (city.checkout !== true) need(!/id="ov"|data-pay=/.test(html), where, 'a desk without checkout mounts no sheet and no pay button');
+  // The Check-in is on every desk, inside the services section, once; the
+  // derived FAQ answer is on the page (the mapping readable without JS).
+  need((html.match(/<div class="checkin" id="checkin"/g) || []).length === 1 && html.indexOf('id="checkin"') > html.indexOf('<section id="services"') && html.indexOf('id="checkin"') < html.indexOf('class="sibs plates"'),
+    where, 'the Check-in must sit once inside the services section, before the plates');
+  need(html.includes(esc(checkinAnswer(city))), where, 'the derived Check-in FAQ answer is not on the page');
 
   const placeholders = findPlaceholders(html, city, { root });
   if (city.live && placeholders.length) {
