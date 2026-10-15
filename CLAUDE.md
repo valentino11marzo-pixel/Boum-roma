@@ -2676,6 +2676,21 @@ presente sul profilo usciva «MANCANTE».
   (`resend:true` per rimandare). Data futura o «PDF» senza `%PDF` → 400 senza
   scritture. Il verbale di consegna porta in allegato anche l'**inventario**
   (solo da firebasestorage). Test: `node tests/registrazione/run.mjs`.
+- **Esiti durevoli, mai un invio cieco (15/10/2026, revisione Codex)**.
+  Pacchetto: `registrationPackEmail {status, attempts, at, error}` —
+  'sending' PRIMA dell'invio, poi 'sent' | 'failed' (SMTP 5xx/EAUTH/
+  ECONNECTION: nulla è partito) | 'uncertain' (timeout, socket caduta: può
+  essere arrivato) via `sendOutcome`. La milestone parte quando il pacchetto
+  NON è partito; il reminder-cron rimanda SOLO i 'failed' (max 1/run, tetto
+  5) con `retryRegistrationPackage` — solo il pacchetto, niente benvenuto né
+  finalize. Ricevuta: registro `registrationReceiptDelivery` per (file,
+  destinatario): chi ha 'sent' non la riceve MAI due volte (nemmeno con
+  `resend`), i 'failed' ripartono al risalvataggio, gli 'uncertain' solo con
+  `resend`. Il manifesto del pacchetto dice cosa NON è allegato e perché
+  (tutti i documenti d'identità, nessun taglio a 8). Conto del canone
+  (`landlordIban`) e conto addebito tributi (`rliDebitIban/Holder`, campo
+  dell'operatore) sono due righe distinte: nessuno si deduce dall'altro.
+  Test: `tests/notify` §1c-bis, `tests/registrazione` §3b–3d.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di

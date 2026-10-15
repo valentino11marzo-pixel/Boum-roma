@@ -510,8 +510,9 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   check('roleWho: operator resta operator, tutto il resto è tenant salvo landlord', F.roleWho('operator') === 'operator' && F.roleWho('landlord') === 'landlord' && F.roleWho('tenant') === 'tenant' && F.roleWho('cotenant') === 'tenant');
   const ao = F.askFor('operator', ctx);
   const keys = ao.sections.flatMap(sc => sc.fields.map(f => f.key));
-  check('askFor(operator): lingua IT, una sezione «termini», SOLO campi dell\'operatore ancora vuoti (paymentDay, signaturePlace, consegnaStato…) — mai canone/date già pieni, mai l\'identità di una parte',
-    ao.role === 'operator' && ao.lang === 'it' && ao.sections.length === 1 && ao.sections[0].key === 'terms'
+  check('askFor(operator): lingua IT, «termini» + «registrazione» (il conto per i tributi, 15/10), SOLO campi dell\'operatore ancora vuoti (paymentDay, signaturePlace, consegnaStato…) — mai canone/date già pieni, mai l\'identità di una parte',
+    ao.role === 'operator' && ao.lang === 'it' && ao.sections.length === 2 && ao.sections[0].key === 'terms' && ao.sections[1].key === 'registration'
+    && keys.includes('rliDebitIban') && keys.includes('rliDebitHolder') && !keys.includes('landlordIban')
     && keys.includes('paymentDay') && keys.includes('signaturePlace') && keys.includes('consegnaStato')
     && !keys.includes('rent') && !keys.includes('startDate') && !keys.includes('installmentMonths') && !keys.some(k => /^tenant|^landlord|^cat/.test(k))
     && ao.identityMissing.length === 0);

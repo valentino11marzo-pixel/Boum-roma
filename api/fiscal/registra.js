@@ -87,6 +87,12 @@ export default async function handler(req, res) {
         registrationCode: contract.registrationCode || null,
         registrationReceiptUrl: contract.registrationReceiptUrl || null,
         registrationReceiptSentAt: contract.registrationReceiptSentAt || null,
+        // Gli esiti DUREVOLI: il pacchetto all'operatore e la ricevuta per
+        // destinatario. 'uncertain'/'sending' si mostrano, non si rimandano da soli.
+        packEmail: contract.registrationPackEmail || null,
+        receiptDelivery: Object.values(contract.registrationReceiptDelivery || {})
+          .filter(d => d && d.url === contract.registrationReceiptUrl)
+          .map(d => ({ who: d.who, status: d.status, at: d.at || null })),
       },
     });
   } catch (e) {

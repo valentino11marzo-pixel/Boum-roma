@@ -9,7 +9,7 @@
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { sendRegistrationSheet } from '../sign/_foglio.js';
-import { mergeIdentityDocs } from '../sign/_iddocs.js';
+import { withProfileDocs } from '../sign/_iddocs.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -31,7 +31,7 @@ export default async function handler(req, res) {
     const tenant = contract.tenantId ? await fsGet('users/' + contract.tenantId).catch(() => null) : null;
     const landlordU = property && property.ownerId ? await fsGet('users/' + property.ownerId).catch(() => null) : null;
     const landlordR = property && property.ownerId ? await fsGet('landlords/' + property.ownerId).catch(() => null) : null;
-    contract.identityDocs = mergeIdentityDocs(contract, { tenant, landlordU, landlordR });
+    contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
     const out = await sendRegistrationSheet(contract, property, { tenant, landlord: { ...(landlordR || {}), ...(landlordU || {}) } });
     if (!out.ok) return res.status(500).json(out);
     return res.status(200).json(out);

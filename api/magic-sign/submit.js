@@ -637,6 +637,7 @@ export default async function handler(req, res) {
 
   // ── 6. Cascading writes when BOTH parties have signed ──
   let finalized = false;
+  let packSent = false;
   if (fullySigned) {
     const fullContract = { ...fresh, ...upd, id: contractId };
     const property = propertyDoc || {};
@@ -799,6 +800,10 @@ export default async function handler(req, res) {
       const { finalizeContract } = await import('../sign/_finalize.js');
       const fin = await finalizeContract(fullContract);
       finalized = !!(fin && fin.ok);
+      // finalize è ok anche col pacchetto NON partito (finalizedAt si scrive
+      // prima delle email): la milestone si sopprime solo a pacchetto 'sent'
+      // (o finalize già fatto da un altro giro, che ha il suo esito).
+      packSent = !!(fin && fin.ok && (fin.skipped || fin.caf));
     } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
 
@@ -810,9 +815,9 @@ export default async function handler(req, res) {
   try {
     const _n = await import('../sign/_notify.js');
     const fullC = { ...fresh, ...upd, id: contractId };
-    // A finalize riuscito il Pacchetto registrazione È l'avviso all'operatore:
-    // il milestone parte solo come rete quando il finalize non è andato.
-    if (fullySigned) { if (!finalized) await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    // A pacchetto INVIATO il Pacchetto registrazione È l'avviso all'operatore:
+    // la milestone parte come rete quando finalize o pacchetto non sono andati.
+    if (fullySigned) { if (!packSent) await _n.notifyAdminContractSigned(fullC, propertyDoc); }
     else { await _n.notifyPartialSignature(fullC, role, propertyDoc, role === 'cotenant' ? { coIndex } : {}); }
   } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 

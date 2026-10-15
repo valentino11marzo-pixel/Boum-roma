@@ -57,6 +57,21 @@ function send(to, subject, html, attachments) {
 const trySend = (to, subject, html, attachments) => send(to, subject, html, attachments).then(() => true)
   .catch((e) => { console.warn('[sign/notify] send', to, e.message); return false; });
 
+// Esito di un invio che NON si può ripetere a cuor leggero (il pacchetto
+// registrazione all'operatore): 'failed' solo quando il server SMTP ha
+// RIFIUTATO o la connessione non è mai nata — lì il messaggio non è partito
+// e rimandarlo è sicuro; tutto il resto (timeout nostro, socket caduta a metà)
+// è 'uncertain': il messaggio può essere arrivato, e un secondo invio
+// automatico sarebbe un doppione. Esportata: la legge il recupero del cron.
+export function sendOutcome(e) {
+  if (!e) return 'sent';
+  const code = String(e.code || '');
+  const rc = Number(e.responseCode || 0);
+  if (rc >= 400) return 'failed';
+  if (['EAUTH', 'ECONNECTION', 'EDNS', 'EENVELOPE', 'EMESSAGE', 'ENOCREDS'].includes(code)) return 'failed';
+  return 'uncertain';
+}
+
 // Scarica un PDF da Storage e lo prepara come allegato nodemailer.
 // Best-effort e time-boxed: un download fallito non ferma mai l'email —
 // il documento resta raggiungibile dal link. Cap 8MB (limite Gmail 25MB
@@ -372,7 +387,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // vecchio flusso di firma nel portal — su /sign non partiva affatto.
 export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord, referente } = {}) {
   try {
-    if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
+    if (!CAF_EMAIL) return { ok: false, outcome: 'failed', error: 'no_caf_email' };
     const g = await gather(contract, property);
     const t = tenant || g.tenant || {};
     const l = landlord || { ...(g.landlordR || {}), ...(g.landlordU || {}) };
@@ -387,35 +402,54 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     // La scheda ARPE (Allegato 2/B) viaggia da sola: e' il file che si
     // inoltra ad ARPE senza aprire il fascicolo.
     const schedaHref = schedaPdfUrl || contract.schedaCanoneUrl || '';
-    const cafAtts = (await Promise.all([
-      fetchPdfAttachment(signedHref, 'BOOM_Contratto_firmato.pdf'),
-      fetchPdfAttachment(certUrl || contract.signingCertificateUrl, 'BOOM_Certificato_di_firma.pdf'),
-      fetchPdfAttachment(schedaHref, 'BOOM_Scheda_calcolo_canone_ARPE.pdf'),
-      fetchPdfAttachment(fascHref, 'BOOM_Fascicolo_Fiscale.pdf'),
-    ])).filter(Boolean);
-    // Documenti d'identità + attestazione esigenza IN ALLEGATO (max 6,
-    // budget totale ~18MB): l'email si inoltra ad ARPE/CAF senza aprire
-    // nulla. Un download fallito non ferma niente — i link restano sotto.
+    // IL MANIFESTO (15/10/2026, review): ciò che l'email DICE di allegare è
+    // ciò che è davvero allegato. Prima i download falliti sparivano dal
+    // conto e i documenti d'identità oltre l'ottavo non esistevano, mentre il
+    // corpo diceva «email pronta da inoltrare». Ora ogni pezzo atteso è una
+    // riga: allegato, oppure NON allegato col motivo.
+    const manifest = [];
+    const cafAtts = [];
+    const core = [
+      { label: 'Contratto firmato', url: signedHref, name: 'BOOM_Contratto_firmato.pdf', required: true },
+      { label: 'Certificato di firma', url: certUrl || contract.signingCertificateUrl, name: 'BOOM_Certificato_di_firma.pdf', required: true },
+      { label: 'Scheda calcolo canone', url: schedaHref, name: 'BOOM_Scheda_calcolo_canone_ARPE.pdf', required: false },
+      { label: 'Fascicolo Fiscale', url: fascHref, name: 'BOOM_Fascicolo_Fiscale.pdf', required: false },
+    ];
+    const coreAtts = await Promise.all(core.map(x => fetchPdfAttachment(x.url, x.name)));
+    core.forEach((x, i) => {
+      if (coreAtts[i]) { cafAtts.push(coreAtts[i]); manifest.push({ label: x.label, attached: true }); }
+      else if (x.url) manifest.push({ label: x.label, attached: false, reason: 'download non riuscito' });
+      else if (x.required) manifest.push({ label: x.label, attached: false, reason: 'non generato' });
+    });
+    // Documenti d'identità + attestazione esigenza: TUTTI, nessun taglio a
+    // numero (il nono — spesso il locatore, aggiunto per ultimo dal profilo —
+    // spariva in silenzio). Limiti veri: 18MB di budget e 20s di tempo; ciò
+    // che resta fuori è dichiarato, e il link resta nel corpo.
     {
-      const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url).slice(0, 8);
+      const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url);
       let budget = 18 * 1024 * 1024 - cafAtts.reduce((n, a) => n + (a.content ? a.content.length : 0), 0);
       const t0 = Date.now();
       for (let i = 0; i < idDocs.length; i++) {
         const d = idDocs[i];
-        if (!d || !d.url || budget <= 0) continue;
-        if (Date.now() - t0 > 20000) break;   // tetto di tempo: i link restano nel corpo
         const isExtra = d.kind === 'extra';
+        const who = isExtra ? 'Attestazione esigenza' : 'Documento ' + (d.role === 'landlord' ? 'locatore' : (d.role === 'tenant' || d.tenantIndex != null) ? 'conduttore' : 'identità');
+        const label = who + ' ' + (i + 1) + (d.name ? ' · ' + String(d.name).slice(0, 60) : '');
+        if (budget <= 0) { manifest.push({ label, attached: false, reason: 'oltre 18MB' }); continue; }
+        if (Date.now() - t0 > 20000) { manifest.push({ label, attached: false, reason: 'tempo scaduto' }); continue; }
         const base = String(d.name || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
         const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_' + (d.role === 'landlord' ? 'locatore' : (d.role === 'tenant' || d.tenantIndex != null) ? 'conduttore' : 'identita') + '_') + (i + 1) + '_'
           + base + (/\.[a-z0-9]{2,4}$/i.test(base) ? '' : '.jpg');
         const att = await fetchPdfAttachment(d.url, name, null);
-        if (att && att.content.length <= budget) { cafAtts.push(att); budget -= att.content.length; }
+        if (!att) manifest.push({ label, attached: false, reason: 'download non riuscito' });
+        else if (att.content.length > budget) manifest.push({ label, attached: false, reason: 'oltre 18MB' });
+        else { cafAtts.push(att); budget -= att.content.length; manifest.push({ label, attached: true }); }
       }
     }
+    const notAttached = manifest.filter(m => !m.attached);
     const reqType = contract.requiresAsseverazione !== false ? 'Asseverazione + Registrazione' : 'Registrazione';
     const refName = String((referente && referente.referente) || 'il referente').trim() || 'il referente';
     const docs = Array.isArray(contract.identityDocs) ? contract.identityDocs : [];
-    const docLinks = docs.slice(0, 8).map((d, i) =>
+    const docLinks = docs.filter(d => d && d.url).map((d, i) =>
       `<a href="${esc(d.url)}" style="color:#8A6D1D">Doc ${i + 1}${d.name ? ' · ' + esc(d.name) : ''}</a>`).join('<br>') || '—';
 
     // ── Il verdetto + i link da copiare ──────────────────────────────────
@@ -453,7 +487,8 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const legalBad = (comp.legal || []).filter(x => !x.ok);
     const verdictTiles = tiles([
       { k: 'Contratto', v: comp.ready.contract ? '✓ senza puntini' : `✗ ${comp.dots.filter(d => d.required).length} mancanti`, sub: comp.ready.contract ? null : 'campi che il PDF stampa come puntini' },
-      { k: 'Registrazione', v: comp.ready.registration ? '✓ pronta' : '✗ incompleta', sub: legalBad.length ? legalBad.map(x => x.note.it).join(' · ') : null },
+      { k: 'Allegati', v: notAttached.length ? `✗ ${notAttached.length} non allegati` : `✓ ${cafAtts.length} file`, sub: notAttached.length ? notAttached.map(m => esc(m.label)).join(' · ') : null },
+      { k: 'Registrazione', v: comp.ready.registration ? '✓ dati completi' : '✗ incompleta', sub: legalBad.length ? legalBad.map(x => x.note.it).join(' · ') : null },
       { k: 'RLI entro', v: rli.registrationDeadline ? fmtIT(rli.registrationDeadline) : '—', sub: rli.registrationFrom ? '30 gg da ' + fmtIT(rli.registrationFrom) : null },
     ]);
 
@@ -461,7 +496,11 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const sheet = sheetRows({ contract: hydrated, property: g.prop });
 
     const html = shell(
-      para(`<b>Pacchetto registrazione pronto</b> per la ${reqType.toLowerCase()} del contratto <b>${esc(contract.id || '')}</b>, firmato da entrambe le parti. In allegato c'è tutto: contratto, certificato, scheda di calcolo e documenti d'identità. Controlla i dati e la scheda nel portal, poi lo mandi a <b>${esc(refName)}</b> con un tap.`)
+      para(`<b>Pacchetto registrazione</b> per la ${reqType.toLowerCase()} del contratto <b>${esc(contract.id || '')}</b>, firmato da entrambe le parti. `
+        + (notAttached.length
+          ? `In allegato ${cafAtts.length} file; <b>non allegati: ${notAttached.map(m => esc(m.label) + ' (' + esc(m.reason) + ')').join(', ')}</b>. Recuperali dal pannello prima dell'invio.`
+          : `In allegato ${cafAtts.length} file: tutti quelli attesi.`)
+        + ` Controlla i dati e la scheda nel portal, poi lo mandi a <b>${esc(refName)}</b> con un tap.`)
       + verdictTiles
       + askBlock('tenant', missTenant, g.tenantName, schedaUrl(contract.id, 'tenant'), null, !!contract.tenantSignature)
       + cotenantBlocks
@@ -475,7 +514,9 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
               certUrl ? `<a href="${esc(certUrl)}" style="color:#8A6D1D"><b>Certificato FES</b></a>` : null,
               fascHref ? `<a href="${esc(fascHref)}" style="color:#8A6D1D"><b>Fascicolo Fiscale</b></a>` : null,
             ].filter(Boolean).join(' · '),
-            [cafAtts.length ? `${cafAtts.length} allegati — email pronta da inoltrare` : null,
+            [notAttached.length
+                ? `⚠ ${cafAtts.length} allegati · NON allegati: ` + notAttached.map(m => esc(m.label) + ' (' + esc(m.reason) + ')').join(', ') + ' — usa i link qui sotto o il pannello'
+                : (cafAtts.length ? `${cafAtts.length} allegati, tutti quelli attesi` : null),
              fascHref ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null,
             ].filter(Boolean).join(' · ') || null),
           row('Pack registrazione',
@@ -489,10 +530,19 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
         ]))
       + btn(BASE + '/portal#aspi=' + encodeURIComponent(contract.id || ''), 'Controlla e invia a ' + refName)
       + fine('Generato automaticamente alla firma completa. Nel pannello rivedi la checklist, alleghi ciò che manca e correggi la scheda (📑 Fascicolo) prima dell\'invio. Il foglio pulito da stampare si rimanda con ✉ Foglio. La scadenza RLI è già a scadenzario nel portal.', 'text-align:center'),
-      `${reqType} — ${g.propLabel} · ${comp.ready.registration ? 'pronto' : 'incompleto: ' + comp.missingKeys.length + ' dati'}`);
+      `${reqType} — ${g.propLabel} · ${comp.ready.registration && !notAttached.length ? 'pronto' : 'incompleto: ' + [comp.missingKeys.length ? comp.missingKeys.length + ' dati' : '', notAttached.length ? notAttached.length + ' allegati mancanti' : ''].filter(Boolean).join(', ')}`);
 
     const subject = `📑 Pacchetto registrazione — ${g.propLabel} — ${g.tenantName || 'conduttore'} — ${String(contract.startDate || '').slice(0, 10)}`;
-    const ok = await trySend(CAF_EMAIL, subject, html, cafAtts);
-    return { ok, missing: comp.missingKeys };
-  } catch (e) { console.warn('[sign/notify] caf:', e.message); return { ok: false, error: e.message }; }
+    try {
+      await send(CAF_EMAIL, subject, html, cafAtts);
+      return { ok: true, outcome: 'sent', missing: comp.missingKeys, manifest };
+    } catch (e) {
+      console.warn('[sign/notify] caf send:', e.message);
+      return { ok: false, outcome: sendOutcome(e), error: String(e.message || '').slice(0, 200), missing: comp.missingKeys, manifest };
+    }
+  } catch (e) {
+    // Prima dell'invio (dati, allegati): il messaggio non è partito.
+    console.warn('[sign/notify] caf:', e.message);
+    return { ok: false, outcome: 'failed', error: String(e.message || '').slice(0, 200) };
+  }
 }

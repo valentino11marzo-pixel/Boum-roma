@@ -23869,6 +23869,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
                 ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · inviata alle parti' : ''}</div>` : ''}
+                ${_aspiDeliveryNotes(st.state)}
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
@@ -23888,6 +23889,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         _aspiRenderKind();
     }
     window.openAspi = openAspi;
+    // Gli esiti DUREVOLI che il server registra (15/10/2026): pacchetto
+    // all'operatore e ricevuta per destinatario. Si mostrano SOLO quando c'è
+    // qualcosa da fare — un esito incerto non si rimanda alla cieca.
+    function _aspiDeliveryNotes(state) {
+        const out = [];
+        const pe = state && state.packEmail;
+        const box = (t) => `<div style="font-size:12px;background:rgba(255,159,10,.10);border-radius:8px;padding:8px 12px;margin-bottom:12px">${t}</div>`;
+        if (pe && pe.status === 'failed') out.push(box(`⚠ L'email del pacchetto alla firma NON è partita (${esc(pe.error || 'errore')}, tentativo ${esc(pe.attempts || 1)}): si riprova da sola. Il pannello qui ha già tutto.`));
+        else if (pe && (pe.status === 'uncertain' || pe.status === 'sending')) out.push(box(`⚠ Email del pacchetto con esito <b>incerto</b> (${esc(pe.error || 'invio interrotto')}): controlla la casella prima di fare altro — non si rimanda da sola.`));
+        const who = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+        const rd = (state && state.receiptDelivery) || [];
+        const bad = rd.filter(d => d.status !== 'sent');
+        if (bad.length) out.push(box('⚠ Ricevuta: ' + bad.map(d => esc(who(d.who)) + ' — ' + (d.status === 'failed' ? 'non inviata (risalva per riprovare solo a lui)' : 'esito incerto')).join(' · ')));
+        return out.join('');
+    }
     async function sendAspi(contractId) {
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
         const bill = !!document.getElementById('aspiBill')?.checked;
@@ -24047,8 +24063,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (j.deadlinesClosed) parts.push('scadenza chiusa');
             if (j.sent && j.sent.length) parts.push(`ricevuta inviata a ${j.sent.length} ${j.sent.length === 1 ? 'persona' : 'persone'}`);
             else if (j.skipped === 'no_file') parts.push('nessuna ricevuta caricata: alle parti non parte niente');
-            else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata');
-            toast('success', parts.join(' · '));
+            else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata a tutti');
+            const whoIt = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+            const bad = [];
+            if (j.failed && j.failed.length) bad.push('NON inviata a ' + j.failed.map(whoIt).join(', ') + ' (risalva per riprovare solo a loro)');
+            if (j.uncertain && j.uncertain.length) bad.push('esito incerto per ' + j.uncertain.map(whoIt).join(', ') + ' — verifica prima di rimandare');
+            toast(bad.length ? 'warning' : 'success', parts.concat(bad).join(' · '));
             try { fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {}); } catch (_) {}
             renderPage();
         } catch (e) {

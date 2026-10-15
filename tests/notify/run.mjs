@@ -69,6 +69,7 @@ globalThis.fetch = async (url, opts = {}) => {
   // Qualsiasi altro file "esterno" (documenti identità, dossier immobile):
   // contenuto deterministico dal path, così il test verifica la FEDELTÀ
   // dei byte dentro lo ZIP del pack.
+  if (url.startsWith('https://storage.example/forbidden/')) return new Response('forbidden', { status: 403 });
   if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
   // TSA RFC3161 (freetsa): risposta finta abbastanza lunga da passare il
   // sanity check (>100 byte) — la marca temporale viene archiviata.
@@ -353,6 +354,81 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));
 }
 
+// ═══ 1c-bis. Il pacchetto: esito durevole, recupero solo dei rifiuti certi, manifesto vero ═══
+{
+  const F = await import('../../api/sign/_finalize.js');
+  const N = await import('../../api/sign/_notify.js');
+  // Classificazione: rifiuto certo vs esito incerto.
+  check('esito SMTP: 5xx / EAUTH / ECONNECTION = rifiuto certo (failed)',
+    N.sendOutcome(Object.assign(new Error('x'), { responseCode: 550 })) === 'failed'
+    && N.sendOutcome(Object.assign(new Error('x'), { code: 'EAUTH' })) === 'failed'
+    && N.sendOutcome(Object.assign(new Error('x'), { code: 'ECONNECTION' })) === 'failed');
+  check('esito SMTP: timeout nostro e socket caduta = incerto (può essere arrivato)',
+    N.sendOutcome(new Error('email_timeout')) === 'uncertain' && N.sendOutcome(Object.assign(new Error('x'), { code: 'ESOCKET' })) === 'uncertain');
+  check('recupero: solo finalizzato + failed + sotto il tetto',
+    F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'failed', attempts: 1 } })
+    && !F.packRetryEligible({ registrationPackEmail: { status: 'failed', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'uncertain', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'sending', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'failed', attempts: F.PACK_EMAIL_MAX_ATTEMPTS } }));
+
+  // Finalize con SMTP che rifiuta SOLO il pacchetto: il resto parte, l'esito resta.
+  const P = { ...FULL, id: 'ctrPK' };
+  store.set('contracts/ctrPK', { ...P });
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? Object.assign(new Error('550 rejected'), { responseCode: 550 }) : null;
+  const b = mails().length;
+  const out = await F.finalizeContract({ ...P });
+  globalThis.__mailFail = null;
+  const sent = mails().slice(b);
+  check('finalize con pacchetto respinto: ok, caf=false, cafOutcome=failed', out.ok === true && out.caf === false && out.cafOutcome === 'failed');
+  check('finalize con pacchetto respinto: i benvenuti partono comunque', sent.some(m => m.to === 'anna@expat.com' && /Welcome home/.test(m.subject))
+    && sent.some(m => m.to === 'giulia@owner.it' && /Contratto firmato/.test(m.subject)));
+  const pk = store.get('contracts/ctrPK');
+  check('finalize con pacchetto respinto: registrationPackEmail failed, 1 tentativo, errore salvato', pk.registrationPackEmail.status === 'failed'
+    && pk.registrationPackEmail.attempts === 1 && /550/.test(pk.registrationPackEmail.error || '') && !!pk.finalizedAt);
+
+  // Il cron rimanda: solo il pacchetto, una volta, coi file del finalize.
+  const keysBefore = new Set(store.keys()), b2 = mails().length;
+  const rr = await F.retryRegistrationPackage({ ...store.get('contracts/ctrPK'), id: 'ctrPK' });
+  const out2 = mails().slice(b2);
+  check('recupero: UNA email, al referente interno, col pacchetto', rr.outcome === 'sent' && out2.length === 1
+    && out2[0].to === 'valentino@boom-rome.com' && /Pacchetto registrazione/.test(out2[0].subject));
+  check('recupero: stessi allegati del finalize (contratto firmato, certificato, scheda, fascicolo, identità)', (out2[0].attachments || []).length === 5
+    && (out2[0].attachments || []).some(a => a.filename === 'BOOM_Contratto_firmato.pdf' && a.content.length > 500));
+  check('recupero: niente nuovi documenti in Firestore (scadenze, magic link, archivio)', [...store.keys()].every(k => keysBefore.has(k)));
+  check('recupero: esito sent, 2 tentativi', store.get('contracts/ctrPK').registrationPackEmail.status === 'sent' && store.get('contracts/ctrPK').registrationPackEmail.attempts === 2);
+
+  // Esito INCERTO: mai rimandato da solo.
+  const U = { ...FULL, id: 'ctrPU' };
+  store.set('contracts/ctrPU', { ...U });
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? new Error('email_timeout') : null;
+  await F.finalizeContract({ ...U });
+  globalThis.__mailFail = null;
+  const pu = store.get('contracts/ctrPU');
+  const b3 = mails().length;
+  const ru = await F.retryRegistrationPackage({ ...pu, id: 'ctrPU' });
+  check('esito incerto: registrato «uncertain» e NON rimandato (potrebbe essere arrivato)', pu.registrationPackEmail.status === 'uncertain'
+    && ru.skipped === 'not_eligible' && mails().length === b3);
+
+  // Manifesto: il contratto firmato risponde 403 → dichiarato, mai «tutti».
+  const M = { ...FULL, id: 'ctrMF', signedPdfUrl: 'https://storage.example/forbidden/contratto-firmato.pdf',
+    identityDocs: Array.from({ length: 8 }, (_, i) => ({ url: 'https://storage.example/t' + i + '.jpg', name: 't' + i + '.jpg', role: 'tenant' }))
+      .concat([{ url: 'https://storage.example/landlord-ci.jpg', name: 'landlord-ci.jpg', role: 'landlord', source: 'profile' }]) };
+  const b4 = mails().length;
+  const rm = await N.sendCafDossier(M, store.get('properties/prop1'), {
+    certUrl: 'https://storage.example/cert.pdf', signedPdfUrl: M.signedPdfUrl,
+    schedaPdfUrl: 'https://storage.example/scheda.pdf', fascicoloUrl: 'https://storage.example/fasc.pdf' });
+  const mm = mails().slice(b4).find(m => /Pacchetto registrazione/.test(m.subject));
+  const names = (mm && mm.attachments || []).map(a => a.filename);
+  check('manifesto: contratto firmato 403 → «non allegati: Contratto firmato (download non riuscito)», mai «tutti quelli attesi»', !!mm
+    && /non allegati: Contratto firmato \(download non riuscito\)/.test(mm.html) && !/tutti quelli attesi/.test(mm.html)
+    && !names.includes('BOOM_Contratto_firmato.pdf'));
+  check('manifesto: nove documenti d\'identità, il nono (locatore, dal profilo) allegato', names.filter(n => /^Documento_/.test(n)).length === 9
+    && names.some(n => /^Documento_locatore_9_landlord-ci/.test(n)));
+  check('manifesto: restituito al chiamante, una riga per pezzo atteso', rm.ok && Array.isArray(rm.manifest)
+    && rm.manifest.filter(x => x.attached).length === 12 && rm.manifest.filter(x => !x.attached).length === 1);
+}
+
 // ═══ 1d. Magic Sign submit: terms freeze, già-firmato VIVO, sequenziale ═══
 {
   const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
@@ -408,8 +484,13 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   // …ripristinati i termini firmati, la controfirma passa e chiude tutto.
   store.get('contracts/ctrMS').rent = 1200;
   r = mkRes();
+  const bMs = mails().length;
   await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
   const ms2 = store.get('contracts/ctrMS');
+  check('firma completa col pacchetto PARTITO: niente milestone «firmato da tutti» (il pacchetto è l\'avviso)',
+    (ms2.registrationPackEmail || {}).status === 'sent'
+    && !mails().slice(bMs).some(m => /Contratto firmato da tutti/.test(m.subject))
+    && mails().slice(bMs).filter(m => /Pacchetto registrazione/.test(m.subject)).length === 1);
   check('controfirma sui termini GIUSTI → complete + cascata (rate generate)',
     r.code === 200 && r.body.fullySigned === true && ms2.signatureStatus === 'complete'
     && [...store.keys()].some(k => k.startsWith('payments/pay_ctrMS_')));
@@ -472,8 +553,32 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
 
   IP = '9.1.3.3';
   r = mkRes();
+  // Il server SMTP respinge SOLO il pacchetto (550): finalize va avanti,
+  // l'esito resta sul contratto e la milestone parte come rete.
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? Object.assign(new Error('550 5.1.1 mailbox unavailable'), { responseCode: 550 }) : null;
+  const bCs = mails().length;
   await msSubmit(mkReq(body('CSTOK_LANDLORD_1')), r);
+  globalThis.__mailFail = null;
   const cs2 = store.get('contracts/ctrCS');
+  check('pacchetto respinto (SMTP 550) alla firma completa: esito «failed» durevole sul contratto',
+    (cs2.registrationPackEmail || {}).status === 'failed' && cs2.registrationPackEmail.attempts === 1 && !!cs2.finalizedAt);
+  check('pacchetto respinto: la milestone «firmato da tutti» parte come rete (prima taceva)',
+    mails().slice(bCs).filter(m => /Contratto firmato da tutti/.test(m.subject) && m.to === 'valentino@boom-rome.com').length === 1);
+  {
+    const { retryRegistrationPackage } = await import('../../api/sign/_finalize.js');
+    const keysBefore = new Set(store.keys()), filesBefore = storageFiles.size, b2 = mails().length;
+    const rr = await retryRegistrationPackage({ ...store.get('contracts/ctrCS'), id: 'ctrCS' });
+    const out2 = mails().slice(b2);
+    check('recupero: parte SOLO il pacchetto, una volta (niente benvenuto, niente milestone, niente inviti)',
+      rr.outcome === 'sent' && out2.length === 1 && out2[0].to === 'valentino@boom-rome.com' && /Pacchetto registrazione/.test(out2[0].subject));
+    check('recupero: non rifà il finalize (nessun documento nuovo in Firestore né file su Storage)',
+      [...store.keys()].every(k => keysBefore.has(k)) && storageFiles.size === filesBefore);
+    const cs3 = store.get('contracts/ctrCS');
+    check('recupero: esito «sent» col secondo tentativo contato', cs3.registrationPackEmail.status === 'sent' && cs3.registrationPackEmail.attempts === 2);
+    const b3 = mails().length;
+    const rr2 = await retryRegistrationPackage({ ...store.get('contracts/ctrCS'), id: 'ctrCS' });
+    check('recupero: a pacchetto inviato non riparte più', rr2.skipped === 'not_eligible' && mails().length === b3);
+  }
   check('locatore controfirma a lato completo → COMPLETE + finalize',
     r.code === 200 && r.body.fullySigned === true && cs2.signatureStatus === 'complete' && !!cs2.finalizedAt);
   check('certificato costruito con TUTTE le firme (hash include i co-conduttori)',

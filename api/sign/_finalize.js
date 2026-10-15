@@ -48,6 +48,33 @@ const addDays = (base, n) => { const d = new Date(base); d.setDate(d.getDate() +
 const money = (v) => (v == null || v === '') ? '' : '€' + Number(v).toLocaleString('it-IT');
 const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 
+// Le parti come le vedono PDF, pack e pacchetto: profilo users + landlords,
+// campi di parte idratati, documenti d'identità anche dai profili. Una copia
+// sola: la usano finalize e il recupero del pacchetto (retryRegistrationPackage).
+async function loadParties(contract) {
+  const property = contract.propertyId ? await fsGet(`properties/${contract.propertyId}`).catch(()=>null) : null;
+  const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
+  const ownerId  = property && property.ownerId;
+  const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
+  // Da qui in poi il contratto porta i campi di parte della catena users
+  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
+  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
+  const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
+  try {
+    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
+  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
+  // I documenti d'identità anche dai PROFILI delle parti (api/sign/_iddocs.js):
+  // pacchetto, pack e ASPI vedono il documento caricato una volta sul profilo,
+  // non solo quelli arrivati su questo contratto. Solo lettura, niente si scrive.
+  try {
+    const coUsers = await Promise.all((Array.isArray(contract.coTenants) ? contract.coTenants : [])
+      .map(x => (x && x.userId) ? fsGet(`users/${x.userId}`).catch(()=>null) : null));
+    contract = { ...contract, identityDocs: mergeIdentityDocs(contract, { tenant, landlordU: landlord, landlordR, coUsers }) };
+  } catch (e) { console.warn('[finalize] iddocs:', e.message); }
+
+  return { contract, property, tenant, landlord };
+}
+
 export async function finalizeContract(contract){
   if(!contract || !contract.id) return { ok:false, error:'no_contract' };
   if(contract.finalizedAt) return { ok:true, skipped:true };
@@ -68,25 +95,9 @@ export async function finalizeContract(contract){
   const signDate = contract.fullySignedAt ? new Date(contract.fullySignedAt) : now;
   const start = contract.startDate ? new Date(contract.startDate) : signDate;
 
-  const property = contract.propertyId ? await fsGet(`properties/${contract.propertyId}`).catch(()=>null) : null;
-  const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
-  const ownerId  = property && property.ownerId;
-  const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
-  // Da qui in poi il contratto porta i campi di parte della catena users
-  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
-  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
-  const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
-  try {
-    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
-  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
-  // I documenti d'identità anche dai PROFILI delle parti (api/sign/_iddocs.js):
-  // pacchetto, pack e ASPI vedono il documento caricato una volta sul profilo,
-  // non solo quelli arrivati su questo contratto. Solo lettura, niente si scrive.
-  try {
-    const coUsers = await Promise.all((Array.isArray(contract.coTenants) ? contract.coTenants : [])
-      .map(x => (x && x.userId) ? fsGet(`users/${x.userId}`).catch(()=>null) : null));
-    contract = { ...contract, identityDocs: mergeIdentityDocs(contract, { tenant, landlordU: landlord, landlordR, coUsers }) };
-  } catch (e) { console.warn('[finalize] iddocs:', e.message); }
+  const parties = await loadParties(contract);
+  const { property, tenant, landlord } = parties;
+  contract = parties.contract;
 
   // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
   // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
@@ -325,7 +336,7 @@ export async function finalizeContract(contract){
   const referente = await loadAspiSettings().catch(() => null);
   const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }),
+    sendPackageRecorded(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }, 0),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -345,7 +356,7 @@ export async function finalizeContract(contract){
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), cafOutcome: (caf && caf.outcome) || 'failed', aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──
@@ -674,4 +685,62 @@ async function buildCertificate(c, property){
   T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', 40, 38, 7, font, grey);
   T('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005', 40, 28, 7, font, grey);
   return await pdf.save();
+}
+
+
+// ── Il pacchetto registrazione: esito DUREVOLE (15/10/2026) ──
+// finalizedAt si scrive PRIMA delle email (niente doppio benvenuto), quindi un
+// pacchetto perso per un errore SMTP non tornava più: nessun retry ordinario,
+// e submit sopprimeva anche la milestone. Ora l'esito vive sul contratto
+// (`registrationPackEmail`): 'sending' prima dell'invio, poi 'sent' |
+// 'failed' (rifiuto certo, nulla partito) | 'uncertain' (timeout o socket
+// caduta a metà: può essere arrivato). Il cron rimanda SOLO i 'failed', con
+// un tetto; 'uncertain' e un 'sending' rimasto appeso si mostrano
+// all'operatore e non si rimandano MAI da soli — un doppione al referente
+// costa più di un avviso.
+export const PACK_EMAIL_MAX_ATTEMPTS = 5;
+
+async function sendPackageRecorded(contract, property, args, prevAttempts) {
+  const attempts = (Number(prevAttempts) || 0) + 1;
+  const startedAt = new Date().toISOString();
+  try { await fsPatch(`contracts/${contract.id}`, { registrationPackEmail: { status: 'sending', at: startedAt, attempts } }); }
+  catch (e) {
+    // Senza la marca non si invia: un invio non registrato è proprio il
+    // caso che il recupero non saprebbe distinguere.
+    console.warn('[finalize] pack mark:', e.message);
+    return { ok: false, outcome: 'failed', error: 'mark_failed' };
+  }
+  let r;
+  try { r = await sendCafDossier(contract, property, args); }
+  catch (e) { r = { ok: false, outcome: 'uncertain', error: String(e.message || '').slice(0, 200) }; }
+  const outcome = r && r.ok ? 'sent' : ((r && r.outcome) || 'uncertain');
+  const rec = { status: outcome, at: new Date().toISOString(), attempts, ...(outcome === 'sent' ? {} : { error: (r && r.error) || 'unknown' }) };
+  try { await fsPatch(`contracts/${contract.id}`, { registrationPackEmail: rec }); }
+  catch (e) { console.warn('[finalize] pack record:', e.message); }
+  return { ...(r || {}), outcome };
+}
+
+// Quale contratto il cron può riprovare: finalizzato, pacchetto FALLITO con
+// certezza, sotto il tetto. Pura, esportata, testata.
+export function packRetryEligible(c) {
+  const e = c && c.registrationPackEmail;
+  return !!(c && c.finalizedAt && e && e.status === 'failed' && (Number(e.attempts) || 0) < PACK_EMAIL_MAX_ATTEMPTS);
+}
+
+// Il recupero: SOLO il pacchetto. Niente firme, scadenze, magic link,
+// benvenuto, archivio — quelli li ha già fatti il finalize. Rilegge i
+// documenti dal contratto (gli URL scritti dal finalize).
+export async function retryRegistrationPackage(contract) {
+  if (!packRetryEligible(contract)) return { ok: false, skipped: 'not_eligible' };
+  const { contract: c, property, tenant, landlord } = await loadParties(contract);
+  const referente = await loadAspiSettings().catch(() => null);
+  return sendPackageRecorded(c, property, {
+    certUrl: c.signingCertificateUrl || '',
+    fascicoloUrl: c.fascicoloFiscaleUrl || '',
+    schedaPdfUrl: c.schedaCanoneUrl || '',
+    signedPdfUrl: c.signedPdfUrl || '',
+    packUrl: c.registrationPackUrl || '',
+    packMissing: Array.isArray(c.registrationPackMissing) ? c.registrationPackMissing : [],
+    tenant, landlord, referente,
+  }, (contract.registrationPackEmail || {}).attempts);
 }

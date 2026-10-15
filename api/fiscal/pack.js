@@ -7,7 +7,7 @@
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { buildRegistrationPack } from '../sign/_pack.js';
-import { mergeIdentityDocs } from '../sign/_iddocs.js';
+import { withProfileDocs } from '../sign/_iddocs.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -33,7 +33,8 @@ export default async function handler(req, res) {
     const landlordR = property && property.ownerId ? await fsGet('landlords/' + property.ownerId).catch(() => null) : null;
     const out = await buildRegistrationPack({
       ...contract,
-      identityDocs: mergeIdentityDocs(contract, { tenant, landlordU: landlord, landlordR }),
+      // withProfileDocs: la STESSA composizione del finalize (co-conduttori compresi).
+      identityDocs: (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs || [],
       tenantName: contract.tenantName || (tenant && tenant.name) || '',
       landlordName: contract.landlordName || (landlord && landlord.name) || '',
     }, property);
