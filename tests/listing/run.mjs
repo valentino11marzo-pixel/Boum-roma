@@ -116,8 +116,13 @@ let ONE_FETCHES = 0;
 // la lista (sitemap/llms): 'ok' · '500' · '403' · 'throw' · 'paged' · 'paged-fail'
 let LIST_MODE = 'ok';
 const json = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+// il login admin del server (il budget AI legge settings/ai con le credenziali
+// admin): risponde SOLO dentro la sezione del concierge, così le altre sezioni
+// vedono la rete di sempre
+let SIGNIN = false;
 globalThis.fetch = async (url, opts) => {
   const u = String(url);
+  if (SIGNIN && u.startsWith('https://identitytoolkit.googleapis.com/')) return json({ idToken: 'T', expiresIn: '3600' });
   if (u.startsWith('https://api.anthropic.com/')) {
     ANTHROPIC_BODY = JSON.parse(opts.body);
     return json({ content: [{ type: 'text', text: 'Fine.' }], usage: { input_tokens: 1, output_tokens: 1 }, model: 'x' });
@@ -542,6 +547,10 @@ console.log('\n/api/ask-listing — le politiche che il codice applica davvero')
     !/film/i.test(SYSTEM) && /recorded at check-in in a signed handover report \(verbale di consegna\) and checked against it at move-out/.test(SYSTEM));
   check('FALLBACK: nessuna promessa in ore', !/\d+ hours?/.test((s.match(/const FALLBACK = `([^`]*)`/) || [])[1] || 'x'));
   // il giro vero: i fatti mandati al modello portano billsIncluded e i mesi di deposito
+  // settings/ai assente (404 → null) = budget di default, spento: la chiamata passa
+  const ENV_ADMIN = { e: process.env.FIREBASE_ADMIN_EMAIL, p: process.env.FIREBASE_ADMIN_PASS };
+  process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c'; process.env.FIREBASE_ADMIN_PASS = 'x';
+  SIGNIN = true;
   process.env.ANTHROPIC_API_KEY = 'test-key';
   DOCS.A.depositMonths = 2;
   const ask = (await import('../../api/ask-listing.js')).default;
@@ -575,6 +584,9 @@ console.log('\n/api/ask-listing — le politiche che il codice applica davvero')
     /^Availability: Ask us for the exact move-in date\.$/m.test(fH) && !/Available now/.test(fH), fH);
   const fD = await factsOf('D');
   check('D (bozza): «Not currently on the market.»', /^Availability: Not currently on the market\.$/m.test(fD), fD);
+  SIGNIN = false;
+  if (ENV_ADMIN.e === undefined) delete process.env.FIREBASE_ADMIN_EMAIL; else process.env.FIREBASE_ADMIN_EMAIL = ENV_ADMIN.e;
+  if (ENV_ADMIN.p === undefined) delete process.env.FIREBASE_ADMIN_PASS; else process.env.FIREBASE_ADMIN_PASS = ENV_ADMIN.p;
 }
 
 // ═══ 5. apartment-detail.html, la sorgente ═══════════════════════════════
