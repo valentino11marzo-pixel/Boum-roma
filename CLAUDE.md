@@ -118,8 +118,12 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
+| `smartlink.html` | Scheda pubblica BOOM di un annuncio esterno: mostra fonte, dati rilevati e disponibilità da verificare; rinvia sempre all'originale. Il vecchio `s.html` resta per i link storici. |
 | `inventario.html` | L'inventario dal video (`/inventario`, admin/owner/landlord, noindex): filma il giro, i fotogrammi si estraggono sul telefono, Claude propone l'elenco stanza per stanza, l'operatore corregge → PDF (allegato del verbale) + confronto automatico alla riconsegna. Motore: `js/inventario-engine.js`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
+
+### SmartLink annunci esterni (BOOM Tools)
+L'admin incolla un URL Immobiliare.it, Idealista, Subito, Casafari o Casa.it in `portal.html#boom-tools`; `/api/smartlink/extract` prova a leggere pochi campi dal portale, senza promettere copertura quando la fonte blocca l'accesso. L'operatore controlla/corregge e `/api/smartlink/create` salva in `smartlinks` solo URL, titolo, canone, zona, m², locali e nota; niente foto o descrizioni copiate. `/api/smartlink/read` restituisce al pubblico solo questi campi, mai l'identità admin; le rules Firestore sono admin-only. Il link usa `/smartlink.html?id=…`, separato dal vecchio `/s.html`; test: `npm test -- smartlink`.
 
 ## Brand & Design
 

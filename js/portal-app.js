@@ -26468,6 +26468,7 @@ IBAN: ${l.iban || '-'}`;
         // Each tool maps to an existing entrypoint. Anything we don't already
         // ship is gated behind isAdmin() so we don't expose half-built features.
         const tools = [
+            { icon:'🔗', title:'SmartLink annunci', desc:'Incolla un annuncio esterno e crea una scheda BOOM pronta da condividere, con fonte e dati da verificare.', action:"openExternalSmartLink()", tags:[{label:'Nuovo · URL → link', cls:'green'}] },
             { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
             { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
             { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
@@ -26529,11 +26530,75 @@ IBAN: ${l.iban || '-'}`;
             </section>
         `;
     }
+    function openExternalSmartLink() {
+        if (!isAdmin()) return;
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+          <div class="modal lg" style="max-width:650px">
+            <div class="modal-header"><h2>🔗 SmartLink annunci</h2><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+              <p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin-bottom:18px">Incolla l'annuncio. BOOM prova a leggere i dati; controllali prima di creare il link. La scheda rimanda sempre alla fonte originale.</p>
+              <div class="form-group"><label class="form-label" for="sl_source">Link annuncio *</label>
+                <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="sl_source" type="url" class="form-input" style="flex:1;min-width:230px" placeholder="https://www.immobiliare.it/annunci/…" onchange="smartLinkExtract()"><button type="button" class="btn btn-sm btn-secondary" onclick="smartLinkExtract()">Leggi annuncio</button></div>
+                <div id="sl_status" role="status" style="font-size:12px;color:var(--text-secondary);margin-top:8px">Immobiliare.it, Idealista, Subito, Casafari e Casa.it.</div>
+              </div>
+              <div class="form-row"><div class="form-group"><label class="form-label" for="sl_title">Titolo</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Titolo dell'annuncio"></div><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div></div>
+              <div class="form-row"><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Se indicata"></div><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div>
+              <div class="form-group"><label class="form-label" for="sl_note">Nota BOOM (facoltativa)</label><textarea id="sl_note" class="form-textarea" rows="2" maxlength="400" placeholder="Una nota utile scritta da te, senza copiare la descrizione dell'annuncio"></textarea></div>
+              <div style="padding:11px 13px;border:1px solid var(--border);border-radius:10px;font-size:12px;color:var(--text-secondary);line-height:1.5">Il link mostra i dati rilevati oggi, non certifica disponibilità, prezzo attuale o visita effettuata.</div>
+              <div id="sl_result" style="margin-top:16px"></div>
+              <input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM</button></div>
+          </div>
+        </div>`;
+        document.getElementById('sl_source')?.focus();
+    }
+
+    async function smartLinkExtract() {
+        const raw = document.getElementById('sl_source')?.value || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(raw);
+        const status = document.getElementById('sl_status');
+        if (!source) { status.textContent = 'Incolla il link completo di un annuncio supportato.'; return; }
+        status.textContent = 'Leggo l’annuncio…';
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/smartlink/extract', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ url:source.url }) });
+            const d = await r.json();
+            if (window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value)?.url !== source.url) return;
+            if (!r.ok || !d.ok) throw new Error(d.error || 'lettura non riuscita');
+            if (d.status === 'unavailable') { status.textContent = source.source + ' non ha reso leggibili i dati. Puoi completare i campi o creare il link con la sola fonte.'; return; }
+            const fields = { title:'sl_title', price:'sl_price', sqm:'sl_sqm', rooms:'sl_rooms' };
+            Object.keys(fields).forEach(k => { const el = document.getElementById(fields[k]); if (el && !el.value && d.data?.[k]) el.value = d.data[k]; });
+            status.textContent = 'Dati letti da ' + source.source + '. Controlla prezzo e caratteristiche prima di creare.';
+        } catch { status.textContent = 'Lettura non riuscita. Puoi completare i campi o creare il link con la sola fonte.'; }
+    }
+
+    async function smartLinkCreate() {
+        const value = k => document.getElementById('sl_' + k)?.value.trim() || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(value('source'));
+        if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
+        const btn = document.getElementById('sl_create');
+        if (btn.disabled || btn.dataset.created === '1') return;
+        btn.disabled = true; btn.textContent = 'Creo il link…';
+        let created = false;
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:value('key'), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note') }) });
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
+            created = true;
+            const msg = 'Ho trovato questo annuncio. Qui trovi la scheda BOOM e il link originale: ' + d.url;
+            document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
+            toast('success', 'SmartLink BOOM creato');
+        } catch (e) { toast('error', 'SmartLink non creato', e.message); }
+        finally { btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM'; }
+    }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
     // Extract title/price/size/zone/photos from Immobiliare, Idealista, Subito,
-    // Casafari and generic listing pages. Currently unwired (the old SmartLink UI was
-    // removed in the Tools cleanup); kept intact so the Finder can reuse them without
+    // Casafari and generic listing pages. These legacy parsers remain unwired;
+    // SmartLink esterni uses the server-side PFS parser so the Finder can reuse them without
     // re-deriving the regexes. See: openMessageGeneratorClient flow for reuse points.
     // ═══════════════════════════════════════════════════════════════════════════
 
