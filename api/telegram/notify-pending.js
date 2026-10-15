@@ -17,7 +17,8 @@ import { postinoTick } from './_postino.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
-import { isReunion, reunionReplyText, isB2B, b2bReplyText } from '../_market.js';
+import { pendingNewLeads } from '../leads/_fresh.js';
+import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -158,12 +159,12 @@ export default async function handler(req, res) {
   // form), the operator's phone shows WHO, WHAT and — when there's a phone —
   // a one-tap "open WhatsApp" button. The AI reply draft still follows via
   // the Commerciale's proposal card; this is the speed layer.
+  // La lettura storica (status == 'new', limit 50, SENZA ordine) poteva non
+  // contenere il lead appena arrivato: vedi api/leads/_fresh.js. Ora la
+  // finestra degli ultimi 3 giorni, più recenti prima, si AFFIANCA a quella.
   let leads = [];
   try {
-    leads = await fsList('leads', {
-      filter: { field: 'status', op: 'EQUAL', value: 'new' },
-      limit: 50,
-    });
+    leads = await pendingNewLeads({ days: 3 });
   } catch (_) { /* non-fatal */ }
   const GRADE_ICON = { A: '🔥', B: '🟢', C: '🟡' };
   const gradeRank = l => ({ A: 0, B: 1 }[l.grade] ?? 2);
@@ -183,15 +184,19 @@ export default async function handler(req, res) {
   // card each; C leads are BATCHED into one digest message per run. Dead
   // never ping. Cards keep a fixed visual grammar — grade first, then home,
   // then contact, then quote — so ten in a row still scan in seconds.
-  const ldFull = ldToNotify.filter(l => l.grade !== 'C');
-  const ldLight = ldToNotify.filter(l => l.grade === 'C');
+  // Un proprietario o un ente non finisce MAI nel riepilogo dei C: il voto
+  // del Brain misura un inquilino (budget, data d'ingresso), non chi offre
+  // una casa o sistema un team — e sepolto in una riga perderebbe il tasto
+  // WhatsApp col messaggio già scritto nella sua voce.
+  const ldFull = ldToNotify.filter(l => l.grade !== 'C' || isB2B(l));
+  const ldLight = ldToNotify.filter(l => l.grade === 'C' && !isB2B(l));
   const ldResults = [];
   for (const l of ldFull) {
     try {
       // WhatsApp reads as a live thread, not as a source label — the operator
       // must see at a glance that someone is waiting on the other side.
       const src = isReunion(l) ? '🇷🇪 La Réunion'
-        : isB2B(l) ? '🏢 ente / azienda'
+        : isB2B(l) ? (b2bSide(l) === 'owner' ? '🔑 proprietario' : '🏢 ente / azienda')
         : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
         : esc(l.source || '?');
       const head = l.grade

@@ -14,7 +14,7 @@
 //            400 { ok:false, error:'missing_token' }
 
 import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
-import { findContractByToken, mandateCheck, landlordMandateCheck, tenantSideComplete, setCors, rateOk } from './_shared.js';
+import { findContractByToken, mandateCheck, landlordMandateCheck, tenantSideComplete, tenantSideWaiting, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 export default async function handler(req, res) {
@@ -45,7 +45,10 @@ export default async function handler(req, res) {
   // controfirma del locatore è l'accettazione e resta parcheggiata finché
   // il lato conduttori non è completo. Escape hatch: signingOrder:'any'.
   if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
-    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+    // CHI manca, per nome (3/10/2026): «tocca prima all'inquilino» a un
+    // proprietario il cui inquilino HA firmato era un vicolo cieco — mancava
+    // un co-conduttore e nessuno glielo diceva.
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant', waitingFor: tenantSideWaiting(contract) });
   }
 
   const alreadySigned = role === 'tenant' ? !!contract.tenantSignature
@@ -144,6 +147,12 @@ export default async function handler(req, res) {
     propertyId: contract.propertyId || null,
     tenantId: contract.tenantId || null,
     generatedPDF: contract.generatedPDF || null,
+    // la VERSIONE che il firmatario sta leggendo: sign.html la rimanda al
+    // submit, che rifiuta (409 version_changed) se nel frattempo è stata
+    // caricata una versione corretta — si firma solo ciò che si è letto.
+    contractVersion: Number(contract.contractVersion) || 1,
+    pdfSource: contract.pdfSource || 'boom',
+    pdfFileName: contract.pdfFileName || null,
     signatureStatus: contract.signatureStatus || null,
     // expose only the OTHER party's signed flag (so UI can show "waiting on landlord/tenant")
     tenantSigned: !!contract.tenantSignature,

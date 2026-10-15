@@ -29,6 +29,7 @@
 
 import { knobs, rejectedLine } from '../_squadra.js';
 import { ai } from '../_ai.js';
+import { pendingNewLeads } from './_fresh.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
@@ -104,9 +105,13 @@ export default async function handler(req, res) {
 
   const stats = { scanned: 0, ruled: 0, aiGraded: 0, aiCalls: 0, dead: 0, A: 0, B: 0, C: 0, capped: false };
   try {
-    const pending = (await fsList('leads', {
-      filter: { field: 'status', op: 'EQUAL', value: 'new' }, limit: 50,
-    })).filter(l => !l.grade);
+    // I più RECENTI prima, garantiti: la vecchia lettura (status == 'new',
+    // limit 50, senza ordine) restituiva 50 id casuali, e oltre i 50 lead
+    // aperti una candidatura nuova poteva non essere votata mai (vedi
+    // api/leads/_fresh.js). Tetto di 50 per giro, come prima.
+    const pending = (await pendingNewLeads({ days: 7 }))
+      .filter(l => !l.grade)
+      .slice(0, 50);
     stats.scanned = pending.length;
     if (!pending.length) {
       await reportEmployeeHealth(EMPLOYEE, { ok: true, stats });

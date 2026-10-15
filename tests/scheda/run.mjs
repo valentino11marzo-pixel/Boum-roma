@@ -268,6 +268,33 @@ IP = '1.2.3.4';
   r = mkRes();
   await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
   check('link landlord: immobile altrui → 403', r.code === 403 && r.body.error === 'not_your_contract');
+
+  // IL LINK DELLA SCHEDA DELL'INQUILINO È UNA SUA CREDENZIALE (5/10/2026):
+  // fino alla firma SCRIVE la sua anagrafica. Il proprietario del SUO
+  // immobile riceve la propria Scheda e lo STATO di quella dell'inquilino e
+  // dei co-conduttori — mai i loro link né i messaggi che li contengono.
+  store.set('properties/prop1', { ...store.get('properties/prop1'), ownerId: 'caller1' });
+  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: [{ name: 'Anouk Garot', email: 'a@x.fr' }] });
+  r = mkRes();
+  await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
+  const bodyStr = JSON.stringify(r.body || {});
+  check('link proprietario: 200 con la SUA Scheda e lo stato di quella dell\'inquilino',
+    r.code === 200 && r.body.landlordUrl === schedaUrl('ctr1', 'landlord') && typeof r.body.tenantLocked === 'boolean' && Array.isArray(r.body.missing.tenant));
+  check('link proprietario: nessun link della Scheda dell\'inquilino né dei co-conduttori, da nessuna parte nella risposta',
+    !('tenantUrl' in r.body) && r.body.tenantLinkVia === 'admin'
+    && !bodyStr.includes(schedaUrl('ctr1', 'tenant')) && !bodyStr.includes(schedaUrl('ctr1', 'cotenant', 0))
+    && !(r.body.messages && 'tenant' in r.body.messages)
+    && Array.isArray(r.body.cosign) && !('schedaUrl' in r.body.cosign[0]) && !('message' in r.body.cosign[0]) && !('url' in r.body.cosign[0]));
+  check('link proprietario: niente descrittori dell\'inquilino né dell\'operatore (solo i suoi)',
+    r.body.ask && r.body.ask.landlord && !('tenant' in r.body.ask) && !('operator' in r.body.ask));
+  store.set('users/caller1', { role: 'admin' });
+  r = mkRes();
+  await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
+  check('link admin: i link della Scheda dell\'inquilino e dei co-conduttori restano (lo manda BOOM)',
+    r.code === 200 && r.body.tenantUrl === schedaUrl('ctr1', 'tenant') && r.body.cosign[0].schedaUrl === schedaUrl('ctr1', 'cotenant', 0)
+    && !!r.body.messages.tenant && !('tenantLinkVia' in r.body));
+  store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: undefined });
+  store.set('properties/prop1', { ...store.get('properties/prop1'), ownerId: 'somebody-else' });
 }
 
 // ═══ 9. L'ATTORE OPERATORE sullo stesso rail (21/09/2026 — «✎ Completa i

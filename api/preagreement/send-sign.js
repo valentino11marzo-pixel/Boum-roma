@@ -8,8 +8,11 @@
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
-// Body:     { id }                            // preAgreements doc id
-// Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed }
+// Body:     { id, coOnly? }                   // preAgreements doc id; coOnly =
+//           solo l'invito ai co-conduttori (nessuna email al titolare)
+// Response: { ok, contractId, tenantSignUrl*, landlordSignUrl*, emailed,
+//             coTenants:[{name,phone,url*}], coEmailed:[], coNoEmail:[] }
+//           (* admin callers only)
 
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -17,6 +20,8 @@ import { convertPaToContract } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 import { askLandlordScheda } from './_askscheda.js';
+import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
+import { tenantSideComplete } from '../magic-sign/_shared.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -28,10 +33,16 @@ export function signatureState(c) {
   const iso = (v) => (!v ? null : typeof v === 'string' ? v : (v && typeof v.toDate === 'function') ? v.toDate().toISOString() : (v && v.seconds) ? new Date(v.seconds * 1000).toISOString() : String(v));
   const tenantSigned = !!c.tenantSignature;
   const landlordSigned = !!c.landlordSignature;
-  const status = c.signatureStatus === 'complete' || (tenantSigned && landlordSigned) ? 'complete'
-    : (tenantSigned || landlordSigned || c.signatureStatus === 'partial') ? 'partial' : 'none';
+  // «complete» = locatore + LATO CONDUTTORI completo (co-conduttori
+  // compresi): con signingOrder 'any' titolare e locatore potevano aver
+  // firmato con un co-conduttore che mancava, e qui risultava «complete».
+  const co = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  const coPending = co.filter(x => !x.signature).length;
+  const coSigned = co.length - coPending;
+  const status = c.signatureStatus === 'complete' || (tenantSideComplete(c) && landlordSigned) ? 'complete'
+    : (tenantSigned || landlordSigned || coSigned > 0 || c.signatureStatus === 'partial') ? 'partial' : 'none';
   return {
-    status, tenantSigned, landlordSigned,
+    status, tenantSigned, landlordSigned, coPending,
     tenantSignedAt: iso(c.tenantSignedAt), landlordSignedAt: iso(c.landlordSignedAt),
     fullySignedAt: iso(c.fullySignedAt),
   };
@@ -78,6 +89,14 @@ export default async function handler(req, res) {
   const tenantSignUrl = out.tenantSignUrl || pa.tenantSignUrl || null;
   const landlordSignUrl = out.landlordSignUrl || pa.landlordSignUrl || null;
   if (!tenantSignUrl) return res.status(409).json({ ok: false, error: 'already_signed' });
+  // I link di firma tornano in risposta SOLO all'admin: la porta accetta anche
+  // owner/landlord, e il link del conduttore in mano al proprietario è una
+  // firma falsa a portata di tap (signTokens, 1/10/2026). Le email partono
+  // comunque, ciascuna al suo destinatario.
+  const echoLinks = auth.profile.role === 'admin' ? { tenantSignUrl, landlordSignUrl } : {};
+  // Lo stesso per i link dei co-conduttori: al proprietario i nomi, mai il
+  // link con cui si firma al posto loro.
+  const coOut = (co) => co.pending.map(x => ({ name: x.name, phone: x.phone, ...(auth.profile.role === 'admin' ? { url: x.url } : {}) }));
 
   // ── Il contratto è GIÀ firmato? Allora niente link morto ─────────────
   // I token non si azzerano più alla firma (il link riaperto dice «hai già
@@ -95,6 +114,30 @@ export default async function handler(req, res) {
     catch (e) { console.warn('[pa/send-sign] contract read:', e.message); }
   }
   const sig = signatureState(contract);
+  // I CO-CONDUTTORI (3/10/2026): firmano col LORO link e il locatore
+  // controfirma solo dopo di loro. Prima questo tap li ignorava del tutto
+  // — e il deal restava fermo per sempre su «not your turn yet».
+  const coPending = async (resend) => {
+    if (!out.contractId || !contract) return { pending: [], emailed: [], noEmail: [], failed: [] };
+    try { return await inviteCoTenants({ contractId: out.contractId, contract, resend }); }
+    catch (e) { console.warn('[pa/send-sign] co-tenants:', e.message); return { pending: [], emailed: [], noEmail: [], failed: [] }; }
+  };
+  // 👥 SOLO i co-conduttori (la console, «Link co-conduttori»): nessuna
+  // email al titolare, l'invito a chi manca e i link per WhatsApp/copia.
+  if (b.coOnly === true) {
+    if (!contract) return res.status(409).json({ ok: false, error: 'no_contract' });
+    const co = sig.status === 'complete' ? { pending: [], emailed: [], noEmail: [], failed: [] } : await coPending(true);
+    try { await fsPatch('preAgreements/' + paId, { coSignUrls: coSignUrlsForPa(out.contractId, contract) }); }
+    catch (e) { console.warn('[pa/send-sign] co stamp:', e.message); }
+    await logActivity('preagreement_cosign_sent', 'contract',
+      { paId, ref: pa.ref || '', contractId: out.contractId, emailed: co.emailed.length, noEmail: co.noEmail.length }, auth.email || 'admin')
+      .catch(() => {});
+    return res.status(200).json({
+      ok: true, coOnly: true, contractId: out.contractId, signatureStatus: sig.status,
+      coTenants: coOut(co),
+      coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent, coFailed: co.failed,
+    });
+  }
   if (sig.tenantSigned) {
     const stamp = {
       contractId: out.contractId,
@@ -105,6 +148,10 @@ export default async function handler(req, res) {
     if (sig.tenantSignedAt) stamp.tenantSignedAt = sig.tenantSignedAt;
     if (sig.landlordSignedAt) stamp.landlordSignedAt = sig.landlordSignedAt;
     if (sig.status === 'complete') stamp.contractFullySignedAt = sig.fullySignedAt || sig.landlordSignedAt || sig.tenantSignedAt;
+    // titolare firmato, co-conduttori no: il tap li sollecita (è l'unico
+    // invito che serve ancora) e la riga riceve i loro link
+    const co = sig.status === 'complete' ? { pending: [], emailed: [], noEmail: [], failed: [] } : await coPending(true);
+    if (contract) stamp.coSignUrls = coSignUrlsForPa(out.contractId, contract);
     // Atteso, non fire-and-forget: questa stampa È la sanatoria — dopo la
     // risposta la funzione può essere congelata e un patch in volo perso.
     try { await fsPatch('preAgreements/' + paId, stamp); }
@@ -114,9 +161,11 @@ export default async function handler(req, res) {
       .catch(() => {});
     return res.status(200).json({
       ok: true, alreadySigned: true, signatureStatus: sig.status,
-      contractId: out.contractId, tenantSignUrl, landlordSignUrl,
+      contractId: out.contractId, ...echoLinks,
       tenantSignedAt: sig.tenantSignedAt || null, landlordSignedAt: sig.landlordSignedAt || null,
       delegate: out.delegate || null, emailed: false,
+      coTenants: coOut(co),
+      coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent,
     });
   }
 
@@ -149,6 +198,7 @@ export default async function handler(req, res) {
     });
     emailed = !!r.client;
   } catch (e) { console.error('[pa/send-sign] email failed:', e.message); }
+  const co = await coPending(!!pa.signSentAt);
 
   // LA LEZIONE DEL 13 SETTEMBRE 2026 — LE SCRITTURE DOPO LA RISPOSTA SI
   // PERDONO. Queste tre righe erano fire-and-forget (`.catch(() => {})`
@@ -164,6 +214,7 @@ export default async function handler(req, res) {
       signSentAt: new Date().toISOString(),
       signSentBy: auth.email || auth.uid,
       tenantSignUrl, landlordSignUrl,
+      ...(contract ? { coSignUrls: coSignUrlsForPa(out.contractId, contract) } : {}),
     });
   } catch (e) { console.warn('[pa/send-sign] pa stamp:', e.message); }
   // L'invito va STAMPATO ANCHE SUL CONTRATTO: journeyEligible tace il
@@ -179,7 +230,9 @@ export default async function handler(req, res) {
     .catch(() => {});
 
   return res.status(200).json({
-    ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed,
+    ok: true, contractId: out.contractId, ...echoLinks, emailed,
+    coTenants: coOut(co),
+    coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent,
     landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
     landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,
   });

@@ -288,6 +288,41 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .mandate .mh span{font-size:11px;color:var(--t3)}
 .mandate p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
 .mandate.given{border-style:solid}
+/* L'ACCETTAZIONE NATURALE (30/09/2026 — «troppo aggressivo, diventa
+   bloccante»). Prima: una casella da 21px accanto a 7 righe di legalese, poi
+   17 righe in maiuscolo del mandato, e un bottone spento che toccato non
+   diceva niente. Ora: UNA riga grande e toccabile con una frase umana, il
+   testo legale INTEGRO (stesso testo, stesso hash registrato) dietro «Read
+   the full wording», il mandato come seconda riga leggera — facoltativa e
+   mai pre-spuntata — e un bottone che non è mai morto: senza la spunta porta
+   il cliente sulla riga e gliela indica. */
+.agree{margin-top:16px;display:grid;gap:8px}
+.tick{display:flex;gap:14px;align-items:flex-start;padding:16px;border:1px solid var(--line);border-radius:14px;background:rgba(255,255,255,.02);cursor:pointer;-webkit-tap-highlight-color:transparent;transition:border-color .25s var(--ease),background .25s var(--ease),box-shadow .25s var(--ease)}
+.tick:hover{border-color:var(--line-gold)}
+.tick.on{border-color:var(--gold);background:var(--gold-faint);box-shadow:inset 0 0 0 1px rgba(212,175,55,.22)}
+.tick input{appearance:none;-webkit-appearance:none;width:24px;height:24px;border:1.5px solid var(--line-gold);border-radius:8px;background:transparent;position:relative;flex:none;margin:1px 0 0;cursor:pointer;transition:all .3s var(--spring)}
+.tick input:checked{background:linear-gradient(180deg,var(--gold-light),var(--gold));border-color:var(--gold);box-shadow:0 0 16px rgba(212,175,55,.35)}
+.tick input::after{content:"";position:absolute;left:6px;top:5px;width:10px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
+.tick input:checked::after{transform:rotate(-45deg) scale(1)}
+.tick input:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+.tick .tt{flex:1;min-width:0}
+.tick b{display:block;font-size:15.5px;font-weight:400;color:var(--t1);line-height:1.35}
+.tick small{display:block;font-size:12.5px;color:var(--t3);line-height:1.55;margin-top:4px;font-weight:300}
+.tick em{font-style:normal;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);border:1px solid var(--line-gold);border-radius:20px;padding:2px 7px;margin-left:8px;vertical-align:2px;white-space:nowrap}
+.tick.need{border-color:var(--gold);box-shadow:0 0 0 3px rgba(212,175,55,.28)}
+@media(prefers-reduced-motion:no-preference){.tick.need{animation:tickNudge .45s var(--ease)}}
+@keyframes tickNudge{0%,100%{transform:none}25%{transform:translateX(-5px)}60%{transform:translateX(4px)}}
+.full{margin:0 4px 4px}
+.full summary{display:inline-flex;align-items:center;gap:7px;min-height:32px;font-size:11.5px;letter-spacing:.3px;color:var(--t3);cursor:pointer;list-style:none;-webkit-tap-highlight-color:transparent}
+.full summary::-webkit-details-marker{display:none}
+.full summary::before{content:"›";display:inline-block;color:var(--gold);font-size:14px;transition:transform .2s var(--ease)}
+.full[open] summary::before{transform:rotate(90deg)}
+.full summary:hover{color:var(--t2)}
+.full p{font-size:12px;color:var(--t2);line-height:1.65;margin:4px 0 6px;padding:12px 14px;border-left:1px solid var(--line-gold);background:var(--gold-faint);border-radius:0 10px 10px 0;font-weight:300}
+.mpts{list-style:none;padding:0;margin:4px 0 8px}
+.mpts li{position:relative;padding:3px 0 3px 22px;font-size:13px;color:var(--t2);line-height:1.55;font-weight:300}
+.mpts li::before{content:"✓";position:absolute;left:2px;top:3px;color:var(--gold);font-size:12px}
+.mpts b{color:var(--t1);font-weight:400}
 
 /* ── accepted / timeline ── */
 .issued{text-align:center;padding:44px 30px 40px}
@@ -407,7 +442,7 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
     --gold-muted:rgba(138,109,0,.08);--gold-faint:rgba(138,109,0,.04);
     --green:#1a7a4d;--green-muted:rgba(26,122,77,.14);--panel:transparent;--panel2:transparent;--void:#fff}
   body{background:#fff;color:#000}
-  header,.bg,.abar,.gbtn,.consent,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm,.upcard{display:none!important}
+  header,.bg,.abar,.gbtn,.consent,.agree,.full,.obtn,.stampov,.prq small,.timeline,.addcot,.cot .cothead button,.doc .grain,.doc .wm,.cm,.upcard{display:none!important}
   .docwrap::before,.docwrap::after{display:none}
   .rv{opacity:1!important;transform:none!important;filter:none!important}
   .doc .doc-h,.doc .sec{opacity:1!important;animation:none!important;transform:none!important}
@@ -1049,23 +1084,29 @@ function renderStep4(){
       +'<span class="ok">●</span> document rendered in full · <span class="ok">●</span> identity self-declared'
       +(Object.keys(UP).length?' · <span class="ok">●</span> ID document received':'')
       +'<br>on signing: timestamp + IP + consent hash are sealed with this act</div>'
-    +'<label class="consent"><input type="checkbox" id="paOk" onchange="barSync()">'
-    +'<span>'+esc(PA_CONSENT_TEXT)+'</span></label>'
-    /* IL MANDATO A FIRMARE — spunta A PARTE, mai pre-selezionata, mai
+    /* L'ACCETTAZIONE NATURALE: la riga dice in una frase ciò che si firma;
+       il testo che il server registra (PA_CONSENT_TEXT, stesso hash) è lì
+       sotto, integro, a un tocco — mai nascosto, mai riscritto. */
+    +'<div class="agree" id="agreeBox">'
+      +'<label class="tick" id="okRow"><input type="checkbox" id="paOk" onchange="barSync()">'
+        +'<span class="tt"><b>I accept this proposal</b>'
+        +'<small>My details are correct. I also sign the rent calculation sheet (Allegato 2/B) that goes with the lease.</small></span></label>'
+      +'<details class="full"><summary>Read the full wording</summary><p>'+esc(PA_CONSENT_TEXT)+'</p></details>'
+    /* IL MANDATO A FIRMARE — riga A PARTE, mai pre-selezionata, mai
        obbligatoria: chi la lascia vuota firma il contratto col proprio link
        come sempre. Chi la dà autorizza BOOM a sottoscrivere il contratto in
        suo nome SOLO a questi termini (il server confronta l'impronta dei
        termini al momento della firma: un canone diverso = mandato nullo).
-       Il testo è quello di api/preagreement/_consent.js, parola per parola:
-       submit ne registra l'hash, il PDF lo ristampa. */
-    +(PA.askMandate===true
-      ?'<div class="mandate" id="mandateBox">'
-        +'<div class="mh"><b>Optional · Mandate to sign</b><span>so you don’t have to come back for the lease signature</span></div>'
-        +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
-        +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate" onchange="barSync()">'
-        +'<span>I give BOOM this mandate. If I prefer to sign the lease myself, I leave this unticked and I’ll receive my personal signing link by email.</span></label>'
-        +'</div>'
-      :'')
+       Il testo è quello di api/preagreement/_consent.js, parola per parola,
+       a un tocco sotto la riga: submit ne registra l'hash, il PDF lo
+       ristampa. */
+      +(PA.askMandate===true
+        ?'<label class="tick" id="mandateBox"><input type="checkbox" id="paMandate" onchange="barSync()">'
+          +'<span class="tt"><b>Let BOOM sign the lease for me<em>Optional</em></b>'
+          +'<small>On exactly these terms, nothing changes — you won’t need to come back to sign. Free, revocable in writing.</small></span></label>'
+          +'<details class="full"><summary>Read the mandate</summary><p>'+esc(PA_MANDATE_TEXT)+'</p></details>'
+        :'')
+    +'</div>'
     +'<p class="err" id="paErr" role="alert"></p>'
     +'</div>';
   html+='</div></div>';
@@ -1167,20 +1208,27 @@ function renderAccepted(){
      poi firma l'operatore. Mai offerto se il conduttore ha già firmato. */
   if(!(PA.mandate&&PA.mandate.at)&&PA.askMandate===true&&!(CT&&CT.tenantSigned)){
     html+='<div class="mandate" id="mandateBox2" style="max-width:430px;margin:18px auto 0;text-align:left"><div class="mh"><b>Let BOOM sign the lease for you</b><span>one tap · nothing else to do</span></div>'
-      +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
-      +(draftUrl?'<a class="obtn" id="draftLink" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin:6px 0 4px">📄 Read the lease BOOM would sign for you</a>':'')
-      +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate2" onchange="var b=document.getElementById(\'mandBtn\');if(b)b.disabled=!this.checked"><span>I give BOOM this mandate. BOOM signs the lease in my name on exactly these terms; I receive the signed contract and its certificate by email.</span></label>'
-      +'<button class="gbtn" id="mandBtn" disabled onclick="giveMandate()" style="margin-top:12px">Give BOOM the mandate to sign →</button>'
+      +'<ul class="mpts"><li>BOOM signs in your name on <b>exactly the terms you accepted</b> — nothing changes.</li>'
+      +'<li>You receive the signed lease and its certificate by email.</li>'
+      +'<li>Free, and revocable in writing until the lease is signed.</li></ul>'
+      +(draftUrl?'<a class="obtn" id="draftLink" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin:4px 0 2px">📄 Read the lease BOOM would sign for you</a>':'')
+      +'<details class="full"><summary>Read the full mandate</summary><p>'+esc(PA_MANDATE_TEXT)+'</p></details>'
+      +'<label class="tick" style="margin-top:6px"><input type="checkbox" id="paMandate2" onchange="tickSync()"><span class="tt"><b>I give BOOM this mandate</b></span></label>'
+      +'<button class="gbtn" id="mandBtn" onclick="giveMandate()" style="margin-top:12px">Give the mandate →</button>'
       +'<p class="err" id="mandErr" role="alert"></p></div>';
   }
   if(CT&&CT.tenantSignUrl){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
-      +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.</p>'
+      +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.'
+      +((CT.waitingCoTenants&&CT.waitingCoTenants.length)?' Your co-tenant'+(CT.waitingCoTenants.length>1?'s':'')+' ('+esc(CT.waitingCoTenants.join(', '))+') sign'+(CT.waitingCoTenants.length>1?'':'s')+' with their own link.':'')+'</p>'
       +(draftUrl?'<a class="obtn" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin-bottom:8px">📄 Read the full contract first</a>':'')
       +'<a class="gbtn" href="'+esc(CT.tenantSignUrl)+'">Sign your contract now →</a></div>';
   }else if(CT&&CT.tenantSigned&&CT.status!=='complete'){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by you</b><span>'+esc(String(CT.tenantSignedAt||'').slice(0,10))+'</span></div>'
-      +'<p>'+(CT.byDelegate?'Signed under your written mandate by '+esc(CT.byDelegate.name)+'. ':'')+'Waiting for the landlord’s countersignature — you’ll receive the signed contract and its certificate by email.</p></div>';
+      +'<p>'+(CT.byDelegate?'Signed under your written mandate by '+esc(CT.byDelegate.name)+'. ':'')
+      +((CT.waitingCoTenants&&CT.waitingCoTenants.length)
+        ?'Waiting for your co-tenant'+(CT.waitingCoTenants.length>1?'s':'')+' — <b>'+esc(CT.waitingCoTenants.join(', '))+'</b> — each signs with their own personal link (we’ve sent it). Then the landlord countersigns and you’ll receive the signed contract by email.'
+        :'Waiting for the landlord’s countersignature — you’ll receive the signed contract and its certificate by email.')+'</p></div>';
   }else if(CT&&CT.status==='complete'){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by both parties</b><span>'+esc(String(CT.fullySignedAt||CT.landlordSignedAt||'').slice(0,10))+'</span></div>'
       +'<p>Your lease is active. BOOM files the registration with the Agenzia delle Entrate.</p>'
@@ -1299,17 +1347,39 @@ function barSync(){
     hint.innerHTML=got?'Perfect — your contract will be ready the moment you sign':'Optional now · you can also send them on WhatsApp anytime';
   }else if(STEP===4){
     var ok=$('paOk');
-    btn.disabled=!(ok&&ok.checked);
+    tickSync();
+    btn.disabled=SENDING;   // mai spento per la spunta: senza, accept() porta sulla riga
     btn.innerHTML=Number(m.dueAtSigning)>0
       ?('<span class="paylock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Accept &amp; sign — '+eur(m.dueAtSigning)+' due now</span>')
       :'Accept & sign';
     var mnd=$('paMandate');
     hint.innerHTML=ok&&ok.checked
       ?('<span style="color:var(--green)">●</span> '+(mnd&&mnd.checked?'Mandate included — BOOM will sign the lease for you on these exact terms':'Stripe · cards &amp; Apple Pay · refundable within 48h · legally recorded'))
-      :'Tick the consent box above to enable signing';
+      :'One tick and you’re done — <b>I accept this proposal</b>';
   }
 }
 window.barSync=barSync;   // inline handlers (consent checkbox) reach it globally
+/* la riga spuntata si accende (classe, non :has — Safari vecchi) */
+function tickSync(){
+  ['paOk','paMandate','paMandate2'].forEach(function(id){
+    var el=$(id);if(!el||!el.closest)return;
+    var row=el.closest('.tick');if(!row)return;
+    row.classList.toggle('on',!!el.checked);
+    if(el.checked)row.classList.remove('need');
+  });
+}
+window.tickSync=tickSync;
+/* senza la spunta il bottone non tace: porta il cliente sulla riga, la
+   accende e gli dice cosa manca — una frase, niente rosso */
+function nudgeTick(el,msg){
+  var row=el&&el.closest?el.closest('.tick'):null;
+  if(row){
+    row.classList.remove('need');void row.offsetWidth;row.classList.add('need');
+    try{row.scrollIntoView({block:'center',behavior:'smooth'})}catch(e){row.scrollIntoView()}
+    setTimeout(function(){try{el.focus({preventScroll:true})}catch(e){}},380);
+  }
+  var hint=$('abarHint');if(hint&&msg)hint.innerHTML=msg;
+}
 $('abarBtn').addEventListener('click',function(){
   if(STEP===1)return goStep(2);
   if(STEP===2){
@@ -1323,8 +1393,12 @@ $('abarBtn').addEventListener('click',function(){
 });
 
 /* ═══ accept ═══ */
+var SENDING=false;
 function accept(){
+  if(SENDING)return;
   var err=$('paErr');
+  var okEl=$('paOk');
+  if(!(okEl&&okEl.checked)){nudgeTick(okEl,'Tick <b>I accept this proposal</b> — then sign');return;}
   var list=tenantsNow();
   var tenant=list[0];tenant.signature=tenant.fullName;
   if(tenant.fullName.length<3){err.textContent='Your full name goes on the agreement — it’s missing in step 2.';err.style.display='block';return;}
@@ -1340,7 +1414,7 @@ function accept(){
   });
   if(incomplete){err.textContent='Every co-tenant needs at least their full name — or remove the empty block in step 2.';err.style.display='block';return;}
   err.style.display='none';
-  var btn=$('abarBtn');btn.disabled=true;btn.textContent='Signing…';
+  var btn=$('abarBtn');SENDING=true;btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true,addons:ADDONS,mandate:!!($('paMandate')&&$('paMandate').checked)})})
   .then(function(r){return r.json()})
@@ -1370,14 +1444,16 @@ function accept(){
     if(ov&&!matchMedia('(prefers-reduced-motion: reduce)').matches){ov.classList.add('on');setTimeout(done,1500);}
     else done();
   })
-  .catch(function(){btn.disabled=false;barSync();err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
+  .catch(function(){SENDING=false;btn.disabled=false;barSync();err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
 }
 
 /* ═══ boot ═══ */
 /* il mandato dato dopo l'accettazione: POST pubblico, token = credenziale,
    il server lo accetta SOLO se la console l'ha chiesto (askMandate) */
 window.giveMandate=function(){
-  var b=$('mandBtn'),e=$('mandErr');
+  var b=$('mandBtn'),e=$('mandErr'),t=$('paMandate2');
+  if(!(t&&t.checked)){nudgeTick(t);return;}
+  if(b&&b.disabled)return;
   if(b){b.disabled=true;b.textContent='Saving…';}
   if(e)e.style.display='none';
   fetch('/api/preagreement/mandate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,mandate:true})})
@@ -1388,7 +1464,7 @@ window.giveMandate=function(){
     renderAccepted();
   })
   .catch(function(err){
-    if(b){b.disabled=false;b.textContent='Give BOOM the mandate to sign →';}
+    if(b){b.disabled=false;b.textContent='Give the mandate →';}
     if(e){e.textContent=String(err&&err.message)==='not_offered'?'This mandate wasn’t requested for your proposal — message BOOM and we’ll sort it.':'Couldn’t save your mandate — please try again, or message BOOM.';e.style.display='block';}
   });
 };

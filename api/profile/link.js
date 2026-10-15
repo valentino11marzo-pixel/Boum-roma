@@ -18,6 +18,8 @@
 // cosign: anche i link FIRMA dei co-conduttori sono derivati (cosignRef da
 // HOMIE_SECRET) — il browser non può calcolarli, e senza questo campo lo
 // Share Hub non aveva nulla da incollare su WhatsApp per un co-conduttore.
+// `url` (il link FIRMA) solo all'admin (1/10/2026): un proprietario non
+// riceve mai la credenziale di firma di un'altra parte.
 
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -46,7 +48,8 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!contract) return res.status(404).json({ ok: false, error: 'not_found' });
 
-  if (auth.profile.role !== 'admin') {
+  const isAdmin = auth.profile.role === 'admin';
+  if (!isAdmin) {
     let ownerId = null;
     if (contract.propertyId) {
       try { ownerId = ((await fsGet('properties/' + contract.propertyId)) || {}).ownerId || null; } catch (_) {}
@@ -70,8 +73,12 @@ export default async function handler(req, res) {
   const propLabel = property.name || property.address || '';
   const tenantUrl = schedaUrl(contractId, 'tenant');
   const landlordUrl = schedaUrl(contractId, 'landlord');
+  // `all` (solo admin, 3/10/2026): anche i campi GIÀ compilati, coi valori
+  // attuali — un dato sbagliato (piano, interno, un documento letto male)
+  // si corregge dalla console, non solo un puntino si riempie.
+  const includeFilled = !!(b && b.all === true) && auth.profile.role === 'admin';
   const askOf = (role) => {
-    const a = FIELDS.askFor(role, ctx, { lang: 'it', identityAsSection: true });
+    const a = FIELDS.askFor(role, ctx, { lang: 'it', identityAsSection: true, includeFilled });
     return { role: a.role, template: a.template, missingCount: a.missingCount, complete: a.complete, sections: a.sections,
       // i termini dell'operatore entrano nel corpo del PDF: congelati da
       // QUALSIASI firma viva (submit risponde 410), non solo dalla sua parte
@@ -86,7 +93,10 @@ export default async function handler(req, res) {
     .map((co, i) => (co && co.name ? {
       index: i,
       name: String(co.name).slice(0, 60),
-      url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`,
+      // Il link FIRMA del co-conduttore è la sua credenziale: solo l'admin lo
+      // riceve. Al proprietario (che questa porta ammette) restano Scheda e
+      // stato — col link potrebbe firmare al posto del co-conduttore.
+      ...(isAdmin ? { url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}` } : {}),
       signed: !!co.signature,
       // La Scheda del co-conduttore: la SUA riga RLI (CF, nascita, documento).
       schedaUrl: schedaUrl(contractId, 'cotenant', i),
@@ -96,19 +106,28 @@ export default async function handler(req, res) {
     } : null))
     .filter(Boolean);
 
+  // IL LINK DELLA SCHEDA DI UNA PARTE È LA SUA CREDENZIALE (5/10/2026). Fino
+  // alla firma quel link non solo legge: SCRIVE l'anagrafica di chi lo
+  // tiene (CF, nascita, documento, residenza). Al proprietario — che questa
+  // porta ammette per i SUOI immobili — restano la sua Scheda e lo STATO di
+  // quella dell'inquilino e dei co-conduttori (cosa manca, se è chiusa), mai
+  // il loro link né il messaggio che lo contiene: lo manda BOOM
+  // (`tenantLinkVia:'admin'`, il portal lo dice invece di «riprova»). La
+  // stessa regola delle chiavi di firma (1/10/2026).
+  const ownerView = !isAdmin;
   return res.status(200).json({
     ok: true,
-    tenantUrl,
+    ...(ownerView ? { tenantLinkVia: 'admin' } : { tenantUrl }),
     landlordUrl,
     tenantLocked: schedaLocked(contract, 'tenant'),
     landlordLocked: schedaLocked(contract, 'landlord'),
     template: FIELDS.templateOf(contract),
     missing: { tenant: missT, landlord: missL, operator: FIELDS.missingFor('operator', ctx, { lang: 'it' }) },
-    ask: { tenant: askOf('tenant'), landlord: askOf('landlord'), operator: askOf('operator') },
+    ask: ownerView ? { landlord: askOf('landlord') } : { tenant: askOf('tenant'), landlord: askOf('landlord'), operator: askOf('operator') },
     messages: {
-      tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }),
+      ...(ownerView ? {} : { tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }) }),
       landlord: FIELDS.missingMessage('landlord', missL, { name: lName, url: landlordUrl, propLabel }),
     },
-    ...(cosign.length ? { cosign } : {}),
+    ...(cosign.length ? { cosign: ownerView ? cosign.map(({ schedaUrl, message, ...rest }) => rest) : cosign } : {}),
   });
 }

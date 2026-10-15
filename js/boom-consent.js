@@ -32,6 +32,13 @@
     });
     try { document.dispatchEvent(new CustomEvent('boom-consent-granted')); } catch (e) {}
   }
+  function deny() {
+    gtagSafe('consent', 'update', {
+      analytics_storage: 'denied', ad_storage: 'denied',
+      ad_user_data: 'denied', ad_personalization: 'denied'
+    });
+    try { document.dispatchEvent(new CustomEvent('boom-consent-denied')); } catch (e) {}
+  }
   function save(v) { try { localStorage.setItem(KEY, v + ':' + Date.now()); } catch (e) {} }
 
   var s = state();
@@ -64,17 +71,33 @@
         '.boomcst .no{border:1px solid rgba(255,255,255,.16);background:none;color:rgba(255,255,255,.55)}' +
         '.boomcst .no:hover{color:#fff}' +
         '@media(max-width:879px){.boomcst{left:12px;bottom:calc(84px + env(safe-area-inset-bottom,0px))}}' +
-        '@media(prefers-reduced-motion:reduce){.boomcst{transition:none}}';
+        '@media(prefers-reduced-motion:reduce){.boomcst{transition:none}}' +
+        // La variante compatta, su richiesta della pagina (<html
+        // data-consent="compact">): sulle pagine-strumento senza barra di
+        // pagamento il riquadro intero copriva i campi a metà schermo. Qui
+        // sta in fondo, basso, e lascia libero lo strumento. Stessi testi,
+        // stessi due tasti: la scelta resta chiara.
+        '@media(max-width:879px){html[data-consent=compact] .boomcst{left:8px;right:8px;width:auto;bottom:calc(8px + env(safe-area-inset-bottom,0px));padding:10px 12px;border-radius:14px}' +
+        'html[data-consent=compact] .boomcst .e{display:none}' +
+        'html[data-consent=compact] .boomcst p{font-size:12px;margin:0 0 8px;line-height:1.45}' +
+        'html[data-consent=compact] .boomcst button{padding:8px 14px}}';
       document.head.appendChild(st);
     }
     // The banner speaks the page's language. It reads <html lang> rather than
     // the browser's, because the page has already decided what language the
     // reader is being served — an English cookie plate on the French /reunion
     // page is the one element that gives away that it is a translation.
-    var T = (String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2) === 'fr')
+    // L'italiano e' impersonale di proposito: le pagine italiane danno del
+    // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
+    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    var T = lang === 'fr'
       ? { e: 'Confidentialité',
           p: 'Un cookie de mesure d\'audience nous aide à améliorer BOOM. Aucune publicité qui vous suit, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
           no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
+      : lang === 'it'
+      ? { e: 'Privacy',
+          p: 'Un cookie di misurazione ci aiuta a migliorare BOOM. Nessuna pubblicità che insegue, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
       : { e: 'Privacy',
           p: 'One analytics cookie helps us make BOOM better. No ads following you, no data resale — <a href="/privacy">how we handle data</a>.',
           no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
@@ -90,7 +113,7 @@
       el.style.opacity = '1'; el.style.transform = 'none';
     }); });
     el.querySelector('.ok').addEventListener('click', function () { save('all'); grant(); close(); });
-    el.querySelector('.no').addEventListener('click', function () { save('min'); close(); });
+    el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
   }
 
   if (!s) {

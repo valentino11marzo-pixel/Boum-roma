@@ -20,7 +20,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/canone</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.92</priority>
   </url>
@@ -47,7 +47,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/pacchetto-concordato</loc>
-    <lastmod>2026-08-02</lastmod>
+    <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -303,10 +303,11 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/owners</loc>
-    <lastmod>2026-05-17</lastmod>
+    <lastmod>2026-10-13</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.80</priority>
+    <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/owners"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.boomrome.com/owners?lang=en"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/owners"/>
   </url>
   <url>
@@ -361,12 +362,6 @@
     <loc>https://www.boomrome.com/deals</loc>
     <lastmod>2026-05-17</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.60</priority>
-  </url>
-  <url>
-    <loc>https://www.boomrome.com/booking</loc>
-    <lastmod>2026-05-17</lastmod>
-    <changefreq>monthly</changefreq>
     <priority>0.60</priority>
   </url>
   <url>

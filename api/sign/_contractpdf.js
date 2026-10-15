@@ -107,24 +107,28 @@ export function buildContractPdfBytes({ contractId, contract, property, tenant, 
   return { bytes, hash: sha16(built.hashSeed), hashSeed: built.hashSeed, sigAnchors: built.sigAnchors };
 }
 
-export async function ensureContractPdf(contractId, preloaded = null, opts = {}) {
-  if (!contractId) return null;
-  const contract = preloaded || await fsGet('contracts/' + contractId);
-  if (!contract) return null;
-  // PDF fresco (clausole correnti) → idempotente, si restituisce quello.
-  if (!(opts && opts.force) && contract.generatedPDF && Number(contract.clauseVersion || 0) >= CLAUSE_VERSION) {
-    return contract.generatedPDF;
-  }
-  // Firma viva: il documento è CONGELATO qualunque versione porti — un
-  // atto in corso di sottoscrizione non cambia sotto la penna di nessuno.
-  if (hasAnySignature(contract)) return contract.generatedPDF || null;
-  // Da qui: PDF mancante O impaginato con clausole vecchie e nessuna
-  // firma → si (ri)genera, sovrascrivendo lo stesso path su Storage.
+// IL PDF CARICATO DALL'OPERATORE NON SI TOCCA (3/10/2026): una versione
+// corretta caricata a mano (api/contracts/revise.js, pdfSource:'upload') è
+// il documento che le parti firmano. Nessuna rigenerazione automatica —
+// né la sanatoria delle clausole vecchie, né la force della Scheda o della
+// prima firma — la sovrascrive: tornare al modello BOOM è una scelta
+// esplicita (revise op:'template'), mai un effetto collaterale.
+export const isUploadedPdf = (c) => !!(c && c.pdfSource === 'upload' && c.generatedPDF);
 
-  // Risoluzione dati — stessa catena del portal (S.properties/S.users):
-  // property dal contratto, tenant da users, landlord da property.ownerId.
-  // Tutto opzionale: il modulo stampa i puntini dove mancano i dati,
-  // esattamente come farebbe il portal.
+// Il path della versione corrente: contract.pdf finché non c'è stata una
+// revisione; dopo, contract-v<N>.pdf (revise lo scrive su pdfPath), così i
+// byte di una versione su cui qualcuno ha firmato non vengono mai
+// sovrascritti da una rigenerazione successiva.
+export const pdfPathOf = (contractId, c) => {
+  const p = String((c && c.pdfPath) || '');
+  return /^contracts\/[A-Za-z0-9_-]+\/[\w.-]+\.pdf$/.test(p) && p.startsWith('contracts/' + contractId + '/')
+    ? p : `contracts/${contractId}/contract.pdf`;
+};
+
+// Impagina + carica, SENZA scrivere il contratto: ritorna i campi da
+// patchare. ensureContractPdf li scrive; revise li scrive nello stesso
+// commit condizionato che riapre la firma (mai una versione a metà).
+export async function renderContractPdf(contractId, contract) {
   let property = null, tenant = null, landlord = null;
   if (contract.propertyId) {
     try { property = await fsGet('properties/' + contract.propertyId); } catch (_) {}
@@ -138,21 +142,48 @@ export async function ensureContractPdf(contractId, preloaded = null, opts = {})
   const bytes = built.bytes;
 
   // Stesso path del portal: contracts/<id>/contract.pdf (sovrascrive la
-  // versione precedente, mai una copia orfana).
+  // versione precedente, mai una copia orfana) — o quello della versione
+  // corrente dopo una revisione.
   const url = await withBudget(
-    storageUpload(`contracts/${contractId}/contract.pdf`, bytes, 'application/pdf'),
+    storageUpload(pdfPathOf(contractId, contract), bytes, 'application/pdf'),
     15000, 'storage',
   );
   if (!url) return null;
+  return {
+    url,
+    fields: {
+      generatedPDF: url,
+      pdfHash: built.hash,
+      sigAnchors: { v: 1, blocks: built.sigAnchors },
+      pdfSizeKB: Math.round(bytes.length / 1024),
+      pdfGeneratedAt: new Date().toISOString(),
+      pdfGeneratedBy: 'server',
+      clauseVersion: CLAUSE_VERSION,
+    },
+  };
+}
 
-  await fsPatch('contracts/' + contractId, {
-    generatedPDF: url,
-    pdfHash: built.hash,
-    sigAnchors: { v: 1, blocks: built.sigAnchors },
-    pdfSizeKB: Math.round(bytes.length / 1024),
-    pdfGeneratedAt: new Date().toISOString(),
-    pdfGeneratedBy: 'server',
-    clauseVersion: CLAUSE_VERSION,
-  });
-  return url;
+export async function ensureContractPdf(contractId, preloaded = null, opts = {}) {
+  if (!contractId) return null;
+  const contract = preloaded || await fsGet('contracts/' + contractId);
+  if (!contract) return null;
+  // La versione caricata dall'operatore è il documento: mai rigenerata qui.
+  if (isUploadedPdf(contract)) return contract.generatedPDF;
+  // PDF fresco (clausole correnti) → idempotente, si restituisce quello.
+  if (!(opts && opts.force) && contract.generatedPDF && Number(contract.clauseVersion || 0) >= CLAUSE_VERSION) {
+    return contract.generatedPDF;
+  }
+  // Firma viva: il documento è CONGELATO qualunque versione porti — un
+  // atto in corso di sottoscrizione non cambia sotto la penna di nessuno.
+  if (hasAnySignature(contract)) return contract.generatedPDF || null;
+  // Da qui: PDF mancante O impaginato con clausole vecchie e nessuna
+  // firma → si (ri)genera, sovrascrivendo lo stesso path su Storage.
+  // Risoluzione dati — stessa catena del portal (S.properties/S.users):
+  // property dal contratto, tenant da users, landlord da property.ownerId.
+  // Tutto opzionale: il modulo stampa i puntini dove mancano i dati,
+  // esattamente come farebbe il portal.
+  const r = await renderContractPdf(contractId, contract);
+  if (!r) return null;
+  await fsPatch('contracts/' + contractId, r.fields);
+  return r.url;
 }

@@ -257,6 +257,68 @@ check('…e la firma già data resta', !!d.tenant, JSON.stringify(d.tenant));
 check('…ma il dovuto NON è dichiarato pagato', d.status === 'accepted' && !d.paidAt && res.body.due === 2800);
 check('il lucchetto ora è suo', (DB.get('propertyLocks/p_prop_cavour__2026-09') || {}).paId === 'pa_x');
 
+// ═══ 7 · «Non è la stessa unità» (30/09/2026) ══════════════════════════════
+console.log('\n\x1b[1mSblocco su un interno diverso\x1b[0m');
+const lockAll = (holder, extra = {}) => {
+  for (const m of ['2026-09','2026-10','2026-11','2026-12','2027-01','2027-02','2027-03','2027-04','2027-05','2027-06','2027-07','2027-08'])
+    DB.set('propertyLocks/p_prop_cavour__' + m, { paId: holder, ref: 'Marco Bianchi', heldAt: new Date().toISOString(), firm: true, month: m, ...extra });
+};
+// A · la proposta che tiene HA l'interno A; la riserva non ne ha: l'operatore dichiara B.
+seed(PA({ status: 'reserve', tenant: TENANT, reserveOf: 'pa_altro', reserveAt: '2026-08-05T10:00:00.000Z' }));
+DB.set('preAgreements/pa_altro', PA({ status: 'paid', property: { address: 'Via Cavour 12, Roma', unit: 'A' } }));
+lockAll('pa_altro');
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x' }, ADMIN), res);
+check('primo tocco: dice DI CHI e QUALE interno', res.body.verdict === 'still_held' && res.body.blocked.unit === 'A' && res.body.blocked.by === 'pa_altro', JSON.stringify(res.body));
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: 'B', notSameAs: 'pa_altro' }, ADMIN), res);
+d = get();
+check('interno B dichiarato: la riserva torna ACCETTATA', res.body.verdict === 'reserve_promoted' && d.status === 'accepted', JSON.stringify(res.body));
+check('…l\'interno è scritto sulla proposta, indirizzo intatto', d.property.unit === 'B' && d.property.address === 'Via Cavour 12, Roma', JSON.stringify(d.property));
+check('…con chi l\'ha dichiarato e cosa c\'era prima', d.unitDeclaredBy === 'valentino@boom-rome.com' && d.unitWas === null && !!d.unitDeclaredAt);
+check('…la presa è SOLO sull\'interno B', (DB.get('propertyLocks/p_prop_cavour~ub__2026-09') || {}).paId === 'pa_x');
+check('…e la presa dell\'altra resta sua', (DB.get('propertyLocks/p_prop_cavour__2026-09') || {}).paId === 'pa_altro');
+check('…il dovuto NON diventa pagato', !d.paidAt && res.body.due === 2800);
+
+// B · lo STESSO interno: nessuna dichiarazione lo scavalca, nessuna scrittura.
+seed(PA({ status: 'reserve', tenant: TENANT, reserveOf: 'pa_altro' }));
+DB.set('preAgreements/pa_altro', PA({ status: 'paid', property: { address: 'Via Cavour 12, Roma', unit: 'B' } }));
+lockAll('pa_altro');
+const w3 = WRITES;
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: 'int. b', notSameAs: 'pa_altro' }, ADMIN), res);
+check('stesso interno dichiarato: resta in riserva e lo dice', res.body.verdict === 'still_held' && res.body.blocked.sameUnit === true && get().status === 'reserve', JSON.stringify(res.body));
+check('…proposta intatta e nessuna presa rimasta a suo nome',
+  !get().unitDeclaredAt && get().status === 'reserve' && [...DB].every(([k, v]) => !k.startsWith('propertyLocks/') || v.paId !== 'pa_x'),
+  String(WRITES - w3));
+
+// C · chi tiene non ha dichiarato l'interno: serve la dichiarazione esplicita.
+seed(PA({ status: 'reserve', tenant: TENANT, reserveOf: 'pa_altro' }));
+DB.set('preAgreements/pa_altro', PA({ status: 'paid' }));
+lockAll('pa_altro');
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: 'B' }, ADMIN), res);
+check('interno solo mio, l\'altra senza: non basta', res.body.verdict === 'still_held' && get().status === 'reserve', JSON.stringify(res.body));
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: 'B', notSameAs: 'pa_altro' }, ADMIN), res);
+d = get();
+check('«non è la stessa unità» dichiarato: sblocca', res.body.verdict === 'reserve_promoted' && d.status === 'accepted', JSON.stringify(res.body));
+check('…e la dichiarazione resta scritta', d.lockOverride && d.lockOverride.notSameAs === 'pa_altro' && d.lockOverride.by === 'valentino@boom-rome.com');
+
+// D · solo l'admin dichiara.
+seed(PA({ status: 'reserve', tenant: TENANT, reserveOf: 'pa_altro' }));
+DB.set('users/admin1', { role: 'landlord', email: 'x@y.it' });
+lockAll('pa_altro');
+const w4 = WRITES;
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: 'B', notSameAs: 'pa_altro' }, ADMIN), res);
+check('un landlord non dichiara l\'interno: 403', res.code === 403 && res.body.error === 'admin_only', JSON.stringify(res.body));
+check('…e non scrive niente', WRITES === w4 && get().status === 'reserve');
+DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' });
+res = mkRes();
+await resolve(mkReq({ id: 'pa_x', unit: '  ', notSameAs: 'pa_altro' }, ADMIN), res);
+check('interno vuoto: 400', res.code === 400 && res.body.error === 'unit_required', JSON.stringify(res.body));
+
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
 if (fail) process.exit(1);

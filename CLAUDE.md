@@ -58,6 +58,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           consegna⇄riconsegna che non imputa un danno su una
                           condizione mai dichiarata. window.BOOM_INVENTARIO.
                           Vedi "L'inventario dal video".
+  conto-engine.js         Il conto della sua casa (/canone, la porta di
+                          /owners, la barra del Pacchetto): compone SOLO il
+                          motore del canone, lista chiusa, stato nell'URL.
+                          window.BOOM_CONTO. Vedi «Il conto della sua casa».
   ../api/_pdfbrand.js     La testata dei PDF in una copia sola: marchio VERO
                           incorporato, filo d'oro, piede legale su ogni
                           pagina, wa() WinAnsi. Usata da inventario e verbale.
@@ -68,7 +72,7 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
-  ai-registry.js          La Centrale AI, il registro PURO: i 26 scopi che
+  ai-registry.js          La Centrale AI, il registro PURO: i 27 scopi che
                           chiamano un modello (file, modello cloud di default,
                           modalità testo/visione/documento/audio, se può
                           andare in locale e perché), le tre modalità
@@ -98,6 +102,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
+| `owners.html` | La pagina dei proprietari (`/owners`): IT col Lei + EN, una porta (Valutazione gratuita → `api/owner-lead.js`), quattro gesti suoi / dodici nostri. Vedi «BOOM Proprietari». Test: `node tests/owners/run.mjs`. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
@@ -181,6 +186,9 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+LEADS_NOTIFY_EMAIL           # optional — dove arriva l'avviso di ogni candidatura
+                             # dal sito (/api/apply-lead); default
+                             # ADMIN_NOTIFY_EMAIL → valentino@boom-rome.com
 REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazione
                              # (email pulita a firma completa); default
                              # CAF_EMAIL → valentino@boom-rome.com
@@ -858,6 +866,46 @@ cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
 qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
 
+**LA LEZIONE DEL 30 SETTEMBRE 2026 — «chi fa apply non lo vedo: né nei lead,
+né via email».** Letto nei log e nella casella, non dedotto: due candidature
+vere (16:38 e 16:43 UTC) → 200, lead scritto, conferma partita al CANDIDATO.
+Fra quel lead e l'operatore c'erano tre buchi, chiusi insieme:
+- **Nessuna email a BOOM.** La porta scriveva solo al candidato. Ora ogni
+  candidatura arriva anche all'operatore (`LEADS_NOTIFY_EMAIL` →
+  `ADMIN_NOTIFY_EMAIL` → valentino@boom-rome.com), IT, con fascia di
+  reddito, garante, firmatari, ingresso, tasto WhatsApp precompilato e
+  **Reply-To sul candidato** (`sendEmail` accetta ora `replyTo`). Le due
+  email partono in parallelo sotto lo stesso tetto di 8s, DOPO la scrittura;
+  `ackEmailAt`/`operatorEmailAt` si timbrano solo se l'email è partita
+  davvero (prima `ackEmailAt` si scriveva anche a timeout vinto). Il testo
+  del candidato è escapato in entrambe.
+- **La finestra a caso** (`api/leads/_fresh.js`). Brain e notify-pending
+  leggevano `status == 'new', limit 50` SENZA ordine: Firestore restituisce
+  i primi 50 per id automatico (casuale). Un lead resta `new` finché
+  l'operatore non risponde, quindi oltre 50 aperti una candidatura nuova
+  poteva non essere votata né notificata su Telegram MAI (gli stessi 50 id
+  bassi occupavano la finestra a ogni giro). `pendingNewLeads()` affianca
+  alla lettura storica la finestra recente ordinata per `createdAt`
+  (timestamp E stringa ISO — `recover-checkouts` scrive stringhe, e
+  Firestore confronta per tipo); Brain 7 giorni, notify-pending 3. Solo
+  indici a campo singolo.
+- **Il portal cieco.** I lead si leggevano una volta sola nel carico pigro
+  del boot: a portal aperto la candidatura non compariva. `startLeadsListener`
+  (admin, stessa query del boot) li tiene vivi: toast «Nuovo lead: X → casa»,
+  notifica del browser a scheda nascosta, badge e Oggi aggiornati; ridisegna
+  solo la pagina Lead (mai l'intera Oggi).
+- **La qualificazione buttata via.** `apartment-detail.html` manda reddito e
+  garante come FASCE di testo (`1500-2500`, `yes-italy`) e `signers`; la
+  porta accettava solo un numero e `=== true`. Ora `incomeBand`,
+  `guarantorType`, `signers` restano in `raw` e nel messaggio (mai un
+  numero inventato dalla fascia); `income: 0` della pagina classica non
+  stampa più «income €0/mo».
+Un'applicazione **non** crea un cliente: il lead diventa cliente dalla
+conversione (proposta → contratto → profilo inquilino). Test:
+`node tests/apply/run.mjs` (handler veri su Firestore in memoria che ordina
+per NOME come quello vero: la finestra a caso riprodotta con la lettura
+vecchia, Brain e card Telegram sul lead nuovo, listener del portal in vm).
+
 ### BOOM La Réunion (`/reunion` + `api/reunion-lead.js` + `api/_market.js`)
 Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve TRE
 pubblici — propriétaires, locataires e **acheteurs** — con un selettore che
@@ -995,6 +1043,219 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   lingua che non ricade sull'italiano, isB2B/b2bReplyText, guardie asserite
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
+
+### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
+Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
+non rispecchia il nostro modo di lavorare»). Stessa dottrina di /executive
+(`STUDIO_EXECUTIVE_CONVERSIONE.md`, `STUDIO_EXECUTIVE_UIX.md`): UNA porta (il
+modulo nell'hero, etichetta «Valutazione gratuita» identica su nav, bottone,
+banda e barra mobile), otto blocchi, ~90 parole prima del modulo, un solo
+oggetto digitale (il rendiconto). **Italiano col LEI** — la dottrina delle
+risposte rapide, famiglia `pr`: «è il cliente che ci affida un bene» — con
+interruttore inglese (`?lang=en`, mai dedotto dal browser) per chi possiede
+a Roma e vive all'estero. La tesi in una riga: *Lei riceve il canone e un
+rendiconto. Il resto è nostro.* — e il blocco 01 la dimostra con una
+sproporzione: **quattro gesti suoi, dodici nostri**, ognuno un meccanismo
+che esiste nel codice (valutazione sui canoni firmati, concordato con scheda
+e attestazione, visite video, pre-accordo, Magic Sign + RLI, verbale con
+contatori, inventario filmato, SEPA riconciliato, scadenzario, rendiconto
+del 1° del mese).
+- **Cosa è stato TOLTO perché il codice non lo sostiene**: il «Portale
+  Proprietari» con «approvazione preventivi online», «dashboard entrate
+  real-time» e «supporto prioritario 24/7»; un cruscotto finto che mostrava
+  «Canone questo mese €0 · Occupazione 0%»; «parola per parola» sui contratti
+  (vero e testato per studenti e 3+2, NON per il transitorio: l'Allegato B
+  non ha un `.doc` in `reference/`). L'area proprietario che esiste davvero
+  (portal.html, ruolo landlord: immobili, contratti, pagamenti, manutenzioni,
+  documenti) è citata come tale e basta. Il rendiconto d'esempio è
+  dichiarato «numeri di fantasia».
+- **Restano, da verificare col mandato vero**: la solvibilità dell'inquilino
+  «scritta nel mandato» (ora sempre accompagnata da «nei termini scritti nel
+  mandato»), prima locazione senza provvigione per il proprietario, mandato
+  pluriennale a fee annuale fissa — erano già pubblicate e le conferma
+  `SERVIZI_STUDIO_2026-08.md`; la cifra della fee non è pubblicata.
+- **`POST /api/owner-lead`** — prima il modulo andava su `partners/submit`
+  con la ZONA infilata nel campo `org` dell'ente e nient'altro. Ora: nome +
+  un campo unico «Telefono o email» (`splitContact`), zona, da quando è
+  libera, cosa le serve; a scomparsa mq, locali, arredo, canone in mente,
+  note. Liste CHIUSE (`FREE_FROM`, `GOALS`, `ROOMS`, `FURNISHED`: ignoto →
+  null), canone fuori scala → null (mai «€350.000/mese»), honeypot `company`,
+  rate limit, `attribution` dal `boom_source` di boom-track (le campagne di
+  `docs/owner-outreach.md` si misurano). Lead `leadType:'landlord'`,
+  `intent:'owner'`, `market:'roma'`, riassunto `PROPRIETARIO — Roma · zona ·
+  mq · locali · arredo · libero · chiede: …`. **La card Telegram parte dalla
+  porta** (tetto 5s): testo, WhatsApp col messaggio già scritto, Portale — mai
+  un bottone `mailto:` (Telegram lo rifiuta e cade il messaggio INTERO) — e il
+  lead viene marcato `telegramNotifiedAt` così notify-pending non lo ripete.
+  Ogni scrittura è attesa prima di `res.json`; Telegram giù = 200 comunque,
+  lead non marcato, recupero al minuto dopo.
+- **Il difetto di classe chiuso insieme (`api/_market.js`)**: `isB2B` non
+  riconosceva `leadType:'landlord'`, quindi i lead del calcolatore `/canone`
+  (da mesi `source:'web'`, `leadType:'landlord'`) ricevevano dal Commerciale
+  la prima risposta con la persona dell'INQUILINO e il follow-up «stai ancora
+  cercando casa a Roma?». Ora ogni proprietario romano è B2B lato `owner`
+  (la Réunion resta fuori: `isReunion` prima di tutto). `ownerReplyText`:
+  il messaggio pronto dà del **Lei** («Buongiorno Giulia, sono Valentino di
+  BOOM — Egidi Immobiliare») e **non richiede ciò che il modulo ha già
+  raccolto** — prima chiedeva zona/libero/arredato a chi li aveva appena
+  scritti; le SUE parole decidono la lingua, senza parole vale la pagina.
+  `notify-pending`: etichetta «🔑 proprietario» e i B2B mai sepolti nel
+  riepilogo dei lead C (il voto del Brain misura un inquilino).
+- **GEO/SEO**: testa scritta a mano (`manualHead: true` in
+  `scripts/seo-config.js`, e `seo-update.js` la salta — altrimenti
+  cancellerebbe l'alternate inglese e i JSON-LD), FAQPage = nove `<summary>`
+  visibili, WebPage con `speakable` (`.hero .sub`, `.enbref`), due Service
+  con identità distinte (gestione · Pacchetto €349 con Offer dal catalogo),
+  «in breve» con la riga **cosa non facciamo** (niente subaffitto, niente
+  affitti brevi turistici), sitemap con hreflang it/en, sezione in
+  `llms.txt`, card social `og-owners.png` generata dal repo
+  (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
+  rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
+  parla ora anche italiano, impersonale (le pagine IT danno del tu o del Lei).
+- Test: `node tests/owners/run.mjs` (141 check — porta, liste chiuse, voce
+  col Lei che non richiede il noto, card valida e prima della risposta,
+  regressione /canone, una porta sola, frasi vietate, registro Lei,
+  FAQ/speakable/Service, e il modulo inviato davvero in Chromium a 390px in
+  IT e EN; mutazioni: landlord non-B2B, bottone mailto, patch
+  fire-and-forget, «Ciao» al proprietario — tutte prese).
+
+**La scala dei prezzi (30/09/2026, sera — «manca un secondo passo: tutti mi
+chiedono se gli riaffittiamo e basta»).** Il costo per il proprietario è ora
+in TRE PASSI, in `#costi` (un `<ol class="ladder">`) e in tre righe accanto
+alla porta (`.lmini`: prima il solo prezzo vicino al modulo era il €349 di un
+prodotto laterale, e le card dei costi partivano dopo sei schermate):
+1. **Prima locazione — €0 di provvigione**: la provvigione la paga
+   l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
+   inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
+   attestazione €189, tariffa dell'organizzazione compresa) che apre
+   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
+   `requiresAsseverazione:true` e il default di fatturazione è «completo» —
+   presentare €89 come base era il prezzo raro spacciato per normale. Per
+   tutta la durata del contratto incasso, rendiconto il 1° e coordinamento
+   delle manutenzioni sono **dichiarati compresi** (è ciò che la macchina fa
+   per ogni contratto; il fondatore sul riaffitto: «incluso di tutte le cose
+   che poi facciamo»). I due numeri SONO gli `ASPI_DEFAULTS` di
+   `api/fiscal/_aspi.js` (ciò che il 💳 link incassa, IVA dentro):
+   `tests/owners` li legge da lì.
+2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
+   condominio e utenze), registrazione compresa, solo se il nuovo inquilino
+   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
+   (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
+   può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,
+   JSON-LD, riga contestuale, llms.txt e FAQ del sito, lingua per lingua.
+3. **Mandato su misura di 2 o 3 anni — fee annuale fissa**, su preventivo:
+   per la casa che cambia spesso inquilino; è il passo che porta la clausola
+   di solvibilità, ora con i limiti NOMINATI («entro il massimale e la durata
+   scritti nel mandato» — «nei termini» senza dire quali era un'omissione).
+Regole di classe, testate per mutazione (tutte prese): mai «gratis», «no
+fee», «senza costi», «reddito sicuro», «guaranteed rent» sulla prima
+locazione (art. 23 lett. v: c'è un costo) — né in pagina né nei JSON-LD né
+in llms.txt né nella FAQ generale del sito (`faq.html` diceva ancora «1
+month rent OR 10%» e «guaranteed rent») né nei blocchi da copiare di
+`docs/owner-outreach.md`; dove c'è «€0 di provvigione» c'è il prezzo delle
+pratiche NELLO STESSO elemento, in italiano E in inglese — anche in ogni
+voce della riga contestuale `HINT`; l'esempio si ricalcola dal codice; il FAQPage è
+GENERATO dalle `<details>` visibili (build: risposta = testo italiano senza
+tag) e il test pretende l'uguaglianza parola per parola. Il riaffitto ha la
+sua porta: goal `relet` (etichetta operatore «si dichiara già cliente —
+verificare»: la pagina non lo verifica), la voce di `ownerReplyText` chiede
+DI QUALE casa e QUANDO esce l'inquilino (mai se è arredata, mai un prezzo),
+la riga `#fHint` risponde alla scelta sotto le tendine col passo e il prezzo
+giusti («affittarla e farla gestire» ha la sua, con la gestione compresa; «oggi
+è affittata» apre «Altri dettagli» per la scadenza, e la voce non la
+richiede se è già scritta nelle note), la riga resta nell'albero di
+accessibilità (vuota, mai `hidden`: aria-live non annuncia ciò che nasce
+nascosto) e le due scale sono `role="list"` (Safari toglie la semantica a
+un `<ol>` senza marcatori). `/prriaffitto` è la risposta WhatsApp installata
+e separa i due casi: casa già affittata da noi → mezza mensilità col totale;
+mai affittata con noi → prima locazione. **La macchina mantiene la
+promessa**: il pannello 🏛 ASPI ha «Cosa fatturare» (vedi l'iter ASPI). Allineati: `llms.txt`
+(prezzi, Pacchetto con la tariffa dell'organizzazione a parte, «non
+rilasciamo noi l'attestazione»), `terms.html` §4 (è la sezione degli
+INQUILINI; i prezzi dei proprietari rinviano a /owners), l'outreach PFS e
+`docs/owner-outreach.md` (niente più «senza alcun costo» né «reddito
+sicuro»), i conteggi di `/risposte` letti dal modulo.
+**Decisioni del fondatore ancora aperte** (default spediti, tutti
+reversibili in un punto): la gestione durante il contratto dichiarata
+compresa nei passi 1 e 2 (se va pagata a parte, la frase è in quattro punti
+della pagina, nell'Offer, in llms.txt e nella FAQ del sito, tutti presidiati
+dal test — anche `faq.html`, dove sono sparite le promesse «Average: 8
+days» e «won't stay empty» che /owners smentisce); IVA della mezza mensilità (default «+ IVA» col
+totale: se era inclusa la pagina sovrastima, non promette meno del dovuto);
+il riaffitto dedotto per immobile dai contratti finalizzati (i contratti
+importati con l'Innesto non contano);
+prezzi di produzione in `settings/registrazione` (la pagina pubblica i
+default del codice); «prima locazione» contata PER IMMOBILE; mezza mensilità
+a OGNI nuovo inquilino, non solo al primo riaffitto; massimale/durata della
+solvibilità e modello del mandato su misura (nel repo non esistono);
+moduli d'incarico depositati in CCIAA (L. 39/89) e capitale sociale nel
+footer (art. 2250 c.c.) — da verificare fuori dal codice.
+
+### Il conto della sua casa (`js/conto-engine.js` + `/canone` + `api/owner-lead.js`) — 13/10/2026
+Il magnete dei proprietari: zona dell'Accordo + metri → quanto può chiedere a
+canone concordato, e quanto gli resta. **Il difetto che l'ha fatto nascere**:
+`/canone` aveva un calcolatore suo (91 zone, 27 inventate e 11 mancanti; +15%
+all'arredato già selezionato, +15% al transitorio, tetto a 1,35 volte e il
+punto MEDIO della fascia in grande): misurato in Chromium stampava «€2.262/mese»
+sopra «tetto zona €1.760» — un canone nullo nella parte eccedente (art. 13
+L. 431/98) — e lo passava nella cassa del Pacchetto come `?canone=`.
+- **`js/conto-engine.js`** (UMD → `window.BOOM_CONTO`, `require` del motore
+  vero `js/canone-engine.js` con `DEFAULT_CFG`, mai settings): nessuna
+  aritmetica nuova. `normalize` (lista CHIUSA: un valore fuori lista torna in
+  `errors`, mai aggiustato), `conto` (il numero in grande è il MASSIMO, mai sopra
+  fMax × superficie convenzionale; senza dotazioni dichiarate il massimo di
+  ciascuna fascia A/B/C; il netto con la cedolare; il pareggio col libero solo
+  per il 3+2 = max × 0,90 / 0,79; «quanto vorrebbe chiedere»), `encode/decode`
+  (stato nell'URL `?v=1&z=…&mq=…`, versione esplicita: una versione ignota si
+  RIFIUTA), `shareText` (mai dati personali), `marketFor` (la riga del Perito
+  solo sopra il campione, `MARKET_OF` = coppie certe Accordo → zona mercato),
+  `PRICES` (copie legate dal test ad `ASPI_DEFAULTS` e al catalogo). Le
+  dotazioni non si suggeriscono a euro: una dichiarata e assente fa restituire
+  l'eccedenza all'inquilino.
+- **`canone.html`** rifatta (testa a mano, Lei, `boom-2026.css`): conto
+  subito senza dati, dotazioni/pertinenze/contratto/cifra in mente a
+  scomparsa, condivisione (WhatsApp, commercialista, link), e il PDF dietro
+  nome + recapito (`/api/owner-lead`, `sourceRef:'canone'`). Il banner cookie
+  ha la modalità `data-consent="compact"` (copriva il calcolatore a 390px).
+- **La porta** (`api/owner-lead.js`): il `calc` del browser si RILEGGE con la
+  lista chiusa e si RICALCOLA (un `max` mandato dal browser non vale), si
+  congela in `ownerConti/<id>` (admin-only nelle rules) PRIMA del lead, e il
+  lead porta `owner.conto` (riassunto + `ref` `CNT-XXXXXX` + `pdfUrl`). Un
+  `calc` sbagliato non costa il lead (nasce senza PDF). Lo stesso recapito entro
+  30 giorni (email o numero in ogni forma) aggiorna il lead esistente
+  (`owner.conti`, max 10) e ri-pinga solo dopo 12 ore. `GET
+  ?pdf=<id>&t=<token>` (token derivato da HOMIE_SECRET, confronto a tempo
+  costante) stampa il PDF dalla FOTO (`api/owners/_conto-pdf.js`: il conto, poi
+  la scheda di calcolo riga per riga; su ogni pagina «stima su dati dichiarati…
+  non è l'attestazione né una perizia · Rif.»; nessun dato personale). La card
+  Telegram dice la fonte e cita il conto col bottone 📄; `ownerReplyText` lo
+  cita col PDF e non richiede zona, metri né arredo.
+- **Il Pacchetto** (`pacchetto-concordato.html`): la barra si RICALCOLA dal
+  motore sui soli dati della casa nell'URL (il vecchio `?canone=` non stampa
+  più niente), al Lei, €349 IVA inclusa con la tariffa dell'organizzazione
+  detta a parte, RLI «entro 30 giorni dalla stipula, o dalla decorrenza se
+  prima», tolti «ufficiale», «90+ micro-zone», «60–150 €», «3+2 ordinario» e lo
+  scadenzario promesso; recesso di 14 giorni con la spunta «iniziare subito»
+  (mai pre-selezionata) che arriva all'operatore (`start_now` nei metadata
+  Stripe, solo per `concordato-pack`). Card social `og-canone.png` e
+  `og-pacchetto.png` dal repo.
+- **`/owners`**: zona + metri nella porta mostrano il massimo concordato
+  (la zona la sceglie il proprietario fra le corrispondenze: «Prati» è anche
+  NUOVO SALARIO PRATI FISCALI), il modulo manda `calc:{v,z,mq}`, il «fascicolo
+  aperto» offre il PDF e il volto del fondatore col numero. Riscritte le
+  promesse che il codice non sostiene («documento verificato», «reddito
+  dimostrato… un terzo», «ISTAT» con la cedolare, «com'è davvero»); `--t4` al
+  44% sulla pagina. I tre FAQPage (canone, pacchetto, owners) li GENERA
+  `scripts/owner-faq.mjs` dalle `<details>` visibili, fra i marcatori `FAQLD`.
+- **Aperte, del fondatore**: valori di fascia attuali (ISTAT) e allegato zone
+  dell'Accordo; nome dell'organizzazione firmataria (ASPI/ASPPI); fattura del
+  €349 e rimborso; recensioni («★4.9 · 47»), «risposta in giornata», FAO/WFP/IFAD
+  e la clausola di solvibilità restano come erano.
+Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
+porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
+del browser accettato, regola tolta, `?canone=` ristampato).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
@@ -1317,6 +1578,24 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
   (this silently killed all pre-agreement emails until 2026-07).
+- **L'accettazione naturale (30/09/2026 — «troppo aggressiva, diventa
+  bloccante»)**. Misurato a 390px: al passo 4 una casella da 21px accanto a
+  7 righe di legalese, sotto 17 righe del mandato che partivano in maiuscolo
+  («MANDATE TO SIGN. I appoint…»), e «Accept & sign» SPENTO — toccato non
+  faceva nulla e non diceva nulla. Ora: UNA riga grande e toccabile (tutta la
+  frase è il bersaglio) «I accept this proposal» + una riga di sottotitolo;
+  il testo che il server registra (`PA_CONSENT_TEXT`/`PA_MANDATE_TEXT`,
+  STESSO testo e stesso hash) sta integro sotto «Read the full wording», a
+  un tocco — mai riscritto, solo raccolto; il mandato è la seconda riga,
+  «Optional», mai pre-spuntata; il bottone non è mai spento per la spunta:
+  senza, `accept()` non firma, porta sulla riga (`nudgeTick`) e la barra
+  dice cosa manca. `SENDING` tiene fermo il bottone mentre la firma viaggia
+  (prima un tocco su una spunta ridisegnava la barra e lo riaccendeva). La
+  card del mandato dopo l'accettazione: tre righe in chiaro, testo integro a
+  un tocco, spunta + bottone sempre acceso con la stessa guida. Test:
+  `node tests/preagreement/consent-ui.mjs` (Chromium a 390px, handler di
+  rete finti; mutazioni: guardia spunta, guardia mandato, bottone spento,
+  doppio invio — tutte prese).
 - `pre-agreement.html` — the public page, an Apple-style guided 4-step
   flow: **Review** (hero tiles: monthly all-in / due today / move-in /
   term, full terms, advisor card, trust chips) → **Details** (identity +
@@ -1458,6 +1737,20 @@ webhook lo rende definitivo). Spazzino `sweepLocks()` in `reminder-cron`
 (oraria) perché la console revoca client-side e il lucchetto resterebbe
 appeso. **`firestore.rules`: `propertyLocks` è admin-only — senza quella riga
 cadeva nel default-deny e il lucchetto non funzionava affatto.**
+**L'interno (30/09/2026 — «non è la stessa unità»)**: la chiave non guardava
+MAI `property.unit`, quindi due stanze della stessa casa collidevano sempre e
+«✅ Sblocca la riserva» rileggeva lo stesso lucchetto — non poteva sbloccare
+mai. Ora un interno dichiarato blocca sulla SUA chiave
+(`<immobile>~u<interno>__<mese>`, `lockKey`/`normUnit`), stessa regola di
+`convert.overlapConflict`: interni dichiarati e diversi convivono, lo stesso
+interno no, un interno vuoto (casa intera) li esclude tutti — il confronto
+casa-intera ⇄ stanza si fa DOPO aver preso i propri mesi (atomico). Le prese
+nate prima portano la chiave senza interno: l'interno si legge dalla
+proposta che tiene. Dalla console, su `still_held` l'admin può dichiarare
+l'interno di QUESTA proposta (`resolve` `{id, unit, notSameAs}`): scritto
+sulla proposta con `unitDeclaredBy/At/unitWas` (+ `lockOverride` quando chi
+tiene non ha interno); due interni UGUALI non si scavalcano mai.
+Test: `tests/lock/run.mjs` §5, `tests/preagreement/state.mjs` §7.
 
 ### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
 `money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`
@@ -1601,9 +1894,35 @@ coTenants: conversione PA (tenants[] della proposta) e Deal Link con
 `cofirma:true` (i conviventi del payload diventano co-firmatari, clausola
 di co-intestazione automatica). Test: notify 60→68.
 
+**I co-conduttori senza link (3/10/2026 — «non riceve mai il link, quindi
+non firma mai, e il proprietario legge "not your turn yet"»).** La co-firma
+rende i co-conduttori firmatari veri (`tenantSideComplete`), ma l'invito
+esisteva SOLO in `sign/send-link.js` (portal): il 🖊 Magic Sign della console
+mandava il link al solo titolare, ✍️ Firmo io si fermava su «mancano i
+co-conduttori» senza dare i loro link, e il promemoria del `reminder-cron`
+leggeva il contratto con un `parseDoc` che appiattisce array e mappe a null —
+`coTenants` spariva, il lato conduttori risultava completo e partiva al
+PROPRIETARIO «✍️ Tocca a Lei» con un link che poi rispondeva «non è il tuo
+turno». Ora `api/sign/_cosign.js` è la copia unica (chi manca, il suo link
+derivato, l'email a chi ce l'ha, `coSignInviteAt.<idx>` stampato): la usano
+send-sign (anche `coOnly:true` = solo i co-conduttori, dal bottone 👥),
+send-link, `notifyPartialSignature` (alla firma del titolare a chi non era
+mai stato invitato — sana i deal già fermi — e col promemoria a tutti quelli
+che mancano; la conferma al titolare dice CHI manca), il cron (che rilegge il
+contratto intero prima di decidere) e sign-for (torna i loro link). Chi non ha
+un'email torna nella risposta col link: la console lo offre su WhatsApp
+(`showCoLinks`). Il link del proprietario risponde `awaiting_tenant` con
+`waitingFor` (nomi e ruolo, `tenantSideWaiting`) e `sign.html` lo dice in
+italiano; la proposta (`coSignUrls`, mai le email) e la pagina del cliente
+(`waitingCoTenants`, solo i nomi) sanno chi manca; la riga della console, a
+titolare firmato, ha 👥 Link co-conduttori come mossa primaria e nasconde il
+link del proprietario finché manca qualcuno. Test: `tests/revise/run.mjs` §A,
+`tests/firma/console.mjs` (riga H).
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
-contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
+contract by its tenant/landlord sign token (the admin-only `signTokens`
+store — see «Le chiavi di firma fuori dal contratto»), returns sanitized
 `{role, contract, property, signer, otherParty}`. Replaces the previous
 flow which had the browser issue `db.collection('contracts').where(...)`
 anonymously — denied by `firestore.rules`.
@@ -1618,6 +1937,87 @@ sync + payment schedule + tenant user bootstrap). All those mutations are
 admin-only per the rules. The user-profile sync writes BOTH users schemas
 (sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
 generators and the RLI scheda always see identity collected at signing.
+
+### Le chiavi di firma fuori dal contratto (`api/sign/_tokens.js` + `POST /api/sign/links`) — 1/10/2026
+**Il difetto**: `contracts/{id}` portava `tenantSignToken` e `landlordSignToken`
+in chiaro, e le rules fanno leggere il contratto all'inquilino (`tenantId`) e
+al proprietario (`ownsProperty`) — Firestore non nasconde un CAMPO. /casa legge
+il contratto: l'inquilino aveva `/sign?sign=<landlordSignToken>` e, a lato
+conduttori completo, `submit` accettava quella firma come del locatore; il
+proprietario leggeva il link dell'inquilino. In più tre porte HTTP davano il
+link dell'altra parte a un chiamante proprietario: `preagreement/convert` e
+`send-sign` (owner/landlord ammessi, entrambi i link in risposta — e il
+contratto `pa_<paId>`, leggibile dal proprietario, ne rivela l'id),
+`sign/send-link` (l'`url` dell'inquilino al proprietario che lo sollecita),
+`profile/link` (il link FIRMA dei co-conduttori). `api/owners/vault.js`,
+citato nella segnalazione, non esiste nel repo.
+- **Il deposito**: `signTokens/{contractId}` = `{ contractId, tenant,
+  landlord }`, admin-only nelle rules. Token CASUALI per contratto (UUID, come
+  prima — non derivati da HOMIE_SECRET come cosign/scheda: quel segreto vive
+  anche sul Mac di Homie, e firmare come parte principale non deve dipendere
+  da lui). Formato del link invariato: i link già nelle email restano validi.
+  `ensureSignTokens` conia dove manca (solo per chi non ha firmato e solo per
+  i ruoli chiesti), SPOSTA un token ancora in chiaro col suo valore, e scrive
+  sotto precondizione (create 409 / updateTime): sei chiamate concorrenti =
+  un solo token per parte. `readSignTokens` non conia mai.
+  `findContractByToken` → `findSignTokenHolder`: prima il deposito, poi (solo
+  transizione) il campo in chiaro — che però NON vale se il deposito tiene un
+  token diverso per quella parte (ruotato = revocato).
+- **Chi scrive**: `convert` (subito dopo la creazione), `send-link`,
+  `sign-for`, `notifyPartialSignature` (il «Tocca a Lei» conia il link della
+  controparte se manca), `/api/sign/links`. Il portal non conia più nulla
+  (wizard, saveContract, rinnovo, Innesto, Share Hub, promemoria): i link li
+  chiede a **`POST /api/sign/links {contractId}`** (`fetchSignLinks`), che
+  risponde col SOLO link spettante — admin entrambi (+ co-conduttori),
+  proprietario dell'immobile il suo, inquilino del contratto il suo, altri
+  403. La firma in prima persona (`openSignContractModal`) apre il link del
+  server e non ricade più in silenzio sul modale legacy (che scrive la firma
+  lato client saltando le guardie di `submit`). Il cockpit legge `signTokens`
+  (admin) e ruota i token nel deposito, cancellando quello in chiaro.
+- **Le porte**: `convert` e `send-sign` restituiscono i link SOLO all'admin
+  (`withoutSignLinks`); `send-link` l'`url` solo all'admin o al proprietario
+  per il SUO link; `profile/link` il link firma dei co-conduttori solo
+  all'admin (al proprietario resta lo stato — dal 5/10 nemmeno la Scheda,
+  vedi «Le tre letture risparmiate»); `send-sign` i link
+  dei co-conduttori (`coTenants[].url`, dal giro `_cosign.js`) solo
+  all'admin, al proprietario i nomi. `contracts/revise` (admin) e il
+  sollecito al titolare in `notifyPartialSignature` leggono il deposito:
+  nessun file `api/` legge più i campi in chiaro dal contratto (regola di
+  classe in `tests/signtokens`, presa al merge con #265/#266).
+- **Le rules**: `match /signTokens/{x}` admin-only (senza, default-deny e il
+  server non scriverebbe — la lezione propertyLocks); su `contracts` nessuno,
+  admin e server compresi, può più AGGIUNGERE o CAMBIARE i due campi
+  (`noPlainSignTokens` in create, `keepsPlainSignTokensOut` in update —
+  toglierli sì); l'inquilino non può più scrivere `tenantSignToken`.
+  Verificate nell'emulatore (`tests/rules`, 80 asserzioni; 6 cadono con le
+  regole vecchie).
+- **La migrazione**: `migrateLegacySignTokens` sposta nel deposito i token in
+  chiaro (query `> ''`, i `null` non sono segreti) e li CANCELLA dal contratto
+  (campi nella updateMask assenti dal corpo), sotto precondizione: un
+  contratto firmato nel mezzo si salta e si riprende al giro dopo; un token
+  già ruotato nel deposito vince (conflitto contato). Gira ogni ora nel
+  reminder-cron (dopo incasso, journey e countdown, col tempo che resta,
+  tetto 8s; a regime due query vuote) e su richiesta da
+  `POST /api/sign/links {op:'migrate', dryRun?}` (admin). Finché non è
+  passata, il ramo legacy della lettura tiene vivi i link vecchi.
+- **Da sapere**: un contratto nuovo non ha token finché qualcuno non chiede
+  un link o manda un invito (il Gestore sollecita solo chi ha già un link —
+  prima l'Innesto coniava token anche su contratti firmati su carta). Lo
+  scope `landlord` vale per il proprietario dell'immobile anche con la delega
+  armata: è la sua firma. Le rules non sono nel CI (`npm test`): vanno
+  deployate (job `deploy-rules`) PRIMA che i client vecchi ripartano — una
+  scheda del portal aperta da prima del deploy che crea un contratto coi
+  token in chiaro riceve PERMISSION_DENIED finché non si ricarica.
+- Fuori scopo, segnalato: `depositPayToken` sta ancora sul contratto (apre
+  solo una Checkout del deposito). Il link della Scheda dell'inquilino al
+  proprietario è chiuso dal 5/10/2026 (`profile/link`, solo admin).
+Test: `node tests/signtokens/run.mjs` (52 check, handler veri: deposito,
+concorrenza, giro firma completo col «Tocca a Lei», porte per ruolo,
+migrazione con precondizione e link spediti che restano validi, regola di
+classe «nessun file scrive un token in chiaro»; quattro mutazioni prese) +
+`tests/mandato` e `tests/notify` (il contratto convertito/inviato non porta
+token, il proprietario che sollecita non vede il link dell'inquilino, un
+contratto legacy firma ancora).
 
 ### Il Fascicolo Fiscale (`api/fiscal/fascicolo.js` + `js/canone-engine.js`)
 UN PDF, tre pagine, generato DAL CONTRATTO alla firma completa (dentro
@@ -1760,7 +2160,35 @@ l'attestazione di rispondenza (**€100**). Ora:
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
-- Test: `node tests/aspi/run.mjs` (35 check).
+- **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
+  `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
+  registrazione è nella mezza mensilità, quindi di un «completo» si fattura
+  la sola attestazione (`aspi_asseverazione_<id>`) e di una «solo
+  registrazione» niente (opzione `none`); ammessi solo sottoinsiemi della
+  richiesta (`billKindFor`). **Si fattura ciò che le fatture esistenti non
+  COPRONO** (`billPlan` su `BILL_PARTS`, pura): tutto coperto → nessuna
+  fattura nuova, si riporta l'esistente; registrazione già fatturata +
+  «completo» → la sola attestazione (prima l'overlap sì/no perdeva i €189);
+  attestazione già fatturata da sola + «completo» → niente (`relet_guard`:
+  è il segno del riaffitto, la registrazione si chiede esplicitamente). Una
+  lettura delle fatture che FALLISCE non vale «assente»: nessuna fattura,
+  `error:'overlap_check_failed'` detto nel toast E un avviso urgente
+  `agentNotifications` `aspi.invoice_unverified` (→ Telegram): sul percorso
+  automatico nessuno vede il toast e la finalize non ripassa. Il recupero è
+  **🧾 Solo la fattura** (`op:'bill'`, `billAspi`): fattura senza rimandare
+  l'email ad ASPI. `op:'status'` porta anche `billing.plans` — il piano per
+  ogni variante sulle fatture già emesse — e il pannello scrive l'esito VERO
+  prima del tap («Crea fattura …», «solo la parte non ancora fatturata»,
+  «Già fatturata — nessuna nuova fattura»); dopo, un re-invio della stessa
+  pratica (`coverKind === requested`) è un successo, non un avviso
+  (`_aspiInvoiceMsg`, eseguita davvero nel test). Il riaffitto si deduce dai
+  FATTI (`reletOf`/`reletFrom`: un altro contratto `finalizedAt` sullo stesso
+  immobile, cominciato prima, con un altro inquilino; stanze dichiarate
+  diverse = due prime locazioni; `contract.relet` esplicito vince):
+  `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
+  pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
+  pratiche in due tempi portano numeri distinti (`-R`/`-A`).
+- Test: `node tests/aspi/run.mjs` (79 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -2894,6 +3322,162 @@ sul rail che c'era già:
   generatedPDF, firme complete → null; giunzioni console e pagina),
   `tests/firma/console.mjs` (i bottoni SOLO dove hanno senso).
 
+### 📤 La versione corretta del contratto (`POST /api/contracts/revise`) + ✎ Correggi i dati (3/10/2026)
+Il caso: Magic Sign partito, poi il PDF ha difetti (formattazione, dati nel
+posto sbagliato, piano e interno errati). L'unica uscita era fuori dal
+sistema — correggere il PDF a mano e mandarlo su WhatsApp — e la journey si
+spezzava (niente FES sul documento giusto, certificato, fascicolo,
+registrazione, /casa). Ora «ok, mettiamolo a posto» resta NEL giro:
+- **📤 Carica versione corretta** (riga della console, finché le firme non
+  sono complete; admin): il PDF caricato (base64 ≤ 3 MB, oltre via Storage
+  sotto `contracts/<id>/revisions/` — `fileUrl` accettato SOLO su
+  firebasestorage e sotto quel contratto, mai un proxy) diventa la versione
+  N+1 su `contracts/<id>/contract-v<N>-<rand>.pdf`: `pdfSource:'upload'`,
+  `sigAnchors:null` (la firma completa appende la pagina delle firme in coda),
+  `contractVersions[]` con la storia. È ciò che /sign mostra e che `_finalize`
+  firma. Validato con pdf-lib (aggiunta di una pagina + save, come farà la
+  firma): un PDF che non si apre è 422 adesso, non un finalize morto dopo.
+- **Nessuna rigenerazione lo sovrascrive**: `isUploadedPdf` in
+  `ensureContractPdf` vince su force, Scheda e prima firma; il portal
+  (`generateContractPDF`) rifiuta lo stesso. `pdfPathOf`: dopo una revisione
+  ogni rigenerazione scrive sul path della versione corrente, mai sui byte che
+  una firma archiviata ha visto.
+- **Una firma sulla versione sbagliata non si sposta**: con una firma viva la
+  revisione risponde 409 `signed_needs_void` coi nomi; con `voidSignatures:true`
+  (la console lo chiede nominando chi ha firmato) la firma viene ARCHIVIATA in
+  `contractVersions[].voidedSignatures` (chi, quando, IP, dispositivo, hash del
+  consenso e della firma; l'immagine finché l'archivio sta sotto 300 KB),
+  riaperta, e la parte rifirma. Commit condizionato all'`updateTime` letto.
+  Firmato da TUTTI o finalizzato → 409 `fully_signed` (lì è un nuovo
+  contratto).
+- **notify**: se il contratto era già stato mandato in firma, parte «Updated
+  contract — please review and sign the new version» al titolare e ai
+  co-conduttori (`sendSignInvite({updated:true})`), il proprietario dopo come
+  sempre; la proposta torna a `contractSignatureStatus:'none'`.
+- **↺ Modello BOOM** (`op:'template'`, e il 🔄 Rigenera del portal quando c'è
+  una firma viva o un PDF caricato): rigenera dal modello sui dati di adesso,
+  impaginato PRIMA del commit (`renderContractPdf`), stesse regole sulle firme.
+- **✎ Correggi i dati**: ✎ Completa i dati mostrava solo i campi VUOTI, quindi
+  un piano o un interno sbagliati non si correggevano dalla console. Con
+  `all:true` (solo admin) `profile/link` passa `includeFilled` e il modulo
+  mostra tutti i dati coi valori attuali; parte SOLO ciò che l'operatore cambia
+  (`data-orig`). Su una versione caricata i dati si salvano ma il documento no
+  (`pdfUploaded` nella risposta, e la console lo dice).
+- Il PDF caricato non è letto dal sistema: canone, date e deposito che
+  governano rate, scadenze e registrazione restano quelli del contratto — la
+  conferma lo ricorda (si allineano con ✎ Correggi i dati).
+Test: `tests/revise/run.mjs` §B (handler veri: byte identici su Storage, la
+guardia contro force, firma archiviata e riaperta, la v2 intatta dopo la v3,
+firma completa = PDF caricato + pagina firme, `fully_signed`, ↺ che stampa
+«piano 2, int. 14» dall'immobile; quattro mutazioni prese),
+`tests/firma/console.mjs` (riga I).
+
+**Il secondo giro, dalla review di #266 (3/10/2026).** Quindici rilievi sul
+codice appena andato in produzione; chiusi quelli che toccano firme e soldi:
+- **Una firma annullata non torna in vita.** `magic-sign/submit`, sul
+  conflitto di precondizione, rileggeva e poi riscriveva ALLA CIECA un `upd`
+  calcolato sul dato vecchio (coTenants, signatureStatus, signedTermsHash):
+  una revisione arrivata nel mezzo veniva cancellata e il co-conduttore
+  annullato tornava «firmato». Ora rilettura + ricalcolo + scrittura
+  condizionata IN GIRO (3 tentativi, poi 409 `contract_busy`), con versione,
+  ordine e firma già apposta ricontrollati sul dato fresco.
+- **Si firma la versione letta.** La lookup espone `contractVersion` e
+  `pdfSource`; `sign.html` rimanda la versione vista e il server risponde 409
+  `version_changed` se nel frattempo è stata caricata un'altra versione (la
+  pagina si ricarica da sola). Senza il campo (una scheda aperta prima del
+  rilascio) nessun controllo, come prima. ✍️ Firmo io conferma su una
+  versione e la ripassa a submit.
+- **Il mandato copre le condizioni, non il file.** Firmare PER MANDATO
+  (conduttore, o locatore col suo mandato scritto) su un PDF caricato a mano
+  esige `ackUploadedPdf:true` (409 `uploaded_pdf_ack_required` senza, prima di
+  armare qualunque delega): l'operatore dichiara che il file riporta le
+  condizioni approvate, e la dichiarazione resta su
+  `<parte>SignedByDelegate.uploadedPdfAck {version, fileName, at}`. Il
+  conduttore che firma DA SÉ non dichiara nulla.
+- **revise.js**: path UNICO per tentativo (due correzioni concorrenti: il
+  perdente sovrascriveva i byte del vincitore prima che il commit lo
+  respingesse), il file grande solo dal bucket di BOOM (env o le due forme
+  `<progetto>.firebasestorage.app/.appspot.com`) e letto a flusso contato fino
+  ai 15 MB, una nuova versione azzera «visto», solleciti e re-inviti
+  (`revisionResets`), la proposta perde `coTenantsSignedAt`.
+- **Inviti**: `send-link` col titolare firmato raggiunge i co-conduttori che
+  mancano (prima 409 `already_signed`: il promemoria del portal non arrivava
+  mai a chi bloccava il contratto; i loro link tornano SOLO all'admin — la
+  regola delle chiavi di firma: al proprietario parte l'email, il link no) e
+  il 409 del locatore porta `waitingFor`;
+  cooldown di 12 ore sulle email ai co-conduttori (`CO_INVITE_COOLDOWN_MS` —
+  ripremere 🖊/👥 non spamma più; `updated` e il promemoria del cron passano;
+  `coRecent` nella risposta); il titolare mai invitato riceve il suo PRIMO
+  invito alla firma di un co-conduttore, stampato (prima un «Reminder» a ogni
+  firma di co-conduttore).
+- **Portal/console**: il rinnovo non eredita versione caricata, firme dei
+  co-conduttori, mandato del proprietario né una delega nata da quel mandato;
+  l'attivazione archivia la copia FIRMATA (`signedPdfUrl`), mai il PDF senza
+  firme chiamato «Signed Contract»; ✎ Correggi i dati può SVUOTARE un campo
+  (`{clear:true}`, solo l'operatore autenticato — da un link pubblico
+  `clear_not_allowed`), con conferma; il cron filtra gratis prima della
+  rilettura completa; `signatureState` non dice «complete» con un
+  co-conduttore che manca.
+- **Non fatto, di proposito**: nessuna regola `maxDuration` per revise.js
+  (`send-sign`, più pesante, gira senza override — una regola a 60 s
+  rischierebbe di ABBASSARE il default; vercel.json resta a 49/50).
+Test: `tests/revise/run.mjs` §C (C1–C7: la revisione iniettata FRA rilettura
+e commit, versione, mandato su file caricato, bucket, flusso oltre 15 MB, due
+revisioni concorrenti, timbri, send-link, cooldown, primo invito, svuotare,
+rinnovo, attivazione, cron, stato); ogni fix verificato per mutazione (il
+`submit.js` di main fallisce C1 esattamente sulla firma resuscitata).
+
+**Il terzo giro (4/10/2026): la copia firmata arriva alle parti, e il PDF
+caricato si legge contro i dati.**
+- **La copia firmata nell'archivio di chi ha firmato** (`api/sign/_archive.js`).
+  Il finalize produceva `signedPdfUrl` ma nessuno lo metteva fra i
+  `documents` delle parti: il portal del proprietario legge `documents where
+  userId == uid`, e l'unico documento «contratto» nasceva nel browser
+  all'attivazione — sul PDF SENZA firme, mai aggiornato. `/casa` non mostrava
+  `signedPdfUrl` affatto, e `archiveDeal` archiviava il PDF senza firme col
+  nome «Contratto firmato». Ora, subito dopo l'upload della copia firmata e
+  prima del semaforo `finalizedAt`, il finalize scrive una copia per ogni
+  parte con un profilo — inquilino (EN), proprietario (`property.ownerId`,
+  IT), co-conduttori con `userId` — su id DETERMINISTICI
+  `contract-signed_<contratto>_<tenant|landlord|co<i>>` (`type:'contract'`,
+  `category:'contratto locazione'`, certificato FES accanto,
+  `uploadedBy:'boom'` → «FROM BOOM»). Il documento dell'attivazione non viene
+  affiancato: si RIPARA sul posto (contenuto sì, `shared`/`createdAt` no), e
+  un rerun non aggiunge righe. Senza copia firmata nessun documento: un PDF
+  senza firme col nome «firmato» è proprio il difetto. Best-effort, 8 s di
+  tetto, mai blocca la firma. 🔄 Rifinalizza su un contratto già finalizzato
+  sana l'archivio dei contratti firmati prima del rilascio.
+  `activateContract` scrive sugli stessi id (il «Ri-attiva onboarding» non
+  raddoppia più) e non tocca mai la copia `source:'finalize'`; `archiveDeal`
+  copia `signedPdfUrl` quando c'è; `/casa` mostra «Signed contract» e
+  «Signature certificate».
+- **Il PDF caricato si legge contro i dati** (`api/contracts/_pdfcheck.js`,
+  scopo `contract.pdfcheck` della Centrale AI: haiku, documento, mai in
+  locale). Il PDF corretto a mano diventa ciò che si firma, ma rate,
+  scadenze, registrazione e mandato seguono i DATI: corretto il canone nel
+  PDF e non nei dati, il cliente firma 1.250 e le rate partono a 1.200. Prima
+  di qualunque scrittura il modello TRASCRIVE canone (con la sua base:
+  mensile · annuo · intera durata), deposito, date, conduttore, locatore,
+  piano e interno; il confronto lo fa il CODICE (`compareTerms`: tolleranza
+  1 €/0,5 %, nomi come insiemi di parole, «secondo»/«2°», «int. 14»). Una
+  differenza → 409 `pdf_terms_mismatch` con le voci, nulla scritto; la
+  console le mostra e chiede: Annulla (si corregge con ✎ Correggi i dati) o
+  «carica comunque» (`acceptMismatch:true`, la scelta resta su
+  `contract.pdfCheck.accepted` con chi). Ciò che il PDF non porta è «non
+  letto», mai una differenza; modello giù, risposta illeggibile o PDF oltre
+  40 pagine → `unchecked` col motivo, e il caricamento prosegue (avverte, non
+  blocca). `op:status` e il piano di ✍️ Firmo io riportano il controllo;
+  ↺ Modello BOOM lo azzera.
+Test: `tests/finalize/run.mjs` §3b (attivazione riparata e non affiancata,
+proprietario e co-conduttore, rerun senza righe nuove, il verbale non si
+tocca, 🔄 Rifinalizza che sana un contratto vecchio, giunzioni su finalize/
+portal/`/casa`; quattro mutazioni prese — e lo stub che spezzava i path su
+una collection chiamata «documents», corretto) · `tests/revise/run.mjs` §D
+(confronti puri per base, forma e «non letto»; la porta vera con un Anthropic
+finto: 409 prima di Storage, il PDF vero al modello del registro, carica
+comunque, match, illeggibile, modello giù, oltre 40 pagine, template;
+giunzioni console e Firmo io; sei mutazioni prese).
+
 ### 🏠 Il mandato scritto del proprietario — la controfirma smette di reggersi sulla parola dell'operatore (23/09/2026)
 Il pezzo lasciato fuori dal 21/09: ✍️ Firmo io firmava per il conduttore in
 forza del SUO mandato scritto, poi controfirmava per il proprietario «per
@@ -2991,6 +3575,145 @@ italiano). Lo specchio esatto del mandato del conduttore:
   ruota l'IP a ogni sotto-sezione — il tap ✍️ sono due submit dallo stesso
   IP dell'operatore.
 
+### 📋 La Scheda del proprietario dalla console + il mandato sull'immobile nato dalla proposta (12/10/2026)
+«Non riesco a inviare a Chiara Tavolieri la scheda per far compilare i suoi
+dati o il link del Magic Sign.» Letto nel backup notturno, non dedotto: la
+proposta BOOM-MUCHJ6LC (Via dei Latini 76) era pagata dal 22/09 **senza
+contratto**, perché non era collegata a nessun immobile del portal, e la
+proprietaria aveva solo il telefono. La Scheda e i link di firma sono del
+CONTRATTO: non c'era niente da mandare, e la riga non lo spiegava. Dietro,
+tre difetti veri:
+- **Il mandato del conduttore era inservibile per costruzione** su OGNI
+  proposta accettata senza immobile collegato. La foto delle condizioni ha
+  `propertyId: null`; il contratto nasce sempre su un record di `properties`,
+  e quando la casa non c'era lo crea convert DALLA STESSA proposta
+  (`prop_pa_<paId>`). Quel record contava come «immobile cambiato» → ✍️
+  Firmo io 409 `mandate_terms_changed`. In produzione: BOOM-MUMY744I con
+  `termsDiff ['propertyId']` e nient'altro, più tre proposte pagate col
+  mandato in attesa dello stesso destino (Latini 76, Moricone 18, Angelico 9).
+  Ora `termsForMandate` (js/mandato-engine.js, una copia per server e portal:
+  `mandateCheck`, `tenantMandateFor`, 🖊 Firma ora) allinea la foto SOLO
+  sull'immobile nato da QUELLA proposta (`proposalPropertyId`, lo stesso id
+  di `convert.propertyIdForPa`). Un immobile diverso scelto a mano dopo
+  l'accettazione resta un cambio di condizioni, anche allo stesso civico
+  (in un palazzo ci sono più interni), e lo resta l'immobile nato da
+  un'altra proposta. Verificato sul contratto vero del backup: prima
+  `ok=false diff=[propertyId]`, dopo `ok=true`.
+- **📋 Scheda proprietario** sulla riga della console (accettata o pagata,
+  proprietario non ancora firmato): `sign-for` `op:'landlord-scheda'` crea il
+  contratto se manca (la STESSA `convertIfMissing` di 🏠, con
+  `createProperty` se la proposta non è collegata), legge cosa manca al
+  locatore come lo legge il PDF (`landlordGaps`), scrive il messaggio del
+  dizionario (`missingMessage`, IT) col link della sua Scheda, e manda
+  l'email se c'è (`askLandlordScheda`, la stessa di 🖊). Non arma il mandato:
+  è un'altra domanda. Prima di far nascere un contratto (📋 e 🏠) la console
+  lo dice (`confirmContractBirth`), con l'uscita per chi ha già la casa nel
+  portal sotto un altro nome (→ Contratto). La riga del pagato senza
+  contratto ora dice PERCHÉ Scheda e link non esistono ancora.
+- **Il messaggio parte da una finestra della pagina** (`showPartySend`):
+  WhatsApp è un link vero, più copia del messaggio e del link. Prima 🏠 faceva
+  `window.open` DOPO la chiamata al server, e Safari lo blocca in silenzio.
+  Dopo ✍️ Firmo io, col proprietario di turno, il SUO link di firma esce
+  subito dalla risposta (`showLandlordSignLink`), con l'alternativa del
+  mandato: col locatore senza email nessun invito parte da solo.
+- **✍️ Firmo io premuto PER PRIMO** (stesso giorno, dopo il merge): su una
+  proposta senza contratto la firma partiva senza `createProperty` e, DOPO il
+  «Procedere?», moriva su `no_property`. Ora la console legge `hasContract`
+  dallo status (il server, non la riga): se manca, la STESSA conferma apre
+  con la nascita del contratto e dell'immobile (`contractBirthText`, una
+  copia con 📋/🏠) e la firma parte con `createProperty` (o `propertyId` se la
+  proposta è collegata). Un tap: contratto, immobile, conduttore per mandato
+  e link del proprietario.
+- **L'immobile c'è GIÀ?** (letto nel backup, BOOM-MUPU8OMY): la proposta di
+  Viale Angelico 9 non era collegata, ma l'appartamento era nel portal con il
+  contratto di Inês vivo fino al 30/01/2027, e la nuova locazione parte
+  l'1/01/2027. 📋 🏠 ✍️ mandavano `createProperty` a occhi chiusi: sarebbe
+  nato un doppione e la guardia sovrapposizioni, che confronta l'immobile,
+  avrebbe taciuto. Ora prima di creare (`existingPropFor`) la console cerca
+  la casa con lo STESSO abbinamento con cui → Contratto preseleziona
+  (`propGuess`, estratto in una copia) e, se la trova, la conferma lo dice:
+  annulla e collega da → Contratto, oppure procedi se è un altro interno.
+  Avverte, non blocca. L'immobile nato da QUESTA proposta (`prop_pa_<id>`)
+  non è un doppione. Da sapere: collegare una casa del portal a una proposta
+  accettata senza immobile lascia il mandato del conduttore spendibile SOLO
+  se è la stessa casa — stesso indirizzo e stesso interno (15/10, sezione
+  sotto); altrimenti firma il conduttore col suo link.
+- **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
+  contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
+  da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
+  («Manca il telefono») col numero scritto sul contratto. L'accesso al portale
+  resta solo a chi ha un profilo.
+Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
+📋 fa nascere contratto e immobile, link e messaggio della Scheda, nessuna
+email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il
+conduttore e restituisce il link del proprietario; i confini per mutazione:
+immobile diverso, immobile di un'altra proposta, canone cambiato, foto con
+immobile; email quando c'è; 400 senza indirizzo; 403 non admin; ✍️ per
+primo: senza `createProperty` 400 e nessuna scrittura, con `createProperty`
+contratto + immobile + firma per mandato in un tap; giunzioni) e
+`tests/firma/console.mjs` (riga F col 📋 e il perché, il tap con
+`createProperty` e la finestra con WhatsApp come link, ✍️ → link del
+proprietario; ✍️ per primo: una conferma con la nascita detta, firma con
+`createProperty`, annullata = niente firma, col contratto già nato niente
+annuncio; una SECONDA console montata col portal che ha già le case:
+l'avviso del doppione su ✍️ 📋 🏠, nessun avviso per la casa nata dalla
+proposta o senza corrispondenze, confermato = si procede, → Contratto che
+preseleziona come prima). Mutazioni prese: allineamento spento, `mandateCheck`
+e `tenantMandateFor` senza allineamento, qualunque immobile allineato, 📋 che
+arma il mandato, Share Hub senza contatti dal contratto, niente link dopo ✍️,
+niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
+`needsContract` fisso a falso o a vero, annuncio tolto dalla conferma,
+ricerca della casa spenta (anche solo su ✍️), la casa della proposta contata
+come doppione, testo che ignora la casa trovata, → Contratto senza
+preselezione, conferma senza `await`.
+
+### 🏠 La casa della proposta già nel portal — stesso indirizzo e stesso interno (15/10/2026)
+«Fallo valere con stesso indirizzo e interno.» Il mandato di una proposta
+accettata senza immobile collegato fotografa un INDIRIZZO e valeva solo
+sull'immobile nato dalla proposta (`prop_pa_<id>`). Ora vale anche sul record
+del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero è Viale
+Angelico 9 (BOOM-MUPU8OMY): pagata col mandato, non collegata, appartamento
+già nel portal.
+- **La regola, una copia** (`js/mandato-engine.js`: `homeKey`, `homeMatch`,
+  `homeCheck`; server e console): via e civico normalizzati (accenti,
+  «V.le/P.za/Lungot.», «n.»/«civico» davanti al numero, scala e piano dopo,
+  città, CAP, quartiere dopo la virgola) e interno con la regola del lucchetto
+  («Int. 11» = «11»). Interno non dichiarato combacia SOLO con interno non
+  dichiarato (casa intera, come lucchetto e sovrapposizioni) e l'etichetta lo
+  dice. Fail-closed: senza civico, senza tipo di via o con parole dopo il
+  civico non combacia mai. Backup del 12/10: illeggibili 1 immobile su 30 e 3
+  proposte su 26, tutti senza civico.
+- **L'interno approvato sta nella foto** (`termsFromProposal` → `unit`,
+  fuori dall'impronta: i mandati già dati restano validi). Foto più vecchie:
+  l'interno della proposta, salvo interno dichiarato dopo dalla console
+  (`unitDeclaredAt`) o indirizzo ritoccato → `unit_unknown`, nessun riscontro.
+- **Il riscontro resta sul mandato** (`tenantMandate.propertyMatch
+  {propertyId, by:'address+unit', home, label, at}`), scritto da conversione e
+  mandato dato dopo; `termsForMandate` allinea SOLO quel record (spostato
+  altrove = cambio di condizioni). Firma, lookup e portal non rileggono
+  l'immobile.
+- **✍️ Firmo io ricontrolla l'immobile di ADESSO** (`healTenantMandate` in
+  sign-for): `status` lo dice senza scrivere (`plan.home`); `sign` scrive il
+  riscontro, aggiunto o tolto, PRIMA di `mandateCheck`. I contratti convertiti
+  prima della regola si sanano; un immobile ritoccato dopo non è più la casa
+  (409 col perché). Una lettura fallita dell'immobile non tocca niente.
+- **Console**: la stessa casa viene prima del somigliante (`homeTwin` in
+  `propGuess`); 📋 🏠 ✍️ fanno nascere il contratto su quel record
+  (`propertyId`, mai un doppione) e la conferma nomina indirizzo e interno; il
+  preflight di → Contratto dice se il mandato sarà spendibile e perché no
+  (`convert` dryRun → `mandate`). Senza il motore resta l'avviso del
+  somigliante.
+- **Da sapere (Angelico 9)**: il record W0lE1 e la nuova proposta NON
+  dichiarano l'interno → riscontro sì, «interno non dichiarato su entrambi».
+  Il contratto vivo su W0lE1 nacque da una proposta con interno «11»: se è
+  l'interno 11, va scritto sull'immobile, e da lì la proposta senza interno
+  non combacia più. La sovrapposizione (fino al 30/01/2027, la nuova dal
+  1/01/2027) resta un 409 da decidere in → Contratto.
+Test: `node tests/mandato/casa.mjs` (51 check, handler veri; 19 mutazioni
+prese su motore, conversione, mandato dato dopo, sign-for e console) e
+`tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
+senza motore).
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
@@ -3080,6 +3803,70 @@ tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
 - Test: `node tests/modeljson/run.mjs` (39) · `node tests/tempo/run.mjs` (33)
   · `node tests/scala/run.mjs` (8).
 
+### I tre guasti del 4/10/2026 (letti nei log di Vercel, non dedotti)
+- **Il Commerciale fermo.** `ReferenceError: pickChannel is not defined` in
+  49 giri su 49 della finestra dei log (28/09 → 4/10, e verosimilmente da
+  prima). Un merge aveva annidato `pickChannel` DENTRO `run()` (e
+  `propertyContext`/`alternatives` dentro `proposeFirstReply`), mentre la
+  chiamavano due funzioni esterne: le prime risposte cadevano nel `.catch`
+  contate come «errore AI», il primo follow-up faceva cadere il giro intero.
+  Ora sono funzioni del modulo (`pickChannel` esportata). Nessun test
+  eseguiva quel percorso: `tests/guasti/run.mjs` esegue il giro VERO.
+- **✍️ Firmo io senza regola.** Il server entra in Firestore come UTENTE admin
+  (login con password), non con una service account: le regole valgono anche
+  per lui. `operatorSignatures` non aveva un `match` → 403 al primo
+  salvataggio della firma (1/10, tre tentativi). Regola admin-only aggiunta;
+  la guardia di CLASSE (`tests/guasti`) scandaglia `api/` — fsGet/fsCreate/…,
+  `collectionId`, `'coll/' + id`, `` `coll/${id}` `` e le costanti
+  `*COLL*`/`*QUEUE*` — e pretende un `match` per OGNI collection (i prefissi
+  di Storage si riconoscono da `storage.rules`). È la sesta volta:
+  propertyLocks, signTokens, portalPubs, rendiconti, viewings,
+  operatorSignatures.
+- **La raffica di login.** `getAdminToken` teneva il token ma non il login IN
+  CORSO: a token scaduto le ~190 letture parallele di scan-replies facevano
+  ~190 `signInWithPassword` → `QUOTA_EXCEEDED: Exceeded quota for verifying
+  passwords`, quota dell'INTERO progetto (reminder-cron caduto il 16/09 e il
+  2/10, battiti di salute persi). Ora un solo login in volo, condiviso da
+  chi arriva nel mezzo; un login fallito non resta in memoria. reminder-cron
+  e stripe-webhook (un login per OGNI lettura dell'evento) usano il login
+  condiviso; fuori da `homie/_lib` firmano da sé solo le pagine pubbliche
+  col ripiego su 403 (elenco pinnato nel test).
+Test: `node tests/guasti/run.mjs` (18 check; mutazioni: le versioni di main
+di commerciale, `_lib` e reminder-cron cadono, e togliere la regola di
+`operatorSignatures` fa nominare proprio quella).
+
+### Le tre letture risparmiate (5/10/2026 — dai log di Vercel, come i guasti del 4/10)
+- **La fotografia per il Mac** (`api/agent/_memo.js`). Homie chiama
+  `agent/state.snapshot` ~741 volte e `agent/risk.scan` ~719 volte al giorno
+  (una ogni due minuti), e ogni risk.scan rilegge fino a ~2.280 documenti per
+  dati che cambiano nell'arco di ore. Ora il risultato si calcola UNA volta e
+  vale 10 minuti (`MEMO_TTL_MS`): in memoria nell'istanza calda (zero
+  letture), nel documento `heartbeat/agent-memo-<chiave>` per un'istanza
+  fredda (UNA lettura), come stringa JSON (la conversione Firestore delle
+  mappe perde i `null`). Chiave per scope e per orizzonte (`window` 1–730,
+  scope in lista bianca: un valore iniettato non crea chiavi nuove); due
+  chiamate insieme fanno un calcolo; `fresh:true` ricalcola; la risposta dice
+  `cached`/`cachedAt`. Un guasto della memoria non ferma la risposta.
+- **Le conversazioni dei seguiti in blocco** (`fsGetMany` in `homie/_lib.js`,
+  usato da `segretaria/scan-replies`): ~190 `fsGet` paralleli diventano una
+  `documents:batchGet` ogni 100 percorsi. Ciò che il lotto non risolve
+  (risposta non valida, errore) si rilegge uno per uno, 8 alla volta — mai
+  la raffica di prima; un errore vero di lettura risale come prima.
+- **La Scheda dell'inquilino solo all'admin** (`profile/link`). Il link della
+  Scheda permette di SCRIVERE i dati della parte (anagrafica, documento): al
+  proprietario arrivavano quello dell'inquilino e quelli dei co-conduttori.
+  Ora al proprietario: il SUO link, lo stato e i nomi; niente `tenantUrl`
+  (`tenantLinkVia:'admin'`), niente `ask.tenant`/`ask.operator`, niente
+  messaggio pronto né `schedaUrl` dei co-conduttori. Il portal, sul bottone
+  «Chiedi all'inquilino», dice che il link lo manda BOOM.
+Test: `node tests/efficienza/run.mjs` (18 check — cache calda/fredda/scaduta,
+`fresh`, chiavi separate, calcolo condiviso, lotti da 100, ripiego con
+tetto, giunzione di scan-replies; mutazioni: memoria tolta, ripiego senza
+tetto, scan-replies di main, scope senza lista bianca) + `tests/scheda`
+(owner senza Scheda dell'inquilino, admin invariato) + `tests/signtokens`
+(owner senza Scheda dei co-conduttori). Il risparmio VERO si legge nei log
+e nella fattura Firestore dei giorni successivi.
+
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
 propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
@@ -3095,7 +3882,7 @@ il compito di Codex in `docs/PROMPT_CODEX_MODELLI_LOCALI.md`.
 **Cosa cambia.** Ogni chiamata a un modello passa da `ai({ purpose, system,
 messages|user, maxTokens, timeoutMs, json })` in `api/_ai.js`; il chiamante
 dichiara solo lo SCOPO, e lo scopo sta nel registro puro `js/ai-registry.js`
-(26 voci: file, modello cloud di default, modalità testo/visione/documento/
+(27 voci: file, modello cloud di default, modalità testo/visione/documento/
 audio, `localOk` col perché, posta in gioco, i campi su cui misurare
 l'accordo). La centrale:
 - **instrada** secondo `settings/ai` (default: TUTTO cloud, il deploy non
@@ -4132,7 +4919,9 @@ messaggi che accompagnano un link personale.
   mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
   contratto altrui, ricerca su misura, italiano e proprietario — e le altre
   restano nel mazzo: la pagina
-  si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
+  si apre già filtrata sulle 15, le rare si cercano e si copiano al volo
+  (la quindicesima, 30/09: `/prriaffitto`, «mi riaffittate e basta?»; i
+  numeri nel testo di `/risposte` si leggono ora dal modulo).
   La promozione è un attributo, non una riscrittura: se una del mazzo torna
   spesso, si toglie `bench` e si carica.
 - **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,
@@ -5362,6 +6151,13 @@ stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
 mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
 checklist di buone pratiche:
+- **Il robots non chiude la porta alla sitemap.** `Disallow: /s` era una
+  regola per una vecchia rotta, ma nel protocollo robots vale come prefisso:
+  bloccava anche `/sitemap.xml`, `/services` e `/skyline`. Search Console
+  riportava «Impossibile leggere la Sitemap» con XML valido e HTTP 200.
+  La guardia ora verifica la sitemap stessa e ogni URL che essa dichiara.
+  Ha trovato anche `/booking`: il modulo resta pubblico e seguibile, ma è
+  `noindex` e non viene più dichiarato nella sitemap.
 - **Il documento e' un documento.** `property-finding.html` e `board.html`,
   due pagine LIVE, non avevano `<!doctype>`, `<html lang>` ne'
   `<meta charset>`. Misurato in Chromium: **quirks mode**, nessuna lingua
@@ -5398,6 +6194,12 @@ checklist di buone pratiche:
   `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
   ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
   `speakable` che punta a nodi reali.
+- Il 5 ottobre 2026 Search Console ha misurato PFS (58 impressioni, posizione
+  18,3), DAS (43, posizione 8,5, zero clic) e VV (91, posizione 16,2). Title,
+  H1, risposta breve e schema `Service` ora rispondono alle query reali
+  «property finder», «rental contract review» e «virtual apartment viewing».
+  Da `services.html` e' sparito anche «clients save €600+ on average»: non era
+  una misura disponibile, quindi non puo' essere una promessa pubblica.
 
 **Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
 GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
@@ -5405,6 +6207,14 @@ per chi, e chi lo eroga con partita IVA. La riga dei limiti e' quella che
 conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
 risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
 `WebPage` con `speakable` punta al registro e a questo blocco.
+
+**Il titolo segue la domanda che Google mostra davvero** (5/10). Search
+Console, tre mesi: `/canone` 773 impressioni, CTR 1,2%, query dominante
+«calcolo canone concordato»; `/blog-contract-types` 417 impressioni, CTR
+0,5%, posizione media 7,7, query dominante «4+4 contract Italy». Title,
+description, H1 e risposta breve visibile ora aprono con quelle domande;
+JSON-LD e `scripts/seo-config.js` riportano la stessa promessa e la stessa
+data di modifica. Test: `node tests/seo/run.mjs`.
 
 ## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
 
@@ -5523,6 +6333,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scrivano/run.mjs` | lo Scrivano, la porta dal telefono: archiviato con id deterministico e bottone 🌱, il tap mette in coda (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell'Innesto e manda la card col link `#innesto=<docId>`; mai due letture, guasti col rimedio, le porte di Codex ereditano l'offerta |
   | `tests/doctext/run.mjs` | «qualsiasi cosa» diventa testo: lo ZIP minimo (STORE/DEFLATE, mai una zip bomb), Word/Excel/OpenDocument/.doc/email/HTML/RTF/testo estratti senza dipendenze, il tipo VERO dai byte prima che dal nome (un JPEG etichettato HEIC è un JPEG; una HEIC vera è una HEIC) |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
+  | `tests/signtokens/run.mjs` | le chiavi di firma fuori dal contratto: deposito `signTokens` admin-only, il contratto letto dalle parti non porta token, nessuna porta HTTP dà il link dell'altra parte, migrazione che cancella i campi in chiaro conservando i link spediti; mutazioni |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
@@ -5545,6 +6356,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/fiducia/run.mjs` | La scala della fiducia: parte da solo SOLO il provato (campione ≥30 + tasso ≥95%, sulle decisioni dell'OPERATORE — gli auto-invii non si contano), la prima risposta AI mai (nemmeno accesa a mano), le parole legali/di rabbia tornano a un umano, ✋ Ferma e kill switch vincono anche sulle bozze già armate, e coi DEFAULT non parte niente. Giro vero su Firestore in memoria con l'executor reale |
   | `tests/segretaria/run.mjs` | La Segretaria: parla SOLO sulle chat consegnate col 🤖 (e la consegna marca la conversazione che riceverà davvero il traffico — CID persistito e verificato, anche dopo la creazione del lead), mai con inquilini, mai oltre i tetti; l'eco della sua stessa risposta non la spegne, un messaggio manuale dell'operatore sì; un link fuori dominio o una trattativa diventano escalation con card 🖐, MAI un invio. Handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
+  | `tests/apply/run.mjs` | chi fa APPLY dal sito arriva all'operatore: email a BOOM con Reply-To sul candidato (e mai prima della scrittura), fasce di reddito/garante/firmatari che non si perdono, la finestra `status == 'new' limit 50` senza ordine RIPRODOTTA (il lead nuovo ne restava fuori) e chiusa da `pendingNewLeads`, Brain e card Telegram sul lead appena arrivato con gli handler veri, e il listener del portal che lo mostra senza ricaricare |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
   | `tests/inventario/run.mjs` | inventario dal video (101 check): il video non dichiara mai "buono stato" (solo difetti e oggetti nuovi, e il declassamento viene detto), una condizione non dichiarata alla consegna non diventa MAI un danno alla riconsegna (mutazione), `analyze` non scrive niente, un elenco non riguardato non diventa un documento, e il verbale smette di dire "arredi pattuiti" |
@@ -5728,6 +6540,13 @@ scadenze + PDF come saveContract e manda l'invito firma via
 `/api/sign/send-link` (sequenziale: il locatore riceve il suo link alla
 firma dell'inquilino — prima spediva entrambi i link subito, fuori dal
 design system).
+
+**Behavior Intelligence** (`/behavior`, ottobre 2026): `js/boom-track.js` misura
+in forma anonima percorsi, sezioni, profondità, CTA e uscite su ogni URL della
+sitemap, esclusivamente dopo il consenso. `/api/analytics/collect` valida e
+salva `webJourneys` per 90 giorni; il cron cleanup li elimina. La dashboard e
+`/api/analytics/summary` sono solo admin e mostrano aggregati, mai dati grezzi.
+Regression suite: `npm test -- behavior`.
 
 Firestore listeners with auto-retry / exponential backoff:
 

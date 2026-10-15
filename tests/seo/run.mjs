@@ -39,6 +39,40 @@ console.log('\n\x1b[1m▸ seo\x1b[0m  la casa e in ordine: '
 const testa = (s) => s.slice(0, Math.max(s.indexOf('</head>'), 4000));
 const attr = (s, re) => { const m = s.match(re); return m ? m[1] : ''; };
 
+// ── 0 · robots.txt non chiude la porta alla sitemap ─────────────────────
+// `Disallow: /s` sembrava proteggere soltanto la vecchia rotta `/s`, ma il
+// Robots Exclusion Protocol confronta prefissi: bloccava anche
+// `/sitemap.xml`, `/services` e `/skyline`. Search Console lo mostrava come
+// «Impossibile leggere la Sitemap» pur con XML valido e risposta HTTP 200.
+const robots = fs.readFileSync(path.join(R, 'robots.txt'), 'utf8');
+const gruppoGenerico = robots.match(/^User-agent:[ \t]*\*[ \t]*\r?\n([\s\S]*?)(?=^User-agent:|(?![\s\S]))/mi)?.[1] || '';
+const regoleRobots = [...gruppoGenerico.matchAll(/^(Allow|Disallow):\s*(\S+)\s*$/gmi)]
+  .map(([, tipo, modello]) => {
+    const finale = modello.endsWith('$');
+    const corpo = finale ? modello.slice(0, -1) : modello;
+    return {
+      allow: tipo.toLowerCase() === 'allow',
+      modello,
+      peso: corpo.replace(/\*/g, '').length,
+      re: new RegExp('^' + corpo.split('*').map((x) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('.*') + (finale ? '$' : '')),
+    };
+  });
+const robotsConsente = (percorso) => {
+  const compatibili = regoleRobots.filter((r) => r.re.test(percorso));
+  if (!compatibili.length) return true;
+  compatibili.sort((a, b) => b.peso - a.peso || Number(b.allow) - Number(a.allow));
+  return compatibili[0].allow;
+};
+const daScansionare = ['/sitemap.xml', ...loc.map((u) => {
+  const x = new URL(u);
+  return x.pathname + x.search;
+})];
+const bloccateDaRobots = [...new Set(daScansionare)].filter((p) => !robotsConsente(p));
+bloccateDaRobots.length
+  ? male(`robots.txt blocca la sitemap o URL che essa dichiara:` + elenco(bloccateDaRobots)
+      + '\n      Una regola corta vale come prefisso: /s blocca anche /sitemap.xml, /services e /skyline.')
+  : bene('robots.txt consente la sitemap e ogni URL che essa dichiara');
+
 // ── 1 · il documento e' un documento ────────────────────────────────────
 const monchi = [];
 for (const [f] of pubbliche) {
