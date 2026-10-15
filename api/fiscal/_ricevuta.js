@@ -13,7 +13,7 @@
 // partono UNA volta per file: un secondo salvataggio con lo stesso file non
 // rimanda niente, un file nuovo sì.
 
-import { fsGet, fsPatch, fsList } from '../homie/_lib.js';
+import { fsGet, fsPatch, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, tiles } from '../preagreement/_notify.js';
@@ -101,6 +101,44 @@ export function deliveryKey(url, r) {
   return 'd_' + crypto.createHash('sha1').update(String(url) + '|' + (r && r.who) + '|' + (r && r.email)).digest('hex').slice(0, 16);
 }
 
+const receiptIdentity = c => c.registrationReceiptHash ? 'sha256:' + c.registrationReceiptHash : c.registrationReceiptUrl;
+
+// CAS sul contratto fresco: due schede non possono acquisire lo stesso
+// destinatario né sovrascrivere l'esito di un altro. 'sending' non è una
+// lease da rubare: il trasporto potrebbe avere già accettato l'email.
+async function receiptDelivery(contractId, fileKey, r, { force = false, claim, outcome, error } = {}) {
+  const claimId = claim || crypto.randomUUID();
+  const key = deliveryKey(fileKey, r);
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned('contracts/' + contractId);
+    if (!v || receiptIdentity(v.data) !== fileKey) return { status: 'uncertain', error: 'receipt_changed' };
+    const c = v.data, ledger = { ...(c.registrationReceiptDelivery || {}) };
+    let entry = ledger[key];
+    if (!entry && c.registrationReceiptSentUrl === c.registrationReceiptUrl && (c.registrationReceiptSentTo || []).includes(r.who)) entry = { status: 'sent' };
+    if (outcome) {
+      if (!entry || entry.claimId !== claimId || entry.status !== 'sending') return { status: 'uncertain', error: 'claim_changed' };
+    } else {
+      if (entry?.status === 'sent') return { status: 'sent', skipped: true };
+      if (entry?.status === 'sending' || (entry?.status === 'uncertain' && !force)) return { status: 'uncertain', skipped: true };
+    }
+    ledger[key] = { who: r.who, email: r.email, url: c.registrationReceiptUrl, fileKey, claimId,
+      status: outcome || 'sending', at: new Date().toISOString(), ...(error ? { error } : {}) };
+    const fields = { registrationReceiptDelivery: ledger };
+    if (outcome === 'sent') Object.assign(fields, {
+      registrationReceiptSentUrl: c.registrationReceiptUrl, registrationReceiptSentAt: new Date(),
+      registrationReceiptSentTo: [...new Set([
+        ...(c.registrationReceiptSentUrl === c.registrationReceiptUrl ? c.registrationReceiptSentTo || [] : []),
+        ...Object.values(ledger).filter(d => (d.fileKey || d.url) === fileKey && d.status === 'sent').map(d => d.who),
+      ])],
+    });
+    try {
+      await fsCommit([{ docPath: 'contracts/' + contractId, fields, precondition: { updateTime: v.updateTime } }]);
+      return { status: outcome || 'sending', claimId };
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('receipt_busy');
+}
+
 export function receiptRecipients(contract, g) {
   const c = contract || {}, out = [], seen = new Set();
   const add = (email, name, lang, who) => {
@@ -148,9 +186,11 @@ export async function recordRegistration(contractId, input, { force = false } = 
   let url = contract.registrationReceiptUrl || '';
   let fileName = contract.registrationReceiptName || '';
   let mimeType = contract.registrationReceiptType || '';
+  let fileHash = contract.registrationReceiptHash || '';
   if (input.file) {
-    const path = `contracts/${contractId}/ricevuta-registrazione-${Date.now().toString(36)}.${input.file.ext}`;
-    url = await storageUpload(path, input.file.buf, input.file.contentType);
+    fileHash = crypto.createHash('sha256').update(input.file.buf).digest('hex');
+    const path = `contracts/${contractId}/ricevuta-registrazione-${fileHash}.${input.file.ext}`;
+    if (!url || contract.registrationReceiptHash !== fileHash) url = await storageUpload(path, input.file.buf, input.file.contentType);
     if (!url) return { ok: false, error: 'storage_unavailable' };
     fileName = input.file.name;
     mimeType = input.file.contentType;
@@ -162,7 +202,7 @@ export async function recordRegistration(contractId, input, { force = false } = 
     rliRegisteredAt: input.date,
     registeredAt: now,
     ...(input.code ? { registrationCode: input.code } : {}),
-    ...(input.file ? { registrationReceiptUrl: url, registrationReceiptName: fileName, registrationReceiptType: mimeType, registrationReceiptAt: now } : {}),
+    ...(input.file ? { registrationReceiptUrl: url, registrationReceiptHash: fileHash, registrationReceiptName: fileName, registrationReceiptType: mimeType, registrationReceiptAt: now } : {}),
   };
   await fsPatch('contracts/' + contractId, patch);
   const fresh = { ...contract, ...patch };
@@ -205,42 +245,25 @@ export async function recordRegistration(contractId, input, { force = false } = 
   else {
     const g = await gather(fresh, property).catch(() => null);
     const recipients = g ? receiptRecipients(fresh, g) : [];
-    const ledger = { ...((contract.registrationReceiptDelivery && typeof contract.registrationReceiptDelivery === 'object') ? contract.registrationReceiptDelivery : {}) };
-    // Il registro di prima (un timbro per file): chi c'era, è 'sent'.
-    if (contract.registrationReceiptSentUrl === url && Array.isArray(contract.registrationReceiptSentTo)) {
-      for (const r of recipients) {
-        const k = deliveryKey(url, r);
-        if (!ledger[k] && contract.registrationReceiptSentTo.includes(r.who)) ledger[k] = { who: r.who, email: r.email, url, status: 'sent', at: contract.registrationReceiptSentAt || null };
-      }
-    }
-    const todo = [];
-    for (const r of recipients) {
-      const e = ledger[deliveryKey(url, r)];
-      const st = e && e.status;
-      if (st === 'sent') { already.push(r.who); continue; }
-      if ((st === 'uncertain' || st === 'sending') && !force) { uncertain.push(r.who); continue; }
-      todo.push(r);
-    }
+    const fileKey = receiptIdentity(fresh);
     if (!recipients.length) skipped = 'no_recipients';
-    else if (!todo.length) skipped = uncertain.length ? 'uncertain_needs_resend' : 'already_sent';
     else {
       let att = null;
       if (input.file) att = { filename: 'Ricevuta_registrazione.' + input.file.ext, content: input.file.buf, contentType: mimeType };
       else {
         try {
-          const r = await fetch(url);
-          if (r.ok) att = { filename: 'Ricevuta_registrazione.' + (TYPES[mimeType] || 'pdf'), content: Buffer.from(await r.arrayBuffer()), contentType: mimeType || 'application/pdf' };
+          const response = await fetch(url, { signal: AbortSignal.timeout(15000) });
+          if (response.ok) att = { filename: 'Ricevuta_registrazione.' + (TYPES[mimeType] || 'pdf'), content: Buffer.from(await response.arrayBuffer()), contentType: mimeType || 'application/pdf' };
         } catch (e) { console.warn('[ricevuta] fetch', e.message); }
       }
       if (!att) skipped = 'file_unreachable';
       else {
-        const save = () => fsPatch('contracts/' + contractId, { registrationReceiptDelivery: ledger });
-        for (const r of todo) {
-          const k = deliveryKey(url, r);
-          ledger[k] = { who: r.who, email: r.email, url, status: 'sending', at: new Date().toISOString() };
-          // Senza la marca non si invia: un invio non registrato è il caso
-          // che il giro dopo non saprebbe distinguere.
-          try { await save(); } catch (e) { console.warn('[ricevuta] mark', r.who, e.message); delete ledger[k]; failed.push(r.who); continue; }
+        for (const r of recipients) {
+          let acquired;
+          try { acquired = await receiptDelivery(contractId, fileKey, r, { force }); }
+          catch (e) { console.warn('[ricevuta] claim', r.who, e.message); uncertain.push(r.who); continue; }
+          if (acquired.status === 'sent') { already.push(r.who); continue; }
+          if (acquired.status !== 'sending') { uncertain.push(r.who); continue; }
           const m = receiptEmail(r, { propLabel: g.propLabel, code: fresh.registrationCode || '', date: input.date });
           let outcome = 'sent', err = '';
           try {
@@ -249,14 +272,13 @@ export async function recordRegistration(contractId, input, { force = false } = 
               new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 20000)),
             ]);
           } catch (e) { outcome = sendOutcome(e); err = String(e.message || '').slice(0, 160); console.warn('[ricevuta] send', r.who, e.message); }
-          ledger[k] = { who: r.who, email: r.email, url, status: outcome, at: new Date().toISOString(), ...(err ? { error: err } : {}) };
-          try { await save(); } catch (e) { console.warn('[ricevuta] record', r.who, e.message); }
+          try {
+            const recorded = await receiptDelivery(contractId, fileKey, r, { claim: acquired.claimId, outcome, error: err });
+            outcome = recorded.status;
+          } catch (e) { console.warn('[ricevuta] record', r.who, e.message); outcome = 'uncertain'; }
           (outcome === 'sent' ? sent : outcome === 'failed' ? failed : uncertain).push(outcome === 'sent' ? { who: r.who, lang: r.lang } : r.who);
         }
-        if (sent.length) {
-          await fsPatch('contracts/' + contractId, { registrationReceiptSentUrl: url, registrationReceiptSentAt: new Date(), registrationReceiptSentTo: recipients.filter(r => (ledger[deliveryKey(url, r)] || {}).status === 'sent').map(r => r.who) })
-            .catch((e) => console.warn('[ricevuta] stamp', e.message));
-        }
+        if (!sent.length && !failed.length) skipped = uncertain.length ? 'uncertain_needs_resend' : 'already_sent';
       }
     }
   }

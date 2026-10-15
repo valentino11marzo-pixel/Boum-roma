@@ -431,6 +431,19 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && rm.manifest.filter(x => x.attached).length === 12 && rm.manifest.filter(x => !x.attached).length === 1);
 }
 
+// Missing generated files remain missing even when their URL was never saved.
+{
+  const N = await import('../../api/sign/_notify.js');
+  const noSheet = { ...FULL, id: 'ctrNoSheet', requiresAsseverazione: true };
+  delete noSheet.schedaCanoneUrl; delete noSheet.fascicoloFiscaleUrl;
+  const out = await N.sendCafDossier(noSheet, store.get('properties/prop1'), {
+    certUrl: 'https://storage.example/cert.pdf', signedPdfUrl: 'https://storage.example/contract.pdf' });
+  check('manifesto: scheda e fascicolo non generati restano mancanti', out.ok
+    && out.manifest.some(x => x.label === 'Scheda calcolo canone' && !x.attached && x.reason === 'non generato')
+    && out.manifest.some(x => x.label === 'Fascicolo Fiscale' && !x.attached && x.reason === 'non generato'));
+  check('manifesto: file mai generati non diventano tutti quelli attesi', !/tutti quelli attesi/.test(mails().at(-1).html));
+}
+
 // ═══ 1d. Magic Sign submit: terms freeze, già-firmato VIVO, sequenziale ═══
 {
   const msSubmit = (await import('../../api/magic-sign/submit.js')).default;

@@ -412,8 +412,8 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const core = [
       { label: 'Contratto firmato', url: signedHref, name: 'BOOM_Contratto_firmato.pdf', required: true },
       { label: 'Certificato di firma', url: certUrl || contract.signingCertificateUrl, name: 'BOOM_Certificato_di_firma.pdf', required: true },
-      { label: 'Scheda calcolo canone', url: schedaHref, name: 'BOOM_Scheda_calcolo_canone_ARPE.pdf', required: false },
-      { label: 'Fascicolo Fiscale', url: fascHref, name: 'BOOM_Fascicolo_Fiscale.pdf', required: false },
+      { label: 'Scheda calcolo canone', url: schedaHref, name: 'BOOM_Scheda_calcolo_canone_ARPE.pdf', required: contract.requiresAsseverazione !== false },
+      { label: 'Fascicolo Fiscale', url: fascHref, name: 'BOOM_Fascicolo_Fiscale.pdf', required: true },
     ];
     const coreAtts = await Promise.all(core.map(x => fetchPdfAttachment(x.url, x.name)));
     core.forEach((x, i) => {

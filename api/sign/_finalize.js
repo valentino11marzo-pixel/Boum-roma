@@ -19,7 +19,7 @@ import crypto from 'node:crypto';
 // traced by Vercel's bundler and fails at runtime in production.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { wa } from '../_pdfbrand.js';
-import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
+import { fsCreate, fsPatch, fsGet, fsList, fsDelete, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
@@ -323,8 +323,18 @@ export async function finalizeContract(contract){
   // successivo del watchdog rispediva welcome + fascicolo CAF a tutti.
   // Meglio rischiare un contratto senza email (recuperabile a mano) che un
   // cliente che riceve due volte il suo benvenuto e il CAF due fascicoli.
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
-  catch (e) { console.warn('[finalize] early mark failed:', e.message); }
+  // Intento e URL durevoli PRIMA delle email: il primo claim fallito lascia
+  // 'pending', recuperabile senza rifare il benvenuto. Un solo finalize vince.
+  try {
+    const checkpoint = await packageCheckpoint(contract.id, {
+      finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl,
+      ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}),
+    });
+    if (!checkpoint) return { ok: true, skipped: true };
+  } catch (e) {
+    console.warn('[finalize] checkpoint failed:', e.message);
+    return { ok: false, error: 'finalize_checkpoint_failed', retryable: true };
+  }
 
   // UNA email all'operatore (15/10/2026): il PACCHETTO REGISTRAZIONE. Prima
   // ne partivano tre nella stessa casella (milestone, fascicolo completo,
@@ -336,7 +346,7 @@ export async function finalizeContract(contract){
   const referente = await loadAspiSettings().catch(() => null);
   const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendPackageRecorded(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }, 0),
+    sendPackageRecorded(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -359,7 +369,7 @@ export async function finalizeContract(contract){
   // questo timbro rimandava un secondo benvenuto a chi l'aveva già ricevuto.
   // Si scrive solo a invio riuscito: un false non cancella mai un true.
   const onboard = tenantEmail ? { welcomeEmailSent: true, welcomeEmailSentAt: now, welcomeEmailBy: 'finalize' } : {};
-  try { await fsPatch(`contracts/${contract.id}`, { ...onboard, finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
+  if (tenantEmail) try { await fsPatch(`contracts/${contract.id}`, onboard); } catch(e){ console.warn('[finalize] onboarding mark failed:', e.message); }
 
   return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), cafOutcome: (caf && caf.outcome) || 'failed', aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
@@ -697,39 +707,76 @@ async function buildCertificate(c, property){
 // finalizedAt si scrive PRIMA delle email (niente doppio benvenuto), quindi un
 // pacchetto perso per un errore SMTP non tornava più: nessun retry ordinario,
 // e submit sopprimeva anche la milestone. Ora l'esito vive sul contratto
-// (`registrationPackEmail`): 'sending' prima dell'invio, poi 'sent' |
+// (`registrationPackEmail`): 'pending' insieme a finalizedAt, 'sending'
+// con prenotazione atomica prima dell'invio, poi 'sent' |
 // 'failed' (rifiuto certo, nulla partito) | 'uncertain' (timeout o socket
-// caduta a metà: può essere arrivato). Il cron rimanda SOLO i 'failed', con
+// caduta a metà: può essere arrivato). Il cron recupera 'pending' e 'failed', con
 // un tetto; 'uncertain' e un 'sending' rimasto appeso si mostrano
 // all'operatore e non si rimandano MAI da soli — un doppione al referente
 // costa più di un avviso.
 export const PACK_EMAIL_MAX_ATTEMPTS = 5;
 
-async function sendPackageRecorded(contract, property, args, prevAttempts) {
-  const attempts = (Number(prevAttempts) || 0) + 1;
-  const startedAt = new Date().toISOString();
-  try { await fsPatch(`contracts/${contract.id}`, { registrationPackEmail: { status: 'sending', at: startedAt, attempts } }); }
-  catch (e) {
-    // Senza la marca non si invia: un invio non registrato è proprio il
-    // caso che il recupero non saprebbe distinguere.
-    console.warn('[finalize] pack mark:', e.message);
-    return { ok: false, outcome: 'failed', error: 'mark_failed' };
+async function packageCheckpoint(id, fields) {
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    if (!v) throw new Error('contract_not_found');
+    if (v.data.finalizedAt) return false;
+    const email = v.data.registrationPackEmail || { status: 'pending', attempts: 0, at: new Date().toISOString() };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { ...fields, registrationPackEmail: email }, precondition: { updateTime: v.updateTime } }]);
+      return true;
+    } catch (e) { if (!e.conflict) throw e; }
   }
+  throw new Error('contract_busy');
+}
+
+async function claimPackage(id) {
+  const claimId = crypto.randomUUID();
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    if (!v || !packRetryEligible(v.data)) return null;
+    const rec = { status: 'sending', claimId, at: new Date().toISOString(), attempts: (Number(v.data.registrationPackEmail.attempts) || 0) + 1 };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { registrationPackEmail: rec }, precondition: { updateTime: v.updateTime } }]);
+      return rec;
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('contract_busy');
+}
+
+async function finishPackage(id, claim, outcome, error) {
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    const cur = v?.data.registrationPackEmail;
+    if (!cur || cur.claimId !== claim.claimId || cur.status !== 'sending') return;
+    const rec = { ...cur, status: outcome, at: new Date().toISOString(), ...(outcome === 'sent' ? {} : { error: error || 'unknown' }) };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { registrationPackEmail: rec }, precondition: { updateTime: v.updateTime } }]);
+      return;
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('contract_busy');
+}
+
+async function sendPackageRecorded(contract, property, args) {
+  let claim;
+  try { claim = await claimPackage(contract.id); }
+  catch (e) { console.warn('[finalize] pack claim:', e.message); return { ok: false, outcome: 'uncertain', error: 'claim_unconfirmed' }; }
+  if (!claim) return { ok: false, skipped: 'not_eligible' };
   let r;
   try { r = await sendCafDossier(contract, property, args); }
   catch (e) { r = { ok: false, outcome: 'uncertain', error: String(e.message || '').slice(0, 200) }; }
   const outcome = r && r.ok ? 'sent' : ((r && r.outcome) || 'uncertain');
-  const rec = { status: outcome, at: new Date().toISOString(), attempts, ...(outcome === 'sent' ? {} : { error: (r && r.error) || 'unknown' }) };
-  try { await fsPatch(`contracts/${contract.id}`, { registrationPackEmail: rec }); }
+  try { await finishPackage(contract.id, claim, outcome, r && r.error); }
   catch (e) { console.warn('[finalize] pack record:', e.message); }
   return { ...(r || {}), outcome };
 }
 
-// Quale contratto il cron può riprovare: finalizzato, pacchetto FALLITO con
-// certezza, sotto il tetto. Pura, esportata, testata.
+// Quale contratto il cron può riprovare: finalizzato, pacchetto mai inviato
+// o FALLITO con certezza, sotto il tetto. Pura, esportata, testata.
 export function packRetryEligible(c) {
   const e = c && c.registrationPackEmail;
-  return !!(c && c.finalizedAt && e && e.status === 'failed' && (Number(e.attempts) || 0) < PACK_EMAIL_MAX_ATTEMPTS);
+  return !!(c && c.finalizedAt && e && ['pending', 'failed'].includes(e.status) && (Number(e.attempts) || 0) < PACK_EMAIL_MAX_ATTEMPTS);
 }
 
 // Il recupero: SOLO il pacchetto. Niente firme, scadenze, magic link,
@@ -747,5 +794,5 @@ export async function retryRegistrationPackage(contract) {
     packUrl: c.registrationPackUrl || '',
     packMissing: Array.isArray(c.registrationPackMissing) ? c.registrationPackMissing : [],
     tenant, landlord, referente,
-  }, (contract.registrationPackEmail || {}).attempts);
+  });
 }

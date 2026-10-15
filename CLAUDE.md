@@ -3124,6 +3124,14 @@ presente sul profilo usciva «MANCANTE».
   (`resend:true` per rimandare). Data futura o «PDF» senza `%PDF` → 400 senza
   scritture. Il verbale di consegna porta in allegato anche l'**inventario**
   (solo da firebasestorage). Test: `node tests/registrazione/run.mjs`.
+- **Consegna integrata e recupero atomico (15/10/2026, Codex)**.
+  Prima delle email, finalizzazione e intento `pending` sono un checkpoint
+  atomico. Il claim versionato invia un solo pacchetto; il cron reale
+  recupera `pending` e `failed`, mai `sending`/`uncertain`, massimo 5 tentativi.
+  Ricevute deduplicate per impronta del file e destinatario anche con richieste
+  concorrenti. Il pannello salva IBAN tributi e intestatario espliciti con
+  `save-bank` admin; «Mandami il foglio aggiornato» rilegge i dati salvati.
+  Suite `registrationdelivery` (+ mutazioni), `registrationbank` e relativa UI.
 - **Esiti durevoli, mai un invio cieco (15/10/2026, revisione Codex)**.
   Pacchetto: `registrationPackEmail {status, attempts, at, error}` —
   'sending' PRIMA dell'invio, poi 'sent' | 'failed' (SMTP 5xx/EAUTH/

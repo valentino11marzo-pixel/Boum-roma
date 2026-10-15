@@ -25323,8 +25323,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
-                ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · inviata alle parti' : ''}</div>` : ''}
+                ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · invii registrati (dettagli sotto)' : ''}</div>` : ''}
                 ${_aspiDeliveryNotes(st.state)}
+                ${_aspiBankForm(contractId, st.bank)}
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
@@ -25352,19 +25353,76 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Gli esiti DUREVOLI che il server registra (15/10/2026): pacchetto
     // all'operatore e ricevuta per destinatario. Si mostrano SOLO quando c'è
     // qualcosa da fare — un esito incerto non si rimanda alla cieca.
+    function _aspiBankForm(contractId, bank) {
+        const b = bank || {};
+        return `<details style="margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:10px" ${b.ready ? '' : 'open'}>
+            <summary id="aspiBankSummary" style="cursor:pointer;font-weight:600">Conto per registrazione · ${b.ready ? 'compilato' : 'da completare'}</summary>
+            <p style="font-size:12px;color:var(--text-muted);margin:8px 0">Per il foglio di registrazione. Il conto del canone resta separato. Il salvataggio non dispone alcun pagamento.</p>
+            <div class="form-group"><label class="form-label" for="aspiDebitIban">IBAN per addebito tributi</label><input class="form-input" id="aspiDebitIban" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="42" value="${esc(b.rliDebitIban || '')}" oninput="_aspiBankDirty()"></div>
+            <div class="form-group"><label class="form-label" for="aspiDebitHolder">Intestatario del conto</label><input class="form-input" id="aspiDebitHolder" type="text" autocomplete="off" maxlength="200" value="${esc(b.rliDebitHolder || '')}" oninput="_aspiBankDirty()"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" id="aspiBankSaveBtn" onclick="saveAspiBank('${contractId}')">Salva dati</button><button class="btn btn-secondary" id="aspiBankSheetBtn" onclick="sendAspiBankSheet('${contractId}')">Mandami il foglio aggiornato</button></div>
+            <p id="aspiBankStatus" role="status" style="font-size:12px;margin:8px 0 0">${b.ready ? 'Dati salvati.' : 'Dati non completi: nel foglio resteranno indicati come mancanti.'}</p>
+        </details>`;
+    }
+    function _aspiBankDirty() {
+        const el = document.getElementById('aspiBankStatus');
+        if (el) el.textContent = 'Modifiche da salvare.';
+    }
+    window._aspiBankDirty = _aspiBankDirty;
+    async function saveAspiBank(contractId) {
+        const st = window._aspiStatus;
+        const ibanEl = document.getElementById('aspiDebitIban'), holderEl = document.getElementById('aspiDebitHolder');
+        if (!st || st.contractId !== contractId || !ibanEl || !holderEl) return false;
+        if (st.bankSaving) return false;
+        const iban = ibanEl.value.toUpperCase().replace(/\s/g, ''), holder = holderEl.value.trim();
+        const current = st.bank || {};
+        if (iban === (current.rliDebitIban || '') && holder === (current.rliDebitHolder || '')) return true;
+        st.bankSaving = true;
+        ibanEl.disabled = true; holderEl.disabled = true;
+        const btn = document.getElementById('aspiBankSaveBtn'), msg = document.getElementById('aspiBankStatus');
+        if (btn) btn.disabled = true;
+        if (msg) msg.textContent = 'Salvo i dati…';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'save-bank', contractId, rliDebitIban: iban, rliDebitHolder: holder }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error(j && j.error === 'iban_invalid' ? 'IBAN non valido: controlla tutte le cifre.' : 'Dati non salvati. Riprova.');
+            st.bank = j.bank;
+            const summary = document.getElementById('aspiBankSummary');
+            if (summary) summary.textContent = 'Conto per registrazione · ' + (j.bank.ready ? 'compilato' : 'da completare');
+            ibanEl.value = j.bank.rliDebitIban; holderEl.value = j.bank.rliDebitHolder;
+            if (msg) msg.textContent = j.bank.ready ? 'Dati salvati. Puoi ricevere il foglio aggiornato.' : 'Salvato, ma manca ancora un dato: il foglio lo indicherà.';
+            return true;
+        } catch (e) { if (msg) msg.textContent = e.message; return false; }
+        finally { st.bankSaving = false; ibanEl.disabled = false; holderEl.disabled = false; if (btn) btn.disabled = false; }
+    }
+    window.saveAspiBank = saveAspiBank;
+    async function sendAspiBankSheet(contractId) {
+        const btn = document.getElementById('aspiBankSheetBtn');
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        try { if (await saveAspiBank(contractId)) await openFoglio(contractId); }
+        finally { btn.disabled = false; }
+    }
+    window.sendAspiBankSheet = sendAspiBankSheet;
     function _aspiDeliveryNotes(state) {
         const out = [];
         const pe = state && state.packEmail;
-        const box = (t) => `<div style="font-size:12px;background:rgba(255,159,10,.10);border-radius:8px;padding:8px 12px;margin-bottom:12px">${t}</div>`;
-        if (pe && pe.status === 'failed') out.push(box(`⚠ L'email del pacchetto alla firma NON è partita (${esc(pe.error || 'errore')}, tentativo ${esc(pe.attempts || 1)}): si riprova da sola. Il pannello qui ha già tutto.`));
-        else if (pe && (pe.status === 'uncertain' || pe.status === 'sending')) out.push(box(`⚠ Email del pacchetto con esito <b>incerto</b> (${esc(pe.error || 'invio interrotto')}): controlla la casella prima di fare altro — non si rimanda da sola.`));
+        const box = (t) => `<div role="status" style="font-size:12px;background:rgba(255,159,10,.10);border-radius:8px;padding:8px 12px;margin-bottom:12px">${t}</div>`;
+        if (pe && pe.status === 'failed') out.push(box(Number(pe.attempts) >= 5
+            ? 'Email del pacchetto non inviata: tentativi esauriti. Controlla la casella e usa il foglio aggiornato per recuperare la consegna.'
+            : 'Email del pacchetto non inviata. Il sistema riproverà; puoi già consultare i documenti da qui.'));
+        else if (pe && pe.status === 'pending') out.push(box('Pacchetto in attesa di invio. Il sistema lo recupera automaticamente.'));
+        else if (pe && (pe.status === 'uncertain' || pe.status === 'sending')) out.push(box('Email del pacchetto con esito da verificare: controlla la casella prima di rimandarla.'));
         const who = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
         const rd = (state && state.receiptDelivery) || [];
         const bad = rd.filter(d => d.status !== 'sent');
-        if (bad.length) out.push(box('⚠ Ricevuta: ' + bad.map(d => esc(who(d.who)) + ' — ' + (d.status === 'failed' ? 'non inviata (risalva per riprovare solo a lui)' : 'esito incerto')).join(' · ')));
+        if (bad.length) out.push(box('Ricevuta: ' + bad.map(d => esc(who(d.who)) + ' — ' + (d.status === 'failed' ? 'non inviata; risalva per riprovare solo a lui' : 'esito da verificare')).join(' · ')));
         return out.join('');
     }
     async function sendAspi(contractId) {
+        if (!(await saveAspiBank(contractId))) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
         const sel = document.getElementById('aspiBillKind')?.value || kind;
         // «none» = riaffitto su sola registrazione: si invia, non si fattura

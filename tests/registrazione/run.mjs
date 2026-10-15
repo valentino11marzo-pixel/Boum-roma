@@ -29,6 +29,8 @@ const mailTo = (addr) => mails().filter(m => m.to === addr);
 
 // ── Stub: Firestore in-memory + Storage con ritenzione byte + Identity ──
 const store = new Map();
+const docTimes = new Map(); let fixtureRevision = 0;
+const bump = (k) => docTimes.set(k, `2026-01-01T00:00:00.${String(++fixtureRevision).padStart(9, '0')}Z`);
 const storageFiles = new Map();
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
 function toFs(v) {
@@ -80,21 +82,38 @@ globalThis.fetch = async (url, opts = {}) => {
         .map(([k, d]) => ({ document: { name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(d) } }));
       return okJson(out);
     }
+    if (path.startsWith(':commit')) {
+      const writes = JSON.parse(opts.body).writes || [];
+      for (const w of writes) {
+        const k = String(w.update?.name || '').split('/documents/')[1];
+        const pre = w.currentDocument || {};
+        if (!k || !w.updateMask || (!pre.updateTime && typeof pre.exists !== 'boolean')) throw new Error('Malformed conditional commit');
+        if ((pre.updateTime && pre.updateTime !== (docTimes.get(k) || '2026-01-01T00:00:00Z')) || (pre.exists === true && !store.has(k)) || (pre.exists === false && store.has(k))) {
+          return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION' } }), { status: 409 });
+        }
+      }
+      for (const w of writes) {
+        const k = w.update.name.split('/documents/')[1];
+        const doc = store.get(k) || {};
+        Object.assign(doc, fromFsFields(w.update.fields)); store.set(k, doc); bump(k);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
+    }
     if (opts.method === 'POST' && !path.startsWith(':')) {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
-      store.set(key, fromFsFields(JSON.parse(opts.body).fields));
+      store.set(key, fromFsFields(JSON.parse(opts.body).fields)); bump(key);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       const cur = store.get(path) || {};
       Object.assign(cur, fromFsFields(JSON.parse(opts.body).fields));
-      store.set(path, cur);
+      store.set(path, cur); bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc), updateTime: docTimes.get(path) || '2026-01-01T00:00:00Z' });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
