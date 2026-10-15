@@ -72,6 +72,9 @@ const columns = html => [html.slice(html.indexOf('👤 INQUILINO'), html.indexOf
 await check('server attuale vince sulla cache: PDF firmato primo accesso per entrambe le parti', async () => {
   const { html, io } = await fixture({ cache: { ...base, signedPdfUrl: 'https://files.example.invalid/stale.pdf' } });
   assert.equal(countSigned(html), 2);
+  const fieldIds = [...html.matchAll(/id="(shareUrl_[^"]+)"/g)].map(m => m[1]);
+  assert.equal(new Set(fieldIds).size, fieldIds.length, 'ogni comando Copia punta al campo del proprio destinatario');
+  assert(fieldIds.includes('shareUrl_tenant-0') && fieldIds.includes('shareUrl_landlord-0'));
   for (const col of columns(html)) {
     const titles = [...col.matchAll(/font-weight:600;font-size:13px">([^<]*)<\/div>/g)].map(m => m[1]);
     assert.equal(titles[0], 'Contratto firmato');

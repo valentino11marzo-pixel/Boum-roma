@@ -25909,7 +25909,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${title} ${who ? `<span style="color:var(--text-muted);letter-spacing:0">· ${esc(who.name || '')}</span>` : ''}
             </div>
             ${signedNotice ? `<p role="status" style="font-size:12px;color:var(--text-muted);margin:0 0 12px">${esc(signedNotice)}</p>` : ''}
-            ${list.length ? list.map((l, i) => cardHtml(l, title.charAt(0) + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
+            ${list.length ? list.map((l, i) => cardHtml(l, l.audience + '-' + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
         </div>`;
 
         const propLabel = prop?.name || 'contratto';
