@@ -324,6 +324,10 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
     ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
     && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
+  // L'onboarding si chiude sul server: senza il timbro il portal offriva
+  // «🚀 Ri-attiva onboarding» e rimandava un secondo benvenuto (15/10/2026).
+  check('finalize: welcomeEmailSent timbrato sul contratto dopo il benvenuto riuscito',
+    ctr.welcomeEmailSent === true && ctr.welcomeEmailBy === 'finalize');
   const caf2 = mailTo('valentino@boom-rome.com').find(m => /Fascicolo completo/i.test(m.subject));
   check('CAF: il Fascicolo Fiscale è linkato nell\'email', !!caf2 && caf2.html.includes('Fascicolo Fiscale'));
 
@@ -417,6 +421,8 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('controfirma sui termini GIUSTI → complete + cascata (rate generate)',
     r.code === 200 && r.body.fullySigned === true && ms2.signatureStatus === 'complete'
     && [...store.keys()].some(k => k.startsWith('payments/pay_ctrMS_')));
+  check('firma completa → paymentsGenerated timbrato col numero di rate (niente «Ri-attiva onboarding» fantasma)',
+    ms2.paymentsGenerated === true && ms2.paymentsCount === [...store.keys()].filter(k => k.startsWith('payments/pay_ctrMS_')).length);
   check('prima apertura tracciata sul contratto (signViewedTenantAt)', !!ms2.signViewedTenantAt);
 }
 

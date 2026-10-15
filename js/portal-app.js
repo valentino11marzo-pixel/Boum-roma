@@ -19189,8 +19189,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const pdfGenerated = await generateContractPDF(contractId);
             
             // 3. Send premium welcome email with magic link (replaces legacy sendWelcomeEmail)
-            let emailSent = false;
-            if (tenant?.email) {
+            // Il benvenuto è partito già (dal server al finalize, o da un
+            // giro precedente)? Allora non si rimanda: il «🚀 Ri-attiva»
+            // rifaceva l'email a chi l'aveva già ricevuta.
+            let emailSent = contract.welcomeEmailSent === true;
+            if (!emailSent && tenant?.email) {
                 // Ensure contract object has id for the magic-link API
                 emailSent = await sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, contract));
             }
@@ -24412,7 +24415,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ── Re-run the activation pipeline (payments + welcome + PDF + RLI + CAF + Pass)
     // Useful when an auto-activation step failed silently (network, mail, signing device)
     async function reactivateContract(contractId) {
-        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, welcome mail, bozza RLI, bozza CAF, Apple Wallet pass.\n\nI passi già eseguiti potrebbero creare duplicati — controlla dopo.')) return;
+        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, bozza RLI, bozza CAF, Apple Wallet pass. La welcome mail parte solo se non è già stata inviata.')) return;
         toast('info', '⚡ Ri-attivazione in corso…');
         try { await activateContract(contractId); }
         catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }

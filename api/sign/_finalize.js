@@ -331,7 +331,12 @@ export async function finalizeContract(contract){
     ]);
   } catch (e) { console.warn('[finalize] aspi auto:', e.message); }
 
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
+  // L'onboarding si chiude QUI, sul server: il portal legge
+  // `welcomeEmailSent` (badge «Onboarding incompleto», 🚀 Ri-attiva) e senza
+  // questo timbro rimandava un secondo benvenuto a chi l'aveva già ricevuto.
+  // Si scrive solo a invio riuscito: un false non cancella mai un true.
+  const onboard = tenantEmail ? { welcomeEmailSent: true, welcomeEmailSentAt: now, welcomeEmailBy: 'finalize' } : {};
+  try { await fsPatch(`contracts/${contract.id}`, { ...onboard, finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
   return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
