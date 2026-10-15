@@ -169,7 +169,7 @@ async function homeHealFor(contract, pa, paId, at) {
   try { property = await fsGet('properties/' + contract.propertyId); } catch (_) { return null; }
   return healTenantMandate({ contract, pa, paId, property, at });
 }
-const homeOut = (h) => h ? { match: h.home.match === true, label: h.home.label || '', reason: h.home.reason || null, text: MANDATO.describeHome(h.home) } : null;
+const homeOut = (h) => h ? { match: h.home.match === true, label: h.home.label || '', unit: h.home.unit || null, where: h.home.where || '', reason: h.home.reason || null, text: MANDATO.describeHome(h.home) } : null;
 
 // magic-sign/submit IN-PROCESS (stesso trucco di employees/_fiducia.js):
 // l'handler resta una funzione Vercel E una libreria. Tutte le guardie

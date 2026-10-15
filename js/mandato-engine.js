@@ -300,7 +300,7 @@
     const ub = normUnit(r.unit) || normUnit(r.interno) || normUnit(B.unit);
     if (ua !== ub) return { match: false, reason: 'unit', approved: A, record: B, approvedUnit: ua, recordUnit: ub };
     const where = A.street + ' ' + A.civic;
-    return { match: true, unit: ua || null, key: where + (ua ? ' int ' + ua : ''), label: where + (ua ? ', int. ' + ua : ' (interno non dichiarato su entrambi)') };
+    return { match: true, unit: ua || null, where, key: where + (ua ? ' int ' + ua : ''), label: where + (ua ? ', int. ' + ua : ', interno non dichiarato su entrambi') };
   }
   // Serve il riscontro? Solo con la foto SENZA immobile e un contratto su un
   // record che non è quello nato dalla proposta (quello vale già). null =

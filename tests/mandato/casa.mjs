@@ -196,7 +196,7 @@ const { healTenantMandate } = await import('../../api/preagreement/sign-for.js')
     u1.match === false && u1.reason === 'unit' && u1.approvedUnit === '11' && u1.recordUnit === '12' && u2.match === false && u2.reason === 'unit');
   const e = m('Viale Angelico 9', '', { address: 'Viale Angelico 9' });
   check('homeMatch: interno non dichiarato su entrambi → la stessa casa (casa intera, come lucchetto e sovrapposizioni), e l\'etichetta LO DICE',
-    e.match === true && /interno non dichiarato su entrambi/.test(e.label));
+    e.match === true && e.unit === null && e.where === 'viale angelico 9' && e.label === 'viale angelico 9, interno non dichiarato su entrambi');
   check('homeMatch: civico diverso o via diversa («Tor Quinto» ≠ «Tor di Quinto») → reason address',
     m('Viale Angelico 9', '', { address: 'Viale Angelico 91' }).reason === 'address' && m('Via di Tor Quinto 39', '', { address: 'Via di Tor di Quinto 39' }).reason === 'address');
   check('homeMatch: un indirizzo illeggibile non combacia mai (reason address_unreadable)', m('Viale Angelico 9', '', { address: 'Viale Angelico' }).reason === 'address_unreadable');
@@ -265,7 +265,8 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   const before = store.size;
   const dry = await convertPaToContract({ pa, paId: 'paA', propertyId: 'W0', dryRun: true });
   check('preflight su W0 (stesso indirizzo e interno): il mandato SARÀ spendibile, e la console sa perché',
-    dry.ok === true && dry.dryRun === true && dry.mandate && dry.mandate.ok === true && dry.mandate.home && dry.mandate.home.match === true && dry.mandate.home.label === 'viale angelico 9, int. 11');
+    dry.ok === true && dry.dryRun === true && dry.mandate && dry.mandate.ok === true && dry.mandate.home && dry.mandate.home.match === true && dry.mandate.home.label === 'viale angelico 9, int. 11'
+    && dry.mandate.home.unit === '11' && dry.mandate.home.where === 'viale angelico 9');
   const dry1 = await convertPaToContract({ pa, paId: 'paA', propertyId: 'W1', dryRun: true });
   check('preflight su W1 (altro interno): mandato NON spendibile, con l\'interno nominato',
     dry1.ok === true && dry1.mandate.ok === false && dry1.mandate.home.match === false && /interno diverso: proposta «11», immobile «12»/.test(dry1.mandate.home.text));
@@ -333,7 +334,7 @@ async function accept(id, token, { mandate = true, extra = {} } = {}) {
   r = mkRes(); await signFor(admin({ op: 'status', id: 'paL' }), r);
   check('status: il piano dice la verità — mandato spendibile, la casa è quella della proposta (etichetta), e NIENTE scritto',
     r.code === 200 && r.body.plan.mandateOk === true && r.body.plan.canSignTenant === true && r.body.plan.home && r.body.plan.home.match === true
-    && r.body.plan.home.label === 'viale angelico 9, int. 11' && JSON.stringify(store.get(cidL)) === JSON.stringify(snapBefore));
+    && r.body.plan.home.label === 'viale angelico 9, int. 11' && r.body.plan.home.unit === '11' && JSON.stringify(store.get(cidL)) === JSON.stringify(snapBefore));
   r = mkRes(); await signFor(admin({ op: 'sign', id: 'paL', contractVersion: 1 }), r);
   const cL = store.get(cidL);
   check('sign: il riscontro si scrive sul mandato PRIMA della firma, e il conduttore firma per mandato',

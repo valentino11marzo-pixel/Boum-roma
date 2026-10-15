@@ -324,7 +324,7 @@ export function mandatePreflight(pa, paId, contract, property) {
   return {
     ok: m.termsMatch === true,
     diff: m.termsMatch === true ? '' : MANDATO.describeDiff(MANDATO.diffTerms(m.terms, MANDATO.termsForMandate(contract, m))),
-    home: home ? { match: home.match === true, label: home.label || '', reason: home.reason || null, text: MANDATO.describeHome(home) } : null,
+    home: home ? { match: home.match === true, label: home.label || '', unit: home.unit || null, where: home.where || '', reason: home.reason || null, text: MANDATO.describeHome(home) } : null,
   };
 }
 // ── Core conversion, shared by the console handler and the auto pipeline ──

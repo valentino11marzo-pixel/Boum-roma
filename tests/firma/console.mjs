@@ -249,7 +249,8 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   const pa2 = (id, addr) => ({ ...base, id, contractId: undefined, propertyId: null, signSentAt: null, property: { address: addr } });
   /* H · la STESSA casa di W0lE1: stesso indirizzo e stesso interno (15/10/2026) */
   const paH = { ...pa2('H', 'Viale Angelico 9'), property: { address: 'Viale Angelico 9', unit: '11' }, mandate: { given: true, at: '2026-09-23T10:36:06Z' } };
-  paApply2(snap([pa2('F', 'Viale Angelico 9'), pa2('K', 'Via dei Latini 76'), pa2('L', 'Via Nuova 5'), paH]));
+  /* J · stesso indirizzo di pX, e nessuno dei due dichiara l'interno */
+  paApply2(snap([pa2('F', 'Viale Angelico 9'), pa2('K', 'Via dei Latini 76'), pa2('L', 'Via Nuova 5'), paH, pa2('J', 'Via Roma 1')]));
   const warnRe = /⚠ Nel portal c’è GIÀ un immobile a questo indirizzo: «Angelico 9 — Viale Angelico 9»\. Se è la stessa casa, ANNULLA e usa → Contratto per collegarla/;
   const reset = () => { asked2.length = 0; bodies2.length = 0; };
 
@@ -300,7 +301,7 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   ok(/<option value="W0lE1" selected>/.test((lastConv() || {}).innerHTML || ''), 'H · → Contratto preseleziona la stessa casa');
   /* il preflight del modale dice il verdetto del mandato (dal server: convert dryRun) */
   ctx2.document.getElementById('cvProp').value = 'W0lE1';
-  ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: true, diff: '', home: { match: true, label: 'viale angelico 9, int. 11', reason: null, text: '' } } }) });
+  ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: true, diff: '', home: { match: true, label: 'viale angelico 9, int. 11', unit: '11', where: 'viale angelico 9', reason: null, text: '' } } }) });
   await ctx2.cvPreflight();
   const preOk = ctx2.document.getElementById('cvPre').innerHTML;
   ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: false, diff: 'immobile: — → W1', home: { match: false, label: '', reason: 'unit', text: 'interno diverso: proposta «11», immobile «12»' } } }) });
@@ -311,7 +312,7 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
     '→ Contratto, preflight: ✓ in verde sulla stessa casa, ⚠ in rosso col perché su un altro interno');
   /* lo stato del server col contratto già nato: la conferma dice la casa; il rifiuto dice perché */
   ctx2.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status'
-    ? { ok: true, hasContract: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z' }, mandateOk: true, coTenantsPending: [], home: { match: true, label: 'viale angelico 9, int. 11' } } }
+    ? { ok: true, hasContract: true, operatorSignature: true, plan: { signatureStatus: 'none', tenantSigned: false, landlordSigned: false, mandate: { at: '2026-09-23T10:36:06Z' }, mandateOk: true, coTenantsPending: [], home: { match: true, label: 'viale angelico 9, int. 11', unit: '11', where: 'viale angelico 9' } } }
     : { ok: true, steps: ['tenant'], landlordPending: false, contractId: 'pa_H' }) }; };
   reset(); await ctx2.signFor('H', null);
   ok(/La casa del contratto è quella della proposta, già nel portal: viale angelico 9, int\. 11 — stesso indirizzo e stesso interno\./.test(asked2[0] || '') && !/non esiste ancora/.test(asked2[0] || ''),
@@ -322,6 +323,19 @@ ok(has(5, /onclick="sendLandlordScheda\('F',this\)"[^>]*>📋 Scheda proprietari
   reset(); await ctx2.signFor('H', null);
   ok(alerts.length === 1 && /interno diverso: proposta «11», immobile «12»/.test(alerts[0]) && bodies2.map(b => b.op).join() === 'status',
     'H · ✍️ con il contratto su un altro interno: niente firma, e l’avviso dice perché');
+  /* J · l'interno non c'è né sulla proposta né sull'immobile: la stessa casa (casa
+     intera), e la conferma lo dice com'è — senza fingere uno «stesso interno» */
+  ctx2.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status' ? stNo : { ok: true, steps: ['tenant'], contractId: 'pa_J' }) }; };
+  reset(); await ctx2.signFor('J', null);
+  const sJ = bodies2.find(b => b.op === 'sign');
+  ok(/lo creo adesso sull’immobile che c’è GIÀ nel portal: «Altro — Via Roma 1» — stesso indirizzo della proposta \(via roma 1\), e l’interno non è dichiarato né sulla proposta né sull’immobile\. Nessun doppione\./.test(asked2[0] || '')
+    && !/stesso interno/.test((asked2[0] || '').split('\n')[0]) && !!sJ && sJ.propertyId === 'pX',
+    'J · interno assente su entrambi: la stessa casa, e la conferma lo dice senza parlare di «stesso interno»');
+  ctx2.fetch = async () => ({ json: async () => ({ ok: true, dryRun: true, completeness: null, mandate: { ok: true, diff: '', home: { match: true, label: 'via roma 1, interno non dichiarato su entrambi', unit: null, where: 'via roma 1', reason: null, text: '' } } }) });
+  ctx2.document.getElementById('cvProp').value = 'pX';
+  await ctx2.cvPreflight();
+  ok(/✓ Mandato del conduttore valido su questa casa: stesso indirizzo della proposta \(via roma 1\), interno non dichiarato né sulla proposta né sull’immobile\./.test(ctx2.document.getElementById('cvPre').innerHTML),
+    'J · preflight: valido, e dice che l’interno non c’è su nessuno dei due');
   /* senza il motore (CDN/SW giù) si ricade sull'abbinamento somigliante, che AVVISA */
   vm.runInContext('var __eng = window.BOOM_MANDATO; window.BOOM_MANDATO = undefined;', ctx2);
   ctx2.fetch = async (u, o) => { const bd = JSON.parse(o.body); bodies2.push(bd); return { json: async () => (bd.op === 'status' ? stNo : { ok: true }) }; };
