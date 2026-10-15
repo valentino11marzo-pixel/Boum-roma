@@ -23,9 +23,9 @@ const CONSOLES = [
   'pfs-command.html', 'banca.html', 'team.html', 'salute.html',
   'photo-lab.html', 'manuale.html', 'risposte.html', 'scheda-canone.html',
   'pre-agreement-admin.html', 'media-studio.html', 'boom_doc_parser.html',
-  'verbale.html',
+  'verbale.html', 'catalogo.html',
 ];
-ok(CONSOLES.length === 12, 'la lista delle console è pinnata (12 — una nuova console entra QUI o non entra)');
+ok(CONSOLES.length === 13, 'la lista delle console è pinnata (13 — una nuova console entra QUI o non entra)');
 for (const f of CONSOLES) {
   ok(/href="\/portal(?:\.html)?"/.test(src(f)), `${f}: porta un link verso il portale`);
 }
@@ -78,7 +78,7 @@ ok(/pageshow/.test(fm[0]) && /e\.persisted/.test(fm[0]), 'copre anche la riesuma
 for (const f of ['pfs-command.html', 'banca.html', 'team.html', 'salute.html', 'photo-lab.html']) {
   ok(src(f).includes('freshOnReturn(60)'), `${f}: scheda vecchia → riparte fresca`);
 }
-for (const f of ['manuale.html', 'media-studio.html', 'pre-agreement-admin.html', 'verbale.html']) {
+for (const f of ['manuale.html', 'media-studio.html', 'pre-agreement-admin.html', 'verbale.html', 'catalogo.html']) {
   ok(!src(f).includes('freshOnReturn'), `${f}: MAI un reload automatico (c'è un form da non buttare)`);
 }
 
@@ -87,7 +87,7 @@ for (const f of ['manuale.html', 'media-studio.html', 'pre-agreement-admin.html'
 // scrivere «non va» e si ricomincia a indovinare.
 const bp2 = src('js/boom-portal.js');
 ok(/BP\.bugButton = function/.test(bp2), 'il bottone 🐞 flottante vive nella libreria condivisa');
-for (const f of ['banca.html', 'team.html', 'salute.html', 'photo-lab.html', 'manuale.html', 'pre-agreement-admin.html', 'verbale.html']) {
+for (const f of ['banca.html', 'team.html', 'salute.html', 'photo-lab.html', 'manuale.html', 'pre-agreement-admin.html', 'verbale.html', 'catalogo.html']) {
   ok(src(f).includes('BoomPortal.bugButton('), `${f}: ha il canale 🐞`);
 }
 ok(src('pfs-command.html').includes('BoomPortal.reportBug('), 'la plancia ha il suo 🐞 in topbar');
