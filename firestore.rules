@@ -404,6 +404,8 @@ service cloud.firestore {
     // consigliata, leadId). Scritti server-side con credenziali admin, letti
     // e gestiti da /chiamate (admin). Stessa lezione di propertyLocks.
     match /phoneCalls/{x}                  { allow read, write: if isAdmin(); }
+    // SmartLink esterni: il pubblico legge solo la proiezione dell'API.
+    match /smartlinks/{x}                  { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
