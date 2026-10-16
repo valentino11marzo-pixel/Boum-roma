@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
   { name: 'mailbox', file: 'tests/mailbox/server.mjs', what: 'ricerca e lettura posta reali, solo admin, MIME limitato, riferimenti e timeout; zero invii o AI' },
   { name: 'mailboxui', file: 'tests/mailbox/ui.mjs', what: 'posta dalla Home, lettore mobile, fonti esplicite, sessioni e risposte concorrenti' },
   { name: 'aibudgetui', file: 'tests/ai/budget-ui.mjs', what: 'costi reali e limite esplicito, errori e sessioni a 390/1280 senza chiamate AI' },

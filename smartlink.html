@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#030303">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Una selezione BOOM · Roma</title>
+  <meta name="description" content="Una casa selezionata da BOOM Roma. Foto, dettagli e quartiere in un'unica scheda.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Una selezione BOOM Roma">
+  <meta property="og:description" content="Scopri foto, dettagli e quartiere nella scheda BOOM.">
+  <meta property="og:image" content="https://www.boomrome.com/og-welcome-to-rome.png">
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="/css/smartlink.css">
+  <script src="/js/smartlink-engine.js" defer></script>
+  <script src="/js/smartlink-page.js" defer></script>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="https://www.boomrome.com/" aria-label="BOOM Roma"><img class="brand-mark" src="/design/home-live-deco/logo-live.svg" alt="" width="42" height="42"><span class="brand-word">BOOM</span><span class="brand-divider"></span><span class="brand-sub">ROMA<br>LIVING</span></a><span class="header-label">BOOM / HOME SELECTION</span></header>
+  <div id="loading" class="state" role="status">Prepariamo la tua scheda…</div>
+  <div id="error" class="state hidden"><h1>Questa scheda non è disponibile.</h1><p>Scrivi a BOOM per ricevere un collegamento aggiornato.</p><a class="button" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer">Contatta BOOM <span>↗</span></a></div>
+  <main id="page" class="hidden">
+    <div class="topline"><span><b>BOOM /</b> Selezione Roma</span><span>LA CASA, IN CHIARO</span></div>
+    <section class="gallery" id="gallery" aria-label="Galleria fotografica" hidden>
+      <button class="gallery-main" id="gallery-main" type="button" aria-label="Apri foto a schermo intero"><img id="gallery-cover" alt="Fotografia dell'immobile" fetchpriority="high"><span class="gallery-count" id="gallery-count"></span></button>
+      <div class="gallery-thumbs" id="gallery-thumbs"></div>
+    </section>
+    <section class="gallery-empty" id="gallery-empty"><div class="gallery-empty-symbol">✦</div><div><span>BOOM / VISUAL</span><p>Foto non ancora disponibili per questa casa. Chiedile a BOOM.</p></div></section>
+    <div class="layout">
+      <article class="intro"><div class="eyebrow">Una casa da scoprire</div><h1 id="title"></h1><p class="zone" id="zone"></p><div class="summary" id="summary"></div></article>
+      <aside class="contact-panel"><div class="small-label">Canone indicativo</div><div class="hero-price" id="price">Da confermare</div><div class="price-period" id="price-period"></div><div class="gold-rule"></div><h2>Scopri se è la casa giusta.</h2><p>Parla con BOOM per informazioni e disponibilità. I dati della scheda sono preliminari e possono cambiare.</p><a class="button" id="contact" href="https://wa.me/393313251961" target="_blank" rel="noopener noreferrer"><span>Chiedi a BOOM</span><span aria-hidden="true">↗</span></a><small>Ti rispondiamo direttamente, senza passaggi esterni.</small></aside>
+    </div>
+    <section class="details"><div class="detail-copy"><div class="eyebrow">Dettagli essenziali</div><h2>Il quadro completo,<br>senza rumore.</h2><p>Le informazioni sono una prima sintesi. Disponibilità, condizioni e canone finale vengono confermati prima di una proposta.</p><div class="note hidden" id="note-wrap"><h3>Da sapere</h3><p id="note"></p></div></div><div class="detail-facts"><div><span>Zona</span><strong id="zone-row">Roma</strong></div><div><span>Disponibilità</span><strong>Da confermare</strong></div><div><span>Rilevato</span><strong id="observed">—</strong></div></div></section>
+    <section class="map-section hidden" id="map-section"><div class="map-heading"><div><div class="eyebrow">Il quartiere</div><h2>Esplora i dintorni.</h2><p id="map-subtitle">La mappa mostra un’area indicativa, non l’indirizzo esatto dell’immobile.</p></div><span class="map-badge">ZONA INDICATIVA</span></div><div class="map-grid"><div class="map-shell"><div id="map" role="region" aria-label="Mappa interattiva del quartiere"><div class="map-loading" id="map-loading">Carico la mappa…</div></div></div><div class="places"><div class="places-title">Punti di interesse <span id="places-count"></span></div><div class="filters" id="filters"><button type="button" data-category="all" class="active">Tutti</button><button type="button" data-category="metro">Trasporti</button><button type="button" data-category="spesa">Spesa</button><button type="button" data-category="universita">Istruzione</button><button type="button" data-category="verde">Verde</button></div><div class="places-list" id="places-list" role="status">Cerco luoghi nei dintorni…</div><div class="search-wrap"><label for="place-query">Un posto che ti interessa?</label><input id="place-query" type="search" placeholder="Cerca un luogo a Roma" autocomplete="off"><div id="place-results" class="place-results" role="listbox" hidden></div></div><p class="map-hint">Le distanze sono in linea d’aria dal centro dell’area e possono variare dal percorso reale.</p></div></div></section>
+    <footer><span>© BOOM by Egidi Immobiliare S.r.l.</span><span>Una selezione da verificare insieme a BOOM.</span></footer>
+  </main>
+  <div class="lightbox hidden" id="lightbox" role="dialog" aria-modal="true" aria-label="Galleria fotografica"><button type="button" id="lightbox-close" class="lightbox-close" aria-label="Chiudi">×</button><button type="button" id="lightbox-prev" class="lightbox-arrow" aria-label="Foto precedente">‹</button><img id="lightbox-image" alt=""><button type="button" id="lightbox-next" class="lightbox-arrow" aria-label="Foto successiva">›</button><span id="lightbox-count"></span></div>
+</body>
+</html>

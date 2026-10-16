@@ -1282,6 +1282,55 @@
             tr:hover td:last-child{background:var(--bg-elevated)}
         }
 
+/* SmartLink Studio: spazio di lavoro dentro BOOM Tools. */
+.sl-studio{max-width:960px;max-height:min(92vh,1000px);display:flex;flex-direction:column;border-radius:18px}
+.sl-studio-header{background:radial-gradient(circle at 86% 0,rgba(212,175,55,.12),transparent 42%),#0b0b0c;align-items:flex-start}
+.sl-studio-header h2{font-size:30px;line-height:1.1;letter-spacing:-.05em;font-weight:300;margin:8px 0}
+.sl-studio-header h2 span{color:var(--gold)}
+.sl-studio-header p{font-size:13px;color:var(--text-secondary);margin:0}
+.sl-kicker,.sl-step{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);font-weight:600}
+.sl-studio-body{max-height:none;min-height:0;flex:1;overscroll-behavior:contain;padding:24px}
+.sl-section{min-width:0;padding:0 0 24px;margin:0 0 24px;border-bottom:1px solid var(--border)}
+.sl-section:last-of-type{margin-bottom:0}
+.sl-step{display:flex;align-items:center;gap:12px;margin-bottom:17px}
+.sl-step span{color:#fff;font-size:15px;letter-spacing:0;text-transform:none;font-weight:400}
+.sl-inline{display:flex;align-items:stretch;gap:9px}
+.sl-inline .form-input{flex:1;min-width:0}
+.sl-inline .btn{flex:none}
+.sl-hint{font-size:12px;line-height:1.5;color:var(--text-secondary);margin:9px 0 0}
+.sl-studio-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:26px}
+.sl-studio-grid .sl-section{padding:0 0 25px}
+.sl-studio-grid .form-group{margin-bottom:15px}
+.sl-drop{margin-top:16px;min-height:132px;border:1px dashed rgba(212,175,55,.44);background:linear-gradient(135deg,rgba(212,175,55,.07),rgba(255,255,255,.015));display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s}
+.sl-drop:hover,.sl-drop.dragging,.sl-drop:focus-visible{border-color:var(--gold);background:rgba(212,175,55,.1);outline:none}
+.sl-drop-icon{font-size:27px;font-weight:200;line-height:1;color:var(--gold)}
+.sl-drop strong{font-size:14px;font-weight:500}
+.sl-drop small{font-size:11px;color:var(--text-secondary)}
+.sl-file-input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.sl-photo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:9px;margin-top:11px}
+.sl-photo-card{position:relative;aspect-ratio:1;border:1px solid var(--border);overflow:hidden;background:#161616}
+.sl-photo-card.is-cover{border-color:var(--gold)}
+.sl-photo-card img{width:100%;height:100%;display:block;object-fit:cover}
+.sl-photo-card img[role=button]{cursor:zoom-in}
+.sl-photo-card img[role=button]:focus-visible{outline:2px solid var(--gold);outline-offset:-3px}
+.sl-photo-label{position:absolute;top:5px;left:5px;background:rgba(0,0,0,.78);padding:3px 5px;color:var(--gold);font-size:9px;letter-spacing:.1em}
+.sl-photo-actions{position:absolute;left:0;right:0;bottom:0;display:flex;justify-content:center;gap:3px;padding:5px;background:linear-gradient(transparent,rgba(0,0,0,.92))}
+.sl-photo-actions button{width:25px;height:25px;border:1px solid rgba(255,255,255,.25);background:rgba(0,0,0,.75);color:#fff;border-radius:5px;font-size:14px;line-height:1}
+.sl-photo-actions button:hover,.sl-photo-actions button:focus-visible{color:var(--gold);border-color:var(--gold)}
+.sl-lightbox{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.97);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:24px}
+.sl-lightbox>img{max-width:calc(100vw - 150px);max-height:calc(100vh - 90px);object-fit:contain}
+.sl-lightbox>button{border:0;background:transparent;color:#fff;font-size:44px;cursor:pointer;padding:8px}
+.sl-lightbox>button:hover,.sl-lightbox>button:focus-visible{color:var(--gold)}
+.sl-lightbox .sl-lightbox-close{position:absolute;top:10px;right:18px}
+.sl-lightbox-count{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:12px;letter-spacing:.18em}
+.sl-no-photo{display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12px;color:var(--text-secondary);cursor:pointer}
+.sl-no-photo input{accent-color:var(--gold)}
+.sl-area-results{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.sl-publish-note{font-size:12px;line-height:1.6;color:var(--text-secondary);padding:13px 15px;border:1px solid var(--border);background:rgba(255,255,255,.025)}
+.sl-result{margin-top:15px}
+.sl-result.is-error{color:#ff9a9a;font-size:13px}
+.sl-studio-footer{flex:none}
+@media(max-width:720px){.sl-studio{max-height:100%;border-radius:0}.sl-studio-grid{grid-template-columns:1fr;gap:0}.sl-studio-body{padding:18px}.sl-inline{flex-wrap:wrap}.sl-inline .form-input{flex-basis:100%}.sl-inline .btn{min-height:42px}.sl-studio-header h2{font-size:26px}.sl-studio-footer .btn{min-height:46px}.sl-lightbox{padding:10px}.sl-lightbox>img{max-width:calc(100vw - 85px)}.sl-lightbox>button{font-size:34px}}
 /* Magic Sign studio — scoped: the existing portal and signer surfaces keep their layout. */
 .ms-studio-overlay:has(.ms-studio){padding:20px;background:rgba(0,0,0,.78);align-items:center;justify-content:center}
 .modal.ms-studio{width:min(1160px,calc(100vw - 40px));max-width:1160px;height:min(900px,calc(100dvh - 40px));max-height:calc(100dvh - 40px);padding:0;border:1px solid #34332b;border-radius:22px;background:#101110;display:flex;flex-direction:column;overflow:hidden;position:relative;color:#f5f4ed;font-weight:400}
@@ -1601,3 +1650,5 @@
  .ow-home.portal-home .od-alert { flex-direction:row; align-items:center; gap:10px; padding:8px 10px; }
  .ow-home.portal-home .od-alert .ow-link { flex:0 0 100px; min-height:44px; text-align:right; font-size:11px; }
 }
+
+.sl-catalog-feature{width:100%;margin-bottom:20px;border-color:rgba(212,175,55,.35);background:linear-gradient(120deg,rgba(212,175,55,.07),var(--bg-card));text-align:left}

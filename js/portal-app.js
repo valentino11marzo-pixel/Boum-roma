@@ -28188,8 +28188,10 @@ IBAN: ${l.iban || '-'}`;
         const registry = window.BOOM_ACTIONS;
         const tools = registry?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
         const selected = oggiQuickContext();
+        const smartLinkTool = registry?.ACTIONS.find(action => action.id === 'tool:smartlink');
         const specialists = ['tool:msgportali','tool:msgclienti','console:/pfs-command','tool:docparser'].map(id => registry?.ACTIONS.find(action => action.id === id)).filter(Boolean);
         const actionButton = action => `<button type="button" class="portal-catalog-specialist" onclick="${esc('window[' + JSON.stringify(action.fn) + '](...' + JSON.stringify(action.args) + ')')}"><span aria-hidden="true">${esc(action.icon)}</span><strong>${esc(action.label)}</strong><span aria-hidden="true">↗</span></button>`;
+
         // Group zones by popularity — popular ones get gold treatment up top
         const popular = (ROME_ZONES || []).filter(z => z.popular);
         const other = (ROME_ZONES || []).filter(z => !z.popular);
@@ -28204,6 +28206,7 @@ IBAN: ${l.iban || '-'}`;
 
         return `<section class="portal-catalog">
             <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            ${smartLinkTool ? `<button type="button" class="portal-catalog-tool sl-catalog-feature" onclick="${esc('window[' + JSON.stringify(smartLinkTool.fn) + ']()')}"><span class="portal-catalog-icon" aria-hidden="true">↗</span><span><strong>SmartLink Studio</strong><small>Incolla un annuncio. Importa le foto, scegli la copertina e crea una scheda BOOM da condividere.</small></span><span aria-hidden="true">→</span></button>` : ''}
             <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
             <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
             <section class="portal-catalog-create" aria-label="Nuove registrazioni"><h2>Crea una registrazione</h2><button type="button" class="btn btn-secondary" onclick="openModal('addPayment')">＋ Nuova rata</button><button type="button" class="btn btn-secondary" onclick="openModal('addMaintenance')">＋ Nuovo intervento</button></section>
@@ -28228,11 +28231,277 @@ IBAN: ${l.iban || '-'}`;
             </section></details>
         </section>`;
     }
+    function openExternalSmartLink() {
+        if (!isAdmin()) return;
+        smartLinkBusy=false;
+        smartLinkClearPhotos();
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)smartLinkClose()">
+          <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
+            <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
+            <div class="modal-body sl-studio-body">
+              <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Immobiliare.it, Idealista, Subito, Casafari e Casa.it. Il cliente non vedrà la fonte.</p></section>
+              <div class="sl-studio-grid">
+                <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
+                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
+              </div>
+              <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><label class="form-label" for="sl_area_query">Area indicativa sulla mappa</label><div class="sl-inline"><input id="sl_area_query" class="form-input" placeholder="Es. Cipro, Roma" oninput="delete this.dataset.area"><button type="button" class="btn btn-secondary" onclick="smartLinkSearchArea()">Cerca area</button></div><p id="sl_area_status" role="status" class="sl-hint">Scegli una zona, non l’indirizzo esatto.</p><div id="sl_area_results" class="sl-area-results"></div></section>
+              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+            </div>
+            <div class="modal-footer sl-studio-footer"><button class="btn btn-secondary" onclick="smartLinkClose()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM ↗</button></div>
+          </div>
+        </div>`;
+        document.getElementById('sl_source')?.focus();
+    }
+
+    let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
+    function smartLinkClearPhotos() {
+        smartLinkPhotoGeneration++;
+        smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
+        smartLinkPhotoItems = [];
+        smartLinkPhotoPending = Promise.resolve();
+        smartLinkPhotoPreparing = false;
+    }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); closeModal(); }
+
+    function smartLinkSourceChanged() {
+        const source = document.getElementById('sl_source');
+        const canonical = window.BOOM_SMARTLINK.normalizeUrl(source?.value)?.url || '';
+        if (!source || source.dataset.draftSource === canonical) return;
+        source.dataset.draftSource = canonical;
+        ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
+        const area=document.getElementById('sl_area_query'); area.value=''; delete area.dataset.area;
+        document.getElementById('sl_area_status').textContent='Scegli la zona del nuovo annuncio.';
+        document.getElementById('sl_area_results').replaceChildren();
+        document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_result').replaceChildren();
+        const create=document.getElementById('sl_create');
+        create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
+    }
+
+    function smartLinkBrowserRead(sourceUrl) {
+        if (document.documentElement.dataset.boomSmartlinkExtension !== '1') return Promise.resolve(null);
+        return new Promise(resolve => {
+            const requestId=window.crypto.randomUUID();
+            const done=value => { clearTimeout(timer); window.removeEventListener('message',onMessage); resolve(value); };
+            const onMessage=event => {
+                if (event.source===window && event.origin===location.origin && event.data?.type==='BOOM_SMARTLINK_EXTRACT_RESULT' && event.data.requestId===requestId) done(event.data.result?.ok ? event.data.result : null);
+            };
+            const timer=setTimeout(() => done(null),30000);
+            window.addEventListener('message',onMessage);
+            window.postMessage({type:'BOOM_SMARTLINK_EXTRACT',requestId,url:sourceUrl},location.origin);
+        });
+    }
+
+    async function smartLinkExtract() {
+        const raw = document.getElementById('sl_source')?.value || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(raw);
+        const status = document.getElementById('sl_status');
+        if (!source) { status.textContent = 'Incolla il link completo di un annuncio supportato.'; return; }
+        smartLinkClearPhotos(); smartLinkRenderPhotos('Cerco le foto dell’annuncio…');
+        const generation=smartLinkPhotoGeneration;
+        status.textContent = 'Leggo l’annuncio e cerco le foto…';
+        try {
+            const token = await auth.currentUser.getIdToken();
+            let d={ok:true,images:[],data:{}};
+            try {
+                const r = await fetch('/api/smartlink/extract', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ url:source.url }) });
+                const result=await r.json();
+                if (r.ok && result.ok) d=result;
+            } catch { /* Il browser dell'operatore può ancora leggere la fonte. */ }
+            if (generation!==smartLinkPhotoGeneration || window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value)?.url !== source.url) return;
+            if (!d.images?.length) {
+                status.textContent='La fonte limita il server. Provo con il tuo Chrome…';
+                const browserResult=await smartLinkBrowserRead(source.url);
+                if (generation!==smartLinkPhotoGeneration) return;
+                if (browserResult?.images?.length) {
+                    const data={...(browserResult.data || {})};
+                    Object.entries(d.data || {}).forEach(([k,v]) => { if (v) data[k]=v; });
+                    d={...d,images:browserResult.images,data,photoOrigin:'browser'};
+                }
+            }
+            const fields = { title:'sl_title', zone:'sl_zone', price:'sl_price', sqm:'sl_sqm', rooms:'sl_rooms' };
+            Object.keys(fields).forEach(k => { const el = document.getElementById(fields[k]); if (el && !el.value && d.data?.[k]) el.value = d.data[k]; });
+            const candidates=Array.isArray(d.images) ? d.images.slice(0,12) : [];
+            if (!candidates.length) {
+                status.textContent = document.documentElement.dataset.boomSmartlinkExtension==='1' ? 'La fonte ha bloccato anche Chrome. Non creerò una scheda vuota.' : 'La fonte blocca il server. Attiva BOOM SmartLink Foto in Chrome per importare automaticamente le immagini.';
+                smartLinkRenderPhotos('Foto non disponibili dalla fonte.');
+                return;
+            }
+            status.textContent = (d.photoOrigin === 'radar' ? 'Foto ritrovate nel Radar BOOM. ' : d.photoOrigin === 'browser' ? 'Foto lette dal tuo Chrome. ' : 'Foto trovate nell’annuncio. ') + 'Le importo e le preparo…';
+            smartLinkPhotoPreparing=true;
+            smartLinkPhotoPending=(async () => {
+                let failed=0;
+                for (let i=0;i<candidates.length;i++) {
+                    if (generation!==smartLinkPhotoGeneration) return;
+                    smartLinkRenderPhotos(`Importo foto ${i+1} di ${candidates.length}…`);
+                    try {
+                        const photo=await fetch('/api/smartlink/import-photo', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token }, body:JSON.stringify({ sourceUrl:source.url, imageUrl:candidates[i] }) });
+                        if (!photo.ok) throw new Error('foto non disponibile');
+                        const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(await photo.blob());
+                        if (generation!==smartLinkPhotoGeneration) return;
+                        smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto annuncio '+(i+1)});
+                    } catch { failed++; }
+                }
+                if (generation!==smartLinkPhotoGeneration) return;
+                smartLinkRenderPhotos(smartLinkPhotoItems.length ? `${smartLinkPhotoItems.length} foto importate. Trascinale per ordinare; la prima è la copertina.${failed ? ' '+failed+' non disponibili.' : ''}` : 'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
+                status.textContent=smartLinkPhotoItems.length ? 'Controlla dati, foto e copertina prima di creare.' : 'Non riesco a caricare le foto da questa fonte. La scheda non può essere pubblicata senza foto.';
+            })().finally(() => { if (generation===smartLinkPhotoGeneration) smartLinkPhotoPreparing=false; });
+            await smartLinkPhotoPending;
+        } catch { status.textContent = 'Lettura non riuscita. Riprova: per pubblicare servono foto importate.'; smartLinkRenderPhotos('Foto non disponibili.'); }
+    }
+
+    function smartLinkRenderPhotos(message) {
+        const box=document.getElementById('sl_photo_preview'), status=document.getElementById('sl_photo_status');
+        if (!box || !status) return;
+        box.replaceChildren();
+        status.textContent=message || (smartLinkPhotoItems.length ? `${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.` : 'Nessuna foto disponibile.');
+        smartLinkPhotoItems.forEach((item,i) => {
+            const card=document.createElement('div'); card.className='sl-photo-card'+(i===0?' is-cover':'');
+            card.draggable=true;
+            card.addEventListener('dragstart',e => { e.dataTransfer.setData('text/plain',String(i)); e.dataTransfer.effectAllowed='move'; });
+            card.addEventListener('dragover',e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+            card.addEventListener('drop',e => { e.preventDefault(); const from=Number(e.dataTransfer.getData('text/plain')); if (Number.isInteger(from) && from>=0 && from<smartLinkPhotoItems.length) smartLinkMovePhoto(from,i); });
+            const img=document.createElement('img'); img.src=item.url; img.alt=`Apri foto ${i+1} a schermo intero`; img.loading='lazy'; img.tabIndex=0; img.setAttribute('role','button');
+            img.addEventListener('click',() => smartLinkViewPhoto(i));
+            img.addEventListener('keydown',e => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); smartLinkViewPhoto(i); } });
+            const label=document.createElement('span'); label.textContent=i===0?'COPERTINA':String(i+1).padStart(2,'0'); label.className='sl-photo-label';
+            const actions=document.createElement('div'); actions.className='sl-photo-actions';
+            const add=(symbol,title,fn) => { const button=document.createElement('button'); button.type='button'; button.textContent=symbol; button.title=title; button.setAttribute('aria-label',title); button.addEventListener('click',fn); actions.append(button); };
+            if (i>0) add('★','Imposta come copertina',() => smartLinkMovePhoto(i,0));
+            if (i>0) add('←','Sposta prima',() => smartLinkMovePhoto(i,i-1));
+            if (i<smartLinkPhotoItems.length-1) add('→','Sposta dopo',() => smartLinkMovePhoto(i,i+1));
+            add('×','Rimuovi foto '+(i+1),() => { if (smartLinkPhotoPreparing) return; const [removed]=smartLinkPhotoItems.splice(i,1); URL.revokeObjectURL(removed.url); smartLinkRenderPhotos(); });
+            card.append(img,label,actions); box.append(card);
+        });
+    }
+    function smartLinkMovePhoto(from,to) {
+        if (smartLinkPhotoPreparing) return;
+        const [item]=smartLinkPhotoItems.splice(from,1); smartLinkPhotoItems.splice(to,0,item); smartLinkRenderPhotos();
+    }
+    function smartLinkViewPhoto(index) {
+        if (!smartLinkPhotoItems.length) return;
+        document.getElementById('sl_lightbox')?.remove();
+        const overlay=document.createElement('div'); overlay.id='sl_lightbox'; overlay.className='sl-lightbox'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Galleria fotografica');
+        const close=document.createElement('button'); close.type='button'; close.className='sl-lightbox-close'; close.textContent='×'; close.setAttribute('aria-label','Chiudi galleria');
+        const previous=document.createElement('button'); previous.type='button'; previous.textContent='‹'; previous.setAttribute('aria-label','Foto precedente');
+        const image=document.createElement('img'); image.alt='Foto dell’immobile';
+        const next=document.createElement('button'); next.type='button'; next.textContent='›'; next.setAttribute('aria-label','Foto successiva');
+        const count=document.createElement('span'); count.className='sl-lightbox-count';
+        const show=step => { index=(index+step+smartLinkPhotoItems.length)%smartLinkPhotoItems.length; image.src=smartLinkPhotoItems[index].url; image.alt=`Foto ${index+1} di ${smartLinkPhotoItems.length}`; count.textContent=`${index+1} / ${smartLinkPhotoItems.length}`; };
+        close.addEventListener('click',() => overlay.remove()); previous.addEventListener('click',() => show(-1)); next.addEventListener('click',() => show(1));
+        overlay.addEventListener('keydown',e => { if (e.key==='Escape') overlay.remove(); if (e.key==='ArrowLeft') show(-1); if (e.key==='ArrowRight') show(1); });
+        overlay.addEventListener('click',e => { if (e.target===overlay) overlay.remove(); });
+        overlay.append(close,previous,image,next,count); document.body.append(overlay); show(0); close.focus();
+    }
+    function smartLinkPhotoDrop(event) {
+        event.preventDefault(); event.currentTarget.classList.remove('dragging');
+        if (smartLinkBusy) return;
+        smartLinkPhotosChanged(event.dataTransfer.files);
+    }
+    function smartLinkPhotosChanged(selected) {
+        if (smartLinkBusy) return;
+        const files=[...(selected || document.getElementById('sl_photos')?.files || [])];
+        const picker=document.getElementById('sl_photos'); if (picker) picker.value='';
+        if (!files.length) return;
+        if (smartLinkPhotoPreparing) { smartLinkRenderPhotos('Attendi che le foto selezionate siano pronte.'); return; }
+        if (smartLinkPhotoItems.length+files.length>12) { smartLinkRenderPhotos('Puoi inserire al massimo 12 foto.'); return; }
+        const generation=smartLinkPhotoGeneration;
+        const priorCount=smartLinkPhotoItems.length;
+        smartLinkPhotoPreparing=true;
+        smartLinkPhotoPending=(async () => {
+            try {
+                for (let i=0;i<files.length;i++) {
+                    smartLinkRenderPhotos(`Ottimizzo foto ${i+1} di ${files.length}…`);
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(files[i]);
+                    if (generation!==smartLinkPhotoGeneration) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:files[i].name});
+                }
+                smartLinkRenderPhotos();
+            } catch (e) { if (generation===smartLinkPhotoGeneration) { smartLinkPhotoItems.splice(priorCount).forEach(item=>URL.revokeObjectURL(item.url)); smartLinkRenderPhotos(e.message); } }
+            finally { if (generation===smartLinkPhotoGeneration) smartLinkPhotoPreparing=false; }
+        })();
+    }
+
+    async function smartLinkSearchArea() {
+        const q = document.getElementById('sl_area_query')?.value.trim() || '';
+        const status = document.getElementById('sl_area_status');
+        const box = document.getElementById('sl_area_results');
+        if (q.length < 3) { status.textContent = 'Scrivi il nome di una zona di Roma.'; return; }
+        status.textContent = 'Cerco la zona…'; box.replaceChildren();
+        const addArea = candidate => {
+            const button=document.createElement('button'); button.type='button'; button.className='btn btn-sm btn-secondary'; button.textContent=candidate.label;
+            button.addEventListener('click', () => { document.getElementById('sl_area_query').value=candidate.label; document.getElementById('sl_area_query').dataset.area=JSON.stringify(candidate); status.textContent='Area scelta: '+candidate.label+' · il cliente vedrà solo una zona indicativa.'; box.replaceChildren(); });
+            box.append(button);
+        };
+        const query=q.toLocaleLowerCase('it').replace(/[^a-zàèéìòù ]/g,' ').replace(/\s+/g,' ').trim();
+        const known=Object.entries(ZONE_COORDINATES).filter(([name]) => {
+            const label=name.replace(/-/g,' ');
+            return label.includes(query) || query.includes(label);
+        }).slice(0,6);
+        if (known.length) {
+            known.forEach(([name,coords]) => addArea(window.BOOM_SMARTLINK.cleanMap({ ...coords, label:name.split('-').map(part => part[0].toUpperCase()+part.slice(1)).join(' ') + ', Roma' })));
+            status.textContent='Seleziona la zona BOOM.';
+            return;
+        }
+        try {
+            const r = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&lat=41.9028&lon=12.4964&limit=6&lang=it');
+            const d = await r.json();
+            (d.features || []).forEach(f => {
+                const p=f.properties || {}, co=f.geometry?.coordinates || [];
+                const candidate=window.BOOM_SMARTLINK.cleanMap({ lat:co[1], lng:co[0], label:[p.name,p.city].filter(Boolean).join(', ') });
+                if (!candidate) return;
+                addArea(candidate);
+            });
+            if (!box.childElementCount) status.textContent='Nessuna zona trovata a Roma. Riprova con un altro nome.';
+            else status.textContent='Seleziona un’area tra i risultati.';
+        } catch { status.textContent='Ricerca temporaneamente non disponibile. Puoi creare la scheda senza mappa.'; }
+    }
+
+    async function smartLinkCreate() {
+        const value = k => document.getElementById('sl_' + k)?.value.trim() || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(value('source'));
+        if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
+        const btn = document.getElementById('sl_create');
+        if (btn.disabled || btn.dataset.created === '1') return;
+        smartLinkBusy=true;
+        document.querySelector('.sl-studio-body').inert=true;
+        btn.disabled = true; btn.textContent = 'Preparo la scheda…';
+        let created = false;
+        try {
+            await smartLinkPhotoPending;
+            const files=[...smartLinkPhotoItems];
+            if (!files.length) throw new Error('Nessuna foto pronta. Importa l’annuncio prima di creare lo SmartLink.');
+            const key=value('key'), images=[];
+            for (let i=0;i<files.length;i++) {
+                btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
+                const ext=files[i].blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+                const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
+                await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                const url=await ref.getDownloadURL();
+                if (!window.BOOM_SMARTLINK.validImageUrl(url,key)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                images.push(url);
+            }
+            const mapRaw=document.getElementById('sl_area_query')?.dataset.area;
+            const map=mapRaw ? window.BOOM_SMARTLINK.cleanMap(JSON.parse(mapRaw)) : null;
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
+            created = true;
+            const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
+            document.getElementById('sl_result').classList.remove('is-error');
+            document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
+            toast('success', 'SmartLink BOOM creato');
+        } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
+        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM ↗'; }
+    }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
     // Extract title/price/size/zone/photos from Immobiliare, Idealista, Subito,
-    // Casafari and generic listing pages. Currently unwired (the old SmartLink UI was
-    // removed in the Tools cleanup); kept intact so the Finder can reuse them without
+    // Casafari and generic listing pages. These legacy parsers remain unwired;
+    // SmartLink esterni uses the server-side PFS parser so the Finder can reuse them without
     // re-deriving the regexes. See: openMessageGeneratorClient flow for reuse points.
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -30425,6 +30694,7 @@ IBAN: ${l.iban || '-'}`;
 
     // Zone coordinates (approx center of each zone)
     const ZONE_COORDINATES = {
+        'cipro': { lat: 41.9075, lng: 12.4475 },
         'salario': { lat: 41.9180, lng: 12.5050 },
         'trieste': { lat: 41.9200, lng: 12.5120 },
         'sallustiano': { lat: 41.9060, lng: 12.4950 },
