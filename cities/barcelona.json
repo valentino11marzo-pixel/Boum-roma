@@ -23,32 +23,13 @@
     "services": "Services",
     "checks": "Before you sign",
     "faq": "FAQ",
-    "cta": "Open my file",
     "desk": "tenant side"
   },
   "hero": {
-    "eyebrow": "BOOM · Barcelona · desk opening",
     "h1Before": "Your home in",
-    "h1Em": "Found by someone on your side.",
-    "sub": "Opening with a registered local partner (AICAT). Open your file now: the search starts the day the desk does — on your side, never the landlord's.",
-    "trust": [
-      {
-        "star": true,
-        "b": "4.9",
-        "t": "on Google · 47 reviews"
-      },
-      {
-        "check": true,
-        "b": "500+",
-        "t": "internationals housed"
-      }
-    ],
-    "servingLead": "From day one, searching",
-    "servingNames": "Idealista · Fotocasa · Habitaclia · agencies"
+    "lead": "Opening with a registered local partner. Today: your file, your dossier readiness, the six checks before you sign."
   },
   "form": {
-    "ref": "New file — Barcelona · tenant side",
-    "refRight": "same-day reply",
     "name": {
       "label": "Your name",
       "placeholder": "Anna Keller"
@@ -59,7 +40,7 @@
     },
     "moveIn": {
       "label": "Move-in",
-      "placeholder": "February 2027"
+      "unsure": "Not sure yet"
     },
     "budget": {
       "label": "Monthly budget"
@@ -72,15 +53,19 @@
       "€3,000+"
     ],
     "service": {
-      "label": "What will you need?",
+      "label": "Service",
+      "none": "Which service? Three taps tell you ↑",
+      "from": "from your check-in",
+      "change": "change",
       "unsure": "Not sure yet",
       "unsureSub": "advise me",
-      "priceNote": "List prices, VAT included — charged only when the desk opens."
+      "priceNote": "List prices, VAT included. Each plan says when it is charged."
     },
     "more": "More details (optional)",
     "phone": {
-      "label": "Phone / WhatsApp",
-      "placeholder": "+34 …"
+      "label": "Phone or WhatsApp",
+      "placeholder": "+34 …",
+      "sub": "optional"
     },
     "situation": {
       "label": "Who's moving",
@@ -94,29 +79,32 @@
       "label": "Anything else",
       "placeholder": "Start date, pets, parking, a listing you already found…"
     },
-    "submit": "Open my file",
-    "submitSub": "same-day reply · no commitment",
     "consentLead": "Used only to reply to you —",
     "consentAlt": "Prefer WhatsApp or email?",
     "sentBefore": "Your file is",
     "sentEm": "open.",
-    "sentText": "The Barcelona desk replies the same working day with where we stand — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to",
     "errors": {
       "name": "Your name, so we know who we're writing to.",
       "contact": "An email or a number — otherwise we can't reply.",
       "email": "That email looks incomplete — could you check it?",
       "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
     },
-    "sending": "Opening your file…"
-  },
-  "machine": {
-    "route": "ROM → BCN",
-    "items": [
-      "file open today",
-      "AICAT partner",
-      "rent cap checked",
-      "contract read"
-    ]
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes back by email, or WhatsApp if you left a number."
+      ],
+      [
+        "Nothing to prepare",
+        "Keep this link: your ticket and papers live in it."
+      ],
+      [
+        "Nothing by tomorrow?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
   },
   "how": {
     "num": "01 — HOW IT WORKS",
@@ -138,15 +126,7 @@
         "v": "Then as in every BOOM city",
         "s": "Spanish-format file, applications within the hour, a BOOM person at the viewing, rent cap and contract checked before you sign."
       }
-    ],
-    "tline": [
-      "FILE OPEN",
-      "PARTNER REGISTERED",
-      "SEARCH",
-      "VIEWING ATTENDED",
-      "RENT CAP + CONTRACT CHECKED"
-    ],
-    "tlineLand": "✓ KEYS · PADRÓN"
+    ]
   },
   "pricing": {
     "num": "02 — SERVICES & FEES",
@@ -159,7 +139,6 @@
         "label": "Full Search",
         "se": "Full Search · end to end",
         "name": "We find it. You move in.",
-        "text": "Search, applications, viewing, contract — handled.",
         "includes": [
           "Daily search: Idealista, Fotocasa, Habitaclia, agencies, off-market",
           "Applications within the hour",
@@ -167,10 +146,10 @@
           "Rent cap and contract checked, padrón supported"
         ],
         "featured": true,
-        "cta": "Open my file",
         "price": 500,
-        "per": "flat · incl. VAT · at opening",
-        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check."
+        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+        "condition": "flat · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens."
       },
       {
         "id": "application-pack",
@@ -184,10 +163,10 @@
           "Income, aval and guarantor strategy",
           "Contract review before you sign"
         ],
-        "cta": "Ask for the pack",
         "price": 199,
-        "per": "flat · incl. VAT · at opening",
-        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review."
+        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review.",
+        "condition": "flat · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens."
       },
       {
         "id": "attended-viewing",
@@ -202,22 +181,20 @@
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
         ],
-        "cta": "Ask for a viewing",
         "price": 149,
-        "per": "per viewing · incl. VAT · at opening",
-        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report."
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "condition": "per viewing · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens."
       }
     ],
     "note": "List prices: nothing is charged until the desk opens with its registered partner; then card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l."
   },
   "checkin": {
-    "num": "CHECK-IN · 20 SECONDS",
-    "h3": "Which service will be yours?",
-    "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+    "num": "Check-in · {n} of 3",
     "steps": [
       {
         "id": "stage",
-        "label": "Where are you?",
+        "label": "Where are you in the search?",
         "options": [
           {
             "id": "zero",
@@ -240,8 +217,26 @@
         ]
       },
       {
+        "id": "where",
+        "label": "Where are you right now?",
+        "options": [
+          {
+            "id": "abroad",
+            "t": "Still abroad",
+            "f": "you're still abroad",
+            "code": "ABROAD"
+          },
+          {
+            "id": "here",
+            "t": "Already in Barcelona",
+            "f": "you're already in Barcelona",
+            "code": "IN TOWN"
+          }
+        ]
+      },
+      {
         "id": "when",
-        "label": "Moving in",
+        "label": "When do you move in?",
         "options": [
           {
             "id": "soon",
@@ -260,24 +255,6 @@
             "t": "Later, flexible",
             "f": "later",
             "code": "OPEN"
-          }
-        ]
-      },
-      {
-        "id": "where",
-        "label": "Right now",
-        "options": [
-          {
-            "id": "abroad",
-            "t": "Still abroad",
-            "f": "you're still abroad",
-            "code": "ABROAD"
-          },
-          {
-            "id": "here",
-            "t": "Already in Barcelona",
-            "f": "you're already in Barcelona",
-            "code": "IN TOWN"
           }
         ]
       }
@@ -319,10 +296,6 @@
         "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
         "months": "Good timing: your file is ready before the desk opens.",
         "later": "No rush: open the file now, you hear from us the day the desk opens."
-      },
-      "where": {
-        "abroad": "When the desk opens, viewings attended in your place — live video, written report.",
-        "here": "You attend; we prepare the file and read the contract before you sign."
       }
     },
     "dossier": {
@@ -370,53 +343,56 @@
       "resultAll": "All eight in hand. Your file waits formatted the Spanish way for the day the desk opens.",
       "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
       "skipped": "Tap the papers you hold above and we say what we would fix first.",
-      "go": "Show my plan",
-      "goSub": "the plan, the price, what we would fix first"
+      "eyebrow": "Your papers"
     },
     "result": {
       "eyebrow": "Your plan",
-      "readyEyebrow": "Your file",
-      "ctaSearch": "Start · {price}",
-      "ctaSearchSub": "card · the work starts today",
-      "ctaFile": "Open my file",
-      "ctaFileSub": "free · list price, charged only when the desk opens",
-      "change": "Change my answers",
-      "share": {
-        "lead": "Know someone moving too?",
-        "whatsapp": "WhatsApp",
-        "copy": "Copy link",
-        "copied": "Link copied",
-        "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
-      }
+      "change": "change"
     },
     "pass": {
       "title": "Your boarding pass",
-      "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+      "sub": "Your name and where you fly in from, if you want.",
       "name": {
         "label": "Passenger (optional)",
         "placeholder": "Anna K."
       },
       "from": {
-        "label": "Flying in from (optional)",
+        "label": "From (optional)",
         "placeholder": "LON"
       },
       "save": "Save image",
       "shareBtn": "Share",
       "saved": "Saved",
+      "guest": "A tenant",
+      "foot": "boomrome.com/barcelona",
+      "side": "Tenant side",
       "fields": {
         "passenger": "Passenger",
         "plan": "Plan",
+        "price": "Price",
         "boarding": "Boarding",
         "file": "File",
-        "seat": "Seat",
-        "seatValue": "Your side of the table",
-        "gate": "Gate",
-        "status": "Status",
-        "statusValue": "Tenant side"
-      },
-      "guest": "A tenant",
-      "foot": "boomrome.com/barcelona",
-      "gateValue": "Desk opening"
+        "papers": "Papers"
+      }
+    },
+    "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+    "pending": {
+      "eyebrow": "Two plans fit",
+      "text": "One more answer decides: {plans}."
+    },
+    "landing": {
+      "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
+      "friend": "Your friend's answers. Change any of them, then your plan is yours.",
+      "blank": "Your plan prints here as you answer."
+    },
+    "share": {
+      "lead": "Know someone moving too?",
+      "whatsapp": "WhatsApp",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
+      "papers": "The eight papers a {city} landlord asks for, and what to fix first: {url}",
+      "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
     }
   },
   "checks": {
@@ -461,17 +437,6 @@
         "at": "nómina · aval",
         "text": "Payslips, a bank guarantee, a Spanish guarantor: each landlord asks differently. New job, foreign salary, freelance — we write it so it passes."
       }
-    ]
-  },
-  "truth": {
-    "h3": "We'll also tell you",
-    "h3em": "what's wrong with it.",
-    "p": "A tenancy that goes wrong costs us more than a lost fee — so we write down what we saw, before you sign.",
-    "flags": [
-      "asking rent above the índice de referencia",
-      "a 'temporada' lease for a long stay",
-      "a deposit above the legal cap",
-      "an agent fee charged to you"
     ]
   },
   "bref": {
@@ -545,19 +510,54 @@
       }
     ]
   },
-  "band": {
-    "h2": "Someone in Barcelona",
-    "h2em": "on your side.",
-    "p": "One minute now — a reply the same working day."
-  },
   "footer": {
     "tagline": "Born in Rome, built for people who move countries. The same rules in Barcelona: one side of the table, everything in writing — and a registered partner before the first search.",
-    "statement": "Launching with a registered local partner. BOOM Barcelona acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not intermediate in Catalonia before the desk opens with its registered partner.",
-    "status": "Opening — same-day replies"
+    "statement": "Launching with a registered local partner. BOOM Barcelona acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not intermediate in Catalonia before the desk opens with its registered partner."
   },
-  "paybar": {
-    "title": "BOOM · Barcelona",
-    "sub": "same-day reply",
-    "cta": "Open my file"
+  "facts": [
+    {
+      "key": "paid",
+      "label": "Paid by",
+      "text": "You alone, once the desk opens. Launching with a registered local partner."
+    },
+    {
+      "key": "abroad",
+      "label": "From abroad",
+      "text": "Yes, once the desk opens: live video at the viewing, a written report."
+    },
+    {
+      "key": "nothing",
+      "label": "If we find nothing",
+      "text": "Charged only when the desk opens. If we decline the search in the first call, nothing is owed."
+    }
+  ],
+  "factsDerived": {
+    "answers": "Who answers",
+    "company": "The company",
+    "answersLine": "same working day",
+    "deskLine": "desk {from} to {to} {tz}"
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Open my file",
+    "sub": "free · same-day reply",
+    "skip": "Rather write first? Open a file",
+    "stripSub": "free · same-day reply"
   }
 }

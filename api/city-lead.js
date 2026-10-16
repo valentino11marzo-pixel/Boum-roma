@@ -67,6 +67,21 @@ export function bandCeiling(band) {
   return vals.length ? Math.max(...vals) : null;
 }
 
+// The door's month <select> (v2, 16/10) posts "YYYY-MM"; the operator reads
+// "February 2027". A fixed table, never Intl: a runtime with small-ICU prints
+// "M02" and the lead would carry it (the lesson of itNum). Anything that is
+// not YYYY-MM — the free text of the classic field, "not sure yet", a date
+// typed by hand — stays verbatim: the label is a courtesy, never a rewrite.
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
+  'August', 'September', 'October', 'November', 'December'];
+export function moveInLabel(v) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(v || '').trim());
+  if (!m) return v == null ? null : v;
+  const mi = parseInt(m[2], 10);
+  if (mi < 1 || mi > 12) return v;
+  return `${MONTHS[mi - 1]} ${m[1]}`;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -102,7 +117,8 @@ export default async function handler(req, res) {
   const service = SERVICES[serviceKey] ? serviceKey : null;
   const budgetBand = clip(body.budget, 40);
   const budget = bandCeiling(budgetBand);
-  const moveIn = clip(body.moveIn, 40);
+  const moveInRaw = clip(body.moveIn, 40);
+  const moveIn = moveInLabel(moveInRaw);
   const situation = clip(body.situation, 160);
   const areas = clip(body.areas, 160);
   const message = clip(body.message, 1000);
@@ -164,7 +180,7 @@ export default async function handler(req, res) {
       dossier,
       at: now.toISOString(),
     },
-    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn, situation, areas, checkin, dossier, message, ip },
+    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn: moveInRaw, situation, areas, checkin, dossier, message, ip },
     createdAt: now,
     ingestedAt: now,
   };

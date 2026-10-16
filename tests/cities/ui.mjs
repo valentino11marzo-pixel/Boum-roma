@@ -1,43 +1,47 @@
-// tests/cities/ui.mjs — the generated city page in a real Chromium.
+// tests/cities/ui.mjs — the generated city page (v2, brief v1.3, STUDIO §11)
+// in a real Chromium.
 //
-// What it proves (BOOM_CITIES_BRIEF.md §3, §6, §7, §10 + the brand):
+// What it proves:
 //   - with JS OFF the page reads whole: the city in the title as text, the
-//     prices as text, every section visible (no reveal left at opacity 0);
-//   - with JS ON the Solari board spells the city, one cell per letter, and
-//     lands in the space the hero reserved (no layout jump); the prices
-//     become boards when scrolled into view; reduced motion = the word set
-//     still, no spin;
-//   - 390px: no horizontal scroll, the pay bar appears only past the hero,
-//     the burger opens and closes the menu;
-//   - the form: an invalid submit sends nothing and says why in place; a
-//     valid one posts JSON to /api/city-lead with the city and opens the
-//     "file is open" state — the board spells OPEN and, on a desk that
-//     sells, the offer to pay for the chosen plan opens the sheet with the
-//     name and email already in; a failed one says so and gives the button
-//     back;
-//   - the till (14/10, v1.1): on Amsterdam a plate's button opens the sheet
-//     on ITS plan, the sheet posts { city, kind } to /api/service-checkout
-//     and follows the URL it gets; landing back on ?paid=<plan> shows the
-//     PAID state, spells PAID on the board and counts ONE purchase; on a
-//     waitlist desk there is no sheet at all and the plate's button checks
-//     the plan's chip in the door;
-//   - reduced motion: the word set still, the plane on the route still;
-//   - THE CHECK-IN (v1.2, 15/10): the steps appear one after the other,
-//     three taps give the plan its rules say — on a ticket with the price on
-//     its own board, the ✓ lines, the notes — the papers ticked give "n of 8"
-//     and the missing ones by name with the meter at n/8; the chip in the
-//     door is checked and the move-in prefilled; the lead POST carries the
-//     answers; the ticket's till button opens the sheet on THAT plan on
-//     Amsterdam and leads to the door on Barcelona; Copy link copies
-//     #checkin=stage.when.where.docs and the WhatsApp link carries it; a
-//     link with the answers lands straight on the result, a broken one on
-//     the first step; the pass follows the name and origin, spells the city
-//     on its board, and passBlob() is a real 1080×1920 PNG;
-//   - the depth: the file card and the pass tilt only with a fine pointer
-//     and motion allowed (nothing on a touch screen, nothing under reduced
-//     motion), the plates' scroll-driven entrance exists and is off under
-//     reduced motion; the rail shows at 1440 only and its dot follows the
-//     section on screen; without JS the Check-in and the rail are not there;
+//     prices as text on the plates and in the chips, every section visible;
+//     the Check-in, the pass, the skip link and the strip are not there (they
+//     are behaviour), the service chips are open in the door;
+//   - 390px: the Solari board spells the city in the space the hero reserved,
+//     no horizontal scroll; the pass is NOT on the screen until the first tap
+//     (a blank ticket on a phone is a question nobody asked), then it is the
+//     live ticket: resolved from the first tap where the rules allow it
+//     (haven't started → Full Search), pending with the two plans named when
+//     the second tap decides (shortlist), the note and the papers only after
+//     the third; the price spins once per plan on its own board;
+//   - the papers: three ticked → "3 of 8", the missing five by name, the
+//     meter at 38%; the pass grid follows (passenger, boarding, file, papers);
+//   - the door is written by the pass: the chip checked, the plan line says
+//     "from your check-in", the month prefilled from the answer, the two
+//     hidden fields in words; the URL remembers the answers; Copy link
+//     carries the papers (own link, via l), WhatsApp does not (via w);
+//   - a link lands where it says: complete → the ticket; a friend's link →
+//     the banner; partial → the next step; broken → the first step and a
+//     clean address bar;
+//   - the till is a native <dialog>: a plate's button opens it on ITS plan,
+//     Escape closes it, it posts { city, kind } and follows Stripe's URL;
+//     back on ?paid= the PAID state, one purchase per session id, the key in
+//     sessionStorage (never localStorage); the pass's till button too;
+//   - the door: errors in place, one JSON post, OPEN on the board with the
+//     reply window computed against the desk clock, the offer to pay for the
+//     plan they chose (the refund line only under Full Search), "not sure"
+//     gets no offer, a failed send gives the button back;
+//   - the desk clock line reads "it is HH:MM at the desk[, HH:MM for you]";
+//   - the strip carries no price and names the plan once there is one;
+//   - 1440px: the pass is on the page from load, blank, in the sticky right
+//     column above the door; desktop nav with the door as a text link, no
+//     strip;
+//   - reduced motion: the word set still, no pass animation, no stagger;
+//   - the sisters at 390: Madrid sells, Barcelona/Paris/Berlin show list
+//     prices with their own condition and no till; Berlin's Full Search says
+//     "on signing" on the pass;
+//   - the consent plate waits: not before the first move, not on a tap inside
+//     the diagnostic, not while the dialog is open;
+//   - the pass exports as a real 1080×1920 image (webp in Chromium);
 //   - zero JS errors, and no request leaves for a host we did not stub.
 //
 // The page is served from the repo root (it links /css and /assets). Every
@@ -56,7 +60,7 @@ const bene = (t) => { ok++; console.log('  \x1b[32m✓\x1b[0m ' + t); };
 const male = (t) => { ko++; console.log('  \x1b[31m✗\x1b[0m ' + t); };
 const check = (cond, t, why = '') => (cond ? bene(t) : male(t + (why ? ` — ${why}` : '')));
 
-console.log('\n\x1b[1m▸ citiesui\x1b[0m  the city page in a real browser: the board, the door, the phone');
+console.log('\n\x1b[1m▸ citiesui\x1b[0m  the city page in a real browser: the diagnostic, the pass, the door, the till');
 
 const chromium = await loadChromium();
 if (!chromium) {
@@ -76,13 +80,13 @@ const srv = http.createServer((req, res) => {
 const base = `http://127.0.0.1:${srv.address().port}`;
 const browser = await chromium.launch(launchOptions());
 
-async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null } = {}) {
-  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: 844 }, reducedMotion });
+async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false } = {}) {
+  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: width < 600 ? 844 : 900 }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
   const st = { errors: [], posts: [], checkouts: [], foreign: [] };
   page.on('pageerror', (e) => st.errors.push(e.message));
-  // the consent plate stays closed: it is boom-consent.js's own business
-  await page.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
+  // the consent plate stays closed unless a test is about it
+  if (consent) await page.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
   await page.route('**/*', (r) => {
     const u = r.request().url();
     if (u.startsWith(base + '/api/city-lead')) {
@@ -91,7 +95,6 @@ async function open({ js = true, width = 390, api = { status: 200, body: { ok: t
     }
     if (u.startsWith(base + '/api/service-checkout')) {
       st.checkouts.push({ headers: r.request().headers(), body: r.request().postData() || '' });
-      // "Stripe" answers with the page's own paid landing: the redirect is followed in the same tab
       const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&session_id=cs_test_ui_1#contact` } };
       return r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
     }
@@ -104,14 +107,39 @@ async function open({ js = true, width = 390, api = { status: 200, body: { ok: t
 }
 const layer = (page) => page.evaluate(() => (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event').map((a) => ({ name: a[1], p: a[2] || {} })));
 const boardWord = (page, id) => page.$eval(id, (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join(''));
-// Fixed chrome (the family strip at the top, the pay bar at the bottom) sits
-// over the edges of a 844px viewport: a target is centred before the tap,
-// as a thumb would do, never clicked through the bars.
+// the strip at the bottom sits over the edge of a 844px viewport: a target is
+// centred before the tap, as a thumb would do, never clicked through the bar
 const tap = async (page, sel) => {
   await page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await page.waitForTimeout(250);
+  await page.waitForTimeout(200);
   await page.click(sel);
 };
+const ckOpt = (v) => `#checkin .ck-opt:has(input[value="${v}"])`;
+const ckDoc = (v) => `#pass .ck-doc:has(input[value="${v}"])`;
+const vis = (page, sel) => page.$eval(sel, (e) => !e.hidden && !e.closest('[hidden]') && getComputedStyle(e).display !== 'none').catch(() => false);
+const passState = (page) => page.evaluate(() => {
+  const p = document.getElementById('pass');
+  const t = (id) => (document.getElementById(id) || {}).textContent || '';
+  return {
+    state: p.getAttribute('data-state'), display: getComputedStyle(p).display, inClass: p.classList.contains('in'),
+    code: t('ckCode'), plan: t('ckPlan'), cond: t('ckCond'), why: t('ckWhy'), note: t('ckNote'), pend: t('ckPendText'),
+    price: [...document.querySelectorAll('#ckPrice .st b')].map((b) => b.textContent).join(''), priceCells: document.querySelectorAll('#ckPrice .fc2').length,
+    board: [...document.querySelectorAll('#ckBoard .st b')].map((b) => b.textContent).join(''),
+    blankShown: !document.getElementById('ckBlank').hidden, pendShown: !document.getElementById('ckPend').hidden,
+    planShown: !document.getElementById('ckPlanBox').hidden, papersShown: !document.getElementById('ckPapers').hidden,
+    noteShown: !document.getElementById('ckNote').hidden, refundShown: document.getElementById('ckRefund') ? !document.getElementById('ckRefund').hidden : null,
+    ready: t('ckReady'), meter: document.getElementById('ckMeter').style.width, meterVar: document.getElementById('ckMeter').style.getPropertyValue('--meter'),
+    start: document.getElementById('ckStart') ? document.getElementById('ckStart').getAttribute('data-pay') : null, startAmt: t('ckStartAmt'),
+    file: document.getElementById('ckFile').getAttribute('data-service'),
+    chip: (document.querySelector('input[name="service"]:checked') || {}).value || '', plText: t('plText'), planFrom: document.getElementById('cityForm').getAttribute('data-plan-from'),
+    moveIn: document.getElementById('fMoveIn').value, fCheckin: document.getElementById('fCheckin').value, fDossier: document.getElementById('fDossier').value,
+    hash: location.hash, wa: document.getElementById('ckWa').getAttribute('href'),
+    passenger: t('ckPassenger'), passWhen: t('ckPassWhen'), passFile: t('ckPassFile'), passPapers: t('ckPassPapers'), from: t('ckFrom'),
+    stripSub: t('stripSub'), num: t('ckNum'), landing: document.getElementById('ckLanding').hidden ? null : t('ckLanding'),
+    stepsShown: ['stage', 'where', 'when'].map((s) => { const f = document.querySelector(`#checkin .ck-step[data-step="${s}"]`); return !f.hidden && getComputedStyle(f).display !== 'none'; }),
+    rect: (() => { const r = p.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height) }; })()
+  };
+});
 const board = (page) => page.evaluate(() => {
   const f = document.getElementById('flapCity');
   const cells = [...f.querySelectorAll('.fc2')];
@@ -121,33 +149,37 @@ const board = (page) => page.evaluate(() => {
     cells: cells.length,
     letters: cells.map((c) => c.querySelector('.st b').textContent).join(''),
     hostW: r.width, contentW: cells.length ? last.right - first.left : 0,
-    minW: parseFloat(f.style.minWidth) * parseFloat(getComputedStyle(f).fontSize),
-    h1Lines: Math.round(f.closest('h1').getBoundingClientRect().height / parseFloat(getComputedStyle(f.closest('h1')).lineHeight))
+    minW: parseFloat(f.style.minWidth) * parseFloat(getComputedStyle(f).fontSize)
   };
 });
+const ymPlus = (n) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00 CET|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CET)$/;
 
-// ── JS off: everything readable ───────────────────────────────────────────
+// ── JS off: everything readable, nothing behavioural on the page ─────────
 {
   const { ctx, page } = await open({ js: false });
   const hidden = await page.$$eval('.rv', (els) => els.filter((e) => getComputedStyle(e).opacity !== '1').length);
   const total = await page.$$eval('.rv', (els) => els.length);
-  check(total >= 6 && hidden === 0, `without JS all ${total} reveal blocks are visible`, `${hidden} hidden`);
+  check(total >= 4 && hidden === 0, `without JS all ${total} reveal blocks are visible`, `${hidden} hidden`);
   check((await page.textContent('#flapCity')).trim() === 'AMSTERDAM', 'without JS the title still says AMSTERDAM, as text');
-  const prices = await page.$$eval('.flap-prezzo', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, in the plates');
+  const prices = await page.$$eval('[data-plan-price]', (els) => els.map((e) => e.textContent.trim()));
+  check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, on the plates');
   const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(chipTxt) === JSON.stringify(['€500', '€199', '€149 · per viewing', 'advise me']), 'without JS the service chips show their prices as text');
+  check(JSON.stringify(chipTxt) === JSON.stringify(['€500 · flat · incl. VAT', '€199 · flat · incl. VAT', '€149 · per viewing · incl. VAT', 'advise me']),
+    'without JS the service chips show their price and their condition as text');
+  check(await page.$eval('.planline .chips', (e) => getComputedStyle(e).display !== 'none') && await page.$eval('#planline', (e) => e.open), 'without JS the chips are open in the door');
   const wa = await page.getAttribute('.consent a[href^="https://wa.me/"]', 'href');
   check(wa === 'https://wa.me/393313251961', 'the WhatsApp link is a real href to the real number');
   const goTxt = await page.$$eval('.plates .go', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(goTxt) === JSON.stringify(['Start my search · €500', 'Get the pack · €199', 'Book a viewing · €149']) && !(await page.isVisible('#ov')),
-    'without JS the plates\' buttons still read with their price, and the sheet stays closed');
-  const route = await page.$eval('.machine .route', (e) => e.textContent.replace(/\s+/g, ' ').trim());
-  check(route.replace(/\s+/g, '') === 'ROM✈AMS', `the route line reads ROM ✈ AMS as text ("${route}")`);
+  check(JSON.stringify(goTxt) === JSON.stringify(['Open my file →', 'Open my file →', 'Open my file →']), 'without JS the plates\' primaries read the one label');
+  const gone = await page.evaluate(() => ['#checkin', '#pass', '.skipck', '#paybar'].map((s) => getComputedStyle(document.querySelector(s)).display === 'none'));
+  check(gone.every(Boolean), 'without JS the Check-in, the pass, the skip link and the strip are not there (they are behaviour)');
+  check((await page.textContent('#faq')).includes("Full Search (€500) if you haven't started."), 'without JS the derived FAQ answer is on the page as text');
+  check(await page.$('dialog#ov') !== null && !(await page.$eval('dialog#ov', (d) => d.open)), 'the till is a native <dialog>, closed');
   await ctx.close();
 }
 
-// ── JS on, 390px: the board, the layout, the bar, the menu ────────────────
+// ── 390px: the board, the pass hidden until it has something to say ──────
 {
   const { ctx, page, st } = await open();
   await page.waitForTimeout(2600);                           // 600ms + the spin
@@ -157,44 +189,148 @@ const board = (page) => page.evaluate(() => {
     `the board lands in the space the hero reserved — ${CELL_EM}em/cell: reserved ${b.minW.toFixed(1)}px, cells ${b.contentW.toFixed(1)}px (no layout jump)`);
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   check(scrollW <= 390, `390px: no horizontal scroll (scrollWidth ${scrollW})`);
-  check(await page.$eval('.serving', (e) => getComputedStyle(e).display === 'none'),
-    '390px: the "searching daily on" line is not between the title and the door (it is the first ✓ of Full Search)');
-  const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-  const chipCols = await page.$$eval('.chip', (els) => new Set(els.map((e) => Math.round(e.getBoundingClientRect().left))).size);
-  check(chipH.length === 4 && new Set(chipH).size === 1 && chipH[0] <= 60 && chipCols === 2, `390px: four service chips in a 2×2 grid, one line each (${chipH.join('/')}px)`);
-  check(await page.evaluate(() => document.getElementById('enbref').getBoundingClientRect().top > document.getElementById('faq').getBoundingClientRect().top),
-    'the fact sheet sits below the FAQ: human content first, machine content after');
-  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'at the top the pay bar is off: the door itself is on screen');
+  let s = await passState(page);
+  check(s.state === 'blank' && s.display === 'none' && JSON.stringify(s.stepsShown) === '[true,false,false]' && s.num === 'Check-in · 1 of 3',
+    'on a phone the pass is not on the screen before the first tap; the Check-in opens on the first step alone');
+  const clock = await page.textContent('#deskClock');
+  check(/^it is \d\d:\d\d at the desk(, \d\d:\d\d for you)?$/.test(clock), `the desk clock line is live ("${clock}")`);
+  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))) && !/€|\d/.test(await page.textContent('#paybar')), 'at the top the strip is off, and it carries no price');
+  const order = await page.evaluate(() => ['h1', '.lead', '#checkin', '#pass', '.skipck', '#facts', '#contact'].map((q) => { const e = document.querySelector(q); return e ? Math.round(e.getBoundingClientRect().top + window.scrollY) : -1; }));
+  check(order[0] < order[1] && order[1] < order[2] && order[2] < order[4] && order[4] < order[5] && order[5] < order[6], `390px reading order: title, lead, Check-in, skip link, facts, door (${order.join(' < ')})`);
+  // tap 1: haven't started → resolved at once (the rule needs nothing more)
+  await tap(page, ckOpt('zero'));
+  await page.waitForTimeout(900);
+  s = await passState(page);
+  check(s.state === 'resolved' && s.display !== 'none' && s.inClass && s.planShown && !s.pendShown && !s.blankShown && !s.papersShown && !s.noteShown,
+    'tap 1 (haven\'t started): the pass appears as the live ticket — resolved, no pending line, no papers yet');
+  check(s.plan === 'Full Search' && s.code === 'START' && s.cond === 'flat · incl. VAT' && s.refundShown === true && /Starting from zero/.test(s.why),
+    `the ticket reads Full Search, code START, the condition, the refund rule under it, the why ("${s.why.slice(0, 30)}…")`);
+  await page.waitForTimeout(1500);
+  s = await passState(page);
+  check(s.price === '€500' && s.priceCells === 4 && s.board === 'AMSTERDAM', `the price spun onto its own board ("${s.price}"), the city on the pass board`);
+  check(s.rect.bottom <= 844 + 2 && s.rect.top >= 0, `the pass landed on the screen the visitor is looking at (top ${s.rect.top}, bottom ${s.rect.bottom})`);
+  check(s.chip === 'full-search' && s.plText === 'Full Search · €500 · flat · incl. VAT · from your check-in' && s.planFrom === 'checkin' && s.fCheckin === "Haven't started",
+    'the door is written from the first tap: the chip checked, the plan line says from your check-in, the hidden field in words');
+  check(s.hash === '#checkin=zero.-.-.-' && s.stripSub === 'Full Search · your plan', 'the URL remembers the answer; the strip names the plan, never the price');
+  check(JSON.stringify(s.stepsShown) === '[true,true,false]' && s.num === 'Check-in · 2 of 3' && await page.$eval('#checkin .ck-step[data-step="stage"]', (e) => e.classList.contains('done')),
+    'the answered step collapses, the second step comes, not the third');
+  // change to a shortlist → pending: the second tap decides
+  await tap(page, '#checkin .ck-step[data-step="stage"] .ck-change');
+  await page.waitForTimeout(300);
+  await tap(page, ckOpt('shortlist'));
+  await page.waitForTimeout(700);
+  s = await passState(page);
+  check(s.state === 'pending' && s.pendShown && !s.planShown && /^One more answer decides: Attended Viewing if .*abroad, Application Pack if .*Amsterdam\.$/.test(s.pend) && s.code === 'SHORTLIST',
+    `a shortlist is pending: the pass names the two plans the second tap decides between ("${s.pend.slice(0, 40)}…")`);
+  check(s.chip === '' && s.plText === 'Which service? Three taps tell you ↑' && s.hash === '#checkin=shortlist.-.-.-', 'pending writes nothing into the door: no chip, no plan, the URL updated');
+  await tap(page, ckOpt('abroad'));
+  await page.waitForTimeout(700);
+  s = await passState(page);
+  check(s.state === 'resolved' && s.plan === 'Attended Viewing' && s.code === 'SHORTLIST · ABROAD' && s.cond === 'per viewing · incl. VAT' && s.refundShown === false && !s.noteShown && !s.papersShown,
+    'tap 2 (still abroad): Attended Viewing, the refund line gone (it is Full Search\'s), still no note, no papers');
+  await page.waitForTimeout(1500);
+  s = await passState(page);
+  check(s.price === '€149' && s.start === 'attended-viewing' && s.startAmt === '€149' && s.file === 'attended-viewing' && s.chip === 'attended-viewing',
+    'the board respun to €149; the pass\'s two doors and the chip point at the plan');
+  await tap(page, ckOpt('months'));
+  await page.waitForTimeout(700);
+  s = await passState(page);
+  check(s.state === 'complete' && s.noteShown && s.papersShown && s.code === 'SHORTLIST · ABROAD · T-3M' && /dossier is ready before the listings/.test(s.note),
+    'tap 3 (1–3 months): complete — the when note and the papers appear on the pass');
+  check(s.ready === 'Tap the papers you hold above and we say what we would fix first.' && s.meter === '0%' && s.passPapers === '—' && s.fDossier === '',
+    'with the papers untouched the file line invites, the meter is empty, nothing posted — never "0 of 8"');
+  check(s.moveIn === ymPlus(2) && s.passWhen === 'In 1–3 months' && s.passFile === 'SHORTLIST · ABROAD · T-3M' && s.passenger === 'A tenant',
+    `the move-in month is prefilled from the answer (${ymPlus(2)}); the pass grid carries boarding, file and "A tenant"`);
+  check(s.fCheckin === 'I have a shortlist · Still abroad · In 1–3 months' && s.hash === '#checkin=shortlist.abroad.months.-', 'the hidden field says the three answers in words; the URL carries them');
+  // the papers
+  for (const d of ['id', 'contract', 'payslips']) await tap(page, ckDoc(d));
+  await page.waitForTimeout(500);
+  s = await passState(page);
+  check(/^3 of 8 in hand\. Missing: Employer statement \(werkgeversverklaring\), Previous landlord reference, A guarantor, if your income falls short, Three months of bank statements, Motivation letter, Dutch and English\./.test(s.ready) && s.meter === '38%' && s.meterVar === '38%',
+    `three papers ticked → "3 of 8", the missing five by name, the meter at 38% ("${s.ready.slice(0, 30)}…")`);
+  check(s.passPapers === '3 of 8' && /^3\/8 · missing: Employer statement/.test(s.fDossier) && s.hash === '#checkin=shortlist.abroad.months.b',
+    'the pass grid says 3 of 8, the hidden field names the missing, the URL carries the mask (id+contract+payslips = b)');
+  const share = 'https://www.boomrome.com/amsterdam#checkin=shortlist.abroad.months.';
+  check(s.wa.startsWith('https://wa.me/?text=') && decodeURIComponent(s.wa).includes(share + '-.w') && !decodeURIComponent(s.wa).includes('.b.') && decodeURIComponent(s.wa).includes('BOOM Amsterdam'),
+    'the WhatsApp link carries the answers (via w) and never the papers: a friend\'s papers are not mine');
+  await page.evaluate(() => { try { Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true }); } catch (e) {} });
+  await tap(page, '#ckCopy');
+  await page.waitForTimeout(200);
+  check(await page.evaluate(() => window.__copied) === share + 'b.l' && (await page.textContent('#ckCopied')) === 'Link copied', 'Copy link copies my own link WITH the papers (via l) and says so');
+  const events = await layer(page);
+  check(events.filter((e) => e.name === 'checkin_answer').length === 4 && events.filter((e) => e.name === 'checkin_result').length === 2
+    && events.filter((e) => e.name === 'checkin_result').pop().p.plan === 'attended-viewing' && events.filter((e) => e.name === 'checkin_result')[0].p.resolved_at_tap === 1,
+    'four checkin_answer events (one changed), two checkin_result (one per resolution), the first resolved at tap 1');
+  // the pass follows the name and the origin
+  await page.fill('#ckName', 'Anna K.');
+  await page.fill('#ckOrigin', 'lon');
+  check((await page.textContent('#ckPassenger')) === 'Anna K.' && (await page.textContent('#ckFrom')) === 'LON', 'the pass follows the name and the origin as they are typed (origin upper-cased)');
+  const img = await page.evaluate(async () => {
+    const r = await window.BOOM_CHECKIN.passBlob();
+    const b = r && (r.blob || r);
+    if (!b || typeof b.arrayBuffer !== 'function') return null;
+    const u = new Uint8Array(await b.arrayBuffer());
+    const bmp = await createImageBitmap(b);
+    return { type: b.type, size: b.size, head: String.fromCharCode(...u.slice(0, 4)), w: bmp.width, h: bmp.height };
+  });
+  check(img && (img.type === 'image/webp' ? img.head === 'RIFF' : img.type === 'image/png') && img.w === 1080 && img.h === 1920 && img.size > 10000,
+    `passBlob() is a real ${img && img.type} 1080×1920, ${img && Math.round(img.size / 1024)} KB — a story-sized image to post`);
+  // the till from the pass
+  await tap(page, '#ckStart');
+  await page.waitForTimeout(500);
+  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'attended-viewing' && (await page.textContent('#sGoAmt')).trim() === '€149',
+    'the pass\'s till button opens the dialog on Attended Viewing, €149 on the button');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  check(!(await page.$eval('dialog#ov', (d) => d.open)), 'Escape closes the dialog (native)');
+  // the lead posts what the Check-in learned
+  await page.fill('#fName', 'Test Person');
+  await page.fill('#fEmail', 'test@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  let sent = {};
+  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
+  check(st.posts.length === 1 && sent.service === 'attended-viewing' && sent.moveIn === ymPlus(2) && sent.checkin === 'I have a shortlist · Still abroad · In 1–3 months' && /^3\/8 · missing:/.test(sent.dossier),
+    'the lead carries the plan, the month, the three answers in words and the papers', JSON.stringify(sent));
+  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no foreign request through the whole Check-in', st.errors.join(' | ') + st.foreign.join(' | '));
+  await ctx.close();
+}
+
+// ── the strip, the reveal, the burger ────────────────────────────────────
+{
+  const { ctx, page } = await open();
+  await page.waitForTimeout(500);
   const rvBefore = await page.$eval('#services', (e) => getComputedStyle(e).opacity);
-  await page.evaluate(() => document.getElementById('services').scrollIntoView());
+  await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
   await page.waitForTimeout(1200);
   check(rvBefore === '0' && await page.$eval('#services', (e) => e.classList.contains('in')), 'a section starts hidden and is revealed when scrolled into view');
-  check(await page.$eval('#paybar', (e) => e.classList.contains('on')), 'past the hero the pay bar comes up');
-  // the Check-in (v1.2) stands between the section head and the plates, so at
-  // 390px the first plate is below the fold of the section: its board spins
-  // when the READER reaches it, not when the section's title does
-  const p0 = await page.$eval('#plan-full-search .flap-prezzo', (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join('').trim());
-  await page.evaluate(() => document.getElementById('plan-full-search').scrollIntoView());
-  await page.waitForTimeout(1800);
-  const p1 = await page.$eval('#plan-full-search .flap-prezzo', (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join(''));
-  check(p0 === '' && p1 === '€500', `the first price spun onto its board when it came into view, not before ("${p1}")`);
-  // burger
+  check(await page.$eval('#paybar', (e) => e.classList.contains('on')) && (await page.textContent('#stripGo')).trim() === 'Open my file' && (await page.textContent('#stripSub')).trim() === 'free · same-day reply',
+    'past the hero the strip comes up, with the one label and no price');
+  check(await page.evaluate(() => document.getElementById('enbref').getBoundingClientRect().top > document.getElementById('faq').getBoundingClientRect().top),
+    'the fact sheet sits below the FAQ: human content first, machine content after');
   await page.click('#navToggle');
   check(await page.$eval('#mobileMenu', (e) => e.classList.contains('active')) && await page.getAttribute('#navToggle', 'aria-expanded') === 'true', 'the burger opens the menu');
+  check(await page.$eval('#mobileMenu', (e) => /BOOM desks/.test(e.textContent) && !!e.querySelector('a[href="/madrid"]') && !!e.querySelector('a[href="/"]')), 'the menu lists the desks (the suite left the fixed chrome) and BOOM Rome');
   await page.click('#mobileMenu a[href="#faq"]');
   await page.waitForTimeout(300);
   check(!(await page.$eval('#mobileMenu', (e) => e.classList.contains('active'))), 'a menu link closes it');
+  await ctx.close();
+}
 
-  // the till: a plate's button opens the sheet on ITS plan, the sheet validates in place, posts { city, kind } and follows Stripe's URL
-  await tap(page, '#plan-application-pack .go');
+// ── the till: a plate's button opens the dialog on ITS plan, posts, follows, lands PAID ──
+{
+  const { ctx, page, st } = await open();
+  await page.waitForTimeout(500);
+  await tap(page, '[data-pay="application-pack"]');
   await page.waitForTimeout(600);
-  check(await page.$eval('#ov', (e) => e.classList.contains('on')) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
-    && (await page.textContent('#sGoAmt')).trim() === '€199', 'the plate\'s button opens the sheet on Application Pack, €199 on the button');
+  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
+    && (await page.textContent('#sGoAmt')).trim() === '€199' && (await page.textContent('#sGo')).replace(/\s+/g, ' ').includes('Pay and start'),
+    'the plate\'s pay link opens the dialog on Application Pack, €199 on the till button');
   const beganAt = (await layer(page)).filter((e) => e.name === 'begin_checkout');
   check(beganAt.length === 1 && beganAt[0].p.value === 199 && beganAt[0].p.market === 'amsterdam', 'begin_checkout fires once, with the plan\'s value and the market');
-  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'the pay bar steps back while the sheet is open');
+  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'the strip steps back while the dialog is open');
   await page.click('.payrow:has(input[value="full-search"])');
-  check((await page.textContent('#sGoAmt')).trim() === '€500' && await page.$eval('.payrow:has(input[value="full-search"])', (e) => e.classList.contains('on')), 'choosing another row in the sheet changes the amount on the button');
+  check((await page.textContent('#sGoAmt')).trim() === '€500', 'choosing another row changes the amount on the button');
   await page.click('#sGo');
   check(st.checkouts.length === 0 && await page.$eval('#sErr', (e) => e.classList.contains('on')) && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-name'),
     'an empty sheet posts nothing and says, in place, that the name is missing');
@@ -205,10 +341,10 @@ const board = (page) => page.evaluate(() => {
   check(st.checkouts.length === 0 && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-phone'), 'a two-digit phone is named as incomplete, nothing posted');
   await page.fill('#sPhone', '');
   await page.keyboard.press('Escape');
-  check(!(await page.$eval('#ov', (e) => e.classList.contains('on'))), 'Escape closes the sheet');
-  await tap(page, '#plan-full-search .go');
+  await page.waitForTimeout(200);
+  await tap(page, '[data-pay="full-search"]');
   await page.waitForTimeout(400);
-  check(await page.$eval('#sName', (e) => e.value) === 'Test Person', 'reopening the sheet keeps what was typed');
+  check(await page.$eval('#sName', (e) => e.value) === 'Test Person', 'reopening the dialog keeps what was typed');
   await page.click('#sGo');
   await page.waitForURL(/paid=full-search/, { timeout: 4000 }).catch(() => {});
   await page.waitForTimeout(900);
@@ -216,12 +352,14 @@ const board = (page) => page.evaluate(() => {
   try { co = JSON.parse(st.checkouts[0].body); } catch (e) {}
   check(st.checkouts.length === 1 && co.city === 'amsterdam' && co.kind === 'full-search' && co.name === 'Test Person' && co.email === 'test@example.com' && co.company === '' && !('eur' in co) && !('price' in co),
     'the sheet posts { city, kind, name, email } once — never a price — and follows the URL', JSON.stringify(co));
-  check(await page.isVisible('#fPaid') && !(await page.isVisible('#cityForm')) && (await page.textContent('#paidPlan')).trim() === 'Full Search · €500',
+  check(await page.isVisible('#fPaid') && !(await page.isVisible('#cityForm')) && /^Full Search · €500/.test((await page.textContent('#paidPlan')).trim()),
     'back from Stripe the card shows the PAID state for the plan, the form gives way');
   await page.waitForTimeout(1200);
   check(await boardWord(page, '#flapPaid') === 'PAID', 'the small board spells PAID');
   const purchases = (await layer(page)).filter((e) => e.name === 'purchase');
   check(purchases.length === 1 && purchases[0].p.transaction_id === 'cs_test_ui_1' && purchases[0].p.value === 500, 'ONE purchase event, with Stripe\'s session id and the plan\'s value');
+  const keys = await page.evaluate(() => ({ s: Object.keys(sessionStorage), l: Object.keys(localStorage).filter((k) => /paid/.test(k)) }));
+  check(keys.s.includes('boom:paid:cs_test_ui_1') && keys.l.length === 0, 'the purchase key lives in sessionStorage for the tab, never in localStorage');
   check(!/paid=/.test(page.url()) && /#contact$/.test(page.url()), 'the query is folded away: the URL can be shared without re-landing on a paid state');
   await page.reload({ waitUntil: 'load' });
   await page.waitForTimeout(500);
@@ -241,53 +379,67 @@ const board = (page) => page.evaluate(() => {
   await c2.close();
   await ctx.close();
 }
-// the door: chips, errors in place, the send, OPEN on the board, the offer to pay
+// the door: chips, errors in place, the send, OPEN with the computed reply window, the offer
 {
   const { ctx, page, st } = await open();
-  await page.waitForTimeout(800);
+  await page.waitForTimeout(600);
   const picked = () => page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; });
   check(await picked() === '', 'no service is pre-checked when the page opens');
+  check(await page.$eval('#fMoveIn', (s) => s.options[0].value === '' && s.options[0].textContent === 'Not sure yet' && [...s.options].slice(1).every((o) => /^\d{4}-\d{2}$/.test(o.value))),
+    'the move-in field is a month select: "Not sure yet" first, then months as YYYY-MM');
   await tap(page, '.chip:has(input[value="application-pack"])');
-  check(await picked() === 'application-pack', 'tapping a chip chooses the service (the chip is the radio\'s label)');
-  await tap(page, '.chip.unsure');
-  check(await picked() === 'unsure', 'tapping another chip changes the choice');
-  await tap(page, '.chip:has(input[value="application-pack"])');
+  check(await picked() === 'application-pack' && (await page.textContent('#plText')) === 'Application Pack · €199 · flat · incl. VAT', 'tapping a chip chooses the service and the plan line says it (no "from your check-in": the chip was the hand)');
   await tap(page, '#fGo');
-  const errName = await page.textContent('#fErr');
-  check(st.posts.length === 0 && await page.$eval('#fErr', (e) => e.classList.contains('on')) && errName === await page.getAttribute('#cityForm', 'data-err-name'),
+  check(st.posts.length === 0 && await page.$eval('#fErr', (e) => e.classList.contains('on')) && (await page.textContent('#fErr')) === await page.getAttribute('#cityForm', 'data-err-name'),
     'an empty form sends nothing and says, in place, that the name is missing');
   await page.fill('#fName', 'Test Person');
   await page.fill('#fEmail', 'not-an-email');
   await tap(page, '#fGo');
   check(st.posts.length === 0 && (await page.textContent('#fErr')) === await page.getAttribute('#cityForm', 'data-err-email'), 'a broken email is named, nothing is sent');
   await page.fill('#fEmail', 'test@example.com');
-  await page.fill('#fMoveIn', 'February 2027');
+  await page.selectOption('#fMoveIn', { index: 3 });
   await page.selectOption('#fBudget', { index: 2 });
   await tap(page, '#fGo');
   await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
   let sent = {};
   try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
   check(st.posts.length === 1 && st.posts[0].headers['content-type'] === 'application/json' && sent.city === 'amsterdam' && sent.name === 'Test Person'
-    && sent.email === 'test@example.com' && sent.service === 'application-pack' && sent.budget === '€1,500 – €2,000' && sent.company === '',
-    'a valid submit posts JSON once, with the city, the chosen service, the band and an empty honeypot', JSON.stringify(sent));
+    && sent.email === 'test@example.com' && sent.service === 'application-pack' && sent.budget === '€1,500 – €2,000' && /^\d{4}-\d{2}$/.test(sent.moveIn) && sent.company === '',
+    'a valid submit posts JSON once, with the city, the chosen service, the band, the month and an empty honeypot', JSON.stringify(sent));
   check(await page.isVisible('#fDone') && !(await page.isVisible('#cityForm')), 'on success the form gives way to "your file is open"');
+  const when = (await page.textContent('#openWhen')).trim();
+  check(WINDOW_RE.test(when), `the reply window is computed against the desk clock, never a static promise ("${when}")`);
   await page.waitForTimeout(1300);
   check(await boardWord(page, '#flapDone') === 'OPEN', 'the small board spells OPEN');
-  check(await page.isVisible('#payOffer') && (await page.textContent('#payOfferAmt')).trim() === '€199', 'on a desk that sells, the card then offers to pay for the plan they chose (€199)');
+  check(await page.isVisible('#payOffer') && (await page.textContent('#payOfferAmt')).trim() === '€199' && await page.$eval('#payOfferRefund', (e) => e.hidden),
+    'on a desk that sells, the card then offers to pay for the plan they chose (€199) — the refund line hidden, it is Full Search\'s');
   await page.click('#payOfferBtn');
   await page.waitForTimeout(500);
-  check(await page.$eval('#ov', (e) => e.classList.contains('on')) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
+  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
     && await page.$eval('#sName', (e) => e.value) === 'Test Person' && await page.$eval('#sEmail', (e) => e.value) === 'test@example.com',
-    'the offer opens the sheet on that plan with the name and email already in — nothing to re-type');
-  check(st.errors.length === 0, 'no JS errors', st.errors.join(' | '));
-  check(st.foreign.length === 0, 'no request to a host the page should not call', st.foreign.join(' | '));
+    'the offer opens the dialog on that plan with the name and email already in — nothing to re-type');
+  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS errors, no request to a host the page should not call', st.errors.join(' | ') + st.foreign.join(' | '));
+  await ctx.close();
+}
+// Full Search chosen by hand: the offer carries the refund rule
+{
+  const { ctx, page } = await open();
+  await page.waitForTimeout(400);
+  await tap(page, '.chip:has(input[value="full-search"])');
+  await page.fill('#fName', 'Test Person');
+  await page.fill('#fEmail', 'test@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  check(await page.isVisible('#payOffer') && (await page.textContent('#payOfferAmt')).trim() === '€500' && !(await page.$eval('#payOfferRefund', (e) => e.hidden)),
+    'with Full Search chosen the offer shows €500 and the refund rule beside it');
   await ctx.close();
 }
 // "not sure yet" gets no offer to pay: they asked for advice
 {
   const { ctx, page } = await open();
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(400);
   await tap(page, '.chip.unsure');
+  check((await page.textContent('#plText')) === 'Not sure yet · advise me', 'the plan line says "not sure yet · advise me"');
   await page.fill('#fName', 'Test Person');
   await page.fill('#fEmail', 'test@example.com');
   await tap(page, '#fGo');
@@ -295,22 +447,21 @@ const board = (page) => page.evaluate(() => {
   check(await page.isVisible('#fDone') && !(await page.isVisible('#payOffer')), '"not sure yet" opens the file and gets no checkout offer');
   await ctx.close();
 }
-// a failed checkout says so in the sheet and gives the button back
+// a failed checkout says so in the dialog and gives the button back
 {
   const { ctx, page, st } = await open({ checkout: { status: 500, body: { ok: false, error: 'stripe_failed' } } });
-  await page.waitForTimeout(600);
-  await tap(page, '#plan-full-search .go');
+  await page.waitForTimeout(400);
+  await tap(page, '[data-pay="full-search"]');
   await page.waitForTimeout(400);
   await page.fill('#sName', 'Test Person');
   await page.fill('#sEmail', 'test@example.com');
   await page.click('#sGo');
   await page.waitForFunction(() => document.getElementById('sErr').classList.contains('on'), null, { timeout: 4000 }).catch(() => {});
   check(st.checkouts.length === 1 && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-net') && !(await page.$eval('#sGo', (e) => e.classList.contains('busy'))) && /amsterdam$/.test(page.url().split('#')[0]),
-    'a failed checkout: the sheet says so in its own words, the button comes back, the page stays');
+    'a failed checkout: the dialog says so in its own words, the button comes back, the page stays');
   await ctx.close();
 }
-
-// ── a failed submit says so and gives the button back ─────────────────────
+// a failed submit says so and gives the button back
 {
   const { ctx, page, st } = await open({ api: { status: 500, body: { ok: false, error: 'internal' } } });
   await page.fill('#fName', 'Test Person');
@@ -324,23 +475,96 @@ const board = (page) => page.evaluate(() => {
   await ctx.close();
 }
 
-// ── reduced motion: the word is there at once, no spin ────────────────────
+// ── links land where they say ────────────────────────────────────────────
+{
+  const { ctx, page } = await open({ query: '#checkin=zero.abroad.soon.-' });
+  await page.waitForTimeout(1900);
+  let s = await passState(page);
+  check(s.state === 'complete' && s.plan === 'Full Search' && s.code === 'START · ABROAD · T-4W' && s.landing === null,
+    'my own link lands straight on the complete ticket: Full Search for someone who has not started, no banner');
+  check(s.note === 'Four weeks is tight. We say so in the first call.' && s.ready === 'Tap the papers you hold above and we say what we would fix first.' && s.meter === '0%',
+    'haven\'t started + within four weeks: the refusal is on the ticket; the papers untouched, the line invites');
+  check(s.start === 'full-search' && s.startAmt === '€500' && s.moveIn === ymPlus(1), 'the till button on the pass says €500; the month prefilled one month out');
+  await ctx.close();
+  const { ctx: c2, page: p2 } = await open({ query: '#checkin=xx.yy' });
+  await p2.waitForTimeout(600);
+  s = await passState(p2);
+  check(s.state === 'blank' && JSON.stringify(s.stepsShown) === '[true,false,false]' && !/checkin/.test(await p2.evaluate(() => location.hash)),
+    'a broken link opens the first step, nothing pre-ticked, and the address bar is clean');
+  await c2.close();
+  const { ctx: c2b, page: p2b } = await open({ query: '#checkin=zero.abroad.nowhere.-.w' });
+  await p2b.waitForTimeout(800);
+  s = await passState(p2b);
+  check(s.state === 'resolved' && s.plan === 'Full Search' && s.landing === '2 of 3 answered, from the link you received. One tap to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,true]',
+    'a link with one answer that does not exist keeps the two that do: the ticket resolved, the third step open, the banner counting');
+  await c2b.close();
+  const { ctx: c3, page: p3 } = await open({ query: '#checkin=shortlist.here.later.ff.l' });
+  await p3.waitForTimeout(1900);
+  s = await passState(p3);
+  check(s.plan === 'Application Pack' && s.meter === '100%' && /^All eight in hand\./.test(s.ready) && await p3.$$eval('#pass input[name="ck-doc"]', (els) => els.every((e) => e.checked)) && s.passPapers === '8 of 8',
+    'docs mask ff on my own link (via l): all eight ticked, the meter full, the line says the file is ready');
+  await c3.close();
+  const { ctx: c4, page: p4 } = await open({ query: '#checkin=zero.abroad.soon.b.w' });
+  await p4.waitForTimeout(1200);
+  s = await passState(p4);
+  check(s.state === 'complete' && s.landing === "Your friend's answers. Change any of them, then your plan is yours." && s.meter === '0%' && s.passPapers === '—'
+    && await p4.$$eval('#pass input[name="ck-doc"]', (els) => els.every((e) => !e.checked)),
+    'a friend\'s link (via w): the ticket with the banner, and the friend\'s papers NOT ticked — the mask is ignored on a received link');
+  check((await layer(p4)).find((e) => e.name === 'deeplink_landing').p.via === 'w', 'the landing event names the via');
+  await c4.close();
+  const { ctx: c5, page: p5 } = await open({ query: '#checkin=shortlist.-.-.-.w' });
+  await p5.waitForTimeout(800);
+  s = await passState(p5);
+  check(s.state === 'pending' && s.landing === '1 of 3 answered, from the link you received. Two taps to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,false]',
+    'a partial link lands on the next step with the known answer ticked and says how many taps are left');
+  await c5.close();
+}
+
+// ── the consent plate waits for the reader ───────────────────────────────
+{
+  const { ctx, page } = await open({ consent: false });
+  await page.waitForTimeout(2200);
+  check(await page.$('.boomcst') === null && await page.$eval('body', (b) => b.hasAttribute('data-consent-late')), 'with data-consent-late the plate is not on the first screen after two seconds of reading');
+  await page.click(ckOpt('zero'));                    // in the first screen: no scroll to reach it
+  await page.waitForTimeout(1800);                      // the page scrolls ITSELF to land the pass: not the reader's move
+  check(await page.$('.boomcst') === null, 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
+  await page.mouse.wheel(0, 120);
+  await page.waitForTimeout(1500);
+  check(await page.$('.boomcst') !== null, 'the first wheel turn arms it: the plate comes 600 ms later');
+  await ctx.close();
+  const { ctx: c2, page: p2 } = await open({ consent: false });
+  await p2.waitForTimeout(300);
+  await p2.$eval('[data-pay="full-search"]', (el) => el.click());   // the till, without scrolling to it
+  await p2.waitForTimeout(300);
+  await p2.mouse.wheel(0, 40);
+  await p2.waitForTimeout(1800);
+  check(await p2.$eval('dialog#ov', (d) => d.open) && await p2.$('.boomcst') === null, 'while the till dialog is open the plate holds back (two things asking at once)');
+  await p2.keyboard.press('Escape');
+  await p2.waitForTimeout(1200);
+  check(await p2.$('.boomcst') !== null, 'once the dialog closes the plate comes');
+  await c2.close();
+}
+
+// ── reduced motion: the word is there at once, nothing animates ─────────
 {
   const { ctx, page } = await open({ reducedMotion: 'reduce' });
   await page.waitForTimeout(150);
   const b = await board(page);
   check(b.cells === 9 && b.letters === 'AMSTERDAM', 'with reduced motion the board is set still on AMSTERDAM, immediately');
-  check(await page.$eval('.machine .fly em', (e) => getComputedStyle(e).animationName === 'none'), 'with reduced motion the plane on the route stands still');
   check(await page.$$eval('.rv .step, .rv .flow', (els) => els.every((e) => getComputedStyle(e).opacity === '1')), 'with reduced motion the children of a block do not wait for a stagger');
+  await tap(page, ckOpt('zero'));
+  await page.waitForTimeout(300);
+  const s = await passState(page);
+  check(s.state === 'resolved' && s.price === '€500' && await page.$eval('#pass', (e) => getComputedStyle(e).animationName === 'none'),
+    'under reduced motion the pass arrives set — the price on the board at once, no entrance animation');
   await ctx.close();
 }
-// the motion, when it is allowed: the plane moves, the children of a block follow it
+// the motion, when it is allowed: the children of a block follow one beat apart
 {
   const { ctx, page } = await open();
   await page.waitForTimeout(400);
-  check(await page.$eval('.machine .fly em', (e) => getComputedStyle(e).animationName === 'fly'), 'the plane crosses the route (animation fly)');
   const before = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).opacity));
-  await page.evaluate(() => document.getElementById('how').scrollIntoView());
+  await page.evaluate(() => document.getElementById('how').scrollIntoView({ behavior: 'instant' }));
   await page.waitForTimeout(1600);
   const after = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).opacity));
   const delays = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).transitionDelay));
@@ -348,24 +572,33 @@ const board = (page) => page.evaluate(() => {
   await ctx.close();
 }
 
-// ── 1440px: two columns, desktop nav, no bar ──────────────────────────────
+// ── 1440px: the pass is on the page from load, blank, in the sticky column ──
 {
   const { ctx, page } = await open({ width: 1440 });
   await page.waitForTimeout(2600);
   const b = await board(page);
   check(b.cells === 9 && Math.abs(b.minW - b.contentW) < 4, `1440px: the same board, the same reservation (${b.contentW.toFixed(0)}px)`);
+  let s = await passState(page);
+  check(s.state === 'blank' && s.display !== 'none' && s.blankShown && s.board === 'AMSTERDAM' && s.code === '—',
+    'at 1440 the pass is on the page from load, blank, the city on its board and "your plan prints here as you answer"');
   const geo = await page.evaluate(() => {
-    const h1 = document.querySelector('.hero h1').getBoundingClientRect(), card = document.querySelector('.filecard').getBoundingClientRect();
-    return { twoCols: card.left > h1.right, cardTop: card.top, h1Top: h1.top };
+    const h1 = document.querySelector('.hero h1').getBoundingClientRect(), pass = document.getElementById('pass').getBoundingClientRect(), card = document.querySelector('.filecard').getBoundingClientRect();
+    const right = document.querySelector('.hero-right');
+    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, tall: right.classList.contains('tall') };
   });
-  check(geo.twoCols && Math.abs(geo.cardTop - geo.h1Top) < 120, 'the door sits beside the title: the corridor and the door');
-  check(await page.isVisible('.nav-links .nav-cta') && !(await page.isVisible('#navToggle')), '1440px: desktop nav with its CTA, no burger');
-  check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no pay bar');
-  check(await page.$eval('.serving', (e) => getComputedStyle(e).display !== 'none'), '1440px: the "searching daily on" line is back under the proofs');
+  check(geo.twoCols && geo.passAboveDoor && Math.abs(geo.passTop - geo.h1Top) < 80, 'the pass sits beside the title with the door under it: two columns');
+  check(geo.sticky === 'sticky' || geo.tall, `the right column is sticky unless taller than the screen (${geo.sticky}${geo.tall ? ', released' : ''})`);
+  check(await page.isVisible('.nav-links .nav-door') && (await page.textContent('.nav-links .nav-door')).trim() === 'Open my file' && !(await page.isVisible('#navToggle')),
+    '1440px: desktop nav with the door as a text link, no burger');
+  check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no strip');
+  await tap(page, ckOpt('found'));
+  await page.waitForTimeout(600);
+  s = await passState(page);
+  check(s.state === 'resolved' && s.plan === 'Application Pack' && s.inClass && geo.passTop >= 0, 'a tap fills the ticket in place: no scroll, no jump at 1440');
   await ctx.close();
 }
 
-// ── the sisters at 390px: Madrid (search), Barcelona, Paris and Berlin (waitlist) ──
+// ── the sisters at 390px ─────────────────────────────────────────────────
 for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['paris', 'PARIS'], ['berlin', 'BERLIN']]) {
   const { ctx, page, st } = await open({ slug });
   await page.waitForTimeout(2600);
@@ -373,22 +606,38 @@ for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['
   check(b.cells === word.length && b.letters === word && Math.abs(b.minW - b.contentW) < 4, `${slug}: the board spells ${word} in the space the hero reserved (${b.contentW.toFixed(0)}px)`);
   const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
   const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-  check(scrollW <= 390 && chipH.length === 4 && new Set(chipH).size === 1, `${slug}: 390px, no horizontal scroll, four chips in one even grid (${chipH.join('/')}px)`);
+  check(scrollW <= 390 && chipH.length === 4, `${slug}: 390px, no horizontal scroll, four chips (${chipH.join('/')}px)`);
   const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(chipTxt) === JSON.stringify(['€500', '€199', '€149 · per viewing', 'advise me']), `${slug}: the chips carry the brief's prices`);
-  if (['barcelona', 'paris', 'berlin'].includes(slug)) {
-    check(await page.$('#ov') === null && await page.$('[data-pay]') === null && await page.isVisible('.pricenote'),
-      `${slug}: no sheet, no pay button; under the chips the line says the prices are list prices, charged only when the desk opens`);
+  const wl = ['barcelona', 'paris', 'berlin'].includes(slug);
+  check(chipTxt[0].startsWith('€500') && chipTxt[1].startsWith('€199') && chipTxt[2].startsWith('€149') && chipTxt.every((t, i) => i === 3 || /VAT/.test(t)) && (wl ? chipTxt.slice(0, 3).every((t) => /at opening|on signing/.test(t)) : chipTxt.slice(0, 3).every((t) => !/opening|sign/.test(t))),
+    `${slug}: the chips carry the brief's prices with each plan's own condition (${chipTxt.slice(0, 3).join(' | ')})`);
+  await tap(page, ckOpt('zero'));
+  await page.waitForTimeout(1900);
+  const s = await passState(page);
+  if (wl) {
+    check(await page.$('dialog#ov') === null && await page.$('[data-pay]') === null && (await page.textContent('.pricenote')).trim() === 'List prices, VAT included. Each plan says when it is charged.',
+      `${slug}: no dialog, no pay control; under the chips the line says each plan states when it is charged`);
+    check(s.plan === 'Full Search' && s.price === '€500' && s.start === null && s.file === 'full-search' && s.refundShown === null
+      && (slug === 'berlin' ? s.cond === 'flat · incl. VAT · on signing' && /once you sign a lease/.test(await page.textContent('#ckCondLong')) : s.cond === 'flat · incl. VAT · at opening' && /when the desk opens/.test(await page.textContent('#ckCondLong'))),
+      `${slug}: the pass says Full Search €500 with ITS condition ("${s.cond}") and one door, the free file`);
     await tap(page, '#plan-application-pack .go');
     await page.waitForTimeout(400);
     check(await page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; }) === 'application-pack',
-      `${slug}: the plate's button leads to the door and checks its chip`);
+      `${slug}: the plate's primary leads to the door and checks its chip`);
   } else {
-    await tap(page, '#plan-application-pack .go');
+    check(s.plan === 'Full Search' && s.price === '€500' && s.start === 'full-search' && s.refundShown === true, `${slug}: the pass says Full Search €500 with the till button and the refund rule`);
+    await tap(page, '[data-pay="application-pack"]');
     await page.waitForTimeout(500);
-    check(await page.$eval('#ov', (e) => e.classList.contains('on')) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack', `${slug}: the plate's button opens the sheet on its plan`);
+    check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack', `${slug}: the plate's pay link opens the dialog on its plan`);
     await page.keyboard.press('Escape');
+    await page.waitForTimeout(200);
+    // the pass wrote Full Search into the door and folded the plan line: a
+    // change by hand starts by unfolding it (the "change" tag on the summary)
+    check(!(await page.$eval('#planline', (d) => d.open)) && !(await page.$eval('#plChange', (e) => e.hidden)), `${slug}: the plan line folded on the plan the pass wrote, with its "change" tag`);
+    await tap(page, '#planline summary');
+    await page.waitForTimeout(200);
     await tap(page, '.chip:has(input[value="application-pack"])');
+    check((await page.textContent('#plText')) === 'Application Pack · €199 · flat · incl. VAT', `${slug}: a chip chosen by hand replaces the pass's plan and drops the "from your check-in" tag`);
   }
   await page.fill('#fName', 'Test Person');
   await page.fill('#fEmail', 'test@example.com');
@@ -397,195 +646,19 @@ for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['
   let sent = {};
   try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
   check(st.posts.length === 1 && sent.city === slug && sent.service === 'application-pack' && st.errors.length === 0,
-    `${slug}: the form posts city "${slug}" once, with the plate's chip chosen, and no JS error`, JSON.stringify(sent) + ' ' + st.errors.join('|'));
+    `${slug}: the form posts city "${slug}" once, with Application Pack chosen, and no JS error`, JSON.stringify(sent) + ' ' + st.errors.join('|'));
   await ctx.close();
 }
 
-// ── THE CHECK-IN (v1.2) at 390px: three taps, the papers, the ticket, the pass ──
-const ckOpt = (v) => `#checkin .ck-opt:has(input[value="${v}"])`;
-const ckDoc = (v) => `#checkin .ck-doc:has(input[value="${v}"])`;
-const vis = (page, sel) => page.$eval(sel, (e) => !e.hidden && !e.closest('[hidden]') && getComputedStyle(e).display !== 'none');
+// ── a touch screen: the same page, nothing hover-bound ───────────────────
 {
-  const { ctx, page, st } = await open();
-  // the clipboard is captured, not read back: headless Chromium grants no clipboard permission
-  await page.evaluate(() => { try { Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true }); } catch (e) {} });
+  const { ctx, page, st } = await open({ touch: true });
   await page.waitForTimeout(600);
-  check(await vis(page, '#checkin .ck-step[data-step="stage"]') && !(await vis(page, '#checkin .ck-step[data-step="when"]')) && !(await vis(page, '#checkin .ck-step[data-step="dossier"]')) && !(await vis(page, '#ckResult')),
-    'the Check-in opens on the first step alone: no second step, no documents, no ticket yet');
-  await tap(page, ckOpt('shortlist'));
-  check(await vis(page, '#checkin .ck-step[data-step="when"]') && !(await vis(page, '#checkin .ck-step[data-step="where"]')), 'the first answer brings the second step, not the third');
-  await tap(page, ckOpt('months'));
-  await tap(page, ckOpt('abroad'));
-  check(await vis(page, '#checkin .ck-step[data-step="dossier"]') && await vis(page, '#ckGo') && !(await vis(page, '#ckResult')), 'the third answer brings the documents and the button; the ticket waits for it');
-  for (const d of ['id', 'contract', 'payslips']) await tap(page, ckDoc(d));
-  await tap(page, '#ckGo');
-  await page.waitForTimeout(1900);
-  check(await vis(page, '#ckResult') && await page.$eval('#ckResult', (e) => e.classList.contains('on')) && !(await vis(page, '#ckSteps')), 'the ticket replaces the steps');
-  const tk = await page.evaluate(() => ({
-    plan: document.getElementById('ckPlan').textContent, code: document.getElementById('ckCode').textContent, per: document.getElementById('ckPer').textContent,
-    why: document.getElementById('ckWhy').textContent, inc: [...document.querySelectorAll('#ckInc li')].map((l) => l.textContent),
-    noteWhen: document.getElementById('ckNoteWhen').textContent, noteWhere: document.getElementById('ckNoteWhere').textContent,
-    price: [...document.querySelectorAll('#ckPrice .st b')].map((b) => b.textContent).join(''), cells: document.querySelectorAll('#ckPrice .fc2').length,
-    ready: document.getElementById('ckReady').textContent, meter: document.getElementById('ckMeter').style.width,
-    start: document.getElementById('ckStart').getAttribute('data-pay'), startTx: document.getElementById('ckStartTx').textContent, file: document.getElementById('ckFile').getAttribute('data-service'),
-    chip: (document.querySelector('input[name="service"]:checked') || {}).value, moveIn: document.getElementById('fMoveIn').value,
-    fCheckin: document.getElementById('fCheckin').value, fDossier: document.getElementById('fDossier').value, wa: document.getElementById('ckWa').href,
-    passPlan: document.getElementById('ckPassPlan').textContent, passWhen: document.getElementById('ckPassWhen').textContent, passFile: document.getElementById('ckPassFile').textContent,
-    passenger: document.getElementById('ckPassenger').textContent, board: [...document.querySelectorAll('#ckBoard .st b')].map((b) => b.textContent).join(''),
-  }));
-  check(tk.plan === 'Attended Viewing' && tk.code === 'SHORTLIST · T-3M · ABROAD' && /per viewing/.test(tk.per) && /away|abroad/i.test(tk.why),
-    `a shortlist from abroad → Attended Viewing, the file code on the ticket ("${tk.code}")`);
-  check(tk.price === '€149' && tk.cells === 4, `the price spun onto its own board ("${tk.price}", ${tk.cells} cells)`);
-  check(tk.inc.length >= 2 && tk.noteWhen.length > 10 && tk.noteWhere.length > 10, 'the ✓ lines of the plan and the two notes (when, where) are on the ticket');
-  check(/^3 of 8 in hand\. Missing: Employer statement \(werkgeversverklaring\), Previous landlord reference, A guarantor, if your income falls short, Three months of bank statements, Motivation letter, Dutch and English\./.test(tk.ready) && tk.meter === '38%',
-    `three papers ticked → "3 of 8", the missing five by name, the meter at 38% ("${tk.ready.slice(0, 40)}…")`);
-  check(tk.start === 'attended-viewing' && tk.startTx === 'Start · €149' && tk.file === 'attended-viewing', 'the two doors of the ticket point at the plan: the till button says the price, the free file carries the service');
-  check(tk.chip === 'attended-viewing' && tk.moveIn === 'In 1–3 months', 'the door is written: the plan\'s chip checked, the move-in prefilled from the answer');
-  check(tk.fCheckin === 'I have a shortlist · In 1–3 months · Still abroad' && /^3\/8 · missing: Employer statement/.test(tk.fDossier), 'the two hidden fields carry the answers and the papers in words');
-  const share = 'https://www.boomrome.com/amsterdam#checkin=shortlist.months.abroad.b';
-  check(tk.wa.startsWith('https://wa.me/?text=') && decodeURIComponent(tk.wa).includes(share) && decodeURIComponent(tk.wa).includes('BOOM Amsterdam'), 'the WhatsApp link carries the share text with the link to these answers (docs as a hex mask: id+contract+payslips = b)');
-  check(tk.passPlan === 'Attended Viewing' && tk.passWhen === 'In 1–3 months' && tk.passFile === tk.code && tk.passenger === 'A tenant' && tk.board === 'AMSTERDAM',
-    'the pass carries the plan, the boarding window, the file code, "A tenant" until a name is typed, and spells AMSTERDAM on its board');
-  const events = await layer(page);
-  check(events.filter((e) => e.name === 'checkin_answer').length === 3 && events.filter((e) => e.name === 'checkin_result').length === 1
-    && events.find((e) => e.name === 'checkin_result').p.plan === 'attended-viewing' && events.find((e) => e.name === 'checkin_result').p.docs === 3,
-    'three checkin_answer events and ONE checkin_result with the plan and the papers count');
-  await page.click('#ckCopy');
-  await page.waitForTimeout(200);
-  check(await page.evaluate(() => window.__copied) === share && (await page.textContent('#ckCopied')) === 'Link copied', 'Copy link copies the page URL with #checkin=… and says so');
-  await page.fill('#ckName', 'Anna K.');
-  await page.fill('#ckOrigin', 'lon');
-  check((await page.textContent('#ckPassenger')) === 'Anna K.' && (await page.textContent('#ckFrom')) === 'LON', 'the pass follows the name and the origin as they are typed (origin upper-cased)');
-  const png = await page.evaluate(async () => {
-    const b = await window.BOOM_CHECKIN.passBlob();
-    const u = new Uint8Array(await b.arrayBuffer());
-    const be = (i) => (u[i] << 24 | u[i + 1] << 16 | u[i + 2] << 8 | u[i + 3]) >>> 0;
-    return { type: b.type, size: b.size, sig: Array.from(u.slice(0, 8)).join(','), w: be(16), h: be(20) };
-  });
-  check(png.type === 'image/png' && png.sig === '137,80,78,71,13,10,26,10' && png.w === 1080 && png.h === 1920 && png.size > 20000,
-    `passBlob() is a real PNG, 1080×1920, ${Math.round(png.size / 1024)} KB — a story-sized image to post`);
-  // the till from the ticket
-  await tap(page, '#ckStart');
-  await page.waitForTimeout(500);
-  check(await page.$eval('#ov', (e) => e.classList.contains('on')) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'attended-viewing', 'the ticket\'s till button opens the sheet on Attended Viewing');
-  await page.keyboard.press('Escape');
-  // change the answers: the steps come back, the ticket goes
-  await tap(page, '#ckChange');
-  await page.waitForTimeout(300);
-  check(await vis(page, '#ckSteps') && !(await vis(page, '#ckResult')) && await page.$eval(ckOpt('shortlist') + ' input', (e) => e.checked), '"Change my answers" brings the steps back with the answers still ticked');
-  await tap(page, ckOpt('found'));
-  await tap(page, ckOpt('soon'));
-  await tap(page, '#ckGo');
-  await page.waitForTimeout(1900);
-  check((await page.textContent('#ckPlan')) === 'Application Pack' && [...(await page.$$eval('#ckPrice .st b', (bs) => bs.map((b) => b.textContent)))].join('') === '€199',
-    'found one, moving within four weeks → Application Pack, the board respun to €199');
-  // the lead posts what the Check-in learned
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  let sent = {};
-  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
-  check(st.posts.length === 1 && sent.service === 'application-pack' && sent.moveIn === 'In 1–3 months' && sent.checkin === 'Found one, need to apply · Within 4 weeks · Still abroad' && /^3\/8 · missing:/.test(sent.dossier),
-    'the lead carries the chosen plan, the move-in, the three answers in words and the papers', JSON.stringify(sent));
-  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no foreign request through the whole Check-in', st.errors.join(' | ') + st.foreign.join(' | '));
-  await ctx.close();
-}
-// a link with the answers lands on the ticket; a broken one on the first step
-{
-  const { ctx, page } = await open({ query: '#checkin=zero.soon.here.-' });
-  await page.waitForTimeout(1900);
-  check(await vis(page, '#ckResult') && !(await vis(page, '#ckSteps')) && (await page.textContent('#ckPlan')) === 'Full Search' && (await page.textContent('#ckCode')) === 'START · T-4W · IN TOWN',
-    'a shared link lands straight on the ticket: Full Search for someone who has not started');
-  check((await page.textContent('#ckReady')) === 'Tap the papers you hold above and we say what we would fix first.' && (await page.$eval('#ckMeter', (e) => e.style.width)) === '0%',
-    'with the papers untouched ("-") the file line invites, the meter stays empty — never "0 of 8"');
-  check((await page.$eval('#ckStart', (e) => e.getAttribute('data-pay'))) === 'full-search' && (await page.textContent('#ckStartTx')) === 'Start · €500', 'the till button on the ticket says €500');
-  await ctx.close();
-  const { ctx: c2, page: p2 } = await open({ query: '#checkin=zero.soon.nowhere.-' });
-  await p2.waitForTimeout(600);
-  check(await vis(p2, '#checkin .ck-step[data-step="stage"]') && !(await vis(p2, '#ckResult')), 'a link with an answer that does not exist opens the first step, nothing pre-ticked');
-  const { ctx: c3, page: p3 } = await open({ query: '#checkin=shortlist.later.here.ff' });
-  await p3.waitForTimeout(1900);
-  check((await p3.textContent('#ckPlan')) === 'Application Pack' && (await p3.textContent('#ckReady')).length > 10 && (await p3.$eval('#ckMeter', (e) => e.style.width)) === '100%'
-    && await p3.$$eval('#checkin input[name="ck-doc"]', (els) => els.every((e) => e.checked)),
-    'docs mask ff = all eight ticked: the meter is full and the line says the file is ready');
-  await c2.close(); await c3.close();
-}
-// Barcelona (waitlist): the ticket's door is the free file, never a till
-{
-  const { ctx, page } = await open({ slug: 'barcelona' });
-  await page.waitForTimeout(600);
-  await tap(page, ckOpt('zero'));
-  await tap(page, ckOpt('later'));
-  await tap(page, ckOpt('here'));
-  await tap(page, '#ckGo');
-  await page.waitForTimeout(1900);
-  const w = await page.evaluate(() => ({
-    plan: document.getElementById('ckPlan').textContent, per: document.getElementById('ckPer').textContent, why: document.getElementById('ckWhy').textContent,
-    tag: document.getElementById('ckStart').tagName, href: document.getElementById('ckStart').getAttribute('href'), svc: document.getElementById('ckStart').getAttribute('data-service'),
-    pay: document.getElementById('ckStart').getAttribute('data-pay'), price: [...document.querySelectorAll('#ckPrice .st b')].map((b) => b.textContent).join(''),
-    file: !!document.getElementById('ckFile'), board: [...document.querySelectorAll('#ckBoard .st b')].map((b) => b.textContent).join(''), to: document.querySelector('#checkin .cto').textContent,
-  }));
-  check(w.plan === 'Full Search' && w.price === '€500' && /at opening/.test(w.per) && /desk opens/.test(w.why),
-    `barcelona: Full Search at its list price, "at opening" on the ticket, the why says the desk is opening ("${w.why.slice(0, 50)}…")`);
-  check(w.tag === 'A' && w.href === '#contact' && w.svc === 'full-search' && w.pay === null && w.file === false && await page.$('#ov') === null,
-    'barcelona: the ticket has ONE door — the free file — no till button, no sheet');
-  check(w.board === 'BARCELONA' && w.to === 'BCN', 'barcelona: the pass spells BARCELONA, bound for BCN');
-  await tap(page, '#ckStart');
-  await page.waitForTimeout(400);
-  check(await page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; }) === 'full-search', 'barcelona: the ticket\'s door leads to the form with Full Search checked');
-  await ctx.close();
-}
-// without JS the Check-in and the rail are not there (they are behaviour)
-{
-  const { ctx, page } = await open({ js: false, width: 1440 });
-  check(await page.$eval('#checkin', (e) => getComputedStyle(e).display === 'none') && await page.$eval('.rail', (e) => getComputedStyle(e).display === 'none'),
-    'without JS the Check-in and the rail are hidden; the plates, the FAQ and its derived answer still read');
-  check((await page.textContent('#faq')).includes('Full Search (€500) if you haven\'t started.'), 'without JS the derived FAQ answer is still on the page as text');
-  await ctx.close();
-}
-// the depth: the tilt only with a fine pointer and motion allowed; the rail at 1440 only
-{
-  const { ctx, page } = await open({ width: 1440 });
+  await page.tap(ckOpt('zero'));
   await page.waitForTimeout(800);
-  check(await page.$eval('.filecard', (e) => e.classList.contains('tilt')), '1440 with a mouse: the file card tilts toward the pointer (class tilt)');
-  const box = await page.$eval('.filecard', (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
-  await page.mouse.move(box.x + box.w * 0.9, box.y + box.h * 0.2);
-  await page.waitForTimeout(150);
-  const vars = await page.$eval('.filecard', (e) => ({ ry: e.style.getPropertyValue('--ry'), rx: e.style.getPropertyValue('--rx'), tf: getComputedStyle(e).transform }));
-  check(/^2\.\d+deg$/.test(vars.ry) && /^1\.\d+deg$/.test(vars.rx) && vars.tf !== 'none', `moving the pointer to the top-right corner turns the card (--ry ${vars.ry}, --rx ${vars.rx})`);
-  check(await page.$eval('.rail', (e) => getComputedStyle(e).display === 'flex') && await page.$eval('.rail a[data-rail="contact"]', (e) => e.classList.contains('on')),
-    '1440: the rail shows, the first dot (the door) is on');
-  // instant, not smooth: the page scrolls smoothly (boom-2026.css) and the
-  // dot follows the section that is ON SCREEN, so the measure waits for arrival
-  await page.evaluate(() => document.getElementById('faq').scrollIntoView({ behavior: 'instant' }));
-  await page.waitForTimeout(600);
-  check(await page.$eval('.rail a[data-rail="faq"]', (e) => e.classList.contains('on')) && !(await page.$eval('.rail a[data-rail="contact"]', (e) => e.classList.contains('on'))), 'scrolled to the FAQ, its dot is the one on');
-  await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
-  await page.waitForTimeout(400);
-  check(await page.$eval('#services .plates .sib', (e) => getComputedStyle(e).animationName === 'plate-in'), 'the plates arrive with a scroll-driven entrance (animation plate-in, behind @supports)');
+  const s = await passState(page);
+  check(s.state === 'resolved' && s.display !== 'none' && st.errors.length === 0, 'on a touch screen the first tap brings the live ticket, no error');
   await ctx.close();
-  const { ctx: c2, page: p2 } = await open({ width: 1440, reducedMotion: 'reduce' });
-  await p2.waitForTimeout(400);
-  await p2.evaluate(() => document.getElementById('services').scrollIntoView());
-  await p2.waitForTimeout(300);
-  check(!(await p2.$eval('.filecard', (e) => e.classList.contains('tilt'))) && await p2.$eval('#services .plates .sib', (e) => getComputedStyle(e).animationName === 'none'),
-    'under reduced motion: no tilt, no scroll-driven entrance');
-  await tap(p2, ckOpt('zero')); await tap(p2, ckOpt('soon')); await tap(p2, ckOpt('here')); await tap(p2, '#ckGo');
-  await p2.waitForTimeout(300);
-  check((await p2.textContent('#ckPlan')) === 'Full Search' && [...(await p2.$$eval('#ckPrice .st b', (bs) => bs.map((b) => b.textContent)))].join('') === '€500'
-    && await p2.$eval('#ckTkt', (e) => getComputedStyle(e).animationName === 'none') && await p2.$eval('#ckCarta', (e) => getComputedStyle(e).animationName === 'none' && !e.classList.contains('tilt')),
-    'under reduced motion the Check-in still works at once — the ticket set, the price on the board, no flip, no float, no tilt on the pass');
-  await c2.close();
-  const touch = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
-  const p3 = await touch.newPage();
-  await p3.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
-  await p3.route('**/*', (r) => (r.request().url().startsWith(base) ? r.continue() : r.abort()));
-  await p3.goto(`${base}/amsterdam`, { waitUntil: 'load' });
-  await p3.waitForTimeout(500);
-  check(!(await p3.$eval('.filecard', (e) => e.classList.contains('tilt'))) && await p3.$eval('.rail', (e) => getComputedStyle(e).display === 'none'),
-    'on a touch screen at 390: no tilt (a thumb has no hover), no rail');
-  await touch.close();
 }
 
 await browser.close();

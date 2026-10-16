@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=1a8d978458">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=c65cfb14d6">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -134,7 +134,8 @@
       "speakable": {
         "@type": "SpeakableSpecification",
         "cssSelector": [
-          ".hero .sub",
+          ".hero .lead",
+          ".facts",
           ".enbref"
         ]
       }
@@ -167,7 +168,7 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+          "description": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract check. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -189,7 +190,7 @@
           "price": "199",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review.",
+          "description": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "199",
@@ -211,7 +212,7 @@
           "price": "149",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "A BOOM person attends the viewing in your place, with live video and a written report.",
+          "description": "A BOOM person attends the viewing in your place, with live video and a written report. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "149",
@@ -283,14 +284,6 @@
         },
         {
           "@type": "Question",
-          "name": "I'm moving from Rome with BOOM. Does my file carry over?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. Your documents are already in the portal. We convert them to the Dutch format the same day."
-          }
-        },
-        {
-          "@type": "Question",
           "name": "What do you do with my data?",
           "acceptedAnswer": {
             "@type": "Answer",
@@ -302,7 +295,7 @@
   ]
 }
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,.rail{display:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.skipck,.paybar{display:none!important}.planline .chips{display:block!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -600,7 +593,7 @@ html {
 </script>
 <!-- BOOM_SOLARI:END -->
 </head>
-<body>
+<body data-consent-late>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
@@ -609,13 +602,12 @@ html {
 
 <a class="skip" href="#main">Skip to content</a>
 
+<!-- the quiet technical layer: the grid and two still orbs, nothing moves at rest -->
 <div class="tech-bg" aria-hidden="true">
   <div class="tech-orb tech-orb-1"></div>
   <div class="tech-orb tech-orb-2"></div>
   <div class="tech-grid"></div>
 </div>
-<div class="scroll-progress" aria-hidden="true"></div>
-<div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
 
 <nav class="nav" id="nav">
   <div class="container nav-inner">
@@ -630,7 +622,7 @@ html {
       <a href="#services" class="nav-link">Services</a>
       <a href="#checks" class="nav-link">Before you sign</a>
       <a href="#faq" class="nav-link">FAQ</a>
-      <a href="#contact" class="nav-cta">Start my search</a>
+      <a href="#contact" class="nav-link nav-door">Open my file</a>
     </div>
     <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
   </div>
@@ -642,39 +634,28 @@ html {
     <a href="#services" class="mobile-menu-link">Services</a>
     <a href="#checks" class="mobile-menu-link">Before you sign</a>
     <a href="#faq" class="mobile-menu-link">FAQ</a>
-    <a href="/" class="mobile-menu-link">BOOM Rome</a>
+    <span class="mobile-menu-group">BOOM desks</span>
+    <a href="/barcelona" class="mobile-menu-link">Barcelona</a>
+          <a href="/berlin" class="mobile-menu-link">Berlin</a>
+          <a href="/madrid" class="mobile-menu-link">Madrid</a>
+          <a href="/paris" class="mobile-menu-link">Paris</a>
+          <a href="/" class="mobile-menu-link">BOOM Rome</a>
   </div>
-  <a href="#contact" class="mobile-menu-cta">Start my search</a>
+  <a href="#contact" class="mobile-menu-cta">Open my file</a>
 </div>
-
-<!-- the product family: a city desk is part of the BOOM suite, not an island -->
-<div class="fam" aria-label="BOOM suite">
-  <a class="on" href="/amsterdam" aria-current="page">Amsterdam</a>
-  <a href="/barcelona">Barcelona</a>
-  <a href="/berlin">Berlin</a>
-  <a href="/madrid">Madrid</a>
-  <a href="/paris">Paris</a>
-  <a href="/">BOOM Rome</a>
-</div>
-
-<!-- the rail: five dots on a wide screen, where the reader is on the page -->
-<nav class="rail" aria-label="On this page">
-  <a href="#contact" data-rail="contact"><i></i><span>Start my search</span></a>
-  <a href="#how" data-rail="how"><i></i><span>How it works</span></a>
-  <a href="#services" data-rail="services"><i></i><span>Services</span></a>
-  <a href="#checks" data-rail="checks"><i></i><span>Before you sign</span></a>
-  <a href="#faq" data-rail="faq"><i></i><span>FAQ</span></a>
-</nav>
 
 <main id="main">
 
-  <!-- ═══ HERO — one door. The city on the Solari board: the brand's own voice. ═══ -->
+  <!-- ═══ HERO — the diagnostic is the hero (brief v1.3, STUDIO §11). One DOM for
+       the phone and the desk: on a phone the two wrappers are display:contents and
+       the items take the reading order (title, lead, the question, the pass, the
+       skip link, the facts, the door); at ≥920px the right column is sticky with
+       the pass above the door. ═══ -->
   <header class="hero">
-    <div>
-      <p class="eyebrow live h-1"><i aria-hidden="true"></i>BOOM · Amsterdam · tenant-side agent</p>
-      <h1 class="h-2">Your home in <span id="flapCity" class="flap-city flap-scale" aria-label="Amsterdam">AMSTERDAM</span><br><em>Found by someone on your side.</em></h1>
+    <div class="hero-left">
+      <h1 class="h-2">Your home in <span id="flapCity" class="flap-city flap-scale" aria-label="Amsterdam">AMSTERDAM</span></h1>
       <script>/* THE SPACE IS RESERVED BEFORE THE BOARD ARRIVES. The city name is a
-         Solari board built by the JS at ~600ms: the cells are wider and taller
+         Solari board built by the JS at parse time: the cells are wider and taller
          than the plain word, and without a reservation everything under the
          title jumps when they land (the index.html lesson: CLS 0.058, all of it
          under the reader's eyes). Width = cells x calibrated cell width,
@@ -683,18 +664,109 @@ html {
         (function(){var f=document.getElementById('flapCity');
           if(f){f.style.display='inline-block';f.style.minWidth='8.10em';
                 f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="sub h-3">A Dutch-format dossier in 24 hours, applications within the hour, a BOOM person at every viewing. Paid by you — never by landlords.</p>
-      <div class="trust h-4">
-        <span>★ <b>4.9</b> on Google · 47 reviews</span>
-        <span><span class="c">✓</span> <b>500+</b> internationals housed</span>
-      </div>
-      <p class="serving h-4">Searching daily on — <b>Pararius · Funda · agencies · off-market</b></p>
+      <p class="lead h-3">Found by someone on your side. Three taps say which service fits, and what it costs.</p>
+      <!-- CHECK-IN -->
+<section class="checkin" id="checkin" aria-label="Check-in">
+  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span></div>
+  <p class="ck-landing" id="ckLanding" hidden></p>
+  <div class="ck-steps" id="ckSteps">
+      <fieldset class="ck-step" data-step="stage">
+        <legend><b>01</b> Where are you in the search?</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="zero" data-code="START"><span><b>Haven't started</b><small>START</small></span></label>
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="shortlist" data-code="SHORTLIST"><span><b>I have a shortlist</b><small>SHORTLIST</small></span></label>
+          <label class="ck-opt"><input type="radio" name="ck-stage" value="found" data-code="APPLYING"><span><b>Found one, need to apply</b><small>APPLYING</small></span></label>
+          <button type="button" class="ck-change" data-change="stage" hidden>change</button>
+        </div>
+      </fieldset>
+      <fieldset class="ck-step" data-step="where" hidden>
+        <legend><b>02</b> Where are you right now?</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-where" value="abroad" data-code="ABROAD"><span><b>Still abroad</b><small>ABROAD</small></span></label>
+          <label class="ck-opt"><input type="radio" name="ck-where" value="here" data-code="IN TOWN"><span><b>Already in Amsterdam</b><small>IN TOWN</small></span></label>
+          <button type="button" class="ck-change" data-change="where" hidden>change</button>
+        </div>
+      </fieldset>
+      <fieldset class="ck-step" data-step="when" hidden>
+        <legend><b>03</b> When do you move in?</legend>
+        <div class="ck-opts">
+          <label class="ck-opt"><input type="radio" name="ck-when" value="soon" data-code="T-4W"><span><b>Within 4 weeks</b><small>T-4W</small></span></label>
+          <label class="ck-opt"><input type="radio" name="ck-when" value="months" data-code="T-3M"><span><b>In 1–3 months</b><small>T-3M</small></span></label>
+          <label class="ck-opt"><input type="radio" name="ck-when" value="later" data-code="OPEN"><span><b>Later, flexible</b><small>OPEN</small></span></label>
+          <button type="button" class="ck-change" data-change="when" hidden>change</button>
+        </div>
+      </fieldset>
+  </div>
+</section>
+      <!-- /CHECK-IN -->
+      <a class="skipck" href="#contact">Rather write first? Open a file</a>
+      <!-- THE FACTS: the five answers a scam-primed visitor needs before any tap -->
+      <dl class="facts" id="facts">
+  <div><dt>Paid by</dt><dd>We work exclusively for you; never paid by landlords.</dd></div>
+  <div><dt>From abroad</dt><dd>Yes. Live video at the viewing, a written report, the contract checked before you sign.</dd></div>
+  <div><dt>If we find nothing</dt><dd>Full Search is refunded in full if we decline the search in the first call.</dd></div>
+  <div><dt>Who answers</dt><dd>Valentino Egidi, same working day · desk 09:00 to 19:00 CET<span class="clock" id="deskClock" aria-live="off"></span></dd></div>
+  <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · 4.9 on Google in Rome, 47 reviews</dd></div>
+      </dl>
     </div>
-
-    <!-- THE DOOR: four fields and the service chips, everything else folds away -->
-    <div class="h-5" id="contact">
-      <div class="filecard">
-        <div class="refline"><span>New file — Amsterdam · tenant side</span><b>same-day reply</b></div>
+    <div class="hero-right">
+      <!-- PASS -->
+<article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" aria-label="Your boarding pass">
+  <div class="lamina" aria-hidden="true"><em>Boom · Tenant side · Boom · Tenant side</em></div>
+  <div class="pbody">
+    <div class="phead"><b>BOOM · Boarding pass</b><span class="pcode" id="ckCode" aria-label="File">—</span></div>
+    <div class="proute"><span class="pfrom" id="ckFrom">—</span><span class="cplane" aria-hidden="true">✈</span><span class="pto">AMS</span></div>
+    <div class="pboard flap-pass" id="ckBoard" data-word="Amsterdam" aria-hidden="true"></div>
+    <p class="pblank" id="ckBlank">Your plan prints here as you answer.</p>
+    <div class="ppend" id="ckPend" hidden><span class="peye">Two plans fit</span><p id="ckPendText"></p></div>
+    <div class="pplan" id="ckPlanBox" hidden aria-live="polite">
+      <span class="peye">Your plan</span>
+      <h3 id="ckPlan"></h3>
+      <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-label="Price"></span><small id="ckCond"></small></div>
+      <p class="why" id="ckWhy"></p>
+      <p class="refund" id="ckRefund" hidden>Full Search is refunded in full if we decline the search in the first call.</p>
+      <p class="note" id="ckNote" hidden></p>
+      <fieldset class="papers" id="ckPapers" hidden>
+        <legend><span class="peye">Your papers</span> What do you already hold?</legend>
+        <p class="ck-sub">Tap what you have. A Dutch landlord asks for all eight.</p>
+        <div class="ck-docs">
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="id"><span>Passport or EU ID</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="contract"><span>Employment contract</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="employer"><span>Employer statement (werkgeversverklaring)</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="payslips"><span>Last three payslips</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="reference"><span>Previous landlord reference</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="guarantor"><span>A guarantor, if your income falls short</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="bank"><span>Three months of bank statements</span></label>
+          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="letter"><span>Motivation letter, Dutch and English</span></label>
+        </div>
+        <div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div>
+        <p class="ready" id="ckReady"></p>
+      </fieldset>
+      <div class="pdoors">
+          <a class="paybtn" href="#contact" id="ckFile" data-service=""><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></a>
+          <button type="button" class="till" id="ckStart" data-pay="">Pay and start · <span id="ckStartAmt"></span></button>
+      </div>
+      <div class="pshare"><span>Know someone moving too?</span><a id="ckWa" href="#" target="_blank" rel="noopener">WhatsApp</a><button type="button" id="ckCopy">Copy link</button><span class="ck-copied" id="ckCopied" aria-live="polite"></span></div>
+      <div class="pgrid">
+        <div><small>Passenger</small><b id="ckPassenger">A tenant</b></div>
+        <div><small>Boarding</small><b id="ckPassWhen">—</b></div>
+        <div><small>File</small><b id="ckPassFile">—</b></div>
+        <div><small>Papers</small><b id="ckPassPapers">—</b></div>
+      </div>
+      <div class="ppers">
+        <div class="fld"><label for="ckName">Passenger (optional)</label><input id="ckName" maxlength="24" autocomplete="given-name" placeholder="Anna K."></div>
+        <div class="fld"><label for="ckOrigin">From (optional)</label><input id="ckOrigin" maxlength="12" placeholder="LON"></div>
+        <div class="ck-passbtns"><button type="button" class="ck-save" id="ckSave">Save image</button><button type="button" class="ck-sharebtn" id="ckShare">Share</button><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>
+      </div>
+    </div>
+    <div class="perfo" aria-hidden="true"></div>
+    <div class="pfoot"><span>boomrome.com/amsterdam</span><span class="pside">Tenant side</span></div>
+  </div>
+</article>
+      <!-- /PASS -->
+      <!-- THE DOOR -->
+      <!-- five fields, the service as chips (prefilled by the pass), everything else folds away -->
+      <div class="filecard" id="contact">
         <form id="cityForm" novalidate data-sending="Opening your file…"
               data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply."
               data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
@@ -703,35 +775,58 @@ html {
             <div class="fld"><label for="fEmail">Email</label><input id="fEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
           </div>
           <div class="frow two">
-            <div class="fld"><label for="fMoveIn">Move-in</label><input id="fMoveIn" name="moveIn" placeholder="February 2027"></div>
-            <div class="fld"><label for="fBudget">Monthly budget</label><select id="fBudget" name="budget">
-              <option value="">—</option>
+            <div class="fld"><label for="fPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
+            <div class="fld"><label for="fMoveIn">Move-in</label><select id="fMoveIn" name="moveIn">
+              <option value="">Not sure yet</option>
+              <option value="2026-10">October 2026</option>
+              <option value="2026-11">November 2026</option>
+              <option value="2026-12">December 2026</option>
+              <option value="2027-01">January 2027</option>
+              <option value="2027-02">February 2027</option>
+              <option value="2027-03">March 2027</option>
+              <option value="2027-04">April 2027</option>
+              <option value="2027-05">May 2027</option>
+              <option value="2027-06">June 2027</option>
+              <option value="2027-07">July 2027</option>
+              <option value="2027-08">August 2027</option>
+              <option value="2027-09">September 2027</option>
+              <option value="2027-10">October 2027</option>
+              <option value="2027-11">November 2027</option>
+              <option value="2027-12">December 2027</option>
+              <option value="2028-01">January 2028</option>
+              <option value="2028-02">February 2028</option>
+              <option value="2028-03">March 2028</option>
+              <option value="2028-04">April 2028</option>
+              <option value="2028-05">May 2028</option>
+            </select></div>
+          </div>
+          <div class="fld"><label for="fBudget">Monthly budget</label><select id="fBudget" name="budget">
+            <option value="">—</option>
               <option>Under €1,500</option>
               <option>€1,500 – €2,000</option>
               <option>€2,000 – €2,500</option>
               <option>€2,500 – €3,500</option>
               <option>€3,500+</option>
-            </select></div>
-          </div>
-          <!-- the service: chips with the price in view, never a dropdown — the
-               three doors and their cost are read without a tap -->
-          <fieldset class="fld chips"><legend>What do you need?</legend>
-            <div class="chipgrid">
-              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing</small></span></label>
+          </select></div>
+          <!-- the service: the pass writes it here; chips with the price and the
+               plan's condition in view, never a dropdown; none pre-checked -->
+          <details class="planline" id="planline" open data-from="from your check-in">
+            <summary><span class="pl-k">Service</span><b id="plText">Which service? Three taps tell you ↑</b><small class="pl-change" id="plChange" hidden>change</small></summary>
+            <fieldset class="fld chips"><legend class="sr">Service</legend>
+              <div class="chipgrid">
+              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500 · flat · incl. VAT</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199 · flat · incl. VAT</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing · incl. VAT</small></span></label>
               <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
-            </div>
-
-          </fieldset>
+              </div>
+            <p class="pricenote refund">Full Search is refunded in full if we decline the search in the first call.</p>
+            </fieldset>
+          </details>
 
           <details class="more">
             <summary>More details (optional)</summary>
             <div class="morein">
-              <div class="frow two">
-                <div class="fld"><label for="fPhone">Phone / WhatsApp</label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
-                <div class="fld"><label for="fSituation">Who's moving</label><input id="fSituation" name="situation" placeholder="Couple, relocating with employer"></div>
-              </div>
+              <div class="fld"><label for="fSituation">Who's moving</label><input id="fSituation" name="situation" placeholder="Couple, relocating with employer"></div>
               <div class="fld"><label for="fAreas">Neighbourhoods</label><input id="fAreas" name="areas" placeholder="De Pijp, Oud-West, Jordaan…"></div>
               <div class="fld"><label for="fMsg">Anything else</label><textarea id="fMsg" name="message" rows="2" placeholder="Start date, pets, parking, a listing you already found…"></textarea></div>
             </div>
@@ -744,11 +839,7 @@ html {
           <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
-          <button type="submit" class="paybtn" id="fGo" style="margin-top:16px">
-            <span class="lk">✈</span>
-            <span class="tx"><b>Start my search</b><small>same-day reply · no commitment</small></span>
-            <span class="amt">→</span>
-          </button>
+          <button type="submit" class="paybtn" id="fGo"><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></button>
           <p class="consent">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer WhatsApp or email? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=BOOM%20Amsterdam">hello@boom-rome.com</a></p>
         </form>
 
@@ -758,10 +849,11 @@ html {
           <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
           <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>
           <h3>Your file is <em>open.</em></h3>
-          <p>The Amsterdam desk replies the same working day — by email, or WhatsApp if you left a number. Nothing by tomorrow? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes back by email, or WhatsApp if you left a number.</span></li><li><b>Nothing to prepare</b><span>Keep this link: your ticket and papers live in it.</span></li><li><b>Nothing by tomorrow?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
           <div class="payoffer" id="payOffer" hidden>
             <p>Want the work to start today?</p>
-            <button type="button" class="paybtn" id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>Pay &amp; start now</b><small>Stripe · the desk writes within the hour</small></span><span class="amt" id="payOfferAmt"></span></button>
+            <button type="button" class="paybtn" id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>Pay and start</b><small>Stripe · the desk writes within the hour</small></span><span class="amt" id="payOfferAmt"></span></button>
+            <p class="refund" id="payOfferRefund">Full Search is refunded in full if we decline the search in the first call.</p>
           </div>
         </div>
         <div class="sent paid" id="fPaid">
@@ -769,11 +861,11 @@ html {
           <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>
           <h3>Paid — your file <em>is open.</em></h3>
           <p class="plan" id="paidPlan"></p>
-          <p>Payment received. The Amsterdam desk writes to you within the hour with the next step — by email, or WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
-          <ul class="next"><li><b>Within the hour</b><span>an email from the desk with what we need from you</span></li><li><b>Today</b><span>your brief: dates, budget, who's moving — nothing to re-type</span></li><li><b>Then</b><span>the work exactly as described on this page, in writing</span></li></ul>
+          <p>Payment received. The Amsterdam desk writes within the hour with the next step, by email or WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <ul class="next"><li><b>Within the hour</b><span>an email from the desk with what we need</span></li><li><b>Today</b><span>your brief: dates, budget, who's moving — nothing to re-type</span></li><li><b>Then</b><span>the work as written on this page</span></li><li><b>Nothing within the hour?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
         </div>
       </div>
-      <p class="machine" aria-hidden="true"><b class="route"><span>ROM</span><span class="fly"><em>✈</em></span><span>AMS</span></b><span class="items"><span>dossier 24h</span><u>·</u><span>apply &lt;1h</span><u>·</u><span>viewing attended</span><u>·</u><span>contract checked</span></span></p>
+      <!-- /THE DOOR -->
     </div>
   </header>
 
@@ -800,137 +892,45 @@ html {
         <div class="s">Live video walkthrough and a written report. Rent, deposit, service costs and contract type checked against Dutch law before you sign. Then keys and BRP.</div>
       </div>
     </div>
-    <div class="tline" aria-hidden="true"><b>01</b> BRIEF <span class="sep">→</span> <b>02</b> DOSSIER 24H <span class="sep">→</span> <b>03</b> APPLICATIONS &lt;1H <span class="sep">→</span> <b>04</b> VIEWING ATTENDED <span class="sep">→</span> <b>05</b> CONTRACT CHECKED <span class="sep">→</span> <span class="land">✓ KEYS · BRP</span></div>
+    <p class="who"><b>Valentino Egidi</b> · tenant-side agent · desk 09:00 to 19:00 CET · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></p>
   </section>
 
-  <!-- ═══ 02 · SERVICES & FEES — three plates, the price on the board ═══ -->
+  <!-- ═══ 02 · SERVICES & FEES — three plates, the price as text, one door ═══ -->
   <section id="services" class="rv">
     <div class="sec-h">
       <span class="num">02 — SERVICES &amp; FEES</span>
       <h2>Flat fees. <span class="g">No percentage of your rent.</span></h2>
     </div>
     <p class="sec-sub">You pay for the work, and only you pay. VAT included.</p>
-    <!-- THE CHECK-IN (v1.2): three taps → the plan, the papers → what we'd fix
-         first, a boarding pass to post. The plates below are the whole menu. -->
-<div class="checkin" id="checkin" data-copied="Link copied" data-saved="Saved">
-  <div class="ck-head">
-    <span class="ck-num">CHECK-IN · 20 SECONDS</span>
-    <h3>Which service is yours?</h3>
-    <p>Three taps and the papers you hold: your plan, its price, what we would fix first.</p>
-  </div>
-  <div class="ck-steps" id="ckSteps">
-      <fieldset class="ck-step" data-step="stage">
-        <legend><b>01</b> Where are you?</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="zero" data-code="START"><span>Haven't started</span></label>
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="shortlist" data-code="SHORTLIST"><span>I have a shortlist</span></label>
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="found" data-code="APPLYING"><span>Found one, need to apply</span></label>
-        </div>
-      </fieldset>
-      <fieldset class="ck-step" data-step="when" hidden>
-        <legend><b>02</b> Moving in</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-when" value="soon" data-code="T-4W"><span>Within 4 weeks</span></label>
-          <label class="ck-opt"><input type="radio" name="ck-when" value="months" data-code="T-3M"><span>In 1–3 months</span></label>
-          <label class="ck-opt"><input type="radio" name="ck-when" value="later" data-code="OPEN"><span>Later, flexible</span></label>
-        </div>
-      </fieldset>
-      <fieldset class="ck-step" data-step="where" hidden>
-        <legend><b>03</b> Right now</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-where" value="abroad" data-code="ABROAD"><span>Still abroad</span></label>
-          <label class="ck-opt"><input type="radio" name="ck-where" value="here" data-code="IN TOWN"><span>Already in Amsterdam</span></label>
-        </div>
-      </fieldset>
-      <fieldset class="ck-step ck-dossier" data-step="dossier" hidden>
-        <legend><b>04</b> What do you already hold?</legend>
-        <p class="ck-sub">Tap what you have. A Dutch landlord asks for all eight.</p>
-        <div class="ck-docs">
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="id"><span>Passport or EU ID</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="contract"><span>Employment contract</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="employer"><span>Employer statement (werkgeversverklaring)</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="payslips"><span>Last three payslips</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="reference"><span>Previous landlord reference</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="guarantor"><span>A guarantor, if your income falls short</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="bank"><span>Three months of bank statements</span></label>
-          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="letter"><span>Motivation letter, Dutch and English</span></label>
-        </div>
-        <button type="button" class="paybtn ck-go" id="ckGo"><span class="lk">✈</span><span class="tx"><b>Show my plan</b><small>the plan, the price, what we would fix first</small></span><span class="amt">→</span></button>
-      </fieldset>
-  </div>
-  <div class="ck-result" id="ckResult" hidden>
-    <article class="tkt" id="ckTkt" aria-live="polite">
-      <div class="tkt-top"><span class="ck-eyebrow">Your plan</span><span class="tkt-code" id="ckCode"></span></div>
-      <h4 id="ckPlan"></h4>
-      <div class="price"><span class="flap-tk flap-scale" id="ckPrice"></span><small id="ckPer"></small></div>
-      <p class="why" id="ckWhy"></p>
-      <ul class="inc" id="ckInc"></ul>
-      <ul class="ck-notes"><li id="ckNoteWhen"></li><li id="ckNoteWhere"></li></ul>
-      <div class="ck-ready"><span class="ck-eyebrow">Your file</span><div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div><p id="ckReady"></p></div>
-      <div class="ck-cta">
-        <button type="button" class="paybtn ck-start" id="ckStart" data-pay=""><span class="lk">🔒</span><span class="tx"><b id="ckStartTx"></b><small>card · the work starts today</small></span><span class="amt">→</span></button>
-        <a class="ck-file" href="#contact" id="ckFile" data-service="">Open my file <small>· free · same-day reply</small></a>
-      </div>
-      <div class="ck-foot"><a class="ck-change" href="#checkin" id="ckChange">Change my answers</a>
-        <div class="ck-share"><span>Know someone moving too?</span><a id="ckWa" href="#" target="_blank" rel="noopener">WhatsApp</a><button type="button" id="ckCopy">Copy link</button><span class="ck-copied" id="ckCopied" aria-live="polite"></span></div>
-      </div>
-    </article>
-    <aside class="ck-pass">
-      <h4>Your boarding pass</h4>
-      <p class="ck-passsub">Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.</p>
-      <div class="carta ck-carta" id="ckCarta" role="img" aria-label="Your boarding pass">
-        <div class="lamina" aria-hidden="true"><em>Boom · Tenant side · Boom · Tenant side</em></div>
-        <div class="ccorpo">
-          <div class="ctesta"><b>BOOM · Boarding pass</b><span class="ctype">Tenant side</span></div>
-          <div class="croute"><span class="cfrom" id="ckFrom">—</span><span class="cplane" aria-hidden="true">✈</span><span class="cto">AMS</span></div>
-          <div class="cboard flap-pass" id="ckBoard" data-word="Amsterdam" aria-hidden="true"></div>
-          <div class="cgrid">
-            <div><small>Passenger</small><b id="ckPassenger">A tenant</b></div>
-            <div><small>Plan</small><b id="ckPassPlan">—</b></div>
-            <div><small>Boarding</small><b id="ckPassWhen">—</b></div>
-            <div><small>File</small><b id="ckPassFile">—</b></div>
-            <div><small>Gate</small><b>Dossier 24h</b></div>
-            <div><small>Seat</small><b>Your side of the table</b></div>
-          </div>
-          <div class="perfo" aria-hidden="true"></div>
-          <div class="cfoot"><span class="cbar" aria-hidden="true"></span><span>boomrome.com/amsterdam</span><span class="cstatus">Status · Tenant side</span></div>
-        </div>
-      </div>
-      <div class="ck-passform">
-        <div class="fld"><label for="ckName">Passenger (optional)</label><input id="ckName" maxlength="24" autocomplete="given-name" placeholder="Anna K."></div>
-        <div class="fld"><label for="ckOrigin">Flying in from (optional)</label><input id="ckOrigin" maxlength="12" placeholder="LON"></div>
-        <div class="ck-passbtns"><button type="button" class="ck-save" id="ckSave">Save image</button><button type="button" class="ck-sharebtn" id="ckShare">Share</button><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>
-      </div>
-    </aside>
-  </div>
-</div>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We find it. You move in.</b>
-        <p>Search, applications, viewing, contract — handled.</p>
         <ul class="inc"><li>Daily search: Pararius, Funda, agencies, off-market</li><li>Applications within the hour</li><li>One attended viewing, live video + report (extra €149)</li><li>Rent negotiated, contract checked, BRP supported</li></ul>
-        <div class="price"><span class="flap-prezzo flap-scale" data-p="€500" aria-label="€500 flat · incl. VAT">€500</span><small>flat · incl. VAT</small></div>
-        <button type="button" class="go" data-pay="full-search">Start my search · €500</button>
+        <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
+        <a class="go" href="#contact" data-service="full-search">Open my file →</a>
+        <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
       </article>
       <article class="sib" id="plan-application-pack">
         <div class="se"><span>Application Pack</span></div>
         <b>You search. We make you win.</b>
         <p>The paperwork that wins Dutch applications.</p>
         <ul class="inc"><li>Dutch-format dossier in 24 hours</li><li>Motivation letter, Dutch + English</li><li>Income and guarantor strategy</li><li>Contract review before you sign</li></ul>
-        <div class="price"><span class="flap-prezzo flap-scale" data-p="€199" aria-label="€199 flat · incl. VAT">€199</span><small>flat · incl. VAT</small></div>
-        <button type="button" class="go" data-pay="application-pack">Get the pack · €199</button>
+        <div class="price"><span class="num" data-plan-price="application-pack">€199</span><small>flat · incl. VAT</small></div>
+        <a class="go" href="#contact" data-service="application-pack">Open my file →</a>
+        <button type="button" class="go2" data-pay="application-pack">Pay and start · €199</button>
       </article>
       <article class="sib" id="plan-attended-viewing">
         <div class="se"><span>Attended Viewing</span></div>
         <b>Eyes on the ground.</b>
         <p>You found it, you're abroad. We go.</p>
         <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
-        <div class="price"><span class="flap-prezzo flap-scale" data-p="€149" aria-label="€149 per viewing · incl. VAT">€149</span><small>per viewing · incl. VAT</small></div>
-        <button type="button" class="go" data-pay="attended-viewing">Book a viewing · €149</button>
+        <div class="price"><span class="num" data-plan-price="attended-viewing">€149</span><small>per viewing · incl. VAT</small></div>
+        <a class="go" href="#contact" data-service="attended-viewing">Open my file →</a>
+        <button type="button" class="go2" data-pay="attended-viewing">Pay and start · €149</button>
       </article>
     </div>
-    <p class="feenote">Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms.</p>
+    <p class="feenote">Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -968,20 +968,6 @@ html {
     </div>
   </section>
 
-  <!-- ═══ honesty — one line, it's the brand ═══ -->
-  <section id="method" class="rv">
-    <div class="truth">
-      <h3>We'll also tell you <em>what's wrong with it.</em></h3>
-      <p>A tenancy that goes wrong costs us more than a lost fee — so we write down what we saw, before you sign.</p>
-      <div class="flags">
-        <span class="flag"><b>⚑</b>asking rent above the WWS maximum</span>
-        <span class="flag"><b>⚑</b>a three-month deposit</span>
-        <span class="flag"><b>⚑</b>service costs that are padding</span>
-        <span class="flag"><b>⚑</b>no registration at the address</span>
-      </div>
-    </div>
-  </section>
-
   <!-- ═══ FAQ — the depth, folded away ═══ -->
   <section id="faq" class="rv">
     <div class="sec-h">
@@ -1014,21 +1000,20 @@ html {
         <div class="a">By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
       </details>
       <details>
-        <summary>I'm moving from Rome with BOOM. Does my file carry over?</summary>
-        <div class="a">Yes. Your documents are already in the portal. We convert them to the Dutch format the same day.</div>
-      </details>
-      <details>
         <summary>What do you do with my data?</summary>
         <div class="a">It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will.</div>
       </details>
     </div>
   </section>
 
-  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human content: it sits below the FAQ ═══ -->
-  <section id="enbref-wrap" class="rv">
-    <div class="enbref" id="enbref">
-      <h2>BOOM Amsterdam — fact sheet<span class="ref">REF · AMSTERDAM / TENANT SIDE</span></h2>
-      <dl>
+  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human
+       content, and folded for humans: whole in the DOM for the machines ═══ -->
+  <section id="enbref-wrap" class="late">
+    <details class="sheetfold">
+      <summary>BOOM Amsterdam — fact sheet</summary>
+      <div class="enbref" id="enbref">
+        <h2>BOOM Amsterdam — fact sheet<span class="ref">REF · AMSTERDAM / TENANT SIDE</span></h2>
+        <dl>
         <dt>Who</dt>
         <dd>BOOM Amsterdam, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. In the Netherlands the role is called <b>aanhuurmakelaar</b>: hired by the tenant, paid by the tenant only.</dd>
 
@@ -1036,7 +1021,7 @@ html {
         <dd>Internationals relocating to Amsterdam — employees, researchers, couples and families — from abroad or already in the city.</dd>
 
         <dt>Fees</dt>
-        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. No percentage of the rent, nothing from landlords or platforms.</dd>
+        <dd><b>Full Search €500</b> (VAT included. Invoice from Egidi Immobiliare S.r.l.) · <b>Application Pack €199</b> (VAT included. Invoice from Egidi Immobiliare S.r.l.) · <b>Attended Viewing €149</b> per viewing (VAT included. Invoice from Egidi Immobiliare S.r.l.). VAT included. No percentage of the rent, nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</dd>
 
         <dt>What we do</dt>
         <dd>Dutch-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing.</dd>
@@ -1049,23 +1034,13 @@ html {
 
         <dt>Contact</dt>
         <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961">WhatsApp +39 331 325 1961</a> · <a href="https://www.boomrome.com/amsterdam" style="color:var(--t2)">boomrome.com/amsterdam</a></dd>
-      </dl>
-    </div>
+        </dl>
+      </div>
+    </details>
   </section>
-
-  <!-- ═══ final band — the same door, once more ═══ -->
-  <div class="band rv">
-    <h2>Someone in Amsterdam <em>on your side.</em></h2>
-    <p>One minute now — a reply the same working day.</p>
-    <a class="paybtn" href="#contact">
-      <span class="lk">✈</span>
-      <span class="tx"><b>Start my search</b><small>same-day reply · no commitment</small></span>
-      <span class="amt">→</span>
-    </a>
-  </div>
 </main>
 
-<footer class="footer">
+<footer class="footer late">
   <div class="container">
     <div class="footer-grid">
       <div>
@@ -1089,7 +1064,17 @@ html {
           <li><a href="#services">Services</a></li>
           <li><a href="#checks">Before you sign</a></li>
           <li><a href="#faq">FAQ</a></li>
-          <li><a href="#contact">Start my search</a></li>
+          <li><a href="#contact">Open my file</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="footer-links-title">BOOM desks</h4>
+        <ul class="footer-links-list">
+          <li><a href="/barcelona">Barcelona</a></li>
+          <li><a href="/berlin">Berlin</a></li>
+          <li><a href="/madrid">Madrid</a></li>
+          <li><a href="/paris">Paris</a></li>
+          <li><a href="/">BOOM Rome</a></li>
         </ul>
       </div>
       <div>
@@ -1101,11 +1086,6 @@ html {
           <li><a href="/services">Services</a></li>
           <li><a href="/welcome-to-rome">Welcome to Rome Kit</a></li>
           <li><a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">Legal</h4>
-        <ul class="footer-links-list">
           <li><a href="/terms">Terms</a></li>
           <li><a href="/privacy">Privacy</a></li>
         </ul>
@@ -1113,36 +1093,35 @@ html {
     </div>
     <div class="footer-bottom">
       <span>© 2026 BOOM</span>
-      <div class="footer-status"><span class="footer-status-dot"></span><span>Operational — same-day replies</span></div>
+      <span>Egidi Immobiliare S.r.l. · Amsterdam</span>
     </div>
   </div>
 </footer>
 
 <!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
-<div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Start with BOOM Amsterdam" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
-  <div class="sheet">
+<dialog class="sheet" id="ov" aria-label="Start with BOOM Amsterdam" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
     <div class="sh"><h3>Start with BOOM Amsterdam</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
     <p class="note">Choose the service and pay by card: the work starts today, and the desk writes to you within the hour.</p>
     <div class="payrows" role="radiogroup" aria-label="Service">
-      <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>Search, applications, viewing, contract — handled.</small></span><em>€500</em></label>
+      <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>We find it. You move in.</small></span><em>€500</em></label>
       <label class="payrow"><input type="radio" name="payplan" value="application-pack" data-eur="199" data-label="Application Pack"><span><b>Application Pack</b><small>The paperwork that wins Dutch applications.</small></span><em>€199</em></label>
       <label class="payrow"><input type="radio" name="payplan" value="attended-viewing" data-eur="149" data-label="Attended Viewing"><span><b>Attended Viewing</b><small>You found it, you're abroad. We go.</small></span><em>€149</em></label>
     </div>
     <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Anna Keller"></div>
     <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
-    <div class="fld"><label for="sPhone">Phone / WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
+    <div class="fld"><label for="sPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
     <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.pararius.com/… · move-in 1 February"></div>
     <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
-    <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>Pay &amp; start</b><small>Stripe checkout · one minute</small></span><span class="amt" id="sGoAmt"></span></button>
+    <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>Pay and start</b><small>Stripe checkout · one minute</small></span><span class="amt" id="sGoAmt"></span></button>
     <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Open a file, no payment</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></p>
     <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.</p>
-  </div>
-</div>
+</dialog>
 
-<div class="paybar" id="paybar">
-  <div class="pinfo"><b>Full Search · €500</b><small>pay now · Stripe · the work starts today</small></div>
-  <button type="button" class="go" data-pay="full-search">Start →</button>
+<!-- the strip on a phone: the one door, no price -->
+<div class="paybar" id="paybar" data-sub="free · same-day reply" data-yourplan="your plan">
+  <div class="pinfo"><b id="stripTitle">BOOM · Amsterdam</b><small id="stripSub">free · same-day reply</small></div>
+  <a class="go" href="#contact" id="stripGo">Open my file</a>
 </div>
 
 <!-- CONFIG — generated from cities/amsterdam.json. No secrets, no keys: the form posts to our own API. -->
@@ -1161,11 +1140,32 @@ html {
     "CHECKOUT": true,
     "CHECKOUT_ENDPOINT": "/api/service-checkout",
     "FEATURED": "full-search",
+    "DOOR": "Open my file",
+    "TILL": "Pay and start",
+    "REFUND": "Full Search is refunded in full if we decline the search in the first call.",
+    "DESK": {
+      "person": "Valentino Egidi",
+      "role": "tenant-side agent",
+      "timeZone": "Europe/Rome",
+      "tzLabel": "CET",
+      "hours": {
+        "from": "09:00",
+        "to": "19:00"
+      },
+      "days": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
+    },
     "PLANS": {
       "full-search": {
         "label": "Full Search",
         "eur": 500,
-        "per": "flat · incl. VAT",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
           "Daily search: Pararius, Funda, agencies, off-market",
@@ -1177,7 +1177,8 @@ html {
       "application-pack": {
         "label": "Application Pack",
         "eur": 199,
-        "per": "flat · incl. VAT",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
           "Dutch-format dossier in 24 hours",
@@ -1189,7 +1190,8 @@ html {
       "attended-viewing": {
         "label": "Attended Viewing",
         "eur": 149,
-        "per": "per viewing · incl. VAT",
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "per viewing",
         "includes": [
           "A BOOM person attends in your place",
@@ -1199,14 +1201,15 @@ html {
         ]
       }
     },
+    "PENDING": {
+      "shortlist": "One more answer decides: Attended Viewing if you're still abroad, Application Pack if you're already in Amsterdam."
+    },
     "CHECKIN": {
-      "num": "CHECK-IN · 20 SECONDS",
-      "h3": "Which service is yours?",
-      "sub": "Three taps and the papers you hold: your plan, its price, what we would fix first.",
+      "num": "Check-in · {n} of 3",
       "steps": [
         {
           "id": "stage",
-          "label": "Where are you?",
+          "label": "Where are you in the search?",
           "options": [
             {
               "id": "zero",
@@ -1229,8 +1232,26 @@ html {
           ]
         },
         {
+          "id": "where",
+          "label": "Where are you right now?",
+          "options": [
+            {
+              "id": "abroad",
+              "t": "Still abroad",
+              "f": "you're still abroad",
+              "code": "ABROAD"
+            },
+            {
+              "id": "here",
+              "t": "Already in Amsterdam",
+              "f": "you're already in Amsterdam",
+              "code": "IN TOWN"
+            }
+          ]
+        },
+        {
           "id": "when",
-          "label": "Moving in",
+          "label": "When do you move in?",
           "options": [
             {
               "id": "soon",
@@ -1249,24 +1270,6 @@ html {
               "t": "Later, flexible",
               "f": "later",
               "code": "OPEN"
-            }
-          ]
-        },
-        {
-          "id": "where",
-          "label": "Right now",
-          "options": [
-            {
-              "id": "abroad",
-              "t": "Still abroad",
-              "f": "you're still abroad",
-              "code": "ABROAD"
-            },
-            {
-              "id": "here",
-              "t": "Already in Amsterdam",
-              "f": "you're already in Amsterdam",
-              "code": "IN TOWN"
             }
           ]
         }
@@ -1308,10 +1311,6 @@ html {
           "soon": "Four weeks is tight: applications go out within the hour of a listing.",
           "months": "Good timing: the dossier is ready before the listings are.",
           "later": "No rush: open the file now, the search starts when you say."
-        },
-        "where": {
-          "abroad": "Viewings attended in your place — live video, written report.",
-          "here": "You attend; we prepare the file and check the contract before you sign."
         }
       },
       "dossier": {
@@ -1359,58 +1358,61 @@ html {
         "resultAll": "All eight in hand. We format them the Dutch way and apply within the hour of a listing.",
         "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
         "skipped": "Tap the papers you hold above and we say what we would fix first.",
-        "go": "Show my plan",
-        "goSub": "the plan, the price, what we would fix first"
+        "eyebrow": "Your papers"
       },
       "result": {
         "eyebrow": "Your plan",
-        "readyEyebrow": "Your file",
-        "ctaSearch": "Start · {price}",
-        "ctaSearchSub": "card · the work starts today",
-        "ctaFile": "Open my file",
-        "ctaFileSub": "free · same-day reply",
-        "change": "Change my answers",
-        "share": {
-          "lead": "Know someone moving too?",
-          "whatsapp": "WhatsApp",
-          "copy": "Copy link",
-          "copied": "Link copied",
-          "text": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
-        }
+        "change": "change"
       },
       "pass": {
         "title": "Your boarding pass",
-        "sub": "Save it or post it. The city and the plan are on it; your name and where you fly in from, if you want.",
+        "sub": "Your name and where you fly in from, if you want.",
         "name": {
           "label": "Passenger (optional)",
           "placeholder": "Anna K."
         },
         "from": {
-          "label": "Flying in from (optional)",
+          "label": "From (optional)",
           "placeholder": "LON"
         },
         "save": "Save image",
         "shareBtn": "Share",
         "saved": "Saved",
+        "guest": "A tenant",
+        "foot": "boomrome.com/amsterdam",
+        "side": "Tenant side",
         "fields": {
           "passenger": "Passenger",
           "plan": "Plan",
+          "price": "Price",
           "boarding": "Boarding",
           "file": "File",
-          "seat": "Seat",
-          "seatValue": "Your side of the table",
-          "gate": "Gate",
-          "status": "Status",
-          "statusValue": "Tenant side"
-        },
-        "guest": "A tenant",
-        "foot": "boomrome.com/amsterdam",
-        "gateValue": "Dossier 24h"
+          "papers": "Papers"
+        }
+      },
+      "refusal": "Four weeks is tight. We say so in the first call.",
+      "pending": {
+        "eyebrow": "Two plans fit",
+        "text": "One more answer decides: {plans}."
+      },
+      "landing": {
+        "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
+        "friend": "Your friend's answers. Change any of them, then your plan is yours.",
+        "blank": "Your plan prints here as you answer."
+      },
+      "share": {
+        "lead": "Know someone moving too?",
+        "whatsapp": "WhatsApp",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
+        "papers": "The eight papers a {city} landlord asks for, and what to fix first: {url}",
+        "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
       }
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=ff363edd08"></script>
+<script src="/assets/boom-city.js?v=9f1af2fe3a"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

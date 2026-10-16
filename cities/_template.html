@@ -48,14 +48,14 @@
   <script type="application/ld+json">
 {{{jsonLd}}}
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,.rail{display:none!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.skipck,.paybar{display:none!important}.planline .chips{display:block!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 {{{scrollBlock}}}
 <!-- BOOM_SOLARI:START — design/pages-deco/solari-engine.html, inlined by the build (one copy, byte for byte) -->
 {{{solariEngine}}}
 <!-- BOOM_SOLARI:END -->
 </head>
-<body>
+<body data-consent-late>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
@@ -64,13 +64,12 @@
 
 <a class="skip" href="#main">Skip to content</a>
 
+<!-- the quiet technical layer: the grid and two still orbs, nothing moves at rest -->
 <div class="tech-bg" aria-hidden="true">
   <div class="tech-orb tech-orb-1"></div>
   <div class="tech-orb tech-orb-2"></div>
   <div class="tech-grid"></div>
 </div>
-<div class="scroll-progress" aria-hidden="true"></div>
-<div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
 
 <nav class="nav" id="nav">
   <div class="container nav-inner">
@@ -85,7 +84,7 @@
       <a href="#services" class="nav-link">{{nav.services}}</a>
       <a href="#checks" class="nav-link">{{nav.checks}}</a>
       <a href="#faq" class="nav-link">{{nav.faq}}</a>
-      <a href="#contact" class="nav-cta">{{nav.cta}}</a>
+      <a href="#contact" class="nav-link nav-door">{{door.label}}</a>
     </div>
     <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
   </div>
@@ -97,29 +96,24 @@
     <a href="#services" class="mobile-menu-link">{{nav.services}}</a>
     <a href="#checks" class="mobile-menu-link">{{nav.checks}}</a>
     <a href="#faq" class="mobile-menu-link">{{nav.faq}}</a>
-    <a href="/" class="mobile-menu-link">BOOM Rome</a>
+    <span class="mobile-menu-group">{{desksLabel}}</span>
+    {{{menuFamilyHtml}}}
   </div>
-  <a href="#contact" class="mobile-menu-cta">{{nav.cta}}</a>
+  <a href="#contact" class="mobile-menu-cta">{{door.label}}</a>
 </div>
-
-<!-- the product family: a city desk is part of the BOOM suite, not an island -->
-<div class="fam" aria-label="BOOM suite">
-  <a class="on" href="/{{slug}}" aria-current="page">{{city}}</a>
-{{{familyHtml}}}
-</div>
-
-<!-- the rail: five dots on a wide screen, where the reader is on the page -->
-{{{railHtml}}}
 
 <main id="main">
 
-  <!-- ═══ HERO — one door. The city on the Solari board: the brand's own voice. ═══ -->
+  <!-- ═══ HERO — the diagnostic is the hero (brief v1.3, STUDIO §11). One DOM for
+       the phone and the desk: on a phone the two wrappers are display:contents and
+       the items take the reading order (title, lead, the question, the pass, the
+       skip link, the facts, the door); at ≥920px the right column is sticky with
+       the pass above the door. ═══ -->
   <header class="hero">
-    <div>
-      <p class="eyebrow live h-1"><i aria-hidden="true"></i>{{hero.eyebrow}}</p>
-      <h1 class="h-2">{{hero.h1Before}} <span id="flapCity" class="flap-city flap-scale" aria-label="{{city}}">{{word}}</span><br><em>{{hero.h1Em}}</em></h1>
+    <div class="hero-left">
+      <h1 class="h-2">{{hero.h1Before}} <span id="flapCity" class="flap-city flap-scale" aria-label="{{city}}">{{word}}</span></h1>
       <script>/* THE SPACE IS RESERVED BEFORE THE BOARD ARRIVES. The city name is a
-         Solari board built by the JS at ~600ms: the cells are wider and taller
+         Solari board built by the JS at parse time: the cells are wider and taller
          than the plain word, and without a reservation everything under the
          title jumps when they land (the index.html lesson: CLS 0.058, all of it
          under the reader's eyes). Width = cells x calibrated cell width,
@@ -128,17 +122,23 @@
         (function(){var f=document.getElementById('flapCity');
           if(f){f.style.display='inline-block';f.style.minWidth='{{wordEm}}em';
                 f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="sub h-3">{{hero.sub}}</p>
-      <div class="trust h-4">
-{{{trustHtml}}}
-      </div>
-      <p class="serving h-4">{{hero.servingLead}} — <b>{{hero.servingNames}}</b></p>
+      <p class="lead h-3">{{hero.lead}}</p>
+      <!-- CHECK-IN -->
+{{{checkinHtml}}}
+      <!-- /CHECK-IN -->
+      <a class="skipck" href="#contact">{{door.skip}}</a>
+      <!-- THE FACTS: the five answers a scam-primed visitor needs before any tap -->
+      <dl class="facts" id="facts">
+{{{factsHtml}}}
+      </dl>
     </div>
-
-    <!-- THE DOOR: four fields and the service chips, everything else folds away -->
-    <div class="h-5" id="contact">
-      <div class="filecard">
-        <div class="refline"><span>{{form.ref}}</span><b>{{form.refRight}}</b></div>
+    <div class="hero-right">
+      <!-- PASS -->
+{{{passHtml}}}
+      <!-- /PASS -->
+      <!-- THE DOOR -->
+      <!-- five fields, the service as chips (prefilled by the pass), everything else folds away -->
+      <div class="filecard" id="contact">
         <form id="cityForm" novalidate data-sending="{{sending}}"
               data-err-name="{{form.errors.name}}" data-err-contact="{{form.errors.contact}}"
               data-err-email="{{form.errors.email}}" data-err-net="{{form.errors.net}}">
@@ -147,28 +147,31 @@
             <div class="fld"><label for="fEmail">{{form.email.label}}</label><input id="fEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="{{form.email.placeholder}}"></div>
           </div>
           <div class="frow two">
-            <div class="fld"><label for="fMoveIn">{{form.moveIn.label}}</label><input id="fMoveIn" name="moveIn" placeholder="{{form.moveIn.placeholder}}"></div>
-            <div class="fld"><label for="fBudget">{{form.budget.label}}</label><select id="fBudget" name="budget">
-              <option value="">—</option>
-{{{budgetOptionsHtml}}}
+            <div class="fld"><label for="fPhone">{{form.phone.label}} <span class="opt">({{form.phone.sub}})</span></label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="{{form.phone.placeholder}}"></div>
+            <div class="fld"><label for="fMoveIn">{{form.moveIn.label}}</label><select id="fMoveIn" name="moveIn">
+{{{monthOptionsHtml}}}
             </select></div>
           </div>
-          <!-- the service: chips with the price in view, never a dropdown — the
-               three doors and their cost are read without a tap -->
-          <fieldset class="fld chips"><legend>{{form.service.label}}</legend>
-            <div class="chipgrid">
+          <div class="fld"><label for="fBudget">{{form.budget.label}}</label><select id="fBudget" name="budget">
+            <option value="">—</option>
+{{{budgetOptionsHtml}}}
+          </select></div>
+          <!-- the service: the pass writes it here; chips with the price and the
+               plan's condition in view, never a dropdown; none pre-checked -->
+          <details class="planline" id="planline" open data-from="{{form.service.from}}">
+            <summary><span class="pl-k">{{form.service.label}}</span><b id="plText">{{form.service.none}}</b><small class="pl-change" id="plChange" hidden>{{form.service.change}}</small></summary>
+            <fieldset class="fld chips"><legend class="sr">{{form.service.label}}</legend>
+              <div class="chipgrid">
 {{{serviceChipsHtml}}}
-            </div>
-{{{servicePriceNoteHtml}}}
-          </fieldset>
+              </div>
+{{{serviceNoteHtml}}}
+            </fieldset>
+          </details>
 
           <details class="more">
             <summary>{{form.more}}</summary>
             <div class="morein">
-              <div class="frow two">
-                <div class="fld"><label for="fPhone">{{form.phone.label}}</label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="{{form.phone.placeholder}}"></div>
-                <div class="fld"><label for="fSituation">{{form.situation.label}}</label><input id="fSituation" name="situation" placeholder="{{form.situation.placeholder}}"></div>
-              </div>
+              <div class="fld"><label for="fSituation">{{form.situation.label}}</label><input id="fSituation" name="situation" placeholder="{{form.situation.placeholder}}"></div>
               <div class="fld"><label for="fAreas">{{form.areas.label}}</label><input id="fAreas" name="areas" placeholder="{{form.areas.placeholder}}"></div>
               <div class="fld"><label for="fMsg">{{form.message.label}}</label><textarea id="fMsg" name="message" rows="2" placeholder="{{form.message.placeholder}}"></textarea></div>
             </div>
@@ -181,11 +184,7 @@
           <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
-          <button type="submit" class="paybtn" id="fGo" style="margin-top:16px">
-            <span class="lk">✈</span>
-            <span class="tx"><b>{{form.submit}}</b><small>{{form.submitSub}}</small></span>
-            <span class="amt">→</span>
-          </button>
+          <button type="submit" class="paybtn" id="fGo"><span class="lk">✈</span><span class="tx"><b>{{door.label}}</b><small>{{door.sub}}</small></span><span class="amt">→</span></button>
           <p class="consent">{{form.consentLead}} <a href="/privacy">privacy</a>. {{form.consentAlt}} <a href="https://wa.me/{{contact.whatsapp}}" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:{{contact.email}}?subject=BOOM%20{{city}}">{{contact.email}}</a></p>
         </form>
 
@@ -193,7 +192,7 @@
              the offer to pay for the chosen service) and the paid landing -->
 {{{sentHtml}}}
       </div>
-      {{{machineHtml}}}
+      <!-- /THE DOOR -->
     </div>
   </header>
 
@@ -206,23 +205,20 @@
     <div class="steps">
 {{{stepsHtml}}}
     </div>
-    <div class="tline" aria-hidden="true">{{{tlineHtml}}}</div>
+    {{{whoHtml}}}
   </section>
 
-  <!-- ═══ 02 · SERVICES & FEES — three plates, the price on the board ═══ -->
+  <!-- ═══ 02 · SERVICES & FEES — three plates, the price as text, one door ═══ -->
   <section id="services" class="rv">
     <div class="sec-h">
       <span class="num">{{pricing.num}}</span>
       <h2>{{pricing.h2}} <span class="g">{{pricing.h2g}}</span></h2>
     </div>
     <p class="sec-sub">{{pricing.sub}}</p>
-    <!-- THE CHECK-IN (v1.2): three taps → the plan, the papers → what we'd fix
-         first, a boarding pass to post. The plates below are the whole menu. -->
-{{{checkinHtml}}}
     <div class="sibs plates">
 {{{plansHtml}}}
     </div>
-    <p class="feenote">{{pricing.note}}</p>
+    <p class="feenote">{{{feenoteHtml}}}</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -237,17 +233,6 @@
     </div>
   </section>
 
-  <!-- ═══ honesty — one line, it's the brand ═══ -->
-  <section id="method" class="rv">
-    <div class="truth">
-      <h3>{{truth.h3}} <em>{{truth.h3em}}</em></h3>
-      <p>{{truth.p}}</p>
-      <div class="flags">
-{{{flagsHtml}}}
-      </div>
-    </div>
-  </section>
-
   <!-- ═══ FAQ — the depth, folded away ═══ -->
   <section id="faq" class="rv">
     <div class="sec-h">
@@ -259,29 +244,22 @@
     </div>
   </section>
 
-  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human content: it sits below the FAQ ═══ -->
-  <section id="enbref-wrap" class="rv">
-    <div class="enbref" id="enbref">
-      <h2>{{bref.h2}}<span class="ref">{{bref.ref}}</span></h2>
-      <dl>
+  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human
+       content, and folded for humans: whole in the DOM for the machines ═══ -->
+  <section id="enbref-wrap" class="late">
+    <details class="sheetfold">
+      <summary>{{bref.h2}}</summary>
+      <div class="enbref" id="enbref">
+        <h2>{{bref.h2}}<span class="ref">{{bref.ref}}</span></h2>
+        <dl>
 {{{brefHtml}}}
-      </dl>
-    </div>
+        </dl>
+      </div>
+    </details>
   </section>
-
-  <!-- ═══ final band — the same door, once more ═══ -->
-  <div class="band rv">
-    <h2>{{band.h2}} <em>{{band.h2em}}</em></h2>
-    <p>{{band.p}}</p>
-    <a class="paybtn" href="#contact">
-      <span class="lk">✈</span>
-      <span class="tx"><b>{{form.submit}}</b><small>{{form.submitSub}}</small></span>
-      <span class="amt">→</span>
-    </a>
-  </div>
 </main>
 
-<footer class="footer">
+<footer class="footer late">
   <div class="container">
     <div class="footer-grid">
       <div>
@@ -305,7 +283,13 @@
           <li><a href="#services">{{nav.services}}</a></li>
           <li><a href="#checks">{{nav.checks}}</a></li>
           <li><a href="#faq">{{nav.faq}}</a></li>
-          <li><a href="#contact">{{nav.cta}}</a></li>
+          <li><a href="#contact">{{door.label}}</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4 class="footer-links-title">{{desksLabel}}</h4>
+        <ul class="footer-links-list">
+{{{footerFamilyHtml}}}
         </ul>
       </div>
       <div>
@@ -313,11 +297,6 @@
         <ul class="footer-links-list">
 {{{footerBoomHtml}}}
           <li><a href="https://wa.me/{{contact.whatsapp}}" target="_blank" rel="noopener">WhatsApp</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">Legal</h4>
-        <ul class="footer-links-list">
           <li><a href="/terms">Terms</a></li>
           <li><a href="/privacy">Privacy</a></li>
         </ul>
@@ -325,7 +304,7 @@
     </div>
     <div class="footer-bottom">
       <span>© {{year}} BOOM</span>
-      <div class="footer-status"><span class="footer-status-dot"></span><span>{{footer.status}}</span></div>
+      <span>{{entity.legalName}} · {{city}}</span>
     </div>
   </div>
 </footer>
@@ -333,7 +312,8 @@
 <!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
 {{{checkoutHtml}}}
 
-{{{paybarHtml}}}
+<!-- the strip on a phone: the one door, no price -->
+{{{stripHtml}}}
 
 <!-- CONFIG — generated from cities/{{slug}}.json. No secrets, no keys: the form posts to our own API. -->
 <script>

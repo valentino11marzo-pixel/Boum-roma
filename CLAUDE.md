@@ -1438,6 +1438,111 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   due colonne; Madrid col foglio, Barcellona, Parigi e Berlino a 390px senza
   foglio e col piatto che spunta il suo chip).
 
+- **IL REDESIGN (16/10/2026 — v1.3 del brief, «un'esperienza più alta,
+  immersiva, diretta, senza spreco»; lo studio è `STUDIO_CITIES_ESPERIENZA.md`,
+  la specifica il suo §11, decisa da un panel di giudici su quattro
+  architetture).** Il frame «addiction» del fondatore è stato RIFIUTATO e
+  tradotto in ripresa e possesso: niente urgenza finta, niente contatori,
+  niente scarsità; la pagina è memorabile perché risponde, non perché
+  trattiene. Cosa cambia, in una copia (template, build, CSS, JS, cinque JSON):
+  1. **La diagnosi È l'hero.** Titolo + UNA riga di lead (≤ 20 parole), poi
+     il Check-in (passi **stage → where → when**: ogni percorso risolve entro il
+     SECONDO tap — `resolvesAt` lo pretende al build — quindi il biglietto è
+     vivo dal primo tap e mai un'ipotesi), il link «Rather write first?», i
+     **cinque fatti** che un visitatore scottato legge prima di toccare (tre
+     scritti: paid by · from abroad · if we find nothing, ≤ 20 parole; due
+     DERIVATI: chi risponde dal blocco `desk` con l'orologio vivo «it is 11:17
+     at the desk, 09:17 for you», e l'azienda con il rating «4.9 on Google **in
+     Rome**» — una volta, detto Roma, linkato solo quando `rome.reviewUrl`
+     esiste, obbligatorio per andare live su un desk che vende). A destra, a
+     ≥ 920 px sticky (`.tall` lo libera se più alta dello schermo): il pass e la
+     porta. UN DOM, riordinato sul telefono con `display:contents` + `order`.
+  2. **Il biglietto È la carta d'imbarco** (`#pass`, stati `blank · pending ·
+     resolved · complete` sull'attributo `data-state`, i quattro corpi con
+     `hidden` come verità — la prima regola del CSS è
+     `[hidden]{display:none!important}`, la lezione della sconfitta trovata in
+     v1.2). Sul telefono NON c'è prima del primo tap (una carta vuota è una
+     domanda che nessuno ha fatto); a 1440 è in pagina da subito, bianca. Al
+     tap: piano, prezzo su UN tabellone suo (gira una volta per piano), la
+     condizione del piano, il «perché» della regola, la regola del rimborso
+     SOLO su Full Search dove si incassa, la nota del «when» o il rifiuto
+     («Four weeks is tight») dopo il terzo tap, gli otto documenti con metro
+     («3 of 8», i mancanti per nome), le due porte (file gratuito · cassa sul
+     SUO piano), la riga condivisione, la griglia passenger/boarding/file/
+     papers, nome e origine, Save image / Share. Il pass **atterra sullo
+     schermo** con geometria di layout (offsetTop), non col rect in volo
+     durante l'entrata: 12 px sotto la piega erano il difetto misurato.
+  3. **La porta** è scritta dal pass (chip spuntato, riga piano «… · from your
+     check-in», mese precompilato, i due campi nascosti in parole) e
+     SVUOTATA se il pass torna pending; un chip scelto a mano resta del
+     lettore. Cinque campi visibili (nome, email, telefono, **mese come
+     `<select>` nativa** — 20 mesi dall'ancora `_shared.json.moveInFrom`,
+     etichette da tabella fissa mai Intl, i mesi passati potati dal JS, avviso
+     del build oltre due mesi — budget), i chip del servizio con prezzo E
+     condizione del piano, il resto piegato. `/api/city-lead` legge «2027-02»
+     come «February 2027» (`moveInLabel`; il testo libero resta verbatim, il
+     grezzo su `raw.moveIn`).
+  4. **UNA etichetta**: nav, menu, footer, bottone della porta, strip, i tre
+     piatti e il pass leggono `door.label` («Open my file»); OGNI controllo di
+     pagamento legge `till.label` col prezzo («Pay and start · €500»); le
+     etichette v1.2 sono rifiutate dal build. La strip del telefono non porta
+     prezzi e nomina il piano quando c'è.
+  5. **La regola del rimborso accanto a ogni €500** sui desk che vendono: sotto
+     i chip, nella nota dei piatti (DERIVATA dal build nel `feenote`), sul
+     pass, nel dialog, nella riga Fees — il build rifiuta il blocco che la
+     perde. Sui waitlist niente regola e niente Stripe.
+  6. **I tabelloni solo dove un fatto cambia**: la città nel titolo (un solo
+     assestamento), il prezzo sul pass, OPEN/PAID. I piatti portano il prezzo
+     come TESTO con la condizione del piano (`data-plan-price`); sei
+     tabelloni a riposo leggevano come una slot machine.
+  7. **Ogni piano ha le SUE due stringhe** (`condition` corta con «VAT»,
+     `conditionLong` una frase): chip, piatto, pass, riga Fees, Offer e config
+     le leggono — Berlino Full Search «on signing» su ogni lettore (il build
+     lo pretende), gli altri waitlist «at opening», i desk che vendono mai
+     «opening». La FAQ derivata chiude con la verità per desk.
+  8. **La cassa è un `<dialog>` nativo** (showModal, Escape, focus restituito),
+     fuori da `<main>`; la chiave dell'acquisto in **sessionStorage** per la
+     vita della scheda, mai localStorage (ePrivacy 5(3)); l'offerta dopo il
+     file mostra la regola del rimborso SOLO su Full Search.
+  9. **Il consenso aspetta** (`<body data-consent-late>` + guardiano in
+     `js/boom-consent.js`): la targa arriva dopo la PRIMA MOSSA del lettore —
+     rotella, scorrimento col dito, tap, tasto — più 600 ms, mai su un tap
+     dentro diagnosi/pass/porta, mai mentre un `dialog[open]` è in scena
+     (riprova 400 ms dopo), tetto 8 s. L'evento `scroll` NON è un segnale: la
+     pagina scorre da sola per far atterrare il pass.
+  10. **L'URL è la memoria**: `#checkin=stage.where.when.docs[.via]` con via
+      `l` (il proprio Copy link, con i documenti), `w`/`c`/`d`/`p` (ricevuto:
+      i documenti NON si leggono — le carte di un amico non sono le mie);
+      completo → biglietto, da un amico → banner, parziale → passo
+      successivo, rotto → primo passo e barra pulita. Il pass si esporta
+      1080×1920 (webp dove c'è, png altrove) da UNA funzione pura
+      `drawPass`, in un Worker da blob con OffscreenCanvas dove c'è.
+  11. **Via dalla pagina**: striscia di famiglia fissa (ora colonna del footer +
+      menu, derivate), rail, barra di progresso, glow, riga di rotta, timeline,
+      banda truth, banda finale, pay bar col prezzo, «500+ housed», la FAQ
+      «moving from Rome», tilt/parallasse/float; restano gli ingressi
+      scroll-driven e la prospettiva del pass; tutto fermo sotto
+      reduced-motion; la scheda GEO è `<details>` sotto la FAQ (intera nel DOM).
+  12. **I budget sono fatti**: parole per blocco (hero ≤ 30, Check-in + pass
+      ≤ 230, fatti ≤ 85, porta ≤ 110 senza la lista dei mesi, stati ≤ 70,
+      piatti ≤ 50, controlli ≤ 170, corpo ≤ 950) e PESO (≤ 90 KB gzip
+      first-party, JS ≤ 30; oggi ~60 / 15.4) — il build rifiuta. Gli avanzi
+      v1.2 nei JSON sono rifiutati per nome (`machine`, `paybar`, `hero.sub`,
+      `nav.cta`, `per`/`cta`, `form.submit`, `checkoutCopy.btn`, `notes.where`,
+      gate/seat, «Show my plan»).
+  **Non deciso qui, come prima**: tutti e cinque i desk restano `live:false`;
+  il link recensione di Roma, le ore reali del desk, la foto o il solo nome,
+  l'IVA transfrontaliera, i partner AICAT/carte/§34c e la domanda Berlino su
+  Application Pack e Attended Viewing come «Vermittlung» sono del fondatore e
+  del legale. Test: `node tests/cities/run.mjs` (432 — tutto quanto sopra per
+  mutazione: ordine dei passi, `resolvesAt`, una etichetta, rimborso per
+  blocco, condizioni per piano e Berlino «sign», fatti e rating, select del
+  mese e ancora, consenso, peso, avanzi, `moveInLabel`) + `node
+  tests/cities/ui.mjs` (139, Chromium — il biglietto vivo nei quattro stati,
+  il pass nascosto sul telefono e bianco a 1440, l'atterraggio sullo schermo,
+  i documenti, la porta scritta e svuotata, i link con via, il dialog, il
+  consenso che aspetta, le sorelle) + `node tests/cities/checkout.mjs` (39).
+
 ### POST `/api/service-checkout`
 **Dal 14/10 vende anche i piani dei desk città**: `{ city, kind }` →
 `cityOffer(city, kind)` (`api/_market.js`) decide prezzo e nome del prodotto
