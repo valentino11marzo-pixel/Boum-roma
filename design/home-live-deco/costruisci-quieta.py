@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # BOOM · LA HOME QUIETA — l'identità del sito live, ricominciata.
 #   python3 costruisci-quieta.py artefatto | sito
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 MESI = {'jan':1,'gen':1,'feb':2,'mar':3,'apr':4,'may':5,'mag':5,'jun':6,'giu':6,
         'jul':7,'lug':7,'aug':8,'ago':8,'sep':9,'set':9,'oct':10,'ott':10,
@@ -22,11 +25,9 @@ def quando(r):
     try: return datetime.fromisoformat(str(r['when']).replace('Z','+00:00')
         .replace('+00:00+00:00','+00:00'))
     except Exception: return datetime(2020,1,1,tzinfo=timezone.utc)
-def letti(r):
-    for c in (r.get('beds'), r.get('bedrooms')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# le camere con la regola del sito (FACTS.bedroomsOf): `bedrooms` prima di
+# `beds`; None = non si sa, nessuna voce
+def letti(r): return bedrooms_of(r)
 def piano(r):
     p = re.sub(r'\s+',' ',str(r.get('floor') or '')).strip()
     if not p: return ''

@@ -3,8 +3,11 @@
 #   python3 costruisci-casa.py artefatto   → flagship con galleria inline
 #   python3 costruisci-casa.py sito        → tutte le case, foto da Storage
 # Consuma lh-css.html (design system) + deco-organi.html (organi condivisi).
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 MESI = {'jan':1,'gen':1,'feb':2,'mar':3,'apr':4,'may':5,'mag':5,'jun':6,'giu':6,
@@ -54,11 +57,10 @@ def eti_libera(iso):
     d = datetime.fromisoformat(iso).replace(tzinfo=timezone.utc)
     return 'now' if d <= oggi else d.strftime('%-d %b')
 
-def letti(f):
-    for c in (f.get('bedrooms'), f.get('beds')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# le camere con la regola del sito (FACTS.bedroomsOf). Qui l'ordine era già
+# giusto, ma `str(c or '')` perdeva lo 0 del monolocale (il testo «3» vinceva)
+# e «1.5» diventava 1: ora 1.5 non vale e decide il testo. None = non si sa.
+def letti(f): return bedrooms_of(f)
 
 def piano(f):
     p = re.sub(r'\s+',' ',str(f.get('floor') or '')).strip()

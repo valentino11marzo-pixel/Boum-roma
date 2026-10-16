@@ -22,12 +22,33 @@
   var contoZona = document.getElementById('contoZona');
 
   function iso(d) { return d.toISOString().slice(0, 10); }
+  /* LA RICERCA LIBERA non chiede gli accenti né l'apostrofo «giusto»: si
+     piegano ENTRAMBI i lati, la carta e la domanda — minuscole, NFD senza
+     diacritici, ’ ‘ ʼ (l'apostrofo tipografico che iOS mette da solo) → '.
+     Così «enderta room» trova Endertà e «sant’anna» trova Sant'Anna. */
+  function piega(s) {
+    s = String(s == null ? '' : s).toLowerCase();
+    try { s = s.normalize('NFD'); } catch (e) { /* motore senza normalize */ }
+    return s.replace(/[\u0300-\u036f]/g, '')
+      .replace(/[\u2018\u2019\u201b\u02bc\u2032\u0060\u00b4]/g, "'")
+      .replace(/\s+/g, ' ');
+  }
+  /* le camere di una carta: null se data-letti è vuoto (il documento non
+     le dice o dice qualcosa che non si legge) — «non lo sappiamo» non è
+     un monolocale, e non passa nessun filtro delle camere */
+  function lettiDi(c) {
+    var x = c.dataset.letti;
+    if (x == null || String(x).trim() === '') return null;
+    var n = +x;
+    return isFinite(n) ? n : null;
+  }
   function passa(c) {
     if (stato.zona && (c.dataset.zona || '').toLowerCase() !== stato.zona) return false;
     if (stato.budget && +c.dataset.prezzo > stato.budget) return false;
-    if (stato.q && (c.dataset.cerca || '').indexOf(stato.q) < 0) return false;
+    if (stato.q && piega(c.dataset.cerca).indexOf(piega(stato.q)) < 0) return false;
     if (stato.letti !== '') {
-      var l = +(c.dataset.letti || 0);
+      var l = lettiDi(c);
+      if (l === null) return false;
       if (stato.letti === '0' ? l !== 0 : l < +stato.letti) return false;
     }
     if (stato.bagni !== '' && +(c.dataset.bagni || 0) < +stato.bagni) return false;
@@ -36,9 +57,12 @@
     if (stato.salvate && salvate().indexOf(c.dataset.chiave) < 0) return false;
     for (var i = 0; i < stato.dote.length; i++)
       if ((c.dataset.dote || '').indexOf('|' + stato.dote[i] + '|') < 0) return false;
-    /* chi atterra: famiglia e coinquilini vogliono almeno due camere */
-    if ((stato.chi === 'family' || stato.chi === 'flatmates')
-        && +(c.dataset.letti || 0) < 2) return false;
+    /* chi atterra: famiglia e coinquilini vogliono almeno due camere (e
+       camere ignote non le promettono) */
+    if (stato.chi === 'family' || stato.chi === 'flatmates') {
+      var lc = lettiDi(c);
+      if (lc === null || lc < 2) return false;
+    }
     /* la data: mostriamo solo ciò che è libero entro il tuo atterraggio */
     if (stato.dal && c.dataset.dal && c.dataset.dal > stato.dal) return false;
     return true;
@@ -480,7 +504,10 @@
       zona: c.dataset.zona || '', foto: img ? img.src : '',
       prezzo: p, cauzione: mesi * p, mesi: mesi, fee: fee,
       giornouno: p + mesi * p + fee,
-      letti: +c.dataset.letti || 0, bagni: +c.dataset.bagni || 0,
+      /* data-letti vuoto = camere ignote: null, mai uno «0» (= Studio) */
+      letti: c.dataset.letti == null || String(c.dataset.letti).trim() === ''
+        ? null : (+c.dataset.letti || 0),
+      bagni: +c.dataset.bagni || 0,
       mq: +c.dataset.mq || 0, piano: c.dataset.piano || '',
       arredata: c.dataset.arredata === '1', video: c.dataset.video === '1',
       stato: st ? st.textContent : '',
@@ -600,6 +627,14 @@
     paraSegna();
   });
   function segno(v) { return v ? '<b>✓</b>' : '—'; }
+  /* nome, zona, stato e piano vengono dalle carte, che l'idrante riscrive
+     dal documento vero: testo, mai markup */
+  function escT(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;',
+               '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
   function tabella() {
     var ss = PARA.map(scheda).filter(Boolean);
     function fila(eti, f) {
@@ -609,10 +644,10 @@
     tavola.innerHTML =
       '<tr><th></th>' + ss.map(function (x) {
         return '<td class="pt-capo">' +
-          (x.foto ? '<img src="' + x.foto + '" alt="">' : '') +
-          '<button type="button" class="pt-x" data-id="' + x.id +
+          (x.foto ? '<img src="' + escT(x.foto) + '" alt="">' : '') +
+          '<button type="button" class="pt-x" data-id="' + escT(x.id) +
           '" aria-label="Remove from comparison">✕</button>' +
-          '<b>' + x.nome + '</b><span>' + x.zona + '</span></td>';
+          '<b>' + escT(x.nome) + '</b><span>' + escT(x.zona) + '</span></td>';
       }).join('') + '</tr>' +
       fila('Monthly rent', function (x) {
         return '<b>' + eu(x.prezzo) + '</b>/mo'; }) +
@@ -622,19 +657,20 @@
         return '<span class="verde">' + eu(x.cauzione) +
           '</span> · comes back'; }) +
       fila('Agency fee incl. VAT', function (x) { return eu(x.fee); }) +
-      fila('Status', function (x) { return x.stato || '—'; }) +
+      fila('Status', function (x) { return x.stato ? escT(x.stato) : '—'; }) +
+      /* camere ignote: un trattino, mai «Studio» né «0» */
       fila('Beds', function (x) {
-        return x.letti === 0 ? 'Studio' : x.letti; }) +
+        return x.letti === 0 ? 'Studio' : x.letti == null ? '—' : x.letti; }) +
       fila('Baths', function (x) { return x.bagni || '—'; }) +
       fila('Size', function (x) {
         return x.mq ? x.mq + ' m²' : '—'; }) +
-      fila('Floor', function (x) { return x.piano || '—'; }) +
+      fila('Floor', function (x) { return x.piano ? escT(x.piano) : '—'; }) +
       fila('Furnished', function (x) { return segno(x.arredata); }) +
       fila('Video tour', function (x) { return segno(x.video); }) +
       fila('Features', function (x) {
-        return x.dote.length ? x.dote.join(', ') : '—'; }) +
+        return x.dote.length ? escT(x.dote.join(', ')) : '—'; }) +
       fila('', function (x) {
-        return '<a class="btn btn-primary" href="' + x.href +
+        return '<a class="btn btn-primary" href="' + escT(x.href) +
           '">See this home</a>'; });
   }
   if (apriP) apriP.addEventListener('click', function () {

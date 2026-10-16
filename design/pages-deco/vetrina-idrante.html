@@ -29,6 +29,82 @@
   var muro = document.getElementById('muro');
   if (!carte.length) return;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
+  /* LE CAMERE — la STESSA regola di js/listing-facts.js (bedroomsOf), in
+     copia perché questa pagina non carica quel file: la parità la pinna
+     tests/catalogo/vetrina.mjs su tutto il catalogo vero. Il campo
+     strutturato `bedrooms` (intero 0–10, 0 = monolocale) vince; il testo
+     libero `beds` vale solo se manca, e solo per 1–10; altrimenti null —
+     meglio tacere. Fino al 15/10/2026 qui si leggeva prima `beds` e se ne
+     prendeva il PRIMO numero: «Capri 2 Bed» usciva «1 bed», il bilocale di
+     Via dei Cappellari «3 bed». */
+  function camereDi(l) {
+    l = l || {};
+    var b = l.bedrooms;
+    if (b !== null && b !== undefined && String(b).trim() !== '') {
+      var n = Number(String(b).trim());
+      if (Number.isInteger(n) && n >= 0 && n <= 10) return n;
+    }
+    var m = String(l.beds == null ? '' : l.beds).match(/\d+/);
+    if (m) {
+      var k = parseInt(m[0], 10);
+      if (k >= 1 && k <= 10) return k;
+    }
+    return null;
+  }
+  /* IL NOME dal documento vero: la build lo fotografa, l'operatore lo
+     cambia (i nomi dalla via, js/catalogo-correzioni.js). Si riscrive dove
+     la carta lo stampa — il nome, l'alt della foto, la testa di data-cerca
+     (la ricerca libera lo trova) — e l'alt e la ricerca solo se portano
+     davvero quel nome in testa: mai un indovinello. Vero se ha cambiato
+     qualcosa che il setaccio legge. */
+  function rinomina(card, nome) {
+    var el = card.querySelector('.nome');
+    if (!el || !nome) return false;
+    var prima = el.textContent.replace(/\s+/g, ' ').trim();
+    if (prima === nome) return false;
+    el.textContent = nome;
+    var img = card.querySelector('.home-foto img');
+    var alt = img ? img.getAttribute('alt') || '' : '';
+    if (img && alt.indexOf(prima + ', ') === 0)
+      img.setAttribute('alt', nome + alt.slice(prima.length));
+    var cerca = card.dataset.cerca, pl = prima.toLowerCase();
+    if (cerca == null || (cerca !== pl && cerca.indexOf(pl + ' ') !== 0)) return false;
+    card.dataset.cerca = nome.toLowerCase() + cerca.slice(pl.length);
+    return true;
+  }
+  /* LE CAMERE sulla carta: data-letti (il filtro) e la voce «· N bed»
+     della seconda riga, nella grammatica del builder (0 = Studio). Camere
+     ignote (null) = data-letti VUOTO, mai «0»: «0» è un monolocale, e il
+     filtro Studio lo prenderebbe per tale. Vero se ha cambiato ciò che il
+     setaccio legge. */
+  function scriviCamere(card, n) {
+    var cambia = false, dl = n == null ? '' : String(n);
+    if (card.dataset.letti !== undefined && card.dataset.letti !== dl) {
+      card.dataset.letti = dl; cambia = true;
+    }
+    var r2 = card.querySelector('.riga2');
+    if (!r2) return cambia;
+    var voce = n === 0 ? 'Studio' : n ? n + ' bed' : '', vecchia = null;
+    [].forEach.call(r2.childNodes, function (x) {
+      if (x.nodeType === 3 && /^\s*(\d+ bed|Studio)\s*$/.test(x.nodeValue)) vecchia = x;
+    });
+    if (vecchia) {
+      if (vecchia.nodeValue.trim() === voce) return cambia;
+      if (voce) { vecchia.nodeValue = ' ' + voce; return cambia; }
+      /* il documento dice qualcosa che non si legge: via la voce e il suo
+         separatore, mai un numero vecchio accanto a un nome nuovo */
+      var sep = vecchia.previousSibling;
+      if (sep && sep.nodeType === 1 && sep.tagName === 'I') r2.removeChild(sep);
+      r2.removeChild(vecchia);
+    } else if (voce) {
+      var i = document.createElement('i');
+      i.textContent = '·';
+      r2.appendChild(document.createTextNode(' '));
+      r2.appendChild(i);
+      r2.appendChild(document.createTextNode(' ' + voce));
+    }
+    return cambia;
+  }
   /* LA CORSIA, non lo stato grezzo. «Waitlist open» era un'attesa
      indefinita per case che la data di rilascio ce l'hanno tutte: ora il
      badge la DICE (Free from 1 Sep 2027) — la stessa frase che scrive la
@@ -139,9 +215,14 @@
             st: String(v('status') || '').toLowerCase(),
             dal: dal, cieca: !!((af || raw) && !dal),
             af: af, ad: raw,
-            p: isFinite(p) && p > 0 ? Math.round(p) : null
+            p: isFinite(p) && p > 0 ? Math.round(p) : null,
+            nome: String(v('name') || '').replace(/\s+/g, ' ').trim(),
+            /* undefined = il documento TACE sulle camere: resta la build */
+            camere: v('bedrooms') != null || v('beds') != null
+              ? camereDi({ bedrooms: v('bedrooms'), beds: v('beds') }) : undefined
           };
         });
+        var ritocco = false;
         [].forEach.call(carte, function (card) {
           var d = per[card.dataset.id];
           if (!d || !d.st) return;
@@ -158,11 +239,14 @@
           }
           /* gli attributi che i filtri leggono: la griglia non deve
              setacciare su numeri vecchi */
-          if (card.dataset.dal !== undefined) card.dataset.dal = d.dal;
+          if (card.dataset.dal !== undefined && card.dataset.dal !== d.dal) {
+            card.dataset.dal = d.dal; ritocco = true;
+          }
           if (d.p) {
             if (card.dataset.prezzo !== undefined
-                && card.dataset.prezzo !== String(d.p))
-              card.dataset.prezzo = String(d.p);
+                && card.dataset.prezzo !== String(d.p)) {
+              card.dataset.prezzo = String(d.p); ritocco = true;
+            }
             var fp = card.querySelector('.flap-prezzo');
             if (fp && fp.dataset.p !== euro(d.p)) {
               fp.dataset.p = euro(d.p);
@@ -173,7 +257,14 @@
               else fp.textContent = euro(d.p);
             }
           }
+          /* il nome e le camere del documento vero (15/10/2026): la build
+             li fotografa, la stessa regola li rilegge */
+          if (rinomina(card, d.nome)) ritocco = true;
+          if (d.camere !== undefined && scriviCamere(card, d.camere)) ritocco = true;
         });
+        /* un filtro già acceso (?q=, #zona=, le camere) rilegge gli
+           attributi appena cambiati: niente setaccio sui valori della build */
+        if (ritocco && window.__muroInnesta) window.__muroInnesta([]);
         contatori(per);
         innesta(per, interi);
       })
@@ -240,8 +331,8 @@
       if (!foto) return;
       var zona = (String(testo(f.zone) || 'Roma').replace(/\s+/g, ' ')
         .split('/')[0].trim()) || 'Roma';
-      var letti = intero(testo(f.bedrooms) != null ? testo(f.bedrooms)
-        : testo(f.beds));
+      /* le camere con la regola UNA (camereDi), come le carte di build */
+      var letti = camereDi({ bedrooms: testo(f.bedrooms), beds: testo(f.beds) });
       var mq = intero(testo(f.sqm) != null ? testo(f.sqm)
         : testo(f.size)) || 0;
       var arred = /^(yes|true|si|sì)$/i
@@ -266,7 +357,9 @@
       a.className = 'casa-p';
       a.href = '/listing/' + encodeURIComponent(id);
       a.dataset.zona = zona; a.dataset.prezzo = String(d.p);
-      a.dataset.letti = String(letti || 0); a.dataset.mq = String(mq);
+      /* camere ignote = data-letti vuoto, mai «0» (= Studio) */
+      a.dataset.letti = letti == null ? '' : String(letti);
+      a.dataset.mq = String(mq);
       a.dataset.quando = quando; a.dataset.dal = d.dal || '';
       a.dataset.bagni = String(intero(testo(f.bathrooms)) || 0);
       a.dataset.arredata = arred ? '1' : '0';

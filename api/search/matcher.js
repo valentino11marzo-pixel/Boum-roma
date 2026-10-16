@@ -39,14 +39,13 @@ export function matches(criteria, l) {
   // le camere della casa con la regola unica (js/listing-facts.js). Prima
   // `Number(l.beds || 0)`: sul testo libero del bot dava NaN, e NaN < 2 è
   // falso — «2+ camere» lasciava passare qualunque casa scritta a parole.
-  // «N+ camere»: camere ignote valgono 0, come nella griglia della vetrina
-  // (data-letti), quindi non passano. «Studio» (il chip della vetrina salva
-  // beds 0, api/search/save.js lo conserva): SOLO un monolocale dichiarato,
-  // bedroomsOf === 0. Fino al 15/10/2026 lo 0 era falso e valeva «qualsiasi»:
-  // chi cercava un monolocale riceveva bilocali e trilocali. Qui il Segugio è
-  // più severo della griglia — che scrive data-letti 0 anche per camere
-  // ignote — perché una email che chiama «Studio» una casa di cui non sappiamo
-  // le camere è una promessa, non un filtro. `beds` assente = qualsiasi.
+  // «N+ camere»: camere ignote non passano, come nella griglia della vetrina
+  // (data-letti vuoto: nessun filtro camere attivo la fa passare). «Studio»
+  // (il chip della vetrina salva beds 0, api/search/save.js lo conserva):
+  // SOLO un monolocale dichiarato, bedroomsOf === 0. Fino al 15/10/2026 lo 0
+  // era falso e valeva «qualsiasi»: chi cercava un monolocale riceveva
+  // bilocali e trilocali. Una email che chiama «Studio» una casa di cui non
+  // sappiamo le camere è una promessa, non un filtro. `beds` assente = qualsiasi.
   if (c.beds === 0 ? FACTS.bedroomsOf(l) !== 0
     : (c.beds && (FACTS.bedroomsOf(l) || 0) < Number(c.beds))) return false;
   if (c.baths && Number(l.bathrooms || l.baths || 0) < Number(c.baths)) return false;

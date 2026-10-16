@@ -122,7 +122,10 @@ check(/our '\s*\+ 'fee incl\. VAT\./.test(home), 'la riga del primo giorno dice 
   // il cliente paga davvero (mese + deposito + provvigione CON IVA). Prima
   // diceva €5,120 = 1.600 + 1.600 + 1.920, la provvigione senza IVA, sulla
   // stessa pagina della FAQ che dice 12,2%.
-  const affitto = home.match(/<figcaption>Trilocale Pigneto · €([\d,]+)\/mo<\/figcaption>/);
+  // Il canone si legge dalla didascalia della casa protagonista, qualunque
+  // sia il suo nome: i nomi cambiano (catalogo-nomi.mjs, 15/10/2026 — era
+  // «Trilocale Pigneto», ora è il nome della via), il conto no.
+  const affitto = home.match(/<figcaption>[^<·]+ · €([\d,]+)\/mo<\/figcaption>/);
   const ricevuta = home.match(/<div class="sc-totale"><span>([^<]*)<\/span>\s*<b>€([\d,]+)<\/b><\/div>/);
   const p = affitto ? +affitto[1].replace(/,/g, '') : NaN;
   const totale = ricevuta ? +ricevuta[2].replace(/,/g, '') : NaN;

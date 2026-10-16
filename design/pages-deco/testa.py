@@ -142,7 +142,7 @@ FAQ_HOME = {
             'present at least 3 matching options within 15 days.'}},
         {'@type': 'Question', 'name': 'What contracts does BOOM use in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
-            'Fully legal Italian contracts — transitorio (1–18 months), '
+            'Fully legal Italian contracts — transitorio (3–18 months), '
             'rent-controlled 3+2 and student formats. Every contract is '
             'registered with the Agenzia delle Entrate.'}},
         {'@type': 'Question',

@@ -2,8 +2,11 @@
 # BOOM · LA HOME — l'identità del sito live, rieseguita Déco Solari.
 #   python3 costruisci-home.py artefatto   → foto e Inter inline (anteprima)
 #   python3 costruisci-home.py sito        → foto da Storage, Inter da Google
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone, timedelta
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 MESI = {'jan':1,'gen':1,'feb':2,'mar':3,'apr':4,'may':5,'mag':5,'jun':6,'giu':6,
@@ -24,11 +27,9 @@ VITA = {
   'Vittorio Veneto': "La Dolce Vita's boulevard, steps from Villa Borghese.",
 }
 
-def letti(r):
-    for c in (r.get('beds'), r.get('bedrooms')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# le camere con la regola del sito (FACTS.bedroomsOf): `bedrooms` prima di
+# `beds`; None = non si sa, nessuna voce
+def letti(r): return bedrooms_of(r)
 def piano(r):
     p = re.sub(r'\s+',' ',str(r.get('floor') or '')).strip()
     if not p: return ''

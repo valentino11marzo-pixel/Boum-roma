@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # BOOM · DISCOVERY — la stessa lingua del portale, sul catalogo intero.
 #   python3 costruisci-ad.py artefatto | sito
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 def leggi(n): return open(n, encoding='utf-8').read()
@@ -59,11 +62,10 @@ tutti.sort(key=quando, reverse=True)
 def zona_di(r):
     return re.sub(r'\s+', ' ', (r.get('zona') or 'Roma')).split('/')[0].strip()
 def prezzo(r): return int(re.sub(r'[^\d]', '', str(r['price'])) or 0)
-def letti(r):
-    for c in (r.get('beds'), r.get('bedrooms')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# LE CAMERE con la regola del sito (FACTS.bedroomsOf): il campo strutturato
+# `bedrooms` prima del testo libero `beds`. Prima qui vinceva il PRIMO numero
+# di `beds` — «Capri 2 Bed» rinasceva «1 bed» a ogni build. None = non si sa.
+def letti(r): return bedrooms_of(r)
 def stato(r):
     # LA CORSIA, non lo stato grezzo (port fedele di dispo-engine
     # laneCopy: la build e l'idrante devono dire la STESSA cosa, o la
@@ -120,7 +122,7 @@ def carta(r):
     czm = int(czm.group()) if czm else 1
     piano = re.sub(r'[\s"]+', ' ', str(piena.get('floor') or '')).strip()[:12]
     return f'''      <a class="casa-p" href="/listing/{r['id']}"
-        data-zona="{z}" data-prezzo="{p}" data-letti="{b or 0}"
+        data-zona="{z}" data-prezzo="{p}" data-letti="{'' if b is None else b}"
         data-mq="{mq or 0}" data-quando="{quando(r).strftime('%Y-%m-%d')}"
         data-dal="{libera(r.get('avail'))}" data-bagni="{bagni}"
         data-arredata="{arred}" data-video="{vid}"
