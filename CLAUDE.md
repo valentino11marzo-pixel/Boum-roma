@@ -2484,6 +2484,12 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
+altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
+raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.
+Un incarico a Valentino/BOOM con ricontrollo futuro resta da affrontare, mentre le
+attese esterne restano separate. La revisione di una proposta non eredita attore o
+scadenza del vecchio seguito. Nessuna AI, assegnazione o invio nuovi. Prove: `oggidesk`, `oggideskui`.
 **16/10 — casa e contratto accompagnano i canali:** i badge WhatsApp/Email di
 Oggi passavano il contesto solo per persone/clienti e riaprivano la casella
 generica dopo aver scelto una casa o un contratto. `homeTools` ora passa il

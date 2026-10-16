@@ -16,7 +16,7 @@ const state = extra => ({ contracts: [contract()], properties: [{ id: 'house', n
 const task = (n, extra = {}, changes = {}) => ({ id: caseId(n), status: 'open', source: 'segretaria',
     followUp: { confirmed: true, needsReview: false, ambiguous: false, practiceRef: 'contracts/c1',
         checkAt: '2026-10-13T09:00:00Z', lastInboundAt: '2026-10-12T09:00:00Z', lastMessageId: 'message-' + n,
-        nextAction: 'Verificare disponibilità', ...extra }, ...changes });
+        nextAction: 'Verificare disponibilità', waitingOn: 'client', waitingLabel: 'Cliente Test', ...extra }, ...changes });
 function withDelivery(row, error, delivery = 'needs_review') {
     const actionId = 'sgreply_' + 'a'.repeat(40);
     return { ...row, preparation: { revision: 'r1', messageId: row.followUp.lastMessageId,
@@ -57,13 +57,16 @@ function grouping(engine = E) {
 check('all signals and cases survive exact practice grouping; same person/home never merges contracts', grouping);
 
 function ambiguous(engine = E) {
-    const rows = [task(1, { nextAction: 'PRIVATE NEXT', preview: 'PRIVATE PREVIEW', contactName: 'PRIVATE NAME' })];
+    const rows = [task(1, { nextAction: 'PRIVATE NEXT', preview: 'PRIVATE PREVIEW', contactName: 'PRIVATE NAME', waitingLabel: 'PRIVATE OWNER' })];
     const result = build({ state: state({ contracts: [contract(), contract()] }), rows,
         signals: [{ id: 'sig_c1', kind: 'firme', title: 'Verifica' }] }, engine);
     assert.equal(result.currentItems.length, 0);
     const item = result.history.find(x => x.caseIds.length);
     assert.equal(item.record, null);
     assert.equal(item.reason, 'Collegamento da verificare');
+    assert.equal(item.ownership, 'Da confermare');
+    assert.equal(item.timing.value, null);
+    assert.equal(item.sourceLabel, 'Collegamento da verificare');
     assert(!JSON.stringify(item).includes('PRIVATE'));
     assert.deepEqual(item.action, { label: 'Verifica seguito', fn: 'oggiSegretariaOpen', args: [caseId(1), '', 'review'] });
 }
@@ -98,6 +101,56 @@ check('confirmed due work stays current despite old source; future check waits; 
     assert.equal(result.counts.total, 2);
 });
 
+function internalActions(engine = E) {
+    const future = '2026-10-13T14:00:00Z';
+    for (const [waitingOn, ownership] of [['valentino', 'Valentino'], ['boom', 'BOOM']]) {
+        const row = task(1, { waitingOn, waitingLabel: '', checkAt: future, nextAction: 'Chiama il proprietario' });
+        const result = build({ rows: [row] }, engine);
+        assert.equal(result.waiting.length, 0);
+        assert.equal(result.currentItems.length, 1);
+        const item = result.currentItems[0];
+        assert.equal(item.reason, 'Azione affidata a ' + ownership);
+        assert.equal(item.ownership, ownership);
+        assert.deepEqual(item.timing, { label: 'Ricontrollo', value: future });
+        assert.equal(item.sourceLabel, 'Seguito confermato');
+        assert.equal(item.nextAction, row.followUp.nextAction);
+        assert.deepEqual(item.action, { label: 'Verifica seguito', fn: 'oggiSegretariaOpen', args: [row.id, '', 'review'] });
+    }
+    for (const waitingOn of ['client', 'collaborator']) {
+        const result = build({ rows: [task(1, { waitingOn, waitingLabel: 'Persona incaricata', checkAt: future })] }, engine);
+        assert.equal(result.currentItems.length, 0);
+        assert.equal(result.waiting.length, 1);
+        assert.equal(result.waiting[0].ownership, 'Persona incaricata');
+        assert.deepEqual(result.waiting[0].timing, { label: 'Ricontrollo', value: future });
+    }
+}
+check('future checks keep internal actions current and reserve waiting for known external actors', internalActions);
+
+check('unknown future responsibility remains a visible verification and cannot become external waiting', () => {
+    for (const waitingOn of [undefined, '', 'unknown']) {
+        const result = build({ rows: [task(1, { waitingOn, waitingLabel: 'Unverified actor', checkAt: '2026-10-13T14:00:00Z' })] });
+        assert.equal(result.waiting.length, 0);
+        assert.equal(result.currentItems.length, 1);
+        assert.equal(result.currentItems[0].reason, 'Responsabile da confermare');
+        assert.equal(result.currentItems[0].ownership, 'Da confermare');
+    }
+});
+
+check('grouped cases keep responsibility, timing and source attached to the selected next action', () => {
+    const selected = task(1, { waitingOn: 'valentino', waitingLabel: 'Valentino', checkAt: '2026-10-13T08:00:00Z', nextAction: 'Chiamare il proprietario' });
+    const other = task(2, { waitingOn: 'collaborator', waitingLabel: 'Tecnico', checkAt: '2026-10-13T07:00:00Z', nextAction: 'Riparare la caldaia' });
+    const result = build({ rows: [other, selected], signals: [{ id: 'sig_c1', kind: 'firme', title: 'Firme da completare', score: 70 }] });
+    assert.equal(result.currentItems.length, 1);
+    const item = result.currentItems[0];
+    assert.deepEqual(new Set(item.caseIds), new Set([selected.id, other.id]));
+    assert.deepEqual(item.signalIds, ['sig_c1']);
+    assert.equal(item.nextAction, selected.followUp.nextAction);
+    assert.equal(item.action.args[0], selected.id);
+    assert.equal(item.ownership, 'Valentino');
+    assert.deepEqual(item.timing, { label: 'Ricontrollo', value: selected.followUp.checkAt });
+    assert.equal(item.sourceLabel, 'Seguito confermato');
+});
+
 check('validated new proposal overrides the old future follow-up; approved and stale preparations do not', () => {
     const future = { checkAt: '2026-11-01T00:00:00Z' };
     const proposed = task(1, future, { preparation: { status: 'ready', summary: 'Raw text is not the readiness proof' } });
@@ -107,6 +160,9 @@ check('validated new proposal overrides the old future follow-up; approved and s
     assert.deepEqual(result.currentItems.flatMap(x => x.caseIds), [caseId(1)]);
     assert.equal(result.currentItems[0].reason, 'Proposta da rivedere');
     assert.equal(result.currentItems[0].nextAction, 'Rivedi la proposta prima di confermare il seguito');
+    assert.equal(result.currentItems[0].ownership, 'Valentino');
+    assert.equal(result.currentItems[0].timing.value, null);
+    assert.equal(result.currentItems[0].sourceLabel, 'Proposta da rivedere');
     assert.deepEqual(new Set(result.waiting.flatMap(x => x.caseIds)), new Set([caseId(2), caseId(3)]));
     assert.equal(result.history.length, 0);
 });
@@ -317,6 +373,7 @@ check('real Oggi signals remain accessible, while direct actions never send or m
         assert(item.action.label);
         assert(!['agent', 'agent-actions'].includes(item.action.args[0]));
     });
+    result.currentItems.forEach(item => assert(item.reason.trim(), 'current items explain why they need attention'));
     assert.equal(result.currentItems.find(x => x.signalIds.includes('aq_q1')).action, null);
 });
 
@@ -347,4 +404,9 @@ check('mutations reject non-unique joins, unknown-as-failed and hidden administr
     mutant("signal.needsVerification === true || signal.kind === 'archivio' ||", 'false ||', historicalSignal);
 });
 
-console.log(`\n${passed} desk checks passed (3 semantic mutations).`);
+check('mutation cannot hide a future Valentino action among external waits', () => {
+    mutant("bucket = 'current'; reason = 'Azione affidata a '",
+        "bucket = f.waitingOn === 'valentino' ? 'waiting' : 'current'; reason = 'Azione affidata a '", internalActions);
+});
+
+console.log(`\n${passed} desk checks passed (4 semantic mutations).`);

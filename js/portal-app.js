@@ -6450,6 +6450,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiDeskItems(model) {
         return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || [])];
     }
+    function oggiDeskTiming(item) {
+        const value = item.timing?.value;
+        if (!value) return 'Da impostare';
+        const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+        return new Date(dateOnly ? value + 'T12:00:00Z' : value).toLocaleString('it-IT', {
+            timeZone: 'Europe/Rome', day: 'numeric', month: 'short', year: 'numeric',
+            ...(dateOnly ? {} : { hour: '2-digit', minute: '2-digit' })
+        });
+    }
     function oggiDeskRender() {
         const panel = document.getElementById('ogDeskPanel');
         if (!panel || !isAdmin()) return;
@@ -6457,11 +6466,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
         const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
         const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
-        if (!model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = model.areas.find(a => a.items.length)?.id || model.areas[0]?.id;
+        if (oggiWorkspace.deskArea !== 'all' && !model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = 'all';
         const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
-        const items = area?.items || [], pages = Math.max(1, Math.ceil(items.length / 5));
+        const items = oggiWorkspace.deskArea === 'all' ? model.currentItems : area?.items || [], pageSize = 3, pages = Math.max(1, Math.ceil(items.length / pageSize));
         oggiWorkspace.deskPage = Math.min(oggiWorkspace.deskPage || 0, pages - 1);
-        const start = oggiWorkspace.deskPage * 5, shown = items.slice(start, start + 5);
+        const start = oggiWorkspace.deskPage * pageSize, shown = items.slice(start, start + pageSize);
         const issues = [
             S._paError ? 'Proposte non aggiornate.' : !S._paLoaded ? 'Proposte in caricamento.' : S._paPartial ? 'Proposte: lettura parziale.' : '',
             !oggiSegretaria.loaded ? 'Seguiti in caricamento.' : '',
@@ -6477,10 +6486,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
             ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
             ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
-            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${model.areas.map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
-            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}</div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Vedi i passaggi</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
+            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}<dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(item.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(item))}</dd></div></dl></div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(item.sourceLabel || 'Portale')}</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
-            <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Seguiti confermati con un ricontrollo futuro.</small></button></div>
+            <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Risposte di clienti o collaboratori, con ricontrollo futuro.</small></button></div>
             <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
             <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
         panel.onclick = event => {
