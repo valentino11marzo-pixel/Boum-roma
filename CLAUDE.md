@@ -197,6 +197,10 @@ La prova locale `node tools/smartlink-preview.mjs` apre `/preview` su `127.0.0.1
   static-checks · firestore-rules · smoke · full-suite e ramo aggiornato prima
   del merge, più «Always suggest updating pull request branches»; (4) le regole
   Firestore/Storage escono già solo da `main` (job deploy-rules).
+  Il 16/10 (~08:08 UTC) è successo ancora, da `codex/smartlink-esterni`
+  @ddbf119: la regola stava solo sul ramo d'integrazione, e chi lavora da
+  `main` non poteva leggerla. Un deploy di produzione da un altro ramo va unito
+  nel ramo che va su `main` PRIMA del merge, o il merge lo toglie dal sito.
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
 - **Function configuration limit (21/09)**: Vercel rejects more than 50
