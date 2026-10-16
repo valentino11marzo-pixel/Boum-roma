@@ -6783,6 +6783,14 @@ transitorio si presentava come l'offerta «1–18 months».
   `design/listing_facts.py` (gemella, parità con Node su 175 casi). Test:
   `tests/catalogo/vetrina.mjs` — pagine = fotografia per id; i controlli
   della mappa valgono finché la fotografia porta quei valori.
+- **I tuoi luoghi della scheda (16/10/2026)**: i nomi dei posti salvati
+  (localStorage `boom:pois`, condiviso con /skyline) e dei suggerimenti di
+  Photon (OpenStreetMap, terzi) entravano in `innerHTML`: un «<img onerror>»
+  eseguiva codice e, scelto, restava salvato e ripartiva su ogni scheda.
+  Ora `vuotaGiu`/`righeGiu`/`sugGiu` scrivono coi nodi, anche in
+  `ld-regia.html` (in `OGGI`); senza coordinate numeriche niente
+  suggerimento. Test: `tests/catalogo/vetrina.mjs` (Photon finto, mutante
+  col vecchio `innerHTML`). Aperto: il menu Photon di `/skyline`.
 - **Il modulo annuncio del portal**: camere dal campo strutturato (0 resta 0,
   un vuoto non diventa mai 1; `min 0 · max 10`), select «Arredamento» (non
   dichiarato · Arredato · In parte · Vuoto — mai 'no' per default),

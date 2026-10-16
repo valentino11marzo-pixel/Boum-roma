@@ -919,50 +919,88 @@
     var righe = document.getElementById('luogoRighe'),
         cerca = document.getElementById('luogoQ'),
         sug = document.getElementById('luogoSug');
+    /* I NOMI VENGONO DA FUORI (16/10/2026): il posto salvato torna dal
+       localStorage, il suggerimento è la risposta di Photon — dati di
+       OpenStreetMap, un servizio di terzi. Si scrivono come TESTO, coi
+       nodi, come i fatti e le dotazioni: dentro innerHTML un nome con
+       «<img onerror>» diventava un nodo che eseguiva codice sulla scheda
+       di BOOM, e un «<», una «&» o una virgoletta rompevano la riga (la
+       virgoletta spariva anche dal nome salvato). */
+    function vuotaGiu(box, testo) {
+      var p = document.createElement('p');
+      p.className = 'luoghi-vuota';
+      p.textContent = testo;
+      box.textContent = '';
+      box.appendChild(p);
+    }
     function righeGiu() {
       var a = letti();
-      righe.innerHTML = a.length ? a.map(function (p, i) {
-        return '<div class="luogo"><b>' + p.name + '</b><i>'
-          + tempo(km(c.lat, c.lng, p.lat, p.lng)) + '</i>'
-          + '<button type="button" data-i="' + i + '" aria-label="Remove '
-          + p.name + '">✕</button></div>';
-      }).join('') : '<p class="luoghi-vuota">Nothing saved yet — type your '
-        + 'office or campus above, once.</p>';
+      if (!a.length) return vuotaGiu(righe, 'Nothing saved yet — type your '
+        + 'office or campus above, once.');
+      righe.textContent = '';
+      a.forEach(function (p, i) {
+        var nome = String(p.name), riga = document.createElement('div'),
+            b = document.createElement('b'), t = document.createElement('i'),
+            togli = document.createElement('button');
+        riga.className = 'luogo';
+        b.textContent = nome;
+        t.textContent = tempo(km(c.lat, c.lng, p.lat, p.lng));
+        togli.type = 'button';
+        togli.dataset.i = String(i);
+        togli.setAttribute('aria-label', 'Remove ' + nome);
+        togli.textContent = '✕';
+        riga.appendChild(b); riga.appendChild(t); riga.appendChild(togli);
+        righe.appendChild(riga);
+      });
     }
     righe.addEventListener('click', function (e) {
       var b = e.target.closest('button[data-i]'); if (!b) return;
       var a = letti(); a.splice(+b.dataset.i, 1); serba(a); righeGiu();
     });
+    /* i suggerimenti: solo i posti con coordinate vere (due numeri, in
+       scala) — senza non c'è un tempo da dire; e un risultato rotto non
+       spegne gli altri (prima ne bastava uno perché tutta la ricerca
+       dicesse «needs the live site») */
+    function sugGiu(j) {
+      var fs = j && Array.isArray(j.features) ? j.features.slice(0, 4) : [];
+      sug.textContent = '';
+      fs.forEach(function (ft) {
+        var co = ft && ft.geometry && ft.geometry.coordinates,
+            lat = co && co[1], lng = co && co[0];
+        if (typeof lat !== 'number' || typeof lng !== 'number'
+            || !isFinite(lat) || !isFinite(lng)
+            || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+        var p = ft.properties || {},
+            nome = String(p.name || p.street || 'Place'),
+            dove = [p.suburb || p.district, p.city].filter(Boolean).join(', '),
+            bt = document.createElement('button'),
+            b = document.createElement('b'), s = document.createElement('span');
+        bt.type = 'button';
+        bt.dataset.lat = String(lat);
+        bt.dataset.lng = String(lng);
+        bt.dataset.n = nome;
+        b.textContent = nome;
+        s.textContent = dove;
+        bt.appendChild(b); bt.appendChild(s);
+        sug.appendChild(bt);
+      });
+      if (!sug.firstChild) vuotaGiu(sug, 'Nothing found — try the street '
+        + 'or the campus name.');
+    }
     var attesa = null;
     cerca.addEventListener('input', function () {
       clearTimeout(attesa);
       var q = cerca.value.trim();
-      if (q.length < 3) { sug.innerHTML = ''; return; }
+      if (q.length < 3) { sug.textContent = ''; return; }
       attesa = setTimeout(function () {
         fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q)
             + '&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
           .then(function (r) { return r.json(); })
-          .then(function (j) {
-            sug.innerHTML = (j.features || []).slice(0, 4)
-              .map(function (ft) {
-                var p = ft.properties || {};
-                var nome = p.name || p.street || 'Place';
-                var dove = [p.suburb || p.district, p.city]
-                  .filter(Boolean).join(', ');
-                return '<button type="button" data-lat="'
-                  + ft.geometry.coordinates[1] + '" data-lng="'
-                  + ft.geometry.coordinates[0] + '" data-n="'
-                  + String(nome).replace(/"/g, '') + '"><b>' + nome
-                  + '</b><span>' + dove + '</span></button>';
-              }).join('')
-              || '<p class="luoghi-vuota">Nothing found — try the street '
-              + 'or the campus name.</p>';
-          })
+          .then(sugGiu)
           .catch(function () {
             /* niente rete da qui: lo diciamo, non lo nascondiamo */
-            sug.innerHTML = '<p class="luoghi-vuota">The place search '
-              + 'needs the live site — it can\'t run from this '
-              + 'preview.</p>';
+            vuotaGiu(sug, 'The place search needs the live site — it can\'t '
+              + 'run from this preview.');
           });
       }, 320);
     });
@@ -974,7 +1012,7 @@
           lng: +b.dataset.lng });
         serba(a);
       }
-      sug.innerHTML = ''; cerca.value = ''; righeGiu();
+      sug.textContent = ''; cerca.value = ''; righeGiu();
     });
     righeGiu();
   })();

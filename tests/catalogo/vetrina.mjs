@@ -44,7 +44,13 @@
 //     corregge, il setaccio rilegge (anche senza accenti), le camere ignote
 //     non passano il filtro Studio, la scheda rilegge la casa E le tre
 //     «altre case», e un nome (o un piano, un tipo, una dotazione) non
-//     entra mai come markup.
+//     entra mai come markup;
+//   · i tuoi luoghi (16/10/2026): i posti salvati nel localStorage e i
+//     suggerimenti di Photon (servizio di terzi) si scrivono come testo,
+//     sulla pagina e sul frammento — in Chromium un «<img onerror>», una
+//     virgoletta e una «&» si leggono come sono scritti, anche dopo la
+//     scelta e il ricaricamento, nessun nodo entra, nessun gestore parte;
+//     e la stessa sonda sulla pagina col vecchio innerHTML vede l'iniezione.
 
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, copyFileSync, cpSync, readdirSync, statSync } from 'node:fs';
@@ -787,6 +793,65 @@ await check('nessuna delle sei pagine legge più `beds || bedrooms` (il primo nu
   return esito(g);
 });
 
+// ═══ I TUOI LUOGHI — i nomi che vengono da fuori restano testo ═══
+// Il localStorage (boom:pois, condiviso con /skyline) e la risposta di
+// Photon (dati di OpenStreetMap, un servizio di terzi) sono dati di FUORI:
+// nel blocco che li scrive nessun nodo nasce da una stringa di markup. La
+// prova vera è in Chromium, più sotto; questa regola tiene anche dove il
+// browser non c'è, sulla pagina E sul frammento da cui la pagina nasce.
+console.log('\nI TUOI LUOGHI — il localStorage e Photon scrivono testo, mai markup');
+const LUOGHI = ["var CHIAVE = 'boom:pois';", '\n    righeGiu();\n  })();'];
+// le due funzioni COM'ERANO fino al 15/10/2026 (la risposta di Photon stava
+// dentro il .then, qui con il suo nome): la mutazione che rimette il
+// difetto, qui, nei frammenti e nel browser
+const VECCHI_LUOGHI = {
+  righeGiu: `function righeGiu() {
+      var a = letti();
+      righe.innerHTML = a.length ? a.map(function (p, i) {
+        return '<div class="luogo"><b>' + p.name + '</b><i>'
+          + tempo(km(c.lat, c.lng, p.lat, p.lng)) + '</i>'
+          + '<button type="button" data-i="' + i + '" aria-label="Remove '
+          + p.name + '">✕</button></div>';
+      }).join('') : '<p class="luoghi-vuota">Nothing saved yet — type your '
+        + 'office or campus above, once.</p>';
+    }`,
+  sugGiu: `function sugGiu(j) {
+      sug.innerHTML = (j.features || []).slice(0, 4)
+        .map(function (ft) {
+          var p = ft.properties || {};
+          var nome = p.name || p.street || 'Place';
+          var dove = [p.suburb || p.district, p.city]
+            .filter(Boolean).join(', ');
+          return '<button type="button" data-lat="'
+            + ft.geometry.coordinates[1] + '" data-lng="'
+            + ft.geometry.coordinates[0] + '" data-n="'
+            + String(nome).replace(/"/g, '') + '"><b>' + nome
+            + '</b><span>' + dove + '</span></button>';
+        }).join('')
+        || '<p class="luoghi-vuota">Nothing found — try the street '
+        + 'or the campus name.</p>';
+    }`,
+};
+const guaiLuoghi = (s) => {
+  const i = s.indexOf(LUOGHI[0]), j = i < 0 ? -1 : s.indexOf(LUOGHI[1], i);
+  if (s.split(LUOGHI[0]).length !== 2 || j < 0) return ['il blocco dei luoghi non si trova, una volta sola'];
+  // il codice, non i commenti (che raccontano il difetto apposta)
+  const codice = s.slice(i, j).replace(/\/\*[\s\S]*?\*\//g, '');
+  const g = (codice.match(/\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b|document\.write/g) || []).map((x) => x + ' nel blocco');
+  for (const f of ['vuotaGiu', 'righeGiu', 'sugGiu']) if (!codice.includes('function ' + f + '(')) g.push(f + '() non c\'è');
+  if (!codice.includes('.then(sugGiu)')) g.push('la risposta di Photon non passa da sugGiu');
+  return g;
+};
+for (const [f, s] of [['apartment-detail.html', P['apartment-detail.html']], ['design/pages-deco/ld-regia.html', leggi('design/pages-deco/ld-regia.html')]])
+  await check(`${f}: nel blocco dei luoghi nessun nodo nasce da una stringa (né innerHTML, né outerHTML, né insertAdjacentHTML) e la risposta di Photon passa da sugGiu`,
+    () => esito(guaiLuoghi(s)));
+await check('mutazione: righeGiu col vecchio innerHTML → la regola cade; sugGiu col vecchio innerHTML → cade anche lei', () => {
+  const D = P['apartment-detail.html'];
+  const a = guaiLuoghi(muta(D, estrai(D, 'righeGiu'), VECCHI_LUOGHI.righeGiu));
+  const b = guaiLuoghi(muta(D, estrai(D, 'sugGiu'), VECCHI_LUOGHI.sugGiu));
+  return a.length && b.length ? true : JSON.stringify({ a, b });
+});
+
 // ═══ I BUILDER PYTHON — la stessa regola, il gemello in design/ ═══
 console.log('\nI BUILDER — design/listing_facts.py e i costruisci-*.py');
 const PY = ['python3', 'python'].find((p) => spawnSync(p, ['--version'], { encoding: 'utf8' }).status === 0);
@@ -881,7 +946,12 @@ if (!PY) {
       ["var fr = document.createElement('iframe');", 'box.appendChild(fr);'],
       ["var boxAltre = document.getElementById('altre');", "}).join('');"],
       ['var altreCarte = ', 'if (fp) montaPrezzo(fp);'],
-      ['/* le dotazioni vengono dal documento', '})();']]],
+      ['/* le dotazioni vengono dal documento', '})();'],
+      // i tuoi luoghi (16/10/2026): i nomi del localStorage e di Photon
+      // come testo — le funzioni, e il blocco intero perché anche i
+      // gestori anonimi (ricerca, scelta) sono cambiati
+      ['vuotaGiu'], ['righeGiu'], ['sugGiu'],
+      ['/* i tuoi luoghi: scritti una volta, ogni casa risponde.', '    righeGiu();\n  })();']]],
   };
   const guaiFrammenti = (pagina, costruita) => {
     const g = [];
@@ -1012,17 +1082,22 @@ if (!PY) {
     };
     togli('ld-regia.html', 'rileggiAltre');
     togli('ad-regia.html', 'piega');
+    // il frammento che tiene il vecchio innerHTML dei luoghi (la pagina no)
+    const ld = readFileSync(join(H, 'ld-regia.html'), 'utf8'), rg = bloccoFn(ld, 'righeGiu');
+    if (rg.n !== 1 || !rg.testo) throw new Error('mutazione senza appiglio: righeGiu in ld-regia.html');
+    writeFileSync(join(H, 'ld-regia.html'), ld.replace(rg.testo, () => '    ' + VECCHI_LUOGHI.righeGiu));
     writeFileSync(join(H, 'vetrina-idrante.html'), muta(readFileSync(join(H, 'vetrina-idrante.html'), 'utf8'),
       "a.dataset.letti = letti == null ? '' : String(letti);", 'a.dataset.letti = String(letti || 0);'));
   }, ['costruisci-ad.py', 'costruisci-portale.py', 'costruisci-ld.py']);
   try {
-    await check('mutazione: un blocco tolto dal frammento (rileggiAltre da ld-regia, piega da ad-regia, l\'innesto vecchio in vetrina-idrante) → la regola dei frammenti cade su tutte e tre le pagine', () => {
+    await check('mutazione: un blocco tolto dal frammento (rileggiAltre da ld-regia, piega da ad-regia, l\'innesto vecchio in vetrina-idrante) o rimesso com\'era (righeGiu con innerHTML in ld-regia) → la regola dei frammenti cade su tutte e tre le pagine', () => {
       if (B3.errori.length) return esito(B3.errori);
       const ga = guaiFrammenti('apartments.html', B3.out('boom-discovery-sito.html'));
       const gi = guaiFrammenti('index.html', B3.out('boom-portale-sito.html'));
       const gd = guaiFrammenti('apartment-detail.html', B3.out('boom-casa-p-sito.html'));
       return ga.some((x) => x.startsWith('piega()')) && ga.some((x) => x.startsWith('innesta()'))
         && gi.some((x) => x.includes('le camere con la regola UNA')) && gd.some((x) => x.startsWith('rileggiAltre()'))
+        && gd.some((x) => x.startsWith('righeGiu()'))
         ? true : JSON.stringify({ ga, gi, gd }).slice(0, 500);
     });
   } finally { rmSync(B3.d, { recursive: true, force: true }); }
@@ -1471,6 +1546,168 @@ const leggiScheda = () => ({
   await check('la scheda: le dotazioni del documento entrano come TESTO, una per <span>', () =>
     JSON.stringify(f.dentro) === JSON.stringify(['SPAN=' + DOTE, 'SPAN=Wi-Fi']) && !f.iniettato.length ? true : JSON.stringify(f.dentro));
   await ctx.close();
+}
+
+console.log('\nIN CHROMIUM — i tuoi luoghi: il localStorage e Photon (finto) scrivono testo, mai markup');
+{
+  // I TUOI LUOGHI (16/10/2026): un posto già salvato col nome «cattivo» nel
+  // localStorage (boom:pois — lo scrivono anche /skyline e le altre schede)
+  // e Photon che risponde con «<img onerror>», virgolette, «&», markup nella
+  // zona e coordinate che non sono numeri. Tutto si legge com'è scritto,
+  // nessun nodo entra, nessun gestore parte — anche dopo aver scelto il
+  // suggerimento e ricaricato. E la STESSA sonda, sulla pagina col vecchio
+  // innerHTML rimesso, deve vedere l'iniezione: un test che non sa cadere
+  // non protegge niente.
+  const SALVATO = 'Ufficio "Nord" & Co <img id="pwnS" src="x" onerror="window.__lp=1"> <b>Bar</b>';
+  const F_NOME = 'Caffè "Sant\'Eustachio" & Figli <img id="pwnF" src="x" onerror="window.__lp=1">';
+  const F_ZONA = '<b id="pwnB">Sant\'Eustachio</b>', F_CITTA = 'Roma & <i id="pwnI">dintorni</i>';
+  const F_VIA = 'Via dei "Coronari" <script id="pwnX">window.__lp=1</script> & Co';
+  const punto = (properties, coordinates) => ({ type: 'Feature', properties,
+    ...(coordinates ? { geometry: { type: 'Point', coordinates } } : {}) });
+  const FOTONE = { type: 'FeatureCollection', features: [
+    punto({ name: F_NOME, suburb: F_ZONA, city: F_CITTA }, [12.4776, 41.8986]),
+    punto({ street: F_VIA, district: 'Ponte', city: 'Roma' }, [12.4711, 41.8995]),
+    // coordinate che non sono numeri: col vecchio codice uscivano dall'attributo
+    punto({ name: 'Coordinate finte' }, ['12.47" onmouseover="window.__lp=1', '41.9']) ] };
+  // nessun posto valido: niente geometria, null, fuori scala
+  const NULLA = { type: 'FeatureCollection', features: [
+    punto({ name: 'Senza geometria' }), null, punto({ name: 'Fuori scala' }, [12.47, 141.9]) ] };
+  const sondaLuoghi = async (url, { mutante = null, giro = true } = {}) => {
+    const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, serviceWorkers: 'block' });
+    const pg = await ctx.newPage();
+    const out = { errori: [], cercate: [] };
+    pg.on('pageerror', (e) => out.errori.push(String(e).split('\n')[0]));
+    await pg.addInitScript((salvato) => {
+      window.__LISTING_ID = 'NUOVA4';
+      window.__LISTING = { name: 'Via dei Luoghi', zone: 'Prati', status: 'available', price: 900, bedrooms: 1,
+        lat: 41.9065, lng: 12.4625, images: [] };
+      // il posto salvato altrove c'è già, ma SOLO al primo caricamento: il
+      // ricaricamento deve rileggere ciò che la pagina stessa ha scritto
+      try {
+        if (!localStorage.getItem('boom:pois'))
+          localStorage.setItem('boom:pois', JSON.stringify([{ name: salvato, lat: 41.9009, lng: 12.5018 }]));
+      } catch (e) { /* about:blank: niente localStorage, niente da fare */ }
+    }, SALVATO);
+    await pg.route('**/*', (r) => {
+      const u = r.request().url();
+      if (u.startsWith('https://photon.komoot.io/')) {
+        const q = new URL(u).searchParams.get('q') || '';
+        out.cercate.push(q);
+        return r.fulfill({ status: 200, contentType: 'application/json', headers: { 'access-control-allow-origin': '*' },
+          body: JSON.stringify(/nulla/.test(q) ? NULLA : FOTONE) });
+      }
+      if (u.includes('firestore.googleapis.com')) return r.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+      if (mutante && u.split('?')[0] === BASE + url) return r.fulfill({ status: 200, contentType: 'text/html', body: mutante });
+      return u.startsWith(BASE + '/') ? r.continue() : r.abort();
+    });
+    const leggiLuoghi = () => pg.evaluate(() => {
+      const testo = (el) => (el ? el.textContent : null);
+      const figli = (el) => [...el.querySelectorAll('*')].map((x) => x.tagName).join(',');
+      return {
+        righe: [...document.querySelectorAll('#luogoRighe > *')].map((el) => {
+          const bt = el.querySelector('button');
+          return { tag: el.tagName, cls: el.className, b: testo(el.querySelector('b')), t: testo(el.querySelector('i')),
+            aria: bt && bt.getAttribute('aria-label'), i: bt && bt.dataset.i, testo: el.textContent, figli: figli(el) };
+        }),
+        sug: [...document.querySelectorAll('#luogoSug > *')].map((el) => ({ tag: el.tagName, cls: el.className,
+          b: testo(el.querySelector('b')), s: testo(el.querySelector('span')), n: el.dataset.n,
+          lat: el.dataset.lat, lng: el.dataset.lng, testo: el.textContent, figli: figli(el) })) };
+    });
+    const iniezione = () => pg.evaluate(() => ({
+      nodi: ['pwnS', 'pwnF', 'pwnB', 'pwnI', 'pwnX'].filter((id) => document.getElementById(id)),
+      estranei: document.querySelectorAll('#luoghi img, #luoghi script, #luoghi svg, #luoghi iframe').length,
+      gestori: [...document.querySelectorAll('#luoghi, #luoghi *')].flatMap((el) =>
+        [...el.attributes].filter((a) => /^on/i.test(a.name)).map((a) => el.tagName + '[' + a.name + ']')),
+      partito: window.__lp === 1 }));
+    // un <img src="x"> entrato chiede /x al server (404): si aspetta il suo
+    // onerror — sulla pagina giusta non c'è niente da aspettare
+    const quiete = async () => {
+      await pg.waitForFunction(() => !document.querySelector('#luoghi img') || window.__lp === 1, null, { timeout: 5000 }).catch(() => {});
+      await pg.waitForTimeout(300);
+    };
+    try {
+      await pg.goto(BASE + url);
+      await pg.waitForFunction(() => document.getElementById('luogoRighe').children.length > 0, null, { timeout: 15000 }).catch(() => {});
+      out.r1 = await leggiLuoghi();
+      await pg.fill('#luogoQ', 'Sant', { timeout: 10000 });
+      await pg.waitForFunction(() => document.getElementById('luogoSug').children.length > 0, null, { timeout: 10000 }).catch(() => {});
+      await quiete();
+      out.s1 = await leggiLuoghi();
+      out.i1 = await iniezione();
+      if (giro) {
+        // si sceglie il primo suggerimento: il caffè «cattivo»
+        await pg.evaluate(() => document.querySelector('#luogoSug button').click());
+        out.scelta = await leggiLuoghi();
+        out.ls = await pg.evaluate(() => JSON.parse(localStorage.getItem('boom:pois') || 'null'));
+        out.campo = await pg.evaluate(() => document.getElementById('luogoQ').value);
+        await pg.reload();
+        await pg.waitForFunction(() => document.getElementById('luogoRighe').children.length > 1, null, { timeout: 15000 }).catch(() => {});
+        await quiete();
+        out.ricarica = await leggiLuoghi();
+        // il ✕ della prima riga toglie il caffè, non l'ufficio
+        await pg.evaluate(() => document.querySelector('#luogoRighe button[data-i="0"]').click());
+        out.tolto = await leggiLuoghi();
+        out.lsTolto = await pg.evaluate(() => JSON.parse(localStorage.getItem('boom:pois') || 'null'));
+        await pg.fill('#luogoQ', 'nulla da fare', { timeout: 10000 });
+        await pg.waitForFunction(() => /Nothing found/.test(document.getElementById('luogoSug').textContent), null, { timeout: 10000 }).catch(() => {});
+        await quiete();
+        out.nulla = await leggiLuoghi();
+        out.i2 = await iniezione();
+      }
+    } catch (e) { out.errore = String(e && e.message || e).split('\n')[0]; }
+    await ctx.close();
+    return out;
+  };
+
+  const V = await sondaLuoghi('/apartment-detail.html');
+  for (const e of V.errori) errs.push('luoghi ' + e);
+  const riga = (r, nome) => r && r.cls === 'luogo' && r.b === nome && r.aria === 'Remove ' + nome && r.figli === 'B,I,BUTTON'
+    && /min/.test(r.t || '');
+  await check('i tuoi luoghi: il posto salvato nel localStorage si legge com\'è scritto — nome e «Remove …» del ✕ — col suo tempo, e dentro la riga solo <b>, <i>, <button>', () =>
+    V.r1 && V.r1.righe.length === 1 && riga(V.r1.righe[0], SALVATO) ? true : JSON.stringify({ r1: V.r1, errore: V.errore }));
+  await check('i tuoi luoghi: i suggerimenti di Photon («<img onerror>», virgolette, «&», markup nella zona) si leggono com\'è scritto — nome, zona e data-n — e il tasto contiene solo <b> e <span>', () => {
+    const [a, b] = (V.s1 && V.s1.sug) || [];
+    return V.cercate.includes('Sant') && V.s1.sug.length === 2
+      && a.tag === 'BUTTON' && a.b === F_NOME && a.s === F_ZONA + ', ' + F_CITTA && a.n === F_NOME && a.figli === 'B,SPAN'
+      && a.lat === '41.8986' && a.lng === '12.4776'
+      && b.tag === 'BUTTON' && b.b === F_VIA && b.s === 'Ponte, Roma' && b.n === F_VIA && b.figli === 'B,SPAN'
+      ? true : JSON.stringify({ s1: V.s1, cercate: V.cercate, errore: V.errore });
+  });
+  await check('i tuoi luoghi: un suggerimento con coordinate che non sono numeri non si offre (né entra in un attributo), gli altri sì', () =>
+    V.s1 && V.s1.sug.length === 2 && !V.s1.sug.some((x) => /Coordinate finte/.test(x.testo)) ? true : JSON.stringify(V.s1));
+  await check('i tuoi luoghi: il suggerimento scelto si salva com\'è scritto (le virgolette restano: prima sparivano) e torna testo dal localStorage, anche dopo il ricaricamento', () => {
+    const ls = V.ls || [], dopo = (x) => x && x.righe.length === 2 && riga(x.righe[0], F_NOME) && riga(x.righe[1], SALVATO);
+    return ls.length === 2 && ls[0].name === F_NOME && ls[0].lat === 41.8986 && ls[0].lng === 12.4776 && ls[1].name === SALVATO
+      && V.campo === '' && V.scelta.sug.length === 0 && dopo(V.scelta) && dopo(V.ricarica)
+      ? true : JSON.stringify({ ls, scelta: V.scelta, ricarica: V.ricarica, errore: V.errore });
+  });
+  await check('i tuoi luoghi: il ✕ toglie la riga giusta (data-i scritto coi nodi) e il localStorage lo segue', () => {
+    const r = V.tolto && V.tolto.righe, ls = V.lsTolto || [];
+    return r && r.length === 1 && riga(r[0], SALVATO) && ls.length === 1 && ls[0].name === SALVATO
+      ? true : JSON.stringify({ tolto: V.tolto, ls, errore: V.errore });
+  });
+  await check('i tuoi luoghi: una risposta di Photon senza un posto valido (niente geometria, null, fuori scala) dice «Nothing found», non «needs the live site»', () => {
+    const n = V.nulla && V.nulla.sug;
+    return n && n.length === 1 && n[0].tag === 'P' && n[0].cls === 'luoghi-vuota'
+      && n[0].testo === 'Nothing found — try the street or the campus name.' && n[0].figli === ''
+      ? true : JSON.stringify({ nulla: V.nulla, errore: V.errore });
+  });
+  await check('i tuoi luoghi: in tutto il giro nessun nodo è entrato dai nomi (img, script, b, i), nessun attributo on*, nessun gestore è partito', () =>
+    [V.i1, V.i2].every((i) => i && !i.nodi.length && !i.estranei && !i.gestori.length && !i.partito)
+      ? true : JSON.stringify({ i1: V.i1, i2: V.i2, errore: V.errore }));
+
+  // LA MUTAZIONE nel browser: la stessa pagina con le due funzioni com'erano
+  const D = P['apartment-detail.html'];
+  let MUTANTE = null, senzaAppiglio = null;
+  try { MUTANTE = muta(muta(D, estrai(D, 'righeGiu'), VECCHI_LUOGHI.righeGiu), estrai(D, 'sugGiu'), VECCHI_LUOGHI.sugGiu); }
+  catch (e) { senzaAppiglio = e.message; }
+  const M = MUTANTE ? await sondaLuoghi('/apartment-detail-mutante.html', { mutante: MUTANTE, giro: false }) : {};
+  await check('mutazione: la stessa sonda sulla pagina col vecchio innerHTML (righeGiu e sugGiu) vede l\'iniezione — nodi dal nome salvato e da Photon, attributi on*, un onerror partito — e il nome non si legge più com\'è scritto', () => {
+    if (!MUTANTE) return 'il mutante non si costruisce: ' + senzaAppiglio;
+    const i = M.i1 || { nodi: [], gestori: [] }, r = (M.r1 && M.r1.righe[0]) || {};
+    return ['pwnS', 'pwnF', 'pwnB', 'pwnX'].every((id) => i.nodi.includes(id)) && i.gestori.length > 0 && i.partito
+      && r.b !== SALVATO ? true : JSON.stringify({ i, r, sug: M.s1 && M.s1.sug.map((x) => x.testo), errori: M.errori, errore: M.errore });
+  });
 }
 
 await check('zero errori di pagina', () => (errs.length ? errs.join(' | ') : true));
