@@ -18,7 +18,7 @@ import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
 import { pendingNewLeads } from '../leads/_fresh.js';
-import { isReunion, reunionReplyText, isB2B, b2bReplyText, isCityMarket, cityLabel, cityReplyText } from '../_market.js';
+import { isReunion, reunionReplyText, isB2B, b2bSide, b2bReplyText, isCityMarket, cityLabel, cityReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -184,8 +184,12 @@ export default async function handler(req, res) {
   // card each; C leads are BATCHED into one digest message per run. Dead
   // never ping. Cards keep a fixed visual grammar — grade first, then home,
   // then contact, then quote — so ten in a row still scan in seconds.
-  const ldFull = ldToNotify.filter(l => l.grade !== 'C');
-  const ldLight = ldToNotify.filter(l => l.grade === 'C');
+  // Un proprietario o un ente non finisce MAI nel riepilogo dei C: il voto
+  // del Brain misura un inquilino (budget, data d'ingresso), non chi offre
+  // una casa o sistema un team — e sepolto in una riga perderebbe il tasto
+  // WhatsApp col messaggio già scritto nella sua voce.
+  const ldFull = ldToNotify.filter(l => l.grade !== 'C' || isB2B(l));
+  const ldLight = ldToNotify.filter(l => l.grade === 'C' && !isB2B(l));
   const ldResults = [];
   for (const l of ldFull) {
     try {
@@ -193,7 +197,7 @@ export default async function handler(req, res) {
       // must see at a glance that someone is waiting on the other side.
       const src = isReunion(l) ? '🇷🇪 La Réunion'
         : isCityMarket(l) ? cityLabel(l)
-        : isB2B(l) ? '🏢 ente / azienda'
+        : isB2B(l) ? (b2bSide(l) === 'owner' ? '🔑 proprietario' : '🏢 ente / azienda')
         : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
         : esc(l.source || '?');
       const head = l.grade

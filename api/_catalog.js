@@ -43,7 +43,7 @@ export const CATALOG = {
   'concordato-pack': {
     eur: 349,
     label: 'Pacchetto Canone Concordato — chiavi in mano',
-    desc: 'Verifica ufficiale del canone, contratto conforme all\'Accordo di Roma, attestazione di rispondenza gestita e registrazione RLI. Rimborso integrale se il tuo immobile non può rientrare in fascia.',
+    desc: 'Verifica del canone sulle tabelle dell\'Accordo di Roma, contratto conforme, pratica di attestazione di rispondenza e registrazione RLI. IVA inclusa; la tariffa dell\'organizzazione firmataria per l\'attestazione è a parte. Rimborso integrale se l\'immobile non può rientrare in fascia.',
     cancel: '/pacchetto-concordato',
   },
   // Tenant-journey concierge products.

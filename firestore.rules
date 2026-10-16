@@ -144,7 +144,8 @@ service cloud.firestore {
       // "creo per me stesso" e ogni scrittura server-side per conto di terzi
       // tornava PERMISSION_DENIED.
       allow create: if isAdmin()
-                    || (isSignedIn() && request.resource.data.userId == uid());
+                    || (isSignedIn() && request.resource.data.userId == uid()
+                        && !request.resource.data.keys().hasAny(['source', 'revision', 'requestHash', 'delivery', 'previousDelivery']));
       allow update, delete: if isAdmin();
     }
 
@@ -364,6 +365,10 @@ service cloud.firestore {
     // Rendiconto mensile proprietari: memoria idempotenza (ownerId_YYYY-MM),
     // scritta dal cron con credenziali admin. Stessa lezione di propertyLocks.
     match /rendiconti/{x}                  { allow read, write: if isAdmin(); }
+    // Il conto della sua casa (api/owner-lead.js): la FOTO del conto che il
+    // proprietario ha ricevuto da /canone, da cui si stampa il PDF del link
+    // firmato. Scritta e letta solo dal server con credenziali admin.
+    match /ownerConti/{x}                  { allow read, write: if isAdmin(); }
     // IL PERITO — libro mastro del mercato (fatti degli annunci, mai contatti)
     // e statistiche per zona. Scritti dai cron/porte con credenziali admin,
     // letti dal portal (admin). Senza queste righe: default-deny — la lezione

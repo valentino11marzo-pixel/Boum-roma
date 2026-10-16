@@ -58,6 +58,10 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           consegna⇄riconsegna che non imputa un danno su una
                           condizione mai dichiarata. window.BOOM_INVENTARIO.
                           Vedi "L'inventario dal video".
+  conto-engine.js         Il conto della sua casa (/canone, la porta di
+                          /owners, la barra del Pacchetto): compone SOLO il
+                          motore del canone, lista chiusa, stato nell'URL.
+                          window.BOOM_CONTO. Vedi «Il conto della sua casa».
   ../api/_pdfbrand.js     La testata dei PDF in una copia sola: marchio VERO
                           incorporato, filo d'oro, piede legale su ogni
                           pagina, wa() WinAnsi. Usata da inventario e verbale.
@@ -98,6 +102,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
+| `owners.html` | La pagina dei proprietari (`/owners`): IT col Lei + EN, una porta (Valutazione gratuita → `api/owner-lead.js`), quattro gesti suoi / dodici nostri. Vedi «BOOM Proprietari». Test: `node tests/owners/run.mjs`. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
@@ -1543,6 +1548,219 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   i documenti, la porta scritta e svuotata, i link con via, il dialog, il
   consenso che aspetta, le sorelle) + `node tests/cities/checkout.mjs` (39).
 
+### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
+Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
+non rispecchia il nostro modo di lavorare»). Stessa dottrina di /executive
+(`STUDIO_EXECUTIVE_CONVERSIONE.md`, `STUDIO_EXECUTIVE_UIX.md`): UNA porta (il
+modulo nell'hero, etichetta «Valutazione gratuita» identica su nav, bottone,
+banda e barra mobile), otto blocchi, ~90 parole prima del modulo, un solo
+oggetto digitale (il rendiconto). **Italiano col LEI** — la dottrina delle
+risposte rapide, famiglia `pr`: «è il cliente che ci affida un bene» — con
+interruttore inglese (`?lang=en`, mai dedotto dal browser) per chi possiede
+a Roma e vive all'estero. La tesi in una riga: *Lei riceve il canone e un
+rendiconto. Il resto è nostro.* — e il blocco 01 la dimostra con una
+sproporzione: **quattro gesti suoi, dodici nostri**, ognuno un meccanismo
+che esiste nel codice (valutazione sui canoni firmati, concordato con scheda
+e attestazione, visite video, pre-accordo, Magic Sign + RLI, verbale con
+contatori, inventario filmato, SEPA riconciliato, scadenzario, rendiconto
+del 1° del mese).
+- **Cosa è stato TOLTO perché il codice non lo sostiene**: il «Portale
+  Proprietari» con «approvazione preventivi online», «dashboard entrate
+  real-time» e «supporto prioritario 24/7»; un cruscotto finto che mostrava
+  «Canone questo mese €0 · Occupazione 0%»; «parola per parola» sui contratti
+  (vero e testato per studenti e 3+2, NON per il transitorio: l'Allegato B
+  non ha un `.doc` in `reference/`). L'area proprietario che esiste davvero
+  (portal.html, ruolo landlord: immobili, contratti, pagamenti, manutenzioni,
+  documenti) è citata come tale e basta. Il rendiconto d'esempio è
+  dichiarato «numeri di fantasia».
+- **Restano, da verificare col mandato vero**: la solvibilità dell'inquilino
+  «scritta nel mandato» (ora sempre accompagnata da «nei termini scritti nel
+  mandato»), prima locazione senza provvigione per il proprietario, mandato
+  pluriennale a fee annuale fissa — erano già pubblicate e le conferma
+  `SERVIZI_STUDIO_2026-08.md`; la cifra della fee non è pubblicata.
+- **`POST /api/owner-lead`** — prima il modulo andava su `partners/submit`
+  con la ZONA infilata nel campo `org` dell'ente e nient'altro. Ora: nome +
+  un campo unico «Telefono o email» (`splitContact`), zona, da quando è
+  libera, cosa le serve; a scomparsa mq, locali, arredo, canone in mente,
+  note. Liste CHIUSE (`FREE_FROM`, `GOALS`, `ROOMS`, `FURNISHED`: ignoto →
+  null), canone fuori scala → null (mai «€350.000/mese»), honeypot `company`,
+  rate limit, `attribution` dal `boom_source` di boom-track (le campagne di
+  `docs/owner-outreach.md` si misurano). Lead `leadType:'landlord'`,
+  `intent:'owner'`, `market:'roma'`, riassunto `PROPRIETARIO — Roma · zona ·
+  mq · locali · arredo · libero · chiede: …`. **La card Telegram parte dalla
+  porta** (tetto 5s): testo, WhatsApp col messaggio già scritto, Portale — mai
+  un bottone `mailto:` (Telegram lo rifiuta e cade il messaggio INTERO) — e il
+  lead viene marcato `telegramNotifiedAt` così notify-pending non lo ripete.
+  Ogni scrittura è attesa prima di `res.json`; Telegram giù = 200 comunque,
+  lead non marcato, recupero al minuto dopo.
+- **Il difetto di classe chiuso insieme (`api/_market.js`)**: `isB2B` non
+  riconosceva `leadType:'landlord'`, quindi i lead del calcolatore `/canone`
+  (da mesi `source:'web'`, `leadType:'landlord'`) ricevevano dal Commerciale
+  la prima risposta con la persona dell'INQUILINO e il follow-up «stai ancora
+  cercando casa a Roma?». Ora ogni proprietario romano è B2B lato `owner`
+  (la Réunion resta fuori: `isReunion` prima di tutto). `ownerReplyText`:
+  il messaggio pronto dà del **Lei** («Buongiorno Giulia, sono Valentino di
+  BOOM — Egidi Immobiliare») e **non richiede ciò che il modulo ha già
+  raccolto** — prima chiedeva zona/libero/arredato a chi li aveva appena
+  scritti; le SUE parole decidono la lingua, senza parole vale la pagina.
+  `notify-pending`: etichetta «🔑 proprietario» e i B2B mai sepolti nel
+  riepilogo dei lead C (il voto del Brain misura un inquilino).
+- **GEO/SEO**: testa scritta a mano (`manualHead: true` in
+  `scripts/seo-config.js`, e `seo-update.js` la salta — altrimenti
+  cancellerebbe l'alternate inglese e i JSON-LD), FAQPage = nove `<summary>`
+  visibili, WebPage con `speakable` (`.hero .sub`, `.enbref`), due Service
+  con identità distinte (gestione · Pacchetto €349 con Offer dal catalogo),
+  «in breve» con la riga **cosa non facciamo** (niente subaffitto, niente
+  affitti brevi turistici), sitemap con hreflang it/en, sezione in
+  `llms.txt`, card social `og-owners.png` generata dal repo
+  (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
+  rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
+  parla ora anche italiano, impersonale (le pagine IT danno del tu o del Lei).
+- Test: `node tests/owners/run.mjs` (141 check — porta, liste chiuse, voce
+  col Lei che non richiede il noto, card valida e prima della risposta,
+  regressione /canone, una porta sola, frasi vietate, registro Lei,
+  FAQ/speakable/Service, e il modulo inviato davvero in Chromium a 390px in
+  IT e EN; mutazioni: landlord non-B2B, bottone mailto, patch
+  fire-and-forget, «Ciao» al proprietario — tutte prese).
+
+**La scala dei prezzi (30/09/2026, sera — «manca un secondo passo: tutti mi
+chiedono se gli riaffittiamo e basta»).** Il costo per il proprietario è ora
+in TRE PASSI, in `#costi` (un `<ol class="ladder">`) e in tre righe accanto
+alla porta (`.lmini`: prima il solo prezzo vicino al modulo era il €349 di un
+prodotto laterale, e le card dei costi partivano dopo sei schermate):
+1. **Prima locazione — €0 di provvigione**: la provvigione la paga
+   l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
+   inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
+   attestazione €189, tariffa dell'organizzazione compresa) che apre
+   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
+   `requiresAsseverazione:true` e il default di fatturazione è «completo» —
+   presentare €89 come base era il prezzo raro spacciato per normale. Per
+   tutta la durata del contratto incasso, rendiconto il 1° e coordinamento
+   delle manutenzioni sono **dichiarati compresi** (è ciò che la macchina fa
+   per ogni contratto; il fondatore sul riaffitto: «incluso di tutte le cose
+   che poi facciamo»). I due numeri SONO gli `ASPI_DEFAULTS` di
+   `api/fiscal/_aspi.js` (ciò che il 💳 link incassa, IVA dentro):
+   `tests/owners` li legge da lì.
+2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
+   condominio e utenze), registrazione compresa, solo se il nuovo inquilino
+   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
+   (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
+   può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,
+   JSON-LD, riga contestuale, llms.txt e FAQ del sito, lingua per lingua.
+3. **Mandato su misura di 2 o 3 anni — fee annuale fissa**, su preventivo:
+   per la casa che cambia spesso inquilino; è il passo che porta la clausola
+   di solvibilità, ora con i limiti NOMINATI («entro il massimale e la durata
+   scritti nel mandato» — «nei termini» senza dire quali era un'omissione).
+Regole di classe, testate per mutazione (tutte prese): mai «gratis», «no
+fee», «senza costi», «reddito sicuro», «guaranteed rent» sulla prima
+locazione (art. 23 lett. v: c'è un costo) — né in pagina né nei JSON-LD né
+in llms.txt né nella FAQ generale del sito (`faq.html` diceva ancora «1
+month rent OR 10%» e «guaranteed rent») né nei blocchi da copiare di
+`docs/owner-outreach.md`; dove c'è «€0 di provvigione» c'è il prezzo delle
+pratiche NELLO STESSO elemento, in italiano E in inglese — anche in ogni
+voce della riga contestuale `HINT`; l'esempio si ricalcola dal codice; il FAQPage è
+GENERATO dalle `<details>` visibili (build: risposta = testo italiano senza
+tag) e il test pretende l'uguaglianza parola per parola. Il riaffitto ha la
+sua porta: goal `relet` (etichetta operatore «si dichiara già cliente —
+verificare»: la pagina non lo verifica), la voce di `ownerReplyText` chiede
+DI QUALE casa e QUANDO esce l'inquilino (mai se è arredata, mai un prezzo),
+la riga `#fHint` risponde alla scelta sotto le tendine col passo e il prezzo
+giusti («affittarla e farla gestire» ha la sua, con la gestione compresa; «oggi
+è affittata» apre «Altri dettagli» per la scadenza, e la voce non la
+richiede se è già scritta nelle note), la riga resta nell'albero di
+accessibilità (vuota, mai `hidden`: aria-live non annuncia ciò che nasce
+nascosto) e le due scale sono `role="list"` (Safari toglie la semantica a
+un `<ol>` senza marcatori). `/prriaffitto` è la risposta WhatsApp installata
+e separa i due casi: casa già affittata da noi → mezza mensilità col totale;
+mai affittata con noi → prima locazione. **La macchina mantiene la
+promessa**: il pannello 🏛 ASPI ha «Cosa fatturare» (vedi l'iter ASPI). Allineati: `llms.txt`
+(prezzi, Pacchetto con la tariffa dell'organizzazione a parte, «non
+rilasciamo noi l'attestazione»), `terms.html` §4 (è la sezione degli
+INQUILINI; i prezzi dei proprietari rinviano a /owners), l'outreach PFS e
+`docs/owner-outreach.md` (niente più «senza alcun costo» né «reddito
+sicuro»), i conteggi di `/risposte` letti dal modulo.
+**Decisioni del fondatore ancora aperte** (default spediti, tutti
+reversibili in un punto): la gestione durante il contratto dichiarata
+compresa nei passi 1 e 2 (se va pagata a parte, la frase è in quattro punti
+della pagina, nell'Offer, in llms.txt e nella FAQ del sito, tutti presidiati
+dal test — anche `faq.html`, dove sono sparite le promesse «Average: 8
+days» e «won't stay empty» che /owners smentisce); IVA della mezza mensilità (default «+ IVA» col
+totale: se era inclusa la pagina sovrastima, non promette meno del dovuto);
+il riaffitto dedotto per immobile dai contratti finalizzati (i contratti
+importati con l'Innesto non contano);
+prezzi di produzione in `settings/registrazione` (la pagina pubblica i
+default del codice); «prima locazione» contata PER IMMOBILE; mezza mensilità
+a OGNI nuovo inquilino, non solo al primo riaffitto; massimale/durata della
+solvibilità e modello del mandato su misura (nel repo non esistono);
+moduli d'incarico depositati in CCIAA (L. 39/89) e capitale sociale nel
+footer (art. 2250 c.c.) — da verificare fuori dal codice.
+
+### Il conto della sua casa (`js/conto-engine.js` + `/canone` + `api/owner-lead.js`) — 13/10/2026
+Il magnete dei proprietari: zona dell'Accordo + metri → quanto può chiedere a
+canone concordato, e quanto gli resta. **Il difetto che l'ha fatto nascere**:
+`/canone` aveva un calcolatore suo (91 zone, 27 inventate e 11 mancanti; +15%
+all'arredato già selezionato, +15% al transitorio, tetto a 1,35 volte e il
+punto MEDIO della fascia in grande): misurato in Chromium stampava «€2.262/mese»
+sopra «tetto zona €1.760» — un canone nullo nella parte eccedente (art. 13
+L. 431/98) — e lo passava nella cassa del Pacchetto come `?canone=`.
+- **`js/conto-engine.js`** (UMD → `window.BOOM_CONTO`, `require` del motore
+  vero `js/canone-engine.js` con `DEFAULT_CFG`, mai settings): nessuna
+  aritmetica nuova. `normalize` (lista CHIUSA: un valore fuori lista torna in
+  `errors`, mai aggiustato), `conto` (il numero in grande è il MASSIMO, mai sopra
+  fMax × superficie convenzionale; senza dotazioni dichiarate il massimo di
+  ciascuna fascia A/B/C; il netto con la cedolare; il pareggio col libero solo
+  per il 3+2 = max × 0,90 / 0,79; «quanto vorrebbe chiedere»), `encode/decode`
+  (stato nell'URL `?v=1&z=…&mq=…`, versione esplicita: una versione ignota si
+  RIFIUTA), `shareText` (mai dati personali), `marketFor` (la riga del Perito
+  solo sopra il campione, `MARKET_OF` = coppie certe Accordo → zona mercato),
+  `PRICES` (copie legate dal test ad `ASPI_DEFAULTS` e al catalogo). Le
+  dotazioni non si suggeriscono a euro: una dichiarata e assente fa restituire
+  l'eccedenza all'inquilino.
+- **`canone.html`** rifatta (testa a mano, Lei, `boom-2026.css`): conto
+  subito senza dati, dotazioni/pertinenze/contratto/cifra in mente a
+  scomparsa, condivisione (WhatsApp, commercialista, link), e il PDF dietro
+  nome + recapito (`/api/owner-lead`, `sourceRef:'canone'`). Il banner cookie
+  ha la modalità `data-consent="compact"` (copriva il calcolatore a 390px).
+- **La porta** (`api/owner-lead.js`): il `calc` del browser si RILEGGE con la
+  lista chiusa e si RICALCOLA (un `max` mandato dal browser non vale), si
+  congela in `ownerConti/<id>` (admin-only nelle rules) PRIMA del lead, e il
+  lead porta `owner.conto` (riassunto + `ref` `CNT-XXXXXX` + `pdfUrl`). Un
+  `calc` sbagliato non costa il lead (nasce senza PDF). Lo stesso recapito entro
+  30 giorni (email o numero in ogni forma) aggiorna il lead esistente
+  (`owner.conti`, max 10) e ri-pinga solo dopo 12 ore. `GET
+  ?pdf=<id>&t=<token>` (token derivato da HOMIE_SECRET, confronto a tempo
+  costante) stampa il PDF dalla FOTO (`api/owners/_conto-pdf.js`: il conto, poi
+  la scheda di calcolo riga per riga; su ogni pagina «stima su dati dichiarati…
+  non è l'attestazione né una perizia · Rif.»; nessun dato personale). La card
+  Telegram dice la fonte e cita il conto col bottone 📄; `ownerReplyText` lo
+  cita col PDF e non richiede zona, metri né arredo.
+- **Il Pacchetto** (`pacchetto-concordato.html`): la barra si RICALCOLA dal
+  motore sui soli dati della casa nell'URL (il vecchio `?canone=` non stampa
+  più niente), al Lei, €349 IVA inclusa con la tariffa dell'organizzazione
+  detta a parte, RLI «entro 30 giorni dalla stipula, o dalla decorrenza se
+  prima», tolti «ufficiale», «90+ micro-zone», «60–150 €», «3+2 ordinario» e lo
+  scadenzario promesso; recesso di 14 giorni con la spunta «iniziare subito»
+  (mai pre-selezionata) che arriva all'operatore (`start_now` nei metadata
+  Stripe, solo per `concordato-pack`). Card social `og-canone.png` e
+  `og-pacchetto.png` dal repo.
+- **`/owners`**: zona + metri nella porta mostrano il massimo concordato
+  (la zona la sceglie il proprietario fra le corrispondenze: «Prati» è anche
+  NUOVO SALARIO PRATI FISCALI), il modulo manda `calc:{v,z,mq}`, il «fascicolo
+  aperto» offre il PDF e il volto del fondatore col numero. Riscritte le
+  promesse che il codice non sostiene («documento verificato», «reddito
+  dimostrato… un terzo», «ISTAT» con la cedolare, «com'è davvero»); `--t4` al
+  44% sulla pagina. I tre FAQPage (canone, pacchetto, owners) li GENERA
+  `scripts/owner-faq.mjs` dalle `<details>` visibili, fra i marcatori `FAQLD`.
+- **Aperte, del fondatore**: valori di fascia attuali (ISTAT) e allegato zone
+  dell'Accordo; nome dell'organizzazione firmataria (ASPI/ASPPI); fattura del
+  €349 e rimborso; recensioni («★4.9 · 47»), «risposta in giornata», FAO/WFP/IFAD
+  e la clausola di solvibilità restano come erano.
+Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
+porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
+del browser accettato, regola tolta, `?canone=` ristampato).
+
 ### POST `/api/service-checkout`
 **Dal 14/10 vende anche i piani dei desk città**: `{ city, kind }` →
 `cityOffer(city, kind)` (`api/_market.js`) decide prezzo e nome del prodotto
@@ -2452,7 +2670,35 @@ l'attestazione di rispondenza (**€100**). Ora:
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
-- Test: `node tests/aspi/run.mjs` (35 check).
+- **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
+  `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
+  registrazione è nella mezza mensilità, quindi di un «completo» si fattura
+  la sola attestazione (`aspi_asseverazione_<id>`) e di una «solo
+  registrazione» niente (opzione `none`); ammessi solo sottoinsiemi della
+  richiesta (`billKindFor`). **Si fattura ciò che le fatture esistenti non
+  COPRONO** (`billPlan` su `BILL_PARTS`, pura): tutto coperto → nessuna
+  fattura nuova, si riporta l'esistente; registrazione già fatturata +
+  «completo» → la sola attestazione (prima l'overlap sì/no perdeva i €189);
+  attestazione già fatturata da sola + «completo» → niente (`relet_guard`:
+  è il segno del riaffitto, la registrazione si chiede esplicitamente). Una
+  lettura delle fatture che FALLISCE non vale «assente»: nessuna fattura,
+  `error:'overlap_check_failed'` detto nel toast E un avviso urgente
+  `agentNotifications` `aspi.invoice_unverified` (→ Telegram): sul percorso
+  automatico nessuno vede il toast e la finalize non ripassa. Il recupero è
+  **🧾 Solo la fattura** (`op:'bill'`, `billAspi`): fattura senza rimandare
+  l'email ad ASPI. `op:'status'` porta anche `billing.plans` — il piano per
+  ogni variante sulle fatture già emesse — e il pannello scrive l'esito VERO
+  prima del tap («Crea fattura …», «solo la parte non ancora fatturata»,
+  «Già fatturata — nessuna nuova fattura»); dopo, un re-invio della stessa
+  pratica (`coverKind === requested`) è un successo, non un avviso
+  (`_aspiInvoiceMsg`, eseguita davvero nel test). Il riaffitto si deduce dai
+  FATTI (`reletOf`/`reletFrom`: un altro contratto `finalizedAt` sullo stesso
+  immobile, cominciato prima, con un altro inquilino; stanze dichiarate
+  diverse = due prime locazioni; `contract.relet` esplicito vince):
+  `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
+  pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
+  pratiche in due tempi portano numeri distinti (`-R`/`-A`).
+- Test: `node tests/aspi/run.mjs` (79 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -3899,8 +4145,9 @@ tre difetti veri:
   annulla e collega da → Contratto, oppure procedi se è un altro interno.
   Avverte, non blocca. L'immobile nato da QUESTA proposta (`prop_pa_<id>`)
   non è un doppione. Da sapere: collegare una casa del portal a una proposta
-  accettata senza immobile rende il mandato del conduttore non spendibile
-  (immobile diverso dalla foto) — lì firma il conduttore col suo link.
+  accettata senza immobile lascia il mandato del conduttore spendibile SOLO
+  se è la stessa casa — stesso indirizzo e stesso interno (15/10, sezione
+  sotto); altrimenti firma il conduttore col suo link.
 - **Lo Share Hub del portal** prende WhatsApp ed email delle parti dai
   contatti del CONTRATTO (`partyOf`) quando manca il profilo. Un immobile nato
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
@@ -3929,6 +4176,53 @@ niente bottone, 📋 senza `createProperty`, ✍️ senza `createProperty`,
 ricerca della casa spenta (anche solo su ✍️), la casa della proposta contata
 come doppione, testo che ignora la casa trovata, → Contratto senza
 preselezione, conferma senza `await`.
+
+### 🏠 La casa della proposta già nel portal — stesso indirizzo e stesso interno (15/10/2026)
+«Fallo valere con stesso indirizzo e interno.» Il mandato di una proposta
+accettata senza immobile collegato fotografa un INDIRIZZO e valeva solo
+sull'immobile nato dalla proposta (`prop_pa_<id>`). Ora vale anche sul record
+del portal con lo STESSO indirizzo e lo STESSO interno — il caso vero è Viale
+Angelico 9 (BOOM-MUPU8OMY): pagata col mandato, non collegata, appartamento
+già nel portal.
+- **La regola, una copia** (`js/mandato-engine.js`: `homeKey`, `homeMatch`,
+  `homeCheck`; server e console): via e civico normalizzati (accenti,
+  «V.le/P.za/Lungot.», «n.»/«civico» davanti al numero, scala e piano dopo,
+  città, CAP, quartiere dopo la virgola) e interno con la regola del lucchetto
+  («Int. 11» = «11»). Interno non dichiarato combacia SOLO con interno non
+  dichiarato (casa intera, come lucchetto e sovrapposizioni) e l'etichetta lo
+  dice. Fail-closed: senza civico, senza tipo di via o con parole dopo il
+  civico non combacia mai. Backup del 12/10: illeggibili 1 immobile su 30 e 3
+  proposte su 26, tutti senza civico.
+- **L'interno approvato sta nella foto** (`termsFromProposal` → `unit`,
+  fuori dall'impronta: i mandati già dati restano validi). Foto più vecchie:
+  l'interno della proposta, salvo interno dichiarato dopo dalla console
+  (`unitDeclaredAt`) o indirizzo ritoccato → `unit_unknown`, nessun riscontro.
+- **Il riscontro resta sul mandato** (`tenantMandate.propertyMatch
+  {propertyId, by:'address+unit', home, label, at}`), scritto da conversione e
+  mandato dato dopo; `termsForMandate` allinea SOLO quel record (spostato
+  altrove = cambio di condizioni). Firma, lookup e portal non rileggono
+  l'immobile.
+- **✍️ Firmo io ricontrolla l'immobile di ADESSO** (`healTenantMandate` in
+  sign-for): `status` lo dice senza scrivere (`plan.home`); `sign` scrive il
+  riscontro, aggiunto o tolto, PRIMA di `mandateCheck`. I contratti convertiti
+  prima della regola si sanano; un immobile ritoccato dopo non è più la casa
+  (409 col perché). Una lettura fallita dell'immobile non tocca niente.
+- **Console**: la stessa casa viene prima del somigliante (`homeTwin` in
+  `propGuess`); 📋 🏠 ✍️ fanno nascere il contratto su quel record
+  (`propertyId`, mai un doppione) e la conferma nomina indirizzo e interno; il
+  preflight di → Contratto dice se il mandato sarà spendibile e perché no
+  (`convert` dryRun → `mandate`). Senza il motore resta l'avviso del
+  somigliante.
+- **Da sapere (Angelico 9)**: il record W0lE1 e la nuova proposta NON
+  dichiarano l'interno → riscontro sì, «interno non dichiarato su entrambi».
+  Il contratto vivo su W0lE1 nacque da una proposta con interno «11»: se è
+  l'interno 11, va scritto sull'immobile, e da lì la proposta senza interno
+  non combacia più. La sovrapposizione (fino al 30/01/2027, la nuova dal
+  1/01/2027) resta un 409 da decidere in → Contratto.
+Test: `node tests/mandato/casa.mjs` (51 check, handler veri; 19 mutazioni
+prese su motore, conversione, mandato dato dopo, sign-for e console) e
+`tests/firma/console.mjs` (la seconda console: stessa casa, preflight, ripiego
+senza motore).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
@@ -5135,7 +5429,9 @@ messaggi che accompagnano un link personale.
   mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
   contratto altrui, ricerca su misura, italiano e proprietario — e le altre
   restano nel mazzo: la pagina
-  si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
+  si apre già filtrata sulle 15, le rare si cercano e si copiano al volo
+  (la quindicesima, 30/09: `/prriaffitto`, «mi riaffittate e basta?»; i
+  numeri nel testo di `/risposte` si leggono ora dal modulo).
   La promozione è un attributo, non una riscrittura: se una del mazzo torna
   spesso, si toglie `bench` e si carica.
 - **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,

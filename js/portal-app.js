@@ -23833,9 +23833,86 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const items = kind === 'registrazione' ? st.kinds.registrazione : st.kinds.completo;
         const el = document.getElementById('aspiChecklist');
         if (el) el.innerHTML = _aspiChecklistHtml(items);
+        // Cosa si fattura: sul RIAFFITTO (passo 2 di /owners) la registrazione
+        // è compresa nella mezza mensilità — di un «completo» si fattura solo
+        // l'attestazione, di una «solo registrazione» niente. Le opzioni
+        // cambiano con la variante; il riaffitto riconosciuto dal server
+        // (un contratto BOOM firmato prima sullo stesso immobile) le preseleziona.
+        const bw = document.getElementById('aspiBillKindWrap');
+        const bk = document.getElementById('aspiBillKind');
+        const p = st.settings.prezzi;
+        const relet = !!(st.billing && st.billing.relet);
+        const opts = kind === 'completo'
+            ? [['completo', `Prima locazione — fattura registrazione + attestazione (€${p.completo})`],
+               ['asseverazione', `Riaffitto — la registrazione è nella mezza mensilità: solo attestazione (€${p.asseverazione})`],
+               ['registrazione', `Solo la registrazione (€${p.registrazione})`]]
+            : [['registrazione', `Prima locazione — fattura la registrazione (€${p.registrazione})`],
+               ['none', 'Riaffitto — registrazione compresa nella mezza mensilità: nessuna fattura']];
+        if (bk && bk.dataset.kind !== kind) {
+            bk.innerHTML = opts.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('');
+            bk.value = relet ? (kind === 'completo' ? 'asseverazione' : 'none') : kind;
+            bk.dataset.kind = kind;
+        }
+        const sel = (bk && bk.value) || kind;
+        const billKind = sel === 'none' ? null : sel;
+        // L'etichetta dice cosa verrà fatturato DAVVERO: il piano per ogni
+        // variante arriva dal server (billPlan sulle fatture già emesse) — mai
+        // «Crea fattura» a prezzo pieno su una pratica già fatturata o a metà.
+        const plans = st.billing ? st.billing.plans : undefined;   // null = non si leggono
+        const invs = (st.billing && st.billing.invoices) || [];
+        const who = st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario';
+        let lbl, canBill = !!billKind;
+        if (!billKind) lbl = 'Nessuna fattura: la registrazione è compresa nella mezza mensilità';
+        else if (plans === null) lbl = '⚠ Le fatture già emesse non si leggono: all\'invio la fattura NON si crea (poi «Solo la fattura»)';
+        else {
+            const pl = (plans && plans[billKind]) || { create: billKind };
+            if (pl.create) lbl = `Crea fattura ${who} — €${p[pl.create]} (costo pratica ASPI €${st.settings.costi[pl.create]})${pl.create !== billKind ? ' · solo la parte non ancora fatturata' : ''}`;
+            else if (pl.reason === 'relet_guard') { lbl = '⚠ C\'è già la fattura della sola attestazione: la registrazione non si aggiunge da sola (riaffitto?) — se è dovuta, scegli «Solo la registrazione»'; canBill = false; }
+            else { const c = invs.find(x => x.kind === billKind) || invs[0]; lbl = `Già fatturata${c ? ': ' + c.id + ' · €' + c.amount : ''} — nessuna nuova fattura`; canBill = false; }
+        }
         const bl = document.getElementById('aspiBillLbl');
-        if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[kind]} (costo pratica ASPI €${st.settings.costi[kind]})`;
+        if (bl) bl.textContent = lbl;
+        const cb = document.getElementById('aspiBill');
+        if (cb) cb.disabled = !canBill;
+        if (bw) bw.style.display = '';
     }
+    // Cosa dire della fattura dopo un invio (o dopo «Solo la fattura»): un
+    // re-invio della STESSA pratica è normale (successo), un'altra fattura che
+    // copre la pratica o un riaffitto sono avvisi, una lettura fallita è un errore.
+    function _aspiInvoiceMsg(inv) {
+        if (!inv) return { level: 'success', txt: '' };
+        if (inv.error) return { level: 'error', txt: ' · ⚠ fattura NON creata: non riesco a leggere le fatture esistenti — riprova con «Solo la fattura» (non rimanda l\'email)' };
+        if (inv.overlap && inv.reason === 'relet_guard') return { level: 'error', txt: ` · ⚠ c'è già la fattura dell'attestazione (${inv.id}, €${inv.amount}): la registrazione non si aggiunge da sola — se è dovuta, scegli «Solo la registrazione»` };
+        if (inv.overlap && inv.coverKind && inv.coverKind === inv.requested) return { level: 'success', txt: ` · fattura già emessa (${inv.id}, €${inv.amount})` };
+        if (inv.overlap) return { level: 'error', txt: ` · ⚠ la pratica è già coperta dalla fattura ${inv.id} (€${inv.amount}): non ne creo un'altra — se quella è sbagliata, correggila da Fatture` };
+        if (inv.created) return { level: 'success', txt: ` · fattura €${inv.amount} creata${inv.partial ? ' (solo la parte non ancora fatturata)' : ''}` };
+        return { level: 'success', txt: ' · fattura già emessa' };
+    }
+    window._aspiInvoiceMsg = _aspiInvoiceMsg;
+    async function sendAspiBill(contractId) {
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
+        const sel = document.getElementById('aspiBillKind')?.value || kind;
+        if (sel === 'none') return toast('info', 'Riaffitto su sola registrazione: nessuna fattura da creare');
+        const btnEl = document.getElementById('aspiBillBtn');
+        if (btnEl) btnEl.disabled = true;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'bill', contractId, kind, billKind: sel })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) { if (btnEl) btnEl.disabled = false; return toast('error', 'Fattura ASPI: ' + ((j && j.error) || 'non creata')); }
+            const m = _aspiInvoiceMsg(j.invoice);
+            closeModal();
+            toast(m.level, '🧾 Fattura ASPI' + (m.txt || ' · niente da fatturare'));
+        } catch (e) {
+            if (btnEl) btnEl.disabled = false;
+            toast('error', 'Fattura ASPI: ' + e.message);
+        }
+    }
+    window.sendAspiBill = sendAspiBill;
     window._aspiRenderKind = _aspiRenderKind;
     async function openAspi(contractId) {
         toast('info', '🏛 Leggo lo stato della pratica…');
@@ -23854,6 +23931,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window._aspiStatus = st;
         const s = st.settings;
         const sent = st.state.aspiRequestedAt;
+        // Cosa esiste già e cosa ha capito il server: prima di scegliere cosa
+        // fatturare l'operatore vede le fatture ASPI emesse e il riaffitto.
+        const bi = st.billing || {};
+        const invs = Array.isArray(bi.invoices) ? bi.invoices : null;
+        const billingNote = `<div style="font-size:11.5px;color:var(--text-muted);margin:0 0 8px">${
+            invs === null ? '⚠ Non riesco a leggere le fatture già emesse: all\'invio la fattura NON si crea, riprova.'
+            : invs.length ? 'Fatture ASPI già emesse: ' + invs.map(x => `${esc(x.id)} · €${esc(String(x.amount))}${x.status ? ' · ' + esc(x.status) : ''}`).join(' — ')
+            : 'Nessuna fattura ASPI emessa su questo contratto.'
+        }${bi.relet ? ` · <strong style="color:var(--gold)">Riaffitto</strong>: c'è già un contratto BOOM firmato su questo immobile${bi.previousId ? ' (' + esc(bi.previousId) + ')' : ''}.` : ''}</div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
@@ -23871,11 +23957,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                ${billingNote}
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                <div id="aspiBillKindWrap" class="form-group" style="margin:0 0 10px 26px">
+                    <select id="aspiBillKind" class="form-select" onchange="_aspiRenderKind()" style="font-size:12.5px"></select>
+                </div>
                 <div class="form-group"><textarea class="form-textarea" id="aspiNote" rows="2" placeholder="Nota per il referente (opzionale) — es. urgenza, dettagli catastali…"></textarea></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
                 <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
             </div>
         </div></div>`;
@@ -23884,7 +23975,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.openAspi = openAspi;
     async function sendAspi(contractId) {
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
-        const bill = !!document.getElementById('aspiBill')?.checked;
+        const sel = document.getElementById('aspiBillKind')?.value || kind;
+        // «none» = riaffitto su sola registrazione: si invia, non si fattura
+        const bill = !!document.getElementById('aspiBill')?.checked && sel !== 'none';
+        const billKind = sel === 'none' ? kind : sel;
         const note = document.getElementById('aspiNote')?.value || '';
         const btnEl = document.getElementById('aspiSendBtn');
         if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Invio…'; }
@@ -23893,7 +23987,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const r = await fetch('/api/fiscal/registra', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                body: JSON.stringify({ op: 'send', contractId, kind, bill, note })
+                body: JSON.stringify({ op: 'send', contractId, kind, billKind, bill, note })
             });
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {
@@ -23903,7 +23997,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
-            toast('success', `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${j.invoice ? (j.invoice.created ? ` · fattura €${j.invoice.amount} creata` : ' · fattura già emessa') : ''}`);
+            // la fattura si DICE per quello che è (_aspiInvoiceMsg): creata,
+            // parziale, già emessa da un invio precedente, coperta da un'altra,
+            // o non creata perché le fatture non si leggevano
+            const m = _aspiInvoiceMsg(j.invoice);
+            toast(m.level, `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
             if (Array.isArray(j.missing) && j.missing.length) {
                 toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
             }
