@@ -73,8 +73,9 @@ in `api/`), modelli Anthropic solo dal server, bot Telegram, un Mac
 - Non aggiungere dipendenze, env o segreti senza necessità dichiarata; mai
   un segreto nel codice o nei log.
 - Non fare merge: le PR le unisce Valentino. Non pushare su `main`.
-- Prima di ogni deploy autorizzato, leggi il commit realmente servito da `www.boomrome.com` e confrontalo con il candidato. Se il dominio è cambiato durante il lavoro o il ramo parte da una versione precedente, integra e verifica i lavori già pubblicati prima di procedere: una CI verde sul solo ramo non prova che siano conservati.
-- Il rilascio ha un solo responsabile coordinato. Ricontrolla alias e commit subito prima della pubblicazione; dopo verifica dominio, contenuto degli asset e provenienza Git, distinguendo queste prove dal collaudo autenticato.
+- La produzione esce SOLO dal merge su `main` (dal 15/10/2026, vedi «Una sola porta» in `CLAUDE.md` → Deployment): niente deploy di produzione a mano da un ramo, nemmeno «autorizzato». Un ramo si guarda nella sua Preview.
+- Prima di aprire o aggiornare la PR, fai merge di `origin/main` nel tuo ramo (mai rebase di un ramo condiviso) e verifica che i lavori già su `main` restino: una CI verde sul solo ramo non prova che siano conservati. Dopo ogni merge su `main`, le altre PR si riaggiornano prima del loro.
+- Dopo il merge verifica dominio, contenuto degli asset e provenienza Git del deploy di `main`, distinguendo queste prove dal collaudo autenticato.
 - Non riscrivere ciò che regge per farlo «più pulito»: il repo porta
   lezioni pagate in produzione, scritte accanto al codice.
 

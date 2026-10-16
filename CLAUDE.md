@@ -83,6 +83,16 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   ../api/_ai.js           La porta UNICA verso qualunque modello: instrada
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
+  listing-facts.js        Le regole UNICHE dei fatti di un annuncio: camere
+                          (bedroomsOf: `bedrooms` prima, il testo `beds` solo
+                          se manca), arredo (furnishedOf), bollette, compenso.
+                          window.BOOM_FACTS. Gemelle python nel bot e in
+                          design/listing_facts.py.
+  catalogo-correzioni.js  La mappa del catalogo dalla via vera: nomi, fix
+                          provati, fatti incerti, verifiche per l'assistente;
+                          descriptionIssues (= copyIssues) e regenerable.
+                          window.BOOM_CATALOGO_FIX. Vedi "Il catalogo dalla
+                          via vera".
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -107,6 +117,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
+| `catalogo.html` | `/catalogo` (admin, noindex): applica in transazione nomi dalla via e correzioni di `js/catalogo-correzioni.js`, poi fa rigenerare i testi della macchina. Vedi «Il catalogo dalla via vera». |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
 | `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos (`?listing=<id>` deep-link from portal rows 🎨 + photo-lab), prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. **Publish rails**: reel → `videoUrl` (MP4 only, upload `listings/enhanced/<id>/video/` — dedicated storage.rules match, video/* <100MB; apartment-detail renders non-YouTube urls via its `<video>` branch/`exVid()`); AI copy (tipo portale) → `description`/`descriptionIt` with sweep discipline (`descriptionOriginal` preserved, `descriptionSource:'studio:<email>'`); live **pagella** chip mirrors `gradeListing()`; portalPubs status shown to admins (photos/video/description are in the Pubblicista's `coreContent` → updates queue themselves). Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
@@ -155,6 +166,25 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   produzione (`list_deployments` target production, `githubCommitRef`); se
   è un altro ramo, prima si integra, poi si unisce. Un deploy già READY non
   si annulla: si ripara con un nuovo deploy della build integrata.
+- **Una sola porta: `main` (15/10/2026)** — sostituisce la regola sopra. Quel
+  giorno il sito è uscito da QUATTRO sorgenti in undici ore (il merge di #292,
+  tre deploy a mano dal ramo di Codex #290, uno dal ramo Claude della release
+  GEO, due dal ramo della registrazione #294) mentre `main` restava 54 commit
+  dietro il sito. Ogni deploy sostituisce il sito INTERO con l'albero del suo
+  ramo: reggeva solo perché ogni ramo era stato costruito a mano sopra il
+  precedente, e quattro PR aperte partivano da `main` — una sola pubblicata a
+  mano avrebbe tolto dal sito GEO, Portal e registrazione insieme. In più il
+  bot Telegram si aggiorna da `main/bot/`: ciò che non arriva a `main` non
+  arriva sul Mac. Regole: (1) la produzione si pubblica SOLO dal merge su
+  `main` — nessun deploy di produzione a mano da un ramo, di nessuna sessione;
+  un ramo si guarda nella sua Preview; (2) ogni lavoro è un ramo + una PR verso
+  `main`, aggiornata con `main` (merge, mai rebase di un ramo condiviso) e con
+  la CI verde prima del merge; le unisce Valentino, una alla volta, e dopo
+  ogni merge le altre si riaggiornano; (3) su GitHub (le cambia il
+  proprietario): regola su `main` con PR obbligatoria, check obbligatori
+  static-checks · firestore-rules · smoke · full-suite e ramo aggiornato prima
+  del merge, più «Always suggest updating pull request branches»; (4) le regole
+  Firestore/Storage escono già solo da `main` (job deploy-rules).
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
 - **Function configuration limit (21/09)**: Vercel rejects more than 50
@@ -375,6 +405,28 @@ a "too short" rule would delete *"perfect for Luiss students"* and keep
 signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
 tested), and anything overwritten is preserved in `descriptionOriginal`.
 
+**15/10/2026 — solo fatti dichiarati, e la rigenerazione.** Il modello riceve
+le camere da `FACTS.bedroomsOf` (0 → «studio (no separate bedroom)»), l'arredo
+solo se `furnished` è dichiarato (il campo assente diventava «unfurnished» in
+nove case pubbliche), la via senza civico (`streetOf`), mai canone né date; il
+SYSTEM vieta civico e durata del soggiorno. `copyIssues` legge il testo DOPO il
+modello: `price_in_text`, `fee_in_text`, `date_in_text`, `stay_in_text`,
+`address_number`, `furnishing_invented`/`_contradicted`,
+`bedrooms_mismatch`/`_invented`. Sulla strada del bot un testo con problemi
+torna `en:''`, `it:''`, `aiHash:null` con le `issues` (il bot ripiega), e un
+JSON senza `en` stringa non diventa mai testo. **`POST {mode:'regenerate',
+ids ≤6}`** (solo admin stretto o cron: la porta di `/catalogo`) riscrive SOLO i
+testi della macchina (`descriptionSource === 'ai'` con impronta
+`descriptionAiHash` uguale al testo), i vuoti e il template; `lotto12`,
+`portal:…`, `studio:…` sono parole di una persona. Per id
+`{outcome: written|skipped|failed, reason, note, issues?}`; scrive sempre
+l'impronta, `descriptionOriginal` solo se manca, il precedente in
+`descriptionPrevious`, a versione letta. Un testo 'ai' corretto a mano prima
+del 15/10 non ha impronta e resta riscrivibile (finisce in
+`descriptionPrevious`): niente passata a ritroso, per scelta. Lo sweep notturno
+riempie ancora solo vuoti e template. Test: `tests/catalogo/descrizioni.mjs`
+(401 check), `tests/copy`.
+
 ### GET/POST `/api/wizard/health` (cron */10 min)
 Watchdog del bot Telegram sul Mac mini. **LA LEZIONE DEL 7 AGOSTO 2026**: per
 12 giorni launchd ha lanciato `boom_listing_wizard.py` DIRETTAMENTE invece di
@@ -462,6 +514,40 @@ il suo token, `_pending_put`/`_pending_pop`, e un piano sostituito dice
 detto; prezzo e metri dei fields devono comparire nel testo, o la create si
 rifiuta e si chiede.
 Test: `python3 tests/wizard/local_brain.py`.
+
+### Il bot non scrive ciò che nessuno ha detto (`bot/boom_listing_wizard.py`, 15/10/2026)
+Con la regola unica delle camere (`FACTS.bedroomsOf`) e l'arredo detto solo se
+dichiarato, ogni default del bot è diventato un falso pubblico: la casa dettata
+nasceva con `furnished:'no'` («unfurnished»), `beds/bedrooms:0` («monolocale») e
+`availableDate:'Subito'` («Available now»); il passo 6 chiedeva i POSTI LETTO e
+li scriveva nelle CAMERE; la regex gratuita («3 camere a X») scriveva solo
+`beds` e il bot diceva «✅ Fatto» senza cambiare la vetrina. Ora:
+- **un campo non detto non si scrive** (`_listing_doc`, `_nl_listing_fields`):
+  nessuna chiave, mai un default. Il monolocale ha 0 camere perché lo dice il
+  TIPO (il passo 6 si salta); il passo 6 chiede «Camere da letto?» e scrive i
+  due gemelli `bedrooms`+`beds`, come `/modifica letti|camere` (0–10) e la regex.
+- **la casa dettata si ripulisce prima della card** (`_drop_unsaid`): camere,
+  arredo, disponibilità e via che il modello ha riempito ma la frase non
+  nomina si tolgono, la card si rifà su ciò che resta e lo dice. La lezione del
+  28/08 (`_create_invents`) estesa al resto.
+- **il nome viene dalla via** (`_listing_name`, `_street_of`): «Via dei
+  Cappellari 4» → «Cappellari Flat», «Via di S. Anna 16» + 1 camera →
+  «Sant'Anna One-Bed», come i nomi curati di `js/catalogo-correzioni.js` (il
+  test lo verifica su tutte le case del catalogo). Prima «<Tipo> <Zona>», cioè
+  tre «Bilocale Centro». Un nome già usato si DICE, mai un suffisso inventato.
+- **la copia AI entra solo pulita** (`_accept_ai_copy`): `issues` non vuote o
+  `en` vuoto → il testo di riserva (`_template_description`: niente canone,
+  arredo solo se detto, camere dalla regola, firma «Nsqm on floor» per lo
+  sweep); accettata → `descriptionSource:'ai'` + `descriptionAiHash` +
+  `descriptionAt`, così resta rigenerabile finché nessuno la corregge.
+- **date leggibili** (`_now_iso`): `isoformat() + 'Z'` scriveva «…+00:00Z»,
+  che `Date.parse` rifiuta: al 15/10 tredici annunci su ventisette portano una
+  data così (i lettori del sito tagliano i primi 10 caratteri e reggono; il
+  feed no). I documenti esistenti NON sono stati riscritti.
+Test: `python3 tests/wizard/dati_onesti.py` (81 check, handler Telegram veri
+con oggetti finti; parità con `FACTS.bedroomsOf`, `isBoilerplate` e
+`Date.parse` chiesta a Node) — 23 mutazioni prese. I test python del bot non
+sono in `npm test`: si lanciano a mano.
 
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
 Weekly LISTING QUALITY radar ("pagella"). Grades every AVAILABLE listing
@@ -6555,6 +6641,107 @@ di build, o e' invecchiata e va rigenerata.
 **Nota sui dati** (Firestore, non codice): due annunci su 19 dichiarano un
 numero di camere incoerente col proprio nome — «Bilocale Centro» con 3
 camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
+Corretto alla fonte il 15/10/2026: vedi «Il catalogo dalla via vera».
+
+## Il catalogo dalla via vera (15/10/2026) — `js/catalogo-correzioni.js` · `/catalogo` · `js/listing-facts.js`
+«Correggi gli annunci e dagli nomi in base all'indirizzo vero; minimo 3 mesi,
+mai 1.» Letto sui 27 annunci veri, non dedotto: tre case diverse si chiamavano
+«Bilocale Centro», due «Trilocale Pigneto»; il Capri 2 Bed usciva «1 bedroom» e
+un bilocale del Cappellari «3 bedrooms» (le superfici leggevano il PRIMO numero
+del testo libero `beds`); nove descrizioni pubbliche dicevano «unfurnished» su
+case di cui nessuno aveva dichiarato l'arredo (default della macchina); e il
+transitorio si presentava come l'offerta «1–18 months».
+- **La mappa** (`js/catalogo-correzioni.js`, UMD → `window.BOOM_CATALOGO_FIX`):
+  per ogni annuncio `{from, name, address, zone, why, fix, incerto?, verify[]}`.
+  Il nome viene dalla via (convenzione: «Cappellari Flat», «Corso One-Bed»,
+  «Avignonesi Studio»), `fix` porta solo correzioni provate dai dati,
+  `incerto` i fatti che i dati non decidono (le camere di tre case) e `verify`
+  ciò che l'assistente deve controllare sul posto. `descriptionIssues` è il
+  rilevatore della lista (mai più largo di `copyIssues` del server sui testi che
+  la macchina scrive), `regenerable` dice cosa si può riscrivere.
+- **Una regola per le camere e per l'arredo** (`js/listing-facts.js`):
+  `FACTS.bedroomsOf` — il campo strutturato `bedrooms` (intero 0–10) vince, il
+  testo `beds` vale solo se manca (1–10), 0 = monolocale, altrimenti null e si
+  tace; `FACTS.furnishedOf` — 'yes'/'no'/'partial' o booleano storico → true /
+  false / 'partial' / null (telefono e Pubblicista leggevano solo il booleano:
+  «arredo sconosciuto» su ogni casa vera). La leggono scheda SSR, llms, feed,
+  Pubblicista, Segugio, concierge, Commerciale, Segretaria, ricerca rovesciata,
+  telefono, interprete del bot, vetrina (copia inline), builder, bot (gemella
+  python). Il Segugio: «Studio» = solo un monolocale DICHIARATO. Il feed:
+  `<rooms>` solo quando il tipo nomina i locali, `<description language="it">`
+  solo dall'italiano vero. Il Pubblicista: `descriptionIt` è l'italiano (prima
+  riceveva l'inglese), `descriptionEn` l'inglese, `furnished` dalla regola —
+  l'hash cambia per TUTTI i pubblicabili (un update per portale per casa).
+- **Durata: minimo 3 mesi, mai 1.** Pagine (/executive in nove punti, /owners,
+  /corporate, la home e le sue FAQ, blog, faq), `llms.txt`, seo-config e
+  `testa.py`, le etichette del conto (`js/conto-engine.js`), i prompt del
+  concierge, del Commerciale e della Segretaria (`js/voce-engine.js`), le
+  regole del Copywriter. `api/executive-lead.js` accetta ancora una fascia
+  storica sotto i 3 mesi ma la marca `belowMinimum` e lo scrive nel riassunto
+  («da chiarire»). `tests/verita` è la regola di CLASSE: cinque famiglie di
+  forme (fascia, «da», minimo, «o più», nome dell'offerta) in EN/IT/FR, con
+  l'elenco di ciò che NON è una durata (deposito, preavviso, pratiche…).
+- **`/catalogo`** (`catalogo.html`, admin, noindex; nel portal «🏷️ Catalogo»):
+  l'anteprima ESATTA di ogni scrittura (nome dalla via, correzioni, testi da
+  rifare) e un «Applica» per annuncio in transazione: si rilegge dal server e,
+  se un valore è cambiato dopo il caricamento, su quell'annuncio non si scrive
+  niente e lo si dice. `nameOriginal` solo se manca, `updatedAt` del server.
+  Le scelte valgono sul valore che si vedeva (una rilettura le pota); nomi
+  vuoti, oltre 80 caratteri o doppi (senza accenti né maiuscole) bloccano; una
+  rilettura fallita toglie la lista; le camere `incerto` non sono
+  preselezionate. Poi i testi: `regenerate` a blocchi di 3 col Bearer admin,
+  DOPO i dati; l'esito dice la frase del server. `descriptionIssues` è una
+  copia FEDELE di `copyIssues` e `regenerable` lo specchio di `regenVerdict`:
+  chi cambia il server ricopia, e `tests/catalogo/strumento.mjs` (152 check)
+  cade finché non coincidono.
+- **La vetrina e le fotografie** (`scripts/catalogo-nomi.mjs`): riscrive PER
+  ID (mai per testo: tre annunci avevano lo stesso nome) nome e camere
+  incorporati in apartments, index, apartment-detail, try, your-money, board e
+  nelle fotografie `case-full.json` / `live-rows.json`, poi l'ItemList. La
+  fonte va detta: `--dalla-mappa` (la migrazione del 15/10) o
+  `--from-firestore`; `--dry`, `--check` (exit 1 se c'è da cambiare o se una
+  pagina non si allinea), argomento sconosciuto → exit 2. L'idrante di
+  vetrina, home e scheda rilegge da Firestore anche nome e camere (regola
+  inline gemella di bedroomsOf, identica nelle tre pagine); la scheda rilegge
+  anche le tre «altre case» con un `documents:batchGet` (nome, camere, stato,
+  canone, che prima non si vedeva mai). Camere illeggibili = `data-letti=""`,
+  che nessun filtro camere fa passare (mai «Studio»); la ricerca piega accenti
+  e apostrofi di iOS. I builder python leggono le camere da
+  `design/listing_facts.py` (gemella, parità con Node su 175 casi). Test:
+  `tests/catalogo/vetrina.mjs` — pagine = fotografia per id; i controlli
+  della mappa valgono finché la fotografia porta quei valori.
+- **Il modulo annuncio del portal**: camere dal campo strutturato (0 resta 0,
+  un vuoto non diventa mai 1; `min 0 · max 10`), select «Arredamento» (non
+  dichiarato · Arredato · In parte · Vuoto — mai 'no' per default),
+  descrizione corretta a mano → `descriptionSource:'portal:<email>'` +
+  `descriptionAt`, così la rigenerazione la salta; tabella con la regola
+  unica; badge «3-18 mesi (legge 1-18)». Su un annuncio esistente si scrive
+  SOLO ciò che l'operatore ha cambiato rispetto a come il modulo si è aperto
+  (derivati compresi: copertina, disponibilità, tag): una scheda aperta prima
+  dell'«Applica» non riporta indietro nomi e camere, e un salvataggio senza
+  cambiamenti non scrive niente, nemmeno `updatedAt`. Ogni valore del modulo è
+  escapato. Test: `tests/catalogo/portale.mjs` (97 check).
+- **Il giro delle case**: la lista per l'assistente è un artifact
+  («Il giro delle case», db condiviso, collection `giro`, un documento per
+  annuncio: dati, foto, civico, interno, data libera, bollette, descrizioni
+  EN/IT, note); si condivide invitando la sua email come **Editor** (Viewer e
+  Commenter leggono ma non salvano; un link pubblico toglie la scrittura agli
+  esterni). Quando ha finito, i suoi dati entrano nel catalogo dal portale o
+  da /catalogo — mai a mano su Firestore.
+- **Ordine del rilascio** (il codice legge da Firestore nomi e camere che solo
+  l'«Applica» corregge): merge su `main` → deploy → SUBITO `/catalogo` →
+  Applica → `node scripts/catalogo-nomi.mjs --from-firestore --check` (zero
+  modifiche; se l'operatore ha scelto nomi diversi dalla mappa:
+  `--from-firestore` e PR). Pubblicista in pausa (`settings/publisher
+  {enabled:false}`) finché codice e correzioni non sono entrambi in
+  produzione: con l'hash cambiato parte UN solo giro di update.
+- **Aperti** (15/10): tredici annunci portano un `createdAt` «…+00:00Z» che
+  `Date.parse` rifiuta (scritto dal bot; i lettori del sito reggono, il feed
+  no); cinque pubblicabili senza descrizione italiana; due annunci al
+  Piazzale Prenestino 42, stesso piano (forse la stessa casa: nella lista
+  dell'assistente).
+Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
+`tests/verita`, `python3 tests/wizard/dati_onesti.py`.
 
 ## Conventions
 
