@@ -29,6 +29,7 @@ function openModal(type,data){demoActions.push([type,data?.id]);demoNotice();}
 function confirmDelete(type,id,name){demoActions.push(['confirmDelete',type,id]);demoNotice();}
 function openValutazione(a,b,data){demoActions.push(['valuation',data.propertyId]);demoNotice();}
 function innestoSeedFromHash(){return false;}
+function aspiSeedFromHash(){return false;}
 async function loadDataFresh(){BOOM_PROPERTY_DOSSIER.setSourceState('loading');await new Promise(r=>setTimeout(r,30));BOOM_PROPERTY_DOSSIER.setSourceState('ready');}
 ${functions}
 ${popstate}

@@ -140,7 +140,7 @@ def carta(r):
         <div class="corpo">
           <div class="riga1"><span class="nome">{n}</span>
             <span class="canone"><span class="flap-prezzo flap-scale"
-              data-p="{euro(p)}" aria-label="{euro(p)} per month"></span><small>/mo</small></span></div>
+              data-p="{euro(p)}" aria-label="{euro(p)} per month">{euro(p)}</span><small>/mo</small></span></div>
           <div class="riga2">{dati}</div>
         </div>
       </a>'''
@@ -155,15 +155,25 @@ for r in mostrate:
     gruppi.setdefault(zona_di(r), []).append(r)
 ZONE = []
 for z, rr in gruppi.items():
-    disp = [x for x in rr if x['status'] == 'available']
-    base = disp or rr
+    # «disponibile» = la CORSIA now della card, non lo stato grezzo: una
+    # casa `available` con una data futura è da PRENOTARE, e il tabellone
+    # la marcava libera. Il «from» invece si misura sullo STESSO insieme
+    # della colonna «Homes» (tutta la zona): calcolato sulle sole libere
+    # ora, alzava il pavimento («Trieste · From €2,000» con Levico a
+    # €1,200 nella stessa zona) — un prezzo minimo falso.
+    disp = [x for x in rr if stato(x)[1] == 'si']
     ZONE.append({'z': z, 'n': len(rr),
-                 'da': euro(min(prezzo(x) for x in base)).rjust(6),
+                 'da': euro(min(prezzo(x) for x in rr)).rjust(6),
                  'si': bool(disp)})
 ZONE.sort(key=lambda x: (not x['si'], -x['n']))
 ALTRE = max(0, len(ZONE) - 8)
 ZONE = ZONE[:8]   # un tabellone si legge in un colpo d'occhio
-DISPONIBILI = sum(1 for r in mostrate if r['status'] == 'available')
+# i contatori dicono la STESSA cosa delle card: «Available now» si conta
+# dalla corsia (stato()[1] == 'si'), mai da status == 'available' — che
+# contava anche le case libere fra un anno (9 «available now» con 5 card
+# che lo dicevano). Le prenotabili con data si contano a parte.
+DISPONIBILI = sum(1 for r in mostrate if stato(r)[1] == 'si')
+PRENOTABILI = sum(1 for r in mostrate if stato(r)[1] == 'poi')
 ultimo = max(quando(r) for r in mostrate)
 giorni = (oggi - ultimo).days
 AGG = 'today' if giorni == 0 else 'yesterday' if giorni == 1 else \
@@ -301,8 +311,11 @@ else:
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
 
 DESCR = ('Browse ' + str(len(mostrate)) + ' verified apartments for rent in '
-         'Rome — every home walked in person by BOOM. Filter by zone, budget '
-         'and move-in date; ' + str(DISPONIBILI) + ' available now.')
+         'Rome — every home walked in person by BOOM. ' + str(DISPONIBILI)
+         + ' available now'
+         + ((', ' + str(PRENOTABILI) + ' to reserve with a date') if PRENOTABILI
+            else '')
+         + '. Filter by zone, budget, move-in.')
 h = h.replace(
     '<meta name="description" content="Verified mid-term apartment rentals in '
     'Rome for internationals — English-first, legal contracts, 48-hour '
@@ -324,4 +337,5 @@ if MODO == 'sito':
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '
-      f'{len(ZONE)} zone · {DISPONIBILI} disponibili · aggiornato {AGG}')
+      f'{len(ZONE)} zone · {DISPONIBILI} disponibili · {PRENOTABILI} prenotabili · '
+      f'aggiornato {AGG}')

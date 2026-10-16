@@ -27,6 +27,7 @@ const SENTINEL_OPEN = '<!-- BOOM_SEO:START -->';
 const SENTINEL_CLOSE = '<!-- BOOM_SEO:END -->';
 const JSONLD_OPEN = '<!-- BOOM_JSONLD:START -->';
 const JSONLD_CLOSE = '<!-- BOOM_JSONLD:END -->';
+const JSONLD_SLOT = '<!-- BOOM_JSONLD:SLOT -->';
 
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry');
@@ -65,7 +66,9 @@ function organizationJsonLd() {
     '@type': 'RealEstateAgent',
     '@id': SITE.ORIGIN + '/#organization',
     name: SITE.BRAND,
-    legalName: 'BOOM Rome',
+    legalName: 'Egidi Immobiliare S.r.l.',
+    vatID: 'IT17322991005',
+    telephone: '+39-331-325-1961',
     url: SITE.ORIGIN,
     logo: {
       '@type': 'ImageObject',
@@ -81,10 +84,15 @@ function organizationJsonLd() {
       'https://www.linkedin.com/company/boomrome',
       'https://wa.me/393313251961',
     ],
+    // La sede legale vera, nello stesso ordine di chiavi che le pagine
+    // pubblicano (ORG-FIX): un indirizzo inventato qui tornerebbe su ogni
+    // pagina al primo giro del generatore.
     address: {
       '@type': 'PostalAddress',
-      addressLocality: 'Rome',
-      addressRegion: 'Lazio',
+      streetAddress: 'Via dei Coronari 181/184',
+      postalCode: '00186',
+      addressLocality: 'Roma',
+      addressRegion: 'RM',
       addressCountry: 'IT',
     },
     areaServed: { '@type': 'City', name: 'Rome' },
@@ -123,42 +131,6 @@ function breadcrumbJsonLd(items) {
       name: b.name,
       item: absoluteUrl(b.url),
     })),
-  };
-}
-
-function localBusinessJsonLd() {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'LocalBusiness',
-    '@id': SITE.ORIGIN + '/#localbusiness',
-    name: SITE.BRAND,
-    image: SITE.DEFAULT_OG_IMAGE,
-    url: SITE.ORIGIN,
-    telephone: '+39 333 123 4567',
-    priceRange: '€€-€€€',
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: 'Via del Corso',
-      addressLocality: 'Rome',
-      addressRegion: 'Lazio',
-      postalCode: '00187',
-      addressCountry: 'IT',
-    },
-    geo: { '@type': 'GeoCoordinates', latitude: 41.9028, longitude: 12.4964 },
-    openingHoursSpecification: [
-      {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-        opens: '09:00',
-        closes: '19:00',
-      },
-      {
-        '@type': 'OpeningHoursSpecification',
-        dayOfWeek: ['Saturday'],
-        opens: '10:00',
-        closes: '14:00',
-      },
-    ],
   };
 }
 
@@ -205,72 +177,61 @@ function apartmentJsonLd(data, canonicalUrl) {
 
 function blogPostingJsonLd(cfg, canonicalUrl) {
   const a = cfg.article || {};
+  // Stesso nodo che le pagine pubblicano: @id stabile (il Blog lo elenca),
+  // autore = l'entita' vera, non un secondo "Organization" senza @id.
   return {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
-    headline: cfg.title.split(' | ')[0],
+    '@id': canonicalUrl + '#article',
+    headline: a.headline || cfg.title.split(' | ')[0],
     description: cfg.description,
     image: SITE.DEFAULT_OG_IMAGE,
     url: canonicalUrl,
     mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
     datePublished: a.datePublished || undefined,
     dateModified: a.dateModified || a.datePublished || undefined,
-    author: { '@type': 'Organization', name: SITE.BRAND, url: SITE.ORIGIN },
+    author: { '@id': SITE.ORIGIN + '/#organization' },
     publisher: { '@id': SITE.ORIGIN + '/#organization' },
+    inLanguage: 'en',
+    isPartOf: { '@id': SITE.ORIGIN + '/blog#blog' },
   };
 }
 
+// Le cinque domande della home, parola per parola come index.html le
+// mostra e le dichiara: una risposta che il generatore riscrivesse a modo suo
+// (commissione negata, codice fiscale «in 24–48 ore», 4+4 e foresteria) sarebbe
+// una frase che la pagina non dice.
 function faqPageJsonLd() {
+  const QA = [
+    [
+      'How fast can I move into a BOOM apartment in Rome?',
+      'Move-in can be as fast as 48 hours from approval on a home that is free now, once the lease is signed and the amount due at signing has arrived. Cases with visas or many documents take longer.',
+    ],
+    [
+      'Does BOOM charge broker fees?',
+      "BOOM charges one agency fee: 10% of one year's rent plus 22% VAT (12.2% of a year's rent in all), charged once and written into your pre-agreement before a single euro moves. The optional Property Finding Service is a flat €350, deducted from the agency fee on success and refunded in full if we don't present at least 3 matching options within 15 days.",
+    ],
+    [
+      'What contracts does BOOM use in Rome?',
+      'Fully legal Italian contracts — transitorio (1–18 months), rent-controlled 3+2 and student formats. Every contract is registered with the Agenzia delle Entrate.',
+    ],
+    [
+      'Can I view a Rome apartment remotely before signing?',
+      'Yes. Live video viewings of BOOM homes are free — you ask the questions, we walk the flat. You can sign remotely from your phone with the Magic Sign system.',
+    ],
+    [
+      'Do I need a codice fiscale to rent in Rome?',
+      "Yes — every legal rental contract in Italy requires a codice fiscale. It is free at any Agenzia delle Entrate office (form AA4/8, usually the same day), and non-EU citizens can often get it from the Italian consulate before leaving. If you'd rather not queue, BOOM's Concierge can obtain it remotely before you land.",
+    ],
+  ];
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: [
-      {
-        '@type': 'Question',
-        name: 'How fast can I move into a BOOM apartment in Rome?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text:
-            'Most BOOM tenants move in within 48 hours of signing. Some apartments are available same-day; complex cases (visa, multi-document onboarding) average 7 days.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Does BOOM charge broker fees?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text:
-            'No. BOOM does not charge broker fees on direct listings. The Property Finding Service is an optional flat €350 (refundable if no match) for bespoke apartment searches.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'What contracts does BOOM use in Rome?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text:
-            'BOOM uses fully legal Italian contracts — transitorio (1–18 months), 4+4, and uso foresteria for corporate tenants. Every contract is registered with the Agenzia delle Entrate.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Can I view a Rome apartment remotely before signing?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text:
-            'Yes. BOOM offers free live video viewings with professional verification, honest feedback, and live Q&A. You can sign remotely with our magic-sign system.',
-        },
-      },
-      {
-        '@type': 'Question',
-        name: 'Do I need a codice fiscale to rent in Rome?',
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text:
-            'Yes — every legal rental contract in Italy requires a codice fiscale. BOOM helps tenants obtain one in 24–48 hours as part of onboarding.',
-        },
-      },
-    ],
+    mainEntity: QA.map(([name, text]) => ({
+      '@type': 'Question',
+      name,
+      acceptedAnswer: { '@type': 'Answer', text },
+    })),
   };
 }
 
@@ -280,7 +241,7 @@ function howToJsonLd() {
     '@type': 'HowTo',
     name: 'How to rent a verified apartment in Rome with BOOM',
     description:
-      'Three steps from search to keys: browse verified listings, book a viewing, sign legally — move in within 48 hours.',
+      'Three steps from search to keys: browse verified listings, book a viewing, sign legally — move in as fast as 48 hours from approval when the home is free.',
     totalTime: 'P2D',
     step: [
       {
@@ -304,7 +265,7 @@ function howToJsonLd() {
         position: 3,
         name: 'Sign and move in',
         text:
-          'Sign a registered Italian contract online with BOOM magic-sign. Receive keys and move in within 48 hours.',
+          'Sign a registered Italian contract online with BOOM magic-sign. Receive keys: as fast as 48 hours from approval when the home is free.',
         url: SITE.ORIGIN + '/how-it-works',
       },
     ],
@@ -405,13 +366,21 @@ function contactPageJsonLd(canonicalUrl) {
 }
 
 function blogIndexJsonLd(canonicalUrl) {
+  // blogPost: gli @id degli articoli, derivati dal registro (ogni voce con
+  // schema BlogPosting) — mai una lista a mano che invecchia al primo post.
+  const blogPost = Object.values(PAGES)
+    .filter((c) => (c.schemas || []).includes('BlogPosting'))
+    .map((c) => ({ '@id': absoluteUrl(c.path) + '#article' }));
   return {
     '@context': 'https://schema.org',
     '@type': 'Blog',
+    '@id': SITE.ORIGIN + '/blog#blog',
     url: canonicalUrl,
     name: 'BOOM Blog',
     description: 'Rome rental guides, expat advice, scam protection, contracts and bureaucracy.',
+    inLanguage: 'en',
     publisher: { '@id': SITE.ORIGIN + '/#organization' },
+    blogPost,
   };
 }
 
@@ -434,7 +403,14 @@ function neighborhoodJsonLd(n, canonicalUrl) {
     ...(n.geo ? { geo: { '@type': 'GeoCoordinates', latitude: n.geo.lat, longitude: n.geo.lng } } : {}),
     containedInPlace: { '@type': 'City', name: 'Rome' },
     additionalProperty: [
-      { '@type': 'PropertyValue', name: 'Rent (1-bed, EUR/month)', minValue: n.stats.rentMin, maxValue: n.stats.rentMax, unitText: 'EUR' },
+      // Fascia indicativa del CHIESTO, dichiarata tale (come la pagina e
+      // le FAQ): la misura vera sta in /meteo. Dove il catalogo BOOM smentisce
+      // la forchetta (rentRangeUnreliable) il Place non la dichiara affatto:
+      // la pagina dice «Varies by building», e un motore legge questo nodo
+      // come un dato.
+      ...(n.rentRangeUnreliable ? [] : [
+        { '@type': 'PropertyValue', name: 'Indicative asking rent (1-bed, EUR/month), not a measured statistic', minValue: n.stats.rentMin, maxValue: n.stats.rentMax, unitText: 'EUR' },
+      ]),
       { '@type': 'PropertyValue', name: 'Walkability', value: `${n.stats.walkScore}/10` },
       { '@type': 'PropertyValue', name: 'Vibe', value: `${n.stats.vibeScore}/10` },
       { '@type': 'PropertyValue', name: 'Transit', value: `${n.stats.transitScore}/10` },
@@ -455,7 +431,7 @@ function neighborhoodFaqJsonLd(n) {
   };
 }
 
-function neighborhoodsCollectionJsonLd(canonicalUrl) {
+function neighborhoodsCollectionJsonLd(canonicalUrl, cfg) {
   let items = [];
   try {
     items = require('./neighborhoods-data').NEIGHBORHOODS.map((n, i) => ({
@@ -470,7 +446,7 @@ function neighborhoodsCollectionJsonLd(canonicalUrl) {
     '@type': 'CollectionPage',
     url: canonicalUrl,
     name: 'Rome Neighborhoods — Apartment Rentals',
-    description: 'BOOM\'s curated guides to renting in Rome\'s top 10 neighborhoods.',
+    description: (cfg && cfg.description) || 'BOOM\'s guides to renting in Rome\'s neighborhoods.',
     isPartOf: { '@id': SITE.ORIGIN + '/#website' },
     about: { '@type': 'Place', name: 'Rome' },
     mainEntity: {
@@ -495,11 +471,8 @@ function composeJsonLd(file, cfg, canonicalUrl) {
   for (const schema of cfg.schemas || []) {
     const [type, key] = schema.split(':');
     switch (type) {
-      case 'LocalBusiness':
-        blocks.push(localBusinessJsonLd());
-        break;
       case 'CollectionPage':
-        if (key === 'neighborhoods') blocks.push(neighborhoodsCollectionJsonLd(canonicalUrl));
+        if (key === 'neighborhoods') blocks.push(neighborhoodsCollectionJsonLd(canonicalUrl, cfg));
         else blocks.push(collectionPageJsonLd(canonicalUrl));
         break;
       case 'Neighborhood':
@@ -724,6 +697,13 @@ function processFile(file, cfg) {
     }
   }
 
+  // Il blocco JSON-LD esistente resta DOV'E' (le pagine hanno altri blocchi
+  // dopo, es. BOOM_SCROLL): si marca il posto, si ripulisce, e il blocco
+  // nuovo torna in quel posto. Solo una pagina che non l'aveva lo riceve in
+  // coda alla <head>.
+  const jsonLdRe = new RegExp(`${escapeRegex(JSONLD_OPEN)}[\\s\\S]*?${escapeRegex(JSONLD_CLOSE)}`);
+  if (jsonLdRe.test(headContent)) headContent = headContent.replace(jsonLdRe, JSONLD_SLOT);
+
   // Strip old SEO
   headContent = stripExisting(headContent);
 
@@ -749,8 +729,12 @@ function processFile(file, cfg) {
     headContent = `${metaBlock}\n` + headContent;
   }
 
-  // Append JSON-LD before end of head
-  headContent = headContent.replace(/\n*$/, '') + '\n' + (jsonLdBlock ? jsonLdBlock + '\n' : '');
+  // JSON-LD: al suo posto se c'era, altrimenti in coda alla <head>
+  if (headContent.includes(JSONLD_SLOT)) {
+    headContent = headContent.replace(JSONLD_SLOT, () => jsonLdBlock);
+  } else {
+    headContent = headContent.replace(/\n*$/, '') + '\n' + (jsonLdBlock ? jsonLdBlock + '\n' : '');
+  }
 
   // Rebuild
   const newHead = `${headOpen}${headContent}</head>`;

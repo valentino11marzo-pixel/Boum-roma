@@ -243,6 +243,23 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('convert: un solo contratto per il PA', contractDocs.length === 1);
 }
 
+// ═══ 7b. 4+4 / canone libero: nessun modello → nessun contratto (mai un Allegato B) ═══
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('properties/prop44', { ownerId: 'll44', name: 'Casa 44' });
+  const before = store.size;
+  const pa = {
+    status: 'accepted', propertyId: 'prop44', ref: 'BOOM-44',
+    tenant: { fullName: 'Lia Bo', email: 'lia@x.it' },
+    money: { rent: 1500, deposit: 3000, depositMonths: 2 }, lease: { type: '4+4 Residential', months: 48, startDate: '2026-11-01' },
+  };
+  const out = await convertPaToContract({ pa, paId: 'pa44' });
+  check('convert 4+4: rifiuta con no_template (nessun contratto transitorio al suo posto)', out.ok === false && out.error === 'no_template' && out.model === '4+4');
+  check('convert 4+4: nessuna scrittura (né contratto né profilo)', !store.has('contracts/pa_pa44') && store.size === before);
+  const out2 = await convertPaToContract({ pa: { ...pa, lease: { ...pa.lease, type: 'Transitional Lease' } }, paId: 'pa44t' });
+  check('convert: il transitorio continua a nascere', out2.ok && store.has('contracts/pa_pa44t'));
+}
+
 // ═══ 8. Link di pagamento (token derivato + ramo INVOICE) ═══
 {
   const { payToken, verifyPayToken, payLink, collectionFor } = await import('../../api/payments/_token.js');

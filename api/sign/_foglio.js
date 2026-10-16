@@ -140,6 +140,23 @@ export function sheetRows({ contract, property }) {
   rows.push(R('Deposito cauzionale', Number(depAmount) > 0 ? esc(eur(depAmount)) : (studenti ? 'nessuno' : ND), Number(depAmount) > 0 && depMonths ? depMonths + ' mensilità' : null));
   rows.push(R('Cedolare secca', `<b>${rli.cedolare ? 'SÌ' : 'NO'}</b>`, rli.cedolare ? 'esente da imposta di registro e bollo (art. 3 D.Lgs. 23/2011)' : `imponibile registro ${esc(eur(rli.imponibileRegistro))} (70%) · imposta di registro ${esc(eur(rli.impostaRegistro))} · bollo ${esc(eur(rli.bollo))}`));
   rows.push(R('Oneri accessori', read('condoMode') === 'incluso' ? 'compresi nel canone' : (read('oneriQuota') ? esc(eur(read('oneriQuota'))) + ' al mese, salvo conguaglio' : 'a consuntivo (Tabella oneri accessori, allegato D)')));
+  // IBAN per FINALITÀ e FONTE (15/10/2026, review): il conto del canone e il
+  // conto per l'addebito dei tributi sono due dati diversi; nessuno dei due
+  // si deduce dall'altro né dal conto aziendale. Mancante = «non dichiarato».
+  {
+    const ib = (x) => String(x || '').replace(/\s+/g, '').toUpperCase();
+    const rentIban = ib(read('landlordIban'));
+    const rentSrc = c.landlordIban ? 'dal contratto' : (rentIban ? 'dal profilo del locatore' : '');
+    rows.push(R('IBAN canone (locatore)', rentIban ? esc(rentIban) : ND, rentIban ? 'dove si versa il canone · ' + rentSrc : 'finalità: incasso del canone'));
+    const debit = ib(read('rliDebitIban')), holder = read('rliDebitHolder');
+    const debitNote = rli.cedolare
+      ? 'con cedolare secca non ci sono imposta di registro né bollo da addebitare'
+      : 'finalità: addebito imposta di registro e bollo · deve essere intestato al richiedente RLI';
+    rows.push(R('Conto addebito tributi RLI', debit ? `<b>${esc(debit)}</b>` : ND,
+      [debit ? (holder ? 'intestato a ' + esc(holder) : '<b>intestatario non dichiarato</b>') + ' · dichiarato dall\'operatore' : null,
+       debit && rentIban && debit === rentIban ? 'coincide con l\'IBAN del canone: dichiarato così, non dedotto' : null,
+       debitNote].filter(Boolean).join(' · ')));
+  }
   rows.push(R('Uso / conviventi', v(read('cohabitants') || (cos.length ? '' : 'nessuno'))));
   if (studenti) {
     rows.push(R('Corso di studi', v(read('studCorsoStudi'))));

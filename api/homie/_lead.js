@@ -109,6 +109,35 @@ export function mergeMessage(prev, next) {
   return (a + '\n' + b).slice(0, MAX_MESSAGE);
 }
 
+// ── da dove arriva chi scrive ──────────────────────────────────────────────
+// js/boom-track.js, solo col consenso analitico, aggiunge al messaggio
+// precompilato dei link WhatsApp del sito una riga «(ref: ai:chatgpt)». È la
+// sola fonte che una chat può portarsi dietro: si legge qui e diventa
+// `attribution` («whatsapp · ai:chatgpt»), lo stesso campo stringa che le
+// porte del sito scrivono (api/_attribution.js). Il messaggio resta intero.
+//
+// Solo ciò che il tracker emette (15/10/2026): `refToken()` scrive
+// «ai:<motore>» (motori in minuscolo, col trattino basso: meta_ai) oppure il
+// canale, cioè un nome fisso o l'utm_source di al più 40 caratteri. Prima
+// passava qualunque testo fino a 120 caratteri dentro «(ref: …)»: un codice
+// di bonifico, una nota scritta a mano o un tag HTML digitati da chi scrive
+// diventavano la FONTE del lead.
+const REF_RE = /\(ref: (ai:[a-z_]{2,20}|[A-Za-z0-9_.-]{1,40})\)/;
+
+export function waRef(text) {
+  const m = REF_RE.exec(String(text || ''));
+  if (!m) return null;
+  const ref = m[1].replace(/[\u0000-\u001f]/g, ' ').trim();
+  return ref ? 'whatsapp · ' + ref : null;
+}
+
+/** Il pezzo di patch per un lead GIÀ esistente: la fonte si riempie solo se mancava. */
+export function waRefPatch(lead, text) {
+  if (lead && lead.attribution) return {};
+  const a = waRef(text);
+  return a ? { attribution: a } : {};
+}
+
 /**
  * Il doc `leads` da un messaggio WhatsApp. Puro: nessuna I/O, testabile.
  * Stesso schema di homie/inbound e leads/scan-inbox — niente fork.
@@ -130,6 +159,7 @@ export function buildLead({ text, phone, name, listing, messageId, conversationI
     propertyPrice: listing ? (listing.price || null) : null,
     status: 'new',
     sourceRef: messageId ? String(messageId).slice(0, 200) : null,
+    attribution: waRef(text),
     conversationId: conversationId || null,
     raw: { via: 'homie/message', channel: 'whatsapp' },
     createdAt: at || new Date(),

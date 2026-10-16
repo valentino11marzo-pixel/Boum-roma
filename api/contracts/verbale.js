@@ -192,7 +192,12 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
         const img = s.img.kind === 'png' ? await pdf.embedPng(s.img.buf) : await pdf.embedJpg(s.img.buf);
         const sc = Math.min(colW / img.width, sigH / img.height);
         page.drawImage(img, { x, y: y - 12 - sigH + (sigH - img.height * sc) / 2, width: img.width * sc, height: img.height * sc });
-      } catch { /* firma non renderizzabile: resta nome+riga */ }
+      } catch {
+        // Una foto accessoria può mancare; una firma dichiarata no.
+        const error = new Error('signature_unreadable');
+        error.code = 'signature_unreadable';
+        throw error;
+      }
       line(y - 16 - sigH, x, x + colW, 0.7);
       T(s.name, x, y - 26 - sigH, 9, font, ink);
     }
@@ -215,7 +220,22 @@ async function trySend(to, subject, html, attachments) {
   } catch (e) { console.warn('[verbale] send', to, e.message); return { ok: false, error: e.message }; }
 }
 
-async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keysCount }) {
+// L'inventario (PDF a sé, /inventario) viaggia ACCANTO al verbale: il
+// verbale dice che è allegato, e fino al 15/10/2026 il cliente non lo
+// riceveva mai — restava all'operatore. Best-effort e time-boxed.
+async function fetchInventarioPdf(inv) {
+  const u = inv && inv.url;
+  if (!u || !/^https:\/\/firebasestorage\.googleapis\.com\//.test(String(u))) return null;
+  try {
+    const r = await Promise.race([fetch(u), new Promise((_, rej) => setTimeout(() => rej(new Error('inv_timeout')), 8000))]);
+    if (!r || !r.ok) return null;
+    const content = Buffer.from(await r.arrayBuffer());
+    if (!content.length || content.length > 8 * 1024 * 1024) return null;
+    return { filename: 'BOOM_Inventario.pdf', content, contentType: 'application/pdf' };
+  } catch (e) { console.warn('[verbale] inventario', e.message); return null; }
+}
+
+async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keysCount, inventario }) {
   const propLabel = clip(property.address || property.name || '', 90);
   const tenant = contract.tenantId ? await fsGet('users/' + contract.tenantId).catch(() => null) : null;
   const ownerId = property.ownerId;
@@ -223,8 +243,14 @@ async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keys
   const landlordR = ownerId ? await fsGet('landlords/' + ownerId).catch(() => null) : null;
   const tenantEmail = (tenant && tenant.email) || contract.tenantEmail || '';
   const landlordEmail = (landlordU && landlordU.email) || (landlordR && landlordR.email) || contract.landlordEmail || '';
-  const att = pdfBytes && pdfBytes.length < 8 * 1024 * 1024
-    ? [{ filename: 'BOOM_Verbale_consegna.pdf', content: pdfBytes, contentType: 'application/pdf' }] : undefined;
+  const invPdf = await fetchInventarioPdf(inventario);
+  const attList = [
+    pdfBytes && pdfBytes.length < 8 * 1024 * 1024 ? { filename: 'BOOM_Verbale_consegna.pdf', content: pdfBytes, contentType: 'application/pdf' } : null,
+    invPdf,
+  ].filter(Boolean);
+  const att = attList.length ? attList : undefined;
+  const invEN = invPdf ? para('Also attached: the <strong>inventory</strong> of the furniture and fittings, room by room — together with this report it is what gets compared at move-out.') : '';
+  const invIT = invPdf ? para('In allegato anche l\'<strong>inventario</strong> di arredi e dotazioni, stanza per stanza.') : '';
 
   // Conduttori — EN (l'inquilino BOOM è un expat)
   const toTenants = [tenantEmail].concat((Array.isArray(contract.coTenants) ? contract.coTenants : []).map((c) => c && c.email).filter(Boolean)).filter(Boolean);
@@ -234,6 +260,7 @@ async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keys
     await trySend(to, '🔑 Keys delivered — your handover report', shell(
       para(`Welcome home! Today (${when.d}) you received the keys to <strong>${propLabel}</strong>.`)
       + para(`Attached is the official <strong>handover report</strong> (verbale di consegna): keys delivered${keysCount ? ` (${keysCount})` : ''}, meter readings and the condition of the apartment at move-in. Keep it — it protects your deposit at the end of the lease.`)
+      + invEN
       + btn(url, 'Open the handover report')
       + fine('Meter readings in this report are the official starting point for your utility bills.'),
       'Your keys + handover report'), att);
@@ -243,6 +270,7 @@ async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keys
     await trySend(landlordEmail, '🔑 Consegna chiavi effettuata — verbale in allegato', shell(
       para(`In data ${when.d} sono state consegnate le chiavi di <strong>${propLabel}</strong> al conduttore.`)
       + para('In allegato il <strong>verbale di consegna</strong> firmato: chiavi, letture contatori e stato dell\'immobile. Le letture fanno fede per volture e riparto consumi.')
+      + invIT
       + btn(url, 'Apri il verbale')
       + fine('Documento archiviato automaticamente nel fascicolo del contratto.'),
       'Verbale di consegna firmato'), att);
@@ -274,6 +302,10 @@ export default async function handler(req, res) {
   const consegnanti = firme.filter((f) => f && f.kind === 'consegnante' && dataUriToBuf(f.sig));
   if (!conduttori.length) return res.status(400).json({ ok: false, error: 'tenant_signature_required' });
   if (consegnanti.length !== 1) return res.status(400).json({ ok: false, error: 'operator_signature_required' });
+  for (const firma of firme) {
+    if (!clip(firma && firma.name, 60)) return res.status(400).json({ ok: false, error: 'signer_name_required' });
+    if (!dataUriToBuf(firma.sig)) return res.status(400).json({ ok: false, error: 'signature_unreadable' });
+  }
   for (const p of (Array.isArray(body.photos) ? body.photos : [])) {
     if (p && String(p.base64 || '').length > MAX_PHOTO * 1.4) return res.status(413).json({ ok: false, error: 'photo_too_large' });
   }
@@ -323,11 +355,12 @@ export default async function handler(req, res) {
       needsFiling: false, shared: false, createdAt: new Date(),
     }).catch((e) => console.warn('[verbale] documents filing:', e.message));
 
-    await sendVerbaleEmails({ contract, property, url, pdfBytes, when, keysCount });
+    await sendVerbaleEmails({ contract, property, url, pdfBytes, when, keysCount, inventario: contract.inventario || property.inventario || null });
     logActivity('Verbale consegna generato', 'contract', { contractId, keysCount }, auth.email || 'admin').catch(() => {});
 
     return res.status(200).json({ ok: true, url });
   } catch (e) {
+    if (e.code === 'signature_unreadable') return res.status(400).json({ ok: false, error: 'signature_unreadable' });
     console.error('[verbale] failed:', e.message);
     return res.status(500).json({ ok: false, error: 'verbale_failed' });
   }

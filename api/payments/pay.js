@@ -170,7 +170,7 @@ export default async function handler(req, res) {
         month: String(pay.month || ''), amount: String(amount), fee: String(fee),
       },
       success_url: 'https://www.boomrome.com/casa?paid=' + encodeURIComponent(paymentId),
-      cancel_url: 'https://www.boomrome.com/casa',
+      cancel_url: 'https://www.boomrome.com/casa?contract=' + encodeURIComponent(pay.contractId || ''),
       // Short expiry: abandoned sessions die in 30 min instead of Stripe's
       // 24h default — shrinks the stale-session double-payment window.
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,

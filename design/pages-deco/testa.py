@@ -2,7 +2,8 @@
 # LA TESTA DI PARITA — tutto cio che le pagine live possiedono e che il
 # cablaggio non deve perdere: gtag, icone/manifest, robots, twitter, og
 # completi e i JSON-LD (RealEstateAgent, WebSite+SearchAction,
-# LocalBusiness, FAQPage, CollectionPage, Breadcrumb). Estratti dalle
+# FAQPage, CollectionPage, Breadcrumb — il LocalBusiness e' stato tolto il
+# 15/10/2026, vedi sotto). Estratti dalle
 # pagine live 2026-08-13; UNICA correzione: il telefono segnaposto
 # +39 333 123 4567 / wa.me/393331234567 delle vecchie teste diventa il
 # numero VERO usato in tutto il sito (wa.me/393313251961).
@@ -92,8 +93,13 @@ AGENZIA = {
     'sameAs': ['https://www.instagram.com/boomrome',
                'https://www.linkedin.com/company/boomrome',
                'https://wa.me/393313251961'],
-    'address': {'@type': 'PostalAddress', 'addressLocality': 'Rome',
-                'addressRegion': 'Lazio', 'addressCountry': 'IT'},
+    # l'entita' completa: gli stessi dati che il piede di pagina stampa
+    # (P.IVA, sede, telefono) — un nodo senza indirizzo vero non e' un'entita'.
+    'vatID': 'IT17322991005', 'telephone': '+39-331-325-1961',
+    'address': {'@type': 'PostalAddress',
+                'streetAddress': 'Via dei Coronari 181/184',
+                'postalCode': '00186', 'addressLocality': 'Roma',
+                'addressRegion': 'RM', 'addressCountry': 'IT'},
     'areaServed': {'@type': 'City', 'name': 'Rome'},
     'priceRange': '€€-€€€',
 }
@@ -111,23 +117,10 @@ SITO_WEB = {
     'inLanguage': ['en', 'it'],
 }
 
-NEGOZIO = {
-    '@context': 'https://schema.org', '@type': 'LocalBusiness',
-    '@id': 'https://www.boomrome.com/#localbusiness',
-    'name': 'BOOM Rome', 'image': IMG_SOCIAL,
-    'url': 'https://www.boomrome.com', 'telephone': '+39 331 325 1961',
-    'priceRange': '€€-€€€',
-    'address': {'@type': 'PostalAddress', 'addressLocality': 'Rome',
-                'addressRegion': 'Lazio', 'addressCountry': 'IT'},
-    'geo': {'@type': 'GeoCoordinates', 'latitude': 41.9028,
-            'longitude': 12.4964},
-    'openingHoursSpecification': [
-        {'@type': 'OpeningHoursSpecification',
-         'dayOfWeek': ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-         'opens': '09:00', 'closes': '19:00'},
-        {'@type': 'OpeningHoursSpecification', 'dayOfWeek': ['Saturday'],
-         'opens': '10:00', 'closes': '14:00'}],
-}
+# NEGOZIO (LocalBusiness #localbusiness) e' stato tolto il 15/10/2026: il
+# suo 'geo' era il centroide generico di Roma (41.9028, 12.4964) e gli orari
+# non sono pubblicati da nessuna parte. Un secondo nodo con un punto finto
+# sulla mappa e orari inventati faceva concorrenza a #organization.
 
 FAQ_HOME = {
     '@context': 'https://schema.org', '@type': 'FAQPage',
@@ -135,16 +128,18 @@ FAQ_HOME = {
         {'@type': 'Question',
          'name': 'How fast can I move into a BOOM apartment in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
-            'Move-in can be as fast as 48 hours from signing when the home '
-            'is free — some same-day. Complex cases (visa, multi-document '
-            'onboarding) usually take about a week.'}},
+            'Move-in can be as fast as 48 hours from approval on a home '
+            'that is free now, once the lease is signed and the amount due '
+            'at signing has arrived. Cases with visas or many documents '
+            'take longer.'}},
         {'@type': 'Question', 'name': 'Does BOOM charge broker fees?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
-            'BOOM charges one flat agency fee, written into your '
-            'pre-agreement before a single euro moves — no hidden extras. '
-            'The optional Property Finding Service is a flat €350, deducted '
-            'from the agency fee on success and refunded if we don\'t '
-            'deliver.'}},
+            'BOOM charges one agency fee: 10% of one year\'s rent plus 22% '
+            'VAT (12.2% of a year\'s rent in all), charged once and written '
+            'into your pre-agreement before a single euro moves. The '
+            'optional Property Finding Service is a flat €350, deducted from '
+            'the agency fee on success and refunded in full if we don\'t '
+            'present at least 3 matching options within 15 days.'}},
         {'@type': 'Question', 'name': 'What contracts does BOOM use in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
             'Fully legal Italian contracts — transitorio (1–18 months), '
@@ -160,14 +155,17 @@ FAQ_HOME = {
          'name': 'Do I need a codice fiscale to rent in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
             'Yes — every legal rental contract in Italy requires a codice '
-            'fiscale. BOOM helps tenants obtain one in 24–48 hours as part '
-            'of onboarding.'}}],
+            'fiscale. It is free at any Agenzia delle Entrate office (form '
+            'AA4/8, usually the same day), and non-EU citizens can often get '
+            'it from the Italian consulate before leaving. If you\'d rather '
+            'not queue, BOOM\'s Concierge can obtain it remotely before you '
+            'land.'}}],
 }
 
 def blocco_home(titolo, descr):
     return (_og(titolo, descr, 'https://www.boomrome.com/') + '\n'
             + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
-            + _ld(AGENZIA, SITO_WEB, NEGOZIO, FAQ_HOME))
+            + _ld(AGENZIA, SITO_WEB, FAQ_HOME))
 
 def blocco_discovery(titolo, descr, n_case, immagine=IMG_SOCIAL):
     raccolta = {

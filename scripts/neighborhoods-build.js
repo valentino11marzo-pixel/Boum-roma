@@ -13,6 +13,15 @@
  *
  * Run:
  *   node scripts/neighborhoods-build.js
+ *
+ * The committed pages ALSO carry the head blocks written by
+ * scripts/seo-update.js (BOOM_SEO meta, BOOM_JSONLD: organization, place,
+ * FAQPage). A rebuild alone drops them: run seo-update.js right after.
+ * Everything else must come out of this file identical to what is shipped
+ * — tests/zone/run.mjs compares pageHtml()/hubHtml() with the committed
+ * pages (those two head blocks aside), so a hand edit to a page that is
+ * not mirrored here fails the suite instead of being erased at the next
+ * rebuild. Requiring this module writes nothing; only running it does.
  */
 
 const fs = require('fs');
@@ -21,7 +30,6 @@ const { NEIGHBORHOODS } = require('./neighborhoods-data');
 
 const ROOT = path.resolve(__dirname, '..');
 const OUT_DIR = path.join(ROOT, 'apartments-in');
-if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const ESC = (s) =>
   String(s)
@@ -103,6 +111,8 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .stat{padding:18px;text-align:center}
 .stat-value{font-size:clamp(20px,3vw,28px);font-weight:300;color:var(--gold);letter-spacing:-.01em;margin-bottom:4px}
 .stat-label{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:2px}
+.stat-note{margin-top:8px;font-size:11px;color:var(--text3);line-height:1.45}
+.stat-note a{color:var(--gold);border-bottom:1px solid var(--border-g)}
 @media(max-width:880px){.stats{padding:18px 20px;grid-template-columns:repeat(2,1fr);gap:0}.stat{padding:14px;border-bottom:1px solid var(--border)}.stat:nth-child(odd){border-right:1px solid var(--border)}.stat:nth-child(n+3){border-bottom:none}}
 
 /* AUDIENCE CHIPS */
@@ -231,6 +241,113 @@ const LOGO_SVG = `<svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.
 </svg>`;
 
 /* ────────────────────────────────────────────────────────────────────
+ *  Il contratto di scorrimento (css/boom-scroll.css + js/boom-scroll.js),
+ *  inline come su ogni pagina pubblica: copiato byte per byte dalle pagine
+ *  pubblicate (apartments-in/prati.html). Senza, una rigenerazione lo
+ *  toglieva e tests/scroll cadeva.
+ * ──────────────────────────────────────────────────────────────────── */
+const SCROLL_BLOCK = `<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: \`scroll-margin\`
+ * e \`scroll-padding\` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * \`scroll-padding-top\` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), \`scrollIntoView()\` e \`:target\`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' \`scroll-padding-top\` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': \`elementsFromPoint\` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->`;
+
+/* ────────────────────────────────────────────────────────────────────
  *  Page sections
  * ──────────────────────────────────────────────────────────────────── */
 
@@ -283,7 +400,6 @@ function footerHtml() {
         <h4>Browse</h4>
         <a href="/apartments">All Apartments</a>
         <a href="/apartments-in">By Neighborhood</a>
-        <a href="/deals">Current Deals</a>
         <a href="/blog">Blog</a>
       </div>
       <div class="foot-col">
@@ -311,7 +427,10 @@ function footerHtml() {
  * ──────────────────────────────────────────────────────────────────── */
 function pageHtml(n, allNeighborhoods) {
   const canonical = `https://www.boomrome.com/apartments-in/${n.slug}`;
-  const rentRange = `€${n.stats.rentMin.toLocaleString()}–€${n.stats.rentMax.toLocaleString()}`;
+  // rentRangeUnreliable: BOOM's own catalogue contradicts the range, so the
+  // page does not state it (the stat-note still points to /meteo).
+  const rentRange = n.rentRangeUnreliable ? 'Varies by building'
+    : `€${n.stats.rentMin.toLocaleString()}–€${n.stats.rentMax.toLocaleString()}`;
   const audienceChips = n.audience.map((a) => `<span class="chip">${ESC(a)}</span>`).join('');
 
   // Reading time — ~220 words per minute over body copy
@@ -397,13 +516,14 @@ function pageHtml(n, allNeighborhoods) {
 
   <!-- Google tag -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ')</script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ')</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600&display=swap" rel="stylesheet">
 
   <style>${SHARED_CSS}</style>
+${SCROLL_BLOCK}
 </head>
 <body>
 
@@ -423,13 +543,13 @@ ${navHtml('/apartments-in')}
   <p class="hero-vibe">${ESC(n.shortVibe)}</p>
   <div class="hero-actions">
     <a href="#listings" class="btn btn-primary">See Apartments in ${ESC(n.name)} →</a>
-    <a href="/book" class="btn btn-ghost">Book a Viewing</a>
+    <a href="/book?zone=${n.slug}" class="btn btn-ghost">Book a Viewing</a>
   </div>
   <div class="reading-time">${readMin} min read · honest take from BOOM</div>
 </header>
 
 <section class="stats" aria-label="${ESC(n.name)} at a glance">
-  <div class="stat"><div class="stat-value">${rentRange}</div><div class="stat-label">1-Bed Rent · €/mo</div></div>
+  <div class="stat"><div class="stat-value">${rentRange}</div><div class="stat-label">1-Bed Rent · €/mo</div><div class="stat-note">Indicative asking range · <a href="/meteo">measured market data →</a></div></div>
   <div class="stat"><div class="stat-value">${n.stats.walkScore}/10</div><div class="stat-label">Walkability</div></div>
   <div class="stat"><div class="stat-value">${n.stats.vibeScore}/10</div><div class="stat-label">Vibe Rating</div></div>
   <div class="stat"><div class="stat-value">${n.stats.transitScore}/10</div><div class="stat-label">Transit</div></div>
@@ -453,9 +573,9 @@ ${navHtml('/apartments-in')}
 ${commuteHtml}
 
 <section class="section listings-section" id="listings">
-  <span class="section-eyebrow">Available now</span>
+  <span class="section-eyebrow">Live listings</span>
   <h2 class="section-title">Apartments in ${ESC(n.name)}</h2>
-  <p class="section-subtitle">Live from our Firestore — verified by BOOM, ready for viewing.</p>
+  <p class="section-subtitle">Live from BOOM's catalogue: each card says whether the home is free now or from which date.</p>
   <div class="listings-grid" id="listingsGrid" data-zone-match="${ESC(matchTermsAttr)}">
     <div class="listings-loading">Loading apartments…</div>
   </div>
@@ -492,7 +612,7 @@ ${relatedSection}
   <h2 class="cta-title">Ready to live in ${ESC(n.name)}?</h2>
   <p class="cta-sub">Book a free video viewing of any apartment, or have BOOM find you one that matches your brief.</p>
   <div class="cta-actions">
-    <a href="/book" class="btn btn-primary">Book a Viewing</a>
+    <a href="/book?zone=${n.slug}" class="btn btn-primary">Book a Viewing</a>
     <a href="/property-finding" class="btn btn-ghost">Have BOOM Find Me One</a>
   </div>
 </section>
@@ -514,6 +634,7 @@ ${footerHtml()}
 <!-- Firebase + Firestore for live listings -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="/js/dispo-engine.js"></script>
 <script>
 firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",storageBucket:"boom-property-dashboards.firebasestorage.app",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
 const db=firebase.firestore();
@@ -526,8 +647,12 @@ const db=firebase.firestore();
     const snap=await db.collection('listings').get();
     const all=snap.docs.map(d=>({id:d.id,...d.data()}));
     const matched=all.filter(l=>{
-      const s=(l.status||l.availabilityStatus||'').toLowerCase();
-      if(s==='rented'||s==='affittato'||s==='off_market')return false;
+      // La corsia condivisa (js/dispo-engine.js): fuori solo cio' che non si
+      // affitta ne' si prenota; una casa occupata con una data resta e la dice.
+      // Prima ancora: bozze, nascoste e archiviate non escono mai (stessa regola
+      // di api/listing.js, che le serve noindex «not on the market»).
+      if(/hidden|draft|archived|off_market/i.test(String(l.status||l.availabilityStatus||'')))return false;
+      const D=window.BOOM_DISPO; if(D){l._lane=D.marketLane(l); if(l._lane.lane==='closed')return false;} else {const s=(l.status||l.availabilityStatus||'').toLowerCase(); if(s==='rented'||s==='affittato'||s==='off_market'||s==='reserved')return false;}
       const blob=((l.zone||'')+' '+(l.neighborhood||'')+' '+(l.address||'')+' '+(l.name||'')).toLowerCase();
       return terms.some(t=>blob.includes(t));
     });
@@ -540,9 +665,10 @@ const db=firebase.firestore();
       const price=l.price?'€'+Number(l.price).toLocaleString():'—';
       const sqm=l.sqm||l.size;
       const beds=l.beds||l.bedrooms;
-      const meta=[sqm&&sqm+'m²',beds&&(beds+' bed'+(beds>1?'s':''))].filter(Boolean).join(' · ');
+      const lc=(window.BOOM_DISPO&&l._lane)?BOOM_DISPO.laneCopy(l._lane,'en').short:'';
+      const meta=[sqm&&sqm+'m²',beds&&(beds+' bed'+(beds>1?'s':'')),lc].filter(Boolean).join(' · ');
       const img=l.image||(l.images&&l.images[0])||'';
-      return '<a class="listing-card" href="/apartments/'+encodeURIComponent(l.id)+'">'
+      return '<a class="listing-card" href="/listing/'+encodeURIComponent(l.id)+'">'
         +'<div class="listing-img"'+(img?' style="background-image:url(\\''+img+'\\')"':'')+'></div>'
         +'<div class="listing-body">'
         +'<div class="listing-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'
@@ -558,6 +684,15 @@ const db=firebase.firestore();
   }
 })();
 
+// La disponibilita' dichiarata ai motori segue la stessa corsia della card:
+// InStock solo su una casa libera adesso con una data leggibile, PreOrder con
+// la data quando si prenota in anticipo, nessuna dichiarazione altrimenti.
+function offerAvailability(m){
+  if(m&&m.lane==='now'&&!m.dateUnreadable)return {"availability":"https://schema.org/InStock"};
+  if(m&&m.lane==='ahead'&&m.iso)return {"availability":"https://schema.org/PreOrder","availabilityStarts":m.iso};
+  return {};
+}
+
 function injectItemListJsonLd(items){
   const SENT='data-seo-neighborhood-itemlist';
   document.head.querySelectorAll('script['+SENT+']').forEach(s=>s.remove());
@@ -567,13 +702,13 @@ function injectItemListJsonLd(items){
     "numberOfItems":items.length,
     "itemListElement":items.slice(0,25).map((l,i)=>({
       "@type":"ListItem","position":i+1,
-      "url":"https://www.boomrome.com/apartments/"+encodeURIComponent(l.id),
+      "url":"https://www.boomrome.com/listing/"+encodeURIComponent(l.id),
       "name":l.name||"Apartment",
       "item":{
         "@type":"Apartment","name":l.name||"Apartment",
-        "url":"https://www.boomrome.com/apartments/"+encodeURIComponent(l.id),
+        "url":"https://www.boomrome.com/listing/"+encodeURIComponent(l.id),
         "address":{"@type":"PostalAddress","addressLocality":"Rome","addressRegion":"Lazio","addressCountry":"IT"},
-        ...(l.price?{"offers":{"@type":"Offer","price":Number(l.price),"priceCurrency":"EUR","availability":"https://schema.org/InStock"}}:{})
+        ...(l.price?{"offers":Object.assign({"@type":"Offer","price":Number(l.price),"priceCurrency":"EUR"},offerAvailability(l._lane))}:{})
       }
     }))
   };
@@ -581,6 +716,9 @@ function injectItemListJsonLd(items){
 }
 </script>
 
+
+<script defer src="/js/boom-consent.js"></script>
+<script defer src="/js/boom-track.js"></script>
 </body>
 </html>`;
 }
@@ -590,7 +728,8 @@ function injectItemListJsonLd(items){
  * ──────────────────────────────────────────────────────────────────── */
 function hubHtml() {
   const cards = NEIGHBORHOODS.map((n) => {
-    const rentRange = `€${n.stats.rentMin.toLocaleString()}–€${n.stats.rentMax.toLocaleString()}`;
+    const rentRange = n.rentRangeUnreliable ? 'See listings'
+      : `€${n.stats.rentMin.toLocaleString()}–€${n.stats.rentMax.toLocaleString()}`;
     return `<a class="hub-card" href="/apartments-in/${n.slug}">
       <div class="hub-card-head">
         <span class="hub-card-name">${ESC(n.name)}</span>
@@ -619,7 +758,7 @@ function hubHtml() {
   <!-- BOOM_SEO:placeholder — populated by scripts/seo-update.js -->
 
   <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
-  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-EYCD59RDVJ')</script>
+  <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ')</script>
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -635,6 +774,7 @@ function hubHtml() {
   .hub-card-vibe{font-size:14px;color:var(--text2);line-height:1.6;margin-bottom:18px;min-height:44px}
   .hub-card-stats{display:flex;gap:14px;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:1.5px;padding-top:16px;border-top:1px solid var(--border);margin-bottom:18px}
   .hub-card-cta{font-size:12px;color:var(--gold);text-transform:uppercase;letter-spacing:2px;font-weight:500}
+  .hub-note{margin:0 0 18px}
   </style>
 </head>
 <body>
@@ -650,7 +790,7 @@ ${navHtml('/apartments-in')}
 <header class="hero">
   <span class="hero-eyebrow">Rome Neighborhood Guides</span>
   <h1 class="hero-title">Where to live in Rome</h1>
-  <p class="hero-vibe">Ten neighborhoods, ten realities. Pick the vibe — we'll find you the apartment.</p>
+  <p class="hero-vibe">Eleven neighborhoods, eleven realities. Pick the vibe — we'll find you the apartment.</p>
   <div class="hero-actions">
     <a href="/apartments" class="btn btn-primary">Browse All Apartments →</a>
     <a href="/property-finding" class="btn btn-ghost">Find My Match</a>
@@ -658,6 +798,7 @@ ${navHtml('/apartments-in')}
 </header>
 
 <section class="section">
+  <p class="stat-note hub-note">Rents on the cards: indicative asking range for a 1-bedroom, from BOOM, not a measured statistic · <a href="/meteo">measured market data →</a></p>
   <div class="hub-grid">
     ${cards}
   </div>
@@ -685,6 +826,9 @@ ${footerHtml()}
 })();
 </script>
 
+
+<script defer src="/js/boom-consent.js"></script>
+<script defer src="/js/boom-track.js"></script>
 </body>
 </html>`;
 }
@@ -735,14 +879,19 @@ function writeZoneSlugHelper() {
 /* ────────────────────────────────────────────────────────────────────
  *  Write everything
  * ──────────────────────────────────────────────────────────────────── */
-let count = 0;
-for (const n of NEIGHBORHOODS) {
-  const fp = path.join(OUT_DIR, `${n.slug}.html`);
-  fs.writeFileSync(fp, pageHtml(n, NEIGHBORHOODS), 'utf8');
-  console.log(`[✓] /apartments-in/${n.slug}.html`);
-  count++;
+if (require.main === module) {
+  if (!fs.existsSync(OUT_DIR)) fs.mkdirSync(OUT_DIR, { recursive: true });
+  let count = 0;
+  for (const n of NEIGHBORHOODS) {
+    const fp = path.join(OUT_DIR, `${n.slug}.html`);
+    fs.writeFileSync(fp, pageHtml(n, NEIGHBORHOODS), 'utf8');
+    console.log(`[✓] /apartments-in/${n.slug}.html`);
+    count++;
+  }
+  fs.writeFileSync(path.join(OUT_DIR, 'index.html'), hubHtml(), 'utf8');
+  console.log(`[✓] /apartments-in/index.html (hub)`);
+  writeZoneSlugHelper();
+  console.log(`\nWrote ${count} neighborhood pages + hub + zone-slug helper.`);
 }
-fs.writeFileSync(path.join(OUT_DIR, 'index.html'), hubHtml(), 'utf8');
-console.log(`[✓] /apartments-in/index.html (hub)`);
-writeZoneSlugHelper();
-console.log(`\nWrote ${count} neighborhood pages + hub + zone-slug helper.`);
+
+module.exports = { pageHtml, hubHtml, SCROLL_BLOCK };

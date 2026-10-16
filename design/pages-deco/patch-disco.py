@@ -477,7 +477,7 @@ s = s.rstrip() + """
     var p = +c.dataset.prezzo || 0, mesi = +c.dataset.cauzione || 1;
     /* la STESSA aritmetica della pagina casa: onorario 10% del canone
        annuo, deposito = mesi di cauzione — mai due versioni dei soldi */
-    var fee = Math.round(p * 12 * .10);
+    var fee = Math.round(p * 12 * .10 * 1.22);
     return { id: id, href: c.getAttribute('href'),
       nome: (per('.nome', c) || {}).textContent || '',
       zona: c.dataset.zona || '', foto: img ? img.src : '',

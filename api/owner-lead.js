@@ -50,6 +50,7 @@ import { tgSend } from './telegram/_lib.js';
 import { b2bReplyText } from './_market.js';
 import CONTO from '../js/conto-engine.js';
 import { buildContoPdf } from './owners/_conto-pdf.js';
+import { attributionFromReq } from './_attribution.js';
 
 const HITS = new Map();
 const PDF_HITS = new Map();
@@ -269,6 +270,10 @@ export default async function handler(req, res) {
     lang: body.lang === 'en' ? 'en' : 'it',
   };
   const sourceRef = body.sourceRef === 'canone' ? 'canone' : 'owners';
+  // Da dove arriva: il campo del modulo (body.attribution, timbrato da
+  // js/boom-track.js), altrimenti il cookie boom_attr — entrambi solo col
+  // consenso analitico. Una stringa corta o null, mai un errore.
+  const attribution = attributionFromReq(req, { attribution: body.attribution });
   // Ciò che il proprietario ha SCRITTO in questo invio, prima che il conto
   // riempia zona, metri e richiesta per un lead nuovo: in un'unione si usa
   // solo questo, e mai per sovrascrivere.
@@ -324,6 +329,8 @@ export default async function handler(req, res) {
     const patch = { owner: merged, message: ownerSummary(merged), notes: ownerSummary(merged), updatedAt: new Date(), lastOwnerContactAt: new Date() };
     if (!prev.email && hasEmail) patch.email = email;
     if (!prev.phone && hasPhone) { patch.phone = phone; patch.phoneNorm = normalizePhone(phone) || null; }
+    // la fonte si riempie solo se mancava: il primo contatto non si riscrive
+    if (!prev.attribution && attribution) patch.attribution = attribution;
     let mergedOk = false;
     try { await fsPatch(`leads/${prev.id}`, patch); mergedOk = true; }
     catch (e) { console.warn('[owner-lead] merge failed, nuovo lead:', e.message); }
@@ -358,10 +365,11 @@ export default async function handler(req, res) {
     grade: null,
     ingestedBy: 'owner-lead',
     sourceRef,
-    // Da dove arriva (UTM → referrer → diretto), timbrato nel modulo da
-    // js/boom-track.js: le campagne proprietari di docs/owner-outreach.md si
-    // misurano solo così.
-    attribution: clip(body.attribution, 120),
+    // Da dove arriva (UTM → assistente AI → referrer → diretto), timbrato nel
+    // modulo da js/boom-track.js o, in mancanza, dal cookie boom_attr (solo
+    // col consenso — api/_attribution.js): le campagne proprietari di
+    // docs/owner-outreach.md si misurano solo così.
+    attribution,
     owner: { ...owner, at: now.toISOString() },
     raw: { ...rawOwner, ip, ua: clip(req.headers['user-agent'], 300) },
     createdAt: now,

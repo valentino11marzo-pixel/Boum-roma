@@ -9,7 +9,7 @@
 //   T-14  missing documents nudge + utilities handled for you
 //   T-7   Cleaning Premium + deposit-balance reminder (if pending)
 //   T-1   key handover — INCLUDED, never sold
-//   T+3   review ask (REVIEW_URL) + "La tua casa BOOM" intro
+//   handover+3 review ask (REVIEW_URL) + "La tua casa BOOM" intro
 //   T-90 before end — renewal CONFIRMATION ONLY, zero upsell
 //   end+3 exit: thank you + review + become-a-referrer. Nothing else.
 //
@@ -93,10 +93,23 @@ export function journeyEligible(c) {
   return !inFunnel;
 }
 
+// The handover endpoint records this only after the signed report is uploaded.
+// As in /casa and Oggi, a lease date or a signature alone is not delivery evidence.
+function confirmedHandoverDate(c) {
+  const handover = c.verbaleConsegna, raw = String(handover?.at || ''), at = Date.parse(raw);
+  if (!Number.isFinite(at) || at > Date.now() || new Date(at).toISOString().slice(0, 10) !== raw.slice(0, 10)) return null;
+  try {
+    const url = new URL(handover?.url);
+    if (url.protocol !== 'https:' || url.username || url.password) return null;
+  } catch { return null; }
+  return new Date(at).toISOString().slice(0, 10);
+}
+
 export function steps({ c, tenant, addrShort, addr, first, has = () => false, missing = null, late = false, walletUrl = '' }) {
   const start = c.startDate, end = c.endDate;
   const dStart = start ? dayDiff(start) : null;
   const dEnd = end ? dayDiff(end) : null;
+  const handedOn = confirmedHandoverDate(c), dHandover = handedOn ? dayDiff(handedOn) : null;
   const casaBtns = btn(CASA, 'Apri La tua casa BOOM')
     + (walletUrl ? btn2(walletUrl, ' Add to Apple Wallet — your home pass') : '');
 
@@ -104,8 +117,8 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
     {
       key: 't30',
       due: dStart != null && dStart <= 30 && dStart >= 24,
-      subject: `${dStart} days to ${addrShort} — the countdown is on`,
-      html: para(`Ciao ${esc(first)} — <b>${dStart} days</b> to your move-in at <b>${esc(addr)}</b> (${fmtD(start)}). Everything on our side is on track. From today, your home base is <b>La tua casa BOOM</b>: payments, documents, requests — one place, always.`)
+      subject: `${dStart} days to your lease start at ${addrShort}`,
+      html: para(`Ciao ${esc(first)} — your lease at <b>${esc(addr)}</b> is due to start in <b>${dStart} days</b> (${fmtD(start)}). The key handover appointment still needs to be confirmed with your advisor. From today, your home base is <b>La tua casa BOOM</b>: payments, documents, requests — one place, always.`)
         + casaBtns
         + ((has('movein-pack') || late) ? '' :
             para(`One thing worth handling early: <b>utilities</b>. Our <b>Move-in Pack</b> takes care of it end to end — you arrive, everything works.`, 'margin-top:26px')
@@ -156,17 +169,17 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
     {
       key: 't1',
       due: dStart != null && dStart <= 1 && dStart >= 0,
-      subject: `${dStart === 0 ? 'Today' : 'Tomorrow'}: keys to ${addrShort} 🔑`,
-      html: para(`Ciao ${esc(first)} — ${dStart === 0 ? 'today is the day' : 'tomorrow is the day'}. <b>Key handover is on us</b> — included, as always. Bring your ID; we bring the keys, the meter readings and a small welcome. Your advisor will confirm the exact time on WhatsApp.`)
-        + btn(waMsg(`Ciao! Confermiamo l'orario per la consegna chiavi a ${addr}?`), 'Conferma l’orario su WhatsApp')
+      subject: `${dStart === 0 ? 'Today' : 'Tomorrow'}: your lease starts at ${addrShort} 🔑`,
+      html: para(`Ciao ${esc(first)} — your contractual start date is ${dStart === 0 ? 'today' : 'tomorrow'} (${fmtD(start)}). <b>Key handover is on us</b> — included, as always. This date does not confirm a handover appointment: please agree the day and time with your advisor on WhatsApp before travelling. Bring your ID to the agreed appointment.`)
+        + btn(waMsg(`Ciao! Confermiamo giorno e orario per la consegna chiavi a ${addr}?`), 'Conferma giorno e orario su WhatsApp')
         + (walletUrl ? btn2(walletUrl, ' Your home pass in Apple Wallet') : '')
         + fine(`Anything last-minute — we're one message away.`, 'text-align:center'),
     },
     {
       key: 'p3',
-      due: dStart != null && dStart <= -3 && dStart >= -6,
+      due: dHandover != null && dHandover <= -3 && dHandover >= -6,
       subject: `Settling in at ${addrShort}?`,
-      html: para(`Ciao ${esc(first)} — ${-dStart} days in. We hope ${esc(addrShort)} already feels like yours. Everything about your home now lives in <b>La tua casa BOOM</b>: payments with automatic receipts, documents, one-tap maintenance.`)
+      html: para(`Ciao ${esc(first)} — ${-dHandover} days since your recorded key handover. We hope ${esc(addrShort)} already feels like yours. Everything about your home now lives in <b>La tua casa BOOM</b>: payments with automatic receipts, documents, one-tap maintenance.`)
         + casaBtns
         + para(`One small favour: if the journey so far deserved it, <b>a review means the world</b> to a small team like ours — it's how the next tenant finds us. Two minutes, honestly appreciated:`, 'margin-top:24px')
         + btn2(REVIEW_URL, '★ Leave a review')

@@ -53,6 +53,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/og-home.png",
@@ -77,6 +78,7 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://www.boomrome.com/virtual-viewing#service",
   "serviceType": "Virtual apartment viewing in Rome",
   "name": "Virtual Apartment Viewing Rome — Live Video Tour",
   "description": "A BOOM agent walks any Rome apartment live on video while the client directs the tour, then sends HD photos and an honest report with red-flag checks. €89; scheduled within 48 hours.",
@@ -536,7 +538,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   .breve-d > summary .breve-sot { opacity:.75; } }
 </style>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/virtual-viewing#webpage","url":"https://www.boomrome.com/virtual-viewing","name":"Virtual Apartment Viewing Rome — Live Video Tour","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-virtual-viewing.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
+{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/virtual-viewing#webpage","url":"https://www.boomrome.com/virtual-viewing","name":"Virtual Apartment Viewing Rome — Live Video Tour","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"mainEntity":{"@id":"https://www.boomrome.com/virtual-viewing#service"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-virtual-viewing.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
 </script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -966,7 +968,7 @@ html {
             target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
           <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
             rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
-          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          <a href="/terms">Terms &amp; fees §4</a>. Card payments run
           through Stripe with a receipt — never a transfer to an individual.</dd>
       </dl>
       </details>
@@ -1403,7 +1405,7 @@ function paySheet(){
       t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
   if (!can || !dep || !v1 || !v2 || !v3) return;
   var TETTO = 3;   /* L. 392/1978 art. 11 */
-  var PREAV = 3;   /* L. 431/1998 art. 4 */
+  var PREAV = 3;   /* recesso per gravi motivi: tre mesi nei modelli transitorio e studenti (js/contract-pdf.js) */
 
   function eur(n) {
     var i = Math.round(Math.abs(n)).toString(), fuori = '';

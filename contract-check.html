@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Free Rome Rental Contract Check | BOOM</title>
-    <meta name="description" content="Before you sign, get a free check of your Rome rental contract — we flag scams, unfair clauses and deposit traps, in English. Reply within 24 hours.">
+    <meta name="description" content="Before you sign, get a free check of your Rome rental contract — we flag scams, unfair clauses and deposit traps, in English. No obligation.">
     <meta name="theme-color" content="#08080A">
     <meta name="color-scheme" content="dark">
     <link rel="canonical" href="https://www.boomrome.com/contract-check">
@@ -35,6 +35,9 @@
 @media(max-width:640px){.marchio{gap:10px}.marchio .logo-mark{width:58px;height:58px}.marchio span{font-size:25px;letter-spacing:.22em;text-indent:.22em}}
 .marchio .logo-mark{filter:none}/* override old shared-css .logo-mark glow so the lockup renders identically site-wide */
 .nav .marchio{min-height:80px}/* keep nav bar height identical to the old 80px lockup (fixed offsets were tuned to it) */
+/* the paid ladder under the free tool: stays visible after the form is replaced by the confirmation */
+.ladder{margin:18px 0 0;padding-top:16px;border-top:1px solid var(--border-subtle);text-align:center;font-size:13.5px;line-height:1.65;color:var(--text-secondary)}
+.ladder a{color:var(--gold);text-decoration:underline;text-underline-offset:3px}
 
     
 
@@ -60,7 +63,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "Egidi Immobiliare S.r.l.",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "image": "https://www.boomrome.com/og-home.png",
   "description": "Premium mid-term rentals and anti-scam rental support in Rome for internationals.",
@@ -94,11 +97,12 @@
 }
   </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
-{"@type":"Question","name":"Is the contract check really free?","acceptedAnswer":{"@type":"Answer","text":"Yes. The first-pass red-flag review is free and carries no obligation. If you want us to handle the whole deal — negotiation, deposit protection, move-in — that is our Deal Assistance service (€249)."}},
-{"@type":"Question","name":"What do you check for?","acceptedAnswer":{"@type":"Answer","text":"Scam signals, unfair or illegal clauses, deposit traps, whether the contract can be legally registered, hidden costs, and unfair exit/notice terms."}},
-{"@type":"Question","name":"How fast do I get an answer?","acceptedAnswer":{"@type":"Answer","text":"Usually within 24 hours. If it's urgent, message us on WhatsApp and we'll prioritise it."}},
-{"@type":"Question","name":"Do I have to send the full document?","acceptedAnswer":{"@type":"Answer","text":"No — you can paste the contract text, send the listing link, or just describe the situation. The more we see, the more precise our review."}}
+{"@context":"https://schema.org","@type":"FAQPage","@id":"https://www.boomrome.com/contract-check#faq","mainEntity":[
+{"@type":"Question","name":"Is the contract check really free?","acceptedAnswer":{"@type":"Answer","text":"Yes — the first-pass red-flag review is free and carries no obligation. If you want us to handle the whole deal, that's our Deal Assistance service (€249)."}},
+{"@type":"Question","name":"What do you check for?","acceptedAnswer":{"@type":"Answer","text":"Scam signals, unfair or illegal clauses, deposit traps, whether the contract can be legally registered, hidden costs and unfair exit/notice terms."}},
+{"@type":"Question","name":"How fast do I get an answer?","acceptedAnswer":{"@type":"Answer","text":"A person replies during office hours (Rome time); requests sent out of hours are answered the next working morning. If it's urgent, message us on WhatsApp and we'll prioritise it."}},
+{"@type":"Question","name":"Can I get a guaranteed written verdict?","acceptedAnswer":{"@type":"Answer","text":"Yes — Contract Check Express (€49) gets you a written traffic-light verdict on the full contract within 24 hours, guaranteed, and the €49 is credited in full if you upgrade to Deal Assistance."}},
+{"@type":"Question","name":"Do I have to send the full document?","acceptedAnswer":{"@type":"Answer","text":"No — paste the text, send the listing link, or just describe the situation. The more we see, the more precise our review."}}
 ]}
   </script>
 <!-- BOOM_JSONLD:END -->
@@ -276,7 +280,7 @@ html {
             </div>
             <div class="svc-hero-chips">
                 <span class="svc-hero-chip">✓ 100% free</span>
-                <span class="svc-hero-chip">✓ Reply within 24h</span>
+                <span class="svc-hero-chip">✓ Read by a person</span>
                 <span class="svc-hero-chip">✓ In English</span>
                 <span class="svc-hero-chip">✓ No obligation</span>
             </div>
@@ -309,7 +313,7 @@ html {
             <div class="svc-steps s3 reveal-stagger">
                 <div class="svc-step"><div class="svc-snum">01</div><h3>Send it over</h3><p>Paste the contract text, drop the listing link, or just describe the deal. Italian or English — both fine.</p></div>
                 <div class="svc-step"><div class="svc-snum">02</div><h3>We review it</h3><p>Our team checks it against the scams and unfair clauses we see every week in Rome.</p></div>
-                <div class="svc-step"><div class="svc-snum">03</div><h3>You get a verdict</h3><p>Within 24 hours: a clear, plain-English list of red flags and what to do — so you sign with confidence (or walk away).</p></div>
+                <div class="svc-step"><div class="svc-snum">03</div><h3>You get a verdict</h3><p>A person replies during office hours (Rome time): a clear, plain-English list of red flags and what to do — so you sign with confidence (or walk away).</p></div>
             </div>
         </div>
     </section>
@@ -334,7 +338,7 @@ html {
     <!-- FORM -->
     <section class="form-section reveal" id="form">
         <div class="form-container">
-            <div class="form-header"><div class="form-tag">Free · no obligation · 24h</div><h2 class="form-title">Get your free check</h2><p class="form-subtitle">Send what you have — we'll come back with the red flags in plain English.</p></div>
+            <div class="form-header"><div class="form-tag">Free · no obligation · in English</div><h2 class="form-title">Get your free check</h2><p class="form-subtitle">Send what you have — we'll come back with the red flags in plain English.</p></div>
 <form  data-boomform="contract-check">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Your name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="Full name"></div>
@@ -346,8 +350,9 @@ html {
                 </div>
                 <div class="form-group"><label class="form-label">Paste the contract or describe the deal <span class="required">*</span></label><textarea name="contract" class="form-textarea" required placeholder="Paste the contract text here, or describe: rent, deposit asked, who the landlord is, what feels off..."></textarea></div>
                 <button type="submit" class="form-submit">Check my contract — free</button>
-                <p class="form-note">We reply within 24 hours. Your details stay private.</p>
+                <p class="form-note">A person replies during office hours (Rome time). Your details stay private.</p>
             </form>
+            <p class="ladder">Want a written verdict on your own contract? <a href="/contract-check-express">Contract Check Express — €49, within 24 hours</a>. Want it reviewed and negotiated for you? <a href="/deal-assistance">Deal Assistance — €249</a>.</p>
         </div>
     </section>
 
@@ -369,7 +374,7 @@ html {
         <div class="boom-faq reveal">
             <details><summary>Is the contract check really free?</summary><div class="faq-a">Yes — the first-pass red-flag review is free and carries no obligation. If you want us to handle the whole deal, that's our Deal Assistance service (€249).</div></details>
             <details><summary>What do you check for?</summary><div class="faq-a">Scam signals, unfair or illegal clauses, deposit traps, whether the contract can be legally registered, hidden costs and unfair exit/notice terms.</div></details>
-            <details><summary>How fast do I get an answer?</summary><div class="faq-a">Usually within 24 hours. If it's urgent, message us on WhatsApp and we'll prioritise it.</div></details>
+            <details><summary>How fast do I get an answer?</summary><div class="faq-a">A person replies during office hours (Rome time); requests sent out of hours are answered the next working morning. If it's urgent, message us on WhatsApp and we'll prioritise it.</div></details>
             <details><summary>Can I get a guaranteed written verdict?</summary><div class="faq-a">Yes — <a href="/contract-check-express" style="color:var(--gold, #D4AF37)">Contract Check Express (€49)</a> gets you a written traffic-light verdict on the full contract within 24 hours, guaranteed, and the €49 is credited in full if you upgrade to Deal Assistance.</div></details>
             <details><summary>Do I have to send the full document?</summary><div class="faq-a">No — paste the text, send the listing link, or just describe the situation. The more we see, the more precise our review.</div></details>
         </div>
@@ -547,7 +552,7 @@ html {
     fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){return r.json()}).then(function(j){
       if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
-      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A person replies during office hours (Rome time). Urgent? WhatsApp us.</p></div>";
       try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
     }).catch(function(){
       if(btn){btn.disabled=false;btn.textContent=lbl;}

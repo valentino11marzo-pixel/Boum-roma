@@ -124,14 +124,35 @@ export async function fsCreate(collection, data, docId) {
 // Cancella un documento. Usato dai lucchetti sull'immobile
 // (api/preagreement/_lock.js), dove un lucchetto preso a metà va restituito.
 // Un 404 NON è un errore: il documento non c'è più, che è il risultato voluto.
-export async function fsDelete(docPath) {
+export async function fsDelete(docPath, { updateTime, guards = [] } = {}) {
+  if (updateTime !== undefined && (typeof updateTime !== 'string' || !updateTime)) throw new Error('Firestore delete version required');
   const token = await getAdminToken();
-  const res = await fetch(`${FS_BASE}/${docPath}`, {
+  if (guards.length) {
+    if (!updateTime) throw new Error('Firestore guarded delete version required');
+    const base = FS_BASE.replace(/^https?:\/\/[^/]+\/v1\//, '');
+    const writes = guards.map(guard => {
+      if (!guard.docPath || (!guard.updateTime && guard.exists !== false)) throw new Error('Firestore delete guard required');
+      return guard.exists === false ? {delete:`${base}/${guard.docPath}`,currentDocument:{exists:false}}
+        : {update:{name:`${base}/${guard.docPath}`,fields:{}},updateMask:{fieldPaths:[]},currentDocument:{updateTime:guard.updateTime}};
+    });
+    writes.push({delete:`${base}/${docPath}`,currentDocument:{updateTime}});
+    const checked = await fetch(`${FS_BASE}:commit`, {method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({writes})});
+    if (!checked.ok) {
+      const body=await checked.json().catch(()=>null), error=new Error('Firestore guarded delete failed');
+      error.conflict=[409,412].includes(checked.status)||['ABORTED','FAILED_PRECONDITION'].includes(body?.error?.status);
+      throw error;
+    }
+    return true;
+  }
+  const res = await fetch(`${FS_BASE}/${docPath}${updateTime ? '?currentDocument.updateTime=' + encodeURIComponent(updateTime) : ''}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok && res.status !== 404) {
-    throw new Error(`Firestore delete failed (${res.status}): ${await res.text()}`);
+    const body = await res.json().catch(() => null);
+    const error = new Error('Firestore conditional delete failed');
+    error.conflict = [409, 412].includes(res.status) || ['ABORTED', 'FAILED_PRECONDITION'].includes(body?.error?.status);
+    throw error;
   }
   return true;
 }

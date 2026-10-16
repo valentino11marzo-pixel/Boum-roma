@@ -27,6 +27,7 @@ import { sendConfirmation, sendRequested } from './_email.js';
 import { inviteOperator } from './_invite.js';
 import { TZ, loadConfig, busyBlocks, buildSlots, slotOffered, listingCtx } from './_avail.js';
 import { replyLang } from '../_lang.js';
+import { attributionFromReq } from '../_attribution.js';
 
 // re-exported so the availability engine has a single public entry point for
 // callers that already knew this module (and for the unit tests)
@@ -124,6 +125,8 @@ export default async function handler(req, res) {
       createdAt: new Date(),
       ...(needsApproval ? {} : { confirmedAt: new Date() }),
       createdBy: 'self-service',
+      // da dove arriva chi prenota (cookie boom_attr, solo col consenso): mai bloccante
+      attribution: attributionFromReq(req, body),
     };
     if (mode === 'video') doc.videoUrl = null;   // filled right after we have the id
 

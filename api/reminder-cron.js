@@ -11,6 +11,8 @@
 //   CRON_SECRET             → boom-cron-2026
 
 import nodemailer from 'nodemailer';
+import { fsGet as fsGetFull } from './homie/_lib.js';
+import { retryRegistrationPackage, packRetryEligible } from './sign/_finalize.js';
 
 // Wallet push is OPTIONAL — it must never take down the reminder cron.
 // A static `import … from './_passkit.js'` crashed the whole function at load
@@ -485,6 +487,31 @@ export default async function handler(req, res) {
         if (refinalized) results.refinalized = refinalized;
       }
     } catch (e) { results.errors.push(`refinalize-watchdog: ${e.message}`); }
+
+    // ── Recupero del PACCHETTO REGISTRAZIONE (15/10/2026) ──
+    // finalizedAt si scrive prima delle email: un pacchetto respinto dal
+    // server SMTP non aveva più un giro. Qui si rimanda SOLO quello, solo se
+    // l'esito è 'pending' (mai inviato) o 'failed' (rifiuto certo), max 1
+    // per run e sotto il tetto di tentativi. Mai 'uncertain' né 'sending':
+    // potrebbe essere già arrivato. Il doc si rilegge INTERO con fsGet — il
+    // parseDoc di questo file appiattisce le mappe a null.
+    try {
+      if ((Date.now() - now.getTime()) > 45_000) {
+        results.packRetrySkipped = 'budget';
+      } else {
+        const candidates = await Promise.all(['pending', 'failed'].map(status => fsQuery('contracts', token, {
+          field: { fieldPath: 'registrationPackEmail.status' }, op: 'EQUAL', value: { stringValue: status },
+        })));
+        const ids = [...new Set(candidates.flat().filter(r => r?.document).map(r => r.document.name.split('/').pop()))];
+        for (const id of ids) {
+          const c = await fsGetFull(`contracts/${id}`).catch(() => null);
+          if (!c || !packRetryEligible({ ...c, id })) continue;
+          const r = await retryRegistrationPackage({ ...c, id });
+          results.packRetry = { id, outcome: r && r.outcome };
+          break;
+        }
+      }
+    } catch (e) { results.errors.push(`pack-retry: ${e.message}`); }
 
     // Heartbeat (audit P1.2): reminder-cron incassa gli affitti (collectSdd),
     // manda i promemoria e i moments — era il più critico dei cron ciechi. Se

@@ -219,6 +219,7 @@
     property:   { it: 'L’immobile', en: 'The property' },
     tabelle:    { it: 'Tabelle millesimali', en: 'Condominium shares (millesimi)' },
     terms:      { it: 'Termini del contratto', en: 'Contract terms' },
+    registration: { it: 'Registrazione (tributi)', en: 'Registration (taxes)' },
     esigenza:   { it: 'L’esigenza transitoria', en: 'The temporary need' },
     studenti:   { it: 'Il tuo corso di studi', en: 'Your studies' },
     uso:        { it: 'Chi abiterà la casa', en: 'Who will live in the home' },
@@ -305,6 +306,17 @@
     { key: 'landlordIban', group: 'contact', owner: 'landlord', templates: ['B', 'C'], needs: ['operations'], required: false, type: 'iban', fillOnly: true, sensitive: true,
       read: (ctx) => pick(obj(ctx.contract).landlordIban, obj(ctx.landlord).iban), write: { doc: 'contract', path: 'landlordIban', user: ['iban'] },
       label: { it: 'IBAN per il canone', en: 'IBAN for rent' }, ask: { it: 'Dove BOOM ti gira il canone incassato', en: 'Where BOOM forwards the rent collected' } },
+    // Il CONTO PER L'ADDEBITO dei tributi RLI (imposta di registro, bollo):
+    // un dato DIVERSO dall'IBAN del canone, con un'altra finalità e un altro
+    // intestatario (deve essere intestato al richiedente della registrazione).
+    // Lo dichiara l'operatore: non si deduce MAI dall'IBAN del canone né dal
+    // conto aziendale — assente resta «non dichiarato», visibile nel foglio.
+    { key: 'rliDebitIban', group: 'registration', owner: 'operator', templates: ['B', 'C'], needs: ['operations'], required: false, type: 'iban', sensitive: true,
+      read: (ctx) => pick(obj(ctx.contract).rliDebitIban), write: { doc: 'contract', path: 'rliDebitIban' },
+      label: { it: 'Conto per l\'addebito dei tributi RLI', en: 'Account debited for registration taxes' }, ask: { it: 'Intestato al richiedente della registrazione', en: 'Held by whoever files the registration' } },
+    { key: 'rliDebitHolder', group: 'registration', owner: 'operator', templates: ['B', 'C'], needs: ['operations'], required: false, type: 'text',
+      read: (ctx) => pick(obj(ctx.contract).rliDebitHolder), write: { doc: 'contract', path: 'rliDebitHolder' },
+      label: { it: 'Intestatario del conto addebito', en: 'Debit account holder' }, ask: { it: 'Nome o ragione sociale, come in banca', en: 'Name as held at the bank' } },
 
     // ── CATASTO (quadro B dell'RLI: foglio, particella, subalterno) ────
     { key: 'catFoglio', group: 'catasto', owner: 'landlord', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'text',
@@ -871,6 +883,7 @@
     property:  { it: 'i dati dell’immobile (piano, interno, vani…)', en: 'the property details (floor, unit, rooms…)' },
     tabelle:   { it: 'le tabelle millesimali', en: 'the condominium shares' },
     terms:     { it: 'i termini del contratto', en: 'the contract terms' },
+    registration: { it: 'il conto per l’addebito dei tributi', en: 'the account for registration taxes' },
     esigenza:  { it: 'il motivo della transitorietà', en: 'the reason for the temporary stay' },
     studenti:  { it: 'i dati del corso di studi', en: 'your course details' },
     uso:       { it: 'chi abiterà la casa', en: 'who will live with you' },

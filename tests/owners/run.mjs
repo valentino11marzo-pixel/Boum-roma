@@ -29,6 +29,7 @@
 // Run: node tests/owners/run.mjs
 
 import { readFileSync, existsSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { isB2B, b2bSide, b2bReplyText, ownerReplyText, isReunion } from '../../api/_market.js';
 
 const R = new URL('../../', import.meta.url).pathname;
@@ -422,6 +423,46 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro|zero pensieri|reliable income|zero stress|guaranteed rent|1 month rent or 10%|won'?t stay empty|resta(?:rà)? mai vuota|average:? \d+ days/i;
   const hits = Object.entries({ vis, ldText, hint, llmsOwn, faqOwn, outreach }).filter(([, t]) => GRATIS.test(t)).map(([k, t]) => k + ': ' + t.match(GRATIS)[0]);
   ok('mai «gratis» / «no fee» / «reddito sicuro» / «guaranteed rent» — pagina, dati, riga, llms, FAQ del sito, outreach', hits.length === 0, hits);
+  // La tariffa dell'organizzazione firmataria per l'attestazione è A PARTE,
+  // come nel Pacchetto (14/10/2026: la scala diceva €189 «tariffa
+  // dell'organizzazione compresa», il Pacchetto €349 «a parte» — due regole
+  // per la stessa tariffa). Dove si legge il prezzo dell'attestazione (€189)
+  // o le pratiche con l'attestazione (€278), lo STESSO blocco dice che la
+  // tariffa è a parte; la forma breve «pratiche €89–278» (meta, chip,
+  // outreach) resta com'è, come le meta del Pacchetto. Blocco = un <span>
+  // di lingua, un paragrafo, una risposta FAQ, una stringa dei dati
+  // strutturati, una voce della riga, una risposta WhatsApp, un paragrafo
+  // del PDF.
+  {
+    const ATT = /€\s?189\b|\b189 euro|€\s?278\b|\b278 euro|eur\(P\.(?:primaLocazione|attestazione)\)/;
+    const FEE = /tariffa dell(?:'|\\')organizzazione|organi[sz]ation(?:'|\\')?s fee|fee of the (?:signatory )?organi[sz]ation/;
+    const INCL = /tariffa dell'organizzazione compresa|organi[sz]ation'?s fee included/i;
+    const blocks = (t) => t.replace(/<!--[\s\S]*?-->|<style[\s\S]*?<\/style>/g, ' ')
+      .replace(/<\/(?:span|p|div|li|dd|dt|summary|h[1-6])>|","|":"|\n/g, ' ¦ ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').split('¦');
+    const WA = createRequire(import.meta.url)('../../js/whatsapp-replies.js');
+    const sources = {
+      owners: html, canone: read('canone.html'), pacchetto: read('pacchetto-concordato.html'),
+      services: read('services.html'), faq: faqHtml, llms: read('llms.txt'),
+      contoPdf: read('api/owners/_conto-pdf.js'),
+    };
+    const lacking = [];
+    // llms.txt è fatto di paragrafi lunghi su più temi: lì il blocco è la
+    // FRASE (un accenno alla tariffa in una frase non copre l'altra).
+    const unit = (k, t) => k === 'llms' ? blocks(t).flatMap(b => b.split(/\.\s/)) : blocks(t);
+    for (const [k, t] of Object.entries(sources)) for (const b of unit(k, t)) if (ATT.test(b) && !FEE.test(b)) lacking.push(k + ': …' + b.trim().slice(0, 140));
+    for (const r of WA.REPLIES) if (ATT.test(r.text) && !FEE.test(r.text)) lacking.push('whatsapp /' + r.sc);
+    ok('dove c\'è il prezzo dell\'attestazione (€189 o €278 con l\'attestazione), lo stesso blocco dice che la tariffa dell\'organizzazione è a parte — pagine, dati, riga, llms, FAQ del sito, WhatsApp, PDF', lacking.length === 0, lacking);
+    const incl = Object.entries({ ...sources, whatsapp: WA.REPLIES.map(r => r.text).join(' ') }).filter(([, t]) => INCL.test(t)).map(([k]) => k);
+    ok('mai «tariffa dell\'organizzazione compresa» / «organisation\'s fee included»', incl.length === 0, incl);
+    // Con una tariffa di terzi in più, «paga SOLO le pratiche» è un prezzo
+    // esaustivo che non lo è (art. 21 c.1 lett. d Cod. cons.): si dice «paga
+    // le pratiche», e la tariffa a parte accanto.
+    const SOLO = /paga(?:no)? solo le pratiche|\bsolo le pratiche \(|pays? only the (?:lease )?paperwork|just the paperwork|paperwork only/i;
+    const solo = Object.entries({ ...sources, whatsapp: WA.REPLIES.map(r => r.text).join(' '), outreach: read('docs/owner-outreach.md') })
+      .filter(([, t]) => SOLO.test(t)).map(([k, t]) => k + ': ' + t.match(SOLO)[0]);
+    ok('mai «paga solo le pratiche» / «only the paperwork» dove c\'è la tariffa a parte', solo.length === 0, solo);
+  }
   ok('la FAQ generale del sito dice la stessa scala (€0 con le pratiche, 61%, link a /owners#costi)',
     /€0 commission/.test(faqOwn) && faqOwn.includes('€' + reg) && faqOwn.includes('€' + (reg + ass)) && /61% of one month/.test(faqOwn) && /\/owners#costi|boomrome\.com\/owners/.test(faqHtml));
   ok('i modelli di outreach, dove dicono «senza provvigione», dicono anche il prezzo delle pratiche',
@@ -510,13 +551,28 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   ok('«in breve» dichiara cosa NON facciamo', /Cosa non facciamo/.test(vis) && /Non subaffittiamo/.test(vis));
 }
 {
-  ok('canonical italiana, alternate inglese, x-default',
-    html.includes('<link rel="canonical" href="https://www.boomrome.com/owners">')
-    && html.includes('hreflang="en" href="https://www.boomrome.com/owners?lang=en"')
-    && html.includes('hreflang="x-default" href="https://www.boomrome.com/owners"'));
+  // /owners?lang=en è lo STESSO file e si auto-canonicalizza su /owners: un
+  // hreflang verso ?lang=en dichiara un URL che non è mai canonico (Google
+  // scarta l'annotazione). La lingua alternativa resta in og:locale:alternate.
+  ok('canonical italiana, nessun hreflang verso un URL che non si auto-canonicalizza', html.includes('<link rel="canonical" href="https://www.boomrome.com/owners">') && !/hreflang="[^"]+" href="[^"]*\?lang=/.test(html));
+  ok('...e og:locale it_IT con l\'alternate en_US restano', html.includes('<meta property="og:locale" content="it_IT">') && html.includes('<meta property="og:locale:alternate" content="en_US">'));
   ok('<html lang="it"> — la lingua non si deduce dal browser', /<html lang="it">/.test(html) && !/navigator\.language/.test(html));
   const sm = read('sitemap.xml');
-  ok('la sitemap porta l\'alternate inglese', sm.includes('hreflang="en" href="https://www.boomrome.com/owners?lang=en"'));
+  ok('la sitemap non dichiara alternate ?lang= (stesso file, canonical altrove)', !/\?lang=/.test(sm));
+  // SEPA: i nuovi mandati sono chiusi (/casa non li offre più): la pagina
+  // dei proprietari non può prometterli né nel testo né nei dati strutturati.
+  ok('nessuna offerta SEPA in /owners (nuovi mandati chiusi)', !/\bSEPA\b/.test(html) && !/addebito (SEPA|automatico)|direct debit/i.test(html),
+    (html.match(/.{40}(\bSEPA\b|direct debit).{20}/g) || []).slice(0, 3));
+  // Conversione CONFERMATA: solo nel ramo in cui il server ha risposto ok.
+  const sub = html.slice(html.indexOf("fetch('/api/owner-lead'"));
+  const okBranch = sub.slice(sub.indexOf('if(!j||!j.ok)throw'), sub.indexOf('.catch('));
+  const errBranch = sub.slice(sub.indexOf('.catch('), sub.indexOf('});', sub.indexOf('.catch(')));
+  ok('boom-conversion «Owner lead sent» parte nel ramo di successo...',
+    sub.indexOf('if(!j||!j.ok)throw') > -1 && /dispatchEvent\(new CustomEvent\('boom-conversion',\{detail:\{label:'Owner lead sent',section:'form'\}\}\)\)/.test(okBranch));
+  ok('...e mai nel ramo d\'errore (un solo punto di emissione)', !/boom-conversion/.test(errBranch) && (html.match(/boom-conversion/g) || []).length === 1);
+  // Il voto rimanda a Google, senza cambiare i numeri.
+  ok('il voto ★ 4.9 · 47 è un link alla scheda Google, tracciato',
+    /<a href="https:\/\/share\.google\/xikmVxQCRuKOdWcND" target="_blank" rel="noopener"[^>]*onclick="boomTrack\('reviews_view',\{source_page:'owners'\}\)"><span>★ <b>4\.9<\/b> <span class="l-it">su Google · 47 recensioni<\/span>/.test(html));
   const png = readFileSync(R + 'og-owners.png');
   ok('la card social esiste ed è 1200×630', png.readUInt32BE(16) === 1200 && png.readUInt32BE(20) === 630);
   ok('la pagina usa la SUA card, non quella della home', /og:image" content="https:\/\/www\.boomrome\.com\/og-owners\.png"/.test(html));
@@ -556,6 +612,7 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
         // boom-track timbra la fonte SOLO dopo il consenso analitico (main,
         // ottobre 2026): qui il visitatore ha accettato.
         await pg.addInitScript(() => { try { localStorage.setItem('boom:consent', 'all:' + Date.now()); } catch (e) {} });
+        await pg.addInitScript(() => { window.__conv = []; addEventListener('boom-conversion', e => window.__conv.push(e.detail)); });
         let sent = null;
         await pg.route('**/*', async r => {
           const u = r.request().url();
@@ -568,6 +625,7 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
         await pg.fill('#fName', 'Giulia Rossi'); await pg.fill('#fContact', 'domani'); await pg.click('#fGo');
         const senzaRecapito = await pg.textContent('#fErr');
         ok(`[${lang}] il modulo vuoto non parte e dice perché`, sent === null && vuoto.length > 10 && senzaRecapito !== vuoto, { vuoto, senzaRecapito });
+        ok(`[${lang}] un modulo respinto non è una conversione`, (await pg.evaluate(() => window.__conv.length)) === 0);
         await pg.fill('#fContact', '+39 333 123 4567'); await pg.fill('#fZone', 'Prati');
         await pg.selectOption('#fFree', 'soon'); await pg.selectOption('#fGoal', 'concordato');
         await pg.click('.more summary'); await pg.fill('#fSqm', '70'); await pg.selectOption('#fFurn', 'partial');
@@ -576,6 +634,25 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
           && sent.furnished === 'partial' && sent.sqm === '70' && sent.lang === lang && sent.company === '', sent);
         ok(`[${lang}] boom-track timbra la fonte nel modulo`, sent && typeof sent.attribution === 'string' && sent.attribution.length > 0, sent && sent.attribution);
         ok(`[${lang}] «fascicolo aperto» al posto del modulo, nessun errore JS`, (await pg.isVisible('#fDone')) && !(await pg.isVisible('#owForm')) && errs.length === 0, errs);
+        const conv = await pg.evaluate(() => window.__conv);
+        ok(`[${lang}] la risposta ok emette UNA conversione confermata (boom-conversion)`, conv.length === 1 && conv[0].label === 'Owner lead sent' && conv[0].section === 'form', conv);
+        await pg.close();
+      }
+      {
+        // La porta risponde con un errore: il modulo lo dice e NESSUNA
+        // conversione parte (una conversione è un lead arrivato, non un tap).
+        const pg = await br.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        await pg.addInitScript(() => { window.__conv = []; addEventListener('boom-conversion', e => window.__conv.push(e.detail)); });
+        await pg.route('**/*', async r => {
+          const u = r.request().url();
+          if (u.includes('/api/owner-lead')) return r.fulfill({ status: 500, contentType: 'application/json', body: '{"ok":false,"error":"server"}' });
+          return u.startsWith(`http://localhost:${port}`) ? r.continue() : r.abort();
+        });
+        await pg.goto(`http://localhost:${port}/owners`, { waitUntil: 'load' });
+        await pg.fill('#fName', 'Giulia Rossi'); await pg.fill('#fContact', '+39 333 123 4567');
+        await pg.click('#fGo'); await pg.waitForTimeout(250);
+        ok('[it] errore della porta: il modulo resta, l\'errore si vede, nessuna conversione',
+          (await pg.isVisible('#owForm')) && (await pg.isVisible('#fErr')) && (await pg.evaluate(() => window.__conv.length)) === 0);
         await pg.close();
       }
       {

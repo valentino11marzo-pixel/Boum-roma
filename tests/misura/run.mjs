@@ -23,11 +23,13 @@
 
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp } from 'node:fs/promises';
 import { extname, join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { tmpdir } from 'node:os';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
+const artifacts = await mkdtemp(join(tmpdir(), 'boom-misura-'));
 const PORT = 8938;
 const MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
                '.json': 'application/json', '.svg': 'image/svg+xml', '.png': 'image/png' };
@@ -54,13 +56,16 @@ await new Promise((r) => srv.listen(PORT, r));
 // che gira in produzione.
 const STUB = () => {
   const noop = () => {};
-  const snap = { docs: [], empty: true, forEach: noop, size: 0 };
+  const snap = { docs: [], empty: true, forEach: noop, size: 0, metadata: { fromCache: false, hasPendingWrites: false } };
+  // Firebase accepts both onSnapshot(next) and onSnapshot(options, next).
+  // Deliver a server snapshot instead of silently swallowing the new overload.
+  const subscribe = (snapshot, args) => { const next = args.find(x => typeof x === 'function'); setTimeout(() => next(snapshot), 0); return noop; };
   const PROF = { role: 'admin', name: 'Valentino', email: 'valentino@boom-rome.com' };
-  const q = { get: async () => snap, onSnapshot: (a) => { try { a(snap); } catch (e) {} return noop; },
+  const q = { get: async () => snap, onSnapshot: (...args) => subscribe(snap, args),
               where() { return q; }, orderBy() { return q; }, limit() { return q; }, doc() { return d; } };
   const d = { get: async () => ({ exists: true, id: 'u1', data: () => PROF }),
               set: async () => {}, update: async () => {},
-              onSnapshot: (a) => { try { a({ exists: true, id: 'u1', data: () => PROF }); } catch (e) {} return noop; },
+              onSnapshot: (...args) => subscribe({ exists: true, id: 'u1', data: () => PROF, metadata: snap.metadata }, args),
               collection() { return q; } };
   const U = { uid: 'u1', email: 'valentino@boom-rome.com', getIdToken: async () => 't', displayName: 'Valentino' };
   window.firebase = {
@@ -107,6 +112,11 @@ for (const [nome, w, h] of FORMATI) {
   ok(boot.app && !boot.loader, `${nome}: il portale entra nella shell (nessuna rotella appesa)`);
   ok(errs.length === 0, `${nome}: boot senza errori JS` + (errs.length ? ' — ' + [...new Set(errs)][0] : ''));
   if (!boot.app) { await page.close(); continue; }
+
+  // Exercise the actual failure notice, not only the all-healthy layout.
+  // Its old insertion inside .layout reduced #main to 24px on a phone.
+  await page.evaluate(() => portalSourceStatus('maintenance', 'error'));
+  ok(await page.locator('#portalSourceNotice').isVisible(), `${nome}: fonte in errore dichiarata nella shell`);
 
   for (const sez of PAGINE) {
     await page.evaluate((s) => { location.hash = '#' + s; }, sez);
@@ -158,11 +168,16 @@ for (const [nome, w, h] of FORMATI) {
       ok(m.laneInfo.dichiara,
         `${nome} #${sez}: la corsia che continua lo DICHIARA (senza barra visibile, ciò che è fuori non esiste)`);
     }
+    if (sez === 'contracts') await page.screenshot({ path: join(artifacts, 'source-error-' + w + '.png') });
   }
+  await page.evaluate(() => portalSourceStatus('maintenance', 'live'));
+  ok(await page.locator('#portalSourceNotice').count() === 0, `${nome}: fonte recuperata rimuove l'avviso`);
+  ok(errs.length === 0, `${nome}: navigazione e recupero senza errori JS`);
   await page.close();
 }
 await browser.close();
 srv.close();
 
 console.log(`\n${fail ? '✗' : '✓'} misura: ${pass} pass, ${fail} fail`);
+console.log('Screenshot: ' + artifacts);
 process.exit(fail ? 1 : 0);

@@ -16,6 +16,11 @@ import {
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
 
+// Nessun tempo di risposta in cifre verso il cliente: la frase standard
+// dell'orario d'ufficio, parola per parola come in api/stripe-webhook.js.
+const OFFICE_HOURS_EN = 'A person replies during office hours (Rome time); messages sent out of hours are answered the next working morning.';
+const OFFICE_HOURS_IT = "Una persona risponde in orario d'ufficio (ora di Roma); i messaggi fuori orario hanno risposta il mattino lavorativo dopo.";
+
 // A compact facts card — the "ticket" block every email shares.
 function ticket(v, lang) {
   const s = startOf(v);
@@ -86,7 +91,9 @@ export function sendConfirmation(v, lang = 'en') {
 // ricevere il kit di volo (pass, calendario, "ci vediamo lì"): riceverebbe
 // un biglietto per un aereo che potrebbe non partire. Riceve invece la sola
 // cosa che gli serve — abbiamo la tua richiesta, quell'orario è tenuto per
-// te, ti diciamo entro poco — e nessun pulsante che finga una certezza.
+// te, ti scriviamo appena e' confermata — e nessun pulsante che finga una
+// certezza. Nessun tempo di risposta promesso in cifre o in ore: vale la
+// frase dell'orario d'ufficio, la stessa delle conferme di pagamento.
 export function sendRequested(v, lang = 'en') {
   const it = lang === 'it';
   const inner =
@@ -95,8 +102,8 @@ export function sendRequested(v, lang = 'en') {
       : `Hi <b>${esc(firstName(v.clientName || v.name))}</b>, we've got your viewing request. <b>The time you picked is held for you</b> while we confirm it.`) +
     ticket(v, lang) +
     para(it
-      ? `Ti scriviamo appena è confermata — di solito <b>entro poche ore</b>. In quella email troverai le indicazioni, il pass e il calendario.`
-      : `We'll write the moment it's confirmed — usually <b>within a few hours</b>. That email will carry the directions, your pass and the calendar file.`) +
+      ? `Ti scriviamo appena è confermata. ${OFFICE_HOURS_IT} In quella email troverai le indicazioni, il pass e il calendario.`
+      : `We'll write the moment it's confirmed. ${OFFICE_HOURS_EN} That email will carry the directions, your pass and the calendar file.`) +
     btn(waMsg(it
       ? `Ciao BOOM, ho appena richiesto una visita per ${v.listingName || ''}`
       : `Hi BOOM, I've just requested a viewing for ${v.listingName || ''}`),

@@ -21,6 +21,8 @@
 
 import { fsCreate, logActivity } from '../homie/_lib.js';
 import { tgSend } from '../telegram/_lib.js';
+// statico, mai lazy: il bundler Vercel traccia solo gli import top-level
+import { attributionFromReq } from '../_attribution.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -132,6 +134,9 @@ export default async function handler(req, res) {
     tier: null,
     ingestedBy: 'partners',
     sourceRef: code,
+    // primo contatto consentito (cookie boom_attr di js/boom-track.js, che
+    // corporate/research/universities caricano), mai bloccante
+    attribution: attributionFromReq(req, body),
     partner: {
       kind: kindKey,
       org: org || null,

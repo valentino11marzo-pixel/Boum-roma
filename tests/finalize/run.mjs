@@ -35,6 +35,8 @@ const mails = () => globalThis.__mails || [];
 // ── Stub fetch: Firestore in-memory + Storage col RUBINETTO ──────────────
 // `storageDown` finge il 1/09: ogni upload admin → 403 "Permission denied.".
 const store = new Map();
+const docTimes = new Map(); let fixtureRevision = 0;
+const bump = (k) => docTimes.set(k, `2026-01-01T00:00:00.${String(++fixtureRevision).padStart(9, '0')}Z`);
 const storageFiles = new Map();
 let storageDown = false;
 let uploadAttempts = 0;
@@ -104,22 +106,39 @@ globalThis.fetch = async (url, opts = {}) => {
           const got = (store.get(k) || {})[ff.field.fieldPath];
           if (got !== want) continue;
         }
-        rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' } });
+        rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: docTimes.get(k) || '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' } });
         if (sq.limit && rows.length >= sq.limit) break;
       }
       return okJson(rows.length ? rows : [{}]);
+    }
+    if (path.startsWith(':commit')) {
+      const writes = JSON.parse(opts.body).writes || [];
+      for (const w of writes) {
+        const k = String(w.update?.name || '').split('/documents/')[1];
+        const pre = w.currentDocument || {};
+        if (!k || !w.updateMask || (!pre.updateTime && typeof pre.exists !== 'boolean')) throw new Error('Malformed conditional commit');
+        if ((pre.updateTime && pre.updateTime !== (docTimes.get(k) || '2026-01-01T00:00:00Z')) || (pre.exists === true && !store.has(k)) || (pre.exists === false && store.has(k))) {
+          return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION' } }), { status: 409 });
+        }
+      }
+      for (const w of writes) {
+        const k = w.update.name.split('/documents/')[1];
+        const doc = store.get(k) || {};
+        Object.assign(doc, fromFsFields(w.update.fields)); store.set(k, doc); bump(k);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
     }
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
-      store.set(key, fromFsFields(JSON.parse(opts.body).fields));
+      store.set(key, fromFsFields(JSON.parse(opts.body).fields)); bump(key);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       const cur = store.get(path) || {};
       Object.assign(cur, fromFsFields(JSON.parse(opts.body).fields));
-      store.set(path, cur);
+      store.set(path, cur); bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     if (opts.method === 'DELETE') {
@@ -128,7 +147,7 @@ globalThis.fetch = async (url, opts = {}) => {
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc), updateTime: '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc), updateTime: docTimes.get(path) || '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
@@ -361,7 +380,7 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
   const fin = readFileSync(new URL('../../api/sign/_finalize.js', import.meta.url), 'utf8');
   const upAt = fin.indexOf("contracts/${contract.id}/contratto-firmato.pdf");
   const arcAt = fin.indexOf('archiveSignedContract(contract, property');
-  const markAt = fin.indexOf('finalizedAt: now }');
+  const markAt = fin.indexOf('await packageCheckpoint(contract.id,');
   check('sorgente: il finalize archivia DOPO aver caricato la copia firmata e PRIMA del semaforo finalizedAt',
     upAt > -1 && arcAt > upAt && markAt > arcAt);
   const pa = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');

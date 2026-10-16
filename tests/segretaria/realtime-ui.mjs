@@ -1,6 +1,7 @@
 // Listener Firestore e regioni Oggi/Inbox reali, con soli confini di rete simulati.
 // node tests/segretaria/realtime-ui.mjs (BOOM_PLAYWRIGHT / BOOM_CHROME se necessari)
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
@@ -13,8 +14,14 @@ const named = (source, name) => {
   return source.slice(start, end);
 };
 const body = source => source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
+const inboxFollowUpBody = source => {
+  const start = source.indexOf('    function inboxFollowUpState()');
+  const end = source.indexOf('    function inboxThreadPanel(', start);
+  assert(start >= 0 && end > start, 'Blocco reale dei seguiti Inbox presente');
+  return source.slice(start, end);
+};
 const listeners = source => ['startActionQueueListener', 'startContractsListener', 'startMaintenanceListener',
-  'startOpenConvListener', 'stopOpenConvListener', 'inboxThreadPanel'].map(n => named(source, n)).join('\n');
+  'startOpenConvListener', 'stopOpenConvListener', 'inboxThreadPanel', 'inboxRefresh'].map(n => named(source, n)).join('\n');
 const chromium = await loadChromium();
 assert.ok(chromium, 'Playwright necessario per verificare i listener nel browser');
 const browser = await chromium.launch(launchOptions());
@@ -38,14 +45,14 @@ async function fixture(source = portal, mobile = false) {
     const kindLabel=()=>'',inboxHomieBanner=()=>'',inboxMessageBubble=m=>'<p data-message="'+m.id+'">'+m.id+'</p>';
     const inboxComposer=()=>'<textarea id="inboxBody"></textarea>';
     function inboxPage(){return inboxThreadPanel({id:_inboxState.convId})}
-    function inboxRefresh(){if(S.page==='inbox')document.getElementById('main').innerHTML=inboxThreadPanel({id:_inboxState.convId})}
     window.apiCalls=0;window.holdRequests=false;window.held=[];window.apiRows=[];window.apiMonitoring=null;window.apiPages=null;window.apiRequests=[];window.holdCursor=null;
     window.apiWrites=0;window.fetch=async(url,options={})=>{window.apiCalls++;window.apiRequests.push(url);if(options.method==='POST')window.apiWrites++;const after=new URL(url,'https://local.test').searchParams.get('after');const payload=window.apiPages?window.apiPages[after||'first']:{ok:true,rows:window.apiRows,monitoring:window.apiMonitoring,task:window.apiRows.find(t=>String(url).includes(t.id)),dossier:{practices:[]}};if(window.holdRequests||(after&&after===window.holdCursor))await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>payload}};
     window.subscriptions={};window.unsubscribed=0;window.messageRows=[];
     const db={collection(name){
       const query={name,filter:null,sort:null,max:Infinity,
         where(field,op,value){this.filter=[field,value];return this},orderBy(field,dir){this.sort=[field,dir];return this},limit(n){this.max=n;return this},
-        onSnapshot(next,error){
+        onSnapshot(...args){
+          const [next,error]=args.filter(arg=>typeof arg==='function');
           const key=name==='messages'?name+':'+this.filter[1]:name;
           const sub={query:this,next,error};window.subscriptions[key]=sub;
           if(name==='messages'){
@@ -59,13 +66,19 @@ async function fixture(source = portal, mobile = false) {
     }};
     window.emit=(name,rows=[])=>window.subscriptions[name].next({docs:rows.map(r=>({id:r.id,data:()=>r}))});
   ` });
-  for (const name of ['js/oggi-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
-  await page.addScriptTag({ content: body(source) + '\n' + listeners(source) + `
+  for (const name of ['js/oggi-engine.js', 'js/oggi-desk-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
+  await page.addScriptTag({ content: sessionHelpers(source) + '\n' + body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + `
     document.getElementById('main').innerHTML=oggiPage();
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });
   await page.waitForFunction(() => oggiSegretaria.loaded);
+  await page.locator('#ogQueueArchive > summary').click();
   return { page, errors };
+}
+
+async function openOperations(page) {
+  const detail = page.locator('details[data-sg-detail="operations"]');
+  if (!await detail.evaluate(el => el.open)) await detail.locator(':scope > summary').click();
 }
 
 async function actionAppears(page) {
@@ -116,6 +129,7 @@ try {
       S.conversations=[{channel:'whatsapp',lastDirection:'in',lastMessageAt:'2026-09-17T07:00:00Z'}];
       await oggiSegretariaLoad(true);
     });
+    await openOperations(page);
     await page.getByText('Copertura degli aggiornamenti',{exact:true}).click();
     await page.locator('.sg-service-details > summary').click();
     const text = await page.locator('#sgFollowPanel').innerText();
@@ -194,6 +208,7 @@ try {
       });
       assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
       assert.equal(await backlog.locator('[data-sg-group="preparing"] .sg-count').innerText(),'111');
+      await backlog.locator('[data-ow-view="preparing"]').click();
       assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),12);
       await backlog.locator('[data-sg-action="more-preparing"]').click();
       assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),24);
@@ -210,6 +225,7 @@ try {
         const t=window.apiRows[0];t.followUp.intakeTiming={status:'ambiguous',quote:'entro le 12:00 <img src=x onerror="window.injected=true">',sourceMessageId:'old-message'};oggiSegretariaRender();
       });
       assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
+      await backlog.locator('[data-ow-view="decisions"]').click();
       assert.match(await backlog.locator('.sg-intake-timing').innerText(),/fonte precedente/);
       assert.equal(await backlog.locator('.sg-intake-timing img').count(),0);
       assert.equal(await backlog.evaluate(()=>window.injected===true),false);
@@ -232,19 +248,24 @@ try {
         window.apiMonitoring={mode:'continuous',status:'working',dailyCap:null,remainingToday:null,usedToday:1500,counts:{pending:1,current:2,retrying:0}};
         await oggiSegretariaLoad(true);
       });
-      assert.match(await continuous.locator('.sg-briefing-note').innerText(),/1 proposta pronta da rivedere.*1 richiesta da verificare/);
+      assert.equal(await continuous.locator('[data-ow-view="decisions"] span').innerText(),'2');
+      assert.equal(await continuous.locator('[data-ow-view="preparing"] span').innerText(),'1');
       assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Seguito interno'}).count(),1);
       assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Da verificare'}).count(),1);
+      await openOperations(continuous);
+      await continuous.locator('[data-ow-view="preparing"]').click();
       await continuous.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===false);
       assert.equal(await continuous.evaluate(()=>window.apiWrites),0,'consultare una richiesta non prepara né invia');
       await continuous.locator('[data-sg-modal="cancel"]').last().click();
+      await continuous.locator('[data-ow-view="decisions"]').click();
       await continuous.locator('[data-sg-id="sg_'+ '2'.repeat(32)+'"] [data-sg-action="review"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="approve"]')?.disabled===true);
       await continuous.evaluate(()=>oggiSegretariaPrepare('approve'));
       assert.equal(await continuous.evaluate(()=>window.apiWrites),0,'needs_context non approvabile anche chiamando il gestore');
       await continuous.locator('[data-sg-modal="cancel"]').last().click();
       await continuous.evaluate(async()=>{window.apiMonitoring.status='daily_cap';window.apiMonitoring.dailyCap=50;window.apiMonitoring.remainingToday=0;await oggiSegretariaLoad(true)});
+      await continuous.locator('[data-ow-view="preparing"]').click();
       await continuous.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===false);
       assert.doesNotMatch(await continuous.locator('#sgPreparationStatus').innerText(),/limite giornaliero raggiunto/);

@@ -87,12 +87,12 @@
     {
       "source": "/(la-reunion|reunion-island|974)",
       "destination": "/reunion",
-      "permanent": false
+      "permanent": true
     },
     {
       "source": "/(executive-rentals|executive-stays|relocation-rome)",
       "destination": "/executive",
-      "permanent": false
+      "permanent": true
     },
     {
       "source": "/(owner|owner.html)",
@@ -292,6 +292,21 @@
     {
       "source": "/faq-page",
       "destination": "/faq",
+      "permanent": true
+    },
+    {
+      "source": "/pfs",
+      "destination": "/property-finding",
+      "permanent": true
+    },
+    {
+      "source": "/apartments/:zone(trastevere|centro-storico|monti|prati|testaccio|ostiense|trieste-coppede|san-lorenzo|esquilino|ponte-milvio)",
+      "destination": "/apartments-in/:zone",
+      "permanent": true
+    },
+    {
+      "source": "/apartments/:id",
+      "destination": "/listing/:id",
       "permanent": true
     }
   ],
@@ -573,7 +588,7 @@
       ]
     },
     {
-      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord)(.*)",
+      "source": "/(dashboard|client-portal|owner-dashboard|tenant-registration|login|onboarding|pre-arrival|precheck|thank-you|proppass|pass-delivery|form-tenant|form-landlord|deals)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -781,6 +796,9 @@
       "maxDuration": 60
     },
     "api/ops/cassaforte.js": {
+      "maxDuration": 60
+    },
+    "api/mailbox/query.js": {
       "maxDuration": 60
     },
     "api/segretaria/scan-replies.js": {

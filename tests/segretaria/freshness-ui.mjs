@@ -1,5 +1,6 @@
 // Freshness claims and foreground recovery: actual Oggi/Inbox code, fake IO only.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -15,6 +16,12 @@ const named = (name, source = portal) => {
   return source.slice(start, start + 5 + next);
 };
 const oggiBody = source => source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
+const inboxFollowUpBody = source => {
+  const start = source.indexOf('    function inboxFollowUpState()');
+  const end = source.indexOf('    function inboxThreadPanel(', start);
+  assert(start >= 0 && end > start, 'Blocco reale dei seguiti Inbox presente');
+  return source.slice(start, end);
+};
 const inboxFunctions = ['inboxPage', 'inboxConversationCard', 'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble', 'inboxComposer', 'kindLabel', 'inboxRefresh'];
 const ID = 'sg_' + 'a'.repeat(32);
 const chromium = await loadChromium();
@@ -73,9 +80,10 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
       document.dispatchEvent(new Event('visibilitychange'));
     };
   ` });
-  for (const name of ['oggi-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine'])
+  for (const name of ['oggi-engine', 'oggi-desk-engine', 'segretaria-casi-engine', 'segretaria-proposta-engine', 'segretaria-esecuzione-engine'])
     await page.addScriptTag({ content: read('js/' + name + '.js') });
   await page.addScriptTag({ content: read('js/conversations.js') });
+  await page.addScriptTag({ content: sessionHelpers(source) });
   if(globalOnline){
     const start=source.indexOf("    window.addEventListener('online', () => {");
     const end=source.indexOf("    window.addEventListener('offline', () => {",start);
@@ -85,7 +93,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
   }
   const oggi=oggiBody(source);
   const inboxHelpers=['inboxFreshnessUpdate','inboxLiveRefresh'].filter(name=>source.includes('    function '+name+'(') && !oggi.includes('    function '+name+'('));
-  await page.addScriptTag({ content: source.match(/    var _inboxState = [^\n]+/)[0] + '\n' + oggi + '\n'
+  await page.addScriptTag({ content: source.match(/    var _inboxState = [^\n]+/)[0] + '\n' + oggi + '\n' + inboxFollowUpBody(source) + '\n'
     + [...inboxFunctions, ...inboxHelpers, 'startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(name=>named(name,source)).join('\n') + `
     document.getElementById('main').innerHTML=oggiPage();startInboxListener();
   ` });
@@ -95,7 +103,10 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
     emitConversations(seedConversations);
   });
   await page.waitForTimeout(250);
-  await page.locator('article[data-sg-id="' + ID + '"] summary').click();
+  await page.locator('#ogQueueArchive > summary').click();
+  await page.locator('details[data-sg-detail="operations"] > summary').click();
+  await page.locator('[data-ow-view="preparing"]').click();
+  await page.locator('details[data-sg-detail="case-' + ID + '"] > summary').click();
   await page.locator('[data-sg-action="edit"][data-sg-id="' + ID + '"]').click();
   await page.locator('#sgAction').fill('Bozza da completare: non inviare');
   await page.locator('#sgAction').focus();
@@ -145,6 +156,25 @@ try {
       visibleError(before,after);
     } finally { await page.close(); }
   });
+  for (const listener of ['conversations', 'operatorTasks']) {
+    await check('errore ' + listener + ' visibile anche con stato e copertura chiusi', async () => {
+      const { page, errors } = await fixture();
+      try {
+        await page.locator('[data-sg-modal="cancel"]').first().click();
+        const operations = page.locator('details[data-sg-detail="operations"]');
+        await operations.locator(':scope > summary').click();
+        assert.equal(await operations.evaluate(el => el.open), false);
+        await page.evaluate(name => subscriptions[name].error({code:'unavailable'}), listener);
+        await page.waitForTimeout(250);
+        assert.equal(await operations.evaluate(el => el.open), false, 'L’errore non apre la sezione al posto dell’utente');
+        assert.equal(await operations.locator(':scope > summary').isVisible(), true);
+        assert.match(await operations.locator(':scope > summary').innerText(), /aggiornament.*(?:verificare|indisponibil|non disponibile)|conversazion.*(?:errore|indisponibil)/i);
+        assert.equal(await page.evaluate(() => JSON.stringify(S.conversations) === previousConversations && JSON.stringify(oggiSegretaria.rows) === previousRows), true);
+        assert.equal(await page.evaluate(() => apiWrites), 0);
+        assert.deepEqual(errors, []);
+      } finally { await page.close(); }
+    });
+  }
   await check('B · ritorno in primo piano ricontrolla subito con una sola GET, senza AI o perdita della bozza', async () => {
     const { page, errors } = await fixture();
     try {
