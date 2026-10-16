@@ -2484,6 +2484,12 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**16/10 — casa e contratto accompagnano i canali:** i badge WhatsApp/Email di
+Oggi passavano il contesto solo per persone/clienti e riaprivano la casella
+generica dopo aver scelto una casa o un contratto. `homeTools` ora passa il
+riferimento tipizzato anche per questi due record, riusando Inbox e i suoi
+collegamenti confermati; nessun destinatario dedotto, invio, scrittura o AI.
+Il ritorno conserva la selezione. Prove `actions`, `oggiquicktoolsui`, `inboxconnected`.
 **15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
 con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
 mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);

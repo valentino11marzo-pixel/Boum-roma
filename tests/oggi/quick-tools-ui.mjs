@@ -5,11 +5,17 @@ import { quickToolsHtml } from './home-harness.mjs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
 const ids = ['properties', 'people', 'whatsapp', 'email', 'appointments', 'calls', 'document', 'magic-sign', 'inventory', 'handover', 'maintenance', 'payment', 'invoices', 'listings', 'templates', 'automations'];
+let fixtureHtml = quickToolsHtml;
+if (process.env.BOOM_QUICK_TOOLS_MUTATION === 'drop-property-contract-context') {
+  const guard = "if (kind === 'person' || kind === 'client' || kind === 'property' || kind === 'contract') {";
+  assert(fixtureHtml.includes(guard), 'The production Home context guard must be present');
+  fixtureHtml = fixtureHtml.replace(guard, "if (kind === 'person' || kind === 'client') {");
+}
 const requests = [];
 const server = createServer((req, res) => {
   requests.push({ method: req.method, url: req.url });
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  if (new URL(req.url, 'http://localhost').pathname === '/') res.end(quickToolsHtml);
+  if (new URL(req.url, 'http://localhost').pathname === '/') res.end(fixtureHtml);
   else res.end('<!doctype html><title>Synthetic navigation boundary</title><p>Destination reached. Console execution is outside this launcher test.</p>');
 });
 await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -200,6 +206,59 @@ try {
         assert.equal(await page.evaluate(() => _inboxState.convId), null);
         assert.deepEqual(await page.evaluate(() => testState.conversations.map(c => c.unread)), [4, 4, 4, 4, 4]);
       });
+
+      for (const kind of ['property', 'contract']) {
+        await check(channel + ' preserves ' + kind + ' context through Inbox and return; ambiguous cases stay excluded', async () => {
+          const id = kind === 'property' ? 'casa-seconda' : 'contratto-secondo';
+          const query = kind === 'property' ? 'Casa Aurora' : 'BOOM-SECONDO';
+          await select(kind, query, kind === 'property' ? 'Via Seconda 20' : 'Persona Seconda');
+          const label = await page.locator('#ogQuickContext strong').innerText();
+          await page.evaluate(channel => {
+            // The same person appears in every conversation: only confirmed
+            // practice references may attach messages to the selected house/deal.
+            testState.conversations = ['own-whatsapp', 'own-email', 'ambiguous', 'unconfirmed', 'conflicting', 'unrelated'].map(id => ({
+              id, channel: id.startsWith('own-') ? id.slice(4) : channel,
+              contactId: 'p-seconda', contactType: 'tenant', contactName: 'Persona Seconda',
+              lastMessagePreview: 'Messaggio ' + id, unread: 4, needsReply: true, status: 'open'
+            }));
+            testIO.followUps = testState.conversations.map((conversation, index) => caseRow(String.fromCharCode(99 + index), {
+              conversationId: conversation.id, practiceRef: 'contracts/contratto-secondo', propertyRef: 'properties/casa-seconda',
+              ...(conversation.id === 'ambiguous' ? { ambiguous: true } : {}),
+              ...(conversation.id === 'unconfirmed' ? { confirmed: false } : {}),
+              ...(conversation.id === 'conflicting' ? { propertyRef: 'properties/casa-demo' } : {}),
+              ...(conversation.id === 'unrelated' ? { practiceRef: 'contracts/contratto-demo', propertyRef: 'properties/casa-demo' } : {})
+            }));
+            oggiSegretaria.rows = testIO.followUps;
+          }, channel);
+          await tool(channel).click();
+          assert.deepEqual(await page.evaluate(() => testState.inboxContext?.record), { kind, id });
+          await page.waitForFunction(() => testState.inboxContext && !testState.inboxContext.loading);
+          assert.equal(await page.getByRole('combobox', { name: 'Canale messaggi' }).inputValue(), channel);
+          assert.match(await page.locator('.inbox-list-pane').innerText(), new RegExp('Messaggio own-' + channel));
+          assert.doesNotMatch(await page.locator('.inbox-list-pane').innerText(), /Messaggio ambiguous|Messaggio unconfirmed|Messaggio conflicting|Messaggio unrelated/);
+          assert.doesNotMatch(await page.locator('.inbox-list-pane').innerText(), new RegExp('Messaggio own-' + (channel === 'email' ? 'whatsapp' : 'email')));
+          assert.deepEqual(await page.evaluate(() => oggiInboxScope().ids.sort()), ['own-email', 'own-whatsapp']);
+          assert.equal(await page.evaluate(() => _inboxState.convId), null);
+          assert.equal(await page.locator('#inboxBody').count(), 0);
+          assert.deepEqual(await page.evaluate(() => testState.conversations.map(c => [c.unread, c.needsReply])), Array.from({ length: 6 }, () => [4, true]));
+          assert.equal(await page.evaluate(() => testIO.reads.includes('messages')), false);
+
+          await page.getByRole('button', { name: '← Torna al contesto', exact: true }).click();
+          assert.deepEqual(await page.evaluate(() => [testState.page, oggiWorkspace.selected.kind, oggiWorkspace.selected.id]), ['oggi', kind, id]);
+          assert.equal(await page.locator('#ogQuickContext strong').innerText(), label);
+          assert.equal(await page.locator('#ogWorkQuery').inputValue(), query);
+
+          // When all saved links need review, preserve the empty context;
+          // never silently expose the general Inbox as a fallback.
+          await page.evaluate(() => testIO.followUps.forEach(task => { task.followUp.needsReview = true; }));
+          await tool(channel).click();
+          await page.waitForFunction(() => testState.inboxContext && !testState.inboxContext.loading);
+          assert.deepEqual(await page.evaluate(() => testState.inboxContext.record), { kind, id });
+          assert.deepEqual(await page.evaluate(() => oggiInboxScope().ids), []);
+          assert.doesNotMatch(await page.locator('.inbox-list-pane').innerText(), /Messaggio /);
+          assert.equal(await page.evaluate(() => _inboxState.convId), null);
+        });
+      }
     }
 
     await check('compact context keeps icons stable, exposes details and can clear the exact selection', async () => {

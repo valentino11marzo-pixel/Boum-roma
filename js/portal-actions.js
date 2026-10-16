@@ -499,10 +499,11 @@
         } else if (kind === 'person') {
             contextual('people', 'openPerson').description = 'Apri la scheda della persona scelta.';
         }
-        if (kind === 'person' || kind === 'client') {
+        if (kind === 'person' || kind === 'client' || kind === 'property' || kind === 'contract') {
             ['whatsapp', 'email'].forEach(function (id) {
                 tool(id).args.push({ kind: kind, id: row.id });
-                tool(id).description = 'Apri le conversazioni ' + (id === 'email' ? 'email' : 'WhatsApp') + ' già collegate al contatto scelto.';
+                var scope = kind === 'property' ? 'all’immobile scelto' : kind === 'contract' ? 'al contratto scelto' : 'al contatto scelto';
+                tool(id).description = 'Apri le conversazioni ' + (id === 'email' ? 'email' : 'WhatsApp') + ' già collegate ' + scope + '.';
             });
         }
         if (kind === 'property' || kind === 'contract') {

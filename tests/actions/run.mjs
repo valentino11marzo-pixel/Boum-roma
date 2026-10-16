@@ -310,7 +310,7 @@ homeCheck('contratto: verbale e inventario esatti; incassi consultabili e casa t
   assert.deepEqual(homeAction(rows, 'people').args, ['users']);
   assert.equal(homeAction(rows, 'document').fn, 'openDocUploadModal');
 });
-homeCheck('Inbox conserva il tipo del contatto e non deduce il destinatario da contratto o casa', () => {
+homeCheck('Inbox conserva contatto, immobile o contratto tipizzati senza dedurre il destinatario', () => {
   const sameId = { ...homeState, users: [{ id: 'same', name: 'Omonimo', role: 'tenant' }], clients: [{ id: 'same', name: 'Omonimo' }] };
   for (const channel of ['whatsapp', 'email']) {
     for (const kind of ['person', 'client']) {
@@ -321,7 +321,10 @@ homeCheck('Inbox conserva il tipo del contatto e non deduce il destinatario da c
       assert.deepEqual(calls, [[channel, { kind, id: 'same' }]]);
     }
     for (const [kind, id] of [['property', 'p1'], ['contract', 'c1']]) {
-      assert.deepEqual(homeAction(home(kind, id), channel).args, [channel]);
+      const a = homeAction(home(kind, id), channel), calls = [];
+      assert.equal(a.fn, 'oggiOpenInbox'); assert.deepEqual(a.args, [channel, { kind, id }]);
+      assert.equal(P.run(a, { oggiOpenInbox: (...args) => calls.push(args) }), true);
+      assert.deepEqual(calls, [[channel, { kind, id }]]);
     }
   }
 });
@@ -412,6 +415,17 @@ homeCheck('mutazioni: unicità record, relazione per ID e consultazione incassi 
   checkPayment(P); assert.throws(() => checkPayment(mutated("['payment', 'go:payments'", "['payment', 'new:addPayment'")), assert.AssertionError);
   const checkInboxKind = api => assert.equal(homeAction(home('client', 'crm1', homeState, api), 'email').args[1].kind, 'client');
   checkInboxKind(P); assert.throws(() => checkInboxKind(mutated('kind: kind, id: row.id', "kind: 'person', id: row.id")), assert.AssertionError);
+  const checkInboxContext = api => {
+    for (const channel of ['whatsapp', 'email']) for (const [kind, id] of [['property', 'p1'], ['contract', 'c1']]) {
+      const action = homeAction(home(kind, id, homeState, api), channel);
+      assert.equal(action.args[1]?.kind, kind); assert.equal(action.args[1]?.id, id);
+    }
+  };
+  checkInboxContext(P);
+  assert.throws(() => checkInboxContext(mutated(
+    "if (kind === 'person' || kind === 'client' || kind === 'property' || kind === 'contract') {",
+    "if (kind === 'person' || kind === 'client') {"
+  )), assert.AssertionError);
   const checkNoRun = api => assert.equal(homeAction(api.homeTools(null, {}, 2027), 'automations').fn, 'goTo');
   checkNoRun(P); assert.throws(() => checkNoRun(mutated("['automations', 'go:rules'", "['automations', 'tool:rules'")), assert.AssertionError);
 });
