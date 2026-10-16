@@ -6852,6 +6852,11 @@ id (fuori solo corsia, «NEW» e data d'ingresso), totale con IVA, il flusso
 dell'ItemList, una mutazione per ognuno dei 17 frammenti e builder. Aperto: le
 carte di build dicono ancora «Waitlist open» su nove case (l'idrante corregge
 in pagina; la prossima build piena le rifà, con l'anno dedotto da confermare).
+**Dopo un riallineamento si lancia `npm test` INTERO, non solo `catalogovetrina`**:
+il riallineamento toglie dalla pagina ciò che il frammento non ha, e una riga che
+sembra ridondante può essere pretesa da un'altra suite. Successo al primo giro:
+il `host.textContent = ''` del montatore Solari (Board svuota già) era sparito
+dalla scheda e `tests/listing` è caduto; ora sta nel frammento (`deco-organi`).
 
 ## Conventions
 

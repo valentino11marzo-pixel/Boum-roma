@@ -4364,6 +4364,11 @@ setTimeout(function () {
     window.__solariPrezzo = function (host) {
       var testo = host.dataset.p || '';
       if (!BS) { host.textContent = testo; return; }
+      /* il server scrive già la cifra in chiaro (chi non ha JS la legge):
+         si svuota PRIMA delle celle, o la cifra uscirebbe due volte. Board
+         svuota anche lui, ma il montatore non si regge su un dettaglio di
+         un altro file (tests/listing lo pretende sulla scheda). */
+      host.textContent = '';
       var b = new BS.Board(host, testo.length, ' €,.0123456789');
       if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
       new IntersectionObserver(function (r, io) {
@@ -4377,7 +4382,8 @@ setTimeout(function () {
        montaggio ne costruiva un primo tabellone e lo faceva girare, poi la
        regia lo cancellava e lo rifaceva girare: il prezzo frullava due
        volte. Le altre pagine non hanno #canoneCasa: per loro non cambia
-       niente (e il server scrive la cifra in chiaro, che Board svuota). */
+       niente (e il server scrive la cifra in chiaro, che il montatore
+       svuota prima delle celle). */
     [].forEach.call(document.querySelectorAll('.flap-prezzo:not(#canoneCasa)'),
       window.__solariPrezzo);
   })();
