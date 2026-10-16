@@ -191,16 +191,26 @@ h = h.replace('PASS_MINI', leggi('logo-live.svg').strip()
     .replace('goldGrad', 'goldGradMini'))
 h = h.replace('SC_NOME', sc['nome'])
 h = h.replace('SC_PREZZO', euro(sc['prezzo']))
-h = h.replace('SC_TOT', euro(sc['prezzo'] * 2 + round(sc['prezzo'] * 12 * .10)))
+# il totale d'ingresso: mese + deposito + onorario (10% del canone annuo)
+# CON l'IVA del 22% — l'etichetta dice «fee incl. VAT» dal 15/10/2026, e la
+# pagina viva lo calcola così; la formula senza IVA dava un totale falso
+h = h.replace('SC_TOT', euro(sc['prezzo'] * 2 + round(sc['prezzo'] * 12 * .10 * 1.22)))
 h = h.replace('PASS_LOGO', leggi('logo-live.svg').strip()
     .replace('goldGrad', 'goldGradPass'))
 # la foto del fondatore: se c'è founder.jpg la incastoniamo, altrimenti
-# un'attesa elegante (monogramma) finché Valentino non la manda come file
+# un'attesa elegante (monogramma) finché Valentino non la manda come file.
+# La foto VERA sta nel repo in img/founder.jpg (la pagina viva la serve
+# da /img/founder.jpg): si cerca lì, due cartelle sopra la build — prima
+# si cercava solo nella cartella di build, e una ricostruzione rimetteva
+# il monogramma al posto della foto.
 import os as _os, base64 as _b64
-if _os.path.exists('founder.jpg'):
+_FOND = next((p for p in ('founder.jpg', _os.path.join(_os.path.dirname(
+    _os.path.abspath(__file__)), '..', '..', 'img', 'founder.jpg'))
+    if _os.path.exists(p)), None)
+if _FOND:
     if MODO == 'artefatto':
         _src = ('data:image/jpeg;base64,'
-                + _b64.b64encode(open('founder.jpg', 'rb').read()).decode())
+                + _b64.b64encode(open(_FOND, 'rb').read()).decode())
     else:
         _src = '/img/founder.jpg'
     FOND = ('<img src="' + _src + '" alt="Valentino, founder of BOOM, '
@@ -343,10 +353,12 @@ if MODO == 'sito':
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + h.replace('</style>', '</style>\n' + TESTA.scroll()
+                     + '\n</head>\n<body>', 1)
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
-         + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+         + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n\n' + TESTA.TRACCIA
+         + '\n</body>\n</html>')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '

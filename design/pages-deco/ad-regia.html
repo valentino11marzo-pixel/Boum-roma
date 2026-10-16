@@ -458,6 +458,21 @@
   addEventListener('hashchange', function () { leggiHash(); aggiorna(); });
   })();
 
+  /* ── L'INNESTO: le case nate DOPO la build entrano nel setaccio ──────
+     La griglia è una fotografia; l'idrante (in coda alla pagina) rilegge
+     Firestore e per un annuncio che il catalogo ha e la build no
+     COSTRUISCE la carta — il wizard pubblica di sera e la vetrina non
+     aspetta un deploy. Qui la carta si registra fra quelle di build e si
+     riconta: filtri, conto e ordinamento la trattano come le sorelle.
+     Il guard sui duplicati copre l'ordine inverso (fetch prima di load:
+     la querySelectorAll qui sopra l'ha già presa). */
+  window.__muroInnesta = function (nuove) {
+    (nuove || []).forEach(function (c) {
+      if (carte.indexOf(c) < 0) carte.push(c);
+    });
+    aggiorna();
+  };
+
   aggiorna();
   }
   if (document.readyState === 'complete') via();

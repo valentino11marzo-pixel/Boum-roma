@@ -55,181 +55,49 @@ for r in vivi:
     })
 
 def leggi(n): return open(n, encoding='utf-8').read()
-h = '''<title>BOOM · Rome — Live Board</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-/* ══ IL KIOSK — il tabellone da vetrina. Nessuna nav: solo il teatro. ══ */
-:root { --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88; --black:#030303;
-  --oro-flap:#FFE55C; --line:rgba(255,255,255,.08); --line-0:rgba(255,255,255,.04);
-  --line-gold:rgba(255,215,0,.14);
-  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
-  --sans:'Inter',-apple-system,sans-serif; color-scheme:dark; }
-*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
-html,a { color:inherit; }
-body { height:100%; }
-body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
-  font-weight:300; overflow:hidden; display:flex; flex-direction:column;
-  cursor:none; }
-.cima { display:flex; align-items:center; justify-content:space-between;
-  padding:clamp(18px,3vh,34px) clamp(22px,3.5vw,60px);
-  border-bottom:1px solid var(--line-0); }
-.marchio { display:flex; align-items:center; gap:16px; }
-.marchio svg { width:clamp(34px,4.5vh,52px); height:clamp(34px,4.5vh,52px); }
-.marchio span { font-family:var(--display); font-size:clamp(17px,2.4vh,26px);
-  font-weight:500; letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
-.cima-eti { display:flex; align-items:center; gap:12px; font-size:clamp(11px,1.5vh,14px);
-  font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
-.cima-eti i { font-style:normal; width:9px; height:9px; border-radius:50%;
-  background:var(--green); animation:pulse 2.2s ease infinite; }
-@keyframes pulse { 50% { opacity:.3; } }
-#ora { font-family:var(--display); font-size:clamp(16px,2.6vh,26px); }
-.sala { flex:1; display:grid; align-content:center;
-  padding:0 clamp(22px,3.5vw,60px); }
-.colonne, .riga { display:grid; align-items:center;
-  grid-template-columns:clamp(80px,9vw,150px) minmax(0,1fr) clamp(64px,6vw,110px)
-    clamp(120px,12vw,200px) clamp(90px,9vw,150px);
-  gap:clamp(10px,2vw,34px); padding:0 clamp(8px,1vw,20px); }
-.colonne { padding-bottom:1.4vh; font-size:clamp(10px,1.4vh,13px); font-weight:600;
-  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.3); }
-.riga { font-size:clamp(17px,3.4vh,34px);
-  padding-top:clamp(10px,1.9vh,20px); padding-bottom:clamp(10px,1.9vh,20px);
-  border-top:1px solid var(--line-0); }
-/* su telefono le 5 colonne non entrano (la pagina sforava di 42px dietro
-   un overflow:hidden): cade Beds — come sul tabellone della discovery
-   cade il prezzo — e il resto si stringe su misura */
-@media (max-width:560px){
-  .sala { padding:0 14px; }
-  .colonne, .riga { grid-template-columns:64px minmax(0,1fr) 80px 64px;
-    gap:8px; padding:0 4px; }
-  .colonne span:nth-child(3), .riga .c-tipo { display:none; }
-  .riga { font-size:13px; }
-  .colonne { font-size:9px; letter-spacing:.14em; }
-}
-.cella { overflow:hidden; }
-.c-stato { color:var(--green); }
-.riga.nuovo .c-stato { color:var(--gold-light); }
-.fondo { display:flex; align-items:center; justify-content:space-between;
-  gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
-  border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
-  letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
-.fondo b { color:var(--gold); font-weight:600; }
-.pagine { display:flex; gap:8px; }
-.pagine i { width:26px; height:3px; background:var(--line); font-style:normal;
-  transition:background .4s ease; }
-.pagine i.qui { background:var(--gold); }
-.flap-scale { letter-spacing:0; white-space:nowrap; }
-</style>
-<div class="cima">
-  <div class="marchio">LOGO_SVG<span>Boom</span></div>
-  <div class="cima-eti"><i></i>Homes in Rome · Live</div>
-  <div id="ora" class="flap-scale"></div>
-</div>
-<div class="sala">
-  <div class="colonne">
-    <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
-  </div>
-  <div id="righe"></div>
-</div>
-<div class="fondo">
-  <a href="KIOSK_HOME" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
-  <span class="pagine" id="pagine"></span>
-  <span>Video-verified · Keys in 48h</span>
-</div>
-''' + leggi('solari-engine.html') + '''
-<script>
-(function () {
-  'use strict';
-  var BS = window.BoomSolari;
-  var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
-  var CASE = 'CASE_JSON';
-  var PER = 6, GIRO = 14000;
-  var pagine = Math.max(1, Math.ceil(CASE.length / PER));
-  var box = document.getElementById('righe');
-  var nav = document.getElementById('pagine');
-  var righe = [];
-  for (var i = 0; i < Math.min(PER, CASE.length); i++) {
-    var d = document.createElement('div');
-    d.className = 'riga';
-    d.innerHTML = '<span class="cella c-ora flap-scale"></span>' +
-      '<span class="cella c-zona flap-scale"></span>' +
-      '<span class="cella c-tipo flap-scale"></span>' +
-      '<span class="cella c-prezzo flap-scale"></span>' +
-      '<span class="cella c-stato flap-scale"></span>';
-    box.appendChild(d);
-    righe.push({ el:d, celle:{
-      ora:   new BS.Board(d.querySelector('.c-ora'),    5,  DRUM),
-      zona:  new BS.Board(d.querySelector('.c-zona'),   13, DRUM),
-      tipo:  new BS.Board(d.querySelector('.c-tipo'),   3,  DRUM),
-      prezzo:new BS.Board(d.querySelector('.c-prezzo'), 6,  DRUM),
-      stato: new BS.Board(d.querySelector('.c-stato'),  5,  DRUM)
-    }});
-  }
-  for (var k = 0; k < pagine; k++) {
-    var t = document.createElement('i');
-    if (k === 0) t.className = 'qui';
-    nav.appendChild(t);
-  }
-  var pagina = 0;
-  function mostra(p, sbatti) {
-    pagina = p;
-    [].forEach.call(nav.children, function (x, k) {
-      x.classList.toggle('qui', k === p);
-    });
-    righe.forEach(function (r, i) {
-      var h = CASE[p * PER + i];
-      r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
-      var mostraR = function () {
-        r.celle.ora.update(h ? h.ora : '');
-        r.celle.zona.update(h ? h.zona : '');
-        r.celle.tipo.update(h ? h.tipo : '');
-        r.celle.prezzo.update(h ? h.prezzo : '');
-        r.celle.stato.update(h ? h.stato : '');
-      };
-      if (sbatti) setTimeout(mostraR, i * 140); else mostraR();
-    });
-  }
-  /* prima stampa col giro completo */
-  righe.forEach(function (r, i) {
-    var h = CASE[i];
-    setTimeout(function () {
-      if (!h) return;
-      r.celle.ora.show(h.ora, 24, true);
-      r.celle.zona.show(h.zona, 18, true);
-      r.celle.tipo.show(h.tipo, 24, true);
-      r.celle.prezzo.show(h.prezzo, 22, true);
-      r.celle.stato.show(h.stato, 22, true);
-      r.el.classList.toggle('nuovo', h.stato === 'NEW');
-    }, 400 + i * 160);
-  });
-  if (pagine > 1) setInterval(function () {
-    if (document.hidden) return;
-    mostra((pagina + 1) % pagine, true);
-  }, GIRO);
-  /* l'orologio */
-  function oraRoma() {
-    try {
-      return new Intl.DateTimeFormat('en-GB', { timeZone:'Europe/Rome',
-        hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date());
-    } catch (e) { return new Date().toTimeString().slice(0, 5); }
-  }
-  var oro = new BS.Board(document.getElementById('ora'), 5, ' 0123456789:');
-  oro.show(oraRoma());
-  setInterval(function () { if (!document.hidden) oro.update(oraRoma()); }, 20000);
-  /* ogni tanto un fremito, come i tabelloni veri */
-  setInterval(function () {
-    if (document.hidden) return;
-    var r = righe[Math.floor(Math.random() * righe.length)];
-    var quali = ['zona','prezzo','stato'];
-    r.celle[quali[Math.floor(Math.random() * 3)]].flutter();
-  }, 9000);
-})();
-</script>
-'''
+# IL TABELLONE VIVO. Fino al 16/10/2026 questo builder emetteva il kiosk di
+# luglio: un corpo senza testa, le righe tutte insieme, nessuna lettura del
+# catalogo. board.html era stata fatta a mano sopra — la testa (canonical,
+# og-board.png), le PARTENZE/ARRIVI dello Scalo, l'idrante che legge
+# Firestore col motore delle corsie (laneRows) e le camere con la regola
+# UNA (camereDi, 15/10) — e una ricostruzione le toglieva tutte, senza un
+# errore. Ora la pagina nasce da due frammenti, come le altre:
+#   kiosk-corpo.html  lo stile del kiosk e il corpo (cima, lato, sala, fondo)
+#   kiosk-regia.html  lo script: fotografia di build (CASE_JSON), partenze e
+#                     arrivi, rotazione, orologio, idrante
+# e dalla testa di testa.py (blocco_board) col contratto di scorrimento.
+TITOLO = 'BOOM · Rome — Live Board'
+h = ('<title>' + TITOLO + '</title>\n'
+     + 'TESTA_BOARD'
+     + '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+     + leggi('kiosk-corpo.html') + leggi('solari-engine.html') + '\n'
+     + leggi('kiosk-regia.html'))
 h = h.replace('LOGO_SVG', leggi('logo-live.svg').strip())
 h = h.replace("'CASE_JSON'", json.dumps(CASE, ensure_ascii=False))
+# il piede porta alla home vera (/): prima il builder scriveva /v2-home.html,
+# una pagina di prova che sul sito non esiste piu
 HOME = ('https://claude.ai/code/artifact/3c0dae67-a0e6-47d4-964f-832b824ffe0f'
-        if MODO == 'artefatto' else '/v2-home.html')
+        if MODO == 'artefatto' else '/')
 h = h.replace('KIOSK_HOME', HOME)
+if MODO == 'sito':
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import testa as TESTA
+    assert TESTA.TITOLO_BOARD == TITOLO
+    h = h.replace('TESTA_BOARD', TESTA.blocco_board() + '\n')
+    h = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
+         + h.replace('</style>', '</style>\n' + TESTA.scroll()
+                     + '\n</head>\n<body>', 1)
+         + '\n' + TESTA.CONSENSO + '\n' + TESTA.TRACCIA + '\n</body>\n</html>\n')
+else:
+    # l'anteprima non ha /js: il motore delle corsie dal sito vero (senza,
+    # l'idrante ricade sulla fotografia di build — fail-open, come vivo)
+    h = h.replace('TESTA_BOARD', '')
+    h = h.replace('<script src="/js/dispo-engine.js">',
+                  '<script src="https://www.boomrome.com/js/dispo-engine.js">')
 uscita = 'boom-kiosk.html' if MODO == 'artefatto' else 'boom-kiosk-sito.html'
 open(uscita,'w',encoding='utf-8').write(h)
-print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · {max(1,(len(CASE)+5)//6)} pagine')
+# le pagine come le gira il tabellone: partenze (ora NOW) poi arrivi
+part = sum(1 for c in CASE if c['ora'] == 'NOW')
+pagine = -(-part // 6) + -(-(len(CASE) - part) // 6) or 1
+print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · {pagine} pagine '
+      f'({part} in partenza, {len(CASE) - part} in arrivo)')

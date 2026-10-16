@@ -147,6 +147,9 @@ html.vivo .coro.dentro .tempo::after {
 .applica-nota { margin-top:12px; font-size:11px; line-height:1.6;
   color:var(--text-4); }
 .applica-fatto { display:none; padding:14px 0 4px; }
+/* l'errore dell'apply: si legge, non sussurra — e non dice mai «Sent» */
+#apErrore { color:var(--text-2); font-size:12.5px;
+  border-left:2px solid var(--gold); padding-left:10px; }
 .applica-fatto.si { display:block; }
 .applica-fatto b { display:block; font-family:var(--display);
   font-size:20px; font-weight:300; color:var(--gold); }
@@ -364,6 +367,26 @@ html.vivo .coro.dentro .tempo::after {
 .pel-v.azione:hover { background:linear-gradient(150deg, rgba(255,215,0,.13),
   rgba(255,215,0,.02) 64%), var(--card); }
 .pel-v.azione em { font-style:normal; color:var(--gold); font-weight:500; }
+/* IL TIMBRO (STUDIO_AVIATION S5): il claim vero della pagina — la casa
+   camminata di persona — battuto come sigillo di gomma. Visibile SEMPRE
+   (senza JS, senza IO); l'animazione è solo il colpo, una volta. */
+.pel-fila.uno .pel-v { flex-wrap:wrap; }
+.timbro-walk { align-self:center; flex:none; padding:7px 12px;
+  border:2.5px solid var(--gold); border-radius:8px;
+  transform:rotate(-4deg);
+  font-size:11px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--gold); white-space:nowrap;
+  -webkit-mask-image:repeating-radial-gradient(circle at 30% 40%,
+    #000 0 2.4px, rgba(0,0,0,.72) 2.4px 4.6px);
+  mask-image:repeating-radial-gradient(circle at 30% 40%,
+    #000 0 2.4px, rgba(0,0,0,.72) 2.4px 4.6px); }
+.timbro-walk.giu { animation:timbrata .38s cubic-bezier(.26,1.16,.44,1); }
+@keyframes timbrata {
+  0% { opacity:0; transform:rotate(-11deg) scale(1.6); }
+  62% { opacity:1; transform:rotate(-3.4deg) scale(.97); }
+  100% { opacity:1; transform:rotate(-4deg) scale(1); } }
+@media (prefers-reduced-motion:reduce){ .timbro-walk.giu { animation:none; } }
+@media (max-width:480px){ .timbro-walk { font-size:10px; padding:6px 10px; } }
 
 /* il video: si carica solo quando lo chiedi — niente iframe a tradimento */
 .pel-video { position:relative; margin-top:12px; border-radius:14px;
@@ -719,10 +742,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <div class="voci">
           <div class="voce"><span>First month's rent</span>
             <b id="voceCanone">—</b></div>
-          <div class="voce"><span>Agency fee — our only fee, once</span>
+          <div class="voce"><span>Agency fee — 10% of a year's rent + 22% VAT, once</span>
             <b id="voceOnorario">—</b></div>
           <div class="voce torna"><span>Security deposit
-            <em>comes back to you at the end — held, filmed in and out</em></span>
+            <em id="cauzioneNota">returned at the end, after the move-out check against the signed check-in report</em></span>
             <b id="voceCauzione">—</b></div>
         </div>
       </div>
@@ -732,13 +755,14 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <span id="chiaviOnorario">—</span> is what the whole thing costs,
           once, and this is what it buys:</p>
         <ul class="chiavi-lista">
-          <li><b>The contract, in English and Italian</b><span>A registered
-            lease under L. 431/98 — transitional or rent-controlled, depending
-            on the home — explained line by line before you sign
-            anything.</span></li>
-          <li><b>Registration with the Agenzia delle Entrate</b><span>We file
-            it. The registration tax itself goes to the State — that part is
-            not ours and never passes through us.</span></li>
+          <li><b>The lease, explained in English</b><span>Italy's official
+            standard-form lease, registered under L. 431/98 — transitional or
+            rent-controlled, depending on the home — walked through line by
+            line in English before you sign anything.</span></li>
+          <li><b>Registration with the Agenzia delle Entrate</b><span>We
+            arrange it on the landlord's behalf. Any registration tax or stamp
+            duty is split as the lease states and paid to the State (none is
+            due when the landlord opts for the cedolare secca).</span></li>
           <li><b>Signing from your phone</b><span>A private link: you sign,
             the landlord countersigns after you. No notary, no flight, no
             printer.</span></li>
@@ -760,10 +784,12 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           <path d="M8.6 11.6l2.3 2.3 4.3-4.9"/></svg>Paid through BOOM on
           Stripe · a receipt for every line · never a transfer to a
           stranger</span>
-        <p class="chiavi-fuori"><b>What is not included:</b> utilities
-          (electricity, gas, water, internet) and the registration tax. Both
-          are paid to the providers and to the State. We never touch them and
-          we never mark them up.
+        <p class="chiavi-fuori" id="chiaviFuori"><b>What is not included:</b> utilities
+          (electricity, gas, water, internet), paid to the providers; your
+          share of condominium charges, where the lease puts it on you; and
+          any registration tax or stamp duty the lease assigns to you (none
+          under the landlord's cedolare secca option). We never mark any of
+          them up.
           <a class="sotto-vai" href="/your-money.html">The full money story —
             every euro, in and out →</a></p>
       </div>
@@ -777,7 +803,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         </div>
         <div class="durata-conto">
           <div><span>Rent for the whole stay</span><b id="durCanoni">—</b></div>
-          <div><span>Agency fee, once</span><b id="durOnorario">—</b></div>
+          <div><span>Agency fee incl. VAT, once</span><b id="durOnorario">—</b></div>
           <div class="durata-tot"><span>What the stay costs you</span>
             <b id="durTotale">—</b></div>
           <p class="durata-nota" id="durNota">—</p>
@@ -805,7 +831,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           home · €300</button>
       </form>
       <p class="presa-nota" id="presaNota">Card via Stripe · a receipt by
-        email · a human replies within 2 hours.</p>
+        email · a person replies on WhatsApp during office hours (Rome
+        time).</p>
     </div>
   </div>
 </section>
@@ -952,7 +979,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         <span class="passo-eti"><i></i></span>
         <span class="passo-eti"><i></i></span>
       </div>
-      <form id="modApplica" novalidate>
+      <form id="modApplica" novalidate data-analytics-manual>
 
         <div class="ap-gruppo">
           <span class="ap-eti">1 · You</span>
@@ -1037,6 +1064,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           aria-hidden="true" class="ap-esca">
 
         <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-nota" id="apErrore" role="alert" hidden></p>
         <p class="applica-fede">Egidi Immobiliare S.r.l., licensed agency
           · BOOM® EU trade mark 019317594 · payments via Stripe, receipted</p>
         <p class="applica-nota">PREVIEW — nothing is sent from this page. On
@@ -1047,9 +1075,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       <div class="applica-fatto" id="applicaFatto">
         <b>Sent. Here is exactly what happens now.</b>
         <ol class="ap-dopo">
-          <li><b>Within 2 hours</b><span>A person — with a name — reads it and
-            replies. If something rules you out for this landlord, you hear it
-            straight away, not in two weeks.</span></li>
+          <li><b>A person reads it</b><span>Someone with a name reads it and
+            replies during office hours (Rome time); sent out of hours, the
+            next working morning. If something rules you out for this
+            landlord, you hear it straight away, not in two weeks.</span></li>
           <li><b>Your pre-agreement</b><span>A private link with these exact
             figures written into it: rent, deposit, fee, dates. Nothing new
             appears later.</span></li>

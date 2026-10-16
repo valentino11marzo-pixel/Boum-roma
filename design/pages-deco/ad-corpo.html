@@ -25,8 +25,18 @@
   .disco-sotto { font-size:15px; } }
 
 /* il quadro del catalogo: le zone come destinazioni, e sono i filtri */
+/* LO SPAZIO SI RISERVA PRIMA. Il tabellone nasce alto 130px e si riempie di
+   zone a ~460ms: la riga della griglia si allargava e spingeva GIU' tutta
+   la pagina — 119px di salto sotto gli occhi di chi aveva appena iniziato a
+   leggere (CLS 0,05 misurato in Chromium, tutto a y=0). Con un'altezza
+   minima il posto c'e' gia' al primo paint e il contenuto ci si siede
+   dentro. I numeri sono MISURATI a 390px e a >=768px, non scelti; sono un
+   minimo, quindi se un giorno le zone aumentano il riquadro cresce e
+   nessuno resta fuori. */
 .zone-quadro { position:relative; background:var(--void);
+  min-height:431px;
   box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+@media (min-width:640px){ .zone-quadro { min-height:454px; } }
 .zone-testa { display:flex; align-items:center; justify-content:space-between;
   gap:12px; padding:13px 18px; border-bottom:1px solid var(--line-0); }
 .zone-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
@@ -581,13 +591,14 @@ VISTA_CIELO
           <div>
             <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
             <h2 class="rete-titolo">Not on this page?<br><span class="hl">It doesn't mean it doesn't exist.</span></h2>
-            <p>Your brief becomes a live search: our radar scans the portals
-              and the off-market ninety-six times a day, a human verifies
-              every match, and you get curated options — not links.</p>
+            <p>Your brief becomes a live search: our radar reads new
+              Immobiliare and Idealista alerts every fifteen minutes, we ask
+              the landlords we work with off-market, a human verifies every
+              match, and you get curated options — not links.</p>
             <div class="rete-cifre">
               <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
-              <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
-              <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
+              <div class="rete-cifra"><b>3+</b><span>options in 15 days</span></div>
+              <div class="rete-cifra"><b>15 min</b><span>portal-alert checks</span></div>
               <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
             </div>
             <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>

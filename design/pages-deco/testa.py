@@ -7,7 +7,7 @@
 # pagine live 2026-08-13; UNICA correzione: il telefono segnaposto
 # +39 333 123 4567 / wa.me/393331234567 delle vecchie teste diventa il
 # numero VERO usato in tutto il sito (wa.me/393313251961).
-import json
+import json, os
 
 GTAG = (
     '<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>\n'
@@ -21,6 +21,30 @@ GTAG = (
 
 # il banner che scioglie il consent-mode: va in coda al body, defer
 CONSENSO = '<script defer src="/js/boom-consent.js"></script>'
+
+# il comportamento anonimo (js/boom-track.js, solo dopo il consenso): le
+# pagine vive lo portano in coda al body dal 7/10/2026, i builder no — una
+# ricostruzione lo toglieva in silenzio. Va DOPO il consenso.
+TRACCIA = '<script defer src="/js/boom-track.js"></script>'
+
+# IL CONTRATTO DI SCORRIMENTO (css/boom-scroll.css + js/boom-scroll.js),
+# inline prima di </head> fra i suoi marcatori, come su ogni pagina
+# pubblica dal 31/08/2026 (tests/scroll). Si LEGGE dai due file sorgente,
+# mai ricopiato qui: una copia sola. I file stanno alla radice del repo,
+# due cartelle sopra questo (design/pages-deco o design/home-live-deco).
+# Se mancano, errore: una pagina ricostruita senza il contratto lo
+# perderebbe senza che nessuno se ne accorga.
+def scroll():
+    radice = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..')
+    pezzi = []
+    for f in ('css/boom-scroll.css', 'js/boom-scroll.js'):
+        p = os.path.join(radice, f)
+        if not os.path.exists(p):
+            raise SystemExit('testa.scroll(): manca ' + f + ' (cercato in '
+                             + os.path.normpath(radice) + ')')
+        pezzi.append(open(p, encoding='utf-8').read().rstrip('\n'))
+    return ('<!-- BOOM_SCROLL:START -->\n<style>\n' + pezzi[0] + '\n</style>\n'
+            '<script>\n' + pezzi[1] + '\n</script>\n<!-- BOOM_SCROLL:END -->')
 
 ICONE = (
     '<link rel="icon" href="/favicon.ico" sizes="any">\n'
@@ -203,6 +227,25 @@ TITOLO_LISTING = 'Apartment Details — Rome Verified Rental | BOOM'
 DESCR_LISTING = ('Verified apartment details, photos, location and amenities '
                  'in Rome. Book a video viewing or apply in minutes. Legal '
                  'contract, transparent fees, BOOM-managed.')
+# Il TEMPLATE nudo (/apartment-detail) non si indicizza: ogni casa vive su
+# /listing/<id>, che api/listing.js riscrive per annuncio (tests/listing:
+# «template: robots e googlebot noindex»). Il 15/10/2026 il giro GEO l'ha
+# scritto nella pagina e non qui: una ricostruzione lo rimetteva «index».
+ROBOTS_TEMPLATE = (
+    '<meta name="robots" content="noindex, follow">\n'
+    '<meta name="googlebot" content="noindex, follow">\n'
+    + ROBOTS.split('\n', 2)[2])
+# e #organization, sotto ogni scheda, dice ciò che la scheda mantiene:
+# contratti registrati spiegati in inglese, non «48-hour move-in» (stessa
+# revisione: il nodo stava solo nella pagina, nell'ordine di seo-update.js)
+AGENZIA_SCHEDA = {k: AGENZIA[k] for k in (
+    '@context', '@type', '@id', 'name', 'legalName', 'vatID', 'telephone',
+    'url', 'logo', 'image')}
+AGENZIA_SCHEDA['description'] = (
+    'Premium mid-term apartment rentals in Rome with full property '
+    'management and registered Italian leases explained in English.')
+for _k in ('sameAs', 'address', 'areaServed', 'priceRange'):
+    AGENZIA_SCHEDA[_k] = AGENZIA[_k]
 def blocco_listing():
     briciole = {
         '@context': 'https://schema.org', '@type': 'BreadcrumbList',
@@ -214,8 +257,20 @@ def blocco_listing():
     }
     return (_og(TITOLO_LISTING, DESCR_LISTING,
                 'https://www.boomrome.com/apartment-detail')
-            + '\n' + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
-            + _ld(AGENZIA, SITO_WEB, briciole))
+            + '\n' + ROBOTS_TEMPLATE + '\n' + ICONE + '\n' + GTAG + '\n'
+            + _ld(AGENZIA_SCHEDA, SITO_WEB, briciole))
+
+# /board, il tabellone da vetrina: la testa che la pagina viva porta dal
+# lotto dello Scalo (canonical, og-board.png, description) — senza JSON-LD,
+# come la pagina. Il builder prima emetteva solo il corpo.
+TITOLO_BOARD = 'BOOM · Rome — Live Board'
+DESCR_BOARD = ('The live departures board of BOOM Rome: every verified home, '
+               'its zone, price and status — updated like an airport.')
+def blocco_board():
+    return (_og(TITOLO_BOARD, DESCR_BOARD, 'https://www.boomrome.com/board',
+                'https://www.boomrome.com/og-board.png') + '\n'
+            + '<meta name="description" content="' + DESCR_BOARD + '">\n'
+            + ROBOTS + '\n' + ICONE + '\n' + GTAG)
 
 COME_FAQ = {
     '@context': 'https://schema.org', '@type': 'FAQPage',

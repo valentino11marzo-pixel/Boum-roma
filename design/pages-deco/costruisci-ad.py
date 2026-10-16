@@ -331,11 +331,17 @@ if MODO == 'sito':
         immagine=rem.get(mostrate[0]['id']) or TESTA.IMG_SOCIAL) + '\n'
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
+    # la mappa della vetrina vive nell'iframe di /skyline (un altro
+    # documento): il preconnect alle tile che la testa del portale porta
+    # qui non serve a niente — tolto dalla pagina il 31/08/2026 fra i
+    # «preconnect morti», e la ricostruzione lo rimetteva
+    h = h.replace('<link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>\n', '', 1)
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
+         + h.replace('</style>', '</style>\n' + TESTA.scroll()
+                     + '\n</head>\n<body>', 1)
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
-         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+         + '\n' + TESTA.CONSENSO + '\n\n' + TESTA.TRACCIA + '\n</body>\n</html>')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

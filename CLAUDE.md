@@ -6816,6 +6816,25 @@ transitorio si presentava come l'offerta «1–18 months».
 Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
 `tests/verita`, `python3 tests/wizard/dati_onesti.py`.
 
+## Le pagine della vetrina sono la loro ricostruzione (16/10/2026) — `scripts/vetrina-riallinea.mjs`
+Le correzioni di apartments, index, apartment-detail e board andavano sulle
+PAGINE, non sui frammenti: misurata, una build «sito» toglieva 320/143/677/353
+righe in silenzio (scorrimento, boom-track, riserve del CLS, innesto, la scheda
+del 15/10, il tabellone vivo) e il builder della home stampava il totale
+d'ingresso senza IVA sotto «fee incl. VAT». Ora è tutto nei frammenti (nuovi
+`kiosk-corpo`/`kiosk-regia`; `testa.py` con `scroll()`, `TRACCIA`,
+`blocco_board`, `ROBOTS_TEMPLATE`; in `foto-map.json` la foto del Prenestino,
+senza la quale la sua carta spariva dalla vetrina). Si corregge il FRAMMENTO,
+poi `node scripts/vetrina-riallinea.mjs` (`--check`, `--dry`): ricostruisce in
+una cartella temporanea e riscrive nelle pagine solo ciò che non è dato. Carte,
+CASE, conteggi, date di build e ItemList restano la fotografia (build piena o
+`catalogo-nomi`; `catalogo-schema` accetta `--root`). Test:
+`tests/catalogo/vetrina.mjs` — pagine intere a meno dei dati, carte e CASE per
+id (fuori solo corsia, «NEW» e data d'ingresso), totale con IVA, il flusso
+dell'ItemList, una mutazione per ognuno dei 17 frammenti e builder. Aperto: le
+carte di build dicono ancora «Waitlist open» su nove case (l'idrante corregge
+in pagina; la prossima build piena le rifà, con l'anno dedotto da confermare).
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel

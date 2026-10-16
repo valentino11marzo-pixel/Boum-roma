@@ -246,7 +246,13 @@
         b.show(testo, 40, true);
       }, { threshold: .4 }).observe(host);
     };
-    [].forEach.call(document.querySelectorAll('.flap-prezzo'),
+    /* #canoneCasa NO: è della regia della scheda (mostraCanone), che lo
+       svuota e lo ricostruisce. Da quando il server scrive data-p, questo
+       montaggio ne costruiva un primo tabellone e lo faceva girare, poi la
+       regia lo cancellava e lo rifaceva girare: il prezzo frullava due
+       volte. Le altre pagine non hanno #canoneCasa: per loro non cambia
+       niente (e il server scrive la cifra in chiaro, che Board svuota). */
+    [].forEach.call(document.querySelectorAll('.flap-prezzo:not(#canoneCasa)'),
       window.__solariPrezzo);
   })();
 

@@ -198,15 +198,16 @@ else:
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
     h = h.replace('/apartments.html', '/apartments')
     # le note PREVIEW dicevano il vero solo nell'artefatto (dove il form
-    # non spedisce); sul sito spedisce davvero — la nota fa la promessa
-    # che la home già fa: una persona con un nome risponde entro 2 ore
+    # non spedisce); sul sito spedisce davvero — e la nota promette solo
+    # ciò che si mantiene: una persona risponde in orario d'ufficio (dal
+    # 15/10/2026 niente più «within 2 hours», tests/listing)
     h = h.replace('PREVIEW — nothing is sent from this page. On\n          the live site this reaches a person and becomes your written\n          pre-agreement.',
-        'Your application goes straight to a person — a named human\n          replies within 2 hours and it becomes your written\n          pre-agreement.')
+        'Your application goes straight to a person — a named human\n          replies during office hours (Rome time) and it becomes your written\n          pre-agreement.')
     h = h.replace('PREVIEW — nothing was sent from this page.',
-        'Sent — a named human replies within 2 hours.')
-    h = h.replace('</footer>',
-        '</footer>\n<script src="/js/boom-geo.js"></script>\n'
-        '<script src="/js/dispo-engine.js"></script>', 1)
+        'Sent — a named human replies during office hours (Rome time).')
+    # i motori (boom-geo, dispo-engine, tempi, mappa, listing-facts) li
+    # emette ld-regia.html: qui prima se ne aggiungevano altri due, e la
+    # pagina ricostruita caricava boom-geo e dispo-engine DUE volte
     h = h.replace('CHIAVE_CASA', '/listing/')
     # cleanUrls: OGNI link interno perde il .html anche nel modo sito
     h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
@@ -233,8 +234,9 @@ if MODO == 'sito':
     i = h.index('</title>') + len('</title>')
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
-         + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+         + h.replace('</style>', '</style>\n' + TESTA.scroll()
+                     + '\n</head>\n<body>', 1)
+         + '\n' + TESTA.CONSENSO + '\n\n' + TESTA.TRACCIA + '\n</body>\n</html>')
 uscita = 'boom-casa-p.html' if MODO == 'artefatto' else 'boom-casa-p-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(CASE)} case · '

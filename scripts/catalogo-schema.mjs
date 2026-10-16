@@ -20,7 +20,12 @@
 // <data>» — che e' la corsia del pre-blocco — e sul resto NIENTE, perche'
 // una casa che non sappiamo quando si libera non si promette a un motore.
 //
-//   node scripts/catalogo-schema.mjs [--dry]
+//   node scripts/catalogo-schema.mjs [--dry] [--root <cartella>]
+//
+// --root: la vetrina di un'ALTRA radice (una ricostruzione in una cartella
+// temporanea), come in scripts/catalogo-nomi.mjs — il flusso documentato
+// (build → catalogo-nomi → catalogo-schema) si prova anche lontano dalle
+// pagine vere. Senza, quella del repo.
 //
 // Si puo' anche IMPORTARE: `rigenera(html)` e' la stessa derivazione, pura
 // (niente file), e la usa scripts/catalogo-nomi.mjs — che riscrive i nomi
@@ -123,7 +128,12 @@ export function rigenera(s) {
 
 // ── il comando: lo stesso di sempre ──────────────────────────────────────
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {
-  const R = path.resolve(new URL('..', import.meta.url).pathname);
+  const iR = process.argv.indexOf('--root');
+  if (iR > 0 && !process.argv[iR + 1]) {
+    console.error('uso: node scripts/catalogo-schema.mjs [--dry] [--root <cartella>]');
+    process.exit(2);
+  }
+  const R = iR > 0 ? path.resolve(process.argv[iR + 1]) : path.resolve(new URL('..', import.meta.url).pathname);
   const F = path.join(R, 'apartments.html');
   const DRY = process.argv.includes('--dry');
   const fatto = rigenera(fs.readFileSync(F, 'utf8'));

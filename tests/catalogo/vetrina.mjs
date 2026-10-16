@@ -36,10 +36,17 @@
 //   · i builder Python (design/) leggono la stessa regola dal gemello
 //     design/listing_facts.py — parità con Node — e rifatti oggi dicono le
 //     stesse camere e gli stessi id delle pagine;
-//   · i FRAMMENTI da cui le pagine nascono (ad-regia, vetrina-idrante,
-//     ld-regia) portano le funzioni e i blocchi di oggi identici alle
-//     pagine: una ricostruzione «sito» non toglie niente (e un blocco tolto
-//     dal frammento fa cadere la regola, verificato qui sotto);
+//   · i FRAMMENTI da cui le pagine nascono (ad-corpo/ad-regia, pt,
+//     ld-corpo/ld-regia, kiosk-corpo/kiosk-regia, vetrina-idrante,
+//     deco-organi, testa.py) portano le funzioni e i blocchi di oggi
+//     identici alle pagine: una ricostruzione «sito» non toglie niente (e
+//     un blocco tolto da OGNI frammento fa cadere la regola, verificato qui
+//     sotto, uno per frammento);
+//   · e non solo i blocchi elencati: apartments, index, apartment-detail e
+//     board INTERE sono la ricostruzione dei loro builder a meno dei dati
+//     (scripts/vetrina-riallinea.mjs, le maschere), con le stesse case per
+//     id; l'ItemList della vetrina è quella che il flusso documentato
+//     (build → catalogo-nomi → catalogo-schema) rifà;
 //   · in Chromium (auto-skip senza playwright) l'idrante rinomina e
 //     corregge, il setaccio rilegge (anche senza accenti), le camere ignote
 //     non passano il filtro Studio, la scheda rilegge la casa E le tre
@@ -47,7 +54,7 @@
 //     entra mai come markup.
 
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, copyFileSync, cpSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, copyFileSync, existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { spawnSync } from 'node:child_process';
@@ -56,6 +63,9 @@ import { join, dirname, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { allinea, PAGINE, FOTOGRAFIE, veritaDallaFotografia, riassunto, argomenti, FONTE_MANCANTE }
   from '../../scripts/catalogo-nomi.mjs';
+import { costruisci as costruisciVetrina, COSTRUITE, ricostruita, confronta, MASCHERE, riallinea }
+  from '../../scripts/vetrina-riallinea.mjs';
+import { rigenera as rigeneraItemList } from '../../scripts/catalogo-schema.mjs';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -814,36 +824,32 @@ if (!PY) {
     env: { ...process.env, BOOM_NODE: process.execPath, PYTHONDONTWRITEBYTECODE: '1' } });
   await check('design/listing_facts.py: bedrooms_of = FACTS.bedroomsOf (Node), sulle fotografie e sui casi limite', () =>
     par.status === 0 && /^PASS /m.test(par.stdout) ? true : (par.stdout + par.stderr).slice(-400));
-  // i builder rifatti OGGI, su una copia di design/ (foto-uri e foto-casa
-  // sono file di lavoro mai versionati: qui vuoti — il modo `sito` non li usa)
+  // i builder rifatti OGGI, su una copia di design/: la STESSA costruzione
+  // di scripts/vetrina-riallinea.mjs (foto-uri e foto-casa vuoti — file di
+  // lavoro mai versionati, il modo `sito` non li usa — più i file che i
+  // builder leggono fuori da design/: il contratto di scorrimento e la foto
+  // del fondatore). Una copia sola: test e riallineamento non possono
+  // costruire due pagine diverse.
   const CINQUE = ['costruisci-ad.py', 'costruisci-kiosk.py', 'costruisci-soldi.py', 'costruisci-prova.py', 'costruisci-ld.py'];
-  const costruisci = (ritocca, quali = [...CINQUE, 'costruisci-portale.py']) => {
-    const d = mkdtempSync(join(tmpdir(), 'boom-build-'));
-    cpSync(join(ROOT, 'design'), join(d, 'design'), { recursive: true });
-    const H = join(d, 'design', 'home-live-deco'), PD = join(d, 'design', 'pages-deco');
-    for (const f of readdirSync(PD)) if (statSync(join(PD, f)).isFile()) copyFileSync(join(PD, f), join(H, f));
-    writeFileSync(join(H, 'foto-uri.json'), '{}');
-    writeFileSync(join(H, 'foto-casa.json'), '[]');
-    if (ritocca) ritocca(H);
-    const errori = [];
-    for (const b of quali) {
-      const x = spawnSync(PY, ['-B', b, 'sito'], { cwd: H, encoding: 'utf8', timeout: 120000,
-        env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
-      if (x.status !== 0) errori.push(b + ': ' + (x.stderr || x.stdout).trim().split('\n').pop());
-    }
-    const out = (n) => readFileSync(join(H, n), 'utf8');
-    return { d, H, errori, out };
-  };
-  // ── I FRAMMENTI: la ricostruzione «sito» non toglie niente di oggi ──────
-  // apartments.html nasce da costruisci-ad.py (ad-regia.html + l'idrante
+  const costruisci = (ritocca, quali = [...CINQUE, 'costruisci-portale.py']) => costruisciVetrina({ ritocca, quali });
+  // ── I FRAMMENTI: la ricostruzione «sito» non toglie niente ─────────────
+  // apartments.html nasce da costruisci-ad.py (ad-corpo + ad-regia + l'idrante
   // vetrina-idrante.html, appeso tale e quale), index.html da
-  // costruisci-portale.py (lo stesso idrante), apartment-detail.html da
-  // costruisci-ld.py (ld-regia.html). Un blocco che vive solo nella pagina
-  // sparisce alla prossima build, e nessuno se ne accorge: le funzioni e i
-  // blocchi di oggi devono stare IDENTICI nella pagina e nella ricostruzione.
-  // La deriva che c'era già prima (righe vecchie di ld-regia, cinque righe
-  // del Solari nell'idrante della home) resta fuori di proposito: qui si
-  // controlla ciò che è di oggi.
+  // costruisci-portale.py (pt.html + lo stesso idrante), apartment-detail.html
+  // da costruisci-ld.py (ld-corpo + ld-regia), board.html da
+  // costruisci-kiosk.py (kiosk-corpo + kiosk-regia); la testa da testa.py, il
+  // Solari e il suo montatore da solari-engine e deco-organi. Un blocco che
+  // vive solo nella pagina sparisce alla prossima build, e nessuno se ne
+  // accorge. Due livelli di guardia:
+  //   · i BLOCCHI qui sotto, per nome (le funzioni e i pezzi del 15–16/10):
+  //     dicono QUALE pezzo la build toglierebbe;
+  //   · la PAGINA INTERA (confronta() di scripts/vetrina-riallinea.mjs):
+  //     fuori dai dati, ogni riga della pagina è nella ricostruzione — anche
+  //     quelle che nessuno ha pensato di elencare. La deriva di prima (le
+  //     righe vecchie della scheda, il Solari dell'idrante della home, il
+  //     tabellone vivo di /board) non è più tollerata: il 16/10 è tornata
+  //     nei frammenti, e da lì in poi si corregge il FRAMMENTO e si lancia
+  //     `node scripts/vetrina-riallinea.mjs`.
   // Una funzione `function nome(` finisce alla prima graffa chiusa alla SUA
   // indentazione (il codice è formattato così ovunque); un blocco «da…a»
   // va dal primo testo (unico) al primo secondo testo dopo.
@@ -859,17 +865,42 @@ if (!PY) {
     const i0 = src.indexOf(da), i1 = src.indexOf(a, i0);
     return { n: 1, testo: i1 < 0 ? null : src.slice(i0, i1 + a.length) };
   };
+  // in TUTTE e quattro (testa.py): il contratto di scorrimento inline
+  // (testa.scroll(), da css/boom-scroll.css e js/boom-scroll.js) e boom-track
+  // dopo il consenso (testa.TRACCIA) — prima stavano solo nelle pagine
+  const COMUNI = [
+    ['<!-- BOOM_SCROLL:START -->', '<!-- BOOM_SCROLL:END -->'],
+    ['<script defer src="/js/boom-consent.js"></script>', '<script defer src="/js/boom-track.js"></script>'],
+    // solari-engine.html: il Solari che su Safari non «carica due volte»
+    // (reflow forzato, timer al passo vero) e il giro dell'insegna — il
+    // tabellone di /board aveva ancora il motore di prima
+    ["/* Safari spesso NON spara animationend quando l'animazione nasce", 'setTimeout(finishTop, 140);'],
+    ['Board.prototype.giro = function (stagger) {', 'i * (stagger || 90) + Math.random() * 26);'],
+  ];
   const OGGI = {
     'apartments.html': ['boom-discovery-sito.html', 'costruisci-ad.py', [
       ['piega'], ['lettiDi'], ['passa'], ['scheda'], ['escT'], ['tabella'],
       ['camereDi'], ['rinomina'], ['scriviCamere'], ['innesta'],
       ["nome: String(v('name') || '')", ': undefined'],
-      ['/* il nome e le camere del documento vero (15/10/2026)', 'window.__muroInnesta([]);']]],
+      ['/* il nome e le camere del documento vero (15/10/2026)', 'window.__muroInnesta([]);'],
+      // ad-regia: l'innesto che registra le carte nate dopo la build nel setaccio
+      ["/* ── L'INNESTO: le case nate DOPO la build entrano nel setaccio", '    aggiorna();\n  };'],
+      // ad-corpo: lo spazio del quadro delle zone riservato prima (CLS)
+      ['  min-height:431px;', '@media (min-width:640px){ .zone-quadro { min-height:454px; } }'],
+      // ad-corpo: il Property Finding come lavora davvero (alert ogni 15')
+      ['our radar reads new', '<span>portal-alert checks</span></div>']]],
     'index.html': ['boom-portale-sito.html', 'costruisci-portale.py', [
       ['camereDi'], ['rinomina'], ['scriviCamere'],
       ["nome: String(v('name') || '')", ': undefined'],
       ['/* il nome e le camere del documento vero (15/10/2026)', 'window.__muroInnesta([]);'],
-      ['/* le camere con la regola UNA (camereDi), come le carte di build */', 'a.dataset.mq = String(mq);']]],
+      ['/* le camere con la regola UNA (camereDi), come le carte di build */', 'a.dataset.mq = String(mq);'],
+      // pt.html: il posto del tabellone DAYS riservato prima che arrivi (CLS)
+      ['/* IL POSTO SI RISERVA PRIMA CHE ARRIVI IL TABELLONE.', "f.style.minHeight='1.27em';}})();</script>"],
+      ['  min-height:384px;', '@media (min-width:640px){ .board { min-height:364px; } }'],
+      ['/* QUATTRO caselle per quattro lettere.', "var b = new BS.Board(host, 4, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');"],
+      ['Save your campus or office once and every home', 'not on a straight line drawn across the map.</p>'],
+      // costruisci-portale.py: la foto del fondatore si trova anche dalla radice
+      ['<img src="/img/founder.jpg"', 'decoding="async">']]],
     'apartment-detail.html': ['boom-casa-p-sito.html', 'costruisci-ld.py', [
       ['camereDi'], ['scriviNome'], ['scriviFatti'], ['escA'], ['montaPrezzo'], ['rinomina'],
       ['scriviCamere'], ['ritoccaAltra'], ['rileggiAltre'],
@@ -881,14 +912,54 @@ if (!PY) {
       ["var fr = document.createElement('iframe');", 'box.appendChild(fr);'],
       ["var boxAltre = document.getElementById('altre');", "}).join('');"],
       ['var altreCarte = ', 'if (fp) montaPrezzo(fp);'],
-      ['/* le dotazioni vengono dal documento', '})();']]],
+      ['/* le dotazioni vengono dal documento', '})();'],
+      // ld-regia: la corsia della casa (js/dispo-engine.js), la casa che non
+      // si raggiunge, la cauzione e le bollette dichiarate, la CTA che si rifà
+      ['statoDa'], ['casaIrraggiungibile'], ['cauzioneDichiarata'], ['bollette'], ['corsiaCasa'], ['quandoEntri'],
+      ['    rifaiCta = function () {', '    rifaiCta();\n  })();'],
+      // ld-regia + ld-corpo: l'apply confermato dal server, e l'errore detto
+      ["var errore = f.querySelector('#apErrore');", 'if (invia) invia.disabled = false;'],
+      ['<p class="applica-nota" id="apErrore" role="alert" hidden></p>', '<p class="applica-nota" id="apErrore" role="alert" hidden></p>'],
+      ['#apErrore { color:var(--text-2);', 'padding-left:10px; }'],
+      ['/* IL TIMBRO (STUDIO_AVIATION S5)', '@media (max-width:480px){ .timbro-walk { font-size:10px; padding:6px 10px; } }'],
+      // ld-corpo + ld-regia: i soldi detti come stanno (IVA, cauzione, chiavi, FAQ)
+      ['<div class="voce"><span>Agency fee — 10% of a year', '</b></div>'],
+      ['<em id="cauzioneNota">', '</em>'],
+      ['<p class="chiavi-fuori" id="chiaviFuori">', 'them up.'],
+      ["'It is paid to the landlord under the lease and returned at the end '", "'so its condition is a signed record and not an argument.'"],
+      ["'Italy\\'s official standard-form lease, registered under L. 431/98 — '", "'the landlord\\'s behalf.'"],
+      // testa.py: il template della scheda non si indicizza, e l'agenzia è la sua
+      ['<meta name="robots" content="noindex, follow">', '<meta name="googlebot" content="noindex, follow">'],
+      ['"description": "Premium mid-term apartment rentals in Rome with full property management and registered Italian leases explained in English."',
+        '"description": "Premium mid-term apartment rentals in Rome with full property management and registered Italian leases explained in English."'],
+      // deco-organi: il montatore del Solari lascia #canoneCasa alla regia
+      ['/* #canoneCasa NO: è della regia della scheda', "querySelectorAll('.flap-prezzo:not(#canoneCasa)'),"],
+      // costruisci-ld.py: i due motori UNA volta (ld-regia li carica già)
+      ['<script src="/js/boom-geo.js"></script>', '<script src="/js/boom-geo.js"></script>'],
+      ['<script src="/js/dispo-engine.js"></script>', '<script src="/js/dispo-engine.js"></script>']]],
+    // il tabellone vivo: prima costruisci-kiosk.py scriveva una pagina che non
+    // aveva niente di board.html (né le corsie, né PARTENZE/ARRIVI, né la
+    // regola delle camere): kiosk-corpo + kiosk-regia sono il tabellone vero
+    'board.html': ['boom-kiosk-sito.html', 'costruisci-kiosk.py', [
+      ['buildPages'], ['dipingiNav'], ['camereDi'], ['laneRows'], ['idrante'], ['mostra'], ['oraRoma'],
+      ['<div class="lato-riga">', '</div>'],
+      ['/* ARRIVI: la casa in atterraggio', '@media (max-width:560px){ .lato-nota { display:none; } }'],
+      ["/* L'orologio a palette e' largo ~106px", '@media (max-width:700px){ .cima { padding:14px 12px; } }'],
+      ['/* I minimi delle cinque colonne sommavano 354px', '  .sala { padding:0 12px; }\n}'],
+      ['/* Il piede a tre voci non entra a 390', 'padding:12px; font-size:11px; } }'],
+      ['/* ══ PARTENZE / ARRIVI (STUDIO_AVIATION S4)', "prezzo:h.prezzo, stato:'SOON', presto:true }; }));"],
+      ['<link rel="canonical" href="https://www.boomrome.com/board">', '<link rel="canonical" href="https://www.boomrome.com/board">'],
+      ['<a href="/" style="color:inherit;text-decoration:none;cursor:pointer">', '<a href="/" style="color:inherit;text-decoration:none;cursor:pointer">'],
+      ['<script src="/js/dispo-engine.js"></script>', '<script src="/js/dispo-engine.js"></script>']]],
   };
+  const blocchiDi = (pagina) => [...COMUNI, ...OGGI[pagina][2]];
+  const bloccoDi = (src, b) => (b.length === 1 ? bloccoFn(src, b[0]) : bloccoTra(src, b[0], b[1]));
+  const nomeBlocco = (b) => (b.length === 1 ? b[0] + '()' : '«' + b[0].trim().slice(0, 44) + '»');
   const guaiFrammenti = (pagina, costruita) => {
     const g = [];
-    for (const b of OGGI[pagina][2]) {
-      const [p, c] = b.length === 1 ? [bloccoFn(P[pagina], b[0]), bloccoFn(costruita, b[0])]
-        : [bloccoTra(P[pagina], b[0], b[1]), bloccoTra(costruita, b[0], b[1])];
-      const nome = b.length === 1 ? b[0] + '()' : '«' + b[0].trim().slice(0, 44) + '»';
+    for (const b of blocchiDi(pagina)) {
+      const p = bloccoDi(P[pagina], b), c = bloccoDi(costruita, b);
+      const nome = nomeBlocco(b);
       if (p.n !== 1 || !p.testo) { g.push(nome + ': nella pagina ' + p.n + ' volte'); continue; }
       if (c.n !== 1 || !c.testo) { g.push(nome + ': nella ricostruzione ' + c.n + ' volte'); continue; }
       if (p.testo !== c.testo) {
@@ -899,18 +970,114 @@ if (!PY) {
     }
     return g;
   };
+  // LE CARTE PER ID. Il muro della vetrina e la settimana della home sono un
+  // dato (la fotografia del catalogo): la pagina intera li maschera. Ma una
+  // carta rifatta è la stessa della pagina in tutto ciò che non dipende dal
+  // GIORNO della build — foto, nome, alt, prezzo, camere, ricerca, piano.
+  // Datati, e quindi fuori: la corsia (casa-stato), il «NEW» (casa-chip) e
+  // la data d'ingresso (data-dal: l'anno lo deduce js/dispo-engine.js dal
+  // giorno in cui si costruisce). Gli spazi non contano.
+  const firmaCarta = (b) => b.replace(/\s*data-dal="[^"]*"/, '')
+    .replace(/<span class="casa-chip[^"]*">[^<]*<\/span>/g, '')
+    .replace(/<span class="casa-stato[^"]*">[^<]*<\/span>/g, '')
+    .replace(/\s+/g, ' ');
+  const guaiCartePerId = (pagina, viva, ric) => {
+    const a = carte(viva), b = new Map(carte(ric).map((c) => [c.id, c]));
+    const g = [];
+    if (!a.length || a.map((c) => c.id).sort().join() !== [...b.keys()].sort().join()) {
+      g.push(`${pagina}: case diverse — pagina ${a.length}, ricostruzione ${b.size}`);
+    }
+    for (const c of a) {
+      const r = b.get(c.id);
+      if (!r) { g.push(`${pagina} ${c.id}: la ricostruzione non ha la carta`); continue; }
+      const x = firmaCarta(c.blocco), y = firmaCarta(r.blocco);
+      if (x === y) continue;
+      let i = 0;
+      while (x[i] === y[i]) i++;
+      g.push(`${pagina} ${c.id}: pagina «…${x.slice(Math.max(0, i - 24), i + 48)}» / ricostruzione «…${y.slice(Math.max(0, i - 24), i + 48)}»`);
+    }
+    return g;
+  };
+  // il CASE della scheda, per id: tutto tranne la corsia del giorno
+  const DATATI_SCHEDA = new Set(['stato', 'libera', 'dal']);
+  const guaiCasePerId = (viva, ric) => {
+    const D = caseJson(viva) || [], L = new Map((caseJson(ric) || []).map((x) => [x.id, x]));
+    const g = [];
+    if (!D.length || D.length !== L.size) g.push(`apartment-detail.html: ${L.size} case nella ricostruzione contro ${D.length}`);
+    for (const x of D) {
+      const y = L.get(x.id);
+      if (!y) { g.push(`apartment-detail.html ${x.id}: manca nella ricostruzione`); continue; }
+      const k = [...new Set([...Object.keys(x), ...Object.keys(y)])]
+        .find((k) => !DATATI_SCHEDA.has(k) && JSON.stringify(x[k]) !== JSON.stringify(y[k]));
+      if (k) g.push(`apartment-detail.html ${x.id}: «${k}» ${JSON.stringify(x[k]).slice(0, 60)} / ricostruzione ${JSON.stringify(y[k]).slice(0, 60)}`);
+    }
+    return g;
+  };
+  // IL TOTALE D'INGRESSO della scena «paga» della home: mese + cauzione (un
+  // mese) + onorario del 10% di un anno IVA INCLUSA — l'etichetta lo dice,
+  // e il builder lo stampava senza IVA. È un dato (maschera), quindi lo
+  // vigila la formula, sulla pagina e sulla ricostruzione
+  const guaiTotale = (h, dove) => {
+    const cifra = (s) => +String(s || '').replace(/,/g, '');
+    const p = cifra((h.match(/<figure class="s1-casa s1-eletta">[\s\S]*?<figcaption>[^<]* · €([\d,]+)\/mo<\/figcaption>/) || [])[1]);
+    const t = cifra((h.match(/<div class="sc-totale"><span>Move-in total · month \+ deposit \+ fee incl\. VAT<\/span>\s*<b>€([\d,]+)<\/b>/) || [])[1]);
+    if (!p || !t) return [dove + ': canone o totale della scena non trovati'];
+    const atteso = p * 2 + Math.round(p * 12 * 0.10 * 1.22);
+    return t === atteso ? [] : [`${dove}: totale €${t} su un canone di €${p} — con l'onorario IVA inclusa sono €${atteso}`];
+  };
   const B = costruisci();
   try {
     await check('i builder girano (ad, kiosk, soldi, prova, ld, portale) col gemello importato', () => esito(B.errori));
     if (!B.errori.length) {
       const idrante = leggi('design/pages-deco/vetrina-idrante.html').trim();
-      await check('apartments.html porta l\'idrante di design/pages-deco/vetrina-idrante.html TALE E QUALE (costruisci-ad.py lo appende senza toccarlo)', () =>
-        P['apartments.html'].includes(idrante) && B.out('boom-discovery-sito.html').includes(idrante) ? true
-          : 'la pagina e il frammento divergono: ' + JSON.stringify(guaiFrammenti('apartments.html', B.out('boom-discovery-sito.html'))).slice(0, 300));
+      for (const [pagina, uscita, builder] of [['apartments.html', 'boom-discovery-sito.html', 'costruisci-ad.py'],
+        ['index.html', 'boom-portale-sito.html', 'costruisci-portale.py']]) {
+        await check(`${pagina} porta l'idrante di design/pages-deco/vetrina-idrante.html TALE E QUALE (${builder} lo appende senza toccarlo)`, () =>
+          P[pagina].includes(idrante) && B.out(uscita).includes(idrante) ? true
+            : 'la pagina e il frammento divergono: ' + JSON.stringify(guaiFrammenti(pagina, B.out(uscita))).slice(0, 300));
+      }
       for (const [pagina, [file, builder]] of Object.entries(OGGI)) {
-        await check(`${pagina}: i blocchi di oggi (${OGGI[pagina][2].length}) sono IDENTICI nella ricostruzione «sito» di ${builder} — la prossima build non li toglie`,
+        await check(`${pagina}: i blocchi di oggi (${blocchiDi(pagina).length}) sono IDENTICI nella ricostruzione «sito» di ${builder} — la prossima build non li toglie`,
           () => esito(guaiFrammenti(pagina, B.out(file))));
       }
+      for (const pagina of Object.keys(COSTRUITE)) {
+        await check(`${pagina} INTERA è la ricostruzione di ${COSTRUITE[pagina].builder} a meno dei dati (${MASCHERE[pagina].length} maschere): nessuna riga vive solo nella pagina`,
+          () => esito(confronta(pagina, P[pagina], ricostruita(B, pagina))));
+      }
+      await check('scripts/vetrina-riallinea.mjs: riallineare le quattro pagine sulla loro ricostruzione non cambia un byte (sono già allineate)', () => {
+        const g = Object.keys(COSTRUITE).filter((p) => riallinea(p, P[p], ricostruita(B, p)) !== P[p]);
+        return g.length ? 'cambierebbero: ' + g.join(', ') : true;
+      });
+      await check('le carte rifatte sono quelle della vetrina e della home, per id: stesse case, stessa foto, stesso nome, prezzo, camere e ricerca (fuori solo corsia, «NEW» e data d\'ingresso, che dipendono dal giorno)', () =>
+        esito([...guaiCartePerId('apartments.html', P['apartments.html'], B.out('boom-discovery-sito.html')),
+          ...guaiCartePerId('index.html', P['index.html'], B.out('boom-portale-sito.html'))]));
+      await check('il CASE rifatto della scheda è quello della pagina, per id, in tutto ciò che non dipende dal giorno (foto, prezzo, testi, dotazioni, coordinate)', () =>
+        esito(guaiCasePerId(P['apartment-detail.html'], B.out('boom-casa-p-sito.html'))));
+      await check('il totale d\'ingresso della home (mese + cauzione + onorario IVA inclusa) torna con la formula, sulla pagina e nella ricostruzione', () =>
+        esito([...guaiTotale(P['index.html'], 'index.html'), ...guaiTotale(B.out('boom-portale-sito.html'), 'ricostruzione')]));
+      // L'ITEMLIST: il builder non la scrive (la vetrina «sito» esce senza
+      // BOOM_CATALOGO). Il flusso documentato è build → catalogo-nomi →
+      // catalogo-schema: lo si fa davvero, su una copia, con la ricostruzione
+      // al posto della pagina — e ne esce la vetrina viva, ItemList compresa
+      {
+        const r = copiaRadice();
+        try {
+          const grezza = B.out('boom-discovery-sito.html');
+          writeFileSync(join(r, 'apartments.html'), grezza);
+          await allinea({ root: r, verita: FOTO });
+          const sc = spawnSync(process.execPath, [join(ROOT, 'scripts', 'catalogo-schema.mjs'), '--root', r], { encoding: 'utf8', timeout: 60000 });
+          const fatta = leggi('apartments.html', r);
+          await check('il flusso documentato (build → catalogo-nomi → catalogo-schema --root) rifà l\'ItemList: copre tutte le carte coi nomi e le camere della fotografia, e la pagina che ne esce è la vetrina viva a meno dei dati', () => {
+            const g = [];
+            if (grezza.includes('BOOM_CATALOGO')) g.push('la build scrive già l\'ItemList: il flusso documentato non è più questo');
+            if (sc.status !== 0) g.push('catalogo-schema --root: ' + (sc.stderr || sc.stdout).trim().split('\n').pop());
+            g.push(...guaiItemList(fatta), ...confronta('apartments.html', P['apartments.html'], fatta));
+            return esito(g);
+          });
+        } finally { rmSync(r, { recursive: true, force: true }); }
+      }
+      await check('l\'ItemList della vetrina viva è quella che catalogo-schema deriva dalle SUE carte (rilanciarlo non cambia un byte)', () =>
+        rigeneraItemList(P['apartments.html']).html === P['apartments.html'] ? true : 'catalogo-schema la riscriverebbe');
     }
     if (!B.errori.length) {
       await check('costruisci-ad.py rifatto: ogni carta dice le camere della fotografia (data-letti, «· N bed») — il Capri non torna «1 bed»', () => {
@@ -1002,30 +1169,114 @@ if (!PY) {
       return esito(g);
     });
   } finally { rmSync(B2.d, { recursive: true, force: true }); }
-  // la MUTAZIONE dei frammenti: un blocco tolto dal frammento (e solo da lì)
-  // deve far cadere la regola — la pagina ce l'ha, la ricostruzione no
-  const B3 = costruisci((H) => {
-    const togli = (f, nome) => {
-      const s = readFileSync(join(H, f), 'utf8'), b = bloccoFn(s, nome);
-      if (b.n !== 1 || !b.testo) throw new Error('mutazione senza appiglio: ' + nome + ' in ' + f);
-      writeFileSync(join(H, f), s.replace(b.testo, ''));
-    };
-    togli('ld-regia.html', 'rileggiAltre');
-    togli('ad-regia.html', 'piega');
-    writeFileSync(join(H, 'vetrina-idrante.html'), muta(readFileSync(join(H, 'vetrina-idrante.html'), 'utf8'),
-      "a.dataset.letti = letti == null ? '' : String(letti);", 'a.dataset.letti = String(letti || 0);'));
-  }, ['costruisci-ad.py', 'costruisci-portale.py', 'costruisci-ld.py']);
-  try {
-    await check('mutazione: un blocco tolto dal frammento (rileggiAltre da ld-regia, piega da ad-regia, l\'innesto vecchio in vetrina-idrante) → la regola dei frammenti cade su tutte e tre le pagine', () => {
-      if (B3.errori.length) return esito(B3.errori);
-      const ga = guaiFrammenti('apartments.html', B3.out('boom-discovery-sito.html'));
-      const gi = guaiFrammenti('index.html', B3.out('boom-portale-sito.html'));
-      const gd = guaiFrammenti('apartment-detail.html', B3.out('boom-casa-p-sito.html'));
-      return ga.some((x) => x.startsWith('piega()')) && ga.some((x) => x.startsWith('innesta()'))
-        && gi.some((x) => x.includes('le camere con la regola UNA')) && gd.some((x) => x.startsWith('rileggiAltre()'))
-        ? true : JSON.stringify({ ga, gi, gd }).slice(0, 500);
-    });
-  } finally { rmSync(B3.d, { recursive: true, force: true }); }
+  // LE MUTAZIONI, una per frammento (e una per ogni builder toccato il
+  // 16/10): un pezzo tolto dal frammento — e SOLO da lì: la pagina resta
+  // com'è — deve far cadere la regola. Una build per mutazione (i builder
+  // costano mezzo secondo): ogni mutazione è presa DA SOLA, e si vede da
+  // quale regola. `blocchi`: i blocchi per nome che devono cadere, pagina per
+  // pagina; `intere`: le pagine il cui confronto intero deve cadere; `dati`:
+  // la regola che la prende quando il pezzo finisce dentro un dato (carte e
+  // CASE per id, il totale della home), dove il confronto intero non guarda.
+  const sostituisciBlocco = (s, b, nuovo, dove) => {
+    const x = bloccoDi(s, b);
+    if (x.n !== 1 || !x.testo) throw new Error('mutazione senza appiglio: ' + nomeBlocco(b) + ' in ' + dove);
+    return s.replace(x.testo, () => nuovo);
+  };
+  const togliBlocco = (s, b, dove) => sostituisciBlocco(s, b, '', dove);
+  const TUTTE = Object.keys(COSTRUITE);
+  const via = (f, b, pagine) => ({ f, cosa: nomeBlocco(b) + ' tolto', muta: (s) => togliBlocco(s, b, f),
+    blocchi: Object.fromEntries(pagine.map((p) => [p, [b]])), intere: pagine });
+  const MUTAZIONI = [
+    via('ad-regia.html', ['piega'], ['apartments.html']),
+    via('ad-corpo.html', ['  min-height:431px;', '@media (min-width:640px){ .zone-quadro { min-height:454px; } }'], ['apartments.html']),
+    { f: 'vetrina-idrante.html', cosa: 'l\'innesto torna a «String(letti || 0)» (camere ignote = Studio)',
+      muta: (s) => muta(s, "a.dataset.letti = letti == null ? '' : String(letti);", 'a.dataset.letti = String(letti || 0);'),
+      blocchi: { 'apartments.html': [['innesta']],
+        'index.html': [['/* le camere con la regola UNA (camereDi), come le carte di build */', 'a.dataset.mq = String(mq);']] },
+      intere: ['apartments.html', 'index.html'] },
+    via('pt.html', ['/* IL POSTO SI RISERVA PRIMA CHE ARRIVI IL TABELLONE.', "f.style.minHeight='1.27em';}})();</script>"], ['index.html']),
+    via('ld-regia.html', ['rileggiAltre'], ['apartment-detail.html']),
+    via('ld-corpo.html', ['<p class="applica-nota" id="apErrore" role="alert" hidden></p>',
+      '<p class="applica-nota" id="apErrore" role="alert" hidden></p>'], ['apartment-detail.html']),
+    { f: 'deco-organi.html', cosa: 'il montatore torna su TUTTI i .flap-prezzo (anche #canoneCasa: il prezzo frulla due volte)',
+      muta: (s) => sostituisciBlocco(s, ['/* #canoneCasa NO: è della regia della scheda', "querySelectorAll('.flap-prezzo:not(#canoneCasa)'),"],
+        "[].forEach.call(document.querySelectorAll('.flap-prezzo'),", 'deco-organi.html'),
+      blocchi: { 'apartment-detail.html': [['/* #canoneCasa NO: è della regia della scheda', "querySelectorAll('.flap-prezzo:not(#canoneCasa)'),"]] },
+      intere: ['apartments.html', 'index.html', 'apartment-detail.html'] },
+    via('kiosk-corpo.html', ['<div class="lato-riga">', '</div>'], ['board.html']),
+    via('kiosk-regia.html', ['laneRows'], ['board.html']),
+    via('solari-engine.html', ["/* Safari spesso NON spara animationend quando l'animazione nasce", 'setTimeout(finishTop, 140);'], TUTTE),
+    { f: 'logo-live.svg', cosa: 'shape-rendering tolto dal marchio',
+      muta: (s) => muta(s, ' shape-rendering="geometricPrecision"', ''), blocchi: {}, intere: TUTTE },
+    { f: 'testa.py', cosa: 'boom-track tolto (TRACCIA vuota)',
+      muta: (s) => muta(s, "TRACCIA = '<script defer src=\"/js/boom-track.js\"></script>'", "TRACCIA = ''"),
+      blocchi: Object.fromEntries(TUTTE.map((p) => [p, [COMUNI[1]]])), intere: TUTTE },
+    { f: 'testa.py', cosa: 'la scheda torna indicizzabile (ROBOTS al posto di ROBOTS_TEMPLATE)',
+      muta: (s) => muta(s, "+ '\\n' + ROBOTS_TEMPLATE + '\\n' + ICONE", "+ '\\n' + ROBOTS + '\\n' + ICONE"),
+      blocchi: { 'apartment-detail.html': [['<meta name="robots" content="noindex, follow">', '<meta name="googlebot" content="noindex, follow">']] },
+      intere: ['apartment-detail.html'] },
+    { f: 'costruisci-ad.py', cosa: 'il preconnect morto alle tile torna',
+      muta: (s) => muta(s, "h = h.replace('<link rel=\"preconnect\" href=\"https://tiles.openfreemap.org\" crossorigin>\\n', '', 1)", 'pass'),
+      blocchi: {}, intere: ['apartments.html'] },
+    { f: 'costruisci-ld.py', cosa: 'il contratto di scorrimento non entra nella scheda',
+      muta: (s) => muta(s, "'</style>\\n' + TESTA.scroll()\n                     + '\\n</head>\\n<body>'", "'</style>\\n</head>\\n<body>'"),
+      blocchi: { 'apartment-detail.html': [COMUNI[0]] }, intere: ['apartment-detail.html'] },
+    { f: 'costruisci-kiosk.py', cosa: 'la testa del tabellone (blocco_board) non entra',
+      muta: (s) => muta(s, "h = h.replace('TESTA_BOARD', TESTA.blocco_board() + '\\n')", "h = h.replace('TESTA_BOARD', '')"),
+      blocchi: { 'board.html': [['<link rel="canonical" href="https://www.boomrome.com/board">', '<link rel="canonical" href="https://www.boomrome.com/board">']] },
+      intere: ['board.html'] },
+    { f: 'costruisci-portale.py', cosa: 'il totale d\'ingresso senza l\'IVA dell\'onorario',
+      muta: (s) => muta(s, "round(sc['prezzo'] * 12 * .10 * 1.22)", "round(sc['prezzo'] * 12 * .10)"),
+      blocchi: {}, intere: [], pagine: ['index.html'], dati: (Bm) => guaiTotale(Bm.out('boom-portale-sito.html'), 'ricostruzione') },
+    { f: 'foto-map.json', cosa: 'la foto di 2SwJ8yD3ITXylrEtYIlL tolta dalla mappa',
+      muta: (s) => { const m = JSON.parse(s); if (!m['2SwJ8yD3ITXylrEtYIlL']) throw new Error('mutazione senza appiglio: foto-map'); delete m['2SwJ8yD3ITXylrEtYIlL']; return JSON.stringify(m); },
+      blocchi: {}, intere: [], pagine: ['apartments.html', 'apartment-detail.html'],
+      dati: (Bm) => [...guaiCartePerId('apartments.html', P['apartments.html'], Bm.out('boom-discovery-sito.html')),
+        ...guaiCasePerId(P['apartment-detail.html'], Bm.out('boom-casa-p-sito.html'))] },
+  ];
+  const frammenti = new Set(MUTAZIONI.map((m) => m.f));
+  await check(`le mutazioni coprono ogni frammento che i quattro builder leggono (${frammenti.size} file)`, () => {
+    // i frammenti del modo «sito», letti dai sorgenti dei builder: un
+    // frammento nuovo senza mutazione fa cadere questa regola
+    const letti = new Set();
+    for (const b of Object.values(COSTRUITE).map((c) => c.builder)) {
+      const s = leggi('design/pages-deco/' + b);
+      for (const m of s.matchAll(/leggi\('([^']+)'\)/g)) letti.add(m[1]);
+      letti.add(b);
+    }
+    letti.add('testa.py'); letti.add('foto-map.json');
+    // un file che il repo non ha non lo legge il modo «sito» (la build
+    // cadrebbe): è dell'anteprima (inter-inline.css, FONT_INLINE)
+    const esiste = (f) => ['pages-deco', 'home-live-deco'].some((d) => existsSync(join(ROOT, 'design', d, f)));
+    const senza = [...letti].filter((f) => esiste(f) && !frammenti.has(f));
+    return senza.length ? 'senza mutazione: ' + senza.join(', ') : true;
+  });
+  for (const m of MUTAZIONI) {
+    const pagine = m.pagine || [...new Set([...Object.keys(m.blocchi), ...m.intere])];
+    // una mutazione senza appiglio (il frammento è cambiato) è un guasto
+    // della SUITE, detto come tale — mai un crash, mai un verde
+    let Bm = null, senzaAppiglio = null;
+    try {
+      Bm = costruisci((H) => writeFileSync(join(H, m.f), m.muta(readFileSync(join(H, m.f), 'utf8'))),
+        pagine.map((p) => COSTRUITE[p].builder));
+    } catch (e) { senzaAppiglio = e.message; }
+    try {
+      await check(`mutazione ${m.f}: ${m.cosa} → la guardia cade (${[...Object.keys(m.blocchi).length ? ['blocchi'] : [], ...m.intere.length ? ['pagina intera'] : [], ...m.dati ? ['dati'] : []].join(' + ')})`, () => {
+        if (senzaAppiglio) return senzaAppiglio;
+        if (Bm.errori.length) return esito(Bm.errori);
+        const mancate = [];
+        for (const [pagina, bb] of Object.entries(m.blocchi)) {
+          const g = guaiFrammenti(pagina, Bm.out(COSTRUITE[pagina].uscita));
+          for (const b of bb) if (!g.some((x) => x.startsWith(nomeBlocco(b) + ':'))) mancate.push(pagina + ' ' + nomeBlocco(b));
+        }
+        for (const pagina of m.intere) {
+          if (!confronta(pagina, P[pagina], ricostruita(Bm, pagina)).length) mancate.push(pagina + ' intera');
+        }
+        if (m.dati && !m.dati(Bm).length) mancate.push('i dati');
+        return mancate.length ? 'NON presa da: ' + mancate.join(', ') : true;
+      });
+    } finally { if (Bm) rmSync(Bm.d, { recursive: true, force: true }); }
+  }
 }
 
 // ═══ IN CHROMIUM — l'idrante rinomina e corregge, l'innesto e la scheda pure ═══

@@ -1,0 +1,123 @@
+<style>
+/* ══ IL KIOSK — il tabellone da vetrina. Nessuna nav: solo il teatro. ══ */
+:root { --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88; --black:#030303;
+  --oro-flap:#FFE55C; --line:rgba(255,255,255,.08); --line-0:rgba(255,255,255,.04);
+  --line-gold:rgba(255,215,0,.14);
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --sans:'Inter',-apple-system,sans-serif; color-scheme:dark; }
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+html,a { color:inherit; }
+body { height:100%; }
+body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
+  font-weight:300; overflow:hidden; display:flex; flex-direction:column;
+  cursor:none; }
+.cima { display:flex; align-items:center; justify-content:space-between;
+  gap:12px; flex-wrap:wrap;
+  padding:clamp(18px,3vh,34px) clamp(22px,3.5vw,60px);
+  border-bottom:1px solid var(--line-0); }
+/* L'orologio a palette e' largo ~106px e non si restringe: con 60px di
+   padding per lato usciva dal quadro e la pagina scorreva di lato.
+   `flex-wrap` gli lascia una riga sua quando serve, e sotto i 700px il
+   padding si stringe: il tabellone resta identico, smette di sforare. */
+@media (max-width:700px){ .cima { padding:14px 12px; } }
+.marchio { display:flex; align-items:center; gap:16px; }
+.marchio svg { width:clamp(34px,4.5vh,52px); height:clamp(34px,4.5vh,52px); }
+.marchio span { font-family:var(--display); font-size:clamp(17px,2.4vh,26px);
+  font-weight:500; letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
+.cima-eti { display:flex; align-items:center; gap:12px; font-size:clamp(11px,1.5vh,14px);
+  font-weight:600; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.cima-eti i { font-style:normal; width:9px; height:9px; border-radius:50%;
+  background:var(--green); animation:pulse 2.2s ease infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+#ora { font-family:var(--display); font-size:clamp(16px,2.6vh,26px); }
+.sala { flex:1; display:grid; align-content:center;
+  /* Le lettere delle palette sono 2-3px piu' larghe della loro casella
+     (metrica del glifo, non un errore di layout): sull'ultima colonna
+     quei pochi pixel diventavano scorrimento laterale dell'intera pagina.
+     `clip` e non `hidden`: qui dentro non deve nascere un contenitore di
+     scorrimento. */
+  overflow-x:clip;
+  padding:0 clamp(22px,3.5vw,60px); }
+.colonne, .riga { display:grid; align-items:center;
+  grid-template-columns:clamp(80px,9vw,150px) minmax(0,1fr) clamp(64px,6vw,110px)
+    clamp(120px,12vw,200px) clamp(90px,9vw,150px);
+  gap:clamp(10px,2vw,34px); padding:0 clamp(8px,1vw,20px); }
+/* I minimi delle cinque colonne sommavano 354px, piu' 40 di gap e 16 di
+   padding: 410px dentro una finestra da 390. Il tabellone non si
+   restringeva — si restringeva la PAGINA, che scorreva di lato di 42px.
+   Uno scorrimento orizzontale involontario e' il difetto che fa sembrare
+   rotto un sito, e su /board arriva chi lo apre dal telefono per guardare
+   la sala partenze. Sotto i 700px i minimi scendono e le colonne ci
+   stanno: il tabellone resta lo stesso, solo piu' stretto. */
+@media (max-width:700px){
+  .colonne, .riga { grid-template-columns:minmax(48px,auto) minmax(0,1fr)
+      minmax(38px,auto) minmax(64px,auto) minmax(52px,auto);
+    gap:8px; padding:0 4px; }
+  .sala { padding:0 12px; }
+}
+.colonne { padding-bottom:1.4vh; font-size:clamp(10px,1.4vh,13px); font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.3); }
+.riga { font-size:clamp(17px,3.4vh,34px);
+  padding-top:clamp(10px,1.9vh,20px); padding-bottom:clamp(10px,1.9vh,20px);
+  border-top:1px solid var(--line-0); }
+/* su telefono le 5 colonne non entrano (la pagina sforava di 42px dietro
+   un overflow:hidden): cade Beds — come sul tabellone della discovery
+   cade il prezzo — e il resto si stringe su misura */
+@media (max-width:560px){
+  .sala { padding:0 14px; }
+  .colonne, .riga { grid-template-columns:64px minmax(0,1fr) 80px 64px;
+    gap:8px; padding:0 4px; }
+  .colonne span:nth-child(3), .riga .c-tipo { display:none; }
+  .riga { font-size:13px; }
+  .colonne { font-size:9px; letter-spacing:.14em; }
+}
+.cella { overflow:hidden; }
+.c-stato { color:var(--green); }
+.riga.nuovo .c-stato { color:var(--gold-light); }
+/* ARRIVI: la casa in atterraggio (data di rilascio nota) — ETA e stato
+   in oro: non si entra oggi, si prenota (marketLane 'ahead') */
+.riga.presto .c-stato, .riga.presto .c-ora { color:var(--gold-light); }
+.lato-riga { display:flex; align-items:baseline; gap:16px;
+  padding:0 clamp(8px,1vw,20px) 1.6vh; }
+.lato-riga .flap-scale { font-size:clamp(15px,2.6vh,26px); font-weight:500;
+  letter-spacing:.1em; }
+.lato-nota { font-size:clamp(10px,1.5vh,14px); font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.4); }
+@media (max-width:560px){ .lato-nota { display:none; } }
+.fondo { display:flex; align-items:center; justify-content:space-between;
+  gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
+  border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
+  letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
+/* Il piede a tre voci non entra a 390 quando i puntini delle pagine
+   crescono — e col tabellone a due lati (e l'idrante) il loro numero
+   VARIA col catalogo: sotto i 700px si va a capo invece di spingere
+   la pagina di lato (la stessa cura di .cima). */
+@media (max-width:700px){ .fondo { flex-wrap:wrap; justify-content:center;
+  gap:6px 14px; padding:12px; font-size:11px; } }
+.fondo b { color:var(--gold); font-weight:600; }
+.pagine { display:flex; gap:8px; }
+.pagine i { width:26px; height:3px; background:var(--line); font-style:normal;
+  transition:background .4s ease; }
+.pagine i.qui { background:var(--gold); }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+</style>
+<div class="cima">
+  <div class="marchio">LOGO_SVG<span>Boom</span></div>
+  <div class="cima-eti"><i></i>Homes in Rome · Live</div>
+  <div id="ora" class="flap-scale"></div>
+</div>
+<div class="sala">
+  <div class="lato-riga">
+    <span id="lato" class="flap-scale">DEPARTURES</span>
+    <span class="lato-nota" id="latoNota">Boarding now</span>
+  </div>
+  <div class="colonne">
+    <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
+  </div>
+  <div id="righe"></div>
+</div>
+<div class="fondo">
+  <a href="KIOSK_HOME" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
+  <span class="pagine" id="pagine"></span>
+  <span>Video-verified · Keys in 48h</span>
+</div>

@@ -252,7 +252,7 @@ html {
 </head>
 <body>
 <div class="cima">
-  <div class="marchio"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <div class="marchio"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" shape-rendering="geometricPrecision">
                     <defs>
                         <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stop-color="#FFE55C"/>
@@ -353,7 +353,7 @@ html {
     var j = drum.indexOf(this.pending); if (j < 0) j = 0;
     var d = (j - i + drum.length) % drum.length;
     if (d === 0) return null;
-    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
     return drum[(i + 1) % drum.length];
   };
   Cell.prototype.step = function (nc, done) {
@@ -371,17 +371,24 @@ html {
         self.cur = nc; done();
       }
       self.lbEl.style.display = 'block';
+      /* Safari spesso NON spara animationend quando l'animazione nasce
+         nello stesso frame del display:block: reflow forzato, e il timer
+         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
+         flip su Safari durava il triplo, e il tabellone «caricava due
+         volte») */
+      void self.lbEl.offsetWidth;
       self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
       self.lbEl.onanimationend = finishBot;
-      setTimeout(finishBot, 400);
+      setTimeout(finishBot, 210);
     }
     this.st.textContent = nc;
     this.lt.textContent = this.cur;
     this.lb.textContent = nc;
     this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
     this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
     this.ltEl.onanimationend = finishTop;
-    setTimeout(finishTop, 300);
+    setTimeout(finishTop, 140);
   };
   Cell.prototype.go = function (target, drum, fullTurn) {
     this.pending = target;
@@ -446,6 +453,17 @@ html {
     this.cells.forEach(function (c, i) {
       var ch = word[i] || ' ';
       if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.giro = function (stagger) {
+    /* il giro dell'insegna: ogni cella rifa' TUTTO il tamburo e riatterra
+       sulla SUA lettera — la vita dei tabelloni veri, mai una parola
+       diversa (la parola del titolo e' una promessa: non si cambia) */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      if (c.cur === ' ') return;
+      setTimeout(function () { c.go(c.cur, self.drum, true); },
+        i * (stagger || 90) + Math.random() * 26);
     });
   };
   Board.prototype.flutter = function () {

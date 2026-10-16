@@ -4372,7 +4372,13 @@ setTimeout(function () {
         b.show(testo, 40, true);
       }, { threshold: .4 }).observe(host);
     };
-    [].forEach.call(document.querySelectorAll('.flap-prezzo'),
+    /* #canoneCasa NO: è della regia della scheda (mostraCanone), che lo
+       svuota e lo ricostruisce. Da quando il server scrive data-p, questo
+       montaggio ne costruiva un primo tabellone e lo faceva girare, poi la
+       regia lo cancellava e lo rifaceva girare: il prezzo frullava due
+       volte. Le altre pagine non hanno #canoneCasa: per loro non cambia
+       niente (e il server scrive la cifra in chiaro, che Board svuota). */
+    [].forEach.call(document.querySelectorAll('.flap-prezzo:not(#canoneCasa)'),
       window.__solariPrezzo);
   })();
 
@@ -4632,6 +4638,7 @@ setTimeout(function () {
             var fp = card.querySelector('.flap-prezzo');
             if (fp && fp.dataset.p !== euro(d.p)) {
               fp.dataset.p = euro(d.p);
+              fp.setAttribute('aria-label', euro(d.p) + ' per month');
               /* rimontare il Solari, MAI riscriverlo come testo: la
                  stringa piatta cancellava il tabellone della build */
               if (window.__solariPrezzo) window.__solariPrezzo(fp);
@@ -4773,11 +4780,12 @@ setTimeout(function () {
         + '" aria-label="Compare this home">⇄</button>'
         + '</div><div class="corpo">'
         + '<div class="riga1"><span class="nome">' + esc(nome) + '</span>'
-        /* vuoto come nel builder: il testo lo monta il Solari qui sotto —
-           il testo piatto era la carta "senza design" del prezzo */
+        /* come nel builder: il prezzo nasce come TESTO (si legge anche
+           senza JS, e un motore lo trova), poi il Solari qui sotto svuota
+           il nodo e monta il tabellone — il design quando può */
         + '<span class="canone"><span class="flap-prezzo flap-scale" '
         + 'data-p="' + esc(euro(d.p)) + '" aria-label="' + esc(euro(d.p))
-        + ' per month"></span><small>/mo</small>'
+        + ' per month">' + esc(euro(d.p)) + '</span><small>/mo</small>'
         + '</span></div>'
         + '<div class="riga2">' + pezzi.join(' <i>·</i> ') + '</div>'
         + '</div>';
