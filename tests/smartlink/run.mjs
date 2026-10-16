@@ -152,6 +152,10 @@ try {
 
   r = response();
   const createBody = { idempotencyKey:'11111111-1111-4111-8111-111111111111', sourceUrl:canonical.url, price:1200, title:'Bilocale Test', note:'Da vedere', images:[photo], map:{lat:41.9075,lng:12.4475,label:'Cipro',precision:'exact'} };
+  await create(request('POST',{...createBody,images:[]}),r);
+  assert.equal(r.code,400);
+  assert.equal(r.body.error,'photos_required');
+  r=response();
   await create(request('POST',createBody,'tenant'), r);
   assert.equal(r.code, 403);
   r = response();
