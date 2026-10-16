@@ -1,0 +1,89 @@
+{
+  "_comment": "Shared by every city page. organization.areaServed is DERIVED by the build (Rome + the live desks): a draft never puts its city there. siteUrl is the ONE place the domain lives: moving the city pages off boomrome.com is this line plus a rebuild (BOOM_CITIES_BRIEF.md §0/§2). entity + contact are printed identically in every footer, consent line and Organization schema (§8) — the same strings executive.html prints.",
+  "siteUrl": "https://www.boomrome.com",
+  "entity": {
+    "legalName": "Egidi Immobiliare S.r.l.",
+    "address": "Via dei Coronari 181/184, 00186 Roma",
+    "registeredOffice": "Viale Liegi 42, 00198 Roma",
+    "vat": "17322991005",
+    "rea": "RM-1710623",
+    "trademark": "BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l."
+  },
+  "contact": {
+    "whatsapp": "393313251961",
+    "phoneDisplay": "+39 331 325 1961",
+    "email": "hello@boom-rome.com"
+  },
+  "organization": {
+    "name": "BOOM",
+    "legalName": "Egidi Immobiliare S.r.l.",
+    "logo": {
+      "@type": "ImageObject",
+      "url": "https://www.boomrome.com/android-chrome-512x512.png",
+      "width": 512,
+      "height": 512
+    },
+    "founder": {
+      "@type": "Person",
+      "name": "Valentino Egidi"
+    },
+    "address": {
+      "@type": "PostalAddress",
+      "streetAddress": "Via dei Coronari 181/184",
+      "postalCode": "00186",
+      "addressLocality": "Rome",
+      "addressCountry": "IT"
+    },
+    "vatID": "IT17322991005",
+    "contactPoint": {
+      "@type": "ContactPoint",
+      "contactType": "customer service",
+      "telephone": "+39-331-325-1961",
+      "email": "hello@boom-rome.com",
+      "availableLanguage": [
+        "en",
+        "it"
+      ]
+    },
+    "description": "Tenant-side rental search and relocation desk for internationals, born in Rome."
+  },
+  "family": [
+    {
+      "label": "BOOM Rome",
+      "href": "/"
+    }
+  ],
+  "footerBoom": [
+    {
+      "label": "Home",
+      "href": "/"
+    },
+    {
+      "label": "Apartments in Rome",
+      "href": "/apartments"
+    },
+    {
+      "label": "Executive Roma",
+      "href": "/executive"
+    },
+    {
+      "label": "Services",
+      "href": "/services"
+    },
+    {
+      "label": "Welcome to Rome Kit",
+      "href": "/welcome-to-rome"
+    }
+  ],
+  "refund": {
+    "rule": "Full Search is refunded in full if we decline the search in the first call."
+  },
+  "rome": {
+    "rating": "4.9",
+    "reviews": "47",
+    "since": "2020",
+    "reviewUrl": ""
+  },
+  "moveInFrom": "2026-10",
+  "desksLabel": "BOOM desks"
+}

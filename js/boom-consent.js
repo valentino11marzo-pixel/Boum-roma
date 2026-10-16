@@ -116,10 +116,60 @@
     el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
   }
 
+  // WHEN the plate may open. Two guards, both about not stepping on the
+  // reader's first move:
+  //   - a native <dialog open> on the page (the city desks' till) wins: a
+  //     consent plate sliding in under a modal is two things asking at once.
+  //     We wait for the dialog to close, then 400 ms, then open;
+  //   - <body data-consent-late> (the city desks) asks for the plate AFTER
+  //     the reader's first move — a wheel turn, a finger scroll, a tap or a
+  //     key — plus 600 ms, so the diagnostic in the hero is read before
+  //     anything else appears. The scroll EVENT is not a signal: the page
+  //     scrolls itself to land the pass after the first tap, and that is not
+  //     the reader moving on. 8 s is the ceiling: a reader who never moves
+  //     still gets the plate.
+  // Pages without the attribute keep the 700 ms of before.
+  function modalOpen() { try { return !!document.querySelector('dialog[open]'); } catch (e) { return false; } }
+  function when(fn) {
+    var fired = false;
+    function go() {
+      if (fired) return;
+      if (modalOpen()) { setTimeout(go, 400); return; }
+      fired = true; fn();
+    }
+    var late = false;
+    try { late = document.body && document.body.hasAttribute('data-consent-late'); } catch (e) {}
+    if (!late) { setTimeout(go, 700); return; }
+    var armed = false;
+    // a tap INSIDE the diagnostic, the pass or the door is the reader at
+    // work, not a move on: it does not arm the plate (a scroll does)
+    var inside = function (ev) {
+      try {
+        if (!ev || ev.type === 'wheel' || ev.type === 'touchmove') return false;
+        var t = ev.target && ev.target.closest && ev.target.closest('#checkin, #pass, #contact, dialog');
+        return !!t;
+      } catch (e) { return false; }
+    };
+    var EVS = ['wheel', 'touchmove', 'pointerdown', 'keydown'];
+    function arm(ev) {
+      if (armed) return;
+      if (inside(ev)) return;
+      armed = true;
+      EVS.forEach(function (ev) {
+        try { window.removeEventListener(ev, arm, { passive: true }); } catch (e) {}
+      });
+      setTimeout(go, 600);
+    }
+    EVS.forEach(function (ev) {
+      try { window.addEventListener(ev, arm, { passive: true }); } catch (e) {}
+    });
+    setTimeout(arm, 8000);
+  }
+
   if (!s) {
     (document.readyState === 'loading')
-      ? document.addEventListener('DOMContentLoaded', function () { setTimeout(open, 700); }, { once: true })
-      : setTimeout(open, 700);
+      ? document.addEventListener('DOMContentLoaded', function () { when(open); }, { once: true })
+      : when(open);
   }
   window.boomConsent = { open: function () { try { localStorage.removeItem(KEY); } catch (e) {} open(); } };
 })();

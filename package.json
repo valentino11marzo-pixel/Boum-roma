@@ -4,7 +4,8 @@
   "description": "BOOM Rome – premium rental management platform",
   "scripts": {
     "dev": "vercel dev",
-    "test": "node tests/run-all.mjs"
+    "test": "node tests/run-all.mjs",
+    "build:cities": "node build-cities.mjs"
   },
   "repository": {
     "type": "git",
