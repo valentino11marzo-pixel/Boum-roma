@@ -241,7 +241,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
           <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
-          <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>3+2 Canone concordato (Allegato A)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+          <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>3+2 Canone concordato (Allegato A)</option><option value="4+4 Residential" disabled title="Nessun modello di contratto per il canone libero: la conversione si rifiuta">4+4 Residential — modello non disponibile</option><option value="3+2 Concordato" hidden>3+2 Concordato</option></select></label>
         </div>
         <div id="studBox" style="display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:12px 14px;margin-bottom:12px">
           <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🎓 Dati dello studente — finiscono nell'Allegato C</div>
@@ -532,7 +532,7 @@ function readForm(){
     askMandate:!!$('fMandate').checked,
     validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
-    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null,studenti:readStud()},
+    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:(window.BOOM_MANDATO?BOOM_MANDATO.lawRefOf({type:$('fType').value}):'uso transitorio · L.431/98 art.5 c.1'),reason:$('fReason').value.trim()||null,studenti:readStud()},
     knobs:knobs,                 // raw inputs → the create API derives server-side
     money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
     extras:parseExtras(),
@@ -754,6 +754,7 @@ window.copyTxt=function(t){try{navigator.clipboard.writeText(t);}catch(e){}};
    qui si mettono in parole. Avverte, non blocca: si procede a occhi aperti. */
 function preflightLines(j){
   var out=[];
+  if(j&&j.error==='no_template')out.push({k:'overlap',t:'⛔ '+'la proposta è un 4+4 / canone libero: non c’è un modello di contratto, quindi non nasce nessun contratto (prima usciva un transitorio). Cambia il tipo con ✎ Modifica o carica il contratto a mano.'});
   if(j&&j.overlap){var o=j.overlap;out.push({k:'overlap',t:'⚠ Sullo stesso immobile c’è già un contratto ATTIVO di '+(o.tenantName||'—')+' dal '+o.startDate+(o.endDate?' al '+o.endDate:'')+(o.unit?' (int. '+o.unit+')':'')+'.'});}
   var c=j&&j.completeness;
   if(c){
@@ -863,6 +864,7 @@ window.signFor=async function(id,btn){
       :m==='contract_busy'?'il contratto si stava aggiornando: riprova fra qualche secondo.'
       :m==='no_property'?'collega (o crea) la proprietà con → Contratto.'
       :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
+      :m==='no_template'?'la proposta è un 4+4 / canone libero: non c’è un modello di contratto, quindi non nasce nessun contratto (prima usciva un transitorio). Cambia il tipo con ✎ Modifica o carica il contratto a mano.'
       :m==='forbidden'?'solo un admin può firmare per le parti.'
       :m||'riprova'));
   }
@@ -940,6 +942,7 @@ async function confirmContractBirth(d,purpose){
 function partyErr(m){
   return m==='no_property'?'la proposta non ha l’indirizzo dell’immobile: usa → Contratto e scegli la proprietà.'
     :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
+    :m==='no_template'?'la proposta è un 4+4 / canone libero: non c’è un modello di contratto, quindi non nasce nessun contratto (prima usciva un transitorio). Cambia il tipo con ✎ Modifica o carica il contratto a mano.'
     :m==='already_signed'?'il proprietario ha già firmato.'
     :m==='property_create_failed'?'non sono riuscito a creare l’immobile nel portal: riprova, o crealo da → Contratto.'
     :m==='not_accepted_yet'?'la proposta non è ancora accettata.'
@@ -1370,7 +1373,7 @@ window.sendSign=async function(id,btn){
     else if(j.landlordAskWhy==='no_email'&&(j.landlordMissing||[]).length)alert('Al contratto mancano dati del proprietario ('+j.landlordMissing.length+') e non c’è un’email a cui chiederli: usa 📨 Chiedi al locatore dal portal (WhatsApp) o ✎ Modifica per aggiungere l’email.');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
-    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega (o crea) la proprietà con → Contratto.':String(e.message).indexOf('overlap')>=0?' — sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':''));
+    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega (o crea) la proprietà con → Contratto.':String(e.message).indexOf('overlap')>=0?' — sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':String(e.message).indexOf('no_template')>=0?' — '+'la proposta è un 4+4 / canone libero: non c’è un modello di contratto, quindi non nasce nessun contratto (prima usciva un transitorio). Cambia il tipo con ✎ Modifica o carica il contratto a mano.':''));
   }
 };
 /* 👥 I CO-CONDUTTORI (3/10/2026): ognuno firma col SUO link e il
@@ -1612,6 +1615,7 @@ window.convertPA=async function(id){
         document.getElementById('cvPre').innerHTML=preflightHtml({overlap:j.overlap});
         throw new Error('sullo stesso immobile c’è già un contratto attivo — spunta «Crea comunque» se è un’altra stanza o una sostituzione');
       }
+      if(j&&!j.ok&&j.error==='no_template')throw new Error('la proposta è un 4+4 / canone libero: non c’è un modello di contratto, quindi non nasce nessun contratto (prima usciva un transitorio). Cambia il tipo con ✎ Modifica o carica il contratto a mano.');
       if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
       var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;
       var isDele=!!j.delegate;

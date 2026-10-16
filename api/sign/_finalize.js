@@ -19,14 +19,14 @@ import crypto from 'node:crypto';
 // traced by Vercel's bundler and fails at runtime in production.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { wa } from '../_pdfbrand.js';
-import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
+import { fsCreate, fsPatch, fsGet, fsList, fsDelete, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
-import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
-import { maybeAutoAspi } from '../fiscal/_aspi.js';
+import { maybeAutoAspi, loadAspiSettings } from '../fiscal/_aspi.js';
 import { archiveSignedContract } from './_archive.js';
+import { mergeIdentityDocs } from './_iddocs.js';
 // Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
 // guardavano SOLO i campi del contratto mentre il PDF risale la catena
 // users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
@@ -48,6 +48,33 @@ const addDays = (base, n) => { const d = new Date(base); d.setDate(d.getDate() +
 const money = (v) => (v == null || v === '') ? '' : '€' + Number(v).toLocaleString('it-IT');
 const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 
+// Le parti come le vedono PDF, pack e pacchetto: profilo users + landlords,
+// campi di parte idratati, documenti d'identità anche dai profili. Una copia
+// sola: la usano finalize e il recupero del pacchetto (retryRegistrationPackage).
+async function loadParties(contract) {
+  const property = contract.propertyId ? await fsGet(`properties/${contract.propertyId}`).catch(()=>null) : null;
+  const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
+  const ownerId  = property && property.ownerId;
+  const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
+  // Da qui in poi il contratto porta i campi di parte della catena users
+  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
+  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
+  const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
+  try {
+    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
+  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
+  // I documenti d'identità anche dai PROFILI delle parti (api/sign/_iddocs.js):
+  // pacchetto, pack e ASPI vedono il documento caricato una volta sul profilo,
+  // non solo quelli arrivati su questo contratto. Solo lettura, niente si scrive.
+  try {
+    const coUsers = await Promise.all((Array.isArray(contract.coTenants) ? contract.coTenants : [])
+      .map(x => (x && x.userId) ? fsGet(`users/${x.userId}`).catch(()=>null) : null));
+    contract = { ...contract, identityDocs: mergeIdentityDocs(contract, { tenant, landlordU: landlord, landlordR, coUsers }) };
+  } catch (e) { console.warn('[finalize] iddocs:', e.message); }
+
+  return { contract, property, tenant, landlord };
+}
+
 export async function finalizeContract(contract){
   if(!contract || !contract.id) return { ok:false, error:'no_contract' };
   if(contract.finalizedAt) return { ok:true, skipped:true };
@@ -68,17 +95,9 @@ export async function finalizeContract(contract){
   const signDate = contract.fullySignedAt ? new Date(contract.fullySignedAt) : now;
   const start = contract.startDate ? new Date(contract.startDate) : signDate;
 
-  const property = contract.propertyId ? await fsGet(`properties/${contract.propertyId}`).catch(()=>null) : null;
-  const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
-  const ownerId  = property && property.ownerId;
-  const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
-  // Da qui in poi il contratto porta i campi di parte della catena users
-  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
-  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
-  try {
-    const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
-    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
-  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
+  const parties = await loadParties(contract);
+  const { property, tenant, landlord } = parties;
+  contract = parties.contract;
 
   // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
   // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
@@ -304,16 +323,30 @@ export async function finalizeContract(contract){
   // successivo del watchdog rispediva welcome + fascicolo CAF a tutti.
   // Meglio rischiare un contratto senza email (recuperabile a mano) che un
   // cliente che riceve due volte il suo benvenuto e il CAF due fascicoli.
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
-  catch (e) { console.warn('[finalize] early mark failed:', e.message); }
+  // Intento e URL durevoli PRIMA delle email: il primo claim fallito lascia
+  // 'pending', recuperabile senza rifare il benvenuto. Un solo finalize vince.
+  try {
+    const checkpoint = await packageCheckpoint(contract.id, {
+      finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl,
+      ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}),
+    });
+    if (!checkpoint) return { ok: true, skipped: true };
+  } catch (e) {
+    console.warn('[finalize] checkpoint failed:', e.message);
+    return { ok: false, error: 'finalize_checkpoint_failed', retryable: true };
+  }
 
-  // Tre email all'operatore, tre mestieri: il milestone (breve), il
-  // FASCICOLO COMPLETO (interno: verdetto, link da copiare, pack) e il
-  // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
-  const [welcome, caf, foglio] = await Promise.all([
+  // UNA email all'operatore (15/10/2026): il PACCHETTO REGISTRAZIONE. Prima
+  // ne partivano tre nella stessa casella (milestone, fascicolo completo,
+  // foglio) che si ripetevano in buona parte. Ora il pacchetto porta tutto in
+  // allegato (contratto, certificato, scheda, fascicolo, documenti d'identità
+  // anche dai profili) e il bottone «Controlla e invia» apre nel portal il
+  // pannello del referente: si rivede, si corregge, parte con un tap. Il
+  // foglio pulito resta su richiesta (✉ Foglio, api/fiscal/foglio).
+  const referente = await loadAspiSettings().catch(() => null);
+  const [welcome, caf] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
-    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now }),
+    sendPackageRecorded(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord, referente }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -331,9 +364,14 @@ export async function finalizeContract(contract){
     ]);
   } catch (e) { console.warn('[finalize] aspi auto:', e.message); }
 
-  try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
+  // L'onboarding si chiude QUI, sul server: il portal legge
+  // `welcomeEmailSent` (badge «Onboarding incompleto», 🚀 Ri-attiva) e senza
+  // questo timbro rimandava un secondo benvenuto a chi l'aveva già ricevuto.
+  // Si scrive solo a invio riuscito: un false non cancella mai un true.
+  const onboard = tenantEmail ? { welcomeEmailSent: true, welcomeEmailSentAt: now, welcomeEmailBy: 'finalize' } : {};
+  if (tenantEmail) try { await fsPatch(`contracts/${contract.id}`, onboard); } catch(e){ console.warn('[finalize] onboarding mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, archived: archive ? (archive.written || 0) : 0, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), cafOutcome: (caf && caf.outcome) || 'failed', aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──
@@ -662,4 +700,99 @@ async function buildCertificate(c, property){
   T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', 40, 38, 7, font, grey);
   T('Egidi Immobiliare S.r.l. - Via dei Coronari 181/184, 00186 Roma - Sede legale: Viale Liegi 42, 00198 Roma - P.IVA 17322991005', 40, 28, 7, font, grey);
   return await pdf.save();
+}
+
+
+// ── Il pacchetto registrazione: esito DUREVOLE (15/10/2026) ──
+// finalizedAt si scrive PRIMA delle email (niente doppio benvenuto), quindi un
+// pacchetto perso per un errore SMTP non tornava più: nessun retry ordinario,
+// e submit sopprimeva anche la milestone. Ora l'esito vive sul contratto
+// (`registrationPackEmail`): 'pending' insieme a finalizedAt, 'sending'
+// con prenotazione atomica prima dell'invio, poi 'sent' |
+// 'failed' (rifiuto certo, nulla partito) | 'uncertain' (timeout o socket
+// caduta a metà: può essere arrivato). Il cron recupera 'pending' e 'failed', con
+// un tetto; 'uncertain' e un 'sending' rimasto appeso si mostrano
+// all'operatore e non si rimandano MAI da soli — un doppione al referente
+// costa più di un avviso.
+export const PACK_EMAIL_MAX_ATTEMPTS = 5;
+
+async function packageCheckpoint(id, fields) {
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    if (!v) throw new Error('contract_not_found');
+    if (v.data.finalizedAt) return false;
+    const email = v.data.registrationPackEmail || { status: 'pending', attempts: 0, at: new Date().toISOString() };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { ...fields, registrationPackEmail: email }, precondition: { updateTime: v.updateTime } }]);
+      return true;
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('contract_busy');
+}
+
+async function claimPackage(id) {
+  const claimId = crypto.randomUUID();
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    if (!v || !packRetryEligible(v.data)) return null;
+    const rec = { status: 'sending', claimId, at: new Date().toISOString(), attempts: (Number(v.data.registrationPackEmail.attempts) || 0) + 1 };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { registrationPackEmail: rec }, precondition: { updateTime: v.updateTime } }]);
+      return rec;
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('contract_busy');
+}
+
+async function finishPackage(id, claim, outcome, error) {
+  for (let n = 0; n < 5; n++) {
+    const v = await fsGetVersioned(`contracts/${id}`);
+    const cur = v?.data.registrationPackEmail;
+    if (!cur || cur.claimId !== claim.claimId || cur.status !== 'sending') return;
+    const rec = { ...cur, status: outcome, at: new Date().toISOString(), ...(outcome === 'sent' ? {} : { error: error || 'unknown' }) };
+    try {
+      await fsCommit([{ docPath: `contracts/${id}`, fields: { registrationPackEmail: rec }, precondition: { updateTime: v.updateTime } }]);
+      return;
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('contract_busy');
+}
+
+async function sendPackageRecorded(contract, property, args) {
+  let claim;
+  try { claim = await claimPackage(contract.id); }
+  catch (e) { console.warn('[finalize] pack claim:', e.message); return { ok: false, outcome: 'uncertain', error: 'claim_unconfirmed' }; }
+  if (!claim) return { ok: false, skipped: 'not_eligible' };
+  let r;
+  try { r = await sendCafDossier(contract, property, args); }
+  catch (e) { r = { ok: false, outcome: 'uncertain', error: String(e.message || '').slice(0, 200) }; }
+  const outcome = r && r.ok ? 'sent' : ((r && r.outcome) || 'uncertain');
+  try { await finishPackage(contract.id, claim, outcome, r && r.error); }
+  catch (e) { console.warn('[finalize] pack record:', e.message); }
+  return { ...(r || {}), outcome };
+}
+
+// Quale contratto il cron può riprovare: finalizzato, pacchetto mai inviato
+// o FALLITO con certezza, sotto il tetto. Pura, esportata, testata.
+export function packRetryEligible(c) {
+  const e = c && c.registrationPackEmail;
+  return !!(c && c.finalizedAt && e && ['pending', 'failed'].includes(e.status) && (Number(e.attempts) || 0) < PACK_EMAIL_MAX_ATTEMPTS);
+}
+
+// Il recupero: SOLO il pacchetto. Niente firme, scadenze, magic link,
+// benvenuto, archivio — quelli li ha già fatti il finalize. Rilegge i
+// documenti dal contratto (gli URL scritti dal finalize).
+export async function retryRegistrationPackage(contract) {
+  if (!packRetryEligible(contract)) return { ok: false, skipped: 'not_eligible' };
+  const { contract: c, property, tenant, landlord } = await loadParties(contract);
+  const referente = await loadAspiSettings().catch(() => null);
+  return sendPackageRecorded(c, property, {
+    certUrl: c.signingCertificateUrl || '',
+    fascicoloUrl: c.fascicoloFiscaleUrl || '',
+    schedaPdfUrl: c.schedaCanoneUrl || '',
+    signedPdfUrl: c.signedPdfUrl || '',
+    packUrl: c.registrationPackUrl || '',
+    packMissing: Array.isArray(c.registrationPackMissing) ? c.registrationPackMissing : [],
+    tenant, landlord, referente,
+  });
 }

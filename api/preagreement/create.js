@@ -41,6 +41,7 @@
 import crypto from 'node:crypto';
 import { fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import MANDATO from '../../js/mandato-engine.js';
 
 const clip = (v, n = 300) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const num = (v, d = 0) => (isFinite(+v) ? +v : d);
@@ -213,7 +214,9 @@ export default async function handler(req, res) {
       months,
       endDate: endDate(startDate, months),
       type: clip(l.type, 80) || 'Transitional Lease',
-      lawRef: clip(l.lawRef, 80) || 'uso transitorio · L.431/98 art.5 c.1',
+      // derivato dal TIPO, mai dal client: la console mandava sempre il
+      // riferimento del transitorio, anche su studenti e 3+2.
+      lawRef: MANDATO.lawRefOf(l),
       reason: clip(l.reason, 300),
       studenti: studentBlock(l.studenti),
     },

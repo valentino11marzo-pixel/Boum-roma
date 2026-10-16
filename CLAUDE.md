@@ -3191,6 +3191,48 @@ presente sul profilo usciva «MANCANTE».
   `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
   da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
   deterministici (`itNum`, la lezione small-ICU).
+- **UN pacchetto, non tre email (15/10/2026)**. Alla firma completa
+  l'operatore riceveva «✓ firmato da tutti», il Fascicolo completo e il
+  Foglio: tre email che si ripetevano. Ora parte SOLO il **Pacchetto
+  registrazione** (`sendCafDossier`, oggetto `📑 Pacchetto registrazione —
+  <immobile> — <conduttore> — <decorrenza>`) con le righe del foglio, gli
+  allegati e il bottone **Controlla e invia a <referente>** →
+  `/portal#aspi=<contractId>` (`aspiSeedFromHash` apre il pannello ASPI dopo
+  il login). Il Foglio resta su ✉ Foglio; la milestone parte solo se il
+  finalize non è riuscito. **I documenti d'identità vengono anche dai
+  PROFILI** (`api/sign/_iddocs.js`: `users/<uid>` e `landlords/<id>`, stesso
+  URL = un file) in pacchetto, pack, foglio e iter ASPI — il proprietario con
+  tre case carica la carta d'identità una volta. **«Registrato» è un passo
+  solo** (`POST /api/fiscal/registra {op:'registered', date, code?, base64?}`
+  → `api/fiscal/_ricevuta.js`): stato, codice, scadenze RLI chiuse, ricevuta
+  su Storage e nell'archivio di ogni parte (`registration-receipt_<id>_<parte>`)
+  e in allegato a conduttori (EN) e proprietario (IT) UNA volta per file
+  (`resend:true` per rimandare). Data futura o «PDF» senza `%PDF` → 400 senza
+  scritture. Il verbale di consegna porta in allegato anche l'**inventario**
+  (solo da firebasestorage). Test: `node tests/registrazione/run.mjs`.
+- **Consegna integrata e recupero atomico (15/10/2026, Codex)**.
+  Prima delle email, finalizzazione e intento `pending` sono un checkpoint
+  atomico. Il claim versionato invia un solo pacchetto; il cron reale
+  recupera `pending` e `failed`, mai `sending`/`uncertain`, massimo 5 tentativi.
+  Ricevute deduplicate per impronta del file e destinatario anche con richieste
+  concorrenti. Il pannello salva IBAN tributi e intestatario espliciti con
+  `save-bank` admin; «Mandami il foglio aggiornato» rilegge i dati salvati.
+  Suite `registrationdelivery` (+ mutazioni), `registrationbank` e relativa UI.
+- **Esiti durevoli, mai un invio cieco (15/10/2026, revisione Codex)**.
+  Pacchetto: `registrationPackEmail {status, attempts, at, error}` —
+  'sending' PRIMA dell'invio, poi 'sent' | 'failed' (SMTP 5xx/EAUTH/
+  ECONNECTION: nulla è partito) | 'uncertain' (timeout, socket caduta: può
+  essere arrivato) via `sendOutcome`. La milestone parte quando il pacchetto
+  NON è partito; il reminder-cron rimanda SOLO i 'failed' (max 1/run, tetto
+  5) con `retryRegistrationPackage` — solo il pacchetto, niente benvenuto né
+  finalize. Ricevuta: registro `registrationReceiptDelivery` per (file,
+  destinatario): chi ha 'sent' non la riceve MAI due volte (nemmeno con
+  `resend`), i 'failed' ripartono al risalvataggio, gli 'uncertain' solo con
+  `resend`. Il manifesto del pacchetto dice cosa NON è allegato e perché
+  (tutti i documenti d'identità, nessun taglio a 8). Conto del canone
+  (`landlordIban`) e conto addebito tributi (`rliDebitIban/Holder`, campo
+  dell'operatore) sono due righe distinte: nessuno si deduce dall'altro.
+  Test: `tests/notify` §1c-bis, `tests/registrazione` §3b–3d.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
@@ -3281,6 +3323,16 @@ idonei» di default. In console PA la riga mostra ora **📄 Contratto (PDF, non
 firmato)** finché le firme non sono complete: il `generatedPDF` esisteva
 dalla conversione, ma si apriva solo dal portal.
 
+**IL DOPPIO ONBOARDING (15/10/2026)**. La conversione scrive
+`paymentsGenerated:false, welcomeEmailSent:false` e il server non li
+aggiornava mai: dopo una firma completa il portal mostrava «🚀 Onboarding
+incompleto» e il «🚀 Ri-attiva onboarding» rimandava un secondo benvenuto a
+chi l'aveva già ricevuto dal finalize. Ora `magic-sign/submit` timbra
+`paymentsGenerated`/`paymentsCount` quando il calendario c'è, `_finalize`
+timbra `welcomeEmailSent` solo a benvenuto riuscito (un false non cancella un
+true), e `activateContract` non rimanda la welcome se è già partita. Test:
+`tests/notify` (§1 e §1d), `tests/firma`.
+
 ### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
 Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
 accordo 27/07/2023 prot. RA/2023/0044852 —
@@ -3325,6 +3377,20 @@ locato», «E'» → «È», «dei presente» → «del presente»).
   `'32'`, la casella «Contratto: 3+2» della scheda ARPE e «Durata + %» con
   `pDur`), Foglio/Fascicolo/verbale/inventario (a parole), Pack e iter ASPI
   (nessuna «attestazione esigenza» chiesta o segnata mancante).
+
+**IL 4+4 NON È UN TRANSITORIO** (15/10/2026). La console proponeva «4+4
+Residential» e `contract-pdf.js` mandava «tutto il resto» all'Allegato B:
+un contratto a canone libero usciva impaginato come transitorio. In più il
+riferimento di legge della proposta (`lawRef`) era scritto fisso «uso
+transitorio · art.5 c.1» anche su studenti e 3+2, e il cliente firmava la
+proposta con la legge sbagliata. Ora `modelOfLease`/`modelOfContract`
+(js/mandato-engine.js) riconoscono `'4+4'`; `contract-pdf.build` lo RIFIUTA
+(`err.code='no_template'`, prima di jsPDF) e `convert` risponde 409
+`no_template` senza scrivere nulla (il contratto automatico avvisa con
+`contract.no_template`); la console non offre più il 4+4. `lawRefOf(lease)`
+deriva la legge dal tipo in console, create, lookup (anche sulle proposte
+vecchie) ed email. Il 4+4 tornerà quando esiste un modello. Test:
+`tests/firma` (in coda) e `tests/money` §7b.
 
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
@@ -3946,6 +4012,13 @@ tre difetti veri:
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
   («Manca il telefono») col numero scritto sul contratto. L'accesso al portale
   resta solo a chi ha un profilo.
+- **Copia firmata nello Share Hub (15/10)**: prima voce per inquilino e
+  proprietario, letta dal contratto attuale sul server. Condivide soltanto
+  `signedPdfUrl` HTTPS valido, anche sui record legacy: mai `generatedPDF`
+  o data URL. File assente o non verificabile dichiarato; Apri/Copia/WhatsApp/
+  email preparano la condivisione senza inviare. Griglia adattabile al telefono.
+  Il pulsante del contratto si chiama **Registrazione** (conto tributi, foglio,
+  ricevuta e referente). Test: `tests/share-hub/ui.mjs`, funzione reale e rete finta.
 Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
 📋 fa nascere contratto e immobile, link e messaggio della Scheda, nessuna
 email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il

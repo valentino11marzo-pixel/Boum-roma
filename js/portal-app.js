@@ -4356,7 +4356,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
         // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
         const innestoSeed = isAdmin() && innestoSeedFromHash();
-        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
+        // #aspi=<contractId>: il bottone dell'email «Pacchetto registrazione»
+        // apre Contratti con il pannello del referente già aperto.
+        const aspiSeed = !innestoSeed && isAdmin() && aspiSeedFromHash();
+        goTo(innestoSeed ? 'innesto' : aspiSeed ? 'contracts' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
+        if (aspiSeed) setTimeout(() => openAspi(aspiSeed), 0);
 
     }
 
@@ -4487,6 +4491,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Un link #innesto=<docId> aperto col portal già in pagina (dalla card
         // Telegram sul desktop): stessa semina del boot.
         if (isAdmin() && innestoSeedFromHash()) { goTo('innesto'); return; }
+        const aspiId = isAdmin() && aspiSeedFromHash();
+        if (aspiId) { goTo('contracts'); openAspi(aspiId); return; }
         const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); }
     });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
@@ -20213,7 +20219,7 @@ ${esc(data.description || '')}</textarea></div>
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
-                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="Conto addebito tributi, foglio di registrazione, ricevuta e invio al referente${c.aspiRequestedAt ? ' — richiesta inviata il ' + String(c.aspiRequestedAt).slice(0, 10) : ''}">🏛 Registrazione${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
@@ -20715,8 +20721,11 @@ ${esc(data.description || '')}</textarea></div>
             const pdfGenerated = await generateContractPDF(contractId);
             
             // 3. Send premium welcome email with magic link (replaces legacy sendWelcomeEmail)
-            let emailSent = false;
-            if (tenant?.email) {
+            // Il benvenuto è partito già (dal server al finalize, o da un
+            // giro precedente)? Allora non si rimanda: il «🚀 Ri-attiva»
+            // rifaceva l'email a chi l'aveva già ricevuta.
+            let emailSent = contract.welcomeEmailSent === true;
+            if (!emailSent && tenant?.email) {
                 // Ensure contract object has id for the magic-link API
                 emailSent = await sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, contract));
             }
@@ -21488,6 +21497,10 @@ ${esc(data.description || '')}</textarea></div>
             return true;
         } catch (err) {
             console.error('PDF generation error:', err);
+            // 4+4 / canone libero: nessun modello. Mai un Allegato B al suo posto.
+            if (err && err.code === 'no_template' && typeof showToast === 'function') {
+                showToast('Contratto 4+4 / canone libero: non esiste un modello. Il PDF non è stato generato (nessun transitorio al suo posto).', 'error');
+            }
             return false;
         }
     }
@@ -25480,7 +25493,7 @@ ${esc(data.description || '')}</textarea></div>
             : 'Nessuna fattura ASPI emessa su questo contratto.'
         }${bi.relet ? ` · <strong style="color:var(--gold)">Riaffitto</strong>: c'è già un contratto BOOM firmato su questo immobile${bi.previousId ? ' (' + esc(bi.previousId) + ')' : ''}.` : ''}</div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">🏛 Pacchetto registrazione — ${esc(s.referente || 'referente')}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--bg-elevated);border-radius:10px;padding:10px 14px;margin-bottom:14px">
                     <div style="min-width:0">
@@ -25489,6 +25502,9 @@ ${esc(data.description || '')}</textarea></div>
                     </div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
+                ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · invii registrati (dettagli sotto)' : ''}</div>` : ''}
+                ${_aspiDeliveryNotes(st.state)}
+                ${_aspiBankForm(contractId, st.bank)}
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
@@ -25505,14 +25521,87 @@ ${esc(data.description || '')}</textarea></div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" onclick="openRegistered('${contractId}')">✓ Registrato: carica ricevuta</button>
                 <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia a ${esc(s.referente || 'referente')}</button>
             </div>
         </div></div>`;
         _aspiRenderKind();
     }
     window.openAspi = openAspi;
+    // Gli esiti DUREVOLI che il server registra (15/10/2026): pacchetto
+    // all'operatore e ricevuta per destinatario. Si mostrano SOLO quando c'è
+    // qualcosa da fare — un esito incerto non si rimanda alla cieca.
+    function _aspiBankForm(contractId, bank) {
+        const b = bank || {};
+        return `<details style="margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:10px" ${b.ready ? '' : 'open'}>
+            <summary id="aspiBankSummary" style="cursor:pointer;font-weight:600">Conto per registrazione · ${b.ready ? 'compilato' : 'da completare'}</summary>
+            <p style="font-size:12px;color:var(--text-muted);margin:8px 0">Per il foglio di registrazione. Il conto del canone resta separato. Il salvataggio non dispone alcun pagamento.</p>
+            <div class="form-group"><label class="form-label" for="aspiDebitIban">IBAN per addebito tributi</label><input class="form-input" id="aspiDebitIban" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="42" value="${esc(b.rliDebitIban || '')}" oninput="_aspiBankDirty()"></div>
+            <div class="form-group"><label class="form-label" for="aspiDebitHolder">Intestatario del conto</label><input class="form-input" id="aspiDebitHolder" type="text" autocomplete="off" maxlength="200" value="${esc(b.rliDebitHolder || '')}" oninput="_aspiBankDirty()"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" id="aspiBankSaveBtn" onclick="saveAspiBank('${contractId}')">Salva dati</button><button class="btn btn-secondary" id="aspiBankSheetBtn" onclick="sendAspiBankSheet('${contractId}')">Mandami il foglio aggiornato</button></div>
+            <p id="aspiBankStatus" role="status" style="font-size:12px;margin:8px 0 0">${b.ready ? 'Dati salvati.' : 'Dati non completi: nel foglio resteranno indicati come mancanti.'}</p>
+        </details>`;
+    }
+    function _aspiBankDirty() {
+        const el = document.getElementById('aspiBankStatus');
+        if (el) el.textContent = 'Modifiche da salvare.';
+    }
+    window._aspiBankDirty = _aspiBankDirty;
+    async function saveAspiBank(contractId) {
+        const st = window._aspiStatus;
+        const ibanEl = document.getElementById('aspiDebitIban'), holderEl = document.getElementById('aspiDebitHolder');
+        if (!st || st.contractId !== contractId || !ibanEl || !holderEl) return false;
+        if (st.bankSaving) return false;
+        const iban = ibanEl.value.toUpperCase().replace(/\s/g, ''), holder = holderEl.value.trim();
+        const current = st.bank || {};
+        if (iban === (current.rliDebitIban || '') && holder === (current.rliDebitHolder || '')) return true;
+        st.bankSaving = true;
+        ibanEl.disabled = true; holderEl.disabled = true;
+        const btn = document.getElementById('aspiBankSaveBtn'), msg = document.getElementById('aspiBankStatus');
+        if (btn) btn.disabled = true;
+        if (msg) msg.textContent = 'Salvo i dati…';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'save-bank', contractId, rliDebitIban: iban, rliDebitHolder: holder }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error(j && j.error === 'iban_invalid' ? 'IBAN non valido: controlla tutte le cifre.' : 'Dati non salvati. Riprova.');
+            st.bank = j.bank;
+            const summary = document.getElementById('aspiBankSummary');
+            if (summary) summary.textContent = 'Conto per registrazione · ' + (j.bank.ready ? 'compilato' : 'da completare');
+            ibanEl.value = j.bank.rliDebitIban; holderEl.value = j.bank.rliDebitHolder;
+            if (msg) msg.textContent = j.bank.ready ? 'Dati salvati. Puoi ricevere il foglio aggiornato.' : 'Salvato, ma manca ancora un dato: il foglio lo indicherà.';
+            return true;
+        } catch (e) { if (msg) msg.textContent = e.message; return false; }
+        finally { st.bankSaving = false; ibanEl.disabled = false; holderEl.disabled = false; if (btn) btn.disabled = false; }
+    }
+    window.saveAspiBank = saveAspiBank;
+    async function sendAspiBankSheet(contractId) {
+        const btn = document.getElementById('aspiBankSheetBtn');
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        try { if (await saveAspiBank(contractId)) await openFoglio(contractId); }
+        finally { btn.disabled = false; }
+    }
+    window.sendAspiBankSheet = sendAspiBankSheet;
+    function _aspiDeliveryNotes(state) {
+        const out = [];
+        const pe = state && state.packEmail;
+        const box = (t) => `<div role="status" style="font-size:12px;background:rgba(255,159,10,.10);border-radius:8px;padding:8px 12px;margin-bottom:12px">${t}</div>`;
+        if (pe && pe.status === 'failed') out.push(box(Number(pe.attempts) >= 5
+            ? 'Email del pacchetto non inviata: tentativi esauriti. Controlla la casella e usa il foglio aggiornato per recuperare la consegna.'
+            : 'Email del pacchetto non inviata. Il sistema riproverà; puoi già consultare i documenti da qui.'));
+        else if (pe && pe.status === 'pending') out.push(box('Pacchetto in attesa di invio. Il sistema lo recupera automaticamente.'));
+        else if (pe && (pe.status === 'uncertain' || pe.status === 'sending')) out.push(box('Email del pacchetto con esito da verificare: controlla la casella prima di rimandarla.'));
+        const who = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+        const rd = (state && state.receiptDelivery) || [];
+        const bad = rd.filter(d => d.status !== 'sent');
+        if (bad.length) out.push(box('Ricevuta: ' + bad.map(d => esc(who(d.who)) + ' — ' + (d.status === 'failed' ? 'non inviata; risalva per riprovare solo a lui' : 'esito da verificare')).join(' · ')));
+        return out.join('');
+    }
     async function sendAspi(contractId) {
+        if (!(await saveAspiBank(contractId))) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
         const sel = document.getElementById('aspiBillKind')?.value || kind;
         // «none» = riaffitto su sola registrazione: si invia, non si fattura
@@ -25530,7 +25619,7 @@ ${esc(data.description || '')}</textarea></div>
             });
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {
-                if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
                     ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
@@ -25553,7 +25642,7 @@ ${esc(data.description || '')}</textarea></div>
             renderPage();
         } catch (e) {
             console.error(e);
-            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
             toast('error', 'ASPI: ' + e.message);
         }
     }
@@ -25622,43 +25711,88 @@ ${esc(data.description || '')}</textarea></div>
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
     // rigenera il fascicolo così anche il PDF dice "Registrato il…".
-    async function markRliRegistered(contractId) {
+    // UNA porta per la registrazione: data, codice, ricevuta. Il server
+    // (/api/fiscal/registra op:'registered') segna il contratto, chiude le
+    // scadenze, archivia la ricevuta e la manda alle parti. Prima c'erano due
+    // bottoni (✓ RLI e 🏛️ Registrazione AdE) che scrivevano campi diversi.
+    function markRliRegistered(contractId) { return openRegistered(contractId); }
+    function openRegistered(contractId) {
+        const c = (S.contracts || []).find(x => x.id === contractId) || {};
         const today = new Date().toISOString().slice(0, 10);
-        const when = await askModal({ title: '✓ RLI registrato', message: 'Data di registrazione presso l\'Agenzia delle Entrate.', value: today, type: 'date', okLabel: 'Registra' });
-        if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return;
-        try {
-            await db.collection('contracts').doc(contractId).update({ rliRegisteredAt: when.trim() });
-            const dl = await db.collection('deadlines').where('linkedContractId', '==', contractId).get();
-            let closed = 0;
-            for (const d of dl.docs) {
-                const t = String((d.data() || {}).title || '');
-                if (t.indexOf('Registrare RLI') === 0 && (d.data() || {}).status !== 'done') {
-                    await d.ref.update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    closed++;
-                }
-            }
-            const lc = (S.contracts || []).find(x => x.id === contractId);
-            if (lc) lc.rliRegisteredAt = when.trim();
-            toast('success', `✓ RLI registrato il ${when.trim()}${closed ? ' · scadenza chiusa' : ''}`);
-            // rigenera il fascicolo in background (best-effort)
-            try {
-                const idToken = await auth.currentUser.getIdToken();
-                fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {});
-            } catch (_) {}
-            await refresh();
-        } catch (e) { console.error(e); toast('error', 'RLI: ' + e.message); }
+        const has = !!c.registrationReceiptUrl;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">✓ Contratto registrato</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label class="form-label">Data di registrazione</label><input class="form-input" type="date" id="regDate" max="${today}" value="${esc(String(c.rliRegisteredAt || today).slice(0, 10))}"></div>
+                <div class="form-group"><label class="form-label">Codice identificativo del contratto</label><input class="form-input" id="regCode" value="${esc(c.registrationCode || '')}" placeholder="es. TXX26T012345000AB"></div>
+                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? ' — già caricata, scegline un\'altra per sostituirla' : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" id="regNotify" checked> Manda la ricevuta a inquilino, co-conduttori e proprietario</label>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Una volta per file: risalvare con la stessa ricevuta non la rimanda.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" id="regSaveBtn" onclick="saveRegistered('${contractId}')">Salva</button>
+            </div>
+        </div></div>`;
     }
+    window.openRegistered = openRegistered;
+    async function saveRegistered(contractId) {
+        const date = (document.getElementById('regDate')?.value || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast('error', 'Data non valida');
+        const code = (document.getElementById('regCode')?.value || '').trim();
+        const notify = !!document.getElementById('regNotify')?.checked;
+        const f = document.getElementById('regFile')?.files?.[0] || null;
+        if (f && f.size > 3 * 1024 * 1024) return toast('error', 'Ricevuta oltre 3 MB: esporta il PDF dal sito AdE invece della foto');
+        const btnEl = document.getElementById('regSaveBtn');
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Salvo…'; }
+        try {
+            const body = { op: 'registered', contractId, date, code, notify };
+            if (f) {
+                body.base64 = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(new Error('lettura file')); r.readAsDataURL(f); });
+                body.contentType = f.type; body.name = f.name;
+            }
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify(body) });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) {
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
+                const why = { bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
+                return toast('error', 'Registrazione: ' + (why || (j && j.error) || 'non salvata'));
+            }
+            closeModal();
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) Object.assign(lc, { registrationStatus: 'registered', rliRegisteredAt: date, registrationCode: j.registrationCode, registrationReceiptUrl: j.registrationReceiptUrl });
+            (S.deadlines || []).forEach(d => { if (d.linkedContractId === contractId && (d.type === 'contract_registration' || String(d.title || '').indexOf('Registrare RLI') === 0)) d.status = 'done'; });
+            const parts = [`✓ Registrato il ${date}`];
+            if (j.deadlinesClosed) parts.push('scadenza chiusa');
+            if (j.sent && j.sent.length) parts.push(`ricevuta inviata a ${j.sent.length} ${j.sent.length === 1 ? 'persona' : 'persone'}`);
+            else if (j.skipped === 'no_file') parts.push('nessuna ricevuta caricata: alle parti non parte niente');
+            else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata a tutti');
+            const whoIt = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+            const bad = [];
+            if (j.failed && j.failed.length) bad.push('NON inviata a ' + j.failed.map(whoIt).join(', ') + ' (risalva per riprovare solo a loro)');
+            if (j.uncertain && j.uncertain.length) bad.push('esito incerto per ' + j.uncertain.map(whoIt).join(', ') + ' — verifica prima di rimandare');
+            toast(bad.length ? 'warning' : 'success', parts.concat(bad).join(' · '));
+            try { fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {}); } catch (_) {}
+            renderPage();
+        } catch (e) {
+            console.error(e);
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
+            toast('error', 'Registrazione: ' + e.message);
+        }
+    }
+    window.saveRegistered = saveRegistered;
     window.markRliRegistered = markRliRegistered;
 
     // 🔗 Share Hub — single place that surfaces every shareable link for a contract
     // and *backfills missing tokens on the fly* so legacy contracts (created before
     // the wizard) also get magic-sign + form links without manual fix-ups.
     async function openShareHub(contractId) {
-        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!auth.currentUser) return;
+        const openingUid = auth.currentUser.uid;
+        const sameSession = () => !!auth.currentUser && auth.currentUser.uid === openingUid;
+        let c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
-        const prop = (S.properties || []).find(p => p.id === c.propertyId);
-        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
-        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
         // I CONTATTI DAL CONTRATTO quando manca il profilo (12/10/2026): un
         // immobile nato da una proposta non ha ownerId, e i bottoni WhatsApp
         // ed email del locatore restavano spenti («Manca il telefono») col
@@ -25670,9 +25804,6 @@ ${esc(data.description || '')}</textarea></div>
             if (!user) return (base.name || base.phone || base.email) ? base : null;
             return { ...user, name: user.name || base.name, phone: user.phone || base.phone, email: user.email || base.email };
         };
-        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
-        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
-
         // Mount a placeholder immediately so the modal is visible while the
         // Firestore backfill is in flight. If a previous closeModal() is still
         // waiting to clear #modals, this paint will be overwritten — so we
@@ -25685,12 +25816,34 @@ ${esc(data.description || '')}</textarea></div>
                 <div>Preparazione link…</div>
             </div></div></div>`;
 
+        // Come readContractPDF: il file firmato viene dal contratto ATTUALE.
+        // Se la lettura fallisce, nessun PDF della cache diventa condivisibile.
+        let contractVerified = false, refreshTimer;
+        try {
+            const snapshot = await Promise.race([
+                db.collection('contracts').doc(contractId).get({ source: 'server' }),
+                new Promise((_, reject) => { refreshTimer = setTimeout(() => reject(new Error('contract_read_timeout')), 12000); })
+            ]);
+            if (!sameSession()) return;
+            if (!snapshot.exists) { closeModal(); return toast('error', 'Contratto non disponibile. Aggiorna l’elenco e riprova.'); }
+            c = { ...snapshot.data(), id: contractId };
+            contractVerified = true;
+        } catch (_) { /* gli altri link mantengono il flusso esistente; il PDF resta non verificato */ }
+        finally { if (refreshTimer) clearTimeout(refreshTimer); }
+        if (!sameSession()) return;
+        const prop = (S.properties || []).find(p => p.id === c.propertyId);
+        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
+        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
+        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
+
         // I link di firma dal server (/api/sign/links): coniati nel deposito
         // signTokens se mancano, e SOLO quelli che spettano a chi chiede
         // (admin entrambi, il proprietario il suo). Il contratto non li porta.
         let signLinks = {};
         try { signLinks = await fetchSignLinks(contractId); }
         catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
+        if (!sameSession()) return;
 
         // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
         // browser non può calcolarli) — una POST restituisce entrambi i link.
@@ -25698,18 +25851,49 @@ ${esc(data.description || '')}</textarea></div>
         let schedaLinks = null;
         try {
             const idToken = await auth.currentUser.getIdToken();
+            if (!sameSession()) return;
             const r = await fetch('/api/profile/link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                 body: JSON.stringify({ contractId })
             });
             const j = await r.json().catch(() => null);
+            if (!sameSession()) return;
             if (j && j.ok) schedaLinks = j;
         } catch (e) { console.warn('[shareHub] scheda links unavailable:', e); }
+        if (!sameSession()) return;
 
         const base = window.location.origin;
         // ---- Build the link catalogue ----
         const links = [];
+
+        // signedPdfUrl è la fonte canonica anche per i record legacy, come
+        // readContractPDF(signedOnly). generatedPDF e data URL non si condividono.
+        let signedUrl = '';
+        if (contractVerified && typeof c.signedPdfUrl === 'string') {
+            try {
+                const raw = c.signedPdfUrl.trim();
+                const url = new URL(raw);
+                if (/^https:\/\//i.test(raw) && !/[\u0000-\u0020\u007f]/.test(raw)
+                    && url.protocol === 'https:' && url.hostname && !url.username && !url.password) signedUrl = url.href;
+            } catch (_) { /* collegamento non valido: nessuna alternativa generata */ }
+        }
+        const complete = ['complete', 'completed'].includes(c.signatureStatus) || !!c.fullySignedAt
+            || !!(c.tenantSignature && c.landlordSignature && (Array.isArray(c.coTenants) ? c.coTenants : []).every(co => !co || !co.name || co.signature));
+        const signedNotice = !contractVerified ? 'Il PDF firmato non è verificabile adesso. Controlla la connessione e riapri questo pannello.'
+            : !signedUrl && (complete || c.signedPdfUrl) ? 'Il PDF firmato non è ancora disponibile per la condivisione. Contatta BOOM per verificare il documento.' : '';
+        if (signedUrl) {
+            const tenantMessage = (n) => `Hi ${n}, here is your signed lease for ${prop?.name || 'the apartment'}:\n\n{URL}\n\nPlease keep this copy with your documents.\n\n— BOOM Roma`;
+            const landlordMessage = (n) => `Gentile ${n}, ecco la copia firmata del contratto di locazione di ${prop?.name || 'questo immobile'}:\n\n{URL}\n\nLa conservi insieme ai documenti della locazione.\n\n— BOOM Roma`;
+            [
+                ['tenant', tenant, tenantMessage, 'BOOM · Your signed lease'],
+                ['landlord', landlord, landlordMessage, 'BOOM · Contratto firmato']
+            ].forEach(([audience, target, message, subject]) => links.push({
+                audience, target, icon: '📄', title: 'Contratto firmato',
+                subtitle: 'Copia PDF firmata · apri, copia il link o prepara il messaggio',
+                url: signedUrl, waText: message, emailSubj: subject, emailBody: message
+            }));
+        }
 
         // The invitation is an ordinary login URL, never an anonymous session.
         const casaUrl = window.BOOM_TENANT_ACCESS && window.BOOM_TENANT_ACCESS.inviteUrl(c, tenant);
@@ -25881,17 +26065,17 @@ ${esc(data.description || '')}</textarea></div>
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;margin-bottom:8px">
-                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;font-family:monospace;font-size:10px;padding:6px 8px">
+                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;min-width:0;font-family:monospace;font-size:10px;padding:6px 8px">
                     <button class="btn btn-xs" onclick="(function(){var el=document.getElementById('${inputId}');navigator.clipboard.writeText(el.value).then(()=>{el.style.borderColor='var(--green)';toast('success','Link copiato');setTimeout(()=>el.style.borderColor='',1200);});})()" title="Copia link">📋</button>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl
-                        ? `<a href="${waUrl}" target="_blank" class="btn btn-xs btn-success">💬 WhatsApp</a>`
+                        ? `<a href="${esc(waUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-success">💬 WhatsApp</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca il telefono">💬 WA</span>`}
                     ${mailUrl
-                        ? `<a href="${mailUrl}" class="btn btn-xs btn-secondary">📧 Email</a>`
+                        ? `<a href="${esc(mailUrl)}" class="btn btn-xs btn-secondary">📧 Email</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca l'email">📧 Email</span>`}
-                    <button class="btn btn-xs btn-secondary" onclick="window.open('${lk.url}','_blank')">🔗 Apri</button>
+                    <a href="${esc(lk.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary">🔗 Apri</a>
                 </div>
             </div>`;
         };
@@ -25899,14 +26083,16 @@ ${esc(data.description || '')}</textarea></div>
         const tenantLinks  = links.filter(l => l.audience === 'tenant');
         const landlordLinks = links.filter(l => l.audience === 'landlord');
 
-        const colHtml = (title, who, list) => `<div>
+        const colHtml = (title, who, list) => `<div style="min-width:0">
             <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px">
                 ${title} ${who ? `<span style="color:var(--text-muted);letter-spacing:0">· ${esc(who.name || '')}</span>` : ''}
             </div>
-            ${list.length ? list.map((l, i) => cardHtml(l, title.charAt(0) + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
+            ${signedNotice ? `<p role="status" style="font-size:12px;color:var(--text-muted);margin:0 0 12px">${esc(signedNotice)}</p>` : ''}
+            ${list.length ? list.map((l, i) => cardHtml(l, l.audience + '-' + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
         </div>`;
 
         const propLabel = prop?.name || 'contratto';
+        if (!sameSession()) return;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header">
                 <h3 class="modal-title">🔗 Link da condividere — ${esc(propLabel)}</h3>
@@ -25914,7 +26100,7 @@ ${esc(data.description || '')}</textarea></div>
             </div>
             <div class="modal-body">
                 <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Scegli il link e verifica il destinatario. WhatsApp ed email aprono un messaggio da controllare e inviare. L’invito alla dashboard richiede l’account personale del cliente.</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px">
                     ${colHtml('👤 INQUILINO',  tenant,   tenantLinks)}
                     ${colHtml('🏠 LOCATORE',  landlord, landlordLinks)}
                 </div>
@@ -25934,32 +26120,13 @@ ${esc(data.description || '')}</textarea></div>
     // funzioni duplicate" è pinnato in tests/scarica.
 
     // ── Mark contract as successfully registered in AdE
-    async function markRegistered(contractId) {
-        const code = await askModal({ title: '🏛️ Registrazione AdE', message: 'Codice di registrazione (lascia vuoto se non lo hai ora).', placeholder: 'es. T7X24V000123000AB' });
-        if (code === null) return; // cancelled
-        try {
-            await db.collection('contracts').doc(contractId).update({
-                registrationStatus: 'registered',
-                registrationCode: code || '',
-                registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-            });
-            // Close any matching RLI deadline
-            const due = (S.deadlines || []).find(d => d.linkedContractId === contractId && d.type === 'contract_registration' && d.status === 'pending');
-            if (due) await db.collection('deadlines').doc(due.id).update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
-            const local = (S.contracts || []).find(c => c.id === contractId);
-            if (local) { local.registrationStatus = 'registered'; local.registrationCode = code || ''; }
-            if (due) { due.status = 'done'; }
-            toast('success', 'Contratto segnato come registrato' + (code ? ` (${code})` : ''));
-            try { if (typeof logActivity === 'function') await logActivity('contract_registered', 'contract', { contractId, registrationCode: code }); } catch {}
-            renderPage();
-        } catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
-    }
+    function markRegistered(contractId) { return openRegistered(contractId); }
     window.markRegistered = markRegistered;
 
     // ── Re-run the activation pipeline (payments + welcome + PDF + RLI + CAF + Pass)
     // Useful when an auto-activation step failed silently (network, mail, signing device)
     async function reactivateContract(contractId) {
-        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, welcome mail, bozza RLI, bozza CAF, Apple Wallet pass.\n\nI passi già eseguiti potrebbero creare duplicati — controlla dopo.')) return;
+        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, bozza RLI, bozza CAF, Apple Wallet pass. La welcome mail parte solo se non è già stata inviata.')) return;
         toast('info', '⚡ Ri-attivazione in corso…');
         try { await activateContract(contractId); }
         catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
@@ -31987,6 +32154,15 @@ IBAN: ${l.iban || '-'}`;
     // una lettura dal portal. Il documento non viene ricaricato: alla conferma
     // si lega a ciò che fa nascere. Il frammento sopravvive al giro di login
     // (next = pathname + search + hash).
+    // #aspi=<contractId> → l'id del contratto (ripulito), o '' se non c'è.
+    function aspiSeedFromHash() {
+        const m = /^#?aspi=([^&]+)/.exec(window.location.hash || '');
+        if (!m) return '';
+        let id = '';
+        try { id = decodeURIComponent(m[1]); } catch (_) { id = m[1]; }
+        return String(id).replace(/[^\w.\-]+/g, '').slice(0, 120);
+    }
+    window.aspiSeedFromHash = aspiSeedFromHash;
     function innestoSeedFromHash() {
         const m = /^#?innesto=([^&]+)/.exec(window.location.hash || '');
         if (!m) return false;

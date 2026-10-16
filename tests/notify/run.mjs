@@ -69,6 +69,7 @@ globalThis.fetch = async (url, opts = {}) => {
   // Qualsiasi altro file "esterno" (documenti identità, dossier immobile):
   // contenuto deterministico dal path, così il test verifica la FEDELTÀ
   // dei byte dentro lo ZIP del pack.
+  if (url.startsWith('https://storage.example/forbidden/')) return new Response('forbidden', { status: 403 });
   if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
   // TSA RFC3161 (freetsa): risposta finta abbastanza lunga da passare il
   // sanity check (>100 byte) — la marca temporale viene archiviata.
@@ -217,7 +218,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const out = await finalizeContract({ ...FULL });
   check('finalize: ok + caf inviato', out.ok === true && out.caf === true);
 
-  const caf = mailTo('valentino@boom-rome.com').filter(m => /Fascicolo completo/i.test(m.subject));
+  const caf = mailTo('valentino@boom-rome.com').filter(m => /Pacchetto registrazione/i.test(m.subject));
   check('CAF: arriva a valentino@boom-rome.com', caf.length === 1);
   check('CAF: anagrafica completa di ENTRAMBE le parti', caf.length === 1
     && caf[0].html.includes('RSSMRA85T10A562S') && caf[0].html.includes('BNCGLI70A41H501X')
@@ -225,24 +226,20 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('CAF: linka il contratto FIRMATO + certificato', caf.length === 1
     && caf[0].html.includes('contratto-firmato.pdf')
     && caf[0].html.includes('signing-certificate.pdf'));
-  // IL FOGLIO DI REGISTRAZIONE: la seconda email a valentino — pulita.
+  // UNA email all'operatore (15/10/2026): niente Foglio separato, niente
+  // milestone «firmato da tutti» quando il finalize riesce.
   const foglio = mailTo('valentino@boom-rome.com').filter(m => /^Registrazione contratto — /.test(m.subject));
-  check('foglio: arriva a valentino, oggetto archiviale senza emoji', foglio.length === 1 && out.foglio === true
-    && /^Registrazione contratto — .* — Anna Expat — 2026-09-01$/.test(foglio[0].subject));
-  check('foglio: NESSUN bottone, NESSUN link al portal, nessuna istruzione operativa', foglio.length === 1
-    && !/class="bp-btn/.test(foglio[0].html) && !/boomrome\.com\/portal/.test(foglio[0].html)
-    && !/mancano|rigenera|📦 Pack/i.test(foglio[0].html));
-  check('foglio: i numeri del modello RLI (L2, CF di entrambi, catasto a caselle, scadenza registrazione)', foglio.length === 1
-    && foglio[0].html.includes('L2 — locazione agevolata') && foglio[0].html.includes('RSSMRA85T10A562S') && foglio[0].html.includes('BNCGLI70A41H501X')
-    && /Subalterno/.test(foglio[0].html) && /Registrazione entro/.test(foglio[0].html));
-  check('foglio: contratto firmato + certificato + fascicolo + documento in allegato', foglio.length === 1
-    && ['Contratto_firmato.pdf', 'Certificato_firma_FES.pdf', 'Scheda_calcolo_canone_ARPE.pdf', 'Fascicolo_fiscale.pdf'].every(n => (foglio[0].attachments || []).some(a => a.filename === n))
-    && (foglio[0].attachments || []).some(a => /^Documento_conduttore_1/.test(a.filename)));
+  check('pacchetto unico: il Foglio non parte più dal finalize', foglio.length === 0 && out.foglio === undefined);
+  check('pacchetto unico: oggetto stabile e bottone che apre il pannello del referente', caf.length === 1
+    && /^📑 Pacchetto registrazione — .* — Anna Expat — 2026-09-01$/.test(caf[0].subject)
+    && caf[0].html.includes('/portal#aspi=ctrF') && /Controlla e invia a/i.test(caf[0].html));
+  check('pacchetto unico: porta i numeri del modello RLI (L2, catasto a caselle, scadenza registrazione)', caf.length === 1
+    && caf[0].html.includes('L2 — locazione agevolata') && /Subalterno/.test(caf[0].html) && /Registrazione entro/.test(caf[0].html));
   check('CAF: contratto firmato + certificato + scheda ARPE + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
     && (caf[0].attachments || []).length === 5
     && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Scheda_calcolo_canone_ARPE.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
         .every(n => (caf[0].attachments || []).some(a => a.filename === n))
-    && (caf[0].attachments || []).some(a => a.filename === 'Documento_identita_1_passport.jpg'));
+    && (caf[0].attachments || []).some(a => a.filename === 'Documento_conduttore_1_passport.jpg'));
 
   // Il contratto firmato: PDF sorgente (1 pagina) + pagina delle firme = 2.
   const ctrPatched = store.get('contracts/ctrF');
@@ -324,7 +321,9 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
     ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
     && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
-  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Fascicolo completo/i.test(m.subject));
+  check('finalize: welcomeEmailSent timbrato sul contratto dopo il benvenuto riuscito',
+    ctr.welcomeEmailSent === true && ctr.welcomeEmailBy === 'finalize');
+  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Pacchetto registrazione/i.test(m.subject));
   check('CAF: il Fascicolo Fiscale è linkato nell\'email', !!caf2 && caf2.html.includes('Fascicolo Fiscale'));
 
   const before = mails().length;
@@ -347,7 +346,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && (wt.attachments || []).length === 1
     && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
     && /Signing certificate/.test(wt.html));
-  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Fascicolo completo/i.test(m.subject));
+  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Pacchetto registrazione/i.test(m.subject));
   check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, scheda ARPE, fascicolo e identità allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
     && (caf.attachments || []).length === 4
@@ -355,6 +354,94 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
     Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));
+}
+
+// ═══ 1c-bis. Il pacchetto: esito durevole, recupero solo dei rifiuti certi, manifesto vero ═══
+{
+  const F = await import('../../api/sign/_finalize.js');
+  const N = await import('../../api/sign/_notify.js');
+  // Classificazione: rifiuto certo vs esito incerto.
+  check('esito SMTP: 5xx / EAUTH / ECONNECTION = rifiuto certo (failed)',
+    N.sendOutcome(Object.assign(new Error('x'), { responseCode: 550 })) === 'failed'
+    && N.sendOutcome(Object.assign(new Error('x'), { code: 'EAUTH' })) === 'failed'
+    && N.sendOutcome(Object.assign(new Error('x'), { code: 'ECONNECTION' })) === 'failed');
+  check('esito SMTP: timeout nostro e socket caduta = incerto (può essere arrivato)',
+    N.sendOutcome(new Error('email_timeout')) === 'uncertain' && N.sendOutcome(Object.assign(new Error('x'), { code: 'ESOCKET' })) === 'uncertain');
+  check('recupero: solo finalizzato + failed + sotto il tetto',
+    F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'failed', attempts: 1 } })
+    && !F.packRetryEligible({ registrationPackEmail: { status: 'failed', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'uncertain', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'sending', attempts: 1 } })
+    && !F.packRetryEligible({ finalizedAt: 'x', registrationPackEmail: { status: 'failed', attempts: F.PACK_EMAIL_MAX_ATTEMPTS } }));
+
+  // Finalize con SMTP che rifiuta SOLO il pacchetto: il resto parte, l'esito resta.
+  const P = { ...FULL, id: 'ctrPK' };
+  store.set('contracts/ctrPK', { ...P });
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? Object.assign(new Error('550 rejected'), { responseCode: 550 }) : null;
+  const b = mails().length;
+  const out = await F.finalizeContract({ ...P });
+  globalThis.__mailFail = null;
+  const sent = mails().slice(b);
+  check('finalize con pacchetto respinto: ok, caf=false, cafOutcome=failed', out.ok === true && out.caf === false && out.cafOutcome === 'failed');
+  check('finalize con pacchetto respinto: i benvenuti partono comunque', sent.some(m => m.to === 'anna@expat.com' && /Welcome home/.test(m.subject))
+    && sent.some(m => m.to === 'giulia@owner.it' && /Contratto firmato/.test(m.subject)));
+  const pk = store.get('contracts/ctrPK');
+  check('finalize con pacchetto respinto: registrationPackEmail failed, 1 tentativo, errore salvato', pk.registrationPackEmail.status === 'failed'
+    && pk.registrationPackEmail.attempts === 1 && /550/.test(pk.registrationPackEmail.error || '') && !!pk.finalizedAt);
+
+  // Il cron rimanda: solo il pacchetto, una volta, coi file del finalize.
+  const keysBefore = new Set(store.keys()), b2 = mails().length;
+  const rr = await F.retryRegistrationPackage({ ...store.get('contracts/ctrPK'), id: 'ctrPK' });
+  const out2 = mails().slice(b2);
+  check('recupero: UNA email, al referente interno, col pacchetto', rr.outcome === 'sent' && out2.length === 1
+    && out2[0].to === 'valentino@boom-rome.com' && /Pacchetto registrazione/.test(out2[0].subject));
+  check('recupero: stessi allegati del finalize (contratto firmato, certificato, scheda, fascicolo, identità)', (out2[0].attachments || []).length === 5
+    && (out2[0].attachments || []).some(a => a.filename === 'BOOM_Contratto_firmato.pdf' && a.content.length > 500));
+  check('recupero: niente nuovi documenti in Firestore (scadenze, magic link, archivio)', [...store.keys()].every(k => keysBefore.has(k)));
+  check('recupero: esito sent, 2 tentativi', store.get('contracts/ctrPK').registrationPackEmail.status === 'sent' && store.get('contracts/ctrPK').registrationPackEmail.attempts === 2);
+
+  // Esito INCERTO: mai rimandato da solo.
+  const U = { ...FULL, id: 'ctrPU' };
+  store.set('contracts/ctrPU', { ...U });
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? new Error('email_timeout') : null;
+  await F.finalizeContract({ ...U });
+  globalThis.__mailFail = null;
+  const pu = store.get('contracts/ctrPU');
+  const b3 = mails().length;
+  const ru = await F.retryRegistrationPackage({ ...pu, id: 'ctrPU' });
+  check('esito incerto: registrato «uncertain» e NON rimandato (potrebbe essere arrivato)', pu.registrationPackEmail.status === 'uncertain'
+    && ru.skipped === 'not_eligible' && mails().length === b3);
+
+  // Manifesto: il contratto firmato risponde 403 → dichiarato, mai «tutti».
+  const M = { ...FULL, id: 'ctrMF', signedPdfUrl: 'https://storage.example/forbidden/contratto-firmato.pdf',
+    identityDocs: Array.from({ length: 8 }, (_, i) => ({ url: 'https://storage.example/t' + i + '.jpg', name: 't' + i + '.jpg', role: 'tenant' }))
+      .concat([{ url: 'https://storage.example/landlord-ci.jpg', name: 'landlord-ci.jpg', role: 'landlord', source: 'profile' }]) };
+  const b4 = mails().length;
+  const rm = await N.sendCafDossier(M, store.get('properties/prop1'), {
+    certUrl: 'https://storage.example/cert.pdf', signedPdfUrl: M.signedPdfUrl,
+    schedaPdfUrl: 'https://storage.example/scheda.pdf', fascicoloUrl: 'https://storage.example/fasc.pdf' });
+  const mm = mails().slice(b4).find(m => /Pacchetto registrazione/.test(m.subject));
+  const names = (mm && mm.attachments || []).map(a => a.filename);
+  check('manifesto: contratto firmato 403 → «non allegati: Contratto firmato (download non riuscito)», mai «tutti quelli attesi»', !!mm
+    && /non allegati: Contratto firmato \(download non riuscito\)/.test(mm.html) && !/tutti quelli attesi/.test(mm.html)
+    && !names.includes('BOOM_Contratto_firmato.pdf'));
+  check('manifesto: nove documenti d\'identità, il nono (locatore, dal profilo) allegato', names.filter(n => /^Documento_/.test(n)).length === 9
+    && names.some(n => /^Documento_locatore_9_landlord-ci/.test(n)));
+  check('manifesto: restituito al chiamante, una riga per pezzo atteso', rm.ok && Array.isArray(rm.manifest)
+    && rm.manifest.filter(x => x.attached).length === 12 && rm.manifest.filter(x => !x.attached).length === 1);
+}
+
+// Missing generated files remain missing even when their URL was never saved.
+{
+  const N = await import('../../api/sign/_notify.js');
+  const noSheet = { ...FULL, id: 'ctrNoSheet', requiresAsseverazione: true };
+  delete noSheet.schedaCanoneUrl; delete noSheet.fascicoloFiscaleUrl;
+  const out = await N.sendCafDossier(noSheet, store.get('properties/prop1'), {
+    certUrl: 'https://storage.example/cert.pdf', signedPdfUrl: 'https://storage.example/contract.pdf' });
+  check('manifesto: scheda e fascicolo non generati restano mancanti', out.ok
+    && out.manifest.some(x => x.label === 'Scheda calcolo canone' && !x.attached && x.reason === 'non generato')
+    && out.manifest.some(x => x.label === 'Fascicolo Fiscale' && !x.attached && x.reason === 'non generato'));
+  check('manifesto: file mai generati non diventano tutti quelli attesi', !/tutti quelli attesi/.test(mails().at(-1).html));
 }
 
 // ═══ 1d. Magic Sign submit: terms freeze, già-firmato VIVO, sequenziale ═══
@@ -412,11 +499,18 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   // …ripristinati i termini firmati, la controfirma passa e chiude tutto.
   store.get('contracts/ctrMS').rent = 1200;
   r = mkRes();
+  const bMs = mails().length;
   await msSubmit(mkReq(body('MSTOK_LANDLORD_1')), r);
   const ms2 = store.get('contracts/ctrMS');
+  check('firma completa col pacchetto PARTITO: niente milestone «firmato da tutti» (il pacchetto è l\'avviso)',
+    (ms2.registrationPackEmail || {}).status === 'sent'
+    && !mails().slice(bMs).some(m => /Contratto firmato da tutti/.test(m.subject))
+    && mails().slice(bMs).filter(m => /Pacchetto registrazione/.test(m.subject)).length === 1);
   check('controfirma sui termini GIUSTI → complete + cascata (rate generate)',
     r.code === 200 && r.body.fullySigned === true && ms2.signatureStatus === 'complete'
     && [...store.keys()].some(k => k.startsWith('payments/pay_ctrMS_')));
+  check('firma completa → paymentsGenerated timbrato col numero di rate (niente «Ri-attiva onboarding» fantasma)',
+    ms2.paymentsGenerated === true && ms2.paymentsCount === [...store.keys()].filter(k => k.startsWith('payments/pay_ctrMS_')).length);
   check('prima apertura tracciata sul contratto (signViewedTenantAt)', !!ms2.signViewedTenantAt);
 }
 
@@ -476,8 +570,32 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
 
   IP = '9.1.3.3';
   r = mkRes();
+  // Il server SMTP respinge SOLO il pacchetto (550): finalize va avanti,
+  // l'esito resta sul contratto e la milestone parte come rete.
+  globalThis.__mailFail = (o) => /Pacchetto registrazione/.test(o.subject) ? Object.assign(new Error('550 5.1.1 mailbox unavailable'), { responseCode: 550 }) : null;
+  const bCs = mails().length;
   await msSubmit(mkReq(body('CSTOK_LANDLORD_1')), r);
+  globalThis.__mailFail = null;
   const cs2 = store.get('contracts/ctrCS');
+  check('pacchetto respinto (SMTP 550) alla firma completa: esito «failed» durevole sul contratto',
+    (cs2.registrationPackEmail || {}).status === 'failed' && cs2.registrationPackEmail.attempts === 1 && !!cs2.finalizedAt);
+  check('pacchetto respinto: la milestone «firmato da tutti» parte come rete (prima taceva)',
+    mails().slice(bCs).filter(m => /Contratto firmato da tutti/.test(m.subject) && m.to === 'valentino@boom-rome.com').length === 1);
+  {
+    const { retryRegistrationPackage } = await import('../../api/sign/_finalize.js');
+    const keysBefore = new Set(store.keys()), filesBefore = storageFiles.size, b2 = mails().length;
+    const rr = await retryRegistrationPackage({ ...store.get('contracts/ctrCS'), id: 'ctrCS' });
+    const out2 = mails().slice(b2);
+    check('recupero: parte SOLO il pacchetto, una volta (niente benvenuto, niente milestone, niente inviti)',
+      rr.outcome === 'sent' && out2.length === 1 && out2[0].to === 'valentino@boom-rome.com' && /Pacchetto registrazione/.test(out2[0].subject));
+    check('recupero: non rifà il finalize (nessun documento nuovo in Firestore né file su Storage)',
+      [...store.keys()].every(k => keysBefore.has(k)) && storageFiles.size === filesBefore);
+    const cs3 = store.get('contracts/ctrCS');
+    check('recupero: esito «sent» col secondo tentativo contato', cs3.registrationPackEmail.status === 'sent' && cs3.registrationPackEmail.attempts === 2);
+    const b3 = mails().length;
+    const rr2 = await retryRegistrationPackage({ ...store.get('contracts/ctrCS'), id: 'ctrCS' });
+    check('recupero: a pacchetto inviato non riparte più', rr2.skipped === 'not_eligible' && mails().length === b3);
+  }
   check('locatore controfirma a lato completo → COMPLETE + finalize',
     r.code === 200 && r.body.fullySigned === true && cs2.signatureStatus === 'complete' && !!cs2.finalizedAt);
   check('certificato costruito con TUTTE le firme (hash include i co-conduttori)',
