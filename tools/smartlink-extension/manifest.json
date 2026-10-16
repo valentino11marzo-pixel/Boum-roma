@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "BOOM SmartLink Foto",
+  "version": "1.0.0",
+  "description": "Legge le foto degli annunci aperti nel tuo Chrome per SmartLink Studio BOOM.",
+  "permissions": ["scripting"],
+  "host_permissions": [
+    "https://www.immobiliare.it/*",
+    "https://www.idealista.it/*",
+    "https://www.subito.it/*",
+    "https://it.casafari.com/*",
+    "https://www.casa.it/*"
+  ],
+  "background": { "service_worker": "background.mjs", "type": "module" },
+  "content_scripts": [{
+    "matches": ["https://www.boomrome.com/portal*", "http://127.0.0.1:4177/preview*", "http://127.0.0.1:4178/preview*"],
+    "js": ["portal-bridge.js"],
+    "run_at": "document_idle"
+  }]
+}
