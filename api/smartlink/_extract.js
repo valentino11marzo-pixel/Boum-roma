@@ -46,7 +46,8 @@ export async function extractListing(rawUrl) {
       sqm: RULES.positiveNumber(p.sqm, 100000),
       rooms: RULES.positiveNumber(p.bedrooms, 100),
     };
-    return { ok: true, status: Object.values(data).some(Boolean) ? 'partial' : 'unavailable', source, data };
+    const images = RULES.photoCandidates(page.html, source.source, p.images);
+    return { ok: true, status: Object.values(data).some(Boolean) || images.length ? 'partial' : 'unavailable', source, data, images };
   } catch {
     return { ok: true, status: 'unavailable', source };
   }

@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import RULES from '../js/smartlink-engine.js';
 import { extractListing } from '../api/smartlink/_extract.js';
 import { nearbyPois } from '../api/smartlink/_pois.js';
+import { fetchPhoto } from '../api/smartlink/import-photo.js';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const records = new Map();
@@ -102,6 +103,17 @@ const server = createServer(async (req, res) => {
     let input;
     try { input = await body(req); }
     catch { return json(res, 400, { ok:false, error:'invalid_json' }); }
+    if (url.pathname === '/api/smartlink/import-photo') {
+      const source = RULES.normalizeUrl(input?.sourceUrl);
+      const image = source && RULES.photoUrl(input?.imageUrl, source.source);
+      if (!image) return json(res, 400, { ok:false, error:'invalid_photo_url' });
+      try {
+        const photo = await fetchPhoto(image);
+        if (!photo) return json(res, 422, { ok:false, error:'photo_unavailable' });
+        res.writeHead(200, { 'Content-Type':photo.type, 'Cache-Control':'no-store', 'X-Content-Type-Options':'nosniff' });
+        return res.end(photo.bytes);
+      } catch { return json(res, 502, { ok:false, error:'photo_unavailable' }); }
+    }
     if (url.pathname === '/api/smartlink/extract') {
       const result = await extractListing(input?.url);
       return json(res, result.ok ? 200 : 400, result);

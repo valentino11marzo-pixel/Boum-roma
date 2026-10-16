@@ -33,6 +33,42 @@
     const n = Number(v);
     return Number.isFinite(n) && n > 0 && n <= max ? Math.round(n) : null;
   }
+  const PHOTO_HOSTS = {
+    'Immobiliare.it': /^(?:[a-z0-9-]+\.)?im-cdn\.it$/,
+    'Idealista': /^(?:[a-z0-9-]+\.)?idealista\.(?:it|com)$/,
+    'Subito': /^(?:[a-z0-9-]+\.)?subito\.it$/,
+    'Casafari': /^(?:[a-z0-9-]+\.)?casafari\.com$/,
+    'Casa.it': /^(?:[a-z0-9-]+\.)?casa\.it$/,
+  };
+  function photoUrl(raw, sourceName) {
+    try {
+      const value = String(raw || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
+      const u = new URL(value);
+      if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash || !PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
+      if (!/\.(?:jpe?g|png|webp)(?:$|\?)/i.test(u.pathname + u.search)) return null;
+      if (/logo|avatar|icon|sprite|favicon|pixel|badge/i.test(u.pathname)) return null;
+      return u.toString();
+    } catch { return null; }
+  }
+  function photoCandidates(html, sourceName, initial = []) {
+    const photos = [], seen = new Set();
+    const add = raw => {
+      const url = photoUrl(raw, sourceName);
+      if (!url || seen.has(url) || photos.length >= 12) return;
+      seen.add(url); photos.push(url);
+    };
+    (Array.isArray(initial) ? initial : [initial]).forEach(add);
+    const h = String(html || '').slice(0, 2_000_000);
+    const meta = /<meta\b[^>]*(?:property|name)=["'](?:og:image|twitter:image)["'][^>]*>/gi;
+    for (const tag of h.match(meta) || []) {
+      const m = tag.match(/content=["']([^"']+)["']/i);
+      if (m) add(m[1]);
+    }
+    const re = /https:\\?\/\\?\/[a-z0-9.-]+(?:\\?\/[^\s"'<>`]+)?/gi;
+    let m;
+    while ((m = re.exec(h)) && photos.length < 12) add(m[0].replace(/[),;]+$/, ''));
+    return photos;
+  }
   function validImageUrl(raw, key) {
     try {
       if (!/^[0-9a-f-]{36}$/i.test(String(key || ''))) return false;
@@ -99,7 +135,7 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, distanceKm, makeRecord, publicRecord };
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, distanceKm, makeRecord, publicRecord };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

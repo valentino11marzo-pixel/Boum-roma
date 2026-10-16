@@ -58,6 +58,12 @@
       if (e.key === 'ArrowLeft') showPhoto(currentPhoto - 1);
       if (e.key === 'ArrowRight') showPhoto(currentPhoto + 1);
     });
+    let startX=0, startY=0;
+    $('lightbox').addEventListener('touchstart', e => { startX=e.changedTouches[0].clientX; startY=e.changedTouches[0].clientY; }, {passive:true});
+    $('lightbox').addEventListener('touchend', e => {
+      const dx=e.changedTouches[0].clientX-startX, dy=e.changedTouches[0].clientY-startY;
+      if (Math.abs(dx)>45 && Math.abs(dx)>Math.abs(dy)*1.3) showPhoto(currentPhoto+(dx<0?1:-1));
+    }, {passive:true});
   }
   function closeLightbox() { $('lightbox').classList.add('hidden'); document.body.style.overflow=''; $('gallery-main').focus(); }
 

@@ -8,16 +8,20 @@ const RULES = (await import('../../js/smartlink-engine.js')).default;
 const PHOTO = (await import('../../js/smartlink-photo.js')).default;
 const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
+const { default: importPhoto } = await import('../../api/smartlink/import-photo.js');
 const { default: create } = await import('../../api/smartlink/create.js');
 const { default: read } = await import('../../api/smartlink/read.js');
 const { default: pois } = await import('../../api/smartlink/pois.js');
+const EXT = await import('../../tools/smartlink-extension/background.mjs');
 
 function response() {
-  return { code: 200, headers: {}, setHeader(k,v){ this.headers[k]=v; return this; }, status(n){ this.code=n; return this; }, json(v){ this.body=v; return this; }, end(){ return this; } };
+  return { code: 200, headers: {}, setHeader(k,v){ this.headers[k]=v; return this; }, status(n){ this.code=n; return this; }, json(v){ this.body=v; return this; }, end(v){ this.binary=v; return this; } };
 }
 function request(method, body, token='admin') { return { method, body, headers:{ authorization:'Bearer '+token }, query:body }; }
 const docs = new Map();
 let remoteFetches = 0, writes = 0, remoteResult = 'blocked';
+const sourcePhoto='https://pwm.im-cdn.it/image/1823571757/m-c.jpg';
+const photoBytes=Buffer.from([0xff,0xd8,0xff,0xe0,0x00,0x10]);
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, opts={}) => {
   const u = new URL(String(input));
@@ -47,10 +51,11 @@ globalThis.fetch = async (input, opts={}) => {
     const doc = docs.get(path);
     return doc ? Response.json(doc) : Response.json({ error:'missing' }, { status:404 });
   }
+  if (u.hostname === 'pwm.im-cdn.it') return new Response(photoBytes, { headers:{ 'content-type':'image/jpeg' } });
   remoteFetches++;
   assert.equal(u.hostname, 'www.immobiliare.it');
   if (remoteResult === 'blocked') return new Response('', { status:403 });
-  return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2}</script></html>', { headers:{ 'content-type':'text/html' } });
+  return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2,"image":["'+sourcePhoto+'","https://evil.example/photo.jpg"]}</script></html>', { headers:{ 'content-type':'text/html' } });
 };
 try {
   const oldBitmap=globalThis.createImageBitmap, oldDocument=globalThis.document;
@@ -76,6 +81,22 @@ try {
   assert.equal(RULES.normalizeUrl('https://user:pass@www.immobiliare.it/annunci/123'), null);
   assert.equal(RULES.normalizeUrl('https://www.immobiliare.it:8443/annunci/123'), null);
   assert.equal(RULES.normalizeUrl('https://www.immobiliare.it/'), null);
+  assert.equal(RULES.photoUrl(sourcePhoto,'Immobiliare.it'),sourcePhoto);
+  assert.equal(RULES.photoUrl('https://127.0.0.1/photo.jpg','Immobiliare.it'),null);
+  assert.equal(RULES.photoUrl('https://pwm.im-cdn.it.evil.test/photo.jpg','Immobiliare.it'),null);
+  assert.deepEqual(RULES.photoCandidates('<img src="'+sourcePhoto+'"><img src="https://evil.example/photo.jpg">','Immobiliare.it'),[sourcePhoto]);
+  assert.equal(EXT.canonical('https://www.immobiliare.it/annunci/124483437/?utm=x#foto20'),'https://www.immobiliare.it/annunci/124483437/');
+  const oldDom=globalThis.document;
+  globalThis.document={ images:[
+    {currentSrc:sourcePhoto,src:sourcePhoto,getAttribute:()=>null},
+    {currentSrc:sourcePhoto.replace('/m-c.jpg','/xxs-c.jpg'),src:'',getAttribute:()=>null},
+    {currentSrc:'https://pwm.im-cdn.it/image/1823571735/m-c.jpg',src:'',getAttribute:()=>null},
+  ], documentElement:{outerHTML:''}, body:{innerText:'€ 1.500/mese 2 locali 50 m²'}, querySelector:()=>({textContent:'Bilocale a Cipro'}) };
+  try {
+    const snapshot=EXT.listingSnapshot('https://www.immobiliare.it/annunci/124483437/');
+    assert.equal(snapshot.images.length,2);
+    assert.deepEqual(snapshot.data,{title:'Bilocale a Cipro',zone:null,price:1500,sqm:50,rooms:2});
+  } finally { globalThis.document=oldDom; }
   const canonical = RULES.normalizeUrl('https://www.immobiliare.it/annunci/123/?token=private&utm_source=x');
   assert.equal(canonical.url, 'https://www.immobiliare.it/annunci/123/');
   const bare = RULES.makeRecord({ sourceUrl:canonical.url }, '2026-10-15T12:00:00Z');
@@ -104,11 +125,30 @@ try {
   r = response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }), r);
   assert.equal(r.body.status, 'unavailable');
+  const cacheId='h_'+(await import('node:crypto')).createHash('sha1').update('https://www.immobiliare.it/annunci/123/').digest('hex').slice(0,16);
+  docs.set('pfsProperties/'+cacheId,{ name:'projects/test/databases/(default)/documents/pfsProperties/'+cacheId, fields:toFsFields({sourceUrl:'https://www.immobiliare.it/annunci/123/',images:[sourcePhoto]}) });
+  r=response();
+  await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }),r);
+  assert.equal(r.body.photoOrigin,'radar');
+  assert.deepEqual(r.body.images,[sourcePhoto]);
   remoteResult = 'ok';
   r = response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }), r);
   assert.equal(r.body.data.price, 1200);
   assert.equal(r.body.data.sqm, 62);
+  assert.deepEqual(r.body.images,[sourcePhoto]);
+
+  r=response();
+  await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:sourcePhoto},'tenant'),r);
+  assert.equal(r.code,403);
+  r=response();
+  await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:'https://evil.example/photo.jpg'}),r);
+  assert.equal(r.code,400);
+  r=response();
+  await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:sourcePhoto}),r);
+  assert.equal(r.code,200);
+  assert.equal(r.headers['Content-Type'],'image/jpeg');
+  assert.deepEqual(r.binary,photoBytes);
 
   r = response();
   const createBody = { idempotencyKey:'11111111-1111-4111-8111-111111111111', sourceUrl:canonical.url, price:1200, title:'Bilocale Test', note:'Da vedere', images:[photo], map:{lat:41.9075,lng:12.4475,label:'Cipro',precision:'exact'} };
