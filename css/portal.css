@@ -1652,3 +1652,13 @@
 }
 
 .sl-catalog-feature{width:100%;margin-bottom:20px;border-color:rgba(212,175,55,.35);background:linear-gradient(120deg,rgba(212,175,55,.07),var(--bg-card));text-align:left}
+
+/* Configurazione SmartLink per ogni operatore e computer. */
+.sl-connection{margin:-8px 0 24px;border:1px solid var(--border);border-radius:12px;background:rgba(255,255,255,.025)}
+.sl-connection summary{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:15px;cursor:pointer;font-size:13px;color:var(--text-primary);list-style:none}
+.sl-connection summary:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:12px}
+.sl-connection-dot{width:7px;height:7px;border-radius:50%;background:var(--gold);flex:none}
+.sl-connection-dot.is-connected{background:#77d4a2}
+.sl-connection-caption{margin-left:auto;color:var(--text-secondary);font-size:11px}
+.sl-connection-guide{padding:0 18px 16px;color:var(--text-secondary);font-size:12px;line-height:1.7}
+.sl-connection-guide ol{padding-left:20px}.sl-connection-guide li{padding:5px 0}.sl-connection-guide a{color:var(--gold)}.sl-connection-guide strong{color:var(--text-primary);font-weight:500}.sl-connection-guide code{color:var(--text-primary)}
