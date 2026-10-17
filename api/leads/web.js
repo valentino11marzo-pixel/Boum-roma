@@ -18,6 +18,7 @@
 // → 200 { ok, id }
 
 import { fsCreate, logActivity } from '../homie/_lib.js';
+import { attributionFromReq } from '../_attribution.js';
 
 const HITS = new Map();
 const WINDOW_MS = 10 * 60 * 1000;
@@ -120,6 +121,7 @@ export default async function handler(req, res) {
     tier: null,
     ingestedBy: 'web-form',
     sourceRef: formKey,
+    attribution: attributionFromReq(req, body),   // primo contatto consentito, mai bloccante
     raw: {
       form: formKey,
       ip,

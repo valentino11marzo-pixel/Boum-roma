@@ -273,6 +273,41 @@ try {
   r = await generate();
   ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
 
+  // A web application must reach the actual preparation through Persona, not
+  // just an injected dossier. The network/model boundary is the same fake above.
+  reset({ text: 'Possiamo organizzare una visita?' });
+  DB.delete('users/tenantA'); DB.delete('contracts/cA');
+  save('leads/lA', { name: 'Candidato fixture', phone: PHONE, email: EMAIL, propertyId: 'pA',
+    status: 'new', source: 'web', ingestedBy: 'apply-lead', createdAt: stamp(NOW - 86400000),
+    raw: { occupation: 'employed', moveIn: '2026-11-01', durationMonths: 12, signers: 2, ip: 'PRIVATE_IP' } });
+  save('conversations/' + CID, { contactType: 'lead', contactId: 'lA', contactPhone: PHONE,
+    contactEmail: EMAIL, contactName: 'Candidato fixture', channel: 'whatsapp', segretaria: false });
+  revise(t => { t.followUp.practiceRef = 'leads/lA'; });
+  save('messages/previousReply', { conversationId: CID, direction: 'out', channel: 'whatsapp',
+    source: 'homie', body: 'Sto verificando la disponibilità della casa.', at: stamp(NOW - 3600000) });
+  aiBuilder = input => ({ ...validProposal(input), summary: 'Il candidato chiede una visita.',
+    recommendation: 'Verificare la disponibilità per una visita.', draft: null,
+    nextAction: { ...validProposal(input).nextAction, text: 'Verificare la disponibilità per una visita',
+      waitingOn: 'valentino', waitingLabel: 'Valentino', reason: 'La visita non è ancora confermata.' } });
+  r = await generate();
+  const application = JSON.parse(aiInputs[0]?.sources.find(s => s.ref === 'leads/lA')?.text || '{}').application;
+  ok('candidatura: Persona e preparazione ricevono modulo datato e conversazione già avviata', r.code === 200
+    && application?.fields.occupation === 'employed' && application.fields.signers === 2
+    && application.recordedAt === stamp(NOW - 86400000)
+    && application.possibleDefaults.join(',') === 'moveIn,durationMonths'
+    && aiInputs[0].sources.some(s => s.ref === 'messages/previousReply' && s.direction === 'out')
+    && !JSON.stringify(aiInputs[0]).includes('PRIVATE_IP') && untouched(), r);
+  r = await generate();
+  ok('candidatura invariata: ripresa riusa stessa proposta, nessun invio o seconda chiamata al modello',
+    r.code === 200 && r.cached && aiHits === 1 && count() === 1 && untouched(), r);
+  const changedLead = structuredClone(DB.get('leads/lA')); changedLead.raw.durationMonths = 6;
+  save('leads/lA', changedLead);
+  r = await generate();
+  const corrected = JSON.parse(aiInputs[1]?.sources.find(s => s.ref === 'leads/lA')?.text || '{}').application;
+  ok('correzione del modulo invalida la cache prima di ripreparare sul caso esistente', r.code === 200
+    && aiHits === 2 && corrected?.fields.durationMonths === 6
+    && !corrected.possibleDefaults.includes('durationMonths') && rows('operatorTasks').length === 1 && untouched(), r);
+
   for (const delta of [0, 1]) {
     reset(); revise(t => { t.followUp.checkAt = stamp(NOW - 60000); });
     await generate();

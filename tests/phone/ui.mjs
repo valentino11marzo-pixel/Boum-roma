@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { loadChromium, launchOptions } from '../_browser.mjs';
+import { installPhoneFixture, phonePreviewHtml } from './ui-harness.mjs';
 
 const html = readFileSync(new URL('../../chiamate.html', import.meta.url), 'utf8');
 const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)];
@@ -75,7 +76,7 @@ check('timeline pura: tempo e metriche disponibili sono leggibili, testo sempre 
     { role: 'agent', message: '<saluto>', timeInCallSec: 61.2, providerMetrics: { llmTtfbSec: 0.52, ttsTtfbSec: 1.04, ignored: 8 } },
     { role: 'user', message: 'Cerco casa', timeInCallSec: 64 },
   ] });
-  assert.match(rendered, /<summary>Timeline<\/summary>/);
+  assert.match(rendered, /<summary>Trascrizione salvata · Timeline<\/summary>/);
   assert.match(rendered, /1:01\.2/);
   assert.match(rendered, /LLM 520 ms/);
   assert.match(rendered, /TTS 1\.04 s/);
@@ -143,40 +144,15 @@ const pageHtml = html.replace(/<script(?:\s[^>]*)?>[\s\S]*?<\/script>/g, '');
 const browser = await chromium.launch(launchOptions());
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Rome' });
-  await context.addInitScript(({ rows }) => {
-    window.__phoneRows = rows;
-    window.__writes = [];
-    window.__holdReviewWrites = false;
-    window.__reviewResolvers = [];
-    window.__releaseReviewWrite = () => { const resolve = window.__reviewResolvers.shift(); if (resolve) resolve(); };
-    const query = {
-      orderBy: () => query, limit: () => query,
-      get: async () => ({ docs: window.__phoneRows.map(row => ({ id: row.id, data: () => row })) }),
-      doc: id => ({ update: async fields => {
-        if (fields.reviewTags && window.__holdReviewWrites) {
-          await new Promise(resolve => window.__reviewResolvers.push(resolve));
-        }
-        window.__writes.push({ id, fields });
-        window.__phoneRows = window.__phoneRows.map(row => row.id === id ? { ...row, ...fields } : row);
-        await window.__emit();
-      } }),
-    };
-    window.firebase = { firestore: () => ({ collection: name => {
-      if (name !== 'phoneCalls') throw Error('unexpected collection ' + name);
-      return query;
-    } }) };
-    window.BoomPortal = {
-      requireAuth: async roles => { if (roles.join(',') !== 'admin') throw Error('admin gate missing'); },
-      listen: (q, receive) => { window.__emit = async () => receive(await q.get()); window.__emit(); },
-      toast: () => {},
-    };
-  }, { rows });
+  const sources = { archived: { ...rows[0], id: 'wrong-stored-id', callerName: 'Fonte fuori elenco', handled: true,
+    createdAt: '2020-01-01T10:00:00Z', summary: 'Riepilogo <img src=x onerror=alert(1)> salvato', audioUrl: 'https://fixture.invalid/audio.mp3' } };
+  await context.addInitScript(installPhoneFixture, { rows, sources });
   const page = await context.newPage();
   const errors = [], writeRequests = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.route('**/*', route => {
+  await context.route('**/*', route => {
     if (route.request().method() !== 'GET') writeRequests.push(route.request().url());
-    return route.fulfill(new URL(route.request().url()).pathname === '/fixture'
+    return route.fulfill(['/fixture', '/chiamate'].includes(new URL(route.request().url()).pathname)
       ? { contentType: 'text/html', body: pageHtml }
       : { status: 404, body: '' });
   });
@@ -279,6 +255,118 @@ try {
   assert.equal(await card('Numero nascosto').locator('a[href^="tel:"], a[href^="https://wa.me/"]').count(), 0);
   assert.match(await card('Numero nascosto').locator('.badges').innerText(), /urgente/);
   console.log('PASS browser: filtri, conteggio da gestire e chiusura manuale restano coerenti'); checks++;
+
+  async function openSource(search, { hold = false, error = false, sourceScript = script, timeout = false } = {}) {
+    const sourcePage = await context.newPage();
+    sourcePage.on('pageerror', error => errors.push(error.message));
+    await sourcePage.goto('https://fixture.invalid/fixture' + search);
+    await sourcePage.evaluate(({ hold, error, timeout }) => {
+      window.__holdSource = hold; window.__sourceError = error;
+      if (timeout) {
+        const set = window.setTimeout;
+        window.setTimeout = (callback, delay, ...args) => set(callback, delay === 12000 ? 10 : delay, ...args);
+      }
+    }, { hold, error, timeout });
+    await sourcePage.addScriptTag({ content: sourceScript });
+    await sourcePage.waitForSelector('#sourcePanel:not([hidden])');
+    return sourcePage;
+  }
+  async function assertSourceOnly(sourcePage) {
+    await sourcePage.waitForSelector('#list .call');
+    assert.equal(await sourcePage.locator('#list .call').count(), 1);
+    assert.equal(await sourcePage.locator('#list .call').getAttribute('data-call-id'), 'archived');
+    assert.deepEqual(await sourcePage.evaluate(() => window.__reads), [{ kind: 'doc', id: 'archived', options: { source: 'server' } }]);
+    assert.deepEqual(await sourcePage.evaluate(() => window.__writes), []);
+  }
+  const sourcePage = await openSource('?call=archived', { hold: true });
+  assert.match(await sourcePage.locator('#sourceStatus').innerText(), /Lettura della chiamata collegata/);
+  assert.equal(await sourcePage.locator('#list .call').count(), 0);
+  assert.equal(await sourcePage.locator('#sourceRetry').isDisabled(), true);
+  await sourcePage.evaluate(() => { window.__holdSource = false; window.__releaseSource(); });
+  await assertSourceOnly(sourcePage);
+  assert.match(await sourcePage.locator('.cname').innerText(), /Fonte fuori elenco/);
+  assert.equal(await sourcePage.locator('#sourceId').innerText(), 'phoneCalls/archived');
+  assert.match(await sourcePage.locator('.csum').innerText(), /Riepilogo disponibile.*Riepilogo <img/s);
+  assert.equal(await sourcePage.locator('.csum img').count(), 0);
+  assert.equal(await sourcePage.locator('audio').getAttribute('preload'), 'none');
+  assert.equal(await sourcePage.locator('[data-transcript]').getAttribute('open'), '');
+  assert.match(await sourcePage.locator('[data-transcript] summary').innerText(), /Trascrizione salvata/);
+  assert.equal(await sourcePage.locator('.stats').isVisible(), false);
+  assert.equal(await sourcePage.locator('#chips').isVisible(), false);
+  assert.equal(await sourcePage.locator('.setup').isVisible(), false);
+  await sourcePage.locator('[data-h="0"]').click();
+  await sourcePage.waitForSelector('[data-h="1"]');
+  assert.equal(await sourcePage.locator('#list .call').count(), 1);
+  assert.deepEqual(await sourcePage.evaluate(() => window.__reads.map(read => [read.kind, read.id])), [['doc', 'archived'], ['doc', 'archived']]);
+  assert.equal(await sourcePage.evaluate(() => window.__writes[0].id), 'archived');
+  console.log('PASS browser: fonte esatta fuori elenco e già gestita, audio/transcript salvati, riapertura e sola lettura iniziale'); checks++;
+  await sourcePage.getByRole('link', { name: 'Tutte le chiamate' }).click();
+  await sourcePage.addScriptTag({ content: script });
+  await sourcePage.waitForSelector('#list .call');
+  assert.equal(new URL(sourcePage.url()).search, '');
+  assert.equal(await sourcePage.locator('#sourcePanel').isVisible(), false);
+  assert.equal(await sourcePage.locator('#chips').isVisible(), true);
+  assert.equal(await sourcePage.locator('#list .call').count(), 5);
+  await sourcePage.close();
+
+  for (const search of ['?call=', '?call=..%2Fother', '?call=.', '?call=__reserved__', '?call=' + 'a'.repeat(181), '?call=archived&call=phone']) {
+    const invalidPage = await openSource(search);
+    assert.match(await invalidPage.locator('#sourceStatus').innerText(), /non valido/);
+    assert.equal(await invalidPage.locator('#list .call').count(), 0);
+    assert.deepEqual(await invalidPage.evaluate(() => window.__reads), []);
+    assert.deepEqual(await invalidPage.evaluate(() => window.__writes), []);
+    await invalidPage.close();
+  }
+  const missingPage = await openSource('?call=missing');
+  await missingPage.waitForFunction(() => document.getElementById('sourceStatus').textContent.includes('non trovata'));
+  assert.equal(await missingPage.locator('#list .call').count(), 0);
+  assert.deepEqual(await missingPage.evaluate(() => window.__reads.map(read => [read.kind, read.id])), [['doc', 'missing']]);
+  await missingPage.close();
+  const errorPage = await openSource('?call=archived', { error: true });
+  await errorPage.waitForFunction(() => document.getElementById('sourceStatus').textContent.includes('non riuscita'));
+  assert.equal(await errorPage.locator('#list .call').count(), 0);
+  await errorPage.evaluate(() => { window.__sourceError = false; });
+  await errorPage.locator('#sourceRetry').click();
+  await errorPage.waitForSelector('#list .call');
+  assert.equal(await errorPage.locator('#list .call').getAttribute('data-call-id'), 'archived');
+  assert.deepEqual(await errorPage.evaluate(() => window.__reads.map(read => read.kind)), ['doc', 'doc']);
+  assert.deepEqual(await errorPage.evaluate(() => window.__writes), []);
+  await errorPage.close();
+  const timeoutPage = await openSource('?call=archived', { hold: true, timeout: true });
+  await timeoutPage.waitForFunction(() => document.getElementById('sourceStatus').textContent.includes('non riuscita'));
+  await timeoutPage.evaluate(() => window.__releaseSource());
+  assert.equal(await timeoutPage.locator('#list .call').count(), 0);
+  await timeoutPage.close();
+  const switchedPage = await openSource('?call=archived', { hold: true });
+  await switchedPage.evaluate(() => { window.firebase.auth().currentUser = { uid: 'another-user' }; window.__releaseSource(); });
+  await switchedPage.waitForFunction(() => document.getElementById('sourceStatus').textContent.includes('non riuscita'));
+  assert.equal(await switchedPage.locator('#list .call').count(), 0);
+  await switchedPage.close();
+  console.log('PASS browser: tutte le chiamate, ID invalidi, assenza, errore/riprova, timeout e cambio utente senza falsa fonte'); checks++;
+
+  const mutation = script.replace("[{ ...snap.data(), id: sourceId }]", "[{ id: sourceId, ...snap.data() }]");
+  assert.notEqual(mutation, script);
+  const mutantPage = await openSource('?call=archived', { sourceScript: mutation });
+  await mutantPage.waitForFunction(() => document.getElementById('content').style.display !== 'none');
+  assert.equal(await mutantPage.locator('#list .call').count(), 0, 'wrong stored id is rejected by the exact source filter');
+  // The same one-source invariant fails when a stored id overrides the requested document.
+  await assert.rejects(async () => assert.equal(await mutantPage.locator('#list .call').count(), 1), assert.AssertionError);
+  await mutantPage.close();
+  console.log('PASS MUTAZIONE: id persistito non può sostituire quello della fonte letta'); checks++;
+  const previewContext = await browser.newContext();
+  const previewPage = await previewContext.newPage();
+  previewPage.on('pageerror', error => errors.push(error.message));
+  await previewPage.route('**/*', route => route.fulfill({ contentType: 'text/html', body: phonePreviewHtml({
+    sources: { 'demo-call': { ...base, callerName: 'Chiamata demo' } }
+  }) }));
+  await previewPage.goto('https://fixture.invalid/chiamate?call=demo-call');
+  await previewPage.waitForSelector('#list .call');
+  assert.equal(await previewPage.locator('.cname').innerText(), 'Chiamata demo');
+  assert.match(await previewPage.locator('.call').innerText(), /Riepilogo non disponibile.*Audio non disponibile.*Trascrizione salvata non disponibile/s);
+  assert.deepEqual(await previewPage.evaluate(() => window.__reads.map(read => [read.kind, read.id])), [['doc', 'demo-call']]);
+  assert.deepEqual(await previewPage.evaluate(() => window.__writes), []);
+  await previewContext.close();
+  console.log('PASS browser: factory anteprima esegue pagina reale e IO sintetico senza Firebase/provider'); checks++;
   assert.deepEqual(errors, []);
   assert.deepEqual(writeRequests, []);
   console.log('PASS browser: nessun errore JavaScript o richiesta esterna di scrittura'); checks++;

@@ -6,16 +6,25 @@
 //
 //   node tests/journey/steps.mjs
 
-import { steps, journeyEligible } from '../../api/journey/_run.js';
+import assert from 'node:assert/strict';
+import { register } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+register('../notify/loader.mjs', import.meta.url); // SMTP boundary only; never send a real email.
+if (process.env.BOOM_JOURNEY_MUTATION) register('./mutation-loader.mjs', import.meta.url, { data: process.env.BOOM_JOURNEY_MUTATION });
+Object.assign(process.env, { FIREBASE_API_KEY: 'synthetic', FIREBASE_ADMIN_EMAIL: 'journey@example.invalid', FIREBASE_ADMIN_PASS: 'synthetic' });
+const { steps, journeyEligible, runJourney } = await import('../../api/journey/_run.js');
 
 // ── helper: costruisce lo stato a N giorni dall'inizio (o dalla fine) ──────
 const iso = (d) => d.toISOString().slice(0, 10);
 const shift = (days) => { const d = new Date(); d.setUTCDate(d.getUTCDate() + days); return iso(d); };
 
-function fire({ startIn, endIn, bought = [], missing = null, late = false }) {
+const handover = days => ({ at: shift(days) + 'T00:00:00.000Z', url: 'https://storage.example.invalid/verbale.pdf' });
+function fire({ startIn, endIn, bought = [], missing = null, late = false, proof = null }) {
   const c = {
     startDate: startIn != null ? shift(startIn) : null,
     endDate: endIn != null ? shift(endIn) : null,
+    verbaleConsegna: proof,
   };
   const all = steps({
     c,
@@ -44,7 +53,7 @@ check('T-30 · benvenuto',            one({ startIn: 28, endIn: 393 })?.key === 
 check('T-14 · documenti/utenze',     one({ startIn: 12, endIn: 377 })?.key === 't14');
 check('T-7  · cleaning + saldo',     one({ startIn: 6,  endIn: 371 })?.key === 't7');
 check('T-1  · chiavi',               one({ startIn: 1,  endIn: 366 })?.key === 't1');
-check('T+3  · recensione + casa',    one({ startIn: -4, endIn: 361 })?.key === 'p3');
+check('T+3  · recensione + casa dopo consegna provata', one({ startIn: -4, endIn: 361, proof: handover(-4) })?.key === 'p3');
 check('T-90 · conferma rinnovo',     one({ startIn: -275, endIn: 87 })?.key === 'r90');
 check('uscita · grazie + referral',  one({ startIn: -370, endIn: -5 })?.key === 'exit');
 check('giorno neutro · nessuna mail', fire({ startIn: -100, endIn: 265 }).length === 0);
@@ -91,7 +100,7 @@ check('T-7 NON lo ripropone se già comprato',
 
 // ═══ 4 · Il bottone recensione punta dove deve ═════════════════════════════
 console.log('\n\x1b[1mLink recensione\x1b[0m');
-const p3 = one({ startIn: -4, endIn: 361 });
+const p3 = one({ startIn: -4, endIn: 361, proof: handover(-4) });
 const REVIEW_OK = /https:\/\/(g\.page\/r\/[\w-]+\/review|search\.google\.com\/local\/writereview|www\.google\.com\/search)/;
 for (const [label, s] of [['T+3', p3], ['uscita', exit]]) {
   const m = String(s?.html || '').match(/href="([^"]*(?:g\.page|writereview|google\.com\/search)[^"]*)"/);
@@ -150,7 +159,38 @@ check('nato da pre-agreement, mai firmato: journey TACE anche senza invito',
 check('nato da pre-agreement e FIRMATO: journey attivo',
   journeyEligible({ preAgreementId: 'pa1', signatureStatus: 'complete' }) === true);
 
+console.log('\n\x1b[1mConsegna provata, non data contrattuale\x1b[0m');
+check('decorrenza passata senza verbale: nessun p3', !fire({ startIn: -4, endIn: 361 }).some(s => s.key === 'p3'));
+for (const [label, proof] of [
+  ['sola data del verbale', { at: handover(-4).at }],
+  ['solo file', { url: handover(-4).url }],
+  ['data illeggibile', { ...handover(-4), at: 'not-a-date' }],
+  ['data impossibile', { ...handover(-4), at: '2026-02-31T00:00:00Z' }],
+  ['consegna futura', handover(1)],
+  ['URL HTTP', { ...handover(-4), url: 'http://storage.example.invalid/verbale.pdf' }],
+  ['URL con credenziali', { ...handover(-4), url: 'https://user:pass@storage.example.invalid/verbale.pdf' }],
+]) check(`${label}: nessun p3`, !fire({ startIn: -4, endIn: 361, proof }).some(s => s.key === 'p3'));
+check('consegna rinviata a ieri: non usa i quattro giorni dalla decorrenza', !fire({ startIn: -4, endIn: 361, proof: handover(-1) }).some(s => s.key === 'p3'));
+const delayed = one({ startIn: -20, endIn: 345, proof: handover(-4) });
+check('consegna avvenuta quattro giorni fa: p3 anche se la decorrenza era venti giorni fa', delayed?.key === 'p3');
+check('il testo conta dalla consegna registrata, senza fingere occupazione', delayed && /4 days since your recorded key handover/.test(delayed.html) && !/20 days|days in\./.test(delayed.html));
+for (const days of [-3, -6]) check(`finestra p3 include consegna a ${-days} giorni`, fire({ startIn: -20, endIn: 345, proof: handover(days) }).some(s => s.key === 'p3'));
+check('la finestra p3 non riparte dopo sette giorni', !fire({ startIn: -20, endIn: 345, proof: handover(-7) }).some(s => s.key === 'p3'));
+for (const days of [0, 1]) {
+  const planned = one({ startIn: days, endIn: 365 + days });
+  check(`T-${days}: decorrenza dichiarata, appuntamento da confermare`, planned?.key === 't1' && /contractual start date/.test(planned.html) && /does not confirm a handover appointment/.test(planned.html) && !/Today: keys|Tomorrow: keys|today is the day|tomorrow is the day/.test(planned.subject + planned.html));
+}
+check('T-30 usa la data prevista e non certifica preparazione o ingresso', /lease.*due to start/.test(t30plain.html) && /appointment still needs to be confirmed/.test(t30plain.html) && !/Everything on our side is on track/.test(t30plain.html));
+
+await (await import('./run-fixture.mjs')).verifyJourneyRun({ runJourney, shift, handover, check });
+
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
 if (fail) process.exit(1);
+if (!process.env.BOOM_JOURNEY_MUTATION) for (const mutation of ['start-date', 'unverified-report']) {
+  const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, BOOM_JOURNEY_MUTATION: mutation }, encoding: 'utf8', timeout: 15000 });
+  assert.equal(child.status, 1, 'Mutation must fail behavioral assertions: ' + mutation + '\n' + child.stderr);
+  assert.match(child.stdout, /✗.*nessun p3/);
+  console.log('PASS mutation caught: ' + mutation);
+}
 console.log('\x1b[32mLe email rispettano le regole commerciali decise.\x1b[0m');

@@ -637,6 +637,7 @@ export default async function handler(req, res) {
 
   // ── 6. Cascading writes when BOTH parties have signed ──
   let finalized = false;
+  let packSent = false;
   if (fullySigned) {
     const fullContract = { ...fresh, ...upd, id: contractId };
     const property = propertyDoc || {};
@@ -732,6 +733,7 @@ export default async function handler(req, res) {
           filter: { field: 'contractId', op: 'EQUAL', value: contractId },
           limit: 10,
         })).filter(p => !String(p.type || '').startsWith('deposit'));
+        let scheduled = existing.length;
         if (!existing.length) {
           const writes = [];
           const pStart = new Date(fullContract.startDate);
@@ -787,7 +789,13 @@ export default async function handler(req, res) {
             });
           }
           if (writes.length) await commitWrites(writes);
+          scheduled = writes.length;
         }
+        // Il calendario c'è (appena scritto o già presente): lo si DICE sul
+        // contratto. Senza questo timbro il portal vedeva `paymentsGenerated:
+        // false` (scritto dalla conversione) e offriva «🚀 Ri-attiva
+        // onboarding», che rimandava il benvenuto.
+        if (scheduled) await fsPatch(`contracts/${contractId}`, { paymentsGenerated: true, ...(existing.length ? {} : { paymentsCount: scheduled }) });
       } catch (e) { console.warn('[magic-sign/submit] payment schedule:', e.message); }
     }
 
@@ -799,6 +807,10 @@ export default async function handler(req, res) {
       const { finalizeContract } = await import('../sign/_finalize.js');
       const fin = await finalizeContract(fullContract);
       finalized = !!(fin && fin.ok);
+      // finalize è ok anche col pacchetto NON partito (finalizedAt si scrive
+      // prima delle email): la milestone si sopprime solo a pacchetto 'sent'
+      // (o finalize già fatto da un altro giro, che ha il suo esito).
+      packSent = !!(fin && fin.ok && (fin.skipped || fin.caf));
     } catch (e) { console.warn('[magic-sign/submit] finalize:', e.message); }
   }
 
@@ -810,7 +822,9 @@ export default async function handler(req, res) {
   try {
     const _n = await import('../sign/_notify.js');
     const fullC = { ...fresh, ...upd, id: contractId };
-    if (fullySigned) { await _n.notifyAdminContractSigned(fullC, propertyDoc); }
+    // A pacchetto INVIATO il Pacchetto registrazione È l'avviso all'operatore:
+    // la milestone parte come rete quando finalize o pacchetto non sono andati.
+    if (fullySigned) { if (!packSent) await _n.notifyAdminContractSigned(fullC, propertyDoc); }
     else { await _n.notifyPartialSignature(fullC, role, propertyDoc, role === 'cotenant' ? { coIndex } : {}); }
   } catch (e) { console.warn('[magic-sign/submit] stage notify:', e.message); }
 

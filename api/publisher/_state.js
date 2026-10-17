@@ -32,10 +32,11 @@
 // Tutto esportato e testato: node tests/publisher/run.mjs
 
 import crypto from 'node:crypto';
-import { publishable, typologyId, feedKey } from '../feed/immobiliare.js';
+import { publishable, typologyId, feedKey, isRoom } from '../feed/immobiliare.js';
 import { FEATURE_LABELS } from '../wizard/describe.js';
 import GEO from '../../js/boom-geo.js';
 import DISPO from '../../js/dispo-engine.js';
+import FACTS from '../../js/listing-facts.js';
 
 export { publishable }; // UNA regola di pubblicabilità: vetrina, feed e Pubblicista non possono divergere
 
@@ -54,6 +55,18 @@ const label = (code, map) => map[code] || String(code || '').replace(/_/g, ' ').
 
 const num = (v) => { const n = Number(v); return isFinite(n) && n > 0 ? n : null; };
 const str = (v) => { const s = String(v == null ? '' : v).trim(); return s || null; };
+
+// L'arredo come lo scrive il catalogo: il bot e il suo interprete
+// (api/wizard/interpret.js) scrivono 'yes' · 'partial' · 'no', i dati storici
+// a volte un booleano. Fino al 15/10/2026 coreContent accettava SOLO il
+// booleano, quindi ogni casa vera arrivava al pannello con furnished null:
+// «arredato» non c'era mai. Ora: sì → true, no → false; parzialmente arredato
+// è un terzo fatto, né sì né no, e viaggia come 'partial' (mai arrotondato a
+// true o a false). Chi legge il campo confronta con === true / === false,
+// come field_rows sul Mac (bot/boom_publisher.py), che per 'partial'
+// compila «parzialmente arredato». Un valore sconosciuto → null. La regola
+// vive in UNA copia (js/listing-facts.js), la stessa che legge il telefono.
+export const furnishedOf = FACTS.furnishedOf;
 
 /**
  * Il CONTENUTO pubblicabile di un listing — la parte che, se cambia, deve
@@ -75,10 +88,16 @@ export function coreContent(l) {
     depositMonths: num(l.depositMonths),
     deposit: num(l.deposit),
     sqm: num(l.sqm || l.size),
-    beds: num(l.beds || l.bedrooms),
+    // «Camere» nel pannello: la regola unica (js/listing-facts.js), non più
+    // `Number(l.beds || l.bedrooms)` — che sul testo libero del bot («1
+    // bedroom», «2 BR») dava null e su «3» (un bilocale) dava 3. Il valore
+    // cambia per quelle case, quindi cambia l'hash e il loro update torna
+    // in coda per ogni portale: voluto, il contenuto pubblicato era sbagliato.
+    // 0 (monolocale) resta fuori come prima: num() scarta lo zero.
+    beds: num(FACTS.bedroomsOf(l)),
     bathrooms: num(l.bathrooms || l.baths),
     floor: str(l.floor),
-    furnished: typeof l.furnished === 'boolean' ? l.furnished : null,
+    furnished: furnishedOf(l.furnished),
     // La data NORMALIZZATA entra nel contenuto: il pannello del portale
     // riceve "2026-09-01", non "Sep 2026". Aggiungerla qui cambia l'hash di
     // ogni annuncio e rimette in coda un update per portale — che è
@@ -87,8 +106,14 @@ export function coreContent(l) {
     availableDate: str(l.availableDate),
     energyClass: str(l.energyClass),
     concordato: typeof l.concordato === 'boolean' ? l.concordato : null,
-    descriptionIt: str(l.description || l.descriptionIt),
-    descriptionEn: str(l.descriptionEn || l.description),
+    // Le lingue VERE del catalogo: `description` è l'INGLESE (bot, sweep di
+    // api/wizard/describe.js, Media Studio), `descriptionIt` l'italiano.
+    // Fino al 15/10/2026 descriptionIt era `description || descriptionIt`:
+    // il pannello riceveva come italiano il testo inglese di ogni casa.
+    // Senza italiano il campo è null (il Mac non compila la riga), mai la
+    // traduzione che non abbiamo. Stessa regola del feed (language="it").
+    descriptionIt: str(l.descriptionIt),
+    descriptionEn: str(l.descriptionEn) || str(l.description),
     features: (Array.isArray(l.features) ? l.features : []).filter(Boolean).map(String),
     video: str(l.video || l.videoUrl),
     photos, // l'ordine conta: la prima è la copertina
@@ -133,7 +158,10 @@ export function payloadFor(l, portal) {
   } else if (portal === 'idealista') {
     payload.hints = {
       operation: 'rent',
-      propertyType: /stanza|room/i.test(core.type || '') ? 'stanza' : 'appartamento',
+      // la stessa regola del feed (parola intera, tipo o nome): con
+      // /stanza|room/ sul tipo «Capri 2 Bed» (" Spacious 2 Bedroom flat ")
+      // andava a Idealista come stanza
+      propertyType: isRoom(l) ? 'stanza' : 'appartamento',
     };
   } else {
     payload.hints = {};

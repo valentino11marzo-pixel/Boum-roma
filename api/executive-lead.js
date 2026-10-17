@@ -27,6 +27,7 @@
 // Response 200: { ok: true, id } | 4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from './homie/_lib.js';
+import { attributionFromReq } from './_attribution.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -70,6 +71,18 @@ export const SECTORS = {
   other:      'altro',
 };
 
+// BOOM affitta da 3 mesi in su (decisione del fondatore, 15/10/2026): il
+// modulo non offre piu' «1–3 mesi», ma una pagina rimasta in cache o un POST
+// fatto a mano possono ancora mandarlo. Il lead entra comunque — un contatto
+// non si perde per una durata — e il riassunto lo dice all'operatore PRIMA
+// che risponda: «certo, anche un mese» sarebbe la promessa che le pagine non
+// fanno piu'. Si guarda solo il numero da cui parte la fascia ('1-3' → 1).
+export const MIN_MONTHS = 3;
+export const belowMinimum = (d) => {
+  const m = String(d == null ? '' : d).match(/^\s*(\d{1,2})(?!\d)/);
+  return !!m && Number(m[1]) < MIN_MONTHS;
+};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -105,6 +118,7 @@ export default async function handler(req, res) {
   const budget   = num(body.budget);          // monthly, always — never a purchase total
   const moveIn   = clip(body.moveIn, 40);
   const duration = clip(body.duration, 30);   // '3-6', '6-12'… months, from the select
+  const short    = belowMinimum(duration);    // un valore storico sotto i 3 mesi
 
   // Human-readable summary for the portal Leads inbox + the Telegram card.
   // The operator reads THIS line, not the fields: sector first (it decides
@@ -115,7 +129,9 @@ export default async function handler(req, res) {
   if (zone) parts.push(zone);
   if (budget) parts.push(`~€${fmtEur(budget)}/mese`);
   if (moveIn) parts.push(`arrivo ${moveIn}`);
-  if (duration) parts.push(`${duration} mesi`);
+  if (duration) parts.push(short
+    ? `${duration} mesi (sotto il minimo BOOM di ${MIN_MONTHS} mesi: da chiarire)`
+    : `${duration} mesi`);
   const summary = [
     `EXECUTIVE — Roma${parts.length ? ' · ' + parts.join(' · ') : ''}.`,
     message,
@@ -148,10 +164,12 @@ export default async function handler(req, res) {
     // audit
     ingestedBy: 'executive-lead',
     sourceRef: 'executive',
+    attribution: attributionFromReq(req, body),   // primo contatto consentito, mai bloccante
     executive: {
       sector,
       employer,
       duration,
+      belowMinimum: short,         // true = parte sotto i 3 mesi: da chiarire
       at: now.toISOString(),
     },
     raw: { sector: sectorKey || null, employer, zone, budget, moveIn, duration, message, lang, ip },

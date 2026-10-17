@@ -3,6 +3,9 @@
 #   python3 costruisci-ld.py artefatto | sito
 import json, re, sys, os
 from datetime import datetime, timezone
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 def leggi(n): return open(n, encoding='utf-8').read()
@@ -113,7 +116,10 @@ for r in piene:
         'indirizzo': re.sub(r'\s+', ' ', str(r.get('address') or '')).strip(),
         'prezzo': numero(r['price']) or 0,
         'mq': numero(r.get('sqm') or r.get('size')),
-        'letti': numero(r.get('bedrooms') if r.get('bedrooms') is not None else r.get('beds')),
+        # la regola del sito (FACTS.bedroomsOf, la stessa della scheda viva):
+        # prima un `bedrooms` illeggibile non lasciava parlare il testo, e
+        # «1.5» diventava 1
+        'letti': bedrooms_of(r),
         'bagni': numero(r.get('bathrooms')),
         'piano': (str(r.get('floor')).strip() if r.get('floor') not in (None, '') else None),
         'tipo': (str(r.get('type')).strip().title() if r.get('type') else None),

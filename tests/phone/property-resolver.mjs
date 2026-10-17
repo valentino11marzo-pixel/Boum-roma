@@ -321,9 +321,10 @@ const call = async (query) => {
   const noDate = await call({
     op: 'catalog', query: 'Casa Senza Data', moveIn: '2099-12-31',
   });
-  check('available senza data e disponibile ora anche col filtro move-in', noDate.body.match === 'exact'
+  check('available senza data richiede conferma anche col filtro move-in', noDate.body.match === 'exact'
     && noDate.body.results[0].id === 'nodate-a'
-    && noDate.body.results[0].availability.state === 'available_now', noDate.body);
+    && noDate.body.results[0].availability.state === 'needs_confirmation'
+    && noDate.body.results[0].criteriaMatch === false, noDate.body);
 
   const unreadable = await call({ op: 'catalog', reference: 'unreadable-a' });
   check('testo disponibilita illeggibile resta needs_confirmation', unreadable.body.match === 'exact'

@@ -77,8 +77,8 @@
     [
         ['addContract', '📋', 'Nuovo contratto',   'contratto nuovo locazione stipula', 'n c'],
         ['addProperty', '🏠', 'Nuovo immobile',    'immobile casa appartamento nuovo',  'n i'],
-        ['addUser',     '👥', 'Nuovo utente',      'utente inquilino proprietario anagrafica', 'n u'],
-        ['addPayment',  '💳', 'Registra pagamento','pagamento rata incasso registra',   'n p'],
+        ['addUser',     '👥', 'Nuova persona',      'utente inquilino proprietario anagrafica', 'n u'],
+        ['addPayment',  '💳', 'Nuova rata','pagamento rata incasso registra',   'n p'],
         ['addInvoice',  '🧾', 'Nuova fattura',     'fattura fatturazione emetti',       'n f'],
         ['addMaintenance', '🔧', 'Nuova manutenzione', 'manutenzione guasto intervento riparazione', ''],
         ['addTask',     '✅', 'Nuovo task',        'task attività promemoria da fare',  ''],
@@ -126,6 +126,9 @@
         { id: 'tool:docupload', group: 'Strumenti', icon: '📤', label: 'Carica documento (con OCR)',
           keywords: 'carica documento upload ocr scansione allega file',
           fn: 'openDocUploadModal', args: [], admin: true },
+        { id: 'tool:smartlink', group: 'Strumenti', icon: '↗', label: 'SmartLink Studio',
+          keywords: 'smartlink foto annuncio scheda immobiliare idealista condividi link',
+          fn: 'openExternalSmartLink', args: [], admin: true },
         { id: 'tool:msgportali', group: 'Strumenti', icon: '📣', label: 'Messaggi per i portali (IT)',
           keywords: 'messaggio portali immobiliare idealista annuncio testo proprietario',
           fn: 'openMessageGeneratorLandlord', args: [], admin: true },
@@ -156,6 +159,12 @@
         { id: 'tool:newconv', group: 'Strumenti', icon: '📨', label: 'Nuova conversazione (Inbox)',
           keywords: 'conversazione inbox messaggio nuovo contatto',
           fn: 'inboxOpenNewModal', args: [], admin: true },
+        { id: 'tool:inbox-whatsapp', group: 'Strumenti', icon: '💬', label: 'WhatsApp — Inbox',
+          keywords: 'whatsapp inbox conversazioni messaggi',
+          fn: 'oggiOpenInbox', args: ['whatsapp'], admin: true },
+        { id: 'tool:inbox-email', group: 'Strumenti', icon: '✉️', label: 'Email — Inbox',
+          keywords: 'email posta inbox conversazioni messaggi',
+          fn: 'oggiOpenInbox', args: ['email'], admin: true },
         { id: 'tool:rules', group: 'Strumenti', icon: '⚡', label: 'Esegui tutte le automazioni',
           keywords: 'automazioni regole esegui trigger adesso',
           fn: 'runAllRules', args: [], admin: true },
@@ -230,16 +239,17 @@
     [
         ['dashboard',   '📊', 'Oggi — dashboard',    'oggi dashboard home riepilogo'],
         ['contracts',   '📋', 'Contratti',           'contratti locazioni fascicolo pack verbale firme'],
-        ['payments',    '💳', 'Pagamenti',           'pagamenti rate incassi scaduti canone'],
+        ['payments',    '💳', 'Incassi',           'pagamenti rate incassi scaduti canone'],
         ['viewings',    '📅', 'Visite',              'visite appuntamenti viewing sopralluoghi'],
         ['leads',       '📬', 'Lead',                'lead richieste contatti pipeline'],
         ['clienti',     '👥', 'Clienti',             'clienti crm pfs anagrafiche'],
         ['properties',  '🏠', 'Immobili',            'immobili case appartamenti portafoglio'],
+        ['listings',    '🏢', 'Annunci',             'annunci catalogo vetrina listings portali'],
         ['invoices',    '🧾', 'Fatture',             'fatture fatturazione incassi'],
         ['maintenance', '🔧', 'Manutenzioni',        'manutenzioni guasti interventi'],
         ['documents',   '📁', 'Documenti',           'documenti archivio file caricati'],
         ['templates',   '📜', 'Template documenti',  'template modelli documenti moduli'],
-        ['users',       '👤', 'Utenti',              'utenti account ruoli'],
+        ['users',       '👤', 'Persone',              'utenti account ruoli'],
         ['commercialista', '🧮', 'Commercialista',   'commercialista fiscale tasse taxpack'],
         ['burocrazia',  '📝', 'Burocrazia',          'burocrazia registrazioni rli adempimenti'],
         ['inbox',       '📨', 'Inbox',               'inbox messaggi whatsapp conversazioni'],
@@ -258,6 +268,8 @@
     // ── Le console satellite (pagine proprie, si aprono in una scheda) ──
     [
         ['/team',    '🤖', 'Console — La Squadra',   'squadra team agenti salute cron'],
+        ['/chiamate', '📞', 'Console — Centralino', 'chiamate telefono audio trascrizioni riepiloghi segreteria'],
+        ['/risposte', '💬', 'Console — Risposte pronte', 'risposte whatsapp testi stile messaggi link pronti'],
         ['/banca',   '🏦', 'Console — Banca & Fisco','banca movimenti riconciliazione estratto conto'],
         ['/pfs-command', '🛰️', 'Console — PFS Command', 'pfs radar command center ricerche clienti'],
         ['/photo-lab', '🎞️', 'Console — Photo Lab',  'foto photo lab migliora immagini ai'],
@@ -266,7 +278,8 @@
         ['/salute',  '🩺', 'Console — Salute sistema', 'salute sistema errori heartbeat stato'],
         ['/scheda-canone', '📐', 'Console — Scheda canone', 'canone concordato scheda calcolo fasce arpe'],
         ['/pre-agreement-admin', '🖋️', 'Console — Pre-agreement', 'preagreement proposta deal atto magic sign'],
-        ['/inventario', '📋', 'Console — Inventario dal video', 'inventario arredi stanze video consegna riconsegna deposito stato dei luoghi']
+        ['/inventario', '📋', 'Console — Inventario dal video', 'inventario arredi stanze video consegna riconsegna deposito stato dei luoghi'],
+        ['/verbale', '🔑', 'Console — Verbale di consegna', 'verbale consegna chiavi contatori firme']
     ].forEach(function (c) {
         ACTIONS.push({
             id: 'console:' + c[0], group: 'Console', icon: c[1], label: c[2],
@@ -410,6 +423,118 @@
         return true;
     }
 
+    // Stable starting points, projected from the same registry. This is only a
+    // description: the caller checks permissions and opens the real handler.
+    var HOME_TOOLS = [
+        ['properties', 'go:properties', 'Immobili', 'Apri l’elenco degli immobili e i loro fascicoli.'],
+        ['people', 'go:users', 'Persone', 'Apri le anagrafiche di inquilini e proprietari.'],
+        ['whatsapp', 'tool:inbox-whatsapp', 'WhatsApp', 'Apri le conversazioni WhatsApp presenti in Inbox.'],
+        ['email', 'tool:inbox-email', 'Email', 'Apri le conversazioni email presenti in Inbox.'],
+        ['appointments', 'go:viewings', 'Agenda', 'Apri visite e appuntamenti, con proposte e conferme.'],
+        ['calls', 'console:/chiamate', 'Chiamate', 'Apri audio, trascrizioni salvate e riepiloghi disponibili.'],
+        ['document', 'tool:docupload', 'Documenti', 'Apri il modulo per allegare e collegare un file.'],
+        ['magic-sign', 'tool:magicsign', 'Magic Sign', 'Apri l’editor per preparare un PDF da firmare.'],
+        ['inventory', 'console:/inventario', 'Inventario', 'Scegli immobile o contratto e prepara il rilievo.'],
+        ['handover', 'console:/verbale', 'Consegna', 'Scegli il contratto e prepara chiavi, letture e firme.'],
+        ['maintenance', 'new:addMaintenance', 'Interventi', 'Descrivi un nuovo problema e scegli l’immobile.'],
+        ['payment', 'go:payments', 'Incassi', 'Apri gli incassi per unità, verifica le rate e i pagamenti.'],
+        ['invoices', 'go:invoices', 'Fatture', 'Apri le fatture e i relativi strumenti.'],
+        ['listings', 'go:listings', 'Annunci', 'Apri il catalogo degli annunci.'],
+        ['templates', 'go:templates', 'Modelli', 'Scegli un modello di documento.'],
+        ['automations', 'go:rules', 'Automazioni', 'Consulta regole, stato e storico delle esecuzioni.']
+    ];
+    var HOME_NEW_CLIENT = ['new-client', 'tool:newclient', 'Nuovo cliente', 'Apri il percorso guidato dal cliente al contratto.'];
+    function homeTool(spec) {
+        var registered = ACTIONS.find(function (a) { return a.id === spec[1]; });
+        return { id: 'home:' + spec[0], label: spec[2], description: spec[3], icon: registered.icon,
+            fn: registered.fn, args: registered.args.slice() };
+    }
+    function homeContext(record, state) {
+        var pools = { property: 'properties', person: 'users', contract: 'contracts', client: 'clients' };
+        var list = function (kind) { return state && Array.isArray(state[pools[kind]]) ? state[pools[kind]] : []; };
+        var row = null, kind = null;
+        if (record !== null && record !== undefined) {
+            if (!Object.prototype.hasOwnProperty.call(pools, record.kind)
+                || typeof record.id !== 'string' || !record.id.trim()) return null;
+            var matches = list(record.kind).filter(function (r) { return r && r.id === record.id; });
+            if (matches.length !== 1) return null;
+            row = matches[0]; kind = record.kind;
+        }
+        return { row: row, kind: kind, list: list };
+    }
+    // The existing wizard stays available as a secondary action, outside the
+    // sixteen tools. It shares the exact same stale/duplicate record guard.
+    function homeNewClient(record, state) {
+        var context = homeContext(record, state);
+        if (!context) return null;
+        var out = homeTool(HOME_NEW_CLIENT);
+        if (context.kind === 'client') {
+            out.args = ['crmClient', context.row.id];
+            out.description = 'Apri il percorso guidato con i dati del cliente scelto.';
+        }
+        return out;
+    }
+    function homeTools(record, state, year) {
+        var context = homeContext(record, state);
+        if (!context) return [];
+        var row = context.row, kind = context.kind, list = context.list;
+        var tools = HOME_TOOLS.map(homeTool);
+        if (!row) return tools;
+        var tool = function (id) { return tools.find(function (a) { return a.id === 'home:' + id; }); };
+        // Reuse the registered contextual function and its argument template.
+        var contextual = function (id, fn, url, targetKind, targetRow) {
+            targetKind = targetKind || kind; targetRow = targetRow || row;
+            var action = ACTIONS.find(function (a) { return a.need === targetKind && a.fn === fn && (!url || a.args[0].startsWith(url)); });
+            var out = tool(id);
+            out.fn = action.fn;
+            out.args = action.args.map(function (arg) {
+                if (arg === '$id') return targetRow.id;
+                if (arg === '$year') return year;
+                return typeof arg === 'string' ? arg.replace('$id', encodeURIComponent(targetRow.id)) : arg;
+            });
+            return out;
+        };
+        if (kind === 'client') {
+            contextual('people', 'viewClient').description = 'Apri la scheda del cliente scelto.';
+        } else if (kind === 'person') {
+            contextual('people', 'openPerson').description = 'Apri la scheda della persona scelta.';
+        }
+        if (kind === 'person' || kind === 'client' || kind === 'property' || kind === 'contract') {
+            ['whatsapp', 'email'].forEach(function (id) {
+                tool(id).args.push({ kind: kind, id: row.id });
+                var scope = kind === 'property' ? 'all’immobile scelto' : kind === 'contract' ? 'al contratto scelto' : 'al contatto scelto';
+                tool(id).description = 'Apri le conversazioni ' + (id === 'email' ? 'email' : 'WhatsApp') + ' già collegate ' + scope + '.';
+            });
+        }
+        if (kind === 'property' || kind === 'contract') {
+            contextual('inventory', 'open', '/inventario?').description = 'Apri il rilievo ' + (kind === 'property' ? 'sull’immobile' : 'sul contratto') + ' scelto.';
+        }
+        if (kind === 'property') {
+            var document = contextual('document', 'openDocUploadForProperty');
+            document.description = 'Allega un file all’immobile scelto.';
+            if (!Number.isInteger(year) || year < 2015 || year > 2099) {
+                document.disabled = true; document.reason = 'Anno del documento non disponibile'; document.args = [];
+            }
+        } else if (kind === 'person') {
+            contextual('document', 'openUserDocUpload').description = 'Allega un file alla persona scelta.';
+        }
+        var property = kind === 'property' ? row : null;
+        if (kind === 'contract' && typeof row.propertyId === 'string' && row.propertyId) {
+            var houses = list('property').filter(function (p) { return p && p.id === row.propertyId; });
+            if (houses.length === 1) property = houses[0];
+        }
+        if (property) {
+            contextual('properties', 'viewProperty', null, 'property', property).description = 'Apri il fascicolo dell’immobile collegato.';
+            tool('maintenance').prefill = { field: 'propertyId', value: property.id };
+            tool('maintenance').description = 'Descrivi un problema dell’immobile collegato.';
+        }
+        if (kind === 'contract') {
+            contextual('magic-sign', 'viewContractSignatures').description = 'Consulta lo stato delle firme del contratto scelto.';
+            contextual('handover', 'open', '/verbale?').description = 'Apri il verbale del contratto scelto.';
+        }
+        return tools;
+    }
+
     // ── Trovare il record: si guida la ricerca VERA del portale ─────────
     // `handleSearch` disegna il suo menu a tendina in `#searchResults`; qui
     // lo si invoca, si leggono le righe, si tiene solo ciò che è del tipo
@@ -421,13 +546,14 @@
         var w = win || (typeof window !== 'undefined' ? window : null);
         var k = KINDS[kind];
         if (!w || !k || !query || query.length < 2) return [];
+        if (typeof w.portalSearchRecords === 'function') return w.portalSearchRecords(query, kind, 12).records;
         if (typeof w.handleSearch !== 'function') return [];
         var doc = w.document, out = [];
         // handleSearch appende la tendina al genitore di #globalSearch: senza
         // quel nodo lancia. Si controlla prima invece di affidarsi al catch.
         if (!doc || !doc.getElementById('globalSearch')) return [];
         try {
-            w.handleSearch(query);
+            w.handleSearch(query, kind);
             var dd = doc && doc.getElementById('searchResults');
             if (!dd) return [];
             var rows = dd.children || [];
@@ -458,6 +584,8 @@
         run: run,
         fillArgs: fillArgs,
         findRecords: findRecords,
+        homeTools: homeTools,
+        homeNewClient: homeNewClient,
         norm: norm
     };
 }));

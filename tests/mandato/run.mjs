@@ -19,6 +19,7 @@
 //    scheda di calcolo brandizzata a pagina 2 — stessi fatti del modulo ARPE.
 // Uso: node tests/mandato/run.mjs   (MANDATO_DUMP=1 salva i PDF in /tmp)
 import { register } from 'node:module';
+import { conditionalFirestore } from '../preagreement/conditional-firestore.mjs';
 import fs from 'node:fs';
 register('../notify/loader.mjs', import.meta.url);
 
@@ -150,6 +151,9 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   throw new Error('fetch non stubbata: ' + url);
 };
+
+// Preserve real commit versions and all-or-nothing guards used by the lock.
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB:store,fields:toFsFields,unfields:fromFsFields});
 
 const mkRes = () => ({
   code: 0, body: null, headers: {},
@@ -1413,8 +1417,8 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     const grab = (n) => { const m = new RegExp('^    (?:async )?function ' + n + '\\(', 'm').exec(src); const end = src.slice(m.index + 5).search(/\n    (?:async )?function /); return src.slice(m.index, m.index + 5 + end); };
     const modals = { innerHTML: '' };
     const sbx = {
-      S: { contracts: [{ id: 'pa_X', propertyId: 'prop_pa_X', tenantId: 'tX', landlordName: 'Tavolieri Chiara', landlordPhone: '+39 344 509 7480', landlordEmail: null }],
-        properties: [{ id: 'prop_pa_X', name: 'Via dei Latini 76' }], users: [{ id: 'tX', name: 'Ahmet Prova', phone: '+905000000001', email: 'ahmet@x.com' }] },
+      S: { profile: { role: 'admin' }, contracts: [{ id: 'pa_X', propertyId: 'prop_pa_X', tenantId: 'tX', landlordName: 'Tavolieri Chiara', landlordPhone: '+39 344 509 7480', landlordEmail: null }],
+        properties: [{ id: 'prop_pa_X', name: 'Via dei Latini 76' }], users: [{ id: 'tX', role: 'tenant', name: 'Ahmet Prova', phone: '+905000000001', email: 'ahmet@x.com' }] },
       toast() {}, esc: (v) => String(v == null ? '' : v).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
       document: { getElementById: () => modals }, auth: { currentUser: { getIdToken: async () => 't' } },
       fetchSignLinks: async () => ({ ok: true, tenant: 'https://www.boomrome.com/sign?sign=T', landlord: 'https://www.boomrome.com/sign?sign=L' }),
@@ -1423,9 +1427,16 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
       window: { location: { origin: 'https://www.boomrome.com' } }, encodeURIComponent,
     };
     vm.createContext(sbx);
+    vm.runInContext(R('js/tenant-access-engine.js'), sbx);
+    sbx.window.BOOM_TENANT_ACCESS = sbx.BOOM_TENANT_ACCESS;
+    vm.runInContext(grab('isAdmin'), sbx);
     vm.runInContext(grab('openShareHub'), sbx);
     await sbx.window.openShareHub('pa_X');
     const html = modals.innerHTML, ll = html.slice(html.indexOf('🏠 LOCATORE'));
+    check('Share Hub admin: invito autenticato alla casa e istruzione per fissare la chat', html.includes('Invita alla dashboard inquilino') && html.includes('fissa il messaggio'));
+    sbx.S.profile.role = 'landlord';
+    await sbx.window.openShareHub('pa_X');
+    check('Share Hub non admin: non offre invito alla dashboard inquilino', !modals.innerHTML.includes('Invita alla dashboard inquilino'));
     check('Share Hub montato: la Scheda della proprietaria SENZA profilo nel portal ha WhatsApp col numero del contratto (prima «Manca il telefono»), nessun accesso al portale inventato',
       /🏠 LOCATORE[\s\S]*Tavolieri Chiara/.test(html) && /Compila i Suoi dati/.test(ll) && /href="https:\/\/wa\.me\/393445097480\?text=/.test(ll) && !/Accedi al portale proprietari/.test(html));
   }

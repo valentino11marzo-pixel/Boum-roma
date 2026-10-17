@@ -633,6 +633,18 @@ function addonsBlock(){
     +'Nothing here is required to rent the apartment.</p>'
     +rows+'</div>';
 }
+function paymentDue(){
+  if(PA.status==='accepted'||PA.status==='paid'){
+    if(Object.prototype.hasOwnProperty.call(PA,'paymentDueEur'))return typeof PA.paymentDueEur==='number'?PA.paymentDueEur:NaN;
+    return (Number((PA.money||{}).dueAtSigning)||0)+(PA.addons||[]).reduce(function(sum,a){return sum+(Number(a.eur)||0)},0);
+  }
+  return (Number((PA.money||{}).dueAtSigning)||0)+ADDONS.reduce(function(sum,kind){var a=(PA.addonsOffered||[]).find(function(x){return x.kind===kind});return sum+(a?Number(a.eur)||0:0)},0);
+}
+function paymentError(code){
+  if(code==='property_lock_unavailable')return 'We could not verify apartment availability. No payment was started. Your details are still here: try again, or contact BOOM on WhatsApp.';
+  if(code==='invalid_payment_terms')return 'The payment amount needs verification. No payment was started. Contact BOOM on WhatsApp to confirm the amount before paying.';
+  return 'Checkout could not be opened. Try again, or contact BOOM on WhatsApp.';
+}
 function toggleAddon(el){
   var k=el.value;
   ADDONS=ADDONS.filter(function(x){return x!==k});
@@ -646,6 +658,7 @@ function toggleAddon(el){
   // la barra d'azione dice quanto si sta per pagare: se cambia il totale e lei
   // resta ferma, il cliente scopre l'importo nuovo solo su Stripe
   var hint=$('abarHint');
+  barSync();
   if(hint&&extra>0)hint.textContent='Due at signing '+eur(base+extra)+' · incl. '+ADDONS.length+' add-on'+(ADDONS.length>1?'s':'');
 }
 function moneyRows(){
@@ -1162,11 +1175,11 @@ function renderAccepted(){
      hidden DOM (e.g. the Verify upload cards) can't shadow the accepted
      view's ids (#upcx late-upload card) */
   ['p1','p2','p3','p4'].forEach(function(id){var e=$(id);if(e)e.innerHTML='';});
-  var p=PA.property,m=PA.money||{},t=PA.tenant||{};
+  var p=PA.property,m=PA.money||{},t=PA.tenant||{},due=paymentDue();
   var TS=Array.isArray(PA.tenants)&&PA.tenants.length?PA.tenants:[t];
   var paid=PA.status==='paid'||PAID;
   var whoAll=TS.map(function(x){return x.fullName}).filter(Boolean);
-  var stillDue=PA.status==='accepted'&&Number(m.dueAtSigning)>0&&!PAID;
+  var stillDue=PA.status==='accepted'&&(due>0||!Number.isFinite(due))&&!paid;
   var days=null;
   try{var ms=new Date(String((PA.lease||{}).startDate).slice(0,10)+'T00:00')-new Date();days=Math.max(0,Math.ceil(ms/86400000));}catch(e){}
   var html=(paid
@@ -1235,7 +1248,7 @@ function renderAccepted(){
       +(CT.signedPdfUrl?'<a class="gbtn" href="'+esc(CT.signedPdfUrl)+'" target="_blank" rel="noopener">Download the signed contract ↓</a>':'')+'</div>';
   }
   if(stillDue){
-    html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
+    html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()" '+(!Number.isFinite(due)?'disabled':'')+'>Complete your reservation'+(Number.isFinite(due)?' — '+eur(due)+' via Stripe →':' — amount to verify')+'</button><p id="payNowError" role="alert" style="font-size:13px;margin-top:10px">'+(!Number.isFinite(due)?paymentError('invalid_payment_terms'):'')+'</p>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
   }
   // the requested second document, still missing → late upload right here
@@ -1253,10 +1266,10 @@ function renderAccepted(){
   var signedAll=!!(CT&&CT.status==='complete'), signedMe=!!(CT&&CT.tenantSigned);
   html+='<div class="timeline">'
     +'<div class="tstep don"><span class="td"><i>✓</i></span><div><b>Pre-agreement signed</b><span>'+esc(p.address.split(',')[0])+' is reserved under your name.</span></div></div>'
-    +(Number(m.dueAtSigning)>0
-      ?'<div class="tstep '+(paid?'don':'now')+'"><span class="td"><i>'+(paid?'✓':'2')+'</i></span><div><b>Reservation payment</b><span>'+(paid?eur(m.dueAtSigning)+' received via Stripe — receipt in your email.':eur(m.dueAtSigning)+' via Stripe locks the apartment completely.')+'</span></div></div>'
+    +(due>0
+      ?'<div class="tstep '+(paid?'don':'now')+'"><span class="td"><i>'+(paid?'✓':'2')+'</i></span><div><b>Reservation payment</b><span>'+(paid?eur(due)+' received via Stripe — receipt in your email.':eur(due)+' via Stripe locks the apartment completely.')+'</span></div></div>'
       :'')
-    +'<div class="tstep '+(contractReady?'don':(paid||!Number(m.dueAtSigning)?'now':''))+'"><span class="td"><i>'+(contractReady?'✓':'•')+'</i></span><div><b>Your rental contract</b><span>'+(contractReady?(CT&&CT.tenantSignUrl?'Ready — sign it above, or from the link in your email.':'Ready — check your email for the digital signing link.'):'Prepared automatically from this document — the signing link arrives by email.')+'</span></div></div>'
+    +'<div class="tstep '+(contractReady?'don':(paid||due===0?'now':''))+'"><span class="td"><i>'+(contractReady?'✓':'•')+'</i></span><div><b>Your rental contract</b><span>'+(contractReady?(CT&&CT.tenantSignUrl?'Ready — sign it above, or from the link in your email.':'Ready — check your email for the digital signing link.'):'Prepared automatically from this document — the signing link arrives by email.')+'</span></div></div>'
     +'<div class="tstep '+(signedAll?'don':(signedMe||(CT&&CT.tenantSignUrl)?'now':''))+'"><span class="td"><i>'+(signedAll?'✓':(signedMe?'½':'•'))+'</i></span><div><b>Sign digitally, we register</b><span>'+(signedAll?'Signed by both parties. BOOM files the registration with the Agenzia delle Entrate.':(signedMe?'Signed by you — the landlord countersigns next, then BOOM registers the lease.':'Two minutes on your phone. BOOM countersigns and files the registration with the Agenzia delle Entrate.'))+'</span></div></div>'
     +'<div class="tstep"><span class="td"><i>•</i></span><div><b>Keys &amp; your tenant portal</b><span>Move-in day: keys, contacts and payments — all in one place.</span></div></div>'
     +'</div>'
@@ -1277,18 +1290,19 @@ function renderAccepted(){
 }
 
 window.payNow=function(){
+  var error=$('payNowError');if(error)error.textContent='';
   var b=$('payNowBtn');if(b){b.disabled=true;b.textContent='Opening secure checkout…';}
   fetch('/api/preagreement/pay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN})})
     .then(function(r){return r.json()})
     .then(function(j){
       if(j&&j.ok&&j.checkoutUrl){
         var po=$('payov'),pa=$('payAmt');
-        if(pa)pa.textContent=eur(Number((PA.money||{}).dueAtSigning)||0);
+        if(pa)pa.textContent=eur(j.paymentDueEur==null?paymentDue():j.paymentDueEur);
         if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
         else location.href=j.checkoutUrl;
         return;
-      }throw 0;})
-    .catch(function(){if(b){b.disabled=false;b.textContent='Complete your reservation →';}});
+      }throw new Error(j&&j.error||'checkout_failed');})
+    .catch(function(e){if(b){b.disabled=false;b.textContent='Complete your reservation — '+eur(paymentDue())+' via Stripe →';}if(error)error.textContent=paymentError(e.message);});
 };
 function paintQr(){
   var host=$('paQr');if(!host||host.__done)return;host.__done=1;
@@ -1349,8 +1363,8 @@ function barSync(){
     var ok=$('paOk');
     tickSync();
     btn.disabled=SENDING;   // mai spento per la spunta: senza, accept() porta sulla riga
-    btn.innerHTML=Number(m.dueAtSigning)>0
-      ?('<span class="paylock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Accept &amp; sign — '+eur(m.dueAtSigning)+' due now</span>')
+    btn.innerHTML=paymentDue()>0
+      ?('<span class="paylock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Accept &amp; sign — '+eur(paymentDue())+' due now</span>')
       :'Accept & sign';
     var mnd=$('paMandate');
     hint.innerHTML=ok&&ok.checked
@@ -1428,12 +1442,13 @@ function accept(){
       renderTaken(j.reserved);
       return;
     }
-    if(!j||!j.ok)throw 0;
+    if(!j||!j.ok)throw new Error(j&&j.error||'submit_failed');
+    if(typeof j.paymentDueEur==='number')PA.paymentDueEur=j.paymentDueEur;
     try{localStorage.removeItem(DKEY)}catch(e){}
     if(j.checkoutUrl){
       btn.textContent='Opening secure checkout…';
       var po=$('payov'),pa=$('payAmt');
-      if(pa)pa.textContent=eur(Number((PA.money||{}).dueAtSigning)||0);
+      if(pa)pa.textContent=eur(j.paymentDueEur==null?paymentDue():j.paymentDueEur);
       if(po&&!matchMedia('(prefers-reduced-motion: reduce)').matches){po.classList.add('on');setTimeout(function(){location.href=j.checkoutUrl;},1100);}
       else location.href=j.checkoutUrl;
       return;
@@ -1444,7 +1459,7 @@ function accept(){
     if(ov&&!matchMedia('(prefers-reduced-motion: reduce)').matches){ov.classList.add('on');setTimeout(done,1500);}
     else done();
   })
-  .catch(function(){SENDING=false;btn.disabled=false;barSync();err.textContent='Something went wrong — try again, or message us on WhatsApp.';err.style.display='block';});
+  .catch(function(e){SENDING=false;btn.disabled=false;barSync();err.textContent=paymentError(e.message);err.style.display='block';});
 }
 
 /* ═══ boot ═══ */

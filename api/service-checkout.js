@@ -113,10 +113,14 @@ export default async function handler(req, res) {
       },
       // A city order lands back on ITS page, which shows the paid state and
       // what happens next (the board spells PAID); a Rome service keeps the
-      // thank-you page.
+      // thank-you page — and the Pacchetto carries its «inizio subito» choice
+      // there, so the page says the right time (48 hours from the data, or
+      // after the 14 days).
       success_url: offer
         ? `${offer.url}?paid=${encodeURIComponent(kind)}&session_id={CHECKOUT_SESSION_ID}#contact`
-        : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(kind) + '&session_id={CHECKOUT_SESSION_ID}',
+        : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
+          (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
+          '&session_id={CHECKOUT_SESSION_ID}',
       cancel_url: offer ? `${offer.url}#services` : 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });

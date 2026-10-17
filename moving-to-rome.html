@@ -25,6 +25,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
@@ -73,6 +74,18 @@
 .zn b{display:block;font-weight:400;font-size:14px}
 .zn p{font-size:11.5px;color:var(--t3);margin-top:3px}
 .zn .go{display:block;margin-top:8px;font-size:11px;color:var(--gold)}
+
+/* «In brief»: the citable answer, right after the hero — facts at a glance */
+.breve{border:1px solid var(--line);border-radius:18px;background:var(--card);padding:22px 22px 18px}
+.breve h2{font-weight:200;font-size:clamp(20px,3.6vw,27px);line-height:1.2}
+.breve dl{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;margin-top:16px}
+@media(min-width:760px){.breve dl{grid-template-columns:150px minmax(0,1fr);gap:12px 28px;align-items:baseline}}
+.breve dt{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold);margin-top:8px}
+@media(min-width:760px){.breve dt{margin-top:0}}
+.breve dd{margin:0;font-size:13.5px;line-height:1.6;color:var(--t2)}
+.breve dd b{color:var(--t1);font-weight:400}
+.breve dd a{color:var(--gold-light)}
+.breve-agg{margin-top:16px;font-size:11px;color:var(--t4)}
 
 /* Insegna — unified header lockup */
 .marchio{display:inline-flex;align-items:center;gap:13px;text-decoration:none;color:#fff}
@@ -217,6 +230,15 @@ html {
       <div class="proof"><span><span class="c">✓</span> English-speaking team</span><span><span class="c">✓</span> Registered Italian agency</span><span>★ 4.9 on Google · 47 reviews</span></div>
     </div>
   </header>
+
+  <section class="breve" id="breve" aria-labelledby="breve-h"><h2 id="breve-h">In brief — renting in Rome as a foreigner</h2><dl>
+    <dt>Documents</dt><dd>Passport or EU ID, an Italian codice fiscale (free from any Agenzia delle Entrate office; non-EU citizens can often get it at the Italian consulate before leaving), proof of income or a guarantor, and for non-EU citizens the visa or permesso di soggiorno appropriate to your stay.</dd>
+    <dt>Which contract</dt><dd>For up to 18 months, a contratto transitorio (art. 5, L. 431/1998; 3 months minimum with BOOM), which needs a documented temporary reason such as a work assignment or a study period; in Rome its rent follows the capped tables of the territorial agreement. University students can use a student lease of 6–36 months; longer stays use the 3+2 or the 4+4. <a href="/blog-contract-types">Contract types explained</a></dd>
+    <dt>Registration</dt><dd>Every lease must be registered with the Agenzia delle Entrate within 30 days of signing (or of the start date, if earlier), usually by the landlord or the agency. An unregistered contract leaves you without real protection, and you need a registered contract to register your residency.</dd>
+    <dt>Deposit</dt><dd><b>At most three months' rent</b> (art. 11, L. 392/1978), returned at the end of the lease once the condition of the home and the obligations of the contract have been checked, as the lease's deposit clause says.</dd>
+    <dt>Budget</dt><dd>Typical asking (mid-term, furnished): studio €900 – €1,300 /mo, 1 bedroom €1,200 – €1,800 /mo, 2 bedrooms €1,500 – €2,400 /mo. Utilities + wifi €150 – €220 /mo, often excluded from rent — always ask.</dd>
+    <dt>Before you pay</dt><dd>See the home (in person or on live video), verify who is letting it, and read the written terms. A deposit wired on trust is how most rental scams work.</dd></dl>
+    <p class="breve-agg">Updated <time datetime="2026-10-15">15 October 2026</time> · BOOM, Egidi Immobiliare S.r.l.</p></section>
 
   <section class="rv">
     <div class="sec-h"><span class="num">THE MONEY</span><h2>What Rome really costs. <span class="g">No filters.</span></h2></div>

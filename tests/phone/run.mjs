@@ -813,6 +813,11 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   DB.set('listings/type_missing', { id: 'type_missing', name: 'Bilocale nel titolo non verificato', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
   DB.set('listings/type_blank', { id: 'type_blank', name: 'Camera nel titolo non verificata', type: '  ', bedrooms: 1, status: 'available' });
   DB.set('listings/type_invalid', { id: 'type_invalid', name: 'Tipo non valido', type: { label: 'Apartment' }, bedrooms: 1, status: 'available' });
+  // l'arredo come lo scrive davvero il catalogo: stringhe, non booleani
+  DB.set('listings/furn_yes', { id: 'furn_yes', name: 'Arredata', type: 'Apartment', bedrooms: 1, price: 1000, status: 'available', furnished: 'yes' });
+  DB.set('listings/furn_no', { id: 'furn_no', name: 'Vuota', type: 'Apartment', bedrooms: 1, price: 1000, status: 'available', furnished: 'no' });
+  DB.set('listings/furn_partial', { id: 'furn_partial', name: 'In parte', type: 'Apartment', bedrooms: 1, price: 1000, status: 'available', furnished: 'partial' });
+  DB.set('listings/furn_odd', { id: 'furn_odd', name: 'Boh', type: 'Apartment', bedrooms: 1, price: 1000, status: 'available', furnished: 'tbd' });
   const cat = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
   ok('catalog: ok e case vere', cat.code === 200 && cat.out.ok && cat.out.listings.some((l) => l.id === 'l2'), cat.out && cat.out.count);
   ok('catalog: un AFFITTATO non esce mai fra le alternative', !cat.out.listings.some((l) => l.id === 'l3'));
@@ -825,6 +830,12 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
     && byId('type_room').bedrooms === byId('type_apartment').bedrooms);
   ok('catalog: tipo mancante non dedotto da camera, prezzo, superficie o titolo bilocale', byId('type_missing')?.type === null);
   ok('catalog: tipo vuoto o non testuale resta sconosciuto', byId('type_blank')?.type === null && byId('type_invalid')?.type === null);
+  // fino al 15/10/2026 il catalogo leggeva solo il booleano: la voce diceva
+  // «arredo sconosciuto» su ogni casa vera (il catalogo scrive 'yes'/'no')
+  ok('catalog: arredo dichiarato letto dalla regola unica (yes → true, no → false, partial resta partial, ignoto → null)',
+    byId('furn_yes')?.furnished === true && byId('furn_no')?.furnished === false
+    && byId('furn_partial')?.furnished === 'partial' && byId('furn_odd')?.furnished === null,
+    ['furn_yes', 'furn_no', 'furn_partial', 'furn_odd'].map((i) => byId(i)?.furnished));
   ok('catalog: contratto distingue stanza e intero e vieta deduzioni dai posti/camere',
     typeof cat.out.note === 'string' && cat.out.note.includes('A room is not an entire apartment')
     && cat.out.note.includes('Do not infer accommodation type or total room count from bedrooms')

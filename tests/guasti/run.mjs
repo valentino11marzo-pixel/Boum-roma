@@ -65,6 +65,8 @@ function fromFs(v) {
 }
 const fromFsFields = (f) => { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = fromFs(v); return o; };
 let aiCalls = 0;
+const aiBodies = [];   // le richieste al modello, per leggere il SYSTEM davvero spedito
+const sysText = (b) => Array.isArray(b && b.system) ? b.system.map((x) => (x && x.text) || '').join('\n') : String((b && b.system) || '');
 
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
@@ -77,6 +79,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.startsWith('https://api.telegram.org/')) return okJson({ ok: true, result: {} });
   if (url.startsWith('https://api.anthropic.com/')) {
     aiCalls++;
+    try { aiBodies.push(JSON.parse(opts.body || '{}')); } catch { aiBodies.push({}); }
     return okJson({ content: [{ type: 'text', text: JSON.stringify({ subject: 'Your enquiry', body: 'Hi Anna, the flat is still available — want a video tour?' }) }], model: 'claude-opus-4-8', usage: { input_tokens: 300, output_tokens: 60 }, stop_reason: 'end_turn' });
   }
   if (url.includes('firestore.googleapis.com')) {
@@ -207,8 +210,14 @@ globalThis.fetch = async (url, opts = {}) => {
 
   const { default: commerciale, pickChannel } = await import('../../api/employees/commerciale.js');
   const res = { code: 0, body: null, setHeader() {}, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, end() { return this; } };
-  aiCalls = 0;
+  aiCalls = 0; aiBodies.length = 0;
   await commerciale({ method: 'POST', headers: { authorization: 'Bearer cron-guasti' }, query: {}, body: {} }, res);
+  // la durata (15/10/2026, decisione del fondatore): il SYSTEM DAVVERO
+  // spedito al modello per la prima risposta dice il minimo di 3 mesi
+  const sysCom = sysText(aiBodies.find((b) => /assistente commerciale di BOOM/.test(sysText(b))));
+  check('commerciale: il SYSTEM spedito al modello porta la durata (da 3 mesi in su, transitorio fino a 18, mai un mese)',
+    /DURATA: con BOOM si affitta da 3 mesi in su \(Condizioni\); il transitorio arriva a 18 mesi\. Mai proporre un mese\./.test(sysCom)
+    && !/\b1\s*[–-]\s*18 mesi|da un mese|1 mese in su/i.test(sysCom));
   const actions = [...store.entries()].filter(([k]) => k.startsWith('action_queue/')).map(([k, v]) => ({ id: k, ...v }));
   const first = actions.find(a => a.contextHash === 'commerciale:first:L1');
   const fu = actions.find(a => a.contextHash === 'commerciale:followup:L2');

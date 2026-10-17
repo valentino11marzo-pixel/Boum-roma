@@ -3,29 +3,56 @@
 // POST · Authorization: Bearer <firebase-id-token> (admin)
 //   { op:'status', contractId }
 //     → { ok, settings, kind, kinds:{registrazione[],completo[]}, state }
+//     + bank: conto addebito RLI dichiarato dall'operatore, pronto o incompleto.
 //       La checklist per ENTRAMBE le varianti + le manopole in vigore: il
 //       pannello del portal disegna DA QUI, mai da una copia locale (la
 //       console non può mostrare una regola diversa da quella applicata).
 //     + billing: { relet, reletBy, previousId, invoices[] } — il riaffitto
 //       dedotto dai fatti (reletOf) e le fatture ASPI già emesse: il pannello
 //       preseleziona cosa fatturare e mostra cosa esiste già.
+//   { op:'save-bank', contractId, rliDebitIban, rliDebitHolder }
+//     → { ok, bank }; salva SOLO questi due campi, anche vuoti espliciti.
+//       Non rigenera il contratto, non invia email, non cambia l'IBAN canone.
 //   { op:'send', contractId, kind?, billKind?, note?, bill? }
 //   { op:'bill', contractId, kind?, billKind? }
 //     → SOLO la fattura (billAspi), senza rimandare l'email ad ASPI: il
 //       recupero quando all'invio le fatture esistenti non si leggevano.
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
+//   { op:'registered', contractId, date, code?, base64?, contentType?, name?, notify?, resend? }
+//     → recordRegistration (_ricevuta.js): contratto registrato in UN passo,
+//       scadenze chiuse, ricevuta archiviata e mandata alle parti.
 //
 // maxDuration 60 in vercel.json: gli allegati si scaricano da Storage.
 
-import { readJson, fsGet } from '../homie/_lib.js';
+import { readJson, fsGet, fsPatch } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import ContractFields from '../../js/contract-fields.js';
+import { withProfileDocs } from '../sign/_iddocs.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
   reletOf, aspiInvoicesOf, billAspi, billPlansFor, billKindFor, ASPI_KINDS,
 } from './_aspi.js';
+import { parseReceiptInput, recordRegistration } from './_ricevuta.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
+const BANK_FIELDS = ['rliDebitIban', 'rliDebitHolder'];
+const ibanValid = (iban) => /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) && ContractFields.ibanOk(iban);
+const ibanNorm = (value) => typeof value === 'string' ? value.replace(/\s+/g, '').toUpperCase() : '';
+const holderNorm = (value) => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+
+function bankStatus(contract) {
+  const rliDebitIban = ibanNorm(contract.rliDebitIban);
+  const rliDebitHolder = holderNorm(contract.rliDebitHolder);
+  const missing = BANK_FIELDS.filter(key => !(key === 'rliDebitIban' ? rliDebitIban : rliDebitHolder));
+  const invalid = rliDebitIban && !ibanValid(rliDebitIban) ? ['rliDebitIban'] : [];
+  const ready = !missing.length && !invalid.length;
+  return {
+    rliDebitIban, rliDebitHolder, ready, missing, invalid,
+    warning: ready ? null : invalid.length ? 'IBAN addebito tributi RLI da verificare.'
+      : 'Conto addebito tributi RLI incompleto: ' + missing.map(key => key === 'rliDebitIban' ? 'IBAN non dichiarato' : 'intestatario non dichiarato').join('; ') + '.',
+  };
+}
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -40,6 +67,33 @@ export default async function handler(req, res) {
   const contractId = clip(b && b.contractId, 80);
   if (!contractId) return res.status(400).json({ ok: false, error: 'contractId_required' });
 
+  if (op === 'save-bank') {
+    // Nessun campo estraneo entra nella patch, neppure se valido altrove.
+    if (Object.keys(b).some(key => !['op', 'contractId', ...BANK_FIELDS].includes(key))) {
+      return res.status(400).json({ ok: false, error: 'unexpected_fields' });
+    }
+    if (BANK_FIELDS.some(key => !Object.prototype.hasOwnProperty.call(b, key))) {
+      return res.status(400).json({ ok: false, error: 'bank_fields_required' });
+    }
+    if (BANK_FIELDS.some(key => typeof b[key] !== 'string') || holderNorm(b.rliDebitHolder).length > 200) {
+      return res.status(400).json({ ok: false, error: 'invalid_bank_fields' });
+    }
+    const patch = { rliDebitIban: ibanNorm(b.rliDebitIban), rliDebitHolder: holderNorm(b.rliDebitHolder) };
+    if (patch.rliDebitIban && !ibanValid(patch.rliDebitIban)) {
+      return res.status(400).json({ ok: false, error: 'iban_invalid' });
+    }
+    try {
+      const contract = await fsGet('contracts/' + contractId);
+      if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
+      await fsPatch('contracts/' + contractId, patch);
+      return res.status(200).json({ ok: true, bank: bankStatus(patch) });
+    } catch {
+      // Firestore può includere i dati nella risposta d'errore: mai nei log.
+      console.error('[fiscal/registra] bank_save_failed');
+      return res.status(500).json({ ok: false, error: 'bank_save_failed' });
+    }
+  }
+
   try {
     if (op === 'send') {
       const out = await sendAspiRequest(contractId, {
@@ -50,6 +104,13 @@ export default async function handler(req, res) {
         bill: b.bill,
       });
       return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 422)).json(out);
+    }
+
+    if (op === 'registered') {
+      const input = parseReceiptInput(b, { today: new Date().toISOString().slice(0, 10) });
+      if (input.error) return res.status(400).json({ ok: false, error: input.error });
+      const out = await recordRegistration(contractId, input, { force: b.resend === true });
+      return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 502)).json(out);
     }
 
     if (op === 'bill') {
@@ -78,6 +139,7 @@ export default async function handler(req, res) {
     const property = contract.propertyId
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
+    contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
     const settings = await loadAspiSettings();
     const [relet, invoices] = await Promise.all([
       reletOf(contract),
@@ -85,6 +147,7 @@ export default async function handler(req, res) {
     ]);
     return res.status(200).json({
       ok: true,
+      bank: bankStatus(contract),
       settings: {
         email: settings.email, referente: settings.referente, organizzazione: settings.organizzazione,
         billTo: settings.billTo, autoInvoice: settings.autoInvoice, auto: settings.auto,
@@ -110,6 +173,17 @@ export default async function handler(req, res) {
         aspiRequestCount: contract.aspiRequestCount || 0,
         registrationStatus: contract.registrationStatus || 'pending',
         rliRegisteredAt: contract.rliRegisteredAt || null,
+        registrationCode: contract.registrationCode || null,
+        registrationReceiptUrl: contract.registrationReceiptUrl || null,
+        registrationReceiptSentAt: contract.registrationReceiptSentAt || null,
+        // Gli esiti DUREVOLI: il pacchetto all'operatore e la ricevuta per
+        // destinatario. 'uncertain'/'sending' si mostrano, non si rimandano da soli.
+        packEmail: contract.registrationPackEmail || null,
+        receiptDelivery: Object.values(contract.registrationReceiptDelivery || {})
+          .filter(d => d && (contract.registrationReceiptHash
+            ? d.fileKey === 'sha256:' + contract.registrationReceiptHash
+            : d.url === contract.registrationReceiptUrl))
+          .map(d => ({ who: d.who, status: d.status, at: d.at || null })),
       },
     });
   } catch (e) {

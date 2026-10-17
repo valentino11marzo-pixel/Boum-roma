@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<title>Catalogo · BOOM</title>
+<link rel="icon" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
+<!--
+  /catalogo — LE CORREZIONI DEL CATALOGO, CON UN TAP E SENZA SORPRESE.
+
+  js/catalogo-correzioni.js dice cosa va cambiato: il nome dalla via vera
+  (il 15/10/2026 c'erano tre «Bilocale Centro» diversi) e i dati che si
+  possono provare. Questa pagina lo SCRIVE su Firestore, ma solo dopo aver
+  mostrato ogni scrittura, campo per campo, vecchio → nuovo. Le regole:
+   1. Ciò che vedi è ciò che si scrive. Ogni annuncio si scrive in una
+      transazione che RILEGGE il documento: se un valore non è più quello
+      mostrato (il nome o un campo delle correzioni: qualcuno l'ha toccato
+      nel frattempo) quell'annuncio non si tocca, e la pagina lo dice.
+   2. Un nome cambiato a mano DOPO la proposta non si sovrascrive in
+      silenzio: la riga arriva deselezionata, con l'avviso. Lo stesso per un
+      valore che qualcuno cambia mentre la pagina è aperta, e per una
+      scelta fatta prima (una spunta, un nome scritto a mano): vale per il
+      valore su cui è stata fatta, e se alla rilettura quel valore non c'è
+      più la scelta decade.
+   3. Le parole di un umano non si rigenerano. «Rigenera descrizione»
+      esiste solo per i testi che il server rigenera — un testo vuoto, il
+      template del bot, un testo «ai» non corretto dopo: regenerable() di
+      js/catalogo-correzioni.js, lo specchio del server. I «lotto12» sono
+      correzioni approvate dall'operatore, quindi umane. Gli altri vanno
+      nella lista dell'assistente, e così quelli che il server ha già
+      rifiutato in questa sessione. Dove le camere sono incerte la
+      rigenerazione non parte da sola: si rifà dopo il giro in casa.
+   4. Due annunci non si chiamano uguale: un nome nuovo che coincide (spazi,
+      maiuscole e accenti a parte) con il nome attuale o proposto di un
+      altro annuncio blocca la scrittura.
+   5. Senza una lettura dal server non si propone niente: se la rilettura
+      fallisce, la lista di prima sparisce invece di restare applicabile.
+  Nessun dato entra nel DOM come HTML: tutto passa da textContent (un nome
+  è testo libero, e un nome con dentro un tag resta un nome).
+  Niente ricarica automatica al ritorno sulla scheda: qui si scrivono nomi
+  a mano, e un reload butterebbe il lavoro.
+-->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script>if(window.BoomPortal&&BoomPortal.bugButton)BoomPortal.bugButton('catalogo');</script>
+<!-- L'ORDINE CONTA: catalogo-correzioni.js legge window.BOOM_FACTS mentre
+     si carica (la regola delle camere vive in UNA copia, listing-facts.js).
+     Invertiti, ogni controllo delle descrizioni lancerebbe un errore. -->
+<script src="/js/listing-facts.js"></script>
+<script src="/js/catalogo-correzioni.js"></script>
+<style>
+  :root{
+    --gold:#D4AF37; --gold-l:rgba(212,175,55,.14); --gold-d:#B8960C;
+    --bg:#08080A; --card:#0C0C0E; --elev:#141416; --input:#1A1A1C;
+    --line:rgba(255,255,255,.08); --line2:rgba(255,255,255,.14);
+    --txt:#fff; --dim:#9A9A9E; --muted:#6A6A70;
+    --ok:#4ADE80; --warn:#F5A524; --ko:#FF5C7A;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none !important}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt); font-weight:300; line-height:1.5;
+    font-family:'Helvetica Neue',Helvetica,Inter,-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:0 max(14px,env(safe-area-inset-right)) calc(120px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+  }
+  body.bloccato{overflow:hidden}
+  a{color:var(--gold);text-decoration:none}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#D8D8DC}
+  button{font-family:inherit;cursor:pointer;border-radius:10px;min-height:44px;font-size:13px}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  :focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .wrap{max-width:860px;margin:0 auto}
+
+  #shield{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;
+    z-index:50;color:var(--dim);font-size:12px;letter-spacing:2px;padding:20px;text-align:center}
+  .shield-box{max-width:360px;line-height:1.8;letter-spacing:.4px;font-size:13px}
+  .shield-acts{display:flex;gap:16px;justify-content:center;margin-top:14px}
+
+  header{padding:22px 0 10px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  .mark{font-size:11px;letter-spacing:5px;color:var(--gold);text-transform:uppercase}
+  h1{font-size:clamp(22px,6vw,30px);font-weight:200;letter-spacing:-.3px;margin:8px 0 6px}
+  .lead{color:var(--dim);font-size:13.5px;max-width:62ch;margin:0}
+  .lead b{color:#ddd;font-weight:400}
+  .torna{font-size:13px;color:var(--dim);padding:8px 0}
+  .torna:hover{color:var(--gold)}
+
+  .ghost{background:transparent;border:1px solid var(--line2);color:var(--dim);padding:0 14px}
+  .ghost:hover{color:var(--gold);border-color:rgba(212,175,55,.4)}
+  .gold{background:var(--gold);color:#0A0A0C;border:none;padding:0 20px;font-weight:600;letter-spacing:.4px}
+  .gold:active{background:var(--gold-d)}
+
+  #statoCarico{margin:14px 0;color:var(--dim);font-size:13px}
+  .fatale{background:rgba(255,92,122,.08);border:1px solid rgba(255,92,122,.4);border-radius:12px;
+    padding:14px 16px;color:#FFD0D8;font-size:13.5px;margin:14px 0}
+  .fatale .acts{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap}
+
+  .riepilogo{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin:12px 0}
+  .riepilogo .numeri{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12.5px;color:var(--dim)}
+  .riepilogo .numeri b{color:var(--txt);font-weight:500}
+  .riepilogo .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .riepilogo .acts button{min-height:38px;font-size:12px}
+  .assenti{font-size:12px;color:var(--warn);margin-top:10px}
+
+  .filtri{display:flex;gap:7px;overflow-x:auto;padding:4px 2px 8px;scrollbar-width:none;position:sticky;top:0;z-index:10;
+    background:rgba(8,8,10,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .filtri::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;background:var(--elev);border:1px solid var(--line);color:var(--dim);
+    padding:0 13px;border-radius:999px;font-size:12px;letter-spacing:.3px;min-height:36px}
+  .chip[aria-pressed="true"]{background:var(--gold-l);border-color:var(--gold);color:var(--gold)}
+
+  .casa{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 15px;margin:0 0 12px}
+  .casa[data-stato="a-mano"]{border-color:rgba(245,165,36,.45)}
+  .testa{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .stato{font-size:10.5px;letter-spacing:1.2px;text-transform:uppercase;border-radius:999px;padding:3px 10px;border:1px solid var(--line2);color:var(--dim)}
+  .st-available{color:var(--ok);border-color:rgba(74,222,128,.4)}
+  .st-waitlist{color:var(--gold);border-color:rgba(212,175,55,.4)}
+  .st-rented{color:var(--muted)}
+  .testa .id{color:var(--muted);font-size:11px;margin-left:auto;word-break:break-all}
+  .dove{font-size:14px;color:#E6E6E8;margin:8px 0 2px}
+  .blocco{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+  .tit{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px}
+  .voce{display:flex;align-items:center;gap:10px;min-height:44px;cursor:pointer;flex-wrap:wrap}
+  .voce input[type=checkbox]{width:20px;height:20px;accent-color:var(--gold);flex:0 0 auto;margin:0}
+  .cosa{font-size:14px;color:var(--txt)}
+  .campo{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:var(--gold)}
+  .val{font-size:13px;color:#D8D8DC;word-break:break-word;flex:1 1 220px}
+  .badge{font-size:11px;border-radius:999px;padding:2px 9px;border:1px solid var(--line2);color:var(--dim)}
+  .badge.ok{color:var(--ok);border-color:rgba(74,222,128,.4)}
+  .badge.warn{color:var(--warn);border-color:rgba(245,165,36,.45)}
+  .badge.todo{color:var(--gold);border-color:rgba(212,175,55,.4)}
+  .da-a{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 4px}
+  .vecchio{color:var(--dim);font-size:13.5px;word-break:break-word}
+  .freccia{color:var(--gold)}
+  .nuovo{flex:1 1 240px;min-width:0;background:var(--input);border:1px solid var(--line2);color:var(--txt);
+    border-radius:10px;padding:11px 12px;font-size:16px;font-family:inherit;font-weight:400}
+  .nuovo:focus{outline:none;border-color:var(--gold)}
+  .nuovo:disabled{opacity:.6}
+  .perche{font-size:12px;color:var(--muted);margin-top:3px}
+  .avviso{font-size:12.5px;color:var(--warn);border-left:2px solid rgba(245,165,36,.6);padding:4px 0 4px 9px;margin-top:6px}
+  .errore{font-size:12.5px;color:var(--ko);margin-top:6px}
+  .fatto{color:var(--dim)}
+  .fatto .ok{color:var(--ok)}
+  .problemi{margin:4px 0 2px;padding-left:18px;font-size:12.5px;color:#E7C989}
+  .fonte{font-size:11.5px;color:var(--muted)}
+  .mano{display:inline-block;font-size:12.5px;color:var(--warn);border:1px dashed rgba(245,165,36,.5);border-radius:8px;padding:5px 10px;margin-top:6px}
+  details.leggi{margin-top:6px}
+  details.leggi summary{font-size:12px;color:var(--dim);cursor:pointer;min-height:32px;display:flex;align-items:center}
+  details.leggi p{font-size:12.5px;color:#C9C9CC;white-space:pre-wrap;margin:4px 0 0;word-break:break-word}
+  .verifica{margin:10px 0 0;padding-left:16px;font-size:11.5px;color:var(--muted)}
+  .verifica li{margin:2px 0}
+  .verifica-tit{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--muted);margin-top:12px}
+
+  .barra{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(8,8,10,.95);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid var(--line);
+    padding:10px 66px calc(10px + env(safe-area-inset-bottom)) max(14px,env(safe-area-inset-left));
+    display:flex;gap:12px;align-items:center}
+  .barra .conto{flex:1;font-size:12px;color:var(--dim);line-height:1.4}
+  .barra .conto b{color:var(--txt);font-weight:500}
+  .barra .conto .ko{color:var(--ko)}
+
+  /* sopra il 🐞 flottante di boom-portal (z-index 9998): su telefono
+     copriva la fine del bottone che scrive */
+  .velo{position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,.78);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);display:flex;align-items:flex-end;justify-content:center}
+  .foglio{background:#111113;border:1px solid var(--line2);border-radius:16px 16px 0 0;width:100%;max-width:780px;
+    max-height:90vh;display:flex;flex-direction:column}
+  .foglio h2{font-size:17px;font-weight:400;margin:0;padding:18px 18px 4px;outline:none}
+  .foglio .sub{font-size:12.5px;color:var(--dim);padding:0 18px 8px;margin:0}
+  .foglio-corpo{overflow:auto;-webkit-overflow-scrolling:touch;padding:4px 18px 14px;flex:1}
+  .foglio-azioni{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:12px 18px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+  .foglio-azioni button{white-space:normal;line-height:1.25;padding:8px 16px}
+  @media (min-width:780px){
+    .velo{align-items:center}
+    .foglio{border-radius:16px;max-height:84vh}
+    .foglio-azioni{display:flex;justify-content:flex-end}
+  }
+  .c-casa{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin:8px 0}
+  .c-casa ul,.c-regen ul{margin:6px 0 0;padding-left:16px;font-size:12.5px;color:#D8D8DC}
+  .c-casa li,.c-regen li{margin:3px 0;word-break:break-word}
+  .c-nome{font-size:13.5px}
+  .c-nome b{font-weight:500}
+  .c-tit{font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--dim);margin:14px 0 4px}
+  .c-err{color:var(--ko);font-size:12.5px;margin:6px 0}
+  .c-avv{color:var(--warn);font-size:12.5px;margin:6px 0}
+
+  .esito{background:var(--card);border:1px solid var(--line2);border-radius:14px;padding:14px 16px;margin:14px 0}
+  .esito h2{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:400;margin:0 0 8px}
+  .esito h3{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--dim);font-weight:400;margin:14px 0 4px}
+  .esito ul{margin:0;padding:0;list-style:none}
+  .esito li{font-size:12.5px;padding:5px 0;border-bottom:1px solid var(--line);word-break:break-word}
+  .esito li.ok{color:#CFF5DA}
+  .esito li.ko{color:#FFD0D8}
+  .esito li.skip{color:var(--dim)}
+  .esito li.unk{color:#F8DDA4}
+  .progresso{font-size:12.5px;color:var(--gold);margin:4px 0 8px}
+  .sintesi{font-size:13px;color:var(--txt);margin:10px 0 0}
+  .cmd{margin-top:14px;border-top:1px solid var(--line);padding-top:12px;font-size:12.5px;color:var(--dim)}
+  .cmd .riga{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px}
+  .cmd code{background:#0A0A0C;border:1px solid var(--line);border-radius:8px;padding:9px 11px;flex:1 1 260px;word-break:break-all;user-select:all}
+</style>
+</head>
+<body>
+<div id="shield" role="status">ACCESSO…</div>
+
+<div class="wrap" id="app" hidden data-fase="carico">
+  <header>
+    <div>
+      <div class="mark">BOOM · Catalogo</div>
+      <h1>Nomi veri, dati provati</h1>
+      <p class="lead">Le correzioni di <b>js/catalogo-correzioni.js</b>: il nome dalla via vera, i dati che
+        l'annuncio prova. Niente parte da solo: scegli, rileggi l'anteprima, poi scrivi.</p>
+    </div>
+    <a class="torna" href="/portal">← Portale</a>
+  </header>
+
+  <div id="statoCarico" role="status">Leggo gli annunci…</div>
+  <!-- l'esito sta IN ALTO: dopo la rilettura la lista si ridisegna sotto, e
+       gli errori restano la prima cosa che si vede -->
+  <section class="esito" id="esito" hidden aria-live="polite"></section>
+  <div id="riepilogo"></div>
+  <div class="filtri" id="filtri" role="group" aria-label="Filtra gli annunci" hidden></div>
+  <div id="lista"></div>
+</div>
+
+<div class="barra" id="barra" hidden>
+  <div class="conto" id="conto">Niente di selezionato.</div>
+  <button class="gold" id="applica" type="button" disabled>Applica selezionati</button>
+</div>
+
+<div class="velo" id="conferma" hidden>
+  <div class="foglio" role="dialog" aria-modal="true" aria-labelledby="cTit">
+    <h2 id="cTit" tabindex="-1">Conferma le scritture</h2>
+    <p class="sub">Questo è esattamente ciò che verrà scritto su Firestore (collection <code>listings</code>).
+      Ogni annuncio si scrive solo se i suoi valori sono ancora quelli che vedi qui.</p>
+    <div class="foglio-corpo" id="cCorpo"></div>
+    <div class="foglio-azioni">
+      <button class="ghost" id="cNo" type="button">Annulla</button>
+      <button class="gold" id="cSi" type="button">Scrivi</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var FIX = window.BOOM_CATALOGO_FIX || null;
+  var FACTS = window.BOOM_FACTS || null;
+  var BP = window.BoomPortal;
+
+  // Tre descrizioni per chiamata: ognuna è una chiamata al modello, e la
+  // funzione /api/wizard/describe ha un tempo massimo che tre stanno dentro.
+  var CHUNK = 3;
+  var CMD = 'node scripts/catalogo-nomi.mjs --from-firestore';
+  var LOAD_MS = 15000;     // lettura del catalogo
+  var TX_MS = 20000;       // una transazione: oltre, l'esito è incerto e lo si dice
+  var REGEN_MS = 100000;   // un blocco di descrizioni
+  var NAME_MAX = 80;
+
+  var S = {
+    utente: null, profilo: null, store: null,
+    righe: [], perId: {},
+    // chiave → { v, su }: la scelta ESPLICITA dell'admin e il valore che si
+    // vedeva quando l'ha fatta. Vince sul default solo finché quel valore
+    // c'è ancora: una spunta nata su «Bilocale Prati» non vale per il nome
+    // che una collega ha scritto nel frattempo.
+    sel: {},
+    // id → { v, su }: il nome scritto a mano nell'input e il nome che c'era
+    // quando l'ha scritto — stessa regola delle spunte
+    nomi: {},
+    // id → l'annuncio come l'ha letto questa pagina la PRIMA volta (o dopo
+    // una nostra scrittura riuscita): ciò che cambia rispetto a qui l'ha
+    // cambiato qualcun altro, e non si riscrive da solo
+    visti: {},
+    rifai: {},     // id → descrizione (forse) riscritta dal server: la base si riprende dalla lettura dopo
+    saltate: {},   // id → { nota, code }: il server ha detto che questa descrizione non la rigenera
+    filtro: 'tutti',
+    occupato: false,
+    // una lettura in corso: la lista sullo schermo è la foto di prima, e
+    // finché la nuova non arriva non si applica niente
+    caricando: false,
+  };
+
+  var has = function (o, k) { return !!o && Object.prototype.hasOwnProperty.call(o, k); };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ── il DOM, solo da textContent ────────────────────────────────────
+  // h(tag, props, ...figli): le stringhe diventano nodi di testo. Non c'è
+  // una via per far entrare un dato come markup: un nome come
+  // «<img src=x onerror=…>» resta quei caratteri, visibili.
+  function h(tag, props) {
+    var el = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        var v = props[k];
+        if (v === undefined || v === null || v === false) return;
+        if (k === 'class') el.className = v;
+        else if (k === 'text') el.textContent = String(v);
+        else if (k === 'checked' || k === 'disabled' || k === 'value' || k === 'hidden') el[k] = v;
+        else if (k.indexOf('on') === 0 && typeof v === 'function') el.addEventListener(k.slice(2), v);
+        else el.setAttribute(k, v === true ? '' : String(v));
+      });
+    }
+    for (var i = 2; i < arguments.length; i++) aggiungi(el, arguments[i]);
+    return el;
+  }
+  function aggiungi(el, c) {
+    if (c === undefined || c === null || c === false || c === '') return;
+    if (Array.isArray(c)) { c.forEach(function (x) { aggiungi(el, x); }); return; }
+    el.appendChild(typeof c === 'object' ? c : document.createTextNode(String(c)));
+  }
+  function svuota(el) { while (el && el.firstChild) el.removeChild(el.firstChild); }
+
+  // ── come si mostra un valore ───────────────────────────────────────
+  // Gli spazi in testa e in coda sono proprio ciò che zone e type
+  // correggono: senza vederli, «Prati » → «Prati» sembrerebbe un no-op.
+  function mostra(v) {
+    if (v === undefined || v === null) return '(assente)';
+    if (typeof v === 'string') {
+      if (v === '') return '(vuoto)';
+      var m = v.match(/^(\s*)([\s\S]*?)(\s*)$/);
+      return '«' + m[1].replace(/\s/g, '␣') + m[2] + m[3].replace(/\s/g, '␣') + '»';
+    }
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    if (Array.isArray(v)) return v.length ? v.map(mostra).join(', ') : '(elenco vuoto)';
+    try { return JSON.stringify(v); } catch (e) { return String(v); }
+  }
+  function norm(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim(); }
+  function parola(n, uno, tanti) { return n === 1 ? uno : tanti; }
+  function largo(s) { return norm(s).toLowerCase(); }
+  function uguale(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+  var STATO = { available: 'Disponibile', waitlist: 'In attesa', rented: 'Affittato', draft: 'Bozza' };
+  var ORDINE = { available: 0, waitlist: 1, rented: 2 };
+
+  // i codici dei problemi di un testo: gli stessi per la lista
+  // dell'assistente (descriptionIssues, js/catalogo-correzioni.js) e per il
+  // server, che li rimanda negli `issues` del testo nuovo che ha scartato
+  // (copyIssues, broke_rules) — descriptionIssues ne è la copia fedele
+  var PROBLEMA = {
+    furnishing_invented: 'il testo parla di arredo ma nessuno l\'ha dichiarato',
+    furnishing_contradicted: 'il testo dice il contrario dell\'arredo dichiarato',
+    date_in_text: 'una data nel testo: invecchia, la disponibilità ha il suo campo',
+    price_in_text: 'un prezzo nel testo: invecchia quando cambia il canone',
+    fee_in_text: 'provvigioni, depositi o commissioni nel testo',
+    bedrooms_mismatch: 'le camere nel testo non sono quelle del campo camere',
+    bedrooms_invented: 'un numero di camere che nessuno ha dichiarato',
+    stay_in_text: 'una durata del soggiorno: con BOOM minimo 3 mesi',
+    address_number: 'il civico nel testo: si nomina la via, non il numero',
+  };
+  function problema(code, d) {
+    var t = has(PROBLEMA, code) ? PROBLEMA[code] : code;
+    if (code === 'bedrooms_mismatch' && FACTS) {
+      var b = FACTS.bedroomsOf(d);
+      if (b != null) t += ' (' + b + ')';
+    }
+    return t;
+  }
+
+  // ── il modello di una riga ─────────────────────────────────────────
+  // I campi che la proposta corregge solo nella FORMA (spazi, maiuscole):
+  // se il valore di adesso è proprio un altro, qualcuno l'ha cambiato dopo
+  // la proposta e la correzione non parte da sola.
+  var FORMA = { zone: true, type: true };
+  // i campi della descrizione: se cambiano mentre la pagina è aperta, l'ha
+  // (forse) corretta una persona, e la rigenerazione non parte da sola
+  var TESTO = ['description', 'descriptionIt', 'descriptionSource'];
+
+  function riga(id, d) {
+    var P = FIX && has(FIX.LISTINGS, id) ? FIX.LISTINGS[id] : null;
+    var attuale = d.name == null ? '' : String(d.name);
+    var stato = !P ? 'nessuna'
+      : norm(attuale) === norm(P.name) ? 'applicato'
+      : norm(attuale) === norm(P.from) ? 'da-fare'
+      : 'a-mano';
+    // Cambiato a mano dopo la proposta: niente di questa riga parte da
+    // solo, nemmeno i dati e la descrizione — la proposta può essere vecchia.
+    var manuale = stato === 'a-mano';
+    var visto = has(S.visti, id) ? S.visti[id] : null;
+    var r = { id: id, d: d, P: P, attuale: attuale, stato: stato, manuale: manuale, el: {} };
+    // `su`: il valore su cui vale una scelta esplicita (vedi S.sel). Per il
+    // nome è il nome di adesso; per dati e descrizione anche `manuale`: una
+    // spunta data quando la riga era «da fare» non passa a una riga che
+    // nel frattempo qualcuno ha rinominato.
+    r.nome = { key: 'name:' + id, su: JSON.stringify([attuale]), def: stato === 'da-fare' };
+    r.fix = correzioni(id, d, P ? P.fix : null, manuale, visto);
+    var issues = [], errDesc = null, rig = { ok: false, basis: null, reason: null, source: null };
+    try {
+      issues = FIX ? FIX.descriptionIssues(d) : [];
+      rig = rigenerabile(d);
+    } catch (e) { errDesc = String((e && e.message) || e); }
+    var saltata = has(S.saltate, id) ? S.saltate[id] : null;
+    var toccata = !!visto && TESTO.some(function (k) { return !uguale(visto[k], d[k]); });
+    var macchina = rig.ok && !saltata;
+    // Un fatto che i dati non decidono (js/catalogo-correzioni.js, `incerto`):
+    // con le camere incerte la descrizione si rifà DOPO il giro in casa —
+    // rigenerata ora, ripeterebbe un numero di camere non provato.
+    var incerte = P && Array.isArray(P.incerto) ? P.incerto : [];
+    var attesa = incerte.indexOf('camere') >= 0;
+    r.desc = { issues: issues, macchina: macchina, base: rig.basis, motivo: rig.reason, sorgente: rig.source,
+      err: errDesc, saltata: saltata, toccata: toccata, attesa: attesa,
+      key: 'regen:' + id, su: JSON.stringify([manuale, d.description, d.descriptionIt, d.descriptionSource]),
+      def: macchina && issues.length > 0 && !manuale && !toccata && !attesa };
+    r.daFare = stato === 'da-fare' || r.fix.some(function (f) { return f.stato !== 'applicato'; })
+      || (macchina && issues.length > 0 && !attesa);
+    return r;
+  }
+
+  // Si può rigenerare? Lo decide il server (api/wizard/describe.js,
+  // regenVerdict); la pagina ne usa lo specchio, regenerable() di
+  // js/catalogo-correzioni.js: un testo vuoto, il template del bot, o un
+  // testo «ai» ancora com'era uscito dalla macchina. Il boot pretende che ci
+  // sia: senza, la pagina non proporrebbe la stessa cosa del server.
+  function rigenerabile(d) {
+    var v = FIX.regenerable(d) || {};
+    return { ok: !!v.ok, basis: v.ok ? (v.basis || null) : null,
+      reason: v.ok ? null : (v.reason || null), source: v.source || null };
+  }
+
+  function correzioni(id, d, fix, manuale, visto) {
+    var out = [];
+    if (!fix || typeof fix !== 'object') return out;
+    Object.keys(fix).forEach(function (k) {
+      var v = fix[k];
+      if (k === 'tagsReplace') {
+        // la stessa etichetta vive in DUE elenchi (tags e features): la
+        // correzione vale per entrambi, ognuno con la sua riga
+        var mappa = v && typeof v === 'object' ? v : {};
+        var vecchi = Object.keys(mappa);
+        ['tags', 'features'].forEach(function (campo) {
+          var arr = Array.isArray(d[campo]) ? d[campo] : null;
+          if (!arr) return;
+          var coppie = vecchi.filter(function (o) { return arr.indexOf(o) >= 0; })
+            .map(function (o) { return [o, mappa[o]]; });
+          var fatto = !coppie.length && vecchi.some(function (o) { return arr.indexOf(mappa[o]) >= 0; });
+          if (!coppie.length && !fatto) return;      // in questo elenco non c'è niente da sostituire
+          var toccatoE = !fatto && !!visto && !uguale(visto[campo], arr);
+          var stE = fatto ? 'applicato' : toccatoE ? 'cambiato' : 'da-fare';
+          out.push({ key: 'fix:' + id + ':' + campo, su: JSON.stringify([manuale, arr]), campo: campo, old: arr,
+            nuovo: sostituisci(arr, mappa), coppie: coppie, elenco: true, stato: stE,
+            perche: toccatoE ? 'sessione' : null, prima: toccatoE ? visto[campo] : undefined,
+            def: stE === 'da-fare' && !manuale });
+        });
+        return;
+      }
+      var old = d[k];
+      // La mappa non dice da quale valore parte una correzione (solo dove
+      // arriva): un valore cambiato da qualcuno MENTRE la pagina è aperta
+      // si riconosce dalla prima lettura, e non si riscrive da solo.
+      var toccato = !uguale(old, v) && !!visto && !uguale(visto[k], old);
+      var st = uguale(old, v) ? 'applicato'
+        : toccato ? 'cambiato'
+        : (FORMA[k] && largo(old) !== largo(v) ? 'cambiato' : 'da-fare');
+      out.push({ key: 'fix:' + id + ':' + k, su: JSON.stringify([manuale, old]), campo: k, old: old, nuovo: v, stato: st,
+        perche: toccato ? 'sessione' : st === 'cambiato' ? 'forma' : null, prima: toccato ? visto[k] : undefined,
+        def: st === 'da-fare' && !manuale });
+    });
+    return out;
+  }
+
+  // sostituisce nell'ordine; se il valore nuovo c'è già, il vecchio sparisce
+  // e basta (mai un doppione «All inclusive, All inclusive»)
+  function sostituisci(arr, mappa) {
+    var out = [];
+    arr.forEach(function (x) {
+      if (typeof x === 'string' && has(mappa, x)) {
+        var y = mappa[x];
+        if (out.indexOf(y) < 0 && arr.indexOf(y) < 0) out.push(y);
+      } else out.push(x);
+    });
+    return out;
+  }
+
+  // x: una voce della riga ({ key, su, def }). La scelta esplicita vale solo
+  // sul valore su cui è stata fatta; altrimenti torna il default.
+  function scelto(x) {
+    var s = has(S.sel, x.key) ? S.sel[x.key] : null;
+    return s && s.su === x.su ? !!s.v : !!x.def;
+  }
+  function scegli(x, v) { S.sel[x.key] = { v: !!v, su: x.su }; }
+  // il nome nell'input: quello scritto a mano, se è stato scritto sul nome
+  // che c'è ancora; altrimenti la proposta
+  function nomeNuovo(r) {
+    var n = has(S.nomi, r.id) ? S.nomi[r.id] : null;
+    return n && n.su === r.nome.su ? n.v : (r.P ? r.P.name : '');
+  }
+  // Alla rilettura le scelte la cui base non c'è più si CANCELLANO (una
+  // spunta, un nome scritto a mano): un nome che una collega ha cambiato,
+  // un campo toccato, una descrizione riscritta. Senza, una riga diventata
+  // «cambiata a mano» tornerebbe spuntata per una scelta fatta quando era
+  // ancora «da fare» — e se il valore tornasse com'era, la scelta vecchia
+  // tornerebbe in vita da sola.
+  function pota(righe) {
+    var basi = {}, nomi = {};
+    righe.forEach(function (r) {
+      [r.nome, r.desc].concat(r.fix).forEach(function (x) { basi[x.key] = x.su; });
+      nomi[r.id] = r.nome.su;
+    });
+    Object.keys(S.sel).forEach(function (k) {
+      if (!has(basi, k) || S.sel[k].su !== basi[k]) delete S.sel[k];
+    });
+    Object.keys(S.nomi).forEach(function (id) {
+      if (!has(nomi, id) || S.nomi[id].su !== nomi[id]) delete S.nomi[id];
+    });
+  }
+  function nomeProblema(v) {
+    if (!v) return 'il nome nuovo è vuoto';
+    if (v.length > NAME_MAX) return 'il nome supera ' + NAME_MAX + ' caratteri';
+    if (/[\u0000-\u001f\u007f]/.test(v)) return 'il nome contiene caratteri di controllo';
+    return null;
+  }
+  // quando due nomi sono «lo stesso»: spazi, maiuscole e accenti non contano
+  // («Endertà Room» e «enderta  room» si confondono uguali nella vetrina)
+  function chiaveNome(s) {
+    return norm(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  }
+  function daA(f) {
+    if (f.elenco) {
+      return f.coppie.map(function (c) { return mostra(c[0]) + ' → ' + mostra(c[1]); }).join(' · ')
+        + ' (il resto dell\'elenco resta com\'è)';
+    }
+    return mostra(f.old) + ' → ' + mostra(f.nuovo);
+  }
+  function chi() {
+    var u = S.utente || {}, p = S.profilo || {};
+    return String(u.email || p.email || u.uid || 'admin');
+  }
+
+  // ── il piano: ESATTAMENTE ciò che si scriverà ──────────────────────
+  function piano() {
+    var scritture = [], descrizioni = [], errori = [], avvisi = [];
+    // dove sta già ogni nome: quello di adesso di ogni annuncio e quello che
+    // gli si sta per dare (scritto a mano o proposto). Il lavoro è nato da
+    // tre «Bilocale Centro» diversi: un nome nuovo non ne crea un quarto.
+    var occupati = {};
+    function segna(k, r, come) { if (k) (occupati[k] = occupati[k] || []).push({ r: r, come: come }); }
+    S.righe.forEach(function (r) {
+      var a = chiaveNome(r.attuale), n = chiaveNome(nomeNuovo(r));
+      segna(a, r, 'attuale');
+      if (n !== a) segna(n, r, 'proposto');
+    });
+    S.righe.forEach(function (r) {
+      var w = { id: r.id, r: r, nome: null, campi: [] };
+      if (scelto(r.nome)) {
+        var v = String(nomeNuovo(r)).trim();
+        var p = nomeProblema(v);
+        if (!p && v !== r.attuale) {
+          var altri = (occupati[chiaveNome(v)] || []).filter(function (x) { return x.r.id !== r.id; });
+          if (altri.length) {
+            p = 'il nome ' + mostra(v) + ' c\'è già: ' + altri.map(function (x) {
+              return (x.come === 'attuale' ? 'è il nome di ' : 'è il nome proposto per ') + etichetta(x.r);
+            }).join('; ') + '. Due annunci non si chiamano uguale: scegline un altro.';
+          }
+        }
+        if (p) errori.push({ r: r, testo: p });
+        else if (v !== r.attuale) w.nome = v;
+      }
+      r.fix.forEach(function (f) {
+        if (f.stato !== 'applicato' && scelto(f)) w.campi.push(f);
+      });
+      if (w.nome !== null || w.campi.length) scritture.push(w);
+      if (r.desc.macchina && scelto(r.desc)) {
+        descrizioni.push(r);
+        var lasciate = r.fix.filter(function (f) { return f.stato !== 'applicato' && !scelto(f); });
+        if (lasciate.length) {
+          avvisi.push(etichetta(r) + ': la descrizione si rifà sui dati di adesso — le correzioni non selezionate ('
+            + lasciate.map(function (f) { return f.campo; }).join(', ') + ') non entrano nel testo.');
+        }
+      }
+    });
+    return { scritture: scritture, descrizioni: descrizioni, errori: errori, avvisi: avvisi };
+  }
+  function etichetta(r) { return (r.attuale ? mostra(r.attuale) : '(senza nome)') + ' · ' + r.id; }
+  // l'impronta di un piano: se fra la conferma e il tap cambia (una casella
+  // toccata dietro il foglio), si riconferma — mai scrivere ciò che non si è visto
+  function impronta(p) {
+    return JSON.stringify({
+      s: p.scritture.map(function (w) { return [w.id, w.nome, w.campi.map(function (f) { return [f.key, f.nuovo]; })]; }),
+      d: p.descrizioni.map(function (r) { return r.id; }),
+      e: p.errori.length,
+    });
+  }
+
+  // ── la lettura del catalogo ────────────────────────────────────────
+  // Dal SERVER, non dalla cache locale: lo strumento deve mostrare lo stato
+  // vero prima di scriverci sopra. Offline = errore detto, mai dati vecchi
+  // spacciati per veri.
+  function leggi() {
+    var col = S.store.collection('listings');
+    return BP.withTimeout(col.get({ source: 'server' }), LOAD_MS, 'catalogo')
+      .catch(function () { return BP.withTimeout(col.get({ source: 'server' }), LOAD_MS, 'catalogo'); });
+  }
+
+  // La base della sessione: l'annuncio come questa pagina l'ha letto la
+  // prima volta. Le nostre scritture riuscite la aggiornano (in applica);
+  // una descrizione che il server ha (forse) riscritto si riprende da questa
+  // lettura. Ciò che cambia per altre vie l'ha cambiato qualcun altro.
+  // (`clona`, non `copia`: `copia` è il bottone degli appunti più sotto, e
+  // due function con lo stesso nome si sovrascrivono in silenzio — la base
+  // della sessione restava vuota)
+  function clona(v) { return v === undefined ? undefined : JSON.parse(JSON.stringify(v)); }
+  function ricorda(id, d) {
+    if (!has(S.visti, id)) S.visti[id] = clona(d);
+    else if (S.rifai[id]) TESTO.forEach(function (k) { S.visti[id][k] = clona(d[k]); });
+    delete S.rifai[id];
+  }
+
+  function carica() {
+    var stato = $('statoCarico');
+    stato.hidden = false;
+    stato.className = '';
+    svuota(stato);
+    stato.textContent = 'Leggo gli annunci…';
+    $('app').setAttribute('data-fase', 'carico');
+    // mentre si rilegge la lista sullo schermo è la foto di prima: niente
+    // si applica finché la nuova non arriva
+    S.caricando = true;
+    chiudiConferma();
+    blocca(true);
+    aggiornaBarra();
+    return leggi().then(function (snap) {
+      S.caricando = false;
+      var righe = [];
+      (snap.docs || []).forEach(function (doc) {
+        var d = doc.data() || {};
+        ricorda(doc.id, d);
+        righe.push(riga(doc.id, d));
+      });
+      righe.sort(function (a, b) {
+        var oa = has(ORDINE, a.d.status) ? ORDINE[a.d.status] : 3;
+        var ob = has(ORDINE, b.d.status) ? ORDINE[b.d.status] : 3;
+        return oa - ob || a.attuale.localeCompare(b.attuale, 'it') || (a.id < b.id ? -1 : 1);
+      });
+      pota(righe);
+      S.righe = righe;
+      S.perId = {};
+      righe.forEach(function (r) { S.perId[r.id] = r; });
+      stato.hidden = true;
+      disegna();
+      $('app').setAttribute('data-fase', 'pronto');
+    }, function (e) {
+      S.caricando = false;
+      // «Senza la lettura dal server la pagina non propone niente»: e lo fa.
+      // La lista di prima è una foto ormai vecchia — dopo un'applicazione
+      // ha i nomi che non ci sono più e le descrizioni già riscritte, e una
+      // spunta qualsiasi la riapplicherebbe. Sparisce, con la barra che la
+      // scrive; restano l'esito (in alto) e il Riprova.
+      S.righe = [];
+      S.perId = {};
+      svuota($('lista'));
+      svuota($('riepilogo'));
+      $('filtri').hidden = true;
+      $('barra').hidden = true;
+      aggiornaBarra();
+      stato.className = 'fatale';
+      svuota(stato);
+      aggiungi(stato, [
+        h('div', { text: '✗ Non riesco a leggere il catalogo da Firestore: '
+          + (e && e.code === 'boom/timeout' ? 'nessuna risposta in ' + Math.round(LOAD_MS / 1000) + ' secondi (rete o Firestore bloccati)' : spiega(e, true))
+          + '. Senza la lettura dal server la pagina non propone niente: i dati in cache potrebbero essere vecchi.' }),
+        h('div', { class: 'acts' }, h('button', { class: 'ghost', type: 'button', text: 'Riprova', onclick: carica })),
+      ]);
+      $('app').setAttribute('data-fase', 'errore');
+    });
+  }
+
+  // ── il disegno ─────────────────────────────────────────────────────
+  function disegna() {
+    disegnaRiepilogo();
+    disegnaFiltri();
+    var lista = $('lista');
+    svuota(lista);
+    S.righe.forEach(function (r) { lista.appendChild(card(r)); });
+    applicaFiltro();
+    $('barra').hidden = false;
+    aggiornaBarra();
+  }
+
+  function contaGruppi() {
+    var n = { tutti: 0, 'da-fare': 0, 'a-mano': 0, 'a-posto': 0 };
+    S.righe.forEach(function (r) { n.tutti++; n[gruppo(r)]++; });
+    return n;
+  }
+  function gruppo(r) { return r.manuale ? 'a-mano' : (r.daFare ? 'da-fare' : 'a-posto'); }
+
+  function disegnaRiepilogo() {
+    var el = $('riepilogo');
+    svuota(el);
+    var n = { daFare: 0, applicati: 0, aMano: 0, nessuna: 0, fix: 0, regen: 0, giro: 0, mano: 0 };
+    S.righe.forEach(function (r) {
+      if (r.stato === 'da-fare') n.daFare++;
+      else if (r.stato === 'applicato') n.applicati++;
+      else if (r.stato === 'a-mano') n.aMano++;
+      else n.nessuna++;
+      n.fix += r.fix.filter(function (f) { return f.stato !== 'applicato'; }).length;
+      if (r.desc.macchina && r.desc.issues.length) { if (r.desc.attesa) n.giro++; else n.regen++; }
+      if (!r.desc.macchina && r.desc.issues.length) n.mano++;
+    });
+    var voce = function (num, testo) { return h('span', null, h('b', { text: num }), ' ' + testo); };
+    var box = h('div', { class: 'riepilogo' },
+      h('div', { class: 'numeri' },
+        voce(S.righe.length, 'annunci'),
+        voce(n.daFare, 'nomi da cambiare'),
+        voce(n.applicati, 'già applicati'),
+        voce(n.aMano, 'cambiati a mano'),
+        n.nessuna ? voce(n.nessuna, 'senza proposta') : null,
+        voce(n.fix, 'correzioni dati'),
+        voce(n.regen, 'descrizioni da rigenerare'),
+        n.giro ? voce(n.giro, 'da rifare dopo il giro in casa (camere incerte)') : null,
+        voce(n.mano, 'da riscrivere a mano (lista dell\'assistente)')),
+      h('div', { class: 'acts' },
+        h('button', { class: 'ghost', type: 'button', text: 'Ripristina la proposta', onclick: function () {
+          if (S.occupato) return; S.sel = {}; S.nomi = {}; disegna();
+        } }),
+        h('button', { class: 'ghost', type: 'button', text: 'Deseleziona tutto', onclick: function () {
+          if (S.occupato) return;
+          S.righe.forEach(function (r) {
+            scegli(r.nome, false); scegli(r.desc, false);
+            r.fix.forEach(function (f) { scegli(f, false); });
+          });
+          disegna();
+        } }),
+        h('button', { class: 'ghost', type: 'button', text: '↻ Ricarica da Firestore', onclick: function () {
+          if (!S.occupato) carica();
+        } })));
+    // proposte senza annuncio: un id della mappa che Firestore non ha più
+    if (FIX && FIX.LISTINGS) {
+      var assenti = Object.keys(FIX.LISTINGS).filter(function (id) { return !has(S.perId, id); });
+      if (assenti.length) {
+        box.appendChild(h('div', { class: 'assenti', text: '⚠ ' + assenti.length + ' proposte senza annuncio su Firestore (cancellato?): ' + assenti.join(', ') }));
+      }
+    }
+    el.appendChild(box);
+  }
+
+  function disegnaFiltri() {
+    var el = $('filtri');
+    svuota(el);
+    var n = contaGruppi();
+    [['tutti', 'Tutti'], ['da-fare', 'Da fare'], ['a-mano', 'Cambiati a mano'], ['a-posto', 'A posto']].forEach(function (f) {
+      el.appendChild(h('button', { class: 'chip', type: 'button', 'data-filtro': f[0],
+        'aria-pressed': S.filtro === f[0] ? 'true' : 'false', text: f[1] + ' · ' + n[f[0]],
+        onclick: function () { S.filtro = f[0]; disegnaFiltri(); applicaFiltro(); } }));
+    });
+    el.hidden = false;
+  }
+  function applicaFiltro() {
+    S.righe.forEach(function (r) {
+      if (r.el.card) r.el.card.hidden = !(S.filtro === 'tutti' || gruppo(r) === S.filtro);
+    });
+  }
+
+  function card(r) {
+    var d = r.d;
+    var st = String(d.status == null ? '' : d.status).trim();
+    var el = h('article', { class: 'casa', 'data-id': r.id, 'data-stato': r.stato, 'data-status': st || 'nessuno' });
+    r.el = { card: el };
+    el.appendChild(h('div', { class: 'testa' },
+      h('span', { class: 'stato ' + (has(ORDINE, st) ? 'st-' + st : 'st-altro'), text: has(STATO, st) ? STATO[st] : (st || 'senza stato') }),
+      h('code', { class: 'id', text: r.id })));
+    var dove = [norm(d.address) || 'indirizzo assente', norm(d.zone)].filter(Boolean).join(' · ');
+    el.appendChild(h('div', { class: 'dove', text: dove }));
+    el.appendChild(bloccoNome(r));
+    if (r.fix.length) el.appendChild(bloccoFix(r));
+    el.appendChild(bloccoDesc(r));
+    var ver = r.P && Array.isArray(r.P.verify) ? r.P.verify : [];
+    if (ver.length) {
+      el.appendChild(h('div', { class: 'verifica-tit', text: 'Da verificare in casa' }));
+      el.appendChild(h('ul', { class: 'verifica' }, ver.map(function (t) { return h('li', { text: t }); })));
+    }
+    aggiornaAvviso(r);
+    return el;
+  }
+
+  // L'avviso della riga cambiata a mano dice com'è la riga ADESSO: com'arriva
+  // non c'è niente di selezionato; se l'admin spunta qualcosa, lo dice.
+  function aggiornaAvviso(r) {
+    var el = r.el && r.el.avviso;
+    if (!el) return;
+    var qualcosa = scelto(r.nome) || r.fix.some(function (f) { return f.stato !== 'applicato' && scelto(f); })
+      || (r.desc.macchina && scelto(r.desc));
+    el.textContent = '⚠ cambiato a mano dopo la proposta: la proposta partiva da ' + mostra(r.P.from)
+      + ' e ora c\'è ' + mostra(r.attuale) + '. ' + (qualcosa
+        ? 'Hai selezionato tu qualcosa su questa riga: rileggi l\'anteprima, la proposta potrebbe essere vecchia.'
+        : 'Niente di questa riga è selezionato: decidi tu.');
+  }
+
+  function bloccoNome(r) {
+    var b = h('div', { class: 'blocco nome' });
+    var cb = h('input', { type: 'checkbox', 'data-key': r.nome.key, checked: scelto(r.nome),
+      'aria-label': 'Cambia il nome di ' + r.id });
+    var badge = r.stato === 'da-fare' ? h('span', { class: 'badge todo', text: 'da cambiare' })
+      : r.stato === 'applicato' ? h('span', { class: 'badge ok', text: '✓ applicato' })
+      : r.stato === 'a-mano' ? h('span', { class: 'badge warn', text: '⚠ cambiato a mano' })
+      : h('span', { class: 'badge', text: 'nessuna proposta' });
+    b.appendChild(h('label', { class: 'voce' }, cb, h('span', { class: 'cosa', text: 'Nome' }), badge));
+    var inp = h('input', { type: 'text', class: 'nuovo', value: nomeNuovo(r), autocomplete: 'off', spellcheck: 'false',
+      'data-id': r.id, 'aria-label': 'Nome nuovo per ' + r.id, placeholder: r.P ? null : 'nessuna proposta: scrivi tu un nome' });
+    b.appendChild(h('div', { class: 'da-a' },
+      h('span', { class: 'vecchio', text: mostra(r.attuale) }),
+      h('span', { class: 'freccia', 'aria-hidden': 'true', text: '→' }),
+      inp));
+    if (r.P && r.P.why) b.appendChild(h('div', { class: 'perche', text: r.P.why }));
+    if (r.stato === 'a-mano') {
+      r.el.avviso = h('div', { class: 'avviso' });   // il testo lo scrive aggiornaAvviso
+      b.appendChild(r.el.avviso);
+    }
+    if (r.stato === 'nessuna') b.appendChild(h('div', { class: 'perche', text: 'Nessuna proposta in js/catalogo-correzioni.js per questo annuncio.' }));
+    // l'errore del nome (vuoto, troppo lungo, doppio) lo scrive aggiornaBarra
+    // dal piano: un nome doppio dipende dalle ALTRE righe, non solo da questa
+    var err = h('div', { class: 'errore', hidden: true, 'aria-live': 'polite' });
+    b.appendChild(err);
+    cb.addEventListener('change', function () { scegli(r.nome, cb.checked); aggiornaAvviso(r); aggiornaBarra(); });
+    inp.addEventListener('input', function () {
+      // il nome scritto vale sul nome che c'è adesso (vedi pota)
+      S.nomi[r.id] = { v: inp.value, su: r.nome.su };
+      // scrivere un nome diverso è già una scelta: la casella si accende
+      var v = inp.value.trim();
+      if (v && v !== r.attuale && !cb.checked) { cb.checked = true; scegli(r.nome, true); }
+      aggiornaAvviso(r);
+      aggiornaBarra();
+    });
+    r.el.nome = { cb: cb, inp: inp, err: err };
+    return b;
+  }
+
+  function bloccoFix(r) {
+    var b = h('div', { class: 'blocco dati' }, h('div', { class: 'tit', text: 'Correzioni dati' }));
+    r.fix.forEach(function (f) {
+      var box = h('div', { class: 'fix', 'data-key': f.key, 'data-stato': f.stato });
+      if (f.stato === 'applicato') {
+        box.appendChild(h('div', { class: 'voce fatto' },
+          h('span', { class: 'ok', text: '✓' }), h('span', { class: 'campo', text: f.campo }),
+          h('span', { class: 'val', text: 'già a posto: ' + (f.elenco ? 'nessuna etichetta da correggere' : mostra(f.nuovo)) })));
+      } else {
+        var cb = h('input', { type: 'checkbox', 'data-key': f.key, checked: scelto(f),
+          'aria-label': 'Correggi ' + f.campo + ' di ' + r.id,
+          onchange: function () { scegli(f, cb.checked); aggiornaAvviso(r); aggiornaBarra(); } });
+        box.appendChild(h('label', { class: 'voce' }, cb, h('span', { class: 'campo', text: f.campo }),
+          h('span', { class: 'val', text: daA(f) })));
+        if (f.perche === 'sessione') {
+          box.appendChild(h('div', { class: 'avviso', text: '⚠ cambiato da qualcuno mentre la pagina era aperta (alla prima '
+            + 'lettura era ' + mostra(f.prima) + '): la correzione non parte da sola — verifica prima di scrivere.' }));
+        } else if (f.stato === 'cambiato') {
+          box.appendChild(h('div', { class: 'avviso', text: '⚠ il valore di adesso non è quello che la proposta correggeva '
+            + '(doveva cambiare solo spazi o maiuscole): verifica prima di scrivere.' }));
+        }
+      }
+      b.appendChild(box);
+    });
+    return b;
+  }
+
+  function bloccoDesc(r) {
+    var D = r.desc, d = r.d;
+    var b = h('div', { class: 'blocco desc' }, h('div', { class: 'tit', text: 'Descrizione' }));
+    if (D.err) b.appendChild(h('div', { class: 'errore', text: '✗ controllo della descrizione non riuscito: ' + D.err }));
+    if (D.issues.length) {
+      b.appendChild(h('ul', { class: 'problemi' }, D.issues.map(function (c) { return h('li', { text: problema(c, d) }); })));
+    }
+    if (D.macchina) {
+      var cb = h('input', { type: 'checkbox', 'data-key': D.key, checked: scelto(D),
+        'aria-label': 'Rigenera la descrizione di ' + r.id,
+        onchange: function () { scegli(D, cb.checked); aggiornaAvviso(r); aggiornaBarra(); } });
+      b.appendChild(h('label', { class: 'voce' }, cb, h('span', { class: 'cosa', text: 'Rigenera descrizione' }),
+        h('span', { class: 'fonte', text: fonte(r) })));
+      if (D.attesa) {
+        // le camere non le decidono i dati: rigenerata adesso, la
+        // descrizione ripeterebbe un numero non provato
+        b.appendChild(h('div', { class: 'avviso', 'data-attesa': 'camere', text: '⚠ camere da verificare in casa: la '
+          + 'descrizione si rifà dopo il giro. Non è selezionata; se la spunti, il testo nuovo dirà le camere di adesso.' }));
+      }
+      if (D.toccata) {
+        b.appendChild(h('div', { class: 'avviso', text: '⚠ la descrizione è cambiata mentre la pagina era aperta (forse '
+          + 'l\'ha corretta una persona): la rigenerazione non parte da sola.' }));
+      }
+      if (!D.issues.length) b.appendChild(h('div', { class: 'perche', text: 'Nessun problema rilevato.' }));
+    } else {
+      if (D.issues.length) b.appendChild(h('div', { class: 'mano', text: '✎ da riscrivere a mano — lista dell\'assistente' }));
+      // perché non si rigenera, detto con ciò che i dati provano: mai
+      // «scritta a mano» per un testo che solo non porta la sorgente
+      var perche = D.saltata
+        // il server sa ciò che la pagina non vede: il suo no vale per la sessione
+        ? 'Il server non la rigenera: ' + D.saltata.nota + (D.saltata.code ? ' (' + D.saltata.code + ')' : '')
+        : D.motivo === 'edited_after_machine'
+          ? 'Scritta dalla macchina e poi corretta a mano (il testo non è più quello uscito dalla macchina): non si rigenera.'
+          : D.sorgente === 'lotto12'
+            ? 'Correzione approvata dall\'operatore (lotto12): conta come parole di una persona, non si rigenera.'
+            : norm(d.description) ? 'Non marcata come scritta dalla macchina: non si rigenera.' : 'Nessuna descrizione.';
+      b.appendChild(h('div', { class: 'perche', 'data-perche': D.saltata ? 'server' : (D.motivo || 'nessuna'),
+        text: perche + (D.issues.length ? '' : ' Nessun problema rilevato.') }));
+    }
+    // i problemi si cercano in inglese E in italiano: si leggono entrambi
+    var testo = String(d.description == null ? '' : d.description).trim();
+    var testoIt = String(d.descriptionIt == null ? '' : d.descriptionIt).trim();
+    if (testo || testoIt) {
+      b.appendChild(h('details', { class: 'leggi' }, h('summary', { text: 'Leggi la descrizione' }),
+        testo ? h('p', { text: testo }) : null, testoIt ? h('p', { text: 'IT · ' + testoIt }) : null));
+    }
+    return b;
+  }
+
+  // da dove viene un testo che il server rigenera (la base di regenVerdict)
+  function fonte(r) {
+    var d = r.d, b = r.desc.base;
+    if (b === 'machine') return 'scritta dalla macchina (' + (norm(d.descriptionSource) || '?') + ')';
+    if (b === 'boilerplate') return 'il modello automatico del bot';
+    if (b === 'empty') return 'nessun testo: si scrive';
+    return 'rigenerabile (' + (b || '?') + ')';
+  }
+
+  // l'errore del nome sotto ogni riga: dal piano, così una riga che diventa
+  // un doppione perché ALTROVE si è scritto lo stesso nome lo dice subito
+  function aggiornaErrori(p) {
+    var per = {};
+    p.errori.forEach(function (e) { (per[e.r.id] = per[e.r.id] || []).push(e.testo); });
+    S.righe.forEach(function (r) {
+      var el = r.el && r.el.nome && r.el.nome.err;
+      if (!el) return;
+      var t = per[r.id];
+      el.hidden = !t;
+      el.textContent = t ? '✗ ' + t.join(' · ') : '';
+    });
+  }
+
+  function aggiornaBarra() {
+    var p = piano(), conto = $('conto');
+    aggiornaErrori(p);
+    svuota(conto);
+    var campi = p.scritture.reduce(function (n, w) { return n + (w.nome !== null ? 1 : 0) + w.campi.length; }, 0);
+    if (!p.scritture.length && !p.descrizioni.length && !p.errori.length) {
+      conto.textContent = 'Niente di selezionato.';
+    } else {
+      aggiungi(conto, [h('b', { text: p.scritture.length }), ' ' + parola(p.scritture.length, 'annuncio', 'annunci')
+        + ' da scrivere (' + campi + ' ' + parola(campi, 'modifica', 'modifiche') + ') · ',
+        h('b', { text: p.descrizioni.length }), ' ' + parola(p.descrizioni.length, 'descrizione', 'descrizioni') + ' da rigenerare']);
+      if (p.errori.length) aggiungi(conto, [' · ', h('span', { class: 'ko', text: p.errori.length + ' da correggere' })]);
+    }
+    $('applica').disabled = S.occupato || S.caricando || !S.righe.length
+      || (!p.scritture.length && !p.descrizioni.length && !p.errori.length);
+  }
+
+  // ── la conferma: il riepilogo esatto ───────────────────────────────
+  function apriConferma() {
+    // niente conferma su una lista che si sta rileggendo, o che non c'è più
+    if (S.occupato || S.caricando || !S.righe.length) return;
+    var p = piano();
+    var corpo = $('cCorpo');
+    svuota(corpo);
+    if (p.errori.length) {
+      corpo.appendChild(h('div', { class: 'c-tit', text: 'Da correggere prima di scrivere' }));
+      p.errori.forEach(function (e) { corpo.appendChild(h('div', { class: 'c-err', text: '✗ ' + etichetta(e.r) + ': ' + e.testo })); });
+    }
+    if (p.scritture.length) {
+      corpo.appendChild(h('div', { class: 'c-tit', text: 'Scritture (' + p.scritture.length + ' annunci)' }));
+      p.scritture.forEach(function (w) {
+        var r = w.r, righe = [];
+        if (w.nome !== null) {
+          righe.push(['name', mostra(r.attuale) + ' → ' + mostra(w.nome)]);
+          var orig = r.d.nameOriginal;
+          if (orig == null || String(orig).trim() === '') {
+            if (r.attuale.trim()) righe.push(['nameOriginal', mostra(r.attuale) + ' (non c\'era: si conserva il nome di adesso)']);
+          } else {
+            righe.push(['nameOriginal', 'non si scrive: c\'è già ' + mostra(orig)]);
+          }
+          righe.push(['nameUpdatedAt', 'ora del server']);
+          righe.push(['nameUpdatedBy', chi()]);
+        }
+        w.campi.forEach(function (f) { righe.push([f.campo, daA(f)]); });
+        righe.push(['updatedAt', 'ora del server (il feed dei portali legge questa data)']);
+        corpo.appendChild(h('div', { class: 'c-casa', 'data-id': r.id },
+          h('div', { class: 'c-nome' }, h('b', { text: r.attuale ? mostra(r.attuale) : '(senza nome)' }), ' ', h('code', { text: r.id })),
+          h('ul', null, righe.map(function (x) { return h('li', null, h('code', { text: x[0] }), ' ', h('span', { text: x[1] })); }))));
+      });
+    }
+    if (p.descrizioni.length) {
+      corpo.appendChild(h('div', { class: 'c-tit', text: 'Descrizioni da rigenerare (' + p.descrizioni.length
+        + ') — dopo le scritture, ' + CHUNK + ' alla volta su /api/wizard/describe' }));
+      corpo.appendChild(h('div', { class: 'c-regen' }, h('ul', null, p.descrizioni.map(function (r) {
+        return h('li', null, h('b', { text: r.attuale ? mostra(r.attuale) : '(senza nome)' }), ' ', h('code', { text: r.id }),
+          r.desc.issues.length ? ' · ' + r.desc.issues.map(function (c) { return problema(c, r.d); }).join(' · ') : ' · nessun problema rilevato');
+      }))));
+    }
+    p.avvisi.forEach(function (a) { corpo.appendChild(h('div', { class: 'c-avv', text: '⚠ ' + a })); });
+    if (!p.scritture.length && !p.descrizioni.length && !p.errori.length) {
+      corpo.appendChild(h('div', { class: 'c-avv', text: 'Niente di selezionato.' }));
+    }
+    var si = $('cSi');
+    si.disabled = !!p.errori.length || (!p.scritture.length && !p.descrizioni.length);
+    si.textContent = p.scritture.length
+      ? 'Scrivi ' + p.scritture.length + ' ' + parola(p.scritture.length, 'annuncio', 'annunci')
+        + (p.descrizioni.length ? ' e rigenera ' + p.descrizioni.length + ' ' + parola(p.descrizioni.length, 'descrizione', 'descrizioni') : '')
+      : 'Rigenera ' + p.descrizioni.length + ' ' + parola(p.descrizioni.length, 'descrizione', 'descrizioni');
+    S.piano = p;
+    $('conferma').hidden = false;
+    document.body.classList.add('bloccato');
+    $('cTit').focus();
+  }
+  function chiudiConferma() {
+    $('conferma').hidden = true;
+    document.body.classList.remove('bloccato');
+  }
+
+  // ── la scrittura: una transazione per annuncio ─────────────────────
+  function errore(tipo, msg) { var e = new Error(msg); e.boom = tipo; return e; }
+
+  function scriviUno(w, autore) {
+    var FV = firebase.firestore.FieldValue;
+    var ref = S.store.collection('listings').doc(w.id);
+    return S.store.runTransaction(function (t) {
+      return t.get(ref).then(function (snap) {
+        if (!snap.exists) throw errore('assente', 'l\'annuncio non esiste più su Firestore');
+        var ora = snap.data() || {};
+        var upd = {};
+        if (w.nome !== null) {
+          var ne = ora.name == null ? '' : String(ora.name);
+          if (ne !== w.r.attuale) throw errore('conflitto', 'name ora è ' + mostra(ne) + ', non ' + mostra(w.r.attuale));
+          upd.name = w.nome;
+          // il nome di partenza si conserva UNA volta: se l'annuncio ne ha
+          // già uno, quello resta (è il più vecchio, il vero «da dove»)
+          var orig = ora.nameOriginal;
+          if ((orig == null || String(orig).trim() === '') && ne.trim()) upd.nameOriginal = ne;
+          upd.nameUpdatedAt = FV.serverTimestamp();
+          upd.nameUpdatedBy = autore;
+        }
+        w.campi.forEach(function (f) {
+          if (!uguale(ora[f.campo], f.old)) {
+            throw errore('conflitto', f.campo + ' ora è ' + mostra(ora[f.campo]) + ', non ' + mostra(f.old));
+          }
+          upd[f.campo] = f.nuovo;
+        });
+        // la data che il feed Immobiliare manda come date-updated: senza,
+        // il portale non riprende il nome nuovo (se la data non avanza, non
+        // aggiorna). È la stessa cosa che fa il salvataggio del portale.
+        upd.updatedAt = FV.serverTimestamp();
+        t.update(ref, upd);
+        return Object.keys(upd);
+      });
+    });
+  }
+
+  // Un errore che NON prova che la scrittura sia mancata: il nostro tetto
+  // scaduto, o i codici che Firestore stesso dichiara possibili anche a
+  // operazione riuscita (deadline-exceeded; unavailable su un commit).
+  // Dire «niente scritto» lì sarebbe un'invenzione.
+  function incerto(e) {
+    return !!e && (e.code === 'boom/timeout' || e.code === 'deadline-exceeded' || e.code === 'unavailable');
+  }
+  function spiega(e, lettura) {
+    if (!e) return 'errore sconosciuto';
+    if (lettura) return (e.code ? e.code + ': ' : '') + (e.message || String(e));
+    if (e.boom === 'conflitto') return 'cambiato dopo il caricamento (' + e.message + '): niente scritto su questo annuncio. Ricarica e rivedi.';
+    if (e.boom === 'assente') return e.message;
+    if (incerto(e)) return 'esito incerto (' + (e.code === 'boom/timeout' ? 'nessuna risposta in ' + Math.round(TX_MS / 1000) + ' secondi' : e.code)
+      + '): potrebbe essere stato scritto. Ricarica per vedere cosa c\'è davvero.';
+    if (e.code === 'permission-denied') return 'permesso negato dalle regole Firestore (serve il ruolo admin): niente scritto.';
+    if (e.code === 'aborted' || e.code === 'failed-precondition') {
+      return 'Firestore occupato (' + e.code + '): niente scritto. Riprova.';
+    }
+    return (e.code ? e.code + ': ' : '') + (e.message || String(e));
+  }
+
+  // ── le descrizioni ─────────────────────────────────────────────────
+  // La risposta di /api/wizard/describe {mode:'regenerate'}: results[] con
+  // { id, outcome, reason, note, issues? } (e gli stessi divisi in
+  // written/skipped/failed). La spiegazione la scrive il SERVER, in
+  // italiano (`note`): la pagina la mostra così com'è, col codice fra
+  // parentesi per chi lo cerca nei log — un dizionario qui sarebbe una
+  // seconda copia, e invecchierebbe. Un id chiesto e non riportato non è
+  // «riuscito»: è un esito che non sappiamo.
+  var STATI = { written: 'written', skipped: 'skipped', failed: 'failed' };
+  function leggiEsiti(j, ids) {
+    var out = {};
+    function prendi(x, stato) {
+      var id = x && typeof x === 'object' ? (x.id || x.listingId) : x;
+      if (typeof id !== 'string' || ids.indexOf(id) < 0) return;
+      var o = x && typeof x === 'object' ? x : {};
+      var r = S.perId[id];
+      out[id] = { stato: stato, code: String(o.reason || o.error || '').trim(), nota: String(o.note || '').trim(),
+        issues: (Array.isArray(o.issues) ? o.issues : []).map(function (c) { return problema(String(c), r ? r.d : {}); }) };
+    }
+    if (Array.isArray(j.results)) {
+      // un esito che la pagina non conosce non è né riuscito né fallito
+      j.results.forEach(function (x) { prendi(x, STATI[String((x && x.outcome) || '').toLowerCase()] || 'unknown'); });
+    } else {
+      (Array.isArray(j.written) ? j.written : []).forEach(function (x) { prendi(x, 'written'); });
+      (Array.isArray(j.skipped) ? j.skipped : []).forEach(function (x) { prendi(x, 'skipped'); });
+      (Array.isArray(j.failed) ? j.failed : []).forEach(function (x) { prendi(x, 'failed'); });
+    }
+    ids.forEach(function (id) {
+      if (!out[id]) out[id] = { stato: 'unknown', testo: 'il server non ha riportato un esito per questo annuncio: ricarica per controllare' };
+    });
+    return out;
+  }
+  // la frase di un esito: le parole del server, il codice, i problemi del
+  // testo che il server ha scartato (broke_rules) uno per uno
+  function frase(x) {
+    if (x.testo) return x.testo;
+    var t = x.nota || x.code || '';
+    if (x.nota && x.code) t += ' (' + x.code + ')';
+    if (x.issues && x.issues.length) t += ' — ' + x.issues.join(' · ');
+    return t;
+  }
+
+  // I rifiuti di /api/wizard/describe {mode:'regenerate'}: la funzione manda
+  // solo il codice (e per admin_required un `detail`), quindi la frase la
+  // scrive la pagina. Tutti arrivano PRIMA di qualunque scrittura.
+  var RIFIUTO = {
+    unauthorized: 'accesso non riconosciuto: rientra dal login',
+    admin_required: 'serve un utente admin',
+    profile_unavailable: 'il server non è riuscito a rileggere il tuo profilo: riprova',
+    server_missing_anthropic_key: 'il server non ha la chiave del modello (ANTHROPIC_API_KEY)',
+    ids_required: 'richiesta senza annunci',
+    too_many_ids: 'troppi annunci in un blocco (al massimo 6)',
+    invalid_id: 'un id di annuncio non valido nella richiesta',
+  };
+
+  function chiamaDescribe(ids) {
+    var tutti = function (stato, testo) {
+      var o = {}; ids.forEach(function (id) { o[id] = { stato: stato, testo: testo }; }); return o;
+    };
+    var u = S.utente || (firebase.auth && firebase.auth().currentUser);
+    if (!u || typeof u.getIdToken !== 'function') return Promise.resolve(tutti('failed', 'nessun utente collegato: rientra dal login'));
+    return BP.withTimeout(u.getIdToken(), 10000, 'token').then(function (token) {
+      var ctl = typeof AbortController === 'function' ? new AbortController() : null;
+      var scaduto = false;
+      var timer = setTimeout(function () { scaduto = true; if (ctl) ctl.abort(); }, REGEN_MS);
+      return fetch('/api/wizard/describe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify({ mode: 'regenerate', ids: ids }),
+        signal: ctl ? ctl.signal : undefined,
+      }).then(function (res) {
+        return res.text().then(function (t) {
+          clearTimeout(timer);
+          var j = null;
+          try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
+          if (!res.ok || !j || j.ok === false) {
+            // Chi ha risposto? La FUNZIONE risponde col suo JSON
+            // { ok:false, error } e, per contratto, prima di qualunque
+            // scrittura (401 unauthorized, 403 admin_required, 503
+            // profile_unavailable, 500 server_missing_anthropic_key, 400 ids):
+            // lì «niente riscritto» è vero. Un 5xx SENZA quel JSON è la
+            // piattaforma che l'ha fermata (describe ha 60 secondi, e ogni
+            // testo è una chiamata al modello): qualche descrizione può essere
+            // già riscritta — «fallita» sarebbe falso, è incerto.
+            var dallaFunzione = !!j && j.ok === false && typeof j.error === 'string';
+            if (!dallaFunzione && res.status >= 500) {
+              return tutti('unknown', 'la funzione si è fermata a metà (HTTP ' + res.status + '): alcune descrizioni '
+                + 'potrebbero essere già riscritte — ricarica per controllare');
+            }
+            var cod = (j && (j.error || j.code)) || '';
+            var det = j && j.detail ? ' — ' + j.detail : '';
+            return tutti('failed', 'il server ha risposto ' + res.status + ': '
+              + (has(RIFIUTO, cod) ? RIFIUTO[cod] + ' (' + cod + ')' : (cod || 'risposta non leggibile')) + det
+              + '. Niente riscritto da questo blocco.');
+          }
+          return leggiEsiti(j, ids);
+        });
+      }).catch(function (e) {
+        clearTimeout(timer);
+        if (scaduto) return tutti('unknown', 'nessuna risposta in ' + Math.round(REGEN_MS / 1000) + ' secondi: esito incerto, ricarica per vedere se il testo è cambiato');
+        // la richiesta può essere partita prima che la rete cadesse
+        return tutti('unknown', 'rete interrotta (' + ((e && e.message) || e) + '): esito incerto, ricarica per controllare');
+      });
+    }, function (e) {
+      return tutti('failed', 'token di accesso non disponibile: ' + ((e && e.message) || e));
+    });
+  }
+
+  // ── l'applicazione ─────────────────────────────────────────────────
+  function applica() {
+    var p = S.piano;
+    if (!p || S.occupato || S.caricando || p.errori.length) return;
+    if (impronta(piano()) !== impronta(p)) { apriConferma(); return; }
+    chiudiConferma();
+    S.occupato = true;
+    $('app').setAttribute('data-fase', 'applico');
+    blocca(true);
+    aggiornaBarra();
+
+    var esito = $('esito');
+    svuota(esito);
+    esito.hidden = false;
+    esito.removeAttribute('data-stato');
+    var prog = h('div', { class: 'progresso', role: 'status' });
+    var ulS = h('ul', { id: 'esitoScritture' }), ulD = h('ul', { id: 'esitoDescrizioni' });
+    aggiungi(esito, [h('h2', { text: 'Esito' }), prog]);
+    if (p.scritture.length) aggiungi(esito, [h('h3', { text: 'Scritture' }), ulS]);
+    if (p.descrizioni.length) aggiungi(esito, [h('h3', { text: 'Descrizioni' }), ulD]);
+    esito.scrollIntoView({ block: 'start', behavior: 'smooth' });
+
+    var autore = chi();
+    var falliti = {}, conti = { ok: 0, ko: 0, dubbi: 0, written: 0, skipped: 0, failed: 0, unknown: 0 };
+    var fatti = [];   // le scritture riuscite — dopo, le loro scelte si azzerano
+
+    var catena = Promise.resolve();
+    p.scritture.forEach(function (w, i) {
+      catena = catena.then(function () {
+        prog.textContent = 'Scrittura ' + (i + 1) + ' di ' + p.scritture.length + '…';
+        return BP.withTimeout(scriviUno(w, autore), TX_MS, 'scrittura').then(function (chiavi) {
+          conti.ok++;
+          fatti.push(w);
+          // l'abbiamo scritto noi: alla rilettura non è «cambiato da qualcuno»
+          var vi = S.visti[w.id];
+          if (vi) {
+            if (w.nome !== null) vi.name = w.nome;
+            w.campi.forEach(function (f) { vi[f.campo] = clona(f.nuovo); });
+          }
+          ulS.appendChild(h('li', { class: 'ok', 'data-id': w.id, text: '✓ ' + etichetta(w.r) + ' — scritti: ' + chiavi.join(', ') }));
+        }, function (e) {
+          var dubbio = incerto(e);
+          if (dubbio) conti.dubbi++; else conti.ko++;
+          falliti[w.id] = dubbio ? 'incerto' : 'fallito';
+          ulS.appendChild(h('li', { class: dubbio ? 'unk' : 'ko', 'data-id': w.id,
+            text: (dubbio ? '? ' : '✗ ') + etichetta(w.r) + ' — ' + spiega(e) }));
+        });
+      });
+    });
+
+    catena = catena.then(function () {
+      // la descrizione si rifà DOPO i dati, e mai su un annuncio i cui dati
+      // non sono stati scritti: verrebbe riscritta sui valori sbagliati
+      var ids = [];
+      p.descrizioni.forEach(function (r) {
+        if (falliti[r.id]) {
+          conti.skipped++;
+          ulD.appendChild(h('li', { class: 'skip', 'data-id': r.id, 'data-esito': 'skipped', text: '– ' + etichetta(r)
+            + (falliti[r.id] === 'incerto'
+              ? ' — saltata: l\'esito della scrittura dei dati è incerto, prima si ricarica e si controlla'
+              : ' — saltata: l\'aggiornamento dei dati di questo annuncio non è riuscito, il testo si rifarebbe sui dati vecchi') }));
+        } else ids.push(r.id);
+      });
+      var blocchi = [];
+      for (var i = 0; i < ids.length; i += CHUNK) blocchi.push(ids.slice(i, i + CHUNK));
+      var c2 = Promise.resolve();
+      blocchi.forEach(function (blocco, bi) {
+        c2 = c2.then(function () {
+          prog.textContent = 'Descrizioni: blocco ' + (bi + 1) + ' di ' + blocchi.length + '…';
+          return chiamaDescribe(blocco).then(function (esiti) {
+            blocco.forEach(function (id) {
+              var x = esiti[id], r = S.perId[id];
+              conti[x.stato] = (conti[x.stato] || 0) + 1;
+              var segno = { written: '✓', skipped: '–', failed: '✗', unknown: '?' }[x.stato];
+              var parola = { written: 'riscritta', skipped: 'saltata', failed: 'fallita', unknown: 'esito incerto' }[x.stato];
+              var cls = { written: 'ok', skipped: 'skip', failed: 'ko', unknown: 'unk' }[x.stato];
+              if (x.stato === 'written') delete S.sel['regen:' + id];
+              // il testo l'ha (forse) cambiato il server per noi: la prossima
+              // lettura è la base nuova, non un ritocco di qualcun altro
+              if (x.stato === 'written' || x.stato === 'unknown') S.rifai[id] = true;
+              // un no del server (non per il tempo: quello si rimanda) vale
+              // per la sessione — la riga va nella lista dell'assistente
+              if (x.stato === 'skipped' && x.code && x.code !== 'time_budget') {
+                S.saltate[id] = { nota: x.nota || x.code, code: x.code };
+              }
+              var spiega = frase(x);
+              // «Riscritta: il testo era della macchina.» dice già com'è andata
+              var testo = x.stato === 'written' && x.nota ? spiega : parola + (spiega ? ': ' + spiega : '');
+              ulD.appendChild(h('li', { class: cls, 'data-id': id, 'data-esito': x.stato,
+                text: segno + ' ' + (r ? etichetta(r) : id) + ' — ' + testo }));
+            });
+          });
+        });
+      });
+      return c2;
+    });
+
+    return catena.then(function () {
+      fatti.forEach(function (w) {
+        delete S.sel[w.r.nome.key];
+        delete S.nomi[w.id];
+        w.campi.forEach(function (f) { delete S.sel[f.key]; });
+      });
+      prog.textContent = 'Fatto.';
+      var sintesi = 'Annunci scritti: ' + conti.ok + ' su ' + p.scritture.length
+        + (conti.ko ? ' · ' + conti.ko + ' NON scritti (vedi sopra)' : '')
+        + (conti.dubbi ? ' · ' + conti.dubbi + ' con esito incerto: ricarica e controlla' : '');
+      if (p.descrizioni.length) {
+        sintesi += ' · descrizioni: ' + conti.written + ' riscritte, ' + conti.skipped + ' saltate, '
+          + conti.failed + ' fallite' + (conti.unknown ? ', ' + conti.unknown + ' incerte' : '');
+      }
+      esito.appendChild(h('div', { class: 'sintesi', text: sintesi }));
+      esito.appendChild(comando());
+      S.occupato = false;
+      // si rilegge Firestore: lo stato di ogni riga riparte dal vero (e se
+      // la rilettura fallisce la lista vecchia sparisce, vedi carica)
+      return carica();
+    }).then(function () {
+      esito.setAttribute('data-stato', 'fatto');
+    }, function (e) {
+      S.occupato = false;
+      blocca(false);
+      esito.appendChild(h('div', { class: 'errore', text: '✗ Errore inatteso: ' + spiega(e) }));
+      esito.setAttribute('data-stato', 'fatto');
+    });
+  }
+
+  function comando() {
+    var bott = h('button', { class: 'ghost', type: 'button', text: 'Copia' });
+    bott.addEventListener('click', function () { copia(CMD, bott); });
+    return h('div', { class: 'cmd' },
+      h('div', { text: 'Le pagine statiche (la vetrina di build) portano i nomi vecchi finché non si rigenerano. Dal repo:' }),
+      h('div', { class: 'riga' }, h('code', { id: 'comando', text: CMD }), bott));
+  }
+  function copia(testo, bott) {
+    var fine = function (ok) {
+      bott.textContent = ok ? 'Copiato ✓' : 'Selezionalo e copialo a mano';
+      setTimeout(function () { bott.textContent = 'Copia'; }, 2500);
+    };
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(testo).then(function () { fine(true); }, function () { fine(copiaVecchia(testo)); });
+        return;
+      }
+    } catch (e) { /* si ripiega */ }
+    fine(copiaVecchia(testo));
+  }
+  function copiaVecchia(testo) {
+    var ta = h('textarea', { readonly: true, 'aria-hidden': 'true', style: 'position:fixed;top:-1000px;opacity:0' });
+    ta.value = testo;
+    document.body.appendChild(ta);
+    ta.select();
+    var ok = false;
+    try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+    ta.remove();
+    return ok;
+  }
+
+  function blocca(si) {
+    document.querySelectorAll('#lista input, #riepilogo button').forEach(function (x) { x.disabled = si; });
+  }
+
+  // ── l'avvio ────────────────────────────────────────────────────────
+  $('applica').addEventListener('click', apriConferma);
+  $('cNo').addEventListener('click', chiudiConferma);
+  $('cSi').addEventListener('click', applica);
+  $('conferma').addEventListener('click', function (e) { if (e.target === $('conferma')) chiudiConferma(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !$('conferma').hidden) chiudiConferma();
+  });
+  // chiudere a metà lascia annunci scritti e altri no: si avverte
+  window.addEventListener('beforeunload', function (e) {
+    if (S.occupato) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  var shield = $('shield');
+  function shieldFail(msg) {
+    svuota(shield);
+    shield.appendChild(h('div', { class: 'shield-box' },
+      h('div', { text: '⚠️ ' + msg }),
+      h('div', { class: 'shield-acts' },
+        h('a', { href: '/login?next=%2Fcatalogo', text: 'Vai al login' }),
+        h('a', { href: '/portal', text: 'Apri il portale' }))));
+  }
+  if (!BP || typeof firebase === 'undefined') {
+    shieldFail('Firebase o la libreria del portale non si sono caricati: ricarica la pagina.');
+    return;
+  }
+  var watchdog = setTimeout(function () {
+    shieldFail('L\'accesso sta impiegando troppo: connessione o SDK Firebase bloccati.');
+  }, 15000);
+  BP.requireAuth(['admin'], { loginUrl: '/login' }).then(function (auth) {
+    clearTimeout(watchdog);
+    S.utente = auth.user;
+    S.profilo = auth.profile;
+    S.store = firebase.firestore();
+    shield.hidden = true;
+    $('app').hidden = false;
+    // regenerable è lo specchio del server: un js/catalogo-correzioni.js
+    // senza (una copia vecchia) proporrebbe una cosa diversa da ciò che il
+    // server fa — meglio fermarsi e dirlo
+    if (!FIX || !FACTS || typeof FIX.descriptionIssues !== 'function' || typeof FIX.regenerable !== 'function') {
+      var st = $('statoCarico');
+      st.className = 'fatale';
+      st.textContent = '✗ ' + (!FACTS ? 'js/listing-facts.js' : 'js/catalogo-correzioni.js')
+        + ' non si è caricato (o è una versione vecchia): senza, la pagina non sa cosa proporre. Ricarica.';
+      $('app').setAttribute('data-fase', 'errore');
+      return;
+    }
+    carica();
+  }, function (e) {
+    clearTimeout(watchdog);
+    var m = String((e && e.message) || e);
+    if (m === 'not_authenticated') return;   // requireAuth sta già portando al login
+    shieldFail(m === 'wrong_role' ? 'Questa pagina è solo per il ruolo ADMIN: il tuo utente ha un ruolo diverso.'
+      : m === 'profile_missing' ? 'Profilo utente non trovato in Firestore (collection users).'
+      : 'Accesso fallito: ' + m);
+  });
+})();
+</script>
+</body>
+</html>

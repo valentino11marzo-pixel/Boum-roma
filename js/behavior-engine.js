@@ -1,7 +1,8 @@
 /* js/behavior-engine.js — BOOM Behavior Intelligence, pure aggregation.
  *
  * Turns anonymous, consented page-view summaries into the operator's view:
- * pages, sections, exits, interactions, journeys and evidence-based actions.
+ * pages, sections, exits, interactions, journeys, acquisition channels (AI
+ * assistants named per engine) and evidence-based actions.
  * No network, DOM or database. Shared by the API and its tests.
  */
 (function (root) {
@@ -11,12 +12,51 @@
   function pct(a, b) { return b ? Math.round((a / b) * 1000) / 10 : 0; }
   function avg(sum, count) { return count ? Math.round((sum / count) * 10) / 10 : 0; }
   function key(v, fallback) { return String(v || fallback || 'unknown').slice(0, 160); }
+  // Ogni mappa ha le chiavi scelte da chi visita (utm_source, sessionId): un
+  // 'constructor', '__proto__' o 'hasOwnProperty' trovava già qualcosa su
+  // Object.prototype e il riepilogo intero cadeva (503 su /behavior per tutta
+  // la finestra che conteneva quella riga). Le mappe nascono senza prototipo,
+  // e add() guarda solo le chiavi proprie.
+  function dict() { return Object.create(null); }
   function add(map, id, seed) {
-    if (!map[id]) map[id] = seed();
+    if (!Object.prototype.hasOwnProperty.call(map, id)) map[id] = seed();
     return map[id];
   }
   function values(o) { return Object.keys(o).map(function (k) { return o[k]; }); }
   function by(field) { return function (a, b) { return n(b[field]) - n(a[field]); }; }
+
+  /* CLASSIFY:BEGIN */
+  // Una copia sola, incollata identica in js/boom-track.js e in
+  // js/behavior-engine.js (tests/attribution la confronta byte per byte).
+  // L'AI si guarda PRIMA di Google: gemini.google.com è un assistente, non
+  // una ricerca.
+  var AI_SRC = [['chatgpt', /^(?:chatgpt(?:\.com)?|chat\.openai\.com|openai(?:\.com)?)$/], ['perplexity', /^perplexity(?:\.ai)?$/], ['gemini', /^(?:gemini(?:\.google\.com)?|bard\.google\.com)$/], ['copilot', /^(?:copilot(?:\.microsoft\.com)?|copilot\.cloud\.microsoft)$/], ['claude', /^claude(?:\.ai)?$/], ['you', /^you\.com$/], ['deepseek', /^(?:chat\.)?deepseek\.com$/], ['meta_ai', /^meta\.ai$/], ['mistral', /^chat\.mistral\.ai$/], ['grok', /^grok\.com$/]];
+  function aiEngine(v) {
+    v = String(v == null ? '' : v).toLowerCase().trim().replace(/^www\./, '');
+    for (var i = 0; i < AI_SRC.length; i++) if (AI_SRC[i][1].test(v)) return AI_SRC[i][0];
+    return '';
+  }
+  function classifySource(utm, host) {
+    utm = String(utm == null ? '' : utm).trim();
+    host = String(host == null ? '' : host).toLowerCase().trim().replace(/^www\./, '');
+    var engine = aiEngine(utm) || aiEngine(host);
+    if (engine) return { channel: 'ai_assistant', engine: engine };
+    if (utm) return { channel: utm, engine: '' };
+    if (!host) return { channel: 'direct', engine: '' };
+    if (/(^|\.)boomrome\.com$/.test(host)) return { channel: 'internal', engine: '' };
+    if (/(^|\.)google\./.test(host)) return { channel: 'google', engine: '' };
+    if (/(^|\.)(?:bing|duckduckgo|ecosia|yahoo|brave|qwant|kagi)\./.test(host)) return { channel: 'organic_search', engine: '' };
+    if (/(^|\.)(?:instagram|facebook|linkedin|reddit|twitter)\./.test(host) || /(^|\.)(?:x\.com|t\.co|lnkd\.in)$/.test(host)) return { channel: 'social', engine: '' };
+    return { channel: 'referral', engine: '' };
+  }
+  /* CLASSIFY:END */
+  // Il motore conosce i suoi id: un id salvato ('chatgpt') vale, un host
+  // ('chat.openai.com') si riconduce all'id, il resto non è un motore.
+  function engineId(v) {
+    v = String(v == null ? '' : v).toLowerCase().trim();
+    for (var i = 0; i < AI_SRC.length; i++) if (AI_SRC[i][0] === v) return v;
+    return aiEngine(v);
+  }
 
   var EXIT = ['checkpoint', 'navigate_internal', 'navigate_external', 'close_or_background'];
   var KINDS = ['internal', 'external', 'anchor', 'cta', 'whatsapp', 'checkout', 'lead', 'conversion'];
@@ -46,10 +86,11 @@
       target: interactionTarget(x.target), section: clip(x.section, 72), atSecond: Math.round(bounded(x.atSecond, 0, 3600))
     }; }) : [];
     var source = b.source && typeof b.source === 'object' ? {
-      channel: clip(b.source.channel, 80) || 'direct', medium: clip(b.source.medium, 60),
+      channel: clip(b.source.channel, 80) || 'direct', engine: engineId(b.source.engine),
+      medium: clip(b.source.medium, 60),
       campaign: clip(b.source.campaign, 80), landing: pathname(b.source.landing),
       referrerHost: clip(b.source.referrerHost, 100)
-    } : { channel: 'direct', medium: '', campaign: '', landing: pathname(b.pagePath), referrerHost: '' };
+    } : { channel: 'direct', engine: '', medium: '', campaign: '', landing: pathname(b.pagePath), referrerHost: '' };
     return {
       schema: 1, consent: true, pageViewId: pageViewId, sessionId: sessionId,
       pagePath: pathname(b.pagePath), pageTitle: clip(b.pageTitle, 120), service: clip(b.service, 60) || 'other',
@@ -64,15 +105,26 @@
     };
   }
 
+  // Il canale si legge ADESSO, non quando la visita è stata salvata: una riga
+  // vecchia con channel 'chatgpt.com' (utm) o col referrer gemini.google.com
+  // (allora contata 'google') torna all'assistente giusto.
+  function channelOf(src) {
+    src = src && typeof src === 'object' ? src : {};
+    var channel = clip(src.channel, 80) || 'direct';
+    var engine = engineId(src.engine) || aiEngine(channel) || aiEngine(src.referrerHost);
+    if (engine) return { id: 'ai:' + engine, engine: engine, ai: true };
+    return { id: channel, engine: '', ai: channel === 'ai_assistant' };
+  }
+
   function summarize(input) {
     var rows = (input || []).filter(function (r) { return r && r.consent === true && r.pagePath; });
-    var pages = {}, sections = {}, interactions = {}, sessions = {};
+    var pages = dict(), sections = dict(), interactions = dict(), sessions = dict();
     var totalActive = 0, totalScroll = 0, engaged = 0, exits = 0, conversions = 0;
 
     rows.forEach(function (r) {
       var path = key(r.pagePath, '/');
       var p = add(pages, path, function () { return {
-        pagePath: path, service: key(r.service, 'other'), views: 0, sessions: {},
+        pagePath: path, service: key(r.service, 'other'), views: 0, sessions: dict(),
         activeSeconds: 0, scroll: 0, engaged: 0, exits: 0, interactions: 0, conversions: 0
       }; });
       p.views += 1;
@@ -133,7 +185,7 @@
     }).sort(by('views'));
     var interactionList = values(interactions).sort(by('count'));
 
-    var flows = {};
+    var flows = dict(), channels = dict();
     values(sessions).forEach(function (s) {
       s.rows.sort(function (a, b) { return String(a.startedAt || a.receivedAt).localeCompare(String(b.startedAt || b.receivedAt)); });
       var path = [], previous = null;
@@ -144,8 +196,40 @@
       });
       var name = path.slice(0, 5).join(' → ');
       if (name) flows[name] = (flows[name] || 0) + 1;
+
+      // Canali: una sessione conta una volta, col primo contatto della sua
+      // prima pagina. Tentativo = un modulo inviato o un checkout avviato;
+      // conversione = un esito CONFERMATO (boom-conversion o acquisto).
+      var first = s.rows[0], ch = channelOf(first.source);
+      var c = add(channels, ch.id, function () { return {
+        id: ch.id, engine: ch.engine, ai: ch.ai, sessions: 0,
+        engagedSessions: 0, attemptSessions: 0, conversionSessions: 0, landings: dict()
+      }; });
+      var engagedS = false, attempt = false, converted = false;
+      s.rows.forEach(function (r) {
+        if (n(r.activeSeconds) >= 10) engagedS = true;
+        (r.interactions || []).forEach(function (x) {
+          var kind = x && x.kind;
+          if (kind === 'lead' || kind === 'checkout') attempt = true;
+          if (kind === 'conversion') converted = true;
+        });
+      });
+      c.sessions += 1;
+      if (engagedS) c.engagedSessions += 1;
+      if (attempt) c.attemptSessions += 1;
+      if (converted) c.conversionSessions += 1;
+      var landing = key((first.source && first.source.landing) || first.pagePath, '/');
+      c.landings[landing] = (c.landings[landing] || 0) + 1;
     });
     var flowList = Object.keys(flows).map(function (path) { return { path: path, sessions: flows[path] }; }).sort(by('sessions')).slice(0, 12);
+    var channelList = values(channels).map(function (c) {
+      c.topLandings = Object.keys(c.landings).map(function (path) { return { path: path, sessions: c.landings[path] }; })
+        .sort(function (a, b) { return b.sessions - a.sessions || (a.path < b.path ? -1 : a.path > b.path ? 1 : 0); }).slice(0, 3);
+      delete c.landings;
+      return c;
+    }).sort(function (a, b) {
+      return (b.ai ? 1 : 0) - (a.ai ? 1 : 0) || b.sessions - a.sessions || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    });
 
     var recommendations = [];
     pageList.forEach(function (p) {
@@ -190,11 +274,16 @@
       },
       pages: pageList, sections: sectionList.slice(0, 80),
       interactions: interactionList.slice(0, 80), flows: flowList,
+      channels: channelList.slice(0, 40),
       recommendations: recommendations.slice(0, 20)
     };
   }
 
-  var API = { summarize: summarize, normalizeJourney: normalizeJourney };
+  var API = {
+    summarize: summarize, normalizeJourney: normalizeJourney,
+    aiEngine: aiEngine, classifySource: classifySource, channelOf: channelOf,
+    AI_ENGINES: AI_SRC.map(function (x) { return x[0]; })
+  };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_BEHAVIOR = API;
 })(typeof window !== 'undefined' ? window : this);

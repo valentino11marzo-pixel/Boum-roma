@@ -77,7 +77,7 @@ def field_rows(payload):
         ('Camere', p.get('beds')),
         ('Bagni', p.get('bathrooms')),
         ('Piano', p.get('floor')),
-        ('Arredato', {True: 'sì', False: 'no'}.get(p.get('furnished'))),
+        ('Arredato', {True: 'sì', False: 'no', 'partial': 'parzialmente arredato'}.get(p.get('furnished'))),
         ('Disponibile dal', p.get('availableDate')),
         ('Classe energetica', p.get('energyClass')),
         ('Caratteristiche (IT)', ' · '.join(labels.get('it') or []) or None),

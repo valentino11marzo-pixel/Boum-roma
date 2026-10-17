@@ -178,6 +178,45 @@ console.log('\n\x1b[1m▸ il lead è un TENANT dentro la macchina esistente\x1b[
   ok('una lingua inventata cade sull\'inglese, MAI sull\'italiano', r.lead.language === 'en');
 }
 
+// Con BOOM si affitta da 3 mesi in su (decisione del fondatore, 15/10/2026).
+// Il modulo non offre piu' «1–3 mesi»; il server pero' deve continuare ad
+// accettare un valore vecchio (pagina in cache, POST a mano) — un contatto non
+// si perde per una durata — e deve DIRLO all'operatore prima che risponda.
+console.log('\n\x1b[1m▸ la durata: da 3 mesi in su, anche per un valore vecchio\x1b[0m');
+{
+  const { belowMinimum, MIN_MONTHS } = await import('../../api/executive-lead.js');
+  ok('il minimo del server è 3 mesi', MIN_MONTHS === 3, MIN_MONTHS);
+  ok('«1-3», «2» e «0-3» partono sotto il minimo; «3-6», «12-18», vuoto e testo no',
+    belowMinimum('1-3') && belowMinimum('2') && belowMinimum(' 0-3') && !belowMinimum('3-6') && !belowMinimum('12-18')
+    && !belowMinimum('') && !belowMinimum(null) && !belowMinimum('sei mesi'));
+  const r = await call({ ...EXEC, duration: '1-3' });
+  ok('un «1-3» storico entra comunque (200, lead scritto)', r.code === 200 && !!r.lead, r.code);
+  ok('...e il riassunto lo segnala all\'operatore', /1-3 mesi \(sotto il minimo BOOM di 3 mesi: da chiarire\)/.test(String(r.lead && r.lead.message)), r.lead && r.lead.message);
+  ok('...anche nel dato del lead (executive.belowMinimum)', r.lead && r.lead.executive && r.lead.executive.belowMinimum === true);
+  const { replyLang } = await import('../../api/_lang.js');
+  ok('...e la nota in italiano non sposta la lingua della risposta: resta inglese', r.lead && replyLang(r.lead) === 'en', r.lead && r.lead.message);
+  const r2 = await call({ ...EXEC, duration: '3-6' });
+  ok('«3-6» non è sotto il minimo: nessuna segnalazione', /3-6 mesi/.test(String(r2.lead.message)) && !/sotto il minimo/.test(String(r2.lead.message))
+    && r2.lead.executive.belowMinimum === false, r2.lead.message);
+}
+{
+  const page = readFileSync(new URL('../../executive.html', import.meta.url), 'utf8');
+  // Le durate del modulo vivono nel dizionario PH (inglese e italiano): si
+  // leggono le coppie [valore, etichetta] che la pagina mette nel <select>.
+  const liste = [...page.matchAll(/duration:(\[\[[^\n]*?\]\])/g)].map((m) => JSON.parse(m[1].replace(/'/g, '"')));
+  const valori = liste.map((l) => l.map(([v]) => v).filter(Boolean));
+  ok('il modulo ha la durata in due lingue', liste.length === 2, liste.length);
+  ok('...con le stesse fasce in entrambe', valori.length === 2 && valori[0].join() === valori[1].join(), valori);
+  ok('...e nessuna fascia parte sotto i 3 mesi: la prima è il minimo vero', valori.every((l) => l.length && l.every((v) => !belowMinimumPage(v)) && /^3-/.test(l[0])), valori);
+  ok('le etichette dicono le stesse fasce dei valori («3–6 months» / «3–6 mesi»)',
+    liste.every((l) => l.filter(([v]) => v).every(([v, t]) => t.replace('–', '-').startsWith(v))), liste);
+  ok('la scheda e la FAQ dicono «3–18» in inglese e in italiano, mai «1–18»',
+    /on assignment for <b>3–18 months<\/b>/.test(page) && /con un incarico da <b>3 a 18 mesi<\/b>/.test(page)
+    && /residential lease: 3 to 18 months with BOOM/.test(page) && /con BOOM da 3 a 18 mesi/.test(page)
+    && !/\b1\s*(?:–|-|to|a)\s*18\s*(?:months|mesi|MONTHS)|1–18 <span/.test(page));
+}
+function belowMinimumPage(v) { const m = String(v).match(/^\s*(\d{1,2})/); return !!m && Number(m[1]) < 3; }
+
 console.log('\n\x1b[1m▸ il limite per IP esiste davvero\x1b[0m');
 {
   const ip = '203.0.113.77';
@@ -264,6 +303,44 @@ console.log('\n\x1b[1m▸ essere trovati (SEO) ed essere citati (motori di rispo
   ok('nel formato dei social (1200×630)', w === 1200 && h === 630, { w, h });
   ok('la pagina la dichiara (og + twitter)', (page.match(/og-executive\.png/g) || []).length >= 2);
 
+  // LA CARD DICE LA DURATA DELLA PAGINA (15/10/2026). La card vecchia, fatta
+  // fuori dal repo, diceva «Transitional lease · 1–18 months» accanto
+  // all'og:description gia' corretta in «3–18», e nessun test poteva vederlo:
+  // un PNG non si cerca col grep. Ora la genera il repo
+  // (design/pages-deco/genera-og-executive.py), che legge la fascia
+  // dall'og:description e scrive nel PNG il testo che ha stampato (chunk iTXt
+  // «Description» e «Software»): una card fatta a mano, senza firma, qui cade.
+  const scritte = {};
+  for (let i = 8; i + 12 <= og.length;) {
+    const len = og.readUInt32BE(i), tipo = og.toString('latin1', i + 4, i + 8), d = og.subarray(i + 8, i + 8 + len);
+    if (tipo === 'iTXt') {
+      const z = d.indexOf(0);
+      let p = d.indexOf(0, z + 3) + 1;          // chiave \0 · compressione · metodo · lingua \0
+      p = d.indexOf(0, p) + 1;                  // chiave tradotta \0
+      if (z > 0 && d[z + 1] === 0) scritte[d.toString('latin1', 0, z)] = d.toString('utf8', p);
+    }
+    i += 12 + len;
+  }
+  const generatore = 'design/pages-deco/genera-og-executive.py';
+  let sorgente = '';
+  try { sorgente = readFileSync(new URL(generatore, root), 'utf8'); } catch { /* resta vuota: il check sotto cade */ }
+  ok('la card l\'ha generata il repo, e dice da quale sorgente', scritte.Software === generatore && sorgente.length > 0,
+    scritte.Software || '(nessuna firma nel PNG: card fatta fuori dal repo)');
+  const ogDesc = (page.match(/<meta property="og:description" content="([^"]*)"/) || [])[1] || '';
+  const fasciaPagina = (ogDesc.match(/\((\d{1,2})\s*[–-]\s*(\d{1,2}) months\)/) || []).slice(1).map(Number);
+  const fasceCard = [...String(scritte.Description || '').matchAll(/(\d{1,2})\s*[–-]\s*(\d{1,2})\s*months/gi)]
+    .map((m) => [Number(m[1]), Number(m[2])]);
+  ok('la card dice la fascia del transitorio della pagina, e parte da 3 mesi',
+    fasciaPagina.length === 2 && fasciaPagina[0] >= 3 && fasceCard.length === 1
+    && fasceCard[0][0] === fasciaPagina[0] && fasceCard[0][1] === fasciaPagina[1],
+    { pagina: fasciaPagina, card: fasceCard });
+  ok('...e nessuna durata sotto i 3 mesi nel resto del suo testo', !!scritte.Description
+    && !/\b(?:1|2|one|two|a)\s*(?:[–\-−]|to)\s*\d{1,2}\s*-?months?\b|\b(?:from|minimum)\s+(?:1|one|a)\s+month/i.test(scritte.Description),
+    scritte.Description);
+  ok('la sorgente della card legge la durata dalla pagina e non la scrive a mano',
+    /og:description/.test(sorgente) && /int\(fascia\.group\(1\)\) < 3/.test(sorgente)
+    && !/\b\d{1,2}\s*[–-]\s*\d{1,2}\s*months\b/i.test(sorgente));
+
   const title = (page.match(/<title>([^<]*)<\/title>/) || [])[1] || '';
   const desc = (page.match(/<meta name="description" content="([^"]*)"/) || [])[1] || '';
   ok(`il titolo sta nella SERP (${title.length} car.)`, title.length > 0 && title.length <= 60, title);
@@ -316,6 +393,132 @@ console.log('\n\x1b[1m▸ essere trovati (SEO) ed essere citati (motori di rispo
   ok('la home la linka (chi arriva da solo la trova)', index.includes('href="/executive"'));
   const corp = readFileSync(new URL('corporate.html', root), 'utf8');
   ok('lo sportello corporate rimanda il singolo qui (reciprocità)', corp.includes('href="/executive"'));
+}
+
+console.log('\n\x1b[1m▸ cosa la pagina promette: vero, uguale nei dati e in pagina\x1b[0m');
+{
+  const root = new URL('../../', import.meta.url);
+  const page = readFileSync(new URL('executive.html', root), 'utf8');
+  const parsed = [...page.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => JSON.parse(m[1]));
+
+  // Il contratto è il modello ufficiale italiano, spiegato in inglese: in
+  // inglese sono proposta, pagina di firma, ricevute e assistenza. Un motore
+  // che cita «English-language lease» promette un documento che non esiste.
+  const claims = page.match(/.{0,40}(English-language|anche in inglese|English contract).{0,30}/gi) || [];
+  ok('nessuna promessa di un contratto in inglese (meta, dati, pagina)', claims.length === 0, claims.slice(0, 3));
+  ok('il contratto è detto per quello che è: modello italiano, spiegato in inglese',
+    /registered Italian lease \(the official standard form, walked through with you in English\) plus the English pre-agreement that fixes its terms/.test(page)
+    && /il modello ufficiale italiano, spiegato in inglese/.test(page));
+
+  // Il FAQPage è la pagina: ogni risposta marcata è la risposta inglese
+  // visibile, parola per parola (tag tolti).
+  const faq = parsed.find(b => b && b['@type'] === 'FAQPage');
+  const strip = t => String(t).replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  const esc = t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const diverge = (faq ? faq.mainEntity : []).filter(q => {
+    const m = page.match(new RegExp(`<summary><span class="l-en">${esc(q.name)}</span>[\\s\\S]*?<div class="a"><span class="l-en">([\\s\\S]*?)</span><span class="l-it">`));
+    return !m || strip(m[1]) !== q.acceptedAnswer.text;
+  }).map(q => q.name);
+  ok('ogni risposta del FAQPage è la risposta inglese visibile, parola per parola', faq && faq.mainEntity.length >= 8 && diverge.length === 0, diverge);
+
+  // La provvigione è quella che il codice calcola (api/preagreement/create.js:
+  // 10% di un'annualità + IVA 22%): l'IVA si dice, sempre.
+  const cost = (faq ? faq.mainEntity : []).find(q => q.name === 'What does it cost?');
+  ok('il costo dichiara la provvigione col 22% di IVA (dati strutturati)', cost && /10% of one year's rent plus 22% VAT/.test(cost.acceptedAnswer.text), cost && cost.acceptedAnswer.text);
+  const costIt = page.match(/<summary><span class="l-en">What does it cost\?<\/span>[\s\S]*?<span class="l-it">([\s\S]*?)<\/span><\/div>/);
+  ok('...e la versione italiana anche (IVA al 22%)', costIt && /10% di un'annualità più IVA al 22%/.test(costIt[1]));
+  const create = readFileSync(new URL('api/preagreement/create.js', root), 'utf8');
+  ok('...che è ciò che il codice applica davvero (10% + IVA 22% di default)', /num\(m\.feePct, 10\)/.test(create) && /num\(m\.feeVatPct, 22\)/.test(create));
+
+  // L'uscita anticipata la decide il contratto: sul transitorio BOOM
+  // (js/contract-pdf.js, Allegato B art. 10) il conduttore recede per GRAVI
+  // MOTIVI con tre mesi di preavviso per raccomandata; fuori da lì serve
+  // l'accordo del locatore. Nessun «costo di uscita» è noto dal primo giorno.
+  const exitClaims = page.match(/.{0,40}(exact cost of leaving|quanto costa esattamente andare via).{0,30}/gi) || [];
+  ok('nessuna promessa di un «costo esatto» per andare via prima', exitClaims.length === 0, exitClaims.slice(0, 2));
+  const early = (faq ? faq.mainEntity : []).find(q => /cut short/.test(q.name));
+  const tpl = readFileSync(new URL('js/contract-pdf.js', root), 'utf8');
+  ok('l\'uscita anticipata è detta come la scrive il contratto (gravi motivi, 3 mesi, raccomandata), IT compreso',
+    early && /withdraw for serious reasons \(gravi motivi\) with 3 months' notice by registered letter/.test(early.acceptedAnswer.text)
+    && /si può recedere per gravi motivi con tre mesi di preavviso per raccomandata/.test(page)
+    && /facoltà di recedere per gravi motivi dal contratto previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima/.test(tpl),
+    early && early.acceptedAnswer.text);
+
+  // L'entità è la stessa di tutto il sito.
+  const graph = (parsed.find(b => b && Array.isArray(b['@graph'])) || {})['@graph'] || [];
+  const org = graph.find(n => n['@id'] === 'https://www.boomrome.com/#organization') || {};
+  ok('#organization è il RealEstateAgent «BOOM Rome» di Egidi Immobiliare S.r.l.',
+    org['@type'] === 'RealEstateAgent' && org.name === 'BOOM Rome' && org.legalName === 'Egidi Immobiliare S.r.l.'
+    && org.vatID === 'IT17322991005' && org.telephone === '+39-331-325-1961', org);
+  ok('...con la sede vera', org.address && org.address.streetAddress === 'Via dei Coronari 181/184' && org.address.postalCode === '00186'
+    && org.address.addressLocality === 'Roma' && org.address.addressCountry === 'IT', org.address);
+  ok('...e senza voti o recensioni nei dati', !/AggregateRating|"Review"/.test(page));
+
+  // /executive?lang=it è lo STESSO file e si canonicalizza su /executive.
+  ok('canonical inglese, nessun hreflang verso un URL ?lang= che si canonicalizza altrove',
+    page.includes('<link rel="canonical" href="https://www.boomrome.com/executive">') && !/hreflang="[^"]+" href="[^"]*\?lang=/.test(page));
+  ok('...og:locale en_US con l\'alternate it_IT restano', page.includes('<meta property="og:locale" content="en_US">') && page.includes('<meta property="og:locale:alternate" content="it_IT">'));
+
+  // Il voto rimanda alla scheda Google, senza cambiare i numeri.
+  ok('il voto ★ 4.9 · 47 è un link a Google, tracciato',
+    /<a href="https:\/\/share\.google\/xikmVxQCRuKOdWcND" target="_blank" rel="noopener"[^>]*onclick="boomTrack\('reviews_view',\{source_page:'executive'\}\)"><span>★ <b>4\.9<\/b> <span class="l-en">on Google · 47 reviews<\/span>/.test(page));
+
+  // Conversione CONFERMATA solo dove il server ha risposto ok.
+  const sub = page.slice(page.indexOf("fetch('/api/executive-lead'"));
+  const okBranch = sub.slice(sub.indexOf('if(!j||!j.ok)throw'), sub.indexOf('.catch('));
+  const errBranch = sub.slice(sub.indexOf('.catch('), sub.indexOf('});', sub.indexOf('.catch(')));
+  ok('boom-conversion «Executive lead sent» parte nel ramo di successo...',
+    sub.indexOf('if(!j||!j.ok)throw') > -1 && /dispatchEvent\(new CustomEvent\('boom-conversion',\{detail:\{label:'Executive lead sent',section:'form'\}\}\)\)/.test(okBranch));
+  ok('...e mai nel ramo d\'errore (un solo punto di emissione)', !/boom-conversion/.test(errBranch) && (page.match(/boom-conversion/g) || []).length === 1);
+}
+
+console.log('\n\x1b[1m▸ in un browser vero: la conversione parte solo a lead arrivato\x1b[0m');
+{
+  const { loadChromium, launchOptions } = await import('../_browser.mjs');
+  const chromium = await loadChromium();
+  if (!chromium) console.log('  SKIP: playwright non disponibile — la prova in browser non gira');
+  else {
+    const http = await import('node:http');
+    const path = await import('node:path');
+    const fs = await import('node:fs');
+    const R = new URL('../../', import.meta.url).pathname;
+    const srv = http.createServer((rq, rs) => {
+      let u = rq.url.split('?')[0]; if (u === '/executive') u = '/executive.html';
+      const f = path.join(R, u);
+      fs.readFile(f, (e, d) => e ? (rs.statusCode = 404, rs.end())
+        : (rs.setHeader('content-type', f.endsWith('.css') ? 'text/css' : f.endsWith('.js') ? 'text/javascript' : 'text/html'), rs.end(d)));
+    }).listen(0);
+    const port = srv.address().port;
+    const br = await chromium.launch(await launchOptions());
+    try {
+      for (const [mode, status, body] of [['ok', 200, '{"ok":true,"id":"x"}'], ['errore', 500, '{"ok":false,"error":"server"}']]) {
+        const pg = await br.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+        const errs = []; pg.on('pageerror', e => errs.push(e.message));
+        await pg.addInitScript(() => { window.__conv = []; addEventListener('boom-conversion', e => window.__conv.push(e.detail)); });
+        let hits = 0;
+        await pg.route('**/*', async r => {
+          const u = r.request().url();
+          if (u.includes('/api/executive-lead')) { hits++; return r.fulfill({ status, contentType: 'application/json', body }); }
+          return u.startsWith(`http://localhost:${port}`) ? r.continue() : r.abort();
+        });
+        await pg.goto(`http://localhost:${port}/executive`, { waitUntil: 'load' });
+        await pg.click('#fGo');
+        const before = await pg.evaluate(() => window.__conv.length);
+        await pg.fill('#fName', 'Anna Keller'); await pg.fill('#fEmail', 'anna@example.com');
+        await pg.click('#fGo'); await pg.waitForTimeout(250);
+        const conv = await pg.evaluate(() => window.__conv);
+        if (mode === 'ok') {
+          ok('[ok] modulo vuoto: nessuna conversione; risposta ok: UNA conversione confermata',
+            before === 0 && hits === 1 && conv.length === 1 && conv[0].label === 'Executive lead sent' && conv[0].section === 'form'
+            && (await pg.isVisible('#fDone')) && errs.length === 0, { before, hits, conv, errs });
+        } else {
+          ok('[errore] la porta risponde 500: il modulo lo dice e NESSUNA conversione',
+            hits === 1 && conv.length === 0 && (await pg.isVisible('#exForm')) && (await pg.isVisible('#fErr')), { hits, conv });
+        }
+        await pg.close();
+      }
+    } finally { await br.close(); srv.close(); }
+  }
 }
 
 console.log(`\n${fail === 0 ? '\x1b[32m\x1b[1m' : '\x1b[31m\x1b[1m'}Executive: ${pass} passed, ${fail} failed\x1b[0m\n`);

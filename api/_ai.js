@@ -36,6 +36,7 @@ import REG from '../js/ai-registry.js';
 import { getAdminToken, FS_BASE, fsGet, toFsFields } from './homie/_lib.js';
 import { aiSignal } from './_budget.js';
 import { parseModelJson } from './_modeljson.js';
+import { AiBudgetError, budgetSettings, reserveBudget, settleBudget, budgetWithinDeadline } from './_ai-budget.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const ANTHROPIC_VERSION = '2023-06-01';
@@ -138,6 +139,45 @@ function parseLoose(text) {
   return r.ok ? { ok: true, value: r.value } : { ok: false };
 }
 
+// Shared transport for the router and the two legacy raw-response endpoints.
+// Disabled: no token count or reservation. Unknown settings: stop before spend.
+export async function anthropicFetch(body, { timeoutMs=25000, headers={} }={}) {
+  const deadline=Date.now()+timeoutMs;
+  const remaining=()=>{const n=deadline-Date.now();if(n<=0)throw new AiBudgetError('ai_budget_time_exhausted');return n;};
+  const auth={'x-api-key':process.env.ANTHROPIC_API_KEY,'anthropic-version':ANTHROPIC_VERSION,'content-type':'application/json',...headers};
+  const cfg=await budgetSettings({deadline});
+  remaining();
+  let receipt=null;
+  if(cfg.enabled) {
+    if(REG.reserveMicros(body.model,0,body.max_tokens)==null)throw new AiBudgetError('ai_budget_price_unknown');
+    const allowed=new Set(['model','max_tokens','messages','system','temperature','stop_sequences','thinking','output_config','tools','tool_choice','cache_control']);
+    const unsupported=Object.keys(body).some(k=>!allowed.has(k)) || (body.tools||[]).some(t=>t.type && t.type!=='custom') || (body.output_config && Object.keys(body.output_config).some(k=>k!=='effort')) ||
+      /"(?:type)"\s*:\s*"(?:url|file|container_upload)"/.test(JSON.stringify(body.messages));
+    if(unsupported)throw new AiBudgetError('ai_budget_request_unpriceable');
+    const countBody={};
+    for(const k of ['model','messages','system','tools','tool_choice','thinking'])if(body[k]!=null)countBody[k]=body[k];
+    let counted;
+    try {
+      const count=await budgetWithinDeadline(()=>fetch(ANTHROPIC_URL+'/count_tokens',{method:'POST',headers:auth,body:JSON.stringify(countBody),signal:aiSignal(Math.min(remaining(),10000))}),Math.min(deadline,Date.now()+10000));
+      if(!count.ok)throw new Error('count_failed');
+      counted=(await budgetWithinDeadline(()=>count.json(),deadline)).input_tokens;
+      if(!Number.isSafeInteger(counted)||counted<0)throw new Error('count_invalid');
+    } catch(error) { if(error?.code==='ai_budget_time_exhausted')throw error; throw new AiBudgetError('ai_budget_count_unavailable'); }
+    remaining();
+    receipt=await reserveBudget({model:body.model,inputTokens:counted,maxTokens:body.max_tokens,deadline});
+  }
+  // No automatic release on transport/HTTP failures: the provider may have
+  // started work. An uncertain hold remains visible until reconciliation.
+  if(receipt && receipt.day!==romeDay(Date.now()))throw new AiBudgetError('ai_budget_day_changed');
+  const response=await budgetWithinDeadline(()=>fetch(ANTHROPIC_URL,{method:'POST',headers:auth,body:JSON.stringify(body),signal:aiSignal(remaining())}),deadline);
+  if(receipt && response.ok) {
+    const data=await budgetWithinDeadline(()=>response.clone().json(),deadline).catch(()=>null);
+    if(data)await settleBudget(receipt,{model:data.model||body.model,usage:data.usage,deadline});
+  }
+  response.budgetCovered=!!receipt;
+  return response;
+}
+
 // ─── Cloud (Anthropic, raw HTTP come sempre: nessuna dipendenza) ────────────
 async function callCloud(req, { model, maxTokens, timeoutMs, temperature, stopSequences }) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -149,13 +189,9 @@ async function callCloud(req, { model, maxTokens, timeoutMs, temperature, stopSe
   const t0 = Date.now();
   let r;
   try {
-    r = await fetch(ANTHROPIC_URL, {
-      signal: aiSignal(timeoutMs),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': ANTHROPIC_VERSION, 'content-type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    r = await anthropicFetch(body, {timeoutMs});
   } catch (e) {
+    if(e instanceof AiBudgetError)throw e;
     throw new AiError(isAbort(e) ? 'cloud_timeout' : 'cloud_network', { backend: 'cloud', cause: e });
   }
   const ms = Date.now() - t0;
@@ -168,7 +204,7 @@ async function callCloud(req, { model, maxTokens, timeoutMs, temperature, stopSe
   // Un blocco senza `type` ma con `text` è testo (i chiamanti storici
   // leggevano content[0].text senza guardare il tipo): non si perde.
   const text = data.content.filter(b => b && (b.type === 'text' || (b.type == null && typeof b.text === 'string'))).map(b => b.text || '').join('\n').trim();
-  return { text, usage: data.usage || null, model: data.model || model, backend: 'cloud', stopReason: data.stop_reason || null, raw: data, ms };
+  return { text, usage: data.usage || null, model: data.model || model, backend: 'cloud', budgetCovered:r.budgetCovered===true, stopReason: data.stop_reason || null, raw: data, ms };
 }
 
 // ─── Locale (OpenAI-compatibile, sul Mac attraverso il tunnel) ──────────────
@@ -293,7 +329,7 @@ async function commitIncrements(writes) {
  * stesso. Non lancia mai: un contatore che fallisce non deve fermare una
  * risposta già ottenuta.
  */
-export async function recordUsage({ purpose, backend, ok, ms, model, usage, fallback = false, localFail = false, shadow = null, sttSeconds = null, now = Date.now() }) {
+export async function recordUsage({ purpose, backend, ok, ms, model, usage, fallback = false, localFail = false, shadow = null, sttSeconds = null, budgetCovered = false, now = Date.now() }) {
   try {
     const p = typeof purpose === 'string' ? REG.purposeOf(purpose) : purpose;
     if (!p) return false;
@@ -313,6 +349,11 @@ export async function recordUsage({ purpose, backend, ok, ms, model, usage, fall
     else if (sttSeconds != null) usd = REG.sttCostUsd(model, sttSeconds);
     else usd = REG.costUsd(model, usage);
     if (usd != null) incs[`${base}.usd`] = Number(usd.toFixed(6));
+    if (b==='cloud' && ok && (usd==null || sttSeconds==null && REG.billedMicros(model,usage)==null)) incs[`${base}.unpriced`]=1;
+    if(b==='cloud' && ok && !budgetCovered && usd!=null) {
+      const micros=sttSeconds!=null ? Math.ceil(usd*1e6) : REG.billedMicros(model,usage);
+      if(micros!=null)incs.budgetUnreservedMicros=micros;
+    }
     if (fallback) incs[`${base}.fallback`] = 1;
     if (localFail) { incs[`p.${slug}.local.calls`] = (incs[`p.${slug}.local.calls`] || 0) + 1; incs[`p.${slug}.local.fail`] = 1; }
     const writes = [{ docPath: `aiUsage/${day}`, set: { day, updatedAt: new Date(now) }, inc: incs }];
@@ -403,7 +444,7 @@ export async function ai(opts = {}) {
     purpose, ok: !failed, ms, fallback, localFail, shadow,
     backend: result ? result.backend : (pol.effective === 'local' ? 'local' : 'cloud'),
     model: result ? result.model : (pol.effective === 'local' && !fallback ? pol.localModel : cloudModel),
-    usage: result ? result.usage : null,
+    usage: result ? result.usage : null, budgetCovered:result?.budgetCovered===true,
   });
   if (failed) throw failed;
   return { ...result, fallback, policy: pol.effective, shadow: shadow ? { agree: shadow.agree, localFail: shadow.localFail } : null };

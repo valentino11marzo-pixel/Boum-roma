@@ -20,6 +20,7 @@
 import { secretEqual, readJson, fsList } from '../homie/_lib.js';
 import { parseModelJson, jsonFailureLine } from '../_modeljson.js';
 import { ai } from '../_ai.js';
+import FACTS from '../../js/listing-facts.js';
 
 // Il modello (sonnet: è la chiamata più cara del bot) sta nel registro:
 // js/ai-registry.js, scopo 'wizard.interpret'.
@@ -194,7 +195,12 @@ Regole sui valori:
   if (updates.videoUrl) summary.push('Video tour aggiornato');
   if (updates.status) summary.push(`Stato: ${cur.status || 'available'} → ${updates.status}`);
   for (const k of ['name', 'address', 'zone', 'sqm', 'floor', 'beds', 'bathrooms', 'furnished', 'availableDate', 'agencyFee']) {
-    if (updates[k] != null) summary.push(`${k}: ${cur[k] != null ? cur[k] : '—'} → ${updates[k]}`);
+    if (updates[k] == null) continue;
+    // per le camere il «prima» è ciò che il sito mostra (la regola unica di
+    // js/listing-facts.js), non il testo libero del bot: «beds: Living , 1
+    // bedroom with balcony , 1 bedroom… → 3» non diceva quante erano
+    const before = k === 'beds' ? FACTS.bedroomsOf(cur) : cur[k];
+    summary.push(`${k}: ${before != null ? before : '—'} → ${updates[k]}`);
   }
   if (updates.description) summary.push('Descrizione aggiornata');
 

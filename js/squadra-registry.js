@@ -567,16 +567,21 @@
     },
     {
       key: 'copywriter', emoji: '✍️', name: 'Il Copywriter', reparto: 'Vetrina',
-      role: 'Riempie le schede mute',
+      role: 'Riempie le schede mute, e riscrive i propri testi sbagliati quando un admin lo chiede',
       hired: 'Una scheda senza testo è invisibile ai motori e incitabile dalle AI. Il 28/07 ne avevamo 10 vuote e 10 col template del bot.',
       mandate: [
         'Ogni notte alle 03:35 riscrive fino a 6 descrizioni, prima le disponibili e mute',
-        'Testo bilingue da Claude sui dati veri dell\'immobile'
+        'Su richiesta di un admin (da /catalogo) o del cron riscrive fino a 6 descrizioni scelte: solo i testi della macchina («ai», ancora come li ha scritti lei), quelli vuoti e il template del bot',
+        'Testo bilingue da Claude sui dati veri dell\'immobile: l\'arredo solo se dichiarato, le camere dal campo camere, la via senza civico',
+        'Controlla il testo prima di scriverlo: con un prezzo, una data, una durata del soggiorno, un civico, un arredo o camere inventati non lo pubblica e lo dice'
       ],
       autonomy: {
         solo:  ['RISCRIVE IL TESTO PUBBLICO DELL\'ANNUNCIO'],
-        porta: ['Niente: lavora in silenzio'],
-        mai:   ['NON RISCRIVE MAI LE PAROLE DI UN UMANO — solo il vuoto e la firma del proprio template', 'Conserva sempre l\'originale in descriptionOriginal']
+        porta: ['Niente: lavora in silenzio — l\'esito di una rigenerazione lo legge chi l\'ha chiesta, in /catalogo'],
+        mai:   ['NON RISCRIVE MAI LE PAROLE DI UNA PERSONA — di notte solo il vuoto e la firma del proprio template; su richiesta anche i propri testi, mai quelli corretti a mano né i «lotto12», scritti e approvati dall\'operatore',
+          'Non perde mai un testo: il primo testo in descriptionOriginal (solo se manca), l\'ultimo sostituito in descriptionPrevious',
+          'Non promette mai un soggiorno breve: con BOOM si affitta per almeno 3 mesi',
+          'Il segreto del bot non basta a fargli riscrivere niente: la rigenerazione è solo di un admin o del cron']
       },
       reach: ['vetrina', 'archivio', 'ai'],
       approval: 'mai',

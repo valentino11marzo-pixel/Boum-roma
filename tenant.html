@@ -379,7 +379,9 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -396,8 +398,10 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -452,6 +456,7 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+<link rel="stylesheet" href="/css/tenant-workspace.css">
 </head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
@@ -495,10 +500,15 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
 <script src="/js/rent-engine.js"></script>
+<script src="/js/tenant-access-engine.js"></script>
+<script src="/js/tenant-workspace-engine.js"></script>
+<script src="/js/tenant-workspace-ui.js"></script>
 <script>
 (function(){
 'use strict';
-var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
+var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[];
+var CONTRACTS=[],CONTRACT_LOAD='loading',CONTRACT_LIMIT=false;
+var CONTRACT_REQUEST=new URLSearchParams(location.search).get('contract')||null;
 /* UI state only. A Checkout return requests verification; it never changes
    a Firestore payment. Server reads are bounded, and failed reads are visible. */
 var PAY_LOAD='loading',PAY_LIMIT=false,APP_READY=false,PAY_BUSY=null;
@@ -517,8 +527,8 @@ var VIEW_AS=(function(){try{return new URLSearchParams(location.search).get('as'
    Italian toggle, persisted. t(key) resolves; strings kept in one place. ── */
 var LANG=(function(){try{return localStorage.getItem('boom:casa:lang')||((navigator.language||'').slice(0,2)==='it'?'it':'en')}catch(e){return 'en'}})();
 var STR={
- en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract active',reserved:'Reserved in your name',
-  gm:'Good morning',ga:'Good afternoon',ge:'Good evening',daysToKeys:'{n} days to your keys',keysToday:'keys day!',
+ en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract signed',reserved:'Contract in preparation',
+  gm:'Good morning',ga:'Good afternoon',ge:'Good evening',daysToKeys:'Lease starts in {n} days',keysToday:'Lease starts today',
   nPay:'Payment',nHist:'History',nDocs:'Documents',nMan:'Manual',nHood:'Area',nFix:'Repairs',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invite',
   wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay where available · automatic receipt · redirecting…',
   monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
@@ -536,11 +546,11 @@ var STR={
   payLoading:'Loading your payments…',payLoadError:'We could not verify your payments. Refresh before paying.',payRefresh:'Refresh payments',payChecking:'Checking the payment with BOOM…',payConfirmPending:'Awaiting confirmation',
   payWaiting:'Payment confirmation is still pending. Please refresh or contact BOOM before paying this instalment again.',payMissing:'This payment could not be found in this home. Contact BOOM to check it.',
   payProcessing:'Payment processing',payProcessingSub:'This instalment is already being collected. Please wait for confirmation before making another payment.',payReported:'Transfer reported · awaiting verification',
-  payUnknown:'To verify',payCancelled:'Cancelled',payList:'Payments for this home',payOpen:'To pay & in progress',payHistory:'Paid & receipts',payOther:'Other records',payOtherCharge:'Other charge',payEmpty:'No instalments are recorded for this home yet.',
+  payUnknown:'To verify',payCancelled:'Cancelled',payList:'Payments for this home',payOpen:'To pay & in progress',payHistory:'Paid & receipts',payOther:'Other records',payOtherCharge:'Other charge',payEmpty:'Your payment schedule is not available here yet. Amounts and due dates will appear once recorded.',
   payLimited:'Showing the first 120 records. Contact BOOM if an instalment is missing.',payNoContract:'No contract is available for this home. Contact BOOM to check your payments.',bySepa:'by direct debit',
   sddChecking:'Checking the activation of automatic rent. Refresh to see the confirmed status.',
   boughtBand:'✓ {x} confirmed — we are on it. Details by email, and your advisor will follow up.',
-  noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again',
+  noDue:'No open payments among the recorded instalments.',opening:'Opening secure checkout…',payRetry:'Try again',
   s2:'History &amp; receipts',histEmpty:'Your history will appear here after the first payment.',showAll:'Show all',
   deposit:'Deposit',depBalance:'Deposit balance',paidW:'paid',byCard:'by card',byBank:'by transfer',receipt:'receipt →',paid:'✓ paid',pending:'upcoming',lateSt:'overdue',
   s3:'Your documents',contractDoc:'Signed contract + certificate',contractSub:'official PDF with the digital signatures',yourContract:'Your contract',
@@ -580,8 +590,8 @@ var STR={
   adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.',
   tmAddr:'Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma',
   tm:'BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.'},
- it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
-  gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
+ it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto firmato',reserved:'Contratto in preparazione',
+  gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'Inizio contratto tra {n} giorni',keysToday:'Il contratto inizia oggi',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
   wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay dove disponibile · ricevuta automatica · reindirizzamento…',
   monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
@@ -599,11 +609,11 @@ var STR={
   payLoading:'Caricamento dei pagamenti…',payLoadError:'Non riusciamo a verificare i pagamenti. Aggiorna prima di pagare.',payRefresh:'Aggiorna pagamenti',payChecking:'Verifichiamo il pagamento con BOOM…',payConfirmPending:'In attesa di conferma',
   payWaiting:'Il pagamento è ancora in attesa di conferma. Aggiorna o contatta BOOM prima di pagare di nuovo questa rata.',payMissing:'Il pagamento non risulta tra quelli di questa casa. Contatta BOOM per verificarlo.',
   payProcessing:'Pagamento in corso',payProcessingSub:'Questa rata è già in fase di incasso. Attendi la conferma prima di effettuare un altro pagamento.',payReported:'Bonifico segnalato · da verificare',
-  payUnknown:'Da verificare',payCancelled:'Annullato',payList:'Pagamenti di questa casa',payOpen:'Da pagare e in corso',payHistory:'Pagati e ricevute',payOther:'Altre registrazioni',payOtherCharge:'Altro addebito',payEmpty:'Non risultano ancora rate registrate per questa casa.',
+  payUnknown:'Da verificare',payCancelled:'Annullato',payList:'Pagamenti di questa casa',payOpen:'Da pagare e in corso',payHistory:'Pagati e ricevute',payOther:'Altre registrazioni',payOtherCharge:'Altro addebito',payEmpty:'Il piano dei pagamenti non è ancora disponibile qui. Importi e scadenze compariranno appena registrati.',
   payLimited:'Sono visibili le prime 120 registrazioni. Contatta BOOM se manca una rata.',payNoContract:'Il contratto di questa casa non è disponibile. Contatta BOOM per verificare i pagamenti.',bySepa:'con addebito diretto',
   sddChecking:'Verifichiamo l’attivazione dell’addebito automatico. Aggiorna per vedere lo stato confermato.',
   boughtBand:'✓ {x} confermato — ci pensiamo noi. Dettagli via email, il tuo advisor ti scrive.',
-  noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova',
+  noDue:'Non risultano pagamenti aperti tra quelli registrati.',opening:'Apro il checkout sicuro…',payRetry:'Riprova',
   s2:'Storico &amp; ricevute',histEmpty:'Lo storico apparirà qui dal primo pagamento.',showAll:'Mostra tutto',
   deposit:'Deposito',depBalance:'Saldo deposito',paidW:'pagato',byCard:'con carta',byBank:'con bonifico',receipt:'ricevuta →',paid:'✓ pagato',pending:'in arrivo',lateSt:'in ritardo',
   s3:'I tuoi documenti',contractDoc:'Contratto firmato + certificato',contractSub:'PDF ufficiale con le firme digitali',yourContract:'Il tuo contratto',
@@ -927,7 +937,7 @@ window.shareKit=function(){
 /* ── LA ROTTA (S6): il journey come tratta di volo ─────────────────────
    Ogni tappa è un FATTO del contratto o dei pagamenti già in pagina:
    firma (signatureStatus), saldo deposito (il doc depbal, solo se il
-   deal l'ha spezzato), chiavi (startDate), a bordo (tra le due date),
+   deal l'ha spezzato), chiavi (verbaleConsegna), a bordo (tra le due date),
    rinnovo (endDate−90 — il T-90 del journey server). Niente stime:
    una tappa non derivabile semplicemente non c'è. L'aereo sta sulla
    prima tappa non compiuta. */
@@ -938,9 +948,11 @@ function rottaCasa(c,depBal){
   function ds(iso){try{return new Intl.DateTimeFormat(LANG==='it'?'it-IT':'en-GB',
     {day:'numeric',month:'short'}).format(new Date(iso+'T00:00'))}catch(e){return ''}}
   var t90=c.endDate?d90(c.endDate):null;
-  var st=[{k:t('jSign'),done:c.signatureStatus==='completed'}];
+  var st=[{k:t('jSign'),done:window.BOOM_TENANT_ACCESS.stage(c)==='signed'}];
   if(depBal)st.push({k:t('jDep'),done:depBal.status==='paid',d:depBal.dueDate});
-  st.push({k:t('jKeys'),done:c.startDate<=todayISO,d:c.startDate});
+  var handedAt=c.verbaleConsegna&&safeReceiptUrl(c.verbaleConsegna.url)&&String(c.verbaleConsegna.at||'').slice(0,10);
+  var keysDone=!!(handedAt&&/^\d{4}-\d{2}-\d{2}$/.test(handedAt)&&handedAt<=todayISO);
+  st.push({k:t('jKeys'),done:keysDone,d:keysDone?handedAt:null});
   st.push({k:t('jBoard'),done:!!(c.endDate&&c.endDate<todayISO),
     cur:c.startDate<=todayISO&&(!c.endDate||todayISO<=c.endDate)});
   if(t90)st.push({k:t('jRen'),done:t90<=todayISO,d:t90});
@@ -958,8 +970,39 @@ function rottaCasa(c,depBal){
     +'</div></div>';
 }
 
+function contractWelcome(c){
+  var stage=window.BOOM_TENANT_ACCESS.stage(c),it=LANG==='it';
+  var titles={preparing:it?'La tua area casa è pronta':'Your home, in one place',review:it?'Il contratto è pronto da leggere':'Your contract is ready to review',owner_signature:it?'La tua firma è registrata':'Your signature is recorded',other_signatures:it?'La tua firma è registrata':'Your signature is recorded',verifying:it?'Stiamo verificando le firme':'We’re checking the signatures'};
+  var notes={preparing:it?'Stiamo preparando il contratto. Puoi già consultare i documenti disponibili e contattarci da qui.':'We’re preparing your contract. You can already see the available documents and contact us here.',review:it?'Leggilo con calma prima di firmare. Pagamenti, documenti e richieste per la casa resteranno in questa area.':'Take your time to read it before signing. Your payments, documents and home requests will stay in this space.',owner_signature:it?'Manca la firma del proprietario. Intanto puoi usare questa area: le firme ancora in corso non ti impediscono di consultare i documenti disponibili.':'The owner’s signature is still pending. You can use this space and view the available documents while signing is completed.',other_signatures:it?'Le altre firme sono ancora in corso. Ritroverai qui il contratto completo quando sarà disponibile.':'Other signatures are still pending. You’ll find the completed contract here when it’s available.',verifying:it?'Le firme registrate sono in verifica. Il contratto completo apparirà nei tuoi documenti quando sarà disponibile.':'The recorded signatures are being checked. The completed contract will appear in your documents when it’s available.'};
+  if(!titles[stage])return '';
+  return '<section class="home-welcome" aria-labelledby="homeWelcomeTitle"><span class="home-welcome-kicker">'+(it?'Benvenuto nella tua area casa':'Welcome to your home space')+'</span><h2 id="homeWelcomeTitle">'+titles[stage]+'</h2><p>'+notes[stage]+'</p><div class="tw-actions">'+(stage==='review'&&!VIEW_AS?'<button type="button" class="obtn" id="reviewContractBtn">'+(it?'Leggi e firma il contratto':'Review and sign your contract')+'</button>':'')+'<a class="obtn" href="#s-docs">'+(it?'Apri i documenti':'View documents')+'</a></div><p id="reviewContractMessage" role="status"></p><small>'+(it?'Conserva questo link: resta la tua area per tutta la permanenza.':'Keep this link: it remains your home space throughout your stay.')+'</small></section>';
+}
+
+async function openOwnContract(){
+  if(VIEW_AS||!CONTRACT||window.BOOM_TENANT_ACCESS.stage(CONTRACT)!=='review')return;
+  var button=$('reviewContractBtn'),message=$('reviewContractMessage');
+  if(!button||button.disabled)return;
+  button.disabled=true;message.textContent=LANG==='it'?'Apro il tuo contratto…':'Opening your contract…';
+  try{
+    var tok=await USER.getIdToken();
+    var r=await BoomPortal.withTimeout(fetch('/api/sign/links',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+tok},body:JSON.stringify({contractId:CONTRACT.id})}),12000);
+    var j=await r.json(),url=window.BOOM_TENANT_ACCESS.ownSignUrl(j);
+    if(r.ok===false||!url)throw new Error('sign_link_unavailable');
+    location.href=url;
+  }catch(e){button.disabled=false;message.textContent=LANG==='it'?'Non siamo riusciti ad aprire il contratto. Riprova o contatta BOOM.':'We couldn’t open your contract. Try again or contact BOOM.';}
+}
+
 function render(){
-  var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
+  if(CONTRACT_LOAD==='error'||(CONTRACT_LOAD==='ready'&&!CONTRACT)){
+    var failed=CONTRACT_LOAD==='error';
+    $('app').innerHTML='<span class="eyebrow">BOOM</span><h1 class="big">'+(LANG==='it'?'La tua casa':'Your home')+'</h1><div class="paynotice" role="status">'+
+      (failed?(LANG==='it'?'Non siamo riusciti a caricare il contratto. Riprova.':'We could not load your contract. Please try again.'):
+        (LANG==='it'?'Questa casa non è disponibile per il tuo account. Contatta BOOM per verificare il collegamento.':'This home is not available for your account. Contact BOOM to check your access.'))+
+      '</div><button class="obtn" id="retryHome">'+(LANG==='it'?'Riprova':'Try again')+'</button> <a class="obtn" href="https://wa.me/393313251961">'+(LANG==='it'?'Contatta BOOM':'Contact BOOM')+'</a>'+
+      (CONTRACT_REQUEST?'<p><a href="/casa">'+(LANG==='it'?'Le mie case':'My homes')+'</a></p>':'');
+    $('retryHome').onclick=function(){location.reload()};return;
+  }
+  var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||(CONTRACT&&(CONTRACT.propertyAddress||CONTRACT.propertyName))||'La tua casa BOOM';
   var c=CONTRACT||{};
   var payments=homePayments();
   var next=nextPending();
@@ -984,7 +1027,9 @@ function render(){
     +'<span class="eyebrow">'+greet()+(firstName?', '+esc(firstName):'')+'</span>'
     +'<h1 class="big">'+esc(addr).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
     +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
-    +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
+    +'<div class="chip">'+(window.BOOM_TENANT_ACCESS.stage(c)==='closed'?(LANG==='it'?'Contratto chiuso':'Contract closed'):(window.BOOM_TENANT_ACCESS.stage(c)==='signed'?t('active'):t('reserved')))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
+    +contractWelcome(c)
+    +'<details class="home-keep"><summary>'+(LANG==='it'?'Il tuo link e gli avvisi':'Your link and updates')+'</summary><p>'+(LANG==='it'?'Conserva questo link o fissalo nella chat WhatsApp con BOOM: aprirai sempre la tua area, con pagamenti e documenti aggiornati. Il link richiede il tuo accesso personale.':'Save this link or pin it in your WhatsApp chat with BOOM: it opens your home space with current payments and documents. Your personal sign-in is required.')+'</p><button class="obtn" type="button" id="copyHomeLink">'+(LANG==='it'?'Copia il link della tua area':'Copy your home link')+'</button><p id="copyHomeStatus" role="status"></p><div id="tenantNotices"></div></details>'
     +'<div class="tiles">'
       +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v"><span>'+rentText+'</span><small> /m</small></div></div>'
       +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span>'+eur(next.amount)+'</span>'):'—')+'</div></div>'
@@ -993,10 +1038,16 @@ function render(){
     +'</div>'
     +rottaCasa(c,depBal);
 
+  if(!VIEW_AS&&CONTRACTS.length>1){
+    html+='<label for="homeContract">'+(LANG==='it'?'Casa e periodo':'Home and lease period')+'</label><select id="homeContract" style="display:block;width:100%;max-width:100%;padding:12px;margin:8px 0 20px;background:#171719;color:#fff;border:1px solid #555;border-radius:8px">'+
+      CONTRACTS.map(function(x){return '<option value="'+esc(x.id)+'"'+(x.id===c.id?' selected':'')+'>'+esc(x.propertyAddress||x.propertyName||x.address||x.id)+' · '+fmtD(x.startDate)+' → '+fmtD(x.endDate)+'</option>'}).join('')+'</select>';
+  }
+  if(CONTRACT_LIMIT)html+='<p class="paynotice">'+(LANG==='it'?'Sono mostrati fino a 50 contratti. Contatta BOOM se manca la tua casa.':'Up to 50 leases are shown. Contact BOOM if your home is missing.')+'</p>';
+
   /* sticky quick-nav — built from the sections that actually render */
-  var navItems=[['s-pay','nPay'],['s-hist','nHist'],['s-docs','nDocs'],['s-man','nMan']];
+  var navItems=[['s-pay','nPay'],['s-docs','nDocs'],['s-fix','nFix'],['s-man','nMan'],['s-hist','nHist']];
   if(hood.length)navItems.push(['s-hood','nHood']);
-  navItems.push(['s-fix','nFix'],['s-conc','nConc'],['s-kit','nKit'],['s-ref','nRef']);
+  navItems.push(['s-conc','nConc']);
   html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
 
   if(SDD_RETURN)html+='<div class="'+(c.sdd&&c.sdd.status==='active'&&PAY_LOAD==='ready'?'paidband':'paynotice')+'" role="status">'+t(c.sdd&&c.sdd.status==='active'&&PAY_LOAD==='ready'?'sddOkBand':'sddChecking')+(!RETURN_CHECKING&&!(c.sdd&&c.sdd.status==='active')?'<button class="obtn" data-refresh-payments>'+t('payRefresh')+'</button>':'')+'</div>';
@@ -1034,12 +1085,10 @@ function render(){
   }else{
     html+='<div style="font-size:13.5px;color:var(--t2)">'+t(!c.id?'payNoContract':PAY_LIMIT?'payLimited':!payments.length?'payEmpty':unresolved?'payUnknown':'noDue')+'</div>';
   }
-  /* ── canone automatico (SEPA) — attivi una volta, poi si paga da solo ── */
+  /* Preserve existing mandates; launch offers card / Apple Pay / bank transfer only. */
   if(c.id){
     if(sdd.status==='active'){
       html+='<div class="sddbox on"><span class="ic">🏦</span><div><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
-    }else if(PAY_LOAD==='ready'&&!PAY_BUSY&&!SDD_RETURN&&!(next&&paymentState(next)==='processing')&&!(PAY_RETURN&&paymentReturnState()!=='confirmed')){
-      html+='<details class="pay-auto"><summary>'+t('payAutoTitle')+'</summary><div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div></details>';
     }
   }
   if(PAY_REPORT_ERROR)html+='<p class="paynotice" role="alert">'+t('reportError')+'</p>';
@@ -1063,14 +1112,16 @@ function render(){
      certificate» apriva SOLO il certificato: il documento firmato non era
      raggiungibile da /casa (3/10/2026). Il certificato resta, con il suo nome. */
   var dl=function(href,ic,title,sub){return '<a class="dlink" href="'+esc(href)+'" target="_blank" rel="noopener"><span class="ic">'+ic+'</span><span>'+title+'<br><small>'+sub+'</small></span><span class="go">→</span></a>';};
-  if(c.signedPdfUrl)html+=dl(c.signedPdfUrl,'📄',t('signedDoc'),t('signedSub'));
-  else if(c.generatedPDF)html+=dl(c.generatedPDF,'📄',t('yourContract'),c.signingCertificateUrl?t('signedPending'):'PDF');
-  if(c.signingCertificateUrl)html+=dl(c.signingCertificateUrl,'🔏',t('certDoc'),t('certSub'));
+  if(safeReceiptUrl(c.signedPdfUrl))html+=dl(safeReceiptUrl(c.signedPdfUrl),'📄',t('signedDoc'),t('signedSub'));
+  else if(safeReceiptUrl(c.generatedPDF))html+=dl(safeReceiptUrl(c.generatedPDF),'📄',t('yourContract'),c.signingCertificateUrl?t('signedPending'):'PDF');
+  if(safeReceiptUrl(c.signingCertificateUrl))html+=dl(safeReceiptUrl(c.signingCertificateUrl),'🔏',t('certDoc'),t('certSub'));
+  if(c.verbaleConsegna&&safeReceiptUrl(c.verbaleConsegna.url))html+=dl(safeReceiptUrl(c.verbaleConsegna.url),'🔑',LANG==='it'?'Verbale di consegna':'Handover report','PDF');
   if(depBal||c.depositPaid){
     html+='<div class="dlink" style="cursor:default"><span class="ic">🛡</span><span>'+t('depositDoc')+'<br><small>'
       +(c.depositPaid?t('depPaid'):(depBal&&depBal.status==='paid'?t('depSettled'):t('depDueAt').replace('{x}',eur((depBal||{}).amount))))
       +'</small></span></div>';
   }
+  html+='<div id="tenantArchive"></div>';
   html+='<a class="dlink" href="'+waMsg('Ciao BOOM! Mi serve una copia di un documento della mia casa ('+addr+').')+'" target="_blank" rel="noopener"><span class="ic">💬</span><span>'+t('needMore')+'<br><small>'+t('needMoreSub')+'</small></span><span class="go">→</span></a>';
   html+='</div>';
 
@@ -1106,18 +1157,8 @@ function render(){
     html+='</div>';
   }
 
-  /* ── maintenance ── */
-  html+='<div class="card rv" id="s-fix">'+secH(no(),t('s4'))
-    +'<div class="g2">'
-    +'<label class="fld"><span>'+t('mCat')+'</span><select id="mCat"><option value="idraulica">'+t('cat1')+'</option><option value="elettricita">'+t('cat2')+'</option><option value="elettrodomestici">'+t('cat3')+'</option><option value="riscaldamento">'+t('cat4')+'</option><option value="serrature">'+t('cat5')+'</option><option value="altro">'+t('cat6')+'</option></select></label>'
-    +'<label class="fld"><span>'+t('mPri')+'</span><select id="mPri"><option value="normal">'+t('pri1')+'</option><option value="high">'+t('pri2')+'</option><option value="emergency">'+t('pri3')+'</option></select></label>'
-    +'</div>'
-    +'<label class="fld"><span>'+t('mDesc')+'</span><textarea id="mDesc" rows="3" placeholder="…"></textarea></label>'
-    +'<button class="obtn" id="mSend" style="border-color:var(--line-gold);color:var(--gold)">'+t('mSend')+'</button>'
-    +'<span class="ok" id="mOk">'+t('mOk')+'</span>'
-    +'<span class="err" id="mErr"></span>'
-    +'<div id="mList">'+maintRows()+'</div>'
-    +'</div>';
+  /* Requests have their own controller: payment refreshes preserve drafts. */
+  html+='<div class="card rv" id="s-fix">'+secH(no(),t('s4'))+'<div id="tenantTickets"></div></div>';
 
   /* ── concierge ── */
   html+='<div class="card rv" id="s-conc">'+secH(no(),t('s5'))
@@ -1157,7 +1198,9 @@ function render(){
   }
 
   $('app').innerHTML=html;
+  var homeSelect=$('homeContract');if(homeSelect)homeSelect.onchange=function(){location.href='/casa?contract='+encodeURIComponent(homeSelect.value)};
   wire(next,hist);
+  if(window.BOOM_TENANT_WORKSPACE_UI)window.BOOM_TENANT_WORKSPACE_UI.mount({contract:CONTRACT,user:USER,lang:LANG});
   reveal();
   if(man&&man.wifiName&&man.wifiPass)wifiQr(man.wifiName,man.wifiPass);
   if(PAY_METHOD==='bank')renderBonifico();
@@ -1182,13 +1225,13 @@ function payRow(p){
     +'<span class="st '+(state==='paid'?'paid':state==='overdue'&&!confirming?'late':'pending')+'">'+t(status)+'</span></div>';
 }
 
-function maintRows(){
-  return MAINT.slice(0,4).map(function(m){
-    return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?t('statusOpen'):(m.status||t('statusOpen')))+'</span></div>';
-  }).join('');
-}
-
 function wire(next,hist){
+  var homeLink=$('copyHomeLink');if(homeLink)homeLink.onclick=async function(){
+    var url='https://www.boomrome.com/casa?contract='+encodeURIComponent(CONTRACT.id);
+    try{await navigator.clipboard.writeText(url);$('copyHomeStatus').textContent=LANG==='it'?'Link copiato. Incollalo nella chat e fissa il messaggio.':'Link copied. Paste it in your chat and pin the message.'}
+    catch(e){$('copyHomeStatus').textContent=(LANG==='it'?'Copia questo indirizzo: ':'Copy this address: ')+url}
+  };
+  var review=$('reviewContractBtn');if(review)review.onclick=openOwnContract;
   var report=$('reportTransferBtn'),withdraw=$('withdrawReportBtn');
   if(report&&next)report.onclick=function(){return reportTransfer(next,'report')};
   if(withdraw&&next)withdraw.onclick=function(){return reportTransfer(next,'withdraw')};
@@ -1259,34 +1302,7 @@ function wire(next,hist){
       throw new Error((j&&j.error)||'failed');
     }).catch(function(){sc.disabled=false;});
   };}
-  var ms=$('mSend');
-  if(ms){
-    ms.onclick=function(){
-      var desc=($('mDesc').value||'').trim();
-      var ok=$('mOk'),err=$('mErr');ok.style.display='none';err.style.display='none';
-      if(desc.length<8){err.textContent=t('mShort');err.style.display='inline';return;}
-      ms.disabled=true;ms.textContent='…';
-      /* in Vista cliente la segnalazione è aperta PER il cliente (le rules
-         lo prevedono: "l'admin può aprire una segnalazione per un
-         inquilino") — deve comparire nella SUA lista, non in quella admin */
-      var mUid=(VIEW_AS&&CONTRACT&&CONTRACT.tenantId)||USER.uid;
-      var doc={userId:mUid,tenantId:mUid,tenantName:(VIEW_AS&&CONTRACT&&CONTRACT.tenantName)||(PROFILE&&PROFILE.name)||USER.email||'',
-        propertyId:(CONTRACT&&CONTRACT.propertyId)||(PROFILE&&PROFILE.propertyId)||'',
-        propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
-        category:$('mCat').value,priority:$('mPri').value,description:desc.slice(0,800),
-        status:'pending',createdAt:new Date().toISOString()};
-      firebase.firestore().collection('maintenance').add(doc).then(function(){
-        ok.style.display='inline';$('mDesc').value='';
-        ms.disabled=false;ms.textContent=t('mSend');
-        MAINT.unshift(doc);
-        $('mList').innerHTML=maintRows();
-        try{fetch('/api/agent/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'maintenance.opened',summary:'🔧 '+doc.category+' ('+doc.priority+') — '+(doc.propertyName||doc.tenantName),detail:desc.slice(0,300)})});}catch(e){}
-      }).catch(function(){
-        ms.disabled=false;ms.textContent=t('mSend');
-        err.textContent=t('mFail');err.style.display='inline';
-      });
-    };
-  }
+
 }
 
 function reveal(){
@@ -1318,35 +1334,31 @@ BoomPortal.requireAuth(['tenant','admin'],{loginUrl:'/login'}).then(function(res
   // non si risolverebbe mai → loader eterno. I pagamenti hanno uno stato
   // esplicito e un retry: un errore non significa nessuna rata da pagare.
   var T=function(p){return BoomPortal.withTimeout(p,9000)};
-  var qContracts=VIEW_AS
-    ? T(db.collection('contracts').doc(VIEW_AS).get({source:'server'}))
-        .then(function(d){if(d&&d.exists){var v=d.data();v.id=d.id;CONTRACT=v;
-          // il saluto e le firme mostrano il CLIENTE, non l'admin
-          PROFILE={name:v.tenantName||'',role:'admin'};}})
-        .catch(function(){})
-    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get({source:'server'}))
-        .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
-          rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
-          CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
-        .catch(function(){});
   var qPays=refreshPayments();
+  var qContracts=(VIEW_AS
+    ? T(db.collection('contracts').doc(VIEW_AS).get({source:'server'})).then(function(d){
+        return d&&d.exists?[Object.assign({},d.data(),{id:d.id})]:[];
+      })
+    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(50).get({source:'server'})).then(function(s){
+        var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;if(v.tenantId===USER.uid)rows.push(v)});
+        CONTRACT_LIMIT=rows.length>=50;return rows;
+      })
+  ).then(function(rows){
+    CONTRACTS=rows;
+    return qPays.then(function(){
+      var returned=PAY_RETURN?PAYMENTS.filter(function(p){return p.id===PAY_RETURN})[0]:null;
+      CONTRACT=window.BOOM_TENANT_ACCESS.choose(rows,todayISO,VIEW_AS||CONTRACT_REQUEST,returned);
+      CONTRACT_LOAD='ready';
+      if(VIEW_AS&&CONTRACT)PROFILE={name:CONTRACT.tenantName||'',role:'admin'};
+    });
+  }).catch(function(){CONTRACT_LOAD='error'});
   // Dati per il bonifico, impostati una volta da /banca in payout/default.
   // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
   // non c'è, il blocco bonifico semplicemente non compare.
   var qPayout=T(db.collection('payout').doc('default').get())
     .then(function(d){if(d&&d.exists)PAYOUT=d.data()}).catch(function(){});
-  var fillMaint=function(s){MAINT=[];s.forEach(function(d){MAINT.push(d.data())});
-    MAINT.sort(function(a,b){return String(b.createdAt||'').localeCompare(String(a.createdAt||''))});};
-  var qMaint=VIEW_AS
-    // il tenantId del cliente arriva col contratto: la lettura si accoda
-    ? qContracts.then(function(){if(!CONTRACT||!CONTRACT.tenantId)return;
-        return T(db.collection('maintenance').where('userId','==',CONTRACT.tenantId).limit(20).get())
-          .then(fillMaint).catch(function(){});})
-    : T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
-        .then(fillMaint).catch(function(){});
-
-  Promise.all([qContracts,qMaint,qPayout]).then(function(){
-    var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
+  Promise.all([qContracts,qPayout]).then(function(){
+    var pid=(CONTRACT&&CONTRACT.propertyId)||null;
     return pid?T(db.collection('properties').doc(pid).get()).then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
   }).then(function(){
     $('load').style.display='none';$('app').style.display='';$('foot').style.display='';

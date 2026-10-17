@@ -188,8 +188,46 @@ function dossierRoutes(uiSource = dossier, portalSource = app) {
 let covered = new Set();
 try { covered = dossierRoutes(); ok(covered.size === 8, 'otto azioni fascicolo vere conservano etichette e ID con apici fino alla conferma'); }
 catch (error) { ok(false, 'azioni fascicolo reali: ' + error.message); }
-ok(calls.length + Number(covered.has('delete')) >= 13,
-  `la scansione VEDE i siti (${calls.length} inline + ${Number(covered.has('delete'))} delega immobile eseguita; minimo 13 invariato)`);
+// The listing delete action moved from an inline icon to the house sheet.
+// Count its replacement only after exercising the actual DOM listener,
+// portal callback and final confirmation, with the same hostile ID/name.
+function catalogDeleteRoute() {
+  const id = `annuncio'"&\\demo`, name = `Ca' d'Oro "finale" & <b>studio</b>`;
+  const S = {profile:{role:'admin'},listings:[{id,name}],properties:[],users:[],landlords:[]};
+  let click, confirmation;
+  const channel = {setAttribute(){},innerHTML:''};
+  const overlay = {isConnected:true,remove(){this.isConnected=false},querySelector(){return channel},addEventListener(type,fn){if(type==='click')click=fn}};
+  const dialog = {focus(){},addEventListener(){}};
+  const host = {innerHTML:'',querySelector(selector){return selector==='.ch-overlay'?overlay:dialog}};
+  const document = {getElementById(){return host},activeElement:null};
+  const window = {BOOM_CATALOG_HOME_ENGINE:require('../../js/catalog-home-engine.js'),BOOM_DISPO:require('../../js/dispo-engine.js')};
+  const context=vm.createContext({window,document,S,URL,
+    // Leave the independent read pending; this test executes only the action.
+    auth:{currentUser:{getIdToken:()=>new Promise(()=>{})}},
+    openModal:(type,data)=>{assert.equal(type,'confirm');confirmation=data;}});
+  vm.runInContext(readFileSync(join(ROOT,'js/catalog-home.js'),'utf8'),context);
+  vm.runInContext(['esc','jsq','confirmDelete','openCatalogHome'].map(n=>named(app,n)).join('\n'),context);
+  context.id=id;vm.runInContext('openCatalogHome(id)',context);
+  assert(host.innerHTML.includes('Ca&#39; d&#39;Oro &quot;finale&quot; &amp; &lt;b&gt;studio&lt;/b&gt;'));
+  const action=host.innerHTML.match(/<button[^>]+data-ch-action="(remove)"[^>]*>/)?.[1];
+  assert.equal(action,'remove');
+  click({target:{closest:()=>({dataset:{chAction:action}})}});
+  context.data=confirmation;
+  const branch=app.match(/if \(type === 'confirm'\) return ([^\n]+);/);
+  const html=vm.runInContext(branch[1],context);
+  const text=html.match(/<p class="confirm-text">([\s\S]*?)<\/p>/)?.[1];
+  assert(text && !text.includes('<'));assert(htmlDecode(text).includes(name));
+  let deleted;
+  for(const match of html.matchAll(/onclick="([^"]*)"/g))
+    new Function('deleteRecord','closeModal',htmlDecode(match[1]))((...args)=>deleted=args,()=>{});
+  assert.deepEqual(deleted,['listing',id]);
+  return true;
+}
+let catalogCovered=false;
+try {catalogCovered=catalogDeleteRoute();ok(catalogCovered,'scheda casa → delega → conferma → eliminazione conserva nome e ID con apici');}
+catch(error){ok(false,'eliminazione catalogo delegata: '+error.message);}
+ok(calls.length + Number(covered.has('delete')) + Number(catalogCovered) >= 13,
+  `la scansione VEDE i siti (${calls.length} inline + ${Number(covered.has('delete'))} delega immobile + ${Number(catalogCovered)} delega catalogo eseguite; minimo 13 invariato)`);
 let delegatedMutationCaught = false;
 const unescapedId = dossier.replace('data-id="${esc(id)}"', 'data-id="${id}"');
 if (covered.size === 8 && unescapedId !== dossier) {

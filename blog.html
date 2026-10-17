@@ -228,20 +228,6 @@
         .reveal.active { opacity:1; transform:translateY(0); }
     </style>
 
-    <script type="application/ld+json">
-    {
-        "@context": "https://schema.org",
-        "@type": "Blog",
-        "name": "BOOM Blog",
-        "description": "Expert guides for renting in Rome as an expat",
-        "url": "https://www.boomrome.com/blog",
-        "publisher": {
-            "@type": "Organization",
-            "name": "BOOM",
-            "url": "https://www.boomrome.com"
-        }
-    }
-    </script>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -250,7 +236,9 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -267,8 +255,10 @@
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -326,12 +316,37 @@
 {
   "@context": "https://schema.org",
   "@type": "Blog",
+  "@id": "https://www.boomrome.com/blog#blog",
   "url": "https://www.boomrome.com/blog",
   "name": "BOOM Blog",
   "description": "Rome rental guides, expat advice, scam protection, contracts and bureaucracy.",
+  "inLanguage": "en",
   "publisher": {
     "@id": "https://www.boomrome.com/#organization"
-  }
+  },
+  "blogPost": [
+    {
+      "@id": "https://www.boomrome.com/blog-neighborhood-guide#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-scam-bible#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-cost-calculator#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-47-steps#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-tenant-rights#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-visa-residency#article"
+    },
+    {
+      "@id": "https://www.boomrome.com/blog-contract-types#article"
+    }
+  ]
 }
   </script>
 <!-- BOOM_JSONLD:END -->

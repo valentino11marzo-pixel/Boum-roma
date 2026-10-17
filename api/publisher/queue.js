@@ -17,7 +17,8 @@
 // lavora, il diff al giro dopo se ne accorge da solo.
 //
 // Kill switch: settings/publisher { enabled, portals:{ <p>:{enabled} } } —
-// spento → worklist vuota, il Mac non fa nulla. Auth come i cron PFS
+// assente o spento → worklist vuota, il Mac non fa nulla. L'attivazione
+// richiede enabled:true globale E sul portale. Auth come i cron PFS
 // (Bearer CRON_SECRET, X-Homie-Secret, o ID token admin).
 
 import { requireCronOrAdmin } from '../pfs/_guard.js';
@@ -108,8 +109,8 @@ export default async function handler(req, res) {
   if (!PORTALS.includes(portal)) return res.status(400).json({ ok: false, error: 'bad_portal', portals: PORTALS });
 
   let cfg = null;
-  try { cfg = await fsGet('settings/publisher'); } catch { /* mai un blocco: default acceso */ }
-  const enabled = !(cfg && (cfg.enabled === false || (cfg.portals && cfg.portals[portal] && cfg.portals[portal].enabled === false)));
+  try { cfg = await fsGet('settings/publisher'); } catch { /* senza configurazione la coda resta spenta */ }
+  const enabled = cfg?.enabled === true && cfg?.portals?.[portal]?.enabled === true;
   if (!enabled) {
     return res.status(200).json({ ok: true, portal, enabled: false, actions: [], suggestedIntervalMinutes: SUGGESTED_INTERVAL_MINUTES });
   }

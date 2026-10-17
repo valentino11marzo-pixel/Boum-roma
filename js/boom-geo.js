@@ -74,7 +74,7 @@
   function pinCopy(level, zone) {
     var z = String(zone || 'Rome').replace(/\s+$/, '');
     switch (level) {
-      case 'exact':  return { badge: 'Exact address',   note: 'Building-exact position',            street: true,  coords: true };
+      case 'exact':  return { badge: 'Exact address',   note: 'Street and number verified',         street: true,  coords: true };
       case 'street': return { badge: 'This street',     note: 'The right street — not the number',  street: true,  coords: false };
       case 'zone':   return { badge: 'Zone area',       note: 'Approximate position in ' + z,       street: false, coords: false };
       default:       return { badge: '',                note: '',                                   street: false, coords: false };

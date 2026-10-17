@@ -33,6 +33,7 @@ import { gzipSync } from 'node:zlib';
 import { fsList } from '../homie/_lib.js';
 import GEO from '../../js/boom-geo.js';
 import DISPO from '../../js/dispo-engine.js';
+import FACTS from '../../js/listing-facts.js';
 
 const ISTAT_ROMA = '058091';
 const AGENCY_EMAIL = process.env.FEED_AGENCY_EMAIL || process.env.GMAIL_USER || '';
@@ -52,6 +53,45 @@ const isoDT = (v) => {
 // guida. Da confermare/estendere con la lista quando incollata).
 const TYPOLOGY = { appartamento: 14, apartment: 14, attico: 14, loft: 14, studio: 14, monolocale: 14, bilocale: 14, trilocale: 14, stanza: 14, room: 14 };
 export const typologyId = (l) => TYPOLOGY[String(l.type || '').toLowerCase()] || 14;
+
+// <rooms> sono i LOCALI, non le camere: così lo dichiara il blocco EXTENDED
+// («superficie, locali, bagni…»), ed è la distinzione dei portali italiani —
+// locali e camere da letto sono due numeri diversi. Fino al 15/10/2026 il
+// nodo portava `Number(l.beds || l.bedrooms)`, cioè le camere — o niente,
+// quando `beds` era testo libero (NaN): un bilocale arrivava come «1
+// locale», un monolocale, e il bilocale di Via dei Cappellari («3») come 3.
+// Ora il nodo esce SOLO quando i locali sono un fatto dichiarato due volte:
+// il TIPO li nomina (monolocale/studio 1, bilocale 2, trilocale 3,
+// quadrilocale 4) e le camere della regola unica (FACTS.bedroomsOf) più il
+// soggiorno — la convenzione di tutta BOOM (bilocale = 1 camera,
+// api/leads/_reverse.js) — danno lo stesso numero. Camere + 1 da sole sono
+// una stima di convenzione, e al portale arriverebbero come dato
+// dell'annuncio: un «Loft Style» con 2 camere non ha dichiarato 3 locali, un
+// «Duplex» nemmeno (15/10/2026, dalla revisione: 8 dei 9 nodi nuovi erano
+// così). Quindi si tace: tipo che non nomina i locali, camere ignote, una
+// stanza (non ha i locali della casa intera), e il tipo che dice un altro
+// numero — dato conteso, da verificare in casa (js/catalogo-correzioni.js),
+// non da spedire a un portale. Il nome del nodo resta da confermare
+// sull'XSD: se dirà che <rooms> sono le camere, la regola è da rifare.
+const LOCALI_DEL_TIPO = { monolocale: 1, studio: 1, bilocale: 2, trilocale: 3, quadrilocale: 4 };
+// Una STANZA in una casa condivisa, non una casa intera: lo dicono il tipo o
+// il nome, con una parola INTERA — «Bedroom» non è «room» (" Spacious 2
+// Bedroom flat " finiva fra le stanze), e «Parioli Double Room with Garden»
+// lo dice solo nel nome. Le stesse due parole della regola di prima
+// (/stanza|room/): «shared» da solo no, «shared garden» non è una stanza.
+// La usa anche il Pubblicista (hint Idealista).
+export const isRoom = (l) =>
+  /\b(room|stanza)\b/i.test(String((l && l.type) || '') + ' ' + String((l && l.name) || ''));
+export function localiOf(l) {
+  l = l || {};
+  if (isRoom(l)) return null;
+  const tipo = String(l.type || '').toLowerCase().match(/\b(monolocale|studio|bilocale|trilocale|quadrilocale)\b/);
+  if (!tipo) return null;                            // il tipo non dice i locali
+  const camere = FACTS.bedroomsOf(l);
+  if (camere == null) return null;                   // camere ignote: niente conto
+  const locali = LOCALI_DEL_TIPO[tipo[1]];
+  return camere + 1 === locali ? locali : null;      // conteso: si tace
+}
 
 // I pubblicabili: stessa regola della vetrina (llms/sitemap) — disponibili
 // o in lista d'attesa, con nome e prezzo.
@@ -113,7 +153,7 @@ export function propertyNode(l, { extended = true, agencyEmail = AGENCY_EMAIL } 
     // arredamento, classe energetica, descrizione bilingue.
     const sqm = Number(l.sqm || l.size) || 0;
     if (sqm) out.push(`  <size unit="m2">${sqm}</size>`);
-    const rooms = Number(l.beds || l.bedrooms) || 0;
+    const rooms = localiOf(l);                       // i locali, non le camere
     if (rooms) out.push(`  <rooms>${rooms}</rooms>`);
     const baths = Number(l.bathrooms || l.baths) || 0;
     if (baths) out.push(`  <bathrooms>${baths}</bathrooms>`);
@@ -125,9 +165,17 @@ export function propertyNode(l, { extended = true, agencyEmail = AGENCY_EMAIL } 
     // sull'XSD completo: sta qui, nel blocco EXTENDED, apposta.)
     const av = DISPO.resolve(l);
     if (av.kind === 'date') out.push(`  <available-from>${av.iso}</available-from>`);
-    const desc = l.description || l.descriptionIt || '';
-    if (desc) out.push(`  <description language="it">${cdata(String(desc).slice(0, 4000))}</description>`);
-    if (l.descriptionEn || l.description) out.push(`  <description language="en">${cdata(String(l.descriptionEn || l.description).slice(0, 4000))}</description>`);
+    // Le lingue VERE del catalogo: `description` è l'INGLESE (lo scrivono il
+    // bot, lo sweep di api/wizard/describe.js e Media Studio), `descriptionIt`
+    // l'italiano. Fino al 15/10/2026 il nodo language="it" portava
+    // `l.description || l.descriptionIt`, cioè l'inglese dichiarato italiano
+    // su ogni casa. Senza un testo italiano il nodo it tace: un portale
+    // italiano mostrerebbe una lingua sotto l'etichetta di un'altra. Stessa
+    // regola del Pubblicista (api/publisher/_state.js, coreContent).
+    const descIt = String(l.descriptionIt || '').trim();
+    const descEn = String(l.descriptionEn || '').trim() || String(l.description || '').trim();
+    if (descIt) out.push(`  <description language="it">${cdata(descIt.slice(0, 4000))}</description>`);
+    if (descEn) out.push(`  <description language="en">${cdata(descEn.slice(0, 4000))}</description>`);
   }
   out.push('</property>');
   return out.join('\n');

@@ -161,6 +161,9 @@ const board = (page) => page.evaluate(() => {
   };
 });
 const ymPlus = (n) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+// the consent plate counts as shown only when it exists and is not held hidden
+// (main's boom-consent creates it with .zz and reveals it with show())
+const plateUp = (page) => page.$eval('.boomcst', (e) => !e.classList.contains('zz') && getComputedStyle(e).visibility !== 'hidden').catch(() => false);
 const WINDOW_RE = /^(By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
 // the door's sub follows the desk clock: "same-day reply" while the desk is open, the window (a time, never a price) when it is closed
 const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
@@ -545,25 +548,25 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
 {
   const { ctx, page } = await open({ consent: false });
   await page.waitForTimeout(2200);
-  check(await page.$('.boomcst') === null && await page.$eval('body', (b) => b.hasAttribute('data-consent-late')), 'with data-consent-late the plate is not on the first screen after two seconds of reading');
+  check(!(await plateUp(page)) && await page.$eval('body', (b) => b.hasAttribute('data-consent-late')), 'with data-consent-late the plate is not on the first screen after two seconds of reading');
   await page.click(ckOpt('zero'));                    // in the first screen: no scroll to reach it
   await page.waitForTimeout(1800);                      // the page scrolls ITSELF to land the pass: not the reader's move
-  check(await page.$('.boomcst') === null, 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
+  check(!(await plateUp(page)), 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
   await page.mouse.wheel(0, 120);
   await page.waitForTimeout(1500);
-  check(await page.$('.boomcst') === null, 'the wheel turn arms it, but the ticket is on the screen: the reader is at work, the plate still waits (it would sit on the ticket\'s own door)');
+  check(!(await plateUp(page)), 'the wheel turn arms it, but the ticket is on the screen: the reader is at work, the plate still waits (it would sit on the ticket\'s own door)');
   await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
   await page.waitForTimeout(1600);
-  check(await page.$('.boomcst') !== null, 'once the hero is left the plate comes');
+  check((await plateUp(page)), 'once the hero is left the plate comes');
   await ctx.close();
   // a small phone, nothing answered: the ceiling must not land the plate on the options
   const { ctx: c0, page: p0 } = await open({ consent: false, width: 375 });
   await p0.mouse.wheel(0, 100);
   await p0.waitForTimeout(1500);
-  check(await p0.$('.boomcst') === null, '375px, the unanswered Check-in on the screen: armed, the plate still waits');
+  check(!(await plateUp(p0)), '375px, the unanswered Check-in on the screen: armed, the plate still waits');
   await p0.evaluate(() => document.getElementById('how').scrollIntoView({ behavior: 'instant' }));
   await p0.waitForTimeout(1600);
-  check(await p0.$('.boomcst') !== null, 'scrolled past the Check-in, it comes');
+  check((await plateUp(p0)), 'scrolled past the Check-in, it comes');
   await c0.close();
   const { ctx: c2, page: p2 } = await open({ consent: false });
   await p2.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
@@ -573,11 +576,11 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await p2.waitForTimeout(300);
   await p2.mouse.wheel(0, 40);
   await p2.waitForTimeout(1800);
-  check(await p2.$eval('dialog#ov', (d) => d.open) && await p2.$('.boomcst') === null, 'while the till dialog is open the plate holds back (two things asking at once)');
+  check(await p2.$eval('dialog#ov', (d) => d.open) && !(await plateUp(p2)), 'while the till dialog is open the plate holds back (two things asking at once)');
   const stripOpen = await p2.$eval('#paybar', (e) => e.classList.contains('on'));
   await p2.keyboard.press('Escape');
   await p2.waitForTimeout(1200);
-  check(await p2.$('.boomcst') !== null, 'once the dialog closes the plate comes');
+  check((await plateUp(p2)), 'once the dialog closes the plate comes');
   check(stripBefore && !stripOpen && await p2.$eval('#paybar', (e) => e.classList.contains('on')), 'the strip, off while the till is open, comes back when it closes — without a scroll');
   await c2.close();
 }

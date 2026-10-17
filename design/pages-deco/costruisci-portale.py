@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # BOOM · IL PORTALE — l'impostazione da azienda internazionale, dati veri.
 #   python3 costruisci-portale.py artefatto | sito
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 def euro(n): return '€' + f'{int(n):,}'
@@ -59,11 +62,9 @@ AGG = 'today' if giorni == 0 else 'yesterday' if giorni == 1 else \
       ultimo.strftime('%-d %b')
 
 # ── le tre case della settimana (stessa vetrina della home) ──────────────
-def letti(r):
-    for c in (r.get('beds'), r.get('bedrooms')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# le camere con la regola del sito (FACTS.bedroomsOf): `bedrooms` prima di
+# `beds`; None = non si sa, nessuna voce
+def letti(r): return bedrooms_of(r)
 case = []
 for r in tutti:
     if r['status'] != 'available' or not banca.get(r['id']): continue

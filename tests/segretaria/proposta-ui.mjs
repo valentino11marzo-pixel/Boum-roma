@@ -13,7 +13,10 @@ const portal = read('js/portal-app.js');
 const begin = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(begin > 0 && end > begin);
-const ui = portal.slice(begin, end);
+// The standalone panel uses the home workspace filter; load its real state too.
+const workspace = portal.match(/^    const oggiWorkspace = .+;$/m)?.[0];
+assert.ok(workspace, 'Dichiarazione reale dello stato workspace presente');
+const ui = workspace + '\n' + portal.slice(begin, end);
 const listener = name => {
   const start = portal.indexOf('    function ' + name + '(');
   assert(start >= 0, 'Listener reale presente: ' + name);
@@ -21,7 +24,7 @@ const listener = name => {
   assert(next >= 0, 'Fine listener reale: ' + name);
   return portal.slice(start, start + 5 + next);
 };
-const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(listener).join('\n');
+const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener', 'inboxRefresh'].map(listener).join('\n');
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-proposta-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
 assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-proposta-engine.js'"));
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-esecuzione-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
@@ -280,10 +283,12 @@ try {
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /Giulia chiede conferma della visita/);
   assert.equal((await posts()).length, 0);
-  const briefingBox = await page.locator('.sg-briefing').boundingBox();
+  assert.equal(await page.locator('.sg-briefing').count(), 0, 'No duplicate decision overview');
+  const briefingBox = await page.locator('.ow-service > summary').boundingBox();
   assert.ok(briefingBox.height <= 240, 'Briefing desktop troppo alto: ' + briefingBox.height);
   assert.equal(await page.locator('.sg-secondary-grid').count(), 0);
-  assert.equal(await page.locator('.sg-quiet-state').count(), 1);
+  assert.equal(await page.locator('.sg-quiet-state').count(), 0);
+  assert.equal(await page.locator('[data-sg-detail="operations"]').evaluate(el=>el.open),false);
   assert.equal(await page.locator('#sgFollowPanel #sgDraftText').count(), 0);
   assert.ok((await page.locator('article[data-sg-id]').first().boundingBox()).y < 600);
   const firstTask = await page.evaluate(() => window.__rows[0]);
@@ -569,7 +574,10 @@ try {
 
   await load();
   await page.evaluate(() => { window.__mode = 'hold'; });
-  await button(ids[2], 'generate').click();
+  await button(ids[2], 'inspect').click();
+  await page.waitForSelector('[data-sg-modal="generate"]');
+  assert.equal((await posts()).length, 0, 'Aprire una richiesta non deve generare AI');
+  await page.locator('[data-sg-modal="generate"]').click();
   await page.waitForFunction(() => window.__requests.some(r => r.body?.op === 'generate'));
   assert.equal(await page.locator('[data-sg-modal="generate"]').isDisabled(), true);
   await page.evaluate(() => window.__release());
@@ -881,7 +889,7 @@ try {
   const contrast = await page.evaluate(() => {
     const rgb = text => (text.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
     const lum = values => values.map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
-    return ['.sg-source-preview', '.sg-source-date', '.sg-ai-recommendation', '.sg-action-reason', '.sg-questions li', '.sg-coverage-gaps li', '.sg-person', '.sg-state-label', '.sg-briefing-note', '.sg-footnote'].map(selector => {
+    return ['.sg-source-preview', '.sg-source-date', '.sg-ai-recommendation', '.sg-action-reason', '.sg-questions li', '.sg-coverage-gaps li', '.sg-person', '.sg-state-label', '.ow-service > summary', '.sg-footnote'].map(selector => {
       const element = document.querySelector(selector), color = lum(rgb(getComputedStyle(element).color));
       let parent = element, background;
       while (parent) { const value = getComputedStyle(parent).backgroundColor; if (value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') { background = lum(rgb(value)); break; } parent = parent.parentElement; }

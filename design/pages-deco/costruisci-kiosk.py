@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 # BOOM · KIOSK — il tabellone da vetrina: tutto il catalogo, a rotazione.
-import json, re, sys
+import json, os, re, sys
 from datetime import datetime, timezone, timedelta
+sys.dont_write_bytecode = True   # niente design/__pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of  # design/listing_facts.py: la regola UNA
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 MESI = {'jan':1,'gen':1,'feb':2,'mar':3,'apr':4,'may':5,'mag':5,'jun':6,'giu':6,
         'jul':7,'lug':7,'aug':8,'ago':8,'sep':9,'set':9,'oct':10,'ott':10,
         'nov':11,'dec':12,'dic':12}
-def letti(r):
-    for c in (r.get('beds'), r.get('bedrooms')):
-        m = re.search(r'\d+', str(c or ''))
-        if m: return int(m.group())
-    return None
+# le camere con la regola del sito (FACTS.bedroomsOf): `bedrooms` prima di
+# `beds` — prima qui il bilocale di Via dei Cappellari usciva «3BR»
+def letti(r): return bedrooms_of(r)
 def euro(n): return '€' + f'{int(n):,}'
 def quando(r):
     try: return datetime.fromisoformat(str(r['when']).replace('Z','+00:00').replace('+00:00+00:00','+00:00'))
@@ -42,6 +43,10 @@ for r in vivi:
     n = letti(r)
     nuova = (oggi - quando(r)).days < 21
     CASE.append({
+        # l'id della casa: il tabellone non lo mostra, ma
+        # scripts/catalogo-nomi.mjs ci riscrive camere e nomi PER ID, senza
+        # doverlo ricavare dall'ordine delle righe
+        'id': r['id'],
         'ora': (libera(r.get('avail'), oggi) or '—')[:5],
         'zona': re.sub(r'\s+',' ',(r.get('zona') or 'Roma')).split('/')[0].strip().upper()[:13],
         'tipo': ('STU' if n == 0 else f'{n}BR' if n else 'FLT'),

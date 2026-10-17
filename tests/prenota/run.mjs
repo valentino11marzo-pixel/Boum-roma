@@ -80,9 +80,9 @@ check('B · available + data PASSATA → libera adesso', () => {
   const m = lane({ status: 'available', availableDate: '2026-06-01' });
   return m.lane === 'now' && m.iso === null;
 });
-check('B · available senza data → libera adesso', () =>
+check('B · available senza data → data da confermare', () =>
   lane({ status: 'available' }).lane === 'now'
-  && copy({ status: 'available' }).short === 'Available now');
+  && copy({ status: 'available' }).short === 'Ask us for the date');
 
 // ── REGOLA C — sull'affittata ci si fida SOLO del contratto ─────────────
 check('C · rented + availableFrom (dal contratto) → prenotabile', () => {
@@ -113,7 +113,7 @@ check('D · e non diventa nemmeno una prenotazione con data', () => {
   return m.iso === null;
 });
 check('D · nessun testo ≠ testo illeggibile (il primo è il caso normale)', () =>
-  lane({ status: 'available' }).dateUnreadable === false);
+  lane({ status: 'available' }).dateUnreadable === true);
 
 // ── ogni corsia sa dire PERCHÉ (la lezione dei veti del Richiamo) ───────
 check('ogni verdetto porta il suo motivo', () =>
@@ -192,7 +192,7 @@ check('l\'audit conta le corsie, che è ciò che l\'operatore vende', () => {
 check('il pannello dell\'operatore mostra corsia, avviso e tap di conferma', () => {
   const s = src('js/portal-app.js');
   return /yearGuessed/.test(s) && /l'anno l'abbiamo dedotto noi/.test(s)
-    && /Sì, è \$\{esc\(r\.iso\)\}/.test(s) && /si prenotano in anticipo/.test(s);
+    && /Sì, è \$\{esc\(r\.iso\)\}/.test(s) && /BOOM_DISPO\.catalogState\(l\)\.label/.test(s);
 });
 check('la porta di scrittura espone corsia e anno dedotto (bot e portal)', () => {
   const s = src('api/listings-availability.js');
@@ -248,7 +248,7 @@ check('mutazione C: se l\'affittata si aprisse su availableDate, il test C cade'
   return buono === 'closed' && sbagliato === 'ahead' && buono !== sbagliato;
 });
 check('mutazione D: «libera ora» e «data illeggibile» non collassano mai', () => {
-  const a = copy({ status: 'available' }).short;
+  const a = copy({ status: 'available', availableFrom: 'Subito' }).short;
   const b = copy({ status: 'available', availableDate: 'boh' }).short;
   return a !== b && /now/i.test(a) && /Ask us/.test(b);
 });

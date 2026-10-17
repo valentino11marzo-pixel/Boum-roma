@@ -94,7 +94,7 @@
 
   var TIPI = {
     '32': { it: '3+2 canone concordato', en: '3+2 agreed-rent lease' },
-    trans: { it: 'Transitorio (1–18 mesi)', en: 'Transitional (1–18 months)' },
+    trans: { it: 'Transitorio (con BOOM da 3 a 18 mesi)', en: 'Transitional (3 to 18 months with BOOM)' },
     stud: { it: 'Studenti universitari', en: 'University students' },
   };
 
@@ -104,7 +104,7 @@
   var PRICES = {
     registrazione: 89,
     attestazione: 189,
-    primaLocazione: 278,   // registrazione + attestazione, IVA inclusa
+    primaLocazione: 278,   // registrazione + attestazione, IVA inclusa (la tariffa dell'organizzazione a parte)
     pacchetto: 349,
   };
 
