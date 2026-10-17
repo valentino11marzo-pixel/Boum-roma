@@ -6125,6 +6125,12 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   `heartbeat/segretaria-mail-memory`. Sul canale email il rientro D4 non
   esiste (una tua email non passa dal sistema): si riprende da /segretaria.
 - **Tracking dopo il rientro**: gli inbound dei casi già presi aggiornano il seguito anche con `segretaria:false`, senza riaccendere AI/invii. Il retry WhatsApp ripara usando il messaggio persistito; l'email usa un ID deterministico e ritenta gli errori prima di ricordare l'evento come visto. Alias email ammessi solo con stessa identità persistita; ambiguità e limiti sono dichiarati. Prova: `tests/segretaria/tracking.mjs`.
+- **Ordine fra canali (17/10/2026)**: anche il cron email usa l'importazione
+  atomica già usata dal refresh manuale. Una mail vecchia resta nello storico
+  senza sovrascrivere una risposta WhatsApp/Portal successiva o riaprire
+  `needsReply`; identità cambiata e commit concorrenti vengono ricontrollati.
+  Perimetro dei mittenti e autorizzazioni automatiche invariati. Prove:
+  `tests/segretaria/mail-source.mjs`, compresa la mutazione del vecchio PATCH.
 - **Controllo**: `/segretaria` su Telegram (chat attive, 🖐 Riprendi per
   ognuna, kill switch `sgk`), `settings/segretaria`
   {enabled, maxTurns, dailyCap, maxChars} con la disciplina resolveKnobs.

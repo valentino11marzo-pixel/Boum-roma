@@ -17,7 +17,8 @@ if(process.env.BOOM_MAIL_MUTATION){
   budget_complete:["stats.deferred += uids.length - index; stats.incomplete = true; unvisited = 0; break;","stats.deferred += uids.length - index; unvisited = 0; break;"],
   scoped_identity:["if (emailBinding(snapshot.data) !== emailBinding(conv))", "if (false)"],
   scoped_atomic:["await fsCommit([...guards, { docPath: 'messages/' + storedId", "await fsCommit([{ docPath: 'messages/' + storedId"],
-  normalized_identity:["identityRows.filter(c => emailKey(c.contactEmail) === email)", "identityRows.filter(c => c.contactEmail === target.contactEmail)"]
+  normalized_identity:["identityRows.filter(c => emailKey(c.contactEmail) === email)", "identityRows.filter(c => c.contactEmail === target.contactEmail)"],
+  scheduled_header_order:["if (outcome === 'imported') stats.imported++; else stats.duplicates++;", "if (outcome === 'imported') stats.imported++; else stats.duplicates++; if (!syncOnly) await fsPatch('conversations/' + conv.id, { lastMessageAt: at, lastDirection: 'in', needsReply: true, lastMessagePreview: text.slice(0,90), updatedAt: at });"]
  };
  const change=changes[process.env.BOOM_MAIL_MUTATION];if(!change)throw Error('Unknown mutation');
  register('data:text/javascript,'+encodeURIComponent(`export async function load(url,c,next){const out=await next(url,c);if(url.endsWith('/api/segretaria/scan-replies.js')){const source=String(out.source);const [before,after]=${JSON.stringify(change)};if(!source.includes(before))throw Error('Mutation boundary missing');return {...out,source:source.replace(before,after)};}return out;}`),import.meta.url);
