@@ -473,8 +473,18 @@ for (const id of ['A', 'B', 'C', 'D']) {
 console.log('\n/llms-listings.txt — solo ciò che è vero per QUELLA casa');
 {
   const res = mkRes();
-  await (await import('../../api/llms-listings.js')).default({ query: {} }, res);
+  // Il riepilogo include l'ora di generazione: 14:48 non è una promessa
+  // di ingresso in 48 ore. Riproduci sempre il minuto che faceva fallire CI.
+  const RealDate = globalThis.Date;
+  const fixedNow = RealDate.parse(new RealDate().toISOString().slice(0, 10) + 'T14:48:00Z');
+  globalThis.Date = class extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+    static now() { return fixedNow; }
+  };
+  try { await (await import('../../api/llms-listings.js')).default({ query: {} }, res); }
+  finally { globalThis.Date = RealDate; }
   const t = res.body;
+  check('prova deterministica: orario generato contiene 14:48', /generated \d{4}-\d{2}-\d{2}T14:48Z/.test(t));
   const blocks = t.split('\n## ').slice(1).filter((b) => !b.startsWith('How to rent'));
   const block = (name) => blocks.find((b) => b.startsWith(name)) || '';
   check('status 200, markdown', res.statusCode === 200 && /markdown/.test(res.headers['content-type'] || ''));
@@ -514,7 +524,7 @@ console.log('\n/llms-listings.txt — solo ciò che è vero per QUELLA casa');
     && !/Map position/.test(block('Ask Date')));
   check('la testata dichiara onorario con IVA e lease italiana spiegata in inglese',
     /10% of one year's rent plus 22% VAT, charged once/.test(t) && /explained in English/.test(t));
-  check('le 48 ore solo per chi è «available now»', (t.match(/48/g) || []).length === 1 && /"available now" can be moved into as fast as 48 hours/.test(t));
+  check('le 48 ore solo per chi è «available now»', (t.match(/\b48(?:\s*hours?\b|h\b)/gi) || []).length === 1 && /"available now" can be moved into as fast as 48 hours/.test(t));
   check('nessun video tour promesso se nessuna casa ce l\'ha', !/video tour/i.test(t));
   check('2-minute eligibility check', /2-minute eligibility check/.test(t));
   // «cached up to 10 minutes» (la riga in fondo) resta vero: con swr=86400
