@@ -17177,6 +17177,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     // ADMINFLATS PAGE - Website Listings Management (REAL SYNC)
     // ═══════════════════════════════════════════════════════════════════════════
+    function openCatalogHome(id) {
+        window.BOOM_CATALOG_HOME.open({id, state: () => S,
+            token: () => auth.currentUser.getIdToken(),
+            actions: {
+                availability: id => openModal('availability', {id}), edit: id => editListing(id),
+                property: id => viewProperty(id), owner: id => viewUser(id),
+                media: id => window.open('/media-studio?listing=' + encodeURIComponent(id), '_blank', 'noopener'),
+                duplicate: id => duplicateListing(id),
+                remove: id => confirmDelete('listing', id, S.listings.find(l => l.id === id)?.name || 'Casa')
+            }
+        });
+    }
+
     function adminflatsPage() {
         const states = S.listings.map(l => BOOM_DISPO.catalogState(l));
         const available = states.filter(l => l.state === 'now').length;
@@ -17247,12 +17260,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <td><span class="badge ${BOOM_DISPO.catalogState(l).state === 'now' ? 'green' : 'orange'}">${esc(BOOM_DISPO.catalogState(l).label)}</span><br><small>${esc(BOOM_DISPO.catalogState(l).detail)}</small></td>
                                     <td><small>${esc(l.availabilityUpdatedAt ? String(l.availabilityUpdatedAt).slice(0, 16).replace('T', ' ') + ' UTC' : 'Non registrata')}</small></td>
                                     <td>
-                                        <div style="display:flex;gap:5px">
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="window.open('/media-studio?listing=${l.id}','_blank')" title="Apri nel Media Studio (foto, video, testi)">🎨</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="openModal('availability', {id:'${jsq(l.id)}'})" title="Aggiorna disponibilità">📅</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${jsq(l.name)}')" title="Elimina">🗑️</button>
+                                        <div style="display:flex;gap:6px;flex-wrap:wrap">
+                                            <button class="btn btn-secondary" style="padding:8px 12px;font-size:12px" onclick="openCatalogHome('${jsq(l.id)}')" aria-label="Apri scheda ${esc(l.name || 'casa')}">Apri scheda</button>
+                                            <button class="btn btn-secondary" style="padding:8px 12px;font-size:12px" onclick="openModal('availability', {id:'${jsq(l.id)}'})" title="Aggiorna disponibilità">📅</button>
                                         </div>
                                     </td>
                                 </tr>
