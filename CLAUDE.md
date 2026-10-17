@@ -134,6 +134,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Il collaudo live del 17/10 ha completato da Chrome URL → 12 foto importate automaticamente → Storage → scheda pubblica senza login. Non prova la generazione dal telefono: il ponte Chrome resta necessario quando la fonte blocca il server; manca ancora il servizio centrale.
+Il logo cliente usa `/boom-logo.svg`, asset pubblico del sito. Il precedente percorso sotto `/design/` dava 404 in produzione perché quella directory è esclusa dal deploy.
+Regressione già coperta da `npm test -- crawl smartlink`: nessun asset runtime può dipendere da un percorso escluso.
 Lo Studio mostra il collegamento Chrome rilevato e una guida di configurazione per ogni computer/profilo. Il pacchetto versionato in `assets/tools/boom-smartlink-foto-1.0.0.zip` contiene solo manifest, ponte, worker e README corrispondenti ai sorgenti; non contiene credenziali. Se il server non trova foto e manca il ponte, la guida si apre. Installare il pacchetto richiede il consenso dell’operatore. Il ruolo attuale resta admin-only: un nuovo collaboratore va abilitato separatamente, senza condividere account.
 Lo Studio è una voce del registro `BOOM_ACTIONS`: si trova nella ricerca globale e in evidenza nella pagina Strumenti. Il catalogo del Portal pubblicato il 16/10 resta basato sul registro condiviso. Test: `npm test -- smartlink actions`.
 L'admin incolla un URL Immobiliare.it, Idealista, Subito, Casafari o Casa.it in `portal.html#boom-tools`; `/api/smartlink/extract` prova a leggere pochi campi dal portale. L'operatore revisiona titolo, canone, zona, m², locali e nota; l'URL originale rimane in `smartlinks` con Firestore admin-only.
