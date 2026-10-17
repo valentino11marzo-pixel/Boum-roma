@@ -882,13 +882,13 @@ async def cmd_listings(update, context):
 async def cmd_rent(update, context):
     if not is_admin(update): return
     if not context.args: await update.message.reply_text("Uso: `/rent LISTING_ID`", parse_mode='Markdown'); return
-    try: fs_update('listings', context.args[0], {'status': 'rented', 'updatedAt': _now_iso()}); await update.message.reply_text(f"✅ `{context.args[0]}` → affittato", parse_mode='Markdown')
+    try: await asyncio.to_thread(_edit_listing, context.args[0], {'status': 'rented'}); await update.message.reply_text(f"✅ `{context.args[0]}` → affittato", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_reactivate(update, context):
     if not is_admin(update): return
     if not context.args: await update.message.reply_text("Uso: `/reactivate LISTING_ID`", parse_mode='Markdown'); return
-    try: fs_update('listings', context.args[0], {'status': 'available', 'updatedAt': _now_iso()}); await update.message.reply_text(f"✅ `{context.args[0]}` → riattivato", parse_mode='Markdown')
+    try: await asyncio.to_thread(_edit_listing, context.args[0], {'status': 'available'}); await update.message.reply_text(f"✅ `{context.args[0]}` → riattivato", parse_mode='Markdown')
     except Exception as e: await update.message.reply_text(f"❌ {e}")
 
 async def cmd_delete(update, context):
@@ -934,8 +934,28 @@ def _coerce(kind, raw):
     return str(raw).strip()
 
 def _edit_listing(doc_id, updates):
-    updates['updatedAt'] = _now_iso()
-    fs_update('listings', doc_id, updates)
+    updates = dict(updates)
+    availability = {'id': doc_id}
+    if 'availableDate' in updates:
+        availability['value'] = updates.pop('availableDate')
+    if 'status' in updates:
+        availability['status'] = updates.pop('status')
+    saved = False
+    if len(availability) > 1:
+        rep = wizard_post('/api/listings-availability', {'updates': [availability]}, 25)
+        if not rep:
+            raise ValueError('Esito disponibilità non verificato: rileggi il catalogo prima di riprovare.')
+        if not rep.get('ok'):
+            raise ValueError('Disponibilità non salvata: verifica il catalogo prima di riprovare.')
+        saved = True
+    if updates:
+        updates['updatedAt'] = _now_iso()
+        try:
+            fs_update('listings', doc_id, updates)
+        except Exception:
+            if saved:
+                raise ValueError('Disponibilità salvata; gli altri dati non sono stati aggiornati.')
+            raise
 
 async def cmd_disponibilita(update, context):
     """Il quadro completo delle date, e chi tace. La lista di lavoro sta in
@@ -948,7 +968,9 @@ async def cmd_disponibilita(update, context):
     a = rep.get('audit') or {}
     rows = []
     for l in (rep.get('listings') or [])[:30]:
-        if l.get('status') == 'rented': continue
+        if l.get('catalog'):
+            rows.append(f"• *{l.get('name')}* — {l['catalog']['label']}")
+            continue
         mark = '❓' if l.get('kind') == 'unknown' else '🟢' if l.get('kind') == 'now' else '📅'
         when = 'da concordare' if l.get('kind') == 'unknown' else 'subito' if l.get('kind') == 'now' else l.get('iso')
         rows.append(f"{mark} *{l.get('name')}* — {when}")
@@ -959,9 +981,10 @@ async def cmd_disponibilita(update, context):
                 f"Rispondi in un messaggio solo, es:\n"
                 f"`{gaps[0].get('name')} dal 1 settembre" +
                 (f", {gaps[1].get('name')} subito" if len(gaps) > 1 else '') + "`")
+    counts = a.get('catalog') or {}
     await update.message.reply_text(
-        f"📅 *DISPONIBILITÀ* — {a.get('now', 0)} subito · {a.get('date', 0)} con data · "
-        f"{a.get('unknown', 0)} da concordare\n\n" + '\n'.join(rows) + tail,
+        f"📅 *DISPONIBILITÀ* — {counts.get('now', 0)} libere ora · {counts.get('date', 0)} con data futura · "
+        f"{counts.get('check', 0)} da verificare · {counts.get('closed', 0)} non disponibili\n\n" + '\n'.join(rows) + tail,
         parse_mode='Markdown', disable_web_page_preview=True)
 
 
@@ -1803,7 +1826,7 @@ async def _nl_process(update, context, text):
                 extra += f"\n⚠️ “{a.get('seg')}”: quale fra {', '.join(a.get('names') or [])}?"
             kb0 = _nl_keyboard(tok)
             await update.message.reply_text(
-                f"📅 *DISPONIBILITÀ*\n{rows}{extra}\n\nScrivo? Vetrina, feed e portali si allineano da soli.",
+                f"📅 *DISPONIBILITÀ*\n{rows}{extra}\n\nScrivo nel catalogo BOOM? La pubblicazione sui portali esterni richiede un riscontro separato.",
                 parse_mode='Markdown', reply_markup=kb0)
             return
 
@@ -1893,13 +1916,14 @@ async def nl_confirm_cb(update, context):
         # mano, altrimenti il bot tornerebbe a essere una sorgente di verità
         # parallela — e ogni voce ripassa comunque dal motore lato server.
         ups = [{'id': u['id'], 'kind': u.get('kind'), 'iso': u.get('iso'),
-                'phrase': u.get('phrase')} for u in plan['updates']]
+                'phrase': u.get('phrase'), 'expected': u.get('expected')} for u in plan['updates']]
         rep = await asyncio.to_thread(
             wizard_post, '/api/listings-availability', {'updates': ups}, 45)
         if not rep or not rep.get('ok'):
             failed = (rep or {}).get('failed') or []
             await q.edit_message_text(
-                '❌ Non ho potuto scrivere.' + (f"\n{failed[0].get('error')}" if failed else ''))
+                ('⚠️ Esito non verificato. Rileggi /disponibilita prima di riprovare.' if not rep else
+                 f"⚠️ Salvate {len(rep.get('applied') or [])} modifiche; {len(failed)} da completare.\nRileggi /disponibilita prima di riprovare."))
             return
         done = '\n'.join(f"• {a.get('name')} → {a.get('to')}" for a in rep.get('applied') or [])
         await q.edit_message_text(f"📅 *Fatto — {len(rep.get('applied') or [])} date aggiornate*\n{done}",

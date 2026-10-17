@@ -216,8 +216,8 @@ function injectSeo(html, d, id) {
     ld.offers = {
       '@type': 'Offer', price, priceCurrency: 'EUR', url: canonical,
       availability: lane.lane === 'closed' ? 'https://schema.org/SoldOut'
-        : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
-          : 'https://schema.org/InStock',
+        : lane.lane === 'ahead' && lane.iso ? 'https://schema.org/PreOrder'
+          : lane.lane === 'now' && !lane.dateUnreadable ? 'https://schema.org/InStock' : undefined,
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };

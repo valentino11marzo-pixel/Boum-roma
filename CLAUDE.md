@@ -646,7 +646,21 @@ Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
 Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
 Test: `node tests/feed/run.mjs`.
 
+### La scheda casa da AdminFlats — 17 ottobre 2026
+Dal Catalogo «Apri scheda» riunisce disponibilità, fascicolo, proprietario e ricevute dei portali; foto/duplicazione/eliminazione restano nei flussi esistenti, con due azioni nella lista.
+`catalog-home-engine.js` accetta solo `listing.propertyId` e `property.listingId` coerenti: nessun match per nome/indirizzo/ID uguali tra collezioni; proprietari ambigui o senza account non diventano accessi al Portal.
+`GET /api/publisher/status?id=` è solo admin e sola lettura: deriva gli esiti da `portalPubs` e dall’hash del Pubblicista. Nessuna ricevuta non significa annuncio assente; invio coerente non significa pagina pubblica verificata.
+Configurazione spenta, errore di lettura e conflitto di identità sono distinti; URL limitati ai domini dei due portali. Il modulo scarta risposte superate, conserva il focus e si usa a 320px.
+Prove: `catalogocasa` (handler reale, autorizzazioni e collegamenti), `catalogocasaui` (click reali e ricevute, telefono/desktop) ed `escape` (delega eliminazione fino alla conferma, minimo 13 preservato). Nessuna nuova collection, coda, invio o impostazione attivata.
+Correzione review 17/10: «Rileggi stato» aggiornava le ricevute ma lasciava nome, indirizzo e canone della copia locale, mostrando un invio coerente accanto a un prezzo superato.
+L’API ora restituisce una proiezione minima della stessa casa usata nel confronto, normalizzata con `coreContent`; il modulo aggiorna riepilogo e ricevute nella stessa risposta, dopo i controlli ID/generazione/richiesta. Nessuna scrittura della copia locale o scansione aggiuntiva.
+`catalogocasaui` riproduce la modifica dello stesso ID da un altro tab (fallisce prima della correzione), una risposta precedente sorpassata, errore e retry, campi rimossi e nome reso come testo; `catalogocasa` verifica la proiezione limitata ai cinque campi visualizzati.
+
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
+L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
+Il catalogo salvato non prova un aggiornamento su Idealista/Immobiliare: resta necessaria la ricevuta in `portalPubs`.
+Test: `tests/publisher/run.mjs`, default assente e attivazione esplicita.
 Il binario di pubblicazione verso i portali INDIPENDENTE dalle loro
 risposte: il feed Immobiliare è pronto ma l'attivazione dipende da un
 Support che non risponde, e Idealista apre il real-time solo ai software
@@ -2486,6 +2500,18 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
+altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
+raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.
+Un incarico a Valentino/BOOM con ricontrollo futuro resta da affrontare, mentre le
+attese esterne restano separate. La revisione di una proposta non eredita attore o
+scadenza del vecchio seguito. Nessuna AI, assegnazione o invio nuovi. Prove: `oggidesk`, `oggideskui`.
+**16/10 — casa e contratto accompagnano i canali:** i badge WhatsApp/Email di
+Oggi passavano il contesto solo per persone/clienti e riaprivano la casella
+generica dopo aver scelto una casa o un contratto. `homeTools` ora passa il
+riferimento tipizzato anche per questi due record, riusando Inbox e i suoi
+collegamenti confermati; nessun destinatario dedotto, invio, scrittura o AI.
+Il ritorno conserva la selezione. Prove `actions`, `oggiquicktoolsui`, `inboxconnected`.
 **15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
 con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
 mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);
@@ -6007,6 +6033,9 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Handler reale con confini simulati; non certifica la corrispondenza dei secret live. Serve un nuovo evento provider con riscontro nel Centralino dopo il rilascio.
 
 - **Lavoro preparato sul caso** (15/09, Codex): `_prepare` e `segretaria-proposta-engine` scrivono una proposta versionata sul seguito esistente: sintesi, impegni espliciti/dedotti, fonti, risposta e prossimo controllo. `_context` legge cronologia ordinata e riferimenti verificati del dossier; campioni `out/fromMe` non attestano la voce umana di Valentino.
+- **Candidatura nel contesto (16/10, Codex):** la preparazione perdeva i campi strutturati salvati da `apply-lead` in `raw`. `_context` ora proietta solo il modulo del lead già verificato, con data e provenienza. Ingresso/durata/firmatari possono essere preselezionati o calcolati; 24 mesi e 5 firmatari possono significare «o più»: la versione del modulo non è registrata, quindi non si inventa una scelta esatta.
+  Niente payload `raw`, IP, user-agent o canone spacciato per budget; un garante assente resta sconosciuto. Il modulo va confrontato con i messaggi correnti, senza rifare domande già risolte né promettere visite.
+  Tetto 1.600 caratteri per questa fonte, totale invariato 32.000, stesse letture e nessuna scrittura/chiamata modello aggiunta; modifiche ai dati invalidano la proposta. Test e mutazione: `node tests/segretaria/context.mjs`.
 - In Oggi la proposta precede il modulo manuale. `prepare` admin-only conferma insieme seguito e risposta mostrata, con destinatario derivato dal server; `_dispatch` riusa l'executor e l'outbox. Fonti, recapito, evento e decisioni manuali sono ricontrollati: una revisione vecchia non sovrascrive le nuove informazioni. Senza pratica verificata resta solo il seguito.
 - **Proposta pronta scaduta (21/09)**: `approvalExpired(proposal, now)` distingue
   il ricontrollo trascorso di una `ready` non approvata da una revisione o ricevuta.
@@ -6112,6 +6141,12 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   `heartbeat/segretaria-mail-memory`. Sul canale email il rientro D4 non
   esiste (una tua email non passa dal sistema): si riprende da /segretaria.
 - **Tracking dopo il rientro**: gli inbound dei casi già presi aggiornano il seguito anche con `segretaria:false`, senza riaccendere AI/invii. Il retry WhatsApp ripara usando il messaggio persistito; l'email usa un ID deterministico e ritenta gli errori prima di ricordare l'evento come visto. Alias email ammessi solo con stessa identità persistita; ambiguità e limiti sono dichiarati. Prova: `tests/segretaria/tracking.mjs`.
+- **Ordine fra canali (17/10/2026)**: anche il cron email usa l'importazione
+  atomica già usata dal refresh manuale. Una mail vecchia resta nello storico
+  senza sovrascrivere una risposta WhatsApp/Portal successiva o riaprire
+  `needsReply`; identità cambiata e commit concorrenti vengono ricontrollati.
+  Perimetro dei mittenti e autorizzazioni automatiche invariati. Prove:
+  `tests/segretaria/mail-source.mjs`, compresa la mutazione del vecchio PATCH.
 - **Controllo**: `/segretaria` su Telegram (chat attive, 🖐 Riprendi per
   ognuna, kill switch `sgk`), `settings/segretaria`
   {enabled, maxTurns, dailyCap, maxChars} con la disciplina resolveKnobs.
@@ -6271,6 +6306,18 @@ every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
 ## Le date di disponibilità (`js/dispo-engine.js` + `/api/listings-availability`)
+
+**Catalogo unico, 17/10/2026.** AdminFlats diventa «Catalogo case», leggibile a 320px: `catalogState` separa libera ora, data futura, chiusa e da verificare (anno dedotto compreso).
+Anche l'assenza della data chiede conferma nella vetrina; una bozza o casa fuori mercato non si riapre per una data residua. Nessun dato reale viene bonificato dal rilascio.
+Modulo Portal, disponibilità rapida e `/modifica … disponibile`/stato del bot usano `/api/listings-availability`: campi gemelli normalizzati, stato+data atomici, sola amministrazione globale.
+Il piano porta `availabilityKey`; il server rilegge la versione e fa commit condizionale. Anteprima vecchia o modifica concorrente vengono respinte; un batch parziale restituisce i singoli esiti, mai successo totale.
+Il salvataggio certifica il catalogo BOOM; non attesta pubblicazioni esterne. Nessun invio o modello è aggiunto. La lettura voce delle rented con rilascio futuro resta da coordinare con il lotto telefono.
+Prove: `tests/dispo/run.mjs`, `tests/catalogo/disponibilita-ui.mjs` (Portal→handler→Firestore simulato→esito), `tests/catalogo/portale.mjs`, `tests/wizard/disponibilita.py`.
+
+**Collaudo integrato, 17/10/2026.** La scheda SSR conservava `InStock` nel JSON-LD anche mentre il badge chiedeva la data.
+`api/listing.js` ora omette la disponibilità dell'offerta quando non è nota: `InStock` solo per disponibilità certa, `PreOrder` solo con data di rilascio; `SoldOut` resta per le case affittate.
+`tests/listing/run.mjs` separa «Subito» dalla data assente/illeggibile e verifica SSR, fatti al concierge, sitemap, llms e FAQ nel browser; `tests/zone/run.mjs` conserva la stessa distinzione.
+Le fixture della vetrina coprono entrambi i casi; quelle del Pubblicista provano prima il default spento, poi la coda con abilitazione esplicita, senza indebolire i controlli camere.
 
 **Il difetto era in produzione dal primo giorno.** `listings.availableDate` è
 sempre stato testo LIBERO, il portal ne suggeriva i formati nel placeholder

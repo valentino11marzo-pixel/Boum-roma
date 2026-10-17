@@ -66,6 +66,212 @@ async function test(name, run) {
 const has = (ctx, reason) => ctx.coverage.reasons.includes(reason);
 const messages = ctx => ctx.sources.filter(source => source.kind === 'message');
 
+const applicationRaw = () => ({ household: 'couple', occupation: 'employed', moveIn: '2026-11-01',
+  durationMonths: 12, signers: 2, income: 3200, incomeBand: '2500-4000', guarantorType: 'yes-italy' });
+const applicationLead = (extra = {}) => ({ status: 'contacted', source: 'web', ingestedBy: 'apply-lead',
+  createdAt: new Date('2026-09-12T09:30:00Z'), raw: applicationRaw(), ...extra });
+function applicationInput() {
+  const i = input();
+  i.task.followUp.practiceRef = 'leads/apply_fixture';
+  i.dossier.practices = [{ ref: 'leads/apply_fixture', type: 'lead', propertyRefs: ['listings/l1'] }];
+  i.dossier.properties = [{ ref: 'listings/l1', label: 'Casa del modulo' }];
+  DB.set('leads/apply_fixture', applicationLead());
+  DB.set('listings/l1', { name: 'Casa del modulo', status: 'available' });
+  return i;
+}
+const applicationSource = ctx => ctx.sources.find(s => s.ref === 'leads/apply_fixture');
+const applicationProjection = ctx => JSON.parse(applicationSource(ctx).text);
+
+async function preserveApplication(load = loadCaseContext) {
+  const i = applicationInput();
+  DB.set('messages/previous_out', msg('Grazie, sto verificando la casa.', '2026-09-14T10:00:00Z', { direction: 'out' }));
+  DB.set('messages/latest', msg('Possiamo organizzare la visita?', undefined, { waMessageId: 'wa_last' }));
+  const before = JSON.stringify([...DB]), ctx = await load(i);
+  assert.deepEqual(messages(ctx).map(s => [s.direction, s.text]), [
+    ['out', 'Grazie, sto verificando la casa.'], ['in', 'Possiamo organizzare la visita?'],
+  ], 'Taking care of a lead preserves the actual conversation');
+  assert.deepEqual(applicationProjection(ctx).application, {
+    provenance: 'apply-lead', recordedAt: '2026-09-12T09:30:00.000Z', fields: applicationRaw(),
+    possibleDefaults: ['moveIn', 'durationMonths'], possibleLowerBounds: [],
+  }, 'Application evidence survives after the first reply');
+  assert.equal(applicationProjection(ctx).status, 'contacted');
+  assert.deepEqual(applicationProjection(ctx).propertyRefs, ['listings/l1']);
+  assert.equal(ctx.coverage.lastEvent.present, true);
+  assert.equal(ctx.coverage.incomplete, false);
+  assert.equal(JSON.stringify([...DB]), before, 'Context projection never writes a new lead or case');
+}
+await test('a followed application retains its declared form fields and both conversation directions', preserveApplication);
+
+await test('missing form answers and possible defaults never become invented qualification', async () => {
+  const i = applicationInput();
+  DB.set('leads/apply_fixture', applicationLead({ createdAt: 'not-a-date', budget: 1800, propertyPrice: 1800,
+    situation: 'worker', raw: { income: 0, guarantor: false, durationMonths: 12, signers: 1 } }));
+  const ctx = await loadCaseContext(i), app = applicationProjection(ctx).application;
+  assert.deepEqual(app, { provenance: 'apply-lead', recordedAt: null,
+    fields: { durationMonths: 12, signers: 1 }, possibleDefaults: ['durationMonths', 'signers'], possibleLowerBounds: [] });
+  DB.get('leads/apply_fixture').raw = {};
+  const empty = applicationProjection(await loadCaseContext(i)).application;
+  assert.deepEqual(empty.fields, {});
+  assert.deepEqual(empty.possibleDefaults, []);
+  assert.ok(!JSON.stringify(app).includes('budget'));
+  assert.ok(!JSON.stringify(app).includes('guarantor'));
+});
+
+await test('application fields reject malformed values, impossible dates and numerical coercion', async () => {
+  const i = applicationInput();
+  const invalidRows = [
+    { household: 'other', occupation: 'retired', moveIn: '2026-02-30', durationMonths: -1,
+      signers: 11, income: -1, incomeBand: '1500', guarantorType: 'perhaps', guarantor: false },
+    { household: ['solo'], occupation: { value: 'employed' }, moveIn: '2026-02-29',
+      durationMonths: '12', signers: '2', income: '3200' },
+    { moveIn: '2026-11-01T00:00:00Z', durationMonths: -0.5, signers: 2.5, income: 0 },
+    { moveIn: '2026-13-01', durationMonths: 0, signers: 0 },
+  ];
+  for (const raw of invalidRows) {
+    DB.get('leads/apply_fixture').raw = raw;
+    const app = applicationProjection(await loadCaseContext(i)).application;
+    assert.deepEqual(app.fields, {}, 'Rejected values remain unknown');
+    assert.deepEqual(app.possibleDefaults, []);
+  }
+  DB.get('leads/apply_fixture').raw = { moveIn: '2028-02-29', durationMonths: 120, signers: 10,
+    income: 0.5, incomeBand: 'under-1500', guarantorType: 'prepay' };
+  assert.deepEqual(applicationProjection(await loadCaseContext(i)).application.fields,
+    DB.get('leads/apply_fixture').raw, 'Valid leap day, boundaries and prepayment retain their exact meaning');
+  for (const guarantorType of ['yes-italy', 'yes-abroad', 'no', 'prepay']) {
+    DB.get('leads/apply_fixture').raw = { guarantorType };
+    assert.deepEqual(applicationProjection(await loadCaseContext(i)).application.fields, { guarantorType });
+  }
+  for (const incomeBand of ['under-1500', '1500-2500', '2500-4000', 'over-4000']) {
+    DB.get('leads/apply_fixture').raw = { incomeBand };
+    assert.deepEqual(applicationProjection(await loadCaseContext(i)).application.fields, { incomeBand });
+  }
+});
+
+await test('positive finite application durations retain the importer schema without a new commercial limit', async () => {
+  const i = applicationInput();
+  for (const durationMonths of [1.5, 121]) {
+    DB.get('leads/apply_fixture').raw = { durationMonths };
+    const app = applicationProjection(await loadCaseContext(i)).application;
+    assert.deepEqual(app.fields, { durationMonths }, 'Dated form evidence retains its exact accepted value');
+    assert.deepEqual(app.possibleDefaults, [], 'Nondefault values must not be labelled preselected');
+  }
+});
+
+async function preserveFormSemantics(load = loadCaseContext) {
+  const i = applicationInput();
+  DB.get('leads/apply_fixture').raw = { durationMonths: 24, signers: 5, moveIn: '2026-11-01' };
+  const app = applicationProjection(await load(i)).application;
+  assert.deepEqual(app.possibleLowerBounds, ['durationMonths', 'signers'], '24 months / 5 signers may mean or more');
+  assert.deepEqual(app.possibleDefaults, ['moveIn'], 'Classic arrival can be calculated from listing availability');
+  assert.equal(app.fields.moveIn, '2026-11-01', 'Preserve the dated value without claiming it is a stated preference');
+  DB.get('leads/apply_fixture').raw = { durationMonths: 6, signers: 2 };
+  const selected = applicationProjection(await load(i)).application;
+  assert.deepEqual(selected.fields, { durationMonths: 6, signers: 2 });
+  assert.deepEqual(selected.possibleDefaults, [], 'Explicit nondefault choices do not need another default check');
+  assert.deepEqual(selected.possibleLowerBounds, []);
+}
+await test('form ranges and computed arrival remain uncertain without downgrading nondefault choices', preserveFormSemantics);
+
+await test('legacy affirmative guarantor survives without inferring a missing or negative answer', async () => {
+  const i = applicationInput();
+  for (const [raw, fields] of [
+    [{ guarantor: true }, { guarantor: true }],
+    [{ guarantor: false }, {}],
+    [{ guarantor: 'true' }, {}],
+    [{ guarantor: true, guarantorType: 'unrecognized' }, { guarantor: true }],
+    [{ guarantor: true, guarantorType: 'prepay' }, { guarantorType: 'prepay' }],
+    [{ guarantor: true, guarantorType: 'yes-italy' }, { guarantorType: 'yes-italy' }],
+  ]) {
+    DB.get('leads/apply_fixture').raw = raw; calls = [];
+    const ctx = await loadCaseContext(i);
+    assert.deepEqual(applicationProjection(ctx).application.fields, fields);
+    assert.deepEqual(calls.filter(c => c.path).map(c => c.path).sort(), ['leads/apply_fixture', 'listings/l1'],
+      'Qualification comes from the existing verified reads');
+  }
+});
+
+await test('only the known web application importer admits structured qualification', async () => {
+  const i = applicationInput();
+  for (const extra of [{ ingestedBy: 'manual' }, { ingestedBy: null }, { source: 'whatsapp' },
+    { source: null }, { raw: null }, { raw: [] }, { raw: 'income: 3200' }]) {
+    DB.set('leads/apply_fixture', applicationLead(extra));
+    assert.equal(applicationProjection(await loadCaseContext(i)).application, undefined);
+  }
+  DB.set('listings/l1', applicationLead());
+  const ctx = await loadCaseContext(i), property = ctx.sources.find(s => s.ref === 'listings/l1');
+  assert.equal(JSON.parse(property.text).application, undefined, 'Importer labels cannot turn a property into a lead');
+});
+
+await test('ambiguous or incomplete identity never reads application records', async () => {
+  for (const flag of ['identityAmbiguous', 'identityIncomplete']) {
+    const i = applicationInput(); i.dossier[flag] = true; calls = [];
+    const ctx = await loadCaseContext(i);
+    assert.ok(has(ctx, 'identity_not_verified'));
+    assert.ok(!calls.some(c => c.path?.startsWith('leads/')));
+    assert.equal(applicationSource(ctx), undefined);
+    assert.equal(ctx.coverage.lastEvent.present, true, 'The inbound survives an unresolved business identity');
+  }
+});
+
+await test('application rereads stay stable; corrected answers invalidate the existing context', async () => {
+  const i = applicationInput(), first = await loadCaseContext(i), fingerprint = contextFingerprint(first);
+  assert.equal(contextFingerprint(await loadCaseContext({ ...i, now: now + 60000 })), fingerprint);
+  DB.get('leads/apply_fixture').raw.moveIn = '2026-12-01';
+  const updated = await loadCaseContext(i);
+  assert.notEqual(contextFingerprint(updated), fingerprint);
+  assert.equal(applicationProjection(updated).application.fields.moveIn, '2026-12-01');
+  failures.add('leads/apply_fixture');
+  const unavailable = await loadCaseContext(i);
+  assert.ok(has(unavailable, 'source_unavailable'));
+  assert.equal(applicationSource(unavailable), undefined);
+  assert.equal(unavailable.coverage.lastEvent.present, true);
+  assert.notEqual(contextFingerprint(unavailable), contextFingerprint(updated));
+  failures.delete('leads/apply_fixture');
+  assert.equal(contextFingerprint(await loadCaseContext(i)), contextFingerprint(updated), 'A recovered read restores the exact verified evidence');
+});
+
+await test('application projection omits private raw payloads, contact details and inferred budget', async () => {
+  const i = applicationInput(), lead = DB.get('leads/apply_fixture');
+  Object.assign(lead, { budget: 1800, propertyPrice: 1800, email: 'PRIVATE_CONTACT@example.test', phone: 'PRIVATE_PHONE', situation: 'PRIVATE_SITUATION' });
+  Object.assign(lead.raw, { ip: 'PRIVATE_IP', ua: 'PRIVATE_USER_AGENT', requestId: 'PRIVATE_REQUEST',
+    commute: { place: 'PRIVATE_COMMUTE' }, cf: 'RSSMRA80A01H501U', iban: 'IT60X0542811101000000123456',
+    attachments: [{ content: 'PRIVATE_DOCUMENT' }], password: 'PRIVATE_PASSWORD', arbitrary: 'PRIVATE_RAW' });
+  const ctx = await loadCaseContext(i), source = applicationSource(ctx), projection = applicationProjection(ctx);
+  assert.deepEqual(projection.application.fields, applicationRaw());
+  for (const key of ['raw', 'budget', 'propertyPrice', 'email', 'phone', 'situation']) assert.equal(projection[key], undefined);
+  for (const forbidden of ['PRIVATE_', 'RSSMRA80A01H501U', 'IT60X0542811101000000123456']) assert.ok(!JSON.stringify(ctx).includes(forbidden));
+  assert.ok(source.text.length <= CONTEXT_LIMITS.leadReferenceText);
+  assert.equal(source.textTruncated, false);
+});
+
+await test('larger application references keep the existing global context and read caps', async () => {
+  assert.equal(CONTEXT_LIMITS.leadReferenceText, 1600);
+  assert.equal(CONTEXT_LIMITS.totalText, 32000);
+  const i = applicationInput(); i.dossier.properties = []; i.dossier.practices = [];
+  for (let n = 0; n < CONTEXT_LIMITS.references; n++) {
+    const ref = 'leads/apply_' + n;
+    i.dossier.practices.push({ ref, type: 'lead', propertyRefs: [] });
+    DB.set(ref, applicationLead(Object.fromEntries(['status', 'stage', 'arrivalDate', 'moveInDate', 'lastInboundAt', 'outcome']
+      .map(key => [key, 'x'.repeat(120)]))));
+  }
+  for (let n = 0; n < 30; n++) DB.set('messages/history' + n, msg('h'.repeat(2000), '2026-09-14T12:00:00Z'));
+  const ctx = await loadCaseContext(i), leads = ctx.sources.filter(s => s.ref.startsWith('leads/'));
+  assert.ok(leads.length > 0);
+  assert.ok(leads.some(s => s.text.length > CONTEXT_LIMITS.referenceText), 'Application sources must survive the old 600-character cap');
+  for (const source of leads) {
+    assert.ok(source.text.length <= CONTEXT_LIMITS.leadReferenceText);
+    assert.deepEqual(JSON.parse(source.text).application.fields, applicationRaw());
+    assert.equal(source.textTruncated, false);
+  }
+  assert.ok(has(ctx, 'context_text_limit'), 'Oversized aggregate remains an explicit coverage gap');
+  assert.ok(ctx.sources.length <= CONTEXT_LIMITS.sources);
+  assert.ok(calls.filter(c => c.path?.startsWith('leads/')).length <= CONTEXT_LIMITS.references);
+  const total = ctx.sources.reduce((sum, s) => sum + s.text.length + (s.analysisText?.length || 0), 0);
+  assert.equal(ctx.coverage.textBudget.used, total);
+  assert.ok(total <= 32000);
+  assert.equal(ctx.coverage.lastEvent.present, true);
+});
+
 await test('exact CID, verified dossier references, chronology and last WhatsApp event', async () => {
   DB.set('messages/older', msg('Prima richiesta.', '2026-09-14T10:00:00Z'));
   DB.set('messages/foreign', { ...msg('FOREIGN_TEXT'), conversationId: 'other' });
@@ -525,6 +731,18 @@ await test('mutation: accepting a capped unordered prefix is caught', async () =
 await test('mutation: adding a document blob to business fields is caught', async () => {
   const mutant = await mutated("contracts: ['status'", "contracts: ['fileBase64', 'status'");
   await assert.rejects(() => rejectPrivateFields(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: losing the application projection is caught after a lead has been followed', async () => {
+  const mutant = await mutated('projection.application = application;', '; /* application projection removed */');
+  await assert.rejects(() => preserveApplication(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: treating open-ended form values as exact quantities is caught', async () => {
+  const mutant = await mutated("fields.durationMonths === 24 ? 'durationMonths' : null", 'null');
+  await assert.rejects(() => preserveFormSemantics(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: omitting computed arrival provenance is caught', async () => {
+  const mutant = await mutated("fields.moveIn ? 'moveIn' : null", 'null');
+  await assert.rejects(() => preserveFormSemantics(mutant.loadCaseContext), assert.AssertionError);
 });
 await test('mutation: accepting a contact author as verified admin is caught', async () => {
   const mutant = await mutated("author.role !== 'admin'", 'false');

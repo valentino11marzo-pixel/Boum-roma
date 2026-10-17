@@ -81,7 +81,7 @@ const LONG = 'A quiet two-room flat on Via dei Coronari, a few steps from Piazza
 
 const DOCS = {
   A: { name: 'Coronari Classic', zone: 'Centro Storico', address: 'Via dei Coronari 181', price: 1800,
-    status: 'available', tags: ['All inclusive'], features: ['Elevator'], sqm: 60, bedrooms: 1, bathrooms: 1,
+    status: 'available', availableDate: 'Subito', tags: ['All inclusive'], features: ['Elevator'], sqm: 60, bedrooms: 1, bathrooms: 1,
     description: LONG, images: ['/foto-catalogo/coronari.jpg', 'https://example.org/b.jpg'],
     lat: 41.8995123, lng: 12.4709876, geo: { src: 'nominatim', q: 'Via dei Coronari 181, Roma' } },
   B: { name: 'Levico', zone: 'Trieste', price: 1500, status: 'waitlist', availableFrom: FUT('03', '01'),
@@ -99,6 +99,7 @@ const DOCS = {
   R2: { name: 'Reserved Flat', zone: 'Prati', price: 1700, status: 'reserved' },
   H: { name: 'Ask Date', zone: 'Ostiense', price: 1250, status: 'available', availableDate: 'da concordare',
     furnished: 'no' },
+  N: { name: 'Missing Date', zone: 'Prati', price: 1300, status: 'available' },
   O: { name: 'Off Market', zone: 'Parioli', price: 2500, status: 'off_market', availableFrom: FUT('06', '01') },
 };
 const STATUS_ONLY = { E: 404, F: 500 };
@@ -194,12 +195,27 @@ const ssrText = (h) => [meta(h, 'description'), prop(h, 'og:description'), meta(
 console.log('\n/listing/:id — il corpo è quello della casa');
 const listing = (await import('../../api/listing.js')).default;
 const OUT = {};
-for (const id of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'R1']) {
+for (const id of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'R1', 'N']) {
   const res = mkRes();
   await listing({ query: { id } }, res);
   OUT[id] = res;
 }
 const A = OUT.A.body, B = OUT.B.body, C = OUT.C.body, D = OUT.D.body;
+
+// Anche il dato strutturato deve tacere la disponibilità quando non è
+// conosciuta, sia per la casa libera sia per il rilascio di una occupata.
+for (const data of [
+  { status: 'available', availableDate: 'quando capita' },
+  { status: 'waitlist' },
+]) {
+  DOCS.UNKNOWN = { name: 'Unknown availability', price: 1200, ...data };
+  const res = mkRes();
+  try { await listing({ query: { id: 'UNKNOWN' } }, res); } finally { delete DOCS.UNKNOWN; }
+  const ap = lds(res.body).find((o) => o['@type'] === 'Apartment');
+  check(`${data.status}, data sconosciuta: offerta senza InStock/PreOrder o data inventata`,
+    res.statusCode === 200 && ap && ap.offers && ap.offers.availability === undefined
+    && ap.offers.availabilityStarts === undefined);
+}
 
 for (const id of ['A', 'B', 'C', 'D']) {
   const h = OUT[id].body, v = noScriptsStylesNoscript(h);
@@ -334,6 +350,13 @@ check('A: og:image assoluta (il documento porta /foto-catalogo/…)',
     && bp.offers.availabilityStarts === FUT('03', '01'));
   const cp = lds(C).find((o) => o['@type'] === 'Apartment');
   check('C: JSON-LD SoldOut', cp.offers.availability === 'https://schema.org/SoldOut');
+  const np = lds(OUT.N.body).find((o) => o['@type'] === 'Apartment');
+  check('N (data assente): casa visibile, offerta senza disponibilità inventata',
+    OUT.N.statusCode === 200 && np && np.offers && np.offers.availability === undefined
+    && /id="statoCasa">Ask us for the date</.test(OUT.N.body));
+  check('N (data assente): il server chiede la data, nessuna promessa now/48h',
+    /Availability on request/.test(noscriptOf(OUT.N.body))
+    && !/Available now|48h|48 hours|InStock|PreOrder/i.test(ssrText(OUT.N.body)));
 }
 for (const id of ['A', 'B', 'C', 'D', 'E', 'F', 'G']) {
   const m = OUT[id].body.match(/all-in|24\/7/i);
@@ -450,8 +473,18 @@ for (const id of ['A', 'B', 'C', 'D']) {
 console.log('\n/llms-listings.txt — solo ciò che è vero per QUELLA casa');
 {
   const res = mkRes();
-  await (await import('../../api/llms-listings.js')).default({ query: {} }, res);
+  // Il riepilogo include l'ora di generazione: 14:48 non è una promessa
+  // di ingresso in 48 ore. Riproduci sempre il minuto che faceva fallire CI.
+  const RealDate = globalThis.Date;
+  const fixedNow = RealDate.parse(new RealDate().toISOString().slice(0, 10) + 'T14:48:00Z');
+  globalThis.Date = class extends RealDate {
+    constructor(...args) { super(...(args.length ? args : [fixedNow])); }
+    static now() { return fixedNow; }
+  };
+  try { await (await import('../../api/llms-listings.js')).default({ query: {} }, res); }
+  finally { globalThis.Date = RealDate; }
   const t = res.body;
+  check('prova deterministica: orario generato contiene 14:48', /generated \d{4}-\d{2}-\d{2}T14:48Z/.test(t));
   const blocks = t.split('\n## ').slice(1).filter((b) => !b.startsWith('How to rent'));
   const block = (name) => blocks.find((b) => b.startsWith(name)) || '';
   check('status 200, markdown', res.statusCode === 200 && /markdown/.test(res.headers['content-type'] || ''));
@@ -467,14 +500,15 @@ console.log('\n/llms-listings.txt — solo ciò che è vero per QUELLA casa');
   const m = t.match(/_(\d+) homes \((\d+) available now · (\d+) occupied, reservable ahead with a release date · (\d+) reservable or available, date on request\)/);
   check('i tre conteggi sommano al numero di case elencate',
     !!m && +m[2] + +m[3] + +m[4] === +m[1] && +m[1] === blocks.length, m && m[0] + ' vs ' + blocks.length);
-  check('conteggi giusti: 1 ora (A) · 2 con data (B, R1) · 1 su richiesta (H)', !!m && m[2] === '1' && m[3] === '2' && m[4] === '1', m && m[0]);
+  check('conteggi giusti: 1 ora (A) · 2 con data (B, R1) · 2 su richiesta (H, N)', !!m && m[2] === '1' && m[3] === '2' && m[4] === '2', m && m[0]);
   // etichette e conteggi seguono la STESSA corsia: tante righe «available
-  // now» quante il conteggio (prima A, available senza data, era «on request»)
+  // now» quante il conteggio; solo A dichiara esplicitamente «Subito».
   const nowLines = (t.match(/^- Availability: available now$/gm) || []).length;
   check('righe «- Availability: available now» = conteggio «N available now»', !!m && nowLines === +m[2], nowLines + ' vs ' + (m && m[2]));
-  check('A (available, senza data) è «available now», H (data illeggibile) «on request»',
+  check('A (Subito) è «available now», H (data illeggibile) e N (data assente) «on request»',
     /- Availability: available now/.test(block('Coronari Classic'))
-    && /- Availability: availability on request/.test(block('Ask Date')));
+    && /- Availability: availability on request/.test(block('Ask Date'))
+    && /- Availability: availability on request/.test(block('Missing Date')));
   check('R1: la data del contratto, non il residuo di availableDate',
     new RegExp('- Availability: reservable ahead — occupied now, free from ' + FUT('05', '01')).test(block('Pigneto Contract')));
   check('testata: nessuna imposta di registro «sempre dovuta», cedolare secca nominata',
@@ -490,7 +524,7 @@ console.log('\n/llms-listings.txt — solo ciò che è vero per QUELLA casa');
     && !/Map position/.test(block('Ask Date')));
   check('la testata dichiara onorario con IVA e lease italiana spiegata in inglese',
     /10% of one year's rent plus 22% VAT, charged once/.test(t) && /explained in English/.test(t));
-  check('le 48 ore solo per chi è «available now»', (t.match(/48/g) || []).length === 1 && /"available now" can be moved into as fast as 48 hours/.test(t));
+  check('le 48 ore solo per chi è «available now»', (t.match(/\b48(?:\s*hours?\b|h\b)/gi) || []).length === 1 && /"available now" can be moved into as fast as 48 hours/.test(t));
   check('nessun video tour promesso se nessuna casa ce l\'ha', !/video tour/i.test(t));
   check('2-minute eligibility check', /2-minute eligibility check/.test(t));
   // «cached up to 10 minutes» (la riga in fondo) resta vero: con swr=86400
@@ -511,7 +545,7 @@ console.log('\n/listings-sitemap.xml — la corsia decide chi va trovato');
   check('l\'affittata con availableFrom c\'è', has('R1'));
   check('la riservata, la bozza, la fuori mercato e l\'affittata senza data no',
     !has('R2') && !has('D') && !has('O') && !has('C'));
-  check('A, B e la data illeggibile (H) ci sono', has('A') && has('B') && has('H'));
+  check('A, B, data illeggibile (H) e data assente (N) ci sono', has('A') && has('B') && has('H') && has('N'));
   check('lastmod da updatedAt timestampValue (2026-09-30)', /listing\/R1<\/loc><lastmod>2026-09-30<\/lastmod>/.test(x));
   check('senza updatedAt, lastmod dal updateTime del documento', /listing\/A<\/loc><lastmod>2026-08-01<\/lastmod>/.test(x));
   check('lettura riuscita: 200 xml e cacheabile (s-maxage=3600)',
@@ -606,6 +640,9 @@ console.log('\n/api/ask-listing — le politiche che il codice applica davvero')
   const fH = await factsOf('H');
   check('H (data illeggibile): «Ask us for the exact move-in date.», mai «Available now»',
     /^Availability: Ask us for the exact move-in date\.$/m.test(fH) && !/Available now/.test(fH), fH);
+  const fN = await factsOf('N');
+  check('N (data assente): anche al modello data da chiedere, mai disponibilità immediata',
+    /^Availability: Ask us for the exact move-in date\.$/m.test(fN) && !/Available now/.test(fN), fN);
   const fD = await factsOf('D');
   check('D (bozza): «Not currently on the market.»', /^Availability: Not currently on the market\.$/m.test(fD), fD);
   SIGNIN = false;
@@ -869,12 +906,16 @@ if (!chromium) {
       return { ...out, errs };
     };
     const fA = await leggi('/listing/A');
-    check('A (libera, senza data): «This one is available now.» nella FAQ e nel FAQPage',
+    check('A (Subito): «This one is available now.» nella FAQ e nel FAQPage',
       /This one is available now\.$/.test(fA.ld) && fA.ld === fA.vis, JSON.stringify(fA.ld));
     check('A (bollette incluse): la nota della durata non dice «utilities are paid to the providers»',
       /listed with bills included/.test(fA.dur) && !/Utilities are paid/.test(fA.dur), fA.dur);
     check('A (mensilità di deposito non dichiarate): «confirmed in your pre-agreement»',
       /confirmed in your pre-agreement/.test(fA.cauz) && /shown as one month/.test(fA.ldAll), fA.cauz);
+    const fN = await leggi('/listing/N');
+    check('N (data assente): badge e FAQ visibile/schema chiedono la data senza dire available now',
+      fN.stato === 'Ask us for the date' && /This one: ask us for the exact move-in date\.$/.test(fN.ld)
+      && fN.ld === fN.vis && !/available now/i.test(fN.ldAll), JSON.stringify(fN));
     const fC = await leggi('/listing/C');
     check('C (affittata, senza data): badge «Rented» e FAQ «is rented right now», mai «available now» nel FAQPage',
       fC.stato === 'Rented' && /This one is rented right now\.$/.test(fC.ld) && !/available now/i.test(fC.ldAll)

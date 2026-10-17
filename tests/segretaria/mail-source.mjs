@@ -81,6 +81,26 @@ try{
  check('conflitto memoria riletto: conserva ricevute concorrenti e propria',r.imported===1&&!r.errors&&receiptIds.includes('<concurrent@fixture.invalid>')&&receiptIds.includes('<mail-1@fixture.invalid>'),{r,receiptIds});
  reset();mail(1);put('conversations/'+CID,{...DB.get('conversations/'+CID),lastMessageAt:new Date(NOW).toISOString(),lastDirection:'out',lastMessagePreview:'Risposta più recente',needsReply:false});r=await call();
  check('mail storica non sovrascrive risposta recente o needsReply',r.imported===1&&DB.get('conversations/'+CID).lastDirection==='out'&&DB.get('conversations/'+CID).needsReply===false,r);
+ // The scheduled path used to bypass the import guard and reopen replied cases.
+ const cron=()=>call({body:{},token:'cron-fixture'});
+ const newerHeader={lastMessageAt:new Date(NOW).toISOString(),lastDirection:'out',lastMessagePreview:'Risposta WhatsApp più recente',needsReply:false};
+ const keepsReply=()=>Object.entries(newerHeader).every(([k,v])=>DB.get('conversations/'+CID)[k]===v);
+ const watch=async()=>captureFollowUp({cid:CID,conv:DB.get('conversations/'+CID),messageId:'tracked-wa',text:'Richiesta già seguita',now:NOW-1000});
+ reset();put('conversations/'+CID,{...DB.get('conversations/'+CID),...newerHeader,segretaria:false});const watched=await watch();mail(1);r=await cron();
+ check('cron archivia mail vecchia senza riaprire risposta WhatsApp recente',r.imported===1&&!r.incomplete&&keepsReply(),r);
+ check('cron conserva il seguito più recente e non abilita invii o AI',DB.get('operatorTasks/'+watched.id).followUp.lastMessageId==='tracked-wa'&&F.tasks().length===1&&external.length===0&&__mails.length===0&&!DB.get('conversations/'+CID).segretaria,{r,external});
+ // Lost memory acknowledgement must still be harmless when the message exists.
+ DB.delete('heartbeat/segretaria-mail-memory');versions.delete('heartbeat/segretaria-mail-memory');r=await cron();
+ check('retry cron dopo ricevuta persa non duplica e non riapre la chat',r.imported===0&&r.duplicates===1&&keepsReply()&&[...DB.values()].filter(x=>x.emailMessageId==='<mail-1@fixture.invalid>').length===1,r);
+ reset();await watch();mail(1);F.setBeforeCommit(async operations=>{
+  if(operations.some(op=>op.update.name.includes('/messages/segretaria_mail_')))
+   put('conversations/'+CID,{...DB.get('conversations/'+CID),...newerHeader});
+ });r=await cron();
+ check('cron ritenta il conflitto atomico e preserva la risposta concorrente',r.imported===1&&!r.errors&&keepsReply(),r);
+ reset();await watch();mail(1);__mail.afterSearch=()=>put('conversations/'+CID,{...DB.get('conversations/'+CID),contactEmail:'changed@example.invalid'});r=await cron();
+ check('cron non attribuisce mail a identità cambiata durante IMAP',r.imported===0&&r.errors===1&&r.incomplete&&r.error==='conversation_identity_changed'&&![...DB.values()].some(x=>x.emailMessageId==='<mail-1@fixture.invalid>')&&!DB.has('heartbeat/segretaria-mail-memory'),r);
+ reset();await watch();mail(31);r=await cron();
+ check('cron aggiorna header e seguito per una mail realmente nuova',r.imported===1&&DB.get('conversations/'+CID).lastDirection==='in'&&DB.get('conversations/'+CID).needsReply&&DB.get('conversations/'+CID).lastMessagePreview==='Ricevuta fixture 31.'&&F.tasks()[0].followUp.preview==='Ricevuta fixture 31.',r);
  reset();const task=await captureFollowUp({cid:CID,conv:DB.get('conversations/'+CID),messageId:'start',text:'Documento da verificare',now:NOW-60000});
  put('operatorTasks/'+task.id,{...DB.get('operatorTasks/'+task.id),followUp:{...task.followUp,nextAction:'Verificare ricevuta',confirmed:true,needsReview:false}});writes.length=0;mail(1);r=await call();
  check('seguito già aperto si aggiorna deterministicamente senza perdere decisione',r.refreshed===1&&F.tasks().length===1&&DB.get('operatorTasks/'+task.id).followUp.nextAction==='Verificare ricevuta'&&DB.get('operatorTasks/'+task.id).followUp.needsReview,r);
@@ -102,7 +122,7 @@ try{
  r=await scanStatus();check('stato verde richiede prova recente, completa e configurazione presente',r.email.connectionVerified&&r.email.healthy,r);
  clock+=31*60000;r=await scanStatus();check('prova vecchia non resta sana indefinitamente',r.email.connectionVerified&&!r.email.healthy&&!r.email.lastScan.fresh,r);
 }finally{Date.now=REAL_NOW;}
-if(!process.env.BOOM_MAIL_MUTATION)for(const mutation of ['sync_ai_gate','admin_scope','budget_complete','scoped_identity','scoped_atomic','normalized_identity']){
+if(!process.env.BOOM_MAIL_MUTATION)for(const mutation of ['sync_ai_gate','admin_scope','budget_complete','scoped_identity','scoped_atomic','normalized_identity','scheduled_header_order']){
  const child=spawnSync(process.execPath,[fileURLToPath(import.meta.url)],{env:{...process.env,BOOM_MAIL_MUTATION:mutation},encoding:'utf8',timeout:20000});
  check('mutazione intercettata: '+mutation,child.status!==0&&child.stdout.includes('FAIL')&&!child.stderr.includes('Mutation boundary missing'));
 }

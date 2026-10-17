@@ -276,17 +276,34 @@ const enc = (v) => (v === null || v === undefined) ? { nullValue: null }
 const dec = (f) => !f ? null : 'nullValue' in f ? null : 'stringValue' in f ? f.stringValue
   : 'integerValue' in f ? Number(f.integerValue) : 'booleanValue' in f ? f.booleanValue
     : 'doubleValue' in f ? f.doubleValue : null;
-const toDoc = (p, d) => ({ name: `projects/p/databases/(default)/documents/${p}`, fields: Object.fromEntries(Object.entries(d).map(([k, v]) => [k, enc(v)])) });
+const versions = new Map();
+const blockedWrites = new Set();
+let race = null;
+const toDoc = (p, d) => ({ updateTime: String(versions.get(p) || 1), name: `projects/p/databases/(default)/documents/${p}`, fields: Object.fromEntries(Object.entries(d).map(([k, v]) => [k, enc(v)])) });
 
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url), body = opts.body ? JSON.parse(opts.body) : null;
   const json = (o, status = 200) => ({ ok: status < 400, status, json: async () => o, text: async () => JSON.stringify(o) });
-  if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin' });
+  if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin', users: [{ localId: body.idToken === 'landlord-token' ? 'landlord' : 'admin' }] });
   const m = u.match(/documents\/([^?:]+)/);
   const path = m ? decodeURIComponent(m[1]) : '';
   if (u.includes(':runQuery')) {
     const coll = body.structuredQuery.from[0].collectionId;
     return json([...DB.entries()].filter(([k]) => k.startsWith(coll + '/')).map(([k, v]) => ({ document: toDoc(k, v) })));
+  }
+  if (u.endsWith(':commit')) {
+    if (race) { const fn = race; race = null; fn(); }
+    for (const w of body.writes) {
+      const p = w.update.name.split('/documents/')[1];
+      if (blockedWrites.has(p)) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+      if (!DB.has(p) || (w.currentDocument.updateTime !== undefined && w.currentDocument.updateTime !== String(versions.get(p) || 1))) return json({ error: { status: 'FAILED_PRECONDITION' } }, 409);
+    }
+    for (const w of body.writes) {
+      const p = w.update.name.split('/documents/')[1];
+      DB.set(p, { ...DB.get(p), ...Object.fromEntries(Object.entries(w.update.fields).map(([k, v]) => [k, dec(v)])) });
+      versions.set(p, (versions.get(p) || 1) + 1);
+    }
+    return json({ writeResults: [] });
   }
   if (opts.method === 'PATCH') {
     DB.set(path, { ...(DB.get(path) || {}), ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) });
@@ -350,6 +367,47 @@ ok(DB.get('listings/levico').availableFrom === '2026-09-01', '  · e il valore b
 
 out = await call('POST', { updates: [{ id: 'inesistente', iso: '2026-09-01' }] });
 ok(out.payload.failed[0].error === 'not_found', 'un id che non esiste non crea un documento');
+
+console.log('\n▸ catalogo unico: esiti, versioni e permessi');
+for (const status of ['off_market', 'reserved', 'draft']) {
+  const l = { status, availableFrom:'2027-12-01' };
+  ok(D.catalogState(l, TODAY).state === 'closed' && D.marketLane(l, TODAY).lane === 'closed', status + ' non si riapre per una data');
+  ok(D.label(l, 'it', TODAY).text === 'Non disponibile' && D.laneCopy(l, 'it', TODAY).short === 'Non disponibile', status + ' non promette ingresso nelle etichette');
+}
+DB.set('users/admin', { role: 'admin' });
+DB.set('users/landlord', { role: 'landlord' });
+out = await call('GET', null, { authorization: 'Bearer landlord-token' });
+ok(out.code === 403, 'un proprietario non modifica il catalogo globale');
+out = await call('GET', null, { authorization: 'Bearer admin-token' });
+ok(out.code === 200, 'amministratore Portal ammesso');
+const preview = out.payload.listings.find(l => l.id === 'levico').expected;
+DB.set('listings/levico', { ...DB.get('listings/levico'), availableFrom: '2027-01-01' });
+out = await call('POST', { updates: [{ id: 'levico', iso: '2026-12-01', expected: preview }] });
+ok(!out.payload.ok && out.payload.failed[0].error === 'changed_since_preview' && DB.get('listings/levico').availableFrom === '2027-01-01', 'anteprima vecchia non cancella una data nuova');
+race = () => { versions.set('listings/cavour', 999); DB.get('listings/cavour').availableFrom = '2028-01-01'; };
+out = await call('POST', { updates: [{ id: 'cavour', kind: 'now' }] });
+ok(!out.payload.ok && out.payload.failed[0].error === 'changed_since_preview' && DB.get('listings/cavour').availableFrom === '2028-01-01', 'modifica fra lettura e commit non viene sovrascritta');
+blockedWrites.add('listings/cavour');
+out = await call('POST', { text: 'Levico dal 1 dicembre 2027, Cavour subito', apply: true });
+ok(!out.payload.ok && out.payload.applied.length === 1 && out.payload.failed.length === 1, 'successo parziale non diventa ok:true');
+ok(out.payload.applied[0].externalPortals === 'not_verified', 'scrittura BOOM non certifica la pubblicazione esterna');
+blockedWrites.clear();
+out = await call('POST', { updates: [{ id: 'cavour', kind: 'garbage' }] });
+ok(!out.payload.ok && out.payload.failed[0].error === 'unreadable_date', 'kind sconosciuto non cancella la data');
+out = await call('POST', { updates: Array.from({length:61}, (_,i) => ({id:'c'+i, kind:'now'})) });
+ok(out.code === 400, 'batch troppo lungo rifiutato, mai troncato silenziosamente');
+out = await call('POST', { updates: [{id:'levico',kind:'now'}, {id:'levico',kind:'unknown'}] });
+ok(out.code === 400, 'due modifiche contraddittorie alla stessa casa rifiutate');
+out = await call('POST', { updates: [{ id: 'vecchia', status: 'available', kind: 'now' }] });
+ok(out.payload.ok && out.payload.applied[0].catalog.state === 'now' && DB.get('listings/vecchia').availableFrom === 'Subito', 'riapertura esplicita salva insieme stato e data');
+out = await call('POST', { updates: [{ id: 'levico', status: 'nonsense' }] });
+ok(!out.payload.ok, 'stato sconosciuto rifiutato');
+out = await call('POST', {updates:[{id:'cavour',value:'da concordare'}]});
+ok(out.payload.ok && D.resolve(DB.get('listings/cavour'), TODAY).kind === 'unknown', 'comando bot da concordare cancella entrambe le date tramite il motore');
+ok(D.catalogState({status:'available',availableFrom:'2027-01-01'}, TODAY).state === 'date', 'available con data futura non è libera ora');
+ok(D.catalogState({status:'available'}, TODAY).state === 'check', 'data assente va verificata');
+ok(D.catalogState({status:'available',availableDate:'Mar 1'}, TODAY).state === 'check', 'anno inferito va confermato');
+ok(D.catalogState({status:'rented',availableDate:'Subito'}, TODAY).state === 'closed', 'affittata non riaperta dal testo residuo');
 
 console.log(`\n${fail === 0 ? '✅' : '❌'}  ${pass} ok, ${fail} ko\n`);
 process.exit(fail === 0 ? 0 : 1);

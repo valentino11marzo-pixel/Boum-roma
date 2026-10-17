@@ -393,12 +393,22 @@ console.log('\n4 · il Pubblicista (api/publisher/_state.js + queue.js)');
   const live = ALL.filter((l) => PUB.publishable(l));
   for (const l of live) COLLS.portalPubs.set('immobiliare_' + l.id, { portal: 'immobiliare', listingId: l.id, status: 'live', wasLive: true, hash: hashPrima(l), attempts: 0 });
   const queue = (await import('../../api/publisher/queue.js')).default;
+  const request = { method: 'GET', query: { portal: 'immobiliare', limit: '50' }, headers: { 'x-homie-secret': process.env.HOMIE_SECRET } };
+  const paused = mkRes();
+  await queue(request, paused);
+  check('senza settings/publisher la coda resta spenta anche con aggiornamenti disponibili',
+    paused.statusCode === 200 && paused.data?.enabled === false
+    && Array.isArray(paused.data.actions) && paused.data.actions.length === 0, paused.body);
+  // Il confronto delle camere richiede l'abilitazione esplicita del servizio
+  // e del portale: una configurazione assente non autorizza pubblicazioni.
+  COLLS.settings = new Map([['publisher', { enabled: true, portals: { immobiliare: { enabled: true } } }]]);
   const res = mkRes();
-  await queue({ method: 'GET', query: { portal: 'immobiliare', limit: '50' }, headers: { 'x-homie-secret': process.env.HOMIE_SECRET } }, res);
+  await queue(request, res);
   const acts = (res.data && res.data.actions) || [];
   const upd = new Set(acts.filter((a) => a.op === 'update').map((a) => a.id));
   const attese = new Set(live.filter((l) => numPub(l.beds || l.bedrooms) !== PUB.coreContent(l).beds).map((l) => l.id));
-  check('la coda risponde', res.statusCode === 200 && Array.isArray(acts), res.statusCode + ' ' + res.body.slice(0, 200));
+  check('la coda esplicitamente abilitata risponde', res.statusCode === 200 && res.data?.enabled === true
+    && Array.isArray(res.data.actions), res.statusCode + ' ' + res.body.slice(0, 200));
   check(`update in coda = le case online il cui numero di camere cambia (${attese.size} su ${live.length})`,
     attese.size > 0 && upd.size === attese.size && [...attese].every((id) => upd.has(id)), [...upd].join(',') + ' vs ' + [...attese].join(','));
   check('Capri e Cappellari tornano in coda col numero giusto nel payload',
@@ -406,6 +416,7 @@ console.log('\n4 · il Pubblicista (api/publisher/_state.js + queue.js)');
     && acts.find((a) => a.id === CAPRI).payload.beds === 2 && acts.find((a) => a.id === CAPPELLARI).payload.beds === 1);
   check('una casa col numero già giusto (Corso, bedrooms 1, beds 1) non si ripubblica', !upd.has('5QAKCvswE3HN9nuuG82S'));
   COLLS.portalPubs.clear();
+  delete COLLS.settings;
 }
 
 // ═══ 5. le guide di quartiere — la copia inline ═════════════════════════

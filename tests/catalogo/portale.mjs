@@ -191,9 +191,16 @@ function mount({ facts = true, listings = [], user = { email: ADMIN_EMAIL }, sto
   const win = facts ? { BOOM_FACTS: FACTS, BOOM_DISPO: DISPO } : { BOOM_DISPO: DISPO };
   const S = { listings, users: [], user };
   const fn = new Function('window', 'BOOM_FACTS', 'BOOM_DISPO', 'S', 'db', 'firebase', 'toast', 'logActivity', 'closeModal',
-    'refresh', 'FormData', 'uploadingImage', 'listingImageUrl', 'openModal', 'document', CODE + '\n' + EXPORTS);
+    'refresh', 'FormData', 'uploadingImage', 'listingImageUrl', 'openModal', 'document', 'auth', 'fetch', CODE + '\n' + EXPORTS);
   const api = fn(win, facts ? FACTS : undefined, DISPO, S, db, firebase, (...a) => toasts.push(a), () => {}, () => {},
-    async () => {}, FakeFormData, false, '', () => {}, undefined);
+    async () => {}, FakeFormData, false, '', () => {}, undefined,
+    {currentUser:{getIdToken:async()=> 'test-token'}}, async (url, options) => {
+      const u = JSON.parse(options.body).updates[0];
+      const d = u.kind ? DISPO.writePatch(DISPO.parseAvailability(u.kind === 'now' ? 'Subito' : u.kind === 'unknown' ? 'da concordare' : u.iso), 'portal:' + user.email) : {};
+      if (u.status) d.status = u.status;
+      writes.push({op:'update', c:'listings', id:u.id, d}); apply(u.id,d);
+      return {ok:true,json:async()=>({ok:true,applied:[{expected:'next',catalog:DISPO.catalogState(d)}]})};
+    });
   return Object.assign(api, { writes, toasts, S });
 }
 
@@ -531,7 +538,7 @@ console.log('\n▸ la tabella annunci: le camere della regola, il testo letti so
   check('senza listing-facts.js la cella mostra il campo strutturato (mai il testo come numero)', noF.listingRoomsCell(BY[CAPPELLARI]).startsWith('1 cam') && noF.listingRoomsCell({ beds: '3' }).startsWith('—'));
 
   const page = mount({ listings: FIX.map((l) => BY[l._id]) }).adminflatsPage();
-  check('la pagina AdminFlats si disegna col catalogo vero e usa la cella nuova', /🏢 AdminFlats/.test(page) && /1 cam <span[^>]*>· letti «3»/.test(page) && !/>3 · /.test(page));
+  check('la pagina AdminFlats si disegna col catalogo vero e usa la cella nuova', /🏢 Catalogo case/.test(page) && /1 cam <span[^>]*>· letti «3»/.test(page) && !/>3 · /.test(page));
 }
 
 // ═══ 8. le giunzioni ════════════════════════════════════════════════════
@@ -584,6 +591,14 @@ function cap(op, c, id, d) {
 var db = { collection: function (c) { return {
   doc: function (id) { return { update: async function (d) { cap('update', c, id, d); } }; },
   add: async function (d) { cap('add', c, null, d); return { id: 'nuovo1', update: async function (x) { cap('update', c, 'nuovo1', x); } }; } }; } };
+var auth = {currentUser:{getIdToken:async()=> 'test-token'}};
+window.fetch = async (url, options) => {
+ const u = JSON.parse(options.body).updates[0];
+ const d = u.kind ? BOOM_DISPO.writePatch(BOOM_DISPO.parseAvailability(u.kind === 'now' ? 'Subito' : u.kind === 'unknown' ? 'da concordare' : u.iso), 'portal:' + S.user.email) : {};
+ if (u.status) d.status = u.status;
+ cap('update','listings',u.id,d);
+ return {ok:true,json:async()=>({ok:true,applied:[{expected:'next',catalog:BOOM_DISPO.catalogState(d)}]})};
+};
 function toast() { __toasts.push([].slice.call(arguments)); }
 function logActivity() {}
 function closeModal() { document.getElementById('modals').innerHTML = ''; }

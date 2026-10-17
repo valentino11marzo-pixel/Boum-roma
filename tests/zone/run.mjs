@@ -380,7 +380,8 @@ const FUTURA = giorni(200);
 function catalogo(termine) {
   const base = { zone: termine, price: 1500, sqm: 60, bedrooms: 1, image: 'https://firebasestorage.googleapis.com/x.jpg' };
   return [
-    { id: 'ora', ...base, name: 'Libera adesso', status: 'available' },
+    { id: 'ora', ...base, name: 'Libera adesso', status: 'available', availableDate: 'Subito' },
+    { id: 'senza-data', ...base, name: 'Data assente', status: 'available' },
     { id: 'attesa', ...base, name: 'In lista', status: 'waitlist', availableDate: FUTURA },
     { id: 'attesa-muta', ...base, name: 'In lista senza data', status: 'waitlist' },
     { id: 'illeggibile', ...base, name: 'Data strana', status: 'available', availableDate: 'quando capita' },
@@ -432,7 +433,7 @@ async function esegui(html) {
     const href = [...r.griglia.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
     const card = new Set(href.filter((h) => h.startsWith('/listing/')).map((h) => h.slice(9)));
     if (href.some((h) => h.startsWith('/apartments/'))) guai.push(`${z} → card su /apartments/`);
-    for (const id of ['ora', 'attesa', 'attesa-muta', 'illeggibile', 'contratto'])
+    for (const id of ['ora', 'senza-data', 'attesa', 'attesa-muta', 'illeggibile', 'contratto'])
       if (!card.has(id)) guai.push(`${z} → la casa «${id}» non ha la sua card /listing/${id}`);
     const FUORI = ['affittata', 'riservata', 'bozza', 'nascosta', 'archiviata'];
     for (const id of FUORI)
@@ -441,6 +442,8 @@ async function esegui(html) {
     if (!/In lista<\/div><div class="listing-meta">[^<]*Free from /.test(r.griglia)) guai.push(`${z} → la card in lista d'attesa non dice da quando e' libera`);
     if (!/Data strana<\/div><div class="listing-meta">[^<]*Ask us for the date/.test(r.griglia)) guai.push(`${z} → una data illeggibile non chiede, promette`);
     if (/Data strana<\/div><div class="listing-meta">[^<]*Available now/.test(r.griglia)) guai.push(`${z} → una data illeggibile dice «Available now»`);
+    if (!/Data assente<\/div><div class="listing-meta">[^<]*Ask us for the date/.test(r.griglia)) guai.push(`${z} → una data assente non chiede, promette`);
+    if (/Data assente<\/div><div class="listing-meta">[^<]*Available now/.test(r.griglia)) guai.push(`${z} → una data assente dice «Available now»`);
     if (!r.ld) { guai.push(`${z} → nessun ItemList`); continue; }
     const off = {};
     for (const e of r.ld.itemListElement) {
@@ -456,7 +459,7 @@ async function esegui(html) {
     if (av('attesa') !== 'https://schema.org/PreOrder' || off.attesa.availabilityStarts !== FUTURA)
       guai.push(`${z} → la lista d'attesa con data non e' PreOrder dal ${FUTURA}`);
     if (av('contratto') !== 'https://schema.org/PreOrder') guai.push(`${z} → l'affittata col contratto non e' PreOrder`);
-    for (const id of ['attesa-muta', 'illeggibile'])
+    for (const id of ['senza-data', 'attesa-muta', 'illeggibile'])
       if (av(id) !== undefined) guai.push(`${z} → «${id}» dichiara ${av(id)} senza saperlo`);
     if (Object.values(off).filter((o) => o.availability === 'https://schema.org/InStock').length !== 1)
       guai.push(`${z} → InStock su piu' di una casa`);

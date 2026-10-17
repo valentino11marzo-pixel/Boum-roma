@@ -146,6 +146,22 @@
         if (r.delivery === 'needs_review') return ['whatsapp_delivery_needs_review', 'whatsapp_delivery_expired'].includes(r.error) ? 'failed' : 'unknown';
         return ['sent', 'queued', 'pending_execution', 'follow_up_only'].includes(r.delivery) ? r.delivery : 'unknown';
     }
+    function signalContext(signal, source, state) {
+        const row = source && unique(state, source.kind, source.id);
+        let value = null, label = 'Ricontrollo';
+        if (signal.kind === 'registrazioni' && instant(signal.deadlineAt) !== null) {
+            value = signal.deadlineAt; label = signal.deadlineEstimated ? 'Termine stimato' : 'Scadenza';
+        } else if (signal.kind === 'incassi' && source?.kind === 'payment' && day(row.dueDate)) {
+            value = row.dueDate; label = 'Scadenza';
+        } else if (signal.kind === 'rinnovi' && source?.kind === 'contract' && day(row.endDate)) {
+            value = row.endDate; label = 'Fine contratto';
+        }
+        return { ownership: 'Da confermare', timing: { label, value }, sourceLabel: ({
+            registrazioni: 'Registrazione contratto', firme: 'Stato firme', incassi: 'Incassi',
+            visita: 'Richiesta visita', manutenzione: 'Intervento', rinnovi: 'Contratto',
+            proposte: 'Proposta', approvazione: 'Proposta da approvare'
+        })[signal.kind] || 'Segnale del portale' };
+    }
     function build({ state = {}, signals = [], rows = [], pendingProposalIds = [], nowISO } = {}) {
         const now = instant(nowISO);
         if (now === null) throw new TypeError('build requires an explicit current ISO instant with timezone');
@@ -175,7 +191,8 @@
             push({ key: record ? record.kind + ':' + record.id : 'signal:' + signal.id,
                 area: source ? areaFor(signal.kind === 'archivio' ? source.kind : signal.kind) : areaFor(signal.kind),
                 bucket: history ? 'history' : 'current', record, title: text(signal.title) || 'Segnale da verificare', nextAction: next, action,
-                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare' : '',
+                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare' : text(signal.title) || 'Segnale operativo da verificare',
+                ...signalContext(signal, source, state),
                 score: Number.isFinite(signal.score) ? signal.score : 0, urgent: !history && signalUrgent(signal, source, state, now) });
         });
         list(rows).forEach(task => {
@@ -198,7 +215,12 @@
                     : old ? 'Fonte oltre 7 giorni' : 'Data della fonte da verificare';
             }
             else if (delivery === 'unknown') { bucket = 'history'; reason = 'Esito dell’invio non disponibile'; }
-            else if (at !== null && at > now) { bucket = 'waiting'; reason = 'Ricontrollo futuro'; }
+            else if (at !== null && at > now) {
+                if (['valentino', 'boom'].includes(f.waitingOn)) {
+                    bucket = 'current'; reason = 'Azione affidata a ' + (f.waitingOn === 'valentino' ? 'Valentino' : 'BOOM');
+                } else if (['client', 'collaborator'].includes(f.waitingOn)) { bucket = 'waiting'; reason = 'Ricontrollo futuro'; }
+                else { bucket = 'current'; reason = 'Responsabile da confermare'; }
+            }
             else if (old) { bucket = 'history'; reason = inbound === null ? 'Data della fonte non disponibile' : 'Fonte oltre 7 giorni'; }
             else { bucket = 'current'; reason = 'Ricontrollo da impostare'; }
             push({ key: record ? record.kind + ':' + record.id : 'case:' + task.id, area: areaFor(source?.kind),
@@ -206,7 +228,12 @@
                 nextAction: !record ? 'Verifica il collegamento alla pratica'
                     : reason === 'Proposta da rivedere' ? 'Rivedi la proposta prima di confermare il seguito' : text(f.nextAction) || 'Verifica il prossimo passo',
                 action: navigation(record, state, '', task.id), signal: null, caseId: task.id,
-                reason, score: delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : bucket === 'current' ? 90 : 20, urgent: false });
+                reason,
+                ownership: reason === 'Proposta da rivedere' ? 'Valentino' : record && confirmed && ['valentino', 'boom', 'client', 'collaborator'].includes(f.waitingOn)
+                    ? text(f.waitingLabel) || ({ valentino: 'Valentino', boom: 'BOOM', client: 'Cliente', collaborator: 'Collaboratore' })[f.waitingOn] : 'Da confermare',
+                timing: { label: 'Ricontrollo', value: record && confirmed && reason !== 'Proposta da rivedere' && at !== null ? f.checkAt : null },
+                sourceLabel: !record ? 'Collegamento da verificare' : reason === 'Proposta da rivedere' ? 'Proposta da rivedere' : 'Seguito confermato',
+                score: delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : reason.startsWith('Azione affidata a ') ? 45 : bucket === 'current' ? 90 : 20, urgent: false });
         });
         const today = romeDay(now), last = new Date(Date.parse(today + 'T00:00:00Z') + 6 * DAY).toISOString().slice(0, 10);
         list(state.contracts).forEach(contract => {
@@ -224,7 +251,8 @@
                 nextAction: ['complete', 'completed'].includes(contract.signatureStatus) ? 'Verifica e prepara la consegna della casa' : 'Verifica le firme e la preparazione della consegna',
                 action: navigation(record, state, 'consegna'), signal: { id, kind: 'consegna', date, contractId: contract.id,
                     title: 'Decorrenza contratto · ' + date, basis: 'contract.startDate' }, caseId: null,
-                reason: 'La decorrenza non prova la consegna delle chiavi', score: 60, urgent: false });
+                reason: 'La decorrenza non prova la consegna delle chiavi', ownership: 'Da confermare',
+                timing: { label: 'Decorrenza', value: date }, sourceLabel: 'Contratto', score: 60, urgent: false });
         });
         const groups = new Map();
         entries.forEach(entry => {
@@ -237,7 +265,8 @@
             const first = group[0], allSignals = group.filter(x => x.signal).map(x => x.signal), caseIds = group.map(x => x.caseId).filter(Boolean);
             return { id, area: first.area, bucket: first.bucket, record: first.record, title: recordTitle(first.record, state) || first.title,
                 nextAction: first.nextAction, action: first.action, signals: allSignals, signalIds: group.filter(x => x.original).map(x => x.signal.id), caseIds,
-                reason: first.reason, score: first.score, urgent: group.some(x => x.urgent) };
+                reason: first.reason, ownership: first.ownership, timing: first.timing, sourceLabel: first.sourceLabel,
+                score: first.score, urgent: group.some(x => x.urgent) };
         }).sort((a, b) => Number(b.urgent) - Number(a.urgent) || b.score - a.score || a.id.localeCompare(b.id));
         const currentItems = items.filter(x => x.bucket === 'current'), history = items.filter(x => x.bucket === 'history'), waiting = items.filter(x => x.bucket === 'waiting');
         return { areas: AREAS.map(area => { const group = currentItems.filter(x => x.area === area.id); return { ...area, items: group, count: group.length }; }),
