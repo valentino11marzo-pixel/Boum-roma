@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {readFileSync,mkdirSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {loadChromium,launchOptions} from '../_browser.mjs';
-import {handler,listing,store,writes} from './casa-fixture.mjs';
+import {handler,listing,store,writes,publishHash} from './casa-fixture.mjs';
 const app=readFileSync(new URL('../../js/portal-app.js',import.meta.url),'utf8');
 const between=(a,b)=>app.slice(app.indexOf(a),app.indexOf(b,app.indexOf(a)));
 const code=between('    function openCatalogHome(', '    function listingBedrooms(')+between('    function listingBedrooms(', '    async function writeListingAvailability(');
@@ -17,7 +17,7 @@ function openModal(type,data){result(type,data.id)}function editListing(id){resu
 ${code}
 document.getElementById('main').innerHTML=adminflatsPage();
 </script></body></html>`;
-let hold=null, release=null, failHTTP=false;
+let hold=null, release=null, failHTTP=false, nextResponseDelay=null, releaseSame=null;
 const server=createServer(async(req,res)=>{
   try {
     const url=new URL(req.url,'http://127.0.0.1');
@@ -25,7 +25,11 @@ const server=createServer(async(req,res)=>{
       if(hold && url.searchParams.get('id')==='levico')await hold;
       if(failHTTP){res.statusCode=503;res.end('{}');return;}
       req.query=Object.fromEntries(url.searchParams);
-      res.status=c=>{res.statusCode=c;return res};res.json=o=>{res.setHeader('content-type','application/json');res.end(JSON.stringify(o));return res};
+      const delay=nextResponseDelay;nextResponseDelay=null;
+      res.status=c=>{res.statusCode=c;return res};res.json=o=>{
+        const send=()=>{res.setHeader('content-type','application/json');res.end(JSON.stringify(o));};
+        if(delay){delay.captured();delay.wait.then(send);}else send();return res;
+      };
       await handler(req,res);return;
     }
     if(/^\/(css|js)\/[\w.-]+\.(js|css)$/.test(url.pathname)){res.setHeader('content-type',url.pathname.endsWith('.js')?'text/javascript':'text/css');res.end(readFileSync(new URL('../..'+url.pathname,import.meta.url)));return;}
@@ -62,6 +66,47 @@ try{
   await open();failHTTP=true;await page.getByRole('button',{name:'Rileggi stato'}).click();await page.getByText(/Stato dei portali non disponibile/).waitFor();
   assert.equal(await page.getByText('Ultimo invio coerente',{exact:true}).count(),0,'failed reread must not show stale success');
   failHTTP=false;await page.getByRole('button',{name:'Rileggi stato'}).click();await page.getByText('Ultimo invio coerente',{exact:true}).waitFor();
+  // Another tab changes this exact listing and the publisher acknowledges
+  // that version. Rereading receipts must update the visible house too.
+  const originalReceipt=store.get('portalPubs/immobiliare_levico');
+  function otherTab(patch){
+    const current={...listing,...patch};store.set('listings/levico',current);
+    store.set('portalPubs/immobiliare_levico',{...originalReceipt,hash:publishHash(current)});
+  }
+  async function reread(){
+    const response=page.waitForResponse(r=>r.url().includes('publisher/status?id=levico'));
+    await page.getByRole('button',{name:'Rileggi stato'}).click();await response;
+    await page.locator('#ch-channels[aria-busy="false"]').waitFor();
+  }
+  otherTab({name:'Casa aggiornata',address:'Via Nuova 22',price:2100});await reread();
+  assert.match(await page.locator('.ch-price').innerText(),/2[.\s]?100/,'same-ID reread must show the price used to compare the receipt');
+  assert.equal(await page.locator('#ch-title').innerText(),'Casa aggiornata');
+  assert.match(await page.locator('.ch-header').innerText(),/Via Nuova 22/);
+  assert.equal(await page.getByText('Ultimo invio coerente',{exact:true}).count(),1);
+  // The earlier response is already computed, then overtaken by another
+  // reread of the SAME ID. Its old summary must not replace the newer one.
+  let captured;
+  const hasCaptured=new Promise(r=>captured=r);
+  nextResponseDelay={wait:new Promise(r=>releaseSame=r),captured};
+  await page.getByRole('button',{name:'Rileggi stato'}).click();await hasCaptured;
+  otherTab({name:'Casa più recente <b>testo</b>',address:'Via Ultima 33',price:2300});await reread();
+  const oldResponse=page.waitForResponse(r=>r.url().includes('publisher/status?id=levico'));
+  releaseSame();await oldResponse;await page.evaluate(()=>new Promise(requestAnimationFrame));
+  assert.match(await page.locator('.ch-price').innerText(),/2[.\s]?300/,'late same-ID response must not restore the old price');
+  assert.equal(await page.locator('#ch-title').innerText(),'Casa più recente <b>testo</b>');
+  assert.equal(await page.locator('#ch-title b').count(),0,'remote name remains text');
+  assert.match(await page.locator('.ch-header').innerText(),/Via Ultima 33/);
+  // Failed reread removes the receipt claim, preserves the last displayed
+  // version and lets a retry replace all its fields, including absent ones.
+  otherTab({name:'',address:'',zone:'Zona aggiornata',price:null});failHTTP=true;await reread();
+  assert.match(await page.locator('.ch-price').innerText(),/2[.\s]?300/);
+  assert.equal(await page.getByText('Ultimo invio coerente',{exact:true}).count(),0);
+  assert.match(await page.locator('#ch-channels').innerText(),/non disponibile/);
+  failHTTP=false;await reread();
+  assert.equal(await page.locator('.ch-price').innerText(),'Canone da verificare');
+  assert.equal(await page.locator('#ch-title').innerText(),'Casa senza nome');
+  assert.match(await page.locator('.ch-header').innerText(),/Zona aggiornata/);
+  store.set('listings/levico',listing);store.set('portalPubs/immobiliare_levico',originalReceipt);
   await page.getByRole('button',{name:'Chiudi scheda'}).click();
   hold=new Promise(r=>release=r);
   await page.getByRole('button',{name:'Apri scheda Casa Levico',exact:true}).click();
@@ -78,5 +123,5 @@ try{
   await page.getByRole('button',{name:'Apri profilo proprietario'}).click();
   assert.equal(await page.getByRole('button',{name:'Apri profilo proprietario'}).count(),0,'owner action rechecks current identity');
   assert.deepEqual(errors,[]);assert.equal(writes.length,0);
-  console.log('PASS catalogocasaui: actual Catalogo click → actual HTTP handler → receipts; 320/390/1280px, exact destinations, focus, partial failure/retry, stale response, changed owner; no writes.');
-}finally{release?.();await browser.close();await new Promise(r=>server.close(r));}
+  console.log('PASS catalogocasaui: actual Catalogo click → actual HTTP handler → receipts; 320/390/1280px, same-ID remote changes refresh house+receipts, late same-ID response discarded, failed reread/retry, exact destinations, focus, changed owner; no writes.');
+}finally{release?.();releaseSame?.();await browser.close();await new Promise(r=>server.close(r));}

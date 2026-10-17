@@ -2,7 +2,7 @@
 import { requireRole } from '../_auth.js';
 import { fsGet } from '../homie/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
-import { PORTALS } from './_state.js';
+import { PORTALS, coreContent } from './_state.js';
 import { publicationStatus } from './_status.js';
 
 export default async function handler(req,res) {
@@ -19,7 +19,11 @@ export default async function handler(req,res) {
   listing = {...listing,id};
   const reads = await Promise.allSettled([fsGet('settings/publisher'),...PORTALS.map(p=>fsGet('portalPubs/'+p+'_'+id))]);
   const config = reads[0];
+  // Project the exact listing used by the receipt comparison. Never pair
+  // these results with a house summary cached earlier by the browser.
+  const content = coreContent(listing);
   return res.status(200).json({ok:true,id,readAt:new Date().toISOString(),
+    house:{id,name:content.name,address:content.address,zone:content.zone,price:content.price},
     availability:DISPO.catalogState(listing), availabilityUpdatedAt:listing.availabilityUpdatedAt || null,
     channels:PORTALS.map((p,i)=>publicationStatus(listing,p,reads[i+1].value,config.value,
       {receiptError:reads[i+1].status === 'rejected',configError:config.status === 'rejected'}))});

@@ -23,6 +23,8 @@ let r=await call();
 assert.equal(r.code,200);assert.equal(r.headers['Cache-Control'],'private, no-store');
 assert.equal(r.body.channels[0].state,'recorded');assert.equal(r.body.channels[1].state,'changed');
 assert.equal(r.body.channels[0].enabled,false);
+assert.deepEqual(r.body.house,{id:listing.id,name:listing.name,address:listing.address,zone:listing.zone,price:listing.price});
+assert.deepEqual(Object.keys(r.body.house).sort(),['address','id','name','price','zone'],'only the displayed publication projection is returned');
 assert(!JSON.stringify(r.body).includes('NEVER_RETURN'));
 const receipt=store.get('portalPubs/immobiliare_levico');
 assert.equal(publicationStatus({...listing,status:'off_market'},'immobiliare',receipt,{}).state,'remove');

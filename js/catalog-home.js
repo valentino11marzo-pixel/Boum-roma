@@ -8,6 +8,8 @@
   };
   const availabilityLabel = value => value.state === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(value.iso || '')
     ? 'Libera dal '+new Date(value.iso+'T12:00:00Z').toLocaleDateString('it-IT',{day:'numeric',month:'long',year:'numeric',timeZone:'Europe/Rome'}) : value.label;
+  const priceLabel = value => Number.isFinite(Number(value)) && Number(value) > 0
+    ? Number(value).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})+' / mese' : 'Canone da verificare';
   let generation = 0;
   function open(options) {
     const state = options.state();
@@ -17,13 +19,12 @@
     const origin = document.activeElement, ticket = ++generation;
     const relation = root.BOOM_CATALOG_HOME_ENGINE.connections(listing,state);
     const availability = root.BOOM_DISPO.catalogState(listing);
-    const money = Number(listing.price) > 0 ? Number(listing.price).toLocaleString('it-IT',{style:'currency',currency:'EUR',maximumFractionDigits:0})+' / mese' : 'Canone da verificare';
     const owner = relation.owner;
     const ownerText = relation.ownerKind === 'account' ? 'Profilo proprietario collegato alla casa.' : relation.ownerKind === 'contact' ? 'Contatto in rubrica. L’accesso all’area proprietario non è attestato.' : 'Proprietario da collegare o verificare.';
     host.innerHTML = `<div class="modal-overlay active ch-overlay"><div class="ch-dialog" role="dialog" aria-modal="true" aria-labelledby="ch-title" tabindex="-1">
-      <header class="ch-header"><div><p class="ch-eyebrow">CATALOGO CASE</p><h2 id="ch-title">${esc(listing.name || 'Casa senza nome')}</h2><p>${esc(listing.address || listing.zone || 'Indirizzo da completare')}</p></div><button class="ch-close" data-ch-action="close" aria-label="Chiudi scheda">×</button></header>
+      <header class="ch-header"><div><p class="ch-eyebrow">CATALOGO CASE</p><h2 id="ch-title">${esc(listing.name || 'Casa senza nome')}</h2><p id="ch-address">${esc(listing.address || listing.zone || 'Indirizzo da completare')}</p></div><button class="ch-close" data-ch-action="close" aria-label="Chiudi scheda">×</button></header>
       <div class="ch-content">
-        <section class="ch-summary" aria-label="Situazione della casa"><div><p class="ch-eyebrow">DISPONIBILITÀ BOOM</p><h3 id="ch-availability">${esc(availabilityLabel(availability))}</h3><p id="ch-availability-detail">${esc(availability.detail)}</p><small id="ch-availability-stamp">Ultima modifica: ${esc(stamp(listing.availabilityUpdatedAt))}</small></div><div class="ch-price">${esc(money)}</div></section>
+        <section class="ch-summary" aria-label="Situazione della casa"><div><p class="ch-eyebrow">DISPONIBILITÀ BOOM</p><h3 id="ch-availability">${esc(availabilityLabel(availability))}</h3><p id="ch-availability-detail">${esc(availability.detail)}</p><small id="ch-availability-stamp">Ultima modifica: ${esc(stamp(listing.availabilityUpdatedAt))}</small></div><div class="ch-price">${esc(priceLabel(listing.price))}</div></section>
         <div class="ch-actions">${button('Aggiorna disponibilità','availability',true)}${button('Modifica casa','edit')}</div>
         <section class="ch-section"><div class="ch-section-heading"><h3>Gestione e proprietario</h3><span class="ch-tag">${relation.state === 'linked' ? 'Collegata' : 'Da completare'}</span></div>
           <p class="ch-name">${esc(relation.label)}</p><p>${esc(relation.detail)}</p>
@@ -46,7 +47,10 @@
         const response = await fetch('/api/publisher/status?id='+encodeURIComponent(listing.id),{headers:{Authorization:'Bearer '+token},cache:'no-store'});
         const data = await response.json();
         if (!valid() || target._request !== request) return;
-        if (!response.ok || !data.ok || data.id !== listing.id) throw new Error('read_failed');
+        if (!response.ok || !data.ok || data.id !== listing.id || data.house?.id !== listing.id) throw new Error('read_failed');
+        overlay.querySelector('#ch-title').textContent = data.house.name || 'Casa senza nome';
+        overlay.querySelector('#ch-address').textContent = data.house.address || data.house.zone || 'Indirizzo da completare';
+        overlay.querySelector('.ch-price').textContent = priceLabel(data.house.price);
         overlay.querySelector('#ch-availability').textContent = availabilityLabel(data.availability);
         overlay.querySelector('#ch-availability-detail').textContent = data.availability.detail;
         overlay.querySelector('#ch-availability-stamp').textContent = 'Ultima modifica: '+stamp(data.availabilityUpdatedAt);

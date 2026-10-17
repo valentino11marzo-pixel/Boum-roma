@@ -650,6 +650,9 @@ Dal Catalogo «Apri scheda» riunisce disponibilità, fascicolo, proprietario e 
 `GET /api/publisher/status?id=` è solo admin e sola lettura: deriva gli esiti da `portalPubs` e dall’hash del Pubblicista. Nessuna ricevuta non significa annuncio assente; invio coerente non significa pagina pubblica verificata.
 Configurazione spenta, errore di lettura e conflitto di identità sono distinti; URL limitati ai domini dei due portali. Il modulo scarta risposte superate, conserva il focus e si usa a 320px.
 Prove: `catalogocasa` (handler reale, autorizzazioni e collegamenti), `catalogocasaui` (click reali e ricevute, telefono/desktop) ed `escape` (delega eliminazione fino alla conferma, minimo 13 preservato). Nessuna nuova collection, coda, invio o impostazione attivata.
+Correzione review 17/10: «Rileggi stato» aggiornava le ricevute ma lasciava nome, indirizzo e canone della copia locale, mostrando un invio coerente accanto a un prezzo superato.
+L’API ora restituisce una proiezione minima della stessa casa usata nel confronto, normalizzata con `coreContent`; il modulo aggiorna riepilogo e ricevute nella stessa risposta, dopo i controlli ID/generazione/richiesta. Nessuna scrittura della copia locale o scansione aggiuntiva.
+`catalogocasaui` riproduce la modifica dello stesso ID da un altro tab (fallisce prima della correzione), una risposta precedente sorpassata, errore e retry, campi rimossi e nome reso come testo; `catalogocasa` verifica la proiezione limitata ai cinque campi visualizzati.
 
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
 Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
