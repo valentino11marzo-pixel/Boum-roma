@@ -100,7 +100,7 @@
         "Keep this link: your ticket and papers live in it."
       ],
       [
-        "Nothing by tomorrow?",
+        "Nothing by then?",
         "Write to {email}."
       ]
     ],
@@ -131,7 +131,7 @@
   "pricing": {
     "num": "02 — SERVICES & FEES",
     "h2": "Flat fees, set now.",
-    "h2g": "Charged when the desk opens.",
+    "h2g": "Charged at opening, or on signing.",
     "sub": "Paid by you, never by landlords, inside German law. Nothing is charged today.",
     "plans": [
       {
@@ -187,7 +187,7 @@
         "conditionLong": "List price. Charged only when the desk opens."
       }
     ],
-    "note": "Nothing is charged until the desk opens, nothing in advance: German law ties the fee to a signed lease and caps it at two months' net cold rent plus VAT. Full Search is due once you sign; invoiced by Egidi Immobiliare S.r.l."
+    "note": "Nothing is charged until the desk opens. German law ties a broker's fee to a signed lease and caps it at two months' net cold rent plus VAT: Full Search is due once you sign. Invoiced by Egidi Immobiliare S.r.l."
   },
   "checkin": {
     "num": "Check-in · {n} of 3",
@@ -351,7 +351,6 @@
     },
     "pass": {
       "title": "Your boarding pass",
-      "sub": "Your name and where you fly in from, if you want.",
       "name": {
         "label": "Passenger (optional)",
         "placeholder": "Anna K."
@@ -390,9 +389,8 @@
       "whatsapp": "WhatsApp",
       "copy": "Copy link",
       "copied": "Link copied",
-      "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-      "papers": "The eight papers a {city} landlord asks for, and what to fix first: {url}",
-      "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+      "plan": "BOOM {city}: a tenant-side desk opening with a licensed partner. My plan in three taps: {url}",
+      "pass": "BOOM {city} — a tenant-side desk opening with a licensed partner. Check in, 20 seconds: {url}"
     }
   },
   "checks": {
@@ -502,7 +500,7 @@
       },
       {
         "q": "Who pays the agent in Germany?",
-        "a": "Whoever orders the agent. A landlord's agent cannot charge you. An agent you hire may charge you only once the lease is signed, at most two months' net cold rent plus VAT. That is the rule we open under."
+        "a": "Whoever orders the agent. A landlord's agent cannot charge you. An agent who brokers your tenancy may charge you only once the lease is signed, at most two months' net cold rent plus VAT. Full Search opens under that rule; Application Pack and Attended Viewing are charged at opening."
       },
       {
         "q": "What do you do with my data?",
@@ -518,7 +516,7 @@
     {
       "key": "paid",
       "label": "Paid by",
-      "text": "You alone, and only once you sign a lease. Launching with a licensed partner."
+      "text": "You alone; Full Search only once you sign, the other two at opening. Launching with a licensed partner."
     },
     {
       "key": "abroad",
@@ -528,14 +526,14 @@
     {
       "key": "nothing",
       "label": "If we find nothing",
-      "text": "Due only once you sign a lease. If we decline the search in the first call, nothing is owed."
+      "text": "Full Search is due once you sign. If we decline the search in the first call, nothing is owed."
     }
   ],
   "factsDerived": {
     "answers": "Who answers",
     "company": "The company",
     "answersLine": "same working day",
-    "deskLine": "desk {from} to {to} {tz}"
+    "deskLine": "desk {days} {from} to {to} {tz}"
   },
   "desk": {
     "person": "Valentino Egidi",

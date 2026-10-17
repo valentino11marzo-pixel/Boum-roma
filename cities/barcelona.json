@@ -100,7 +100,7 @@
         "Keep this link: your ticket and papers live in it."
       ],
       [
-        "Nothing by tomorrow?",
+        "Nothing by then?",
         "Write to {email}."
       ]
     ],
@@ -351,7 +351,6 @@
     },
     "pass": {
       "title": "Your boarding pass",
-      "sub": "Your name and where you fly in from, if you want.",
       "name": {
         "label": "Passenger (optional)",
         "placeholder": "Anna K."
@@ -390,9 +389,8 @@
       "whatsapp": "WhatsApp",
       "copy": "Copy link",
       "copied": "Link copied",
-      "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-      "papers": "The eight papers a {city} landlord asks for, and what to fix first: {url}",
-      "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+      "plan": "BOOM {city}: a tenant-side desk opening with a registered local partner. My plan in three taps: {url}",
+      "pass": "BOOM {city} — a tenant-side desk opening with a registered local partner. Check in, 20 seconds: {url}"
     }
   },
   "checks": {
@@ -535,7 +533,7 @@
     "answers": "Who answers",
     "company": "The company",
     "answersLine": "same working day",
-    "deskLine": "desk {from} to {to} {tz}"
+    "deskLine": "desk {days} {from} to {to} {tz}"
   },
   "desk": {
     "person": "Valentino Egidi",

@@ -99,7 +99,7 @@
         "Keep this link: your ticket and papers live in it."
       ],
       [
-        "Nothing by tomorrow?",
+        "Nothing by then?",
         "Write to {email}."
       ]
     ],
@@ -350,7 +350,6 @@
     },
     "pass": {
       "title": "Your boarding pass",
-      "sub": "Your name and where you fly in from, if you want.",
       "name": {
         "label": "Passenger (optional)",
         "placeholder": "Anna K."
@@ -390,7 +389,6 @@
       "copy": "Copy link",
       "copied": "Link copied",
       "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-      "papers": "The eight papers a {city} landlord asks for, and what to fix first: {url}",
       "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
     }
   },
@@ -516,7 +514,7 @@
   "checkout": true,
   "checkoutCopy": {
     "title": "Start with BOOM Madrid",
-    "note": "Choose the service and pay by card: the work starts today, and the desk writes to you within the hour.",
+    "note": "Choose the service and pay by card: the work starts the same working day, and the desk writes to you within its first open hour.",
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.idealista.com/… · move-in 1 February",
     "btnSub": "Stripe checkout · one minute",
@@ -530,20 +528,20 @@
       "net": "Checkout hiccuped on our side — try again, or open a file and we'll send a payment link."
     },
     "offer": {
-      "lead": "Want the work to start today?",
-      "sub": "Stripe · the desk writes within the hour"
+      "lead": "Want the work to start?",
+      "sub": "Stripe · the desk writes within its first open hour"
     },
     "paid": {
       "before": "Paid — your file",
       "em": "is open.",
-      "text": "Payment received. The Madrid desk writes within the hour with the next step, by email or WhatsApp if you left a number. Questions? Write to",
+      "text": "Payment received. The Madrid desk writes within its first open hour, by email or WhatsApp if you left a number. Questions? Write to",
       "next": [
         [
-          "Within the hour",
+          "First desk hour",
           "an email from the desk with what we need"
         ],
         [
-          "Today",
+          "Same working day",
           "your brief: dates, budget, who's moving — nothing to re-type"
         ],
         [
@@ -551,7 +549,7 @@
           "the work as written on this page"
         ]
       ],
-      "recourse": "Nothing within the hour? Write to {email}."
+      "recourse": "Nothing by then? Write to {email}."
     }
   },
   "facts": [
@@ -575,7 +573,7 @@
     "answers": "Who answers",
     "company": "The company",
     "answersLine": "same working day",
-    "deskLine": "desk {from} to {to} {tz}"
+    "deskLine": "desk {days} {from} to {to} {tz}"
   },
   "desk": {
     "person": "Valentino Egidi",
@@ -601,7 +599,6 @@
     "stripSub": "free · same-day reply"
   },
   "till": {
-    "label": "Pay and start",
-    "sub": "card · Stripe · the work starts today"
+    "label": "Pay and start"
   }
 }

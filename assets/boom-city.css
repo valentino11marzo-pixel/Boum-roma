@@ -11,7 +11,13 @@
    Rules: STUDIO_EXECUTIVE_UIX.md (gold #FFD700, never the portal gold; no
    serif, no paper, no illustration), STUDIO_CITIES_ESPERIENZA.md §11 (one
    door, one label, the refund rule beside every €500, no meaning in --t4,
-   no weight under 300 on the phone, targets ≥ 44px). */
+   no weight under 300 on the phone, targets ≥ 44px).
+   17/10, after the adversarial review: every control ≥ 44px (change, share
+   row, Save/Share, the plates' second link, the dialog's close); the
+   off-screen menu invisible to focus; the consent plate under an open menu;
+   the view-transition overlay lets taps through; the pass's busy state is
+   real; the chosen pay row shows in forced colours; the strip and the +/x
+   glyphs still under reduced motion; a print sheet. */
 
 /* the UA's [hidden] loses to any display rule: this one never does (the
    §4.1 defect of 15/10 — a hidden step box that kept its grid) */
@@ -35,6 +41,12 @@
 .footer-brand-logo .bl-desk{font-size:11px;letter-spacing:3.6px;line-height:1.7;font-family:var(--sans)}
 .nav-link.nav-door{color:var(--gold)}
 .mobile-menu-group{display:block;margin-top:18px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
+/* closed, the menu is off the screen AND off the tab order: visibility
+   follows the slide (hidden after the 400 ms out, visible at once on open) */
+.mobile-menu:not(.active){visibility:hidden;transition:transform .4s var(--ease-out),visibility 0s .4s}
+.mobile-menu.active{visibility:visible}
+/* the consent plate never floats over the open menu */
+body.menu-open .boomcst{visibility:hidden}
 
 main{padding-top:112px}
 @media(max-width:640px){main{padding-top:96px}}
@@ -45,7 +57,10 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 
 /* ── HERO: the question, the pass, the facts, the door ─────────────────────
    One DOM. Phone: the wrappers vanish (display:contents) and the items take
-   the reading order. Desk: two columns, the right one sticky. */
+   the reading order — which is the DOM order: the build prints the pass right
+   after the Check-in, so focus and screen readers meet the ticket where it
+   appears. Desk: two columns; the JS moves the pass to the top of the right
+   one, which is sticky (by its bottom when taller than the screen). */
 .hero{align-items:start;gap:0}
 .hero-left,.hero-right{display:contents}
 .hero-left>*{order:9}
@@ -64,7 +79,6 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
   .hero{grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px}
   .hero-left,.hero-right{display:block;min-width:0}
   .hero-right{position:sticky;top:calc(var(--boom-barra,80px) + 14px);align-self:start}
-  .hero-right.tall{position:static}
   .hero #pass{margin-top:0}
   .hero .filecard{margin-top:16px}
   .hero h1{font-weight:200}
@@ -97,9 +111,9 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .ck-step.done legend{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
 .ck-step.done .ck-opts{margin-top:6px;align-items:center}
 .ck-step.done .ck-opt:not(.on){display:none}
-.ck-step.done .ck-opt.on span{min-height:36px;padding:6px 12px 6px 14px;font-size:13px}
-.ck-change{display:none;border:0;background:none;padding:8px 6px;min-height:36px;font-family:inherit;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3b);cursor:pointer}
-.ck-step.done .ck-change{display:inline-flex;align-items:center;min-height:36px}
+.ck-step.done .ck-opt.on span{min-height:44px;padding:8px 12px 8px 14px;font-size:13px}
+.ck-change{display:none;border:0;background:none;padding:8px 10px;min-height:44px;min-width:44px;font-family:inherit;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3b);cursor:pointer}
+.ck-step.done .ck-change{display:inline-flex;align-items:center;min-height:44px}
 .ck-change:hover{color:var(--t1)}
 .ck-step.done .ck-opts .ck-change{order:9}
 
@@ -173,7 +187,7 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .pdoors .till{display:flex;align-items:center;justify-content:center;gap:8px;min-height:44px;border:1px solid var(--line-gold);border-radius:14px;padding:11px 16px;font-family:inherit;font-size:13px;color:var(--gold);background:var(--gold-faint);cursor:pointer;transition:background .3s,box-shadow .3s}
 .pdoors .till:hover{background:var(--gold-muted);box-shadow:0 8px 24px rgba(255,215,0,.12)}
 .pshare{margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11.5px;color:var(--t3b)}
-.pshare a,.pshare button{display:inline-flex;align-items:center;min-height:36px;border:1px solid var(--line);border-radius:100px;padding:7px 12px;font-size:11.5px;letter-spacing:.3px;color:var(--t1);background:var(--input);transition:border-color .3s;font-family:inherit;cursor:pointer}
+.pshare a,.pshare button{display:inline-flex;align-items:center;min-height:44px;border:1px solid var(--line);border-radius:100px;padding:9px 14px;font-size:11.5px;letter-spacing:.3px;color:var(--t1);background:var(--input);transition:border-color .3s;font-family:inherit;cursor:pointer}
 .pshare a:hover,.pshare button:hover{border-color:var(--line-gold)}
 .ck-copied{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--green);min-height:1em}
 .pgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 14px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line-soft)}
@@ -183,8 +197,10 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .ppers .fld{margin:0}
 .ppers .fld input{width:100%}
 .ck-passbtns{grid-column:1 / -1;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.ck-save,.ck-sharebtn{min-height:40px;border:1px solid var(--line-gold);border-radius:100px;padding:9px 16px;font-size:12px;color:var(--gold);background:var(--gold-faint);transition:background .3s,box-shadow .3s;font-family:inherit;cursor:pointer}
+.ck-save,.ck-sharebtn{min-height:44px;border:1px solid var(--line-gold);border-radius:100px;padding:10px 16px;font-size:12px;color:var(--gold);background:var(--gold-faint);transition:background .3s,box-shadow .3s;font-family:inherit;cursor:pointer}
 .ck-save:hover,.ck-sharebtn:hover{background:var(--gold-muted);box-shadow:0 8px 24px rgba(255,215,0,.12)}
+/* while the pass encodes, Save and Share are visibly busy and not tappable */
+.pass.busy .ck-save,.pass.busy .ck-sharebtn{pointer-events:none;opacity:.6}
 .perfo{position:relative;height:0;margin:14px -16px 0;border-top:1.5px dashed rgba(250,250,250,.22)}
 .perfo::before,.perfo::after{content:'';position:absolute;top:-8px;width:16px;height:16px;border-radius:50%;background:var(--void);box-shadow:inset 0 0 0 1px var(--line)}
 .perfo::before{left:-9px}
@@ -306,7 +322,7 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .plates .sib .go:hover{border-color:var(--line-gold);color:var(--t1)}
 .plates .sib.on .go{border-color:var(--gold);background:linear-gradient(135deg,var(--gold),#d9b400);color:#1a1407;font-weight:600}
 .plates .sib.on .go:hover{box-shadow:0 12px 34px rgba(255,215,0,.25)}
-.plates .sib .go2{margin-top:8px;border:0;background:none;padding:10px 6px;min-height:40px;width:100%;font-family:inherit;font-size:12px;letter-spacing:.3px;color:var(--t3b);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line-gold);cursor:pointer}
+.plates .sib .go2{margin-top:8px;border:0;background:none;padding:12px 6px;min-height:44px;width:100%;font-family:inherit;font-size:12px;letter-spacing:.3px;color:var(--t3b);text-decoration:underline;text-underline-offset:3px;text-decoration-color:var(--line-gold);cursor:pointer}
 .plates .sib .go2:hover{color:var(--gold)}
 .feenote{margin-top:16px;font-size:12px;color:var(--t3b);line-height:1.6;max-width:70ch}
 
@@ -351,6 +367,9 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .ck-steps{view-transition-name:ck-steps}
 #pass{view-transition-name:ck-pass}
 ::view-transition-old(ck-steps),::view-transition-new(ck-steps),::view-transition-old(ck-pass),::view-transition-new(ck-pass){animation-duration:.26s}
+/* the UA's overlay is fixed over the page for the transition's life: a tap
+   in that quarter second must reach the page, not the snapshot */
+::view-transition{pointer-events:none}
 
 /* ── in brief — the quotable ledger (GEO: class names load-bearing), folded for humans ── */
 .sheetfold{border:1px solid var(--line);border-radius:16px;background:var(--card)}
@@ -376,6 +395,7 @@ dialog#ov{border:1px solid var(--line-gold);background:var(--surface);color:var(
 dialog#ov::backdrop{background:rgba(0,0,0,.7);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
 dialog#ov[open]{animation:rise .35s var(--ease)}
 dialog#ov.inplace{position:relative;margin:24px auto 0;box-shadow:none;border-radius:22px}
+dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padding:0;margin:-8px -10px 0 0;border:0;background:none;font-family:inherit;cursor:pointer}
 .payrows{margin-top:14px;display:grid;gap:8px}
 .payrow{position:relative;display:flex;align-items:center;gap:12px;border:1px solid var(--line);border-radius:12px;padding:11px 13px;cursor:pointer;background:var(--input);transition:border-color .3s,background .3s,box-shadow .3s}
 .payrow input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
@@ -386,6 +406,9 @@ dialog#ov.inplace{position:relative;margin:24px auto 0;box-shadow:none;border-ra
 .payrow:hover{border-color:var(--line-gold)}
 .payrow.on,.payrow:has(input:checked){border-color:var(--gold);background:var(--gold-faint);box-shadow:inset 0 0 0 1px var(--gold)}
 .payrow input:focus-visible~em{outline:2px solid var(--gold);outline-offset:4px;border-radius:4px}
+/* the chosen row carries a glyph, not only a colour (forced colours keep it) */
+.payrow:has(input:checked) b::before{content:'✓ ';color:var(--gold)}
+@media(forced-colors:active){.payrow:has(input:checked){outline:3px solid Highlight;outline-offset:2px}}
 .sheet .opt{color:var(--t3b);text-transform:none;letter-spacing:0}
 .sheet .fine{margin-top:12px;font-size:11px;color:var(--t3b);line-height:1.6;text-align:center}
 .sheet .alt a+a{margin-left:0}
@@ -413,6 +436,18 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .ck-meter i{transition:none}
   dialog#ov[open]{animation:none}
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
+  .paybar,.more summary::before,.sheetfold>summary::after,.faq summary::after,.ck-opt span,.ck-doc span,.chip span,.mobile-menu{transition:none}
+  .sib:hover,.g-it:hover{transform:none}
+}
+
+/* ── print: a paper copy of the ticket and the checks, black on white ── */
+@media print{
+  body{background:#fff;color:#000}
+  .nav,.mobile-menu,.tech-bg,.paybar,dialog,.boomcst,.skip,.skipck,.pdoors,.pshare,.ppers,.ck-change,.ck-passbtns,.footer-links-list{display:none!important}
+  .pass,.checkin,.filecard,.sib,.flows,.enbref{box-shadow:none;border-color:#999;color:#000;background:#fff}
+  .pass .lamina{background:#ddd}
+  .hero,.hero-left,.hero-right{display:block}
+  a{color:#000}
 }
 
 /* THE TOUCH. On iPhone a field under 16px makes the page ZOOM on first tap

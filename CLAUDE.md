@@ -1535,11 +1535,99 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
       v1.2 nei JSON sono rifiutati per nome (`machine`, `paybar`, `hero.sub`,
       `nav.cta`, `per`/`cta`, `form.submit`, `checkoutCopy.btn`, `notes.where`,
       gate/seat, «Show my plan»).
+  13. **La revisione avversaria (17/10)** — 49 agenti su build, template,
+      CSS, JS, dati, API e consenso; 14 rilievi confermati in Chromium e 28
+      non confutati (i confutatori sono caduti sul tetto settimanale dei
+      subagenti), letti uno per uno e quasi tutti chiusi nello stesso giro.
+      **Stato del JS**: ogni ri-render (un documento spuntato) riscriveva
+      il chip scelto a mano e la tendina del servizio non diceva mai «chip»
+      — ora la porta ricorda chi ha scritto il chip (`data-plan-from`
+      checkin · chip · plate) e il Check-in scrive solo dove nessuno o lui
+      stesso aveva scritto, e solo a piano cambiato; l'invio non aveva
+      guardia in volo (tre Invio = tre lead veri, il bottone dell'offerta
+      legato N volte) — ora UN invio per tap, flag rilasciato solo al
+      fallimento, offerta legata una volta; `before` letto DOPO il cambio
+      del radio invertiva `resolved` e il pass non atterrava al tap che
+      risolveva uno stato pending — ora il tipo PRIMA del tap è
+      `lastKind`; la striscia perdeva la copy del build su un atterraggio
+      sincrono (riga tolta); il mese precompilato non seguiva la risposta
+      cambiata (`data-auto`: segue e se ne va, un mese del lettore non si
+      tocca); il tabellone del pass non montava allargando un telefono
+      (matchMedia); un reload proprio diceva «dal link che hai ricevuto»
+      (senza `via` è una ripresa, in silenzio, evento `checkin_resume`;
+      il banner conta i tap AL PIANO); «change» e la stessa risposta
+      lasciavano il passo aperto (click su radio già spuntato = chiude);
+      `?paid=constructor` passava per un piano (`hasOwnProperty`); il worker
+      riassegnava `onmessage` a ogni chiamata (ora id per richiesta, un solo
+      encode in volo, `.pass.busy` vero). **Accessibilità**: il tabellone del
+      prezzo esponeva «Price» e i glifi doppi (`aria-hidden` + importo in
+      testo `#ckPriceSr`, stesso trattamento al titolo con `<span class="sr">`
+      della città); `aria-live` sull'INTERO box del piano (sedici controlli,
+      dieci frammenti ri-annunciati a ogni spunta) → UNA piccola live region
+      `#ckLive` (il piano una volta per piano) + `role="status"` sulla riga
+      dei documenti, e `setText` non riscrive un testo uguale; il menu
+      mobile fuori schermo era dieci tab stop invisibili (ora `inert` +
+      `aria-hidden` + `visibility`, Escape chiude, il focus entra ed esce);
+      dopo l'invio il focus cadeva su `<body>` (`tabindex="-1"` + focus sul
+      file aperto, e sul campo nominato da un errore); **il pass stava DOPO i
+      fatti nel DOM** mentre sul telefono si vede sotto il Check-in — ora il
+      build stampa il pass subito dopo il Check-in (ordine di lettura =
+      ordine del focus) e il JS lo sposta in cima alla colonna destra a
+      ≥920 (un nodo spostato conserva stato e listener); target ≥ 44px
+      ovunque; riga di pagamento scelta con glifo e outline in forced-colors;
+      foglio di stampa. **Il consenso**: oltre alla prima mossa, la targa
+      aspetta finché il lettore è AL LAVORO nell'hero (Check-in senza
+      risposta sullo schermo, o il biglietto sullo schermo — su un 375px
+      il tetto degli 8 s la posava sulle opzioni), ricontrolla ogni 1,2 s,
+      tetto 45 s dall'armamento; nascosta sotto il menu aperto; il fuso del
+      visitatore NON parte più verso GA (`visitor_tz` tolto) e `page_location`
+      è impostato SENZA frammento (la maschera dei documenti vive in
+      `#checkin=`); l'overlay della view transition lasciava cadere i tap
+      per ~370 ms (`::view-transition{pointer-events:none}` + spunta dei
+      documenti senza transizione: quattro spunte a 120 ms sono quattro).
+      **Le promesse della pagina**: i giorni del desk ora si stampano
+      («desk Mon–Fri 09:00 to 19:00», `daysLabel`, il build rifiuta una
+      `deskLine` senza `{days}`); la sigla del fuso segue l'orologio
+      (`<span data-tz>`: CEST sette mesi l'anno, «By 19:00 CEST today»);
+      «free · same-day reply» diventa la finestra («free · Monday from 09:00
+      CEST») su porta, pass e striscia quando il desk è chiuso; «Nothing by
+      tomorrow?» → «Nothing by then?»; la copy del PAGATO prometteva «entro
+      l'ora» anche sabato alle 23 → «within its first open hour» / «same
+      working day»; Berlino diceva «solo alla firma» con due piani «at
+      opening» → una sola voce (fatto, FAQ, titolo, nota tariffe; la domanda
+      WoVermRG resta nella checklist del live); «a Amsterdam landlord» e
+      «asks for all eight» corretti; i testi di condivisione dei waitlist
+      dicono che il desk sta aprendo (il build lo pretende). **Il build**:
+      `resolvesAt` certificava «tap 1» anche con una regola `where` più
+      specifica PRIMA della regola di stadio (il ticket avrebbe cambiato
+      piano al tap 2) — ora tap 1 solo se ogni `where` atterra sulla stessa
+      regola; l'anno del footer veniva dall'orologio (`--check` rosso ogni
+      1° gennaio) → `_shared.json copyrightYear`, avviso se indietro;
+      `findPlaceholders` legge anche gli attributi (`placeholder="[NAME]"`,
+      `content="[CITY]"`); `share.papers`, `pass.sub`, `till.sub` erano
+      stringhe che nessuno stampava → tolte e rifiutate per nome. **Non
+      fatto, dichiarato**: la colonna sticky non si «libera» più in statico
+      ma si attacca dal basso (top negativo) quando è più alta dello schermo
+      — su ogni laptop lo era, quindi lo sticky non esisteva; il sampling
+      della «vista del piano» osserva la riga del piano (`#ckPlan`, soglia 1)
+      invece del pass intero. Test: `tests/cities/run.mjs` 478 (le regole
+      del giro per mutazione sulla sorgente, i tre rifiuti nuovi, l'ombra di
+      `resolvesAt`, l'anno dai dati, gli attributi dei segnaposto) e
+      `tests/cities/ui.mjs` 174 (il chip a mano che sopravvive a spunta,
+      pending e nuovo piano; tre Invio = un POST; focus sul file aperto;
+      l'offerta legata una volta; l'atterraggio al secondo tap; la
+      ri-scelta che chiude; il mese che segue e se ne va; quattro spunte;
+      regione live e testi sr; ordine del focus nel pass; menu inert/Escape;
+      il tabellone a 1024 dopo l'allargamento; `?paid=constructor`; sabato
+      11:00 con l'orologio finto: finestra su porta/pass/striscia, CEST,
+      Mon–Fri, «Nothing by then?»; la targa che aspetta sul biglietto e sul
+      Check-in non risposto a 375px; la striscia che torna alla chiusura del
+      dialog; la colonna sticky dal basso).
   **Non deciso qui, come prima**: tutti e cinque i desk restano `live:false`;
   il link recensione di Roma, le ore reali del desk, la foto o il solo nome,
   l'IVA transfrontaliera, i partner AICAT/carte/§34c e la domanda Berlino su
   Application Pack e Attended Viewing come «Vermittlung» sono del fondatore e
-  del legale. Test: `node tests/cities/run.mjs` (432 — tutto quanto sopra per
+  del legale. Test (al 16/10; i conteggi del 17/10 sono al punto 13): `node tests/cities/run.mjs` (432 — tutto quanto sopra per
   mutazione: ordine dei passi, `resolvesAt`, una etichetta, rimborso per
   blocco, condizioni per piano e Berlino «sign», fatti e rating, select del
   mese e ancora, consenso, peso, avanzi, `moveInLabel`) + `node

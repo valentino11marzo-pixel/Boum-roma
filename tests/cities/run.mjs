@@ -45,7 +45,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, CELL_EM, WEIGHT_KB,
-  checkinAnswer, offerAudience, faqOf, DOSSIER_N, STEP_IDS, resolvesAt, pendingText, monthOptions, anchorAgeMonths, MONTHS
+  checkinAnswer, offerAudience, faqOf, DOSSIER_N, STEP_IDS, resolvesAt, pendingText, monthOptions, anchorAgeMonths, MONTHS, daysLabel
 } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
@@ -118,7 +118,8 @@ check(html.includes('<body data-consent-late>') && /data-consent-late/.test(read
   'the body asks the consent plate to wait (first move + 600 ms, never over an open dialog) and boom-consent.js honours it');
 
 // the Solari in the title, the prices as text
-check(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-label="Amsterdam">AMSTERDAM</span>'), 'the title carries the city as the board word, plain text in the markup (reads without JS)');
+check(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">AMSTERDAM</span><span class="sr">Amsterdam</span></h1>'),
+  'the title carries the city as the board word, plain text in the markup (reads without JS); the board is decorative and the city is read as text (a Solari cell holds every glyph twice)');
 check(html.includes(`f.style.minWidth='${(9 * CELL_EM).toFixed(2)}em'`) && html.includes("f.style.minHeight='1.27em'"), `the hero reserves 9 cells × ${CELL_EM}em before the board lands (no layout jump)`);
 check(!/flap-prezzo/.test(html) && (html.match(/class="flap-tk /g) || []).length === 1 && (html.match(/id="flapCity"/g) || []).length === 1,
   'boards only where a fact changes: the city in the title, the price on the pass, OPEN/PAID — the plates carry their price as text');
@@ -147,13 +148,13 @@ const wordsOf = (s) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<s
 const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
 const noSelect = (h) => h.replace(/<select[\s\S]*?<\/select>/g, '<select></select>');
 const BUDGET = { hero: 30, checkin: 230, facts: 85, door: 110, state: 70, plate: 50, checks: 170, body: 950 };
-const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)">[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
+const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)" tabindex="-1">[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
 for (const p of pages) {
   const m = slice(p.html, '<main id="main">', '</main>');
   const hero = wordsOf(slice(p.html, '<header class="hero"', '<!-- CHECK-IN -->'));
   const ckW = wordsOf(slice(p.html, '<!-- CHECK-IN -->', '<!-- /CHECK-IN -->')) + wordsOf(slice(p.html, '<!-- PASS -->', '<!-- /PASS -->'));
   const facts = wordsOf(slice(p.html, '<dl class="facts"', '</dl>'));
-  const door = wordsOf(noSelect(slice(p.html, '<!-- THE DOOR -->', '<div class="sent" id="fDone">')));
+  const door = wordsOf(noSelect(slice(p.html, '<!-- THE DOOR -->', '<div class="sent" id="fDone"')));
   const states = stateBlocks(m);
   const plates = [...m.matchAll(/<article class="sib[\s\S]*?<\/article>/g)].map((x) => wordsOf(x[0]));
   const checksW = wordsOf(slice(m, '<div class="flows">', '</section>'));
@@ -171,10 +172,15 @@ for (const p of pages) {
 }
 
 // the hero order: title, lead, the diagnostic, the pass, the skip link, the facts, the door
+// — the DOM order IS the phone's reading and focus order (the review of 17/10
+// found the pass after the facts in the tab order); the JS moves it to the
+// right column at ≥920
 const hero = slice(html, '<header class="hero"', '</header>');
 const at = (s) => hero.indexOf(s);
-check(at('<h1') > -1 && at('<h1') < at('class="lead') && at('class="lead') < at('<!-- CHECK-IN -->') && at('<!-- /CHECK-IN -->') < at('class="skipck"') && at('class="skipck"') < at('class="facts"') && at('class="facts"') < at('<!-- PASS -->') && at('<!-- /PASS -->') < at('<!-- THE DOOR -->'),
-  'the hero is one DOM in reading order: title, lead, Check-in, skip link, facts (left), pass, door (right) — the CSS reorders nothing on a phone but the pass');
+check(at('<h1') > -1 && at('<h1') < at('class="lead') && at('class="lead') < at('<!-- CHECK-IN -->') && at('<!-- /CHECK-IN -->') < at('<!-- PASS -->') && at('<!-- /PASS -->') < at('class="skipck"') && at('class="skipck"') < at('class="facts"') && at('class="facts"') < at('<!-- THE DOOR -->'),
+  'the hero is one DOM in reading order: title, lead, Check-in, pass, skip link, facts, door — the phone\'s order is the focus order, the CSS reorders nothing');
+check(/if \(deskMq\.matches\) \{ if \(pass\.parentNode !== right\) right\.insertBefore\(pass, right\.firstChild\); \}/.test(js) && /ck\.insertAdjacentElement\('afterend', pass\)/.test(js) && /deskMq\.addEventListener\('change', place\)/.test(js),
+  'the JS moves the pass to the top of the right column at ≥920 and back after the Check-in below (a node move keeps its state), on the media query\'s change too');
 check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 && (html.match(/<article class="pass carta" id="pass" data-state="blank"/g) || []).length === 1,
   'the Check-in once, the pass once, blank at parse (the JS sets the state)');
 
@@ -220,13 +226,18 @@ const factsHtml = slice(html, '<dl class="facts"', '</dl>');
 const rows = [...factsHtml.matchAll(/<dt>([^<]*)<\/dt><dd>([\s\S]*?)<\/dd>/g)].map((m) => [decode(m[1]), m[2]]);
 check(rows.length === 5 && rows.slice(0, 3).every((r, i) => r[0] === ams.facts[i].label && r[1] === esc(ams.facts[i].text)) && rows[3][0] === ams.factsDerived.answers && rows[4][0] === ams.factsDerived.company,
   'five facts: paid by · from abroad · if we find nothing (authored) · who answers · the company (derived)');
-check(rows[3][1].startsWith(`${esc(ams.desk.person)}, ${esc(ams.factsDerived.answersLine)} · desk ${ams.desk.hours.from} to ${ams.desk.hours.to} ${ams.desk.tzLabel}`) && rows[3][1].includes('<span class="clock" id="deskClock" aria-live="off"></span>'),
-  'who answers: the named person, the reply line, the desk hours from the desk block, the clock span the JS fills');
+check(rows[3][1].startsWith(`${esc(ams.desk.person)}, ${esc(ams.factsDerived.answersLine)} · desk Mon–Fri ${ams.desk.hours.from} to ${ams.desk.hours.to} <span data-tz>${ams.desk.tzLabel}</span>`) && rows[3][1].includes('<span class="clock" id="deskClock" aria-live="off"></span>'),
+  'who answers: the named person, the reply line, the desk DAYS and hours from the desk block (a line without the days read as open on a Saturday), the zone label the JS follows, the clock span');
+check(daysLabel([1, 2, 3, 4, 5]) === 'Mon–Fri' && daysLabel([1, 3, 5]) === 'Mon, Wed, Fri' && daysLabel([6]) === 'Sat' && daysLabel([0, 1]) === 'Sun–Mon', 'daysLabel: a contiguous run as a range, otherwise the list');
+{
+  const noDays = clone(ams); noDays.factsDerived.deskLine = 'desk {from} to {to} {tz}';
+  check(throws(() => render(noDays), /deskLine with \{days\}/) === true, 'a desk line without the days is refused');
+}
 check(/<div data-proof="rome"><dt>/.test(factsHtml) && rows[4][1].includes(`${esc(shared.entity.legalName)} · P.IVA ${shared.entity.vat} · ${shared.rome.rating} on Google in Rome, ${shared.rome.reviews} reviews`) && (html.match(/on Google/g) || []).length === 1,
   'the company: legal name, P.IVA, the Rome rating labelled "on Google in Rome" — once on the page, never as the desk\'s own');
 check(ams.facts[2].text === shared.refund.rule, 'on a sell desk the "if we find nothing" fact IS the refund rule, word for word');
-check(html.includes(`<p class="who"><b>${esc(ams.desk.person)}</b> · ${esc(ams.desk.role)} · desk ${ams.desk.hours.from} to ${ams.desk.hours.to} ${ams.desk.tzLabel} · <a href="https://wa.me/${shared.contact.whatsapp}"`),
-  'the person line under the three steps reads from the same desk block');
+check(html.includes(`<p class="who"><b>${esc(ams.desk.person)}</b> · ${esc(ams.desk.role)} · desk Mon–Fri ${ams.desk.hours.from} to ${ams.desk.hours.to} <span data-tz>${ams.desk.tzLabel}</span> · <a href="https://wa.me/${shared.contact.whatsapp}"`),
+  'the person line under the three steps reads from the same desk block, days included');
 
 // the refund rule beside every €500 on a sell desk
 const rule = esc(shared.refund.rule);
@@ -340,7 +351,9 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   const badUrl = clone(shared); badUrl.rome.reviewUrl = 'http://g.page/x';
   check(throws(() => render(ams, badUrl), /rome\.reviewUrl must be https/) === true, 'a review link that is not https is refused');
 }
-check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{}</style>', { slug: 'amsterdam' }, { root: R }).join() === '[A]', 'placeholders are read from visible text only');
+check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{}</style>', { slug: 'amsterdam' }, { root: R }).join() === '[A]', 'placeholders are read from visible text, never from scripts or styles');
+check(findPlaceholders('<p>ok</p><input placeholder="[NAME]"><meta name="description" content="BOOM [CITY] works">', { slug: 'amsterdam' }, { root: R }).join('|') === '[NAME] (in an attribute)|[CITY] (in an attribute)',
+  'placeholders in attribute values (an input\'s placeholder, a meta description) are found too: they shipped unseen when only the text between tags was read');
 
 // ── 6 · structural refusals ───────────────────────────────────────────────
 const mad = JSON.parse(read('cities/madrid.json'));
@@ -586,7 +599,7 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par,
   const h = pageOf(c.slug);
   const v = visibleOf(h);
   check(h.includes(GENERATED_MARK) && /<meta name="robots" content="noindex">/.test(h.slice(0, 4000)) && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`), `${c.slug}: a generated draft — noindex, canonical from siteUrl`);
-  check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-label="${c.city}">${word}</span>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`), `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells`);
+  check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">${word}</span><span class="sr">${c.city}</span></h1>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`), `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells`);
   check(h.includes(`class="bl-desk">${c.city}<br>tenant side</span>`) && h.includes(`<p class="footer-statement">${esc(c.footer.statement)}</p>`), `${c.slug}: the lockup and the tenant-side statement`);
   check(!/founding|cohort|spots? (left|remaining)|locked for life|refundable|€99|deposit of €|no worries|unlock|seamless|hassle-free|waitlist open|join the waitlist|coming soon/i.test(v), `${c.slug}: no founding spot, no counter, no "waitlist open" badge`);
   check(!/[a-z.]!["\s]/i.test(JSON.stringify(c)), `${c.slug}: no exclamation marks in the copy`);
@@ -717,9 +730,12 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   const docs = [...pass.matchAll(/<label class="ck-doc"><input type="checkbox" name="ck-doc" value="([a-z]+)"><span>([^<]*)<\/span><\/label>/g)].map((m) => [m[1], decode(m[2])]);
   check(docs.length === DOSSIER_N && JSON.stringify(docs) === JSON.stringify(ams.checkin.dossier.items.map((i) => [i.id, i.t])) && /<fieldset class="papers" id="ckPapers" hidden>/.test(pass), `the ${DOSSIER_N} papers a Dutch landlord asks for, on the pass, hidden until the third tap`);
   check(pass.includes(`<span class="pto">${ams.iata}</span>`) && pass.includes(`id="ckBoard" data-word="${ams.city}"`) && pass.includes(`<p class="pblank" id="ckBlank">${esc(ams.checkin.landing.blank)}</p>`)
-    && pass.includes(`<div class="ppend" id="ckPend" hidden><span class="peye">${esc(ams.checkin.pending.eyebrow)}</span>`) && pass.includes('<div class="pplan" id="ckPlanBox" hidden aria-live="polite">'),
+    && pass.includes(`<div class="ppend" id="ckPend" hidden><span class="peye">${esc(ams.checkin.pending.eyebrow)}</span>`) && pass.includes('<div class="pplan" id="ckPlanBox" hidden>'),
     'the pass: the route lands on the IATA code, the city is a board word, the blank line, the pending box and the plan box (the JS shows one)');
-  check(/<span class="flap-tk flap-scale" id="ckPrice" aria-label="Price"><\/span><small id="ckCond"><\/small>/.test(pass) && pass.includes('<p class="note" id="ckNote" hidden></p>'), 'the price on its own board with the plan\'s condition beside it; the note hidden until the third tap');
+  check(/<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"><\/span><span class="sr" id="ckPriceSr"><\/span><small id="ckCond"><\/small>/.test(pass) && pass.includes('<p class="note" id="ckNote" hidden></p>'),
+    'the price on its own board (decorative) with the amount as text and the plan\'s condition beside it; the note hidden until the third tap');
+  check(pass.includes('<span class="sr" id="ckLive" role="status" aria-live="polite"></span>') && !/aria-live/.test(slice(pass, 'id="ckPlanBox"', 'id="ckReady"')) && pass.includes('<p class="ready" id="ckReady" role="status"></p>') && (pass.match(/aria-live|role="status"/g) || []).length === 5,
+    'one small live region on the pass (the plan once per plan) and a status on the papers line — never the whole plan box with its sixteen controls (the review\'s a11y finding)');
   check(pass.includes('id="ckName" maxlength="24"') && pass.includes('id="ckOrigin" maxlength="12"') && pass.includes(`<b id="ckPassenger">${esc(ams.checkin.pass.guest)}</b>`) && pass.includes(`<span class="pside">${esc(ams.checkin.pass.side)}</span>`) && pass.includes(`<span>${esc(ams.checkin.pass.foot)}</span>`),
     'passenger and origin capped, "A tenant" until a name is typed, the side and the foot on the lamina');
   check(pass.includes(`<div class="pshare"><span>${esc(ams.checkin.share.lead)}</span><a id="ckWa" href="#" target="_blank" rel="noopener">${esc(ams.checkin.share.whatsapp)}</a><button type="button" id="ckCopy">${esc(ams.checkin.share.copy)}</button>`)
@@ -790,6 +806,41 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   }
   check(ber.checkin.dossier.items.some((i) => /SCHUFA/.test(i.t)) && par.checkin.dossier.items.some((i) => /Visale/.test(i.t)) && bcn.checkin.dossier.items.some((i) => /NIE/.test(i.t)) && ams.checkin.dossier.items.some((i) => /werkgeversverklaring/.test(i.t)),
     'the eight papers are the CITY\'s: SCHUFA in Berlin, Visale in Paris, NIE in Barcelona, werkgeversverklaring in Amsterdam');
+  // the review of 17/10: the rule-order bypass of the live-ticket guard, the
+  // strings nobody printed, the year from data
+  {
+    const shadow = clone(ams);
+    shadow.checkin.rules = [{ when: { stage: 'found', where: 'abroad' }, plan: 'attended-viewing', why: 'x' }, ...shadow.checkin.rules];
+    check(resolvesAt(shadow.checkin, 'found') === 2, 'a where-rule placed before a stage-only rule takes the stage to tap 2: the ticket may not print a plan on tap 1 and switch it on tap 2');
+    const shadowHtml = render(shadow).html;
+    check(/"PENDING": \{[^}]*"found"/.test(shadowHtml), 'and the page then carries the pending sentence for that stage instead of a plan that would change under the hand');
+    for (const [name, mut, re] of [
+      ['the share text for the papers (never sent)', (c) => { c.checkin.share.papers = 'The eight papers: {url}'; }, /share\.papers is a leftover/],
+      ['a pass sub the pass never prints', (c) => { c.checkin.pass.sub = 'Your ticket'; }, /pass\.sub is a leftover/],
+      ['a till sub no control prints', (c) => { c.till.sub = 'card · Stripe'; }, /till\.sub is a leftover/]
+    ]) {
+      const c = clone(ams); mut(c);
+      check(throws(() => render(c), re) === true, `refused: ${name} — a string nobody sees and everybody believes is live`);
+    }
+    const wlShare = clone(bcn); wlShare.checkin.share.plan = 'BOOM {city}: a rental agent on the tenant\'s side, flat fees. My plan in three taps: {url}';
+    check(throws(() => render(wlShare), /says the desk is opening/) === true, 'a waitlist desk\'s share text must say the desk is opening: a forwarded message is not a desk taking searches today');
+    const noYear = clone(shared); delete noYear.copyrightYear;
+    check(throws(() => render(ams, noYear), /copyrightYear \(four digits\) is required/) === true && html.includes(`<span>© ${shared.copyrightYear} BOOM</span>`) && !/new Date\(\)\.getUTCFullYear\(\)[^;]*year/.test(read('build-cities.mjs').split('year: String(')[1] || ''),
+      'the footer year is data (copyrightYear), never the clock: --check stays green at the year rollover');
+  }
+  // the review of 17/10, on the page's own promises: the recourse line and the
+  // paid copy follow the desk, Berlin says one thing about when it charges
+  for (const c of [ams, mad, bcn, par, ber]) {
+    check(c.form.sentNext[2][0] === 'Nothing by then?', `${c.slug}: the recourse line follows the computed window ("Nothing by then?"), never "tomorrow" on a Friday evening`);
+    check(!/A \{city\} landlord/.test(JSON.stringify(c.checkin.share)) && !/asks for all eight/.test(c.checkin.dossier.sub), `${c.slug}: no "a Amsterdam landlord", no "all eight" over a conditional paper`);
+  }
+  for (const c of [ams, mad]) {
+    const k = JSON.stringify(c.checkoutCopy) + JSON.stringify(c.till);
+    check(!/within the hour|starts today|start today/.test(k) && /first open hour/.test(c.checkoutCopy.paid.text) && c.checkoutCopy.paid.recourse === 'Nothing by then? Write to {email}.',
+      `${c.slug}: the paid copy promises the desk's first open hour and the same working day, never "within the hour" at Saturday 23:00`);
+  }
+  check(/other two at opening/.test(ber.facts[0].text) && /Full Search opens under that rule; Application Pack and Attended Viewing are charged at opening/.test(ber.faq.items.find((q) => /Who pays the agent/.test(q.q)).a) && ber.pricing.h2g === 'Charged at opening, or on signing.' && !/nothing in advance/.test(ber.pricing.note),
+    'berlin says ONE thing about when it charges: Full Search on signing, the other two at opening — in the fact, the FAQ, the heading and the fee note (the open WoVermRG question stays in the go-live list)');
   // the layer: CSS depth and motion off under reduced motion; the JS contract
   const rm = css.slice(css.indexOf('@media(prefers-reduced-motion:reduce)'));
   check(/\.pass\.in\{animation:none\}|\.pass\.in\{animation:none/.test(rm.replace(/\s/g, '')) || /,\.pass\.in\{animation:none\}/.test(rm), 'under prefers-reduced-motion the pass entrance is off');
@@ -798,6 +849,40 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/@property --meter\{syntax:'<percentage>'/.test(css) && /\.late\{content-visibility:auto;contain-intrinsic-size:auto 600px\}/.test(css) && /\.hero-left,\.hero-right\{display:contents\}/.test(css) && /\.hero-right\{position:sticky/.test(css),
     'the CSS: a typed --meter, content-visibility on the late sections, one DOM reordered with display:contents on a phone and sticky on the desk');
   check(/^\s*\[hidden\]\{display:none!important\}/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')), 'the first rule makes [hidden] win over every state rule (the defeat found in v1.2 cannot return)');
+  // the review of 17/10 on the layer and the behaviour, pinned on the source
+  check(/::view-transition\{pointer-events:none\}/.test(css) && /render\(\{ plain: true \}\)/.test(js) && /function swap\(fn, plain\)/.test(js),
+    'the view-transition overlay lets taps through and a paper tick swaps plain: four quick ticks are four ticks, not two');
+  check(/\.ck-change\{[^}]*min-height:44px/.test(css) && /\.pshare a,\.pshare button\{[^}]*min-height:44px/.test(css) && /\.ck-save,\.ck-sharebtn\{[^}]*min-height:44px/.test(css) && /\.plates \.sib \.go2\{[^}]*min-height:44px/.test(css) && /dialog#ov \.x\{min-width:44px;min-height:44px/.test(css),
+    'every control the page offers is ≥ 44px: change, the share row, Save/Share, the plates\' second link, the dialog\'s close');
+  check(/\.mobile-menu:not\(\.active\)\{visibility:hidden/.test(css) && /body\.menu-open \.boomcst\{visibility:hidden\}/.test(css) && /m\.inert = !open/.test(js) && /e\.key === 'Escape' && m\.classList\.contains\('active'\)/.test(js) && html.includes('<div class="mobile-menu" id="mobileMenu" aria-hidden="true">'),
+    'the slid-away menu is out of the tab order and the tree (visibility + inert + aria-hidden), Escape closes it, the consent plate hides under it');
+  check(/\.payrow:has\(input:checked\) b::before\{content:'✓ '/.test(css) && /@media\(forced-colors:active\)\{\.payrow:has\(input:checked\)\{outline:3px solid Highlight/.test(css) && /@media print\{/.test(css) && /\.pass\.busy \.ck-save,\.pass\.busy \.ck-sharebtn\{pointer-events:none/.test(css),
+    'the chosen pay row carries a glyph and a forced-colours outline, the page prints black on white, the pass\'s busy state is real');
+  check(/\.paybar,\.more summary::before,\.sheetfold>summary::after,\.faq summary::after[^}]*\{transition:none\}/.test(rm) && /\.sib:hover,\.g-it:hover\{transform:none\}/.test(rm), 'under reduced motion the strip, the +/x glyphs and the hover lifts hold still too');
+  check(/form\.setAttribute\('data-plan-from', 'chip'\)/.test(js) && /\(!from \|\| from === 'checkin'\) && \(service\(\) !== s\.planId \|\| from !== 'checkin'\)/.test(js),
+    'a chip the reader chose by hand is theirs: the Check-in writes the door only where nothing or itself wrote, and only when its plan changed');
+  check(/var sending = false;/.test(js) && /if \(sending\) return;\n      err\.classList\.remove\('on'\)/.test(js) && /sending = false;\n          go\.style\.opacity = 1/.test(js) && /offerBtn\.addEventListener\('click'/.test(js) && !/btn\.addEventListener\('click', function \(\) \{ sheet\.open\(picked/.test(js),
+    'the door sends once per tap (Enter in a field included), the flag released only when the send fails; the offer button is bound once');
+  check(/var before = lastKind;/.test(js) && !/var before = state\(\)\.kind;/.test(js), 'the pass lands on the tap that resolves a pending stage: the kind BEFORE the tap is the one render remembered, not state() after the radio changed');
+  check(!/bar\.setAttribute\('data-sub', \(\$\('stripSub'\)/.test(js) && /ov\.addEventListener\('close', function \(\) \{ setTimeout\(upd, 0\); \}\)/.test(js), 'the strip keeps the build\'s copy on a deep-link landing and comes back when the till closes');
+  check(/mv\.setAttribute\('data-auto', want\)/.test(js) && /mvEl\.removeAttribute\('data-auto'\)/.test(js), 'the month the page prefills is marked as its own: it follows a changed answer, leaves with it, and a month the reader picked is never touched');
+  check(/deskMq\.addEventListener\('change', mountBlank\)/.test(js), 'the pass board mounts when a phone widens into a desk before the first tap');
+  check(/var received = !!\(h\.via && h\.via !== 'l'\);/.test(js) && /landingState = s0\.kind === 'complete' \? 'resume_complete' : 'resume';/.test(js) && /partial\.replace\('\{left\}', 'One tap'\) : partial\.split/.test(js),
+    'an own reload is a resume, in silence; the banner is for a received link, and counts the taps to the PLAN');
+  check(/if \(inp && inp\.checked\) \{ editing = null; sync\(\); \}/.test(js), 'after "change", picking the same answer again folds the step (an already-checked radio fires no change event)');
+  check(/postMessage\(\{ id: id, W: 1080/.test(js) && /pendingReq\[m\.id\]/.test(js) && /if \(inflight\) return inflight;/.test(js) && !/w\.onmessage = function/.test(js),
+    'the worker\'s replies are correlated by request id on one listener, and a second Save or Share joins the encode in flight');
+  check(/done\.focus\(\{ preventScroll: true \}\)/.test(js) && html.includes('<div class="sent" id="fDone" tabindex="-1">') && html.includes('<div class="sent paid" id="fPaid" tabindex="-1">'), 'after the send focus lands on the open file, not on <body>; the paid card too');
+  check(/Object\.prototype\.hasOwnProperty\.call\(PLANS, id\)/.test(js) && !/PLANS\[plan\]/.test(js), '?paid=constructor is not a plan: PLANS is read through hasOwnProperty everywhere');
+  check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config'"),
+    'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there)');
+  check(/timeZoneName: 'short'/.test(js) && /function tzLabel\(\)/.test(js) && /querySelectorAll\('\[data-tz\]'\)/.test(js) && /desk\.open\(\) !== false/.test(js) && /\['fGo', 'ckFile'\]\.forEach/.test(js),
+    'the zone label follows the clock (CEST seven months a year) and "same-day reply" is swapped for the window when the desk is closed, on the door, the pass and the strip');
+  check(/col\.style\.top = Math\.round\(Math\.min\(bar \+ 14, innerHeight - h - 24\)\) \+ 'px'/.test(js) && !/classList\.toggle\('tall'/.test(js) && !/\.hero-right\.tall/.test(css),
+    'the sticky column sticks by its bottom when taller than the screen (never parked static: on every laptop it was)');
+  check(/\{ threshold: 1 \}\)\.observe\(\$\('ckPlan'\)\)/.test(js), 'the plan-seen event watches the plan line, not a pass taller than the phone');
+  const consent = read('js/boom-consent.js');
+  check(/function atWork\(\)/.test(consent) && /WAIT_MAX = 45000/.test(consent) && /late && atWork\(\) && Date\.now\(\) - armedAt < WAIT_MAX/.test(consent), 'the consent plate waits while the reader is at work in the hero (the unanswered Check-in or the ticket on the screen), 45 s at most');
   check(/window\.BOOM_CHECKIN = CK;/.test(js) && /checkin=\(\[a-z-\]\+\)\\\.\(\[a-z-\]\+\)\\\.\(\[a-z-\]\+\)\\\.\(\[0-9a-f\]\{1,2\}\|-\)\(\?:\\\.\(\[lwcdp\]\)\)\?/.test(js) && /checkin: v\('fCheckin'\), dossier: v\('fDossier'\)/.test(js),
     'the JS exposes the Check-in, reads #checkin=stage.where.when.docs[.via] back, and posts the two hidden fields with the lead');
   check(/sessionStorage\.getItem\(key\)/.test(js) && !/localStorage\.setItem\(['"]boom:paid/.test(js) && /drawPass\.toString\(\)/.test(js) && /OffscreenCanvas/.test(js) && /document\.startViewTransition/.test(js),

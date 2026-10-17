@@ -18,7 +18,20 @@
    Motion is feedback: a step folding, the price board flipping once per
    plan, the meter moving, OPEN/PAID — nothing loops at rest, everything is
    still under prefers-reduced-motion. The Solari engine (window.BoomSolari)
-   is inlined by the build; without it the words stay plain text. */
+   is inlined by the build; without it the words stay plain text.
+   17/10, after the adversarial review (14 confirmed + 28 triaged findings):
+   a chip the reader chose by hand is never overwritten by a re-render; the
+   door sends once per tap; the pass lands on the tap that resolves it; the
+   strip keeps the build's copy; the auto month follows the answer and
+   leaves when the answer leaves; the board mounts when the pass becomes
+   visible; an own reload is not "the link you received"; re-picking the
+   same answer folds the step; the menu is inert off-screen (Escape closes,
+   focus returns); focus lands on the open file; the price and the city are
+   read as text (boards decorative); one small live region instead of a
+   live plan box; the sticky column sticks by its bottom when taller than
+   the screen; a paper tick swaps without a view transition (whose overlay
+   ate taps); the worker replies are correlated by id; the desk's tz label
+   and the "same-day reply" sub follow the clock. */
 (function () {
   'use strict';
   var C = window.BOOM_CITY || {};
@@ -30,7 +43,9 @@
   var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var BS = window.BoomSolari;
   var eur = function (n) { return '€' + String(Math.round(Number(n))).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
-  var setText = function (id, t) { var el = $(id); if (el) el.textContent = t == null ? '' : String(t); };
+  var setText = function (id, t) { var el = $(id); if (!el) return; var v = t == null ? '' : String(t); if (el.textContent !== v) el.textContent = v; };
+  /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
+  var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -73,26 +88,39 @@
     var WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
     function parts(tz) {
       try {
-        var f = new Intl.DateTimeFormat('en-GB', { timeZone: tz || undefined, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short' });
+        var f = new Intl.DateTimeFormat('en-GB', { timeZone: tz || undefined, hour: '2-digit', minute: '2-digit', hour12: false, weekday: 'short', timeZoneName: 'short' });
         var o = {};
         f.formatToParts(new Date()).forEach(function (p) { o[p.type] = p.value; });
         var h = parseInt(o.hour, 10) % 24, m = parseInt(o.minute, 10);
-        return { h: h, m: m, hm: (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m, wd: WD[o.weekday] };
+        return { h: h, m: m, hm: (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m, wd: WD[o.weekday], tz: o.timeZoneName || '' };
       } catch (e) { return null; }
     }
     var toMin = function (hhmm) { var a = hhmm.split(':'); return (+a[0]) * 60 + (+a[1]); };
-    /* "By 19:00 CET today" · "Tomorrow from 09:00 CET" · "Monday from 09:00 CET" */
+    /* the zone's short name as the clock sees it (CEST seven months a year),
+       the build's label (CET) when Intl gives a numeric offset instead */
+    function tzLabel() { var p = parts(D.timeZone); return p && /^[A-Z]{2,5}$/.test(p.tz) ? p.tz : D.tzLabel; }
+    /* is the desk open now: true · false · null when the clock is unknown */
+    function isOpen() {
+      var p = parts(D.timeZone);
+      if (!p || p.wd === undefined) return null;
+      var now = p.h * 60 + p.m;
+      return D.days.indexOf(p.wd) > -1 && now >= toMin(D.hours.from) && now < toMin(D.hours.to);
+    }
+    /* "By 19:00 CEST today" · "Tomorrow from 09:00 CET" · "Monday from 09:00 CET" */
     function replyWindow() {
       var p = parts(D.timeZone);
       if (!p || p.wd === undefined) return null;
+      var tz = tzLabel();
       var now = p.h * 60 + p.m, today = D.days.indexOf(p.wd) > -1;
-      if (today && now < toMin(D.hours.from)) return 'Today from ' + D.hours.from + ' ' + D.tzLabel;
-      if (today && now < toMin(D.hours.to)) return 'By ' + D.hours.to + ' ' + D.tzLabel + ' today';
+      if (today && now < toMin(D.hours.from)) return 'Today from ' + D.hours.from + ' ' + tz;
+      if (today && now < toMin(D.hours.to)) return 'By ' + D.hours.to + ' ' + tz + ' today';
       for (var d = 1; d <= 7; d++) {
-        if (D.days.indexOf((p.wd + d) % 7) > -1) return (d === 1 ? 'Tomorrow' : DAYS[(p.wd + d) % 7]) + ' from ' + D.hours.from + ' ' + D.tzLabel;
+        if (D.days.indexOf((p.wd + d) % 7) > -1) return (d === 1 ? 'Tomorrow' : DAYS[(p.wd + d) % 7]) + ' from ' + D.hours.from + ' ' + tz;
       }
       return null;
     }
+    /* the printed zone label follows the clock too (the build cannot know the date) */
+    (function () { var tz = tzLabel(); [].forEach.call(document.querySelectorAll('[data-tz]'), function (el) { if (el.textContent !== tz) el.textContent = tz; }); })();
     /* the clock line in the "Who answers" fact: desk time and the visitor's,
        swapped at the minute boundary with one timeout, never a countdown */
     var shown = false;
@@ -102,17 +130,32 @@
       var a = parts(D.timeZone), b = parts(null);
       if (!a || !b) return;
       el.textContent = a.hm === b.hm ? 'it is ' + a.hm + ' at the desk' : 'it is ' + a.hm + ' at the desk, ' + b.hm + ' for you';
-      if (!shown) { shown = true; try { boomTrack('clock_shown', { market: C.SLUG, visitor_tz: Intl.DateTimeFormat().resolvedOptions().timeZone || '' }); } catch (e) {} }
+      /* the visitor's zone stays on the device: it is read for the line, never sent */
+      if (!shown) { shown = true; boomTrack('clock_shown', { market: C.SLUG }); }
       var ms = 60000 - (Date.now() % 60000) + 50;
       setTimeout(clock, ms);
     }
     clock();
-    return { replyWindow: replyWindow, parts: parts };
+    return { replyWindow: replyWindow, parts: parts, tzLabel: tzLabel, open: isOpen };
   })();
 
   /* ── the door: the month select, the plan line, the send ── */
   var form = $('cityForm');
   var planline = $('planline');
+  /* "free · same-day reply" is the desk's promise while it is open. In the
+     evening and at the weekend the three places that print it (the door
+     button, the pass's door, the strip) say the window instead — the same
+     one the OPEN card computes — so the promise shown before the tap is the
+     one kept after it. */
+  (function () {
+    if (!desk || desk.open() !== false) return;
+    var rw = desk.replyWindow();
+    if (!rw) return;
+    var sub = 'free · ' + rw;
+    ['fGo', 'ckFile'].forEach(function (id) { var el = $(id), sm = el && el.querySelector('small'); if (sm) sm.textContent = sub; });
+    var bar = $('paybar');
+    if (bar) { bar.setAttribute('data-sub', sub); setText('stripSub', sub); }
+  })();
   var nowYM = (function () { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1); })();
   function ymPlus(n) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1); }
   (function () {
@@ -128,7 +171,7 @@
      button writes it, the visitor can change it under "change" */
   function paintPlanline(from) {
     if (!planline) return;
-    var id = service(), p = PLANS[id], txt = $('plText'), ch = $('plChange');
+    var id = service(), p = planOf(id), txt = $('plText'), ch = $('plChange');
     if (p) {
       var via = from === 'checkin' ? (planline.getAttribute('data-from') || '') : '';
       txt.textContent = p.label + ' · ' + eur(p.eur) + (p.unit ? ' ' + p.unit : '') + ' · ' + p.condition + (via ? ' · ' + via : '');
@@ -153,7 +196,8 @@
     planline.setAttribute('data-none', $('plText').textContent);
     planline.setAttribute('data-unsure', (function () { var u = form.querySelector('.chip.unsure b'); return u ? u.textContent + ' · ' + form.querySelector('.chip.unsure small').textContent : 'Not sure yet'; })());
     planline.setAttribute('data-from', planline.getAttribute('data-from') || '');
-    form.addEventListener('change', function (e) { if (e.target && e.target.name === 'service') paintPlanline('chip'); });
+    /* a chip the reader taps is theirs: from then on no render overwrites it */
+    form.addEventListener('change', function (e) { if (e.target && e.target.name === 'service') { form.setAttribute('data-plan-from', 'chip'); paintPlanline('chip'); } });
     sum.addEventListener('click', function () { /* native toggle */ });
   }
   /* a plate's button (and the pass's door) preselects its service chip */
@@ -161,7 +205,9 @@
     a.addEventListener('click', function () {
       var id = a.getAttribute('data-service');
       if (!id) return;
-      setPlan(id, a.id === 'ckFile' ? 'checkin' : 'plate');
+      var from = a.id === 'ckFile' ? 'checkin' : 'plate';
+      setPlan(id, from);
+      if (form) form.setAttribute('data-plan-from', from);
       boomTrack('select_item', { item_id: id, source_page: C.SLUG, source: a.id === 'ckFile' ? 'pass' : 'plate' });
     });
   });
@@ -178,13 +224,13 @@
       var fail = function (key) { err.textContent = ov.getAttribute('data-err-' + key) || ''; err.classList.add('on'); boomTrack('form_error', { form: 'till', field: key, market: C.SLUG }); };
       var chosen = function () { var r = ov.querySelector('input[name="payplan"]:checked'); return r ? r.value : ''; };
       function paint() {
-        var id = chosen(), p = PLANS[id];
+        var id = chosen(), p = planOf(id);
         rows.forEach(function (row) { row.classList.toggle('on', row.querySelector('input').checked); });
         amt.textContent = p ? eur(p.eur) : '';
       }
       rows.forEach(function (row) { row.querySelector('input').addEventListener('change', paint); });
       function open(plan, src, prefill) {
-        var id = PLANS[plan] ? plan : C.FEATURED;
+        var id = planOf(plan) ? plan : C.FEATURED;
         rows.forEach(function (row) { var i = row.querySelector('input'); i.checked = i.value === id; });
         if (prefill) {
           ['sName', 'sEmail', 'sPhone'].forEach(function (f, i) {
@@ -199,7 +245,8 @@
         else { ov.classList.add('inplace'); ov.setAttribute('open', ''); try { ov.scrollIntoView({ block: 'start' }); } catch (e) {} }
         document.body.style.overflow = 'hidden';
         var bar = $('paybar'); if (bar) bar.classList.remove('on');
-        boomTrack('begin_checkout', { currency: 'EUR', value: PLANS[id] ? PLANS[id].eur : 0, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: PLANS[id] ? PLANS[id].label : id }], source: src || '', market: C.SLUG });
+        var pp = planOf(id);
+        boomTrack('begin_checkout', { currency: 'EUR', value: pp ? pp.eur : 0, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: pp ? pp.label : id }], source: src || '', market: C.SLUG });
         setTimeout(function () { try { $('sName').focus(); } catch (e) {} }, 350);
       }
       function close() {
@@ -210,7 +257,7 @@
       ov.addEventListener('close', function () { document.body.style.overflow = ''; });
       function pay() {
         if (sending) return;
-        var id = chosen(), p = PLANS[id];
+        var id = chosen(), p = planOf(id);
         var name = ($('sName').value || '').trim();
         var email = ($('sEmail').value || '').trim();
         var phone = ($('sPhone').value || '').trim();
@@ -265,9 +312,24 @@
     var err = $('fErr');
     var go = $('fGo');
     var v = function (id) { var el = $(id); return el ? String(el.value || '').trim() : ''; };
-    var fail = function (key) { err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on'); boomTrack('form_error', { form: 'file', field: key, market: C.SLUG }); };
+    /* the error is said in place and the field it names takes focus */
+    var fail = function (key) {
+      err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on');
+      boomTrack('form_error', { form: 'file', field: key, market: C.SLUG });
+      var f = key === 'name' ? $('fName') : key === 'email' || key === 'contact' ? $('fEmail') : null;
+      if (f) { try { f.focus(); } catch (e) {} }
+    };
+    /* ONE send per tap: pointer-events on the button stops a second click,
+       not Enter in a field (implicit submission) — the flag does; it is
+       released only when the send fails */
+    var sending = false;
+    /* the offer after the lead is bound once; the plan and the prefill it
+       opens with are the last send's */
+    var offerPlan = '', offerPrefill = null, offerBtn = $('payOfferBtn');
+    if (offerBtn && sheet) offerBtn.addEventListener('click', function () { if (offerPlan) sheet.open(offerPlan, 'after-lead', offerPrefill); });
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
+      if (sending) return;
       err.classList.remove('on');
       var name = v('fName'), email = v('fEmail'), phone = v('fPhone');
       if (name.length < 2) return fail('name');
@@ -276,6 +338,7 @@
       if (email && !hasEmail) return fail('email');
       if (!hasEmail && !hasPhone) return fail('contact');
 
+      sending = true;
       var goText = go.querySelector('b'), restText = goText ? goText.textContent : '';
       go.style.opacity = .6; go.style.pointerEvents = 'none'; go.classList.add('busy');
       if (goText && form.getAttribute('data-sending')) goText.textContent = form.getAttribute('data-sending');
@@ -299,27 +362,30 @@
         .then(function (j) {
           if (!j || !j.ok) throw new Error((j && j.error) || 'failed');
           form.classList.add('hidden');
-          $('fDone').classList.add('on');
+          var done = $('fDone');
+          done.classList.add('on');
           /* who writes, when: computed against the desk clock, never a static promise */
           var w = $('openWhen'), rw = desk && desk.replyWindow();
           if (w && rw) w.textContent = rw;
           miniBoard('flapDone');
+          /* the form left; focus moves onto the open file so it is read, not lost on <body> */
+          try { done.focus({ preventScroll: true }); } catch (e) {}
           boomTrack('sign_up', { method: 'city_form', market: C.SLUG });
           /* the till, after the file: the service they chose, their name and
              email already in the sheet. "Not sure yet" gets no offer — they
              asked for advice, not a checkout. */
-          var offer = $('payOffer');
-          if (offer && sheet && PLANS[picked]) {
-            $('payOfferAmt').textContent = eur(PLANS[picked].eur);
-            var btn = $('payOfferBtn');
-            btn.setAttribute('data-pay', picked);
+          var offer = $('payOffer'), pk = planOf(picked);
+          if (offer && sheet && pk && offerBtn) {
+            $('payOfferAmt').textContent = eur(pk.eur);
+            offerBtn.setAttribute('data-pay', picked);
             /* the refund rule is Full Search's promise: under another plan it would read as theirs */
             var ofr = $('payOfferRefund'); if (ofr) ofr.hidden = picked !== 'full-search';
-            btn.addEventListener('click', function () { sheet.open(picked, 'after-lead', { name: name, email: email, phone: phone }); });
+            offerPlan = picked; offerPrefill = { name: name, email: email, phone: phone };
             offer.hidden = false;
           }
         })
         .catch(function () {
+          sending = false;
           go.style.opacity = 1; go.style.pointerEvents = ''; go.classList.remove('busy');
           if (goText) goText.textContent = restText;
           fail('net');
@@ -335,19 +401,36 @@
   (function () {
     if (C.CHECKOUT !== true || !form) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
-    var plan = q.get('paid'), sid = q.get('session_id') || '';
-    if (!plan || !PLANS[plan]) return;
+    var plan = q.get('paid'), sid = q.get('session_id') || '', pp = planOf(plan);
+    if (!pp) return;
     var card = $('fPaid');
     if (!card) return;
     form.classList.add('hidden');
-    $('paidPlan').textContent = PLANS[plan].label + ' · ' + eur(PLANS[plan].eur) + ' · ' + PLANS[plan].conditionLong;
+    $('paidPlan').textContent = pp.label + ' · ' + eur(pp.eur) + ' · ' + pp.conditionLong;
     card.classList.add('on');
     miniBoard('flapPaid');
     var key = 'boom:paid:' + (sid || plan), seen = false;
     try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
-    if (!seen) boomTrack('purchase', { transaction_id: sid || ('city_' + Date.now()), currency: 'EUR', value: PLANS[plan].eur, items: [{ item_id: 'city_' + C.SLUG + '_' + plan, item_name: PLANS[plan].label, price: PLANS[plan].eur, quantity: 1 }], market: C.SLUG });
+    if (!seen) boomTrack('purchase', { transaction_id: sid || ('city_' + Date.now()), currency: 'EUR', value: pp.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + plan, item_name: pp.label, price: pp.eur, quantity: 1 }], market: C.SLUG });
     try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
-    setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); } catch (e) {} }, 50);
+    setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); try { card.focus({ preventScroll: true }); } catch (e2) {} } catch (e) {} }, 50);
+  })();
+
+  /* ── ONE DOM, two places. The build prints the pass right after the
+     Check-in: the phone's reading order IS the focus order (a sighted
+     keyboard user and a screen reader meet the ticket where it appears,
+     not after the facts). At ≥920 the pass moves to the top of the right
+     column, above the door. A node move keeps its state and listeners. ── */
+  var deskMq = matchMedia('(min-width:920px)');
+  (function () {
+    var pass = $('pass'), right = document.querySelector('.hero-right'), ck = $('checkin');
+    if (!pass || !right || !ck) return;
+    function place() {
+      if (deskMq.matches) { if (pass.parentNode !== right) right.insertBefore(pass, right.firstChild); }
+      else if (ck.nextElementSibling !== pass) ck.insertAdjacentElement('afterend', pass);
+    }
+    place();
+    try { deskMq.addEventListener('change', place); } catch (e) { try { deskMq.addListener(place); } catch (e2) {} }
   })();
 
   /* ══ THE CHECK-IN — the live pass ═══════════════════════════════════════
@@ -443,8 +526,8 @@
 
     /* one same-document view transition around a swap of the steps and the
        pass; a plain swap where the API is absent, hidden or motion is off */
-    function swap(fn) {
-      if (document.startViewTransition && !ridotto && !document.hidden) {
+    function swap(fn, plain) {
+      if (!plain && document.startViewTransition && !ridotto && !document.hidden) {
         try { document.startViewTransition(function () { fn(); }); return; } catch (e) {}
       }
       fn();
@@ -463,6 +546,10 @@
       var s = state();
       var wasHidden = pass.getAttribute('data-state') === 'blank' && getComputedStyle(pass).display === 'none';
       swap(function () {
+        /* the one small live region: the plan once per plan, the pending
+           sentence once — never the whole box (sixteen controls and ten
+           fragments re-announced on every tick) */
+        var live = $('ckLive');
         sync();
         pass.setAttribute('data-state', s.kind);
         /* the four bodies of the pass: the hidden attribute is the truth
@@ -474,7 +561,9 @@
         if (s.kind === 'pending') {
           setText('ckPendText', (C.PENDING || {})[s.stage] || '');
           setText('ckCode', optOf('stage', s.st).code);
+          if (live) setText('ckLive', (C.PENDING || {})[s.stage] || '');
         }
+        if (s.kind === 'blank' && live) setText('ckLive', '');
         if (s.kind === 'resolved' || s.kind === 'complete') {
           var p = s.plan, r = s.rule;
           var code = [optOf('stage', s.st).code, s.wh ? optOf('where', s.wh).code : null, s.wn ? optOf('when', s.wn).code : null].filter(Boolean).join(' · ');
@@ -484,8 +573,13 @@
           setText('ckWhy', r.why);
           var refund = $('ckRefund'); if (refund) refund.hidden = s.planId !== 'full-search';
           setText('ckCondLong', p.conditionLong);
-          /* the price on its board, flipped once per plan */
-          if (lastPlan !== s.planId) { mountBoard($('ckPrice'), eur(p.eur), ' €,.0123456789', 60); lastPlan = s.planId; }
+          /* the price on its board, flipped once per plan; the board is
+             decorative, the amount is read from the text beside it */
+          setText('ckPriceSr', eur(p.eur) + (p.unit ? ' ' + p.unit : ''));
+          if (lastPlan !== s.planId) {
+            mountBoard($('ckPrice'), eur(p.eur), ' €,.0123456789', 60); lastPlan = s.planId;
+            if (live) setText('ckLive', p.label + ', ' + eur(p.eur) + ', ' + p.condition);
+          }
           /* the note after the third tap: the when note, or the refusal for zero + soon */
           var note = $('ckNote');
           if (s.kind === 'complete') {
@@ -503,18 +597,17 @@
           var start = $('ckStart');
           if (start) { start.setAttribute('data-pay', s.planId); setText('ckStartAmt', eur(p.eur)); }
           var file = $('ckFile'); if (file) file.setAttribute('data-service', s.planId);
-          /* into the door: the chip, the plan line, the hidden fields, the month */
-          setPlan(s.planId, 'checkin');
-          if (form) form.setAttribute('data-plan-from', 'checkin');
+          /* into the door: the chip, the plan line, the hidden fields. A chip
+             the reader chose by hand (or from a plate) is theirs: the
+             Check-in writes only where nothing or itself wrote before, and
+             only when its plan changed — a paper tick is not a new plan */
+          var from = form ? form.getAttribute('data-plan-from') : null;
+          if (form && (!from || from === 'checkin') && (service() !== s.planId || from !== 'checkin')) {
+            setPlan(s.planId, 'checkin');
+            form.setAttribute('data-plan-from', 'checkin');
+          }
           if ($('fCheckin')) $('fCheckin').value = [optOf('stage', s.st).t, s.wh ? optOf('where', s.wh).t : null, s.wn ? optOf('when', s.wn).t : null].filter(Boolean).join(' · ');
           if ($('fDossier')) $('fDossier').value = touchedDocs ? pl.field : '';
-          if (s.kind === 'complete') {
-            var mv = $('fMoveIn');
-            if (mv && !mv.value) {
-              var want = s.wn === 'soon' ? ymPlus(1) : s.wn === 'months' ? ymPlus(2) : '';
-              if (want && [].some.call(mv.options, function (o) { return o.value === want && !o.disabled; })) mv.value = want;
-            }
-          }
           /* the share row */
           var wa = $('ckWa'); if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(shareText('plan', 'w'));
           /* the strip names the plan, never the price */
@@ -530,11 +623,24 @@
             paintPlanline();
           }
           if ($('fCheckin')) $('fCheckin').value = s.st ? [optOf('stage', s.st).t, s.wh ? optOf('where', s.wh).t : null].filter(Boolean).join(' · ') : '';
+          setText('ckPriceSr', '');
+        }
+        /* the move-in month the page prefills from the third answer is marked
+           as the page's own: it follows a changed answer and leaves with it;
+           a month the reader picked is never touched */
+        var mv = $('fMoveIn');
+        if (mv) {
+          var want = s.kind === 'complete' ? (s.wn === 'soon' ? ymPlus(1) : s.wn === 'months' ? ymPlus(2) : '') : '';
+          var auto = mv.getAttribute('data-auto') || '';
+          if (!mv.value || (auto && mv.value === auto)) {
+            if (want && [].some.call(mv.options, function (o) { return o.value === want && !o.disabled; })) { mv.value = want; mv.setAttribute('data-auto', want); }
+            else if (auto && mv.value === auto) { mv.value = ''; mv.removeAttribute('data-auto'); }
+          }
         }
         if (!boardMounted && s.kind !== 'blank') { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); }
         if (s.kind !== 'blank' && !pass.classList.contains('in') && !opts.landing) pass.classList.add('in');
         paintPass();
-      });
+      }, !!opts.plain);
       /* the pass must land on the screen the visitor is looking at: scroll
          only when its bottom would fall below the fold, measured */
       if (!opts.landing && s.kind !== 'blank' && (wasHidden || opts.resolved)) {
@@ -545,7 +651,8 @@
           var top = 0, el = pass; while (el) { top += el.offsetTop; el = el.offsetParent; }
           var bottom = top + pass.offsetHeight;
           var bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80;
-          var strip = $('paybar'); var stripH = strip && getComputedStyle(strip).display !== 'none' ? strip.offsetHeight : 0;
+          /* the strip counts only when it is up: in the hero it never is */
+          var strip = $('paybar'); var stripH = strip && strip.classList.contains('on') ? strip.offsetHeight : 0;
           var want = bottom - (innerHeight - stripH - 16);
           if (top - want < bar + 8) want = top - bar - 8;            /* never under the fixed bar */
           if (want > scrollY + 1) { try { scrollTo({ top: want, behavior: ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, want); } }
@@ -665,13 +772,15 @@
         F: F, pathD: pathEl ? pathEl.getAttribute('d') : ''
       };
     }
-    var worker = null, workerDead = false;
+    var worker = null, workerDead = false, reqSeq = 0, pendingReq = {}, inflight = null;
     function getWorker() {
       if (worker || workerDead) return worker;
       if (!window.Worker || !window.OffscreenCanvas || !window.Blob || !window.URL) { workerDead = true; return null; }
       try {
-        var src = 'var draw=' + drawPass.toString() + ';onmessage=function(e){var m=e.data;try{var cv=new OffscreenCanvas(m.W,m.H);draw(cv.getContext("2d"),m.d,m.W,m.H);cv.convertToBlob({type:m.type,quality:.9}).then(function(b){postMessage({ok:true,blob:b})},function(){postMessage({ok:false})})}catch(err){postMessage({ok:false})}};';
+        var src = 'var draw=' + drawPass.toString() + ';onmessage=function(e){var m=e.data;try{var cv=new OffscreenCanvas(m.W,m.H);draw(cv.getContext("2d"),m.d,m.W,m.H);cv.convertToBlob({type:m.type,quality:.9}).then(function(b){postMessage({id:m.id,ok:true,blob:b})},function(){postMessage({id:m.id,ok:false})})}catch(err){postMessage({id:m.id,ok:false})}};';
         worker = new Worker(URL.createObjectURL(new Blob([src], { type: 'text/javascript' })));
+        /* one listener for the worker's life: each reply names its request */
+        worker.onmessage = function (e) { var m = e.data || {}; var cb = pendingReq[m.id]; if (cb) cb(m.ok ? m.blob : null); };
         worker.onerror = function () { workerDead = true; worker = null; };
       } catch (e) { workerDead = true; worker = null; }
       return worker;
@@ -684,19 +793,25 @@
       });
     }
     function passBlob() {
+      /* a second Save or Share while one encodes joins it: never a stale
+         image, never a second file four seconds later */
+      if (inflight) return inflight;
       var d = passData();
       var w = getWorker();
       var p = w ? new Promise(function (resolve) {
-        var done = false;
-        var to = setTimeout(function () { if (!done) { done = true; resolve(null); } }, 4000);
-        w.onmessage = function (e) { if (done) return; done = true; clearTimeout(to); resolve(e.data && e.data.ok ? e.data.blob : null); };
-        try { w.postMessage({ W: 1080, H: 1920, d: d, type: 'image/webp' }); } catch (e) { done = true; clearTimeout(to); resolve(null); }
+        var id = ++reqSeq, done = false, to = null;
+        var fin = function (b) { if (done) return; done = true; if (to) clearTimeout(to); delete pendingReq[id]; resolve(b); };
+        to = setTimeout(function () { fin(null); }, 4000);
+        pendingReq[id] = fin;
+        try { w.postMessage({ id: id, W: 1080, H: 1920, d: d, type: 'image/webp' }); } catch (e) { fin(null); }
       }) : Promise.resolve(null);
-      return p.then(function (b) { return b || mainThreadBlob(d); }).then(function (b) {
+      inflight = p.then(function (b) { return b || mainThreadBlob(d); }).then(function (b) {
+        inflight = null;
         if (!b) return null;
         var ext = b.type === 'image/webp' ? 'webp' : 'png';
         return { blob: b, ext: ext, name: 'boom-' + C.SLUG + '-boarding-pass.' + ext };
-      });
+      }, function () { inflight = null; return null; });
+      return inflight;
     }
     function savePass() {
       pass.classList.add('busy');
@@ -749,21 +864,36 @@
       var m = /^ck-(stage|where|when)$/.exec(e.target && e.target.name || '');
       if (!m) return;
       if (!started) { started = true; boomTrack('checkin_start', { market: C.SLUG, landing_state: landingState }); }
-      var before = state().kind;
+      /* the radio is already checked when change fires: the kind BEFORE the
+         tap is the one render remembered, not state() now */
+      var before = lastKind;
       editing = null;
       var s = render({ resolved: before === 'blank' || before === 'pending' });
       boomTrack('checkin_answer', { market: C.SLUG, step: m[1], value: e.target.value, kind: s.kind });
     });
     root.addEventListener('click', function (e) {
       var b = e.target && e.target.closest('.ck-change');
-      if (!b) return;
-      editing = b.getAttribute('data-change');
-      sync();
-      try { stepEl(editing).querySelector('input:checked, input').focus({ preventScroll: true }); } catch (err) {}
+      if (b) {
+        editing = b.getAttribute('data-change');
+        sync();
+        try { stepEl(editing).querySelector('input:checked, input').focus({ preventScroll: true }); } catch (err) {}
+        return;
+      }
+      /* "change", then the same answer again: an already-checked radio fires
+         no change event, so the step folds from here */
+      var opt = e.target && e.target.closest('.ck-opt');
+      if (opt && editing && opt.closest('.ck-step') === stepEl(editing)) {
+        var inp = opt.querySelector('input');
+        if (inp && inp.checked) { editing = null; sync(); }
+      }
     });
     pass.addEventListener('change', function (e) {
-      if (e.target && e.target.name === 'ck-doc') { touchedDocs = true; render({}); }
+      /* a tick is a plain swap: a view transition here puts an overlay over
+         the page for ~370 ms and the next tick lands on it */
+      if (e.target && e.target.name === 'ck-doc') { touchedDocs = true; render({ plain: true }); }
     });
+    var mvEl = $('fMoveIn');
+    if (mvEl) mvEl.addEventListener('change', function () { mvEl.removeAttribute('data-auto'); });
     $('ckCopy').addEventListener('click', copyLink);
     $('ckWa').addEventListener('click', function () { boomTrack('pass_share', { market: C.SLUG, method: 'whatsapp' }); });
     $('ckSave').addEventListener('click', savePass);
@@ -771,14 +901,15 @@
     ['ckName', 'ckOrigin'].forEach(function (id) { $(id).addEventListener('input', paintPass); });
     var skip = document.querySelector('.skipck');
     if (skip) skip.addEventListener('click', function () { boomTrack('checkin_skip', { market: C.SLUG }); });
-    /* the pass seen: fires once per plan when ≥60% of it is on screen */
-    if ('IntersectionObserver' in window) {
+    /* the plan seen: fires once per plan when the plan line is fully on
+       screen (the whole pass, complete, is taller than a phone) */
+    if ('IntersectionObserver' in window && $('ckPlan')) {
       new IntersectionObserver(function (es) {
         es.forEach(function (en) {
           var s = state();
           if (en.isIntersecting && s.planId && viewedPlan !== s.planId) { viewedPlan = s.planId; boomTrack('checkin_result_view', { market: C.SLUG, plan: s.planId }); }
         });
-      }, { threshold: .6 }).observe(pass);
+      }, { threshold: 1 }).observe($('ckPlan'));
     }
     document.addEventListener('visibilitychange', function () {
       if (document.visibilityState !== 'hidden' || !started) return;
@@ -795,34 +926,52 @@
     if (h && h.answered) {
       var s0 = render({ landing: true });
       var banner = $('ckLanding');
-      if (s0.kind !== 'complete') {
+      var received = !!(h.via && h.via !== 'l');
+      if (!received) {
+        /* no via: the visitor's own answers, back from a reload or a kept
+           tab — restored in silence */
+        landingState = s0.kind === 'complete' ? 'resume_complete' : 'resume';
+      } else if (s0.kind !== 'complete') {
         landingState = 'deeplink_partial';
-        var left = 3 - h.answered;
-        banner.textContent = K.landing.partial.replace('{n}', String(h.answered)).replace('{left}', left === 1 ? 'One tap' : 'Two taps');
+        /* the taps left are to the PLAN: none when it already prints */
+        var partial = K.landing.partial.replace('{n}', String(h.answered));
+        banner.textContent = s0.kind === 'pending' ? partial.replace('{left}', 'One tap') : partial.split(/\.\s/)[0] + '.';
         banner.hidden = false;
-      } else if (h.via && h.via !== 'l') {
+      } else {
         landingState = 'deeplink_complete';
         banner.textContent = K.landing.friend;
         banner.hidden = false;
-      } else landingState = 'deeplink_complete';
-      boomTrack('deeplink_landing', { market: C.SLUG, answered: h.answered, docs_present: h.docs, via: h.via || 'none' });
+      }
+      boomTrack(received ? 'deeplink_landing' : 'checkin_resume', { market: C.SLUG, answered: h.answered, docs_present: h.docs, via: h.via || 'none' });
     } else {
       /* a #checkin= that reads as nothing (a broken or foreign link) leaves
          the address bar clean: the first step is the honest landing */
       if (/^#checkin=/.test(location.hash)) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
       sync();
-      /* on a wide screen the pass is on the page from load, blank: its city board too */
-      if (getComputedStyle(pass).display !== 'none' && !boardMounted) { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); }
     }
+    /* on a wide screen the pass is on the page from load, blank: its city
+       board too — and when a phone turns into a desk before the first tap */
+    var mountBlank = function () { if (!boardMounted && getComputedStyle(pass).display !== 'none') { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); } };
+    mountBlank();
+    try { deskMq.addEventListener('change', mountBlank); } catch (e) { try { deskMq.addListener(mountBlank); } catch (e2) {} }
     return { state: state, render: render, hash: hashOf, shareUrl: shareUrl, passBlob: passBlob, drawPass: drawPass, passData: passData };
   })();
   window.BOOM_CHECKIN = CK;
 
-  /* ── the sticky column at ≥920px releases when it is taller than the viewport ── */
+  /* ── the sticky column at ≥920px: stuck under the bar while it fits the
+     screen; taller than the screen (a complete pass over the door) it sticks
+     by its BOTTOM — a negative top — so the door is reached by scrolling the
+     column, never parked static (on every laptop the column is taller than
+     the viewport, and a release would have meant no sticky at all) ── */
   (function () {
     var col = document.querySelector('.hero-right');
     if (!col || !('ResizeObserver' in window)) return;
-    var upd = function () { col.classList.toggle('tall', innerWidth >= 920 && col.getBoundingClientRect().height > innerHeight - 110); };
+    var upd = function () {
+      if (innerWidth < 920) { col.style.top = ''; return; }
+      var bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80;
+      var h = col.getBoundingClientRect().height;
+      col.style.top = Math.round(Math.min(bar + 14, innerHeight - h - 24)) + 'px';
+    };
     new ResizeObserver(upd).observe(col);
     addEventListener('resize', upd, { passive: true });
     upd();
@@ -834,18 +983,24 @@
     addEventListener('scroll', function () { if (nav) nav.classList.toggle('scrolled', scrollY > 30); }, { passive: true });
     var t = $('navToggle'), m = $('mobileMenu');
     if (t && m) {
-      t.addEventListener('click', function () {
-        var open = !m.classList.contains('active');
+      /* closed, the slid-away menu is out of the tab order and the tree
+         (inert + aria-hidden; the CSS adds visibility for older engines);
+         open, focus moves to its first link, Escape closes and gives focus
+         back to the burger; the consent plate hides while it is open */
+      var setMenu = function (open) {
         t.classList.toggle('active', open); m.classList.toggle('active', open);
         t.setAttribute('aria-expanded', open ? 'true' : 'false');
+        m.setAttribute('aria-hidden', open ? 'false' : 'true');
+        try { m.inert = !open; } catch (e) {}
         document.body.style.overflow = open ? 'hidden' : '';
-      });
-      [].forEach.call(m.querySelectorAll('a'), function (a) {
-        a.addEventListener('click', function () {
-          t.classList.remove('active'); m.classList.remove('active');
-          t.setAttribute('aria-expanded', 'false'); document.body.style.overflow = '';
-        });
-      });
+        document.body.classList.toggle('menu-open', open);
+        if (open) { var first = m.querySelector('a'); if (first) setTimeout(function () { try { first.focus(); } catch (e) {} }, 420); }
+        else if (document.activeElement && m.contains(document.activeElement)) { try { t.focus(); } catch (e) {} }
+      };
+      setMenu(false);
+      t.addEventListener('click', function () { setMenu(!m.classList.contains('active')); });
+      [].forEach.call(m.querySelectorAll('a'), function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && m.classList.contains('active')) setMenu(false); });
     }
     [].forEach.call(document.querySelectorAll('.faq details'), function (d, i) {
       d.addEventListener('toggle', function () { if (d.open) boomTrack('faq_open', { market: C.SLUG, question_index: i }); });
@@ -867,11 +1022,12 @@
   (function () {
     var bar = $('paybar'), hero = document.querySelector('.hero'), door = $('contact');
     if (!bar || !hero) return;
-    bar.setAttribute('data-sub', ($('stripSub') || {}).textContent || '');
     var doorIn = false;
     if (door && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { es.forEach(function (e) { doorIn = e.isIntersecting; }); upd(); }, { threshold: .15 }).observe(door);
     function upd() { bar.classList.toggle('on', hero.getBoundingClientRect().bottom < 0 && !doorIn && !dialogOpen()); }
     addEventListener('scroll', upd, { passive: true }); upd();
+    /* the till closing is not a scroll: the strip comes back on its own */
+    if (ov) ov.addEventListener('close', function () { setTimeout(upd, 0); });
     var g = $('stripGo'); if (g) g.addEventListener('click', function () { boomTrack('paybar_click', { market: C.SLUG, plan: service() || 'none' }); });
   })();
 

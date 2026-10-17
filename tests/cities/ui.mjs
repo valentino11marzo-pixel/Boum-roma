@@ -80,17 +80,25 @@ const srv = http.createServer((req, res) => {
 const base = `http://127.0.0.1:${srv.address().port}`;
 const browser = await chromium.launch(launchOptions());
 
-async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false } = {}) {
+async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null } = {}) {
   const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: width < 600 ? 844 : 900 }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
   const st = { errors: [], posts: [], checkouts: [], foreign: [] };
   page.on('pageerror', (e) => st.errors.push(e.message));
   // the consent plate stays closed unless a test is about it
   if (consent) await page.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
-  await page.route('**/*', (r) => {
+  // a fixed clock, for the desk's weekend: new Date() and Date.now() return it, everything else is the real Date
+  if (clock) await page.addInitScript((iso) => {
+    const RD = Date, T = new RD(iso).getTime();
+    function D() { return arguments.length ? new RD(...arguments) : new RD(T); }
+    D.now = () => T; D.UTC = RD.UTC; D.parse = RD.parse; D.prototype = RD.prototype;
+    window.Date = D;
+  }, clock);
+  await page.route('**/*', async (r) => {
     const u = r.request().url();
     if (u.startsWith(base + '/api/city-lead')) {
       st.posts.push({ headers: r.request().headers(), body: r.request().postData() || '' });
+      if (api.delay) await new Promise((res) => setTimeout(res, api.delay));
       return r.fulfill({ status: api.status, contentType: 'application/json', body: JSON.stringify(api.body) });
     }
     if (u.startsWith(base + '/api/service-checkout')) {
@@ -153,7 +161,9 @@ const board = (page) => page.evaluate(() => {
   };
 });
 const ymPlus = (n) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00 CET|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CET)$/;
+const WINDOW_RE = /^(By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
+// the door's sub follows the desk clock: "same-day reply" while the desk is open, the window (a time, never a price) when it is closed
+const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
 
 // ── JS off: everything readable, nothing behavioural on the page ─────────
 {
@@ -194,7 +204,7 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
     'on a phone the pass is not on the screen before the first tap; the Check-in opens on the first step alone');
   const clock = await page.textContent('#deskClock');
   check(/^it is \d\d:\d\d at the desk(, \d\d:\d\d for you)?$/.test(clock), `the desk clock line is live ("${clock}")`);
-  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))) && !/€|\d/.test(await page.textContent('#paybar')), 'at the top the strip is off, and it carries no price');
+  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))) && !/€|\d{3}/.test(await page.textContent('#paybar')) && SUB_RE.test((await page.textContent('#stripSub')).trim()), 'at the top the strip is off, and it carries no price (the sub is the desk\'s promise for now)');
   const order = await page.evaluate(() => ['h1', '.lead', '#checkin', '#pass', '.skipck', '#facts', '#contact'].map((q) => { const e = document.querySelector(q); return e ? Math.round(e.getBoundingClientRect().top + window.scrollY) : -1; }));
   check(order[0] < order[1] && order[1] < order[2] && order[2] < order[4] && order[4] < order[5] && order[5] < order[6], `390px reading order: title, lead, Check-in, skip link, facts, door (${order.join(' < ')})`);
   // tap 1: haven't started → resolved at once (the rule needs nothing more)
@@ -304,7 +314,7 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
   await page.waitForTimeout(1200);
   check(rvBefore === '0' && await page.$eval('#services', (e) => e.classList.contains('in')), 'a section starts hidden and is revealed when scrolled into view');
-  check(await page.$eval('#paybar', (e) => e.classList.contains('on')) && (await page.textContent('#stripGo')).trim() === 'Open my file' && (await page.textContent('#stripSub')).trim() === 'free · same-day reply',
+  check(await page.$eval('#paybar', (e) => e.classList.contains('on')) && (await page.textContent('#stripGo')).trim() === 'Open my file' && SUB_RE.test((await page.textContent('#stripSub')).trim()),
     'past the hero the strip comes up, with the one label and no price');
   check(await page.evaluate(() => document.getElementById('enbref').getBoundingClientRect().top > document.getElementById('faq').getBoundingClientRect().top),
     'the fact sheet sits below the FAQ: human content first, machine content after');
@@ -495,8 +505,8 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   const { ctx: c2b, page: p2b } = await open({ query: '#checkin=zero.abroad.nowhere.-.w' });
   await p2b.waitForTimeout(800);
   s = await passState(p2b);
-  check(s.state === 'resolved' && s.plan === 'Full Search' && s.landing === '2 of 3 answered, from the link you received. One tap to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,true]',
-    'a link with one answer that does not exist keeps the two that do: the ticket resolved, the third step open, the banner counting');
+  check(s.state === 'resolved' && s.plan === 'Full Search' && s.landing === '2 of 3 answered, from the link you received.' && JSON.stringify(s.stepsShown) === '[true,true,true]',
+    'a received link with one answer that does not exist keeps the two that do: the ticket resolved, the third step open, the banner counting — and no "taps to your plan" when the plan already prints');
   await c2b.close();
   const { ctx: c3, page: p3 } = await open({ query: '#checkin=shortlist.here.later.ff.l' });
   await p3.waitForTimeout(1900);
@@ -515,9 +525,20 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   const { ctx: c5, page: p5 } = await open({ query: '#checkin=shortlist.-.-.-.w' });
   await p5.waitForTimeout(800);
   s = await passState(p5);
-  check(s.state === 'pending' && s.landing === '1 of 3 answered, from the link you received. Two taps to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,false]',
-    'a partial link lands on the next step with the known answer ticked and says how many taps are left');
+  check(s.state === 'pending' && s.landing === '1 of 3 answered, from the link you received. One tap to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,false]',
+    'a received partial link lands on the next step with the known answer ticked and counts the taps to the plan (one: a shortlist resolves on the second tap)');
   await c5.close();
+  // an own reload is a resume, not "the link you received"
+  const { ctx: c6, page: p6 } = await open();
+  await tap(p6, ckOpt('shortlist'));
+  await p6.waitForTimeout(500);
+  await p6.reload({ waitUntil: 'load' });
+  await p6.waitForTimeout(800);
+  s = await passState(p6);
+  const ev6 = await layer(p6);
+  check(s.state === 'pending' && s.landing === null && s.hash === '#checkin=shortlist.-.-.-' && ev6.some((e) => e.name === 'checkin_resume') && !ev6.some((e) => e.name === 'deeplink_landing'),
+    'my own answer, back after a reload: restored in silence (no banner, a resume event, not a deep link)');
+  await c6.close();
 }
 
 // ── the consent plate waits for the reader ───────────────────────────────
@@ -530,18 +551,34 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   check(await page.$('.boomcst') === null, 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
   await page.mouse.wheel(0, 120);
   await page.waitForTimeout(1500);
-  check(await page.$('.boomcst') !== null, 'the first wheel turn arms it: the plate comes 600 ms later');
+  check(await page.$('.boomcst') === null, 'the wheel turn arms it, but the ticket is on the screen: the reader is at work, the plate still waits (it would sit on the ticket\'s own door)');
+  await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
+  await page.waitForTimeout(1600);
+  check(await page.$('.boomcst') !== null, 'once the hero is left the plate comes');
   await ctx.close();
+  // a small phone, nothing answered: the ceiling must not land the plate on the options
+  const { ctx: c0, page: p0 } = await open({ consent: false, width: 375 });
+  await p0.mouse.wheel(0, 100);
+  await p0.waitForTimeout(1500);
+  check(await p0.$('.boomcst') === null, '375px, the unanswered Check-in on the screen: armed, the plate still waits');
+  await p0.evaluate(() => document.getElementById('how').scrollIntoView({ behavior: 'instant' }));
+  await p0.waitForTimeout(1600);
+  check(await p0.$('.boomcst') !== null, 'scrolled past the Check-in, it comes');
+  await c0.close();
   const { ctx: c2, page: p2 } = await open({ consent: false });
-  await p2.waitForTimeout(300);
-  await p2.$eval('[data-pay="full-search"]', (el) => el.click());   // the till, without scrolling to it
+  await p2.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
+  await p2.waitForTimeout(400);
+  const stripBefore = await p2.$eval('#paybar', (e) => e.classList.contains('on'));
+  await p2.$eval('[data-pay="full-search"]', (el) => el.click());   // the till
   await p2.waitForTimeout(300);
   await p2.mouse.wheel(0, 40);
   await p2.waitForTimeout(1800);
   check(await p2.$eval('dialog#ov', (d) => d.open) && await p2.$('.boomcst') === null, 'while the till dialog is open the plate holds back (two things asking at once)');
+  const stripOpen = await p2.$eval('#paybar', (e) => e.classList.contains('on'));
   await p2.keyboard.press('Escape');
   await p2.waitForTimeout(1200);
   check(await p2.$('.boomcst') !== null, 'once the dialog closes the plate comes');
+  check(stripBefore && !stripOpen && await p2.$eval('#paybar', (e) => e.classList.contains('on')), 'the strip, off while the till is open, comes back when it closes — without a scroll');
   await c2.close();
 }
 
@@ -572,6 +609,188 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   await ctx.close();
 }
 
+// ── the review of 17/10: what a real tap sequence found ──────────────────
+{
+  // a chip the reader chose by hand survives a paper tick, a pending stage and a new plan
+  const { ctx, page } = await open();
+  await tap(page, ckOpt('shortlist'));
+  await page.waitForTimeout(700);
+  await tap(page, ckOpt('here'));
+  await page.waitForTimeout(700);
+  await tap(page, ckOpt('months'));
+  await page.waitForTimeout(900);
+  let s = await passState(page);
+  check(s.state === 'complete' && s.chip === 'application-pack' && s.planFrom === 'checkin', 'shortlist · here · months: Application Pack written into the door by the Check-in');
+  await page.$eval('#planline', (d) => { d.open = true; });
+  await tap(page, '.chip:has(input[value="full-search"])');
+  await page.waitForTimeout(200);
+  s = await passState(page);
+  check(s.chip === 'full-search' && s.planFrom === 'chip' && s.plText === 'Full Search · €500 · flat · incl. VAT', 'the reader taps Full Search by hand: the chip is theirs, the plan line says so without "from your check-in"');
+  await tap(page, ckDoc('id'));
+  await page.waitForTimeout(400);
+  s = await passState(page);
+  check(s.chip === 'full-search' && s.planFrom === 'chip' && s.passPapers === '1 of 8', 'a paper tick re-renders the pass and leaves the hand-chosen chip alone (it used to flip back to Application Pack)');
+  await tap(page, '#checkin .ck-step[data-step="where"] .ck-change');
+  await page.waitForTimeout(300);
+  await tap(page, ckOpt('abroad'));
+  await page.waitForTimeout(700);
+  s = await passState(page);
+  check(s.state === 'complete' && s.plan === 'Attended Viewing' && s.chip === 'full-search' && s.planFrom === 'chip' && s.file === 'attended-viewing', 'a new plan on the ticket does not overwrite the hand-chosen chip either; the pass\'s own door still points at its plan');
+  await page.fill('#fName', 'Test Person'); await page.fill('#fEmail', 'test@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  const ev = await layer(page);
+  check(ev.find((e) => e.name === 'door_prefill').p.plan === 'full-search' && ev.find((e) => e.name === 'door_prefill').p.from === 'chip', 'the lead goes out with the plan the reader chose, attributed to the chip');
+  await ctx.close();
+  // a pending stage (the second step unanswered) clears a chip the Check-in wrote, never one the reader chose
+  const { ctx: cp, page: pp } = await open();
+  await tap(pp, ckOpt('zero'));
+  await pp.waitForTimeout(700);
+  await pp.$eval('#planline', (d) => { d.open = true; });
+  await tap(pp, '.chip:has(input[value="application-pack"])');
+  await tap(pp, '#checkin .ck-step[data-step="stage"] .ck-change');
+  await pp.waitForTimeout(300);
+  await tap(pp, ckOpt('shortlist'));
+  await pp.waitForTimeout(700);
+  s = await passState(pp);
+  check(s.state === 'pending' && s.chip === 'application-pack' && s.planFrom === 'chip', 'a pending stage clears a chip the Check-in wrote, never one the reader chose');
+  await cp.close();
+}
+{
+  // the door sends ONCE per tap: Enter three times in the email field during a slow round trip
+  const { ctx, page, st } = await open({ api: { status: 200, body: { ok: true, id: 'slow1' }, delay: 1200 } });
+  await page.fill('#fName', 'Test Person');
+  await page.fill('#fEmail', 'test@example.com');
+  await page.$eval('#planline', (d) => { d.open = true; });
+  await tap(page, '.chip:has(input[value="full-search"])');
+  await page.focus('#fEmail');
+  await page.keyboard.press('Enter'); await page.waitForTimeout(80);
+  await page.keyboard.press('Enter'); await page.waitForTimeout(80);
+  await page.keyboard.press('Enter');
+  await page.waitForSelector('#fDone.on', { timeout: 5000 }).catch(() => {});
+  await page.waitForTimeout(300);
+  const ev = await layer(page);
+  check(st.posts.length === 1 && ev.filter((e) => e.name === 'sign_up').length === 1 && ev.filter((e) => e.name === 'generate_lead').length === 1, `three Enters, one POST, one lead (${st.posts.length} POST, ${ev.filter((e) => e.name === 'sign_up').length} sign_up)`);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'fDone', 'after the send focus is on the open file, not on <body>');
+  await tap(page, '#payOfferBtn');
+  await page.waitForTimeout(400);
+  const bc = (await layer(page)).filter((e) => e.name === 'begin_checkout');
+  check(await page.$eval('dialog#ov', (d) => d.open) && bc.length === 1 && bc[0].p.source === 'after-lead' && (await page.inputValue('#sName')) === 'Test Person', 'one click on the offer opens the till once, prefilled (the button is bound once)');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'payOfferBtn', 'Escape gives focus back to the offer button');
+  await ctx.close();
+}
+{
+  // the pass lands on the tap that resolves a pending stage
+  const { ctx, page } = await open();
+  await tap(page, ckOpt('shortlist'));
+  await page.waitForTimeout(1200);
+  await page.$eval(ckOpt('abroad'), (el) => el.click());   // where it sits after the landing, no scroll of ours
+  await page.waitForTimeout(1200);
+  const s = await passState(page);
+  check(s.state === 'resolved' && s.rect.bottom <= 846 && s.rect.top >= 0, `the second tap grows the pass by the plan box and the page lands it (top ${s.rect.top}, bottom ${s.rect.bottom})`);
+  // "change", then the same answer: the step folds
+  await tap(page, '#checkin .ck-step[data-step="stage"] .ck-change');
+  await page.waitForTimeout(200);
+  const openBefore = await page.$$eval('#checkin .ck-step[data-step="stage"] .ck-opt', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').length);
+  await tap(page, ckOpt('shortlist'));
+  await page.waitForTimeout(300);
+  const folded = await page.$eval('#checkin .ck-step[data-step="stage"]', (e) => e.classList.contains('done'));
+  check(openBefore === 3 && folded && (await passState(page)).state === 'resolved', 're-picking the same answer after "change" folds the step again (an already-checked radio fires no change event)');
+  // the month the page prefilled follows the answer and leaves with it; a month the reader picked stays
+  await tap(page, ckOpt('soon'));
+  await page.waitForTimeout(500);
+  check((await passState(page)).moveIn === ymPlus(1), `within four weeks → ${ymPlus(1)} prefilled`);
+  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
+  await page.waitForTimeout(200);
+  await tap(page, ckOpt('later'));
+  await page.waitForTimeout(500);
+  check((await passState(page)).moveIn === '', '"later, flexible": the page\'s own prefill leaves (it used to stay and contradict the answer on the lead)');
+  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
+  await page.waitForTimeout(200);
+  await tap(page, ckOpt('months'));
+  await page.waitForTimeout(500);
+  check((await passState(page)).moveIn === ymPlus(2), `"1–3 months" → ${ymPlus(2)}`);
+  await page.selectOption('#fMoveIn', { index: 8 });
+  const mine = await page.inputValue('#fMoveIn');
+  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
+  await page.waitForTimeout(200);
+  await tap(page, ckOpt('soon'));
+  await page.waitForTimeout(500);
+  check((await passState(page)).moveIn === mine && mine !== ymPlus(1), 'a month the reader picked is never touched by a changed answer');
+  // four quick paper ticks are four ticks (the view-transition overlay no longer eats the next tap)
+  for (const d of ['id', 'contract', 'payslips', 'bank']) { await page.$eval(ckDoc(d), (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' })); await page.$eval(ckDoc(d) + ' input', (el) => el.click()); await page.waitForTimeout(120); }
+  await page.waitForTimeout(500);
+  check((await passState(page)).passPapers === '4 of 8', 'four ticks 120 ms apart → "4 of 8"');
+  // the price and the plan are read as text; one small live region
+  const a11y = await page.evaluate(() => ({ sr: document.getElementById('ckPriceSr').textContent, live: document.getElementById('ckLive').textContent, boardHidden: document.getElementById('ckPrice').getAttribute('aria-hidden'), boxLive: document.getElementById('ckPlanBox').getAttribute('aria-live'), h1: document.querySelector('.hero h1 .sr').textContent, flapHidden: document.getElementById('flapCity').getAttribute('aria-hidden') }));
+  check(a11y.sr === '€149 per viewing' && a11y.live === 'Attended Viewing, €149, per viewing · incl. VAT' && a11y.boardHidden === 'true' && a11y.boxLive === null && a11y.h1 === 'Amsterdam' && a11y.flapHidden === 'true',
+    'the amount is text beside a decorative board, the plan is announced once in a small live region, the title board is decorative and the city is read as text');
+  await ctx.close();
+}
+{
+  // the phone's focus order meets the ticket where it appears; the menu is inert off-screen
+  const { ctx, page } = await open();
+  check(await page.evaluate(() => document.getElementById('checkin').nextElementSibling === document.getElementById('pass') && document.getElementById('pass').nextElementSibling.classList.contains('skipck')),
+    '390px: the pass follows the Check-in in the DOM and the skip link follows the pass (reading order = focus order)');
+  const menu = await page.evaluate(() => { const m = document.getElementById('mobileMenu'); return { inert: m.inert === true, vis: getComputedStyle(m).visibility, ah: m.getAttribute('aria-hidden') }; });
+  check(menu.inert && menu.vis === 'hidden' && menu.ah === 'true', 'closed, the menu is inert, visibility hidden and aria-hidden');
+  await page.focus('#navToggle');
+  await page.keyboard.press('Tab');
+  check(await page.evaluate(() => !document.getElementById('mobileMenu').contains(document.activeElement) && !!document.activeElement.closest('#checkin')), 'Tab from the burger skips the ten off-screen links and lands in the Check-in');
+  await page.click('#navToggle');
+  await page.waitForTimeout(600);
+  check(await page.evaluate(() => document.getElementById('mobileMenu').contains(document.activeElement) && document.body.classList.contains('menu-open') && document.getElementById('mobileMenu').inert === false), 'open, focus moves into the menu and the body says menu-open (the consent plate hides under it)');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(500);
+  check(await page.evaluate(() => !document.getElementById('mobileMenu').classList.contains('active') && document.activeElement.id === 'navToggle' && !document.body.classList.contains('menu-open')), 'Escape closes it and gives focus back to the burger');
+  await tap(page, ckOpt('zero')); await page.waitForTimeout(700);
+  await tap(page, ckOpt('abroad')); await page.waitForTimeout(700);
+  await tap(page, ckOpt('months')); await page.waitForTimeout(900);
+  await page.focus('#checkin input[name="ck-when"]:checked');
+  await page.keyboard.press('Tab');
+  const t1 = await page.evaluate(() => document.activeElement.className);
+  await page.keyboard.press('Tab');
+  const t2 = await page.evaluate(() => !!document.activeElement.closest('#pass'));
+  check(t1 === 'ck-change' && t2, 'after the third answer: Tab → "change", Tab → INTO the pass (it used to jump over the ticket to the skip link and the facts)');
+  await ctx.close();
+}
+{
+  // a phone that widens into a desk before the first tap: the blank pass gets its board
+  const { ctx, page } = await open();
+  await page.waitForTimeout(300);
+  await page.setViewportSize({ width: 1024, height: 900 });
+  await page.waitForTimeout(900);
+  const s = await passState(page);
+  check(s.state === 'blank' && s.display !== 'none' && s.board === 'AMSTERDAM' && await page.evaluate(() => document.getElementById('pass').parentNode.classList.contains('hero-right')), 'widened to 1024 before any tap: the pass is in the right column with AMSTERDAM on its board');
+  await ctx.close();
+}
+{
+  // ?paid= with an inherited key is not a plan
+  const { ctx, page } = await open({ query: '?paid=constructor&session_id=cs_x' });
+  await page.waitForTimeout(400);
+  check(!(await page.isVisible('#fPaid')) && await page.isVisible('#cityForm') && !(await layer(page)).some((e) => e.name === 'purchase'), '?paid=constructor shows no PAID card and counts no sale');
+  await ctx.close();
+}
+{
+  // the desk's weekend: the sub says the window, the zone label follows the clock, the days are printed
+  const { ctx, page } = await open({ clock: '2026-10-17T09:00:00Z' });   // Saturday 11:00 in Rome (CEST)
+  await page.waitForTimeout(400);
+  const d = await page.evaluate(() => ({ go: document.querySelector('#fGo small').textContent, pass: document.querySelector('#ckFile small').textContent, strip: document.getElementById('stripSub').textContent, dataSub: document.getElementById('paybar').getAttribute('data-sub'), tz: [...document.querySelectorAll('[data-tz]')].map((e) => e.textContent).join(','), facts: document.querySelector('.facts div:nth-child(4) dd').textContent }));
+  check(d.go === 'free · Monday from 09:00 CEST' && d.pass === d.go && d.strip === d.go && d.dataSub === d.go, `Saturday: "same-day reply" becomes the window on the door, the pass and the strip ("${d.go}")`);
+  check(d.tz === 'CEST,CEST' && /desk Mon–Fri 09:00 to 19:00 CEST/.test(d.facts), 'the zone label reads CEST in October, the facts print the desk days');
+  await page.fill('#fName', 'Test Person'); await page.fill('#fEmail', 'test@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  check((await page.textContent('#openWhen')) === 'Monday from 09:00 CEST' && /Nothing by then\?/.test(await page.textContent('#fDone')), 'the OPEN card says Monday, and the recourse line says "by then", not "tomorrow"');
+  await ctx.close();
+  const { ctx: c2, page: p2 } = await open({ clock: '2026-10-19T09:00:00Z' });   // Monday 11:00
+  await p2.waitForTimeout(300);
+  check((await p2.textContent('#fGo small')) === 'free · same-day reply' && (await p2.textContent('#stripSub')) === 'free · same-day reply', 'Monday at 11:00: the desk is open, the sub stays "same-day reply"');
+  await c2.close();
+}
+
 // ── 1440px: the pass is on the page from load, blank, in the sticky column ──
 {
   const { ctx, page } = await open({ width: 1440 });
@@ -584,10 +803,11 @@ const WINDOW_RE = /^(By 19:00 CET today|Today from 09:00 CET|Tomorrow from 09:00
   const geo = await page.evaluate(() => {
     const h1 = document.querySelector('.hero h1').getBoundingClientRect(), pass = document.getElementById('pass').getBoundingClientRect(), card = document.querySelector('.filecard').getBoundingClientRect();
     const right = document.querySelector('.hero-right');
-    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, tall: right.classList.contains('tall') };
+    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, top: right.style.top, colH: right.getBoundingClientRect().height, inRight: document.getElementById('pass').parentNode === right, afterCk: document.getElementById('checkin').nextElementSibling === document.getElementById('pass') };
   });
-  check(geo.twoCols && geo.passAboveDoor && Math.abs(geo.passTop - geo.h1Top) < 80, 'the pass sits beside the title with the door under it: two columns');
-  check(geo.sticky === 'sticky' || geo.tall, `the right column is sticky unless taller than the screen (${geo.sticky}${geo.tall ? ', released' : ''})`);
+  check(geo.twoCols && geo.passAboveDoor && Math.abs(geo.passTop - geo.h1Top) < 80 && geo.inRight && !geo.afterCk, 'the pass sits beside the title with the door under it: two columns (the JS moved it into the right column)');
+  check(geo.sticky === 'sticky' && /^-?\d+px$/.test(geo.top) && parseFloat(geo.top) <= 94 && (geo.colH <= 900 - 110 || parseFloat(geo.top) < 0),
+    `the right column is sticky — by its bottom (a negative top) when taller than the screen, never parked static (top ${geo.top}, column ${Math.round(geo.colH)}px)`);
   check(await page.isVisible('.nav-links .nav-door') && (await page.textContent('.nav-links .nav-door')).trim() === 'Open my file' && !(await page.isVisible('#navToggle')),
     '1440px: desktop nav with the door as a text link, no burger');
   check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no strip');

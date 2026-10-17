@@ -128,17 +128,41 @@
   //     scrolls itself to land the pass after the first tap, and that is not
   //     the reader moving on. 8 s is the ceiling: a reader who never moves
   //     still gets the plate.
+  //   - and once armed, the plate still waits while the reader is AT WORK
+  //     in the hero: the unanswered Check-in on the screen, or the ticket
+  //     on the screen (on a 375px phone the plate would sit on the options
+  //     or on the ticket's own door). It checks again every 1.2 s and shows
+  //     at the latest 45 s after it was armed — nothing is stored before
+  //     the choice, so the wait costs the reader nothing.
   // Pages without the attribute keep the 700 ms of before.
   function modalOpen() { try { return !!document.querySelector('dialog[open]'); } catch (e) { return false; } }
+  function onScreen(el) {
+    try {
+      if (!el) return false;
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      var r = el.getBoundingClientRect();
+      return r.bottom > 0 && r.top < (window.innerHeight || document.documentElement.clientHeight);
+    } catch (e) { return false; }
+  }
+  function atWork() {
+    try {
+      var ck = document.getElementById('checkin'), pass = document.getElementById('pass');
+      if (ck && onScreen(ck) && !ck.querySelector('input:checked')) return true;
+      if (pass && pass.getAttribute('data-state') !== 'blank' && onScreen(pass)) return true;
+      return false;
+    } catch (e) { return false; }
+  }
+  var WAIT_MAX = 45000;
   function when(fn) {
-    var fired = false;
+    var fired = false, late = false, armedAt = 0;
+    try { late = document.body && document.body.hasAttribute('data-consent-late'); } catch (e) {}
     function go() {
       if (fired) return;
       if (modalOpen()) { setTimeout(go, 400); return; }
+      if (late && atWork() && Date.now() - armedAt < WAIT_MAX) { setTimeout(go, 1200); return; }
       fired = true; fn();
     }
-    var late = false;
-    try { late = document.body && document.body.hasAttribute('data-consent-late'); } catch (e) {}
     if (!late) { setTimeout(go, 700); return; }
     var armed = false;
     // a tap INSIDE the diagnostic, the pass or the door is the reader at
@@ -154,7 +178,7 @@
     function arm(ev) {
       if (armed) return;
       if (inside(ev)) return;
-      armed = true;
+      armed = true; armedAt = Date.now();
       EVS.forEach(function (ev) {
         try { window.removeEventListener(ev, arm, { passive: true }); } catch (e) {}
       });

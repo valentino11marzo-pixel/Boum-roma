@@ -141,8 +141,11 @@ const firstRule = (k, facts) => k.rules.find((r) => Object.entries(r.when).every
 export function resolvesAt(k, stage) {
   const opts = optsOf(k);
   const byStage = firstRule(k, { stage });
-  if (byStage && Object.keys(byStage.when).every((s) => s === 'stage')) return 1;
   const second = STEP_IDS[1];
+  // a stage-only rule decides on tap 1 ONLY if no earlier, more specific rule
+  // takes any `where` away from it: otherwise the ticket would print a plan
+  // on tap 1 and switch it on tap 2 — the guess this function exists to refuse
+  if (byStage && Object.keys(byStage.when).every((s) => s === 'stage') && opts[second].every((o) => firstRule(k, { stage, [second]: o }) === byStage)) return 1;
   const all = opts[second].every((o) => {
     const r = firstRule(k, { stage, [second]: o });
     return r && Object.keys(r.when).every((s) => s === 'stage' || s === second);
@@ -217,17 +220,20 @@ export function validateCheckin(city, plans, where) {
   for (const f of ['ctaSearch', 'ctaSearchSub', 'ctaFile', 'ctaFileSub', 'readyEyebrow']) need(r[f] === undefined, where, `checkin.result.${f} is a v1.2 leftover: the door label and the plan's condition are the one copy now`);
   need(r.share === undefined, where, 'checkin.result.share moved to checkin.share');
   const sh = k.share;
-  need(sh && ['lead', 'whatsapp', 'copy', 'copied', 'plan', 'papers', 'pass'].every((f) => typeof sh[f] === 'string' && sh[f].trim()), where,
-    'checkin.share needs lead, whatsapp, copy, copied and the three texts plan, papers, pass');
-  for (const f of ['plan', 'papers', 'pass']) {
+  need(sh && ['lead', 'whatsapp', 'copy', 'copied', 'plan', 'pass'].every((f) => typeof sh[f] === 'string' && sh[f].trim()), where,
+    'checkin.share needs lead, whatsapp, copy, copied and the two texts plan, pass');
+  need(sh.papers === undefined, where, 'checkin.share.papers is a leftover: no share sends it (Copy link copies the bare URL) — a string nobody sees');
+  if (city.mode === 'waitlist') for (const f of ['plan', 'pass']) need(/opening/i.test(sh[f]), where, `checkin.share.${f} on a waitlist desk says the desk is opening (a forwarded message must not read as a desk taking searches today)`);
+  for (const f of ['plan', 'pass']) {
     need(/\{url\}/.test(sh[f]), where, `checkin.share.${f} must carry {url}: a share nobody can follow`);
     need(sh[f].replace('{url}', '').replace('{city}', city.city).length <= 120, where, `checkin.share.${f} is over 120 characters before the link (WhatsApp previews truncate)`);
     need(!/€|\d{3}/.test(sh[f]), where, `checkin.share.${f} names a price: a share text never promises a number`);
   }
   const p = k.pass;
-  need(p && ['title', 'sub', 'save', 'shareBtn', 'saved', 'guest', 'foot', 'side'].every((f) => typeof p[f] === 'string' && p[f].trim())
+  need(p && ['title', 'save', 'shareBtn', 'saved', 'guest', 'foot', 'side'].every((f) => typeof p[f] === 'string' && p[f].trim())
     && p.name && p.from && p.name.label && p.from.label && p.fields && ['passenger', 'plan', 'price', 'boarding', 'file', 'papers'].every((f) => typeof p.fields[f] === 'string' && p.fields[f].trim()),
-    where, 'checkin.pass needs title, sub, name, from, save, shareBtn, saved, guest, foot, side and its six fields');
+    where, 'checkin.pass needs title, name, from, save, shareBtn, saved, guest, foot, side and its six fields');
+  need(p.sub === undefined, where, 'checkin.pass.sub is a leftover: the pass never printed it');
   for (const f of ['gate', 'seat', 'status', 'seatValue', 'statusValue']) need(p.fields[f] === undefined, where, `checkin.pass.fields.${f} is a v1.2 leftover (Gate, Seat, Status and the barcode are gone)`);
   need(p.gateValue === undefined, where, 'checkin.pass.gateValue is a v1.2 leftover');
   need(typeof city.iata === 'string' && /^[A-Z]{3}$/.test(city.iata), where, '"iata" (three upper-case letters) is required: it is the destination on the pass');
@@ -324,6 +330,20 @@ export function anchorAgeMonths(from, now = new Date()) {
 // The desk block: who answers, in which time zone, which hours and days.
 // One copy for the "Who answers" fact, the clock line, step 1's person line
 // and the OPEN/PAID reply window the page computes against the desk clock.
+// The days are PRINTED ("Mon–Fri"): "desk 09:00 to 19:00" alone read as an
+// open desk on a Saturday, and the promise shown before the tap must be the
+// one the OPEN card keeps after it. The zone label is wrapped so the page's
+// JS can follow the clock (CET is CEST seven months a year).
+const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export function daysLabel(days) {
+  const d = [...days].sort((a, b) => a - b);
+  const contiguous = d.every((x, i) => i === 0 || x === d[i - 1] + 1);
+  return d.length === 1 ? DAY_SHORT[d[0]] : contiguous ? `${DAY_SHORT[d[0]]}–${DAY_SHORT[d[d.length - 1]]}` : d.map((x) => DAY_SHORT[x]).join(', ');
+}
+export function deskLineOf(c) {
+  const d = c.desk;
+  return c.factsDerived.deskLine.replace('{days}', esc(daysLabel(d.days))).replace('{from}', esc(d.hours.from)).replace('{to}', esc(d.hours.to)).replace('{tz}', `<span data-tz>${esc(d.tzLabel)}</span>`);
+}
 export function validateDesk(d, where) {
   need(d && typeof d === 'object', where, 'needs "desk" {person, role, timeZone, tzLabel, hours{from,to}, days[]}');
   need(typeof d.person === 'string' && d.person.trim() && !/[\[\]]/.test(d.person), where, 'desk.person is the named person (no brackets, no placeholder)');
@@ -354,8 +374,7 @@ const R = {
   facts: (c, shared) => {
     const d = c.desk, fd = c.factsDerived;
     const rows = list(c, 'facts').map((f) => `  <div><dt>${esc(f.label)}</dt><dd>${esc(f.text)}</dd></div>`);
-    const deskLine = fd.deskLine.replace('{from}', d.hours.from).replace('{to}', d.hours.to).replace('{tz}', d.tzLabel);
-    rows.push(`  <div><dt>${esc(fd.answers)}</dt><dd>${esc(d.person)}, ${esc(fd.answersLine)} · ${esc(deskLine)}<span class="clock" id="deskClock" aria-live="off"></span></dd></div>`);
+    rows.push(`  <div><dt>${esc(fd.answers)}</dt><dd>${esc(d.person)}, ${esc(fd.answersLine)} · ${deskLineOf(c)}<span class="clock" id="deskClock" aria-live="off"></span></dd></div>`);
     const rome = shared.rome;
     const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
     const ratingHtml = rome.reviewUrl ? `<a href="${esc(rome.reviewUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating;
@@ -390,7 +409,7 @@ const R = {
   // The person under the three steps: one copy of the desk block.
   who: (c, contact) => {
     const d = c.desk;
-    return `<p class="who"><b>${esc(d.person)}</b> · ${esc(d.role)} · desk ${esc(d.hours.from)} to ${esc(d.hours.to)} ${esc(d.tzLabel)} · <a href="https://wa.me/${esc(contact.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a></p>`;
+    return `<p class="who"><b>${esc(d.person)}</b> · ${esc(d.role)} · ${deskLineOf(c)} · <a href="https://wa.me/${esc(contact.whatsapp)}" target="_blank" rel="noopener">WhatsApp</a></p>`;
   },
 
   // THE PLATES (v1.3): the price as TEXT with the plan's own condition, the
@@ -497,10 +516,15 @@ const R = {
       `    <div class="pboard flap-pass" id="ckBoard" data-word="${esc(c.city)}" aria-hidden="true"></div>`,
       `    <p class="pblank" id="ckBlank">${esc(k.landing.blank)}</p>`,
       `    <div class="ppend" id="ckPend" hidden><span class="peye">${esc(k.pending.eyebrow)}</span><p id="ckPendText"></p></div>`,
-      '    <div class="pplan" id="ckPlanBox" hidden aria-live="polite">',
+      // ONE small live region for the whole pass (the plan once per plan, the
+      // pending sentence once); never the plan box itself, which holds sixteen
+      // controls and ten fragments that would be re-announced on every tick
+      '    <span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
+      '    <div class="pplan" id="ckPlanBox" hidden>',
       `      <span class="peye">${esc(k.result.eyebrow)}</span>`,
       '      <h3 id="ckPlan"></h3>',
-      `      <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-label="${esc(F.price)}"></span><small id="ckCond"></small></div>`,
+      // the price board is decorative (its cells hold each glyph twice); the amount is read from the text beside it
+      `      <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span><small id="ckCond"></small></div>`,
       '      <p class="why" id="ckWhy"></p>',
       sell ? `      <p class="refund" id="ckRefund" hidden>${esc(shared.refund.rule)}</p>` : '      <p class="condlong" id="ckCondLong"></p>',
       '      <p class="note" id="ckNote" hidden></p>',
@@ -511,7 +535,7 @@ const R = {
       ...d.items.map((it) => `          <label class="ck-doc"><input type="checkbox" name="ck-doc" value="${esc(it.id)}"><span>${esc(it.t)}</span></label>`),
       '        </div>',
       '        <div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div>',
-      '        <p class="ready" id="ckReady"></p>',
+      '        <p class="ready" id="ckReady" role="status"></p>',
       '      </fieldset>',
       '      <div class="pdoors">',
       ...doors,
@@ -555,7 +579,7 @@ const R = {
       return `<li>${label}<span>${esc(b).replace('{email}', mail)}</span></li>`;
     });
     const open = [
-      '        <div class="sent" id="fDone">',
+      '        <div class="sent" id="fDone" tabindex="-1">',
       `          ${R.tick()}`,
       '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>',
       `          <h3>${esc(c.form.sentBefore)} <em>${esc(c.form.sentEm)}</em></h3>`,
@@ -570,7 +594,7 @@ const R = {
       '        </div>'
     ];
     const paid = k ? [
-      '        <div class="sent paid" id="fPaid">',
+      '        <div class="sent paid" id="fPaid" tabindex="-1">',
       `          ${R.tick()}`,
       '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>',
       `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
@@ -689,15 +713,22 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
 }
 
 // What must be replaced before a page may go live. Bracketed copy is found in
-// the VISIBLE text (scripts and styles removed, tags turned into spaces).
+// the VISIBLE text (scripts and styles removed, tags turned into spaces) AND
+// in the markup's attribute values (placeholder=, meta content=, alt, aria):
+// a [NAME] in an input or a [CITY] in the Google snippet shipped unseen when
+// only the text between tags was read.
 export function findPlaceholders(html, city, { root = ROOT, shared = null } = {}) {
   const found = [];
-  const text = html
+  const noCode = html
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
-    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/\s+/g, ' ');
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ');
+  const text = noCode.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   for (const m of text.matchAll(/\[[^\[\]]{1,300}\]/g)) found.push(m[0].replace(/\s+/g, ' ').trim());
+  for (const tag of noCode.matchAll(/<[a-z][^>]*>/gi)) {
+    for (const attr of tag[0].matchAll(/\s[a-z-]+="([^"]*)"/gi)) {
+      for (const m of attr[1].matchAll(/\[[^\[\]]{1,300}\]/g)) found.push(`${m[0].replace(/\s+/g, ' ').trim()} (in an attribute)`);
+    }
+  }
   for (const [k, v] of Object.entries(city.config || {})) {
     if (typeof v === 'string' && /REPLACE|X{4,}/.test(v)) found.push(`config.${k} = ${v}`);
   }
@@ -755,6 +786,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(shared.rome && ['rating', 'reviews', 'since'].every((f) => typeof shared.rome[f] === 'string' && shared.rome[f].trim()) && typeof shared.rome.reviewUrl === 'string',
     'cities/_shared.json', 'rome needs rating, reviews, since and reviewUrl (empty until the founder supplies it)');
   need(!shared.rome.reviewUrl || /^https:\/\//.test(shared.rome.reviewUrl), 'cities/_shared.json', 'rome.reviewUrl must be https');
+  // the footer year comes from data: read from the clock, --check and the
+  // suite went red on every page at the year rollover (the CLI warns when it lags)
+  need(/^\d{4}$/.test(String(shared.copyrightYear || '')), 'cities/_shared.json', 'copyrightYear (four digits) is required: the footer year is data, not the clock');
   const months = monthOptions(shared.moveInFrom);
   const pageUrl = `${site}/${city.slug}`;
   const ogImage = `${site}/og-${city.slug}.png`;
@@ -777,8 +811,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   const facts = list(city, 'facts');
   need(facts.length === 3 && facts.map((f) => f.key).join() === 'paid,abroad,nothing' && facts.every((f) => typeof f.label === 'string' && f.label.trim() && typeof f.text === 'string' && f.text.trim() && words(f.text) <= 20),
     where, 'facts are exactly three authored rows in order (paid, abroad, nothing), each ≤ 20 words; "who answers" and "the company" are derived');
-  need(city.factsDerived && ['answers', 'company', 'answersLine', 'deskLine'].every((f) => typeof city.factsDerived[f] === 'string' && city.factsDerived[f].trim()) && /\{from\}.*\{to\}.*\{tz\}/.test(city.factsDerived.deskLine),
-    where, 'factsDerived needs the two labels, answersLine and a deskLine with {from} {to} {tz}');
+  need(city.factsDerived && ['answers', 'company', 'answersLine', 'deskLine'].every((f) => typeof city.factsDerived[f] === 'string' && city.factsDerived[f].trim()) && /\{days\}.*\{from\}.*\{to\}.*\{tz\}/.test(city.factsDerived.deskLine),
+    where, 'factsDerived needs the two labels, answersLine and a deskLine with {days} {from} {to} {tz} (the days are printed: a desk line without them reads as open on a Saturday)');
   validateDesk(city.desk, where);
 
   const plans = list(city, 'pricing.plans');
@@ -817,6 +851,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     }
     need(k.btn === undefined && k.paybarSub === undefined && (!k.offer || k.offer.cta === undefined), where, 'checkoutCopy.btn, paybarSub and offer.cta are v1.2 leftovers: the till has one label (till.label)');
     need(city.till && typeof city.till.label === 'string' && city.till.label.trim() && !/€|\d/.test(city.till.label), where, 'checkout:true needs till.label (the one label of every pay control, printed with the price)');
+    need(city.till.sub === undefined, where, 'till.sub is a leftover: no control prints it (the sheet button carries checkoutCopy.btnSub)');
     need(/refunded in full if we decline the search in the first call/i.test(k.fine), where,
       'checkoutCopy.fine must state the refund policy: "refunded in full if we decline the search in the first call" (BOOM policy, 15/10)');
     for (const f of ['name', 'email', 'phone', 'net']) need(k.errors && typeof k.errors[f] === 'string' && k.errors[f].trim(), where, `checkoutCopy.errors.${f} is required`);
@@ -880,7 +915,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     pageUrl,
     ogImage,
     desksLabel: shared.desksLabel || 'BOOM desks',
-    year: String(new Date().getUTCFullYear()),
+    year: String(shared.copyrightYear),
     robotsMeta: city.live
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
       : '<meta name="robots" content="noindex">',
@@ -977,7 +1012,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   const hero = sliceOf(html, '<header class="hero"', '</header>');
   need((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 && hero.includes('id="checkin"') && hero.indexOf('id="checkin"') < hero.indexOf('class="facts"') && hero.indexOf('class="facts"') < hero.indexOf('id="contact"'),
     where, 'the Check-in sits once in the hero, before the facts and the door (brief v1.3)');
-  need((html.match(/<article class="pass carta" id="pass"/g) || []).length === 1 && hero.includes('id="pass"') && html.indexOf('<!-- PASS -->') < html.indexOf('<!-- THE DOOR -->'), where, 'the pass sits once in the hero, before the door');
+  need((html.match(/<article class="pass carta" id="pass"/g) || []).length === 1 && hero.indexOf('<!-- /CHECK-IN -->') < hero.indexOf('<!-- PASS -->') && hero.indexOf('<!-- /PASS -->') < hero.indexOf('class="skipck"'),
+    where, 'the pass sits once in the hero, right after the Check-in and before the skip link: the phone\'s reading order is the focus order (the JS moves it to the right column at ≥920)');
+  need(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">') && html.includes(`</span><span class="sr">${esc(city.city)}</span></h1>`), where, 'the title board is decorative and the city is read as text');
+  need(html.includes('<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span>') && !/id="ckPlanBox"[^>]*aria-live/.test(html) && html.includes('id="ckLive" role="status" aria-live="polite"'),
+    where, 'the price board is decorative with the amount as text beside it; the pass has one small live region, not a live plan box');
   need(html.includes(esc(checkinAnswer(city))), where, 'the derived Check-in FAQ answer is not on the page');
   need(!/class="fam"|class="rail"|class="scroll-progress"|class="mouse-glow"|class="machine"|class="tline"|class="truth"|class="band |class="refline"|class="serving"/.test(html), where, 'the v1.2 chrome left the page: family strip, rail, progress bar, glow, route line, timeline, truth band, bottom band');
   need(/<noscript><style>[^<]*\.checkin,#pass,\.skipck,\.paybar\{display:none!important\}/.test(html), where, 'without JS the Check-in, the pass, the skip link and the strip are hidden (behaviour), the rest reads whole');
@@ -991,6 +1030,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   const warnings = [];
   if (anchorAgeMonths(shared.moveInFrom) > 2) warnings.push(`_shared.json moveInFrom (${shared.moveInFrom}) is older than two months: the page's JS hides the past months, but move the anchor forward and rebuild`);
+  if (+shared.copyrightYear < new Date().getUTCFullYear()) warnings.push(`_shared.json copyrightYear (${shared.copyrightYear}) is behind the calendar: update it and rebuild`);
   // the weight budget, pinned
   let weight = null;
   if (weigh) {
