@@ -34,7 +34,9 @@ GET /api/publisher/queue?portal=idealista
 Risposta: `{ ok, enabled, stats, actions: [{ op, id, name, hash, remoteId,
 remoteUrl, attempts, payload }] }`.
 
-- `enabled:false` → non fare nulla (kill switch dell'operatore).
+- `enabled:false` → non fare nulla (kill switch dell'operatore). La coda
+  è spenta anche se `settings/publisher` manca: servono `enabled:true`
+  globale e sul singolo portale prima che il Mac riceva azioni.
 - Le azioni arrivano **già in ordine**: prima i `remove` (un annuncio online
   per una casa affittata genera lead da rifiutare — è la prima cosa da
   togliere), poi i `create`, poi gli `update`.

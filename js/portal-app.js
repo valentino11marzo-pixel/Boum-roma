@@ -4414,7 +4414,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 </div></details>
 <details class="portal-nav-group" data-nav-group="tools" ${openGroups.has('tools') || ['boom-tools', 'adminflats', 'photo-studio', 'underwriting', 'relet', 'landlords', 'innesto', 'bonifica'].includes(S.page) ? 'open' : ''}><summary>Strumenti e catalogo</summary><div class="nav-section"><div class="nav-label">Strumenti e catalogo</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Strumenti</div>
-<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> Catalogo case</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
 <div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
@@ -7247,7 +7247,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 </div>
                             </div>
                             <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:grid;grid-template-columns:1fr 1fr;gap:6px">
-                                <button class="btn btn-xs btn-secondary btn-block" onclick="goTo('adminflats')">🏢 AdminFlats</button>
+                                <button class="btn btn-xs btn-secondary btn-block" onclick="goTo('adminflats')">🏢 Catalogo case</button>
                                 <button class="btn btn-xs btn-secondary btn-block" onclick="goTo('burocrazia')">📝 Burocrazia</button>
                             </div>
                         </div>
@@ -17178,67 +17178,63 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ADMINFLATS PAGE - Website Listings Management (REAL SYNC)
     // ═══════════════════════════════════════════════════════════════════════════
     function adminflatsPage() {
-        const available = S.listings.filter(l => l.status === 'available').length;
-        const waitlist = S.listings.filter(l => l.status === 'waitlist').length;
-        const rented = S.listings.filter(l => l.status === 'rented').length;
+        const states = S.listings.map(l => BOOM_DISPO.catalogState(l));
+        const available = states.filter(l => l.state === 'now').length;
+        const waitlist = states.filter(l => l.state === 'date').length;
+        const check = states.filter(l => l.state === 'check').length;
+        const rented = states.filter(l => l.state === 'closed').length;
         
         return `<div class="page-header">
-                <div><h1 class="page-title">🏢 AdminFlats</h1><p class="page-subtitle">Gestione appartamenti boomrome.com — Sincronizzazione LIVE</p></div>
+                <div><h1 class="page-title">🏢 Catalogo case</h1><p class="page-subtitle">Una scheda per casa: disponibilità, prezzo e informazioni da usare.</p></div>
                 <div class="page-actions">
                     <a href="https://www.boomrome.com/apartments.html" target="_blank" class="btn btn-secondary">👁️ Vedi Sito</a>
-                    <button class="btn" onclick="openModal('addListing')">+ Nuovo Listing</button>
+                    <button class="btn" onclick="openModal('addListing')">+ Nuova casa</button>
                 </div>
             </div>
             
             <div class="alert success" style="margin-bottom:20px">
                 <span class="alert-icon">🔄</span>
                 <div class="alert-content">
-                    <div class="alert-title">Sincronizzazione Attiva</div>
-                    <div class="alert-text">Le modifiche qui si riflettono AUTOMATICAMENTE su boomrome.com/apartments.html in tempo reale.</div>
+                    <div class="alert-title">Aggiorna qui la disponibilità</div>
+                    <div class="alert-text">Sito e strumenti BOOM leggono questo catalogo. Il salvataggio non conferma la pubblicazione su Idealista o Immobiliare.it.</div>
                 </div>
             </div>
             
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
-                <div class="stat-card green"><div class="stat-value">${available}</div><div class="stat-label">🟢 Disponibili</div></div>
-                <div class="stat-card orange"><div class="stat-value">${waitlist}</div><div class="stat-label">🟡 Waitlist</div></div>
-                <div class="stat-card red"><div class="stat-value">${rented}</div><div class="stat-label">🔴 Affittati</div></div>
-                <div class="stat-card blue"><div class="stat-value">${S.listings.length}</div><div class="stat-label">Totale</div></div>
+            <div class="stats-grid" style="grid-template-columns:repeat(auto-fit,minmax(130px,1fr));margin-bottom:24px">
+                <div class="stat-card green"><div class="stat-value">${available}</div><div class="stat-label">Libere ora</div></div>
+                <div class="stat-card orange"><div class="stat-value">${waitlist}</div><div class="stat-label">Con data futura</div></div>
+                <div class="stat-card red"><div class="stat-value">${rented}</div><div class="stat-label">Non disponibili</div></div>
+                <div class="stat-card blue"><div class="stat-value">${check}</div><div class="stat-label">Da verificare</div></div>
             </div>
             
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">📋 Tutti gli Appartamenti</h3>
-                    <div style="display:flex;gap:8px;align-items:center">
-                        ${(() => {
-                            if (!window.BOOM_DISPO) return '';
-                            const a = BOOM_DISPO.audit(S.listings);
-                            return a.gaps.length
-                                ? `<span class="badge orange" title="${esc(a.gaps.map(g => g.name).join(', '))}">❓ ${a.gaps.length} senza data</span>`
-                                : `<span class="badge green">📅 tutte con data</span>`;
-                        })()}
+                    <h3 class="card-title">${S.listings.length} case nel catalogo</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                        ${check ? `<span class="badge orange">${check} da verificare</span>` : `<span class="badge green">Disponibilità definite</span>`}
                         <button class="btn btn-secondary" style="padding:6px 12px;font-size:12px" onclick="openModal('availability')">📅 Disponibilità</button>
-                        <span class="badge gray">${S.listings.length} listings</span>
+                        <span class="badge gray">${S.listings.length} case</span>
                     </div>
                 </div>
                 <div class="card-body flush">
-                    ${S.listings.length > 0 ? `<div class="table-wrapper"><table>
+                    ${S.listings.length > 0 ? `<div class="table-wrapper catalog-table"><table>
                         <thead><tr>
                             <th style="width:50px">Img</th>
                             <th>Appartamento</th>
                             <th>Zona</th>
                             <th>Prezzo</th>
                             <th>Dettagli</th>
-                            <th>Status</th>
-                            <th>Disponibile</th>
+                            <th>Disponibilità</th>
+                            <th>Ultima modifica disponibilità</th>
                             <th style="width:168px">Azioni</th>
                         </tr></thead>
                         <tbody>
-                            ${S.listings.sort((a,b) => (a.price || 0) - (b.price || 0)).map(l => `
+                            ${[...S.listings].sort((a,b) => (BOOM_DISPO.catalogState(a).state === 'check' ? 0 : 1) - (BOOM_DISPO.catalogState(b).state === 'check' ? 0 : 1) || String(a.name || '').localeCompare(String(b.name || ''))).map(l => `
                                 <tr>
                                     <td><div style="width:45px;height:45px;border-radius:8px;background:url('${l.image || 'https://via.placeholder.com/45/111/333'}') center/cover;border:1px solid var(--border)"></div></td>
                                     <td>
-                                        <strong style="color:var(--text)">${l.name || 'Senza nome'}</strong><br>
-                                        <small style="color:var(--text-muted)">${l.address || l.zone || '—'}</small>
+                                        <strong style="color:var(--text)">${esc(l.name || 'Senza nome')}</strong><br>
+                                        <small style="color:var(--text-muted)">${esc(l.address || l.zone || '—')}</small>
                                     </td>
                                     <td><span class="badge gray">${l.zone || '—'}</span></td>
                                     <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}<div class="perito-slot" data-pid="${l.id}" data-zone="${esc(l.zone||'')}" style="font-size:10px;font-weight:400;color:var(--text-muted);margin-top:3px;line-height:1.4"></div></td>
@@ -17248,17 +17244,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                             ${l.floor || '—'} · ${l.type || 'Appartamento'}
                                         </small>
                                     </td>
-                                    <td>
-                                        <span class="badge ${l.status === 'available' ? 'green' : l.status === 'waitlist' ? 'orange' : l.status === 'rented' ? 'red' : 'gray'}">
-                                            ${l.status === 'available' ? '🟢 Disponibile' : l.status === 'waitlist' ? '🟡 Waitlist' : l.status === 'rented' ? '🔴 Affittato' : l.status || 'draft'}
-                                        </span>
-                                    </td>
-                                    <td><small>${l.availableDate || '—'}</small></td>
+                                    <td><span class="badge ${BOOM_DISPO.catalogState(l).state === 'now' ? 'green' : 'orange'}">${esc(BOOM_DISPO.catalogState(l).label)}</span><br><small>${esc(BOOM_DISPO.catalogState(l).detail)}</small></td>
+                                    <td><small>${esc(l.availabilityUpdatedAt ? String(l.availabilityUpdatedAt).slice(0, 16).replace('T', ' ') + ' UTC' : 'Non registrata')}</small></td>
                                     <td>
                                         <div style="display:flex;gap:5px">
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="editListing('${l.id}')" title="Modifica">✏️</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="window.open('/media-studio?listing=${l.id}','_blank')" title="Apri nel Media Studio (foto, video, testi)">🎨</button>
-                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="cycleListing('${l.id}','${l.status}')" title="Cambia status">🔄</button>
+                                            <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="openModal('availability', {id:'${jsq(l.id)}'})" title="Aggiorna disponibilità">📅</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="duplicateListing('${l.id}')" title="Duplica">📋</button>
                                             <button class="btn btn-secondary" style="padding:6px 10px;font-size:11px" onclick="confirmDelete('listing','${l.id}','${jsq(l.name)}')" title="Elimina">🗑️</button>
                                         </div>
@@ -17279,29 +17271,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             
-            <div class="card" style="margin-top:20px">
-                <div class="card-header"><h3 class="card-title">ℹ️ Guida Rapida</h3></div>
-                <div class="card-body">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;font-size:13px">
-                        <div>
-                            <strong style="color:var(--green)">🟢 Disponibile</strong>
-                            <p style="color:var(--text-secondary);margin-top:5px">Visibile sul sito, pronto per affitto</p>
-                        </div>
-                        <div>
-                            <strong style="color:var(--orange)">🟡 Waitlist</strong>
-                            <p style="color:var(--text-secondary);margin-top:5px">Visibile come "Coming Soon"</p>
-                        </div>
-                        <div>
-                            <strong style="color:var(--red)">🔴 Affittato</strong>
-                            <p style="color:var(--text-secondary);margin-top:5px">Nascosto dal sito pubblico</p>
-                        </div>
-                        <div>
-                            <strong style="color:var(--text-muted)">📄 File</strong>
-                            <p style="color:var(--text-secondary);margin-top:5px">Collega a pagina dettaglio (es: apartment_levico.html)</p>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+            <style>
+            @media(max-width:640px){
+              .availability-table{overflow:visible}.availability-table table,.availability-table tbody{display:block;min-width:0;width:100%}.availability-table thead{display:none}.availability-table tr{display:block;padding:12px 0;border-bottom:1px solid var(--border)}.availability-table td{display:block;white-space:normal;border:0;padding:6px!important}.availability-table input{max-width:100%;box-sizing:border-box}.availability-table button{margin:4px 4px 0 0;min-height:40px}.catalog-table{overflow:visible}.catalog-table table,.catalog-table tbody{display:block;min-width:0;width:100%}
+              .catalog-table thead{display:none}.catalog-table tr{display:flex;flex-wrap:wrap;gap:8px;padding:16px;border-bottom:1px solid var(--border)}
+              .catalog-table td{display:block;border:0;padding:0!important;white-space:normal;max-width:100%;overflow-wrap:anywhere}
+              .catalog-table td:nth-child(2){flex:1;min-width:180px}.catalog-table td:nth-child(3),.catalog-table td:nth-child(5),.catalog-table td:nth-child(7){width:100%;color:var(--text-muted)}
+              .catalog-table td:nth-child(4),.catalog-table td:nth-child(6){width:100%}.catalog-table td:last-child{width:100%;margin-top:8px}.catalog-table td button{min-height:40px;min-width:40px}
+            }</style>`;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -17448,6 +17425,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return rooms + extra;
     }
 
+    async function writeListingAvailability(updates) {
+        const idToken = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/listings-availability', {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+            body: JSON.stringify({ updates })
+        });
+        const j = await r.json();
+        if (!r.ok) throw new Error(j.error || 'Salvataggio non riuscito');
+        return j;
+    }
+    function availabilityFailure(j) {
+        return (j.failed || []).some(f => f.error === 'changed_since_preview')
+            ? 'La disponibilità è cambiata nel frattempo. Riapri la scheda prima di correggerla.'
+            : 'Alcune modifiche non sono state salvate. Controlla gli esiti.';
+    }
+
     async function saveListing(e) {
         e.preventDefault();
         
@@ -17509,6 +17502,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // non può depositare una stringa che la vetrina non sa rileggere.
         // È lo stesso writePatch() che usa la porta /api/listings-availability.
         if (touched('availableMode') || touched('availableFromDate')) {
+            if (editing && data.availableMode === 'date' && !data.availableFromDate) return toast('error', 'Indica la data completa');
             Object.assign(listingData, window.BOOM_DISPO
                 ? BOOM_DISPO.writePatch(
                     BOOM_DISPO.parseAvailability(
@@ -17531,9 +17525,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         listingData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
         
+        let availabilitySaved = false;
         try {
             if (data.id) {
-                await db.collection('listings').doc(data.id).update(listingData);
+                if ('availableKind' in listingData || 'status' in listingData) {
+                    const u = { id: data.id, expected: data.availabilityExpected };
+                    if ('availableKind' in listingData) Object.assign(u, { kind: listingData.availableKind, iso: listingData.availableFrom });
+                    if ('status' in listingData) u.status = listingData.status;
+                    const j = await writeListingAvailability([u]);
+                    if (!j.ok) throw new Error(availabilityFailure(j));
+                    availabilitySaved = true;
+                    if (field('availabilityExpected')) field('availabilityExpected').value = j.applied[0].expected;
+                    ['status', 'availableFrom', 'availableDate', 'availableKind', 'availablePrecision', 'availableRaw', 'availabilityUpdatedAt', 'availabilityUpdatedBy'].forEach(k => delete listingData[k]);
+                }
+                if (Object.keys(listingData).some(k => k !== 'updatedAt')) await db.collection('listings').doc(data.id).update(listingData);
                 logActivity('listing_saved', 'listing', { propertyId: data.propertyId }); toast('success', 'Listing aggiornato!', 'Visibile su boomrome.com');
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
@@ -17549,7 +17554,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             await refresh();
         } catch (err) { 
             console.error('Save listing error:', err);
-            toast('error', 'Errore salvataggio', err.message); 
+            toast('error', availabilitySaved ? 'Disponibilità salvata; altri dati da completare' : 'Errore salvataggio', err.message);
         }
     }
 
@@ -17568,6 +17573,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // il portal tornerebbe a essere una quarta sorgente di verità.
     // ═══════════════════════════════════════════════════════════════════
     let AVAIL_PLAN = null;
+    let AVAIL_SNAPSHOT = new Map();
+    let AVAIL_FOCUS = null;
 
     function planAvailability() {
         const box = document.getElementById('availMsg');
@@ -17575,10 +17582,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const btn = document.getElementById('availApply');
         if (!box || !out || !window.BOOM_DISPO) return;
 
-        const live = (S.listings || []).filter(l => String(l.status || '').toLowerCase() !== 'rented');
+        const live = (S.listings || []).filter(l => !['rented', 'off_market', 'reserved', 'draft'].includes(String(l.status || '').toLowerCase()));
         const plan = BOOM_DISPO.parseBatch(box.value, live);
         AVAIL_PLAN = plan.ok ? plan : null;
         btn.style.display = plan.ok ? '' : 'none';
+        btn.disabled = false;
+        btn.textContent = '✓ Conferma e scrivi';
 
         const line = (u) => `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
             <span style="color:var(--text)">${esc(u.name)}</span>
@@ -17602,16 +17611,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const btn = document.getElementById('availApply');
         if (btn) { btn.disabled = true; btn.textContent = 'Scrivo…'; }
         try {
-            const idToken = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/listings-availability', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
-                body: JSON.stringify({ updates: AVAIL_PLAN.updates.map(u => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase })) })
-            });
-            const j = await r.json();
-            if (!r.ok || !j.ok) throw new Error(j.error || 'errore');
-            toast('success', `${j.applied.length} date aggiornate`, 'Vetrina, feed e portali si allineano da soli');
-            closeModal();
+            const j = await writeListingAvailability(AVAIL_PLAN.updates.map(u => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase, expected: u.expected })));
+            const saved = j.applied || [], failed = j.failed || [];
+            document.getElementById('availPlan').innerHTML = saved.map(u => `<p>✓ ${esc(u.name)}: ${esc(u.catalog.label)}</p>`).join('')
+                + failed.map(u => `<p>⚠ ${esc(u.name || u.id)}: ${esc(u.error === 'changed_since_preview' ? 'cambiata nel frattempo: rileggi prima di aggiornare' : 'non salvata')}</p>`).join('')
+                + '<p>Gli annunci sui portali esterni richiedono una conferma separata.</p>';
+            AVAIL_PLAN = null;
+            if (btn) btn.style.display = 'none';
+            toast(failed.length ? 'warning' : 'success', `${saved.length} aggiornate, ${failed.length} da completare`);
             await refresh();
         } catch (e) {
             toast('error', 'Non è andata', e.message);
@@ -17619,19 +17626,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    async function setAvailability(id, iso) {
+    async function setAvailability(id, iso, status) {
         try {
-            const idToken = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/listings-availability', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
-                body: JSON.stringify({ updates: [iso ? { id, iso } : { id, kind: 'unknown' }] })
-            });
-            const j = await r.json();
-            if (!r.ok || !j.ok) throw new Error(j.error || (j.failed && j.failed[0] && j.failed[0].error) || 'errore');
-            toast('success', 'Data aggiornata');
+            const expected = AVAIL_SNAPSHOT.get(id);
+            const j = await writeListingAvailability([{ id, expected, ...(status ? { status } : {}), ...(iso ? { iso } : { kind: 'unknown' }) }]);
+            if (!j.ok) throw new Error(availabilityFailure(j));
+            AVAIL_SNAPSHOT.set(id, j.applied[0].expected);
+            toast('success', j.applied[0].catalog.label, 'Catalogo salvato. Pubblicazione esterna da verificare.');
             await refresh();
-        } catch (e) { toast('error', 'Non è andata', e.message); }
+            openModal('availability', AVAIL_FOCUS);
+        } catch (e) { toast('error', 'Non salvata', e.message); }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -17679,18 +17683,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function cycleListing(id, currentStatus) {
-        // Cycle through: available -> waitlist -> rented -> available
-        const statusCycle = { 'available': 'waitlist', 'waitlist': 'rented', 'rented': 'available' };
-        const newStatus = statusCycle[currentStatus] || 'available';
-        const statusLabels = { 'available': '🟢 Disponibile', 'waitlist': '🟡 Waitlist', 'rented': '🔴 Affittato' };
-        
+        const statusCycle = { available: 'waitlist', waitlist: 'rented', rented: 'available' };
+        const listing = S.listings.find(l => l.id === id);
+        if (!listing) return;
         try {
-            await db.collection('listings').doc(id).update({ 
-                status: newStatus,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
+            const j = await writeListingAvailability([{ id, status: statusCycle[currentStatus] || 'available', expected: BOOM_DISPO.availabilityKey(listing) }]);
+            if (!j.ok) throw new Error(availabilityFailure(j));
             await refresh();
-            toast('success', 'Status aggiornato', statusLabels[newStatus]);
+            toast('success', 'Stato salvato', j.applied[0].catalog.label);
         } catch (err) { toast('error', 'Errore', err.message); }
     }
 
@@ -18058,6 +18058,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
         // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
         if (type === 'availability') {
+            AVAIL_PLAN = null;
+            AVAIL_FOCUS = data || null;
+            AVAIL_SNAPSHOT = new Map((S.listings || []).map(l => [l.id, BOOM_DISPO.availabilityKey(l)]));
             const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], guessed: [], total: 0, lanes: {} };
             // Si mostra la CORSIA — cioè quello che il cliente legge davvero
             // sulla card — e non più il solo `kind`: una casa affittata col
@@ -18065,7 +18068,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // compariva affatto in questa lista (filtrata su status).
             const rows = (S.listings || [])
                 .map(l => ({ l, r: BOOM_DISPO.resolve(l), m: BOOM_DISPO.marketLane(l) }))
-                .filter(({ m }) => m.lane !== 'closed')
+                .filter(({ l }) => !data?.id || l.id === data.id)
                 .sort((x, y) => {
                     // la lista di lavoro: prima i buchi, poi gli anni dedotti
                     const rank = (o) => (o.r.kind === 'unknown' ? 0 : o.m.yearGuessed ? 1 : 2);
@@ -18074,25 +18077,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 })
                 .map(({ l, r, m }) => `<tr${m.yearGuessed ? ' style="background:rgba(245,166,35,0.06)"' : ''}>
                     <td><strong style="color:var(--text)">${esc(l.name || l.id)}</strong><br><small style="color:var(--text-muted)">${esc(l.zone || '')}</small></td>
-                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : m.lane === 'now' ? 'green' : 'gray'}">${esc(BOOM_DISPO.laneCopy(m, 'it').short)}</span>${m.yearGuessed ? `<br><small style="color:#f5a623">⚠️ hai scritto "${esc(m.source === 'availableFrom' ? (l.availableFrom || '') : (l.availableDate || ''))}" — l'anno l'abbiamo dedotto noi</small>` : ''}</td>
-                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)">${m.yearGuessed ? `<br><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-top:4px" onclick="setAvailability('${l.id}','${r.iso}')">✓ Sì, è ${esc(r.iso)}</button>` : ''}</td>
+                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : m.lane === 'now' ? 'green' : 'gray'}">${esc(BOOM_DISPO.catalogState(l).label)}</span>${m.yearGuessed ? `<br><small style="color:#f5a623">⚠️ hai scritto "${esc(m.source === 'availableFrom' ? (l.availableFrom || '') : (l.availableDate || ''))}" — l'anno l'abbiamo dedotto noi</small>` : ''}</td>
+                    <td><input aria-label="Disponibile dal" type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)"><button class="btn btn-secondary" onclick="setAvailability('${l.id}','Subito','available')">Libera ora</button><button class="btn btn-secondary" onclick="editListing('${l.id}')">Stato e dettagli</button>${m.yearGuessed ? `<br><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-top:4px" onclick="setAvailability('${l.id}','${r.iso}')">✓ Sì, è ${esc(r.iso)}</button>` : ''}</td>
                 </tr>`).join('');
             return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Disponibilità</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
                 <div class="form-group">
                     <label class="form-label">Scrivilo in un messaggio</label>
-                    <textarea class="form-textarea" id="availMsg" rows="3" placeholder="Levico dal 1 settembre, Cavour subito, Pigneto 15/10"></textarea>
+                    <textarea oninput="AVAIL_PLAN=null;document.getElementById('availApply').style.display='none'" class="form-textarea" id="availMsg" rows="3" placeholder="Levico dal 1 settembre, Cavour subito, Pigneto 15/10"></textarea>
                     <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Capisce più immobili per messaggio, italiano e inglese, "fine agosto", "15/10", "subito", "da concordare". Mostra sempre il piano <b>prima</b> di scrivere. Nessun costo AI.</div>
                 </div>
                 <div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn" onclick="planAvailability()">Leggi il messaggio</button><button class="btn btn-secondary" id="availApply" style="display:none" onclick="applyAvailability()">✓ Conferma e scrivi</button></div>
                 <div id="availPlan"></div>
                 ${a.gaps.length ? `<div class="alert warning mb-8"><span class="alert-icon">❓</span><div class="alert-content"><div class="alert-title">${a.gaps.length} senza data</div><div class="alert-text">Su queste la vetrina dice "Ask us" — onesto, ma una data reale converte di più.</div></div></div>` : ''}
                 ${a.guessed && a.guessed.length ? `<div class="alert danger mb-8"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${a.guessed.length} date con l'anno dedotto da noi</div><div class="alert-text">Hai scritto il giorno e il mese ma non l'anno (es. "1 luglio"), e il motore sceglie sempre <b>il futuro</b> — perché mettere in vetrina una casa ancora occupata è peggio che far aspettare. Ma se intendevi l'anno scorso, quella casa è <b>libera adesso</b> e il sito la sta mostrando come bloccata fino al ${esc(String((a.guessed[0] || {}).reads || '').slice(0, 4))}. Confermale qui sotto (bastano un paio di tap) e nessuno dovrà più indovinare.</div></div></div>` : ''}
-                ${a.lanes ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-                    <span class="badge green">🟢 ${a.lanes.now || 0} si entra ora</span>
-                    <span class="badge gray">📅 ${a.lanes.ahead || 0} si prenotano in anticipo</span>
-                    <span class="badge">🔴 ${a.lanes.closed || 0} affittate senza data</span>
-                </div>` : ''}
-                <div class="table-wrapper"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
+                <div class="table-wrapper availability-table"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
             </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
         }
 
@@ -18282,6 +18280,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const featuresStr = Array.isArray(data.features) ? data.features.join(', ') : (data.features || '');
             return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${esc(data.name) || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
             <input type="hidden" name="id" value="${esc(data.id)}">
+            <input type="hidden" name="availabilityExpected" value="${esc(BOOM_DISPO.availabilityKey(data))}">
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
                 <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${esc(data.name)}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${esc(data.type)}"></div></div>
@@ -26367,7 +26366,7 @@ IBAN: ${l.iban || '-'}`;
             toast('success', 'Eliminato');
         } catch (err) { 
             console.error('Error deleting:', err);
-            toast('error', 'Errore: ' + err.message); 
+            toast('error', 'Errore: ' + err.message);
         }
     }
 
@@ -31034,7 +31033,7 @@ IBAN: ${l.iban || '-'}`;
             
         } catch (err) { 
             console.error('AdE generation error:', err); 
-            toast('error', 'Errore generazione: ' + err.message); 
+            toast('error', 'Errore generazione: ' + err.message);
             adeState.status = '';
         }
         finally { 

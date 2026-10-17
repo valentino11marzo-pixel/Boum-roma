@@ -645,6 +645,10 @@ Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
 Test: `node tests/feed/run.mjs`.
 
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
+L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
+Il catalogo salvato non prova un aggiornamento su Idealista/Immobiliare: resta necessaria la ricevuta in `portalPubs`.
+Test: `tests/publisher/run.mjs`, default assente e attivazione esplicita.
 Il binario di pubblicazione verso i portali INDIPENDENTE dalle loro
 risposte: il feed Immobiliare è pronto ma l'attivazione dipende da un
 Support che non risponde, e Idealista apre il real-time solo ai software
@@ -6284,6 +6288,13 @@ every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
 ## Le date di disponibilità (`js/dispo-engine.js` + `/api/listings-availability`)
+
+**Catalogo unico, 17/10/2026.** AdminFlats diventa «Catalogo case», leggibile a 320px: `catalogState` separa libera ora, data futura, chiusa e da verificare (anno dedotto compreso).
+Anche l'assenza della data chiede conferma nella vetrina; una bozza o casa fuori mercato non si riapre per una data residua. Nessun dato reale viene bonificato dal rilascio.
+Modulo Portal, disponibilità rapida e `/modifica … disponibile`/stato del bot usano `/api/listings-availability`: campi gemelli normalizzati, stato+data atomici, sola amministrazione globale.
+Il piano porta `availabilityKey`; il server rilegge la versione e fa commit condizionale. Anteprima vecchia o modifica concorrente vengono respinte; un batch parziale restituisce i singoli esiti, mai successo totale.
+Il salvataggio certifica il catalogo BOOM; non attesta pubblicazioni esterne. Nessun invio o modello è aggiunto. La lettura voce delle rented con rilascio futuro resta da coordinare con il lotto telefono.
+Prove: `tests/dispo/run.mjs`, `tests/catalogo/disponibilita-ui.mjs` (Portal→handler→Firestore simulato→esito), `tests/catalogo/portale.mjs`, `tests/wizard/disponibilita.py`.
 
 **Il difetto era in produzione dal primo giorno.** `listings.availableDate` è
 sempre stato testo LIBERO, il portal ne suggeriva i formati nel placeholder

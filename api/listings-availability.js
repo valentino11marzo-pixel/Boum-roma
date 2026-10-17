@@ -24,7 +24,7 @@
 //
 // ─── PROTOCOLLO ──────────────────────────────────────────────────────────
 // Auth: Bearer CRON_SECRET · X-Homie-Secret · X-Wizard-Secret · Bearer
-//       Firebase ID token di un admin/owner/landlord.
+//       Firebase ID token di un admin.
 //
 // GET  /api/listings-availability
 //      → { ok, listings:[{id,name,zone,status,kind,iso,label,raw}],
@@ -42,9 +42,9 @@
 // Risposta di scrittura: { ok, applied:[{id,name,from,to}], failed:[], plan }
 
 import DISPO from '../js/dispo-engine.js';
-import { fsList, fsPatch, fsGet, readJson, secretEqual, logActivity } from './homie/_lib.js';
+import { fsList, fsGetVersioned, fsCommit, fsGet, readJson, secretEqual, logActivity } from './homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+const ADMIN_ROLES = new Set(['admin']);
 const MAX_UPDATES = 60;          // il catalogo vero è ~20: largo, ma non infinito
 const CATALOG_LIMIT = 400;
 
@@ -108,6 +108,7 @@ async function loadCatalog() {
     status: String(l.status || l.availabilityStatus || 'available').toLowerCase(),
     availableFrom: l.availableFrom,
     availableDate: l.availableDate,
+    availabilityUpdatedAt: l.availabilityUpdatedAt,
   }));
 }
 
@@ -130,6 +131,8 @@ function view(l, today) {
     // l'anno l'ha messo il motore, non l'operatore: da confermare
     yearGuessed: m.yearGuessed,
     daysOut: m.daysOut,
+    catalog: DISPO.catalogState(l, today),
+    expected: DISPO.availabilityKey(l),
   };
 }
 
@@ -146,10 +149,11 @@ function normalize(u, today) {
   let av;
   if (u.kind === 'now') av = DISPO.parseAvailability('Subito', today);
   else if (u.kind === 'unknown') av = DISPO.parseAvailability('da concordare', today);
+  else if (u.kind && u.kind !== 'date') return null;
   else {
     const src = u.iso || u.value || u.text || '';
     av = DISPO.parseAvailability(src, today);
-    if (av.kind === 'unknown' && String(src).trim()) return null;
+    if (av.kind === 'unknown') return null;
   }
   // Le parole VERE dell'operatore, non la data che ne abbiamo derivato: se un
   // domani una lettura si rivelasse sbagliata, sul documento resta la frase da
@@ -162,24 +166,37 @@ async function applyUpdates(updates, catalog, actor, today) {
   const byId = new Map(catalog.map((l) => [l.id, l]));
   const applied = [], failed = [];
 
-  for (const u of updates.slice(0, MAX_UPDATES)) {
-    const l = byId.get(u.id);
-    if (!l) { failed.push({ id: u.id, error: 'not_found' }); continue; }
-
-    const av = normalize(u, today);
-    if (!av) { failed.push({ id: u.id, error: 'unreadable_date' }); continue; }
-
-    const before = DISPO.resolve(l, today);
+  for (const u of updates) {
+    if (!u || typeof u.id !== 'string' || !byId.has(u.id)) {
+      failed.push({ id: u?.id || null, error: 'not_found' }); continue;
+    }
+    const hasDate = ['kind', 'iso', 'value', 'text'].some(k => Object.hasOwn(u, k));
+    const av = hasDate ? normalize(u, today) : null;
+    if (hasDate && !av) { failed.push({ id: u.id, error: 'unreadable_date' }); continue; }
+    if (Object.hasOwn(u, 'status') && !['available', 'waitlist', 'rented', 'off_market', 'reserved', 'draft'].includes(u.status)) {
+      failed.push({ id: u.id, error: 'invalid_status' }); continue;
+    }
+    if (!hasDate && !u.status) { failed.push({ id: u.id, error: 'nothing_to_do' }); continue; }
     try {
-      await fsPatch('listings/' + u.id, DISPO.writePatch(av, actor));
-      applied.push({
-        id: u.id,
-        name: l.name,
+      const current = await fsGetVersioned('listings/' + u.id);
+      if (!current) { failed.push({ id: u.id, error: 'not_found' }); continue; }
+      const l = current.data;
+      const before = DISPO.resolve(l, today);
+      // A draft prepared earlier cannot overwrite a newer operator/contract update.
+      if (u.expected !== undefined && u.expected !== DISPO.availabilityKey(l)) {
+        failed.push({ id: u.id, name: l.name, error: 'changed_since_preview' }); continue;
+      }
+      const patch = av ? DISPO.writePatch(av, actor) : { updatedAt: new Date().toISOString(), availabilityUpdatedAt: new Date().toISOString(), availabilityUpdatedBy: actor };
+      if (u.status) patch.status = u.status;
+      await fsCommit([{ docPath: 'listings/' + u.id, fields: patch,
+        precondition: { updateTime: current.updateTime } }]);
+      applied.push({ id: u.id, name: l.name || l.title || u.id,
         from: before.kind === 'date' ? before.iso : before.kind,
-        to: av.kind === 'date' ? av.iso : av.kind,
-      });
+        to: av ? (av.kind === 'date' ? av.iso : av.kind) : before.kind,
+        catalog: DISPO.catalogState({ ...l, ...patch }, today),
+        expected: DISPO.availabilityKey({ ...l, ...patch }), externalPortals: 'not_verified' });
     } catch (e) {
-      failed.push({ id: u.id, error: e.message });
+      failed.push({ id: u.id, name: byId.get(u.id).name, error: e.conflict ? 'changed_since_preview' : 'save_failed' });
     }
   }
 
@@ -231,21 +248,25 @@ export default async function handler(req, res) {
       // solo gli annunci vivi entrano nel riconoscimento: aggiornare la data
       // di una casa già affittata da un messaggio veloce non è ciò che si
       // intendeva quasi mai, e il nome di un archiviato ruberebbe il match.
-      const live = catalog.filter((l) => l.status !== 'rented' && l.status !== 'off_market');
+      const live = catalog.filter((l) => !['rented', 'off_market', 'reserved', 'draft'].includes(l.status));
       const plan = DISPO.parseBatch(body.text, live, today);
 
-      if (!body.apply || !plan.ok) {
-        return res.status(200).json({ ok: plan.ok, dry: true, plan, today });
+      if (!body.apply || !plan.ok || plan.ambiguous.length || plan.noDate.length || plan.noListing.length) {
+        return res.status(200).json({ ok: plan.ok && (!body.apply || !(plan.ambiguous.length || plan.noDate.length || plan.noListing.length)), dry: true, plan, today });
       }
+      if (plan.updates.length > MAX_UPDATES) return res.status(400).json({ ok: false, error: 'invalid_batch' });
       const { applied, failed } = await applyUpdates(
-        plan.updates.map((u) => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase })),
+        plan.updates.map((u) => ({ id: u.id, kind: u.kind, iso: u.iso, phrase: u.phrase, expected: u.expected })),
         catalog, actor, today
       );
-      return res.status(200).json({ ok: true, applied, failed, plan, today });
+      return res.status(200).json({ ok: failed.length === 0, applied, failed, plan, today });
     }
 
     /* — via 2: aggiornamenti espliciti (il pannello del portal) — */
     if (body && Array.isArray(body.updates) && body.updates.length) {
+      if (body.updates.length > MAX_UPDATES || new Set(body.updates.map(u => u?.id)).size !== body.updates.length) {
+        return res.status(400).json({ ok: false, error: 'invalid_batch' });
+      }
       const { applied, failed } = await applyUpdates(body.updates, catalog, actor, today);
       return res.status(200).json({ ok: failed.length === 0, applied, failed, today });
     }

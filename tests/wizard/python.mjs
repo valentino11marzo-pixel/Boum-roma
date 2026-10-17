@@ -17,6 +17,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const SUITES = [
   'tests/wizard/local_brain.py',
   'tests/wizard/dati_onesti.py',
+  'tests/wizard/disponibilita.py',
   'tests/publisher/runner.py',
   'tests/scout/runner.py',
   'tests/contatto/runner.py',

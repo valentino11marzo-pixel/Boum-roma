@@ -314,6 +314,10 @@
     var it = lang === 'it';
     var r = (listingOrRes && listingOrRes.kind) ? listingOrRes : resolve(listingOrRes, today);
 
+    if (['available', 'waitlist', 'rented', 'affittato'].indexOf(r.status) < 0 && r.status) {
+      return { text: it ? 'Non disponibile' : 'Unavailable', tone: 'rented' };
+    }
+
     /* IL DIFETTO CHE VIVEVA QUI: su una waitlist si usciva con «si prenota
        in anticipo» e la DATA — che quella casa ce l'ha, tutte e nove nel
        catalogo vero — spariva. Le parole ora vengono da laneCopy, unica
@@ -403,10 +407,8 @@
     var ref = todayIso(today);
     var st = r.status;
 
-    /* c'è del testo che non sappiamo leggere? Non è come non avere testo:
-       il primo è «chiedi a noi», il secondo è il caso normale della casa
-       libera subito. Confonderli riporterebbe il difetto di partenza. */
-    var muta = r.kind === 'unknown' && r.source !== 'none';
+    // Assenza e testo illeggibile richiedono entrambi conferma della data.
+    var muta = r.kind === 'unknown';
 
     var out = function (lane, why) {
       var iso = (lane === 'ahead' && r.kind === 'date') ? r.iso : null;
@@ -431,6 +433,9 @@
       };
     };
 
+    // Fuori mercato/bozza/riservata non si riaprono per una data residua.
+    if (['available', 'waitlist', 'rented', 'affittato'].indexOf(st) < 0) return out('closed', 'non in offerta');
+
     /* REGOLA A — la dichiarazione dell'operatore vince su tutto */
     if (st === 'waitlist') {
       return r.kind === 'date'
@@ -439,7 +444,7 @@
     }
 
     /* REGOLA C — sulla casa affittata ci si fida SOLO del contratto */
-    if (st === 'rented' || st === 'affittato' || st === 'off_market') {
+    if (st === 'rented' || st === 'affittato') {
       if (r.source === 'availableFrom' && r.kind === 'date') {
         return out('ahead', 'affittata, ma il contratto dice quando finisce');
       }
@@ -496,8 +501,8 @@
     if (m.lane === 'closed') {
       return {
         lane: 'closed',
-        short: it ? 'Affittata' : 'Rented',
-        long: it ? 'Affittata al momento.' : 'Currently rented.',
+        short: m.status === 'rented' || m.status === 'affittato' ? (it ? 'Affittata' : 'Rented') : (it ? 'Non disponibile' : 'Unavailable'),
+        long: m.status === 'rented' || m.status === 'affittato' ? (it ? 'Affittata al momento.' : 'Currently rented.') : (it ? 'Non disponibile.' : 'Unavailable.'),
         cta: null,
         tone: ''
       };
@@ -523,6 +528,29 @@
       cta: it ? 'Bloccala in anticipo' : 'Reserve ahead',
       tone: 'fila'
     };
+  }
+
+  // Vista operativa: non confondere la corsia commerciale con un giorno certo.
+  function catalogState(listing, today) {
+    var r = resolve(listing, today), m = marketLane(listing, today);
+    var state = m.lane === 'closed' ? 'closed'
+      : r.kind === 'unknown' || r.yearGuessed || (m.lane === 'ahead' && r.kind !== 'date') ? 'check'
+      : m.lane === 'ahead' ? 'date' : 'now';
+    return { state: state, iso: r.iso, lane: m.lane, yearGuessed: r.yearGuessed,
+      label: state === 'closed' ? 'Non disponibile' : state === 'check' ? 'Da verificare'
+        : state === 'now' ? 'Libera ora' : 'Libera dal ' + r.iso,
+      detail: r.yearGuessed ? 'Anno da confermare: ' + r.iso
+        : state === 'check' ? 'Data di ingresso da confermare' : '',
+      source: r.source };
+  }
+
+  // Confronto dello stato visto dall'operatore. Non è un secondo stato salvato.
+  function availabilityKey(l) {
+    l = l || {};
+    return JSON.stringify([String(l.status || l.availabilityStatus || 'available').toLowerCase(),
+      l.availableFrom == null ? null : l.availableFrom,
+      l.availableDate == null ? null : l.availableDate,
+      l.availabilityUpdatedAt || null]);
   }
 
   /* ── 4. RICONOSCERE L'IMMOBILE (stesso punteggio del bot) ─────────────── */
@@ -692,6 +720,7 @@
         iso: av.iso,
         precision: av.precision,
         phrase: seg,
+        expected: availabilityKey(mt.listing),
         was: shortState(mt.listing, ref)
       };
     }
@@ -747,12 +776,14 @@
          anno diventa «Free from 1 Jul 2027» — se l'operatore intendeva il
          luglio scorso, il sito manda via chi potrebbe entrare domani.
          Nessuno può saperlo tranne lui: qui gli si mette la lista in mano. */
-      guessed: []
+      guessed: [],
+      catalog: { now: 0, date: 0, closed: 0, check: 0 }
     };
     (Array.isArray(listings) ? listings : []).forEach(function (l) {
       var r = resolve(l, ref);
       var m = laneFromResolved(r, ref);
       out.total++;
+      out.catalog[catalogState(l, ref).state]++;
       out.lanes[m.lane]++;
       if (r.status === 'rented') out.rented++;
       else if (r.status === 'waitlist') out.waitlist++;
@@ -786,6 +817,8 @@
     parseBatch: parseBatch,
     writePatch: writePatch,
     audit: audit,
+    catalogState: catalogState,
+    availabilityKey: availabilityKey,
     human: human,
     todayIso: todayIso
   };

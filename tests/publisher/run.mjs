@@ -222,6 +222,12 @@ check('portale sconosciuto → 400', r.code === 400);
 
 r = mkRes();
 await handler({ method: 'GET', headers: H, query: { portal: 'immobiliare' } }, r);
+check('configurazione assente → coda spenta e nessun create',
+  r.code === 200 && r.body.enabled === false && r.body.actions.length === 0);
+
+store.set('settings/publisher', { enabled: true, portals: { immobiliare: { enabled: true } } });
+r = mkRes();
+await handler({ method: 'GET', headers: H, query: { portal: 'immobiliare' } }, r);
 const act = (r.body.actions || [])[0];
 check('GET → il pubblicabile in coda come create, con payload e hash',
   r.code === 200 && r.body.enabled === true && r.body.actions.length === 1
@@ -271,7 +277,7 @@ const hbIdea = store.get('pfsRadarHealth/publisher-idealista');
 check('blocked → heartbeat rosso (un pannello chiuso non è un catalogo allineato)', hbIdea && hbIdea.ok === false && hbIdea.consecutiveErrors === 1);
 
 // kill switch
-store.set('settings/publisher', { portals: { immobiliare: { enabled: false } } });
+store.set('settings/publisher', { enabled: true, portals: { immobiliare: { enabled: false } } });
 r = mkRes();
 await handler({ method: 'GET', headers: H, query: { portal: 'immobiliare' } }, r);
 check('kill switch per portale → coda vuota, enabled:false', r.code === 200 && r.body.enabled === false && r.body.actions.length === 0);
