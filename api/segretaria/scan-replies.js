@@ -21,7 +21,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
-import { fsGet, fsGetMany, fsGetVersioned, fsCommit, fsPatch, fsCreate, fsList, readJson } from '../homie/_lib.js';
+import { fsGet, fsGetMany, fsGetVersioned, fsCommit, fsPatch, fsList, readJson } from '../homie/_lib.js';
 import { requireRole } from '../_auth.js';
 import { normalizePhone } from '../homie/_lead.js';
 import { resolveLeadConversation } from '../homie/_conversation.js';
@@ -317,23 +317,11 @@ async function run({ dry, syncOnly = false, conversationId = null }) {
           conversationId: conv.id, direction: 'in', channel: 'email',
           body: text, by: 'segretaria-mail', source: 'segretaria-mail', emailMessageId: mid, at,
         };
-        if (syncOnly) {
-          const outcome = await importScopedMessage(conv, fields, storedId);
-          if (outcome === 'imported') stats.imported++; else stats.duplicates++;
-        } else try { await fsCreate('messages', fields, storedId); stats.imported++; }
-        catch (e) {
-          if (!e.exists) throw e;
-          const prior = await fsGet('messages/' + storedId);
-          if (prior?.conversationId !== conv.id || prior.emailMessageId !== mid || prior.body !== text)
-            throw new Error('email_message_identity_conflict');
-          stats.duplicates++;
-        }
-        // A manual refresh can import older mail after a newer WhatsApp reply.
-        // Preserve the newer header and don't reopen a replied-to duplicate.
-        if (!syncOnly) await fsPatch('conversations/' + conv.id, {
-          lastMessageAt: at, lastDirection: 'in', needsReply: true,
-          lastMessagePreview: text.slice(0, 90), updatedAt: at,
-        });
+        // Scheduled intake can also arrive after a newer WhatsApp/Portal reply.
+        // Both transports share the identity guard and atomic timestamp check:
+        // archive the email without making the conversation appear unanswered.
+        const outcome = await importScopedMessage(conv, fields, storedId);
+        if (outcome === 'imported') stats.imported++; else stats.duplicates++;
 
         try {
           let expectedTaskId, sourceGuards;
