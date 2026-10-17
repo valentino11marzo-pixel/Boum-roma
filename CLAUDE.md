@@ -644,6 +644,13 @@ Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
 Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
 Test: `node tests/feed/run.mjs`.
 
+### La scheda casa da AdminFlats — 17 ottobre 2026
+Dal Catalogo «Apri scheda» riunisce disponibilità, fascicolo, proprietario e ricevute dei portali; foto/duplicazione/eliminazione restano nei flussi esistenti, con due azioni nella lista.
+`catalog-home-engine.js` accetta solo `listing.propertyId` e `property.listingId` coerenti: nessun match per nome/indirizzo/ID uguali tra collezioni; proprietari ambigui o senza account non diventano accessi al Portal.
+`GET /api/publisher/status?id=` è solo admin e sola lettura: deriva gli esiti da `portalPubs` e dall’hash del Pubblicista. Nessuna ricevuta non significa annuncio assente; invio coerente non significa pagina pubblica verificata.
+Configurazione spenta, errore di lettura e conflitto di identità sono distinti; URL limitati ai domini dei due portali. Il modulo scarta risposte superate, conserva il focus e si usa a 320px.
+Prove: `catalogocasa` (handler reale, autorizzazioni e collegamenti), `catalogocasaui` (click reali e ricevute, telefono/desktop) ed `escape` (delega eliminazione fino alla conferma, minimo 13 preservato). Nessuna nuova collection, coda, invio o impostazione attivata.
+
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
 Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
 L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
