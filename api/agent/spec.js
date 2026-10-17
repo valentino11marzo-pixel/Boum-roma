@@ -19,7 +19,7 @@ export default async function handler(req, res) {
     ok: true,
     version: '1.0.0',
     auth: { header: 'X-Homie-Secret', env: 'HOMIE_SECRET' },
-    base: 'https://boomrome.com/api/agent',
+    base: 'https://www.boomrome.com/api/agent',
     tiers: {
       1: 'Auto-applied by Homie. Reversible / informational. (notes, drafts, qualification, scans.)',
       2: 'Proposed to action_queue, requires human approval. (sending email/WhatsApp, scheduling, drafting contracts, signature requests.)',
@@ -75,9 +75,10 @@ export default async function handler(req, res) {
       },
       {
         name: 'magicsign.create', method: 'POST', path: '/magicsign.create',
-        tier: 2, side_effects: 'writes:signRequests,activityLog',
-        input: { title: 'string', pdfUrl: 'https-url', pageCount: 'number', fields: 'array<{page,kind,role,xr,yr,wr,hr}>', signers: '{tenant?,landlord?}', contractId: 'string?', leadId: 'string?' },
-        output: { id: 'string', signLinks: '{tenant?,landlord?}' },
+        tier: 2, side_effects: 'writes:signRequests,storage:signRequests/<reqId>/sealed; no send',
+        input: { reqId: 'stable string [A-Za-z0-9_-]{1,180}', title: 'string', pdfUrl: 'https://firebasestorage.googleapis.com/v0/b/<BOOM bucket>/o/signRequests%2F<reqId>%2Foriginal.pdf?alt=media&token=<upload-token>', pageCount: 'integer 1..200', fields: 'array<{page,kind,role,xr,yr,wr,hr}>; signature field for each role', signers: '{tenant?:{name,email,userId?},landlord?:{name,email,userId?}}; name and valid email required', propertyId: 'string?', contractId: 'string?', leadId: 'string?', migrateLegacy: 'boolean?; explicit unsigned-only migration' },
+        constraints: 'PDF <=15 MiB, unrotated MediaBox = CropBox at origin. BOOM bucket = FIREBASE_STORAGE_BUCKET or boom-property-dashboards.firebasestorage.app. No external URLs or redirects. Stable reqId+same PDF/terms reuses tokens; changed content =>409.',
+        output: { id: 'string', reqId: 'string', signLinks: '{tenant?,landlord?}', documentVersion: '1', documentHash: 'sha256' },
       },
       {
         name: 'radar.scan', method: 'POST', path: '/radar.scan',

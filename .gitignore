@@ -1,4 +1,7 @@
 node_modules/
+# anche un symlink node_modules (un worktree che punta alle dipendenze di un altro): senza
+# questa riga un `git add -A` lo committerebbe con un percorso assoluto di una macchina
+node_modules
 .env
 .env.local
 .env.*.local

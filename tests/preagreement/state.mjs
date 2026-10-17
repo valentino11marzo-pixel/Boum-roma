@@ -1,3 +1,4 @@
+import { conditionalFirestore } from './conditional-firestore.mjs';
 // tests/preagreement/state.mjs
 // LO STATO DI UNA PROPOSTA — il difetto che ha fatto sembrare NON PAGATO un
 // deal incassato, e che ha piantato il passo successivo.
@@ -18,7 +19,7 @@
 //   node tests/preagreement/state.mjs
 
 import { register } from 'node:module';
-register('../money/loader.mjs', import.meta.url);
+register('./checkout-loader.mjs', import.meta.url);
 
 process.env.STRIPE_SECRET_KEY = 'sk_test_x';
 process.env.FIREBASE_API_KEY = 'k';
@@ -99,6 +100,8 @@ globalThis.fetch = async (url, opts = {}) => {
   if (!DB.has(clean)) return json({ error: { status: 'NOT_FOUND' } }, 404);
   return json({ name: clean, fields: flds(DB.get(clean)) });
 };
+globalThis.fetch=conditionalFirestore(globalThis.fetch,{DB,fields:flds,unfields:unflds,onWrite:()=>{WRITES++;}});
+
 
 // ── req/res ───────────────────────────────────────────────────────────────
 const mkRes = () => ({
@@ -122,7 +125,7 @@ const PA = (over = {}) => ({
   ...over,
 });
 const TENANT = { fullName: 'Xenia Petrova', email: 'xenia@example.com', phone: '+393331234567' };
-const seed = (pa, id = 'pa_x') => { DB.clear(); WRITES = 0; globalThis.__stripeCalls = []; globalThis.__stripeSessions = []; DB.set('preAgreements/' + id, pa); DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' }); return id; };
+const seed = (pa, id = 'pa_x') => { DB.clear(); WRITES = 0; globalThis.__stripeCalls = []; globalThis.__stripeSessions = []; globalThis.paCheckoutIO = { checkouts:globalThis.__stripeCalls, sessions:{}, idempotent:new Map(), get listSessions(){return globalThis.__stripeSessions;} }; DB.set('preAgreements/' + id, pa); DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' }); return id; };
 const get = (id = 'pa_x') => DB.get('preAgreements/' + id);
 
 const submit = (await import('../../api/preagreement/submit.js')).default;

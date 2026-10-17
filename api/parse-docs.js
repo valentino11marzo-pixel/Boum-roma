@@ -27,8 +27,7 @@
 import crypto from 'node:crypto';
 import { verifyIdToken } from './_auth.js';
 import { fsGet } from './homie/_lib.js';
-import { aiSignal } from './_budget.js';
-import { recordUsage } from './_ai.js';
+import { recordUsage, anthropicFetch } from './_ai.js';
 
 export const config = {
   api: {
@@ -232,19 +231,10 @@ export default async function handler(req, res) {
   // altri scopi (registro: 'parse.docs', dichiarato `direct`).
   const t0 = Date.now();
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify(upstreamBody),
-    });
+    const upstream = await anthropicFetch(upstreamBody, {timeoutMs:45000});
 
     const data = await upstream.json().catch(() => ({ error: 'Invalid upstream JSON' }));
-    await recordUsage({ purpose: 'parse.docs', backend: 'cloud', model: upstreamBody.model, usage: data && data.usage, ok: upstream.ok, ms: Date.now() - t0 });
+    await recordUsage({ purpose: 'parse.docs', backend: 'cloud', model: upstreamBody.model, usage: data && data.usage, budgetCovered:upstream.budgetCovered===true, ok: upstream.ok, ms: Date.now() - t0 });
 
     logEvent({
       event: 'parse-docs-ok',
@@ -262,6 +252,6 @@ export default async function handler(req, res) {
       ip,
       message: err?.message || 'unknown',
     });
-    return res.status(502).json({ error: 'Upstream request failed' });
+    return res.status(err?.code?.startsWith('ai_budget_') ? 503 : 502).json({ error: err?.code?.startsWith('ai_budget_') ? err.code : 'Upstream request failed' });
   }
 }

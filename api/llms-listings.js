@@ -9,8 +9,18 @@
 // Served at /llms-listings.txt (vercel.json rewrite), referenced from
 // llms.txt and robots.txt. Same resilient Firestore read as /api/listings
 // (public first, admin fallback), edge-cached 10 minutes.
+//
+// 15/10/2026 — la pagina che un'AI cita deve dire solo ciò che è vero per
+// QUELLA casa: le utenze «incluse» solo dove l'operatore l'ha dichiarato
+// (js/listing-facts.js), l'onorario con l'IVA dentro, la posizione del pin
+// col suo grado di verità (js/boom-geo.js), «arredata» solo se il documento
+// lo dice, e le 48 ore solo per chi entra adesso. Le case si scelgono per
+// CORSIA (dispo-engine), non per etichetta: entra l'affittata che ha la data
+// dal contratto, esce la riservata.
 
 import DISPO from '../js/dispo-engine.js';
+import FACTS from '../js/listing-facts.js';
+import GEO from '../js/boom-geo.js';
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
@@ -86,6 +96,10 @@ const line = (s, n = 260) => String(s == null ? '' : s)
 
 const eur = (n) => '€' + Number(n).toLocaleString('en-US');
 
+// Fuori dal mercato per scelta dell'operatore: mai citati, qualunque corsia
+// la data darebbe (stessa lista di api/listing.js e api/sitemap-listings.js).
+const HIDDEN = /hidden|draft|archived|off_market/i;
+
 // Numeric fields arrive dirty ("1 bed", "30mq", "1+1", 2) — take the FIRST
 // number group; stripping separators would turn "1+1" into 11.
 const num = (v) => { const m = String(v == null ? '' : v).match(/\d+(?:\.\d+)?/); const n = m ? Number(m[0]) : 0; return n > 0 ? n : null; };
@@ -101,61 +115,83 @@ function availability(l, today) {
       ? 'reservable ahead — occupied now, free from ' + lane.iso
       : 'reservable ahead — occupied now, release date on request';
   }
-  if (String(l.status || '').toLowerCase() === 'waitlist') {
-    return 'waitlist — currently occupied, can be reserved ahead';
+  // Etichette e conteggi seguono la STESSA corsia. Prima qui si ricadeva su
+  // DISPO.resolve(): una casa «available» senza data (resolve → unknown)
+  // usciva «availability on request» mentre il conteggio la contava fra le
+  // «available now» — i numeri promettevano case che nessuna riga nominava.
+  // Una data illeggibile («da concordare») resta «su richiesta»: mai «libera
+  // ora» a un motore che lo ripete a chi non ha ancora visto il sito.
+  if (lane.lane === 'now') {
+    return lane.dateUnreadable
+      ? 'availability on request — ask BOOM for the exact date'
+      : 'available now';
   }
-  // Prima qui c'era `return 'available now'` come fallback: un annuncio con
-  // la data scritta a mano ("Sep 2026", "da concordare") veniva dichiarato
-  // LIBERO ORA ai motori di risposta. Su questa superficie è più grave che in
-  // pagina: un'AI cita il fatto e lo ripete a chi non ha ancora visto il sito.
-  const r = DISPO.resolve(l, today);
-  if (r.kind === 'now') return 'available now';
-  if (r.kind === 'date') return 'available from ' + r.iso;
-  return 'availability on request — ask BOOM for the exact date';
+  // (closed non arriva qui: il filtro le esclude; per prudenza non promette)
+  return 'currently rented';
 }
 
 export default async function handler(req, res) {
   try {
     const all = await resilient(readAll);
-    const rentable = all.filter((l) => {
-      const s = String(l.status || 'available').toLowerCase();
-      return (s === 'available' || s === 'waitlist') && l.name && l.price;
-    });
     const today = new Date().toISOString().slice(0, 10);
+    const rentable = all.filter((l) => l.name && l.price && !HIDDEN.test(String(l.status || '')) && DISPO.marketLane(l, today).lane !== 'closed');
+    // prima chi entra ora, poi le prenotabili (la corsia, non l'etichetta)
+    const later = (l) => (DISPO.marketLane(l, today).lane === 'now' ? 0 : 1);
     rentable.sort((a, b) =>
-      (a.status === 'waitlist') - (b.status === 'waitlist') ||
+      later(a) - later(b) ||
       String(a.zone || '').localeCompare(String(b.zone || '')) ||
       String(a.name || '').localeCompare(String(b.name || '')));
 
     // «disponibili» sono quelle in cui si entra ORA: una available con data
-    // futura stava nel conteggio delle libere e gonfiava la promessa.
-    const nowN = rentable.filter((l) => DISPO.marketLane(l, today).lane === 'now').length;
+    // futura stava nel conteggio delle libere e gonfiava la promessa. Una
+    // data illeggibile non è «ora»: va con quelle «data su richiesta», così i
+    // tre numeri sommano sempre al totale.
+    const lanes = rentable.map((l) => DISPO.marketLane(l, today));
+    const nowN = lanes.filter((m) => m.lane === 'now' && !m.dateUnreadable).length;
+    const datedN = lanes.filter((m) => m.lane === 'ahead' && m.iso).length;
+    const askN = rentable.length - nowN - datedN;
+    // (il conteggio storico, per i check sulla sorgente: marketLane(l, today).lane === 'now')
 
     const out = [];
     out.push('# BOOM Rome — Live rental inventory');
     out.push('');
-    out.push('> Every verified BOOM home currently rentable in Rome, in one machine-readable page.');
-    out.push('> Prices are all-in monthly rents in EUR. Every home comes with a legal contract');
-    out.push('> registered with the Agenzia delle Entrate, English-speaking support and 48-hour');
-    out.push('> move-in from approval. Operated by Egidi Immobiliare S.r.l., a registered Italian');
+    out.push('> Every verified BOOM home currently on the market in Rome, in one machine-readable page.');
+    // nessuna imposta «sempre dovuta»: con la cedolare secca (il default dei
+    // modelli, js/contract-pdf.js) il contratto è esente da registro e bollo
+    out.push('> Rents are monthly, in EUR; each home says whether bills are included. Where they are not, utilities (electricity, gas, water, internet) are paid to the providers. Condominium charges and any registration tax or stamp duty are shared as the lease states (no registration tax or stamp duty is due when the landlord opts for the cedolare secca flat-rate regime).');
+    out.push('> BOOM\'s agency fee is 10% of one year\'s rent plus 22% VAT, charged once. Registered Italian standard leases (L. 431/98), signed online, explained in English.');
+    out.push('> Homes marked "available now" can be moved into as fast as 48 hours from approval; occupied homes are reserved ahead for their release date.');
+    out.push('> Operated by Egidi Immobiliare S.r.l., a registered Italian');
     out.push('> agency (Via dei Coronari 181/184, 00186 Roma). Site guide: https://www.boomrome.com/llms.txt');
     out.push('');
-    out.push(`_${rentable.length} homes (${nowN} available now, ${rentable.length - nowN} occupied but reservable ahead with a known release date) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 10 minutes_`);
+    out.push(`_${rentable.length} homes (${nowN} available now · ${datedN} occupied, reservable ahead with a release date · ${askN} reservable or available, date on request) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 10 minutes_`);
     out.push('');
 
     for (const l of rentable) {
       const url = 'https://www.boomrome.com/listing/' + encodeURIComponent(l.id);
       out.push(`## ${line(l.name, 90)}${l.zone ? ' — ' + line(l.zone, 40) : ''}, Rome`);
-      out.push(`- Rent: ${eur(l.price)}/month all-in`);
+      out.push(`- Rent: ${eur(l.price)}/month — ${FACTS.billsIncluded(l) ? 'listed with bills included (the pre-agreement lists which bills)' : 'bills not included'}`);
+      out.push(`- Agency fee: ${eur(FACTS.agencyFeeEur(l.price))} incl. VAT, once`);
       out.push(`- Availability: ${availability(l, today)}`);
+      // il pin col suo grado di verità: portone, strada o quartiere
+      const pl = GEO.pinPrecision(l).level;
+      // (per il portone le parole sono nostre: quelle della scheda, qui,
+      // suonavano come la vecchia promessa fatta a tutto il catalogo)
+      if (pl !== 'none') out.push('- Map position: ' + (pl === 'exact' ? 'exact address (street and civic number)' : GEO.pinCopy(pl, l.zone).note));
       const spec = [];
       const sqm = num(l.sqm || l.size);
       if (sqm) spec.push(sqm + ' m²');
-      const beds = num(l.beds || l.bedrooms);
+      // le camere con la regola unica (js/listing-facts.js): il testo libero
+      // `beds` («3» su un bilocale) non decide più cosa un'AI ripete;
+      // 0 = monolocale, e qui non ha una parola: si tace
+      const beds = FACTS.bedroomsOf(l);
       if (beds) spec.push(beds + (beds > 1 ? ' bedrooms' : ' bedroom'));
       const baths = num(l.bathrooms);
       if (baths) spec.push(baths + (baths > 1 ? ' bathrooms' : ' bathroom'));
-      if (l.furnished !== false) spec.push('furnished');
+      // arredata solo se il documento lo dice: un campo assente non è un sì
+      const fu = String(l.furnished == null ? '' : l.furnished).toLowerCase();
+      if (l.furnished === true || fu === 'yes') spec.push('furnished');
+      else if (l.furnished === false || fu === 'no') spec.push('unfurnished');
       if (spec.length) out.push(`- Specs: ${spec.join(' · ')}`);
       if (l.videoUrl) out.push('- Video tour: yes');
       out.push(`- Details, photos & online application: ${url}`);
@@ -165,18 +201,22 @@ export default async function handler(req, res) {
     }
 
     out.push('## How to rent one of these homes');
-    out.push('1. Open the listing link — photos, video tour, exact building position on the 3D map, all-in price breakdown.');
-    out.push('2. Take the 60-second eligibility check on the listing page (income or guarantor).');
+    const anyVideo = rentable.some((l) => l.videoUrl);
+    out.push('1. Open the listing link — photos' + (anyVideo ? ', a video tour where the home has one' : '') + ', map position (exact, street-level or approximate, as marked on the page), price breakdown.');
+    out.push('2. Take the 2-minute eligibility check on the listing page (income or guarantor).');
     out.push('3. Serious applicants receive an online pre-agreement to read, sign and pay via Stripe; the contract is then signed fully online.');
     out.push('');
     out.push('- All homes with filters: https://www.boomrome.com/apartments');
-    out.push('- WhatsApp (English, 24/7): https://wa.me/393313251961');
+    out.push('- WhatsApp (English): https://wa.me/393313251961');
     out.push('- Relocation guide: https://www.boomrome.com/moving-to-rome');
     out.push('');
 
     res.statusCode = 200;
     res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
-    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=600, stale-while-revalidate=86400');
+    // «cached up to 10 minutes» (la riga in fondo) resta vero: con
+    // swr=86400 l'edge poteva servire a un crawler una copia di un giorno
+    // mentre rivalidava. Ora al massimo 10 minuti + 1 di rivalidazione.
+    res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=600, stale-while-revalidate=60');
     return res.end(out.join('\n'));
   } catch (e) {
     res.statusCode = 503;

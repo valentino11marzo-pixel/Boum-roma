@@ -1,6 +1,7 @@
 // Execute the portal's actual loaders and the dossier's actual source adapter.
 // Only Firestore, browser storage/timers and unrelated app rendering are mocked.
 import assert from 'node:assert/strict';
+import { sessionHelpers } from '../portal-session/source.mjs';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
@@ -13,6 +14,10 @@ const start = portal.indexOf('    async function loadData()');
 const end = portal.indexOf('    // Dismissed system alerts', start);
 assert.ok(start > 0 && end > start, 'real loader boundaries must exist');
 const loaders = portal.slice(start, end);
+const viewingStart = portal.indexOf('    async function oggiLoadViewings()');
+const viewingEnd = portal.indexOf('    async function oggiLoadProposals(', viewingStart);
+assert.ok(viewingStart > 0 && viewingEnd > viewingStart, 'real viewing loader boundaries must exist');
+const viewingLoader = portal.slice(viewingStart, viewingEnd);
 const CORE_LIMITS = { users: 800, properties: 400, contracts: 800, payments: 3000, maintenance: 600, clients: 1200, documents: 1500, invoices: 1200, rules: 200, ruleExecutions: 50 };
 let checks = 0;
 async function test(label, run) { await run(); checks++; console.log('  ✓ ' + label); }
@@ -30,7 +35,7 @@ function harness({ network = {}, cache = null, failure = '', hold = false, loade
   if (cache) storage.set('boom_data_cache', JSON.stringify(cache));
   let release;
   const gate = hold ? new Promise(resolve => { release = resolve; }) : Promise.resolve();
-  const document = { activeElement: null, addEventListener() {}, getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] };
+  const document = { body: { classList: { contains: () => false } }, activeElement: null, addEventListener() {}, getElementById: () => null, querySelector: () => null, querySelectorAll: () => [] };
   const db = {
     collection(name) {
       let cap = null, sort = null;
@@ -54,7 +59,9 @@ function harness({ network = {}, cache = null, failure = '', hold = false, loade
     URL, Date, Intl, JSON, String, Number, Array, Set, Map, Promise,
     console: { log() {}, error() {}, warn() {} }, performance: { now: () => 0 }, isSafariDesktop: false,
     isAdmin: () => S.profile.role === 'admin', isLandlord: () => false,
-    checkAlerts() {}, invalidateRentSnapshot() {}, renderPage() {}, buildNav() {}, toast() {},
+    auth: { currentUser: { uid: 'admin-test' } },
+    checkAlerts() {}, invalidateRentSnapshot() {}, renderPage() {}, buildNav() {}, toast() {}, oggiScheduleUpdate() {},
+    clearTimeout() {},
     setTimeout(callback, delay) { timers.push({ callback, delay }); return timers.length; },
     localStorage: { getItem: key => storage.get(key) || null, setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) }
   });
@@ -63,7 +70,7 @@ function harness({ network = {}, cache = null, failure = '', hold = false, loade
   UI.configure({ state: () => S, render: () => rendered.push(UI.render(S, UI.parseRoute(S.page), UI.load)), navigate() {}, refresh() {}, actions: {} });
   const realSetSource = UI.setSourceState;
   UI.setSourceState = status => { sourceStates.push(status); realSetSource(status); };
-  vm.runInContext(loaderSource, context);
+  vm.runInContext(sessionHelpers(portal) + '\n' + viewingLoader + '\n' + loaderSource, context);
   return { S, UI, reads, writes, timers, sourceStates, rendered, storage, release,
     run: code => vm.runInContext(code, context), setFailure: value => { failure = value; },
     async timer(delay) { const idx = timers.findIndex(t => t.delay === delay); assert.ok(idx >= 0, 'timer exists: ' + delay); const [timer] = timers.splice(idx, 1); return timer.callback(); }
@@ -73,11 +80,11 @@ function data() { const rows = base(); delete rows.page; delete rows.profile; ro
 
 await test('actual admin loader reports loading before data arrives and ready only after every core read', async () => {
   const network = data(), h = harness({ network, hold: true });
-  const before = JSON.stringify(h.S);
+  const before = JSON.stringify({ ...h.S, sourceFreshness: undefined });
   const pending = h.run('loadDataFresh(false)');
   assert.equal(h.UI.load.status, 'loading');
   assert.equal(h.UI.load.checkedAt, null);
-  assert.equal(JSON.stringify(h.S), before);
+  assert.equal(JSON.stringify({ ...h.S, sourceFreshness: undefined }), before);
   h.release();
   await pending;
   assert.deepEqual(h.sourceStates, ['loading', 'ready']);
@@ -91,10 +98,10 @@ await test('actual admin loader reports loading before data arrives and ready on
 await test('a failed refresh retains every previous core record and does not issue a new freshness stamp', async () => {
   const h = harness({ network: data() });
   await h.run('loadDataFresh(false)');
-  const before = JSON.stringify(h.S), checkedAt = h.UI.load.checkedAt;
+  const before = JSON.stringify({ ...h.S, sourceFreshness: undefined }), checkedAt = h.UI.load.checkedAt;
   h.setFailure('documents');
   await h.run('loadDataFresh(false)');
-  assert.equal(JSON.stringify(h.S), before);
+  assert.equal(JSON.stringify({ ...h.S, sourceFreshness: undefined }), before);
   assert.equal(h.UI.load.status, 'error');
   assert.equal(h.UI.load.checkedAt, checkedAt);
   assert.deepEqual(h.sourceStates.slice(-2), ['loading', 'error']);
@@ -202,9 +209,9 @@ await test('the 800-task query limit stays visible even when only one task belon
   assert.ok(h.UI.render(h.S, { id: 'p1', tab: 'overview' }, h.UI.load).includes('Attività parziali: limite di 800 record'));
 });
 await test('mutation: clearing tasks on failure is caught by the real-loader regression', async () => {
-  const marker = "} catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');";
+  const marker = "} catch (e) { if (valid()) window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');";
   assert.ok(loaders.includes(marker));
-  await assert.rejects(assertTaskFailure(loaders.replace(marker, "} catch (e) { S.tasks = []; window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');")), assert.AssertionError);
+  await assert.rejects(assertTaskFailure(loaders.replace(marker, "} catch (e) { S.tasks = []; if (valid()) window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');")), assert.AssertionError);
 });
 await test('mutation: omitting the persistent error state is caught by the real-loader regression', async () => {
   const marker = "window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');";

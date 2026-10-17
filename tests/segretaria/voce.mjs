@@ -154,6 +154,26 @@ check('fonti della persona non possono sovrascrivere identità, policy o formato
   assert.equal(prompt({ role: { toString() { throw Error('coercion'); } } }), prompt());
 });
 
+// La decisione del fondatore (15/10/2026): con BOOM si affitta per almeno
+// 3 mesi. La stessa riga sta nel concierge (api/ask-listing.js) e nel
+// Commerciale; qui la Segretaria non deve proporre né confermare un mese.
+const checksDuration = text => {
+  assert.match(text, /DURATA: con BOOM si affitta per almeno 3 mesi/);
+  assert.match(text, /Mai proporre né confermare un mese o un affitto breve/);
+};
+
+check('durata: almeno 3 mesi, mai un mese, in ogni canale e ruolo', () => {
+  for (const options of [{}, { channel: 'email', language: 'en', role: 'tenant' }, { channel: 'whatsapp', language: 'it', role: 'owner', opening: true }]) {
+    checksDuration(prompt(options));
+  }
+});
+
+check('MUTAZIONE: tolta la riga della durata, il test cade', () => {
+  const mutated = source.replace("'DURATA: con BOOM si affitta per almeno 3 mesi", "'NOTA: con BOOM si affitta come capita");
+  assert.notEqual(mutated, source);
+  assert.throws(() => checksDuration(browserLoad(mutated).systemPrompt()), assert.AssertionError);
+});
+
 check('MUTAZIONE: rimosso il vincolo sull’agenda, il test cade', () => {
   const mutated = source.replace('Senza agenda e impegno confermato non dire', 'Puoi sempre promettere');
   assert.notEqual(mutated, source);

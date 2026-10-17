@@ -1,6 +1,6 @@
 // tests/seo/run.mjs
-// LA GUARDIA SEO — otto regole, tutte nate da un difetto vero trovato in
-// produzione, mai da una lista di buone pratiche copiata.
+// LA GUARDIA SEO — diciannove regole, tutte nate da un difetto vero trovato
+// in produzione, mai da una lista di buone pratiche copiata.
 //
 // Il reperto che l'ha fatta nascere: property-finding.html e board.html,
 // due pagine LIVE, non avevano <!doctype>, <html lang> ne' <meta charset>.
@@ -12,32 +12,107 @@
 //
 // Le pagine pubbliche si DEDUCONO da sitemap.xml, mai da una lista scritta
 // a mano (stessa disciplina di tests/media/hosts.mjs): una lista a mano
-// invecchia e il giorno che invecchia la guardia diventa decorativa.
+// invecchia e il giorno che invecchia la guardia diventa decorativa. Una
+// <loc> che finisce in una cartella (/apartments-in) si legge dal suo
+// index.html: prima la guardia non la vedeva affatto.
+//
+// Le regole:
+//   0   robots.txt non chiude la porta alla sitemap
+//   0b  ogni URL nostro citato da llms.txt e' scaricabile (robots)
+//   1   il documento e' un documento (doctype, lingua, charset)
+//   1b  nessun foglio di stile con le graffe sbilanciate
+//   2   un'entita' sola per pagina (Article/BlogPosting/… contano insieme)
+//   2b  un BreadcrumbList solo, e finisce sulla canonical
+//   2c  l'#organization e' la societa' vera, mai un #localbusiness
+//   3   titolo e descrizione dentro i limiti e unici
+//   4   la canonical dice la verita'
+//   4b  hreflang solo verso URL canonici della sitemap, mai ?lang=
+//   5   l'immagine social esiste
+//   6   llms.txt non promette piu' della pagina
+//   7   una domanda dichiarata e' testo visibile
+//   8   nessuna pagina indicizzabile fuori dalla sitemap (anche apartments-in/)
+//   8b  il catalogo dichiara i suoi prezzi
+//   9   speakable punta a nodi veri
+//   10  link statici: niente dominio nudo, niente /pfs, niente .html, niente
+//       /apartments/'+id
+//   11  la SearchAction dichiarata e' una ricerca che la pagina esegue
+//   12  il creator di un Dataset e' un nodo vero, con un nome
+//
+// MUTAZIONI (verificate il 15/10/2026 su una copia dell'albero,
+// SEO_ROOT=<copia> node tests/seo/run.mjs): per ogni regola nuova o
+// estesa si e' rimesso UN difetto e la regola e' diventata rossa —
+// 0b `Disallow: /api/` senza l'Allow di /api/meteo; 2 l'`Article` scritto a
+// mano rimesso accanto al BlogPosting di blog-47-steps (identita' diverse
+// solo per il frammento #article); 2b un secondo BreadcrumbList e l'ultimo
+// gradino su un altro URL; 2c legalName «BOOM Rome», un nodo #localbusiness,
+// «Via del Corso» nel generatore; 4b un alternate verso /owners?lang=en;
+// 8 una zona di apartments-in/ tolta dalla sitemap; 10 un href
+// https://boomrome.com/…, un href /pfs, un href /faq.html e un
+// '/apartments/'+id in uno script; 11 la lettura di ?q= tolta da
+// apartments.html; 12 il creator del Dataset di /meteo puntato a un @id che
+// in pagina non c'e'. Ognuna cade da sola; tolta la mutazione, torna verde.
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-const R = path.resolve(new URL('../..', import.meta.url).pathname);
+// SEO_ROOT: solo per le prove di mutazione su una copia dell'albero.
+const R = process.env.SEO_ROOT ? path.resolve(process.env.SEO_ROOT)
+  : path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
 const bene = (t) => { ok++; console.log('  \x1b[32m✓\x1b[0m ' + t); };
-const male = (t) => { ko++; console.log('  \x1b[31m✗\x1b[0m ' + t); };
+// tests/run-all.mjs stampa solo le righe col ✗: il primo caso dell'elenco
+// sale sulla stessa riga, cosi' un rosso in CI dice gia' DOVE.
+const male = (t) => {
+  ko++;
+  const [capo, ...resto] = String(t).split('\n');
+  const primo = resto.map((l) => l.trim()).find(Boolean);
+  console.log('  \x1b[31m✗\x1b[0m ' + capo.replace(/:$/, '') + (primo ? ' — es. ' + primo : '')
+    + (resto.length ? '\n' + resto.join('\n') : ''));
+};
 const elenco = (righe, max = 12) => '\n      ' + righe.slice(0, max).join('\n      ')
   + (righe.length > max ? `\n      … e altre ${righe.length - max}` : '');
 
 const sitemap = fs.readFileSync(path.join(R, 'sitemap.xml'), 'utf8');
 const loc = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
 const pubbliche = [];
+const fileDi = new Map();                 // <loc> senza barra finale → file
+const senzaBarra = (u) => String(u || '').replace(/\/$/, '');
 for (const u of loc) {
   const rel = u.replace(/^https?:\/\/[^/]+\/?/, '').replace(/\/$/, '');
-  const f = rel === '' ? 'index.html' : (rel.endsWith('.html') ? rel : rel + '.html');
-  if (fs.existsSync(path.join(R, f))) pubbliche.push([f, u]);
+  let f = rel === '' ? 'index.html' : (rel.endsWith('.html') ? rel : rel + '.html');
+  // /apartments-in e' una cartella: la pagina e' apartments-in/index.html.
+  if (!fs.existsSync(path.join(R, f)) && rel) f = rel + '/index.html';
+  if (fs.existsSync(path.join(R, f))) { pubbliche.push([f, u]); fileDi.set(senzaBarra(u), f); }
 }
+const leggi = (f) => fs.readFileSync(path.join(R, f), 'utf8');
 
 console.log('\n\x1b[1m▸ seo\x1b[0m  la casa e in ordine: '
   + `${pubbliche.length} pagine pubbliche dedotte dalla sitemap`);
 
 const testa = (s) => s.slice(0, Math.max(s.indexOf('</head>'), 4000));
 const attr = (s, re) => { const m = s.match(re); return m ? m[1] : ''; };
+
+// JSON-LD: ogni blocco parsato, i nodi di primo livello (array e @graph
+// compresi) e la visita di TUTTI i nodi, annidati inclusi.
+const LD = /<script\b[^>]*\btype=["']application\/ld\+json["'][^>]*>\s*([\s\S]*?)\s*<\/script>/gi;
+const blocchiLd = (s) => {
+  const out = [];
+  for (const m of s.matchAll(LD)) { try { out.push(JSON.parse(m[1])); } catch { /* lo dice la regola 2 */ } }
+  return out;
+};
+const nodi = (d) => Array.isArray(d) ? d.flatMap(nodi)
+  : (d && typeof d === 'object' && Array.isArray(d['@graph'])) ? d['@graph'].flatMap(nodi)
+  : (d && typeof d === 'object') ? [d] : [];
+const visita = (x, cb) => {
+  if (Array.isArray(x)) { for (const y of x) visita(y, cb); return; }
+  if (x && typeof x === 'object') { cb(x); for (const v of Object.values(x)) visita(v, cb); }
+};
+const tipi = (n) => [].concat(n['@type'] || []);
+const idDi = (v) => typeof v === 'string' ? v : (v && typeof v === 'object' && (v['@id'] || v.url)) || '';
+// Un nodo che DICHIARA (non un semplice riferimento {"@id": …} o
+// {"@type": …, "@id": …}): porta almeno una proprieta' oltre a quelle due.
+const dichiara = (n) => Object.keys(n).some((k) => k !== '@id' && k !== '@type');
+const canonicalDi = (s) => attr(testa(s), /<link rel="canonical" href="([^"]+)"/);
 
 // ── 0 · robots.txt non chiude la porta alla sitemap ─────────────────────
 // `Disallow: /s` sembrava proteggere soltanto la vecchia rotta `/s`, ma il
@@ -72,6 +147,26 @@ bloccateDaRobots.length
   ? male(`robots.txt blocca la sitemap o URL che essa dichiara:` + elenco(bloccateDaRobots)
       + '\n      Una regola corta vale come prefisso: /s blocca anche /sitemap.xml, /services e /skyline.')
   : bene('robots.txt consente la sitemap e ogni URL che essa dichiara');
+
+// ── 0b · cio' che llms.txt indica, un motore lo puo' scaricare ─────────
+// robots.txt bloccava /api/meteo, cioe' proprio la fonte dati che llms.txt
+// e il Dataset di /meteo indicano come «raw source»: il file che parla ai
+// motori di risposta li mandava verso una porta chiusa. Ogni URL nostro
+// citato in llms.txt (punteggiatura finale tolta: «…/api/meteo.») deve
+// passare il robots, e /api/meteo lo deve passare in ogni caso.
+const llmsTesto = fs.existsSync(path.join(R, 'llms.txt')) ? leggi('llms.txt') : '';
+const citatiLlms = [...llmsTesto.matchAll(/https:\/\/www\.boomrome\.com[^\s)\]>"'`<]*/g)]
+  .map((m) => m[0].replace(/[.,;:!?*_]+$/, ''));
+const portaChiusa = [];
+for (const u of new Set([...citatiLlms, 'https://www.boomrome.com/api/meteo'])) {
+  let p;
+  try { const x = new URL(u); p = (x.pathname || '/') + x.search; } catch { portaChiusa.push(`${u} (URL illeggibile)`); continue; }
+  if (!robotsConsente(p)) portaChiusa.push(p);
+}
+portaChiusa.length
+  ? male(`llms.txt indica URL che robots.txt blocca:` + elenco(portaChiusa)
+      + '\n      Un motore che segue llms.txt trova la porta chiusa: Allow esplicito, piu lungo del Disallow.')
+  : bene(`ogni URL citato da llms.txt (${citatiLlms.length}) e /api/meteo passano robots.txt`);
 
 // ── 1 · il documento e' un documento ────────────────────────────────────
 const monchi = [];
@@ -128,19 +223,30 @@ sbilanciati.length
 // descrivono offerte diverse: /reunion ne dichiara tre — proprietario,
 // inquilino, acquirente — con url distinti, ed e' una scelta voluta. Una
 // regola che li contasse come errore avrebbe insegnato a ignorarla.
+// Gli ARTICOLI contano insieme: Article, BlogPosting, NewsArticle e
+// TechArticle sono la stessa entita' per chi legge (le guide portavano un
+// `Article` scritto a mano accanto al `BlogPosting` generato: due articoli,
+// due editori, due date). Per un articolo l'identita' e' la PAGINA di cui e'
+// l'entita' principale: il frammento (#article) non distingue due articoli
+// sulla stessa pagina, quindi lo si toglie.
+const ARTICOLI = new Set(['Article', 'BlogPosting', 'NewsArticle', 'TechArticle']);
 const UNICI = new Set(['Organization', 'RealEstateAgent', 'LocalBusiness',
-  'WebSite', 'BreadcrumbList', 'FAQPage', 'Service', 'Product', 'WebPage']);
+  'WebSite', 'BreadcrumbList', 'FAQPage', 'Service', 'Product', 'WebPage',
+  'Article', 'Blog', 'Dataset']);
 const doppi = [], rotti = [];
 for (const [f, url] of pubbliche) {
-  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  const s = leggi(f);
   const conta = {};
-  for (const m of s.matchAll(/<script type="application\/ld\+json"[^>]*>\s*([\s\S]*?)\s*<\/script>/g)) {
+  for (const m of s.matchAll(LD)) {
     let d;
     try { d = JSON.parse(m[1]); } catch { rotti.push(f); continue; }
-    for (const n of (d['@graph'] || [d])) {
-      for (const t of [].concat(n['@type'] || [])) {
+    for (const n of nodi(d)) {
+      for (const t of new Set(tipi(n).map((x) => (ARTICOLI.has(x) ? 'Article' : x)))) {
         if (!UNICI.has(t)) continue;
-        const chiave = t + '@' + (n['@id'] || n.url || url);
+        const ident = t === 'Article'
+          ? senzaBarra(String(n['@id'] || n.url || idDi(n.mainEntityOfPage) || url).split('#')[0])
+          : (n['@id'] || n.url || url);
+        const chiave = t + '@' + ident;
         conta[chiave] = (conta[chiave] || 0) + 1;
       }
     }
@@ -152,7 +258,60 @@ rotti.length ? male(`JSON-LD che non parsa: ${[...new Set(rotti)].join(', ')}`)
              : bene('ogni blocco JSON-LD e valido');
 doppi.length
   ? male(`${doppi.length} pagine dichiarano la stessa entita due volte:` + elenco(doppi))
-  : bene('nessuna pagina dichiara due volte la stessa entita');
+  : bene('nessuna pagina dichiara due volte la stessa entita (articoli contati insieme)');
+
+// ── 2b · un BreadcrumbList solo, e finisce dove la pagina dice di essere ─
+// Le schede /listing ne portavano due, e le guide di quartiere chiudevano
+// il percorso su un URL diverso dalla canonical: un motore che mostra il
+// percorso nel risultato mostrava un indirizzo che la pagina non rivendica.
+const briciole = [];
+for (const [f] of pubbliche) {
+  const s = leggi(f);
+  const liste = [];
+  for (const d of blocchiLd(s)) visita(d, (n) => { if (tipi(n).includes('BreadcrumbList')) liste.push(n); });
+  if (liste.length > 1) briciole.push(`${f} → ${liste.length} BreadcrumbList`);
+  const c = senzaBarra(canonicalDi(s));
+  for (const b of liste) {
+    const voci = [].concat(b.itemListElement || []);
+    const ultima = voci[voci.length - 1];
+    const dove = ultima ? idDi(ultima.item) : '';
+    if (dove && senzaBarra(dove) !== c) briciole.push(`${f} → l'ultimo gradino e ${dove}, la canonical ${c || '(assente)'}`);
+  }
+}
+briciole.length
+  ? male(`${briciole.length} percorsi (BreadcrumbList) doppi o che finiscono altrove:` + elenco(briciole))
+  : bene('al piu un BreadcrumbList per pagina, e l\'ultimo gradino e la canonical');
+
+// ── 2c · l'organizzazione e' la societa' vera ──────────────────────────
+// Il generatore (scripts/seo-update.js) e alcune pagine dichiaravano la
+// ragione sociale «BOOM Rome», un telefono inventato (+39 333 123 4567),
+// una sede in «Via del Corso» e un secondo nodo #localbusiness col
+// centroide generico di Roma come «sede». Il nodo #organization e' UNO:
+// Egidi Immobiliare S.r.l., P.IVA IT17322991005, Via dei Coronari 181/184.
+const ORG_ID = /^https?:\/\/(?:www\.)?boomrome\.com\/?#organization$/;
+const identita = [];
+for (const [f] of pubbliche) {
+  for (const d of blocchiLd(leggi(f))) {
+    visita(d, (n) => {
+      const id = String(n['@id'] || '');
+      if (/#localbusiness$/i.test(id)) identita.push(`${f} → nodo ${id}`);
+      if (!ORG_ID.test(id) || !dichiara(n)) return;
+      if (n.legalName !== 'Egidi Immobiliare S.r.l.') identita.push(`${f} → legalName ${JSON.stringify(n.legalName)}`);
+      if (n.vatID != null && n.vatID !== 'IT17322991005') identita.push(`${f} → vatID ${JSON.stringify(n.vatID)}`);
+      const via = n.address && typeof n.address === 'object' ? n.address.streetAddress : undefined;
+      if (via != null && via !== 'Via dei Coronari 181/184') identita.push(`${f} → streetAddress ${JSON.stringify(via)}`);
+    });
+  }
+}
+{
+  const gen = fs.existsSync(path.join(R, 'scripts/seo-update.js')) ? leggi('scripts/seo-update.js') : '';
+  for (const finto of ["legalName: 'BOOM Rome'", '+39 333 123 4567', 'Via del Corso']) {
+    if (gen.includes(finto)) identita.push(`scripts/seo-update.js → ${finto} (un giro del generatore lo rimette su ogni pagina)`);
+  }
+}
+identita.length
+  ? male(`${identita.length} dichiarazioni dell'organizzazione non sono la societa vera:` + elenco(identita))
+  : bene('ogni #organization e Egidi Immobiliare S.r.l. (P.IVA e sede vere), nessun #localbusiness');
 
 // ── 3 · titolo e descrizione, dentro i limiti e UNICI ───────────────────
 // Due pagine con lo stesso titolo competono fra loro nello stesso indice.
@@ -187,6 +346,32 @@ for (const [f, u] of pubbliche) {
 }
 canon.length ? male(`${canon.length} canonical sbagliate o assenti:` + elenco(canon))
              : bene('ogni canonical e assoluta e concorda con la sitemap');
+
+// ── 4b · hreflang solo verso URL canonici ───────────────────────────────
+// /owners dichiarava un alternate inglese verso /owners?lang=en (e la
+// sitemap lo ripeteva per /reunion e /executive): ma ?lang= e' lo STESSO
+// file, che si canonicalizza sull'URL nudo. Un hreflang verso un URL che
+// dichiara un'altra canonical e' un segnale contraddittorio, e Google lo
+// scarta insieme agli altri della pagina. Un alternate vale solo se e' una
+// <loc> della sitemap e quella pagina lo dichiara come propria canonical.
+const lingue = [];
+const hrefDi = (tag) => attr(tag, /\bhref\s*=\s*["']([^"']+)["']/i);
+for (const [f] of pubbliche) {
+  for (const m of testa(leggi(f)).matchAll(/<link\b[^>]*\bhreflang\s*=[^>]*>/gi)) lingue.push([f, hrefDi(m[0])]);
+}
+for (const m of sitemap.matchAll(/<xhtml:link\b[^>]*\bhreflang\s*=[^>]*>/gi)) lingue.push(['sitemap.xml', hrefDi(m[0])]);
+const lingueStorte = [];
+for (const [f, h] of lingue) {
+  if (!h) { lingueStorte.push(`${f} → hreflang senza href`); continue; }
+  if (h.includes('?lang=')) { lingueStorte.push(`${f} → ${h} (?lang= e lo stesso file, canonicalizzato altrove)`); continue; }
+  const dest = fileDi.get(senzaBarra(h));
+  if (!dest) { lingueStorte.push(`${f} → ${h} non e una <loc> della sitemap`); continue; }
+  const c = canonicalDi(leggi(dest));
+  if (senzaBarra(c) !== senzaBarra(h)) lingueStorte.push(`${f} → ${h}, ma ${dest} dichiara canonical ${c || '(assente)'}`);
+}
+lingueStorte.length
+  ? male(`${lingueStorte.length} hreflang verso URL che non sono canonici:` + elenco(lingueStorte))
+  : bene(`ogni hreflang (${lingue.length}) punta a una <loc> che si dichiara canonica, nessun ?lang=`);
 
 // ── 5 · l'immagine social esiste davvero ────────────────────────────────
 const ogMorte = [];
@@ -254,10 +439,16 @@ fantasmi.length
 
 // ── 8 · nessuna pagina pubblica orfana ─────────────────────────────────
 // Una pagina che vende e non e' nella sitemap si scopre solo per caso.
+// Le guide di quartiere vivono in apartments-in/: la regola guardava solo
+// la radice, e /apartments-in/ponte-milvio era pubblicata e indicizzabile
+// senza essere nella sitemap.
 const inSitemap = new Set(pubbliche.map(([f]) => f));
 const orfane = [];
-for (const f of fs.readdirSync(R)) {
-  if (!f.endsWith('.html') || f.startsWith('preview-')) continue;
+const candidati = [...fs.readdirSync(R),
+  ...(fs.existsSync(path.join(R, 'apartments-in'))
+    ? fs.readdirSync(path.join(R, 'apartments-in')).map((x) => 'apartments-in/' + x) : [])];
+for (const f of candidati) {
+  if (!f.endsWith('.html') || path.basename(f).startsWith('preview-')) continue;
   if (inSitemap.has(f)) continue;
   const s = fs.readFileSync(path.join(R, f), 'utf8');
   if (/noindex/i.test(s.slice(0, 4000))) continue;            // scelta esplicita
@@ -266,7 +457,7 @@ for (const f of fs.readdirSync(R)) {
   // Una copia storica che canonicalizza alla versione VIVA e' gestita
   // bene, non orfana: le -classic e -legacy puntano tutte all'originale.
   // Orfana e' solo chi dichiara se' stesso e non e' nella sitemap.
-  const mia = 'https://www.boomrome.com/' + f.replace(/\.html$/, '').replace(/^index$/, '');
+  const mia = 'https://www.boomrome.com/' + f.replace(/\.html$/, '').replace(/(^|\/)index$/, '');
   if (c.replace(/\/$/, '') !== mia.replace(/\/$/, '')) continue;
   orfane.push(f);
 }
@@ -340,6 +531,76 @@ for (const [f] of pubbliche) {
 muti.length
   ? male(`${muti.length} selettori speakable che non esistono in pagina:` + elenco(muti))
   : bene('ogni speakable punta a un nodo che esiste davvero');
+
+// ── 10 · i link statici portano dove dicono, al primo colpo ────────────
+// Quattro difetti dello stesso giro (ottobre 2026), tutti in href scritti
+// a mano: link al dominio NUDO (https://boomrome.com/…, un redirect in
+// piu' e un'entita' ambigua per chi indicizza), /pfs che rispondeva 404,
+// link interni con «.html» (con cleanUrls ogni clic e' un 308 in piu'), e le
+// guide di quartiere che costruivano '/apartments/'+id — una rotta che non
+// esiste. Si guardano gli href fuori dagli script (e fuori dai commenti);
+// la concatenazione /apartments/'+ si cerca nell'intera sorgente.
+const linkStorti = [];
+for (const [f] of pubbliche) {
+  const sorgente = leggi(f);
+  const statico = sorgente.replace(/<script\b[\s\S]*?<\/script>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+  for (const m of statico.matchAll(/\shref\s*=\s*(?:"([^"]*)"|'([^']*)')/gi)) {
+    const h = (m[1] != null ? m[1] : m[2]).trim();
+    if (/^https?:\/\/boomrome\.com(?=[/?#:]|$)/i.test(h)) linkStorti.push(`${f} → ${h} (dominio nudo: si scrive https://www.boomrome.com)`);
+    else if (/^\/pfs\/?(?:[?#]|$)/.test(h)) linkStorti.push(`${f} → ${h} (rotta morta: /property-finding)`);
+    else if (/^\/[a-z0-9-]+(?:\/[a-z0-9-]+)*\.html(?:[?#]|$)/.test(h)) linkStorti.push(`${f} → ${h} (con cleanUrls e un 308 in piu: senza .html)`);
+  }
+  if (sorgente.includes("/apartments/'+")) linkStorti.push(`${f} → '/apartments/'+… (rotta inesistente: /listing/<id>)`);
+}
+linkStorti.length
+  ? male(`${linkStorti.length} link che non arrivano al primo colpo:` + elenco(linkStorti))
+  : bene('nessun link al dominio nudo, a /pfs, a un .html interno o a /apartments/<id>');
+
+// ── 11 · la ricerca dichiarata e' una ricerca vera ─────────────────────
+// Ogni pagina dichiara al motore una SearchAction verso /apartments?q=…
+// (il «sitelinks search box»): se /apartments non legge ?q= all'apertura,
+// il motore promette una ricerca che atterra sul catalogo intero.
+{
+  const gen = fs.existsSync(path.join(R, 'scripts/seo-update.js')) ? leggi('scripts/seo-update.js') : '';
+  const emessa = /SearchAction[\s\S]{0,600}?\/apartments\?q=/.test(gen)
+    || pubbliche.some(([f]) => /SearchAction[\s\S]{0,600}?\/apartments\?q=/.test(leggi(f)));
+  const legge = leggi('apartments.html').includes("URLSearchParams(location.search).get('q')");
+  !emessa ? bene('nessuna SearchAction verso /apartments?q= dichiarata')
+    : legge ? bene('la SearchAction verso /apartments?q= e servita: apartments.html legge ?q= all\'apertura')
+    : male('una SearchAction promette /apartments?q=… ma apartments.html non legge ?q= '
+        + "(URLSearchParams(location.search).get('q')): la ricerca atterra sul catalogo intero");
+}
+
+// ── 12 · chi ha fatto i dati e' un nodo vero ───────────────────────────
+// Il Dataset di /meteo e' la risposta citabile per «quanto costa al m² a
+// Roma». Un creator che punta a un @id che in pagina non esiste, o a un
+// nodo senza nome, lascia il dato senza autore: un motore non sa a chi
+// attribuirlo.
+const orfaniDati = [];
+for (const [f] of pubbliche) {
+  const dich = new Map();
+  const dataset = [];
+  for (const d of blocchiLd(leggi(f))) {
+    visita(d, (n) => {
+      if (n['@id'] && dichiara(n) && !dich.has(n['@id'])) dich.set(n['@id'], n);
+      if (tipi(n).includes('Dataset')) dataset.push(n);
+    });
+  }
+  for (const ds of dataset) {
+    const chi = [].concat(ds.creator || []);
+    if (!chi.length) { orfaniDati.push(`${f} → Dataset senza creator`); continue; }
+    for (const c of chi) {
+      if (c && typeof c === 'object' && typeof c.name === 'string' && c.name.trim()) continue;
+      const id = idDi(c);
+      const nodo = id && dich.get(id);
+      if (!(nodo && typeof nodo.name === 'string' && nodo.name.trim()))
+        orfaniDati.push(`${f} → creator ${id || JSON.stringify(c)} non e un nodo in pagina con un nome`);
+    }
+  }
+}
+orfaniDati.length
+  ? male(`${orfaniDati.length} Dataset senza un autore vero:` + elenco(orfaniDati))
+  : bene('ogni Dataset ha un creator che e un nodo in pagina con un nome');
 
 console.log(ko ? `  \x1b[31mLa casa non e ancora in ordine\x1b[0m — ${ok} passed, ${ko} failed`
                 : `  \x1b[32mLa casa e in ordine\x1b[0m — ${ok} passed, 0 failed`);

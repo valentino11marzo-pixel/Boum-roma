@@ -2,11 +2,14 @@
      SOLO dentro apartment-detail.html (aggiunti a mano sul costruito): una
      ricostruzione con costruisci-ld.py li avrebbe persi tutti, e la pagina
      sarebbe caduta sui ripieghi senza che nessuno se ne accorgesse. Il
-     template emette cio che la pagina viva usa davvero. -->
+     template emette cio che la pagina viva usa davvero. E dal 15/10/2026
+     anche js/listing-facts.js: la regola delle camere che camereDi legge
+     (senza, la scheda ricostruita non rileggerebbe mai le camere). -->
 <script src="/js/boom-geo.js"></script>
 <script src="/js/dispo-engine.js"></script>
 <script src="/js/tempi-engine.js"></script>
 <script src="/js/mappa-engine.js"></script>
+<script src="/js/listing-facts.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
    Parte al load: il motore Solari è concatenato DOPO questo script. */
@@ -41,6 +44,20 @@
     else { eti = 'Rented'; lib = false; }
     return { eti: eti, lib: lib };
   }
+  /* LE CAMERE: UNA regola, quella di js/listing-facts.js (bedroomsOf), che
+     questa pagina carica qui sopra. Prima leggeva `bedrooms ?? beds` col
+     parseFloat (0 spariva, «Living, 1 bedroom…» non si leggeva): ora il
+     campo strutturato vince, il testo libero vale solo se manca, e senza
+     il motore non si stampa un numero indovinato. Senza il motore (il
+     file non è arrivato: 503, rete) la risposta è undefined = NON LO SO, e
+     chi legge lascia il dato che c'è: un null qui cancellava le camere
+     giuste della build. */
+  function camereDi(d) {
+    var F = window.BOOM_FACTS;
+    if (!F || !F.bedroomsOf) return undefined;
+    try { return F.bedroomsOf(d || {}); }
+    catch (e) { return undefined; }
+  }
   function casaDaListing(d, ideNuovo) {
     function n(v) {
       var x = parseFloat(String(v == null ? '' : v).replace(',', '.'));
@@ -69,7 +86,7 @@
       indirizzo: t(d.address),
       prezzo: n(d.price) || 0,
       mq: n(d.sqm != null ? d.sqm : d.size),
-      letti: n(d.bedrooms != null ? d.bedrooms : d.beds),
+      letti: camereDi(d),
       bagni: n(d.bathrooms),
       piano: d.floor != null && t(d.floor) !== '' ? t(d.floor) : null,
       tipo: d.type ? t(d.type) : null,
@@ -213,6 +230,20 @@
   mostra(0);
 
   /* ── l'anagrafica ───────────────────────────────────────────────────── */
+  /* il nome è una FUNZIONE: l'idrante la richiama quando il documento
+     vero porta un nome diverso dalla fotografia di build (i nomi dalla
+     via, 15/10/2026) — H1, titolo, modulo, foto e WhatsApp dicono lo
+     stesso nome. Il server l'H1 lo scrive già dal documento: senza questa
+     rilettura il client lo riportava al nome della build. */
+  var rifaiChiedi = function () {};
+  function scriviNome() {
+    per('#nomeCasa').textContent = c.nome;
+    document.title = c.nome + ' — ' + c.zona + ', Rome | BOOM';
+    var apN = document.getElementById('applicaNome');
+    if (apN) apN.textContent = c.nome;
+    img.alt = c.nome + ', ' + c.zona + ' — apartment for rent in Rome with BOOM';
+    rifaiChiedi();
+  }
   per('#nomeCasa').textContent = c.nome;
   per('#doveCasa').textContent = [c.zona, c.indirizzo].filter(Boolean).join(' · ');
   per('#briZona').textContent = c.zona;
@@ -238,10 +269,13 @@
   (function () {
     var wa = document.querySelector('.chiedi-wa');
     if (!wa) return;
-    var msg = 'Hi! I\u2019m asking about \u201c' + c.nome + '\u201d ('
-      + c.zona + ') \u2014 ' + location.origin + '/listing/'
-      + encodeURIComponent(c.id);
-    wa.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(msg);
+    rifaiChiedi = function () {
+      var msg = 'Hi! I\u2019m asking about \u201c' + c.nome + '\u201d ('
+        + c.zona + ') \u2014 ' + location.origin + '/listing/'
+        + encodeURIComponent(c.id);
+      wa.href = 'https://wa.me/393313251961?text=' + encodeURIComponent(msg);
+    };
+    rifaiChiedi();
     wa.addEventListener('click', function () {
       if (window.boomTrack) boomTrack('whatsapp_click', { item_id: c.id || '' });
     });
@@ -286,16 +320,34 @@
   setTimeout(function () { mostraCanone(false); }, 500);
 
   /* ── i fatti ────────────────────────────────────────────────────────── */
-  var FATTI = [
-    [c.mq ? c.mq + ' m²' : null, 'Size'],
-    [c.letti === 0 ? 'Studio' : (c.letti ? c.letti + ' bed' : null), 'Bedrooms'],
-    [c.bagni ? c.bagni : null, 'Bathrooms'],
-    [c.piano ? c.piano : null, 'Floor'],
-    [c.arredata ? 'Furnished' : (c.tipo || null), c.arredata ? 'Interior' : 'Type'],
-  ].filter(function (f) { return f[0]; });
-  per('#fatti').innerHTML = FATTI.map(function (f) {
-    return '<div class="fatto"><b>' + f[0] + '</b><span>' + f[1] + '</span></div>';
-  }).join('');
+  /* una funzione: l'idrante la richiama se il documento vero dice un
+     altro numero di camere della fotografia di build */
+  function scriviFatti() {
+    var FATTI = [
+      [c.mq ? c.mq + ' m²' : null, 'Size'],
+      [c.letti === 0 ? 'Studio' : (c.letti ? c.letti + ' bed' : null), 'Bedrooms'],
+      [c.bagni ? c.bagni : null, 'Bathrooms'],
+      [c.piano ? c.piano : null, 'Floor'],
+      [c.arredata ? 'Furnished' : (c.tipo || null), c.arredata ? 'Interior' : 'Type'],
+    ].filter(function (f) { return f[0]; });
+    /* il piano e il tipo vengono dal documento (li scrive l'operatore, una
+       casa nuova li prende da Firestore): si scrivono come TESTO, coi nodi
+       — dentro innerHTML un «<» o un «"» diventava markup */
+    var box = per('#fatti');
+    box.textContent = '';
+    FATTI.forEach(function (f) {
+      var el = document.createElement('div');
+      el.className = 'fatto';
+      var b = document.createElement('b');
+      b.textContent = String(f[0]);
+      var s = document.createElement('span');
+      s.textContent = f[1];
+      el.appendChild(b);
+      el.appendChild(s);
+      box.appendChild(el);
+    });
+  }
+  scriviFatti();
 
   /* ── LA PELLICOLA ────────────────────────────────────────────────────
      Il video esiste per due case su ventisei. Dove c'e si guarda; dove
@@ -329,11 +381,19 @@
           + '<span>Filmed inside this flat · loads only when you press</span>'
           + '</button>';
         box.querySelector('.pel-play').addEventListener('click', function () {
-          box.innerHTML = '<iframe src="https://www.youtube-nocookie.com/embed/'
-            + id + '?autoplay=1&rel=0&modestbranding=1" title="Video tour of '
-            + (c.nome || 'this apartment') + '" allow="accelerometer; '
-            + 'autoplay; encrypted-media; picture-in-picture" '
-            + 'allowfullscreen></iframe>';
+          /* l'iframe si costruisce coi nodi, non con innerHTML: il titolo
+             porta il NOME della casa, che viene dal documento (l'idrante lo
+             rilegge da Firestore) e deve restare testo — un nome con
+             virgolette o markup usciva dall'attributo */
+          var fr = document.createElement('iframe');
+          fr.setAttribute('src', 'https://www.youtube-nocookie.com/embed/'
+            + id + '?autoplay=1&rel=0&modestbranding=1');
+          fr.setAttribute('title', 'Video tour of ' + (c.nome || 'this apartment'));
+          fr.setAttribute('allow', 'accelerometer; autoplay; encrypted-media; '
+            + 'picture-in-picture');
+          fr.setAttribute('allowfullscreen', '');
+          box.textContent = '';
+          box.appendChild(fr);
         });
         pel.appendChild(box);
       }
@@ -345,8 +405,17 @@
   /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
   per('#raccontoCasa').textContent = c.racconto
     || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
-  per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
-    .map(function (x) { return '<span>' + x + '</span>'; }).join('');
+  /* le dotazioni vengono dal documento (una casa nuova le prende da
+     Firestore): testo, coi nodi — mai dentro innerHTML */
+  (function () {
+    var box = per('#dentroCasa');
+    box.textContent = '';
+    (c.dentro || []).slice(0, 10).forEach(function (x) {
+      var s = document.createElement('span');
+      s.textContent = String(x);
+      box.appendChild(s);
+    });
+  })();
 
   /* ── IL DENARO IN CHIARO ────────────────────────────────────────────
      Regole dichiarate, aritmetica visibile: la cauzione e N mensilita,
@@ -981,8 +1050,25 @@
      riscrive stato, denaro, durata, FAQ, presa e porticine da sola.
      Una verita sola: quella vera. Se la rete manca, restano i numeri
      del builder — mai una pagina rotta. */
-  function digest(nume, testo) {
+  function digest(nume, testo, grezzo) {
     var cambia = false;
+    /* IL NOME E LE CAMERE (15/10/2026): la fotografia di build li porta
+       cotti, l'operatore li cambia su Firestore (i nomi dalla via, la
+       regola delle camere). Un documento che TACE non cancella niente;
+       uno che dice qualcosa che non si legge toglie il numero: meglio
+       tacere che stampare quello vecchio. */
+    var nomeNuovo = false, lettiNuovi = false;
+    var n2 = String(grezzo('name') == null ? '' : grezzo('name'))
+      .replace(/\s+/g, ' ').trim();
+    if (n2 && n2 !== c.nome) { c.nome = n2; nomeNuovo = true; }
+    if (grezzo('bedrooms') != null || grezzo('beds') != null) {
+      var l2 = camereDi({ bedrooms: grezzo('bedrooms'), beds: grezzo('beds') });
+      /* undefined = il motore delle camere non c'è: non si sa, e il dato
+         della build resta — un'assenza non cancella un fatto */
+      if (l2 !== undefined && l2 !== c.letti) { c.letti = l2; lettiNuovi = true; }
+    }
+    if (nomeNuovo) { scriviNome(); rifaiPorte(); }
+    if (lettiNuovi) scriviFatti();
     var p2 = nume('price');
     if (p2 && p2 !== c.prezzo) { c.prezzo = p2; cambia = true; }
     var m2 = nume('depositMonths');
@@ -1008,10 +1094,13 @@
       digest(function (k) {
         var n = parseFloat(d[k]);
         return isFinite(n) && n > 0 ? n : null;
-      }, function (k) { return d[k] == null ? '' : String(d[k]); });
+      }, function (k) { return d[k] == null ? '' : String(d[k]); },
+      function (k) { return d[k] == null ? null : d[k]; });
     })(window.__LISTING);
-  /* seconda: la rilettura viva, come sempre */
+  /* seconda: la rilettura viva, come sempre — e con lei le tre «altre
+     case» in fondo (rileggiAltre, qui sotto: una richiesta sola) */
   if (VERO) setTimeout(function () {
+    rileggiAltre();
     fetch('https://firestore.googleapis.com/v1/projects/'
         + 'boom-property-dashboards/databases/(default)/documents/listings/'
         + encodeURIComponent(c.id))
@@ -1026,6 +1115,11 @@
           return isFinite(n) && n > 0 ? n : null;
         }, function (k) {
           var v = f[k]; return v ? String(v.stringValue || '') : '';
+        }, function (k) {
+          var v = f[k]; if (!v) return null;
+          return v.stringValue != null ? v.stringValue
+            : v.integerValue != null ? v.integerValue
+            : v.doubleValue != null ? v.doubleValue : null;
         });
       })
       .catch(function () { /* niente rete: restano i numeri del builder */ });
@@ -1040,21 +1134,170 @@
     var pb = (b.libera ? 0 : 2) + (b.zona === c.zona ? 0 : 1);
     return pa - pb;
   }).slice(0, 3);
-  document.getElementById('altre').innerHTML = altre.map(function (a) {
+  /* nomi, zone e stati vengono dal documento (e la rilettura qui sotto li
+     riscrive): nel markup entrano come testo */
+  function escA(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;',
+               '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+  var boxAltre = document.getElementById('altre');
+  boxAltre.innerHTML = altre.map(function (a) {
     var dati = [a.zona, a.mq ? a.mq + ' m²' : '',
       a.letti === 0 ? 'Studio' : (a.letti ? a.letti + ' bed' : '')]
-      .filter(Boolean).join(' <i>·</i> ');
-    return '<a class="casa-p" href="' + '/listing/' + a.id + '">'
+      .filter(Boolean).map(escA).join(' <i>·</i> ');
+    /* il canone nasce come TESTO (si legge anche senza Solari), poi
+       montaPrezzo lo mette sul tabellone: prima il nodo nasceva VUOTO e il
+       montaggio degli organi era già passato (via() parte al load), quindi
+       le tre carte in fondo non mostravano nessun prezzo */
+    /* '/listing/' resta una stringa a sé: nell'artefatto costruisci-ld.py
+       la cambia in '#id=' (lì una casa si apre per frammento) */
+    return '<a class="casa-p" href="' + '/listing/' + escA(encodeURIComponent(a.id)) + '">'
       + '<div class="home-foto"><img loading="lazy" decoding="async" src="'
-      + a.cover + '" alt="' + a.nome + ', ' + a.zona + '">'
+      + escA(a.cover) + '" alt="' + escA(a.nome + ', ' + a.zona) + '">'
       + '<span class="casa-stato ' + (a.libera ? 'si' : '') + '">'
-      + a.stato + '</span></div>'
+      + escA(a.stato) + '</span></div>'
       + '<div class="corpo"><div class="riga1"><span class="nome">'
-      + a.nome + '</span><span class="canone"><span class="flap-prezzo '
-      + 'flap-scale" data-p="' + euro(a.prezzo) + '" aria-label="'
-      + euro(a.prezzo) + ' per month"></span><small>/mo</small></span></div>'
+      + escA(a.nome) + '</span><span class="canone"><span class="flap-prezzo '
+      + 'flap-scale" data-p="' + escA(euro(a.prezzo)) + '" aria-label="'
+      + escA(euro(a.prezzo)) + ' per month">' + escA(euro(a.prezzo))
+      + '</span><small>/mo</small></span></div>'
       + '<div class="riga2">' + dati + '</div></div></a>';
   }).join('');
+  /* il prezzo sul Solari, come __solariPrezzo della vetrina */
+  function montaPrezzo(host) {
+    var testo = host.dataset.p || '';
+    if (!BS) { host.textContent = testo; return; }
+    var b = new BS.Board(host, testo.length, ' €,.0123456789');
+    if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
+    new IntersectionObserver(function (r, io) {
+      if (!r[0].isIntersecting) return;
+      io.disconnect();
+      b.show(testo, 40, true);
+    }, { threshold: .4 }).observe(host);
+  }
+  var altreCarte = [].map.call(boxAltre.querySelectorAll('.casa-p'),
+    function (el, i) { return { id: altre[i].id, el: el }; });
+  altreCarte.forEach(function (x) {
+    var fp = x.el.querySelector('.flap-prezzo');
+    if (fp) montaPrezzo(fp);
+  });
+  /* LA RILETTURA DELLE ALTRE (15/10/2026). Le tre carte in fondo erano la
+     fotografia di build — nome, camere, stato e prezzo del giorno del
+     deploy — mentre la casa aperta sopra si rilegge da Firestore: una
+     pagina con due verità. Ora i loro documenti si rileggono insieme alla
+     casa, in UNA richiesta (documents:batchGet anonimo, la stessa lettura
+     pubblica dei listings, text/plain per non chiedere un preflight): nome
+     e camere con le STESSE rinomina e scriviCamere della vetrina (copie
+     identiche, pinnate da tests/catalogo/vetrina.mjs), lo stato con
+     statoDa (la stessa corsia della casa aperta), il prezzo rimontato sul
+     Solari. Una rilettura fallita, o un documento che manca, non tocca
+     niente: restano le carte della build. */
+  function rinomina(card, nome) {
+    var el = card.querySelector('.nome');
+    if (!el || !nome) return false;
+    var prima = el.textContent.replace(/\s+/g, ' ').trim();
+    if (prima === nome) return false;
+    el.textContent = nome;
+    var img = card.querySelector('.home-foto img');
+    var alt = img ? img.getAttribute('alt') || '' : '';
+    if (img && alt.indexOf(prima + ', ') === 0)
+      img.setAttribute('alt', nome + alt.slice(prima.length));
+    var cerca = card.dataset.cerca, pl = prima.toLowerCase();
+    if (cerca == null || (cerca !== pl && cerca.indexOf(pl + ' ') !== 0)) return false;
+    card.dataset.cerca = nome.toLowerCase() + cerca.slice(pl.length);
+    return true;
+  }
+  function scriviCamere(card, n) {
+    var cambia = false, dl = n == null ? '' : String(n);
+    if (card.dataset.letti !== undefined && card.dataset.letti !== dl) {
+      card.dataset.letti = dl; cambia = true;
+    }
+    var r2 = card.querySelector('.riga2');
+    if (!r2) return cambia;
+    var voce = n === 0 ? 'Studio' : n ? n + ' bed' : '', vecchia = null;
+    [].forEach.call(r2.childNodes, function (x) {
+      if (x.nodeType === 3 && /^\s*(\d+ bed|Studio)\s*$/.test(x.nodeValue)) vecchia = x;
+    });
+    if (vecchia) {
+      if (vecchia.nodeValue.trim() === voce) return cambia;
+      if (voce) { vecchia.nodeValue = ' ' + voce; return cambia; }
+      /* il documento dice qualcosa che non si legge: via la voce e il suo
+         separatore, mai un numero vecchio accanto a un nome nuovo */
+      var sep = vecchia.previousSibling;
+      if (sep && sep.nodeType === 1 && sep.tagName === 'I') r2.removeChild(sep);
+      r2.removeChild(vecchia);
+    } else if (voce) {
+      var i = document.createElement('i');
+      i.textContent = '·';
+      r2.appendChild(document.createTextNode(' '));
+      r2.appendChild(i);
+      r2.appendChild(document.createTextNode(' ' + voce));
+    }
+    return cambia;
+  }
+  function ritoccaAltra(card, f) {
+    function v(k) {
+      var x = f[k]; if (!x) return null;
+      return x.stringValue != null ? x.stringValue
+        : x.integerValue != null ? x.integerValue
+        : x.doubleValue != null ? x.doubleValue : null;
+    }
+    rinomina(card, String(v('name') == null ? '' : v('name'))
+      .replace(/\s+/g, ' ').trim());
+    /* un documento che TACE sulle camere lascia la build; senza il motore
+       (undefined) non si sa, e nemmeno */
+    if (v('bedrooms') != null || v('beds') != null) {
+      var n = camereDi({ bedrooms: v('bedrooms'), beds: v('beds') });
+      if (n !== undefined) scriviCamere(card, n);
+    }
+    var s2 = String(v('status') || '').toLowerCase();
+    if (s2) {
+      var af = String(v('availableFrom') || '').trim();
+      var ad = String(v('availableDate') || '').trim();
+      var st2 = statoDa(s2, ((af || ad).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null,
+        { af: af, ad: ad });
+      var eti = card.querySelector('.casa-stato');
+      if (eti && eti.textContent !== st2.eti) {
+        eti.textContent = st2.eti;
+        eti.className = 'casa-stato' + (st2.lib ? ' si' : '');
+      }
+    }
+    var p = parseFloat(v('price'));
+    var fp = card.querySelector('.flap-prezzo');
+    if (fp && isFinite(p) && p > 0 && fp.dataset.p !== euro(p)) {
+      fp.dataset.p = euro(p);
+      fp.setAttribute('aria-label', euro(p) + ' per month');
+      montaPrezzo(fp);
+    }
+  }
+  function rileggiAltre() {
+    if (!altreCarte.length || !window.fetch) return;
+    var DOC = 'projects/boom-property-dashboards/databases/(default)/documents/listings/';
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents:batchGet', {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({
+        documents: altreCarte.map(function (x) { return DOC + x.id; }),
+        mask: { fieldPaths: ['name', 'status', 'price', 'bedrooms', 'beds',
+          'availableFrom', 'availableDate'] } })
+    })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (lista) {
+        if (!Array.isArray(lista)) return;
+        var per = {};
+        lista.forEach(function (x) {
+          if (x && x.found && x.found.name)
+            per[String(x.found.name).split('/').pop()] = x.found.fields || {};
+        });
+        altreCarte.forEach(function (x) {
+          if (per[x.id]) ritoccaAltra(x.el, per[x.id]);
+        });
+      })
+      .catch(function () { /* niente rete: restano le carte della build */ });
+  }
 
   /* ── Hold e Apply chiedono le stesse tre cose a due form scollegati:
      compilarne uno riempie l'altro, e il successo dell'apply offre il

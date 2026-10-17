@@ -4,7 +4,10 @@
 # bugia è dichiarata (è una simulazione); tutto il resto — prezzi, zone,
 # aritmetica del giorno uno — è il dato reale.
 #   python3 costruisci-prova.py artefatto | sito
-import html as _html, json, re, sys
+import html as _html, json, os, re, sys
+sys.dont_write_bytecode = True   # niente __pycache__ nel repo
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+from listing_facts import bedrooms_of, voce  # design/listing_facts.py: la regola UNA
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 def leggi(n): return open(n, encoding='utf-8').read()
@@ -32,7 +35,11 @@ for r in piene:
                      .split('/')[0].strip(),
                  'p': p, 'mesi': int(m.group()) if m else 0,
                  'foto': img,
-                 'beds': int(re.sub(r'[^\d]', '', str(r.get('bedrooms') or '1')) or 1)})
+                 # le camere con la regola del sito (FACTS.bedroomsOf): qui
+                 # `bedrooms or '1'` inventava una camera dove non c'era
+                 # scritto niente (e un monolocale diventava «1 bed»), e
+                 # togliendo i non-numeri «1.5» diventava 15
+                 'beds': bedrooms_of(r)})
 vive.sort(key=lambda x: x['p'])
 assert len(vive) >= 3, 'servono almeno tre case vive con foto'
 # bassa, mediana, alta — con zone tutte diverse quando possibile
@@ -52,7 +59,8 @@ def carta(c):
             f' data-foto="{e(c["foto"])}">'
             f'<span class="foto" style="background-image:url(\'{e(c["foto"])}\')"></span>'
             f'<span class="info"><b>{e(c["nome"])}</b>'
-            f'<span>{e(c["zona"])} · {c["beds"]} bed</span>'
+            # «zona · N bed» / «zona · Studio»; camere ignote = solo la zona
+            f'<span>{e(" · ".join(x for x in [c["zona"], voce(c["beds"])] if x))}</span>'
             f'<span class="pcanone">€{c["p"]:,}<small> /mo</small></span></span>'
             f'<span class="scegli">This one →</span></button>')
 

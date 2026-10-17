@@ -466,7 +466,7 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   const c = { ...store.get('contracts/ctrA'), id: 'ctrA', tenantNationality: 'American', coTenants: store.get('contracts/ctrA').coTenants.concat([{ name: 'Eve Lin' }]) };
   const before = mails().length;
   const out = await sendCafDossier(c, store.get('properties/prop1'), {});
-  const m = mails().slice(before).find(x => /Fascicolo completo/.test(x.subject));
+  const m = mails().slice(before).find(x => /Pacchetto registrazione/.test(x.subject));
   const txt = m.html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   check('fascicolo completo: verdetto in testa + link /scheda del conduttore + messaggio EN già scritto + blocco del co-conduttore VUOTO col SUO link', out.ok && /Registrazione ✗ incompleta|✗ incompleta/.test(txt)
     && m.html.includes('/scheda?t=ctrA.t.') && /Hi Anna,/.test(txt) && m.html.includes('/scheda?t=ctrA.c3.') && /Co-conduttore 4 — manca/.test(txt));
@@ -475,11 +475,11 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   // documenti; il resto è dichiarato «dal portal», mai un link morto.
   const before2 = mails().length;
   await sendCafDossier({ ...c, tenantSignature: 'data:sig', landlordSignature: 'data:sig', identityDocs: [] }, store.get('properties/prop1'), {});
-  const m2 = mails().slice(before2).find(x => /Fascicolo completo/.test(x.subject));
+  const m2 = mails().slice(before2).find(x => /Pacchetto registrazione/.test(x.subject));
   const t2 = m2.html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   check('fascicolo completo su firmato: i campi congelati vanno «nel portal», il link resta solo per la copia del documento', /già firmato, da correggere nel portal/.test(t2)
     && /Conduttore — manca: [^]*Copia documento conduttore/.test(t2) && !/we still need:[^.]*permit/i.test(t2) && /già firmato[^]*Numero permesso/.test(t2));
-  check('fascicolo completo: le stesse righe del foglio (catasto a caselle) + oggetto stabile', /Subalterno 6/.test(txt) && /^📑 Fascicolo completo — Via Levico 12 — Anna Smith — 2026-09-01$/.test(m.subject));
+  check('fascicolo completo: le stesse righe del foglio (catasto a caselle) + oggetto stabile', /Subalterno 6/.test(txt) && /^📑 Pacchetto registrazione — Via Levico 12 — Anna Smith — 2026-09-01$/.test(m.subject));
 }
 
 // ═══ Il terzo modello: 3+2 (Allegato A) ═══
@@ -510,8 +510,9 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   check('roleWho: operator resta operator, tutto il resto è tenant salvo landlord', F.roleWho('operator') === 'operator' && F.roleWho('landlord') === 'landlord' && F.roleWho('tenant') === 'tenant' && F.roleWho('cotenant') === 'tenant');
   const ao = F.askFor('operator', ctx);
   const keys = ao.sections.flatMap(sc => sc.fields.map(f => f.key));
-  check('askFor(operator): lingua IT, una sezione «termini», SOLO campi dell\'operatore ancora vuoti (paymentDay, signaturePlace, consegnaStato…) — mai canone/date già pieni, mai l\'identità di una parte',
-    ao.role === 'operator' && ao.lang === 'it' && ao.sections.length === 1 && ao.sections[0].key === 'terms'
+  check('askFor(operator): lingua IT, «termini» + «registrazione» (il conto per i tributi, 15/10), SOLO campi dell\'operatore ancora vuoti (paymentDay, signaturePlace, consegnaStato…) — mai canone/date già pieni, mai l\'identità di una parte',
+    ao.role === 'operator' && ao.lang === 'it' && ao.sections.length === 2 && ao.sections[0].key === 'terms' && ao.sections[1].key === 'registration'
+    && keys.includes('rliDebitIban') && keys.includes('rliDebitHolder') && !keys.includes('landlordIban')
     && keys.includes('paymentDay') && keys.includes('signaturePlace') && keys.includes('consegnaStato')
     && !keys.includes('rent') && !keys.includes('startDate') && !keys.includes('installmentMonths') && !keys.some(k => /^tenant|^landlord|^cat/.test(k))
     && ao.identityMissing.length === 0);

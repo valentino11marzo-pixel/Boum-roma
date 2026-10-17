@@ -798,7 +798,7 @@ Valentyne - BOOM Rome`
             if (origin.page === 'oggi' && origin.context?.taskId)
                 oggiSegretaria.propertyReturn = { ...origin.context, scroll: origin.scroll, afterGeneration: oggiSegretaria.generation + (oggiSegretaria.loading ? 0 : 1) };
         },
-        actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
+        actions: { communications: id => inboxOpenContext({kind:'property',id}), contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
             task: id => editTask(id), person: id => viewUser(id),
             payment: (unit, month, id) => openRentUnit(unit, month, id),
             edit: property => openModal('editProperty', property),
@@ -2344,6 +2344,143 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // Session proof shared by boot, reads and subscriptions. A generation also
+    // distinguishes logout/login of the SAME uid while an old read is pending.
+    var portalSessionGeneration = 0, portalLoadGeneration = 0;
+    const portalSessionDefaults = { ...S };
+    function portalSessionProof() {
+        return { generation: portalSessionGeneration, uid: auth.currentUser?.uid,
+            profileId: S.profile?.id, role: S.profile?.role };
+    }
+    function portalSessionCurrent(proof) {
+        return !!proof.uid && proof.generation === portalSessionGeneration && auth.currentUser?.uid === proof.uid
+            && S.profile?.id === proof.profileId && S.profile?.role === proof.role;
+    }
+    function portalSessionReset() {
+        portalSessionGeneration++; portalLoadGeneration++;
+        window.BOOM_MAILBOX?.reset();
+        authProcessed = false; authRetryCount = 0;
+        stopSessionCheck();
+        for (const stop of [stopNotificationListener, stopContractsListener, stopActionQueueListener,
+            stopSignRequestsListener, stopRadarListener, stopInboxListener, stopHeartbeatListener,
+            stopMaintenanceListener, stopLeadsListener, stopAgentFeedListener]) stop();
+        portalSourcesStop();
+        oggiSegretariaStopLive(); oggiSegretaria.generation++;
+        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false });
+        window.portalSearchReset?.();
+        if (typeof _inboxState !== 'undefined') _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
+        const lang = S.lang, isOnline = navigator.onLine;
+        const generations = Object.fromEntries(Object.entries(S).filter(([key]) => /Generation$/.test(key)));
+        for (const key of Object.keys(S)) delete S[key];
+        Object.assign(S, portalSessionDefaults, generations, { user: null, profile: null, page: 'dashboard', lang, isOnline, lastActivity: Date.now() });
+        for (const key of Object.keys(S)) if (Array.isArray(S[key])) S[key] = [];
+        for (const key of ['pfsClients','pfsProperties','pfsActivities','landlords','viewingRequests','conversations','messages']) S[key] = [];
+        S.registrationStatuses = {};
+        invalidateRentSnapshot();
+        document.getElementById('app')?.classList.remove('active');
+        for (const id of ['main','modals','sidebar','searchContainer','toasts','headerName','headerAvatar','headerRole','headerBadge']) {
+            const node = document.getElementById(id); if (node) node.replaceChildren();
+        }
+        document.body.classList.remove('modal-open');
+        document.getElementById('portalSourceNotice')?.remove();
+    }
+    function portalRead(promise) {
+        let timer;
+        return Promise.race([promise, new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 15000); })])
+            .finally(() => clearTimeout(timer));
+    }
+    function portalDataRender() {
+        if (S.page === 'oggi') {
+            oggiScheduleUpdate();
+            if (typeof oggiWorkspace !== 'undefined' && oggiWorkspace.selected && !document.querySelector('.modal-overlay.active')) oggiWorkspaceShow(oggiWorkspace.selected, false);
+            return;
+        }
+        if (S.page === 'inbox') { inboxLiveRefresh(); return; }
+        const focus = document.activeElement;
+        if (document.querySelector('.modal-overlay.active') || document.body.classList.contains('modal-open')
+            || (document.getElementById('main')?.contains(focus) && focus?.matches('input,textarea,select,[contenteditable="true"]'))) return;
+        renderPage(); buildNav(); portalSourcesNotice();
+    }
+    function portalSourcesNotice() {
+        const labels = { contracts:'Contratti', maintenance:'Manutenzioni', signRequests:'Firme', core:'Dati principali',
+            listings:'Annunci', leads:'Lead', activityLog:'Attività', tasks:'Scadenze e attività', pfs:'Ricerca immobili', inbox:'Conversazioni', viewings:'Visite' };
+        const issues = Object.entries(S.sourceFreshness || {}).filter(([, entry]) => entry.state !== 'live');
+        let node = document.getElementById('portalSourceNotice');
+        const main = document.getElementById('main');
+        if (!issues.length || !S.profile) { node?.remove(); return; }
+        if (!node && main?.parentElement) {
+            node = document.createElement('div'); node.id = 'portalSourceNotice'; node.setAttribute('role', 'status');
+            node.style.cssText = 'padding:10px 16px;color:var(--orange);border-bottom:1px solid var(--border)';
+            // The notice spans the shell. Inside .layout it would become a
+            // third flex column and squeeze every page while a source is down.
+            const anchor = main.closest('.layout') || main;
+            anchor.parentElement.insertBefore(node, anchor);
+        }
+        if (node) node.textContent = issues.map(([key, entry]) => (labels[key] || key) + ': '
+            + (entry.state === 'cached' ? 'copia locale, conferma server in attesa' : entry.state === 'loading' ? 'verifica in corso' : 'aggiornamento non riuscito; conservo gli ultimi dati'))
+            .join(' · ') + '. Contratti, manutenzioni e firme riprovano automaticamente. Per le altre fonti usa Aggiorna i dati.';
+    }
+    function portalSourceStatus(name, state) {
+        S.sourceFreshness ||= {};
+        S.sourceFreshness[name] = { ...S.sourceFreshness[name], state,
+            ...(state === 'live' ? { verifiedAt: Date.now() } : {}) };
+        portalSourcesNotice();
+    }
+    function portalSourcesStop() {
+        document.removeEventListener('visibilitychange', portalSourcesRecover);
+        window.removeEventListener('online', portalSourcesRecover);
+        window.removeEventListener('pageshow', portalSourcesRecover);
+        for (const timer of Object.values(S.sourceRetryTimers || {})) clearTimeout(timer);
+    }
+    function portalSourcesRecover() {
+        if (!auth.currentUser || !isAdmin() || !S.sourceFreshness || document.hidden || navigator.onLine === false) return;
+        for (const [name, restart] of [['contracts', startContractsListener], ['maintenance', startMaintenanceListener], ['signRequests', startSignRequestsListener]]) {
+            if (S.sourceFreshness?.[name]?.state === 'error') restart();
+        }
+        portalSourcesNotice();
+    }
+    function portalListenSource(name, query, next, restart) {
+        const proof = portalSessionProof();
+        let active = true, unsubscribe, watchdog;
+        const current = () => active && portalSessionCurrent(proof);
+        const stop = () => { active = false; clearTimeout(watchdog); clearTimeout(S.sourceRetryTimers?.[name]); unsubscribe?.(); };
+        const failed = () => {
+            if (!current()) return;
+            stop();
+            if (!restart) { console.warn('[Portal] Subscription stopped:', name); return; }
+            portalSourceStatus(name, 'error');
+            const attempt = (S.sourceRetryAttempts ||= {})[name] = (S.sourceRetryAttempts[name] || 0) + 1;
+            const delay = Math.min(30000, 1000 * 2 ** Math.min(attempt - 1, 5));
+            (S.sourceRetryTimers ||= {})[name] = setTimeout(() => {
+                if (!portalSessionCurrent(proof)) return;
+                if (navigator.onLine !== false && !document.hidden) restart();
+            }, delay);
+        };
+        if (restart) {
+            clearTimeout(S.sourceRetryTimers?.[name]);
+            portalSourceStatus(name, S.sourceFreshness?.[name]?.state || 'loading');
+            document.addEventListener('visibilitychange', portalSourcesRecover);
+            window.addEventListener('online', portalSourcesRecover);
+            window.addEventListener('pageshow', portalSourcesRecover);
+            watchdog = setTimeout(failed, 15000);
+        }
+        const received = snapshot => {
+            if (!current()) return;
+            (S.dataRevisions ||= {})[name] = (S.dataRevisions[name] || 0) + 1;
+            if (restart) {
+                const cached = snapshot.metadata?.fromCache || snapshot.metadata?.hasPendingWrites;
+                portalSourceStatus(name, cached ? 'cached' : 'live');
+                if (!cached) { clearTimeout(watchdog); (S.sourceRetryAttempts ||= {})[name] = 0; }
+            }
+            next(snapshot);
+        };
+        try { unsubscribe = restart ? query.onSnapshot({ includeMetadataChanges: true }, received, failed) : query.onSnapshot(received, failed); }
+        catch { failed(); }
+        if (!active) unsubscribe?.();
+        return stop;
+    }
+    // End shared session/source helpers.
+
     // Track if auth already processed
     let authProcessed = false;
     let authRetryCount = 0;
@@ -2389,8 +2526,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     auth.onAuthStateChanged(async u => {
         if (isMagicSign || isIntakeForm) return;
         if (isPostSign) return; // postSign boot handler handles its own auth
+        if ((u?.uid || null) !== (auth.currentUser?.uid || null)) return;
         if (u) cancelLoginRedirect();
-        if (authProcessed && u) return;
+        if (authProcessed && u?.uid === S.user?.uid) return;
+        if (!u || S.user?.uid !== u.uid) portalSessionReset();
+        const generation = ++portalSessionGeneration;
+        window.BOOM_MAILBOX?.reset();
+        const current = () => generation === portalSessionGeneration && auth.currentUser?.uid === u?.uid;
         
         clearTimeout(authTimeout);
         console.log('Auth state changed:', u ? u.email : 'no user');
@@ -2417,23 +2559,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 S.user = u;
                 try {
                     const tDoc = await db.collection('users').doc(tenantSession.tenantId).get();
+                    if (!current()) return;
                     if (tDoc.exists) {
                         S.profile = Object.assign({ id: tenantSession.tenantId }, tDoc.data());
                         if (!S.profile.role) S.profile.role = 'tenant';
                         await loadData();
+                        if (!current()) return;
                         showApp();
                         startSessionCheck();
-                        setTimeout(() => readBoomBridge(), 800);
+                        setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                         return;
                     } else {
                         console.warn('[Auth] Tenant user doc missing — clearing session');
                         localStorage.removeItem('boomTenantSession');
                     }
                 } catch (e) {
+                    if (!current()) return;
                     console.error('[Auth] Magic-link tenant load failed:', e);
                     localStorage.removeItem('boomTenantSession');
                 }
             }
+            if (!current()) return;
             console.log('Anonymous user (no tenant session) — signing out...');
             await auth.signOut();
             return;
@@ -2451,6 +2597,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     docP,
                     new Promise((_, rej) => setTimeout(() => rej(new Error('profile_lookup_timeout')), 15000))
                 ]);
+                if (!current()) return;
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
                     // lastLogin è telemetria: MAI awaitarla sul boot path. Una
@@ -2468,30 +2615,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             new Promise((_, rej) => setTimeout(() => rej(new Error('data_load_timeout')), 20000))
                         ]);
                     } catch (loadErr) {
+                        if (!current()) return;
                         console.warn('[Auth] loadData slow/failed — entering app anyway:', loadErr.message);
                         // Show a one-time toast once the app is on screen.
-                        setTimeout(() => { try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
+                        setTimeout(() => { if (!current()) return; try { toast('warning', 'Caricamento lento', 'Alcuni dati arriveranno tra poco.'); } catch {} }, 800);
                     }
+                    if (!current()) return;
                     showApp();
                     startSessionCheck();
                     // ★ BOOM PROTOCOL: Check onboarding for new tenants
-                    setTimeout(() => { if (typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
-                    setTimeout(() => readBoomBridge(), 800);
+                    setTimeout(() => { if (current() && typeof checkOnboarding === 'function') checkOnboarding(); }, 500);
+                    setTimeout(() => { if (current()) readBoomBridge(); }, 800);
                 } else {
                     console.log('Creating new user document via /api/profile/bootstrap...');
                     // Le rules negano il create non-admin da client: il profilo
                     // nasce server-side (ruolo sempre tenant, least privilege).
                     const idToken = await u.getIdToken();
+                    if (!current()) return;
                     const bootRes = await fetch('/api/profile/bootstrap', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                         body: JSON.stringify({ name: u.displayName || '' })
                     });
                     const boot = await bootRes.json().catch(() => ({}));
+                    if (!current()) return;
                     if (!bootRes.ok || !boot.ok) throw new Error('Creazione profilo non riuscita (' + (boot.error || bootRes.status) + ')');
                     location.reload();
                 }
             } catch (e) { 
+                if (!current()) return;
                 console.error('Auth error:', e);
                 // Retry logic for Safari (desktop and mobile)
                 if (isSafari && authRetryCount < maxAuthRetries) {
@@ -2501,10 +2653,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     // Actually retry loading user data after brief delay
                     setTimeout(async () => {
                         try {
+                            if (!current()) return;
                             const retryDoc = await db.collection('users').doc(u.uid).get();
+                            if (!current()) return;
                             if (retryDoc.exists) {
                                 S.profile = { id: u.uid, ...retryDoc.data() };
                                 await loadData();
+                                if (!current()) return;
                                 showApp();
                                 startSessionCheck();
                                 authProcessed = true;
@@ -2526,6 +2681,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     });
 
     async function loadData() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return { ok: false, stale: true };
         console.log('Loading data...');
         const startTime = performance.now();
         
@@ -2542,7 +2699,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const cacheKey = 'boom_data_cache';
         const cacheFresh = 5 * 60 * 1000;        // sotto: refresh rilassato
         const cacheUsable = 24 * 60 * 60 * 1000; // sotto: boot istantaneo + refresh subito
-        const cached = localStorage.getItem(cacheKey);
+        let cached;
+        try { cached = localStorage.getItem(cacheKey); } catch {}
         if (cached) {
             try {
                 const { data, timestamp, uid, role } = JSON.parse(cached);
@@ -2550,20 +2708,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const age = Date.now() - timestamp;
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
-                    Object.assign(S, data);
+                    for (const [key, value] of Object.entries(data || {})) {
+                        if (Array.isArray(value) && key !== 'user' && key !== 'profile') S[key] = value;
+                    }
+                    for (const key of ['core','contracts','maintenance']) portalSourceStatus(key, 'cached');
                     invalidateRentSnapshot();
                     window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
-                    setTimeout(() => loadDataFresh(true), age < cacheFresh ? 2000 : 0);
-                    return;
+                    setTimeout(() => { if (portalSessionCurrent(proof)) return loadDataFresh(true); }, age < cacheFresh ? 2000 : 0);
+                    return { ok: true, cached: true };
                 }
                 if (!sameUser) localStorage.removeItem(cacheKey);
             } catch (e) { console.log('Cache invalid'); }
         }
 
-        await loadDataFresh(false);
+        return loadDataFresh(false);
     }
     
     // Firestore `in` queries cap at 30 values — chunk + merge so a landlord
@@ -2575,7 +2736,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
             const snap = await db.collection(collection)
-                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get();
+                .where(firebase.firestore.FieldPath.documentId(), 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2586,7 +2747,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         for (let i = 0; i < unique.length; i += 30) {
             const chunk = unique.slice(i, i + 30);
             if (!chunk.length) continue;
-            const snap = await db.collection(collection).where(field, 'in', chunk).get();
+            const snap = await db.collection(collection).where(field, 'in', chunk).get({ source: 'server' });
             snap.docs.forEach(d => out.push({ id: d.id, ...d.data() }));
         }
         return out;
@@ -2596,84 +2757,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // queries pass Firestore Security Rules (which reject unconstrained
     // collection reads for landlord/tenant). Admin-only ops collections are
     // emptied, never fetched.
-    async function loadDataScoped(silent, startTime) {
+    async function loadDataScoped(silent, startTime, current) {
         const myUid = S.profile.id;
+        const next = {};
+        let inboxOK = true;
         // Admin-only collections: stay empty for landlord/tenant.
-        S.clients = []; S.invoices = []; S.rules = []; S.ruleExecutions = [];
-        S.listings = []; S.leads = []; S.activityLog = []; S.deadlines = [];
-        S.tasks = []; S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = [];
-        S.landlords = []; S.viewingRequests = [];
-        S.conversations = []; S.messages = [];
+        next.clients = []; next.invoices = []; next.rules = []; next.ruleExecutions = [];
+        next.listings = []; next.leads = []; next.activityLog = []; next.deadlines = [];
+        next.tasks = []; next.pfsClients = []; next.pfsProperties = []; next.pfsActivities = [];
+        next.landlords = []; next.viewingRequests = [];
+        next.conversations = S.conversations || []; next.messages = S.messages || [];
         // The viewer needs their own user doc (+ admin contacts surface lazily).
-        S.users = [{ id: myUid, ...S.profile }];
+        next.users = [{ id: myUid, ...S.profile }];
 
-        if (isLandlord()) {
-            const props = await db.collection('properties').where('ownerId', '==', myUid).get();
-            S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.properties.map(p => p.id);
+        const landlord = isLandlord();
+        if (landlord) {
+            const props = await db.collection('properties').where('ownerId', '==', myUid).get({ source: 'server' });
+            next.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.properties.map(p => p.id);
             const [contracts, payments, maint] = await Promise.all([
                 fetchWhereInChunked('contracts', 'propertyId', propIds),
                 fetchWhereInChunked('payments', 'propertyId', propIds),
                 fetchWhereInChunked('maintenance', 'propertyId', propIds)
             ]);
-            S.contracts = contracts;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.contracts = contracts;
+            next.payments = payments;
+            next.maintenance = maint;
             // Tenants on those contracts (so names render) — read-allowed since
             // admin rule covers users; landlords read tenant docs via rules only
             // if permitted. Keep minimal: skip cross-user fetch, render by id.
         } else { // tenant
-            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get();
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
-            const propIds = S.contracts.map(c => c.propertyId);
+            const contracts = await db.collection('contracts').where('tenantId', '==', myUid).get({ source: 'server' });
+            next.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            const propIds = next.contracts.map(c => c.propertyId);
             const [props, payments, maint] = await Promise.all([
                 fetchByIdsChunked('properties', propIds),
-                db.collection('payments').where('tenantId', '==', myUid).get()
+                db.collection('payments').where('tenantId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() }))),
-                db.collection('maintenance').where('userId', '==', myUid).get()
+                db.collection('maintenance').where('userId', '==', myUid).get({ source: 'server' })
                     .then(s => s.docs.map(d => ({ id: d.id, ...d.data() })))
             ]);
-            S.properties = props;
-            S.payments = payments;
-            S.maintenance = maint;
+            next.properties = props;
+            next.payments = payments;
+            next.maintenance = maint;
         }
 
         // Own documents (both roles).
-        const docs = await db.collection('documents').where('userId', '==', myUid).get();
-        S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
+        const docs = await db.collection('documents').where('userId', '==', myUid).get({ source: 'server' });
+        next.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
 
         // Inbox: scoped reads. Landlord sees conversations assigned to them.
         // Tenant sees own (contactUid == myUid). Either way the rule allows it.
         try {
-            const field = isLandlord() ? 'assignedLandlordId' : 'contactUid';
-            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get();
-            S.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
-            const convIds = S.conversations.map(c => c.id);
+            const field = landlord ? 'assignedLandlordId' : 'contactUid';
+            const convs = await db.collection('conversations').where(field, '==', myUid).limit(200).get({ source: 'server' });
+            next.conversations = convs.docs.map(d => ({ id: d.id, ...d.data() }));
+            const convIds = next.conversations.map(c => c.id);
             if (convIds.length) {
                 const msgs = await fetchWhereInChunked('messages', 'conversationId', convIds);
-                S.messages = msgs;
+                next.messages = msgs;
             }
-        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox scoped load:', e.message); }
+        } catch (e) { inboxOK = false; if (current()) portalSourceStatus('inbox', 'error'); }
+
+        if (!current()) return { ok: false, stale: true };
+        Object.assign(S, next);
+        portalSourceStatus('core', 'live');
+        if (inboxOK) portalSourceStatus('inbox', 'live');
 
         // Auto-overdue marking on the viewer's own pending payments.
         const today = new Date().toISOString().split('T')[0];
-        S.payments.forEach(function (p) {
+        next.payments.forEach(function (p) {
             if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
         });
 
-        cacheData();
+        if (inboxOK) cacheData();
         checkAlerts();
-        if (silent) {
-            // Refresh in background dopo un boot dalla cache (percorso SWR):
-            // riallinea la UI ai dati appena arrivati — ma mai sotto un modal
-            // aperto, un re-render cancellerebbe l'input dell'utente. È lo
-            // stesso comportamento del percorso admin (blocco lazy → render).
-            const modals = document.getElementById('modals');
-            if (!modals || !modals.children.length) {
-                try { renderPage(); buildNav(); } catch (e) { console.warn('Silent refresh render:', e); }
-            }
-        }
+        if (silent) portalDataRender();
         console.log('Scoped data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+        return { ok: inboxOK };
     }
 
     function cacheData() {
@@ -2682,7 +2843,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // load non finiva (audit 2026-08, I2). Ora copre tutto lo stato, e la
         // serializzazione (potenzialmente MB) gira in idle, mai sul percorso
         // critico del main thread.
+        const proof = portalSessionProof(), generation = portalLoadGeneration;
         const snapshot = () => {
+            if (!portalSessionCurrent(proof) || generation !== portalLoadGeneration) return;
             try {
                 localStorage.setItem('boom_data_cache', JSON.stringify({
                     timestamp: Date.now(),
@@ -2703,16 +2866,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else setTimeout(snapshot, 300);
     }
 
-    async function loadDataFresh(silent) {
-        const startTime = performance.now();
+    async function loadDataFresh(silent, waitForLazy = false) {
+        const startTime = performance.now(), proof = portalSessionProof();
+        const generation = ++portalLoadGeneration;
+        let expired = false;
+        const current = () => !expired && generation === portalLoadGeneration && portalSessionCurrent(proof);
+        if (!current()) return { ok: false, stale: true };
+        const revisions = { ...S.dataRevisions };
+        portalSourceStatus('core', 'loading');
         // Landlord / tenant take the scoped path so their queries satisfy
         // Firestore rules; admin keeps the full bulk load below.
         if (!isAdmin()) {
-            try { return await loadDataScoped(silent, startTime); }
+            try { return await portalRead(loadDataScoped(silent, startTime, current)); }
             catch (e) {
+                if (!current()) return { ok: false, stale: true };
+                expired = true; portalSourceStatus('core', 'error');
                 console.error('Scoped load error:', e);
                 if (!silent) toast('error', 'Errore caricamento', e.message);
-                return;
+                return { ok: false };
             }
         }
         try {
@@ -2724,25 +2895,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // nulla e costava ~2 round-trip extra a ogni boot admin.
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('loading');
             console.log('Loading core data...');
-            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
+            // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get({ source: 'server' }) nudi —
             // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
             // larghi (oggi non tagliano nulla), NON orderBy+limit: un orderBy su
             // un campo che i doc legacy non hanno li NASCONDEREBBE in silenzio.
-            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await Promise.all([
-                db.collection('users').limit(800).get(),
-                db.collection('properties').limit(400).get(),
-                db.collection('contracts').limit(800).get(),
-                db.collection('payments').limit(3000).get(),
-                db.collection('maintenance').limit(600).get(),
-                db.collection('clients').limit(1200).get(),
-                db.collection('documents').limit(1500).get(),
-                db.collection('invoices').limit(1200).get(),
-                db.collection('rules').limit(200).get(),
-                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get()
-            ]);
+            const [users, props, contracts, payments, maint, clients, docs, invoices, rules, ruleExecs] = await portalRead(Promise.all([
+                db.collection('users').limit(800).get({ source: 'server' }),
+                db.collection('properties').limit(400).get({ source: 'server' }),
+                db.collection('contracts').limit(800).get({ source: 'server' }),
+                db.collection('payments').limit(3000).get({ source: 'server' }),
+                db.collection('maintenance').limit(600).get({ source: 'server' }),
+                db.collection('clients').limit(1200).get({ source: 'server' }),
+                db.collection('documents').limit(1500).get({ source: 'server' }),
+                db.collection('invoices').limit(1200).get({ source: 'server' }),
+                db.collection('rules').limit(200).get({ source: 'server' }),
+                db.collection('ruleExecutions').orderBy('executedAt', 'desc').limit(50).get({ source: 'server' })
+            ]));
+            if (!current()) return { ok: false, stale: true };
             S.users = users.docs.map(d => ({ id: d.id, ...d.data() }));
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
-            S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.contracts || 0) === (revisions.contracts || 0)) S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
             invalidateRentSnapshot();
             // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
@@ -2754,89 +2926,125 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.payments.forEach(function(p) {
                 if (p.status === 'pending' && p.dueDate && p.dueDate < today) p.status = 'overdue';
             });
-            S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
+            if ((S.dataRevisions?.maintenance || 0) === (revisions.maintenance || 0)) S.maintenance = maint.docs.map(d => ({ id: d.id, ...d.data() }));
             S.clients = clients.docs.map(d => ({ id: d.id, ...d.data() }));
             S.documents = docs.docs.map(d => ({ id: d.id, ...d.data() }));
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
+            portalSourceStatus('core', 'live');
+            for (const name of ['contracts', 'maintenance']) if (!S[name + 'Listener']) portalSourceStatus(name, 'live');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
-            
-            // Cache core data (tagged with uid + role for shared-device safety)
-            cacheData();
             
             // LAZY LOAD: dati non-critici, dopo che l'app è visibile.
             // I 6 gruppi erano SEQUENZIALI (ogni try await-ava il precedente):
             // 6 round-trip in fila = 1,5-3s di sola latenza su mobile. Ora
             // partono INSIEME; ogni gruppo tiene il proprio catch, quindi un
             // gruppo che fallisce non tocca gli altri (audit 2026-08, I1).
-            setTimeout(async () => {
+            const lazy = async () => {
+                if (!current()) return { ok: false, stale: true };
+                let lazyOK = true;
+                const read = async (name, work) => {
+                    if (!current()) return;
+                    let active = true;
+                    const valid = () => active && current();
+                    try { await portalRead(work(valid)); if (current()) portalSourceStatus(name, 'live'); }
+                    catch { lazyOK = false; if (current()) portalSourceStatus(name, 'error'); }
+                    finally { active = false; }
+                };
                 const rows = (snap) => snap.docs.map(d => ({ id: d.id, ...d.data() }));
                 await Promise.all([
-                    (async () => {
-                        try { S.listings = rows(await db.collection('listings').limit(400).get()); }
-                        catch (e) { S.listings = []; }
-                    })(),
-                    (async () => {
-                        try { S.leads = rows(await db.collection('leads').orderBy('createdAt', 'desc').limit(100).get()); }
-                        catch (e) { S.leads = []; }
-                    })(),
-                    (async () => {
-                        try { S.activityLog = rows(await db.collection('activityLog').orderBy('timestamp', 'desc').limit(200).get()); }
-                        catch (e) { S.activityLog = []; }
-                    })(),
-                    (async () => {
+                    ...[['listings', 'listings', 400], ['leads', 'leads', 100], ['activityLog', 'activityLog', 200]].map(([name, collection, limit]) => read(name, async valid => {
+                        const revision = S.dataRevisions?.[name] || 0;
+                        let query = db.collection(collection);
+                        if (name === 'leads') query = query.orderBy('createdAt', 'desc');
+                        if (name === 'activityLog') query = query.orderBy('timestamp', 'desc');
+                        const snap = await query.limit(limit).get({ source: 'server' });
+                        if (valid() && (S.dataRevisions?.[name] || 0) === revision) S[name] = rows(snap);
+                    })),
+                    read('tasks', async valid => {
                         window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('loading');
                         try {
-                            const [deadlines, tasks] = await Promise.all([
-                                db.collection('deadlines').limit(1500).get(),
-                                db.collection('tasks').limit(800).get()
-                            ]);
+                            const [deadlines, tasks] = await portalRead(Promise.all([
+                                db.collection('deadlines').limit(1500).get({ source: 'server' }),
+                                db.collection('tasks').limit(800).get({ source: 'server' })
+                            ]));
+                            if (!valid()) return;
                             S.deadlines = rows(deadlines); S.tasks = rows(tasks);
                             window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('ready');
-                        } catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze e attività'); }
-                    })(),
+                        } catch (e) { if (valid()) window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); throw e; }
+                    }),
+                    read('pfs', async valid => {
+                        const [pfsClients, pfsProperties, pfsActivities, landlords] = await portalRead(Promise.all([
+                            db.collection('pfsClients').limit(500).get({ source: 'server' }),
+                            db.collection('pfsProperties').limit(1500).get({ source: 'server' }),
+                            db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get({ source: 'server' }),
+                            db.collection('landlords').limit(500).get({ source: 'server' })
+                        ]));
+                        if (!valid()) return;
+                        S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
+                        S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
+                    }),
+                    read('viewings', async valid => { const ok = await oggiLoadViewings(); if (!ok) throw Error('viewings_unavailable'); }),
                     (async () => {
+                        let active = true;
+                        const user = auth.currentUser, profileId = S.profile?.id;
+                        const conversationsRevision = S.inboxDataRevision || 0, messagesRevision = S.inboxMessagesRevision || 0;
+                        const inboxCurrent = () => active && current() && auth.currentUser === user && S.profile?.id === profileId && isAdmin();
+                        if (!user || !inboxCurrent()) return;
                         try {
-                            const [pfsClients, pfsProperties, pfsActivities, landlords] = await Promise.all([
-                                db.collection('pfsClients').limit(500).get(),
-                                db.collection('pfsProperties').limit(1500).get(),
-                                db.collection('pfsActivities').orderBy('timestamp', 'desc').limit(100).get(),
-                                db.collection('landlords').limit(500).get()
-                            ]);
-                            S.pfsClients = rows(pfsClients); S.pfsProperties = rows(pfsProperties);
-                            S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
-                        } catch (e) { S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = []; }
-                    })(),
-                    (async () => {
-                        try { S.viewingRequests = rows(await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get()); }
-                        catch (e) { S.viewingRequests = []; }
-                    })(),
-                    (async () => {
-                        try {
-                            const [convs, msgs] = await Promise.all([
-                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get(),
-                                db.collection('messages').orderBy('at', 'desc').limit(500).get()
-                            ]);
-                            S.conversations = rows(convs); S.messages = rows(msgs);
-                        } catch (e) { S.conversations = []; S.messages = []; console.warn('Inbox load:', e.message); }
+                            const [convs, msgs] = await portalRead(Promise.all([
+                                db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200).get({ source: 'server' }),
+                                db.collection('messages').orderBy('at', 'desc').limit(500).get({ source: 'server' })
+                            ]));
+                            if (!inboxCurrent()) return;
+                            // A delayed one-shot must not replace a newer realtime snapshot.
+                            if ((S.inboxDataRevision || 0) === conversationsRevision) {
+                                S.conversations = rows(convs);
+                                const selected = S.inboxExactConversation;
+                                if (S.page === 'inbox' && selected?.user === user && selected.id === S.openConvId) {
+                                    const latest = S.conversations.find(c => c.id === selected.id);
+                                    if (latest) selected.row = latest;
+                                    else S.conversations.push(selected.row);
+                                }
+                            }
+                            if ((S.inboxMessagesRevision || 0) === messagesRevision) {
+                                const openId = S.openConvId;
+                                // The global 500-message window does not replace the selected thread.
+                                S.messages = openId ? rows(msgs).filter(m => m.conversationId !== openId)
+                                    .concat((S.messages || []).filter(m => m.conversationId === openId)) : rows(msgs);
+                            }
+                            portalSourceStatus('inbox', 'live');
+                        } catch (e) {
+                            lazyOK = false;
+                            if (inboxCurrent()) portalSourceStatus('inbox', 'error');
+                            console.warn('Inbox load:', e.message);
+                            if (inboxCurrent() && !['live', 'cached'].includes(S.inboxFeed?.state)) {
+                                S.inboxFeed = { state: 'error' }; inboxFreshnessUpdate();
+                            }
+                        } finally { active = false; }
                     })(),
                 ]);
 
+                if (!current()) return { ok: false, stale: true };
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
-                if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
-                cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
-                if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
-                buildNav();
-            }, isSafariDesktop ? 1500 : 500);
-            
-            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+                if (lazyOK) cacheData();
+                portalDataRender();
+                return { ok: lazyOK };
+            };
+            const completion = waitForLazy ? lazy() : new Promise(resolve => setTimeout(() => { const pending = lazy(); resolve(pending); return pending; }, isSafariDesktop ? 1500 : 500));
             if (!silent) checkAlerts();
+            if (waitForLazy) return await completion;
+            console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
+            return { ok: true, completion };
         } catch (e) { 
+            if (!current()) return { ok: false, stale: true };
+            expired = true; portalSourceStatus('core', 'error');
             window.BOOM_PROPERTY_DOSSIER?.setSourceState('error');
             console.error('Load data error:', e);
-            if (!silent) toast('error', 'Errore caricamento', e.message); 
+            if (!silent) toast('error', 'Errore caricamento', e.message);
+            return { ok: false };
         }
     }
 
@@ -3094,11 +3302,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.notifListener) S.notifListener();
         
         // Listen for notifications for this user
-        S.notifListener = db.collection('notifications')
+        S.notifListener = portalListenSource('notif', db.collection('notifications')
             .where('userId', '==', S.profile.id)
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.userNotifications = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 updateNotifBadge();
                 updateReminderBadge();
@@ -3117,7 +3325,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const latest = newUnread[0];
                     sendBrowserNotification(latest.title || 'BOOM', latest.message || 'New notification');
                 }
-            }, err => console.error('Notification listener error:', err));
+            });
     }
     
     function stopNotificationListener() {
@@ -3137,13 +3345,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // iniziale riscaricava la collezione INTERA una seconda volta.
         if (!S.profile?.id || !isAdmin()) return;
         if (S.contractsListener) S.contractsListener();
-        S.contractsListener = db.collection('contracts').limit(800)
-            .onSnapshot(snapshot => {
+        S.contractsListener = portalListenSource('contracts', db.collection('contracts').limit(800)
+            , snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
                 oggiScheduleUpdate();
-                if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
-            }, err => console.error('Contracts listener error:', err));
+                if (S.page === 'dashboard' || S.page === 'contracts') portalDataRender();
+            }, startContractsListener);
     }
 
     function stopContractsListener() {
@@ -3160,15 +3368,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startActionQueueListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.actionQueueListener) S.actionQueueListener();
-        S.actionQueueListener = db.collection('action_queue')
+        S.actionQueueListener = portalListenSource('actionQueue', db.collection('action_queue')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
                 oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
-            }, err => console.error('Action queue listener error:', err));
+            });
     }
 
     function stopActionQueueListener() {
@@ -3185,11 +3393,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startHeartbeatListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.heartbeatListener) S.heartbeatListener();
-        S.heartbeatListener = db.collection('heartbeat').doc('mac')
-            .onSnapshot(doc => {
+        S.heartbeatListener = portalListenSource('heartbeat', db.collection('heartbeat').doc('mac')
+            , doc => {
                 S.homieHeartbeat = doc.exists ? doc.data() : null;
                 if (S.page === 'command-center') renderPage();
-            }, err => console.error('Heartbeat listener error:', err));
+            });
         // Re-render periodically so the dot ages even without new pings.
         if (!S._hbTick) S._hbTick = setInterval(() => { if (S.page === 'command-center') renderPage(); }, 30000);
     }
@@ -3206,8 +3414,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.maintenanceListener) S.maintenanceListener();
         S._maintSeen = new Set((S.maintenance || []).map(m => m.id));
-        S.maintenanceListener = db.collection('maintenance').limit(600)
-            .onSnapshot(snapshot => {
+        S.maintenanceListener = portalListenSource('maintenance', db.collection('maintenance').limit(600)
+            , snapshot => {
                 S.maintenance = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const active = m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done';
                 const firstRun = !S._maintInit; S._maintInit = true;   // don't alert for pre-existing tickets on login
@@ -3223,8 +3431,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 }
                 buildNav();
                 oggiScheduleUpdate();
-                if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Maintenance listener error:', err));
+                if (S.page === 'maintenance' || S.page === 'dashboard') portalDataRender();
+            }, startMaintenanceListener);
     }
     function stopMaintenanceListener() {
         if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
@@ -3241,8 +3449,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.leadsListener) S.leadsListener();
         S._leadsSeen = new Set((S.leads || []).map(l => l.id));
         S._leadsInit = false;
-        S.leadsListener = db.collection('leads').orderBy('createdAt', 'desc').limit(100)
-            .onSnapshot(snapshot => {
+        S.leadsListener = portalListenSource('leads', db.collection('leads').orderBy('createdAt', 'desc').limit(100)
+            , snapshot => {
                 S.leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 const firstRun = !S._leadsInit; S._leadsInit = true;   // niente avvisi per l'arretrato al login
                 const fresh = firstRun ? [] : S.leads.filter(l => !S._leadsSeen.has(l.id)
@@ -3259,7 +3467,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 buildNav();
                 oggiScheduleUpdate();
                 if (S.page === 'leads') renderPage();
-            }, err => console.error('Leads listener error:', err));
+            });
     }
     function stopLeadsListener() {
         if (S.leadsListener) { S.leadsListener(); S.leadsListener = null; }
@@ -3274,10 +3482,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id || !isAdmin()) return;
         if (S.agentFeedListener) S.agentFeedListener();
         S._agentSeen = new Set((S.agentFeed || []).map(a => a.id));
-        S.agentFeedListener = db.collection('agentNotifications')
+        S.agentFeedListener = portalListenSource('agentFeed', db.collection('agentNotifications')
             .where('status', '==', 'pending')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.agentFeed = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
                     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
                 const firstRun = !S._agentInit; S._agentInit = true;   // don't alert for queued backlog on login
@@ -3292,7 +3500,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('⚡ ' + (top.type || 'Avviso'), top.summary || '');
                 }
                 if (S.page === 'command-center' || S.page === 'dashboard') renderPage();
-            }, err => console.error('Agent feed listener error:', err));
+            });
     }
     function stopAgentFeedListener() {
         if (S.agentFeedListener) { S.agentFeedListener(); S.agentFeedListener = null; }
@@ -3316,13 +3524,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startSignRequestsListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.signRequestsListener) S.signRequestsListener();
-        S.signRequestsListener = db.collection('signRequests')
+        S.signRequestsListener = portalListenSource('signRequests', db.collection('signRequests')
             .orderBy('createdAt', 'desc')
             .limit(100)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.signRequests = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                if (S.page === 'contracts') renderPage();
-            }, err => console.error('Sign requests listener error:', err));
+                if (S.page === 'contracts') portalDataRender();
+            }, startSignRequestsListener);
     }
 
     function stopSignRequestsListener() {
@@ -3336,13 +3544,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startRadarListener() {
         if (!S.profile?.id || !isAdmin()) return;
         if (S.radarListener) S.radarListener();
-        S.radarListener = db.collection('radarSearches')
+        S.radarListener = portalListenSource('radar', db.collection('radarSearches')
             .orderBy('createdAt', 'desc')
             .limit(50)
-            .onSnapshot(snapshot => {
+            , snapshot => {
                 S.radarSearches = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 if (S.page === 'property-radar') renderPage();
-            }, err => console.error('Radar listener error:', err));
+            });
     }
 
     function stopRadarListener() {
@@ -3373,6 +3581,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         S.inboxListener = q.onSnapshot({ includeMetadataChanges: true }, snapshot => {
             if (!active || !current()) return;
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
             S.inboxFeed = { state: snapshot.metadata?.fromCache ? 'cached' : 'live' };
             inboxFreshnessUpdate();
             const changed = !received || typeof snapshot.docChanges !== 'function' || snapshot.docChanges().length > 0;
@@ -3429,6 +3638,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 if (!active || !current()) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.inboxMessagesRevision = (S.inboxMessagesRevision || 0) + 1;
                 S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
@@ -3991,12 +4201,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function refresh() { 
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             await loadData(); 
+            if (!portalSessionCurrent(proof)) return;
             await loadRegistrations();
+            if (!portalSessionCurrent(proof)) return;
             renderPage(); 
             buildNav(); 
         } catch (e) {
+            if (!portalSessionCurrent(proof)) return;
             console.error('Refresh error:', e);
             toast('error', 'Errore aggiornamento', 'Ricarica la pagina');
         }
@@ -4077,11 +4292,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Force refresh data (clear cache and reload)
     async function forceRefreshData() {
-        localStorage.removeItem('boom_data_cache');
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
+        window.portalSearchReset?.();
         toast('info', 'Ricaricamento dati...');
-        await loadDataFresh(false);
-        renderPage();
-        toast('success', 'Dati aggiornati!');
+        const result = await loadDataFresh(false, true);
+        if (!portalSessionCurrent(proof) || result?.stale) return;
+        portalSourcesRecover();
+        portalDataRender();
+        if (result?.ok && !Object.values(S.sourceFreshness || {}).some(entry => entry.state !== 'live')) toast('success', 'Dati aggiornati!');
+        else toast('warning', 'Aggiornamento incompleto', 'Conservo gli ultimi dati disponibili. Controlla le fonti segnalate e riprova.');
+        return result;
     }
     function authErr(c) { return { 'auth/user-not-found': 'Utente non trovato', 'auth/wrong-password': 'Password errata', 'auth/invalid-email': 'Email non valida', 'auth/email-already-in-use': 'Email già registrata', 'auth/weak-password': 'Password troppo debole', 'auth/invalid-credential': 'Credenziali non valide' }[c] || 'Errore: ' + c; }
 
@@ -4135,7 +4356,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
         // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
         const innestoSeed = isAdmin() && innestoSeedFromHash();
-        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
+        // #aspi=<contractId>: il bottone dell'email «Pacchetto registrazione»
+        // apre Contratti con il pannello del referente già aperto.
+        const aspiSeed = !innestoSeed && isAdmin() && aspiSeedFromHash();
+        goTo(innestoSeed ? 'innesto' : aspiSeed ? 'contracts' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
+        if (aspiSeed) setTimeout(() => openAspi(aspiSeed), 0);
 
     }
 
@@ -4164,59 +4389,55 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const radarFound = (S.leads || []).filter(l => (l.source || '').startsWith('radar') && (l.status === 'new' || !l.status)).length;
             const unreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             
-            sb.innerHTML = `
-                <div class="nav-section"><div class="nav-label">Operativo</div>
-                    <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
-                    <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
-                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Gestione</div>
-                    <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
-                    <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
-                    <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
-                    <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
-                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Canoni ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
-                    <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Tools</div>
-                    <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
-                    <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
-                    <div class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
-                    <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
-                    <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
-                    <div class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Landlord DB</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Dati</div>
-                    <div class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
-                    <div class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Console</div>
-                    <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
-                    <div class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
-                    <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
-                    <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
-                    <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
-                    <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
-                    <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
-                    <div class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
-                    <div class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
-                </div>
-                <div class="nav-section"><div class="nav-label">Sistema</div>
-                    <div class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
-                    <div class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Utenti</div>
-                    <div class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
-                </div>
-                <div class="sidebar-footer">
-                    <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
-                    <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
-                </div>`;
+            const openGroups = new Set([...sb.querySelectorAll('.portal-nav-group[open]')].map(group => group.dataset.navGroup));
+            sb.innerHTML = `<div class="nav-section portal-nav-primary"><div class="nav-label">Il tuo lavoro</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='users'?'active':''}" onclick="goTo('users')"><span class="nav-icon">👤</span> Persone</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Incassi ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
+</div>
+<details class="portal-nav-group" data-nav-group="work" ${openGroups.has('work') || ['dashboard', 'leads', 'clienti', 'viewings', 'maintenance'].includes(S.page) ? 'open' : ''}><summary>Affitti e relazioni</summary><div class="nav-section"><div class="nav-label">Affitti e relazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Agenda ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="records" ${openGroups.has('records') || ['invoices', 'burocrazia', 'documents', 'commercialista'].includes(S.page) ? 'open' : ''}><summary>Documenti e contabilità</summary><div class="nav-section"><div class="nav-label">Documenti e contabilità</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="tools" ${openGroups.has('tools') || ['boom-tools', 'adminflats', 'photo-studio', 'underwriting', 'relet', 'landlords', 'innesto', 'bonifica'].includes(S.page) ? 'open' : ''}><summary>Strumenti e catalogo</summary><div class="nav-section"><div class="nav-label">Strumenti e catalogo</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Strumenti</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='landlords'?'active':''}" onclick="goTo('landlords')"><span class="nav-icon">🏘️</span> Archivio proprietari</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='innesto'?'active':''}" onclick="goTo('innesto')"><span class="nav-icon">🌱</span> Innesto <span class="nav-badge gold">AI</span></div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='bonifica'?'active':''}" onclick="goTo('bonifica')"><span class="nav-icon">🧹</span> Bonifica</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
+</div></details>
+<details class="portal-nav-group" data-nav-group="console" ${openGroups.has('console') || ['squadra', 'rules', 'activity-log'].includes(S.page) ? 'open' : ''}><summary>Console e sistema</summary><div class="nav-section"><div class="nav-label">Console e sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/catalogo','_blank')" title="Nomi dall'indirizzo vero e correzioni dei dati degli annunci, con l'anteprima di ogni scrittura"><span class="nav-icon">🏷️</span> Catalogo</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/behavior','_blank')"><span class="nav-icon">🧭</span> Behavior Intelligence</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="window.open('/salute','_blank')"><span class="nav-icon">🩺</span> Salute Sistema</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='rules'?'active':''}" onclick="goTo('rules')"><span class="nav-icon">⚡</span> Regole &amp; Automazioni</div>
+<div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item ${S.page==='activity-log'?'active':''}" onclick="goTo('activity-log')"><span class="nav-icon">📋</span> Activity Log</div>
+</div></details>
+<div class="sidebar-footer"><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div><div role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div></div>`;
         } else if (r === 'landlord') {
             const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
             const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
@@ -4270,6 +4491,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Un link #innesto=<docId> aperto col portal già in pagina (dalla card
         // Telegram sul desktop): stessa semina del boot.
         if (isAdmin() && innestoSeedFromHash()) { goTo('innesto'); return; }
+        const aspiId = isAdmin() && aspiSeedFromHash();
+        if (aspiId) { goTo('contracts'); openAspi(aspiId); return; }
         const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); }
     });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
@@ -4611,72 +4834,234 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="empty-state" style="padding:80px 24px"><div class="empty-icon">🚫</div><h2 class="empty-title">Accesso Negato</h2><p class="empty-text">Non hai i permessi per questa sezione.</p><button class="btn" onclick="goTo('dashboard')">Torna alla Dashboard</button></div>`;
     }
 
-    function handleSearch(q) {
-        if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
-        const ql = q.toLowerCase();
-        const results = [];
-        
-        // Search clients
-        (S.clients || []).filter(c => (c.name||'').toLowerCase().includes(ql) || (c.email||'').toLowerCase().includes(ql) || (c.phone||'').includes(q)).forEach(c => 
-            results.push({ type: '👥', label: c.name, sub: `${c.service || ''} · ${c.stage || ''}`, action: `viewClient('${c.id}')` }));
-        
-        // Search properties
-        (S.properties || []).filter(p => (p.name||'').toLowerCase().includes(ql) || (p.address||'').toLowerCase().includes(ql) || (p.zone||'').toLowerCase().includes(ql)).forEach(p => 
-            results.push({ type: '🏠', label: p.name, sub: p.address || p.zone || '', action: `viewProperty('${p.id}')` }));
-        
-        // Search users (tenants/landlords)
-        (S.users || []).filter(u => u.role !== 'admin' && ((u.name||'').toLowerCase().includes(ql) || (u.email||'').toLowerCase().includes(ql))).forEach(u => 
-            results.push({ type: u.role === 'tenant' ? '👤' : '🏡', label: u.name, sub: `${u.role} · ${u.email || ''}`, action: `viewUserProfile('${u.id}')` }));
-        
-        // Search payments
-        (S.payments || []).filter(p => (p.month||'').toLowerCase().includes(ql)).forEach(p => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            results.push({ type: '💳', label: `€${p.amount} - ${p.month}`, sub: `${prop?.name || ''} · ${p.status}`, action: `goTo('payments')` });
-        });
-        
-        // Search contracts
-        (S.contracts || []).filter(c => { const t = S.users.find(u => u.id === c.tenantId); return (t?.name||'').toLowerCase().includes(ql); }).forEach(c => {
-            const t = S.users.find(u => u.id === c.tenantId); const p = S.properties.find(x => x.id === c.propertyId);
-            results.push({ type: '📋', label: `Contratto ${p?.name || ''}`, sub: `${t?.name || ''} · €${c.rent}/mese`, action: `viewContract('${c.id}')` });
-        });
-        
-        // Search documents
-        (S.documents || []).filter(d => (d.name||'').toLowerCase().includes(ql)).forEach(d => 
-            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `boomOpen('${d.fileUrl}')` : `goTo('documents')` }));
-        
-        // Search maintenance
-        (S.maintenance || []).filter(m => (m.title||'').toLowerCase().includes(ql)).forEach(m => {
-            const p = S.properties.find(x => x.id === m.propertyId);
-            results.push({ type: '🔧', label: m.title, sub: `${p?.name || ''} · ${m.status}`, action: `viewMaintenance('${m.id}')` });
-        });
-
-        // Search leads
-        (S.leads || []).filter(l => (l.name||'').toLowerCase().includes(ql) || (l.email||'').toLowerCase().includes(ql) || (l.phone||'').includes(q) || (l.service||'').toLowerCase().includes(ql)).forEach(l =>
-            results.push({ type: '🔔', label: l.name, sub: `${l.service || ''} · ${l.email || ''}`, action: `goTo('leads')` }));
-
-        // Search tasks
-        (S.tasks || []).filter(t => (t.title||'').toLowerCase().includes(ql)).forEach(t =>
-            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('dashboard')` }));
-
-        // Search deadlines
-        (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
-            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('dashboard')` }));
-
-        // Render dropdown
+    function handleSearch(q, recordKind, more = false) {
+        if (!q || q.trim().length < 2) { document.getElementById('searchResults')?.remove(); return; }
+        const session = portalSearchSession();
+        session.headerPage = typeof more === 'number' ? Math.max(0, (session.headerPage || 0) + more) : more ? (session.headerPage || 0) + 1 : 0;
+        session.headerQuery = q; session.headerKind = recordKind || 'all';
+        let found = portalSearchRecords(q, session.headerKind, 12, session.headerPage * 12);
+        if (!found.records.length && found.total && session.headerPage) { session.headerPage = Math.floor((found.total - 1) / 12); found = portalSearchRecords(q, session.headerKind, 12, session.headerPage * 12); }
+        session.headerRecords = found.records;
         let dd = document.getElementById('searchResults');
-        if (!dd) { dd = document.createElement('div'); dd.id = 'searchResults'; dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;max-height:360px;overflow-y:auto;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,0.3);margin-top:4px'; document.getElementById('globalSearch').parentElement.style.position = 'relative'; document.getElementById('globalSearch').parentElement.appendChild(dd); }
-        
-        if (results.length === 0) { dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results for "${esc(q)}"</div>`; return; }
-        
-        dd.innerHTML = results.slice(0, 12).map(r => `<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--bg-elevated)'" onmouseleave="this.style.background=''" onclick="${r.action};document.getElementById('searchResults')?.remove();document.getElementById('globalSearch').value=''">
-            <span style="font-size:16px;width:24px;text-align:center">${r.type}</span>
-            <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.label)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(r.sub)}</div></div>
-        </div>`).join('') + (results.length > 12 ? `<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-muted)">${results.length - 12} more results...</div>` : '');
+        const input = document.getElementById('globalSearch');
+        if (!input) return;
+        if (!dd) {
+            dd = document.createElement('div'); dd.id = 'searchResults'; dd.className = 'portal-search-results';
+            input.parentElement.style.position = 'relative'; input.parentElement.appendChild(dd);
+        }
+        dd.innerHTML = found.records.map((r, i) => `<button type="button" data-search-index="${i}"><span aria-hidden="true">${esc(r.icon)}</span><span><strong>${esc(r.label)}</strong><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind].label)} · ${esc(r.sub)}</small></span></button>`).join('')
+            + `<p>${found.total ? (session.headerPage * 12 + 1) + '–' + (session.headerPage * 12 + found.records.length) + ' di ' + found.total + ' risultati nei dati caricati.' : 'Nessun risultato nei dati caricati.'}</p>`
+            + (session.headerPage ? '<button type="button" data-search-prev>Precedenti</button>' : '')
+            + (found.hasMore ? '<button type="button" data-search-more>Mostra altri risultati</button>' : '')
+            + (portalSearchAuthorized() ? '<button type="button" data-search-home>Ricerca e archivio nella home ↗</button>' : '');
+        dd.onclick = event => {
+            const row = event.target.closest('[data-search-index]');
+            if (row) {
+                const record = session.headerRecords[Number(row.dataset.searchIndex)];
+                dd.remove(); input.value = ''; portalSearchOpen(record);
+            } else if (event.target.closest('[data-search-prev]')) handleSearch(q, recordKind, -1);
+            else if (event.target.closest('[data-search-more]')) handleSearch(q, recordKind, true);
+            else if (event.target.closest('[data-search-home]')) {
+                dd.remove(); input.value = ''; goTo('oggi');
+                const home = document.getElementById('ogWorkQuery');
+                if (home) { home.value = q; oggiWorkspaceSearch(q); home.focus(); }
+            }
+        };
     }
+    // One ephemeral projection per signed-in admin. Archive scans are explicit,
+    // bounded reads; no background sweep, persistent index, AI or writes.
+    let portalSearchCache = null;
+    function portalSearchSession() {
+        const user = auth.currentUser;
+        if (!portalSearchCache || portalSearchCache.user !== user || !isAdmin()) {
+            portalSearchCache?.archive?.reset();
+            portalSearchCache = { user, headerRecords: [], headerPage: 0, hydration: new Map(), canonical: new Map(), generation: 0 };
+        }
+        return portalSearchCache;
+    }
+    window.portalSearchReset = function() {
+        const session = portalSearchSession();
+        session.generation++; session.hydration.clear(); session.canonical.clear();
+        session.headerRecords = []; session.headerPage = 0;
+        document.getElementById('searchResults')?.remove();
+        session.archive?.reset();
+    };
+    function portalSearchReader() {
+        const session = portalSearchSession();
+        if (!session.archive && isAdmin() && window.BOOM_PORTAL_SEARCH_ARCHIVE) session.archive = window.BOOM_PORTAL_SEARCH_ARCHIVE.create({
+            getScope: () => ({ user: auth.currentUser, admin: portalSearchAuthorized() }),
+            readPage: async (collection, { afterId, limit }) => {
+                let query = db.collection(collection).orderBy(firebase.firestore.FieldPath.documentId()).limit(limit);
+                if (afterId) query = query.startAfter(afterId);
+                const snap = await query.get({ source: 'server' });
+                return { rows: snap.docs.map(d => ({ ...d.data(), id: d.id })), lastId: snap.docs.at(-1)?.id || '', hasMore: snap.docs.length === limit };
+            },
+            onChange: () => {
+                clearTimeout(session.updateTimer);
+                session.updateTimer = setTimeout(() => {
+                    if (portalSearchCache !== session || auth.currentUser !== session.user || !isAdmin()) return;
+                    if (document.getElementById('ogWorkResults') && !oggiWorkspace.selected) oggiWorkspaceSearch(oggiWorkspace.query, true);
+                    portalSearchSourcesRender();
+                }, 0);
+            }
+        });
+        return session.archive;
+    }
+    function portalSearchState() {
+        let state = { ...S }; const E = window.BOOM_PORTAL_SEARCH;
+        if (!portalSearchAuthorized()) {
+            const uid = auth.currentUser?.uid;
+            if (!uid || S.profile?.id !== uid) return {};
+            const owner = S.profile.role === 'landlord';
+            const properties = (S.properties || []).filter(p => owner && p.ownerId === uid);
+            const owned = new Set(properties.map(p => p.id));
+            const contracts = (S.contracts || []).filter(c => owner ? owned.has(c.propertyId) : c.tenantId === uid);
+            const houses = new Set(contracts.map(c => c.propertyId));
+            state = { users: (S.users || []).filter(u => u.id === uid), contracts,
+                properties: owner ? properties : (S.properties || []).filter(p => houses.has(p.id)),
+                documents: (S.documents || []).filter(d => d.userId === uid),
+                payments: (S.payments || []).filter(p => owner ? owned.has(p.propertyId) : p.tenantId === uid),
+                maintenance: (S.maintenance || []).filter(m => owner ? owned.has(m.propertyId) : m.userId === uid) };
+            return state;
+        }
+        const session = portalSearchSession(), reader = session.archive;
+        if (!reader || !E || !isAdmin()) return state;
+        Object.entries(E.KINDS).forEach(([kind, source]) => {
+            const existing = Array.isArray(S[source.collection]) ? S[source.collection] : [];
+            const scanned = reader.state(kind).rows;
+            // Archive pages only extend the live projection. They must not
+            // roll back a record refreshed by a listener or an explicit load.
+            const rows = new Map(scanned.map(row => [row.id, row]));
+            session.canonical.forEach((row, key) => {
+                if (!key.startsWith(kind + ':')) return;
+                const id = key.slice(kind.length + 1);
+                if (row) rows.set(id, row); else rows.delete(id);
+            });
+            existing.forEach(row => rows.set(row.id, row));
+            state[source.collection] = Array.from(rows.values());
+        });
+        return state;
+    }
+    function portalSearchCanRead() { return !!auth.currentUser && S.profile?.id === auth.currentUser.uid && ['admin', 'tenant', 'landlord'].includes(S.profile.role); }
+    function portalSearchAuthorized() { return isAdmin() && !!auth.currentUser && S.profile?.id === auth.currentUser.uid; }
+    function portalSearchRecords(query, kind = 'all', limit = 12, offset = 0) {
+        const E = window.BOOM_PORTAL_SEARCH;
+        if (!E || !portalSearchCanRead()) return { records: [], total: 0, hasMore: false };
+        return E.search(query, portalSearchState(), { kind, limit, offset });
+    }
+    window.portalSearchRecords = portalSearchRecords;
+    function portalSearchSourcesRender() {
+        const target = document.getElementById('ogSearchSources');
+        if (!target) return;
+        if (!portalSearchAuthorized()) { target.replaceChildren(); return; }
+        const E = window.BOOM_PORTAL_SEARCH, reader = portalSearchSession().archive;
+        if (!E) { target.innerHTML = '<p>Ricerca non disponibile. Ricarica la pagina.</p>'; return; }
+        const state = portalSearchState();
+        const kinds = oggiWorkspace.kind === 'all' ? Object.keys(E.KINDS) : [oggiWorkspace.kind];
+        target.innerHTML = `<p class="ow-hint">La ricerca iniziale usa i record caricati nel portale, anche da cache. Puoi estendere una fonte di 200 record alla volta dal database. La scansione non è una sincronizzazione continua. <button type="button" class="ow-link" data-search-reset>Ricomincia la lettura</button></p><div class="ow-source-list">${kinds.filter(k => E.KINDS[k]).map(kind => {
+            const meta = E.KINDS[kind], scan = reader?.state(kind), count = (state[meta.collection] || []).length;
+            const status = scan?.status === 'loading' ? 'Lettura in corso…' : scan?.status === 'error' ? 'Lettura non riuscita · dati precedenti conservati' : scan?.complete ? 'Scansione terminata' : scan?.rows?.length ? scan.rows.length + ' record letti dal database · archivio ancora parziale' : 'Completezza non verificata';
+            return `<div><span><strong>${esc(meta.plural)}</strong><small>${count} record ricercabili · ${esc(status)}</small></span><button type="button" class="ow-link" data-search-source="${esc(kind)}" ${scan?.status === 'loading' || scan?.complete ? 'disabled' : ''}>${scan?.status === 'error' ? 'Riprova' : scan?.rows?.length ? 'Leggi i prossimi 200' : 'Estendi ricerca'}</button></div>`;
+        }).join('')}</div><div class="ow-source-boundaries"><p><strong>WhatsApp e mail</strong> · I messaggi già registrati nel portale sono nell’Inbox. «Cerca nelle email» consulta la casella collegata, su richiesta, separatamente dalle schede BOOM. Lo storico completo WhatsApp di HOMIE non è incluso.</p><button type="button" class="btn btn-sm btn-secondary" onclick="portalMailCheckSources()" ${S.mailSources?.checking ? 'disabled' : ''}>${S.mailSources?.checking ? 'Verifico collegamenti…' : 'Verifica collegamenti'}</button><p class="ow-hint" role="status" id="portalMailSourceStatus">${esc(S.mailSources?.summary || 'Controlla configurazione e ultimo giro registrato. Non legge nuove email e non attiva HOMIE.')}</p><p><strong>Portali immobiliari</strong> · Cerchi gli annunci salvati in BOOM. L’allineamento con i portali esterni va verificato nella gestione annunci.</p><p><strong>Documenti</strong> · Cerchi nomi, riferimenti e collegamenti salvati. Il contenuto dei PDF non viene letto da questa ricerca.</p></div>`;
+        target.onclick = event => {
+            if (event.target.closest('[data-search-reset]')) { window.portalSearchReset(); return; }
+            const button = event.target.closest('[data-search-source]');
+            if (button && !button.disabled) portalSearchExtend(button.dataset.searchSource);
+        };
+    }
+    async function portalSearchExtend(kind) {
+        const E = window.BOOM_PORTAL_SEARCH, reader = portalSearchReader();
+        if (!portalSearchAuthorized() || !reader || !Object.hasOwn(E.KINDS, kind)) return;
+        const select = document.getElementById('ogWorkKind');
+        if (select) select.value = kind;
+        oggiWorkspaceSearch(document.getElementById('ogWorkQuery')?.value || '');
+        await reader.load(kind, E.KINDS[kind].collection);
+    }
+    async function portalSearchEnsure(record) {
+        if (!record || !portalSearchCanRead()) return null;
+        const E = window.BOOM_PORTAL_SEARCH, source = E?.KINDS[record.kind];
+        if (!source || !E.recordFor(record.kind, record.id, portalSearchState())) return null;
+        const session = portalSearchSession(), key = record.kind + ':' + record.id;
+        const scanned = session.archive?.state(record.kind).rows.some(row => row.id === record.id);
+        if (!scanned && E.recordFor(record.kind, record.id, S)) return E.recordFor(record.kind, record.id, S);
+        if (!portalSearchAuthorized()) return null;
+        if (session.hydration.has(key)) return session.hydration.get(key);
+        const user = auth.currentUser, generation = session.generation;
+        const startedRow = (S[source.collection] || []).find(row => row.id === record.id);
+        // A result outside the initial load must be re-read before opening a
+        // handler. Never hydrate from a stale scan or after an account switch.
+        const pending = (async () => { try {
+            const snap = await db.collection(source.collection).doc(record.id).get({ source: 'server' });
+            if (auth.currentUser !== user || !portalSearchAuthorized() || session !== portalSearchCache || generation !== session.generation) return null;
+            const currentRow = (S[source.collection] || []).find(row => row.id === record.id);
+            if (currentRow !== startedRow) return currentRow ? E.recordFor(record.kind, record.id, S) : null;
+            if (!snap.exists) { session.canonical.set(key, null); S[source.collection] = (S[source.collection] || []).filter(row => row.id !== record.id); toast('warning', 'Il record non è più disponibile.'); if (document.getElementById('ogWorkResults')) oggiWorkspaceSearch(oggiWorkspace.query, true); return null; }
+            const row = { ...snap.data(), id: snap.id };
+            session.canonical.set(key, row);
+            S[source.collection] = (S[source.collection] || []).filter(r => r.id !== row.id).concat(row);
+            return E.recordFor(record.kind, record.id, S);
+        } catch { if (auth.currentUser === user && portalSearchAuthorized()) toast('warning', 'Impossibile verificare il record. Riprova.'); return null; }
+        finally { if (generation === session.generation) session.hydration.delete(key); } })();
+        session.hydration.set(key, pending);
+        return pending;
+    }
+    async function portalSearchOpen(record) {
+        if (!portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
+        const user = auth.currentUser;
+        const fresh = await portalSearchEnsure(record);
+        if (!fresh || auth.currentUser !== user || !portalSearchCanRead() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
+        const routes = { client: 'viewClient', property: 'viewProperty', person: 'viewUser', contract: 'viewContract', document: 'viewArchiveDoc', maintenance: 'viewMaintenance', lead: 'viewLead', task: 'editTask', deadline: 'editDeadline', listing: 'editListing', pfsClient: 'openPFSClientDetail', pfsProperty: 'openPFSPropertyDetail', landlord: 'openLandlordDetail' };
+        if (fresh.kind === 'proposal') {
+            const ref = S.preAgreements.find(row => row.id === fresh.id)?.ref;
+            return window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank', 'noopener');
+        }
+        if (fresh.kind === 'payment') {
+            const payment = S.payments.find(p => p.id === fresh.id);
+            if (payment?.contractId && S.contracts.some(c => c.id === payment.contractId)) return viewContract(payment.contractId);
+            return goTo('payments');
+        }
+        const fn = window[routes[fresh.kind]];
+        if (typeof fn === 'function') fn(fresh.id);
+        else toast('warning', 'Apri la sezione dal menu: lo strumento non è disponibile.');
+    }
+
     
+    // Mailbox adapter: exact email matches describe existing records only.
+    // The mailbox module owns no identity links or persisted portal state.
+    let portalMailboxInitialized = false;
+    function portalMailboxRecords(emails) {
+        if (!portalSearchAuthorized() || !window.BOOM_PORTAL_SEARCH) return [];
+        const E = window.BOOM_PORTAL_SEARCH, state = portalSearchState();
+        const wanted = new Set(emails.map(email => String(email).trim().toLowerCase()).filter(Boolean)), result = new Map();
+        for (const kind of ['person', 'client', 'lead', 'pfsClient', 'landlord']) {
+            for (const row of state[E.KINDS[kind].collection] || []) {
+                const email = [row.email, row.contactEmail, row.leadEmail].find(value => typeof value === 'string' && wanted.has(value.trim().toLowerCase()));
+                if (!email) continue;
+                const record = E.recordFor(kind, row.id, state);
+                if (record) result.set(kind + ':' + row.id, {...record, typeLabel:E.KINDS[kind].label, matchedEmail:email.trim()});
+            }
+        }
+        return [...result.values()];
+    }
+    function portalOpenMailbox(query) {
+        if (!portalSearchAuthorized()) return;
+        const mailbox = window.BOOM_MAILBOX;
+        if (!mailbox) return toast('warning', 'La ricerca email non è disponibile. Ricarica il portale.');
+        if (!portalMailboxInitialized) {
+            mailbox.init({
+                getSession: () => portalSearchAuthorized() ? {...portalSessionProof(), user:auth.currentUser} : null,
+                isCurrent: proof => portalSessionCurrent(proof) && portalSearchAuthorized() && auth.currentUser === proof.user,
+                getToken: proof => proof.user.getIdToken(),
+                findRecordsByEmail: portalMailboxRecords,
+                openRecord: record => portalSearchOpen(record)
+            });
+            portalMailboxInitialized = true;
+        }
+        return mailbox.open(typeof query === 'string' ? query : document.getElementById('ogWorkQuery')?.value || '', {search:true});
+    }
+
     // Close search on click outside
-    document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch')?.parentElement) document.getElementById('searchResults')?.remove(); });
+    document.addEventListener('click', (e) => { if (!e.target.closest('#globalSearch, #searchResults')) document.getElementById('searchResults')?.remove(); });
 
     // ═══════════════════════════════════════════════════════════════════════════
     // DASHBOARDS
@@ -4695,7 +5080,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!cur.includes(id)) cur.push(id);
             localStorage.setItem(k, JSON.stringify(cur));
         } catch (e) { /* Safari privato: il nascondi non vale la pagina */ }
-        renderPage();
+        oggiScheduleUpdate();
     }
     function oggiRun(id) {
         // Un solo ponte per tutti i bottoni della coda: ritrova la decisione
@@ -4847,13 +5232,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiOwnerCommandPanel() {
         if (!isAdmin()) return '';
         return `<section id="ogOwnerCommand" aria-labelledby="ogOwnerTitle">
-            <div class="og-owner-heading"><div><p>SEGRETERIA / INCARICO</p><h2 id="ogOwnerTitle">Dille chi. Dille cosa.</h2></div><span>Prepara soltanto</span></div>
+            <div class="og-owner-heading"><div><p>SEGRETERIA / INCARICO</p><h2 id="ogOwnerTitle">Prepara un messaggio</h2></div><span>Prepara soltanto</span></div>
             <form id="ogOwnerResolveForm" class="og-owner-form" onsubmit="oggiOwnerResolve(event)">
                 <div class="form-group"><label class="form-label" for="ogOwnerQuery">Persona · nome, telefono o email</label><input class="form-input" id="ogOwnerQuery" maxlength="120" autocomplete="off" value="${esc(oggiOwnerCommand.query)}" placeholder="Es. Giuliano oppure +39…" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}></div>
                 <div class="form-group og-owner-instruction"><label class="form-label" for="ogOwnerInstruction">Istruzione</label><textarea class="form-textarea" id="ogOwnerInstruction" maxlength="1200" rows="2" placeholder="Es. Avvisa il portiere che il tecnico arriva alle 15" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${esc(oggiOwnerCommand.instruction)}</textarea></div>
                 <button class="btn" type="submit" data-og-owner-action="resolve" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${oggiOwnerCommand.loading ? 'Verifico…' : 'Trova e verifica'}</button>
             </form>
-            <p class="og-owner-boundary">People → conversazione → pratica → Flat → canale. Nessun messaggio parte da questa schermata.</p>
+            <p class="og-owner-boundary">Scegli la persona e i riferimenti corretti. Rivedrai il testo prima di confermare un invio.</p>
             ${oggiOwnerCommand.error ? `<div class="og-owner-notice is-error" role="alert">${esc(oggiOwnerCommand.error)}</div>` : ''}
             ${oggiOwnerCommand.notice ? `<div class="og-owner-notice" role="status">${esc(oggiOwnerCommand.notice)}</div>` : ''}
             ${oggiOwnerCommandResults()}
@@ -4930,7 +5315,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE OWNER COMMAND ═════════════════════════════════════════════
 
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
-    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
+    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
     // Stato effimero della lettura nel browser: non certifica la ricezione
     // WhatsApp sul Mac né la preparazione delle proposte sul server.
     const portalFreshness = { page: null, user: null, observer: null, timer: null };
@@ -4950,31 +5335,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return navigator.onLine === false || ['cached', 'error'].includes(S.inboxFeed?.state);
     }
     function inboxLiveRefresh() {
-        if (S.page !== 'inbox') return;
-        const focused = document.activeElement;
-        const saved = ['inboxBody', 'inboxSubject', 'inboxTpl'].map(id => {
-            const el = document.getElementById(id);
-            return el && { id, value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection, scroll: el.scrollTop, focused: focused === el };
-        }).filter(Boolean);
-        const searchFocused = focused?.matches('#main input[type="search"]');
-        const searchSelection = searchFocused && [focused.selectionStart, focused.selectionEnd];
-        const panes = [...document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline')].map(el => el.scrollTop);
-        const main = document.getElementById('main');
-        if (main) main.innerHTML = inboxPage();
-        for (const field of saved) {
-            const replacement = document.getElementById(field.id);
-            if (!replacement) continue;
-            replacement.value = field.value;
-            if (field.focused) replacement.focus({ preventScroll: true });
-            if (typeof field.start === 'number') replacement.setSelectionRange(field.start, field.end, field.direction);
-            replacement.scrollTop = field.scroll;
-        }
-        if (searchFocused) {
-            const search = main?.querySelector('input[type="search"]');
-            if (search) { search.focus({ preventScroll: true }); search.setSelectionRange(...searchSelection); }
-        }
-        document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline').forEach((el, i) => { if (panes[i] !== undefined) el.scrollTop = panes[i]; });
+        inboxRefresh('live');
     }
+
     function portalFreshnessStop(page) {
         if (page && portalFreshness.page !== page) return;
         if (portalFreshness.page === 'inbox' && (S.page !== 'inbox' || portalFreshness.user !== auth.currentUser)) stopOpenConvListener();
@@ -5051,6 +5414,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (focused) [...panel.querySelectorAll('[data-og-action]')].find(el => el.getAttribute('data-og-action') === focused)?.focus({ preventScroll: true });
                 }
             }
+            const agendaPanel = document.getElementById('ogAgendaPanel');
+            if (agendaPanel) {
+                const focusedId = agendaPanel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-viewing') : null;
+                agendaPanel.innerHTML = oggiAgendaPanel();
+                if (focusedId) [...agendaPanel.querySelectorAll('[data-og-viewing]')].find(el => el.getAttribute('data-og-viewing') === focusedId)?.focus({ preventScroll: true });
+            }
+            oggiWorkBriefing();
+            if (!oggiWorkspace.selected && oggiWorkspace.query) oggiWorkspaceSearch(oggiWorkspace.query, true);
             oggiSegretariaFreshnessUpdate();
             if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
                 oggiSegretaria.refreshPending = false;
@@ -5110,7 +5481,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const prepared = Math.max(0, ...oggiSegretaria.rows.map(t => ms(t?.preparation?.createdAt)));
         return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}. ${inboxFreshness()}${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile per i seguiti; ricontrollo automatico ogni 30 secondi.' : ''}`;
     }
+    function oggiSegretariaStatusLabel() {
+        if (portalFreshnessWarning() || oggiSegretaria.liveError) return 'Aggiornamento da verificare · ' + (portalFreshnessWarning() ? inboxFreshness() : 'Seguiti non in tempo reale; ricontrollo ogni 30 secondi.');
+        return ['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa' : 'Stato e copertura della Segreteria';
+    }
     function oggiSegretariaFreshnessUpdate() {
+        const summary = document.querySelector('[data-sg-detail="operations"] > summary');
+        if (summary) { summary.textContent = oggiSegretariaStatusLabel(); summary.classList.toggle('ow-status-warning', portalFreshnessWarning() || oggiSegretaria.liveError); }
         const target = document.getElementById('sgFreshness');
         if (target) {
             target.textContent = oggiSegretariaFreshness();
@@ -5294,7 +5671,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(r.address) : channel === 'whatsapp' && /^\+?[0-9][0-9 ()-]{6,24}$/.test(r.address));
     }
     function oggiSegretariaGroups(now) {
-        return window.BOOM_SEGRETARIA_CASI.workGroups(oggiSegretaria.rows, now, oggiSegretariaPreparation);
+        const rows = oggiWorkspace.deskFilter ? oggiSegretaria.rows.filter(t => oggiWorkspace.deskFilter.caseIds.includes(t.id)) : oggiSegretaria.rows;
+        return window.BOOM_SEGRETARIA_CASI.workGroups(rows, now, oggiSegretariaPreparation);
     }
     function oggiSegretariaTiming(task) {
         const timing = task?.followUp?.intakeTiming;
@@ -5360,24 +5738,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (retained.has(task.id)) oggiSegretaria[visibleKey] = Math.max(oggiSegretaria[visibleKey], Math.ceil((index + 1) / 12) * 12);
             }
         }
-        const all = [...groups.decisions, ...groups.preparing, ...groups.progress, ...groups.waiting], total = all.length;
-        const ready = groups.decisions.filter(task => { const p = oggiSegretariaPreparation(task); return p && !p.approval && p.status === 'ready' && !oggiSegretariaApprovalTimeIssue(p, now); }).length;
-        const future = all.map(task => E.describe(task, null, S, now).checkAt).filter(at => at !== null && at > now).sort((a, b) => a - b)[0];
-        const subline = !oggiSegretaria.loaded ? 'Carico richieste, proposte e ricontrolli.' : groups.decisions.length
-            ? (ready ? `${ready} ${ready === 1 ? 'proposta pronta' : 'proposte pronte'} da rivedere.${groups.decisions.length > ready ? ` ${groups.decisions.length - ready} ${groups.decisions.length - ready === 1 ? 'richiesta da verificare' : 'richieste da verificare'}.` : ''}` : 'I collegamenti e i ricontrolli da completare sono qui sotto.')
-            : groups.preparing.length ? `${groups.preparing.length} ${groups.preparing.length === 1 ? 'richiesta ancora da preparare' : 'richieste ancora da preparare'}. Le proposte compariranno tra le richieste da rivedere.`
-            : total ? 'Il lavoro resta visibile fino a una chiusura con esito.' : 'Le nuove richieste compariranno qui con il loro prossimo passo.';
         const row = (task, group) => {
             const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, now);
             const property = isAdmin() && window.BOOM_PROPERTY_DOSSIER?.open ? E.propertyTarget?.(task, oggiSegretaria.dossiers[task.id], S) : null;
             const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task), reviewIssue = E.reviewReason?.(task) || (task.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
             const timeIssue = oggiSegretariaApprovalTimeIssue(p, now);
+            const state = reviewIssue ? 'Da verificare' : p && !p.approval ? (p.identityBlocked || p.status !== 'ready' ? 'Da chiarire' : 'Proposta da rivedere') : d.state;
             const title = p?.draft && !p.approval ? `Risposta ${p.draft.channel === 'email' ? 'email' : 'WhatsApp'} da rivedere` : n?.text || d.nextAction;
-            const capReached = oggiSegretariaLegacyCap();
-            const inspect = !!reviewIssue || capReached || oggiSegretaria.monitoring?.mode === 'continuous';
-            const action = p ? 'review' : inspect ? 'inspect' : 'generate', key = 'case-' + task.id;
+            const action = p ? 'review' : 'inspect', key = 'case-' + task.id;
             const channel = p?.draft?.channel === 'email' ? 'Email' : p?.draft?.channel === 'whatsapp' ? 'WhatsApp' : /^phone:/.test(task.followUp.lastMessageId || '') ? 'Telefono' : /^mail_/.test(task.followUp.lastMessageId || '') ? 'Email' : 'Conversazione';
-            const label = p ? (receipt ? 'Vedi esito' : timeIssue ? 'Rivedi e aggiorna' : p.draft ? 'Rivedi messaggio' : 'Rivedi seguito') : inspect ? 'Esamina richiesta' : 'Prepara il lavoro';
+            const label = p ? (receipt ? 'Vedi esito' : timeIssue ? 'Rivedi e aggiorna' : p.draft ? 'Rivedi messaggio' : 'Rivedi seguito') : 'Esamina richiesta';
             const doubts = Array.isArray(p?.uncertainties) ? p.uncertainties.filter(item => item.text).length : 0;
             const incomplete = p?.coverage?.incomplete || oggiSegretariaMissing(p).length > 0;
             const scope = p && !p.approval ? p.draft
@@ -5385,19 +5755,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 : 'Solo seguito interno. Nessun messaggio WhatsApp o email preparato.' : '';
             return `<article class="sg-case sg-case--${group}" data-sg-id="${esc(task.id)}" aria-labelledby="sg-case-${esc(task.id)}">
                 <div class="sg-case-main">
-                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(d.state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${timeIssue ? 'Da aggiornare' : p.status === 'ready' ? (p.draft ? 'Messaggio da rivedere' : 'Seguito interno') : 'Da verificare'}</span>` : reviewIssue ? '<span class="sg-proposal-label">Da verificare</span>' : ''}</div>
+                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${timeIssue ? 'Da aggiornare' : p.status === 'ready' ? (p.draft ? 'Messaggio da rivedere' : 'Seguito interno') : 'Da verificare'}</span>` : reviewIssue ? '<span class="sg-proposal-label">Da verificare</span>' : ''}</div>
                     <div class="sg-next-action"><p class="sg-meta-label">${p && !p.approval ? (p.draft ? 'La tua decisione' : 'Attività proposta · da confermare') : p?.approval || ['Confermato', 'Da ricontrollare'].includes(d.state) ? 'Prossima azione confermata' : 'Seguito da verificare'}</p><h4 id="sg-case-${esc(task.id)}" class="sg-case-title">${esc(title)}</h4></div>
-                    ${p ? `<div class="sg-ai-reading"><p class="sg-meta-label">Sintesi AI · da verificare</p><p class="sg-ai-recommendation">${esc(p.summary)}</p></div>` : `<div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div>`}
+
+                    ${p ? `<div class="sg-ai-reading"><p class="sg-meta-label">Sintesi AI · da verificare</p><p class="sg-ai-recommendation">${esc(p.summary)}</p></div>` : ''}
                     ${scope ? `<p class="sg-action-scope">${esc(scope)}</p>` : ''}
                     ${timeIssue ? `<p class="sg-inline-notice sg-time-issue" role="status">${esc(timeIssue)}</p>` : ''}
                     ${p && !p.approval && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-inline-notice" role="status">Conferma bloccata: servono informazioni verificate.</p>' : ''}
                     ${doubts || incomplete ? `<p class="sg-context-notice" role="status">${doubts ? `${doubts} ${doubts === 1 ? 'punto da verificare' : 'punti da verificare'}. ` : ''}${incomplete ? 'Fonti parziali. ' : ''}Apri il contesto prima di decidere.</p>` : ''}
                     ${oggiSegretariaTiming(task)}
+                    ${window.BOOM_OGGI_WORKSPACE?.phoneSource(task) ? `<a class="ow-link" href="${esc(window.BOOM_OGGI_WORKSPACE.phoneSource(task))}" target="_blank" rel="noopener">Audio e trascrizione della chiamata ↗</a>` : ''}
                     ${reviewIssue ? `<p class="sg-inline-notice" role="status">${esc(reviewIssue)} Nessun nuovo tentativo automatico finché il caso resta in verifica.</p>` : ''}
                     ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
                     <div class="sg-case-meta"><span><span class="sg-meta-label">${p?.draft && !p.approval ? 'Dopo l’invio · chi agisce' : 'Chi agisce'}</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
                 </div>
-                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button></div>
+                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button>${window.BOOM_OGGI_WORKSPACE?.messageTemplates ? `<button class="btn btn-secondary" type="button" data-sg-action="message" data-sg-id="${esc(task.id)}">Scrivi e organizza</button>` : ''}</div>
+                ${!p ? `<details class="sg-reading-details" data-sg-detail="${esc('reading-' + task.id)}" ${opened.has('reading-' + task.id) ? 'open' : ''}><summary>Leggi la richiesta<span aria-hidden="true">+</span></summary><div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div></details>` : ''}
                 ${p ? `<details class="sg-reading-details" data-sg-detail="${esc('reading-' + task.id)}" ${opened.has('reading-' + task.id) ? 'open' : ''}><summary>Contesto${doubts || incomplete ? ' e punti da verificare' : ' e fonti'}<span aria-hidden="true">+</span></summary><p>${esc(p.summary)}</p><div class="sg-ai-reading">${oggiSegretariaPreparedDate(p)}</div><p><strong>Raccomandazione AI</strong><br>${esc(p.recommendation)}</p><div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div>${n?.reason ? `<div class="sg-action-reason"><span class="sg-meta-label">Perché questo passo</span><p>${esc(n.reason)}</p></div>` : ''}${oggiSegretariaQuestions(p)}</details>` : ''}
                 <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Collegamenti e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions">${property?.id ? `<button class="btn btn-secondary" type="button" data-sg-action="property" data-sg-id="${esc(task.id)}" data-sg-property="${esc(property.id)}">Apri immobile</button>` : ''}<button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
             </article>`;
@@ -5407,14 +5780,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const visible = groups[key].slice(0, limit), remaining = groups[key].length - visible.length;
             return `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}${remaining ? ` Mostrate ${visible.length} di ${groups[key].length}.` : ''}</p></header><div class="sg-group-cases">${visible.length ? visible.map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div>${remaining ? `<button class="btn sg-refresh sg-load-more" type="button" data-sg-action="more-${key}">Mostra altre ${key === 'decisions' ? 'decisioni' : 'richieste'} · ${remaining} ancora da vedere</button>` : ''}</section>`;
         };
-        panel.innerHTML = `<header class="sg-briefing"><div class="sg-briefing-top"><div><p class="sg-eyebrow">BOOM / Operazioni</p><h2>Segreteria</h2></div><button class="btn btn-secondary sg-refresh" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div><div class="sg-briefing-copy"><p class="sg-briefing-note">${subline}</p></div><dl class="sg-board"><div><dt>Da rivedere</dt><dd>${oggiSegretaria.loaded ? groups.decisions.length : '—'}</dd></div><div><dt>Da preparare</dt><dd>${oggiSegretaria.loaded ? groups.preparing.length : '—'}</dd></div><div><dt>In corso</dt><dd>${oggiSegretaria.loaded ? groups.progress.length : '—'}</dd></div><div><dt>In attesa</dt><dd>${oggiSegretaria.loaded ? groups.waiting.length : '—'}</dd></div></dl><div class="sg-briefing-foot"><span>${oggiSegretaria.loaded ? `${total} ${total === 1 ? 'seguito aperto' : 'seguiti aperti'} nell’elenco${oggiSegretaria.incomplete || groups.invalid ? ' parziale' : ''}` : 'Lettura in corso'}</span><span>${future ? 'Prossimo ricontrollo · ' + esc(oggiSegretariaDate(future)) : 'Le date di ricontrollo sono interne'}</span></div></header>
-            ${oggiSegretariaMonitoring(opened)}
-            <p id="sgFreshness" class="sg-footnote${portalFreshnessWarning() || oggiSegretaria.liveError ? ' sg-notice sg-notice--warning' : ''}" role="status">${esc(oggiSegretariaFreshness())}</p>
-            <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
+        panel.innerHTML = `
+            ${document.getElementById('ogWorkQueue') ? '' : '<button class="btn btn-secondary" type="button" data-sg-action="refresh">Aggiorna seguiti</button>'}
+            <details class="ow-service" data-sg-detail="operations" ${opened.has('operations') ? 'open' : ''}><summary class="${portalFreshnessWarning() || oggiSegretaria.liveError ? 'ow-status-warning' : ''}">${esc(oggiSegretariaStatusLabel())}</summary>
+                ${oggiSegretariaMonitoring(opened)}
+                <p id="sgFreshness" class="sg-footnote" role="status">${esc(oggiSegretariaFreshness())}</p>
+                <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
+            </details>
             ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
             ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: non è stato possibile leggere tutti i seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
             ${groups.invalid ? '<div class="sg-notice sg-notice--warning" role="status">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
-            ${!oggiSegretaria.loaded ? `<div class="sg-state" role="status">${oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.'}</div>` : `<div class="sg-workspace">${section('decisions', 'Da rivedere', 'Messaggi proposti, seguiti interni e richieste da chiarire.', 'Nessun seguito richiede una decisione in questo elenco.')}${groups.progress.length || groups.waiting.length ? `<div class="sg-secondary-grid">${section('progress', 'In corso', 'Prossime azioni affidate a BOOM o a Valentino, e invii in coda.', 'Nessuna attività confermata in corso in questo elenco.')}${section('waiting', 'In attesa', 'La prossima azione spetta al cliente o a un collaboratore.', 'Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.')}</div>` : '<p class="sg-quiet-state">In corso e in attesa · nessun seguito confermato in questo elenco.</p>'}${groups.preparing.length ? section('preparing', 'Da preparare', 'Richieste ricevute: BOOM deve ancora preparare una proposta. Puoi aprire le fonti o correggere il seguito.', '') : ''}<p class="sg-footnote">Un ricontrollo interno non è una scadenza promessa al cliente. Leggere o rispondere non chiude il seguito.</p></div>`}`;
+            ${!oggiSegretaria.loaded ? `<div class="sg-state" role="status">${oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.'}</div>` : `<div class="sg-workspace">${section('decisions', 'Da rivedere', 'Messaggi proposti, seguiti interni e richieste da chiarire.', 'Nessun seguito richiede una decisione in questo elenco.')}${groups.progress.length || groups.waiting.length ? `<div class="sg-secondary-grid">${section('progress', 'In corso', 'Prossime azioni affidate a BOOM o a Valentino, e invii in coda.', 'Nessuna attività confermata in corso in questo elenco.')}${section('waiting', 'In attesa', 'La prossima azione spetta al cliente o a un collaboratore.', 'Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.')}</div>` : ''}${groups.preparing.length ? section('preparing', 'Da preparare', 'Richieste ricevute: BOOM deve ancora preparare una proposta. Puoi aprire le fonti o correggere il seguito.', '') : ''}</div>`}`;
         panel.onclick = event => {
             const button = event.target.closest('[data-sg-action]');
             if (!button || !panel.contains(button)) return;
@@ -5443,21 +5819,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 });
             }
             if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
+            if (button.dataset.sgAction === 'message' && isAdmin()) return oggiSegretariaOpen(task.id, '', 'message');
             if (button.dataset.sgAction === 'plan') return oggiSegretariaOpen(task.id, '', 'execute');
             if (['review', 'generate', 'inspect'].includes(button.dataset.sgAction)) return oggiSegretariaOpen(task.id, '', 'review', button.dataset.sgAction === 'generate');
             if (button.dataset.sgAction === 'source') return oggiSegretariaSource(task);
         };
         if (focused) {
+            const caseId = focusId || (/^(case|reading)-/.test(focusDetail || '') ? focusDetail.replace(/^(case|reading)-/, '') : null);
+            if (caseId && document.getElementById('ogWorkQueue')) oggiWorkRevealCase(caseId);
             const controls = [...panel.querySelectorAll('[data-sg-action]')];
             (focusKey ? controls.find(el => el.dataset.sgAction === focusKey && el.dataset.sgId === focusId)
                 : [...panel.querySelectorAll('details[data-sg-detail]')].find(el => el.dataset.sgDetail === focusDetail)?.querySelector('summary'))?.focus({ preventScroll: true });
         }
         oggiSegretariaRestorePropertyContext(panel);
+        if (typeof oggiWorkBriefing === 'function') oggiWorkBriefing();
     }
     function oggiSegretariaRestorePropertyContext(panel) {
         const context = oggiSegretaria.propertyReturn;
         if (!context || S.page !== 'oggi' || oggiSegretaria.loading || !oggiSegretaria.loaded || oggiSegretaria.generation < context.afterGeneration) return;
         oggiSegretaria.propertyReturn = null;
+        const fold = document.getElementById('ogFollowTools');
+        if (fold) fold.open = true;
+        if (document.getElementById('ogWorkQueue')) oggiWorkRevealCase(context.taskId);
         const opened = new Set(context.opened || []);
         panel.querySelectorAll('details[data-sg-detail]').forEach(el => { if (opened.has(el.dataset.sgDetail)) el.open = true; });
         requestAnimationFrame(() => {
@@ -5472,7 +5855,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const rect = control.getBoundingClientRect();
                     if (rect.bottom < 0 || rect.top > window.innerHeight) control.scrollIntoView({ block: 'center' });
                 }
-                else { const heading = panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'center' }); } }
+                else { const heading = document.getElementById('ogQueueTitle') || panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'center' }); } }
             });
         });
     }
@@ -5482,7 +5865,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (oggiSegretaria.userId !== uid) {
             oggiSegretariaStopLive();
             oggiSegretaria.generation++;
-            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
         }
         oggiSegretariaStartLive();
         oggiSegretariaRender();
@@ -5495,7 +5878,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         oggiSegretaria.loading = true;
         oggiSegretariaRender();
         const rows = new Map();
-        let latestMonitor = null;
+        let latestMonitor = null, deliveryIncomplete = false;
         try {
             // Refresh the whole list before replacing it: later pages must not
             // disappear during a refresh, and an open draft is never recreated.
@@ -5510,15 +5893,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     rows.set(task.id, task);
                 }
                 latestMonitor = data.monitoring || null;
+                deliveryIncomplete = deliveryIncomplete || data.deliveryIncomplete === true;
                 if (data.readingDegraded === true) throw { code: 'follow_up_page_unavailable' };
                 cursor = data.nextCursor || null;
                 if (cursor !== null && (typeof cursor !== 'string' || seen.has(cursor))) throw { code: 'invalid_response' };
                 if (cursor) seen.add(cursor);
             } while (cursor);
-            Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
+            Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, deliveryIncomplete, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
         } catch (e) {
             if (generation === oggiSegretaria.generation) {
-                if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, monitoring: latestMonitor });
+                if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, deliveryIncomplete, monitoring: latestMonitor });
                 oggiSegretaria.error = oggiSegretariaError(e);
             }
         } finally {
@@ -5570,13 +5954,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         oggiSegretaria.modal = null;
         document.getElementById('sgFollowModal')?.remove();
         if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('modal-open');
-        if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
-            document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`)?.focus();
+        if (previous?.id && previous.returnFocusArea !== 'ogDeskPanel' && document.getElementById('ogWorkQueue')) oggiWorkRevealCase(previous.id);
+        const homeArea = previous?.returnFocusArea && document.getElementById(previous.returnFocusArea);
+        const homeButton = homeArea && [...homeArea.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === previous.returnFocus?.dataset.owCase && b.dataset.owAction === previous.returnFocus?.dataset.owAction);
+        const deskButton = previous?.returnFocusArea === 'ogDeskPanel' && [...(homeArea?.querySelectorAll('[data-desk-key]') || [])].find(b => b.dataset.deskKey === previous.returnFocus?.dataset.deskKey);
+        if (previous?.returnFocusArea === 'ogDeskPanel') (deskButton || homeArea?.querySelector('[data-desk-area]'))?.focus({ preventScroll: true });
+        else if (homeButton) homeButton.focus({ preventScroll: true });
+        else if (previous?.returnFocus?.isConnected && previous.returnFocus.offsetParent !== null) previous.returnFocus.focus({ preventScroll: true });
+        else if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
+            (document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`) || document.getElementById('ogQueueTitle'))?.focus();
         }
     }
-    async function oggiSegretariaOpen(id, notice, mode, generateRequested) {
+    async function oggiSegretariaOpen(id, notice, mode, generateRequested, preservedMessage) {
         if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
-        const modal = { id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
+        const modal = { id, returnFocus: oggiSegretaria.modal?.returnFocus || document.activeElement, returnFocusArea: oggiSegretaria.modal?.returnFocusArea || document.activeElement?.closest?.('#ogWorkBriefing, #ogWorkResults, #ogDeskPanel')?.id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false, message: preservedMessage || null };
         oggiSegretaria.modal = modal;
         oggiSegretariaModalRender();
         try {
@@ -5650,6 +6041,73 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div></details>
         </div>`;
     }
+    function oggiMessageHouse(task, dossier) {
+        const target = window.BOOM_SEGRETARIA_CASI.propertyTarget(task, dossier, S);
+        const houses = (S.properties || []).filter(row => row.id === target?.id);
+        return houses.length === 1 ? houses[0].name || houses[0].address || '' : '';
+    }
+    function oggiMessagePanel(m) {
+        const house = oggiMessageHouse(m.task, m.dossier);
+        if (!m.message) m.message = { text: '', uid: auth.currentUser?.uid, house, copied: false };
+        const templates = window.BOOM_OGGI_WORKSPACE.messageTemplates(house);
+        return `<section class="ow-message" aria-labelledby="owMessageTitle">
+            <div class="ow-message-heading"><div><p class="sg-eyebrow">1 / Il messaggio</p><h4 id="owMessageTitle">Prepara il messaggio</h4></div><span class="ow-message-tag">Nessun invio automatico</span></div>
+            <p class="ow-message-context">${house ? 'Immobile verificato: <strong>' + esc(house) + '</strong>' : 'Immobile da chiarire: il testo non associa questa richiesta a una casa.'}</p>
+            <p class="ow-message-label">Parti da un modello oppure scrivi direttamente.</p>
+            <div class="ow-message-templates" role="group" aria-label="Modelli di messaggio">${templates.map(t => `<button type="button" class="btn btn-secondary" data-ow-template="${esc(t.id)}">${esc(t.label)}</button>`).join('')}</div>
+            <label for="owMessageText" class="form-label">Testo da copiare</label><textarea id="owMessageText" class="form-textarea" rows="6" maxlength="4000" placeholder="Scrivi soltanto ciò che vuoi comunicare al destinatario…">${esc(m.message.text)}</textarea>
+            <div class="ow-message-copy"><button type="button" class="btn" id="owMessageCopy" ${m.message.text.trim() ? '' : 'disabled'}>Copia testo</button><span id="owMessageStatus" role="status">${m.message.copied ? 'Copiato. Scegli tu la chat o l’email in cui incollarlo.' : 'Controlla testo e destinatario prima di inviare.'}</span></div>
+            ${m.message.stale ? '<p class="sg-notice sg-notice--warning">È arrivata una nuova richiesta o il collegamento è cambiato. La tua bozza è conservata: confrontala con la fonte aggiornata.</p><button class="btn btn-secondary" type="button" id="owMessageReviewed">Ho ricontrollato il testo</button>' : ''}
+            <p class="ow-message-foot">La copia non segna il messaggio come inviato. Questo testo resta qui fino alla chiusura.</p>
+        </section><div class="ow-message-next"><p class="sg-eyebrow">2 / Il seguito interno</p><h4>Chi se ne occupa, e quando ricontrolli?</h4><p>Registra il prossimo passo. L’orario del ricontrollo resta interno.</p></div>`;
+    }
+    function oggiMessageMount(m, wrap) {
+        const input = wrap.querySelector('#owMessageText');
+        if (!input || !m.message) return;
+        const status = wrap.querySelector('#owMessageStatus'), copy = wrap.querySelector('#owMessageCopy');
+        const update = () => { m.message.text = input.value; m.message.copied = false; copy.disabled = !input.value.trim(); status.textContent = 'Controlla testo e destinatario prima di inviare.'; };
+        input.addEventListener('input', update);
+        wrap.querySelectorAll('[data-ow-recheck]').forEach(button => button.addEventListener('click', () => {
+            const date = new Date();
+            if (button.dataset.owRecheck === 'tomorrow') { date.setDate(date.getDate() + 1); date.setHours(9, 0, 0, 0); }
+            else date.setTime(date.getTime() + 2 * 3600000);
+            wrap.querySelector('#sgCheckAt').value = window.BOOM_SEGRETARIA_CASI.localDateTime(date.toISOString());
+        }));
+        wrap.querySelector('#owMessageReviewed')?.addEventListener('click', event => {
+            m.message.stale = false; m.message.house = oggiMessageHouse(m.task, m.dossier);
+            m.message.templateText = null; update(); event.currentTarget.remove();
+        });
+        wrap.querySelector('#sgPractice')?.addEventListener('change', () => {
+            status.textContent = 'Pratica modificata. Salva il seguito e riapri il messaggio per usare il nuovo collegamento.';
+        });
+        wrap.querySelectorAll('[data-ow-template]').forEach(button => button.addEventListener('click', () => {
+            const text = window.BOOM_OGGI_WORKSPACE.messageTemplates(m.message.house).find(t => t.id === button.dataset.owTemplate)?.text;
+            if (!text) return;
+            // Never overwrite an operator's draft with a shortcut. Selection
+            // changes only an untouched template; edited text remains intact.
+            if (input.value.trim() && input.value !== m.message.templateText) {
+                status.textContent = 'Hai modificato il testo. Svuotalo per usare un altro modello.';
+                input.focus(); return;
+            }
+            input.value = text; m.message.templateText = text; update(); input.focus();
+        }));
+        copy.addEventListener('click', async () => {
+            if (!isAdmin() || m.message.uid !== auth.currentUser?.uid || oggiSegretaria.userId !== auth.currentUser?.uid || oggiSegretaria.modal !== m || !input.value.trim()) return;
+            if (m.message.stale) { status.textContent = 'Controlla la nuova richiesta e premi «Ho ricontrollato il testo» prima di copiare.'; return; }
+            const current = oggiSegretaria.rows.find(t => t.id === m.id && t.status === 'open');
+            if (!current || current.followUp?.lastMessageId !== m.task.followUp.lastMessageId
+                || ['propertyRef', 'practiceRef', 'needsReview', 'ambiguous', 'confirmed'].some(key => current.followUp?.[key] !== m.task.followUp[key])
+                || oggiMessageHouse(current, oggiSegretaria.dossiers[m.id] || m.dossier) !== m.message.house
+                || (wrap.querySelector('#sgPractice')?.value || '') !== (m.task.followUp.practiceRef || '')) {
+                status.textContent = 'La richiesta è cambiata. Riaprila e ricontrolla le informazioni prima di copiare.'; return;
+            }
+            const text = input.value;
+            const ok = await copyToClipboard(text, 'Testo copiato · nessun invio', 'Copia il testo:');
+            if (oggiSegretaria.modal !== m || input.value !== text) return;
+            m.message.copied = ok;
+            status.textContent = ok ? 'Copiato. Scegli tu la chat o l’email in cui incollarlo.' : 'Copia automatica non riuscita: seleziona e copia il testo qui sopra.';
+        });
+    }
     function oggiSegretariaModalRender() {
         const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI;
         if (!m) return;
@@ -5677,14 +6135,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="form-group"><label class="form-label" for="sgWaitingOn">Chi deve agire</label><select class="form-select" id="sgWaitingOn">${Object.entries(E.WAITING).map(([key, label]) => `<option value="${key}" ${f.waitingOn === key ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
             <div class="form-group"><label class="form-label" for="sgWaitingLabel">Nome o riferimento</label><input class="form-input" id="sgWaitingLabel" required maxlength="100" value="${esc(f.waitingLabel || '')}"></div>
             <div class="form-group"><label class="form-label" for="sgCheckAt">Ricontrollo interno · ${esc(timezone)}</label><input class="form-input" type="datetime-local" id="sgCheckAt" required value="${esc(E.localDateTime(f.checkAt))}"></div>
+            ${m.mode === 'message' ? '<div class="ow-message-templates" role="group" aria-label="Imposta ricontrollo"><button type="button" class="btn btn-secondary" data-ow-recheck="soon">Tra 2 ore</button><button type="button" class="btn btn-secondary" data-ow-recheck="tomorrow">Domani alle 9</button></div>' : ''}
             <p class="list-subtitle">${esc(f.checkBasis || 'Data da confermare.')} Questo salvataggio non invia messaggi e non crea appuntamenti.</p>
         </form>`;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
-            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : m.mode === 'execute' ? 'Piano di esecuzione' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
+        if (f && m.mode === 'message' && m.task.status === 'open') form = oggiMessagePanel(m) + form;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet ${m.mode === 'message' ? 'ow-message-sheet' : ''}" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
+            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : m.mode === 'execute' ? 'Piano di esecuzione' : m.mode === 'message' ? 'Messaggio e seguito' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
             <div class="modal-body sg-modal-body">
                 ${m.notice ? `<div class="sg-notice sg-notice--warning" role="status">${esc(m.notice)}</div>` : ''}
                 <div id="sgFollowError" role="alert" class="sg-notice sg-notice--warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
                 ${d ? `<div class="sg-origin"><div><p class="sg-eyebrow">Ultimo messaggio ricevuto · anteprima</p>${oggiSegretariaSourceDate(m.task)}<blockquote class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</blockquote></div><button class="btn btn-secondary" type="button" data-sg-modal="source" ${d.conversationId ? '' : 'disabled'}>Apri conversazione di origine</button></div>` : ''}
+                ${m.task && window.BOOM_OGGI_WORKSPACE?.phoneSource(m.task) ? `<a class="btn btn-secondary" href="${esc(window.BOOM_OGGI_WORKSPACE.phoneSource(m.task))}" target="_blank" rel="noopener">Audio e trascrizione della chiamata ↗</a>` : ''}
                 ${m.busy ? `<p role="status" class="sg-working">${m.operation === 'generate' ? 'La Segreteria sta preparando il lavoro…' : 'Registro la tua conferma e verifico lo stato…'}</p>` : ''}
                 ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
             </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p && !p.approval ? (p.draft ? 'Approvi il piano e l’invio del testo al destinatario mostrato.' : 'Approvi il seguito e il ricontrollo. Non è previsto un messaggio.') : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
@@ -5704,12 +6165,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (action === 'source') return oggiSegretariaSource(m.task);
             if (action === 'edit') { m.mode = 'edit'; m.error = ''; oggiSegretariaModalRender(); return; }
             if (action === 'generate' || action === 'approve' || action === 'resume') return oggiSegretariaPrepare(action);
-            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
+            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : m.message ? 'message' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
         };
         wrap.onkeydown = event => {
             if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
             if (event.key !== 'Tab') return;
-            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary')].filter(el => !el.disabled && el.offsetParent !== null);
+            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary, a[href]')].filter(el => !el.disabled && el.offsetParent !== null);
             const first = controls[0], last = controls[controls.length - 1];
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -5722,7 +6183,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         wrap.querySelector('#sgWaitingOn')?.addEventListener('change', event => { wrap.querySelector('#sgWaitingLabel').value = E.WAITING[event.target.value] || ''; });
         if (m.busy) wrap.querySelectorAll('button, input, select, textarea').forEach(control => { control.disabled = true; });
-        if (oggiSegretaria.modal === m) (wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus();
+        oggiMessageMount(m, wrap);
+        if (oggiSegretaria.modal === m) (wrap.querySelector('#owMessageText') || wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus();
     }
     async function oggiSegretariaPrepare(operation) {
         const m = oggiSegretaria.modal;
@@ -5837,7 +6299,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) {
             if (oggiSegretaria.modal !== m) return;
             if (e.code === 'new_message_reload' || e.code === 'practice_not_verified') {
-                oggiSegretariaOpen(m.id, oggiSegretariaError(e));
+                oggiSegretariaOpen(m.id, oggiSegretariaError(e), m.message ? 'message' : m.mode, false, m.message ? { ...m.message, stale: true, copied: false } : null);
                 oggiSegretariaLoad(true);
                 return;
             }
@@ -5848,45 +6310,557 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
 
+    // HOME OPERATIVA: UI state only; domain data stays in the existing records.
+    const oggiWorkspace = { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' };
+    function oggiWorkspaceResetUser() {
+        const uid = auth.currentUser?.uid || null;
+        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { deskArea: null, deskPage: 0, deskFilter: null, deskScope: 'Tutti i segnali originali', archiveOpen: false, deskOpen: true, user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6, view: 'decisions', query: '', kind: 'all' });
+    }
+    window.oggiOpenSection = function(id) {
+        if (!isAdmin() || !['ogOwnerTools', 'ogFollowTools'].includes(id)) return;
+        const section = document.getElementById(id);
+        if (!section) return;
+        if (section.tagName === 'DETAILS') section.open = true;
+        if (id === 'ogFollowTools') oggiWorkView('decisions');
+        section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        const input = id === 'ogOwnerTools' ? document.getElementById('ogOwnerQuery') : document.querySelector('[data-ow-view="decisions"]');
+        input?.focus({ preventScroll: true });
+    };
+    window.oggiWorkspaceSearch = function(query, refresh = false) {
+        if (!portalSearchAuthorized()) return;
+        oggiWorkspaceResetUser();
+        const target = document.getElementById('ogWorkResults');
+        if (!target) return;
+        query = String(query || '').trim().slice(0, 120);
+        if (!refresh) {
+            oggiWorkspace.selected = null; oggiWorkspace.actions = []; oggiWorkspace.searchPage = 0;
+        }
+        oggiWorkspace.query = query;
+        oggiWorkspace.kind = document.getElementById('ogWorkKind')?.value || 'all';
+        oggiQuickToolsRender(); portalSearchSourcesRender();
+        if (query.length < 2) { target.innerHTML = ''; oggiWorkspace.records = []; return; }
+        if (!window.BOOM_PORTAL_SEARCH) {
+            target.innerHTML = '<p role="status" class="ow-hint">La ricerca non è disponibile. Ricarica il portale.</p>'; return;
+        }
+        let found = portalSearchRecords(query, oggiWorkspace.kind, 12, (oggiWorkspace.searchPage || 0) * 12);
+        if (!found.records.length && found.total && oggiWorkspace.searchPage) { oggiWorkspace.searchPage = Math.floor((found.total - 1) / 12); found = portalSearchRecords(query, oggiWorkspace.kind, 12, oggiWorkspace.searchPage * 12); }
+        oggiWorkspace.records = found.records;
+        target.innerHTML = found.records.length ? `<div class="ow-results">${found.records.map((r, i) => `<button type="button" class="ow-result" onclick="oggiWorkspaceSelect(${i})"><span><small class="ow-result-kind">${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><small>${esc(r.sub)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</div><p class="ow-hint">${(oggiWorkspace.searchPage || 0) * 12 + 1}–${(oggiWorkspace.searchPage || 0) * 12 + found.records.length} di ${found.total} risultati nei dati caricati. ${oggiWorkspace.searchPage ? '<button type="button" class="ow-link" onclick="oggiWorkspaceMore(-1)">Precedenti</button> · ' : ''}${found.hasMore ? '<button type="button" class="ow-link" onclick="oggiWorkspaceMore()">Mostra altri risultati</button>' : ''}</p>`
+            : '<p role="status" class="ow-hint">Nessun risultato nei dati caricati. Apri «Fonti e archivio» per estendere la ricerca.</p>';
+    };
+    window.oggiWorkspaceMore = function(delta = 1) {
+        oggiWorkspace.searchPage = Math.max(0, (oggiWorkspace.searchPage || 0) + delta);
+        oggiWorkspaceSearch(oggiWorkspace.query, true);
+    };
+    window.oggiWorkspaceSelect = async function(index) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const record = oggiWorkspace.records[index], user = auth.currentUser, query = oggiWorkspace.query;
+        const fresh = await portalSearchEnsure(record);
+        if (fresh && auth.currentUser === user && oggiWorkspace.query === query && oggiWorkspace.records[index] === record) oggiWorkspaceShow(fresh);
+    };
+    function oggiWorkspaceShow(record, focus = true) {
+        const P = window.BOOM_ACTIONS, E = window.BOOM_PORTAL_SEARCH;
+        if (!portalSearchAuthorized() || oggiWorkspace.user !== auth.currentUser?.uid || !E?.recordFor(record.kind, record.id, S)) return;
+        record = E.recordFor(record.kind, record.id, S);
+        oggiWorkspace.selected = record;
+        const safe = ['viewProperty', 'openPerson', 'viewUserProfile', 'viewUser', 'viewClient', 'viewContract', 'openFascicolo', 'openShareHub', 'viewContractSignatures'];
+        oggiWorkspace.actions = P.ACTIONS.filter(a => a.need === record.kind && safe.includes(a.fn));
+        const target = document.getElementById('ogWorkResults');
+        target.innerHTML = `<details id="ogContextDetails" class="ow-selection"><summary><span><small>${esc(E.KINDS[record.kind]?.label || '')}</small><strong>${esc(record.label)}</strong></span><span>Apri scheda e collegamenti</span></summary><p>${esc(record.sub)}</p><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}${oggiWorkspace.actions.length ? '' : '<button type="button" class="btn btn-secondary btn-sm" onclick="oggiWorkspaceOpen()">' + (record.kind === 'proposal' ? 'Apri console proposte' : record.kind === 'payment' ? 'Apri gestione pagamento' : 'Apri scheda') + ' ↗</button>'}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Torna ai risultati</button><div id="ogContextConnections"></div></details>`;
+        target.onclick = oggiWorkCaseClick;
+        oggiWorkspaceContext(); oggiQuickToolsRender();
+        if (focus) target.querySelector('summary, button')?.focus({ preventScroll: true });
+    }
+    window.oggiWorkspaceOpen = function() {
+        if (oggiWorkspace.user === auth.currentUser?.uid) return portalSearchOpen(oggiWorkspace.selected);
+    };
+    window.oggiWorkspaceAction = function(index) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const action = oggiWorkspace.actions[index], record = oggiWorkspace.selected;
+        if (!window.BOOM_PORTAL_SEARCH?.recordFor(record?.kind, record?.id, S)) return toast('warning', 'Il record non è più nei dati caricati. Ripeti la ricerca.');
+        if (!action || !record || !window.BOOM_ACTIONS?.run(action, window, record)) toast('error', 'Strumento non disponibile. Apri la sezione dal menu.');
+    };
+    window.oggiWorkspaceRelated = async function(index) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const record = oggiWorkspace.related[index], selected = oggiWorkspace.selected, user = auth.currentUser;
+        const fresh = await portalSearchEnsure(record);
+        if (fresh && auth.currentUser === user && oggiWorkspace.selected === selected) oggiWorkspaceShow(fresh);
+    };
+    function oggiWorkCaseClick(event) {
+        const button = event.target.closest('[data-ow-case]');
+        if (!button || !isAdmin() || !button.parentElement) return;
+        const task = oggiSegretaria.rows.find(t => t.id === button.dataset.owCase && t.status === 'open');
+        if (!task) return;
+        if (button.dataset.owAction === 'source') return oggiSegretariaSource(task);
+        if (button.dataset.owAction === 'message') return oggiSegretariaOpen(task.id, '', 'message');
+        return oggiSegretariaOpen(task.id, '', 'review'); // Read only: no implicit generation.
+    }
+    function oggiWorkCaseCard(task) {
+        const d = window.BOOM_SEGRETARIA_CASI.describe(task, oggiSegretaria.dossiers[task.id], S, Date.now());
+        const p = oggiSegretariaPreparation(task), source = window.BOOM_OGGI_WORKSPACE?.phoneSource(task);
+        const issue = window.BOOM_SEGRETARIA_CASI.reviewReason(task);
+        const state = issue ? 'Da verificare' : p && !p.approval ? (p.identityBlocked || p.status !== 'ready' ? 'Da chiarire' : 'Proposta da rivedere') : d.state;
+        return `<article class="ow-case"><div class="ow-case-top"><span>${esc(d.name)}</span><span>${source ? 'Chiamata' : 'Conversazione'} · ${esc(state)}</span></div>
+            <h3>${esc(p?.nextAction?.text || d.nextAction)}</h3>
+            <p class="ow-case-reading"><span>${p ? 'Sintesi AI · da verificare' : 'Ultima richiesta · estratto'}</span>${esc(p?.summary || d.preview || 'Apri la fonte per leggere la richiesta.')}</p>
+            ${issue ? `<p class="ow-source-note">${esc(issue)}</p>` : ''}
+            <div class="ow-case-meta"><span><small>Chi agisce${p && !p.approval ? ' · proposto' : ''}</small>${esc(p?.nextAction?.waitingLabel || d.waiting)}</span><span><small>Ricontrollo${p && !p.approval ? ' · proposto' : ''}</small>${esc(oggiSegretariaDate(p?.nextAction?.checkAt ? Date.parse(p.nextAction.checkAt) : d.checkAt))}</span></div>
+            <div class="ow-case-actions"><button class="btn btn-sm" type="button" data-ow-case="${esc(task.id)}">${p?.draft ? 'Rivedi risposta' : p ? 'Rivedi seguito' : 'Esamina richiesta'} ↗</button><button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="message">Scrivi e organizza</button>${source ? `<a class="ow-link" href="${esc(source)}" target="_blank" rel="noopener">Audio e trascrizione ↗</a>` : ''}${d.conversationId ? `<button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="source">Apri conversazione</button>` : ''}</div></article>`;
+    }
+    function oggiWorkspaceConversations(record) {
+        if (!portalSearchAuthorized() || !window.BOOM_PORTAL_SEARCH?.recordFor(record?.kind, record?.id, S)) return [];
+        const types = { person: ['tenant', 'landlord'], client: ['client'], lead: ['lead'], pfsClient: ['pfs'] }[record.kind] || [];
+        return (S.conversations || []).filter(c => c.contactId === record.id && types.includes(c.contactType)
+            && (S.conversations || []).filter(other => other.id === c.id).length === 1);
+    }
+    window.oggiWorkspaceConversation = function(index) {
+        if (oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const row = oggiWorkspaceConversations(oggiWorkspace.selected)[index];
+        if (row && typeof window.inboxSelect === 'function' && !document.body.classList.contains('modal-open') && !document.querySelector('.modal-overlay.active')) { goTo('inbox'); window.inboxSelect(row.id); }
+    };
+    function oggiWorkspaceContext() {
+        const target = document.getElementById('ogContextConnections'), record = oggiWorkspace.selected, E = window.BOOM_OGGI_WORKSPACE;
+        if (!target || !record || !E?.contextFor || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const linked = E.contextFor(record, S);
+        const search = window.BOOM_PORTAL_SEARCH;
+        linked.available = !!search?.recordFor(record.kind, record.id, S);
+        linked.records = search?.relatedFor?.(record.kind, record.id, portalSearchState()) || [];
+        oggiWorkspace.related = linked.records;
+        if (!linked.available) { target.innerHTML = '<p class="ow-source-note">Il record non è più disponibile nei dati caricati. Ripeti la ricerca.</p>'; return; }
+        const conversations = oggiWorkspaceConversations(record);
+        const tasks = oggiSegretaria.rows.filter(t => {
+            if (t.status !== 'open' || !t.followUp) return false;
+            const f = t.followUp;
+            if (linked.conversationIds.includes(f.conversationId)) return true;
+            if (record.kind === 'property') return window.BOOM_SEGRETARIA_CASI.propertyTarget(t, oggiSegretaria.dossiers[t.id], S)?.id === record.id;
+            return f.confirmed === true && f.needsReview !== true && f.ambiguous !== true && linked.practiceRefs.includes(f.practiceRef);
+        });
+        const open = new Set([...target.querySelectorAll('details[open]')].map(d => d.dataset.owFold));
+        const focused = target.contains(document.activeElement) ? document.activeElement : null;
+        const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
+        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${['person','client','lead','pfsClient','property','contract'].includes(record.kind) ? `<button type="button" class="btn btn-sm" onclick="inboxOpenContext({kind:'${jsq(record.kind)}',id:'${jsq(record.id)}'})">Comunicazioni collegate ↗</button>` : ''}${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_PORTAL_SEARCH.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+            ${conversations.length ? `<div class="ow-related" aria-label="Conversazioni collegate">${conversations.map((c, i) => `<button type="button" onclick="oggiWorkspaceConversation(${i})"><small>Conversazione · ${esc(c.channel || 'Inbox')}</small><strong>Apri messaggi ↗</strong><span>${esc(c.contactName || record.label)}</span></button>`).join('')}</div><p class="ow-hint">Conversazioni già collegate al contatto nel portale; lo storico HOMIE non è incluso.</p>` : ''}
+            <details data-ow-fold="cases" ${open.has('cases') ? 'open' : ''}><summary>Seguiti collegati <span>${tasks.length}</span></summary>${oggiSegretaria.error || oggiSegretaria.incomplete ? '<p class="ow-source-note">La lettura dei seguiti è parziale o non aggiornata.</p>' : ''}${!oggiSegretaria.loaded ? '<p class="ow-hint">Lettura dei seguiti in corso.</p>' : tasks.length ? tasks.slice(0, 4).map(oggiWorkCaseCard).join('') + (tasks.length > 4 ? '<p class="ow-hint">Mostrati 4 di '+tasks.length+' seguiti collegati. <button type="button" class="ow-link" onclick="oggiOpenSection(\'ogFollowTools\')">Apri tutti i seguiti</button></p>' : '') : '<p class="ow-hint">Nessun seguito collegato in questo elenco. Le richieste da associare restano in Segreteria.</p>'}</details><p class="ow-hint">Collegamenti salvati nel portale. Le omonimie non vengono unite.</p></div>`;
+        if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
+    }
+    // A deterministic work surface over existing records, never another task store.
+    function oggiDeskModel() {
+        return window.BOOM_OGGI_DESK?.build({ state: S, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: oggiSegretaria.rows, pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
+    }
+    function oggiDeskItems(model) {
+        return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || [])];
+    }
+    function oggiDeskRender() {
+        const panel = document.getElementById('ogDeskPanel');
+        if (!panel || !isAdmin()) return;
+        const model = oggiDeskModel();
+        if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
+        const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
+        const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
+        if (!model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = model.areas.find(a => a.items.length)?.id || model.areas[0]?.id;
+        const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
+        const items = area?.items || [], pages = Math.max(1, Math.ceil(items.length / 5));
+        oggiWorkspace.deskPage = Math.min(oggiWorkspace.deskPage || 0, pages - 1);
+        const start = oggiWorkspace.deskPage * 5, shown = items.slice(start, start + 5);
+        const issues = [
+            S._paError ? 'Proposte non aggiornate.' : !S._paLoaded ? 'Proposte in caricamento.' : S._paPartial ? 'Proposte: lettura parziale.' : '',
+            !oggiSegretaria.loaded ? 'Seguiti in caricamento.' : '',
+            oggiSegretaria.error, oggiSegretaria.incomplete ? 'Seguiti: lettura parziale.' : '',
+            window.BOOM_SEGRETARIA_CASI.workGroups(oggiSegretaria.rows, Date.now(), oggiSegretariaPreparation).invalid ? 'Alcuni seguiti hanno dati incompleti.' : '',
+            (model.coverage.unknownDeliveryCount || oggiSegretaria.deliveryIncomplete) ? 'Non tutti gli esiti degli invii sono verificabili: apri il caso per controllarli.' : '',
+            typeof portalFreshnessWarning === 'function' ? portalFreshnessWarning() : ''
+        ].filter(Boolean);
+        const summary = document.getElementById('ogDeskSummary');
+        if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Scadenze e richieste', issues.length ? 'Aggiornamento da verificare' : 'Dati caricati'].join(' · ');
+        panel.innerHTML = `
+            ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
+            ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
+            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
+            ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
+            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${model.areas.map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}</div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Vedi i passaggi</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
+            ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
+            <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Seguiti confermati con un ricontrollo futuro.</small></button></div>
+            <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
+            <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
+        panel.onclick = event => {
+            const button = event.target.closest('button');
+            if (!button || !panel.contains(button)) return;
+            if (button.dataset.deskArea) { oggiWorkspace.deskArea = button.dataset.deskArea; oggiWorkspace.deskPage = 0; oggiDeskRender(); }
+            else if (button.dataset.deskPage) { oggiWorkspace.deskPage = Math.max(0, (oggiWorkspace.deskPage || 0) + Number(button.dataset.deskPage)); oggiDeskRender(); }
+            else if (button.dataset.deskAct) oggiDeskAct(button.dataset.deskAct);
+            else if (button.dataset.deskDetails) oggiDeskArchive('item', button.dataset.deskDetails);
+            else if (button.dataset.deskArchive) oggiDeskArchive(button.dataset.deskArchive);
+            else if (button.hasAttribute('data-desk-refresh')) { portalFreshnessRecover(); oggiSegretariaLoad(true); oggiLoadProposals(true); }
+        };
+        if (focused) [...panel.querySelectorAll('[data-desk-key]')].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
+    }
+    window.oggiDeskAct = function(id) {
+        if (!isAdmin() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
+        const item = oggiDeskItems(oggiDeskModel()).find(i => i.id === id), action = item?.action;
+        // The desk only opens existing workflows. It cannot approve, send, mark paid or sign.
+        const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen'];
+        if (!action || !safe.includes(action.fn) || typeof window[action.fn] !== 'function') return oggiDeskArchive('item', id);
+        if (action.fn === 'goTo' && !['payments', 'contracts', 'maintenance', 'leads', 'inbox', 'viewings', 'agent-actions'].includes(action.args?.[0])) return oggiDeskArchive('item', id);
+        if (action.fn === 'oggiSegretariaOpen') return oggiSegretariaOpen(item.caseIds[0], '', 'review');
+        window[action.fn](...(action.args || []));
+    };
+    window.oggiDeskArchive = function(mode = 'all', id = null) {
+        if (!isAdmin()) return;
+        const model = oggiDeskModel(), all = oggiDeskItems(model);
+        const items = mode === 'unlinked' ? model?.history.filter(i => i.caseIds.some(key => model.coverage.newUnlinkedCaseIds?.includes(key))) : mode === 'verification' ? model?.history.filter(i => i.signalIds.some(key => model.coverage.recordVerificationSignalIds?.includes(key))) : mode === 'history' ? model?.history : mode === 'waiting' ? model?.waiting : mode === 'urgent' ? model?.areas.flatMap(a => a.items).filter(i => i.urgent) : mode === 'item' ? all.filter(i => i.id === id) : null;
+        oggiWorkspace.deskFilter = items ? { signalIds: items.flatMap(i => i.signalIds), caseIds: items.flatMap(i => i.caseIds) } : null;
+        const archive = document.getElementById('ogQueueArchive');
+        if (archive) { archive.open = true; oggiWorkspace.archiveOpen = true; }
+        const groups = oggiSegretariaGroups(Date.now());
+        oggiWorkspace.view = !items || items.some(i => i.signalIds.length) || groups.decisions.length ? 'decisions' : groups.preparing.length ? 'preparing' : 'following';
+        oggiWorkspace.visible = 6; oggiSegretaria.decisionsVisible = 12; oggiSegretaria.preparingVisible = 12;
+        const panel = document.getElementById('ogDecisionPanel');
+        if (panel) panel.innerHTML = oggiDecisionPanel();
+        oggiSegretariaRender(); oggiWorkBriefing();
+        const label = document.getElementById('ogArchiveScope');
+        oggiWorkspace.deskScope = mode === 'all' ? 'Tutti i segnali originali' : mode === 'item' ? 'Passaggi della pratica selezionata' : mode === 'unlinked' ? 'Richieste recenti da collegare' : mode === 'verification' ? 'Verifiche contrattuali e amministrative' : mode === 'history' ? 'Richieste e dati da riallineare' : mode === 'waiting' ? 'Ricontrolli futuri' : 'Pratiche con priorità';
+        if (label) label.textContent = oggiWorkspace.deskScope;
+        archive?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        document.getElementById('ogQueueTitle')?.focus({ preventScroll: true });
+    };
+
+    // Only presentation filters: classification stays in the two existing engines.
+    function oggiWorkRevealCase(id) {
+        const archive = document.getElementById('ogQueueArchive');
+        if (archive) { archive.open = true; oggiWorkspace.archiveOpen = true; }
+        if (oggiWorkspace.deskFilter && !oggiWorkspace.deskFilter.caseIds.includes(id)) {
+            oggiWorkspace.deskFilter = null;
+            const scope = document.getElementById('ogArchiveScope');
+            oggiWorkspace.deskScope = 'Tutti i segnali originali';
+            if (scope) scope.textContent = oggiWorkspace.deskScope;
+            const decisions = document.getElementById('ogDecisionPanel');
+            if (decisions) decisions.innerHTML = oggiDecisionPanel();
+            oggiSegretariaRender();
+        }
+        const groups = oggiSegretariaGroups(Date.now());
+        const group = ['decisions', 'preparing', 'progress', 'waiting'].find(key => groups[key].some(t => t.id === id));
+        oggiWorkView(group === 'progress' || group === 'waiting' ? 'following' : group || 'decisions');
+    }
+    window.oggiWorkView = function(view) {
+        if (!isAdmin() || !['decisions', 'preparing', 'following'].includes(view)) return;
+        oggiWorkspace.view = view;
+        oggiWorkBriefing();
+    };
+    function oggiWorkBriefing() {
+        oggiDeskRender();
+        const queue = document.getElementById('ogWorkQueue');
+        if (!isAdmin() || !queue || !window.BOOM_SEGRETARIA_CASI) return;
+        const groups = oggiSegretariaGroups(Date.now()), view = oggiWorkspace.view;
+        let hidden = [];
+        try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch {}
+        const portalCount = (window.__oggiLast || []).filter(d => oggiWorkspace.deskFilter ? oggiWorkspace.deskFilter.signalIds.includes(d.id) : !hidden.includes(d.id)).length;
+        const counts = { decisions: portalCount + groups.decisions.length, preparing: groups.preparing.length, following: groups.progress.length + groups.waiting.length };
+        queue.querySelectorAll('[data-ow-view]').forEach(button => {
+            button.setAttribute('aria-pressed', String(button.dataset.owView === view));
+            button.querySelector('span').textContent = oggiSegretaria.loaded ? counts[button.dataset.owView] : '…';
+        });
+        const portal = document.getElementById('ogDecisionPanel');
+        if (portal) portal.hidden = view !== 'decisions';
+        queue.querySelectorAll('[data-sg-group]').forEach(section => {
+            section.hidden = view === 'following' ? !['progress', 'waiting'].includes(section.dataset.sgGroup) : section.dataset.sgGroup !== view;
+        });
+        const descriptions = { decisions: 'Scelte e verifiche che richiedono il tuo intervento.', preparing: 'Richieste ricevute, ancora senza una proposta da valutare.', following: 'Attività affidate e risposte attese, con il prossimo ricontrollo.' };
+        const title = document.getElementById('ogQueueTitle');
+        if (title) title.textContent = { decisions: 'Serve una tua decisione', preparing: 'Richieste da preparare', following: 'Il lavoro va avanti' }[view];
+        const description = document.getElementById('ogQueueDescription');
+        if (description) description.textContent = descriptions[view];
+        const empty = document.getElementById('ogQueueEmpty');
+        if (empty) {
+            empty.hidden = !oggiSegretaria.loaded || counts[view] > 0 || !!oggiSegretaria.error || oggiSegretaria.incomplete || !!groups.invalid || (view === 'decisions' && (!!S._paError || !S._paLoaded));
+            empty.textContent = view === 'decisions' ? 'Nessuna decisione in questa vista dei dati caricati.' : view === 'preparing' ? 'Nessuna richiesta da preparare nei seguiti caricati.' : 'Nessun seguito in corso nei dati caricati.';
+        }
+        if (oggiWorkspace.selected && !document.getElementById('ogContextConnections')) oggiWorkspaceShow(oggiWorkspace.selected, false);
+        else oggiWorkspaceContext();
+    }
+    function oggiToolLibrary() {
+        const P = window.BOOM_ACTIONS;
+        const ids = ['console:/chiamate', 'console:/risposte', 'console:/media-studio', 'console:/manuale'];
+        const descriptions = { '/chiamate': 'Audio, trascrizioni e riepiloghi salvati', '/risposte': 'Testi pronti e link da copiare', '/media-studio': 'Foto e reel dagli annunci', '/manuale': 'Istruzioni e informazioni della casa' };
+        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('boom-tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
+    }
+    function oggiQuickContext() {
+        const selected = oggiWorkspace.selected;
+        return selected && ['client', 'person', 'property', 'contract'].includes(selected.kind) ? selected : null;
+    }
+    function oggiToolIcon(id) {
+        const paths = {
+            properties: '<path d="m3 10 9-7 9 7v11H3V10Zm5 11v-8h8v8"/>',
+            people: '<circle cx="9" cy="8" r="3"/><path d="M3 21v-2a6 6 0 0 1 12 0v2m2-16a3 3 0 0 1 0 6m2 3a5 5 0 0 1 3 5v2"/>',
+            whatsapp: '<path d="M21 11a9 9 0 0 1-13 8l-5 2 1-5a9 9 0 1 1 17-5Z"/><path d="M8 7c0 5 3 8 8 8l1-2-3-1-1 1-3-3 1-1-1-3-2 1Z"/>',
+            email: '<rect x="2" y="4" width="20" height="16" rx="3"/><path d="m3 6 9 7 9-7"/>',
+            appointments: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 2v6m10-6v6M3 11h18m-13 4h2m4 0h2"/>',
+            calls: '<path d="M7 3H3v4c0 8 6 14 14 14h4v-4l-6-2-2 2-6-6 2-2-2-6Z"/>',
+            document: '<path d="M14 2H5v20h14V7l-5-5ZM14 2v6h5M9 13h6m-6 4h6"/>',
+            'magic-sign': '<path d="m4 16-1 5 5-1L21 7l-6-6L4 16ZM13 3l6 6M3 21h18"/>',
+            inventory: '<path d="m3 7 9-5 9 5v10l-9 5-9-5V7Zm0 0 9 5 9-5M12 12v10M7 5l10 5"/>',
+            handover: '<circle cx="8" cy="8" r="5"/><path d="m12 12 9 9m-6-6 3-3m0 6 3-3"/>',
+            maintenance: '<path d="m14 6 4 4m-3-8a6 6 0 0 0-7 7L2 15v5h5l6-6a6 6 0 0 0 7-7l-4 4-4-4 3-5Z"/>',
+            payment: '<rect x="2" y="5" width="20" height="15" rx="2"/><path d="M2 10h20M6 15h4"/>',
+            invoices: '<path d="M5 2h14v20l-3-2-4 2-4-2-3 2V2Zm4 5h6m-6 5h6m-6 5h3"/>',
+            listings: '<path d="m3 11 18-7v16L3 13v-2Zm3 3 2 7h4l-3-6M18 5v14"/>',
+            templates: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 15h7m-7 5h7"/>',
+            automations: '<path d="m13 2-9 12h7l-1 8 10-12h-7l1-8Z"/>'
+        };
+        return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + (paths[id] || paths.people) + '</svg>';
+    }
+    function oggiQuickTools() {
+        const tools = window.BOOM_ACTIONS?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
+        return tools.length ? tools.map(t => `<button class="ow-tool" type="button" data-og-tool="${esc(t.id)}" title="${esc(t.disabled ? t.reason : t.description)}" onclick="oggiQuickTool(this.dataset.ogTool)" ${t.disabled ? 'disabled' : ''}><span class="ow-tool-icon" aria-hidden="true">${oggiToolIcon(t.id.replace('home:', ''))}</span><span class="ow-tool-copy"><strong>${esc(t.label)}</strong><span class="${t.disabled ? 'ow-tool-disabled' : 'sr-only'}">${esc(t.disabled ? t.reason : t.description)}</span></span></button>`).join('')
+            : '<p class="ow-source-note">La selezione non è più disponibile. Ripeti la ricerca per aprire uno strumento.</p>';
+    }
+    function oggiQuickContextLabel() {
+        const record = oggiQuickContext();
+        if (!record && oggiWorkspace.selected) return '<span><small>SCHEDA SELEZIONATA · STRUMENTI GENERALI</small><strong>' + esc(oggiWorkspace.selected.label) + '</strong></span><button class="ow-link" type="button" onclick="oggiClearContext()">Tutti</button>';
+        return record ? `<span><small>${esc(window.BOOM_PORTAL_SEARCH?.KINDS[record.kind]?.label || 'Selezione')}</small><strong>${esc(record.label)}</strong></span><div><button type="button" class="ow-link" onclick="oggiChangeContext()">Cambia</button><button type="button" class="ow-link" onclick="oggiClearContext()">Tutti</button></div>`
+            : '<span><small>IL TUO SPAZIO DI LAVORO</small><strong>Tutti gli strumenti</strong></span><button class="ow-link" type="button" onclick="oggiChangeContext()">Scegli casa o persona</button>';
+    }
+    window.oggiChangeContext = function() {
+        if (!portalSearchAuthorized() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const input = document.getElementById('ogWorkQuery');
+        if (input) { input.focus(); input.select(); }
+    };
+    window.oggiClearContext = function() {
+        if (!portalSearchAuthorized() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const input = document.getElementById('ogWorkQuery');
+        if (input) input.value = '';
+        oggiWorkspaceSearch('');
+    };
+    function oggiQuickToolsRender() {
+        const target = document.getElementById('ogQuickTools'), context = document.getElementById('ogQuickContext');
+        if (!target || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const focused = target.contains(document.activeElement) ? document.activeElement.closest('[data-og-tool]')?.dataset.ogTool : null;
+        target.innerHTML = oggiQuickTools();
+        if (context) context.innerHTML = oggiQuickContextLabel();
+        if (focused) [...target.querySelectorAll('[data-og-tool]')].find(b => b.dataset.ogTool === focused)?.focus({ preventScroll: true });
+    }
+    window.oggiQuickTool = function(id) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const P = window.BOOM_ACTIONS;
+        const action = id === 'home:new-client' ? P?.homeNewClient?.(oggiQuickContext(), S) : P?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear())?.find(a => a.id === id);
+        if (!action || action.disabled) return toast('warning', action?.reason || 'La selezione è cambiata. Ripeti la ricerca.');
+        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning', 'Completa o chiudi prima il modulo aperto.');
+        const handler = window[action.fn];
+        if (typeof handler !== 'function') return toast('error', 'Strumento non disponibile. Ricarica il portale.');
+        handler(...action.args);
+        if (action.prefill) {
+            const field = document.querySelector('#mForm select[name="' + action.prefill.field + '"]');
+            if (!field || ![...field.options].some(o => o.value === action.prefill.value)) return toast('warning', 'Il riferimento non è selezionabile nel modulo. Verificalo prima di salvare.');
+            field.value = action.prefill.value;
+            field.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+    };
+    function inboxContextRows() {
+        const context = S.inboxContext;
+        const rows = new Map((S.conversations || []).map(c => [c.id, c]));
+        if (context?.user === auth.currentUser && portalSearchAuthorized()) for (const row of context.rows) if (!rows.has(row.id)) rows.set(row.id, row);
+        return [...rows.values()];
+    }
+    function inboxContextCurrent(proof) {
+        const rows = (S.conversations || []).filter(c=>c.id===proof.id);
+        return rows.length===1 ? rows[0] : rows.length ? null : proof;
+    }
+    function inboxContextMember(row, context) {
+        if (!row || row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') return false;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,context.caseRows || []);
+        if (!target?.available) return false;
+        if (target.contacts.length) return target.contacts.some(identity => window.BOOM_INBOX_CONTEXT.matches(row,identity));
+        const proof = context.rows.find(c=>c.id===row.id);
+        return target.conversationIds.includes(row.id) && proof && row.contactType===proof.contactType && row.contactId===proof.contactId;
+    }
+    function inboxContextNotice() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return '';
+        const changed = context.rows.some(proof=>!inboxContextMember(inboxContextCurrent(proof),context));
+        const status = context.loading ? 'Lettura in corso…' : context.error ? 'Lettura non riuscita. Riprova.' : context.incomplete || changed ? 'Elenco parziale · riferimenti da verificare.' : 'Conversazioni collegate lette dal server.';
+        return `<section class="sg-notice" aria-label="Comunicazioni del contesto"><strong>${esc(context.label)}</strong> <span role="status">${esc(status)}</span><div><button type="button" class="btn btn-sm" onclick="inboxReturnContext()">← Torna al contesto</button> <button type="button" class="btn btn-sm" onclick="inboxContextLoad()" ${context.loading ? 'disabled' : ''}>Riprova lettura</button></div><details><summary>Fonti e copertura</summary><p>WhatsApp ed email già registrati nel portale. Questa lettura non sincronizza Gmail né HOMIE. Per casa e contratto sono inclusi solo i seguiti confermati con riferimenti verificabili. Lettura limitata a 100 seguiti e 50 conversazioni; i riferimenti mancanti restano da verificare.${context.error ? ' Conservo i dati già letti: possono essere superati.' : ''}</p></details></section>`;
+    }
+    window.inboxContextLoad = async function() {
+        const context = S.inboxContext;
+        if (!context || context.user !== auth.currentUser || !portalSearchAuthorized()) return;
+        const generation = context.generation = (context.generation || 0) + 1, revision = S.inboxDataRevision || 0;
+        const current = () => S.inboxContext === context && context.user === auth.currentUser && portalSearchAuthorized() && context.generation === generation;
+        context.loading = true; context.error = false; inboxRefresh();
+        try {
+            let incomplete = false;
+            // Exact indexed references work even when Home/Segreteria was never mounted.
+            if (['property','contract'].includes(context.record.kind)) {
+                const field = context.record.kind==='property' ? 'propertyRef' : 'practiceRef';
+                const prefix = context.record.kind==='property' ? 'properties/' : 'contracts/';
+                const snap = await db.collection('operatorTasks').where('followUp.'+field,'==',prefix+context.record.id).limit(101).get({source:'server'});
+                if (!current()) return;
+                incomplete = snap.docs.length >= 101;
+                context.caseRows = snap.docs.slice(0,100).map(doc=>({...doc.data(),id:doc.id}));
+            }
+            if (!current()) return;
+            const target = window.BOOM_INBOX_CONTEXT?.resolve(context.record, S, context.caseRows || []);
+            if (!target?.available) throw Error('record_unavailable');
+            const found = new Map(); incomplete = incomplete || target.unresolvedCount > 0;
+            for (const identity of target.contacts) {
+                const snap = await db.collection('conversations').where('contactId','==',identity.contactId).limit(51).get({source:'server'});
+                if (!current()) return;
+                if (snap.docs.length >= 51) incomplete = true;
+                for (const doc of snap.docs.slice(0,50)) { const row = {...doc.data(),id:doc.id}; if (window.BOOM_INBOX_CONTEXT.matches(row,identity)) found.set(row.id,row); }
+            }
+            if (target.conversationIds.length > 50) incomplete = true;
+            for (const id of target.conversationIds.slice(0,50)) {
+                const snap = await db.collection('conversations').doc(id).get({source:'server'});
+                if (!current()) return;
+                if (!snap.exists) { incomplete = true; continue; }
+                const row = {...snap.data(),id:snap.id || id};
+                if (row.conversationBindingConflict || row.conversationBindingStatus === 'unavailable') { incomplete = true; continue; }
+                found.set(id,row);
+            }
+            if (!current()) return;
+            context.rows = [...found.values()]; context.incomplete = !!incomplete; context.readAt = new Date().toISOString();
+            const newer = (S.inboxDataRevision || 0) !== revision, existing = new Map((S.conversations || []).map(c=>[c.id,c]));
+            S.conversations = [...(S.conversations || []).filter(c=>!found.has(c.id)),...context.rows.map(row=>newer&&existing.has(row.id)?existing.get(row.id):row)];
+            S.inboxDataRevision = (S.inboxDataRevision || 0) + 1;
+        } catch { if (current()) context.error = true; }
+        finally { if (current()) { context.loading = false; inboxRefresh(); } }
+    };
+    window.inboxOpenContext = function(record, channel = 'all') {
+        if (!portalSearchAuthorized() || !['all','whatsapp','email'].includes(channel)) return;
+        const target = window.BOOM_INBOX_CONTEXT?.resolve(record,S,oggiSegretaria.rows);
+        if (!target?.available) return toast('warning','Contesto non disponibile','Riapri il record dai dati aggiornati.');
+        const origin = {page:S.page,arg:S.pageArg,scroll:window.scrollY,record:{kind:record.kind,id:record.id},modal:document.body.classList.contains('modal-open') || !!document.querySelector('.modal-overlay.active')};
+        if (origin.modal && (record.kind !== 'contract' || document.querySelector('.modal-overlay.active')?.dataset.inboxContract !== record.id)) return toast('warning','Chiudi prima il modulo aperto.');
+        if (origin.modal) closeModal();
+        inboxRefresh('remember'); stopOpenConvListener();
+        S.inboxContext = {record:origin.record,label:target.label,user:auth.currentUser,rows:[],origin,loading:true,error:false,incomplete:false};
+        Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null});
+        goTo('inbox'); inboxContextLoad();
+    };
+    window.inboxReturnContext = function() {
+        const context=S.inboxContext;
+        if (!context || context.user!==auth.currentUser || !portalSearchAuthorized()) return;
+        const origin=context.origin; inboxRefresh('remember'); S.inboxContext=null; stopOpenConvListener();
+        goTo(origin.page,origin.arg);
+        if (origin.modal && origin.record.kind==='contract') viewContract(origin.record.id);
+        requestAnimationFrame(()=>window.scrollTo(0,origin.scroll || 0));
+    };
+    window.oggiOpenInbox = function(channel, record) {
+        if (!portalSearchAuthorized() || !['whatsapp','email'].includes(channel)) return;
+        if (record) return inboxOpenContext(record,channel);
+        if (document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return toast('warning','Completa o chiudi prima il modulo aperto.');
+        S.inboxContext=null; Object.assign(_inboxState,{channel,filter:'all',search:'',convId:null,homeContext:null}); goTo('inbox');
+    };
+    function oggiInboxScope() {
+        const context=S.inboxContext;
+        if (context) { const valid = context.user===auth.currentUser && portalSearchAuthorized() && window.BOOM_INBOX_CONTEXT?.resolve(context.record,S,oggiSegretaria.rows)?.available; return {label:valid?context.label:'Contesto non disponibile',ids:valid?context.rows.filter(c=>inboxContextMember(inboxContextCurrent(c),context)).map(c=>c.id):[]}; }
+        const scope=_inboxState.homeContext; if(!scope)return null;
+        const record=portalSearchAuthorized()&&scope.user===auth.currentUser?.uid&&window.BOOM_PORTAL_SEARCH?.recordFor(scope.kind,scope.id,S);
+        const types=scope.kind==='person'?['tenant','landlord']:scope.kind==='client'?['client']:[];
+        return{label:record?.label||'Contatto non più disponibile',ids:record?(S.conversations||[]).filter(c=>c.contactId===scope.id&&types.includes(c.contactType)).map(c=>c.id):[]};
+    }
+    window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
+    function oggiWorkspacePanel() {
+        return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
+            <div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
+            <div id="ogWorkResults" aria-live="polite"></div>
+        </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
+        </section>`;
+    }
+    async function oggiLoadViewings() {
+        if (!isAdmin() || !auth.currentUser) return false;
+        const user = auth.currentUser, generation = S._viewingsGeneration = (S._viewingsGeneration || 0) + 1;
+        if (S._viewingsUser && S._viewingsUser !== user) { S.viewingRequests = []; S._viewingsReadAt = null; S._viewingsPartial = false; }
+        S._viewingsUser = user; S._viewingsSource = 'loading'; oggiScheduleUpdate();
+        try {
+            const snap = await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get();
+            if (auth.currentUser !== user || generation !== S._viewingsGeneration) return false;
+            S.viewingRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S._viewingsSource = 'ready'; S._viewingsPartial = snap.docs.length >= 100;
+            S._viewingsReadAt = new Date().toISOString();
+            return true;
+        } catch (e) {
+            if (auth.currentUser === user && generation === S._viewingsGeneration) S._viewingsSource = 'error';
+            return false;
+        } finally { if (auth.currentUser === user && generation === S._viewingsGeneration) oggiScheduleUpdate(); }
+    }
+    async function oggiLoadProposals(force = false) {
+        if (!isAdmin() || !auth.currentUser || (S._paLoading && S._paUser === auth.currentUser) || (!force && S._paLoaded && S._paUser === auth.currentUser)) return;
+        const user = auth.currentUser;
+        if (S._paUser && S._paUser !== user) { S.preAgreements = []; S._paLoaded = false; S._paPartial = false; }
+        S._paUser = user; S._paLoading = true; S._paError = false;
+        try {
+            const snap = await db.collection('preAgreements').limit(150).get();
+            if (auth.currentUser !== user) return;
+            S.preAgreements = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S._paLoaded = true; S._paPartial = snap.docs.length >= 150;
+        } catch (e) { if (auth.currentUser === user) S._paError = true; }
+        finally { if (auth.currentUser === user) { S._paLoading = false; oggiScheduleUpdate(); } }
+    }
+    window.oggiRetryWorkspace = function() {
+        if (!isAdmin()) return;
+        oggiLoadViewings(); oggiLoadProposals(true);
+    };
+    function oggiAgendaPanel() {
+        const engine = window.BOOM_OGGI_WORKSPACE;
+        const agenda = engine?.buildAgenda(S.viewingRequests || [], new Date().toISOString());
+        oggiWorkspace.agenda = agenda?.items || [];
+        const sameUser = S._viewingsUser === auth.currentUser;
+        const source = sameUser ? S._viewingsSource : null;
+        let notice = !engine ? 'Agenda non disponibile: ricarica la pagina.' : source === 'error' ? 'Non riesco ad aggiornare le visite. Le eventuali voci sotto sono della lettura precedente.' : source === 'loading' ? 'Aggiorno le visite…' : source !== 'ready' ? 'Visite non ancora verificate.' : S._viewingsPartial ? 'Ultime 100 richieste caricate: l’agenda può essere incompleta.' : '';
+        const readable = sameUser && (source === 'ready' || S._viewingsReadAt);
+        const items = readable ? oggiWorkspace.agenda.slice(0, 5) : [];
+        return `<header class="ow-section-head"><div><p class="ow-eyebrow">PROSSIMI 7 GIORNI</p><h2>Agenda visite</h2></div><button type="button" class="ow-link" onclick="goTo('viewings')">Tutte le visite ↗</button></header>
+            ${notice ? `<p class="ow-source-note" role="status">${esc(notice)}${source !== 'loading' ? ' <button class="ow-link" type="button" onclick="oggiRetryWorkspace()">Riprova</button>' : ''}</p>` : ''}
+            ${items.length ? `<ol class="ow-agenda">${items.map((v, i) => `<li><div class="ow-agenda-time"><strong>${esc(v.time || '—')}</strong><span>${esc(v.label)}</span></div><div class="ow-agenda-info"><span class="ow-status ${v.status === 'confirmed' ? 'is-confirmed' : ''}">${v.status === 'confirmed' ? 'Confermata' : 'Da confermare'}</span><h3>${esc(v.title)}</h3><p>${esc(v.person)}</p><button class="ow-link" type="button" data-og-viewing="${esc(v.id)}" onclick="oggiAgendaAction(${i})">${v.status === 'confirmed' ? 'Sposta visita' : 'Verifica e conferma'} ↗</button></div></li>`).join('')}</ol>` : source === 'ready' && engine ? '<p class="ow-empty">Nessuna visita nei prossimi 7 giorni tra le richieste caricate.</p>' : ''}
+            ${readable && agenda?.undatedCount ? `<p class="ow-source-note">${agenda.undatedCount} richieste con data da verificare. <button type="button" class="ow-link" onclick="goTo('viewings')">Apri visite</button></p>` : ''}
+            ${oggiWorkspace.agenda.length > 5 && readable ? `<p class="ow-hint">Altre ${oggiWorkspace.agenda.length - 5} visite nella sezione completa.</p>` : ''}
+            ${sameUser && S._viewingsReadAt ? `<p class="ow-hint">Ultima lettura ${esc(new Date(S._viewingsReadAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }))} · Roma</p>` : ''}`;
+    }
+    window.oggiAgendaAction = function(index) {
+        if (!isAdmin()) return;
+        const item = oggiWorkspace.agenda[index];
+        const current = item && (S.viewingRequests || []).find(v => v.id === item.id);
+        if (!current || ['cancelled', 'done', 'completed'].includes(current.status) || current.voided) return;
+        if (current.status === 'confirmed') rescheduleViewingModal(current.id);
+        else confirmViewingModal(current.id);
+    };
+    window.oggiShowMoreDecisions = function() {
+        if (!isAdmin()) return;
+        oggiWorkspace.visible += 6; oggiScheduleUpdate();
+    };
+
     function oggiPage() {
         const E = window.BOOM_OGGI;
-        if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
-        // preAgreements NON sono nel boot (dieta): si caricano alla prima
-        // apertura di Oggi, fire-and-forget, e la pagina si ridisegna
-        // all'arrivo — il percorso di render non aspetta MAI la rete
-        // (regola Safari).
-        if (isAdmin() && !S._paLoaded && !S._paLoading) {
-            S._paLoading = true;
-            db.collection('preAgreements').limit(150).get().then((snap) => {
-                S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-                S._paLoaded = true;
-                oggiScheduleUpdate();
-            }).catch(() => { S._paLoaded = true; });
-        }
-        return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
-                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
-                </div>
-            </div>
-
-            ${oggiOwnerCommandPanel()}
-
-            ${oggiSegretariaPanel()}
-
-            <section id="ogDecisionPanel" aria-label="Altre decisioni di oggi">${oggiDecisionPanel()}</section>`;
+        if (!E || typeof E.build !== 'function') return adminDashboard();
+        oggiWorkspaceResetUser();
+        if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
+        const name = (S.profile?.name || 'Valentino').split(' ')[0];
+        return `<div class="ow-home portal-home">
+            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
+            ${oggiWorkspacePanel()}
+            <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
+                <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
+                <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
+                <p id="ogQueueDescription" class="ow-hint">Scelte e verifiche che richiedono il tuo intervento.</p>
+                <section id="ogDecisionPanel" aria-label="Decisioni dal portale">${oggiDecisionPanel()}</section>
+                <div id="ogFollowTools">${oggiSegretariaPanel()}</div>
+                <p id="ogQueueEmpty" class="ow-empty" hidden></p>
+            </section></details><aside><section id="ogAgendaPanel" class="ow-agenda-panel" aria-label="Agenda visite">${oggiAgendaPanel()}</section>${oggiToolLibrary()}</aside></div>
+        </div>`;
     }
 
     function oggiDecisionPanel() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return '';
-        const { decisions, cash } = E.build(S, new Date().toISOString());
+        const { decisions } = E.build(S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
-        const live = decisions.filter((d) => !hidden.includes(d.id));
-        const shown = live.slice(0, 12);
+        const live = decisions.filter(d => oggiWorkspace.deskFilter ? oggiWorkspace.deskFilter.signalIds.includes(d.id) : !hidden.includes(d.id));
+        const shown = live.slice(0, oggiWorkspace.visible);
 
         const card = (d, i) => `<div class="list-item og-item" data-kind="${d.kind}">
                 <div class="list-icon" style="background:var(--${d.tint === 'red' ? 'red-light' : d.tint === 'orange' ? 'orange-light' : 'gold-light'});font-size:17px">${d.icon}</div>
@@ -5899,33 +6873,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="og-actions">
                     ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" data-og-action="${esc(d.id)}#${j}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
-                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" data-og-action="${esc(d.id)}#hide" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi: riapparirà domani" aria-label="Nascondi per oggi" data-og-action="${esc(d.id)}#hide" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
                 </div>
             </div>`;
 
-        return `<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-                <div class="stat-card green" onclick="goTo('payments')">
-                    <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
-                    <div class="stat-label">Incassato questo mese</div>
-                </div>
-                <div class="stat-card gold" onclick="goTo('payments')">
-                    <div class="stat-value">€${cash.dueMonth.toLocaleString('it-IT')}</div>
-                    <div class="stat-label">In arrivo nel mese</div>
-                </div>
-                <div class="stat-card red" onclick="goTo('payments')">
-                    <div class="stat-value">€${cash.overdueTotal.toLocaleString('it-IT')}</div>
-                    <div class="stat-label">${cash.overdueCount} in ritardo</div>
-                </div>
-                <div class="stat-card" onclick="goTo('payments')">
-                    <div class="stat-value">€${cash.next7.toLocaleString('it-IT')}</div>
-                    <div class="stat-label">Prossimi 7 giorni</div>
-                </div>
-            </div>
-
-            <div class="card"><div class="card-body flush">
-                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Nessun’altra decisione in questa coda</div></div>`}
-            </div></div>
-            ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
+        const sources = S._paError ? 'Proposte non aggiornate: la coda può essere incompleta.' : S._paLoading || !S._paLoaded ? 'Caricamento delle proposte in corso.' : S._paPartial ? 'Proposte: limite di 150 record raggiunto, quadro parziale.' : '';
+        return `
+            ${sources ? `<p class="ow-source-note" role="status">${sources}${S._paError ? ' <button class="ow-link" type="button" onclick="oggiRetryWorkspace()">Riprova</button>' : ''}</p>` : ''}
+            <div class="card"><div class="card-body flush">${shown.map(card).join('')}</div></div>
+            ${live.length > shown.length ? `<button type="button" class="btn btn-secondary btn-sm" onclick="oggiShowMoreDecisions()">Mostra altre · ${live.length - shown.length} rimanenti</button>` : ''}
+`;
     }
 
     function adminDashboard() {
@@ -7607,9 +8564,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Best-known instant of the appointment, in the operator's local clock.
         // ISO fields first: self-booked docs (slots.js) carry ONLY those, and the
         // legacy confirmedTime is a UTC slice that must not be read as local.
-        var iso = v && (v.confirmedDateTime || v.scheduledAt || v.proposedDateTime);
+        var iso = v && (v.status === 'rescheduled' ? v.proposedDateTime : (v.confirmedDateTime || v.scheduledAt || v.proposedDateTime));
         var d = iso ? new Date(iso) : null;
-        if ((!d || isNaN(d.getTime())) && v && v.proposedDate && v.proposedTime) d = new Date(v.proposedDate + 'T' + v.proposedTime);
+        const resolve = window.BOOM_OGGI_WORKSPACE?.appointmentInstant;
+        if (resolve) { const ms = resolve(v || {}); d = ms === null ? null : new Date(ms); }
+        if ((!d || isNaN(d.getTime())) && v && !v.proposedDateTime && v.proposedDate && v.proposedTime) d = new Date(v.proposedDate + 'T' + v.proposedTime);
         if (!d || isNaN(d.getTime())) return null;
         var p = function(n){ return String(n).padStart(2, '0'); };
         return {
@@ -7970,12 +8929,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function refreshViewings() {
-        try {
-            const snap = await db.collection('viewingRequests').orderBy('createdAt','desc').limit(100).get();
-            S.viewingRequests = snap.docs.map(d => ({id:d.id,...d.data()}));
-            if (S.page === 'viewings') goTo('viewings');
-            buildNav();
-        } catch(e) { console.error(e); }
+        const loaded = await oggiLoadViewings();
+        if (loaded && S.page === 'viewings') goTo('viewings');
+        if (loaded) buildNav();
     }
     // ─── END VIEWINGS ─────────────────────────────────────────────────────────
 
@@ -9704,7 +10660,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_transitorio')">
                                 <span style="flex:1;text-align:left">⏱️ Locazione Transitoria</span>
-                                <span class="badge gray">1-18 mesi</span>
+                                <span class="badge gray" title="Con BOOM la locazione transitoria parte da 3 mesi; la legge (L. 431/98, art. 5 c. 1) ammette da 1 a 18">3-18 mesi (legge 1-18)</span>
                             </button>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('rental_studenti')">
                                 <span style="flex:1;text-align:left">🎓 Locazione Studenti</span>
@@ -9851,11 +10807,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 extraInfo = `<span class="sep">·</span>${ownedProps.length} immobili${lRev > 0 ? ' · €' + lRev.toLocaleString('it-IT') + '/m' : ''}`;
             }
 
-            return `<div class="list-item clickable user-item" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
+            return `<div class="list-item clickable user-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();this.click()}" data-search="${esc([u.name,u.email,u.phone,property?.name,...ownedProps.map(p=>p.name)].filter(Boolean).join(' '))}" data-role="${u.role}" data-overdue="${overduePayments.length > 0}" data-incomplete="${lc && !lc.complete}" onclick="viewUser('${u.id}')">
                 <div class="avatar ${r.color}" style="width:44px;height:44px">${initials(u.name)}</div>
                 <div class="list-content" style="min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:6px">
-                        ${u.name}
+                        ${esc(u.name)}
                         <span class="li-flags">
                         ${u.id === S.profile.id ? '<span class="li-flag">Tu</span>' : ''}
                         ${overduePayments.length > 0 ? '<span class="li-flag red">In ritardo</span>' : ''}
@@ -9865,12 +10821,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        ${u.email || 'No email'}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
+                        ${esc(u.email || 'Email non presente')}${u.phone ? `<span class="sep">·</span>${u.phone}` : ''}${extraInfo}
                     </div>
                 </div>
                 <div style="display:flex;align-items:center;gap:8px">
                     ${u.phone ? `<a href="https://wa.me/${u.phone.replace(/[^0-9]/g,'')}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="WhatsApp">💬</a>` : ''}
-                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
+                    ${lc && !lc.complete && u.email ? `<button class="btn btn-xs" style="background:var(--gold);color:#000" onclick="event.stopPropagation();sendLandlordDataRequest('${u.id}')" title="Richiedi dati" aria-label="Chiedi al proprietario di completare i suoi dati">📨</button>` : ''}
                     <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();openPerson('${u.id}','user')" title="Apri scheda 360°">📂</button>
                     <span class="badge ${r.color}">${r.icon} ${r.label}</span>
                 </div>
@@ -9878,10 +10834,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
 
         return `<div class="page-header">
-                <div><h1 class="page-title">👥 Utenti</h1><p class="page-subtitle">${S.users.length} utenti ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
+                <div><h1 class="page-title">Persone</h1><p class="page-subtitle">${S.users.length} persone ${tenantsWithOverdue.length > 0 ? `· <span style="color:var(--red)">⚠️ ${tenantsWithOverdue.length} in ritardo</span>` : ''}</p></div>
                 <div class="page-actions"><button class="btn" onclick="openModal('addUser')">+ Nuovo</button></div>
             </div>
 
+            <div class="portal-list-toolbar users-toolbar" id="usersToolbar" data-filter="all">
+                <label class="portal-list-search" for="userSearch"><span class="sr-only">Cerca una persona</span><input type="search" class="form-input" id="userSearch" placeholder="Nome, email, telefono o immobile" oninput="filterUsers()" autocomplete="off"></label>
+                <div class="portal-list-filters" role="group" aria-label="Filtra persone">
+                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
+                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
+                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
+                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
+            </div></div>
+
+            <p class="portal-list-count" id="usersResultCount" role="status">${S.users.length} persone</p>
+            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-title">Nessuna persona</div></div>'}<div id="usersEmptySearch" class="empty-state" hidden><div class="empty-title">Nessuna persona trovata</div><p>Prova un altro nome o togli il filtro.</p><button class="btn btn-secondary" onclick="document.getElementById('userSearch').value='';filterUsers('all')">Mostra tutte</button></div></div></div>
+            <details class="portal-list-extras users-extras"><summary>Riepiloghi e inviti <span>${landlordsIncomplete.length ? landlordsIncomplete.length + ' proprietari con dati da completare' : 'Onboarding e statistiche'}</span></summary><div class="portal-list-extras-body">
             <!-- Onboarding Link -->
             <div class="card" style="margin-bottom:16px;border:2px solid var(--gold)">
                 <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:12px 16px">
@@ -9936,32 +10906,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>` : ''}
             </div>` : ''}
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm user-filter active" onclick="filterUsers('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('tenant')">👤 Inquilini</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('landlord')">🏠 Proprietari</button>
-                <button class="btn btn-sm btn-secondary user-filter" onclick="filterUsers('admin')">👁 Admin</button>
-                ${tenantsWithOverdue.length > 0 ? `<button class="btn btn-sm btn-danger user-filter" onclick="filterUsers('overdue')">⚠️ In Ritardo (${tenantsWithOverdue.length})</button>` : ''}
-                ${landlordsIncomplete.length > 0 ? `<button class="btn btn-sm user-filter" style="border:1px solid var(--orange);color:var(--orange)" onclick="filterUsers('landlord-incomplete')">⚠️ Proprietari incompleti (${landlordsIncomplete.length})</button>` : ''}
-            </div>
-
-            <div class="card"><div class="card-body flush" id="usersContainer">${S.users.map(u => userRow(u)).join('') || '<div class="empty-state"><div class="empty-icon">👥</div><div class="empty-title">Nessun utente</div></div>'}</div></div>`;
+            </div></details>`;
     }
 
     function filterUsers(filter) {
-        document.querySelectorAll('.user-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        const toolbar = document.getElementById('usersToolbar');
+        if (!toolbar) return;
+        if (typeof filter === 'string') toolbar.dataset.filter = filter;
+        filter = toolbar.dataset.filter || 'all';
+        const normalize = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+        const words = normalize(document.getElementById('userSearch')?.value).split(' ').filter(Boolean);
+        document.querySelectorAll('.user-filter').forEach(button => {
+            const active = button.getAttribute('onclick') === "filterUsers('" + filter + "')";
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active); button.setAttribute('aria-pressed', String(active));
+        });
+        let count = 0;
         document.querySelectorAll('.user-item').forEach(item => {
             const role = item.dataset.role;
-            const overdue = item.dataset.overdue === 'true';
-            const incomplete = item.dataset.incomplete === 'true';
-            let show = filter === 'all'
-                    || role === filter
-                    || (filter === 'overdue' && overdue)
-                    || (filter === 'landlord-incomplete' && role === 'landlord' && incomplete);
+            const matches = filter === 'all' || role === filter || (filter === 'overdue' && item.dataset.overdue === 'true') || (filter === 'landlord-incomplete' && role === 'landlord' && item.dataset.incomplete === 'true');
+            const text = normalize(item.dataset.search);
+            const show = matches && words.every(word => text.includes(word));
             item.style.display = show ? '' : 'none';
+            if (show) count++;
         });
+        const result = document.getElementById('usersResultCount');
+        if (result) result.textContent = count + (count === 1 ? ' persona' : ' persone');
+        const empty = document.getElementById('usersEmptySearch');
+        if (empty) empty.hidden = count > 0 || !(S.users || []).length;
     }
 
     // Ask a single landlord to complete their profile via the existing form-landlord.html.
@@ -10081,49 +11052,49 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
+        return `<div class="page-header portal-records-head">
             <div><h1 class="page-title">Immobili</h1><div class="page-subtitle">${stats.all} immobili · €${monthlyRent.toLocaleString('it-IT')}/mese affittati</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportPropertiesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addProperty')">+ Nuovo</button>
             </div>
         </div>
-        <div class="stats-grid" style="margin-bottom:16px">
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('all', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=all]'))"><div class="stat-label">Tutti</div><div class="stat-value">${stats.all}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('available', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=available]'))"><div class="stat-label">Disponibili</div><div class="stat-value text-green">${stats.available}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('negotiation', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=negotiation]'))"><div class="stat-label">In trattativa</div><div class="stat-value text-orange">${stats.negotiation}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('rented', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=rented]'))"><div class="stat-label">Affittati</div><div class="stat-value text-red">${stats.rented}</div></div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterProperties('off_market', this.closest('.stats-grid').nextElementSibling.querySelector('[data-filter=off_market]'))"><div class="stat-label">Fuori mercato</div><div class="stat-value" style="color:var(--text-muted)">${stats.off_market}</div></div>
-        </div>
         <div class="card">
-            <div style="display:flex;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
-                <button class="btn btn-sm" data-filter="all" onclick="filterProperties('all', this)">Tutti</button>
-                <button class="btn btn-sm btn-secondary" data-filter="available" onclick="filterProperties('available', this)">🟢 Disp.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="negotiation" onclick="filterProperties('negotiation', this)">🟡 Tratt.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="rented" onclick="filterProperties('rented', this)">🔴 Aff.</button>
-                <button class="btn btn-sm btn-secondary" data-filter="off_market" onclick="filterProperties('off_market', this)">⚫ Off</button>
-                <input type="search" id="propertySearch" class="form-input" placeholder="🔎 Cerca nome, indirizzo, zona, proprietario, inquilino…" oninput="searchProperties(this.value)" style="flex:1;min-width:200px;margin-left:auto">
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="propertySearch">Cerca negli immobili</label>
+                <input type="search" id="propertySearch" class="form-input" placeholder="Cerca immobile, indirizzo o persona" oninput="searchProperties(this.value)" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato immobili">
+                <button class="btn btn-sm" data-filter="all" aria-pressed="true" onclick="filterProperties('all', this)">Tutti (${stats.all})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="available" aria-pressed="false" onclick="filterProperties('available', this)">Disponibili (${stats.available})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="negotiation" aria-pressed="false" onclick="filterProperties('negotiation', this)">In trattativa (${stats.negotiation})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="rented" aria-pressed="false" onclick="filterProperties('rented', this)">Affittati (${stats.rented})</button>
+                <button class="btn btn-sm btn-secondary" data-filter="off_market" aria-pressed="false" onclick="filterProperties('off_market', this)">Fuori mercato (${stats.off_market})</button>
+                </div>
             </div>
             <div class="card-body flush">${all.length === 0
                 ? '<div class="empty-state"><div class="empty-icon">🏠</div><div class="empty-title">Nessun immobile</div><div class="empty-subtitle">Inizia aggiungendo il tuo primo immobile</div><button class="btn" onclick="openModal(\'addProperty\')" style="margin-top:12px">+ Aggiungi primo immobile</button></div>'
                 : all.map(propertyRow).join('')
-            }</div>
+            }</div><p id="propertiesEmptySearch" class="portal-records-empty" role="status" hidden>Nessun immobile corrisponde alla ricerca e ai filtri.</p>
         </div>`;
     }
 
     function filterProperties(filter, btn) {
         if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
+        document.querySelectorAll('#main [data-filter]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.filter === filter)));
         searchProperties(document.getElementById('propertySearch')?.value || '');
     }
 
     function searchProperties(q) {
         const term = (q || '').toLowerCase().trim();
         const filter = document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all';
+        let visible = 0;
         document.querySelectorAll('.property-item').forEach(item => {
             const matchesState = filter === 'all' || (item.dataset.avail || 'available') === filter;
-            item.style.display = matchesState && (item.dataset.search || '').includes(term) ? '' : 'none';
+            const show = matchesState && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('propertiesEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.properties || []).length;
     }
 
     function exportPropertiesCSV() {
@@ -10140,7 +11111,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function contractsPage() {
         const active = S.contracts.filter(c => c.status === 'active');
-        const expired = S.contracts.filter(c => c.status !== 'active');
+        const expired = S.contracts.filter(c => c.status === 'expired');
+        const terminated = S.contracts.filter(c => c.status === 'terminated');
+        const drafts = S.contracts.filter(c => c.status === 'draft');
         const expiring30 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d >= 0 && d <= 30; });
         const expiring60 = active.filter(c => { const d = daysUntil(c.endDate); return d !== null && d > 30 && d <= 60; });
         const monthlyRent = active.reduce((s, c) => s + (c.rent || 0), 0);
@@ -10158,7 +11131,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const overdueCount = payments.filter(x => x.status === 'pending' && isOverdue(x.dueDate)).length;
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✓', text: 'Attivo' };
-            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '✗', text: 'Scaduto' };
+            if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '○', text: ({ draft: 'Bozza', expired: 'Scaduto', terminated: 'Terminato', cancelled: 'Annullato' })[c.status] || 'Stato da verificare' };
             else if (isExpiring30) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️', text: `${days}gg rimasti` };
             else if (isExpiring60) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰', text: `${days}gg rimasti` };
 
@@ -10170,11 +11143,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Condizioni, handler e data-attribute sono IDENTICI a prima —
             // filterContracts e il layer mobile (M2) leggono questa riga.
             const totalInst = paidCount + pendingCount;
-            return `<div class="list-item clickable contract-item" data-status="${c.status}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract('${c.id}')">
+            return `<div class="list-item clickable contract-item" role="button" tabindex="0" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewContract(${rentActionArg(c.id)})}" data-status="${esc(c.status)}" data-search="${esc([c.ref, p?.name, p?.address, t?.name, l?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" data-expiring30="${isExpiring30}" data-expiring60="${isExpiring60}" onclick="viewContract(${rentActionArg(c.id)})">
                 <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:18px">${statusConfig.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p?.name || 'Immobile'}</span>
+                        <span style="font-weight:600">${esc(p?.name || 'Immobile')}</span>
                         <span class="badge ${statusConfig.color}">${statusConfig.text}</span>
                         <span class="li-flags">
                         ${overdueCount > 0 ? `<span class="li-flag red">${overdueCount} in ritardo</span>` : ''}
@@ -10185,7 +11158,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${l?.name ? `<span class="sep">·</span>${l.name}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
+                        <b>${esc(t?.name || 'Persona da collegare')}</b>${l?.name ? `<span class="sep">·</span>${esc(l.name)}` : ''}<span class="sep">·</span>${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
                     </div>
                     ${totalInst > 0 || c.deposit ? `<div class="li-meter${overdueCount > 0 ? ' late' : ''}">
                         ${totalInst > 0 ? `<span class="li-meter-track"><span class="li-meter-fill" style="width:${Math.round((paidCount / totalInst) * 100)}%"></span></span>
@@ -10199,76 +11172,61 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">📋 Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Contratti</h1><p class="page-subtitle">${active.length} attivi · €${monthlyRent.toLocaleString('it-IT')}/mese</p></div>
                 <div class="page-actions">
                     ${expiring30.length > 0 ? `<span class="badge red">${expiring30.length} urgenti</span>` : ''}
                     ${expiring60.length > 0 ? `<span class="badge orange">${expiring60.length} in scadenza</span>` : ''}
-                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
-                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
-                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Carica un PDF e posiziona i campi firma con drag-and-drop">✨ Magic Sign</button>
+                    <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Apri le firme di un contratto o prepara un PDF">✨ Magic Sign</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
 
-            ${renderSignRequestsSection()}
+            <details class="portal-records-extras"><summary>Strumenti e firme PDF${(S.signRequests || []).length ? ' · '+(S.signRequests || []).length+' richieste' : ''}</summary><div class="portal-records-extra-actions">
+                    <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
+                    <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
+            </div>${renderSignRequestsSection()}</details>
 
-            <!-- Stats -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterContracts('all')">
-                    <div class="stat-value">${S.contracts.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card green" onclick="filterContracts('active')">
-                    <div class="stat-value">${active.length}</div>
-                    <div class="stat-label">Attivi</div>
-                </div>
-                <div class="stat-card red" onclick="filterContracts('expiring30')">
-                    <div class="stat-value">${expiring30.length}</div>
-                    <div class="stat-label">Entro 30 giorni</div>
-                </div>
-                <div class="stat-card orange" onclick="filterContracts('expiring60')">
-                    <div class="stat-value">${expiring60.length}</div>
-                    <div class="stat-label">31–60 giorni</div>
-                </div>
-                <div class="stat-card" onclick="filterContracts('expired')">
-                    <div class="stat-value">${expired.length}</div>
-                    <div class="stat-label">Scaduti</div>
-                </div>
-            </div>
+            <div class="portal-list-toolbar portal-records-toolbar"><label class="sr-only" for="contractSearch">Cerca nei contratti</label><input id="contractSearch" class="form-input" type="search" placeholder="Cerca immobile, persona o riferimento" oninput="filterContracts()" autocomplete="off">
+            <div class="portal-list-filters portal-records-filters">
+                <button class="btn btn-sm contract-filter active" data-contract-filter="all" onclick="filterContracts('all')">Tutti (${S.contracts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="active" onclick="filterContracts('active')">Attivi (${active.length})</button>
+                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" data-contract-filter="expiring30" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
+                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" data-contract-filter="expiring60" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="expired" onclick="filterContracts('expired')">Scaduti</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="draft" onclick="filterContracts('draft')">Bozze (${drafts.length})</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="terminated" onclick="filterContracts('terminated')">Terminati</button>
+                <button class="btn btn-sm btn-secondary contract-filter" data-contract-filter="closed" onclick="filterContracts('closed')">Conclusi</button>
+            </div></div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm contract-filter active" onclick="filterContracts('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('active')">✓ Attivi</button>
-                ${expiring30.length > 0 ? `<button class="btn btn-sm btn-danger contract-filter" onclick="filterContracts('expiring30')">⚠️ Urgenti (${expiring30.length})</button>` : ''}
-                ${expiring60.length > 0 ? `<button class="btn btn-sm btn-warning contract-filter" onclick="filterContracts('expiring60')">⏰ In Scadenza (${expiring60.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary contract-filter" onclick="filterContracts('expired')">Scaduti</button>
-            </div>
-
-            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="contractsContainer">${S.contracts.slice().sort((a,b) => {
                 const da = daysUntil(a.endDate) ?? 9999;
                 const db = daysUntil(b.endDate) ?? 9999;
                 if (a.status === 'active' && b.status !== 'active') return -1;
                 if (a.status !== 'active' && b.status === 'active') return 1;
                 return da - db;
-            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div></div>`;
+            }).map(c => contractRow(c)).join('') || '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nessun contratto</div></div>'}</div><p id="contractsEmptySearch" class="portal-records-empty" role="status" hidden>Nessun contratto corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterContracts(filter) {
-        document.querySelectorAll('.contract-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.contract-filter.active')?.dataset.contractFilter || 'all';
+        const term = (document.getElementById('contractSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.contract-filter').forEach(button => {
+            const active = button.dataset.contractFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        let visible = 0;
         document.querySelectorAll('.contract-item').forEach(item => {
             const status = item.dataset.status;
-            const exp30 = item.dataset.expiring30 === 'true';
-            const exp60 = item.dataset.expiring60 === 'true';
-            let show = filter === 'all';
-            if (filter === 'active') show = status === 'active';
-            if (filter === 'expiring30') show = exp30;
-            if (filter === 'expiring60') show = exp60;
-            if (filter === 'expired') show = status !== 'active';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || filter === status;
+            if (filter === 'expiring30') show = item.dataset.expiring30 === 'true';
+            if (filter === 'expiring60') show = item.dataset.expiring60 === 'true';
+            if (filter === 'closed') show = status === 'expired' || status === 'terminated';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('contractsEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.contracts || []).length;
     }
 
     // The collection records remain authoritative; this view only groups them.
@@ -10748,7 +11706,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const s = statusConfig[m.status] || statusConfig.open;
             const pr = priorityConfig[m.priority] || priorityConfig.normal;
 
-            return `<div class="list-item clickable maintenance-item" data-status="${m.status}" data-priority="${m.priority}" onclick="viewMaintenance('${m.id}')" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
+            return `<div class="list-item clickable maintenance-item" role="button" tabindex="0" onkeydown="if(event.target===this&&(event.key==='Enter'||event.key===' ')){event.preventDefault();viewMaintenance(${rentActionArg(m.id)})}" data-status="${esc(m.status)}" data-priority="${esc(m.priority)}" data-search="${esc([m.title, m.description, p?.name, p?.address, u?.name, owner?.name].filter(Boolean).join(' ').toLocaleLowerCase('it-IT'))}" onclick="viewMaintenance(${rentActionArg(m.id)})" style="${m.priority === 'urgent' && m.status !== 'resolved' ? 'border-left:3px solid var(--red)' : ''}">
                 <div class="list-icon" style="background:var(--${s.bg});font-size:16px">${m.priority === 'urgent' && m.status !== 'resolved' ? '🚨' : s.icon}</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -10760,7 +11718,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         </span>
                     </div>
                     <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${p?.name || 'N/A'}</b><span class="sep">·</span>${u?.name || 'N/A'}<span class="sep">·</span>${fmtDate(m.createdAt)}
+                        <b>${esc(p?.name || 'Immobile da collegare')}</b><span class="sep">·</span>${esc(u?.name || 'Persona da collegare')}<span class="sep">·</span>${fmtDate(m.createdAt)}
                     </div>
                     ${m.description ? `<div style="font-size:12px;color:var(--text-muted);margin-top:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:400px">${esc(m.description)}</div>` : ''}
                 </div>
@@ -10772,98 +11730,76 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">🔧 Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
+        return `<div class="page-header portal-records-head">
+                <div><h1 class="page-title">Manutenzione</h1><p class="page-subtitle">${open.length + inProgress.length} attive · ${resolved.length} risolte</p></div>
                 <div class="page-actions">
                     ${urgent.length > 0 ? `<span class="badge red">${urgent.length} urgenti</span>` : ''}
                     <button class="btn" onclick="openModal('addMaintenance')">+ Nuova</button>
                 </div>
             </div>
 
-            ${urgent.length > 0 ? `<div class="alert danger" style="margin-bottom:16px">
-                <span class="alert-icon">🚨</span>
-                <div class="alert-content">
-                    <div class="alert-title">${urgent.length} Manutenzioni Urgenti</div>
-                    <div class="alert-text">Ci sono richieste urgenti che richiedono attenzione immediata.</div>
-                </div>
-            </div>` : ''}
-
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="grid-template-columns:repeat(5,1fr)">
-                <div class="stat-card gold" onclick="filterMaintenance('all')">
-                    <div class="stat-value">${S.maintenance.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card orange" onclick="filterMaintenance('open')">
-                    <div class="stat-value">${open.length}</div>
-                    <div class="stat-label">Aperte</div>
-                </div>
-                <div class="stat-card blue" onclick="filterMaintenance('in_progress')">
-                    <div class="stat-value">${inProgress.length}</div>
-                    <div class="stat-label">In corso</div>
-                </div>
-                <div class="stat-card red" onclick="filterMaintenance('urgent')">
-                    <div class="stat-value">${urgent.length}</div>
-                    <div class="stat-label">Urgenti</div>
-                </div>
-                <div class="stat-card green" onclick="filterMaintenance('resolved')">
-                    <div class="stat-value">${resolved.length}</div>
-                    <div class="stat-label">Risolte</div>
+            <div class="portal-list-toolbar portal-records-toolbar">
+                <label class="sr-only" for="maintenanceSearch">Cerca negli interventi</label><input id="maintenanceSearch" class="form-input" type="search" placeholder="Cerca intervento, immobile o persona" oninput="filterMaintenance()" autocomplete="off">
+                <div class="portal-list-filters portal-records-filters" aria-label="Stato interventi">
+                    <button class="btn btn-sm maintenance-filter active" data-maintenance-filter="all" aria-pressed="true" onclick="filterMaintenance('all')">Tutti (${S.maintenance.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="open" aria-pressed="false" onclick="filterMaintenance('open')">Aperti (${open.length})</button>
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="in_progress" aria-pressed="false" onclick="filterMaintenance('in_progress')">In corso (${inProgress.length})</button>
+                    ${urgent.length > 0 ? `<button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="urgent" aria-pressed="false" onclick="filterMaintenance('urgent')">Urgenti (${urgent.length})</button>` : ''}
+                    <button class="btn btn-sm btn-secondary maintenance-filter" data-maintenance-filter="resolved" aria-pressed="false" onclick="filterMaintenance('resolved')">Risolti (${resolved.length})</button>
                 </div>
             </div>
 
-            <!-- Filter Tabs -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap">
-                <button class="btn btn-sm maintenance-filter active" onclick="filterMaintenance('all')">Tutti</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('open')">📋 Aperte</button>
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('in_progress')">🔧 In Corso</button>
-                ${urgent.length > 0 ? `<button class="btn btn-sm btn-danger maintenance-filter" onclick="filterMaintenance('urgent')">🚨 Urgenti (${urgent.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary maintenance-filter" onclick="filterMaintenance('resolved')">✔ Risolte</button>
-            </div>
-
-            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.sort((a,b) => {
+            <div class="card"><div class="card-body flush" id="maintenanceContainer">${S.maintenance.slice().sort((a,b) => {
                 // Sort: urgent first, then open, then in_progress, then resolved
-                const priorityOrder = { urgent: 0, normal: 1, low: 2 };
+                const priorityOrder = { urgent: 0, high: 1, medium: 2, normal: 2, low: 3 };
                 const statusOrder = { open: 0, in_progress: 1, resolved: 2 };
                 if (a.status !== 'resolved' && b.status === 'resolved') return -1;
                 if (a.status === 'resolved' && b.status !== 'resolved') return 1;
-                if ((priorityOrder[a.priority] || 1) !== (priorityOrder[b.priority] || 1)) return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1);
-                return (statusOrder[a.status] || 0) - (statusOrder[b.status] || 0);
-            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Tutto funziona perfettamente!</div></div>'}</div></div>`;
+                if ((priorityOrder[a.priority] ?? 2) !== (priorityOrder[b.priority] ?? 2)) return (priorityOrder[a.priority] ?? 2) - (priorityOrder[b.priority] ?? 2);
+                return (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3);
+            }).map(m => maintenanceRow(m)).join('') || '<div class="empty-state"><div class="empty-icon">🔧</div><div class="empty-title">Nessuna richiesta</div><div class="empty-subtitle">Nessun intervento registrato.</div></div>'}</div><p id="maintenanceEmptySearch" class="portal-records-empty" role="status" hidden>Nessun intervento corrisponde alla ricerca e ai filtri.</p></div>`;
     }
 
     function filterMaintenance(filter) {
-        document.querySelectorAll('.maintenance-filter').forEach(b => { b.classList.remove('active'); b.classList.add('btn-secondary'); });
-        event.target.classList.add('active'); event.target.classList.remove('btn-secondary');
+        filter = filter || document.querySelector('.maintenance-filter.active')?.dataset.maintenanceFilter || 'all';
+        const term = (document.getElementById('maintenanceSearch')?.value || '').trim().toLocaleLowerCase('it-IT');
+        document.querySelectorAll('.maintenance-filter').forEach(button => {
+            const active = button.dataset.maintenanceFilter === filter;
+            button.classList.toggle('active', active); button.classList.toggle('btn-secondary', !active);
+            button.setAttribute('aria-pressed', String(active));
+        });
+        let visible = 0;
         document.querySelectorAll('.maintenance-item').forEach(item => {
             const status = item.dataset.status;
-            const priority = item.dataset.priority;
-            let show = filter === 'all';
-            if (filter === 'open') show = status === 'open';
-            if (filter === 'in_progress') show = status === 'in_progress';
-            if (filter === 'resolved') show = status === 'resolved';
-            if (filter === 'urgent') show = priority === 'urgent' && status !== 'resolved';
-            item.style.display = show ? '' : 'none';
+            let show = filter === 'all' || status === filter;
+            if (filter === 'urgent') show = item.dataset.priority === 'urgent' && status !== 'resolved';
+            show = show && (item.dataset.search || '').includes(term);
+            item.style.display = show ? '' : 'none'; if (show) visible++;
         });
+        const empty = document.getElementById('maintenanceEmptySearch'); if (empty) empty.hidden = visible > 0 || !(S.maintenance || []).length;
     }
 
     async function updateMaintenanceStatus(id, newStatus) {
+        const user = auth.currentUser;
+        if (!user || S.profile?.id !== user.uid || !isAdmin() || !['in_progress', 'resolved'].includes(newStatus)) return;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid && isAdmin();
         try {
             await db.collection('maintenance').doc(id).update({
                 status: newStatus,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 ...(newStatus === 'resolved' ? { resolvedAt: firebase.firestore.FieldValue.serverTimestamp() } : {})
             });
+            if (!current()) return;
             logActivity('maintenance_status_changed', 'maintenance', { id: id, status: newStatus }); toast('success', `Stato aggiornato: ${statusLabel(newStatus)}`);
 
             const m = S.maintenance.find(x => x.id === id);
             const property = m ? S.properties.find(p => p.id === m.propertyId) : null;
-            
+
             // Notify requester if resolved
             if (newStatus === 'resolved' && m?.userId) {
                 await notifyMaintenanceResolved(m);
             }
-            
+
             // Notify tenant when work starts (in_progress)
             if (newStatus === 'in_progress' && m?.userId) {
                 await createNotification(
@@ -10884,9 +11820,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     );
                 }
             }
-            goTo('maintenance');
+            if (current()) goTo('maintenance');
         } catch (err) {
-            toast('error', 'Errore: ' + err.message);
+            if (current()) toast('error', 'Errore: ' + err.message);
         }
     }
 
@@ -11581,13 +12517,60 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════
     var _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
 
-    function inboxRefresh() {
-        // Re-render only the inbox if we're on it. Used after a Firestore write.
-        if (S.page === 'inbox') {
-            const m = document.getElementById('main');
-            if (m) m.innerHTML = inboxPage();
-            buildNav();
+    function inboxRefresh(reason) {
+        if (S.page !== 'inbox') return;
+        const main = document.getElementById('main');
+        if (!main) return;
+        const user = auth.currentUser?.uid;
+        if (!user || S.profile?.id !== user) { _inboxState.view = null; return; }
+        let view = _inboxState.view;
+        if (!view || view.user !== user) view = _inboxState.view = { user, drafts: Object.create(null), listScroll: 0, pageScroll: 0 };
+        const oldThread = main.querySelector('[data-inbox-conversation]');
+        const oldId = oldThread?.dataset.inboxConversation;
+        const focused = document.activeElement;
+        const input = focused?.matches('#inboxBody,#inboxSubject,#inboxTpl,#inboxSearch') ? { id: focused.id, start: focused.selectionStart, end: focused.selectionEnd, direction: focused.selectionDirection } : null;
+        const fields = ['inboxBody', 'inboxSubject', 'inboxTpl'];
+        if (oldId && oldThread.dataset.inboxUser === user) {
+            const draft = view.drafts[oldId] || {};
+            fields.forEach(id => { const el = document.getElementById(id); if (el) { draft[id] = el.value; (draft.scroll || (draft.scroll = {}))[id] = el.scrollTop; } });
+            draft.composeScroll = main.querySelector('.inbox-compose-slot')?.scrollTop || 0;
+            view.drafts[oldId] = draft;
         }
+        const list = main.querySelector('.inbox-conversations');
+        if (list?.getClientRects().length) view.listScroll = list.scrollTop;
+        if (!oldId) view.pageScroll = window.scrollY;
+        const timeline = document.getElementById('inboxTimeline');
+        const timelineTop = timeline?.scrollTop;
+        const nearEnd = timeline && timeline.scrollHeight - timeline.scrollTop - timeline.clientHeight < 48;
+        if (reason === 'remember') return;
+        if (reason === 'back') {
+            _inboxState.convId = null;
+            if (typeof stopOpenConvListener === 'function') stopOpenConvListener();
+        }
+        main.innerHTML = inboxPage();
+        const currentId = main.querySelector('[data-inbox-conversation]')?.dataset.inboxConversation;
+        const draft = currentId && view.drafts[currentId];
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el && draft[id] != null) el.value = draft[id]; });
+        const compose = main.querySelector('.inbox-compose-slot');
+        if (compose && draft) compose.scrollTop = draft.composeScroll || 0;
+        const newList = main.querySelector('.inbox-conversations');
+        if (newList) newList.scrollTop = view.listScroll;
+        const newTimeline = document.getElementById('inboxTimeline');
+        if (newTimeline) newTimeline.scrollTop = currentId !== oldId || nearEnd ? newTimeline.scrollHeight : timelineTop || 0;
+        if (input && (input.id === 'inboxSearch' || currentId === oldId)) {
+            const replacement = document.getElementById(input.id);
+            if (replacement) {
+                replacement.focus({ preventScroll: true });
+                if (typeof input.start === 'number') replacement.setSelectionRange(input.start, input.end, input.direction);
+            }
+        } else if (reason === 'back') {
+            window.scrollTo(0, view.pageScroll);
+            main.querySelector('.inbox-list-pane')?.focus({ preventScroll: true });
+        } else if (currentId && currentId !== oldId) {
+            main.querySelector('.inbox-back')?.focus({ preventScroll: true });
+        }
+        if (draft) fields.forEach(id => { const el = document.getElementById(id); if (el) el.scrollTop = draft.scroll?.[id] || 0; });
+        if (reason !== 'live') buildNav();
     }
 
     // The operator's universe of contactable people: tenants (users.role=tenant),
@@ -11683,11 +12666,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Append a message and update the conversation's last-message preview.
     // Direction: 'out' = sent by operator. 'in' = received from contact. 'note' = internal.
     async function inboxLogMessage(conv, opts) {
-        const body = String(opts.body || '').trim();
+        const user = opts.user || auth.currentUser;
+        if (auth.currentUser !== user) throw new Error('session_changed');
+        const body = opts.exactText ? String(opts.body || '') : String(opts.body || '').trim();
         if (!body) { toast('warning', 'Messaggio vuoto'); return null; }
         const direction = opts.direction || 'out';
         const channel = opts.channel || 'note';
-        const now = firebase.firestore.FieldValue.serverTimestamp();
+        const now = opts.at ? new Date(opts.at) : firebase.firestore.FieldValue.serverTimestamp();
         const msg = {
             conversationId: conv.id,
             direction,
@@ -11698,10 +12683,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             assignedLandlordId: conv.assignedLandlordId || null,
             at: now,
         };
-        if (opts.subject) msg.subject = String(opts.subject).slice(0, 200);
-        const ref = await db.collection('messages').add(msg);
+        if (opts.subject) msg.subject = opts.exactText ? String(opts.subject) : String(opts.subject).slice(0, 200);
+        if (opts.emailMessageId) msg.emailMessageId = opts.emailMessageId;
+        const ref = opts.id ? db.collection('messages').doc(opts.id) : await db.collection('messages').add(msg);
+        if (opts.id) await ref.set(msg);
+        if (auth.currentUser !== user) throw new Error('session_changed');
         const localMsg = { id: ref.id, ...msg, at: new Date() };
-        S.messages = [localMsg, ...(S.messages || [])];
+        S.messages = [localMsg, ...(S.messages || []).filter(m => m.id !== ref.id)];
         // Update conversation header (admin only — rules allow update only for admin).
         if (isAdmin()) {
             const update = {
@@ -11711,8 +12699,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
             // Inbound bumps unread; outbound clears it.
             if (direction === 'in') update.unread = (conv.unread || 0) + 1;
-            else if (direction === 'out') update.unread = 0;
+            else if (direction === 'out') { update.unread = 0; update.needsReply = false; }
             await db.collection('conversations').doc(conv.id).update(update);
+            if (auth.currentUser !== user) throw new Error('session_changed');
             Object.assign(conv, update, { lastMessageAt: new Date() });
         }
         logActivity('Messaggio ' + direction, 'inbox', { convId: conv.id, channel, preview: BOOM_INBOX.preview(body, 60) });
@@ -11723,7 +12712,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxPage() {
         if (!isAdmin() && !isLandlord()) return accessDenied();
         setTimeout(portalFreshnessMount, 0);
-        const convs = (S.conversations || []).slice().sort((a, b) => {
+        const convs = inboxContextRows().slice().sort((a, b) => {
             const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
             const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
             return tb - ta;
@@ -11731,24 +12720,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const filter = _inboxState.filter;
         const channel = _inboxState.channel;
         const q = (_inboxState.search || '').toLowerCase().trim();
-        const filtered = convs.filter(c => {
+        const homeScope = oggiInboxScope();
+        const scopedConvs = homeScope ? convs.filter(c => homeScope.ids.includes(c.id)) : convs;
+        const filtered = scopedConvs.filter(c => {
             if (filter === 'todo') { if (!c.needsReply) return false; }
             else if (filter !== 'all' && (c.status || 'open') !== filter) return false;
             if (channel !== 'all' && c.channel !== channel && c.channel !== 'mixed') return false;
             if (q && !((c.contactName || '') + ' ' + (c.contactPhone || '') + ' ' + (c.contactEmail || '') + ' ' + (c.lastMessagePreview || '')).toLowerCase().includes(q)) return false;
             return true;
         });
-        const totalUnread = convs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
-        const todoCount = convs.filter(c => c.needsReply).length;
+        const totalUnread = scopedConvs.reduce((n, c) => n + (Number(c.unread) || 0), 0);
+        const todoCount = scopedConvs.filter(c => c.needsReply).length;
         // If selection is gone (e.g. after filter change) clear it.
         if (_inboxState.convId && !filtered.some(c => c.id === _inboxState.convId)) _inboxState.convId = null;
         const selected = _inboxState.convId ? filtered.find(c => c.id === _inboxState.convId) || convs.find(c => c.id === _inboxState.convId) : null;
 
         return `
-        <div class="page-header">
+        ${inboxContextNotice()}
+        <div class="page-header inbox-page-header">
             <div>
                 <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
-                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+                <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${scopedConvs.length} conversazioni</div>
                 <p id="inboxFreshness" role="status" style="color:${portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'};font-size:12px;margin:8px 0 0">${esc(inboxFreshness())}</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -11757,11 +12749,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
         </div>
 
-        <div style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
+        <div class="inbox-workspace" id="inboxWorkspace" data-thread-open="${!!selected}" style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
             <!-- LEFT: conversation list -->
-            <div class="card inbox-list-pane" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
+            <div class="card inbox-list-pane" tabindex="-1" style="padding:0;overflow:hidden;max-height:calc(100vh - 220px);display:flex;flex-direction:column">
                 <div style="padding:12px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
-                    <input class="input" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
+                    <div class="inbox-channel-context"><label>Canale <select class="input" aria-label="Canale messaggi" onchange="_inboxState.channel=this.value;_inboxState.convId=null;inboxRefresh()"><option value="all" ${channel === 'all' ? 'selected' : ''}>Tutti</option><option value="whatsapp" ${channel === 'whatsapp' ? 'selected' : ''}>WhatsApp</option><option value="email" ${channel === 'email' ? 'selected' : ''}>Email</option></select></label>${homeScope ? `<p>Contesto: <strong>${esc(homeScope.label)}</strong> <button type="button" class="btn btn-sm" onclick="oggiClearInboxScope()">Tutti i contatti</button></p>` : ''}</div>
+                    <input class="input" id="inboxSearch" aria-label="Cerca una conversazione" type="search" placeholder="Cerca nome, telefono, testo…" value="${esc(_inboxState.search)}" oninput="_inboxState.search=this.value;inboxRefresh()" style="font-size:13px">
                     <div style="display:flex;gap:6px;flex-wrap:wrap">
                         <button class="btn btn-sm ${_inboxState.filter==='todo'?'btn-primary':''}" onclick="_inboxState.filter='todo';inboxRefresh()" style="font-size:11px;padding:4px 10px">⚡ Da rispondere${todoCount?` <span class="badge gold" style="font-size:9px">${todoCount}</span>`:''}</button>
                         ${['open','snoozed','closed','all'].map(s => `
@@ -11769,7 +12762,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         `).join('')}
                     </div>
                 </div>
-                <div style="overflow-y:auto;flex:1">
+                <div class="inbox-conversations" style="overflow-y:auto;flex:1">
                     ${filtered.length ? filtered.map(c => inboxConversationCard(c, c.id === _inboxState.convId)).join('') :
                         `<div class="empty-state" style="padding:32px"><div class="empty-icon">📭</div><div class="empty-title">Nessuna conversazione</div><div class="empty-subtitle" style="font-size:12px">${isAdmin() ? 'Inizia una nuova conversazione dalla barra in alto.' : 'Le conversazioni a te assegnate compaiono qui.'}</div></div>`
                     }
@@ -11777,7 +12770,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- RIGHT: thread + composer -->
-            <div>
+            <div class="inbox-thread-pane">
                 ${selected ? inboxThreadPanel(selected) : `
                     <div class="card" style="padding:48px;text-align:center">
                         <div style="font-size:48px;margin-bottom:16px">💬</div>
@@ -11825,15 +12818,203 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     window.inboxSelect = function(convId) {
         _inboxState.convId = convId;
-        const conv = (S.conversations || []).find(c => c.id === convId);
+        const conv = inboxContextRows().find(c => c.id === convId);
+        if (conv && S.inboxContext?.user === auth.currentUser) { S.inboxExactConversation = {id:conv.id,row:conv,user:auth.currentUser}; S.conversations = [conv,...(S.conversations||[]).filter(c=>c.id!==conv.id)]; }
+        if (conv) {
+            const scope = oggiInboxScope(), q = (_inboxState.search || '').trim().toLowerCase();
+            const statusHidden = _inboxState.filter === 'todo' ? !conv.needsReply : _inboxState.filter !== 'all' && (conv.status || 'open') !== _inboxState.filter;
+            const channelHidden = _inboxState.channel !== 'all' && conv.channel !== 'mixed' && conv.channel !== _inboxState.channel;
+            const searchHidden = q && ![conv.contactName, conv.contactPhone, conv.contactEmail, conv.lastMessagePreview].join(' ').toLowerCase().includes(q);
+            if (scope && !scope.ids.includes(convId)) S.inboxContext = null;
+            if ((scope && !scope.ids.includes(convId)) || statusHidden || channelHidden || searchHidden) Object.assign(_inboxState, { filter: 'all', channel: 'all', search: '', homeContext: null });
+        }
         if (conv && (conv.unread || 0) > 0 && isAdmin()) {
-            db.collection('conversations').doc(convId).update({ unread: 0, needsReply: false }).catch(()=>{});
+            db.collection('conversations').doc(convId).update({ unread: 0 }).catch(()=>{});
             conv.unread = 0;
         }
         // Attach a live thread listener so Homie's inbound messages appear in
         // real time while this conversation is open.
         startOpenConvListener(convId);
         inboxRefresh();
+    };
+
+    function inboxFollowUpState() {
+        const uid = auth.currentUser?.uid;
+        if (!uid || !isAdmin()) return null;
+        if (_inboxState.followUps?.uid !== uid) _inboxState.followUps = { uid, rows: {} };
+        return _inboxState.followUps;
+    }
+    async function inboxFollowUpRequest(cid, body) {
+        if (!isAdmin() || !auth.currentUser || !/^[\w.-]{1,180}$/.test(cid)) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const token = await user.getIdToken();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            const response = await fetch('/api/segretaria/follow-up' + (body ? '' : '?conversationId=' + encodeURIComponent(cid)), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await response.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    function inboxFollowUpError(error) {
+        return ({ conversation_cases_incomplete: 'Lettura parziale: apri Segreteria per verificare tutti i casi prima di crearne uno.',
+            case_selection_required: 'Questa conversazione ha più casi: scegli quello da aggiornare.',
+            case_selection_changed: 'I casi sono cambiati. Aggiorna e scegli nuovamente.',
+            new_message_reload: 'Il messaggio è cambiato. Aggiorna prima di prendere in carico.',
+            identity_not_verified: 'Il collegamento della conversazione è da verificare prima della presa in carico.',
+            conversation_missing: 'La conversazione non è più disponibile.' })[error?.code]
+            || 'Seguiti non aggiornati. Riprova; nessun invio è stato avviato.';
+    }
+    function inboxFollowUpPanel(conv) {
+        const state = inboxFollowUpState();
+        if (!state) return '';
+        const entry = state.rows[conv.id], rows = entry?.data?.rows || [];
+        const hasActive = rows.some(t => t.status === 'open' && t.followUp.open !== false);
+        const button = (label, id) => `<button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" ${id ? `data-case="${esc(id)}" onclick="inboxFollowUpOpen(this.dataset.cid,this.dataset.case)"` : 'onclick="inboxTakeCharge(this.dataset.cid)"'} ${entry?.busy ? 'disabled' : ''}>${label}</button>`;
+        const newer = entry?.data?.source && (S.messages || []).some(m => m.conversationId === conv.id && m.direction === 'in'
+            && +(m.at?.toDate ? m.at.toDate() : new Date(m.at)) > Date.parse(entry.data.source.at));
+        return `<section class="inbox-follow-up" aria-label="Seguito operativo" style="margin:10px 18px;padding:10px 12px;border:1px solid var(--border);border-radius:10px">
+            <div class="inbox-follow-up-head" style="display:flex;gap:8px;align-items:center;justify-content:space-between"><strong>Seguito operativo</strong>${button(entry?.busy ? 'Verifico…' : hasActive ? 'Aggiorna seguiti' : 'Prendi in carico')}</div>
+            ${entry?.error ? `<p role="alert" class="sg-footnote">${esc(entry.error)}</p>` : ''}
+            ${entry?.data?.incomplete ? '<p class="sg-footnote" role="status">Lettura parziale: sono mostrati al massimo 30 casi. Nessun nuovo caso verrà creato.</p>' : ''}
+            ${entry?.data && !entry.data.source ? '<p class="sg-footnote" role="status">Ultimo messaggio ricevuto non verificabile: serve una fonte salvata con data certa.</p>' : ''}
+            ${rows.length > 1 ? '<p class="sg-footnote">Più casi: scegli quello pertinente. Nessuna associazione automatica.</p>' : ''}
+            ${rows.map(task => { const f = task.followUp, closed = task.status === 'done';
+                const confirmed = !closed && !newer && !entry.error && entry.data.source && !entry.data.sourceUnavailable && f.confirmed && !f.needsReview && !f.ambiguous;
+                const when = Date.parse(f.checkAt), check = Number.isFinite(when) ? new Date(when).toLocaleString('it-IT', {timeZone:'Europe/Rome',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Da impostare';
+                return `<div class="inbox-follow-up-item" style="margin-top:8px" data-inbox-follow-up="${esc(task.id)}"><strong>${closed ? 'Chiuso con esito' : confirmed ? 'Confermato' : 'Da verificare'}</strong>
+                    <p class="sg-footnote">${esc(closed ? f.outcome || 'Esito registrato' : f.nextAction || 'Prossima azione da confermare')}<br>${closed ? '' : `${esc(f.waitingLabel || 'Responsabile da confermare')} · ${confirmed ? 'Ricontrollo' : 'Ricontrollo da confermare'}: ${esc(check)}`}</p>
+                    ${button(closed ? 'Leggi esito' : 'Apri seguito',task.id)}</div>`;
+            }).join('')}
+            ${entry?.data ? `<p class="sg-footnote inbox-follow-up-meta">Verificato alle ${esc(new Date(entry.readAt).toLocaleTimeString('it-IT', {hour:'2-digit',minute:'2-digit'}))}${newer ? ' · Nuovo messaggio: rileggi prima di confermare.' : ''}</p>` : '<p class="sg-footnote">Collega pratica, responsabile e ricontrollo. Nessun messaggio viene inviato.</p>'}
+        </section>`;
+    }
+    async function inboxFollowUpLoad(cid) {
+        const state = inboxFollowUpState();
+        if (!state) return null;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        const data = await inboxFollowUpRequest(cid);
+        if (inboxFollowUpState() !== state) return null;
+        entry.data = data; entry.readAt = Date.now(); entry.error = '';
+        return data;
+    }
+    window.inboxTakeCharge = async function(cid) {
+        const state = inboxFollowUpState();
+        if (!state || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        const entry = state.rows[cid] || (state.rows[cid] = {});
+        if (entry.busy) return;
+        const hadActive = !!entry.data?.rows?.some(t => t.status === 'open' && t.followUp.open !== false);
+        entry.busy = true; entry.error = ''; inboxRefresh();
+        let openId = null;
+        try {
+            const data = await inboxFollowUpLoad(cid);
+            if (!data || _inboxState.convId !== cid) return;
+            const active = data.rows.filter(t => t.status === 'open' && t.followUp.open !== false);
+            if (!hadActive && active.length <= 1 && !data.incomplete && data.source) {
+                const result = await inboxFollowUpRequest(cid, { op: 'start', conversationId: cid, messageId: data.source.id, ...(active.length ? {taskId:active[0].id} : {}) });
+                await inboxFollowUpLoad(cid);
+                openId = result.task?.id;
+            } else if (!hadActive && active.length === 1) openId = active[0].id;
+        } catch (error) { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); }
+        finally { entry.busy = false; if (inboxFollowUpState() === state && _inboxState.convId === cid) { inboxRefresh(); if (openId) inboxFollowUpOpen(cid, openId); } }
+    };
+    window.inboxFollowUpOpen = async function(cid, id) {
+        const state = inboxFollowUpState(), entry = state?.rows[cid];
+        const task = entry?.data?.rows?.find(t => t.id === id && t.followUp?.conversationId === cid);
+        if (!task || _inboxState.convId !== cid || document.body.classList.contains('modal-open')) return;
+        if (oggiSegretaria.userId !== state.uid) {
+            oggiSegretariaStopLive(); oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, {userId:state.uid, rows:[], dossiers:{}, receipts:{}, loaded:false, loading:false, error:'', monitoring:null});
+        }
+        oggiSegretaria.rows = [...oggiSegretaria.rows.filter(t => t.id !== id), task];
+        await oggiSegretariaOpen(id, task.status === 'done' ? 'Questo seguito è già chiuso: nessuna riapertura.' : '', task.status === 'done' ? 'review' : 'edit', false);
+        if (inboxFollowUpState() !== state) return;
+        const observer = new MutationObserver(() => {
+            if (document.getElementById('sgFollowModal')) return;
+            observer.disconnect();
+            inboxFollowUpLoad(cid).catch(error => { if (inboxFollowUpState() === state) entry.error = inboxFollowUpError(error); })
+                .finally(() => { if (inboxFollowUpState() === state && _inboxState.convId === cid) inboxRefresh(); });
+        });
+        observer.observe(document.getElementById('modals'), {childList:true});
+    };
+
+    // Explicit connection checks and bounded imports. State is a disposable
+    // session projection; incoming messages remain owned by Firestore listeners.
+    function portalMailState() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return null;
+        if (!S.mailSources || !portalSessionCurrent(S.mailSources.proof))
+            S.mailSources = { proof: portalSessionProof(), checking: false, summary: '', syncBusy: false, sync: {} };
+        return S.mailSources;
+    }
+    function portalMailError(code) {
+        return ({ invalid_or_expired_token: 'Sessione scaduta: accedi nuovamente.', forbidden: 'Questa verifica richiede un amministratore.',
+            conversation_not_found: 'La conversazione non è più disponibile.', conversation_email_missing: 'Manca un indirizzo email valido per questa conversazione.',
+            email_identity_ambiguous: 'Email condivisa o collegamento incerto: verifica la scheda della persona prima di importare.',
+            imap_unconfigured: 'Connessione email non configurata sul server. Il collegamento Gmail di Codex è separato.' })[code]
+            || 'Verifica non completata. Riprova; nessuna risposta automatica è stata avviata.';
+    }
+    async function portalMailRequest(state, body, current) {
+        const user = auth.currentUser, controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), body ? 65000 : 15000);
+        try {
+            const token = await user.getIdToken();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const response = await fetch('/api/segretaria/scan-replies' + (body ? '' : '?status=1'), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            const data = await response.json();
+            if (!portalSessionCurrent(state.proof) || !current()) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    window.portalMailCheckSources = async function() {
+        const state = portalMailState();
+        if (!state || state.checking) return;
+        state.checking = true; state.summary = 'Verifico lo stato registrato sul server…'; portalSearchSourcesRender();
+        try {
+            const data = await portalMailRequest(state, null, () => S.mailSources === state);
+            if (!data) return;
+            const e = data.email, w = data.whatsapp, last = e.lastScan;
+            const stamp = value => value ? new Date(value).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+            const email = !e.configured ? 'Email: connessione non configurata.' : e.healthy
+                ? 'Email: ultimo giro verificato ' + stamp(last.checkedAt) + '.'
+                : last?.incomplete ? 'Email: ultimo giro parziale ' + stamp(last.checkedAt) + '.'
+                : last?.failed ? 'Email: ultimo giro non riuscito.' : last?.fresh === false
+                ? 'Email: ultimo controllo non recente (' + stamp(last.checkedAt) + ').' : 'Email: configurata, lettura non ancora verificata.';
+            state.summary = email + ' Copertura: solo conversazioni affidate o con un seguito aperto, ultimi 3 giorni; non tutta la casella. '
+                + (w.bridgeFresh ? 'HOMIE: battito recente, ricezione WhatsApp non verificata.'
+                    : 'HOMIE: nessun battito recente. Ricezione WhatsApp non verificata.') + ' Nessuna automazione è stata attivata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && S.mailSources === state) state.summary = portalMailError(error.code); }
+        finally { state.checking = false; if (portalSessionCurrent(state.proof) && S.mailSources === state) portalSearchSourcesRender(); }
+    };
+    window.inboxImportEmail = async function(cid) {
+        const state = portalMailState(), conv = (S.conversations || []).find(c => c.id === cid);
+        if (!state || state.syncBusy || _inboxState.convId !== cid || S.page !== 'inbox' || !conv?.contactEmail || conv.conversationBindingConflict) return;
+        const email = conv.contactEmail, entry = state.sync[cid] || (state.sync[cid] = {});
+        const current = () => S.mailSources === state && S.page === 'inbox' && _inboxState.convId === cid
+            && (S.conversations || []).find(c => c.id === cid)?.contactEmail === email;
+        state.syncBusy = true; entry.busy = true; entry.summary = 'Leggo le email recenti di questa conversazione…'; inboxRefresh();
+        try {
+            const data = await portalMailRequest(state, { mode: 'sync_only', conversationId: cid }, current);
+            if (!data) { entry.summary = 'Vista cambiata: esito non verificato qui. Riprova per rileggere.'; return; }
+            const counts = `${data.imported || 0} importate · ${data.scanned || 0} lette · ${data.duplicates || 0} già presenti`;
+            const pending = (data.deferred || 0) + (data.deferredSenders || 0);
+            entry.summary = data.skipped === 'imap_unconfigured' ? portalMailError(data.skipped)
+                : counts + (data.incomplete || data.errors || data.trackingErrors
+                    ? ` · Lettura parziale${pending ? ': ' + pending + ' da verificare al prossimo giro' : ''}. Riprova.` : ' · Lettura terminata per questo mittente.')
+                    + ' Nessuna risposta inviata.';
+        } catch (error) { if (portalSessionCurrent(state.proof) && current()) entry.summary = portalMailError(error.code); }
+        finally { state.syncBusy = false; entry.busy = false; if (portalSessionCurrent(state.proof) && current()) inboxRefresh(); }
     };
 
     function inboxThreadPanel(conv) {
@@ -11861,31 +13042,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const bindingNotice = !bindingCode ? '' : `<p class="sg-notice sg-notice--warning" role="status">⚠ ${esc(conv.conversationBindingStatus === 'unavailable'
             ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
             : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
+        const followUpMarkup = inboxFollowUpPanel(conv);
+        // Reuse the panel's verified labels; the summary does not decide case state.
+        const infoPreview = document.createElement('div');
+        infoPreview.innerHTML = followUpMarkup;
+        const followUpItems = infoPreview.querySelectorAll('.inbox-follow-up-item');
+        const followUpLabel = infoPreview.querySelector('[role="alert"]') ? 'Da verificare'
+            : followUpItems.length > 1 ? followUpItems.length + ' seguiti'
+            : infoPreview.querySelector('.inbox-follow-up-item > strong')?.textContent || '';
+        const infoLabel = [followUpLabel, conv.needsReply ? 'Da rispondere' : ''].filter(Boolean).join(' · ');
+        const previous = document.querySelector('.inbox-thread-card');
+        const sameThread = previous?.dataset.inboxConversation === conv.id && previous?.dataset.inboxUser === (auth.currentUser?.uid || '');
+        const infoOpen = sameThread ? previous.querySelector('.inbox-thread-info')?.open : !window.matchMedia?.('(max-width:920px)').matches;
         return `
-        <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+        <div class="card inbox-thread-card" data-inbox-conversation="${esc(conv.id)}" data-inbox-user="${esc(auth.currentUser?.uid || '')}" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
+            <button type="button" class="inbox-back btn btn-secondary" onclick="inboxRefresh('back')" style="display:none">← Conversazioni</button>
             <!-- Header -->
-            <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+            <div class="inbox-thread-head" style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
                 <div style="flex:1;min-width:0">
                     <div style="display:flex;align-items:center;gap:10px">
                         <div style="font-weight:500;font-size:15px">${esc(conv.contactName || 'Senza nome')}</div>
                         <span class="badge" style="font-size:10px">${kindLabel(conv.contactType || 'lead')}</span>
                         ${conv.status && conv.status !== 'open' ? `<span class="badge" style="font-size:10px;background:rgba(255,149,0,0.15);color:var(--orange)">${conv.status}</span>` : ''}
                     </div>
-                    <div style="font-size:11px;color:var(--text-secondary);margin-top:2px">
+                </div>
+
+            </div>
+
+            <details class="inbox-thread-info" ${infoOpen ? 'open' : ''}>
+                <summary><span>Prossimo passo e dettagli</span>${infoLabel ? `<small>${esc(infoLabel)}</small>` : ''}</summary>
+                <div class="inbox-thread-info-body">
+                    <div class="inbox-thread-contact" style="font-size:11px;color:var(--text-secondary);margin-top:2px">
                         ${conv.contactPhone ? '📱 '+esc(conv.contactPhone) : ''}
                         ${conv.contactPhone && conv.contactEmail ? ' · ' : ''}
                         ${conv.contactEmail ? '✉ '+esc(conv.contactEmail) : ''}
                     </div>
-                </div>
-                <div style="display:flex;gap:6px">
+                <div class="inbox-thread-actions" style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl ? `<a class="btn btn-sm" href="${waUrl}" target="_blank" rel="noopener" style="font-size:11px" title="Apri WhatsApp Web/App">📱 WhatsApp</a>` : ''}
                     ${conv.contactType === 'lead' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','lead')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${conv.contactType === 'pfs' ? `<button class="btn btn-sm" onclick="openPerson('${conv.contactId}','pfsClient')" style="font-size:11px">Apri scheda</button>` : ''}
                     ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxToggleStatus('${conv.id}')" style="font-size:11px">${conv.status === 'closed' ? 'Riapri' : 'Chiudi'}</button>` : ''}
                 </div>
-            </div>
-
-            ${inboxHomieBanner(conv)}
+                    ${isAdmin() && canEmail ? `<section aria-label="Importazione email" style="padding:8px 0"><button type="button" class="btn btn-sm btn-secondary" data-cid="${esc(conv.id)}" onclick="inboxImportEmail(this.dataset.cid)" ${S.mailSources?.syncBusy || bindingCode ? 'disabled' : ''}>${S.mailSources?.sync?.[conv.id]?.busy ? 'Importazione in corso…' : 'Importa email recenti'}</button><p class="sg-footnote" role="status" style="font-size:12px;line-height:1.4;margin:6px 0;color:var(--text-secondary)">${esc(S.mailSources?.sync?.[conv.id]?.summary || 'Solo questo mittente · ultimi 3 giorni · massimo 8 email per giro. Nessuna AI o risposta automatica.')}</p></section>` : ''}
+                    ${followUpMarkup}
+                    ${inboxHomieBanner(conv)}
+                </div>
+            </details>
             ${bindingNotice}
             ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
@@ -11898,7 +13100,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <!-- Composer -->
-            ${inboxComposer(conv)}
+            <div class="inbox-compose-slot" oninput="inboxRefresh('remember')" onchange="inboxRefresh('remember')">${inboxComposer(conv)}</div>
         </div>
         `;
     }
@@ -12027,17 +13229,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const canWa    = !!conv.contactPhone;
         // Fallback active tab if the current one is unavailable.
         let active = tab;
+        if (!['whatsapp', 'email', 'note'].includes(active)) active = canWa ? 'whatsapp' : canEmail ? 'email' : 'note';
         if (active === 'whatsapp' && !canWa) active = canEmail ? 'email' : 'note';
         if (active === 'email' && !canEmail) active = canWa ? 'whatsapp' : 'note';
+        _inboxState.composing = active;
         return `
         <div style="border-top:1px solid var(--border);padding:12px 18px;background:var(--bg-card)">
-            <div style="display:flex;gap:6px;margin-bottom:10px">
+            <div class="inbox-compose-tabs" style="display:flex;gap:6px;margin-bottom:10px">
                 ${canWa ?    `<button class="btn btn-sm ${active==='whatsapp'?'btn-primary':''}" onclick="_inboxState.composing='whatsapp';inboxRefresh()" style="font-size:11px">📱 WhatsApp</button>` : ''}
                 ${canEmail ? `<button class="btn btn-sm ${active==='email'?'btn-primary':''}"    onclick="_inboxState.composing='email';inboxRefresh()" style="font-size:11px">✉ Email</button>` : ''}
                 <button class="btn btn-sm ${active==='note'?'btn-primary':''}" onclick="_inboxState.composing='note';inboxRefresh()" style="font-size:11px">✎ Nota interna</button>
                 ${isAdmin() ? `<button class="btn btn-sm" onclick="inboxLogInboundModal('${conv.id}')" style="font-size:11px;margin-left:auto">+ Messaggio ricevuto</button>` : ''}
             </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+            <div class="inbox-compose-template" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
                 <select class="input" id="inboxTpl" onchange="inboxApplyTemplate(this.value, '${conv.id}')" style="font-size:11px;padding:6px;flex:1;min-width:200px">
                     <option value="">— Template rapidi —</option>
                     ${BOOM_INBOX.TEMPLATES.map(t => `<option value="${t.id}">${esc(t.label)}</option>`).join('')}
@@ -12047,7 +13251,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <input id="inboxSubject" class="input" placeholder="Oggetto email" style="font-size:13px;margin-bottom:8px">
             ` : ''}
             <textarea id="inboxBody" class="input" rows="3" placeholder="${active==='note'?'Nota interna — visibile solo al team':'Scrivi un messaggio…'}" style="font-size:13px;width:100%;resize:vertical;min-height:80px"></textarea>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
+            <div class="inbox-compose-actions" style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px">
                 ${active !== 'note' ? `<button class="btn btn-sm" onclick="inboxProposeReply('${conv.id}')" title="Manda in approvazione (Tier 2)" style="background:rgba(212,175,55,0.15);color:var(--gold);border:1px solid var(--gold)">🤖 Proponi</button>` : ''}
                 ${active === 'whatsapp' ? `<button class="btn btn-primary btn-sm" onclick="inboxSendWhatsapp('${conv.id}')">📱 Apri WhatsApp</button>` : ''}
                 ${active === 'email'    ? `<button class="btn btn-primary btn-sm" onclick="inboxSendEmail('${conv.id}')">✉ Invia email</button>` : ''}
@@ -12091,27 +13295,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }, 400);
     };
 
+    const inboxEmailAttempts = new Map();
     window.inboxSendEmail = async function(convId) {
-        const conv = (S.conversations || []).find(c => c.id === convId);
-        if (!conv) return;
-        const subject = (document.getElementById('inboxSubject') || {}).value || '';
-        const body = (document.getElementById('inboxBody') || {}).value || '';
-        if (!body.trim()) { toast('warning', 'Email vuota'); return; }
-        if (!conv.contactEmail) { toast('error', 'Email del contatto mancante'); return; }
-        const ok = await sendBoomEmail(EMAILJS_CONFIG.templates.notification, conv.contactEmail, {
-            subject: subject || 'Messaggio da BOOM',
-            title: subject || 'Messaggio da BOOM',
-            message: body,
-            action_label: '',
-            action_url: '',
-        });
-        if (ok) {
-            await inboxLogMessage(conv, { direction:'out', channel:'email', body, subject });
-            const ta = document.getElementById('inboxBody'); if (ta) ta.value = '';
-            const subj = document.getElementById('inboxSubject'); if (subj) subj.value = '';
-            inboxRefresh();
-            toast('success', 'Email inviata');
-        }
+        const user = auth.currentUser, conv = (S.conversations || []).find(c => c.id === convId);
+        if (!user || S.profile?.id !== user.uid || (!isAdmin() && !isLandlord()) || !conv || _inboxState.convId !== convId) return;
+        const subjectInput = document.getElementById('inboxSubject'), bodyInput = document.getElementById('inboxBody');
+        const subject = subjectInput?.value || 'Messaggio da BOOM', body = bodyInput?.value || '';
+        if (!body.trim() || body.length > 20000 || subject.length > 200 || /[\r\n]/.test(subject)) return toast('warning', 'Controlla il messaggio', 'Oggetto massimo 200 caratteri e testo massimo 20.000; nessun testo viene tagliato.');
+        if (!conv.contactEmail) return toast('error', 'Email del contatto mancante');
+        const key = user.uid + ':' + convId, signature = JSON.stringify([conv.contactEmail, subject, body]);
+        let attempt = inboxEmailAttempts.get(key);
+        if (attempt?.busy) return;
+        if (!attempt || attempt.signature !== signature) { attempt = { signature, user, busy: false, receipt: null, uncertain: false, id: 'portal-email-' + crypto.randomUUID() }; inboxEmailAttempts.set(key, attempt); }
+        if (attempt.uncertain) return toast('warning', 'Invio da verificare', 'Controlla la posta inviata prima di riprovare: l’esito precedente non è confermato.');
+        attempt.busy = true;
+        const current = () => auth.currentUser === user && S.profile?.id === user.uid;
+        try {
+            if (!attempt.receipt) {
+                const token = await user.getIdToken(); if (!current()) return;
+                let response, result;
+                try {
+                    response = await fetch('/api/notify/send', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ to: conv.contactEmail, message: { subject, text: body } }) });
+                    result = await response.json();
+                } catch { attempt.uncertain = true; throw new Error('send_unconfirmed'); }
+                if (!response.ok || !result.ok || !result.accepted) { attempt.uncertain = response.status >= 500 || response.ok; throw new Error(attempt.uncertain ? 'send_unconfirmed' : 'send_rejected'); }
+                attempt.receipt = result;
+            }
+            if (!current()) return;
+            await inboxLogMessage(conv, { direction: 'out', channel: 'email', body, subject, exactText: true,
+                id: attempt.id, emailMessageId: attempt.receipt.messageId, at: attempt.receipt.acceptedAt, user });
+            if (!current()) return;
+            const sameComposer = _inboxState.convId === convId && document.getElementById('inboxBody')?.value === body
+                && (document.getElementById('inboxSubject')?.value || 'Messaggio da BOOM') === subject;
+            if (sameComposer) { document.getElementById('inboxBody').value = ''; const input = document.getElementById('inboxSubject'); if (input) input.value = ''; }
+            const savedView = _inboxState.view, savedDraft = savedView?.user === user.uid && savedView.drafts[convId];
+            if (savedDraft?.inboxBody === body && (savedDraft.inboxSubject || 'Messaggio da BOOM') === subject) {
+                savedDraft.inboxBody = ''; savedDraft.inboxSubject = '';
+            }
+            inboxEmailAttempts.delete(key); // A completed attempt is not a new intentional send.
+            // Do not rerender another thread or erase a draft edited while SMTP was in flight.
+            if (sameComposer) inboxRefresh();
+            toast('success', 'Email accettata e registrata', 'La consegna al destinatario non è attestata da questa ricevuta.');
+        } catch (error) {
+            if (current()) toast('warning', attempt.receipt ? 'Storico non aggiornato' : 'Email non confermata', attempt.receipt
+                ? 'Il server ha accettato l’email, ma la registrazione non è completa. Riprova lo stesso testo: verrà aggiornato solo lo storico, senza reinvio.'
+                : attempt.uncertain ? 'Esito incerto: controlla la posta inviata prima di riprovare. La bozza è conservata.' : 'Invio non accettato. Correggi il messaggio o riprova; la bozza è conservata.');
+        } finally { attempt.busy = false; }
     };
 
     window.inboxSaveNote = async function(convId) {
@@ -12230,7 +13459,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 _inboxState.convId = conv.id;
                 startOpenConvListener(conv.id);
             }
-            _inboxState.convId = conv.id;
+            S.inboxContext = null;
+            Object.assign(_inboxState, { convId: conv.id, filter: 'all', channel: 'all', search: '', homeContext: null });
             closeModal();
             inboxRefresh();
         } catch (e) {
@@ -13946,6 +15176,126 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // await sul percorso di render).
     // ═══════════════════════════════════════════════════════════════════
 
+    // Costs are observed estimates, never a provider invoice. Only an explicit
+    // save changes the existing settings/ai budget; opening does not enable it.
+    function aiCostsCurrent(state) {
+        return !!state && S.aiCosts === state && portalSessionCurrent(state.proof) && isAdmin()
+            && document.getElementById('aiCostsModal') === state.modal;
+    }
+    function aiCostsRender(state) {
+        if (!state || !portalSessionCurrent(state.proof) || S.aiCosts !== state) return;
+        const host = document.getElementById('aiCostsContent');
+        if (!host || host.closest('#aiCostsModal') !== state.modal) return;
+        const data = state.data, usage = data?.usage, budget = data?.budget;
+        const amount = value => typeof value === 'number' && Number.isFinite(value) && value >= 0
+            ? value.toLocaleString('it-IT', { style: 'currency', currency: 'USD', maximumFractionDigits: 6 }) : 'Non disponibile';
+        const available = period => usage?.[period + 'Available'] === true && usage?.[period + 'Priced'] === true;
+        const metric = (label, value) => `<div style="min-width:0"><dt style="font-size:12px;color:var(--text-secondary)">${label}</dt><dd style="margin:5px 0 0;font-size:20px">${esc(value)}</dd></div>`;
+        const ready = !!data && ['ready', 'disabled'].includes(budget?.state) && typeof data.cfg?.budget?.enabled === 'boolean';
+        const disabled = state.loading || state.saving || !ready;
+        host.innerHTML = `${state.loading ? '<p role="status">Leggo costi e impostazioni registrati…</p>' : ''}
+            <p style="font-size:12px;color:var(--text-secondary);line-height:1.5">Stime cloud registrate nel portale, in USD. Non sono le fatture dei fornitori.</p>
+            <dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin:18px 0">
+                ${metric('Oggi' + (usage?.day ? ' · ' + esc(usage.day) : ''), available('today') ? amount(usage.today?.total?.cloud?.usd) : 'Non disponibile')}
+                ${metric('Questo mese', available('month') ? amount(usage.month?.total?.cloud?.usd) : 'Non disponibile')}
+            </dl>
+            ${data && (!available('today') || !available('month')) ? '<p style="font-size:12px;color:var(--orange)" role="status">Lettura dei costi incompleta. I valori mancanti non sono zero.</p>' : ''}
+            <section style="border-top:1px solid var(--border);padding-top:16px"><h4 style="margin:0 0 8px;font-size:14px">Limite giornaliero Anthropic</h4>
+                <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">${budget?.state === 'ready'
+                    ? 'Attivo · ' + esc(amount(budget.dailyUsd)) + '/giorno, fuso Roma.' : budget?.state === 'disabled'
+                    ? 'Disattivato. Nessun limite viene attivato aprendo questo pannello.' : 'Stato del limite non verificabile. Rileggi prima di modificarlo.'}</p>
+                ${budget?.state === 'ready' ? `<dl style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:16px 0">
+                    ${metric('Conteggiato nel limite', amount(budget.accountedUsd))}${metric('Riservato, non fatturato', amount(budget.heldUsd))}
+                    ${metric('Disponibile nel limite', amount(budget.remainingUsd))}</dl>` : ''}
+                <form id="aiCostsForm" onsubmit="saveAICosts(event)" novalidate>
+                    <label style="display:flex;gap:10px;align-items:center;padding:10px 0;font-size:13px"><input id="aiBudgetEnabled" type="checkbox" ${state.enabled ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="aiCostsDraft()">Attiva il limite giornaliero</label>
+                    <label for="aiDailyUsd" class="form-label">Importo scelto da te · USD al giorno</label>
+                    <input id="aiDailyUsd" class="form-input" type="number" inputmode="decimal" min="0" step="any" placeholder="Inserisci un importo" value="${esc(state.cap || '')}" ${disabled || !state.enabled ? 'disabled' : ''} oninput="aiCostsDraft()">
+                    <p style="font-size:12px;line-height:1.5;color:var(--text-secondary)">Il limite riguarda Anthropic Messages. Esclude STT, Codex/chat, ElevenLabs, Telnyx e TIM. Le riserve coprono richieste in corso o esiti incerti: non sono addebiti confermati.</p>
+                    <p id="aiCostsFeedback" role="${state.error ? 'alert' : 'status'}" style="font-size:13px;line-height:1.5;color:var(--${state.error ? 'orange' : 'text-secondary'})">${esc(state.error || state.message || '')}</p>
+                    <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button type="button" class="btn btn-secondary" onclick="aiCostsRead()" ${state.loading || state.saving ? 'disabled' : ''}>Rileggi</button><button type="submit" class="btn btn-primary" ${disabled ? 'disabled' : ''}>${state.saving ? 'Salvo…' : 'Salva limite'}</button></div>
+                </form>
+            </section>`;
+    }
+    function aiCostsDraft() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.enabled = document.getElementById('aiBudgetEnabled').checked;
+        const input = document.getElementById('aiDailyUsd'); state.cap = input.value; input.disabled = !state.enabled;
+        state.error = ''; state.message = '';
+        const feedback = document.getElementById('aiCostsFeedback'); if (feedback) feedback.textContent = '';
+    }
+    async function aiCostsRequest(state, patch) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 20000);
+        try {
+            const token = await auth.currentUser.getIdToken();
+            if (!aiCostsCurrent(state)) return null;
+            const response = await fetch('/api/ai/status?probe=0', { method: patch ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(patch ? { 'Content-Type': 'application/json' } : {}) },
+                ...(patch ? { body: JSON.stringify(patch) } : {}) });
+            if (!aiCostsCurrent(state)) return null;
+            const data = await response.json();
+            if (!aiCostsCurrent(state)) return null;
+            if (!response.ok || !data.ok) throw { code: data.error || 'unavailable' };
+            return data;
+        } finally { clearTimeout(timer); }
+    }
+    async function aiCostsRead() {
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving) return;
+        state.loading = true; state.error = ''; state.data = null; aiCostsRender(state);
+        try {
+            const data = await aiCostsRequest(state);
+            if (!data) return;
+            state.data = data; state.enabled = data.cfg?.budget?.enabled === true;
+            state.cap = typeof data.cfg?.budget?.dailyUsd === 'number' ? String(data.cfg.budget.dailyUsd) : '';
+        } catch { if (aiCostsCurrent(state)) state.error = 'Costi o impostazioni non disponibili. Riprova: nessuna modifica è stata salvata.'; }
+        finally { state.loading = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    async function saveAICosts(event) {
+        event?.preventDefault();
+        const state = S.aiCosts;
+        if (!aiCostsCurrent(state) || state.loading || state.saving || !state.data || state.data.budget?.state === 'unavailable') return;
+        aiCostsDraft();
+        const amount = Number(state.cap);
+        if (state.enabled && (!state.cap.trim() || !Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(Math.ceil(amount * 1000000)))) {
+            state.error = 'Inserisci un importo giornaliero positivo in USD prima di attivare il limite.'; aiCostsRender(state); return;
+        }
+        const patch = { budget: state.enabled ? { enabled: true, dailyUsd: amount } : { enabled: false } };
+        state.saving = true; state.error = ''; state.message = ''; aiCostsRender(state);
+        let saved = false;
+        try {
+            const result = await aiCostsRequest(state, patch);
+            if (!result) return;
+            saved = true; state.message = result.cfg.budget.enabled ? 'Limite salvato.' : 'Limite disattivato.';
+            state.data = await aiCostsRequest(state);
+            if (!aiCostsCurrent(state)) return;
+            if (!state.data) throw { code: 'unavailable' };
+            state.enabled = state.data.cfg.budget.enabled === true;
+            state.cap = typeof state.data.cfg.budget.dailyUsd === 'number' ? String(state.data.cfg.budget.dailyUsd) : '';
+        } catch (error) {
+            if (aiCostsCurrent(state)) {
+                if (saved) state.data = null;
+                state.error = saved ? 'Limite salvato; lettura aggiornata non riuscita. Rileggi per verificare i costi.' : error.code === 'rejected'
+                    ? 'Limite rifiutato dal server. Correggi l’importo e riprova.' : 'Salvataggio non confermato. Rileggi prima di riprovare; il valore inserito è conservato.';
+            }
+        } finally { state.saving = false; if (aiCostsCurrent(state)) aiCostsRender(state); }
+    }
+    function closeAICosts() {
+        if (!document.getElementById('aiCostsModal')) return;
+        S.aiCosts = null; document.getElementById('modals').replaceChildren(); document.body.classList.remove('modal-open');
+    }
+    function openAICosts() {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return;
+        if (document.querySelector('.modal-overlay.active')) return;
+        const host = document.getElementById('modals');
+        if (!host) return;
+        host.innerHTML = '<div class="modal-overlay active" id="aiCostsModal" role="dialog" aria-modal="true" aria-labelledby="aiCostsTitle"><div class="modal" style="max-width:520px;max-height:calc(100dvh - 32px);display:flex;flex-direction:column"><div class="modal-header" style="flex-shrink:0"><h3 id="aiCostsTitle" class="modal-title">Costi AI</h3><button type="button" class="modal-close" aria-label="Chiudi costi AI" onclick="closeAICosts()">×</button></div><div id="aiCostsContent" class="modal-body" style="max-height:none;min-height:0;overflow-y:auto"></div></div></div>';
+        document.body.classList.add('modal-open');
+        S.aiCosts = { proof: portalSessionProof(), modal: document.getElementById('aiCostsModal'), loading: false, saving: false, enabled: false, cap: '', data: null };
+        aiCostsRead();
+    }
+
     function squadraPage() {
         const SQ = window.BOOM_SQUADRA;
         if (!SQ) return `<div class="page-header"><div class="page-title">La Squadra</div></div>
@@ -14070,6 +15420,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="page-title">La Squadra</div>
             <div style="font-size:12px;color:var(--text-secondary);margin-top:3px">${SQ.TEAM.length} dipendenti automatici · ${roll.ok} al lavoro · ${roll.warn + roll.err} da guardare · ${roll.off} senza battito</div>
           </div>
+          <button type="button" class="btn btn-secondary" onclick="openAICosts()">Costi AI</button>
         </div>
 
         <!-- La riga che nessuna pagina diceva: chi può parlare ai clienti da solo. -->
@@ -15884,7 +17235,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <td style="color:var(--gold);font-weight:600;font-size:16px">€${(l.price || 0).toLocaleString()}<div class="perito-slot" data-pid="${l.id}" data-zone="${esc(l.zone||'')}" style="font-size:10px;font-weight:400;color:var(--text-muted);margin-top:3px;line-height:1.4"></div></td>
                                     <td>
                                         <small style="color:var(--text-secondary)">
-                                            ${l.beds || (l.bedrooms ? l.bedrooms + ' cam' : '—')} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
+                                            ${listingRoomsCell(l)} · ${l.size || (l.sqm ? l.sqm + 'm²' : '—')}<br>
                                             ${l.floor || '—'} · ${l.type || 'Appartamento'}
                                         </small>
                                     </td>
@@ -15944,6 +17295,150 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // I FATTI DELL'ANNUNCIO NEL MODULO — camere, arredo, chi ha scritto
+    // la descrizione (15/10/2026)
+    //
+    // Il modulo era l'ultima superficie con regole sue, e le applicava a
+    // ogni salvataggio: precompilava `data.bedrooms || 1` e scriveva
+    // `parseInt(..) || 1`, così un monolocale (0) tornava 1 e un valore
+    // ignoto diventava 1 — annullando le correzioni di /catalogo
+    // (XcAnljWiqqx2s7msgWUR, bedrooms 0); non aveva un campo per l'arredo;
+    // e riscriveva `description` lasciando descriptionSource 'ai', quindi
+    // una correzione a mano restava «della macchina» e la rigenerazione
+    // dopo la cancellava. Le regole sono quelle del resto del sito:
+    //  · camere = FACTS.bedroomsOf (js/listing-facts.js) in ENTRAMBE le
+    //    direzioni, passandole SOLO il campo strutturato: aprire e salvare
+    //    non promuove mai il numero del testo libero `beds` a fatto;
+    //  · arredo = 'yes' | 'partial' | 'no' come lo legge la macchina delle
+    //    descrizioni (api/wizard/describe.js, furnishingOf), '' = non
+    //    dichiarato — che NON è 'no';
+    //  · su un annuncio che esiste si scrive SOLO ciò che l'operatore ha
+    //    cambiato rispetto a come il modulo si è APERTO (vedi saveListing).
+    // ═══════════════════════════════════════════════════════════════════
+    function listingBedrooms(v) {
+        if (window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function') {
+            return BOOM_FACTS.bedroomsOf({ bedrooms: v });
+        }
+        // ripiego se /js/listing-facts.js non è arrivato: lo stesso ramo
+        // del campo strutturato di bedroomsOf (parità pinnata nei test)
+        const s = String(v == null ? '' : v).trim();
+        if (!s) return null;
+        const n = Number(s);
+        return Number.isInteger(n) && n >= 0 && n <= 10 ? n : null;
+    }
+
+    const LISTING_FURNISHED = [['', '— Non dichiarato'], ['yes', 'Arredato'], ['partial', 'In parte'], ['no', 'Vuoto (non arredato)']];
+    // la lettura è FACTS.furnishedOf (true · false · 'partial' · null), la
+    // stessa del Pubblicista e del telefono; qui la si riporta alle quattro
+    // scelte del modulo. Il booleano storico vale come yes/no.
+    function listingFurnished(v) {
+        let f;
+        if (window.BOOM_FACTS && typeof BOOM_FACTS.furnishedOf === 'function') f = BOOM_FACTS.furnishedOf(v);
+        else {
+            // ripiego se /js/listing-facts.js non è arrivato (parità pinnata nei test)
+            const s = String(v == null ? '' : v).trim().toLowerCase();
+            f = v === true || v === false ? v : s === 'yes' ? true : s === 'no' ? false : s === 'partial' ? 'partial' : null;
+        }
+        return f === true ? 'yes' : f === false ? 'no' : f === 'partial' ? 'partial' : '';
+    }
+
+    // Il valore con cui il campo si è APERTO nel modulo — non la copia in
+    // memoria (S.listings), che può essere vecchia di ore: il portale resta
+    // aperto tutto il giorno e /catalogo corregge in un'altra scheda.
+    // Due trappole del DOM, entrambe gestite qui:
+    //  · un <input type="hidden"> non ricorda il valore d'apertura (scrivere
+    //    .value ne riscrive anche l'attributo, quindi defaultValue lo segue):
+    //    per lui vale data-orig, scritto dal modulo;
+    //  · il browser «sanifica» ciò che MOSTRA (un numero non valido diventa
+    //    vuoto, gli a capo spariscono da una riga di testo): il valore
+    //    d'apertura è quello mostrato, non l'attributo grezzo — altrimenti un
+    //    campo mai toccato risulterebbe cambiato e verrebbe riscritto.
+    function listingOpenedValue(el, fallback) {
+        if (!el) return fallback;
+        if (el.hasAttribute && el.hasAttribute('data-orig')) return el.getAttribute('data-orig');
+        if (el.tagName === 'SELECT') {
+            const opts = Array.from(el.options || []);
+            const o = opts.find(x => x.defaultSelected) || opts[0];
+            return o ? o.value : '';
+        }
+        if (!('defaultValue' in el)) return fallback;
+        const v = String(el.defaultValue == null ? '' : el.defaultValue);
+        if (el.tagName !== 'INPUT') return v;
+        const type = String(el.type || 'text').toLowerCase();
+        if (type === 'number') return /^-?(?:\d+(?:\.\d+)?|\.\d+)(?:[eE][-+]?\d+)?$/.test(v) ? v : '';
+        if (type === 'date') {
+            const d = /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v + 'T00:00:00Z') : null;
+            return d && !isNaN(d) && d.toISOString().slice(0, 10) === v ? v : '';
+        }
+        if (type === 'url' || type === 'email') return v.replace(/[\r\n]/g, '').trim();
+        if (type === 'text' || type === 'search' || type === 'tel') return v.replace(/[\r\n]/g, '');
+        return v;
+    }
+    function listingFieldTouched(el, submitted) {
+        if (!el) return false; // campo assente dal modulo: non si scrive niente
+        const lf = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+        return lf(listingOpenedValue(el, '')) !== lf(submitted);
+    }
+
+    // La descrizione: chi l'ha scritta. Il TESTO conta, non la forma —
+    // spazi, a capo e accenti composti li cambia il textarea senza che
+    // nessuno abbia corretto niente (la stessa normalizzazione di textHash
+    // in api/wizard/describe.js). Testo cambiato → fonte 'portal:<email>' e
+    // descriptionAt; solo la forma → il testo si scrive, la fonte resta;
+    // niente → la descrizione non si scrive affatto, così un modulo aperto
+    // da un'ora non ricopre ciò che la macchina ha scritto intanto.
+    // descriptionOriginal non si tocca mai.
+    function listingDescriptionText(s) {
+        return String(s == null ? '' : s).normalize('NFC').replace(/\s+/g, ' ').trim();
+    }
+    function listingDescriptionPatch(before, after, email, at) {
+        const lf = (s) => String(s == null ? '' : s).replace(/\r\n?/g, '\n');
+        const was = lf(before), now = lf(after);
+        if (listingDescriptionText(was) !== listingDescriptionText(now)) {
+            return { description: now, descriptionSource: 'portal:' + (email || ''), descriptionAt: at || new Date().toISOString() };
+        }
+        return was !== now ? { description: now } : {};
+    }
+
+    // I campi camere / letti / arredo, uguali nei due modali (nuovo e
+    // modifica). Il numero si precompila SOLO dal campo strutturato; se
+    // manca e il testo libero ne suggerisce uno, lo si dice nel segnaposto
+    // — da confermare, mai scritto da solo.
+    function listingFactsFields(data) {
+        data = data || {};
+        const b = listingBedrooms(data.bedrooms);
+        const shown = window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function' ? BOOM_FACTS.bedroomsOf(data) : b;
+        const ph = b === null && shown !== null ? shown + ' dal testo letti — da confermare' : '0 = monolocale';
+        const f = listingFurnished(data.furnished);
+        const rawB = data.bedrooms, rawF = data.furnished;
+        const notes = [];
+        if (rawB != null && String(rawB).trim() !== '' && b === null) {
+            notes.push(`Camere salvate non leggibili: «${esc(String(rawB))}» — il sito non le usa; scrivi il numero se lo sai.`);
+        }
+        if (rawF != null && typeof rawF !== 'boolean' && String(rawF).trim() !== '' && !f) {
+            notes.push(`Arredamento salvato non riconosciuto: «${esc(String(rawF))}» — resta com'è finché non scegli.`);
+        }
+        return `<div class="form-row"><div class="form-group"><label class="form-label">Camere da letto</label><input type="number" class="form-input" name="bedrooms" value="${b === null ? '' : b}" min="0" max="10" step="1" inputmode="numeric" placeholder="${esc(ph)}"></div><div class="form-group"><label class="form-label">Config. letti</label><input type="text" class="form-input" name="beds" value="${esc(data.beds)}" placeholder="Es: 1 Bedroom, 2BR, 1 Room in 3BR"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Arredamento</label><select class="form-select" name="furnished">${LISTING_FURNISHED.map(([v, label]) => `<option value="${v}"${v === f ? ' selected' : ''}>${label}</option>`).join('')}</select></div></div>
+                <div style="font-size:11px;color:var(--text-muted);margin:-8px 0 12px">Camere: 0 = monolocale, vuoto = non dichiarato — è il numero che il sito mostra; «Config. letti» è testo libero e conta solo finché le camere sono vuote. Arredamento: vuoto = non dichiarato, e la descrizione allora non ne parla.${notes.map(n => '<br>' + n).join('')}</div>`;
+    }
+
+    // La cella «Dettagli» della tabella annunci: le camere con la regola del
+    // sito (quello che la scheda dice al cliente); il testo «Config. letti»
+    // solo accanto, in piccolo, quando aggiunge qualcosa — è lì che si vede
+    // il bilocale col «3» prima che lo legga un cliente.
+    function listingRoomsCell(l) {
+        l = l || {};
+        const b = window.BOOM_FACTS && typeof BOOM_FACTS.bedroomsOf === 'function' ? BOOM_FACTS.bedroomsOf(l) : listingBedrooms(l.bedrooms);
+        const rooms = b === 0 ? 'monolocale' : b === null ? '—' : b + ' cam';
+        const t = String(l.beds == null ? '' : l.beds).trim();
+        const extra = t && t !== String(b)
+            ? ` <span style="color:var(--text-muted)" title="${esc(t)}">· letti «${esc(t.length > 32 ? t.slice(0, 31) + '…' : t)}»</span>`
+            : '';
+        return rooms + extra;
+    }
+
     async function saveListing(e) {
         e.preventDefault();
         
@@ -15957,43 +17452,75 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         if (!data.name || !data.price) return toast('error', 'Nome e prezzo obbligatori');
         
-        // Determine image URL: prefer uploaded (hidden input), then manual URL input
+        // Su un annuncio che ESISTE si scrive SOLO ciò che l'operatore ha
+        // cambiato rispetto a come il modulo si è aperto. Il portale resta
+        // aperto per ore: senza questa regola il primo «Salva» — anche solo
+        // per il prezzo — riscriveva ogni campo con la copia vecchia e
+        // annullava ciò che /catalogo (nomi, camere, zona, tipo, letti, piano,
+        // tag), il Photo Lab (copertina) o la macchina delle descrizioni
+        // avevano scritto nel frattempo. Un campo aperto vuoto (valore assente
+        // o illeggibile) e lasciato vuoto non cancella niente; un valore che
+        // c'era e che l'operatore svuota si scrive vuoto — null per le camere,
+        // «non dichiarato», mai 1 né 'no'. I derivati (l'immagine da tre
+        // sorgenti, la disponibilità da due, tag e feature dal testo) si
+        // riscrivono solo se cambia una loro sorgente. Nessun cambiamento →
+        // nessuna scrittura, nemmeno updatedAt. Un annuncio NUOVO nasce con
+        // tutto, com'era.
+        const editing = !!data.id;
+        const field = (name) => (form.querySelector ? form.querySelector('[name="' + name + '"]') : null);
+        const touched = (name) => !editing || listingFieldTouched(field(name), data[name]);
+        const list = (s) => (s ? s.split(',').map(t => t.trim()).filter(t => t) : []);
+        const WRITE = {
+            name: () => data.name,
+            address: () => data.address || '',
+            zone: () => data.zone || '',
+            price: () => parseInt(data.price) || 0,
+            type: () => data.type || 'Apartment',
+            beds: () => data.beds || '',
+            bedrooms: () => listingBedrooms(data.bedrooms),
+            furnished: () => listingFurnished(data.furnished),
+            size: () => data.size || '',
+            sqm: () => parseInt(data.sqm) || null,
+            floor: () => data.floor || '',
+            tags: () => list(data.tags),
+            features: () => list(data.features),
+            status: () => data.status || 'available',
+            file: () => data.file || ''
+        };
+        const listingData = {};
+        Object.keys(WRITE).forEach((k) => { if (touched(k)) listingData[k] = WRITE[k](); });
+
+        // L'immagine ha tre sorgenti (caricamento, campo nascosto, URL a
+        // mano): conta il RISULTATO, confrontato con l'immagine con cui il
+        // modulo si è aperto (data-orig sul campo nascosto).
         const imageUrl = data.image || data.imageUrl || listingImageUrl || '';
-        
-        // Process tags from comma-separated string to array
-        const tagsArray = data.tags ? data.tags.split(',').map(t => t.trim()).filter(t => t) : [];
-        const featuresArray = data.features ? data.features.split(',').map(t => t.trim()).filter(t => t) : [];
-        
-        const listingData = {
-            name: data.name,
-            address: data.address || '',
-            zone: data.zone || '',
-            price: parseInt(data.price) || 0,
-            type: data.type || 'Apartment',
-            beds: data.beds || '',
-            bedrooms: parseInt(data.bedrooms) || 1,
-            size: data.size || '',
-            sqm: parseInt(data.sqm) || null,
-            floor: data.floor || '',
-            image: imageUrl,
-            tags: tagsArray,
-            features: featuresArray,
-            status: data.status || 'available',
-            // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
-            // non può depositare una stringa che la vetrina non sa rileggere.
-            // È lo stesso writePatch() che usa la porta /api/listings-availability.
-            ...(window.BOOM_DISPO
+        if (!editing || imageUrl !== listingOpenedValue(field('image'), imageUrl)) listingData.image = imageUrl;
+
+        // La disponibilità passa SEMPRE dal motore, anche da qui: il portal
+        // non può depositare una stringa che la vetrina non sa rileggere.
+        // È lo stesso writePatch() che usa la porta /api/listings-availability.
+        if (touched('availableMode') || touched('availableFromDate')) {
+            Object.assign(listingData, window.BOOM_DISPO
                 ? BOOM_DISPO.writePatch(
                     BOOM_DISPO.parseAvailability(
                         data.availableMode === 'now' ? 'Subito'
                             : data.availableMode === 'unknown' ? 'da concordare'
                                 : (data.availableFromDate || '')),
                     'portal:' + (S.user?.email || ''))
-                : { availableDate: data.availableFromDate || '' }),
-            description: data.description || '',
-            file: data.file || '',
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
+                : { availableDate: data.availableFromDate || '' });
+        }
+
+        const descEl = field('description');
+        Object.assign(listingData, editing ? {} : { description: data.description || '' },
+            editing && !descEl ? {} : listingDescriptionPatch(
+                editing ? listingOpenedValue(descEl, ((S.listings || []).find(x => x.id === data.id) || {}).description) : '',
+                data.description || '', S.user?.email, new Date().toISOString()));
+
+        if (editing && !Object.keys(listingData).length) {
+            closeModal();
+            return toast('info', 'Nessuna modifica', 'L\'annuncio è rimasto com\'era: niente da salvare.');
+        }
+        listingData.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
         
         try {
             if (data.id) {
@@ -16706,7 +18233,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Camere da Letto</label><input type="number" class="form-input" name="bedrooms" value="1" min="0"></div><div class="form-group"><label class="form-label">Configurazione Letti</label><input type="text" class="form-input" name="beds" placeholder="Es: 1 Bedroom, 2BR, 1 Room in 3BR"></div></div>
+                ${listingFactsFields({})}
                 <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div><div class="form-group"><label class="form-label">Formato Superficie</label><input type="text" class="form-input" name="size" placeholder="Es: 65m², 110m²"></div></div>
                 <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="Es: 2nd Floor, Ground Floor, 5th Floor"></div>
             </div>
@@ -16744,30 +18271,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (type === 'editListing') { 
             const tagsStr = Array.isArray(data.tags) ? data.tags.join(', ') : (data.tags || '');
             const featuresStr = Array.isArray(data.features) ? data.features.join(', ') : (data.features || '');
-            return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${data.name || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
-            <input type="hidden" name="id" value="${data.id}">
+            return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">✏️ Modifica: ${esc(data.name) || 'Appartamento'}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
+            <input type="hidden" name="id" value="${esc(data.id)}">
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${data.name || ''}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${data.type || ''}"></div></div>
-                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${data.address || ''}"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${data.zone || ''}" required></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" value="${esc(data.name)}" required></div><div class="form-group"><label class="form-label">Tipo</label><input type="text" class="form-input" name="type" value="${esc(data.type)}"></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" value="${esc(data.address)}"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" value="${esc(data.zone)}" required></div></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${data.price || ''}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" value="${esc(data.price)}" required></div><div class="form-group"><label class="form-label">Status</label><select class="form-select" name="status"><option value="available" ${data.status === 'available' ? 'selected' : ''}>🟢 Disponibile</option><option value="waitlist" ${data.status === 'waitlist' ? 'selected' : ''}>🟡 Waitlist</option><option value="rented" ${data.status === 'rented' ? 'selected' : ''}>🔴 Affittato</option></select></div></div>
                 ${(() => { const r = (window.BOOM_DISPO ? BOOM_DISPO.resolve(data) : { kind: 'unknown', iso: null }); const mode = r.kind; return `
-                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate" value="${r.iso || ''}"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date" ${mode === 'date' ? 'selected' : ''}>📅 Dalla data indicata</option><option value="now" ${mode === 'now' ? 'selected' : ''}>🟢 Subito</option><option value="unknown" ${mode === 'unknown' ? 'selected' : ''}>❓ Da concordare</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate" value="${esc(r.iso)}"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date" ${mode === 'date' ? 'selected' : ''}>📅 Dalla data indicata</option><option value="now" ${mode === 'now' ? 'selected' : ''}>🟢 Subito</option><option value="unknown" ${mode === 'unknown' ? 'selected' : ''}>❓ Da concordare</option></select></div></div>
                 ${data.availableRaw ? `<div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Parole originali: “${esc(data.availableRaw)}”</div>` : ''}`; })()}
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Camere</label><input type="number" class="form-input" name="bedrooms" value="${data.bedrooms || 1}" min="0"></div><div class="form-group"><label class="form-label">Config. Letti</label><input type="text" class="form-input" name="beds" value="${data.beds || ''}"></div></div>
-                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${data.sqm || ''}"></div><div class="form-group"><label class="form-label">Formato</label><input type="text" class="form-input" name="size" value="${data.size || ''}"></div></div>
-                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${data.floor || ''}"></div>
+                ${listingFactsFields(data)}
+                <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" value="${esc(data.sqm)}"></div><div class="form-group"><label class="form-label">Formato</label><input type="text" class="form-input" name="size" value="${esc(data.size)}"></div></div>
+                <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" value="${esc(data.floor)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
-                <div class="form-group"><label class="form-label">Tags</label><input type="text" class="form-input" name="tags" value="${tagsStr}"></div>
-                <div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${featuresStr}"></div>
+                <div class="form-group"><label class="form-label">Tags</label><input type="text" class="form-input" name="tags" value="${esc(tagsStr)}"></div>
+                <div class="form-group"><label class="form-label">Features</label><input type="text" class="form-input" name="features" value="${esc(featuresStr)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📷 Immagine Principale</h4>
@@ -16782,16 +18309,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="progress-text" id="progressText">Caricamento...</div>
                 </div>
                 <div id="imagePreview"></div>
-                <input type="hidden" name="image" id="listingImageUrl" value="${data.image || ''}">
-                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${data.image || ''}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
+                <input type="hidden" name="image" id="listingImageUrl" value="${esc(data.image)}" data-orig="${esc(data.image)}">
+                <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" value="${esc(data.image)}" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${data.file || ''}"></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" value="${esc(data.file)}"></div>
             </div>
             <div style="background:var(--bg);padding:16px;border-radius:8px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
-                <div class="form-group" style="margin-bottom:0"><textarea class="form-textarea" name="description" rows="3">${data.description || ''}</textarea></div>
+                <div class="form-group" style="margin-bottom:0"><textarea class="form-textarea" name="description" rows="3">
+${esc(data.description || '')}</textarea></div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px">${String(data.descriptionSource || '').trim() ? 'Scritta da: «' + esc(String(data.descriptionSource).trim()) + '». ' : ''}Se cambi il testo qui, la firma diventa la tua e la rigenerazione automatica non lo riscrive più.</div>
             </div>
         </form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">💾 Salva Modifiche</button></div></div></div>`;
         }
@@ -18573,7 +20102,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? '<span class="badge orange">✏️ Firma parziale</span>'
             : '<span class="badge gray">📝 Da firmare</span>';
         
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" data-inbox-contract="${esc(c.id)}"><div class="modal lg">
             <div class="modal-header"><h3 class="modal-title">📋 Contratto ${p?.name || ''}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body" style="max-height:70vh;overflow-y:auto">
                 <div class="detail-badges mb-16">
@@ -18680,6 +20209,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--red);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('terminateContract',S.contracts.find(x=>x.id===cid)),250)">⛔ Termina</button>` : ''}
                 ${c.status === 'active' ? `<button class="btn btn-sm" style="background:var(--green);color:white" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openModal('renewContract',S.contracts.find(x=>x.id===cid)),250)">🔄 Rinnova</button>` : ''}
                 <button class="btn btn-sm" style="background:var(--gold);color:#000;font-weight:600" onclick="const cid='${c.id}';closeModal();setTimeout(()=>openShareHub(cid),260)" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link da condividere</button>
+                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="inboxOpenContext({kind:'contract',id:'${jsq(c.id)}'})">💬 Comunicazioni</button>` : ''}
                 <button class="btn btn-secondary btn-sm" onclick="openFirmaOra('${c.id}')" title="Firmare qui, adesso: il cliente è davanti a te, oppure il proprietario ti ha lasciato fare">🖊 Firma ora</button>
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
@@ -18689,7 +20219,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
-                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="Conto addebito tributi, foglio di registrazione, ricevuta e invio al referente${c.aspiRequestedAt ? ' — richiesta inviata il ' + String(c.aspiRequestedAt).slice(0, 10) : ''}">🏛 Registrazione${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
@@ -18720,8 +20250,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${m.resolvedAt ? `<div><div class="detail-label">Risolto il</div><div class="detail-value">${fmtDate(m.resolvedAt)}</div></div>` : ''}
                 </div>
                 ${m.description ? `<div class="mt-16"><div class="detail-label">Descrizione</div><p style="background:var(--surface);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${esc(m.description)}</p></div>` : ''}
+                ${m.availability ? `<div class="mt-16"><div class="detail-label">Disponibilità indicata</div><p>${esc(m.availability)}</p></div>` : ''}
+                ${m.source === 'tenant-dashboard' ? `<div class="mt-16"><div class="detail-label">Dashboard inquilino · revisione ${Number(m.revision) || 1}</div><p style="font-size:13px">Richiesta salvata nel portale. Inoltro automatico al fornitore non ancora attivo. Nessuna spesa o visita autorizzata.</p></div>` : ''}
                 ${m.resolutionNotes ? `<div class="mt-16"><div class="detail-label">Note Risoluzione</div><p style="background:var(--green-light);padding:12px;border-radius:8px;margin-top:6px;font-size:13px">${m.resolutionNotes}</p></div>` : ''}
-                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','pending')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
+                ${isAdmin() ? `<div class="mt-16"><div class="detail-label">Cambia Stato Rapido</div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-xs ${m.status==='pending'||m.status==='open'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','open')">🟡 In Attesa</button><button class="btn btn-xs ${m.status==='in_progress'?'':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','in_progress')">🔵 In Corso</button><button class="btn btn-xs ${m.status==='resolved'?'btn-success':'btn-secondary'}" onclick="updateMaintStatus('${m.id}','resolved')">🟢 Risolto</button></div></div>` : ''}
             </div>
             <div class="modal-footer">
                 ${isAdmin() ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('maintenance','${m.id}','${jsq(m.title)}')">🗑</button>` : ''}
@@ -19189,8 +20721,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const pdfGenerated = await generateContractPDF(contractId);
             
             // 3. Send premium welcome email with magic link (replaces legacy sendWelcomeEmail)
-            let emailSent = false;
-            if (tenant?.email) {
+            // Il benvenuto è partito già (dal server al finalize, o da un
+            // giro precedente)? Allora non si rimanda: il «🚀 Ri-attiva»
+            // rifaceva l'email a chi l'aveva già ricevuta.
+            let emailSent = contract.welcomeEmailSent === true;
+            if (!emailSent && tenant?.email) {
                 // Ensure contract object has id for the magic-link API
                 emailSent = await sendTenantWelcomeWithMagicLink(Object.assign({ id: contractId }, contract));
             }
@@ -19378,214 +20913,349 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (window._pdfJsLoading) return window._pdfJsLoading;
         window._pdfJsLoading = new Promise((resolve, reject) => {
             const s = document.createElement('script');
+            const fail = error => { clearTimeout(timer); window._pdfJsLoading = null; reject(error); };
+            const timer = setTimeout(() => { s.remove(); fail(new Error('PDF.js load timeout')); }, 20000);
             s.src = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
             s.onload = () => {
                 try {
                     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
-                    resolve(window.pdfjsLib);
-                } catch (e) { reject(e); }
+                    clearTimeout(timer); resolve(window.pdfjsLib);
+                } catch (e) { fail(e); }
             };
-            s.onerror = () => reject(new Error('PDF.js load failed'));
+            s.onerror = () => fail(new Error('PDF.js load failed'));
             document.head.appendChild(s);
         });
         return window._pdfJsLoading;
     }
 
-    // ── Editor ──────────────────────────────────────────────────────────────
-    function openMagicSignEditor() {
-        _msEdit = { pdfBytes: null, fileName: '', pageCount: 0, fields: [], propertyId: '', title: '' };
-        const tenants = S.users.filter(u => u.role === 'tenant');
-        const landlords = S.users.filter(u => u.role === 'landlord');
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✨ Magic Sign — Contratto personalizzato</div>
-                    <div class="ms-ed-sub">Carica un PDF, trascina i campi firma, invia a inquilino e locatore.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">Titolo</label>
-                    <input class="ms-ed-input" id="msTitle" placeholder="Es. Contratto comodato Via Veneto" oninput="_msEdit.title=this.value">
-                    <label class="ms-ed-label">Immobile (opzionale)</label>
-                    <select class="ms-ed-input" id="msProperty" onchange="_msEdit.propertyId=this.value">
-                        <option value="">— Nessuno —</option>
-                        ${S.properties.map(p => `<option value="${p.id}">${esc(p.name || 'Immobile')}</option>`).join('')}
-                    </select>
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Inquilino</label>
-                    <select class="ms-ed-input" id="msTenant">
-                        <option value="">— Email manuale —</option>
-                        ${tenants.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msTenantEmail" placeholder="email inquilino" style="margin-top:6px">
-                    <label class="ms-ed-label">Locatore</label>
-                    <select class="ms-ed-input" id="msLandlord">
-                        <option value="">— Email manuale —</option>
-                        ${landlords.map(u => `<option value="${u.id}">${esc(u.name)} · ${esc(u.email || '')}</option>`).join('')}
-                    </select>
-                    <input class="ms-ed-input" id="msLandlordEmail" placeholder="email locatore" style="margin-top:6px">
-                    <div class="ms-ed-divider"></div>
-                    <label class="ms-ed-label">Campi — trascina sul documento</label>
-                    <div class="ms-palette">
-                        ${Object.entries(MS_FIELD_TYPES).map(([k, t]) => `
-                            <div class="ms-chip" draggable="true" data-fieldtype="${k}" ondragstart="_msDragStart(event,'${k}')">
-                                <span>${t.icon}</span> ${t.label}
-                            </div>`).join('')}
-                    </div>
-                    <div class="ms-ed-hint">Suggerimento: clicca un campo posizionato per eliminarlo.</div>
-                    <button class="ms-cta" id="msSaveBtn" disabled onclick="saveMagicSignRequest()">Crea richiesta di firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap" id="msCanvasWrap">
-                    <div class="ms-drop" id="msDrop" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="_msFileDrop(event)">
-                        <div class="ms-drop-icon">📄</div>
-                        <div class="ms-drop-title">Trascina qui il PDF del contratto</div>
-                        <div class="ms-drop-sub">oppure</div>
-                        <label class="btn"><input type="file" accept="application/pdf" style="display:none" onchange="_msFileInput(event)"> Scegli file</label>
-                    </div>
-                </div>
-            </div>
-          </div>
-        </div>`;
-        // Pre-fill manual email when a user is picked
-        setTimeout(() => {
-            const tSel = document.getElementById('msTenant'), lSel = document.getElementById('msLandlord');
-            tSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === tSel.value); if (u) document.getElementById('msTenantEmail').value = u.email || ''; });
-            lSel?.addEventListener('change', () => { const u = S.users.find(x => x.id === lSel.value); if (u) document.getElementById('msLandlordEmail').value = u.email || ''; });
-        }, 50);
+    // ── Editor: ephemeral draft; creation and signing stay server-side. ───────
+    function openMagicSignEditor(context) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid) return toast('error', 'Accedi come amministratore');
+        if (_msEdit && document.getElementById('msStudio')) return;
+        const propertyId = context?.propertyId && S.properties.some(p => p.id === context.propertyId) ? context.propertyId : '';
+        _msEdit = { uid: auth.currentUser.uid, step: 'choose', pdfBytes: null, pdfDoc: null, fileName: '', pageCount: 0,
+            fields: [], propertyId, title: '', page: 1, selectedType: 'sig_tenant', selectedFieldId: null, undo: [],
+            signers: { tenant: { enabled: true, userId: '', name: '', email: '' }, landlord: { enabled: true, userId: '', name: '', email: '' } },
+            dirty: false, busy: false, loading: false, renderGeneration: 0, submission: null, returnFocus: document.activeElement };
+        window.addEventListener('beforeunload', _msBeforeUnload);
+        _msStudioRender();
     }
-
-    function _msFileInput(e) { const f = e.target.files?.[0]; if (f) _msLoadFile(f); }
-    function _msFileDrop(e) {
-        e.preventDefault();
-        document.getElementById('msDrop')?.classList.remove('over');
-        const f = e.dataTransfer.files?.[0];
-        if (f) _msLoadFile(f);
+    function _msCurrent(state = _msEdit) {
+        return !!state && state === _msEdit && auth.currentUser?.uid === state.uid && S.profile?.id === state.uid && isAdmin();
     }
-
+    function _msBeforeUnload(event) {
+        if (!_msEdit?.dirty) return;
+        event.preventDefault(); event.returnValue = '';
+    }
+    function _msRoleLabel(role) { return role === 'tenant' ? 'Inquilino' : 'Locatore'; }
+    function _msEnabledRoles() { return Object.keys(_msEdit.signers).filter(role => _msEdit.signers[role].enabled); }
+    function _msDirty() { if (_msEdit && !_msEdit.submission) _msEdit.dirty = true; }
+    function _msExit() {
+        const state = _msEdit;
+        if (state?.busy) return;
+        state?.renderTask?.cancel();
+        state?.pdfDoc?.destroy().catch(() => {});
+        _msEdit = null;
+        window.removeEventListener('beforeunload', _msBeforeUnload);
+        document.getElementById('modals').innerHTML = '';
+        document.body.classList.remove('modal-open');
+        if (state?.returnFocus?.isConnected) state.returnFocus.focus({ preventScroll: true });
+    }
+    function _msRequestClose() {
+        if (!_msEdit || _msEdit.busy) return;
+        if (!_msEdit.dirty) return _msExit();
+        if (document.getElementById('msDiscard')) return;
+        document.getElementById('msStudio').insertAdjacentHTML('beforeend', `<div class="ms-discard" id="msDiscard" role="alertdialog" aria-modal="true" aria-labelledby="msDiscardTitle"><div><h3 id="msDiscardTitle">Chiudere la preparazione?</h3><p>${_msEdit.submission ? 'La creazione potrebbe essere già riuscita. Puoi riprovare con la stessa richiesta oppure controllare le richieste nella sezione Contratti.' : 'Il PDF e i campi di questa bozza non saranno conservati.'}</p><div class="ms-actions"><button type="button" class="ms-primary" onclick="document.getElementById('msDiscard').remove();document.getElementById('msClose').focus()">Continua a lavorare</button><button type="button" class="ms-secondary" onclick="_msExit()">Chiudi preparazione</button></div></div></div>`);
+        document.querySelector('#msDiscard button').focus();
+    }
+    function _msStudioKeys(event) {
+        if (event.key === 'Escape') {
+            event.preventDefault(); event.stopPropagation();
+            const discard = document.getElementById('msDiscard');
+            if (discard) { discard.remove(); document.getElementById('msClose')?.focus(); } else _msRequestClose();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const root = document.getElementById('msDiscard') || document.getElementById('msStudio');
+        const items = [...root.querySelectorAll('button:not(:disabled),a[href],input:not(:disabled),select:not(:disabled),[tabindex="0"]')].filter(el => el.getClientRects().length);
+        if (!items.length) return;
+        if (event.shiftKey && document.activeElement === items[0]) { event.preventDefault(); items.at(-1).focus(); }
+        else if (!event.shiftKey && document.activeElement === items.at(-1)) { event.preventDefault(); items[0].focus(); }
+    }
+    function _msStudioRender() {
+        const state = _msEdit;
+        if (!_msCurrent(state)) return;
+        const steps = ['document', 'signers', 'fields', 'review'], labels = ['Documento', 'Firmatari', 'Campi', 'Riepilogo'];
+        const index = steps.indexOf(state.step), title = { choose: 'Che cosa vuoi far firmare?', boom: 'Scegli il contratto BOOM.', document: 'Parti dal documento.', signers: 'Chi deve firmare?', fields: 'Metti le firme al posto giusto.', review: 'Tutto pronto per la firma.' }[state.step];
+        const sub = { choose: 'Apri una pratica esistente o prepara un PDF personalizzato.', boom: 'Ritrovi le parti, il documento e le firme già presenti.', document: 'Carica il PDF definitivo e dagli un nome riconoscibile.', signers: 'Ogni persona riceverà il proprio link personale.', fields: 'Scegli un campo, poi tocca il punto sul PDF.', review: 'Controlla documento, persone e posizione dei campi.' }[state.step];
+        document.body.classList.add('modal-open');
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)">
+          <header class="ms-studio-head"><div><p class="ms-kicker">BOOM <span>/</span> MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">${title}</h2><p class="ms-subtitle">${sub}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msRequestClose()" ${state.busy ? 'disabled' : ''}>×</button></header>
+          ${index >= 0 ? `<nav class="ms-steps" aria-label="Preparazione della firma">${steps.map((step, i) => `<button type="button" onclick="_msGo('${step}')" ${i > index || state.submission || state.busy ? 'disabled' : ''} ${i === index ? 'aria-current="step"' : ''}><span>${i < index ? '✓' : i + 1}</span>${labels[i]}</button>`).join('')}</nav>` : ''}
+          <div class="ms-studio-body" id="msStudioBody">${_msStudioContent()}</div>
+          <div class="ms-status" id="msStatus" role="status" aria-live="polite"></div>
+          ${index >= 0 ? `<footer class="ms-studio-footer"><button type="button" class="ms-secondary" onclick="_msGo('${index === 0 ? 'choose' : steps[index - 1]}')" ${state.busy || state.submission ? 'disabled' : ''}>Indietro</button><p>${index === 3 ? 'Crea i link. La condivisione è il passo successivo.' : state.fileName ? esc(state.fileName) : 'La bozza resta aperta finché lavori qui.'}</p>${index === 3 ? `<button type="button" class="ms-primary" id="msSaveBtn" onclick="saveMagicSignRequest()" ${state.busy ? 'disabled' : ''}>${state.busy ? 'Creazione in corso…' : state.submission ? 'Riprova creazione link' : 'Crea link di firma'}</button>` : `<button type="button" class="ms-primary" id="msNext" onclick="_msNext()" ${state.loading ? 'disabled' : ''}>${state.loading ? 'Leggo il PDF…' : index === 2 ? 'Vai al riepilogo' : 'Continua'} <span aria-hidden="true">→</span></button>`}</footer>` : ''}
+        </section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
+        if (['document', 'fields', 'review'].includes(state.step) && state.pdfDoc) _msRenderEditor();
+    }
+    function _msStudioContent() {
+        const state = _msEdit;
+        if (state.step === 'choose') return `<div class="ms-choices"><button type="button" class="ms-choice" onclick="_msGo('boom')"><span class="ms-choice-symbol" aria-hidden="true">↗</span><span class="ms-kicker">PRATICA ESISTENTE</span><strong>Contratto BOOM</strong><span>Apri Firma ora sul contratto già in archivio.</span><b>Trova contratto <span aria-hidden="true">→</span></b></button><button type="button" class="ms-choice" onclick="_msGo('document')"><span class="ms-choice-symbol" aria-hidden="true">＋</span><span class="ms-kicker">UN ALTRO DOCUMENTO</span><strong>PDF personalizzato</strong><span>Carica un PDF e indica dove devono firmare.</span><b>Prepara PDF <span aria-hidden="true">→</span></b></button></div><p class="ms-footnote">I contratti BOOM conservano il loro percorso di firma e i collegamenti alla pratica.</p>`;
+        if (state.step === 'boom') {
+            const contracts = (S.contracts || []).filter(c => !state.propertyId || c.propertyId === state.propertyId);
+            return `<div class="ms-narrow"><label class="ms-label" for="msBoomContract">Contratto in archivio</label><select class="ms-input" id="msBoomContract"><option value="">Scegli un contratto</option>${contracts.map(c => { const p = S.properties.find(p => p.id === c.propertyId), u = S.users.find(u => u.id === c.tenantId); return `<option value="${esc(c.id)}">${esc(p?.name || p?.address || c.propertyName || 'Immobile')} · ${esc(u?.name || c.tenantName || c.id)}${c.signatureStatus === 'complete' ? ' · già firmato' : ''}</option>`; }).join('')}</select><p class="ms-help">${contracts.length ? 'Apri il pannello con il documento e le parti già collegati.' : 'Nessun contratto caricato in questo contesto. Apri la sezione Contratti per trovare la pratica.'}</p><div class="ms-actions"><button type="button" class="ms-secondary" onclick="_msGo('choose')">Indietro</button><button type="button" class="ms-primary" onclick="_msOpenBoom()">Apri Firma ora</button></div></div>`;
+        }
+        if (state.step === 'document') return `<div class="ms-document-layout"><div class="ms-form-column"><div class="ms-upload ${state.pdfDoc ? 'ms-upload-ready' : ''}" id="msDrop" ondragover="event.preventDefault()" ondrop="_msFileDrop(event)"><span class="ms-upload-icon" aria-hidden="true">${state.pdfDoc ? '✓' : '↑'}</span><strong>${state.pdfDoc ? esc(state.fileName) : 'Il tuo PDF, pronto da firmare'}</strong><p>${state.pdfDoc ? state.pageCount + (state.pageCount === 1 ? ' pagina' : ' pagine') + ' · documento caricato' : 'Scegli il file oppure trascinalo qui. PDF fino a 15 MB.'}</p><label class="ms-secondary ms-file-label">${state.pdfDoc ? 'Sostituisci PDF' : 'Scegli PDF'}<input id="msFile" type="file" accept="application/pdf,.pdf" onchange="_msFileInput(event)" ${state.loading ? 'disabled' : ''}></label></div><label class="ms-label" for="msTitle">Nome del documento</label><input class="ms-input" id="msTitle" maxlength="180" value="${esc(state.title)}" placeholder="Es. Accordo di consegna · Via Roma" oninput="_msEdit.title=this.value;_msDirty()"><label class="ms-label" for="msProperty">Immobile <span>facoltativo</span></label><select class="ms-input" id="msProperty" onchange="_msEdit.propertyId=this.value;_msDirty()"><option value="">Nessun immobile collegato</option>${S.properties.map(p => `<option value="${esc(p.id)}" ${p.id === state.propertyId ? 'selected' : ''}>${esc(p.name || p.address || 'Immobile')}</option>`).join('')}</select></div>${_msViewer()}</div>`;
+        if (state.step === 'signers') return `<div class="ms-recipient-intro"><span class="ms-doc-badge">PDF</span><div><strong>${esc(state.title || state.fileName)}</strong><p>${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'} · scegli le parti richieste</p></div></div><div class="ms-signers">${['tenant', 'landlord'].map(role => _msSignerCard(role)).join('')}</div><p class="ms-footnote">Un contatto in archivio mantiene la propria email. Per usare un indirizzo diverso, scegli “Contatto manuale”.</p>`;
+        if (state.step === 'fields') return `<div class="ms-fields-layout"><aside class="ms-fields-sidebar"><p class="ms-label">Aggiungi un campo</p><div class="ms-palette-v2">${Object.entries(MS_FIELD_TYPES).filter(([, meta]) => state.signers[meta.role].enabled).map(([type, meta]) => `<button type="button" draggable="true" data-ms-type="${type}" class="ms-palette-button ms-role-${meta.role}" aria-pressed="${state.selectedType === type}" onclick="_msChooseField('${type}')" ondragstart="_msDragStart(event,'${type}')"><strong>${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'}</strong><span>${_msRoleLabel(meta.role)}</span></button>`).join('')}</div><p class="ms-help" id="msPlacementHint">Scegli un campo, poi tocca il PDF. Da tastiera: Invio sul documento aggiunge al centro; le frecce spostano il campo selezionato.</p><div id="msFieldTools">${_msFieldTools()}</div></aside>${_msViewer()}</div>`;
+        const prop = S.properties.find(p => p.id === state.propertyId);
+        return `<div class="ms-review-layout"><div class="ms-review-summary"><p class="ms-kicker">DOCUMENTO</p><h3>${esc(state.title || state.fileName)}</h3><p class="ms-help">${esc(state.fileName)} · ${state.pageCount} ${state.pageCount === 1 ? 'pagina' : 'pagine'}${prop ? '<br>' + esc(prop.name || prop.address) : ''}</p><div class="ms-review-people">${_msEnabledRoles().map(role => { const person = state.signers[role], fields = state.fields.filter(f => f.role === role); return `<article class="ms-review-person ms-role-${role}"><span class="ms-kicker">${_msRoleLabel(role)}</span><strong>${esc(person.name)}</strong><span>${esc(person.email)}</span><p>${fields.filter(f => f.kind === 'signature').length} ${fields.filter(f => f.kind === 'signature').length === 1 ? 'firma' : 'firme'} · ${fields.length} ${fields.length === 1 ? 'campo' : 'campi'} · ${[...new Set(fields.map(f => f.page))].sort((a,b) => a-b).map(p => 'pag. ' + p).join(', ')}</p></article>`; }).join('')}</div><p class="ms-review-note">Ogni link apre questo documento con i campi della persona indicata. Dopo la creazione puoi copiarlo o aprire WhatsApp ed email per condividerlo.</p></div>${_msViewer()}</div>`;
+    }
+    function _msSignerCard(role) {
+        const person = _msEdit.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+        const users = S.users.filter(u => u.role === role);
+        return `<section class="ms-signer-card ms-role-${role} ${person.enabled ? '' : 'ms-signer-off'}"><label class="ms-signer-toggle"><input type="checkbox" id="${prefix}Enabled" ${person.enabled ? 'checked' : ''} onchange="_msToggleSigner('${role}',this.checked)"><span>${_msRoleLabel(role)}</span><small>${person.enabled ? 'Firma richiesta' : 'Non richiesto'}</small></label>${person.enabled ? `<label class="ms-label" for="${prefix}">Persona</label><select class="ms-input" id="${prefix}" onchange="_msPickSigner('${role}',this.value)"><option value="">Contatto manuale</option>${users.map(u => `<option value="${esc(u.id)}" ${u.id === person.userId ? 'selected' : ''}>${esc(u.name || u.email || u.id)}</option>`).join('')}</select><label class="ms-label" for="${prefix}Name">Nome e cognome</label><input class="ms-input" id="${prefix}Name" autocomplete="name" maxlength="140" value="${esc(person.name)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.name=this.value;_msDirty()"><label class="ms-label" for="${prefix}Email">Email</label><input type="email" class="ms-input" id="${prefix}Email" autocomplete="email" inputmode="email" maxlength="254" value="${esc(person.email)}" ${person.userId ? 'readonly' : ''} oninput="_msEdit.signers.${role}.email=this.value;_msDirty()">${person.userId ? `<button type="button" class="ms-text-button" onclick="_msManualSigner('${role}')">Usa un contatto manuale</button>` : '<p class="ms-help">Controlla l’indirizzo prima di creare il link.</p>'}` : '<p class="ms-help">Nessun campo né link verrà creato per questa parte.</p>'}</section>`;
+    }
+    function _msPickSigner(role, id) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const user = S.users.find(u => u.id === id && u.role === role);
+        Object.assign(_msEdit.signers[role], { userId: user?.id || '', name: user?.name || '', email: user?.email || '' });
+        _msDirty(); _msStudioRender();
+    }
+    function _msManualSigner(role) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        _msEdit.signers[role].userId = ''; _msDirty(); _msStudioRender();
+        document.getElementById(role === 'tenant' ? 'msTenantEmail' : 'msLandlordEmail')?.focus();
+    }
+    function _msToggleSigner(role, enabled) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!enabled && _msEdit.fields.some(f => f.role === role) && !confirm('Rimuovere questa parte e i suoi campi dal PDF?')) { _msStudioRender(); return; }
+        _msEdit.signers[role].enabled = enabled;
+        if (!enabled) { _msEdit.fields = _msEdit.fields.filter(f => f.role !== role); _msEdit.undo = []; }
+        if (!enabled && MS_FIELD_TYPES[_msEdit.selectedType]?.role === role) _msEdit.selectedType = 'sig_' + (_msEnabledRoles()[0] || 'tenant');
+        _msDirty(); _msStudioRender();
+    }
+    function _msShowError(message, inputId) {
+        const target = document.getElementById('msStatus');
+        if (target) { target.textContent = message; target.classList.add('ms-status-error'); }
+        const input = inputId && document.getElementById(inputId);
+        if (input) { input.setAttribute('aria-invalid', 'true'); input.focus(); }
+        return false;
+    }
+    function _msValidate(step) {
+        const state = _msEdit;
+        if (step === 'document') {
+            if (!state.pdfBytes || !state.pdfDoc || !state.pageCount) return _msShowError('Scegli un PDF leggibile per continuare.', 'msFile');
+            if (!state.title.trim()) return _msShowError('Dai un nome al documento.', 'msTitle');
+        }
+        if (step === 'signers') {
+            if (!_msEnabledRoles().length) return _msShowError('Scegli almeno una persona che deve firmare.');
+            for (const role of _msEnabledRoles()) {
+                const person = state.signers[role], prefix = role === 'tenant' ? 'msTenant' : 'msLandlord';
+                if (!person.name.trim()) return _msShowError('Inserisci il nome del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Name');
+                const input = document.createElement('input'); input.type = 'email'; input.required = true; input.value = person.email.trim();
+                if (!input.checkValidity() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.value)) return _msShowError('Controlla l’email del firmatario: ' + _msRoleLabel(role) + '.', prefix + 'Email');
+                if (person.userId) {
+                    const canonical = S.users.find(u => u.id === person.userId && u.role === role);
+                    if (!canonical || canonical.email !== person.email || canonical.name !== person.name) return _msShowError('Il contatto è cambiato. Selezionalo di nuovo oppure usa un contatto manuale.', prefix);
+                }
+            }
+        }
+        if (step === 'fields') {
+            for (const role of _msEnabledRoles()) if (!state.fields.some(f => f.role === role && f.kind === 'signature')) return _msShowError('Aggiungi almeno una firma per ' + _msRoleLabel(role).toLowerCase() + '. Data e sigla non sostituiscono la firma.');
+        }
+        return true;
+    }
+    function _msGo(step) {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading || _msEdit.submission) return;
+        _msEdit.step = step; _msStudioRender();
+    }
+    function _msNext() {
+        if (!_msCurrent() || _msEdit.busy || _msEdit.loading) return;
+        if (!_msValidate(_msEdit.step)) return;
+        _msGo({ document: 'signers', signers: 'fields', fields: 'review' }[_msEdit.step]);
+    }
+    function _msOpenBoom() {
+        if (!_msCurrent()) return;
+        const id = document.getElementById('msBoomContract')?.value;
+        if (!(S.contracts || []).some(c => c.id === id)) return _msShowError('Scegli il contratto da aprire.', 'msBoomContract');
+        if (_msEdit.dirty && !confirm('Lasciare la bozza PDF e aprire il contratto BOOM?')) return;
+        _msExit(); openFirmaOra(id);
+    }
+    function _msFileInput(event) { const file = event.target.files?.[0]; if (file) _msLoadFile(file); }
+    function _msFileDrop(event) { event.preventDefault(); const file = event.dataTransfer.files?.[0]; if (file) _msLoadFile(file); }
     async function _msLoadFile(file) {
-        if (file.type !== 'application/pdf') return toast('error', 'File non valido', 'Serve un PDF');
-        if (file.size > 15 * 1024 * 1024) return toast('error', 'PDF troppo grande', 'Max 15MB');
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.loading || state.busy || state.submission) return;
+        if (file.type !== 'application/pdf' && !/\.pdf$/i.test(file.name)) return _msShowError('Scegli un file PDF.');
+        if (file.size > 15 * 1024 * 1024) return _msShowError('Il PDF supera 15 MB. Riduci il file e riprova.');
+        if (state.fields.length && !confirm('Sostituire il PDF? I campi già posizionati verranno rimossi.')) return;
+        state.loading = true; _msStudioRender();
+        let doc;
         try {
-            toast('info', 'Caricamento PDF…');
-            const buf = await file.arrayBuffer();
-            _msEdit.pdfBytes = new Uint8Array(buf);
-            _msEdit.fileName = file.name;
-            _msEdit.fields = [];
-            await _msRenderEditor();
-            document.getElementById('msSaveBtn').disabled = false;
-        } catch (e) { toast('error', 'Errore lettura PDF', e.message); }
-    }
-
-    async function _msRenderEditor() {
-        const pdfjs = await ensurePdfJs();
-        // PDF.js consumes the buffer — give it a copy so _msEdit.pdfBytes stays intact for upload.
-        const doc = await pdfjs.getDocument({ data: _msEdit.pdfBytes.slice() }).promise;
-        _msEdit.pageCount = doc.numPages;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        wrap.classList.add('loaded');
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page';
-            pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            pageDiv.ondragover = (ev) => ev.preventDefault();
-            pageDiv.ondrop = (ev) => _msDropOnPage(ev, i);
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            const bytes = new Uint8Array(await file.arrayBuffer()), pdfjs = await ensurePdfJs();
+            doc = await pdfjs.getDocument({ data: bytes.slice() }).promise;
+            for (let index = 1; index <= doc.numPages; index++) {
+                const page = await doc.getPage(index);
+                if (page.rotate % 360) { await doc.destroy(); throw new Error('unsupported_pdf_geometry'); }
+            }
+            if (!_msCurrent(state)) { doc.destroy(); return; }
+            if (!doc.numPages) throw new Error('PDF senza pagine');
+            state.pdfDoc?.destroy().catch(() => {});
+            Object.assign(state, { pdfBytes: bytes, pdfDoc: doc, fileName: file.name, pageCount: doc.numPages, page: 1, fields: [], undo: [], selectedFieldId: null });
+            if (!state.title) state.title = file.name.replace(/\.pdf$/i, '');
+            _msDirty(); state.loading = false; _msStudioRender();
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.loading = false; _msStudioRender(); _msShowError(error.message === 'unsupported_pdf_geometry' ? 'Questo PDF contiene pagine ruotate. Esportalo nuovamente con le pagine già orientate, poi carica la nuova copia.' : 'Non riesco a leggere questo PDF. Verifica che non sia protetto da password e scegli un file valido.');
         }
     }
-
-    function _msDragStart(e, fieldType) { e.dataTransfer.setData('text/plain', fieldType); }
-
-    function _msDropOnPage(e, pageNum) {
-        e.preventDefault();
-        const fieldType = e.dataTransfer.getData('text/plain');
-        const meta = MS_FIELD_TYPES[fieldType];
-        if (!meta) return;
-        const pageDiv = e.currentTarget;
-        const rect = pageDiv.getBoundingClientRect();
-        const xr = (e.clientX - rect.left) / rect.width;
-        const yr = (e.clientY - rect.top) / rect.height;
-        const field = {
-            id: 'f' + Date.now() + Math.floor(Math.random() * 1000),
-            page: pageNum, type: fieldType, kind: meta.kind, role: meta.role,
-            xr: Math.max(0, Math.min(xr - meta.w / 2, 1 - meta.w)),
-            yr: Math.max(0, Math.min(yr - meta.h / 2, 1 - meta.h)),
-            wr: meta.w, hr: meta.h
-        };
-        _msEdit.fields.push(field);
-        _msRenderFieldMarker(field, pageDiv);
+    function _msViewer() {
+        const state = _msEdit;
+        if (!state.pdfDoc) return '<div class="ms-preview-empty"><span aria-hidden="true">PDF</span><strong>Qui vedrai il documento.</strong><p>Controlla il PDF prima di preparare le firme.</p></div>';
+        return `<section class="ms-viewer" aria-label="Anteprima del documento"><div class="ms-page-toolbar"><span id="msPageLabel">Pagina ${state.page} di ${state.pageCount}</span><div><button type="button" class="ms-icon-button" aria-label="Pagina precedente" onclick="_msPage(-1)" ${state.page <= 1 ? 'disabled' : ''}>←</button><button type="button" class="ms-icon-button" aria-label="Pagina successiva" onclick="_msPage(1)" ${state.page >= state.pageCount ? 'disabled' : ''}>→</button></div></div><div class="ms-canvas-wrap" id="msCanvasWrap"><p class="ms-help">Preparo l’anteprima…</p></div></section>`;
     }
-
-    function _msRenderFieldMarker(field, pageDiv) {
-        const meta = MS_FIELD_TYPES[field.type];
-        const el = document.createElement('div');
-        el.className = 'ms-field ms-field-' + meta.role;
-        el.dataset.fieldId = field.id;
-        el.style.left = (field.xr * 100) + '%';
-        el.style.top = (field.yr * 100) + '%';
-        el.style.width = (field.wr * 100) + '%';
-        el.style.height = (field.hr * 100) + '%';
-        el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-        el.title = 'Clicca per eliminare';
-        el.onclick = (ev) => { ev.stopPropagation(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== field.id); el.remove(); };
-        pageDiv.appendChild(el);
-    }
-
-    async function saveMagicSignRequest() {
-        if (!_msEdit?.pdfBytes) return toast('error', 'Carica un PDF');
-        if (_msEdit.fields.length === 0) return toast('error', 'Aggiungi almeno un campo firma');
-        const title = (document.getElementById('msTitle').value || '').trim() || _msEdit.fileName || 'Contratto';
-        const tenantId = document.getElementById('msTenant').value || null;
-        const landlordId = document.getElementById('msLandlord').value || null;
-        const tenantEmail = (document.getElementById('msTenantEmail').value || '').trim();
-        const landlordEmail = (document.getElementById('msLandlordEmail').value || '').trim();
-        const roles = new Set(_msEdit.fields.map(f => f.role));
-        if (roles.has('tenant') && !tenantId && !tenantEmail) return toast('error', 'Manca l\'inquilino', 'Hai campi inquilino ma nessun firmatario');
-        if (roles.has('landlord') && !landlordId && !landlordEmail) return toast('error', 'Manca il locatore', 'Hai campi locatore ma nessun firmatario');
-
-        const btn = document.getElementById('msSaveBtn');
-        btn.disabled = true; btn.textContent = 'Caricamento…';
+    async function _msRenderEditor() {
+        const state = _msEdit, wrap = document.getElementById('msCanvasWrap');
+        if (!_msCurrent(state) || !state.pdfDoc || !wrap) return;
+        const generation = ++state.renderGeneration; state.renderTask?.cancel();
         try {
-            const reqId = 'sr' + Date.now();
-            const path = `signRequests/${reqId}/original.pdf`;
-            await storage.ref(path).put(new Blob([_msEdit.pdfBytes], { type: 'application/pdf' }));
-            const originalPdfUrl = await storage.ref(path).getDownloadURL();
-            const tUser = tenantId ? S.users.find(u => u.id === tenantId) : null;
-            const lUser = landlordId ? S.users.find(u => u.id === landlordId) : null;
-            const signers = {};
-            if (roles.has('tenant')) signers.tenant = { name: tUser?.name || 'Inquilino', email: tUser?.email || tenantEmail, userId: tenantId, token: _msToken(), signatureImg: null, signedAt: null };
-            if (roles.has('landlord')) signers.landlord = { name: lUser?.name || 'Locatore', email: lUser?.email || landlordEmail, userId: landlordId, token: _msToken(), signatureImg: null, signedAt: null };
-
-            await db.collection('signRequests').doc(reqId).set({
-                title, propertyId: _msEdit.propertyId || null,
-                originalPdfUrl, originalPdfPath: path,
-                pageCount: _msEdit.pageCount,
-                fields: _msEdit.fields,
-                signers,
-                requiredRoles: [...roles],
-                signedPdfUrl: null, signedPdfPath: null,
-                status: 'sent',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                createdBy: S.profile.id
-            });
-            logActivity('Magic Sign richiesta creata', 'contract', { reqId, title, roles: [...roles] });
-            toast('success', 'Richiesta creata');
-            _msShowSendPanel(reqId, title, signers);
-        } catch (e) {
-            console.error(e); btn.disabled = false; btn.textContent = 'Crea richiesta di firma';
-            toast('error', 'Errore', e.message);
+            const page = await state.pdfDoc.getPage(state.page);
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !wrap.isConnected) return;
+            const base = page.getViewport({ scale: 1 }), width = Math.min(850, Math.max(220, wrap.clientWidth - 24));
+            const viewport = page.getViewport({ scale: width / base.width * Math.min(window.devicePixelRatio || 1, 2) });
+            const pageDiv = document.createElement('div'); pageDiv.className = 'ms-page'; pageDiv.dataset.page = state.page;
+            pageDiv.style.width = width + 'px'; pageDiv.style.aspectRatio = base.width + ' / ' + base.height;
+            const canvas = document.createElement('canvas'); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
+            canvas.setAttribute('aria-hidden', 'true'); pageDiv.appendChild(canvas); wrap.replaceChildren(pageDiv);
+            if (state.step === 'fields') {
+                pageDiv.tabIndex = 0; pageDiv.setAttribute('role', 'group'); pageDiv.setAttribute('aria-label', 'Pagina ' + state.page + '. Tocca per aggiungere il campo selezionato; Invio lo aggiunge al centro.');
+                pageDiv.onclick = event => _msPlaceField(state.selectedType, state.page, event.clientX, event.clientY, pageDiv);
+                pageDiv.ondragover = event => event.preventDefault(); pageDiv.ondrop = event => _msDropOnPage(event, state.page);
+                pageDiv.onkeydown = event => { if (event.target === pageDiv && ['Enter', ' '].includes(event.key)) { event.preventDefault(); _msAddField(state.selectedType, state.page, .5, .5); } };
+            }
+            state.renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+            await state.renderTask.promise;
+            if (!_msCurrent(state) || generation !== state.renderGeneration || !pageDiv.isConnected) return;
+            pageDiv.querySelectorAll('.ms-field').forEach(el => el.remove());
+            state.fields.filter(f => f.page === state.page).forEach(field => _msRenderFieldMarker(field, pageDiv));
+        } catch (error) { if (error?.name !== 'RenderingCancelledException' && _msCurrent(state) && generation === state.renderGeneration) _msShowError('Anteprima non disponibile. Torna al documento e riprova.'); }
+    }
+    function _msPage(delta) {
+        if (!_msCurrent() || _msEdit.busy) return;
+        const page = _msEdit.page + delta; if (page < 1 || page > _msEdit.pageCount) return;
+        _msEdit.page = page;
+        const viewer = document.querySelector('#msStudio .ms-viewer'); if (viewer) viewer.outerHTML = _msViewer();
+        _msRenderEditor();
+    }
+    function _msChooseField(type) {
+        if (!_msCurrent() || !MS_FIELD_TYPES[type] || !_msEdit.signers[MS_FIELD_TYPES[type].role].enabled) return;
+        _msEdit.selectedType = type;
+        document.querySelectorAll('[data-ms-type]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.msType === type)));
+        const status = document.getElementById('msStatus'); if (status) { status.textContent = MS_FIELD_TYPES[type].label + ': tocca il punto sul PDF.'; status.classList.remove('ms-status-error'); }
+    }
+    function _msDragStart(event, type) { _msChooseField(type); event.dataTransfer.setData('text/plain', type); }
+    function _msDropOnPage(event, pageNum) { event.preventDefault(); _msPlaceField(event.dataTransfer.getData('text/plain'), pageNum, event.clientX, event.clientY, event.currentTarget); }
+    function _msPlaceField(type, page, x, y, element) { const rect = element.getBoundingClientRect(); _msAddField(type, page, (x - rect.left) / rect.width, (y - rect.top) / rect.height); }
+    function _msRememberFields() { _msEdit.undo.push(_msEdit.fields.map(f => ({ ...f }))); if (_msEdit.undo.length > 30) _msEdit.undo.shift(); }
+    function _msAddField(type, page, x, y) {
+        const meta = MS_FIELD_TYPES[type];
+        if (!_msCurrent() || _msEdit.step !== 'fields' || _msEdit.submission || !meta || !_msEdit.signers[meta.role].enabled) return;
+        if (_msEdit.fields.length >= 100) return _msShowError('Hai raggiunto 100 campi per documento.');
+        _msRememberFields();
+        const field = { id: 'f' + _msToken(), page, type, kind: meta.kind, role: meta.role, xr: Math.max(0, Math.min(x - meta.w / 2, 1 - meta.w)), yr: Math.max(0, Math.min(y - meta.h / 2, 1 - meta.h)), wr: meta.w, hr: meta.h };
+        _msEdit.fields.push(field); _msEdit.selectedFieldId = field.id; _msDirty(); _msRefreshFields();
+        document.getElementById('msStatus').textContent = meta.label + ' aggiunta a pagina ' + page + '.';
+    }
+    function _msRenderFieldMarker(field, pageDiv) {
+        const meta = MS_FIELD_TYPES[field.type], editable = _msEdit?.step === 'fields';
+        const element = document.createElement(editable ? 'button' : 'div');
+        if (editable) element.type = 'button';
+        element.className = 'ms-field ms-field-' + field.role + (field.id === _msEdit?.selectedFieldId ? ' ms-field-selected' : '');
+        element.dataset.fieldId = field.id;
+        Object.assign(element.style, { left: field.xr * 100 + '%', top: field.yr * 100 + '%', width: field.wr * 100 + '%', height: field.hr * 100 + '%' });
+        element.innerHTML = `<span class="ms-field-tag">${meta.kind === 'signature' ? 'Firma' : meta.kind === 'date' ? 'Data' : 'Sigla'} · ${_msRoleLabel(field.role)}</span>`;
+        element.setAttribute('aria-label', meta.label + ', pagina ' + field.page + '. Seleziona per modificare.');
+        if (editable) { element.onclick = event => { event.stopPropagation(); _msSelectField(field.id); }; element.onkeydown = event => _msFieldKeys(event, field.id); }
+        pageDiv.appendChild(element);
+    }
+    function _msFieldTools() {
+        const state = _msEdit, selected = state.fields.find(f => f.id === state.selectedFieldId);
+        return `<div class="ms-field-summary"><strong>${state.fields.length} ${state.fields.length === 1 ? 'campo posizionato' : 'campi posizionati'}</strong><button type="button" class="ms-text-button" onclick="_msUndo()" ${state.undo.length ? '' : 'disabled'}>Annulla ultima modifica</button></div>${selected ? `<div class="ms-selected-field"><p>${MS_FIELD_TYPES[selected.type].label} <span>· pagina ${selected.page}</span></p><div class="ms-move-controls" aria-label="Sposta il campo selezionato"><button type="button" aria-label="Sposta a sinistra" onclick="_msMoveField(-.01,0)">←</button><button type="button" aria-label="Sposta in alto" onclick="_msMoveField(0,-.01)">↑</button><button type="button" aria-label="Sposta in basso" onclick="_msMoveField(0,.01)">↓</button><button type="button" aria-label="Sposta a destra" onclick="_msMoveField(.01,0)">→</button><button type="button" class="ms-remove" onclick="_msRemoveField()">Rimuovi</button></div></div>` : ''}<div class="ms-field-list" aria-label="Campi del documento">${state.fields.map((field, i) => `<button type="button" data-ms-field="${field.id}" aria-pressed="${field.id === state.selectedFieldId}" onclick="_msSelectField('${field.id}',true)"><span>${i + 1}</span>${MS_FIELD_TYPES[field.type].label}<small>Pag. ${field.page}</small></button>`).join('')}</div>`;
+    }
+    function _msRefreshFields() {
+        const tools = document.getElementById('msFieldTools'); if (tools) tools.innerHTML = _msFieldTools();
+        const page = document.querySelector('#msCanvasWrap .ms-page');
+        if (page) { page.querySelectorAll('.ms-field').forEach(el => el.remove()); _msEdit.fields.filter(f => f.page === _msEdit.page).forEach(field => _msRenderFieldMarker(field, page)); }
+    }
+    function _msSelectField(id, reveal) {
+        if (!_msCurrent()) return;
+        const field = _msEdit.fields.find(f => f.id === id); if (!field) return;
+        _msEdit.selectedFieldId = id;
+        if (reveal && _msEdit.page !== field.page) { _msEdit.page = field.page; _msStudioRender(); }
+        else _msRefreshFields();
+        if (!reveal) document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msFieldKeys(event, id) {
+        if (!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Delete','Backspace'].includes(event.key)) return;
+        event.preventDefault(); event.stopPropagation(); _msEdit.selectedFieldId = id;
+        if (event.key === 'Delete' || event.key === 'Backspace') return _msRemoveField();
+        const d = event.shiftKey ? .02 : .005;
+        _msMoveField(event.key === 'ArrowLeft' ? -d : event.key === 'ArrowRight' ? d : 0, event.key === 'ArrowUp' ? -d : event.key === 'ArrowDown' ? d : 0);
+        document.querySelector('#msCanvasWrap [data-field-id="' + id + '"]')?.focus({ preventScroll: true });
+    }
+    function _msMoveField(dx, dy) {
+        if (!_msCurrent() || _msEdit.submission) return;
+        const field = _msEdit.fields.find(f => f.id === _msEdit.selectedFieldId); if (!field) return;
+        _msRememberFields(); field.xr = Math.max(0, Math.min(1 - field.wr, field.xr + dx)); field.yr = Math.max(0, Math.min(1 - field.hr, field.yr + dy)); _msDirty(); _msRefreshFields();
+    }
+    function _msRemoveField() {
+        if (!_msCurrent() || _msEdit.submission) return;
+        if (!_msEdit.fields.some(f => f.id === _msEdit.selectedFieldId)) return;
+        _msRememberFields(); _msEdit.fields = _msEdit.fields.filter(f => f.id !== _msEdit.selectedFieldId); _msEdit.selectedFieldId = null; _msDirty(); _msRefreshFields();
+        document.querySelector('#msFieldTools .ms-text-button')?.focus();
+    }
+    function _msUndo() {
+        if (!_msCurrent() || _msEdit.submission || !_msEdit.undo.length) return;
+        _msEdit.fields = _msEdit.undo.pop(); _msEdit.selectedFieldId = _msEdit.fields.at(-1)?.id || null; _msDirty(); _msRefreshFields();
+    }
+    async function saveMagicSignRequest() {
+        const state = _msEdit;
+        if (!_msCurrent(state) || state.busy || state.loading) return;
+        if (!state.submission) for (const step of ['document', 'signers', 'fields']) {
+            if (!_msValidate(step)) { state.step = step; _msStudioRender(); _msValidate(step); return; }
+        }
+        if (state.step !== 'review') { state.step = 'review'; _msStudioRender(); return; }
+        if (!state.submission) {
+            const reqId = 'sr-' + crypto.randomUUID();
+            const signers = Object.fromEntries(_msEnabledRoles().map(role => { const person = state.signers[role]; return [role, { name: person.name.trim(), email: person.email.trim(), userId: person.userId || null }]; }));
+            state.submission = { reqId, title: state.title.trim(), propertyId: state.propertyId || null, originalPdfPath: `signRequests/${reqId}/original.pdf`, pageCount: state.pageCount, fields: state.fields.map(f => ({ ...f })), signers, requiredRoles: _msEnabledRoles() };
+        }
+        state.busy = true; _msStudioRender();
+        try {
+            const token = await auth.currentUser.getIdToken(); if (!_msCurrent(state)) throw new Error('session_changed');
+            if (!state.submission.originalPdfUrl) {
+                const ref = storage.ref(state.submission.originalPdfPath);
+                if (!state.uploadComplete) { await ref.put(new Blob([state.pdfBytes], { type: 'application/pdf' })); state.uploadComplete = true; }
+                state.submission.originalPdfUrl = await ref.getDownloadURL();
+            }
+            if (!_msCurrent(state)) throw new Error('session_changed');
+            const result = await _msCreateRequest(state.submission, token);
+            if (!result.ok || !state.submission.requiredRoles.every(role => result.signers?.[role]?.token)) throw new Error(result.error || 'creation_unconfirmed');
+            if (!_msCurrent(state)) return;
+            state.busy = false; state.dirty = false;
+            window.removeEventListener('beforeunload', _msBeforeUnload);
+            _msShowSendPanel(result.reqId || state.submission.reqId, state.submission.title, result.signers);
+        } catch (error) {
+            if (!_msCurrent(state)) return;
+            state.busy = false;
+            if (error.message === 'unsupported_pdf_geometry') {
+                state.submission = null; state.uploadComplete = false; state.step = 'document'; _msStudioRender();
+                _msShowError('Il PDF ha pagine ruotate o ritagliate. Esporta una nuova copia con pagine già orientate e senza ritagli, poi sostituisci il PDF. La bozza resta disponibile.'); return;
+            }
+            _msStudioRender();
+            _msShowError(error.message === 'session_changed' ? 'La sessione è cambiata. Accedi di nuovo e verifica le richieste in Contratti.' : 'Non ho conferma della creazione. La bozza è conservata: Riprova usa la stessa richiesta e non crea nuovi link.');
         }
     }
 
@@ -19605,218 +21275,84 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         else { try { document.execCommand('copy'); done(); } catch (_) {} }
     }
     function _msShowSendPanel(reqId, title, signers) {
-        const card = (role, label, s) => {
-            if (!s) return '';
-            const link = _msSignLink(reqId, role, s.token);
-            const user = s.userId ? S.users.find(u => u.id === s.userId) : null;
-            const phone = String((user && (user.phone || user.telefono)) || '').replace(/\D/g, '');
-            const who = esc(s.name || label) + (s.email ? ' · ' + esc(s.email) : '');
-            const waMsg = encodeURIComponent(`Ciao ${s.name || ''}, ecco il link per firmare "${title}" dal tuo telefono: ${link}`);
-            const wa = phone ? `https://wa.me/${phone}?text=${waMsg}` : `https://wa.me/?text=${waMsg}`;
-            const mailto = `mailto:${encodeURIComponent(s.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent('Apri questo link per firmare dal telefono:\n\n' + link)}`;
-            return `
-            <div style="border:1px solid var(--border);border-radius:12px;padding:12px;background:var(--bg-elevated)">
-                <div style="font-size:13px;margin-bottom:8px">${role === 'tenant' ? '👤' : '🏠'} <b>${label}</b> · <span style="color:var(--text-secondary)">${who}</span></div>
-                <input class="ms-ed-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()" style="font-size:12px">
-                <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-                    <button class="btn btn-sm" onclick="_msCopyLink('mslink-${role}')">📋 Copia link</button>
-                    <a class="btn btn-sm btn-secondary" href="${esc(wa)}" target="_blank" rel="noopener noreferrer">🟢 WhatsApp</a>
-                    <a class="btn btn-sm btn-secondary" href="${esc(mailto)}">✉️ Email</a>
-                </div>
-            </div>`;
+        const card = (role, signer) => {
+            const link = _msSignLink(reqId, role, signer.token);
+            const user = signer.userId ? S.users.find(u => u.id === signer.userId) : null;
+            const phone = String(user?.phone || user?.telefono || '').replace(/\D/g, '');
+            const text = `Ciao ${signer.name || ''}, ecco il link personale per firmare “${title}”: ${link}`;
+            const wa = 'https://wa.me/' + phone + '?text=' + encodeURIComponent(text);
+            const mailto = `mailto:${encodeURIComponent(signer.email || '')}?subject=${encodeURIComponent('Firma: ' + title)}&body=${encodeURIComponent(text)}`;
+            return `<article class="ms-link-card ms-role-${role}"><p class="ms-kicker">${_msRoleLabel(role)}</p><h3>${esc(signer.name || _msRoleLabel(role))}</h3><p class="ms-help">${esc(signer.email || '')}</p><label class="ms-label" for="mslink-${role}">Link personale</label><input class="ms-input" id="mslink-${role}" readonly value="${esc(link)}" onclick="this.select()"><div class="ms-actions"><button type="button" class="ms-primary" onclick="_msCopyLink('mslink-${role}')">Copia link</button><a class="ms-secondary" href="${esc(link)}" target="_blank" rel="noopener">Apri firma ↗</a></div><div class="ms-share-options"><a href="${esc(wa)}" target="_blank" rel="noopener noreferrer">Prepara WhatsApp ↗</a><a href="${esc(mailto)}">Prepara email ↗</a></div></article>`;
         };
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal" style="max-width:560px">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✅ Richiesta di firma creata</div>
-                    <div class="ms-ed-sub">${esc(title)} — invia il link a ciascuna parte: ognuno firma dal proprio telefono.</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div style="padding:18px;display:flex;flex-direction:column;gap:14px;max-height:70vh;overflow:auto">
-                ${card('tenant', 'Inquilino', signers.tenant)}
-                ${card('landlord', 'Locatore', signers.landlord)}
-                <div style="font-size:11px;color:var(--text-muted)">Puoi ritrovare e re-inviare questi link quando vuoi dalla lista delle richieste di firma.</div>
-                <button class="btn" onclick="closeModal()">Fatto</button>
-            </div>
-          </div>
-        </div>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active ms-studio-overlay"><section class="modal ms-editor ms-studio ms-studio-success" id="msStudio" role="dialog" aria-modal="true" aria-labelledby="msStudioTitle" onkeydown="_msStudioKeys(event)"><header class="ms-studio-head"><div><p class="ms-kicker">BOOM / MAGIC SIGN</p><h2 id="msStudioTitle" tabindex="-1">I link sono pronti.</h2><p class="ms-subtitle">${esc(title)}</p></div><button type="button" class="ms-icon-button" id="msClose" aria-label="Chiudi Magic Sign" onclick="_msExit()">×</button></header><div class="ms-studio-body"><p class="ms-success-notice"><span aria-hidden="true">✓</span> Richiesta creata. Nessun messaggio inviato.</p><p class="ms-help">Condividi il link personale con ciascun firmatario, oppure apri la firma se la persona è qui con te.</p><div class="ms-ready-links">${Object.entries(signers).filter(([role, signer]) => ['tenant','landlord'].includes(role) && signer?.token).map(([role, signer]) => card(role, signer)).join('')}</div><p class="ms-footnote">Ritrovi questi link e lo stato delle firme nella sezione Contratti → Magic Sign.</p></div><footer class="ms-studio-footer"><p>Documento e campi sono fissati a questa richiesta.</p><button type="button" class="ms-primary" onclick="_msExit()">Fatto</button></footer></section></div>`;
+        document.getElementById('msStudioTitle').focus({ preventScroll: true });
     }
 
     // ── Sign flow ─────────────────────────────────────────────────────────────
     async function openMagicSignRequest(reqId, role) {
+        if (!['tenant', 'landlord'].includes(role)) return toast('error', 'Firmatario non previsto');
         const req = S.signRequests.find(r => r.id === reqId) || (await db.collection('signRequests').doc(reqId).get()).data();
-        if (!req) return toast('error', 'Richiesta non trovata');
-        if (!req.signers?.[role]) return toast('error', 'Ruolo non previsto per questa firma');
-        if (req.signers[role].signedAt) return toast('info', 'Già firmato', req.signers[role].name + ' ha già firmato');
-        // Unified signing: open the premium /sign page (tailored-PDF mode) for
-        // this role's token instead of the legacy in-portal editor.
-        var _ctok = req.signers[role] && req.signers[role].token;
-        if (_ctok) { window.open('/sign?csign=' + encodeURIComponent(reqId) + '&role=' + role + '&t=' + encodeURIComponent(_ctok), '_blank', 'noopener'); return; }
-        _msSign = { reqId, role, req, signatureImg: null };
-        const roleFields = (req.fields || []).filter(f => f.role === role);
-        document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active">
-          <div class="modal ms-editor">
-            <div class="ms-ed-head">
-                <div>
-                    <div class="ms-ed-title">✍ Firma — ${esc(req.title || 'Contratto')}</div>
-                    <div class="ms-ed-sub">Firmi come <strong style="color:var(--gold)">${role === 'tenant' ? 'Inquilino' : 'Locatore'}</strong> · ${roleFields.length} camp${roleFields.length === 1 ? 'o' : 'i'} da apporre</div>
-                </div>
-                <button class="dash-act" onclick="closeModal()">✕</button>
-            </div>
-            <div class="ms-ed-body">
-                <div class="ms-ed-side">
-                    <label class="ms-ed-label">La tua firma</label>
-                    <div class="ms-pad-wrap signing-pad">
-                        <canvas id="msCustomPad" class="ms-pad"></canvas>
-                    </div>
-                    <div style="display:flex;gap:8px;margin-top:8px">
-                        <button class="btn btn-secondary btn-sm" onclick="_msPad&&_msPad.clear()">Pulisci</button>
-                        <button class="btn btn-sm" onclick="_msApplySignature()">Apponi su documento</button>
-                    </div>
-                    <div class="ms-ed-hint">Disegna la firma, poi premi “Apponi”. Comparirà in tutti i tuoi campi. Le date si compilano da sole.</div>
-                    <button class="ms-cta" id="msConfirmBtn" disabled onclick="confirmMagicSignRole()">Conferma e firma</button>
-                </div>
-                <div class="ms-ed-canvas-wrap loaded" id="msCanvasWrap"></div>
-            </div>
-          </div>
-        </div>`;
-        try {
-            const buf = await fetch(req.originalPdfUrl).then(r => r.arrayBuffer());
-            _msSign.pdfBytes = new Uint8Array(buf);
-            await _msRenderSignView(role);
-            const canvas = document.getElementById('msCustomPad');
-            if (canvas) _msPad = new SignaturePadCanvas(canvas);
-        } catch (e) { toast('error', 'Errore caricamento PDF', e.message); }
+        if (!req?.signers?.[role]) return toast('error', 'Richiesta o firmatario non disponibile');
+        if (req.signers[role].signedAt && !['finalization_pending', 'finalizing', 'finalization_failed'].includes(req.status)) return toast('info', 'Firma già registrata');
+        const token = req.signers[role].token;
+        if (!token) return toast('error', 'Link di firma non disponibile', 'Verifica la richiesta in Contratti. Non è possibile firmare questa copia dal portale.');
+        if (!req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta in Contratti prima di firmare.');
+        window.open(_msSignLink(reqId, role, token), '_blank', 'noopener');
     }
 
     async function _msRenderSignView(role) {
-        const pdfjs = await ensurePdfJs();
-        const doc = await pdfjs.getDocument({ data: _msSign.pdfBytes.slice() }).promise;
-        const wrap = document.getElementById('msCanvasWrap');
-        wrap.innerHTML = '';
-        for (let i = 1; i <= doc.numPages; i++) {
-            const page = await doc.getPage(i);
-            const viewport = page.getViewport({ scale: 1.4 });
-            const pageDiv = document.createElement('div');
-            pageDiv.className = 'ms-page'; pageDiv.dataset.page = i;
-            pageDiv.style.width = viewport.width + 'px';
-            pageDiv.style.height = viewport.height + 'px';
-            const canvas = document.createElement('canvas');
-            canvas.width = viewport.width; canvas.height = viewport.height;
-            pageDiv.appendChild(canvas);
-            wrap.appendChild(pageDiv);
-            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
-            // Overlay this role's field placeholders
-            (_msSign.req.fields || []).filter(f => f.page === i && f.role === role).forEach(f => {
-                const el = document.createElement('div');
-                el.className = 'ms-field ms-field-' + role + ' ms-field-todo';
-                el.dataset.fieldId = f.id;
-                el.style.left = (f.xr * 100) + '%'; el.style.top = (f.yr * 100) + '%';
-                el.style.width = (f.wr * 100) + '%'; el.style.height = (f.hr * 100) + '%';
-                const meta = MS_FIELD_TYPES[f.type];
-                el.innerHTML = `<span class="ms-field-tag">${meta.icon} ${meta.label}</span>`;
-                pageDiv.appendChild(el);
-            });
-        }
+        if (_msSign?.reqId) return openMagicSignRequest(_msSign.reqId, role || _msSign.role);
+        return toast('error', 'Apri il link personale dalla richiesta di firma');
     }
-
-    function _msApplySignature() {
-        if (!_msPad || _msPad.isEmpty()) return toast('error', 'Disegna prima la firma');
-        _msSign.signatureImg = _msPad.toDataURL();
-        const today = new Date().toLocaleDateString('it-IT');
-        document.querySelectorAll('#msCanvasWrap .ms-field-todo').forEach(el => {
-            const f = _msSign.req.fields.find(x => x.id === el.dataset.fieldId);
-            const meta = MS_FIELD_TYPES[f.type];
-            el.classList.remove('ms-field-todo'); el.classList.add('ms-field-done');
-            if (meta.kind === 'date') el.innerHTML = `<span class="ms-field-fill">${today}</span>`;
-            else el.innerHTML = `<img src="${_msSign.signatureImg}" style="width:100%;height:100%;object-fit:contain">`;
-        });
-        document.getElementById('msConfirmBtn').disabled = false;
-        toast('success', 'Firma applicata', 'Controlla e conferma');
-    }
-
+    function _msApplySignature() { return toast('error', 'Usa il link personale per apporre la firma'); }
     async function confirmMagicSignRole() {
-        const { reqId, role, signatureImg } = _msSign;
-        if (!signatureImg) return toast('error', 'Apponi prima la firma');
-        const btn = document.getElementById('msConfirmBtn');
-        btn.disabled = true; btn.textContent = 'Firma in corso…';
-        try {
-            const ip = await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip).catch(() => 'unknown');
-            const update = {};
-            update[`signers.${role}.signatureImg`] = signatureImg;
-            update[`signers.${role}.signedAt`] = firebase.firestore.FieldValue.serverTimestamp();
-            update[`signers.${role}.signIP`] = ip;
-            update[`signers.${role}.signUA`] = navigator.userAgent;
-            await db.collection('signRequests').doc(reqId).update(update);
-
-            // Recompute completion against the freshest doc
-            const fresh = (await db.collection('signRequests').doc(reqId).get()).data();
-            const required = fresh.requiredRoles || Object.keys(fresh.signers || {});
-            const allSigned = required.every(r => fresh.signers?.[r]?.signedAt || (r === role));
-            if (allSigned) {
-                toast('info', 'Generazione PDF firmato…');
-                const signedUrl = await _buildSignedPdf(reqId, fresh, role, signatureImg);
-                await db.collection('signRequests').doc(reqId).update({ status: 'complete', signedPdfUrl: signedUrl, fullySignedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                logActivity('Magic Sign completato', 'contract', { reqId, title: fresh.title });
-            } else {
-                await db.collection('signRequests').doc(reqId).update({ status: 'partial' });
-                logActivity('Magic Sign firmato (parziale)', 'contract', { reqId, role });
-            }
-            _msPad = null; _msSign = null;
-            closeModal();
-            toast('success', allSigned ? 'Contratto firmato da tutti' : 'Firma registrata', allSigned ? 'PDF firmato disponibile' : 'In attesa dell\'altra parte');
-        } catch (e) { console.error(e); btn.disabled = false; btn.textContent = 'Conferma e firma'; toast('error', 'Errore', e.message); }
+        // Compatibility for old buttons: only the version-bound /sign flow
+        // may collect a signature. No client Firestore or signed-PDF write.
+        if (!_msSign?.reqId || !_msSign?.role) return toast('error', 'Apri il link personale dalla richiesta di firma');
+        return openMagicSignRequest(_msSign.reqId, _msSign.role);
     }
-
-    // Embed every signed role's signature/date/initials into the original PDF.
-    // `justSignedRole`/`justSignedImg` cover the role that signed in this session,
-    // whose serverTimestamp may not yet be readable on the fetched doc.
-    async function _buildSignedPdf(reqId, req, justSignedRole, justSignedImg) {
-        const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
-        const srcBytes = _msSign?.pdfBytes || new Uint8Array(await fetch(req.originalPdfUrl).then(r => r.arrayBuffer()));
-        const pdf = await PDFDocument.load(srcBytes);
-        const font = await pdf.embedFont(StandardFonts.Helvetica);
-        const pages = pdf.getPages();
-        // Cache embedded PNGs per role
-        const pngCache = {};
-        for (const f of (req.fields || [])) {
-            const page = pages[f.page - 1];
-            if (!page) continue;
-            const pw = page.getWidth(), ph = page.getHeight();
-            const x = f.xr * pw;
-            const w = f.wr * pw, h = f.hr * ph;
-            const yTop = f.yr * ph;
-            const y = ph - yTop - h; // top-left ratio → pdf-lib bottom-left
-            const meta = MS_FIELD_TYPES[f.type];
-            const signer = req.signers?.[f.role] || {};
-            const sigImg = f.role === justSignedRole ? justSignedImg : signer.signatureImg;
-            if (meta.kind === 'date') {
-                const dateStr = new Date().toLocaleDateString('it-IT');
-                page.drawText(dateStr, { x, y: y + h * 0.3, size: Math.max(8, h * 0.6), font, color: rgb(0.05, 0.05, 0.05) });
-            } else if (sigImg) {
-                if (!pngCache[f.role + '_' + (sigImg.length)]) {
-                    pngCache[f.role + '_' + (sigImg.length)] = await pdf.embedPng(sigImg);
-                }
-                const png = pngCache[f.role + '_' + (sigImg.length)];
-                page.drawImage(png, { x, y, width: w, height: h });
-            }
-        }
-        const out = await pdf.save();
-        const path = `signRequests/${reqId}/signed.pdf`;
-        await storage.ref(path).put(new Blob([out], { type: 'application/pdf' }));
-        return await storage.ref(path).getDownloadURL();
-    }
+    async function _buildSignedPdf() { throw new Error('La finalizzazione della firma avviene dal link personale.'); }
 
     function copyMagicSignLink(reqId, role) {
         const req = S.signRequests.find(r => r.id === reqId);
-        const token = req?.signers?.[role]?.token || '';
-        const url = `https://boomrome.com/sign?csign=${reqId}&role=${role}&t=${token}`;
-        navigator.clipboard.writeText(url);
-        toast('success', 'Link copiato', `Firma ${role === 'tenant' ? 'inquilino' : 'locatore'}`);
+        const token = req?.signers?.[role]?.token;
+        if (!token || !req.documentHash || !req.documentVersion) return toast('warning', 'Preparazione da aggiornare', 'Prepara i link dalla richiesta prima di condividerli.');
+        navigator.clipboard.writeText(_msSignLink(reqId, role, token)).then(() => toast('success', 'Link copiato', _msRoleLabel(role))).catch(() => toast('error', 'Copia non riuscita', 'Apri il link personale dalla richiesta.'));
+    }
+
+    async function _msCreateRequest(payload, token) {
+        const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 65000);
+        try {
+            const response = await fetch('/api/sign/custom/create', { method: 'POST', signal: controller.signal,
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify(payload) });
+            const result = await response.json().catch(() => ({}));
+            if (!response.ok || !result.ok) throw new Error(result.error || 'creation_unconfirmed');
+            return result;
+        } finally { clearTimeout(timer); }
+    }
+    const _msLegacyBusy = new Set();
+    async function _msPrepareLegacy(reqId) {
+        if (!isAdmin() || !auth.currentUser || S.profile?.id !== auth.currentUser.uid || _msLegacyBusy.has(reqId)) return;
+        const req = (S.signRequests || []).find(r => r.id === reqId), user = auth.currentUser;
+        if (!req) return toast('error', 'Richiesta non disponibile');
+        if (Object.values(req.signers || {}).some(signer => signer.signedAt)) return toast('warning', 'Firme già presenti: serve una verifica', 'Questa richiesta non viene modificata.');
+        _msLegacyBusy.add(reqId);
+        const button = [...document.querySelectorAll('[data-ms-prepare]')].find(el => el.dataset.msPrepare === reqId);
+        if (button) { button.disabled = true; button.textContent = 'Preparazione…'; }
+        try {
+            const token = await user.getIdToken();
+            const result = await _msCreateRequest({ reqId, title: req.title, propertyId: req.propertyId || null, contractId: req.contractId || null, leadId: req.leadId || null,
+                originalPdfUrl: req.originalPdfUrl, originalPdfPath: req.originalPdfPath, pageCount: req.pageCount,
+                fields: req.fields, signers: req.signers, requiredRoles: req.requiredRoles || Object.keys(req.signers || {}), migrateLegacy: true }, token);
+            if (auth.currentUser !== user || !isAdmin()) return;
+            Object.assign(req, { signers: result.signers, documentVersion: result.documentVersion, documentHash: result.documentHash, status: result.status || 'ready' });
+            // Existing globals are retained; this panel only shares prepared links.
+            _msEdit = { uid: user.uid, dirty: false, busy: false, returnFocus: button };
+            document.body.classList.add('modal-open');
+            _msShowSendPanel(reqId, req.title, result.signers);
+        } catch (error) {
+            toast('error', 'Preparazione non confermata', error.message === 'legacy_signed_review_required' ? 'La richiesta contiene firme e richiede una verifica.' : 'Riprova dalla stessa richiesta. Se il PDF non è leggibile, prepara una nuova richiesta.');
+        } finally { _msLegacyBusy.delete(reqId); if (button?.isConnected) { button.disabled = false; button.textContent = 'Prepara i link'; } }
     }
 
     async function deleteSignRequest(reqId) {
@@ -19862,9 +21398,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderSignRequestsSection() {
         const reqs = S.signRequests || [];
         if (reqs.length === 0) return '';
-        const statusMeta = { sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, complete: { c: 'green', t: 'Completo' } };
+        const statusMeta = { ready: { c: 'orange', t: 'Link pronti' }, sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, finalization_pending: { c: 'orange', t: 'Firme raccolte · PDF da completare' }, finalizing: { c: 'blue', t: 'Firme raccolte · PDF in preparazione' }, finalization_failed: { c: 'red', t: 'Firme raccolte · PDF da completare' }, complete: { c: 'green', t: 'Completo' } };
         return `<details class="dash-extras" style="margin:0 0 16px;border:1px solid var(--border);border-radius:12px;padding:14px 16px" open>
-            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">contratti personalizzati con firma drag-and-drop</span></summary>
+            <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">documenti personalizzati e link personali</span></summary>
             <div class="dash-list" style="margin-top:12px">
                 ${reqs.slice(0, 12).map(r => {
                     const sm = statusMeta[r.status] || statusMeta.sent;
@@ -19873,9 +21409,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         const done = !!s.signedAt;
                         return `<span class="badge ${done ? 'green' : 'gray'}" style="font-size:9px">${role === 'tenant' ? 'Inq.' : 'Loc.'} ${done ? '✓' : '○'}</span>`;
                     }).join(' ');
-                    const signBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const legacy = !r.documentVersion || !r.documentHash;
+                    const hasSignatures = Object.values(r.signers || {}).some(signer => signer.signedAt);
+                    const recoveryRole = !legacy && ['finalization_pending', 'finalizing', 'finalization_failed'].includes(r.status) && Object.keys(r.signers || {}).find(role => r.signers[role]?.signedAt && r.signers[role]?.token);
+                    const recoveryBtn = recoveryRole ? `<button class="dash-act dash-act-primary" data-ms-recover="${esc(r.id)}" onclick="openMagicSignRequest(${jsq(r.id)},${jsq(recoveryRole)})">Recupera PDF</button>` : '';
+                    const signBtns = legacy ? (hasSignatures ? '<span class="badge orange">Preparazione da verificare</span>' : `<button class="dash-act dash-act-primary" data-ms-prepare="${esc(r.id)}" onclick="_msPrepareLegacy(${jsq(r.id)})">Prepara i link</button>`) : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="openMagicSignRequest('${r.id}','${role}')" title="Firma come ${role}">✍ ${role === 'tenant' ? 'Inq.' : 'Loc.'}</button>`).join('');
-                    const linkBtns = Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
+                    const linkBtns = legacy ? '' : Object.entries(r.signers || {}).filter(([_, s]) => !s.signedAt).map(([role]) =>
                         `<button class="dash-act" onclick="copyMagicSignLink('${r.id}','${role}')" title="Copia link firma ${role}">🔗</button>`).join('');
                     return `<div class="dash-row" data-tone="${sm.c === 'green' ? 'gold' : sm.c === 'blue' ? 'blue' : 'orange'}">
                         <span class="dash-row-icon">📝</span>
@@ -19884,7 +21424,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             <div class="dash-row-secondary">${prop ? '🏠 ' + esc(prop.name) + ' · ' : ''}${(r.fields || []).length} campi</div>
                         </div>
                         <div class="dash-row-actions">
-                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : signBtns + linkBtns}
+                            ${r.status === 'complete' ? `<button class="dash-act dash-act-primary" onclick="downloadSignedRequest('${r.id}')">⬇ PDF</button>` : recoveryBtn || signBtns + linkBtns}
                             <button class="dash-act dash-act-danger" onclick="deleteSignRequest('${r.id}')">✕</button>
                         </div>
                     </div>`;
@@ -19957,6 +21497,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return true;
         } catch (err) {
             console.error('PDF generation error:', err);
+            // 4+4 / canone libero: nessun modello. Mai un Allegato B al suo posto.
+            if (err && err.code === 'no_template' && typeof showToast === 'function') {
+                showToast('Contratto 4+4 / canone libero: non esiste un modello. Il PDF non è stato generato (nessun transitorio al suo posto).', 'error');
+            }
             return false;
         }
     }
@@ -21061,12 +22605,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${extra || ''}
             </div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
-            <div class="modal"><div class="modal-header"><h3 class="modal-title">🖊 Firma ora</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal ms-firma-panel"><div class="modal-header"><h3 class="modal-title">Magic Sign</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">Apri il link su <b>questo</b> dispositivo e fai firmare col dito. La firma resta quella della persona che firma — data, ora e dispositivo finiscono nel certificato come sempre.</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px"><strong>${esc((p && (p.address || p.name)) || c.propertyAddress || 'Contratto BOOM')}</strong><br>Scegli chi deve firmare. Se è con te, apri la firma su questo dispositivo.</div>
                 ${row('👤', tdele ? 'Conduttore — firmi TU per mandato' : 'Conduttore', tdele ? `per conto di ${(t && t.name) || c.tenantName || ''}` : ((t && t.name) || c.tenantName), tDone, tLink)}
                 ${row('🏠', dele ? 'Locatore — firmi TU per delega' : 'Locatore', dele ? `per conto di ${dele.onBehalfOf || (ll && ll.name) || ''}` : ((ll && ll.name) || c.landlordName), lDone, lLink)}
-                <div class="card" style="margin-top:14px"><div class="card-body" style="padding:12px 14px">
+                <button class="btn btn-secondary" style="margin-top:14px" data-contract-id="${esc(c.id)}" onclick="openShareHub(this.dataset.contractId)">Condividi i link</button>
+                <details class="ms-deleghe" style="margin-top:20px" ${mandBroken || lmBroken ? 'open' : ''}>
+                <summary style="cursor:pointer;font-size:13px;padding:12px 0">Mandati e deleghe${mandBroken || lmBroken ? ' · condizioni da verificare' : dele || tdele ? ' · delega attiva' : ''}</summary>
+                <div class="card" style="margin-top:6px"><div class="card-body" style="padding:12px 14px">
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato / delega del proprietario</div>
                     ${lDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il locatore ha già firmato' + (c.landlordSignedByDelegate ? ' — per ' + (c.landlordSignedByDelegate.mandateHash ? 'mandato' : 'delega') + ', da ' + esc(c.landlordSignedByDelegate.name || '') : '') + ': la delega non si tocca più.</div>'
                         : lmand && lmBroken
@@ -21099,6 +22646,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${coNote}
                 </div></div>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Senza mandato scritto, al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
+                </details>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
     }
@@ -23364,12 +24912,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     // CONTRACT REGISTRATION SYSTEM
     async function loadRegistrations() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return false;
         console.log('Loading registrations...');
         try {
             const [regsSnap, statusSnap] = await Promise.all([
                 db.collection('contractRegistrations').get(),
                 db.collection('contractRegistrationStatus').get()
             ]);
+            if (!portalSessionCurrent(proof)) return false;
             console.log('Registrations loaded:', regsSnap.docs.length, 'docs');
             console.log('Statuses loaded:', statusSnap.docs.length, 'docs');
             
@@ -23389,6 +24940,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             buildNav();
             return true;
         } catch (err) { 
+            if (!portalSessionCurrent(proof)) return false;
             console.error('Error loading registrations:', err);
             toast('error', 'Errore caricamento registrazioni: ' + err.message);
             throw err;
@@ -23941,7 +25493,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             : 'Nessuna fattura ASPI emessa su questo contratto.'
         }${bi.relet ? ` · <strong style="color:var(--gold)">Riaffitto</strong>: c'è già un contratto BOOM firmato su questo immobile${bi.previousId ? ' (' + esc(bi.previousId) + ')' : ''}.` : ''}</div>`;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">🏛 Pacchetto registrazione — ${esc(s.referente || 'referente')}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--bg-elevated);border-radius:10px;padding:10px 14px;margin-bottom:14px">
                     <div style="min-width:0">
@@ -23950,6 +25502,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
                 </div>
+                ${st.state.registrationStatus === 'registered' ? `<div style="font-size:12px;background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Registrato${st.state.rliRegisteredAt ? ' il ' + esc(String(st.state.rliRegisteredAt).slice(0, 10)) : ''}${st.state.registrationCode ? ' · codice ' + esc(st.state.registrationCode) : ''}${st.state.registrationReceiptUrl ? ` · <a href="${esc(st.state.registrationReceiptUrl)}" target="_blank" rel="noopener">ricevuta</a>` : ' · ricevuta non ancora caricata'}${st.state.registrationReceiptSentAt ? ' · invii registrati (dettagli sotto)' : ''}</div>` : ''}
+                ${_aspiDeliveryNotes(st.state)}
+                ${_aspiBankForm(contractId, st.bank)}
                 ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
                 <div class="form-group" style="margin-bottom:10px">
                     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
@@ -23966,14 +25521,87 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" onclick="openRegistered('${contractId}')">✓ Registrato: carica ricevuta</button>
                 <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia a ${esc(s.referente || 'referente')}</button>
             </div>
         </div></div>`;
         _aspiRenderKind();
     }
     window.openAspi = openAspi;
+    // Gli esiti DUREVOLI che il server registra (15/10/2026): pacchetto
+    // all'operatore e ricevuta per destinatario. Si mostrano SOLO quando c'è
+    // qualcosa da fare — un esito incerto non si rimanda alla cieca.
+    function _aspiBankForm(contractId, bank) {
+        const b = bank || {};
+        return `<details style="margin:12px 0;padding:12px;border:1px solid var(--border);border-radius:10px" ${b.ready ? '' : 'open'}>
+            <summary id="aspiBankSummary" style="cursor:pointer;font-weight:600">Conto per registrazione · ${b.ready ? 'compilato' : 'da completare'}</summary>
+            <p style="font-size:12px;color:var(--text-muted);margin:8px 0">Per il foglio di registrazione. Il conto del canone resta separato. Il salvataggio non dispone alcun pagamento.</p>
+            <div class="form-group"><label class="form-label" for="aspiDebitIban">IBAN per addebito tributi</label><input class="form-input" id="aspiDebitIban" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="42" value="${esc(b.rliDebitIban || '')}" oninput="_aspiBankDirty()"></div>
+            <div class="form-group"><label class="form-label" for="aspiDebitHolder">Intestatario del conto</label><input class="form-input" id="aspiDebitHolder" type="text" autocomplete="off" maxlength="200" value="${esc(b.rliDebitHolder || '')}" oninput="_aspiBankDirty()"></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-secondary" id="aspiBankSaveBtn" onclick="saveAspiBank('${contractId}')">Salva dati</button><button class="btn btn-secondary" id="aspiBankSheetBtn" onclick="sendAspiBankSheet('${contractId}')">Mandami il foglio aggiornato</button></div>
+            <p id="aspiBankStatus" role="status" style="font-size:12px;margin:8px 0 0">${b.ready ? 'Dati salvati.' : 'Dati non completi: nel foglio resteranno indicati come mancanti.'}</p>
+        </details>`;
+    }
+    function _aspiBankDirty() {
+        const el = document.getElementById('aspiBankStatus');
+        if (el) el.textContent = 'Modifiche da salvare.';
+    }
+    window._aspiBankDirty = _aspiBankDirty;
+    async function saveAspiBank(contractId) {
+        const st = window._aspiStatus;
+        const ibanEl = document.getElementById('aspiDebitIban'), holderEl = document.getElementById('aspiDebitHolder');
+        if (!st || st.contractId !== contractId || !ibanEl || !holderEl) return false;
+        if (st.bankSaving) return false;
+        const iban = ibanEl.value.toUpperCase().replace(/\s/g, ''), holder = holderEl.value.trim();
+        const current = st.bank || {};
+        if (iban === (current.rliDebitIban || '') && holder === (current.rliDebitHolder || '')) return true;
+        st.bankSaving = true;
+        ibanEl.disabled = true; holderEl.disabled = true;
+        const btn = document.getElementById('aspiBankSaveBtn'), msg = document.getElementById('aspiBankStatus');
+        if (btn) btn.disabled = true;
+        if (msg) msg.textContent = 'Salvo i dati…';
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'save-bank', contractId, rliDebitIban: iban, rliDebitHolder: holder }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error(j && j.error === 'iban_invalid' ? 'IBAN non valido: controlla tutte le cifre.' : 'Dati non salvati. Riprova.');
+            st.bank = j.bank;
+            const summary = document.getElementById('aspiBankSummary');
+            if (summary) summary.textContent = 'Conto per registrazione · ' + (j.bank.ready ? 'compilato' : 'da completare');
+            ibanEl.value = j.bank.rliDebitIban; holderEl.value = j.bank.rliDebitHolder;
+            if (msg) msg.textContent = j.bank.ready ? 'Dati salvati. Puoi ricevere il foglio aggiornato.' : 'Salvato, ma manca ancora un dato: il foglio lo indicherà.';
+            return true;
+        } catch (e) { if (msg) msg.textContent = e.message; return false; }
+        finally { st.bankSaving = false; ibanEl.disabled = false; holderEl.disabled = false; if (btn) btn.disabled = false; }
+    }
+    window.saveAspiBank = saveAspiBank;
+    async function sendAspiBankSheet(contractId) {
+        const btn = document.getElementById('aspiBankSheetBtn');
+        if (!btn || btn.disabled) return;
+        btn.disabled = true;
+        try { if (await saveAspiBank(contractId)) await openFoglio(contractId); }
+        finally { btn.disabled = false; }
+    }
+    window.sendAspiBankSheet = sendAspiBankSheet;
+    function _aspiDeliveryNotes(state) {
+        const out = [];
+        const pe = state && state.packEmail;
+        const box = (t) => `<div role="status" style="font-size:12px;background:rgba(255,159,10,.10);border-radius:8px;padding:8px 12px;margin-bottom:12px">${t}</div>`;
+        if (pe && pe.status === 'failed') out.push(box(Number(pe.attempts) >= 5
+            ? 'Email del pacchetto non inviata: tentativi esauriti. Controlla la casella e usa il foglio aggiornato per recuperare la consegna.'
+            : 'Email del pacchetto non inviata. Il sistema riproverà; puoi già consultare i documenti da qui.'));
+        else if (pe && pe.status === 'pending') out.push(box('Pacchetto in attesa di invio. Il sistema lo recupera automaticamente.'));
+        else if (pe && (pe.status === 'uncertain' || pe.status === 'sending')) out.push(box('Email del pacchetto con esito da verificare: controlla la casella prima di rimandarla.'));
+        const who = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+        const rd = (state && state.receiptDelivery) || [];
+        const bad = rd.filter(d => d.status !== 'sent');
+        if (bad.length) out.push(box('Ricevuta: ' + bad.map(d => esc(who(d.who)) + ' — ' + (d.status === 'failed' ? 'non inviata; risalva per riprovare solo a lui' : 'esito da verificare')).join(' · ')));
+        return out.join('');
+    }
     async function sendAspi(contractId) {
+        if (!(await saveAspiBank(contractId))) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
         const sel = document.getElementById('aspiBillKind')?.value || kind;
         // «none» = riaffitto su sola registrazione: si invia, non si fattura
@@ -23991,7 +25619,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {
-                if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
                 return toast('error', j && j.error === 'contratto_pdf_mancante'
                     ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
@@ -24014,7 +25642,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             renderPage();
         } catch (e) {
             console.error(e);
-            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia'; }
             toast('error', 'ASPI: ' + e.message);
         }
     }
@@ -24083,43 +25711,88 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
     // rigenera il fascicolo così anche il PDF dice "Registrato il…".
-    async function markRliRegistered(contractId) {
+    // UNA porta per la registrazione: data, codice, ricevuta. Il server
+    // (/api/fiscal/registra op:'registered') segna il contratto, chiude le
+    // scadenze, archivia la ricevuta e la manda alle parti. Prima c'erano due
+    // bottoni (✓ RLI e 🏛️ Registrazione AdE) che scrivevano campi diversi.
+    function markRliRegistered(contractId) { return openRegistered(contractId); }
+    function openRegistered(contractId) {
+        const c = (S.contracts || []).find(x => x.id === contractId) || {};
         const today = new Date().toISOString().slice(0, 10);
-        const when = await askModal({ title: '✓ RLI registrato', message: 'Data di registrazione presso l\'Agenzia delle Entrate.', value: today, type: 'date', okLabel: 'Registra' });
-        if (!when || !/^\d{4}-\d{2}-\d{2}$/.test(when.trim())) return;
-        try {
-            await db.collection('contracts').doc(contractId).update({ rliRegisteredAt: when.trim() });
-            const dl = await db.collection('deadlines').where('linkedContractId', '==', contractId).get();
-            let closed = 0;
-            for (const d of dl.docs) {
-                const t = String((d.data() || {}).title || '');
-                if (t.indexOf('Registrare RLI') === 0 && (d.data() || {}).status !== 'done') {
-                    await d.ref.update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
-                    closed++;
-                }
-            }
-            const lc = (S.contracts || []).find(x => x.id === contractId);
-            if (lc) lc.rliRegisteredAt = when.trim();
-            toast('success', `✓ RLI registrato il ${when.trim()}${closed ? ' · scadenza chiusa' : ''}`);
-            // rigenera il fascicolo in background (best-effort)
-            try {
-                const idToken = await auth.currentUser.getIdToken();
-                fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {});
-            } catch (_) {}
-            await refresh();
-        } catch (e) { console.error(e); toast('error', 'RLI: ' + e.message); }
+        const has = !!c.registrationReceiptUrl;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
+            <div class="modal-header"><h3 class="modal-title">✓ Contratto registrato</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div class="form-group"><label class="form-label">Data di registrazione</label><input class="form-input" type="date" id="regDate" max="${today}" value="${esc(String(c.rliRegisteredAt || today).slice(0, 10))}"></div>
+                <div class="form-group"><label class="form-label">Codice identificativo del contratto</label><input class="form-input" id="regCode" value="${esc(c.registrationCode || '')}" placeholder="es. TXX26T012345000AB"></div>
+                <div class="form-group"><label class="form-label">Ricevuta (PDF o foto)${has ? ' — già caricata, scegline un\'altra per sostituirla' : ''}</label><input class="form-input" type="file" id="regFile" accept="application/pdf,image/jpeg,image/png"></div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px"><input type="checkbox" id="regNotify" checked> Manda la ricevuta a inquilino, co-conduttori e proprietario</label>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Una volta per file: risalvare con la stessa ricevuta non la rimanda.</div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" id="regSaveBtn" onclick="saveRegistered('${contractId}')">Salva</button>
+            </div>
+        </div></div>`;
     }
+    window.openRegistered = openRegistered;
+    async function saveRegistered(contractId) {
+        const date = (document.getElementById('regDate')?.value || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toast('error', 'Data non valida');
+        const code = (document.getElementById('regCode')?.value || '').trim();
+        const notify = !!document.getElementById('regNotify')?.checked;
+        const f = document.getElementById('regFile')?.files?.[0] || null;
+        if (f && f.size > 3 * 1024 * 1024) return toast('error', 'Ricevuta oltre 3 MB: esporta il PDF dal sito AdE invece della foto');
+        const btnEl = document.getElementById('regSaveBtn');
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Salvo…'; }
+        try {
+            const body = { op: 'registered', contractId, date, code, notify };
+            if (f) {
+                body.base64 = await new Promise((ok, ko) => { const r = new FileReader(); r.onload = () => ok(String(r.result)); r.onerror = () => ko(new Error('lettura file')); r.readAsDataURL(f); });
+                body.contentType = f.type; body.name = f.name;
+            }
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify(body) });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) {
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
+                const why = { bad_date: 'data non valida', future_date: 'data nel futuro', bad_code: 'codice non valido', bad_type: 'serve un PDF, JPG o PNG', bad_file: 'il file non è leggibile', file_too_large: 'file oltre 3 MB' }[j && j.error];
+                return toast('error', 'Registrazione: ' + (why || (j && j.error) || 'non salvata'));
+            }
+            closeModal();
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) Object.assign(lc, { registrationStatus: 'registered', rliRegisteredAt: date, registrationCode: j.registrationCode, registrationReceiptUrl: j.registrationReceiptUrl });
+            (S.deadlines || []).forEach(d => { if (d.linkedContractId === contractId && (d.type === 'contract_registration' || String(d.title || '').indexOf('Registrare RLI') === 0)) d.status = 'done'; });
+            const parts = [`✓ Registrato il ${date}`];
+            if (j.deadlinesClosed) parts.push('scadenza chiusa');
+            if (j.sent && j.sent.length) parts.push(`ricevuta inviata a ${j.sent.length} ${j.sent.length === 1 ? 'persona' : 'persone'}`);
+            else if (j.skipped === 'no_file') parts.push('nessuna ricevuta caricata: alle parti non parte niente');
+            else if (j.skipped === 'already_sent') parts.push('ricevuta già inviata a tutti');
+            const whoIt = (w) => w === 'tenant' ? 'inquilino' : w === 'landlord' ? 'proprietario' : /^co\d+$/.test(w) ? 'co-conduttore ' + (Number(w.slice(2)) + 1) : w;
+            const bad = [];
+            if (j.failed && j.failed.length) bad.push('NON inviata a ' + j.failed.map(whoIt).join(', ') + ' (risalva per riprovare solo a loro)');
+            if (j.uncertain && j.uncertain.length) bad.push('esito incerto per ' + j.uncertain.map(whoIt).join(', ') + ' — verifica prima di rimandare');
+            toast(bad.length ? 'warning' : 'success', parts.concat(bad).join(' · '));
+            try { fetch('/api/fiscal/fascicolo', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) }).catch(() => {}); } catch (_) {}
+            renderPage();
+        } catch (e) {
+            console.error(e);
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = 'Salva'; }
+            toast('error', 'Registrazione: ' + e.message);
+        }
+    }
+    window.saveRegistered = saveRegistered;
     window.markRliRegistered = markRliRegistered;
 
     // 🔗 Share Hub — single place that surfaces every shareable link for a contract
     // and *backfills missing tokens on the fly* so legacy contracts (created before
     // the wizard) also get magic-sign + form links without manual fix-ups.
     async function openShareHub(contractId) {
-        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!auth.currentUser) return;
+        const openingUid = auth.currentUser.uid;
+        const sameSession = () => !!auth.currentUser && auth.currentUser.uid === openingUid;
+        let c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
-        const prop = (S.properties || []).find(p => p.id === c.propertyId);
-        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
-        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
         // I CONTATTI DAL CONTRATTO quando manca il profilo (12/10/2026): un
         // immobile nato da una proposta non ha ownerId, e i bottoni WhatsApp
         // ed email del locatore restavano spenti («Manca il telefono») col
@@ -24131,9 +25804,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!user) return (base.name || base.phone || base.email) ? base : null;
             return { ...user, name: user.name || base.name, phone: user.phone || base.phone, email: user.email || base.email };
         };
-        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
-        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
-
         // Mount a placeholder immediately so the modal is visible while the
         // Firestore backfill is in flight. If a previous closeModal() is still
         // waiting to clear #modals, this paint will be overwritten — so we
@@ -24146,12 +25816,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div>Preparazione link…</div>
             </div></div></div>`;
 
+        // Come readContractPDF: il file firmato viene dal contratto ATTUALE.
+        // Se la lettura fallisce, nessun PDF della cache diventa condivisibile.
+        let contractVerified = false, refreshTimer;
+        try {
+            const snapshot = await Promise.race([
+                db.collection('contracts').doc(contractId).get({ source: 'server' }),
+                new Promise((_, reject) => { refreshTimer = setTimeout(() => reject(new Error('contract_read_timeout')), 12000); })
+            ]);
+            if (!sameSession()) return;
+            if (!snapshot.exists) { closeModal(); return toast('error', 'Contratto non disponibile. Aggiorna l’elenco e riprova.'); }
+            c = { ...snapshot.data(), id: contractId };
+            contractVerified = true;
+        } catch (_) { /* gli altri link mantengono il flusso esistente; il PDF resta non verificato */ }
+        finally { if (refreshTimer) clearTimeout(refreshTimer); }
+        if (!sameSession()) return;
+        const prop = (S.properties || []).find(p => p.id === c.propertyId);
+        const tenantUser = (S.users || []).find(u => u.id === c.tenantId);
+        const landlordUser = prop ? (S.users || []).find(u => u.id === prop.ownerId) : null;
+        const tenant = partyOf(tenantUser, c.tenantName, c.tenantPhone, c.tenantEmail);
+        const landlord = partyOf(landlordUser, c.landlordName, c.landlordPhone, c.landlordEmail);
+
         // I link di firma dal server (/api/sign/links): coniati nel deposito
         // signTokens se mancano, e SOLO quelli che spettano a chi chiede
         // (admin entrambi, il proprietario il suo). Il contratto non li porta.
         let signLinks = {};
         try { signLinks = await fetchSignLinks(contractId); }
         catch (e) { console.warn('[shareHub] sign links unavailable:', e); }
+        if (!sameSession()) return;
 
         // La Scheda: i token sono DERIVATI server-side da HOMIE_SECRET (il
         // browser non può calcolarli) — una POST restituisce entrambi i link.
@@ -24159,18 +25851,61 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let schedaLinks = null;
         try {
             const idToken = await auth.currentUser.getIdToken();
+            if (!sameSession()) return;
             const r = await fetch('/api/profile/link', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
                 body: JSON.stringify({ contractId })
             });
             const j = await r.json().catch(() => null);
+            if (!sameSession()) return;
             if (j && j.ok) schedaLinks = j;
         } catch (e) { console.warn('[shareHub] scheda links unavailable:', e); }
+        if (!sameSession()) return;
 
         const base = window.location.origin;
         // ---- Build the link catalogue ----
         const links = [];
+
+        // signedPdfUrl è la fonte canonica anche per i record legacy, come
+        // readContractPDF(signedOnly). generatedPDF e data URL non si condividono.
+        let signedUrl = '';
+        if (contractVerified && typeof c.signedPdfUrl === 'string') {
+            try {
+                const raw = c.signedPdfUrl.trim();
+                const url = new URL(raw);
+                if (/^https:\/\//i.test(raw) && !/[\u0000-\u0020\u007f]/.test(raw)
+                    && url.protocol === 'https:' && url.hostname && !url.username && !url.password) signedUrl = url.href;
+            } catch (_) { /* collegamento non valido: nessuna alternativa generata */ }
+        }
+        const complete = ['complete', 'completed'].includes(c.signatureStatus) || !!c.fullySignedAt
+            || !!(c.tenantSignature && c.landlordSignature && (Array.isArray(c.coTenants) ? c.coTenants : []).every(co => !co || !co.name || co.signature));
+        const signedNotice = !contractVerified ? 'Il PDF firmato non è verificabile adesso. Controlla la connessione e riapri questo pannello.'
+            : !signedUrl && (complete || c.signedPdfUrl) ? 'Il PDF firmato non è ancora disponibile per la condivisione. Contatta BOOM per verificare il documento.' : '';
+        if (signedUrl) {
+            const tenantMessage = (n) => `Hi ${n}, here is your signed lease for ${prop?.name || 'the apartment'}:\n\n{URL}\n\nPlease keep this copy with your documents.\n\n— BOOM Roma`;
+            const landlordMessage = (n) => `Gentile ${n}, ecco la copia firmata del contratto di locazione di ${prop?.name || 'questo immobile'}:\n\n{URL}\n\nLa conservi insieme ai documenti della locazione.\n\n— BOOM Roma`;
+            [
+                ['tenant', tenant, tenantMessage, 'BOOM · Your signed lease'],
+                ['landlord', landlord, landlordMessage, 'BOOM · Contratto firmato']
+            ].forEach(([audience, target, message, subject]) => links.push({
+                audience, target, icon: '📄', title: 'Contratto firmato',
+                subtitle: 'Copia PDF firmata · apri, copia il link o prepara il messaggio',
+                url: signedUrl, waText: message, emailSubj: subject, emailBody: message
+            }));
+        }
+
+        // The invitation is an ordinary login URL, never an anonymous session.
+        const casaUrl = window.BOOM_TENANT_ACCESS && window.BOOM_TENANT_ACCESS.inviteUrl(c, tenant);
+        if (isAdmin() && casaUrl) {
+            const inviteText = (n) => `Hi ${n}, welcome to your BOOM home space:\n\n{URL}\n\nSign in with ${tenant.email}. First visit? Select “First access / reset password” to choose your password through your email.\n\nPlease pin this message in our WhatsApp chat so you can find your home space whenever you need it. Keep this link throughout your stay. You can see available documents, check recorded payments and request help, even while the remaining contract signatures are being completed.\n\nFor the payments shown in your space, you can use card or Apple Pay where available, or the displayed bank transfer details. Check the recipient and total before confirming.\n\n— BOOM Roma`;
+            links.push({
+                audience: 'tenant', icon: '🏠', title: 'Invita alla dashboard inquilino',
+                subtitle: 'Copia o condividi il link e fissa il messaggio nella chat WhatsApp · accesso con email personale',
+                url: casaUrl, target: tenant, waText: inviteText,
+                emailSubj: 'BOOM · Your home dashboard', emailBody: inviteText
+            });
+        }
 
         // Tenant: magic-sign
         if (!c.tenantSignature && signLinks.tenant) {
@@ -24330,17 +26065,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>
                 <div style="display:flex;gap:6px;margin-bottom:8px">
-                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;font-family:monospace;font-size:10px;padding:6px 8px">
+                    <input type="text" id="${inputId}" class="form-input" readonly value="${esc(lk.url)}" style="flex:1;min-width:0;font-family:monospace;font-size:10px;padding:6px 8px">
                     <button class="btn btn-xs" onclick="(function(){var el=document.getElementById('${inputId}');navigator.clipboard.writeText(el.value).then(()=>{el.style.borderColor='var(--green)';toast('success','Link copiato');setTimeout(()=>el.style.borderColor='',1200);});})()" title="Copia link">📋</button>
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                     ${waUrl
-                        ? `<a href="${waUrl}" target="_blank" class="btn btn-xs btn-success">💬 WhatsApp</a>`
+                        ? `<a href="${esc(waUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-success">💬 WhatsApp</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca il telefono">💬 WA</span>`}
                     ${mailUrl
-                        ? `<a href="${mailUrl}" class="btn btn-xs btn-secondary">📧 Email</a>`
+                        ? `<a href="${esc(mailUrl)}" class="btn btn-xs btn-secondary">📧 Email</a>`
                         : `<span class="btn btn-xs btn-secondary" style="opacity:0.4;cursor:not-allowed" title="Manca l'email">📧 Email</span>`}
-                    <button class="btn btn-xs btn-secondary" onclick="window.open('${lk.url}','_blank')">🔗 Apri</button>
+                    <a href="${esc(lk.url)}" target="_blank" rel="noopener noreferrer" class="btn btn-xs btn-secondary">🔗 Apri</a>
                 </div>
             </div>`;
         };
@@ -24348,22 +26083,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tenantLinks  = links.filter(l => l.audience === 'tenant');
         const landlordLinks = links.filter(l => l.audience === 'landlord');
 
-        const colHtml = (title, who, list) => `<div>
+        const colHtml = (title, who, list) => `<div style="min-width:0">
             <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);margin-bottom:10px;display:flex;align-items:center;gap:6px">
                 ${title} ${who ? `<span style="color:var(--text-muted);letter-spacing:0">· ${esc(who.name || '')}</span>` : ''}
             </div>
-            ${list.length ? list.map((l, i) => cardHtml(l, title.charAt(0) + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
+            ${signedNotice ? `<p role="status" style="font-size:12px;color:var(--text-muted);margin:0 0 12px">${esc(signedNotice)}</p>` : ''}
+            ${list.length ? list.map((l, i) => cardHtml(l, l.audience + '-' + i)).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:14px;text-align:center;border:1px dashed var(--border);border-radius:10px">Nessun link disponibile</div>'}
         </div>`;
 
         const propLabel = prop?.name || 'contratto';
+        if (!sameSession()) return;
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
             <div class="modal-header">
                 <h3 class="modal-title">🔗 Link da condividere — ${esc(propLabel)}</h3>
                 <button class="modal-close" onclick="closeModal()">×</button>
             </div>
             <div class="modal-body">
-                <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Tutti i link sono pronti all'uso. I token mancanti sono stati generati automaticamente. Per ogni link puoi copiare, mandare via WhatsApp o aprire un'email pre-compilata.</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
+                <div style="margin-bottom:14px;font-size:12px;color:var(--text-muted)">Scegli il link e verifica il destinatario. WhatsApp ed email aprono un messaggio da controllare e inviare. L’invito alla dashboard richiede l’account personale del cliente.</div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:18px">
                     ${colHtml('👤 INQUILINO',  tenant,   tenantLinks)}
                     ${colHtml('🏠 LOCATORE',  landlord, landlordLinks)}
                 </div>
@@ -24383,32 +26120,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // funzioni duplicate" è pinnato in tests/scarica.
 
     // ── Mark contract as successfully registered in AdE
-    async function markRegistered(contractId) {
-        const code = await askModal({ title: '🏛️ Registrazione AdE', message: 'Codice di registrazione (lascia vuoto se non lo hai ora).', placeholder: 'es. T7X24V000123000AB' });
-        if (code === null) return; // cancelled
-        try {
-            await db.collection('contracts').doc(contractId).update({
-                registrationStatus: 'registered',
-                registrationCode: code || '',
-                registeredAt: firebase.firestore.FieldValue.serverTimestamp(),
-            });
-            // Close any matching RLI deadline
-            const due = (S.deadlines || []).find(d => d.linkedContractId === contractId && d.type === 'contract_registration' && d.status === 'pending');
-            if (due) await db.collection('deadlines').doc(due.id).update({ status: 'done', completedAt: firebase.firestore.FieldValue.serverTimestamp() });
-            const local = (S.contracts || []).find(c => c.id === contractId);
-            if (local) { local.registrationStatus = 'registered'; local.registrationCode = code || ''; }
-            if (due) { due.status = 'done'; }
-            toast('success', 'Contratto segnato come registrato' + (code ? ` (${code})` : ''));
-            try { if (typeof logActivity === 'function') await logActivity('contract_registered', 'contract', { contractId, registrationCode: code }); } catch {}
-            renderPage();
-        } catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
-    }
+    function markRegistered(contractId) { return openRegistered(contractId); }
     window.markRegistered = markRegistered;
 
     // ── Re-run the activation pipeline (payments + welcome + PDF + RLI + CAF + Pass)
     // Useful when an auto-activation step failed silently (network, mail, signing device)
     async function reactivateContract(contractId) {
-        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, welcome mail, bozza RLI, bozza CAF, Apple Wallet pass.\n\nI passi già eseguiti potrebbero creare duplicati — controlla dopo.')) return;
+        if (!confirm('Ri-eseguire l’onboarding per questo contratto?\n\nVerranno (ri)generati: pagamenti mensili, PDF firmato, bozza RLI, bozza CAF, Apple Wallet pass. La welcome mail parte solo se non è già stata inviata.')) return;
         toast('info', '⚡ Ri-attivazione in corso…');
         try { await activateContract(contractId); }
         catch (e) { console.error(e); toast('error', 'Errore: ' + e.message); }
@@ -26465,25 +28183,14 @@ IBAN: ${l.iban || '-'}`;
     // ==========================================
 
     function boomToolsPage() {
-        // Each tool maps to an existing entrypoint. Anything we don't already
-        // ship is gated behind isAdmin() so we don't expose half-built features.
-        const tools = [
-            { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
-            { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
-            { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
-            { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
-        ];
-
-        const toolGrid = tools.map(t => `
-            <div class="tool-card" onclick="${t.action}" role="button" tabindex="0">
-                <div class="tool-icon">${t.icon}</div>
-                <div class="tool-title">${t.title}</div>
-                <div class="tool-desc">${t.desc}</div>
-                <div class="tool-meta">
-                    ${t.tags.map(tag => `<span class="tool-tag${tag.cls ? ' ' + tag.cls : ''}">${tag.label}</span>`).join('')}
-                </div>
-            </div>
-        `).join('');
+        if (!isAdmin()) return accessDenied();
+        oggiWorkspaceResetUser();
+        const registry = window.BOOM_ACTIONS;
+        const tools = registry?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
+        const selected = oggiQuickContext();
+        const smartLinkTool = registry?.ACTIONS.find(action => action.id === 'tool:smartlink');
+        const specialists = ['tool:msgportali','tool:msgclienti','console:/pfs-command','tool:docparser'].map(id => registry?.ACTIONS.find(action => action.id === id)).filter(Boolean);
+        const actionButton = action => `<button type="button" class="portal-catalog-specialist" onclick="${esc('window[' + JSON.stringify(action.fn) + '](...' + JSON.stringify(action.args) + ')')}"><span aria-hidden="true">${esc(action.icon)}</span><strong>${esc(action.label)}</strong><span aria-hidden="true">↗</span></button>`;
 
         // Group zones by popularity — popular ones get gold treatment up top
         const popular = (ROME_ZONES || []).filter(z => z.popular);
@@ -26493,25 +28200,20 @@ IBAN: ${l.iban || '-'}`;
                  onmouseover="this.style.borderColor='rgba(212,175,55,0.4)'"
                  onmouseout="this.style.borderLeftColor='${isPop ? 'var(--gold)' : 'var(--border-strong)'}';this.style.borderTopColor='var(--border)';this.style.borderRightColor='var(--border)';this.style.borderBottomColor='var(--border)'">
                 <div style="font-size:13px;font-weight:500;letter-spacing:-0.1px">${esc(z.name)}</div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Avg <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:4px;letter-spacing:0.3px;font-variant-numeric:tabular-nums">Media <strong style="color:${isPop ? 'var(--gold)' : 'var(--text-secondary)'};font-weight:500">€${z.avgPrice}</strong>/mese</div>
             </div>
         `;
 
-        return `
-            <div class="dash-hero">
-                <div class="dash-hero-text">
-                    <h1 class="dash-hero-title">BOOM Tools<span style="color:var(--gold)">.</span></h1>
-                    <p class="dash-hero-sub">Console operativa BOOM — generatori messaggi, scraper portali, AI document parsing</p>
-                </div>
-            </div>
-
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin-bottom:24px">
-                ${toolGrid}
-            </div>
-
-            <section class="dash-section">
+        return `<section class="portal-catalog">
+            <header class="page-header"><div><h1 class="page-title">Strumenti</h1><p class="page-subtitle">Gli stessi strumenti della Home, con la loro funzione.</p></div><button type="button" class="btn btn-secondary" onclick="goTo('oggi')">← Home</button></header>
+            ${smartLinkTool ? `<button type="button" class="portal-catalog-tool sl-catalog-feature" onclick="${esc('window[' + JSON.stringify(smartLinkTool.fn) + ']()')}"><span class="portal-catalog-icon" aria-hidden="true">↗</span><span><strong>SmartLink Studio</strong><small>Incolla un annuncio. Importa le foto, scegli la copertina e crea una scheda BOOM da condividere.</small></span><span aria-hidden="true">→</span></button>` : ''}
+            <div class="portal-catalog-context"><span>${selected ? 'Contesto: <strong>' + esc(selected.label) + '</strong>' : 'Nessuna casa o persona selezionata'}</span><button type="button" class="btn btn-secondary btn-sm" onclick="goTo('oggi')">${selected ? 'Cambia contesto' : 'Scegli casa o persona'}</button></div>
+            <div class="portal-catalog-grid">${tools.map(tool => `<button type="button" class="portal-catalog-tool" data-catalog-tool="${esc(tool.id)}" onclick="oggiQuickTool(this.dataset.catalogTool)" ${tool.disabled ? 'disabled' : ''}><span class="portal-catalog-icon" aria-hidden="true">${oggiToolIcon(tool.id.replace('home:', ''))}</span><span><strong>${esc(tool.label)}</strong><small>${esc(tool.disabled ? tool.reason : tool.description)}</small></span><span aria-hidden="true">→</span></button>`).join('')}</div>
+            <section class="portal-catalog-create" aria-label="Nuove registrazioni"><h2>Crea una registrazione</h2><button type="button" class="btn btn-secondary" onclick="openModal('addPayment')">＋ Nuova rata</button><button type="button" class="btn btn-secondary" onclick="openModal('addMaintenance')">＋ Nuovo intervento</button></section>
+            <details class="portal-catalog-extra"><summary>Strumenti specialistici</summary><div class="portal-catalog-specialists">${specialists.map(actionButton).join('')}</div></details>
+            <details class="portal-catalog-extra"><summary>Riferimenti delle zone di Roma</summary><section class="dash-section">
                 <div class="dash-section-head">
-                    <h2 class="dash-section-title">Roma · Zone Reference</h2>
+                    <h2 class="dash-section-title">Roma · Riferimenti delle zone</h2>
                     <span class="dash-section-count">${(ROME_ZONES || []).length}</span>
                 </div>
                 ${popular.length ? `
@@ -26526,14 +28228,288 @@ IBAN: ${l.iban || '-'}`;
                         ${other.map(z => zoneCard(z, false)).join('')}
                     </div>
                 ` : ''}
-            </section>
-        `;
+            </section></details>
+        </section>`;
+    }
+    function openExternalSmartLink() {
+        if (!isAdmin()) return;
+        smartLinkBusy=false;
+        smartLinkClearPhotos();
+        document.getElementById('modals').innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)smartLinkClose()">
+          <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
+            <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
+            <div class="modal-body sl-studio-body">
+              <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Immobiliare.it, Idealista, Subito, Casafari e Casa.it. Il cliente non vedrà la fonte.</p></section>
+              <details class="sl-connection" id="sl_connection">
+                <summary><span class="sl-connection-dot ${document.documentElement.dataset.boomSmartlinkExtension==='1' ? 'is-connected' : ''}" aria-hidden="true"></span>${document.documentElement.dataset.boomSmartlinkExtension==='1' ? 'Chrome collegato · Importazione foto disponibile' : 'Configura Chrome per importare le foto'}<span class="sl-connection-caption">Guida per questo computer</span></summary>
+                <div class="sl-connection-guide"><p>Alcuni siti limitano la lettura dal server. BOOM SmartLink Foto legge l’annuncio nel tuo Chrome e restituisce le immagini allo Studio. Configuralo una volta su ogni computer, nello stesso profilo Chrome che usi per il Portal.</p>
+                <ol><li><a href="/assets/tools/boom-smartlink-foto-1.0.0.zip" download>Scarica BOOM SmartLink Foto · v1.0.0</a>, estrai lo ZIP e conserva la cartella.</li><li>Apri <code>chrome://extensions</code> in Chrome e attiva <strong>Modalità sviluppatore</strong>. <button type="button" class="btn btn-secondary btn-sm" onclick="copyToClipboard('chrome://extensions','Indirizzo copiato')">Copia indirizzo</button></li><li>Premi <strong>Carica estensione non pacchettizzata</strong> e seleziona la cartella <strong>BOOM-SmartLink-Foto</strong> che contiene <code>manifest.json</code>.</li><li>Ricarica il Portal. Qui comparirà <strong>Chrome collegato</strong>. Incolla il link e premi <strong>Importa annuncio e foto</strong>.</li></ol>
+                <p>Usa il tuo account personale BOOM: l’accesso allo Studio deve essere abilitato dal responsabile. Se il sito chiede login o una verifica, apri l’annuncio nello stesso Chrome, completa la richiesta e riprova. Questo collegamento richiede Chrome su computer.</p>
+                <p class="sl-hint">Versione locale da installare con il consenso dell’operatore. Legge gli annunci sui cinque portali supportati e comunica con BOOM; non pubblica schede da sola. I blocchi del sito possono richiedere un tuo intervento.</p></div>
+              </details>
+              <div class="sl-studio-grid">
+                <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
+                <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
+              </div>
+              <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><label class="form-label" for="sl_area_query">Area indicativa sulla mappa</label><div class="sl-inline"><input id="sl_area_query" class="form-input" placeholder="Es. Cipro, Roma" oninput="delete this.dataset.area"><button type="button" class="btn btn-secondary" onclick="smartLinkSearchArea()">Cerca area</button></div><p id="sl_area_status" role="status" class="sl-hint">Scegli una zona, non l’indirizzo esatto.</p><div id="sl_area_results" class="sl-area-results"></div></section>
+              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+            </div>
+            <div class="modal-footer sl-studio-footer"><button class="btn btn-secondary" onclick="smartLinkClose()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM ↗</button></div>
+          </div>
+        </div>`;
+        document.getElementById('sl_source')?.focus();
+    }
+
+    let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
+    function smartLinkClearPhotos() {
+        smartLinkPhotoGeneration++;
+        smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
+        smartLinkPhotoItems = [];
+        smartLinkPhotoPending = Promise.resolve();
+        smartLinkPhotoPreparing = false;
+    }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); closeModal(); }
+
+    function smartLinkSourceChanged() {
+        const source = document.getElementById('sl_source');
+        const canonical = window.BOOM_SMARTLINK.normalizeUrl(source?.value)?.url || '';
+        if (!source || source.dataset.draftSource === canonical) return;
+        source.dataset.draftSource = canonical;
+        ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
+        const area=document.getElementById('sl_area_query'); area.value=''; delete area.dataset.area;
+        document.getElementById('sl_area_status').textContent='Scegli la zona del nuovo annuncio.';
+        document.getElementById('sl_area_results').replaceChildren();
+        document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_result').replaceChildren();
+        const create=document.getElementById('sl_create');
+        create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
+    }
+
+    function smartLinkBrowserRead(sourceUrl) {
+        if (document.documentElement.dataset.boomSmartlinkExtension !== '1') return Promise.resolve(null);
+        return new Promise(resolve => {
+            const requestId=window.crypto.randomUUID();
+            const done=value => { clearTimeout(timer); window.removeEventListener('message',onMessage); resolve(value); };
+            const onMessage=event => {
+                if (event.source===window && event.origin===location.origin && event.data?.type==='BOOM_SMARTLINK_EXTRACT_RESULT' && event.data.requestId===requestId) done(event.data.result?.ok ? event.data.result : null);
+            };
+            const timer=setTimeout(() => done(null),30000);
+            window.addEventListener('message',onMessage);
+            window.postMessage({type:'BOOM_SMARTLINK_EXTRACT',requestId,url:sourceUrl},location.origin);
+        });
+    }
+
+    async function smartLinkExtract() {
+        const raw = document.getElementById('sl_source')?.value || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(raw);
+        const status = document.getElementById('sl_status');
+        if (!source) { status.textContent = 'Incolla il link completo di un annuncio supportato.'; return; }
+        smartLinkClearPhotos(); smartLinkRenderPhotos('Cerco le foto dell’annuncio…');
+        const generation=smartLinkPhotoGeneration;
+        status.textContent = 'Leggo l’annuncio e cerco le foto…';
+        try {
+            const token = await auth.currentUser.getIdToken();
+            let d={ok:true,images:[],data:{}};
+            try {
+                const r = await fetch('/api/smartlink/extract', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ url:source.url }) });
+                const result=await r.json();
+                if (r.ok && result.ok) d=result;
+            } catch { /* Il browser dell'operatore può ancora leggere la fonte. */ }
+            if (generation!==smartLinkPhotoGeneration || window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value)?.url !== source.url) return;
+            if (!d.images?.length) {
+                status.textContent='La fonte limita il server. Provo con il tuo Chrome…';
+                const browserResult=await smartLinkBrowserRead(source.url);
+                if (generation!==smartLinkPhotoGeneration) return;
+                if (browserResult?.images?.length) {
+                    const data={...(browserResult.data || {})};
+                    Object.entries(d.data || {}).forEach(([k,v]) => { if (v) data[k]=v; });
+                    d={...d,images:browserResult.images,data,photoOrigin:'browser'};
+                }
+            }
+            const fields = { title:'sl_title', zone:'sl_zone', price:'sl_price', sqm:'sl_sqm', rooms:'sl_rooms' };
+            Object.keys(fields).forEach(k => { const el = document.getElementById(fields[k]); if (el && !el.value && d.data?.[k]) el.value = d.data[k]; });
+            const candidates=Array.isArray(d.images) ? d.images.slice(0,12) : [];
+            if (!candidates.length) {
+                status.textContent = document.documentElement.dataset.boomSmartlinkExtension==='1' ? 'La fonte ha bloccato anche Chrome. Non creerò una scheda vuota.' : 'La fonte blocca il server. Attiva BOOM SmartLink Foto in Chrome per importare automaticamente le immagini.';
+                if (document.documentElement.dataset.boomSmartlinkExtension!=='1') document.getElementById('sl_connection').open=true;
+                smartLinkRenderPhotos('Foto non disponibili dalla fonte.');
+                return;
+            }
+            status.textContent = (d.photoOrigin === 'radar' ? 'Foto ritrovate nel Radar BOOM. ' : d.photoOrigin === 'browser' ? 'Foto lette dal tuo Chrome. ' : 'Foto trovate nell’annuncio. ') + 'Le importo e le preparo…';
+            smartLinkPhotoPreparing=true;
+            smartLinkPhotoPending=(async () => {
+                let failed=0;
+                for (let i=0;i<candidates.length;i++) {
+                    if (generation!==smartLinkPhotoGeneration) return;
+                    smartLinkRenderPhotos(`Importo foto ${i+1} di ${candidates.length}…`);
+                    try {
+                        const photo=await fetch('/api/smartlink/import-photo', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+token }, body:JSON.stringify({ sourceUrl:source.url, imageUrl:candidates[i] }) });
+                        if (!photo.ok) throw new Error('foto non disponibile');
+                        const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(await photo.blob());
+                        if (generation!==smartLinkPhotoGeneration) return;
+                        smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto annuncio '+(i+1)});
+                    } catch { failed++; }
+                }
+                if (generation!==smartLinkPhotoGeneration) return;
+                smartLinkRenderPhotos(smartLinkPhotoItems.length ? `${smartLinkPhotoItems.length} foto importate. Trascinale per ordinare; la prima è la copertina.${failed ? ' '+failed+' non disponibili.' : ''}` : 'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
+                status.textContent=smartLinkPhotoItems.length ? 'Controlla dati, foto e copertina prima di creare.' : 'Non riesco a caricare le foto da questa fonte. La scheda non può essere pubblicata senza foto.';
+            })().finally(() => { if (generation===smartLinkPhotoGeneration) smartLinkPhotoPreparing=false; });
+            await smartLinkPhotoPending;
+        } catch { status.textContent = 'Lettura non riuscita. Riprova: per pubblicare servono foto importate.'; smartLinkRenderPhotos('Foto non disponibili.'); }
+    }
+
+    function smartLinkRenderPhotos(message) {
+        const box=document.getElementById('sl_photo_preview'), status=document.getElementById('sl_photo_status');
+        if (!box || !status) return;
+        box.replaceChildren();
+        status.textContent=message || (smartLinkPhotoItems.length ? `${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.` : 'Nessuna foto disponibile.');
+        smartLinkPhotoItems.forEach((item,i) => {
+            const card=document.createElement('div'); card.className='sl-photo-card'+(i===0?' is-cover':'');
+            card.draggable=true;
+            card.addEventListener('dragstart',e => { e.dataTransfer.setData('text/plain',String(i)); e.dataTransfer.effectAllowed='move'; });
+            card.addEventListener('dragover',e => { e.preventDefault(); e.dataTransfer.dropEffect='move'; });
+            card.addEventListener('drop',e => { e.preventDefault(); const from=Number(e.dataTransfer.getData('text/plain')); if (Number.isInteger(from) && from>=0 && from<smartLinkPhotoItems.length) smartLinkMovePhoto(from,i); });
+            const img=document.createElement('img'); img.src=item.url; img.alt=`Apri foto ${i+1} a schermo intero`; img.loading='lazy'; img.tabIndex=0; img.setAttribute('role','button');
+            img.addEventListener('click',() => smartLinkViewPhoto(i));
+            img.addEventListener('keydown',e => { if (e.key==='Enter' || e.key===' ') { e.preventDefault(); smartLinkViewPhoto(i); } });
+            const label=document.createElement('span'); label.textContent=i===0?'COPERTINA':String(i+1).padStart(2,'0'); label.className='sl-photo-label';
+            const actions=document.createElement('div'); actions.className='sl-photo-actions';
+            const add=(symbol,title,fn) => { const button=document.createElement('button'); button.type='button'; button.textContent=symbol; button.title=title; button.setAttribute('aria-label',title); button.addEventListener('click',fn); actions.append(button); };
+            if (i>0) add('★','Imposta come copertina',() => smartLinkMovePhoto(i,0));
+            if (i>0) add('←','Sposta prima',() => smartLinkMovePhoto(i,i-1));
+            if (i<smartLinkPhotoItems.length-1) add('→','Sposta dopo',() => smartLinkMovePhoto(i,i+1));
+            add('×','Rimuovi foto '+(i+1),() => { if (smartLinkPhotoPreparing) return; const [removed]=smartLinkPhotoItems.splice(i,1); URL.revokeObjectURL(removed.url); smartLinkRenderPhotos(); });
+            card.append(img,label,actions); box.append(card);
+        });
+    }
+    function smartLinkMovePhoto(from,to) {
+        if (smartLinkPhotoPreparing) return;
+        const [item]=smartLinkPhotoItems.splice(from,1); smartLinkPhotoItems.splice(to,0,item); smartLinkRenderPhotos();
+    }
+    function smartLinkViewPhoto(index) {
+        if (!smartLinkPhotoItems.length) return;
+        document.getElementById('sl_lightbox')?.remove();
+        const overlay=document.createElement('div'); overlay.id='sl_lightbox'; overlay.className='sl-lightbox'; overlay.setAttribute('role','dialog'); overlay.setAttribute('aria-modal','true'); overlay.setAttribute('aria-label','Galleria fotografica');
+        const close=document.createElement('button'); close.type='button'; close.className='sl-lightbox-close'; close.textContent='×'; close.setAttribute('aria-label','Chiudi galleria');
+        const previous=document.createElement('button'); previous.type='button'; previous.textContent='‹'; previous.setAttribute('aria-label','Foto precedente');
+        const image=document.createElement('img'); image.alt='Foto dell’immobile';
+        const next=document.createElement('button'); next.type='button'; next.textContent='›'; next.setAttribute('aria-label','Foto successiva');
+        const count=document.createElement('span'); count.className='sl-lightbox-count';
+        const show=step => { index=(index+step+smartLinkPhotoItems.length)%smartLinkPhotoItems.length; image.src=smartLinkPhotoItems[index].url; image.alt=`Foto ${index+1} di ${smartLinkPhotoItems.length}`; count.textContent=`${index+1} / ${smartLinkPhotoItems.length}`; };
+        close.addEventListener('click',() => overlay.remove()); previous.addEventListener('click',() => show(-1)); next.addEventListener('click',() => show(1));
+        overlay.addEventListener('keydown',e => { if (e.key==='Escape') overlay.remove(); if (e.key==='ArrowLeft') show(-1); if (e.key==='ArrowRight') show(1); });
+        overlay.addEventListener('click',e => { if (e.target===overlay) overlay.remove(); });
+        overlay.append(close,previous,image,next,count); document.body.append(overlay); show(0); close.focus();
+    }
+    function smartLinkPhotoDrop(event) {
+        event.preventDefault(); event.currentTarget.classList.remove('dragging');
+        if (smartLinkBusy) return;
+        smartLinkPhotosChanged(event.dataTransfer.files);
+    }
+    function smartLinkPhotosChanged(selected) {
+        if (smartLinkBusy) return;
+        const files=[...(selected || document.getElementById('sl_photos')?.files || [])];
+        const picker=document.getElementById('sl_photos'); if (picker) picker.value='';
+        if (!files.length) return;
+        if (smartLinkPhotoPreparing) { smartLinkRenderPhotos('Attendi che le foto selezionate siano pronte.'); return; }
+        if (smartLinkPhotoItems.length+files.length>12) { smartLinkRenderPhotos('Puoi inserire al massimo 12 foto.'); return; }
+        const generation=smartLinkPhotoGeneration;
+        const priorCount=smartLinkPhotoItems.length;
+        smartLinkPhotoPreparing=true;
+        smartLinkPhotoPending=(async () => {
+            try {
+                for (let i=0;i<files.length;i++) {
+                    smartLinkRenderPhotos(`Ottimizzo foto ${i+1} di ${files.length}…`);
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(files[i]);
+                    if (generation!==smartLinkPhotoGeneration) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:files[i].name});
+                }
+                smartLinkRenderPhotos();
+            } catch (e) { if (generation===smartLinkPhotoGeneration) { smartLinkPhotoItems.splice(priorCount).forEach(item=>URL.revokeObjectURL(item.url)); smartLinkRenderPhotos(e.message); } }
+            finally { if (generation===smartLinkPhotoGeneration) smartLinkPhotoPreparing=false; }
+        })();
+    }
+
+    async function smartLinkSearchArea() {
+        const q = document.getElementById('sl_area_query')?.value.trim() || '';
+        const status = document.getElementById('sl_area_status');
+        const box = document.getElementById('sl_area_results');
+        if (q.length < 3) { status.textContent = 'Scrivi il nome di una zona di Roma.'; return; }
+        status.textContent = 'Cerco la zona…'; box.replaceChildren();
+        const addArea = candidate => {
+            const button=document.createElement('button'); button.type='button'; button.className='btn btn-sm btn-secondary'; button.textContent=candidate.label;
+            button.addEventListener('click', () => { document.getElementById('sl_area_query').value=candidate.label; document.getElementById('sl_area_query').dataset.area=JSON.stringify(candidate); status.textContent='Area scelta: '+candidate.label+' · il cliente vedrà solo una zona indicativa.'; box.replaceChildren(); });
+            box.append(button);
+        };
+        const query=q.toLocaleLowerCase('it').replace(/[^a-zàèéìòù ]/g,' ').replace(/\s+/g,' ').trim();
+        const known=Object.entries(ZONE_COORDINATES).filter(([name]) => {
+            const label=name.replace(/-/g,' ');
+            return label.includes(query) || query.includes(label);
+        }).slice(0,6);
+        if (known.length) {
+            known.forEach(([name,coords]) => addArea(window.BOOM_SMARTLINK.cleanMap({ ...coords, label:name.split('-').map(part => part[0].toUpperCase()+part.slice(1)).join(' ') + ', Roma' })));
+            status.textContent='Seleziona la zona BOOM.';
+            return;
+        }
+        try {
+            const r = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q) + '&lat=41.9028&lon=12.4964&limit=6&lang=it');
+            const d = await r.json();
+            (d.features || []).forEach(f => {
+                const p=f.properties || {}, co=f.geometry?.coordinates || [];
+                const candidate=window.BOOM_SMARTLINK.cleanMap({ lat:co[1], lng:co[0], label:[p.name,p.city].filter(Boolean).join(', ') });
+                if (!candidate) return;
+                addArea(candidate);
+            });
+            if (!box.childElementCount) status.textContent='Nessuna zona trovata a Roma. Riprova con un altro nome.';
+            else status.textContent='Seleziona un’area tra i risultati.';
+        } catch { status.textContent='Ricerca temporaneamente non disponibile. Puoi creare la scheda senza mappa.'; }
+    }
+
+    async function smartLinkCreate() {
+        const value = k => document.getElementById('sl_' + k)?.value.trim() || '';
+        const source = window.BOOM_SMARTLINK.normalizeUrl(value('source'));
+        if (!source) { toast('error', 'Link non valido', 'Usa un annuncio di Immobiliare.it, Idealista, Subito, Casafari o Casa.it.'); return; }
+        const btn = document.getElementById('sl_create');
+        if (btn.disabled || btn.dataset.created === '1') return;
+        smartLinkBusy=true;
+        document.querySelector('.sl-studio-body').inert=true;
+        btn.disabled = true; btn.textContent = 'Preparo la scheda…';
+        let created = false;
+        try {
+            await smartLinkPhotoPending;
+            const files=[...smartLinkPhotoItems];
+            if (!files.length) throw new Error('Nessuna foto pronta. Importa l’annuncio prima di creare lo SmartLink.');
+            const key=value('key'), images=[];
+            for (let i=0;i<files.length;i++) {
+                btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
+                const ext=files[i].blob.type === 'image/jpeg' ? 'jpg' : 'webp';
+                const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
+                await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                const url=await ref.getDownloadURL();
+                if (!window.BOOM_SMARTLINK.validImageUrl(url,key)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                images.push(url);
+            }
+            const mapRaw=document.getElementById('sl_area_query')?.dataset.area;
+            const map=mapRaw ? window.BOOM_SMARTLINK.cleanMap(JSON.parse(mapRaw)) : null;
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            const d = await r.json();
+            if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
+            created = true;
+            const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
+            document.getElementById('sl_result').classList.remove('is-error');
+            document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
+            toast('success', 'SmartLink BOOM creato');
+        } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
+        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM ↗'; }
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
     // Extract title/price/size/zone/photos from Immobiliare, Idealista, Subito,
-    // Casafari and generic listing pages. Currently unwired (the old SmartLink UI was
-    // removed in the Tools cleanup); kept intact so the Finder can reuse them without
+    // Casafari and generic listing pages. These legacy parsers remain unwired;
+    // SmartLink esterni uses the server-side PFS parser so the Finder can reuse them without
     // re-deriving the regexes. See: openMessageGeneratorClient flow for reuse points.
     // ═══════════════════════════════════════════════════════════════════════════
 
@@ -28726,6 +30702,7 @@ IBAN: ${l.iban || '-'}`;
 
     // Zone coordinates (approx center of each zone)
     const ZONE_COORDINATES = {
+        'cipro': { lat: 41.9075, lng: 12.4475 },
         'salario': { lat: 41.9180, lng: 12.5050 },
         'trieste': { lat: 41.9200, lng: 12.5120 },
         'sallustiano': { lat: 41.9060, lng: 12.4950 },
@@ -30455,6 +32432,15 @@ IBAN: ${l.iban || '-'}`;
     // una lettura dal portal. Il documento non viene ricaricato: alla conferma
     // si lega a ciò che fa nascere. Il frammento sopravvive al giro di login
     // (next = pathname + search + hash).
+    // #aspi=<contractId> → l'id del contratto (ripulito), o '' se non c'è.
+    function aspiSeedFromHash() {
+        const m = /^#?aspi=([^&]+)/.exec(window.location.hash || '');
+        if (!m) return '';
+        let id = '';
+        try { id = decodeURIComponent(m[1]); } catch (_) { id = m[1]; }
+        return String(id).replace(/[^\w.\-]+/g, '').slice(0, 120);
+    }
+    window.aspiSeedFromHash = aspiSeedFromHash;
     function innestoSeedFromHash() {
         const m = /^#?innesto=([^&]+)/.exec(window.location.hash || '');
         if (!m) return false;
@@ -31079,10 +33065,13 @@ IBAN: ${l.iban || '-'}`;
     // dalle Impostazioni e valgono ovunque senza deploy.
 
     async function loadCompanySettings() {
+        const proof = portalSessionProof();
+        if (!portalSessionCurrent(proof)) return;
         try {
             // Mai sul percorso critico del boot (lezione dell'audit Safari):
             // se la lettura si blocca, il portale parte lo stesso con i default.
             const doc = await db.collection('settings').doc('company').get();
+            if (!portalSessionCurrent(proof)) return;
             const remote = doc.exists ? doc.data() : {};
             const merged = window.BOOM_DATAOPS.mergeCompany(COMPANY, remote);
             Object.assign(COMPANY, merged.company);   // COMPANY è const: si muta, non si riassegna
@@ -31183,7 +33172,7 @@ IBAN: ${l.iban || '-'}`;
     // Copia negli appunti con ricaduta su prompt() — su Safari senza HTTPS
     // o senza permesso, navigator.clipboard non c'è e il tasto sembrerebbe
     // rotto invece di dare comunque il link all'operatore.
-    async function copyToClipboard(text, okMsg) {
+    async function copyToClipboard(text, okMsg, fallbackLabel) {
         try {
             if (navigator.clipboard && window.isSecureContext) {
                 await navigator.clipboard.writeText(text);
@@ -31199,7 +33188,7 @@ IBAN: ${l.iban || '-'}`;
             ta.remove();
             if (ok) { toast('success', okMsg || 'Copiato'); return true; }
         } catch (e) {}
-        window.prompt('Copia il link:', text);
+        window.prompt(fallbackLabel || 'Copia il link:', text);
         return false;
     }
 

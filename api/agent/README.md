@@ -83,10 +83,14 @@ Homie does:
   }
   → { id: 'ctr-xyz', status: 'draft', ... }
 
-  Then (after operator opens the contract once to generate the Allegato B PDF):
+  Then stage the approved PDF (<=15 MiB) in BOOM Firebase Storage at
+  signRequests/sr-abc/original.pdf. Use a stable request ID on retries.
+  The custom editor currently accepts unrotated PDFs with MediaBox = CropBox
+  at origin; unsupported geometry returns unsupported_pdf_geometry.
   POST /api/agent/magicsign.create {
+    reqId: 'sr-abc',
     title: 'Contratto Trastevere 4B — Anna B.',
-    pdfUrl: 'https://.../allegato-b.pdf',
+    pdfUrl: 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/signRequests%2Fsr-abc%2Foriginal.pdf?alt=media&token=<upload-token>',
     pageCount: 6,
     fields: [
       { page: 6, kind: 'signature', role: 'tenant',   xr: 0.55, yr: 0.78, wr: 0.30, hr: 0.06 },
@@ -94,12 +98,13 @@ Homie does:
       { page: 6, kind: 'date',      role: 'tenant',   xr: 0.55, yr: 0.74, wr: 0.20, hr: 0.03 },
     ],
     signers: {
-      tenant:   { name: 'Anna Bianchi', email: 'anna@...' },
-      landlord: { name: 'Valentino',    email: 'valentino@...' },
+      tenant:   { name: 'Anna Bianchi', email: 'anna@example.test' },
+      landlord: { name: 'Valentino',    email: 'valentino@example.test' },
     },
     contractId: 'ctr-xyz',
   }
-  → { id: 'sr-abc', signLinks: { tenant: '…', landlord: '…' } }
+  → { id: 'sr-abc', reqId: 'sr-abc', documentVersion: 1, documentHash: '<sha256>',
+      signLinks: { tenant: 'https://www.boomrome.com/sign?csign=sr-abc&role=tenant&t=…', landlord: '…' } }
 
 Homie replies on Telegram:
   "Bozza creata + 2 link di firma pronti. Approva?  /approva ctr-xyz"
@@ -147,7 +152,7 @@ The cockpit's top-bar dot reflects time-since-lastSeenAt:
 ## Idempotency rules
 
 - `execute` is fully idempotent: re-calling on an already-executed action returns the cached result.
-- `magicsign.create` is NOT idempotent — pass a stable `contextHash` via the Homie-action layer instead if you need dedup.
+- `magicsign.create` uses a stable `reqId`: the same PDF and normalized terms return the existing tokens; changed content with that ID returns 409. Upload only to `signRequests/<reqId>/original.pdf` in the configured BOOM bucket (`FIREBASE_STORAGE_BUCKET`, default `boom-property-dashboards.firebasestorage.app`). Name + valid email are mandatory for each role; `userId` alone is insufficient. Creation seals and verifies the PDF but does **not** send signing links. Legacy callers may omit `reqId` only when it can be read from this exact staging path. Unsigned legacy requests require explicit `migrateLegacy:true`; partially signed legacy requests need operator review and are never assigned a retroactive document hash.
 - `leads.create` is NOT idempotent — use `sourceRef` when re-emitting from upstream pollers.
 - `documents.create` IS idempotent when given `externalId` — a repeat call with the same key patches the existing doc instead of creating a duplicate.
 

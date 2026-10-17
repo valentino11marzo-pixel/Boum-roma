@@ -155,7 +155,9 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -172,8 +174,10 @@
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -313,7 +317,7 @@
 
     <section class="form-section" id="form">
         <div class="form-container reveal">
-            <div class="form-header"><h2 class="form-title">Questions First?</h2><p class="form-subtitle">Tell us about your move and we'll reach out within 24 hours</p></div>
+            <div class="form-header"><h2 class="form-title">Questions First?</h2><p class="form-subtitle">Tell us about your move and a person will reply during office hours (Rome time)</p></div>
             <form  data-boomform="pre-arrival">
                 <div class="form-row">
                     <div class="form-group"><label class="form-label">Full Name <span class="required">*</span></label><input type="text" name="name" class="form-input" required placeholder="John Smith"></div>
@@ -373,7 +377,7 @@
     fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){return r.json()}).then(function(j){
       if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
-      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A person replies during office hours (Rome time); messages sent out of hours are answered the next working morning. Urgent? WhatsApp us.</p></div>";
       try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
     }).catch(function(){
       if(btn){btn.disabled=false;btn.textContent=lbl;}

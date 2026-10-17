@@ -16,6 +16,7 @@
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from './homie/_lib.js';
+import { attributionFromReq } from './_attribution.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
     // audit
     ingestedBy: channel,
     sourceRef: channel,
+    attribution: attributionFromReq(req, body),   // primo contatto consentito, mai bloccante
     raw: { calc, quiz: extra, ip },
     createdAt: now,
     ingestedAt: now,

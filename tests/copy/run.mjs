@@ -92,5 +92,26 @@ ok(/canone concordato/i.test(facts), 'il concordato viene dichiarato al modello'
 ok(!/Available from/.test(buildFacts({ zone: 'Prati' })), 'i fatti che non abbiamo non vengono inventati');
 ok(Object.keys(FEATURE_LABELS).every(k => !/[A-Z]/.test(k)), 'le chiavi restano quelle del database');
 
+// Le tre strade per cui la macchina inventava (15/10/2026, sui 27 annunci
+// veri): l'arredo assente diventava «unfurnished», le camere si leggevano dal
+// testo libero `beds`, canone e data finivano nel testo e invecchiavano.
+// La prova sui dati veri e sul handler sta in tests/catalogo/descrizioni.mjs.
+console.log('\n▸ i fatti non inventano (15/10/2026)');
+ok(!/^Rent:|€|1600|Available from|2026-08-01/m.test(facts),
+  'canone e data, anche se arrivano, non passano al modello: stanno altrove nella pagina e cambiano');
+ok(/^Furnishing: fully furnished$/m.test(facts), 'l\'arredo dichiarato («yes») si dice');
+ok(!/Furnishing|unfurnished/i.test(buildFacts({ zone: 'Prati' })),
+  'arredo NON dichiarato → nessuna riga (prima: «unfurnished», su nove case)');
+ok(/^Furnishing: unfurnished$/m.test(buildFacts({ furnished: 'no' })), '«no» è una dichiarazione: «unfurnished» sì');
+ok(/^Bedrooms: 1$/m.test(buildFacts({ bedrooms: 1, beds: '3' })),
+  'le camere dal campo strutturato `bedrooms`, non dal testo libero `beds` (il bilocale «three bedrooms»)');
+ok(/^Bedrooms: 2$/m.test(buildFacts({ bedrooms: 2, beds: 'Living , 1 bedroom with balcony , 1 bedroom' })),
+  '«Capri 2 Bed» resta a 2 camere (il primo numero del testo diceva 1)');
+ok(/^Bedrooms: studio \(no separate bedroom\)$/m.test(buildFacts({ type: 'bilocale', bedrooms: 0 })),
+  'bedrooms 0 = monolocale, la regola del sito, qualunque sia il tipo (decisione del 15/10)');
+const street = buildFacts({ address: 'Via Endertà 9', zone: 'Africano' });
+ok(/^Street: Via Endertà$/m.test(street) && !/Endertà\s*,?\s*9|^Address:/m.test(street),
+  'dell\'indirizzo arriva la via, mai il civico («nomina la via, non il numero»)');
+
 console.log(`\n${fail ? '✗' : '✓'} ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

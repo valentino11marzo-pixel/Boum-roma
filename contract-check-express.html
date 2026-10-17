@@ -53,6 +53,7 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.", "vatID": "IT17322991005", "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
   "image": "https://www.boomrome.com/og-home.png",
@@ -77,6 +78,7 @@
 {
   "@context": "https://schema.org",
   "@type": "Service",
+  "@id": "https://www.boomrome.com/contract-check-express#service",
   "serviceType": "Rental contract review",
   "name": "Contract Check Express — verdict in 24h",
   "description": "Written traffic-light verdict on a Rome rental contract within 24 hours: unfair clauses, missing protections, registration setup. €49, credited in full on Deal Assistance.",
@@ -87,7 +89,7 @@
 }
   </script>
   <script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What exactly do I get for €49?", "acceptedAnswer": {"@type": "Answer", "text": "A written verdict within 24 hours. Green means sign it. Amber means negotiate these points — and we name them. Red means walk away, and we say why. Every flagged clause comes explained in plain English: what it means, and what it costs you if you leave it there."}}, {"@type": "Question", "name": "How is this different from Deal Assistance?", "acceptedAnswer": {"@type": "Answer", "text": "Express is the read. Deal Assistance is the work. Express gives you the verdict, fast. Deal Assistance (€249) adds landlord and ownership verification plus the negotiation done for you — and your €49 is credited in full if you upgrade. Start cheap, escalate only if the verdict says you should."}}, {"@type": "Question", "name": "How is this different from the free contract check?", "acceptedAnswer": {"@type": "Answer", "text": "The free check is a checklist. This is a person. Our free check covers the basics anyone should look at. Express is a human reading your actual contract, clause by clause, with a written verdict in 24 hours — the difference between \"these are the usual traps\" and \"this is what is in your document\"."}}, {"@type": "Question", "name": "My landlord wants an answer tomorrow — is 24h real?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Usually faster. Twenty-four hours from when the contract reaches us, and most come back sooner. Tell us your deadline when you pay and we work to it — the whole product exists because Roman landlords ask for answers by Friday."}}, {"@type": "Question", "name": "What if the contract is in Italian?", "acceptedAnswer": {"@type": "Answer", "text": "They almost always are. That is the point. We read it in Italian — the version that will actually bind you — and report back in clear English. Not a machine translation of the words: a human reading of what the words do."}}]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "What exactly do I get for €49?", "acceptedAnswer": {"@type": "Answer", "text": "A written verdict within 24 hours. Green means sign it. Amber means negotiate these points — and we name them. Red means walk away, and we say why. Every flagged clause comes explained in plain English: what it means, and what it costs you if you leave it there."}}, {"@type": "Question", "name": "How is this different from Deal Assistance?", "acceptedAnswer": {"@type": "Answer", "text": "Express is the read. Deal Assistance is the work. Express gives you the verdict, fast. Deal Assistance (€249) adds landlord and ownership verification plus the negotiation done for you — and your €49 is credited in full if you upgrade. Start cheap, escalate only if the verdict says you should."}}, {"@type": "Question", "name": "How is this different from the free contract check?", "acceptedAnswer": {"@type": "Answer", "text": "The free check is a first pass. This is the full read. Our free check flags the usual traps in what you send. Express is a human reading your actual contract, clause by clause, with a written verdict in 24 hours — the difference between “these are the usual traps” and “this is what is in your document”."}}, {"@type": "Question", "name": "My landlord wants an answer tomorrow — is 24h real?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Usually faster. Twenty-four hours from when the contract reaches us, and most come back sooner. Tell us your deadline when you pay and we work to it — the whole product exists because Roman landlords ask for answers by Friday."}}, {"@type": "Question", "name": "What if the contract is in Italian?", "acceptedAnswer": {"@type": "Answer", "text": "They almost always are. That is the point. We read it in Italian — the version that will actually bind you — and report back in clear English. Not a machine translation of the words: a human reading of what the words do."}}]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
@@ -534,7 +536,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   .breve-d > summary .breve-sot { opacity:.75; } }
 </style>
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/contract-check-express#webpage","url":"https://www.boomrome.com/contract-check-express","name":"Contract Check Express — 24-hour verdict on a Rome lease","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-contract-check-express.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
+{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/contract-check-express#webpage","url":"https://www.boomrome.com/contract-check-express","name":"Contract Check Express — 24-hour verdict on a Rome lease","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"mainEntity":{"@id":"https://www.boomrome.com/contract-check-express#service"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-contract-check-express.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
 </script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -815,7 +817,7 @@ html {
         landlord and ownership verification plus the negotiation done for
         you — and <b>your €49 is credited in full</b> if you upgrade. Start
         cheap, escalate only if the verdict says you should.</p>
-      <div class="prove"><a href="/deal-assistance.html">Deal Assistance — the full service <i>→</i></a></div>
+      <div class="prove"><a href="/deal-assistance">Deal Assistance — the full service <i>→</i></a></div>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="c4">Copy the link to this answer</button></div>
       </div>
@@ -826,13 +828,13 @@ html {
         <span class="r-tema">The free one</span>
         <span class="r-q">How is this different from the free contract check?</span>
         <span class="r-cifra"><span class="r-colpo">1</span>
-          <span class="r-colpo-eti">human, not a checklist</span></span>
+          <span class="r-colpo-eti">full read, not a first pass</span></span>
         <span class="r-azione"><span class="r-apri"></span>
           <span class="r-piu" aria-hidden="true"></span></span>
       </summary>
       <div class="r-corpo">
-      <p class="r-lead">The free check is a <b>checklist</b>.<br>This is a <b>person</b>.</p>
-      <p class="r-det">Our free check covers the basics anyone should look at. Express is
+      <p class="r-lead">The free check is a <b>first pass</b>.<br>This is the <b>full read</b>.</p>
+      <p class="r-det">Our free check flags the usual traps in what you send. Express is
         a human reading <b>your</b> actual contract, clause by clause, with a
         written verdict in 24 hours — the difference between “these are the
         usual traps” and “this is what is in your document”.</p>
@@ -856,7 +858,7 @@ html {
         your stay, a registration that never happens, a deposit that quietly
         becomes “last month's rent”, repairs pushed onto you. All of it looks
         perfectly normal on the page.</p>
-      <div class="prove"><a href="/blog-scam-bible.html">The patterns we see most <i>→</i></a></div>
+      <div class="prove"><a href="/blog-scam-bible">The patterns we see most <i>→</i></a></div>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="c6">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>The arithmetic, on your own rent</span></div>
@@ -886,8 +888,9 @@ html {
           <div class="espo-v" id="espoV1">&euro;1.200</div></div>
         <div class="espo-r">
           <div class="espo-t"><b>An exit clause you cannot use</b>
-            <span>Three months' notice is the standard tenant exit
-              (L. 431/1998 art. 4). A clause written around it is what turns
+            <span>Three months' notice is the tenant exit in the standard-form
+              transitional and student leases (L. 431/1998 art. 4, D.M. 16/01/2017;
+              six months on a 3+2). A clause written around it is what turns
               leaving early into rent you still owe</span></div>
           <div class="espo-v" id="espoV2">&euro;3.600</div></div>
         <div class="espo-r espo-tot">
@@ -934,7 +937,7 @@ html {
             target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
           <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
             rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
-          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          <a href="/terms">Terms &amp; fees §4</a>. Card payments run
           through Stripe with a receipt — never a transfer to an individual.</dd>
       </dl>
       </details>
@@ -1358,7 +1361,7 @@ function paySheet(){
       t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
   if (!can || !dep || !v1 || !v2 || !v3) return;
   var TETTO = 3;   /* L. 392/1978 art. 11 */
-  var PREAV = 3;   /* L. 431/1998 art. 4 */
+  var PREAV = 3;   /* recesso per gravi motivi: tre mesi nei modelli transitorio e studenti (js/contract-pdf.js) */
 
   function eur(n) {
     var i = Math.round(Math.abs(n)).toString(), fuori = '';

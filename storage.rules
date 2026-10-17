@@ -96,6 +96,21 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // SmartLink: only BOOM staff publish approved photos; the customer page reads them.
+    match /smartlinks/{draftKey}/{photoFile} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAdmin()
+                    && draftKey.matches('[0-9a-fA-F-]{36}')
+                    && photoFile.matches('[0-9a-fA-F-]{36}\\.(jpg|jpeg|png|webp)')
+                    && request.resource.size < 8 * 1000 * 1000
+                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow update: if isAdmin()
+                    && request.resource.size < 8 * 1000 * 1000
+                    && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow delete: if isAdmin();
+    }
+
     // Reel video del Media Studio pubblicati come video tour dell'annuncio.
     // Path dedicato perché i video superano il tetto immagini di
     // validUpload(): qui solo video/*, fino a 100 MB. Public read (il tour

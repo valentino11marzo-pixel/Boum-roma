@@ -40,6 +40,23 @@ export default async function handler(req, res) {
 
   let body;
   try { body = await readJson(req); } catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
+  // Inbox is a verbatim operator message, not the legacy notification template.
+  if (body?.message !== undefined) {
+    const m = body.message, to = typeof body.to === 'string' ? body.to.trim() : '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to) || to.length > 254) return res.status(400).json({ ok: false, error: 'bad_recipient' });
+    if (!m || typeof m.subject !== 'string' || !m.subject.trim() || m.subject.length > 200 || /[\r\n]/.test(m.subject)
+        || typeof m.text !== 'string' || !m.text.trim() || m.text.length > 20000) return res.status(400).json({ ok: false, error: 'invalid_message', limits: { subject: 200, text: 20000 } });
+    const escapeText = value => value.replace(/[&<>"]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+    let timer;
+    try {
+      const result = await Promise.race([
+        sendEmail({ to, subject: m.subject, text: m.text, html: shell(para(escapeText(m.text).replace(/\r?\n/g, '<br>')), m.subject) }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('email_timeout')), 12000); }),
+      ]);
+      return res.status(200).json({ ok: true, accepted: true, messageId: result.messageId || null, acceptedAt: new Date().toISOString() });
+    } catch { return res.status(502).json({ ok: false, error: 'send_unconfirmed' }); }
+    finally { clearTimeout(timer); }
+  }
   const to = clip((body || {}).to, 120);
   const p = (body || {}).params || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'bad_recipient' });

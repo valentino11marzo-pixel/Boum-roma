@@ -238,7 +238,9 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -255,8 +257,10 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -691,7 +695,7 @@ function applyApprovalCopy(){
   const sub=document.getElementById('s3-sub'),chip=document.getElementById('s3-instant'),
         lbl=document.getElementById('s3-lbl'),btn=document.getElementById('btn-submit');
   if(sub)sub.firstChild.nodeValue='These are real openings — pick one and we hold it for you.';
-  if(chip){chip.textContent='✓ Confirmed within a few hours';chip.style.color='#FF9F0A';
+  if(chip){chip.textContent='✓ A person confirms it during office hours';chip.style.color='#FF9F0A';
     chip.style.borderColor='rgba(255,159,10,.3)';chip.style.background='rgba(255,159,10,.07)'}
   if(lbl)lbl.textContent='Pick a time — we hold it while we confirm *';
   const bl=btn&&btn.querySelector('.btn-label');
@@ -912,12 +916,14 @@ function showPending(data){
   if(t)t.textContent=fmtRome(data.when)+' (Rome time)';
   const sub=document.querySelector('#pend-body .pend-sub');
   if(sub)sub.innerHTML='That time is <b>held for you</b> while we confirm it.<br>'
-    +'You\'ll get an email as soon as it\'s confirmed — usually within a few hours.';
+    +'You\'ll get an email as soon as it\'s confirmed — a person confirms requests during office hours (Rome time).';
   const mng=document.getElementById('pend-manage');
   if(mng){if(data.manageUrl)mng.href=data.manageUrl;else mng.style.display='none'}
   document.getElementById('conf-body').classList.add('hidden');
   document.getElementById('pend-body').classList.remove('hidden');
   try{boomTrack&&boomTrack('viewing_requested',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
+  // /behavior conta la visita andata a buon fine: js/boom-track.js registra questo evento come conversione
+  try{window.dispatchEvent(new CustomEvent('boom-conversion',{detail:{label:'Viewing requested',section:'book'}}))}catch(e){}
 }
 
 function showConfirmed(data){
@@ -963,6 +969,7 @@ function showConfirmed(data){
   document.getElementById('pend-body').classList.add('hidden');
   document.getElementById('conf-body').classList.remove('hidden');
   try{boomTrack&&boomTrack('viewing_booked',{mode:data.mode,item_id:(ST.listing||{}).id||''})}catch(e){}
+  try{window.dispatchEvent(new CustomEvent('boom-conversion',{detail:{label:'Viewing booked',section:'book'}}))}catch(e){}
 }
 
 function fmtDT(dt){return dt.toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})+' · '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}

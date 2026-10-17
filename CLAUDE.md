@@ -83,6 +83,16 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   ../api/_ai.js           La porta UNICA verso qualunque modello: instrada
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
+  listing-facts.js        Le regole UNICHE dei fatti di un annuncio: camere
+                          (bedroomsOf: `bedrooms` prima, il testo `beds` solo
+                          se manca), arredo (furnishedOf), bollette, compenso.
+                          window.BOOM_FACTS. Gemelle python nel bot e in
+                          design/listing_facts.py.
+  catalogo-correzioni.js  La mappa del catalogo dalla via vera: nomi, fix
+                          provati, fatti incerti, verifiche per l'assistente;
+                          descriptionIssues (= copyIssues) e regenerable.
+                          window.BOOM_CATALOGO_FIX. Vedi "Il catalogo dalla
+                          via vera".
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -107,6 +117,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
+| `catalogo.html` | `/catalogo` (admin, noindex): applica in transazione nomi dalla via e correzioni di `js/catalogo-correzioni.js`, poi fa rigenerare i testi della macchina. Vedi «Il catalogo dalla via vera». |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
 | `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos (`?listing=<id>` deep-link from portal rows 🎨 + photo-lab), prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. **Publish rails**: reel → `videoUrl` (MP4 only, upload `listings/enhanced/<id>/video/` — dedicated storage.rules match, video/* <100MB; apartment-detail renders non-YouTube urls via its `<video>` branch/`exVid()`); AI copy (tipo portale) → `description`/`descriptionIt` with sweep discipline (`descriptionOriginal` preserved, `descriptionSource:'studio:<email>'`); live **pagella** chip mirrors `gradeListing()`; portalPubs status shown to admins (photos/video/description are in the Pubblicista's `coreContent` → updates queue themselves). Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
@@ -118,8 +129,24 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
+| `smartlink.html` | Scheda pubblica BOOM di un annuncio esterno: galleria di foto approvate, dati revisionati, mappa del quartiere e contatto BOOM; la fonte originale resta privata. Il vecchio `s.html` resta per i link storici. |
 | `inventario.html` | L'inventario dal video (`/inventario`, admin/owner/landlord, noindex): filma il giro, i fotogrammi si estraggono sul telefono, Claude propone l'elenco stanza per stanza, l'operatore corregge → PDF (allegato del verbale) + confronto automatico alla riconsegna. Motore: `js/inventario-engine.js`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
+
+### SmartLink annunci esterni (BOOM Tools)
+Il collaudo live del 17/10 ha completato da Chrome URL → 12 foto importate automaticamente → Storage → scheda pubblica senza login. Non prova la generazione dal telefono: il ponte Chrome resta necessario quando la fonte blocca il server; manca ancora il servizio centrale.
+Il logo cliente usa `/boom-logo.svg`, asset pubblico del sito. Il precedente percorso sotto `/design/` dava 404 in produzione perché quella directory è esclusa dal deploy.
+Regressione già coperta da `npm test -- crawl smartlink`: nessun asset runtime può dipendere da un percorso escluso.
+Lo Studio mostra il collegamento Chrome rilevato e una guida di configurazione per ogni computer/profilo. Il pacchetto versionato in `assets/tools/boom-smartlink-foto-1.0.0.zip` contiene solo manifest, ponte, worker e README corrispondenti ai sorgenti; non contiene credenziali. Se il server non trova foto e manca il ponte, la guida si apre. Installare il pacchetto richiede il consenso dell’operatore. Il ruolo attuale resta admin-only: un nuovo collaboratore va abilitato separatamente, senza condividere account.
+Lo Studio è una voce del registro `BOOM_ACTIONS`: si trova nella ricerca globale e in evidenza nella pagina Strumenti. Il catalogo del Portal pubblicato il 16/10 resta basato sul registro condiviso. Test: `npm test -- smartlink actions`.
+L'admin incolla un URL Immobiliare.it, Idealista, Subito, Casafari o Casa.it in `portal.html#boom-tools`; `/api/smartlink/extract` prova a leggere pochi campi dal portale. L'operatore revisiona titolo, canone, zona, m², locali e nota; l'URL originale rimane in `smartlinks` con Firestore admin-only.
+`/api/smartlink/extract` ora restituisce fino a 12 URL di foto dalla pagina, oppure dal record già visto dal Radar se l'URL canonico coincide. Gli URL passano una lista chiusa di CDN per fonte; `/api/smartlink/import-photo` (admin) legge i byte con limiti di dimensione, tipo e redirect. Il Portal ottimizza le foto, le mostra per revisione/riordino e le carica in Storage `smartlinks/{draftKey}/{photoFile}` (lettura pubblica, scrittura admin, 8 MB). `/api/smartlink/create` accetta solo URL Storage dello stesso draft.
+Se la fonte protegge l'annuncio con anti-bot e il Radar non possiede le immagini, lo Studio dichiara il blocco e non permette una scheda senza foto. Il caso reale Immobiliare.it 124483437 risponde 403 DataDome al server: il flusso link→foto dipende dall'accessibilità della fonte o da una precedente lettura del Radar.
+`tools/smartlink-extension/` è il ponte opzionale per Chrome: nella sessione già accessibile dell'operatore apre la URL, legge le foto della galleria dal DOM e restituisce solo dati dell'annuncio al Portal. Il Portal le scarica sempre tramite `/api/smartlink/import-photo` e le copia in Storage; l'estensione non pubblica nulla. La prova locale `/preview` usa lo stesso ponte. Test: `npm test -- smartlink` (parser, bridge, CDN, cache Radar, handler) e collaudo reale in Chrome con l'estensione attiva.
+Lo SmartLink Studio in BOOM Tools usa `js/smartlink-photo.js` anche nella prova locale: accetta le immagini che il browser sa decodificare, le riduce a 2400 px, esporta WebP (JPG di ripiego) e rimuove i metadati prima dell'upload. L'operatore può trascinare per riordinare, scegliere la copertina e rimuovere foto; la pubblicazione richiede almeno una foto anche nel handler server (`photos_required`). Un nuovo URL nello stesso Studio riattiva il pulsante di creazione; Invio o il pulsante avviano una sola importazione. Il link originale resta privato.
+La testata della scheda e della preview locale usa il marchio a cerchi BOOM accanto al nome bianco. La galleria mostra la prima foto come copertina e apre le immagini complete a schermo intero.
+`/api/smartlink/read` usa `publicRecord()` del motore: non espone source URL, nome fonte o identità admin. La pagina cliente mostra galleria, contatto BOOM e mappa di area indicativa; `/api/smartlink/pois` legge luoghi OSM attorno a quell'area, con ripiego sui POI delle tile quando Overpass non risponde.
+La prova locale `node tools/smartlink-preview.mjs` apre `/preview` su `127.0.0.1:4177`: usa lo stesso motore, upload foto solo in memoria e schede che spariscono al riavvio. Il link locale non è pubblico. Test: `npm test -- smartlink` e verifica manuale `/preview` → `/smartlink.html?id=…` su desktop e telefono.
 
 ## Brand & Design
 
@@ -147,6 +174,37 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
+- **Produzione da un ramo ≠ main (14/10/2026)**: quando la produzione gira su
+  un deploy di un ramo (Codex lo fa per i rilasci in corso), il primo merge
+  su main RIAVVIA la produzione da main e toglie dal sito quello che main non
+  ha — successo col merge di #288: per ore la Home connessa e il rilascio
+  tenant sono spariti. Prima di unire su main, guarda cosa serve la
+  produzione (`list_deployments` target production, `githubCommitRef`); se
+  è un altro ramo, prima si integra, poi si unisce. Un deploy già READY non
+  si annulla: si ripara con un nuovo deploy della build integrata.
+- **Una sola porta: `main` (15/10/2026)** — sostituisce la regola sopra. Quel
+  giorno il sito è uscito da QUATTRO sorgenti in undici ore (il merge di #292,
+  tre deploy a mano dal ramo di Codex #290, uno dal ramo Claude della release
+  GEO, due dal ramo della registrazione #294) mentre `main` restava 54 commit
+  dietro il sito. Ogni deploy sostituisce il sito INTERO con l'albero del suo
+  ramo: reggeva solo perché ogni ramo era stato costruito a mano sopra il
+  precedente, e quattro PR aperte partivano da `main` — una sola pubblicata a
+  mano avrebbe tolto dal sito GEO, Portal e registrazione insieme. In più il
+  bot Telegram si aggiorna da `main/bot/`: ciò che non arriva a `main` non
+  arriva sul Mac. Regole: (1) la produzione si pubblica SOLO dal merge su
+  `main` — nessun deploy di produzione a mano da un ramo, di nessuna sessione;
+  un ramo si guarda nella sua Preview; (2) ogni lavoro è un ramo + una PR verso
+  `main`, aggiornata con `main` (merge, mai rebase di un ramo condiviso) e con
+  la CI verde prima del merge; le unisce Valentino, una alla volta, e dopo
+  ogni merge le altre si riaggiornano; (3) su GitHub (le cambia il
+  proprietario): regola su `main` con PR obbligatoria, check obbligatori
+  static-checks · firestore-rules · smoke · full-suite e ramo aggiornato prima
+  del merge, più «Always suggest updating pull request branches»; (4) le regole
+  Firestore/Storage escono già solo da `main` (job deploy-rules).
+  Il 16/10 è successo ancora, due volte in venti minuti, da
+  `codex/smartlink-esterni` (~08:08 UTC @ddbf119, ~08:27 @45621d9): la regola
+  stava solo sul ramo d'integrazione, e chi lavora da `main` non poteva leggerla. Un deploy di produzione da un altro ramo va unito
+  nel ramo che va su `main` PRIMA del merge, o il merge lo toglie dal sito.
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
 - **Function configuration limit (21/09)**: Vercel rejects more than 50
@@ -367,6 +425,28 @@ a "too short" rule would delete *"perfect for Luiss students"* and keep
 signature qualify (`isBoilerplate` / `copyGap` / `copyOrder`, exported +
 tested), and anything overwritten is preserved in `descriptionOriginal`.
 
+**15/10/2026 — solo fatti dichiarati, e la rigenerazione.** Il modello riceve
+le camere da `FACTS.bedroomsOf` (0 → «studio (no separate bedroom)»), l'arredo
+solo se `furnished` è dichiarato (il campo assente diventava «unfurnished» in
+nove case pubbliche), la via senza civico (`streetOf`), mai canone né date; il
+SYSTEM vieta civico e durata del soggiorno. `copyIssues` legge il testo DOPO il
+modello: `price_in_text`, `fee_in_text`, `date_in_text`, `stay_in_text`,
+`address_number`, `furnishing_invented`/`_contradicted`,
+`bedrooms_mismatch`/`_invented`. Sulla strada del bot un testo con problemi
+torna `en:''`, `it:''`, `aiHash:null` con le `issues` (il bot ripiega), e un
+JSON senza `en` stringa non diventa mai testo. **`POST {mode:'regenerate',
+ids ≤6}`** (solo admin stretto o cron: la porta di `/catalogo`) riscrive SOLO i
+testi della macchina (`descriptionSource === 'ai'` con impronta
+`descriptionAiHash` uguale al testo), i vuoti e il template; `lotto12`,
+`portal:…`, `studio:…` sono parole di una persona. Per id
+`{outcome: written|skipped|failed, reason, note, issues?}`; scrive sempre
+l'impronta, `descriptionOriginal` solo se manca, il precedente in
+`descriptionPrevious`, a versione letta. Un testo 'ai' corretto a mano prima
+del 15/10 non ha impronta e resta riscrivibile (finisce in
+`descriptionPrevious`): niente passata a ritroso, per scelta. Lo sweep notturno
+riempie ancora solo vuoti e template. Test: `tests/catalogo/descrizioni.mjs`
+(401 check), `tests/copy`.
+
 ### GET/POST `/api/wizard/health` (cron */10 min)
 Watchdog del bot Telegram sul Mac mini. **LA LEZIONE DEL 7 AGOSTO 2026**: per
 12 giorni launchd ha lanciato `boom_listing_wizard.py` DIRETTAMENTE invece di
@@ -454,6 +534,40 @@ il suo token, `_pending_put`/`_pending_pop`, e un piano sostituito dice
 detto; prezzo e metri dei fields devono comparire nel testo, o la create si
 rifiuta e si chiede.
 Test: `python3 tests/wizard/local_brain.py`.
+
+### Il bot non scrive ciò che nessuno ha detto (`bot/boom_listing_wizard.py`, 15/10/2026)
+Con la regola unica delle camere (`FACTS.bedroomsOf`) e l'arredo detto solo se
+dichiarato, ogni default del bot è diventato un falso pubblico: la casa dettata
+nasceva con `furnished:'no'` («unfurnished»), `beds/bedrooms:0` («monolocale») e
+`availableDate:'Subito'` («Available now»); il passo 6 chiedeva i POSTI LETTO e
+li scriveva nelle CAMERE; la regex gratuita («3 camere a X») scriveva solo
+`beds` e il bot diceva «✅ Fatto» senza cambiare la vetrina. Ora:
+- **un campo non detto non si scrive** (`_listing_doc`, `_nl_listing_fields`):
+  nessuna chiave, mai un default. Il monolocale ha 0 camere perché lo dice il
+  TIPO (il passo 6 si salta); il passo 6 chiede «Camere da letto?» e scrive i
+  due gemelli `bedrooms`+`beds`, come `/modifica letti|camere` (0–10) e la regex.
+- **la casa dettata si ripulisce prima della card** (`_drop_unsaid`): camere,
+  arredo, disponibilità e via che il modello ha riempito ma la frase non
+  nomina si tolgono, la card si rifà su ciò che resta e lo dice. La lezione del
+  28/08 (`_create_invents`) estesa al resto.
+- **il nome viene dalla via** (`_listing_name`, `_street_of`): «Via dei
+  Cappellari 4» → «Cappellari Flat», «Via di S. Anna 16» + 1 camera →
+  «Sant'Anna One-Bed», come i nomi curati di `js/catalogo-correzioni.js` (il
+  test lo verifica su tutte le case del catalogo). Prima «<Tipo> <Zona>», cioè
+  tre «Bilocale Centro». Un nome già usato si DICE, mai un suffisso inventato.
+- **la copia AI entra solo pulita** (`_accept_ai_copy`): `issues` non vuote o
+  `en` vuoto → il testo di riserva (`_template_description`: niente canone,
+  arredo solo se detto, camere dalla regola, firma «Nsqm on floor» per lo
+  sweep); accettata → `descriptionSource:'ai'` + `descriptionAiHash` +
+  `descriptionAt`, così resta rigenerabile finché nessuno la corregge.
+- **date leggibili** (`_now_iso`): `isoformat() + 'Z'` scriveva «…+00:00Z»,
+  che `Date.parse` rifiuta: al 15/10 tredici annunci su ventisette portano una
+  data così (i lettori del sito tagliano i primi 10 caratteri e reggono; il
+  feed no). I documenti esistenti NON sono stati riscritti.
+Test: `python3 tests/wizard/dati_onesti.py` (81 check, handler Telegram veri
+con oggetti finti; parità con `FACTS.bedroomsOf`, `isBoilerplate` e
+`Date.parse` chiesta a Node) — 23 mutazioni prese. I test python del bot non
+sono in `npm test`: si lanciano a mano.
 
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)
 Weekly LISTING QUALITY radar ("pagella"). Grades every AVAILABLE listing
@@ -1034,7 +1148,7 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   (EN/IT da replyLang, org vs owner — al proprietario non si chiede "quante
   persone", firmato Valentino perché qui il mercato È Roma). Il lead
   executive NON è B2B per costruzione: la macchina inquilino resta accesa.
-- Agganci: sitemap (hreflang en/it), llms.txt (sezione BOOM Executive per i
+- Agganci: sitemap (senza hreflang dal 15/10/2026: ?lang= è lo stesso file), llms.txt (sezione BOOM Executive per i
   motori di risposta), index (card For Organisations + footer), rimando
   reciproco `/corporate` ⇄ `/executive` (niente doppioni: la persona su
   /executive, l'azienda su /corporate).
@@ -1103,11 +1217,11 @@ del 1° del mese).
   riepilogo dei lead C (il voto del Brain misura un inquilino).
 - **GEO/SEO**: testa scritta a mano (`manualHead: true` in
   `scripts/seo-config.js`, e `seo-update.js` la salta — altrimenti
-  cancellerebbe l'alternate inglese e i JSON-LD), FAQPage = nove `<summary>`
+  cancellerebbe i JSON-LD), FAQPage = nove `<summary>`
   visibili, WebPage con `speakable` (`.hero .sub`, `.enbref`), due Service
   con identità distinte (gestione · Pacchetto €349 con Offer dal catalogo),
   «in breve» con la riga **cosa non facciamo** (niente subaffitto, niente
-  affitti brevi turistici), sitemap con hreflang it/en, sezione in
+  affitti brevi turistici), sitemap (senza hreflang dal 15/10/2026), sezione in
   `llms.txt`, card social `og-owners.png` generata dal repo
   (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
   rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
@@ -1127,8 +1241,20 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
 1. **Prima locazione — €0 di provvigione**: la provvigione la paga
    l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
    inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
-   attestazione €189, tariffa dell'organizzazione compresa) che apre
-   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   pratica di attestazione €189) che apre cedolare al 10% e IMU −25%, **€89**
+   senza.
+   **La tariffa dell'organizzazione firmataria per l'attestazione è A
+   PARTE**, detta prima per iscritto — come nel Pacchetto (decisione del
+   fondatore, 14/10/2026: la scala diceva «compresa», il Pacchetto «a
+   parte»). `tests/owners` pretende che ogni blocco con €189 o €278 lo dica
+   (pagine, JSON-LD, riga, llms.txt frase per frase, FAQ del sito, WhatsApp,
+   PDF del conto) e vieta «compresa»; la forma breve «pratiche €89–278»
+   (meta, chip, outreach) resta, come le meta del Pacchetto. E niente più
+   «paga SOLO le pratiche» / «only the paperwork» (prezzo esaustivo che non
+   lo è): il test lo vieta anche nell'outreach. Aperto:
+   `ASPI_DEFAULTS.costoAsseverazione` conta ancora €100 come costo BOOM, e
+   chi incassa la tariffa (l'organizzazione dal proprietario, o BOOM che la
+   rifattura) non è scritto nel codice. €278 si scrive PRIMA di €89:
    quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
    `requiresAsseverazione:true` e il default di fatturazione è «completo» —
    presentare €89 come base era il prezzo raro spacciato per normale. Per
@@ -1140,7 +1266,9 @@ prodotto laterale, e le card dei costi partivano dopo sei schermate):
    `tests/owners` li legge da lì.
 2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
    condominio e utenze), registrazione compresa, solo se il nuovo inquilino
-   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   firma; la pratica di attestazione, se serve, €189, più la tariffa
+   dell'organizzazione firmataria.
+   Si scrive SEMPRE col totale
    accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
    (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
    può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,
@@ -1257,6 +1385,30 @@ Test: `node tests/conto/run.mjs` (72 check: invariante su tutte le zone,
 porta, foto, PDF letto, pagine, browser; mutazioni prese: tetto tolto, numero
 del browser accettato, regola tolta, `?canone=` ristampato).
 
+**La revisione UX della sera (13/10)**: un audit in quattro lenti (conversione,
+visivo, accessibilità, testi), ogni rilievo verificato da un secondo agente
+contro i file e in Chromium a 390px; applicati solo quelli confermati.
+/canone: sotto il numero il rimando al PDF (sul telefono il modulo stava 2,6
+schermi più giù), il modulo prima della condivisione, «Apra il conto in PDF»
+(nessuno lo spediva: era «Riceva»), «Copia il link del PDF», chi lo prepara
+accanto al modulo, campi impilati su telefono; una cifra in mente sopra il
+pareggio dice che il libero 4+4 renderebbe di più e porta alla valutazione;
+l'elenco zone non copre più i metri, si chiude con Tab/Escape e dopo la scelta
+il cursore va ai metri; un solo annuncio breve `#rLive` invece di rileggere il
+pannello a ogni tasto. Il passaggio /canone → /owners porta `?z=&mq=` (mai dati
+personali) e /owners li pre-compila. /owners: prima la casa poi i recapiti,
+nessun link a /canone dentro il modulo, `--t4` a .5 e soglia di lettura, barra
+mobile che non raddoppia la banda finale, focus sul «fascicolo aperto». Pacchetto:
+il bottone dice quando si parte e cambia con la spunta, la tariffa
+dell'organizzazione anche nel foglio di pagamento, errore sotto il campo
+sbagliato, banner cookie (compatto) che si alza sopra la barra di pagamento
+(`html.pb-on`). La grazie del Pacchetto è tutta in italiano con le quattro tappe
+dell'email (`service-checkout` porta `&start=1|0`). Condiviso
+(`css/boom-2026.css`, 13 pagine): menu aperto sotto la nav (X visibile), menu
+chiuso fuori dal Tab, numeri di telefono interi, bersagli da 44px, piede
+legale sopra 4,5:1. Striscia di famiglia: «Pacchetto concordato» come menu e
+piede, voce attiva centrata. Test: `tests/conto` 114 check (mutazioni prese).
+
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
 pages). Server-side catalog decides price/copy — the client only names the
@@ -1309,6 +1461,15 @@ dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
 `og-meteo.png`, headless_shell 1200×630). Test: `node tests/scalo/run.mjs`.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
+**13/10 — stesso importo, anche al secondo tentativo.** `_checkout.js`
+congela `paymentTerms` in centesimi all'accettazione (add-on inclusi);
+submit/pay/lookup e il riepilogo usano quella foto. Checkout fallito non
+converte; errori di lettura del lucchetto sospendono accettazione e ripresa.
+**14/10:** riacquisizione condizionata per tutti i mesi; rilascio/rollback non
+cancellano il nuovo titolare. `_payment-session.js` persiste il tentativo e
+riusa la chiave Stripe: una sessione pagata o incerta non ne apre una seconda.
+Prove: `pacheckout`, `palockrecovery` (concorrenza e mutazioni), `paconsenso`.
+
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
@@ -1809,6 +1970,25 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Rilancio area casa, 13/10:** invito dal Share Hub con istruzione di fissare
+  il messaggio in chat; il cliente copia un link ordinario, sempre autenticato.
+  «Il tuo link e gli avvisi» legge le notifiche personali già esistenti tramite
+  `api/tenant/notifications`: solo destinatario verificato (o anteprima admin),
+  testo escapato, fino a 50, errore distinto dall’assenza. Nessun auto-invio nuovo
+  e nessun testo di notifica decide se una rata sia pagabile. Test `tenantworkspace`
+  e `tenantworkspaceui`; suite di accesso, pagamenti e rules per il rilascio.
+
+- **Archivio e richieste tenant, 05/10:** `/api/tenant/documents` legge l’archivio del cliente/contratto, anche in bozza; HTTPS, titolarità e condivisione esplicita, limite dichiarato. Nessuna condivisione implicita dal solo immobile.
+  `/api/tenant/maintenance` salva e modifica richieste proprie con Bearer, ID ripetibile e confronto atomico delle versioni di ticket/contratto. Stati `open`/`urgent` coerenti col portale; costi, assegnazioni e risoluzioni non vengono dal cliente.
+  `js/tenant-workspace-engine.js` centralizza i filtri; `tenant-workspace-ui.js` conserva bozze e richiesta incerta fra ridisegni/ricariche, ricerca i file e distingue errore da vuoto. Rules impediscono al client di contraffare i campi del flusso server.
+  Inoltro ai fornitori **non implementato né attivo**: destinatari e contenuto attendono conferma; nessuna chiamata anonima a `/api/agent/notify`, nessun nuovo scheduler. Le richieste compaiono nella manutenzione esistente con disponibilità e revisione.
+  Lancio limitato a carta/Apple Pay/bonifico: rimossa l’offerta di nuovi mandati SEPA, conservati stato e revoca di quelli già attivi. Prove: `tenantworkspace`, `tenantworkspaceui`, `tenantworkspacemutations`, `tenantpayments`.
+  La firma non viene chiamata «contratto attivo»: la decorrenza non prova consegna delle chiavi. La rotta richiede `verbaleConsegna` con data passata e file HTTPS; il verbale è apribile dai documenti. Prove `tenantpayments` e `scalo`.
+- **Lancio tenant, 05/10:** Share Hub include l’invito alla dashboard per il profilo tenant collegato, con URL di login senza email/token e messaggi da inviare manualmente. Nessuna sessione anonima e nessuna modifica account implicita.
+  `/login` spiega il primo accesso via recupero password, conserva la casa nel ritorno dall’email, distingue errori rete da richiesta accettata e non redirige sessioni anonime.
+  `js/tenant-access-engine.js` sceglie il contratto corrente prima dei futuri, preserva la scelta esplicita e il contratto del pagamento di ritorno; `/casa` permette di cambiare casa/periodo fra i propri contratti.
+  Lettura contratto fallita o casa non associata mostrano recupero/assistenza, mai una dashboard vuota spacciata per pronta. Limite 50 contratti dichiarato; UID verificato anche nel controller, oltre alle regole Firestore.
+  Ritorni annullamento carta e mandato SEPA conservano il contratto. Prove: `tenantaccess`, `tenantpayments`, `paymentlinks`, `sdd`; nessun pagamento o invio reale nelle suite.
 - **Confronto UX con Claude, 18/09:** `/casa` permette di segnalare il bonifico già eseguito e annullare una segnalazione erronea. `api/payments/report` ammette solo il titolare tenant; legge la versione e salva solo il flag con CAS. Mai `paid` dal client, admin preview esclusa, stato riletto dal server anche dopo errori.
   `payment_reported` ora ferma checkout autenticato, link operatore/pubblico e nuove selezioni del collector SDD; restano fuori garanzia sessioni Stripe già aperte e gare tra canali avviate prima del riscontro.
   Ricevute archiviate raggiungibili da `receiptDocId`, con ID rata verificato e URL HTTPS; nuove archiviazioni espongono il file sulla rata senza sostituire ricevute Stripe. Nessun PDF o associazione inventati.
@@ -2284,6 +2464,11 @@ Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
 PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
 
 ### Journey consapevole (contesto nel `_run.js`)
+**14/10:** T+3 richiede `verbaleConsegna.at` valido/non futuro e URL HTTPS,
+salvati dal flusso verbale solo dopo firme e PDF; parte 3–6 giorni dopo la consegna.
+La sola decorrenza non prova ingresso: T-30/T-1 la dichiarano prevista, con
+appuntamento da concordare. Step/flag, prezzi e regole upsell conservati.
+Prove `journey`: runner reale con IO in memoria, nessun invio, due mutazioni.
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
 invece del generico "se manca qualcosa"; con rate scadute (`late`, una
@@ -2301,7 +2486,61 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**15/10 — posta nel Portal:** Home → «Cerca nelle email» legge la casella configurata
+con `api/mailbox/query`, solo admin: ricerca esplicita, pagine da 20 e testo nel lettore
+mobile. Gmail usa Tutti i messaggi (anche inviati/archiviati, esclusi Spam/Cestino);
+ripiego INBOX dichiarato. Riferimenti firmati per account/utente/UIDVALIDITY, testo
+limitato a 256 KiB, nessun allegato scaricato, flag letto, importazione, invio o AI.
+Ricerca: le copie archivio non coprono più i record aggiornati; le letture tardive
+non annullano gli snapshot. Nuova sessione azzera l'inattività precedente e il lettore
+posta. Prove `mailbox`, `mailboxui`, `searchui`, `portalsessionui` (incluse mutazioni).
+**Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
+e note operative restano nel repository. Verificato il problema con HTTP 200
+sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.
+Il collaudo del nuovo deploy deve confermare 404 per quei documenti.
+**14/10 — affidabilità e fonti:** cambio account e letture tardive isolati per sessione;
+fonti contratti/interventi/firme con errore esplicito e recupero limitato. Il refresh
+non annuncia successo parziale. Ripristinate azioni Interventi e metadati Regole.
+Home → Fonti → «Verifica collegamenti» legge metadati; Inbox → «Importa email recenti»
+legge solo la conversazione scelta (3 giorni, massimo 8), senza AI né invii.
+Il battito WhatsApp non prova importazione completa. Test `portalsessionui`,
+`mailsource`, `mailsourceui`, `maintenanceactions`; bozze e sessioni preservate.
+L'avviso di fonte indisponibile sta sopra la shell, non tra le colonne: prima
+restringeva ogni schermata fino a renderla inutilizzabile sul telefono. `misura`
+verifica tutte le sezioni con errore presente e successivo recupero, da 375 a 1440 px.
 Un giro solo, otto interventi, 33 suite verdi:
+- **Home e navigazione unica (14/10/2026):** sei destinazioni principali, tutti i 38
+  handler conservati nel menu; quattro tab mobile e Menu. Strumenti Home e catalogo
+  leggono `BOOM_ACTIONS.homeTools`, con lo stesso contesto. «Incassi» apre la lista;
+  «Nuova rata» resta un'azione esplicita. Lavoro da seguire visibile subito; ricerche
+  e filtri precedono i riepiloghi in Immobili/Contratti/Interventi. Nessuna nuova AI.
+  Prove `portalnavigationui`, `portalworkspaceui`, `oggiquicktoolsui`, `actions`.
+- **Inbox → seguito operativo (14/10/2026):** «Prendi in carico» legge l'ultimo
+  ingresso persistito e riusa il motore seguiti; fonte/caso ambiguo richiede scelta.
+  Stesso evento non duplica né riapre un caso concluso; nuovo evento può crearne uno.
+  Conferma/chiusura vincolate alla versione conversazione e, per presa manuale,
+  rilettura messaggi dopo commit: un ingresso concorrente richiede nuova verifica.
+  Prove `inboxtakecharge`, `inboxtakechargeui`, `inboxtakechargeraces`, `seguito`.
+  `portaljourneyui` prova Home→casa→Inbox→conferma nella stessa sessione, con IO demo.
+- **Spazio ai messaggi su mobile (14/10/2026):** contatto, azioni e seguito occupavano
+  quasi tutta la conversazione. «Prossimo passo e dettagli» li raccoglie in un pannello
+  espandibile con sintesi dello stato; apertura conservata nello stesso thread/sessione.
+  Timeline di almeno 160px senza tastiera, compositore e bozza preservati. Prove
+  `portaljourneyui`, `portalworkspaceui`, `mobileui`, `inboxtakechargeui`, `inboxconnected`.
+- **Comunicazioni nel contesto (14/10/2026):** da home/fascicolo/contratto si apre
+  Inbox per ID tipizzato; `inbox-context-engine` accetta solo riferimenti certi.
+  Letture mirate anche senza Oggi già caricata; tetti e riferimenti mancanti sono
+  dichiarati. Snapshot più recenti e cambi di associazione prevalgono sulle risposte lente.
+  Email Inbox usa `message:{subject,text}` fino a SMTP, senza il vecchio template vuoto;
+  doppio click protetto, recupero del solo storico senza reinvio. Apertura ≠ risposta.
+  Prove `inboxconnected`, `inboxleadui`; Gmail/HOMIE completi non sono implicati.
+- **Portal da telefono (14/10/2026):** Persone mette ricerca/lista prima dei riepiloghi.
+  Inbox passa da lista a conversazione, con ritorno, bozza per thread, focus e selezione
+  preservati anche dopo aggiornamento lazy o realtime. Compositore raggiungibile con
+  tastiera; desktop conserva due colonne. Contratti distingue Bozza/Scaduto/Terminato
+  e ricerca insieme ai filtri; manutenzioni urgenti precedono le normali senza mutare S.
+  Ricerca globale Persone apre `viewUser`, funzione reale. Prove `portalworkspaceui`,
+  `mobileui`, `searchui`, `segretariafreshui`, `finish`; tastiera simulata via VisualViewport.
 - **`POST /api/notify/send`** — il ponte email del portal. `sendBoomEmail()`
   (stessa firma, 16 chiamanti intatti) ora POSTa qui con Bearer admin/owner/
   landlord; il server veste il vecchio template "notification" nel design
@@ -2371,6 +2610,68 @@ Un giro solo, otto interventi, 33 suite verdi:
   Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
   caricato la pagina ricade sulla dashboard — mai una schermata vuota.
   Test: `node tests/oggi/run.mjs` (41 check).
+- **Oggi operativa (12/10/2026):** la home admin apre ricerca contestuale, coda
+  esistente e agenda visite di sette giorni Roma; messaggio e Segreteria restano
+  montati in pannelli richiudibili. Ricerca riusa Prontuario/handleSearch e filtra
+  il tipo prima del limite; nessuna preselezione né invio o AI in lettura.
+  Visite/proposte espongono errori e limiti senza svuotare la copia precedente;
+  aggiornamenti regionali conservano bozza, ricerca e pannelli aperti.
+  `oggi-workspace-engine` distingue proposte/conferme e alimenta anche il prefilling
+  delle visite. Prove: `oggiworkspace`, `oggihomeui` e regressioni Segreteria.
+- **Oggi collegata (12/10/2026):** il briefing espone tre decisioni dei seguiti
+  esistenti; la revisione resta una lettura e le proposte non approvate non
+  ereditano il badge Confermato. La barra collega record per ID tipizzati,
+  incluse persone/contratti/case; omonimie e casi ambigui restano separati.
+  `phone:<id>` apre `/chiamate?call=<id>`: lettura admin esatta anche oltre le
+  ultime 120, audio e trascrizione salvata con limiti dichiarati, nessuna AI.
+  Suite/guide riusano il Prontuario. Prove `oggiworkspace`, `oggihomeui`,
+  `phoneui`; `propertyload` include il vero helper visite estratto.
+- **Oggi senza doppioni (12/10/2026):** una sola area di lavoro filtra decisioni,
+  richieste da preparare e seguiti in corso usando i due motori esistenti; tolti
+  il briefing duplicato e i contatori ripetuti. Fonti e stato sono apribili dal caso.
+  Aprire una richiesta legge soltanto: generazione nel dialogo, su comando esplicito.
+  Errori di aggiornamento visibili anche a dettagli chiusi; ritorno da fascicolo o
+  revisione ritrova caso/filtro, ricerca e selezione. Nessuna nuova lettura o AI.
+  Prove: `oggihomeui`, `propertyoggiui`, `segretarialiveui`, `segretariafreshui`,
+  `seguitoui`, `segretariapropostaui`; anteprima con fascicolo reale e dati sintetici.
+- **Messaggio e seguito (12/10/2026):** «Scrivi e organizza» apre i modelli
+  editoriali di `oggi-workspace-engine` nello stesso dialogo del seguito. Solo
+  l’immobile verificato entra nel testo; fonte, scadenza interna e note restano fuori.
+  Copia esplicita con helper Safari, nessun invio/AI e nessun testo salvato dal confirm.
+  Bozza preservata nei conflitti; cambio pratica, fonte o contesto impone ricontrollo.
+  Prove `oggimessageui`, `hometrial`: renderer e updateFollowUp reali, IO dimostrativo
+  solo in memoria, con verifica per mutazione della guardia sull’ultimo messaggio.
+- **Prontuario / strumenti home (13/10/2026):** `homeTools(record, state, year)`
+  descrive sei ingressi reali: cliente, inventario, documento, manutenzione,
+  pagamento e verbale. Riusa il registro; un contesto assente apre il selettore,
+  un ID obsoleto/duplicato non produce azioni. Collegamenti solo per ID univoci.
+  Prefill limitato ai campi dei modali; pagamento disabilitato su contratto non attivo.
+  Nessuna lettura, scrittura o AI nel motore; permessi al chiamante. Prova `actions`
+  con mutazioni e boot reale del selettore Verbale, anche con un solo contratto.
+- **Home strumenti connessi (13/10/2026):** sedici ingressi fissi precedono i
+  riepiloghi richiudibili; il contesto scelto resta visibile e si può togliere.
+  `homeTools` riusa le azioni reali; `homeNewClient` conserva il wizard separato.
+  WhatsApp/email aprono Inbox filtrata per canale e, per persona/cliente, ID
+  verificato: nessuna selezione automatica, scrittura o AI all’apertura.
+  Le relazioni mancanti non vengono indovinate; il filtro si toglie esplicitamente.
+  Prove: `actions`, `oggiquicktoolsui`, `oggihomeui`, `oggideskui`, Inbox.
+- **Ricerca e fonti (13/10/2026):** `portal-search-engine` riunisce 15 fonti già
+  presenti in `S`, normalizza parole/telefoni/accenti e conserva gli ID tipizzati.
+  Header, home e selettori condividono il motore; risultati a pagine e collegamenti
+  espliciti, mai identità dedotte dal nome. `portal-search-archive` estende una fonte
+  di 200 record su click (Firestore, zero AI), con limiti, errori e sessione visibili.
+  I risultati dell’archivio vengono verificati sul record canonico prima dell’apertura.
+  WhatsApp completo, posta completa e contenuto PDF restano fuori dalla ricerca;
+  Inbox accessibile solo dai collegamenti già salvati. Prove `portalsearch/searcharchive/searchui`.
+- **Home per risultato (13/10/2026):** `oggi-desk-engine` raggruppa per riferimenti
+  univoci i segnali esistenti in cinque percorsi, con apertura del passo successivo.
+  Proposte vecchie, date mancanti e collegamenti incerti restano nelle verifiche;
+  una nuova proposta valida non eredita l’attesa futura del seguito precedente.
+  urgenze, nuove richieste non collegate ed errori di lettura rimangono visibili.
+  Coda originale apribile/filtrabile, senza chiusure, invii o AI in lettura.
+  Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
+  senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
+  `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header
@@ -2538,6 +2839,13 @@ checklist commercialista si spunta da sola) e lo invia IN ALLEGATO:
 conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
+
+**13/10 — una firma dichiarata deve comparire sul PDF.** Nomi vuoti e
+immagini di firma vuote/corrotte bloccano il verbale prima di Storage,
+archivio e notifiche; una foto accessoria resta best-effort. La pagina
+chiede di correggere il nome o riapporre la firma, senza suggerire un retry
+cieco. Il decoder PDF è reale nei test `verbale`; `verbalemutations`
+ripristina i due difetti e deve far cadere le verifiche.
 
 ### L'inventario dal video (`POST /api/contracts/inventario` + `/inventario`)
 Il verbale rinviava agli arredi con UNA riga: *"completa degli arredi e delle
@@ -2903,6 +3211,48 @@ presente sul profilo usciva «MANCANTE».
   `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
   da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
   deterministici (`itNum`, la lezione small-ICU).
+- **UN pacchetto, non tre email (15/10/2026)**. Alla firma completa
+  l'operatore riceveva «✓ firmato da tutti», il Fascicolo completo e il
+  Foglio: tre email che si ripetevano. Ora parte SOLO il **Pacchetto
+  registrazione** (`sendCafDossier`, oggetto `📑 Pacchetto registrazione —
+  <immobile> — <conduttore> — <decorrenza>`) con le righe del foglio, gli
+  allegati e il bottone **Controlla e invia a <referente>** →
+  `/portal#aspi=<contractId>` (`aspiSeedFromHash` apre il pannello ASPI dopo
+  il login). Il Foglio resta su ✉ Foglio; la milestone parte solo se il
+  finalize non è riuscito. **I documenti d'identità vengono anche dai
+  PROFILI** (`api/sign/_iddocs.js`: `users/<uid>` e `landlords/<id>`, stesso
+  URL = un file) in pacchetto, pack, foglio e iter ASPI — il proprietario con
+  tre case carica la carta d'identità una volta. **«Registrato» è un passo
+  solo** (`POST /api/fiscal/registra {op:'registered', date, code?, base64?}`
+  → `api/fiscal/_ricevuta.js`): stato, codice, scadenze RLI chiuse, ricevuta
+  su Storage e nell'archivio di ogni parte (`registration-receipt_<id>_<parte>`)
+  e in allegato a conduttori (EN) e proprietario (IT) UNA volta per file
+  (`resend:true` per rimandare). Data futura o «PDF» senza `%PDF` → 400 senza
+  scritture. Il verbale di consegna porta in allegato anche l'**inventario**
+  (solo da firebasestorage). Test: `node tests/registrazione/run.mjs`.
+- **Consegna integrata e recupero atomico (15/10/2026, Codex)**.
+  Prima delle email, finalizzazione e intento `pending` sono un checkpoint
+  atomico. Il claim versionato invia un solo pacchetto; il cron reale
+  recupera `pending` e `failed`, mai `sending`/`uncertain`, massimo 5 tentativi.
+  Ricevute deduplicate per impronta del file e destinatario anche con richieste
+  concorrenti. Il pannello salva IBAN tributi e intestatario espliciti con
+  `save-bank` admin; «Mandami il foglio aggiornato» rilegge i dati salvati.
+  Suite `registrationdelivery` (+ mutazioni), `registrationbank` e relativa UI.
+- **Esiti durevoli, mai un invio cieco (15/10/2026, revisione Codex)**.
+  Pacchetto: `registrationPackEmail {status, attempts, at, error}` —
+  'sending' PRIMA dell'invio, poi 'sent' | 'failed' (SMTP 5xx/EAUTH/
+  ECONNECTION: nulla è partito) | 'uncertain' (timeout, socket caduta: può
+  essere arrivato) via `sendOutcome`. La milestone parte quando il pacchetto
+  NON è partito; il reminder-cron rimanda SOLO i 'failed' (max 1/run, tetto
+  5) con `retryRegistrationPackage` — solo il pacchetto, niente benvenuto né
+  finalize. Ricevuta: registro `registrationReceiptDelivery` per (file,
+  destinatario): chi ha 'sent' non la riceve MAI due volte (nemmeno con
+  `resend`), i 'failed' ripartono al risalvataggio, gli 'uncertain' solo con
+  `resend`. Il manifesto del pacchetto dice cosa NON è allegato e perché
+  (tutti i documenti d'identità, nessun taglio a 8). Conto del canone
+  (`landlordIban`) e conto addebito tributi (`rliDebitIban/Holder`, campo
+  dell'operatore) sono due righe distinte: nessuno si deduce dall'altro.
+  Test: `tests/notify` §1c-bis, `tests/registrazione` §3b–3d.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
@@ -2993,6 +3343,16 @@ idonei» di default. In console PA la riga mostra ora **📄 Contratto (PDF, non
 firmato)** finché le firme non sono complete: il `generatedPDF` esisteva
 dalla conversione, ma si apriva solo dal portal.
 
+**IL DOPPIO ONBOARDING (15/10/2026)**. La conversione scrive
+`paymentsGenerated:false, welcomeEmailSent:false` e il server non li
+aggiornava mai: dopo una firma completa il portal mostrava «🚀 Onboarding
+incompleto» e il «🚀 Ri-attiva onboarding» rimandava un secondo benvenuto a
+chi l'aveva già ricevuto dal finalize. Ora `magic-sign/submit` timbra
+`paymentsGenerated`/`paymentsCount` quando il calendario c'è, `_finalize`
+timbra `welcomeEmailSent` solo a benvenuto riuscito (un false non cancella un
+true), e `activateContract` non rimanda la welcome se è già partita. Test:
+`tests/notify` (§1 e §1d), `tests/firma`.
+
 ### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
 Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
 accordo 27/07/2023 prot. RA/2023/0044852 —
@@ -3038,6 +3398,20 @@ locato», «E'» → «È», «dei presente» → «del presente»).
   `pDur`), Foglio/Fascicolo/verbale/inventario (a parole), Pack e iter ASPI
   (nessuna «attestazione esigenza» chiesta o segnata mancante).
 
+**IL 4+4 NON È UN TRANSITORIO** (15/10/2026). La console proponeva «4+4
+Residential» e `contract-pdf.js` mandava «tutto il resto» all'Allegato B:
+un contratto a canone libero usciva impaginato come transitorio. In più il
+riferimento di legge della proposta (`lawRef`) era scritto fisso «uso
+transitorio · art.5 c.1» anche su studenti e 3+2, e il cliente firmava la
+proposta con la legge sbagliata. Ora `modelOfLease`/`modelOfContract`
+(js/mandato-engine.js) riconoscono `'4+4'`; `contract-pdf.build` lo RIFIUTA
+(`err.code='no_template'`, prima di jsPDF) e `convert` risponde 409
+`no_template` senza scrivere nulla (il contratto automatico avvisa con
+`contract.no_template`); la console non offre più il 4+4. `lawRefOf(lease)`
+deriva la legge dal tipo in console, create, lookup (anche sulle proposte
+vecchie) ed email. Il 4+4 tornerà quando esiste un modello. Test:
+`tests/firma` (in coda) e `tests/money` §7b.
+
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
 Allegato B` — ma delle TRE strade che creano un contratto, due non
@@ -3068,6 +3442,11 @@ Test: `node tests/firma/run.mjs` (32 check) + `node tests/firma/ui.mjs`
 nessuno dica il tipo** nasce comunque Allegato C.
 
 ### 🖊 Firma ora (riga contratto → `openFirmaOra`)
+**13/10 — prima la firma, poi le opzioni.** Il pannello mostra immobile,
+parti e link; mandati/deleghe restano in un dettaglio aperto automaticamente
+se le condizioni divergono. Logica di firma e titolarità invariata;
+`firmastudio` prova desktop/telefono e il conflitto sempre visibile.
+
 Firmare, non solo sollecitare: il pannello apre il link VERO della parte
 (`/sign?sign=<token>`) sul dispositivo dell'operatore — il cliente firma
 col dito davanti a lui, e data/ora/dispositivo finiscono nel certificato
@@ -3078,6 +3457,16 @@ schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
 il documento dice «firma X per conto di Y». **Al posto del conduttore non
 si firma mai SENZA MANDATO SCRITTO** — quella non è una delega, è una firma
 falsa, e la riga è scritta nel pannello, non lasciata al buonsenso.
+
+### Magic Sign personalizzato — studio guidato (13/10/2026)
+Documento → firmatari → campi con tap/tastiera → riepilogo; contratti BOOM
+rimandano alla firma esistente. Crea link non invia messaggi; retry e bozza
+mantengono la stessa richiesta. Creazione admin solo dal server, originale
+congelato e impronta verificata su get/submit; firme con CAS, finalizzazione
+con lease e recupero senza rifirmare. Legacy parziali senza impronta richiedono
+revisione; PDF ruotati/ritagliati fuori standard vengono rifiutati esplicitamente.
+Test `magicsigncustom`, `magicsigncustommutations`, `magicsigncustomui` e
+`magicsigncustomsigner` (pagina+handler reali, IO sintetico; dopo ui per cache PDF.js).
 
 ### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
 Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
@@ -3643,6 +4032,13 @@ tre difetti veri:
   da una proposta non ha `ownerId`, e i bottoni del locatore restavano spenti
   («Manca il telefono») col numero scritto sul contratto. L'accesso al portale
   resta solo a chi ha un profilo.
+- **Copia firmata nello Share Hub (15/10)**: prima voce per inquilino e
+  proprietario, letta dal contratto attuale sul server. Condivide soltanto
+  `signedPdfUrl` HTTPS valido, anche sui record legacy: mai `generatedPDF`
+  o data URL. File assente o non verificabile dichiarato; Apri/Copia/WhatsApp/
+  email preparano la condivisione senza inviare. Griglia adattabile al telefono.
+  Il pulsante del contratto si chiama **Registrazione** (conto tributi, foglio,
+  ricevuta e referente). Test: `tests/share-hub/ui.mjs`, funzione reale e rete finta.
 Test: `tests/mandato/run.mjs` §12 (il giro vero: proposta senza immobile →
 📋 fa nascere contratto e immobile, link e messaggio della Scheda, nessuna
 email senza indirizzo, idempotente → mandato spendibile → ✍️ firma il
@@ -3868,6 +4264,13 @@ tetto, scan-replies di main, scope senza lista bianca) + `tests/scheda`
 e nella fattura Firestore dei giorni successivi.
 
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
+**14/10 — limite facoltativo:** `settings/ai.budget` resta spento senza scelta admin.
+Quando attivo, token-count e prenotazione atomica in `aiUsage/<giorno-Roma>.budgetV1`
+precedono Anthropic; retry/fallback condividono limite e deadline. Prezzo, lettura
+o esito ignoti fermano la chiamata o trattengono la riserva. È una stima preventiva,
+non un limite di fattura: esclusi Codex, STT, ElevenLabs, Telnyx/TIM. La Squadra →
+Costi AI mostra oggi/mese, riserve e impostazione esplicita; dati mancanti non zero.
+`/api/ai/status` richiede ruolo admin effettivo; HOMIE/cron sola lettura. Test `aibudget`.
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
 propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
 la spesa AI era una riga di fattura a fine mese, mai un numero per scopo. Le
@@ -6191,6 +6594,76 @@ description, H1 e risposta breve visibile ora aprono con quelle domande;
 JSON-LD e `scripts/seo-config.js` riportano la stessa promessa e la stessa
 data di modifica. Test: `node tests/seo/run.mjs`.
 
+### Il giro GEO/SEO/AI del 15/10/2026
+69 difetti confermati (frasi false che un motore di risposta cita, rotte rotte, entità doppie), 18 pacchetti.
+**Le verità condivise** — una frase sola, uguale su pagine, JSON-LD, llms.txt e prompt:
+- commissione inquilino = **10% di un anno di canone + IVA 22%, una volta** (regola A, quella che
+  `api/preagreement/create.js` incassa: `Math.round(rent*12*0.10*1.22)`); Termini §4.1 allineati,
+  valida per gli accordi firmati dal 15/10/2026. Mai «whichever is lower».
+- supporto: una persona risponde su WhatsApp in orario d'ufficio (ora di Roma), fuori orario il
+  mattino lavorativo dopo; gas, fuoco, allagamento: prima il 112. **Mai «24/7», mai un tempo di
+  risposta in cifre, mai «500+»** (decisione del fondatore).
+- contratto: il modello ufficiale italiano, registrato all'Agenzia delle Entrate e **spiegato** in
+  inglese — mai un «English-language lease». PFS: almeno 3 opzioni nei criteri scritti entro 15
+  giorni, o i €350 restituiti (Condizioni §4.2).
+- un solo nodo `#organization`: Egidi Immobiliare S.r.l., P.IVA IT17322991005, Via dei Coronari
+  181/184; nessun `#localbusiness`. `scripts/seo-update.js` non può più rimettere telefono, sede o
+  ragione sociale finti (tests/seogen lo esegue in una copia).
+**/listing/<id>** serve il CORPO della casa vera (H1, zona, stato) anche senza JS; una casa che non
+c'è risponde **404 noindex** (un guasto di Firestore no: template, mai un 404 per un'interruzione);
+bozze e nascoste noindex. /pfs e /apartments/<id> sono redirect permanenti.
+**Crawler**: `Allow: /api/meteo` prima di `Disallow: /api/` (è la fonte che llms.txt e il Dataset di
+/meteo indicano). I bot AI seguono `User-agent: *` — nessun gruppo nominato, perderebbe ogni
+Disallow (RFC 9309). La **sitemap** è a mano: niente /listing (stanno in listings-sitemap.xml),
+/apartment-detail, /deals né hreflang verso `?lang=` (stesso file, canonical altrove);
+`seo-sitemap.js` si rifiuta se perderebbe una <loc>; lastmod = data vera (questo giro: 2026-10-15).
+**Attribuzione**: dopo il consenso `js/boom-track.js` timbra il primo contatto nel cookie `boom_attr`
+(90 giorni, cancellato col diniego) e nel campo `boom_source`, che `api/_attribution.js` porta su ogni
+lead. Gli assistenti (chatgpt, perplexity, gemini, copilot, claude, you, deepseek, meta_ai, mistral,
+grok) sono il canale `ai_assistant`, riconosciuto PRIMA di Google. Una conversione confermata emette
+`boom-conversion` ({label, section}), che boom-track registra.
+**Le guardie** (tutte in `npm test`): `seo` (anche /apartments-in; articoli contati insieme, un
+BreadcrumbList che finisce sulla canonical, #organization vera, hreflang solo canonici, URL di
+llms.txt scaricabili, niente link al dominio nudo, a .html o a /pfs, SearchAction servita, Dataset
+con autore) e `verita` (frasi vietate, anche «within 2 hours» e i contatori letti con l'etichetta,
+su sitemap, modello delle schede, llms.txt, seo-config e sorgenti api), più listingssr, faqtruth,
+hometruth, tenantfee, llmstxt, zonepages, servicepages, trustpages, blogguides, blogcore, crawl, answers, seogen, attribution, consentbanner.
+**Aperte, del fondatore**: orari veri e reperibilità fuori orario; recensioni (numero, mese, URL
+Maps); revisione legale ASPI (blog-tenant-rights, passo 47, recesso in FAQ e Termini, «nullo»); date
+di prima pubblicazione del blog; cosa copre il tag «All inclusive»; SEPA se riapre; concierge
+(transfer, posta, pulizie, permessi); fasce di canone per zona con base e data; i «casi reali» della
+scam-bible; un'email pubblica sola; sede legale (Viale Liegi 42) o operativa; /deals; «500+» torna
+solo da un conteggio dei contratti firmati.
+**Il secondo giro, prima della produzione (verifica avversaria sul codice vivo)**:
+- **Analytics prima del consenso**: 14 pagine (property-finding, board, le 12 guide di quartiere
+  generate da `scripts/neighborhoods-build.js`) chiamavano `gtag('config')` senza il
+  `gtag('consent','default', …denied)` che tutte le altre hanno. Ora c'è ovunque, e
+  `tests/consent` fallisce su qualunque pagina deployata che lo perda. `grant()` concede solo
+  `analytics_storage` (nessuna pubblicità gira: gli `ad_*` restano negati) e il riquadro dice cosa
+  accende davvero (Google Analytics e il cookie di attribuzione BOOM). Sul telefono compare dopo uno
+  scorrimento di 0,25 × la finestra o 5 s dall'avvio (non dal `load`), poi resta; il rifiuto e la
+  scadenza cancellano `boom_attr`.
+- **L'attribuzione ha un limite dichiarato**: il primo contatto si conosce solo se il consenso arriva
+  sulla pagina d'arrivo o in una visita esterna successiva — il referrer di una pagina vista PRIMA del
+  consenso non si salva mai (scelta di privacy). Chi arriva da un'AI e tocca una CTA prima di scegliere
+  perde la sorgente. Il testo di `boom_source` passa da una lista bianca di caratteri
+  (`api/_attribution.js`); il `(ref: …)` di WhatsApp accetta solo i token del tracker.
+- **APPLY idempotente**: la pagina manda `requestId` (uno per caricamento), il server scrive
+  `leads/apply_<requestId>` e a un 409 risponde ok senza rimandare email né Telegram.
+- **/listing/<id>**: un id che Firestore non può avere → 404 senza lettura; nascoste/bozze/archiviate
+  «Not on the market» senza Offer; un id assente da CASE e senza `__LISTING` non ricade MAI sulla casa
+  d'esempio (prima: lead attribuiti a «Bilocale Trastevere»); i valori da Firestore entrano nel
+  template con funzioni di sostituzione (un `$'` nel nome gonfiava la pagina a 36 MB).
+- **File interni non più serviti**: `/.github/`, `firestore.rules`, `storage.rules` e ogni `*.md`
+  sono in `.vercelignore` (rispondevano 200); i bot sul Mac scaricano da GitHub raw, non dal sito.
+- **Nessun tempo di risposta in cifre** anche nelle email: stripe-webhook, matcher, viewings/_email,
+  apply-lead (tests/verita le legge); la conferma PFS dice la garanzia vera (3 opzioni in 15 giorni).
+- **I builder di `design/pages-deco/` sono indietro rispetto alle pagine pubblicate**
+  (apartment-detail, apartments, property-finding: `ld-regia`, `ld-corpo`, `deco-organi`, `ad-corpo`,
+  `pf-base`, `pfs-caccia`, `costruisci-console.py`): portano ancora frasi tolte e codice vecchio.
+  **Non ricostruire quelle pagine dai builder** senza prima portarci le modifiche delle pagine; un test
+  che li confronti è il lavoro successivo.
+
 ## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
 
 Misurato in Chromium su 60 pagine, non supposto. Quattro difetti veri:
@@ -6261,6 +6734,107 @@ di build, o e' invecchiata e va rigenerata.
 **Nota sui dati** (Firestore, non codice): due annunci su 19 dichiarano un
 numero di camere incoerente col proprio nome — «Bilocale Centro» con 3
 camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
+Corretto alla fonte il 15/10/2026: vedi «Il catalogo dalla via vera».
+
+## Il catalogo dalla via vera (15/10/2026) — `js/catalogo-correzioni.js` · `/catalogo` · `js/listing-facts.js`
+«Correggi gli annunci e dagli nomi in base all'indirizzo vero; minimo 3 mesi,
+mai 1.» Letto sui 27 annunci veri, non dedotto: tre case diverse si chiamavano
+«Bilocale Centro», due «Trilocale Pigneto»; il Capri 2 Bed usciva «1 bedroom» e
+un bilocale del Cappellari «3 bedrooms» (le superfici leggevano il PRIMO numero
+del testo libero `beds`); nove descrizioni pubbliche dicevano «unfurnished» su
+case di cui nessuno aveva dichiarato l'arredo (default della macchina); e il
+transitorio si presentava come l'offerta «1–18 months».
+- **La mappa** (`js/catalogo-correzioni.js`, UMD → `window.BOOM_CATALOGO_FIX`):
+  per ogni annuncio `{from, name, address, zone, why, fix, incerto?, verify[]}`.
+  Il nome viene dalla via (convenzione: «Cappellari Flat», «Corso One-Bed»,
+  «Avignonesi Studio»), `fix` porta solo correzioni provate dai dati,
+  `incerto` i fatti che i dati non decidono (le camere di tre case) e `verify`
+  ciò che l'assistente deve controllare sul posto. `descriptionIssues` è il
+  rilevatore della lista (mai più largo di `copyIssues` del server sui testi che
+  la macchina scrive), `regenerable` dice cosa si può riscrivere.
+- **Una regola per le camere e per l'arredo** (`js/listing-facts.js`):
+  `FACTS.bedroomsOf` — il campo strutturato `bedrooms` (intero 0–10) vince, il
+  testo `beds` vale solo se manca (1–10), 0 = monolocale, altrimenti null e si
+  tace; `FACTS.furnishedOf` — 'yes'/'no'/'partial' o booleano storico → true /
+  false / 'partial' / null (telefono e Pubblicista leggevano solo il booleano:
+  «arredo sconosciuto» su ogni casa vera). La leggono scheda SSR, llms, feed,
+  Pubblicista, Segugio, concierge, Commerciale, Segretaria, ricerca rovesciata,
+  telefono, interprete del bot, vetrina (copia inline), builder, bot (gemella
+  python). Il Segugio: «Studio» = solo un monolocale DICHIARATO. Il feed:
+  `<rooms>` solo quando il tipo nomina i locali, `<description language="it">`
+  solo dall'italiano vero. Il Pubblicista: `descriptionIt` è l'italiano (prima
+  riceveva l'inglese), `descriptionEn` l'inglese, `furnished` dalla regola —
+  l'hash cambia per TUTTI i pubblicabili (un update per portale per casa).
+- **Durata: minimo 3 mesi, mai 1.** Pagine (/executive in nove punti, /owners,
+  /corporate, la home e le sue FAQ, blog, faq), `llms.txt`, seo-config e
+  `testa.py`, le etichette del conto (`js/conto-engine.js`), i prompt del
+  concierge, del Commerciale e della Segretaria (`js/voce-engine.js`), le
+  regole del Copywriter. `api/executive-lead.js` accetta ancora una fascia
+  storica sotto i 3 mesi ma la marca `belowMinimum` e lo scrive nel riassunto
+  («da chiarire»). `tests/verita` è la regola di CLASSE: cinque famiglie di
+  forme (fascia, «da», minimo, «o più», nome dell'offerta) in EN/IT/FR, con
+  l'elenco di ciò che NON è una durata (deposito, preavviso, pratiche…).
+- **`/catalogo`** (`catalogo.html`, admin, noindex; nel portal «🏷️ Catalogo»):
+  l'anteprima ESATTA di ogni scrittura (nome dalla via, correzioni, testi da
+  rifare) e un «Applica» per annuncio in transazione: si rilegge dal server e,
+  se un valore è cambiato dopo il caricamento, su quell'annuncio non si scrive
+  niente e lo si dice. `nameOriginal` solo se manca, `updatedAt` del server.
+  Le scelte valgono sul valore che si vedeva (una rilettura le pota); nomi
+  vuoti, oltre 80 caratteri o doppi (senza accenti né maiuscole) bloccano; una
+  rilettura fallita toglie la lista; le camere `incerto` non sono
+  preselezionate. Poi i testi: `regenerate` a blocchi di 3 col Bearer admin,
+  DOPO i dati; l'esito dice la frase del server. `descriptionIssues` è una
+  copia FEDELE di `copyIssues` e `regenerable` lo specchio di `regenVerdict`:
+  chi cambia il server ricopia, e `tests/catalogo/strumento.mjs` (152 check)
+  cade finché non coincidono.
+- **La vetrina e le fotografie** (`scripts/catalogo-nomi.mjs`): riscrive PER
+  ID (mai per testo: tre annunci avevano lo stesso nome) nome e camere
+  incorporati in apartments, index, apartment-detail, try, your-money, board e
+  nelle fotografie `case-full.json` / `live-rows.json`, poi l'ItemList. La
+  fonte va detta: `--dalla-mappa` (la migrazione del 15/10) o
+  `--from-firestore`; `--dry`, `--check` (exit 1 se c'è da cambiare o se una
+  pagina non si allinea), argomento sconosciuto → exit 2. L'idrante di
+  vetrina, home e scheda rilegge da Firestore anche nome e camere (regola
+  inline gemella di bedroomsOf, identica nelle tre pagine); la scheda rilegge
+  anche le tre «altre case» con un `documents:batchGet` (nome, camere, stato,
+  canone, che prima non si vedeva mai). Camere illeggibili = `data-letti=""`,
+  che nessun filtro camere fa passare (mai «Studio»); la ricerca piega accenti
+  e apostrofi di iOS. I builder python leggono le camere da
+  `design/listing_facts.py` (gemella, parità con Node su 175 casi). Test:
+  `tests/catalogo/vetrina.mjs` — pagine = fotografia per id; i controlli
+  della mappa valgono finché la fotografia porta quei valori.
+- **Il modulo annuncio del portal**: camere dal campo strutturato (0 resta 0,
+  un vuoto non diventa mai 1; `min 0 · max 10`), select «Arredamento» (non
+  dichiarato · Arredato · In parte · Vuoto — mai 'no' per default),
+  descrizione corretta a mano → `descriptionSource:'portal:<email>'` +
+  `descriptionAt`, così la rigenerazione la salta; tabella con la regola
+  unica; badge «3-18 mesi (legge 1-18)». Su un annuncio esistente si scrive
+  SOLO ciò che l'operatore ha cambiato rispetto a come il modulo si è aperto
+  (derivati compresi: copertina, disponibilità, tag): una scheda aperta prima
+  dell'«Applica» non riporta indietro nomi e camere, e un salvataggio senza
+  cambiamenti non scrive niente, nemmeno `updatedAt`. Ogni valore del modulo è
+  escapato. Test: `tests/catalogo/portale.mjs` (97 check).
+- **Il giro delle case**: la lista per l'assistente è un artifact
+  («Il giro delle case», db condiviso, collection `giro`, un documento per
+  annuncio: dati, foto, civico, interno, data libera, bollette, descrizioni
+  EN/IT, note); si condivide invitando la sua email come **Editor** (Viewer e
+  Commenter leggono ma non salvano; un link pubblico toglie la scrittura agli
+  esterni). Quando ha finito, i suoi dati entrano nel catalogo dal portale o
+  da /catalogo — mai a mano su Firestore.
+- **Ordine del rilascio** (il codice legge da Firestore nomi e camere che solo
+  l'«Applica» corregge): merge su `main` → deploy → SUBITO `/catalogo` →
+  Applica → `node scripts/catalogo-nomi.mjs --from-firestore --check` (zero
+  modifiche; se l'operatore ha scelto nomi diversi dalla mappa:
+  `--from-firestore` e PR). Pubblicista in pausa (`settings/publisher
+  {enabled:false}`) finché codice e correzioni non sono entrambi in
+  produzione: con l'hash cambiato parte UN solo giro di update.
+- **Aperti** (15/10): tredici annunci portano un `createdAt` «…+00:00Z» che
+  `Date.parse` rifiuta (scritto dal bot; i lettori del sito reggono, il feed
+  no); cinque pubblicabili senza descrizione italiana; due annunci al
+  Piazzale Prenestino 42, stesso piano (forse la stessa casa: nella lista
+  dell'assistente).
+Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
+`tests/verita`, `python3 tests/wizard/dati_onesti.py`.
 
 ## Conventions
 
@@ -6534,6 +7108,15 @@ const unsub = BoomPortal.listen(
 ```
 
 ## Common Tasks
+
+**Area casa — accoglienza prima della firma (6 ottobre 2026):** il link resta
+utilizzabile dal cliente associato anche mentre le firme sono in corso.
+`tenant-access-engine.stage` distingue preparazione, firma cliente, attesa
+proprietario/co-conduttori e completamento (`complete` e legacy `completed`).
+Il pulsante apre solo il link personale restituito da `/api/sign/links`, su
+azione esplicita; l'anteprima admin non può firmare. Nessun incasso o rata
+viene creato dall'accoglienza: il piano mostra solo registrazioni esistenti.
+Verifica: `tenantaccess`, `tenantpayments`, `signtokens`, `scalo`.
 
 **Add a new apartment page**: Copy an existing `apartment_*.html`, update content and Firestore document ID.
 

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # BOOM · YOUR MONEY — la stessa lingua del portale, sui soldi.
 #   python3 costruisci-soldi.py artefatto | sito
-import json, re, sys
+import html as _html, json, re, sys
+sys.dont_write_bytecode = True   # niente __pycache__ nel repo
 
 MODO = sys.argv[1] if len(sys.argv) > 1 else 'artefatto'
 def leggi(n): return open(n, encoding='utf-8').read()
@@ -17,7 +18,7 @@ for r in piene:
     p = int(re.sub(r'[^\d]', '', str(r.get('price') or '')) or 0)
     if not nome or not p: continue
     m = re.search(r'\d+', str(r.get('depositMonths') or ''))
-    vive.append({'nome': re.sub(r'\s+', ' ', nome).strip(),
+    vive.append({'id': r.get('_id') or '', 'nome': re.sub(r'\s+', ' ', nome).strip(),
                  'zona': re.sub(r'\s+', ' ', str(r.get('zone') or 'Roma'))
                      .split('/')[0].strip(),
                  'p': p, 'm': int(m.group()) if m else 1})
@@ -25,8 +26,10 @@ vive.sort(key=lambda x: x['p'])
 assert len(vive) >= 3, 'servono almeno tre case vive'
 PRESET = [vive[0], vive[len(vive) // 2], vive[-1]]
 
+# data-id: il tasto non lo mostra, ma scripts/catalogo-nomi.mjs ci riscrive
+# il nome PER ID invece di ricavarlo da prezzo e zona stampati
 TASTI = '\n        '.join(
-    f'<button type="button"><b>{p["nome"]}</b>'
+    f'<button type="button" data-id="{_html.escape(str(p["id"]))}"><b>{p["nome"]}</b>'
     f'<span>{p["zona"]} · {euro(p["p"])}/mo</span></button>'
     for p in PRESET)
 

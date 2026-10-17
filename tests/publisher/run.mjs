@@ -31,7 +31,9 @@ const PIGNETO = {
   features: ['ac', 'washing_machine', 'roof_garden'],
   images: ['https://st.example/a.jpg', 'https://st.example/b.jpg'],
   geo: { lat: 41.8891, lng: 12.5432, src: 'nominatim', q: 'Via del Pigneto 112, Roma' },
-  description: 'Luminoso bilocale ristrutturato', descriptionEn: 'Bright renovated one-bedroom',
+  // le lingue come le scrive il catalogo (bot, sweep di describe.js, Media
+  // Studio): `description` è l'inglese, `descriptionIt` l'italiano
+  description: 'Bright renovated one-bedroom', descriptionIt: 'Luminoso bilocale ristrutturato',
   updatedAt: '2026-08-01T10:20:30.000Z',
 };
 const CENTRO = {
@@ -82,6 +84,58 @@ check('hints immobiliare: tipologia + nodo XML con la chiave derivata',
 const payZone = payloadFor(CENTRO, 'idealista');
 check('pin di zona → showExactAddress false', payZone.showExactAddress === false && payZone.geo.precision !== 'exact');
 check('hints idealista: stanza riconosciuta', payZone.hints.propertyType === 'stanza' && payZone.hints.operation === 'rent');
+// «Bedroom» non è «room» (15/10/2026): " Spacious 2 Bedroom flat " — il tipo
+// di «Capri 2 Bed» — andava a Idealista come stanza; e una stanza che lo
+// dice solo nel nome resta stanza
+check('hints idealista: «2 Bedroom flat» è un appartamento',
+  payloadFor({ ...PIGNETO, type: ' Spacious 2 Bedroom flat ' }, 'idealista').hints.propertyType === 'appartamento');
+check('hints idealista: «…Double Room with Garden» nel nome è una stanza',
+  payloadFor({ ...PIGNETO, type: 'Garden floor', name: 'Parioli Double Room with Garden' }, 'idealista').hints.propertyType === 'stanza');
+// le camere del payload con la regola unica: il campo strutturato vince sul
+// testo libero del bot — e il valore entra nell'hash, quindi la correzione
+// rimette in coda l'update (voluto)
+check('payload beds: bedrooms 2 batte il testo «Living , 1 bedroom…»',
+  payloadFor({ ...PIGNETO, beds: 'Living , 1 bedroom with balcony , 1 bedroom', bedrooms: 2 }, 'immobiliare').beds === 2);
+check('payload beds: il «3» del testo non batte bedrooms 1, e l\'hash lo vede',
+  coreContent({ ...PIGNETO, beds: '3', bedrooms: 1 }).beds === 1
+  && publishHash({ ...PIGNETO, beds: '3', bedrooms: 1 }) !== publishHash({ ...PIGNETO, beds: '3', bedrooms: 3 }));
+
+// Le lingue delle descrizioni (15/10/2026): descriptionIt era
+// `description || descriptionIt`, e nel catalogo `description` è l'INGLESE
+// — il pannello riceveva come italiano il testo inglese di ogni casa
+check('descriptionIt = il testo italiano del catalogo, descriptionEn = description',
+  pay.descriptionIt === 'Luminoso bilocale ristrutturato' && pay.descriptionEn === 'Bright renovated one-bedroom');
+check('senza descriptionIt il campo italiano è null: mai l\'inglese al suo posto',
+  coreContent({ ...PIGNETO, descriptionIt: undefined }).descriptionIt === null
+  && coreContent({ ...PIGNETO, descriptionIt: undefined }).descriptionEn === 'Bright renovated one-bedroom');
+check('descriptionEn, se c\'è, vince per l\'inglese; un testo di soli spazi non conta',
+  coreContent({ ...PIGNETO, descriptionEn: 'EN override' }).descriptionEn === 'EN override'
+  && coreContent({ ...PIGNETO, descriptionEn: '   ' }).descriptionEn === 'Bright renovated one-bedroom');
+// L'arredo: il catalogo scrive 'yes' / 'partial' / 'no' (bot e
+// api/wizard/interpret.js); coreContent accettava solo il booleano, quindi
+// ogni casa vera arrivava al pannello con furnished null
+check('furnished: yes → true, no → false, partial → «partial» (né sì né no), booleani intatti, ignoto → null',
+  coreContent({ ...PIGNETO, furnished: 'yes' }).furnished === true
+  && coreContent({ ...PIGNETO, furnished: 'no' }).furnished === false
+  && coreContent({ ...PIGNETO, furnished: 'partial' }).furnished === 'partial'
+  && coreContent({ ...PIGNETO, furnished: ' YES ' }).furnished === true
+  && coreContent(PIGNETO).furnished === true && coreContent({ ...PIGNETO, furnished: false }).furnished === false
+  && coreContent({ ...PIGNETO, furnished: undefined }).furnished === null
+  && coreContent({ ...PIGNETO, furnished: 'tbd' }).furnished === null);
+// la casa vera già online con l'hash di PRIMA (arredo ignorato, inglese
+// come italiano) torna in coda come update: voluto, il contenuto online
+// era sbagliato
+{
+  const { createHash } = await import('node:crypto');
+  const VERA = { ...PIGNETO, furnished: 'yes' };
+  const corePrima = { ...coreContent(VERA), furnished: null, descriptionIt: VERA.description };
+  const hashPrima = createHash('sha1').update(JSON.stringify(corePrima)).digest('hex');
+  const w = worklist([VERA], [{ ...livePigneto, hash: hashPrima }], { portal: 'immobiliare' });
+  const p = payloadFor(VERA, 'immobiliare');
+  check('una casa online con l\'hash di prima torna in coda come update, col payload corretto',
+    hashPrima !== publishHash(VERA) && w.actions.length === 1 && w.actions[0].op === 'update'
+    && p.furnished === true && p.descriptionIt === 'Luminoso bilocale ristrutturato');
+}
 
 // ═══ Il verdetto del giro ═══
 check('giro a vuoto = salute (catalogo allineato)', runVerdict({ results: [] }) === true);

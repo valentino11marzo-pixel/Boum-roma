@@ -243,6 +243,13 @@ async function handleDeposit(res, session, m) {
   return res.status(200).json({ received: true, deposit: true, contractId });
 }
 
+// Nessun tempo di risposta in cifre, da nessuna parte (decisione del
+// fondatore, 15/10/2026): le email dicono QUANDO risponde una persona, mai
+// un numero di ore. Le stesse frasi delle pagine; tests/verita scandisce
+// questo file.
+const OFFICE_HOURS_EN = 'A person replies during office hours (Rome time); messages sent out of hours are answered the next working morning.';
+const OFFICE_HOURS_IT = "Una persona risponde in orario d'ufficio (ora di Roma); i messaggi fuori orario hanno risposta il mattino lavorativo dopo.";
+
 // RESERVE — a tenant paid a refundable holding deposit to reserve an apartment.
 // SERVICE — a productised service was bought one-tap (Services 2.0):
 // virtual-viewing €89 / deal-assistance €249. Lead into the pipeline +
@@ -250,7 +257,7 @@ async function handleDeposit(res, session, m) {
 const SERVICE_META = {
   'virtual-viewing': {
     title: 'Virtual Viewing', emoji: '🎥',
-    next1: ['We contact the advertiser', 'Within a few hours'],
+    next1: ['We contact the advertiser', 'During office hours (Rome time)'],
     next2: ['Live video call from inside', 'Scheduled within 48h'],
     next3: ['HD photos + honest report', 'Including what we did not like'],
     next4: ['If we cannot reach the property', 'Full refund, no questions'],
@@ -273,7 +280,7 @@ const SERVICE_META = {
     title: 'Contract Check Express', emoji: '🚦',
     next1: ['Send the contract', 'Reply to this email with the draft'],
     next2: ['We read every clause', 'The same eyes as Deal Assistance'],
-    next3: ['Verdict within 24 hours', 'Green / amber / red, in writing'],
+    next3: ['Written verdict in 24h', 'From when the contract reaches us — green / amber / red'],
     next4: ['Need the full shield?', '€49 credited on Deal Assistance'],
   },
   'movein-pack': {
@@ -302,7 +309,7 @@ const SERVICE_META = {
   'concordato-pack': {
     title: 'Pacchetto Concordato', emoji: '🏛️', lang: 'it',
     next1: ['Ci mandi i dati dell\'immobile', 'Risponda a questa email: visura o vecchio contratto'],
-    next2: ['Verifica del canone', 'Entro 48 ore dai dati, da quando la pratica parte: fascia, massimo e bozza del contratto'],
+    next2: ['Verifica del canone', 'In 48 ore dai dati, da quando la pratica parte: fascia, massimo e bozza del contratto'],
     next3: ['Attestazione di rispondenza', 'Pratica seguita con l\'organizzazione firmataria (tariffa a parte, detta prima)'],
     next4: ['Registrazione RLI', 'Contratto registrato e fascicolo completo in PDF'],
   },
@@ -393,9 +400,9 @@ async function handleService(res, session, m) {
           ? (m.start_now === '1'
             ? 'Ci ha chiesto di iniziare subito: partiamo appena riceviamo i dati. '
             : 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso; se preferisce anticipare, ce lo scriva. ')
-            + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp: risponde una persona.'
-          : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp: risponde una persona.')
-        : 'Anything at all — reply to this email or message us on WhatsApp. A human answers within 2 hours.',
+            + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT
+          : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT)
+        : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
       cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',
     });
@@ -486,7 +493,7 @@ async function handleReserve(res, session, m) {
       intro: `We've received your refundable holding deposit and taken ${m.listingName || 'the apartment'} off-market while we process your application. Here's what happens next:`,
       card_color: '#D4AF37',
       card_title: 'What happens next',
-      r1_icon: '✓', r1_label: 'We review your application', r1_value: 'Within 2 hours',
+      r1_icon: '✓', r1_label: 'We review your application', r1_value: 'During office hours (Rome time)',
       r2_icon: '✓', r2_label: 'Apartment held for you', r2_value: 'Off-market, just for you',
       r3_icon: '✓', r3_label: 'If approved', r3_value: 'Deposit deducted from 1st month',
       r4_icon: '✓', r4_label: 'If not approved', r4_value: 'Full refund, no questions',
@@ -1237,10 +1244,10 @@ export default async function handler(req, res) {
       card_title: 'Your timeline',
       r1_icon: '✓',
       r1_label: 'Intake call',
-      r1_value: 'Within 24 hours',
+      r1_value: 'We call you during office hours (Rome time)',
       r2_icon: '✓',
-      r2_label: 'Curated shortlist',
-      r2_value: 'Within 72 hours',
+      r2_label: 'At least 3 matching options',
+      r2_value: 'Within 15 days of your written criteria — or the €350 back',
       r3_icon: '✓',
       r3_label: 'Viewings & negotiation',
       r3_value: 'Scheduled & managed by BOOM',

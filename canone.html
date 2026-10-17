@@ -7,7 +7,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Calcolo Canone Concordato Roma 2026 | Simulatore Gratis</title>
-    <meta name="description" content="Calcolo del canone concordato a Roma: il massimo per la sua casa sulle tabelle dell'Accordo territoriale, zona per zona, e il netto con la cedolare al 10%.">
+    <meta name="description" content="Calcolo canone concordato a Roma: superficie convenzionale × valore al mq della fascia (Accordo 2023). Es. 60 mq a Trastevere: fino a €1.518 al mese in fascia B.">
     <meta name="keywords" content="calcolo canone concordato, calcolo canone concordato Roma, simulatore canone concordato, canone concordato Roma, tabelle canone concordato Roma, cedolare secca 10%, accordo territoriale Roma">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <meta name="author" content="BOOM">
@@ -61,7 +61,7 @@
  {"@type":"Question","name":"Quanto resta in tasca con la cedolare secca?","acceptedAnswer":{"@type":"Answer","text":"Con la cedolare al 10% paga il 10% del canone e niente imposta di registro né bollo. Vale se è persona fisica e sceglie la cedolare; per la durata dell'opzione rinuncia agli aggiornamenti ISTAT del canone."}},
  {"@type":"Question","name":"Conviene di più il canone libero?","acceptedAnswer":{"@type":"Answer","text":"Dipende dal canone che il libero riuscirebbe a ottenere. Il conto le mostra la soglia: sopra quella cifra il 4+4 libero, tassato al 21% con la cedolare, renderebbe di più. Lo sconto IMU del 25% sposta la soglia ancora più in alto."}},
  {"@type":"Question","name":"Non trovo la mia zona: cosa faccio?","acceptedAnswer":{"@type":"Answer","text":"Ci scriva l'indirizzo: verifichiamo la zona sull'allegato dell'Accordo e le diciamo il conto esatto."}},
- {"@type":"Question","name":"BOOM può anche affittare la casa?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga solo le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa; la tariffa dell'organizzazione che firma l'attestazione è a parte e gliela diciamo prima."}}
+ {"@type":"Question","name":"BOOM può anche affittare la casa?","acceptedAnswer":{"@type":"Answer","text":"Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa. In entrambi i casi la tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto."}}
 ]}
   </script>
   <!-- FAQLD:END -->
@@ -73,7 +73,7 @@
   "address":{"@type":"PostalAddress","streetAddress":"Via dei Coronari 181/184","postalCode":"00186","addressLocality":"Roma","addressRegion":"RM","addressCountry":"IT"},
   "telephone":"+39-331-325-1961","email":"hello@boom-rome.com"},
  {"@type":"WebPage","@id":"https://www.boomrome.com/canone#page","url":"https://www.boomrome.com/canone",
-  "name":"Calcolo del canone concordato a Roma","inLanguage":"it","dateModified":"2026-10-13",
+  "name":"Calcolo del canone concordato a Roma","inLanguage":"it","dateModified":"2026-10-15",
   "about":{"@id":"https://www.boomrome.com/#organization"},
   "mainEntity":{"@id":"https://www.boomrome.com/canone#app"},
   "speakable":{"@type":"SpeakableSpecification","cssSelector":[".chero .sub",".brief p"]}},
@@ -93,7 +93,9 @@
 
 :root{--t4:rgba(255,255,255,.5)}
 .fam{top:76px}
-main{padding-top:150px;max-width:1120px}
+main{padding-top:150px}
+/* le ancore atterrano sotto la striscia di famiglia, non sotto la barra soltanto */
+section[id],#pdf,#pacchetto{scroll-margin-top:36px}
 @media(max-width:640px){main{padding-top:140px}}
 section{margin-top:84px}
 section[id]{scroll-margin-top:150px}
@@ -146,6 +148,7 @@ section[id]{scroll-margin-top:150px}
 .zlist li small{color:var(--t4);font-size:12px;letter-spacing:1px}
 .zlist li[aria-selected="true"],.zlist li:hover{background:var(--gold-faint);color:var(--t1)}
 .zlist .none{cursor:default;color:var(--t3);font-size:13.5px;line-height:1.5;display:block}
+@media(max-width:899px){.zlist{position:static;margin-top:6px;box-shadow:none;max-height:none}}
 .zchip{display:none;margin-top:8px;font-size:12.5px;color:var(--t3)}
 .zchip.on{display:block}
 .zchip b{color:var(--gold);font-weight:400}
@@ -168,9 +171,17 @@ section[id]{scroll-margin-top:150px}
 .frow2 b{font-weight:400;color:var(--t1);font-variant-numeric:tabular-nums}
 .frow2 .fx{font-size:12px;color:var(--t4)}
 .frow2.on b{color:var(--gold)}
+.fasce.pick .frow2:not(.on) .bar i{background:rgba(255,255,255,.16)}
+.fasce.pick .frow2:not(.on) b{color:var(--t3)}
+.frow2.on>span:first-child{color:var(--t1)}
+.vh{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .note{margin-top:12px;font-size:13px;color:var(--t2);line-height:1.55;border-left:2px solid var(--line-gold);padding:2px 0 2px 10px}
 .note.warn{border-left-color:var(--red)}
 .note.ok{border-left-color:var(--green)}
+.note a{color:var(--gold)}
+/* sul telefono il modulo del PDF sta sotto le dotazioni: un rimando sotto il numero (su desktop il modulo è già lì) */
+.topdf{display:block;margin-top:16px;font-size:13.5px;color:var(--gold);border:1px solid var(--line-gold);border-radius:100px;padding:11px 16px;text-align:center;line-height:1.4}
+@media(min-width:900px){.topdf{display:none}}
 .facts{margin-top:16px;border-top:1px solid var(--line-soft)}
 .fact{display:flex;justify-content:space-between;align-items:baseline;gap:14px;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:14px;color:var(--t2)}
 .fact .v{color:var(--t1);font-variant-numeric:tabular-nums;text-align:right}
@@ -181,8 +192,9 @@ section[id]{scroll-margin-top:150px}
 .mkt b{color:var(--t1);font-weight:400}
 .mkt small{display:block;color:var(--t4);font-size:12px;margin-top:4px}
 .share{display:flex;flex-wrap:wrap;gap:8px}
-.tres .share{margin-top:16px}
-.sbtn{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:100px;padding:10px 15px;font-size:13px;color:var(--t2);transition:.25s;background:transparent}
+.tres .share,.tact .share{margin-top:18px}
+.share .sh-h{flex-basis:100%;font-size:12.5px;color:var(--t3);line-height:1.5}
+.sbtn{display:inline-flex;align-items:center;gap:7px;min-height:44px;border:1px solid var(--line);border-radius:100px;padding:10px 15px;font-size:13px;color:var(--t2);transition:.25s;background:transparent}
 .sbtn:hover{border-color:var(--line-gold);color:var(--t1)}
 .sbtn svg{width:15px;height:15px}
 .sbtn.ok{border-color:rgba(61,220,151,.5);color:var(--green)}
@@ -193,6 +205,7 @@ section[id]{scroll-margin-top:150px}
 .gate h3 em{font-style:normal;color:var(--gold)}
 .gate p{font-size:13.5px;color:var(--t2);margin-top:6px;line-height:1.55}
 .gate .row{margin-top:10px}
+@media(max-width:520px){.gate .two{grid-template-columns:minmax(0,1fr)}}
 .gate select.inp{-webkit-appearance:none;appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);background-position:calc(100% - 19px) 22px,calc(100% - 14px) 22px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
 .go{display:flex;width:100%;justify-content:center;align-items:center;gap:8px;margin-top:12px;background:linear-gradient(135deg,var(--gold),#d9b400);color:#1a1407;font-weight:600;border-radius:100px;padding:15px 20px;font-size:15px;transition:transform .25s var(--ease),opacity .25s}
 .go:hover{transform:translateY(-1px)}
@@ -208,11 +221,17 @@ section[id]{scroll-margin-top:150px}
 .done .refc{font-size:12px;letter-spacing:1.6px;color:var(--t3);text-transform:uppercase}
 .done h3{font-weight:300;font-size:20px;margin-top:4px}
 .done .go{margin-top:12px}
+.keep{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px;font-size:13px;color:var(--t2);line-height:1.5}
+.keep[hidden]{display:none}
+.gate .by{display:flex;gap:10px;align-items:center;margin-top:14px;font-size:12.5px;color:var(--t3);line-height:1.45}
+.gate .by img{width:28px;height:28px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line-gold)}
+.gate .by b{color:var(--t2);font-weight:400}
 .person{display:flex;gap:14px;align-items:center;margin-top:16px}
 .person img{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line-gold)}
 .person p{font-size:13.5px;color:var(--t2);line-height:1.5}
 .person b{color:var(--t1);font-weight:400}
-.person a{color:var(--gold)}
+.person a{color:var(--gold);white-space:nowrap;display:inline-block;padding:10px 0;margin:-10px 0}
+.done h3:focus{outline:none}
 .route{margin-top:16px;display:grid;gap:8px}
 .route a{display:block;border:1px solid var(--line);border-radius:14px;padding:13px 15px;font-size:13.5px;color:var(--t2);line-height:1.5;transition:border-color .25s}
 .route a:hover{border-color:var(--line-gold)}
@@ -404,7 +423,7 @@ html {
       <a href="#faq" class="nav-link">FAQ</a>
       <a href="#conto" class="nav-cta">Faccia il conto</a>
     </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
   </div>
 </nav>
 
@@ -421,8 +440,8 @@ html {
 
 <div class="fam" aria-label="BOOM Proprietari">
   <a href="/owners">Proprietari</a>
-  <a class="on" href="/canone" aria-current="page">Calcola il canone</a>
-  <a href="/pacchetto-concordato">Canone concordato</a>
+  <a class="on" href="/canone" aria-current="page">Calcolo del canone</a>
+  <a href="/pacchetto-concordato">Pacchetto concordato</a>
   <a href="/login">Area proprietario</a>
 </div>
 
@@ -454,7 +473,7 @@ html {
       </div>
     </div>
 
-    <div class="tres panel" id="res" aria-live="polite">
+    <div class="tres panel" id="res">
       <div class="empty" id="resEmpty">Scelga la <b>zona</b> e scriva i <b>metri</b>: il conto della sua casa compare qui, e si aggiorna mentre precisa le dotazioni.</div>
       <div id="resBody" hidden>
         <p class="rk">Massimo stimato a canone concordato</p>
@@ -465,9 +484,11 @@ html {
         <div id="rNotes"></div>
         <div class="facts" id="rFacts"></div>
         <div id="rMkt"></div>
+        <a class="topdf" id="rToPdf" href="#pdf" data-analytics-label="conto-topdf">Il conto per iscritto, in PDF, con la scheda voce per voce <span aria-hidden="true">↓</span></a>
       </div>
     </div>
 
+    <p id="rLive" class="vh" aria-live="polite" aria-atomic="true"></p>
     <div class="tmore">
       <details class="acc" id="accP" open>
         <summary>Le dotazioni della casa <span class="st" id="stP">non dichiarate</span></summary>
@@ -477,9 +498,9 @@ html {
           <div class="chips" id="pChips" role="group" aria-label="Dotazioni"></div>
           <p class="warn-txt"><b>Spunti solo ciò che la casa ha davvero.</b> Una dotazione dichiarata e assente fa salire il canone oltre il dovuto: l'inquilino può farsi restituire l'eccedenza e l'attestazione non regge.</p>
           <div class="row">
-            <p class="lbl">Impianti funzionanti</p>
+            <p class="lbl" id="lblN">Impianti funzionanti</p>
             <p class="help" style="margin:0 0 8px">Acqua, scarichi, gas o induzione, riscaldamento. Senza, l'Accordo applica la fascia A.</p>
-            <div class="seg two-seg" id="segN">
+            <div class="seg two-seg" id="segN" role="group" aria-labelledby="lblN">
               <button type="button" data-v="1" aria-pressed="true">Sì, tutti</button>
               <button type="button" data-v="0" aria-pressed="false">No</button>
             </div>
@@ -506,8 +527,8 @@ html {
       <details class="acc" id="accC">
         <summary>Contratto e caratteristiche <span class="st" id="stC">3+2</span></summary>
         <div class="in">
-          <p class="lbl">Tipo di contratto</p>
-          <div class="seg" id="segT">
+          <p class="lbl" id="lblT">Tipo di contratto</p>
+          <div class="seg" id="segT" role="group" aria-labelledby="lblT">
             <button type="button" data-v="32" aria-pressed="true">3+2 concordato</button>
             <button type="button" data-v="trans" aria-pressed="false">Transitorio</button>
             <button type="button" data-v="stud" aria-pressed="false">Studenti</button>
@@ -534,11 +555,6 @@ html {
       </details>
     </div>
     <div class="tact" id="act" hidden>
-      <div class="share" id="rShare">
-        <button type="button" class="sbtn" id="shWa"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.2.7.5-.1 1.5-.6 1.8-1.2s.2-1 .1-1.2-.2-.2-.5-.3z"/></svg>Lo mandi su WhatsApp</button>
-        <button type="button" class="sbtn" id="shComm">Al commercialista</button>
-        <button type="button" class="sbtn" id="shCopy">Copia il link</button>
-      </div>
 
       <!-- il PDF: l'unico punto in cui si chiedono dati -->
       <form class="gate" id="pdf" novalidate data-analytics-label="conto-pdf" data-lead-type="owner">
@@ -546,8 +562,8 @@ html {
         <p>Glielo prepariamo in PDF con la scheda di calcolo, voce per voce: lo apre subito e lo può inoltrare.</p>
         <input type="text" name="company" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
         <div class="row two">
-          <div><label class="lbl" for="gName">Nome</label><input class="inp" id="gName" name="name" autocomplete="name" required></div>
-          <div><label class="lbl" for="gContact">Telefono o email</label><input class="inp" id="gContact" name="contact" autocomplete="email" required></div>
+          <div><label class="lbl" for="gName">Nome</label><input class="inp" id="gName" name="name" autocomplete="name" placeholder="Es. Giulia Rossi" required></div>
+          <div><label class="lbl" for="gContact">Telefono o email</label><input class="inp" id="gContact" name="contact" autocomplete="tel" inputmode="text" placeholder="Es. +39 333 123 4567 oppure email" required></div>
         </div>
         <div class="row">
           <label class="lbl" for="gFree">La casa oggi è</label>
@@ -558,29 +574,37 @@ html {
             <option value="later">Si libera più avanti</option>
           </select>
         </div>
-        <button type="submit" class="go" id="gGo">Riceva il conto in PDF</button>
+        <p class="by"><img src="/img/founder-avatar.jpg" alt="" width="28" height="28" loading="lazy"><span>Lo prepara <b>BOOM</b>, Egidi Immobiliare S.r.l. Se vuole parlarne, la richiama Valentino, il fondatore.</span></p>
+        <button type="submit" class="go" id="gGo">Apra il conto in PDF</button>
         <p class="err" id="gErr" role="alert"></p>
-        <p class="consent">Usiamo i suoi dati solo per mandarle il conto e, se lo desidera, richiamarla. <a href="/privacy">Privacy</a>.</p>
+        <p class="consent">Usiamo i suoi dati solo per prepararle il conto e, se lo desidera, richiamarla. <a href="/privacy">Privacy</a>.</p>
       </form>
-      <div class="done" id="done" aria-live="polite">
+      <div class="done" id="done">
         <p class="refc" id="dRef"></p>
-        <h3>Il suo conto è pronto.</h3>
+        <h3 id="dH" tabindex="-1">Il suo conto è pronto.</h3>
         <a class="go" id="dPdf" href="#" target="_blank" rel="noopener">Apra il PDF</a>
+        <p class="keep" id="dKeep" hidden>Il link resta valido: lo salvi o lo inoltri. <button type="button" class="sbtn" id="dCopy">Copi il link del PDF</button></p>
         <div class="person">
           <img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="56" height="56" loading="lazy">
-          <p><b>Valentino</b>, fondatore di BOOM. Se vuole parlarne, la richiamo io: <a href="tel:+393313251961">+39 331 325 1961</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></p>
+          <p><b>Valentino</b>, fondatore di BOOM. Se vuole parlarne, mi chiami o mi scriva: <a href="tel:+393313251961">+39 331 325 1961</a> · <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></p>
         </div>
       </div>
 
+      <div class="share" id="rShare">
+        <p class="sh-h">Oppure lo mandi così com'è, senza lasciare dati:</p>
+        <button type="button" class="sbtn" id="shWa"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.1 5.1 0 0 0 1.1 2.7 11.7 11.7 0 0 0 4.5 4c1.7.7 2.3.8 3.2.7.5-.1 1.5-.6 1.8-1.2s.2-1 .1-1.2-.2-.2-.5-.3z"/></svg>Lo mandi su WhatsApp</button>
+        <button type="button" class="sbtn" id="shComm">Al commercialista</button>
+        <button type="button" class="sbtn" id="shCopy">Copi il link</button>
+      </div>
       <div class="route" id="rRoute"></div>
     </div>
   </div>
 
   <!-- ═══ COME SI LEGGE ═══ -->
   <section id="come" data-analytics-section="come-si-legge">
-    <div class="sec-h"><span class="num">01</span><h2>Come si legge il conto</h2></div>
+    <div class="sec-h"><span class="num">01 — LA LETTURA</span><h2>Come si legge il conto</h2></div>
     <div class="steps4">
-      <div class="st4"><div class="n">1</div><b>La superficie convenzionale</b><p>Si parte dai metri calpestabili, corretti coi coefficienti dell'Accordo: sotto i 46 mq ×1,30 (fino a 52,90), fino a 70 mq ×1,15 (fino a 70,00), oltre ×1,00. Balconi, terrazze e cantine contano un quarto, il box metà.</p></div>
+      <div class="st4"><div class="n">1</div><b>La superficie convenzionale</b><p>Si parte dai metri calpestabili, corretti coi coefficienti dell'Accordo: sotto i 46 mq ×1,30, con un tetto di 52,90 mq; fino a 70 mq ×1,15 (fino a 70,00), oltre ×1,00. Balconi, terrazze e cantine contano un quarto, il box metà.</p></div>
       <div class="st4"><div class="n">2</div><b>Le dotazioni decidono la fascia</b><p>Ogni zona ha tre fasce di valori al metro quadro. Meno di 3 dotazioni su 20 è fascia A, da 3 fascia B, da 7 fascia C. Il numero in grande è il massimo della fascia moltiplicato per la superficie convenzionale.</p></div>
       <div class="st4"><div class="n">3</div><b>Gli aumenti si fermano al massimo</b><p>Transitorio +10%, classe energetica, attico: si sommano, ma il canone non supera il massimo di fascia. Le riduzioni invece valgono: senza ascensore o seminterrato −10%.</p></div>
       <div class="st4"><div class="n">4</div><b>Quanto le resta</b><p>Con la cedolare secca al 10% (se è persona fisica e la sceglie) paga il 10% del canone e niente registro né bollo; in cambio rinuncia agli aggiornamenti ISTAT per la durata dell'opzione. L'IMU scende del 25% per i contratti a canone concordato registrati; di regola va presentata la dichiarazione IMU entro il 30 giugno dell'anno dopo.</p></div>
@@ -594,12 +618,13 @@ html {
       <p class="k">Risposta breve</p>
       <h2>Come si calcola il canone concordato a Roma?</h2>
       <p>Si moltiplica il valore massimo al metro quadro della fascia della propria zona, fissato dall'Accordo territoriale di Roma, per la superficie convenzionale della casa. La fascia (A, B o C) dipende da quante delle 20 dotazioni della scheda la casa possiede: meno di 3, da 3, da 7. Gli aumenti per contratto transitorio, classe energetica o attico non superano il massimo di fascia; le riduzioni sì.</p>
+      <p>Esempio sulle tabelle del 2023: 60 mq calpestabili a Trastevere (zona B14) fanno 69 mq convenzionali; il massimo è €1.062 al mese in fascia A, €1.518 in fascia B, €1.821 in fascia C. In fascia B, con la cedolare al 10%, restano €16.394 l'anno.</p>
     </div>
   </section>
 
   <!-- ═══ FAQ ═══ -->
   <section id="faq" data-analytics-section="faq">
-    <div class="sec-h"><span class="num">02</span><h2>Domande frequenti</h2></div>
+    <div class="sec-h"><span class="num">02 — DOMANDE</span><h2>Domande frequenti</h2></div>
     <div class="faq">
       <details><summary>Il calcolo è gratuito?</summary><div class="a">Sì. Il conto si vede subito e non chiede dati. Lasciamo il nome e un recapito solo a chi vuole il PDF con la scheda di calcolo.</div></details>
       <details><summary>Questo calcolo è l'attestazione di rispondenza?</summary><div class="a">No. È una stima su dati dichiarati da Lei. L'attestazione la rilascia un'organizzazione firmataria dell'Accordo dopo aver verificato zona, superficie e dotazioni; noi la prepariamo e la seguiamo.</div></details>
@@ -608,7 +633,7 @@ html {
       <details><summary>Quanto resta in tasca con la cedolare secca?</summary><div class="a">Con la cedolare al 10% paga il 10% del canone e niente imposta di registro né bollo. Vale se è persona fisica e sceglie la cedolare; per la durata dell'opzione rinuncia agli aggiornamenti ISTAT del canone.</div></details>
       <details><summary>Conviene di più il canone libero?</summary><div class="a">Dipende dal canone che il libero riuscirebbe a ottenere. Il conto le mostra la soglia: sopra quella cifra il 4+4 libero, tassato al 21% con la cedolare, renderebbe di più. Lo sconto IMU del 25% sposta la soglia ancora più in alto.</div></details>
       <details><summary>Non trovo la mia zona: cosa faccio?</summary><div class="a">Ci scriva l'indirizzo: verifichiamo la zona sull'allegato dell'Accordo e le diciamo il conto esatto.</div></details>
-      <details><summary>BOOM può anche affittare la casa?</summary><div class="a">Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga solo le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa; la tariffa dell'organizzazione che firma l'attestazione è a parte e gliela diciamo prima.</div></details>
+      <details><summary>BOOM può anche affittare la casa?</summary><div class="a">Sì. Con la prima locazione non paga provvigione: la nostra la paga l'inquilino, Lei paga le pratiche del contratto, €278 IVA inclusa con l'attestazione (€89 senza). Se ha già l'inquilino, il Pacchetto concordato costa €349 IVA inclusa. In entrambi i casi la tariffa dell'organizzazione firmataria per l'attestazione è a parte: gliela diciamo prima, per iscritto.</div></details>
     </div>
   </section>
 
@@ -616,7 +641,7 @@ html {
     <img src="/img/founder-avatar.jpg" alt="Valentino, fondatore di BOOM" width="84" height="84" loading="lazy">
     <div class="tx">
       <h2>Il conto le torna? <em>Ne parliamo.</em></h2>
-      <p>Sono Valentino, fondatore di BOOM. Se vuole affittare la casa con noi o mettere in regola un contratto col concordato, la richiamo io e le dico per iscritto cosa faremmo.</p>
+      <p>Sono Valentino, fondatore di BOOM. Se vuole affittare la casa con noi o mettere in regola un contratto col concordato, mi chiami o mi scriva: le dico per iscritto cosa faremmo.</p>
       <div class="acts">
         <a class="sbtn" href="tel:+393313251961">+39 331 325 1961</a>
         <a class="sbtn" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20ho%20fatto%20il%20conto%20della%20mia%20casa%20sul%20vostro%20sito." target="_blank" rel="noopener">WhatsApp</a>
@@ -646,7 +671,7 @@ html {
         <h4 class="footer-links-title">Proprietari</h4>
         <ul class="footer-links-list">
           <li><a href="/owners">Affittarla con BOOM</a></li>
-          <li><a href="/canone">Calcola il canone</a></li>
+          <li><a href="/canone">Calcolo del canone</a></li>
           <li><a href="/pacchetto-concordato">Pacchetto concordato</a></li>
           <li><a href="/meteo">Il meteo del mercato</a></li>
           <li><a href="/login">Area proprietario</a></li>
@@ -697,9 +722,10 @@ html {
   /* ── la zona: elenca, non sceglie ── */
   var zIn = $('zIn'), zList = $('zList'), zChip = $('zChip'), active = -1, items = [];
   function zLabel(z) { return z.label + ' (' + z.cod + ')'; }
+  function closeList() { zList.classList.remove('on'); zIn.setAttribute('aria-expanded', 'false'); zIn.removeAttribute('aria-activedescendant'); active = -1; }
   function openList(list) {
-    items = list; active = -1;
-    if (!zIn.value.trim()) { zList.classList.remove('on'); zIn.setAttribute('aria-expanded', 'false'); return; }
+    items = list; active = -1; zIn.removeAttribute('aria-activedescendant');
+    if (!zIn.value.trim()) { closeList(); return; }
     zList.innerHTML = list.length
       ? list.map(function (z, i) { return '<li role="option" id="zo' + i + '" data-c="' + esc(z.cod) + '" aria-selected="false">' + esc(z.label) + '<small>' + esc(z.cod) + '</small></li>'; }).join('')
       : '<li class="none" role="option" aria-disabled="true">Nessuna zona con questo nome nelle tabelle. Provi il nome del quartiere, oppure <a href="#fonti">ci scriva l\'indirizzo</a>.</li>';
@@ -709,9 +735,11 @@ html {
     var z = C.ZONES.filter(function (x) { return x.cod === cod; })[0];
     if (!z) return;
     state.z = z.cod; zIn.value = zLabel(z);
-    zList.classList.remove('on'); zIn.setAttribute('aria-expanded', 'false');
+    closeList();
     zChip.innerHTML = 'Zona <b>' + esc(z.cod) + '</b> dell\'Accordo, ' + esc(z.label) + '.'; zChip.classList.add('on');
     update();
+    // la prossima cifra va nei metri, non in coda al nome della zona
+    if (!$('mq').value) $('mq').focus();
   }
   zIn.addEventListener('input', function () {
     if (state.z) { state.z = ''; zChip.classList.remove('on'); update(); }
@@ -727,13 +755,14 @@ html {
       zIn.setAttribute('aria-activedescendant', 'zo' + active);
     } else if (e.key === 'Enter') {
       e.preventDefault(); pickZone(items[active >= 0 ? active : 0].cod);
-    } else if (e.key === 'Escape') { zList.classList.remove('on'); }
+    } else if (e.key === 'Escape') { closeList(); }
   });
   zList.addEventListener('mousedown', function (e) {
     var li = e.target.closest('li[data-c]'); if (!li) return;
     e.preventDefault(); pickZone(li.getAttribute('data-c'));
   });
-  document.addEventListener('click', function (e) { if (!e.target.closest('.combo')) zList.classList.remove('on'); });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.combo')) closeList(); });
+  zIn.addEventListener('blur', function (e) { var t = e.relatedTarget; if (t && !t.closest('.combo')) closeList(); });
 
   /* ── le 20 dotazioni, le riduzioni, il tipo ── */
   $('pChips').innerHTML = C.PARAMETRI.map(function (p, i) {
@@ -795,8 +824,9 @@ html {
     $('rFasce').innerHTML = ['A', 'B', 'C'].filter(function (k) { return f[k]; }).map(function (k) {
       var on = r.declared && r.fascia === k;
       var span = k === 'A' ? 'meno di 3' : k === 'B' ? 'da 3' : 'da 7';
-      return '<div class="frow2' + (on ? ' on' : '') + '"><span>Fascia ' + k + '</span><span class="bar" aria-hidden="true"><i style="width:' + Math.round(f[k].max / maxAll * 100) + '%"></i></span><span><b>' + E(f[k].max) + '</b> <span class="fx">' + span + '</span></span></div>';
+      return '<div class="frow2' + (on ? ' on' : '') + '"><span>Fascia ' + k + (on ? '<span class="vh"> (la sua)</span>' : '') + '</span><span class="bar" aria-hidden="true"><i style="width:' + Math.round(f[k].max / maxAll * 100) + '%"></i></span><span><b>' + E(f[k].max) + '</b> <span class="fx">' + span + '</span></span></div>';
     }).join('');
+    $('rFasce').classList.toggle('pick', !!r.declared);
 
     var notes = [];
     if (!r.sameAcrossTipi) {
@@ -809,7 +839,12 @@ html {
       if (r.declared) {
         notes.push(r.ask.fits
           ? '<p class="note ok">' + E(r.ask.value) + ' al mese rientra nel massimo: a canone concordato si può chiedere.</p>'
-          : '<p class="note warn">' + E(r.ask.value) + ' è ' + E(r.ask.excess) + ' sopra il massimo: a canone concordato si può chiedere fino a ' + E(r.max) + '; la parte in più sarebbe nulla.</p>');
+          : '<p class="note warn">' + E(r.ask.value) + ' è ' + E(r.ask.excess) + ' sopra il massimo: a canone concordato si può chiedere fino a ' + E(r.max) + '; la parte in più sarebbe nulla.' +
+            (r.pareggioLibero
+              ? (r.ask.value > r.pareggioLibero
+                  ? ' Se il mercato le riconosce davvero ' + E(r.ask.value) + ', il libero 4+4 le renderebbe di più: conviene sopra ' + E(r.pareggioLibero) + '. <a href="' + ownersHref() + '" data-analytics-label="ask-libero">Glielo verifichiamo coi numeri: valutazione gratuita →</a>'
+                  : ' Anche così, al massimo concordato le resta più che con ' + E(r.ask.value) + ' a canone libero.')
+              : '') + '</p>');
       } else if (r.ask.need === 0) {
         notes.push('<p class="note ok">' + E(r.ask.value) + ' al mese rientra anche in fascia A.</p>');
       } else if (r.ask.need) {
@@ -821,7 +856,7 @@ html {
     $('rNotes').innerHTML = notes.join('');
 
     var facts = [];
-    facts.push('<div class="fact"><span>Superficie convenzionale<small>' + r.parts.map(function (p) { return N(p.mq, p.mq % 1 ? 1 : 0) + ' mq ' + p.c.replace(/ \(max.*\)/, ''); }).join(' + ') + '</small></span><span class="v">' + N(r.sc) + ' mq</span></div>');
+    facts.push('<div class="fact"><span>Superficie convenzionale<small>' + r.parts.map(function (p) { var m = / \(max ([\d,]+)\)/.exec(p.c), cap = m ? parseFloat(m[1].replace(',', '.')) : null, k = /×\s*([\d,]+)/.exec(p.c); var raw = k ? p.mq * parseFloat(k[1].replace(',', '.')) : null; return N(p.mq, p.mq % 1 ? 1 : 0) + ' mq ' + p.c.replace(/ \(max.*\)/, '') + (cap != null && raw != null && raw > cap + 0.005 ? ' = ' + N(raw) + ', con tetto ' + N(cap) + ' mq' : ''); }).join(' + ') + '</small></span><span class="v">' + N(r.sc) + ' mq</span></div>');
     if (r.declared) {
       facts.push('<div class="fact"><span>Valori della fascia ' + r.fascia + '<small>€ al mq al mese, dall\'Accordo</small></span><span class="v">' + N(r.fMin) + '–' + N(r.fMax) + '</span></div>');
       facts.push('<div class="fact"><span>Canone annuo</span><span class="v">' + E(r.annuo) + '</span></div>');
@@ -859,9 +894,12 @@ html {
 
   function renderRoute() {
     var v = $('gFree').value;
-    var prima = '<a class="' + (v === 'now' || v === 'later' ? 'lead' : '') + '" href="/owners#contact" data-analytics-label="route-owners"><b>Casa libera?</b> Affittarla con BOOM: nella prima locazione <em>€0 di provvigione</em>, pratiche €278 IVA inclusa con l\'attestazione (€89 senza). →</a>';
+    var prima = '<a class="' + (v === 'now' || v === 'later' ? 'lead' : '') + '" href="' + ownersHref() + '" data-analytics-label="route-owners"><b>Casa libera?</b> Affittarla con BOOM: nella prima locazione <em>€0 di provvigione</em>, pratiche €278 IVA inclusa con l\'attestazione, più la tariffa dell\'organizzazione firmataria; €89 senza. →</a>';
     var pack = '<a class="' + (v === 'rented' ? 'lead' : '') + '" href="' + packHref() + '" data-analytics-label="route-pack"><b>Ha già l\'inquilino?</b> Il Pacchetto concordato: verifica, contratto, pratica di attestazione e registrazione, <em>€349 IVA inclusa</em>; la tariffa dell\'organizzazione che firma l\'attestazione è a parte. →</a>';
     $('rRoute').innerHTML = v === 'rented' ? pack + prima : prima + pack;
+  }
+  function ownersHref() {
+    return last ? '/owners?z=' + encodeURIComponent(last.zone.cod) + '&mq=' + encodeURIComponent(last.input.mq) + '#contact' : '/owners#contact';
   }
   function packHref() {
     return last ? '/pacchetto-concordato?' + C.encode(last.input) : '/pacchetto-concordato';
@@ -872,6 +910,8 @@ html {
 
   /* ── il ciclo ── */
   var lastQs = '';
+  var liveT = 0, liveLast = '';
+  function say(t) { clearTimeout(liveT); liveT = setTimeout(function () { if (t !== liveLast) { liveLast = t; $('rLive').textContent = t; } }, 700); }
   function update() {
     var nn = C.normalize(raw());
     // Un campo FACOLTATIVO sbagliato (IMU, cifra in mente, pertinenze) non
@@ -893,10 +933,13 @@ html {
       $('resEmpty').hidden = false; $('resBody').hidden = true; $('act').hidden = true;
       $('resEmpty').innerHTML = !state.z ? 'Scelga la <b>zona</b> e scriva i <b>metri</b>: il conto della sua casa compare qui, e si aggiorna mentre precisa le dotazioni.'
         : nn.errors.indexOf('mq') !== -1 && $('mq').value ? 'I metri vanno da 10 a 600: controlli il numero.' : 'Ora scriva i <b>metri quadri</b> calpestabili.';
+      say($('resEmpty').textContent);
       return;
     }
     last = r;
     render(r);
+    say(r.declared ? 'Massimo stimato ' + E(r.max) + ' al mese, fascia ' + r.fascia
+      : (r.fasce.C ? 'Massimo stimato tra ' + E(r.fasce.A.max) + ' e ' + E(r.fasce.C.max) + ' al mese' : 'Massimo stimato ' + E(r.fasce.A.max) + ' al mese, fascia A'));
     if (bad.length) {
       var LBL = { bal: 'balconi e cantine', box: 'box', pc: 'posto auto comune', sc: 'giardino', ve: 'verde condominiale', ask: 'canone in mente', imu: 'IMU annua', p: 'dotazioni', m: 'caratteristiche', t: 'tipo di contratto' };
       $('rNotes').insertAdjacentHTML('afterbegin', '<p class="note warn">Questo valore non è valido e non è stato contato: ' +
@@ -929,7 +972,7 @@ html {
   $('shCopy').addEventListener('click', function () {
     if (!last) return;
     var url = shareUrl(), b = $('shCopy');
-    var ok = function () { b.textContent = 'Link copiato'; b.classList.add('ok'); setTimeout(function () { b.textContent = 'Copia il link'; b.classList.remove('ok'); }, 2200); };
+    var ok = function () { b.textContent = 'Link copiato'; b.classList.add('ok'); setTimeout(function () { b.textContent = 'Copi il link'; b.classList.remove('ok'); }, 2200); };
     if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(ok, function () { window.prompt('Copi il link:', url); });
     else window.prompt('Copi il link:', url);
     step('conto_share', { via: 'link' });
@@ -942,7 +985,7 @@ html {
     if (!last) { err.textContent = 'Prima scelga la zona e scriva i metri: il PDF riporta il conto.'; err.classList.add('on'); $('zIn').focus(); return; }
     var name = $('gName').value.trim(), contact = $('gContact').value.trim();
     if (name.length < 2) { err.textContent = 'Scriva il suo nome.'; err.classList.add('on'); $('gName').focus(); return; }
-    if (!/@/.test(contact) && contact.replace(/\D/g, '').length < 6) { err.textContent = 'Serve un numero di telefono o un\'email per mandarle il conto.'; err.classList.add('on'); $('gContact').focus(); return; }
+    if (!/@/.test(contact) && contact.replace(/\D/g, '').length < 6) { err.textContent = 'Serve un numero di telefono o un\'email: il conto resta legato a un suo recapito.'; err.classList.add('on'); $('gContact').focus(); return; }
     var f = e.target, btn = $('gGo');
     var src = f.querySelector('input[name="boom_source"]');
     btn.disabled = true; btn.textContent = 'Preparo il PDF…';
@@ -961,16 +1004,30 @@ html {
         $('dRef').textContent = o.j.ref ? 'Riferimento ' + o.j.ref : '';
         var a = $('dPdf');
         if (o.j.pdfUrl) { a.href = o.j.pdfUrl; a.hidden = false; } else a.hidden = true;
+        $('dKeep').hidden = !o.j.pdfUrl;
         $('done').classList.add('on');
+        try { $('dH').focus(); } catch (x) {}
         try { window.dispatchEvent(new CustomEvent('boom-conversion', { detail: { label: 'conto_pdf', section: 'calcolatore' } })); } catch (x) {}
       })
       .catch(function (x) {
-        btn.disabled = false; btn.textContent = 'Riceva il conto in PDF';
+        btn.disabled = false; btn.textContent = 'Apra il conto in PDF';
         var m = String(x && x.message || '');
         err.innerHTML = m === 'rate_limited' ? 'Troppe richieste ravvicinate: riprovi tra qualche minuto.'
           : 'Non siamo riusciti a preparare il PDF. Riprovi, oppure <a href="https://wa.me/393313251961" target="_blank" rel="noopener">ci scriva su WhatsApp</a>.';
         err.classList.add('on');
       });
+  });
+
+  $('dCopy').addEventListener('click', function () {
+    var url = $('dPdf').href, b = $('dCopy');
+    if (!url || url.slice(-1) === '#') return;
+    var ok = function () { b.textContent = 'Link copiato'; b.classList.add('ok'); setTimeout(function () { b.textContent = 'Copi il link del PDF'; b.classList.remove('ok'); }, 2200); };
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(url).then(ok, function () { window.prompt('Copi il link:', url); });
+    else window.prompt('Copi il link:', url);
+  });
+  $('rToPdf').addEventListener('click', function () {
+    step('conto_topdf', {});
+    setTimeout(function () { try { $('gName').focus({ preventScroll: true }); } catch (e) {} }, 400);
   });
 
   /* ── l'indirizzo: chi riceve un link vede lo stesso conto ── */
@@ -1011,11 +1068,16 @@ html {
   place();
   if (desk.addEventListener) desk.addEventListener('change', place); else if (desk.addListener) desk.addListener(place);
 
+  /* ── la striscia di famiglia: la voce attiva al centro, non tagliata ── */
+  try { var fam = document.querySelector('.fam'), fon = document.querySelector('.fam .on'); if (fam && fon) fam.scrollLeft = Math.max(0, fon.offsetLeft - (fam.clientWidth - fon.offsetWidth) / 2); } catch (e) {}
+
   /* ── il menu sul telefono ── */
   var t = $('navToggle'), mm = $('mobileMenu');
   if (t && mm) {
-    t.addEventListener('click', function () { t.classList.toggle('active'); mm.classList.toggle('active'); });
-    [].forEach.call(mm.querySelectorAll('a'), function (a) { a.addEventListener('click', function () { t.classList.remove('active'); mm.classList.remove('active'); }); });
+    var shut = function () { t.classList.remove('active'); mm.classList.remove('active'); t.setAttribute('aria-expanded', 'false'); document.body.style.overflow = ''; };
+    t.addEventListener('click', function () { var on = !mm.classList.contains('active'); t.classList.toggle('active', on); mm.classList.toggle('active', on); t.setAttribute('aria-expanded', on); document.body.style.overflow = on ? 'hidden' : ''; });
+    [].forEach.call(mm.querySelectorAll('a'), function (a) { a.addEventListener('click', shut); });
+    addEventListener('keydown', function (e) { if (e.key === 'Escape' && mm.classList.contains('active')) { shut(); t.focus(); } });
   }
 })();
 </script>

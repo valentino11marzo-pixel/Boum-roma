@@ -23,7 +23,7 @@ function harness(text = source, role = 'admin', hash = '') {
   const ctx = vm.createContext({S, Date:TestDate, window:{location:{hash},BOOM_RENT:RENT},
     document:{getElementById(id) { if(!nodes.has(id)) nodes.set(id,{removeAttribute(){},textContent:'',innerHTML:''}); return nodes.get(id); }},
     localStorage:{getItem:()=>null}, roleLabel:r=>r, initials:()=> 'OT', isAdmin:()=>S.profile.role==='admin',
-    innestoSeedFromHash:()=>null, goTo:(...args)=>routes.push(args),
+    innestoSeedFromHash:()=>null, aspiSeedFromHash:()=>null, goTo:(...args)=>routes.push(args),
     setTimeout:(fn,ms)=>{timers.push({fn,ms});return timers.length;},
     console:{log(){},error(...args){effects.push(['error',...args]);}},
     EMAILJS_CONFIG:{templates:{notification:'test'}},fmtDate:d=>d,

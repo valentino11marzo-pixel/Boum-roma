@@ -36,6 +36,66 @@
     // una scadenza di fra tre settimane, non una rata da mille euro.
     const ageBoost = (d, perDay, cap) => Math.min(cap, d * perDay);
 
+    // Solo date ISO reali: Date.parse da solo normalizza anche un 30 febbraio.
+    const dateTime = (value) => {
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}(?:T|$)/.test(value)) return NaN;
+        const date = value.slice(0, 10);
+        const midnight = new Date(date + 'T00:00:00Z');
+        if (!isFinite(midnight.getTime()) || midnight.toISOString().slice(0, 10) !== date) return NaN;
+        return Date.parse(value);
+    };
+    const ref = (value) => typeof value === 'string' ? value.trim() : '';
+
+    function proposalContractLink(pa, proposals, contracts) {
+        const id = ref(pa.id), code = ref(pa.ref), forward = ref(pa.contractId);
+        const candidates = contracts.filter((c) =>
+            (forward && c.id === forward) || (id && (c.preAgreementId === id || c.id === 'pa_' + id)) ||
+            (code && c.preAgreementRef === code));
+        const contractIds = [...new Set(candidates.map((c) => c.id).concat(forward || []).filter(Boolean))];
+        // Un riferimento esplicito in conflitto non si risolve scegliendo un lato.
+        const conflict = candidates.some((c) =>
+            (ref(c.preAgreementId) && c.preAgreementId !== id) ||
+            (code && ref(c.preAgreementRef) && c.preAgreementRef !== code) ||
+            (forward && c.id !== forward));
+        const duplicateClaim = proposals.some((other) => other !== pa && ref(other.contractId) && contractIds.includes(other.contractId));
+        const ambiguousRef = code && candidates.some((c) => c.preAgreementRef === code) &&
+            proposals.filter((other) => other.ref === code).length !== 1;
+        const ambiguous = candidates.length > 1 || duplicateClaim || ambiguousRef;
+        return {
+            linked: !conflict && !ambiguous && (!!forward || candidates.length === 1),
+            reason: conflict ? 'proposal_contract_conflict' : ambiguous ? 'proposal_contract_ambiguous' : '',
+            contractIds
+        };
+    }
+
+    function registrationEvidence(c, now) {
+        const reasons = [];
+        if (c.status === 'terminated' || c.status === 'expired') reasons.push('contract_historical');
+        else if (c.status !== 'active') reasons.push('contract_lifecycle_unverified');
+        const end = dateTime(c.endDate);
+        // Un termine passato non viene cancellato: cambia il tipo di verifica.
+        if (c.endDate && !isFinite(end)) reasons.push('contract_end_date_invalid');
+        else if (isFinite(end) && c.endDate.slice(0, 10) < new Date(now).toISOString().slice(0, 10) &&
+            !reasons.includes('contract_historical')) reasons.push('contract_historical');
+
+        const explicit = c.fullySignedAt || c.signatureDate;
+        // Senza data finale servono tutte le date: una sola firma non prova
+        // quando si è completato l'atto. I cofirmatari reali hanno un nome,
+        // come in sign/_cosign; le righe vuote dell'editor non sono parti.
+        const stamps = explicit ? [explicit] : [c.tenantSignedAt, c.landlordSignedAt,
+            ...(Array.isArray(c.coTenants) ? c.coTenants.filter((t) => t && ref(t.name)).map((t) => t.signedAt) : [])];
+        const parsed = stamps.map(dateTime);
+        const signedAt = parsed.length ? Math.max(...parsed) : NaN;
+        if (stamps.some((stamp) => !stamp)) reasons.push('signature_date_missing');
+        else if (!isFinite(signedAt) || signedAt > now) reasons.push('signature_date_invalid');
+        const startAt = dateTime(c.startDate);
+        if (!c.startDate) reasons.push('contract_start_date_missing');
+        else if (!isFinite(startAt)) reasons.push('contract_start_date_invalid');
+        const startsEarlier = isFinite(startAt) && isFinite(signedAt) && startAt < signedAt;
+        return { reasons, signedAt, basisAt: startsEarlier ? startAt : signedAt,
+            deadlineBasis: startsEarlier ? 'startDate' : 'signature' };
+    }
+
     function build(S, nowISO) {
         const now = new Date(nowISO || 0).getTime();
         const month = (nowISO || '').slice(0, 7);
@@ -180,18 +240,22 @@
         // ── 8. Proposte: il deal chiuso che aspetta il contratto ────────
         // Vivono nella console separata (/pre-agreement-admin) e su Telegram
         // scorrono via: un'accettazione — peggio, un INCASSO — senza
-        // contratto è il ritardo più caro di tutti. Un PA con contractId è
-        // già a posto (l'auto-convert lo mette da solo); qui restano i
-        // bloccati. S.preAgreements arriva lazy alla prima apertura di Oggi.
+        // contratto è il ritardo più caro di tutti. Il convert salva anche
+        // preAgreementId/ref sul contratto: il backlink PA può mancare.
+        // S.preAgreements arriva lazy alla prima apertura di Oggi.
         const PA = S.preAgreements || [];
         const paPaid = (pa) => pa.status === 'paid' || !!(pa.paidAt || pa.paidSessionId || pa.paidEur);
         const paName = (pa) => ((pa.tenant || {}).fullName || (pa.property || {}).address || 'proposta');
-        PA.filter((pa) => !pa.contractId && pa.status !== 'revoked' && (pa.status === 'accepted' || paPaid(pa)))
+        PA.filter((pa) => pa.status !== 'revoked' && (pa.status === 'accepted' || paPaid(pa)))
             .forEach((pa) => {
+                const link = proposalContractLink(pa, PA, C);
+                if (link.linked) return;
                 const paid = paPaid(pa);
                 out.push({
                     id: 'pa_' + pa.id, kind: 'proposte', icon: paid ? '💶' : '🤝', tint: paid ? 'red' : 'gold',
-                    title: (paid ? 'Incassata, manca il contratto — ' : 'Accettata, manca il contratto — ') + paName(pa),
+                    practiceRef: 'preAgreements/' + pa.id,
+                    needsVerification: !!link.reason, reason: link.reason || 'proposal_contract_missing', contractIds: link.contractIds,
+                    title: (link.reason ? 'Collegamento contratto da verificare — ' : paid ? 'Incassata, manca il contratto — ' : 'Accettata, manca il contratto — ') + paName(pa),
                     sub: [pa.ref, (pa.property || {}).address, paid && pa.paidEur ? '€' + Math.round(num(pa.paidEur)).toLocaleString('it-IT') + ' incassati' : '']
                         .filter(Boolean).join(' · ').slice(0, 110),
                     score: (paid ? 88 : 76) + ageBoost(days(pa.paidAt || pa.acceptedAt, now), 5, 10),
@@ -208,32 +272,54 @@
             actions: [{ label: 'Apri in console', fn: 'oggiOpenPa', args: [pa.ref || ''], primary: true }]
         }));
 
-        // ── 9. Contratti firmati DA REGISTRARE (RLI: 30 giorni) ─────────
-        // L'unico ritardo di questa coda con un PREZZO scritto in legge:
-        // oltre i 30 giorni dalla stipula la registrazione e' tardiva
-        // (sanzione, e l'opzione cedolare secca a rischio). Per questo il
-        // punteggio non e' fisso — cresce col calendario e SCAVALCA tutto
-        // quando il termine e' passato: la' ogni giorno costa di piu'.
-        // Due stati, una regola sola: se la pratica e' gia' dal referente
-        // si TACE per una settimana (sta lavorando lui, non e' una
-        // decisione) e poi torna come sollecito, con l'azione che chiude
-        // il giro — la conferma della registrazione.
+        // ── 9. Registrazioni: promemoria stimato, da verificare sull'atto ──
+        // RLI Web indica 30 giorni da stipula o decorrenza se anteriore:
+        // https://apptel.agenziaentrate.gov.it/RliWeb/
+        // La firma salvata è solo la base del promemoria, non prova fiscale
+        // della stipula. Occorrono entrambe le date: startDate non sostituisce
+        // una firma mancante; lo storico resta una verifica d'archivio.
         const RLI_DAYS = 30;
         C.filter((c) => {
             const signed = c.signatureStatus === 'complete' || !!(c.tenantSignature && c.landlordSignature);
             const done = c.registrationStatus === 'registered' || !!c.rliRegisteredAt;
             return signed && !done;
         }).forEach((c) => {
-            const el = days(c.fullySignedAt || c.landlordSignedAt || c.tenantSignedAt || c.startDate, now);
+            const evidence = registrationEvidence(c, now);
+            if (evidence.reasons.length) {
+                const labels = {
+                    contract_historical: 'contratto concluso o con fine passata',
+                    contract_lifecycle_unverified: 'stato del contratto da verificare',
+                    contract_end_date_invalid: 'data di fine non valida',
+                    signature_date_missing: 'data di firma assente',
+                    signature_date_invalid: 'data di firma non valida o futura',
+                    contract_start_date_missing: 'decorrenza assente',
+                    contract_start_date_invalid: 'decorrenza non valida'
+                };
+                out.push({
+                    id: 'rli_' + c.id, kind: 'archivio', icon: '🗂', tint: 'gold',
+                    practiceRef: 'contracts/' + c.id, contractId: c.id,
+                    needsVerification: true, reason: evidence.reasons[0], verificationReasons: evidence.reasons,
+                    title: 'Verifica registrazione in archivio — ' + (propName(c.propertyId) || 'contratto'),
+                    sub: evidence.reasons.map((reason) => labels[reason]).join(' · ') + ' · registrazione non documentata',
+                    score: 30,
+                    actions: [{ label: 'Verifica nel contratto', fn: 'viewContract', args: [c.id], primary: true }]
+                });
+                return;
+            }
+            const el = (now - evidence.basisAt) / DAY;
             const left = Math.ceil(RLI_DAYS - el);
             const over = Math.max(0, Math.round(el - RLI_DAYS));
             const late = left <= 0;
             const sent = !!c.aspiRequestedAt;
             const waited = sent ? days(c.aspiRequestedAt, now) : 0;
             if (sent && waited < 7 && !late && left > 3) return;   // il referente ha la pratica: silenzio
-            const term = late ? (over ? `RLI SCADUTA da ${over}gg` : 'RLI scade OGGI') : `RLI tra ${left}gg`;
+            const term = (late ? (over ? `Termine stimato superato da ${over}gg` : 'Termine stimato oggi') : `Termine stimato tra ${left}gg`)
+                + ' · verifica stipula e decorrenza';
             out.push({
                 id: 'rli_' + c.id, kind: 'registrazioni', icon: late ? '🏛' : '📝',
+                practiceRef: 'contracts/' + c.id, contractId: c.id,
+                needsVerification: false, deadlineBasis: evidence.deadlineBasis, signedAt: new Date(evidence.signedAt).toISOString(),
+                deadlineAt: new Date(evidence.basisAt + RLI_DAYS * DAY).toISOString(), daysLeft: left, deadlineEstimated: true,
                 tint: late ? 'red' : (left <= 7 ? 'orange' : 'gold'),
                 title: (sent ? `In attesa di ASPI da ${Math.round(waited)}gg — ` : 'Da registrare — ')
                     + (propName(c.propertyId) || 'contratto'),

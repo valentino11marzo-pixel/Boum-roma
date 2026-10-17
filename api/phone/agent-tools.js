@@ -29,6 +29,7 @@
 
 import { fsGet, fsList } from '../homie/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
+import FACTS from '../../js/listing-facts.js';
 import { checkPhoneAuth, qparam } from './_lib.js';
 import { TZ, loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
 
@@ -69,9 +70,15 @@ function catalogEntry(l, today) {
   return {
     id: l.id, name: text(l.name), address: text(l.address), zone: text(l.zone),
     type: text(l.type), status,
-    priceEurMonth: number(l.price), bedrooms: number(l.bedrooms ?? l.beds),
+    // le camere con la regola unica del sito (js/listing-facts.js): la voce
+    // al telefono dice lo stesso numero della scheda. 0 è un dato
+    // (monolocale), null vuol dire che non si sanno
+    priceEurMonth: number(l.price), bedrooms: FACTS.bedroomsOf(l),
     sqm: number(l.sqm ?? l.size), bathrooms: number(l.bathrooms), floor: floorText(l.floor),
-    furnished: typeof l.furnished === 'boolean' ? l.furnished : null,
+    // la regola unica dell'arredo (js/listing-facts.js): il catalogo scrive
+    // 'yes'/'no'/'partial', e leggere solo il booleano faceva rispondere alla
+    // voce «non lo so» su ogni casa vera
+    furnished: FACTS.furnishedOf(l.furnished),
     depositMonths: number(l.depositMonths),
     availableFrom: text(l.availableFrom) || text(l.availableDate),
     availability: { state, date: lane.iso, precision: lane.precision,

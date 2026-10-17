@@ -59,6 +59,7 @@ globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'caller1', email: 'op@boom.it' }] });
   if (url.includes('firebasestorage.googleapis.com')) {
+    if (url.includes('inventario-test.pdf')) return new Response(Buffer.from('%PDF-1.4 inventario di prova'), { status: 200 });
     if (opts.method === 'POST') {
       const name = new URL(url).searchParams.get('name');
       if (name) storageFiles.set(name, Buffer.from(opts.body));
@@ -179,10 +180,52 @@ const FULL = () => ({
 
   const badSig = FULL(); badSig.firme[0].sig = 'data:image/png;base64,'; // vuota
   const r3 = await drive(badSig);
-  check('firma vuota di un conduttore non conta (ma il resto firma → 200)', r3.code === 200);
+  check('firma dichiarata ma vuota: 400 anche se un altro conduttore firma', r3.code === 400 && r3.body.error === 'signature_unreadable');
 
   const r4 = await drive({ ...FULL(), contractId: 'sparito' });
   check('contratto inesistente: 404', r4.code === 404 && r4.body.error === 'contract_not_found');
+}
+
+// ═══ 4. L'inventario viaggia col verbale (15/10/2026) ═══════════════════
+{
+  seed('admin', 'own1');
+  const c = store.get('contracts/ctr1');
+  c.inventario = { url: 'https://firebasestorage.googleapis.com/v0/b/x/o/contracts%2Fctr1%2Finventario-test.pdf?alt=media', items: 12 };
+  const res = await drive(FULL());
+  const jm = mailTo('julie@tenant.fr'), lm = mailTo('stefano@landlord.it');
+  const names = (m) => (m && m.attachments || []).map(a => a.filename);
+  check('inventario: allegato al verbale per conduttrice e proprietario', res.code === 200
+    && names(jm[0]).includes('BOOM_Inventario.pdf') && names(lm[0]).includes('BOOM_Inventario.pdf')
+    && names(jm[0]).includes('BOOM_Verbale_consegna.pdf'));
+  const inv = jm[0].attachments.find(a => a.filename === 'BOOM_Inventario.pdf');
+  check('inventario: sono i byte del file archiviato', !!inv && inv.content.toString().startsWith('%PDF-1.4 inventario'));
+
+  seed('admin', 'own1');
+  store.get('contracts/ctr1').inventario = { url: 'https://evil.example.com/inventario-test.pdf' };
+  await drive(FULL());
+  check('inventario: un URL fuori dal nostro Storage non viene MAI scaricato né allegato', !names(mailTo('julie@tenant.fr')[0]).includes('BOOM_Inventario.pdf'));
+
+  seed('admin', 'own1');
+  await drive(FULL());
+  check('senza inventario: il verbale parte come prima, un solo allegato', names(mailTo('julie@tenant.fr')[0]).join(',') === 'BOOM_Verbale_consegna.pdf');
+}
+
+// Nessun verbale «firmato» o messaggio se una firma dichiarata non può
+// essere rappresentata sul PDF. Il decoder pdf-lib è quello reale.
+for (const [label, edit, error] of [
+  ['nome vuoto', f => { f.name = '  '; }, 'signer_name_required'],
+  ['PNG corrotto', f => { f.sig = 'data:image/png;base64,Ym9vbQ=='; }, 'signature_unreadable'],
+  ['JPEG corrotto', f => { f.sig = 'data:image/jpeg;base64,Ym9vbQ=='; }, 'signature_unreadable'],
+]) {
+  for (const idx of [0, 2]) {
+    seed('admin', 'own1');
+    const body = FULL(); edit(body.firme[idx]);
+    const response = await drive(body);
+    check(`${label}, firmatario ${idx}: 400 esplicito`, response.code === 400 && response.body.error === error);
+    check(`${label}, firmatario ${idx}: zero Storage, archivio, stato o email`,
+      storageFiles.size === 0 && !store.get('contracts/ctr1').verbaleConsegna
+      && ![...store.keys()].some(k => k.startsWith('documents/')) && mails().length === 0);
+  }
 }
 
 // ═══ Esito ══════════════════════════════════════════════════════════════

@@ -46,8 +46,8 @@
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="What Renting in Rome Actually Costs — Interactive Calculator | BOOM">
-  <meta property="article:published_time" content="2026-02-08">
-  <meta property="article:modified_time" content="2026-04-29">
+  <meta property="article:published_time" content="2026-02-26">
+  <meta property="article:modified_time" content="2026-10-15">
   <meta property="article:author" content="BOOM Rome">
   <meta property="article:publisher" content="https://www.boomrome.com">
   <meta property="article:section" content="Rome Rental Guides">
@@ -63,18 +63,6 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Article",
-      "headline": "What Renting in Rome Actually Costs",
-      "description": "Interactive cost calculator for renting in Rome. See the real monthly and year-one costs by neighborhood, contract type, and budget.",
-      "author": {"@type": "Organization", "name": "BOOM by Egidi Immobiliare S.r.l."},
-      "publisher": {"@type": "Organization", "name": "BOOM Rome Rentals", "url": "https://boomrome.com"},
-      "datePublished": "2026-02-26",
-      "mainEntityOfPage": "https://www.boomrome.com/blog-cost-calculator"
-    }
-    </script>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -133,6 +121,7 @@
         .hero h1 { font-family:var(--font); font-size:clamp(34px,5vw,60px); font-weight:200; line-height:1.08; letter-spacing:-0.02em; opacity:0; animation:fu .8s var(--ease) .4s forwards; }
         .hero h1 em { color:var(--gold); font-style:italic; font-family:var(--font-accent); font-weight:400; }
         .hero-sub { font-size:17px; color:var(--text-2); max-width:560px; line-height:1.7; margin-top:20px; opacity:0; animation:fu .8s var(--ease) .6s forwards; }
+        .hero-by{font-size:12px;letter-spacing:1px;color:var(--text-3,#999);margin-top:14px;opacity:0;animation:fu .8s var(--ease) .7s forwards}
         @keyframes fu { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
 
         /* Calculator Grid */
@@ -174,6 +163,7 @@
         /* Year one */
         .y1-card { background:rgba(245,166,35,0.04); border:1px solid rgba(245,166,35,0.15); border-radius:16px; padding:28px 32px; margin-bottom:16px; }
         .y1-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+        .y1-grid > div { display:flex; flex-direction:column; justify-content:space-between; }
         .y1-item-label { font-size:10px; color:var(--text-4); letter-spacing:0.05em; margin-bottom:4px; }
         .y1-item-val { font-family:var(--font); font-size:18px; font-weight:200; color:var(--text-2); }
 
@@ -345,7 +335,9 @@
   "@type": "RealEstateAgent",
   "@id": "https://www.boomrome.com/#organization",
   "name": "BOOM Rome",
-  "legalName": "BOOM Rome",
+  "legalName": "Egidi Immobiliare S.r.l.",
+  "vatID": "IT17322991005",
+  "telephone": "+39-331-325-1961",
   "url": "https://www.boomrome.com",
   "logo": {
     "@type": "ImageObject",
@@ -362,8 +354,10 @@
   ],
   "address": {
     "@type": "PostalAddress",
-    "addressLocality": "Rome",
-    "addressRegion": "Lazio",
+    "streetAddress": "Via dei Coronari 181/184",
+    "postalCode": "00186",
+    "addressLocality": "Roma",
+    "addressRegion": "RM",
     "addressCountry": "IT"
   },
   "areaServed": {
@@ -427,6 +421,7 @@
 {
   "@context": "https://schema.org",
   "@type": "BlogPosting",
+  "@id": "https://www.boomrome.com/blog-cost-calculator#article",
   "headline": "What Renting in Rome Actually Costs — Interactive Calculator",
   "description": "Interactive cost calculator for renting in Rome. Real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees exposed.",
   "image": "https://www.boomrome.com/og-home.png",
@@ -435,15 +430,17 @@
     "@type": "WebPage",
     "@id": "https://www.boomrome.com/blog-cost-calculator"
   },
-  "datePublished": "2026-02-08",
-  "dateModified": "2026-04-29",
+  "datePublished": "2026-02-26",
+  "dateModified": "2026-10-15",
   "author": {
-    "@type": "Organization",
-    "name": "BOOM Rome",
-    "url": "https://www.boomrome.com"
+    "@id": "https://www.boomrome.com/#organization"
   },
   "publisher": {
     "@id": "https://www.boomrome.com/#organization"
+  },
+  "inLanguage": "en",
+  "isPartOf": {
+    "@id": "https://www.boomrome.com/blog#blog"
   }
 }
   </script>
@@ -572,6 +569,7 @@ html {
     <div class="hero-ey"><div class="hero-line"></div><span class="hero-tag">BOOM Money Guide</span></div>
     <h1>What Renting in Rome<br><em>Actually Costs</em></h1>
     <p class="hero-sub">The number on the listing is never the real number. Here's every euro you'll actually spend &mdash; with an interactive calculator to plan properly.</p>
+    <p class="hero-by">By BOOM · Egidi Immobiliare S.r.l. · Updated <time datetime="2026-10-15">15 October 2026</time></p>
 </header>
 
 <div class="calc-grid">
@@ -610,8 +608,8 @@ html {
                 <div class="upsell-icon-col"><div class="upsell-icon-ring"><svg viewBox="0 0 44 44"><circle class="ring-track" cx="22" cy="22" r="19"/><circle class="ring-progress" cx="22" cy="22" r="19"/></svg><span class="upsell-emoji">🤝</span></div></div>
                 <div class="upsell-content">
                     <div class="upsell-top"><div class="upsell-tag">Deal Assistance</div><div class="upsell-price-badge">&#8364;249 <span class="price-sub">fixed fee</span></div></div>
-                    <div class="upsell-headline">We negotiate concordato rates that save you thousands.</div>
-                    <div class="upsell-desc">Contract review, price negotiation, landlord verification. The &euro;249 pays for itself on the first month.</div>
+                    <div class="upsell-headline">We check the contract and negotiate the price for you.</div>
+                    <div class="upsell-desc">Clause-by-clause contract review in English, landlord verification and price negotiation &mdash; one fixed fee.</div>
                     <div class="upsell-chips"><span class="upsell-chip">Contract Review</span><span class="upsell-chip">Price Negotiation</span><span class="upsell-chip">Landlord Check</span></div>
                     <div class="upsell-cta-row"><a href="/deal-assistance" class="upsell-cta">Get Assistance <span class="cta-arrow">&rarr;</span></a><a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp</a></div>
                 </div>
@@ -661,8 +659,8 @@ html {
                 <div class="upsell-content">
                     <div class="upsell-top"><div class="upsell-tag">Property Finding</div><div class="upsell-price-badge">&#8364;350 <span class="price-sub">upfront*</span></div></div>
                     <div class="upsell-headline">Don't have time to search? We'll hunt for you.</div>
-                    <div class="upsell-desc">Tell us your requirements &mdash; within 10 days you'll have curated options. Access to off-market properties included. *Deducted from agency fee.</div>
-                    <div class="upsell-chips"><span class="upsell-chip">10-Day Delivery</span><span class="upsell-chip">Off-Market Access</span><span class="upsell-chip">Money-Back Guarantee</span></div>
+                    <div class="upsell-desc">Tell us your requirements &mdash; at least 3 options matching your written brief within 15 days, or the &#8364;350 back. Access to off-market properties included. *Deducted from agency fee.</div>
+                    <div class="upsell-chips"><span class="upsell-chip">3+ options in 15 days</span><span class="upsell-chip">Off-Market Access</span><span class="upsell-chip">Money-Back Guarantee</span></div>
                     <div class="upsell-cta-row"><a href="/property-finding" class="upsell-cta">Start Search <span class="cta-arrow">&rarr;</span></a><a href="https://wa.me/393313251961" class="upsell-alt-link">or WhatsApp</a></div>
                 </div>
             </div></div>
@@ -672,9 +670,8 @@ html {
 
 <div class="bottom-cta">
     <div class="bottom-cta-card">
-        <h3>We negotiate concordato rates that save clients</h3>
-        <p style="font-family:var(--font);font-size:36px;font-weight:200;color:var(--gold);max-width:none;margin-bottom:8px;">&euro;2,000&ndash;4,000<span style="font-size:16px;color:var(--text-3)">/year</span></p>
-        <p>That's not marketing &mdash; it's math.</p>
+        <h3>Concordato vs. libero: <span style="color:var(--gold);">see the gap</span></h3>
+        <p>The comparison above shows the yearly difference for your zone and budget. Before you sign, we check the contract and negotiate on the home you choose.</p>
         <div class="bottom-cta-actions">
             <a href="https://wa.me/393313251961" target="_blank" class="cta-btn cta-wa">WhatsApp Us</a>
             <a href="/deal-assistance" class="cta-btn-outline">Deal Assistance</a>
@@ -690,8 +687,8 @@ html {
                 <h3>Talk to a <em style="font-family:var(--font-accent);font-style:italic;color:var(--gold);">human</em></h3>
                 <p>No chatbot. No call center. Just Valentino and the BOOM team &mdash; people who actually live in Rome and know every corner of this city's rental market.</p>
                 <div class="contact-stat">
-                    <div class="contact-stat-item"><div class="contact-stat-n">2min</div><div class="contact-stat-l">Avg Response</div></div>
-                    <div class="contact-stat-item"><div class="contact-stat-n">500+</div><div class="contact-stat-l">Clients Helped</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">Human</div><div class="contact-stat-l">Replies in office hours</div></div>
+                    <div class="contact-stat-item"><div class="contact-stat-n">EN·IT</div><div class="contact-stat-l">Contracts explained</div></div>
                     <div class="contact-stat-item"><div class="contact-stat-n">&#8364;0</div><div class="contact-stat-l">Consult Fee</div></div>
                 </div>
                 <p style="font-size:12px;color:var(--text-4);">Or message us directly: <a href="https://wa.me/393313251961" style="color:var(--gold);">WhatsApp &rarr;</a></p>
@@ -706,7 +703,7 @@ html {
                 </div>
                 <div class="form-field"><label for="cf-msg">Message</label><textarea id="cf-msg" name="message" placeholder="Tell us your budget, preferred area, and move-in date. We'll help you plan."></textarea></div>
                 <button type="submit" class="form-submit">Send Message <span>&rarr;</span></button>
-                <div class="form-note">Free consultation. No commitment. Response within 2 hours.</div>
+                <div class="form-note">Free consultation. No commitment. A person replies during office hours (Rome time).</div>
             </form>
         </div>
     </div>
@@ -732,7 +729,7 @@ html {
   <div class="eb">The real number, for your case</div>
   <h3>Want the honest total before you commit?</h3>
   <p>We compute rent, deposit and fees to the euro on real apartments — or run the whole hunt for you and negotiate the price down.</p>
-  <div class="row"><a class="go" href="/apartments">Browse verified homes — all-in prices</a><a class="go2" href="/property-finding">Have us hunt for you — €350</a></div>
+  <div class="row"><a class="go" href="/apartments">Browse verified homes — every price to the euro</a><a class="go2" href="/property-finding">Have us hunt for you — €350</a></div>
 </section>
 <nav class="bmore" aria-label="More from BOOM">
   <span>More from BOOM</span>
@@ -794,7 +791,9 @@ function calc(){
     var condo=80+(rooms*30);
     var tari=15+(rooms*8);
     var utilSetup=200;
-    var agencyFee=baseRent*1.22;
+    // Commissione BOOM all'inquilino (regola A, api/preagreement/create.js):
+    // 10% di un anno di canone + IVA 22%, una volta sola.
+    var agencyFee=Math.round(baseRent*12*0.10*1.22);
     var deposit=baseRent*(ct==='concordato'?2:3);
     var monthlyTotal=baseRent+condo+tari+(regTax/12);
     var yearOne=(monthlyTotal*12)+utilSetup+agencyFee+deposit;
@@ -825,7 +824,7 @@ function calc(){
     var items=[
         {l:'12 Months Total',v:monthlyTotal*12},
         {l:'Utilities Setup',v:utilSetup},
-        {l:'Agency Fee (1mo+VAT)',v:agencyFee},
+        {l:'Agency Fee (10% of a year\'s rent + VAT)',v:agencyFee},
         {l:'Deposit ('+(ct==='concordato'?'2':'3')+' months)',v:deposit}
     ];
     document.getElementById('y1-grid').innerHTML=items.map(function(it){
@@ -868,7 +867,7 @@ calc();
     fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
     .then(function(r){return r.json()}).then(function(j){
       if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
-      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours. Urgent? WhatsApp us.</p></div>";
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A person replies during office hours (Rome time). Urgent? WhatsApp us.</p></div>";
       try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
     }).catch(function(){
       if(btn){btn.disabled=false;btn.textContent=lbl;}

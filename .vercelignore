@@ -14,3 +14,34 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+# Sorgenti, strumenti, copie storiche: restano nel repo, MAI serviti dal sito (verificato 14/10/2026: /scripts/legacy/faq_page e /scripts/legacy/apartment_navona rispondevano 200 indicizzabili con «98% success rate», «Guaranteed rent», «24/7»)
+/scripts/
+/design/
+/tests/
+/bot/
+/homie-bridge/
+/reference/
+/docs/
+index-classic.html
+apartments-classic.html
+apartment-detail-classic.html
+property-finding-classic.html
+header.html
+.journey-preview.html
+# «Owner Portal V2.0» legacy SENZA estensione: con cleanUrls si contendeva l'URL /owner-dashboard con owner-dashboard.html (la pagina viva, noindex) e quale dei due uscisse non era definito; questo non ha meta robots. Ancorato alla radice: owner-dashboard.html resta dentro.
+/owner-dashboard
+# Documenti interni: CLAUDE.md porta nomi e indirizzi di persone reali, poi audit di sicurezza e studi. Misurato il 15/10/2026: Vercel li scarta GIÀ (/docs/i18n-plan.md e /design-language-study.md → 404, nessun .md nel sorgente del deploy), ma la garanzia non può reggersi su un default non scritto da nessuna parte. Nessun file deployato legge un .md.
+*.md
+# Configurazione interna servita in chiaro: misurato il 15/10/2026, /.github/workflows/ci.yml e /storage.rules rispondevano 200 (la mappa delle regole di sicurezza e dell'account di servizio). Niente a runtime li legge: le regole le deploya la CI dal repo, non Vercel.
+/.github/
+/firestore.rules
+/storage.rules
+/firebase.json
+/firestore.indexes.json
+# Documentazione operativa e audit: solo repository, mai asset pubblici.
+# Nessun renderer/API usa questi file come risorsa runtime.
+**/*.md
+
+# SmartLink: server e interfaccia di prova restano soltanto in locale.
+/tools/
+/smartlink-preview.html

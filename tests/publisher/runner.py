@@ -50,6 +50,12 @@ check('le foto dichiarano l\'ordine (la 1ª è la copertina)',
 check('un campo assente NON si stampa (mai inventare)',
       'Piano' not in rows and 'Classe energetica' not in rows)
 check('payload vuoto → zero righe, zero crash', bp.field_rows(None) == [])
+# 'partial' è un terzo fatto (api/publisher/_state.js → furnishedOf): il
+# pannello deve leggerlo, mai arrotondarlo a sì o a no né tacerlo
+check('arredo parziale: la riga dice «parzialmente arredato»',
+      dict(bp.field_rows(dict(PAYLOAD, furnished='partial'))).get('Arredato') == 'parzialmente arredato')
+check('arredo non dichiarato: nessuna riga «Arredato»',
+      'Arredato' not in dict(bp.field_rows(dict(PAYLOAD, furnished=None))))
 
 acts = [
     {'op': 'remove', 'id': 'a', 'name': 'Casa A', 'hash': 'h1', 'remoteUrl': 'https://immobiliare.it/1'},
