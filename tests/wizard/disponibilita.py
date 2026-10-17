@@ -29,4 +29,10 @@ try:
 except ValueError:
     pass
 assert len(calls) == 1 and calls[0][0] == 'api'
+reply = None
+try:
+    edit('casa', {'availableDate':'Subito'})
+    raise AssertionError('missing response must be uncertain')
+except ValueError as e:
+    assert 'non verificato' in str(e)
 print('Disponibilità bot: endpoint unico, fallimenti espliciti, nessuna scrittura alternativa — passed')

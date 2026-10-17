@@ -402,6 +402,8 @@ out = await call('POST', { updates: [{ id: 'vecchia', status: 'available', kind:
 ok(out.payload.ok && out.payload.applied[0].catalog.state === 'now' && DB.get('listings/vecchia').availableFrom === 'Subito', 'riapertura esplicita salva insieme stato e data');
 out = await call('POST', { updates: [{ id: 'levico', status: 'nonsense' }] });
 ok(!out.payload.ok, 'stato sconosciuto rifiutato');
+out = await call('POST', {updates:[{id:'cavour',value:'da concordare'}]});
+ok(out.payload.ok && D.resolve(DB.get('listings/cavour'), TODAY).kind === 'unknown', 'comando bot da concordare cancella entrambe le date tramite il motore');
 ok(D.catalogState({status:'available',availableFrom:'2027-01-01'}, TODAY).state === 'date', 'available con data futura non è libera ora');
 ok(D.catalogState({status:'available'}, TODAY).state === 'check', 'data assente va verificata');
 ok(D.catalogState({status:'available',availableDate:'Mar 1'}, TODAY).state === 'check', 'anno inferito va confermato');

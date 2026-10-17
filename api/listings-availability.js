@@ -153,7 +153,7 @@ function normalize(u, today) {
   else {
     const src = u.iso || u.value || u.text || '';
     av = DISPO.parseAvailability(src, today);
-    if (av.kind === 'unknown') return null;
+    if (av.kind === 'unknown' && (u.kind === 'date' || av.why !== 'dichiarato da concordare')) return null;
   }
   // Le parole VERE dell'operatore, non la data che ne abbiamo derivato: se un
   // domani una lettura si rivelasse sbagliata, sul documento resta la frase da

@@ -17635,7 +17635,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             toast('success', j.applied[0].catalog.label, 'Catalogo salvato. Pubblicazione esterna da verificare.');
             await refresh();
             openModal('availability', AVAIL_FOCUS);
-        } catch (e) { toast('error', 'Non salvata', e.message); }
+        } catch (e) { toast('error', 'Aggiornamento da verificare', e.message); }
     }
 
     // ═══════════════════════════════════════════════════════════════════

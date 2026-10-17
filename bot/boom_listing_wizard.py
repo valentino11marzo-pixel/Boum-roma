@@ -943,7 +943,9 @@ def _edit_listing(doc_id, updates):
     saved = False
     if len(availability) > 1:
         rep = wizard_post('/api/listings-availability', {'updates': [availability]}, 25)
-        if not rep or not rep.get('ok'):
+        if not rep:
+            raise ValueError('Esito disponibilità non verificato: rileggi il catalogo prima di riprovare.')
+        if not rep.get('ok'):
             raise ValueError('Disponibilità non salvata: verifica il catalogo prima di riprovare.')
         saved = True
     if updates:
@@ -1920,7 +1922,8 @@ async def nl_confirm_cb(update, context):
         if not rep or not rep.get('ok'):
             failed = (rep or {}).get('failed') or []
             await q.edit_message_text(
-                f"⚠️ Salvate {len((rep or {}).get('applied') or [])} modifiche; {len(failed)} da completare.\nRileggi /disponibilita prima di riprovare.")
+                ('⚠️ Esito non verificato. Rileggi /disponibilita prima di riprovare.' if not rep else
+                 f"⚠️ Salvate {len(rep.get('applied') or [])} modifiche; {len(failed)} da completare.\nRileggi /disponibilita prima di riprovare."))
             return
         done = '\n'.join(f"• {a.get('name')} → {a.get('to')}" for a in rep.get('applied') or [])
         await q.edit_message_text(f"📅 *Fatto — {len(rep.get('applied') or [])} date aggiornate*\n{done}",
