@@ -6304,6 +6304,11 @@ Il piano porta `availabilityKey`; il server rilegge la versione e fa commit cond
 Il salvataggio certifica il catalogo BOOM; non attesta pubblicazioni esterne. Nessun invio o modello è aggiunto. La lettura voce delle rented con rilascio futuro resta da coordinare con il lotto telefono.
 Prove: `tests/dispo/run.mjs`, `tests/catalogo/disponibilita-ui.mjs` (Portal→handler→Firestore simulato→esito), `tests/catalogo/portale.mjs`, `tests/wizard/disponibilita.py`.
 
+**Collaudo integrato, 17/10/2026.** La scheda SSR conservava `InStock` nel JSON-LD anche mentre il badge chiedeva la data.
+`api/listing.js` ora omette la disponibilità dell'offerta quando non è nota: `InStock` solo per disponibilità certa, `PreOrder` solo con data di rilascio; `SoldOut` resta per le case affittate.
+`tests/listing/run.mjs` separa «Subito» dalla data assente/illeggibile e verifica SSR, fatti al concierge, sitemap, llms e FAQ nel browser; `tests/zone/run.mjs` conserva la stessa distinzione.
+Le fixture della vetrina coprono entrambi i casi; quelle del Pubblicista provano prima il default spento, poi la coda con abilitazione esplicita, senza indebolire i controlli camere.
+
 **Il difetto era in produzione dal primo giorno.** `listings.availableDate` è
 sempre stato testo LIBERO, il portal ne suggeriva i formati nel placeholder
 (*"Es: Feb 1, Sep 2026, Immediate"*) e la vetrina faceva

@@ -1312,8 +1312,12 @@ const leggiScheda = () => ({
       ? true : JSON.stringify(d.altre.map((a) => [a.p, a.celle, a.vede])));
   await ctx.close();
 }
-{
+for (const availability of [
+  { label: 'data assente', fields: {}, expected: 'Ask us for the date' },
+  { label: 'Subito esplicito', fields: { availableDate: S('Subito') }, expected: 'Available now' },
+]) {
   // le «altre case» lette DAL DOCUMENTO: una richiesta sola per le tre
+  console.log('  Disponibilità delle altre case: ' + availability.label);
   let corpo = null;
   const NUOVE = {};
   const batch = async (b) => {
@@ -1321,7 +1325,7 @@ const leggiScheda = () => ({
     const ids = (b.documents || []).map((x) => String(x).split('/').pop());
     const [a, bb, cc] = ids;
     NUOVE[a] = { name: S('Altra Via Uno'), status: S('rented'), price: I(1999), bedrooms: I(0), beds: S('3') };
-    NUOVE[bb] = { name: S('Altra Via Due'), status: S('available'), price: I(1234), bedrooms: S('boh') };
+    NUOVE[bb] = { name: S('Altra Via Due'), status: S('available'), price: I(1234), bedrooms: S('boh'), ...availability.fields };
     // la terza: il documento manca → la carta resta com'è
     return { status: 200, contentType: 'application/json', body: JSON.stringify([
       { found: doc(a, NUOVE[a]), readTime: 'x' }, { found: doc(bb, NUOVE[bb]), readTime: 'x' },
@@ -1346,8 +1350,8 @@ const leggiScheda = () => ({
       ? true : JSON.stringify([x, y]));
   await check('le «altre case»: le camere con la regola UNA (0 → «Studio» anche col testo «3»; illeggibili → nessuna voce)', () =>
     /· Studio$/.test(x.riga) && !/\bbed\b|Studio/.test(y.riga) ? true : JSON.stringify([x.riga, y.riga]));
-  await check('le «altre case»: lo stato (la corsia della casa aperta: «Rented», «Available now») e il canone rimontato (data-p, aria-label, celle)', () =>
-    x.stato === 'Rented' && y.stato === 'Available now' && x.p === '€1,999' && x.aria === '€1,999 per month' && x.vede === '€1,999'
+  await check(`le «altre case»: ${availability.label} → «${availability.expected}», affittata → «Rented» e canone rimontato (data-p, aria-label, celle)`, () =>
+    x.stato === 'Rented' && y.stato === availability.expected && x.p === '€1,999' && x.aria === '€1,999 per month' && x.vede === '€1,999'
     && y.p === '€1,234' && y.vede === '€1,234' ? true : JSON.stringify([x, y]));
   await check('le «altre case»: il documento che manca lascia la carta com\'era', () =>
     JSON.stringify(z) === JSON.stringify(prima.altre[2]) ? true : JSON.stringify({ z, prima: prima.altre[2] }));
