@@ -32,7 +32,7 @@
 //     gets no offer, a failed send gives the button back;
 //   - the desk clock line reads "it is HH:MM at the desk[, HH:MM for you]";
 //   - the strip carries no price and names the plan once there is one;
-//   - 1440px: the pass is on the page from load, blank, in the sticky right
+//   - 1440px: the pass is on the page from load, blank, in the right
 //     column above the door; desktop nav with the door as a text link, no
 //     strip;
 //   - reduced motion: the word set still, no pass animation, no stagger;
@@ -552,9 +552,16 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.click(ckOpt('zero'));                    // in the first screen: no scroll to reach it
   await page.waitForTimeout(1800);                      // the page scrolls ITSELF to land the pass: not the reader's move
   check(!(await plateUp(page)), 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
-  await page.mouse.wheel(0, 120);
+  // the ticket's foot in the band the plate would take (a wheel keeps scrolling after
+  // its event, so the move that arms is a key pressed outside the work area)
+  await page.evaluate(() => { document.activeElement && document.activeElement.blur(); const r = document.getElementById('pass').getBoundingClientRect(); window.scrollBy({ top: r.bottom - (innerHeight - 50), behavior: 'instant' }); });
+  await page.waitForTimeout(200);
+  await page.keyboard.press('Shift');
   await page.waitForTimeout(1500);
-  check(!(await plateUp(page)), 'the wheel turn arms it, but the ticket is on the screen: the reader is at work, the plate still waits (it would sit on the ticket\'s own door)');
+  check(!(await plateUp(page)), 'a move outside the work area arms it, but the ticket reaches the band the plate would cover: the reader is at work, the plate still waits');
+  await page.evaluate(() => { const r = document.getElementById('pass').getBoundingClientRect(); window.scrollBy({ top: r.bottom - (innerHeight - 160), behavior: 'instant' }); });
+  await page.waitForTimeout(1600);
+  check(await plateUp(page), 'the ticket whole above the plate\'s band: it covers nothing the reader is working on, the plate comes');
   await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
   await page.waitForTimeout(1600);
   check((await plateUp(page)), 'once the hero is left the plate comes');
@@ -727,9 +734,9 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.waitForTimeout(500);
   check((await passState(page)).passPapers === '4 of 8', 'four ticks 120 ms apart → "4 of 8"');
   // the price and the plan are read as text; one small live region
-  const a11y = await page.evaluate(() => ({ sr: document.getElementById('ckPriceSr').textContent, live: document.getElementById('ckLive').textContent, boardHidden: document.getElementById('ckPrice').getAttribute('aria-hidden'), boxLive: document.getElementById('ckPlanBox').getAttribute('aria-live'), h1: document.querySelector('.hero h1 .sr').textContent, flapHidden: document.getElementById('flapCity').getAttribute('aria-hidden') }));
-  check(a11y.sr === '€149 per viewing' && a11y.live === 'Attended Viewing, €149, per viewing · incl. VAT' && a11y.boardHidden === 'true' && a11y.boxLive === null && a11y.h1 === 'Amsterdam' && a11y.flapHidden === 'true',
-    'the amount is text beside a decorative board, the plan is announced once in a small live region, the title board is decorative and the city is read as text');
+  const a11y = await page.evaluate(() => ({ sr: document.getElementById('ckPriceSr').textContent, live: document.getElementById('ckLive').textContent, boardHidden: document.getElementById('ckPrice').getAttribute('aria-hidden'), boxLive: document.getElementById('ckPlanBox').getAttribute('aria-live'), h1: document.querySelector('.hero h1 .sr').textContent, flapHidden: document.getElementById('flapCity').getAttribute('aria-hidden'), note: document.getElementById('ckNote').textContent }));
+  check(a11y.sr === '€149 per viewing' && a11y.live === 'Attended Viewing, €149. ' + a11y.note && a11y.note.length > 10 && a11y.boardHidden === 'true' && a11y.boxLive === null && a11y.h1 === 'Amsterdam' && a11y.flapHidden === 'true',
+    'the amount is text beside a decorative board, the plan is announced once in a small live region and the third tap\'s note after it, the title board is decorative and the city is read as text');
   await ctx.close();
 }
 {
@@ -794,7 +801,7 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await c2.close();
 }
 
-// ── 1440px: the pass is on the page from load, blank, in the sticky column ──
+// ── 1440px: the pass is on the page from load, blank, in the right column ──
 {
   const { ctx, page } = await open({ width: 1440 });
   await page.waitForTimeout(2600);
@@ -806,11 +813,11 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   const geo = await page.evaluate(() => {
     const h1 = document.querySelector('.hero h1').getBoundingClientRect(), pass = document.getElementById('pass').getBoundingClientRect(), card = document.querySelector('.filecard').getBoundingClientRect();
     const right = document.querySelector('.hero-right');
-    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, top: right.style.top, colH: right.getBoundingClientRect().height, inRight: document.getElementById('pass').parentNode === right, afterCk: document.getElementById('checkin').nextElementSibling === document.getElementById('pass') };
+    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, top: right.style.top, colH: right.getBoundingClientRect().height, leftH: document.querySelector('.hero-left').getBoundingClientRect().height, inRight: document.getElementById('pass').parentNode === right, afterCk: document.getElementById('checkin').nextElementSibling === document.getElementById('pass') };
   });
   check(geo.twoCols && geo.passAboveDoor && Math.abs(geo.passTop - geo.h1Top) < 80 && geo.inRight && !geo.afterCk, 'the pass sits beside the title with the door under it: two columns (the JS moved it into the right column)');
-  check(geo.sticky === 'sticky' && /^-?\d+px$/.test(geo.top) && parseFloat(geo.top) <= 94 && (geo.colH <= 900 - 110 || parseFloat(geo.top) < 0),
-    `the right column is sticky — by its bottom (a negative top) when taller than the screen, never parked static (top ${geo.top}, column ${Math.round(geo.colH)}px)`);
+  check(geo.sticky !== 'sticky' && geo.top === '',
+    `no sticky column on the desk (position ${geo.sticky}; right ${Math.round(geo.colH)}px, left ${Math.round(geo.leftH)}px)`);
   check(await page.isVisible('.nav-links .nav-door') && (await page.textContent('.nav-links .nav-door')).trim() === 'Open my file' && !(await page.isVisible('#navToggle')),
     '1440px: desktop nav with the door as a text link, no burger');
   check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no strip');

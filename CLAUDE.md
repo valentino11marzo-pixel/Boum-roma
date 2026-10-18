@@ -1751,6 +1751,33 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
       Mon–Fri, «Nothing by then?»; la targa che aspetta sul biglietto e sul
       Check-in non risposto a 375px; la striscia che torna alla chiusura del
       dialog; la colonna sticky dal basso).
+      **Il secondo giro (18/10)**, dopo il merge di main (che nel frattempo
+      aveva riscritto `js/boom-consent.js`: targa nascosta `.zz` sul
+      telefono, 5 s, `lift()` sopra la barra in fondo — il ramo «late» dei
+      desk città vive DENTRO quella riscrittura, e la suite di main
+      `tests/consent` resta verde con le sue 8 mutazioni): quattordici
+      candidati di una seconda verifica, i confutatori fermi sul tetto
+      settimanale, letti e chiusi a mano. **La colonna sticky non c'è più**:
+      misurata a 1440 la colonna destra (pass + porta) è più alta della
+      sinistra (1021 contro 719 px), quindi lo sticky non aveva spazio per
+      muoversi, e dove poteva nascondeva il piede della porta — via il CSS,
+      via il JS del `top` negativo, e il test lo misura. **La regione live
+      sta nel Check-in**, non nel pass: sul telefono il pass è
+      `display:none` fino al primo tap e una regione che nasce col testo
+      perde il primo annuncio; al terzo tap annuncia anche la nota. **La
+      targa aspetta solo ciò che COPRIREBBE**: la sua scatola, misurata dove
+      `show()` la metterebbe (dopo `lift()`), contro Check-in e biglietto —
+      sotto un biglietto intero viene; il tempo nella cassa non consuma i
+      45 s. **Un POST appeso non blocca il bottone** (porta e cassa passano
+      da `postJson`, 20 s e poi errore sul posto); la promessa «free ·
+      same-day reply» si ricontrolla ogni minuto (una pagina lasciata aperta
+      oltre le 19 cambia promessa) e sulla striscia tocca solo il proprio
+      testo; l'errore di contatto mette il focus sul campo riempito; il pass
+      entra una volta (spostarlo non riaccende l'animazione e tiene il
+      focus); un worker che non risponde si ritira; il menu che si chiude
+      sta fermo sotto reduced-motion; la stampa forza nero su bianco.
+      Test: `tests/cities/run.mjs` 482, `tests/cities/ui.mjs` 175,
+      `tests/cities/checkout.mjs` 39, `tests/consent/run.mjs` 25.
   **Non deciso qui, come prima**: tutti e cinque i desk restano `live:false`;
   il link recensione di Roma, le ore reali del desk, la foto o il solo nome,
   l'IVA transfrontaliera, i partner AICAT/carte/§34c e la domanda Berlino su

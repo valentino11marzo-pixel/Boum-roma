@@ -78,7 +78,9 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 @media(min-width:920px){
   .hero{grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:48px}
   .hero-left,.hero-right{display:block;min-width:0}
-  .hero-right{position:sticky;top:calc(var(--boom-barra,80px) + 14px);align-self:start}
+  /* no sticky: the right column (pass + door) is never shorter than the left,
+     so sticky had no room to move, and where it could it hid the door's foot */
+  .hero-right{align-self:start}
   .hero #pass{margin-top:0}
   .hero .filecard{margin-top:16px}
   .hero h1{font-weight:200}
@@ -436,13 +438,15 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   .ck-meter i{transition:none}
   dialog#ov[open]{animation:none}
   ::view-transition-group(*),::view-transition-old(*),::view-transition-new(*){animation:none!important}
-  .paybar,.more summary::before,.sheetfold>summary::after,.faq summary::after,.ck-opt span,.ck-doc span,.chip span,.mobile-menu{transition:none}
+  .paybar,.more summary::before,.sheetfold>summary::after,.faq summary::after,.ck-opt span,.ck-doc span,.chip span,.mobile-menu,.mobile-menu:not(.active){transition:none}
   .sib:hover,.g-it:hover{transform:none}
 }
 
 /* ── print: a paper copy of the ticket and the checks, black on white ── */
 @media print{
   body{background:#fff;color:#000}
+  *,*::before,*::after{color:#000!important;text-shadow:none!important;box-shadow:none!important}
+  .pass,.pass .pbody,.pass::before,.checkin,.filecard,.sib,.flows,.enbref,.ck-opt span,.ck-doc span,.chip span{background:#fff!important}
   .nav,.mobile-menu,.tech-bg,.paybar,dialog,.boomcst,.skip,.skipck,.pdoors,.pshare,.ppers,.ck-change,.ck-passbtns,.footer-links-list{display:none!important}
   .pass,.checkin,.filecard,.sib,.flows,.enbref{box-shadow:none;border-color:#999;color:#000;background:#fff}
   .pass .lamina{background:#ddd}

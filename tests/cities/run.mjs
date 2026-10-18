@@ -179,13 +179,13 @@ const hero = slice(html, '<header class="hero"', '</header>');
 const at = (s) => hero.indexOf(s);
 check(at('<h1') > -1 && at('<h1') < at('class="lead') && at('class="lead') < at('<!-- CHECK-IN -->') && at('<!-- /CHECK-IN -->') < at('<!-- PASS -->') && at('<!-- /PASS -->') < at('class="skipck"') && at('class="skipck"') < at('class="facts"') && at('class="facts"') < at('<!-- THE DOOR -->'),
   'the hero is one DOM in reading order: title, lead, Check-in, pass, skip link, facts, door — the phone\'s order is the focus order, the CSS reorders nothing');
-check(/if \(deskMq\.matches\) \{ if \(pass\.parentNode !== right\) right\.insertBefore\(pass, right\.firstChild\); \}/.test(js) && /ck\.insertAdjacentElement\('afterend', pass\)/.test(js) && /deskMq\.addEventListener\('change', place\)/.test(js),
-  'the JS moves the pass to the top of the right column at ≥920 and back after the Check-in below (a node move keeps its state), on the media query\'s change too');
+check(/var where = deskMq\.matches \? 'right' : 'left';/.test(js) && /right\.insertBefore\(pass, right\.firstChild\)/.test(js) && /ck\.insertAdjacentElement\('afterend', pass\)/.test(js) && /deskMq\.addEventListener\('change', place\)/.test(js) && /focused\.focus\(\{ preventScroll: true \}\)/.test(js) && /pass\.classList\.remove\('in'\);\s*if \(where === 'right'\)/.test(js),
+  'the JS moves the pass to the top of the right column at ≥920 and back after the Check-in below (a node move keeps its state, its focused control, and does not replay the entrance), on the media query\'s change too');
 check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 && (html.match(/<article class="pass carta" id="pass" data-state="blank"/g) || []).length === 1,
   'the Check-in once, the pass once, blank at parse (the JS sets the state)');
 
 // the door
-check(html.includes('<form id="cityForm" novalidate') && js.includes("fetch(C.LEAD_ENDPOINT || '/api/city-lead'") && html.includes('"LEAD_ENDPOINT": "/api/city-lead"'), 'the form posts to /api/city-lead');
+check(html.includes('<form id="cityForm" novalidate') && js.includes("postJson(C.LEAD_ENDPOINT || '/api/city-lead'") && /function postJson\(url, body, ms\)/.test(js) && /ctl\.abort\(\); \}, ms \|\| 20000\)/.test(js) && js.includes("postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout'") && html.includes('"LEAD_ENDPOINT": "/api/city-lead"'), 'the form posts to /api/city-lead (door and till through one POST that gives up after 20 s, so a hung request never locks the button)');
 check(/<input id="fCompany" name="company"[^>]*tabindex="-1"[^>]*aria-hidden="true">/.test(html) && !/<label[^>]*>[^<]*ompany/.test(html), 'the honeypot is a hidden field named company, and no visible field shares the name');
 const visibleFields = (html.match(/<(input|select) id="f(Name|Email|Phone|MoveIn|Budget)"/g) || []).length;
 const chips = [...html.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span><b>([^<]*)<\/b><small>([^<]*)<\/small><\/span><\/label>/g)];
@@ -734,8 +734,8 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
     'the pass: the route lands on the IATA code, the city is a board word, the blank line, the pending box and the plan box (the JS shows one)');
   check(/<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"><\/span><span class="sr" id="ckPriceSr"><\/span><small id="ckCond"><\/small>/.test(pass) && pass.includes('<p class="note" id="ckNote" hidden></p>'),
     'the price on its own board (decorative) with the amount as text and the plan\'s condition beside it; the note hidden until the third tap');
-  check(pass.includes('<span class="sr" id="ckLive" role="status" aria-live="polite"></span>') && !/aria-live/.test(slice(pass, 'id="ckPlanBox"', 'id="ckReady"')) && pass.includes('<p class="ready" id="ckReady" role="status"></p>') && (pass.match(/aria-live|role="status"/g) || []).length === 5,
-    'one small live region on the pass (the plan once per plan) and a status on the papers line — never the whole plan box with its sixteen controls (the review\'s a11y finding)');
+  check(slice(html, '<!-- CHECK-IN -->', '<!-- /CHECK-IN -->').includes('<span class="sr" id="ckLive" role="status" aria-live="polite"></span>') && !pass.includes('id="ckLive"') && !/aria-live/.test(slice(pass, 'id="ckPlanBox"', 'id="ckReady"')) && pass.includes('<p class="ready" id="ckReady" role="status"></p>') && (pass.match(/aria-live|role="status"/g) || []).length === 3,
+    'one small live region for the plan, in the Check-in (a region inside the phone\'s display:none pass misses its first announcement), and a status on the papers line — never the whole plan box with its sixteen controls');
   check(pass.includes('id="ckName" maxlength="24"') && pass.includes('id="ckOrigin" maxlength="12"') && pass.includes(`<b id="ckPassenger">${esc(ams.checkin.pass.guest)}</b>`) && pass.includes(`<span class="pside">${esc(ams.checkin.pass.side)}</span>`) && pass.includes(`<span>${esc(ams.checkin.pass.foot)}</span>`),
     'passenger and origin capped, "A tenant" until a name is typed, the side and the foot on the lamina');
   check(pass.includes(`<div class="pshare"><span>${esc(ams.checkin.share.lead)}</span><a id="ckWa" href="#" target="_blank" rel="noopener">${esc(ams.checkin.share.whatsapp)}</a><button type="button" id="ckCopy">${esc(ams.checkin.share.copy)}</button>`)
@@ -846,8 +846,8 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/\.pass\.in\{animation:none\}|\.pass\.in\{animation:none/.test(rm.replace(/\s/g, '')) || /,\.pass\.in\{animation:none\}/.test(rm), 'under prefers-reduced-motion the pass entrance is off');
   check(/::view-transition-group\(\*\),::view-transition-old\(\*\),::view-transition-new\(\*\)\{animation:none!important\}/.test(rm) && /dialog#ov\[open\]\{animation:none\}/.test(rm) && /html\{scroll-behavior:auto\}/.test(rm),
     'under reduced motion: no view transition, no dialog animation, no smooth scroll');
-  check(/@property --meter\{syntax:'<percentage>'/.test(css) && /\.late\{content-visibility:auto;contain-intrinsic-size:auto 600px\}/.test(css) && /\.hero-left,\.hero-right\{display:contents\}/.test(css) && /\.hero-right\{position:sticky/.test(css),
-    'the CSS: a typed --meter, content-visibility on the late sections, one DOM reordered with display:contents on a phone and sticky on the desk');
+  check(/@property --meter\{syntax:'<percentage>'/.test(css) && /\.late\{content-visibility:auto;contain-intrinsic-size:auto 600px\}/.test(css) && /\.hero-left,\.hero-right\{display:contents\}/.test(css) && !/\.hero-right\{position:sticky/.test(css),
+    'the CSS: a typed --meter, content-visibility on the late sections, one DOM reordered with display:contents on a phone, no sticky column on the desk');
   check(/^\s*\[hidden\]\{display:none!important\}/.test(css.replace(/\/\*[\s\S]*?\*\//g, '')), 'the first rule makes [hidden] win over every state rule (the defeat found in v1.2 cannot return)');
   // the review of 17/10 on the layer and the behaviour, pinned on the source
   check(/::view-transition\{pointer-events:none\}/.test(css) && /render\(\{ plain: true \}\)/.test(js) && /function swap\(fn, plain\)/.test(js),
@@ -876,13 +876,22 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/Object\.prototype\.hasOwnProperty\.call\(PLANS, id\)/.test(js) && !/PLANS\[plan\]/.test(js), '?paid=constructor is not a plan: PLANS is read through hasOwnProperty everywhere');
   check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config'"),
     'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there)');
-  check(/timeZoneName: 'short'/.test(js) && /function tzLabel\(\)/.test(js) && /querySelectorAll\('\[data-tz\]'\)/.test(js) && /desk\.open\(\) !== false/.test(js) && /\['fGo', 'ckFile'\]\.forEach/.test(js),
-    'the zone label follows the clock (CEST seven months a year) and "same-day reply" is swapped for the window when the desk is closed, on the door, the pass and the strip');
-  check(/col\.style\.top = Math\.round\(Math\.min\(bar \+ 14, innerHeight - h - 24\)\) \+ 'px'/.test(js) && !/classList\.toggle\('tall'/.test(js) && !/\.hero-right\.tall/.test(css),
-    'the sticky column sticks by its bottom when taller than the screen (never parked static: on every laptop it was)');
+  check(/timeZoneName: 'short'/.test(js) && /function tzLabel\(\)/.test(js) && /querySelectorAll\('\[data-tz\]'\)/.test(js) && /desk\.open\(\) === false/.test(js) && /\['fGo', 'ckFile'\]\.map/.test(js) && /if \(st && \/\^free · \/\.test\(st\.textContent\)\) setText\('stripSub', sub \|\| open\.strip\);/.test(js) && /if \(typeof deskSub === 'function'\) deskSub\(\);/.test(js),
+    'the zone label follows the clock (CEST seven months a year) and "same-day reply" is swapped for the window when the desk is closed, on the door, the pass and the strip, re-checked every minute (a page left open across 19:00 changes its promise), a plan named on the strip left alone');
+  check(!/col\.style\.top/.test(js) && !/classList\.toggle\('tall'/.test(js) && !/\.hero-right\.tall/.test(css) && !/position:sticky/.test(slice(css, '@media(min-width:920px){', '}\n')),
+    'no sticky column: the right column (pass + door) is never shorter than the left, so sticky had nowhere to move, and where it could it hid the foot of the door');
   check(/\{ threshold: 1 \}\)\.observe\(\$\('ckPlan'\)\)/.test(js), 'the plan-seen event watches the plan line, not a pass taller than the phone');
   const consent = read('js/boom-consent.js');
   check(/function atWork\(\)/.test(consent) && /WAIT_MAX = 45000/.test(consent) && /late && atWork\(\) && Date\.now\(\) - armedAt < WAIT_MAX/.test(consent), 'the consent plate waits while the reader is at work in the hero (the unanswered Check-in or the ticket on the screen), 45 s at most');
+  // the second review round (18/10): what the first round left half done
+  check(/function plateBox\(\)/.test(consent) && /lift\(\);\s*var r = el\.getBoundingClientRect\(\)/.test(consent) && /meets\(ck, box\)/.test(consent) && /meets\(pass, box\)/.test(consent),
+    'the plate waits only for what it would COVER: its own box, measured where show() would put it, against the Check-in and the ticket');
+  check(/if \(modalOpen\(\)\) \{ armedAt = Date\.now\(\); setTimeout\(lateGo, 400\); return; \}/.test(consent),
+    'time spent in the till does not spend the plate\'s 45 s: the wait restarts when the dialog closes');
+  check(/key === 'contact' \? \(v\('fPhone'\) && !v\('fEmail'\) \? \$\('fPhone'\) : \$\('fEmail'\)\)/.test(js) && /if \(mv && !mv\.getAttribute\('data-user'\)\)/.test(js) && /if \(s\.kind !== 'blank' && !entered && !opts\.landing\) \{ entered = true; pass\.classList\.add\('in'\); \}/.test(js) && /to = setTimeout\(function \(\) \{ workerDead = true; worker = null; fin\(null\); \}, 4000\)/.test(js),
+    'the contact error focuses the field that was filled, a month the reader picked is theirs, the pass enters once (a move never replays it), a worker that never answers is retired');
+  check(/\.mobile-menu:not\(\.active\)\{transition:none\}|\.mobile-menu,\.mobile-menu:not\(\.active\)\{transition:none\}/.test(css) && /\*,\*::before,\*::after\{color:#000!important;text-shadow:none!important;box-shadow:none!important\}/.test(css),
+    'under reduced motion the closing menu holds still too; the print sheet forces black on white, gold and shadows included');
   check(/window\.BOOM_CHECKIN = CK;/.test(js) && /checkin=\(\[a-z-\]\+\)\\\.\(\[a-z-\]\+\)\\\.\(\[a-z-\]\+\)\\\.\(\[0-9a-f\]\{1,2\}\|-\)\(\?:\\\.\(\[lwcdp\]\)\)\?/.test(js) && /checkin: v\('fCheckin'\), dossier: v\('fDossier'\)/.test(js),
     'the JS exposes the Check-in, reads #checkin=stage.where.when.docs[.via] back, and posts the two hidden fields with the lead');
   check(/sessionStorage\.getItem\(key\)/.test(js) && !/localStorage\.setItem\(['"]boom:paid/.test(js) && /drawPass\.toString\(\)/.test(js) && /OffscreenCanvas/.test(js) && /document\.startViewTransition/.test(js),

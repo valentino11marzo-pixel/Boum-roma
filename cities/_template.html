@@ -5,7 +5,7 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config','G-EYCD59RDVJ');</script>
-    <!-- page_location is set WITHOUT the fragment: the Check-in writes the visitor's answers and papers into #checkin=…, and GA must never read them -->
+    <!-- page_location is set WITHOUT the fragment: the visitor's own link (#checkin=…) carries the mask of the papers they hold, and that never goes to GA (the Check-in events send the three answers and a count of papers, nothing more) -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{meta.title}}</title>

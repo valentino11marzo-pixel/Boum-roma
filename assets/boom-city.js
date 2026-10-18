@@ -47,6 +47,14 @@
   /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  /* a POST that never answers must not lock a button for the tab's life:
+     20 s, then the send fails in place and the button comes back */
+  function postJson(url, body, ms) {
+    var ctl = window.AbortController ? new AbortController() : null;
+    var to = setTimeout(function () { if (ctl) ctl.abort(); }, ms || 20000);
+    return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined })
+      .then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; });
+  }
   var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
   /* a board that spells one word (the city, OPEN, PAID) — mounted once, shown once */
@@ -134,6 +142,9 @@
       if (!shown) { shown = true; boomTrack('clock_shown', { market: C.SLUG }); }
       var ms = 60000 - (Date.now() % 60000) + 50;
       setTimeout(clock, ms);
+      /* the desk's promise on the door follows the same minute: a tab kept
+         open across 19:00 stops saying "same-day reply" */
+      try { if (typeof deskSub === 'function') deskSub(); } catch (e) {}
     }
     clock();
     return { replyWindow: replyWindow, parts: parts, tzLabel: tzLabel, open: isOpen };
@@ -147,14 +158,26 @@
      button, the pass's door, the strip) say the window instead — the same
      one the OPEN card computes — so the promise shown before the tap is the
      one kept after it. */
-  (function () {
-    if (!desk || desk.open() !== false) return;
-    var rw = desk.replyWindow();
-    if (!rw) return;
-    var sub = 'free · ' + rw;
-    ['fGo', 'ckFile'].forEach(function (id) { var el = $(id), sm = el && el.querySelector('small'); if (sm) sm.textContent = sub; });
+  var deskSub = (function () {
     var bar = $('paybar');
-    if (bar) { bar.setAttribute('data-sub', sub); setText('stripSub', sub); }
+    var smalls = ['fGo', 'ckFile'].map(function (id) { var el = $(id); return el && el.querySelector('small'); }).filter(Boolean);
+    var open = { sub: smalls[0] ? smalls[0].textContent : '', strip: bar ? bar.getAttribute('data-sub') || '' : '' };
+    var last = null;
+    function sync() {
+      if (!desk) return;
+      var closed = desk.open() === false, rw = closed ? desk.replyWindow() : null;
+      var sub = closed && rw ? 'free · ' + rw : null;
+      if (sub === last) return;
+      last = sub;
+      smalls.forEach(function (sm) { sm.textContent = sub || open.sub; });
+      if (bar) {
+        bar.setAttribute('data-sub', sub || open.strip);
+        /* the strip's line is rewritten only while it shows the default (a plan named there stays) */
+        var st = $('stripSub'); if (st && /^free · /.test(st.textContent)) setText('stripSub', sub || open.strip);
+      }
+    }
+    sync();
+    return sync;
   })();
   var nowYM = (function () { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1); })();
   function ymPlus(n) { var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return d.getFullYear() + '-' + (d.getMonth() + 1 < 10 ? '0' : '') + (d.getMonth() + 1); }
@@ -268,15 +291,11 @@
         if (phone && phone.replace(/\D/g, '').length < 6) return fail('phone');
         sending = true; go.classList.add('busy');
         boomTrack('add_payment_info', { currency: 'EUR', value: p.eur, market: C.SLUG });
-        fetch(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            city: C.SLUG, kind: id, name: name, email: email, phone: phone,
-            notes: ($('sNote').value || '').trim(),
-            company: ($('sCompany').value || '').trim()
-          })
+        postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
+          city: C.SLUG, kind: id, name: name, email: email, phone: phone,
+          notes: ($('sNote').value || '').trim(),
+          company: ($('sCompany').value || '').trim()
         })
-          .then(function (r) { return r.json(); })
           .then(function (res) {
             if (res && res.ok && res.url) { location.href = res.url; return; }
             throw new Error((res && res.error) || 'failed');
@@ -316,7 +335,7 @@
     var fail = function (key) {
       err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on');
       boomTrack('form_error', { form: 'file', field: key, market: C.SLUG });
-      var f = key === 'name' ? $('fName') : key === 'email' || key === 'contact' ? $('fEmail') : null;
+      var f = key === 'name' ? $('fName') : key === 'email' ? $('fEmail') : key === 'contact' ? (v('fPhone') && !v('fEmail') ? $('fPhone') : $('fEmail')) : null;
       if (f) { try { f.focus(); } catch (e) {} }
     };
     /* ONE send per tap: pointer-events on the button stops a second click,
@@ -345,20 +364,16 @@
       var picked = service();
       boomTrack('generate_lead', { channel: 'form', source_page: C.SLUG });
       boomTrack('door_prefill', { market: C.SLUG, plan: picked || 'none', from: form.getAttribute('data-plan-from') || 'none' });
-      fetch(C.LEAD_ENDPOINT || '/api/city-lead', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          city: C.SLUG,
-          name: name, email: email, phone: phone,
-          moveIn: v('fMoveIn'), budget: v('fBudget'), service: picked,
-          situation: v('fSituation'), areas: v('fAreas'), message: v('fMsg'),
-          /* what the Check-in learned, if they used it (the server prints it
-             in the operator's summary; empty otherwise) */
-          checkin: v('fCheckin'), dossier: v('fDossier'),
-          company: v('fCompany')
-        })
+      postJson(C.LEAD_ENDPOINT || '/api/city-lead', {
+        city: C.SLUG,
+        name: name, email: email, phone: phone,
+        moveIn: v('fMoveIn'), budget: v('fBudget'), service: picked,
+        situation: v('fSituation'), areas: v('fAreas'), message: v('fMsg'),
+        /* what the Check-in learned, if they used it (the server prints it
+           in the operator's summary; empty otherwise) */
+        checkin: v('fCheckin'), dossier: v('fDossier'),
+        company: v('fCompany')
       })
-        .then(function (r) { return r.json(); })
         .then(function (j) {
           if (!j || !j.ok) throw new Error((j && j.error) || 'failed');
           form.classList.add('hidden');
@@ -426,8 +441,16 @@
     var pass = $('pass'), right = document.querySelector('.hero-right'), ck = $('checkin');
     if (!pass || !right || !ck) return;
     function place() {
-      if (deskMq.matches) { if (pass.parentNode !== right) right.insertBefore(pass, right.firstChild); }
-      else if (ck.nextElementSibling !== pass) ck.insertAdjacentElement('afterend', pass);
+      var where = deskMq.matches ? 'right' : 'left';
+      if (where === 'right' && pass.parentNode === right) return;
+      if (where === 'left' && ck.nextElementSibling === pass) return;
+      /* a move re-inserts the node: the focused control inside it would
+         blur and the entrance animation would replay — keep the one, skip
+         the other (the pass has entered already) */
+      var focused = document.activeElement && pass.contains(document.activeElement) ? document.activeElement : null;
+      pass.classList.remove('in');
+      if (where === 'right') right.insertBefore(pass, right.firstChild); else ck.insertAdjacentElement('afterend', pass);
+      if (focused) { try { focused.focus({ preventScroll: true }); } catch (e) {} }
     }
     place();
     try { deskMq.addEventListener('change', place); } catch (e) { try { deskMq.addListener(place); } catch (e2) {} }
@@ -442,7 +465,7 @@
     var root = $('checkin'), pass = $('pass');
     if (!K || !root || !pass) return null;
     var STEPS = ['stage', 'where', 'when'];
-    var touchedDocs = false, editing = null, started = false, lastPlan = null, lastKind = 'blank', boardMounted = false, viewedPlan = null;
+    var touchedDocs = false, editing = null, started = false, lastPlan = null, lastKind = 'blank', boardMounted = false, viewedPlan = null, entered = false;
     var stepEl = function (id) { return root.querySelector('.ck-step[data-step="' + id + '"]'); };
     var answer = function (id) { var r = root.querySelector('input[name="ck-' + id + '"]:checked'); return r ? r.value : null; };
     var optOf = function (stepId, optId) {
@@ -583,7 +606,9 @@
           /* the note after the third tap: the when note, or the refusal for zero + soon */
           var note = $('ckNote');
           if (s.kind === 'complete') {
-            note.textContent = (s.st === 'zero' && s.wn === 'soon') ? K.refusal : K.notes.when[s.wn];
+            var noteText = (s.st === 'zero' && s.wn === 'soon') ? K.refusal : K.notes.when[s.wn];
+            if (live && note.textContent !== noteText) setText('ckLive', p.label + ', ' + eur(p.eur) + '. ' + noteText);
+            note.textContent = noteText;
             note.hidden = false;
           } else note.hidden = true;
           /* the papers */
@@ -629,7 +654,7 @@
            as the page's own: it follows a changed answer and leaves with it;
            a month the reader picked is never touched */
         var mv = $('fMoveIn');
-        if (mv) {
+        if (mv && !mv.getAttribute('data-user')) {
           var want = s.kind === 'complete' ? (s.wn === 'soon' ? ymPlus(1) : s.wn === 'months' ? ymPlus(2) : '') : '';
           var auto = mv.getAttribute('data-auto') || '';
           if (!mv.value || (auto && mv.value === auto)) {
@@ -638,7 +663,7 @@
           }
         }
         if (!boardMounted && s.kind !== 'blank') { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); }
-        if (s.kind !== 'blank' && !pass.classList.contains('in') && !opts.landing) pass.classList.add('in');
+        if (s.kind !== 'blank' && !entered && !opts.landing) { entered = true; pass.classList.add('in'); }
         paintPass();
       }, !!opts.plain);
       /* the pass must land on the screen the visitor is looking at: scroll
@@ -801,7 +826,7 @@
       var p = w ? new Promise(function (resolve) {
         var id = ++reqSeq, done = false, to = null;
         var fin = function (b) { if (done) return; done = true; if (to) clearTimeout(to); delete pendingReq[id]; resolve(b); };
-        to = setTimeout(function () { fin(null); }, 4000);
+        to = setTimeout(function () { workerDead = true; worker = null; fin(null); }, 4000);
         pendingReq[id] = fin;
         try { w.postMessage({ id: id, W: 1080, H: 1920, d: d, type: 'image/webp' }); } catch (e) { fin(null); }
       }) : Promise.resolve(null);
@@ -893,7 +918,8 @@
       if (e.target && e.target.name === 'ck-doc') { touchedDocs = true; render({ plain: true }); }
     });
     var mvEl = $('fMoveIn');
-    if (mvEl) mvEl.addEventListener('change', function () { mvEl.removeAttribute('data-auto'); });
+    /* touched by the reader (a month, or back to "not sure yet"): theirs from then on */
+    if (mvEl) mvEl.addEventListener('change', function () { mvEl.removeAttribute('data-auto'); mvEl.setAttribute('data-user', '1'); });
     $('ckCopy').addEventListener('click', copyLink);
     $('ckWa').addEventListener('click', function () { boomTrack('pass_share', { market: C.SLUG, method: 'whatsapp' }); });
     $('ckSave').addEventListener('click', savePass);
@@ -957,25 +983,6 @@
     return { state: state, render: render, hash: hashOf, shareUrl: shareUrl, passBlob: passBlob, drawPass: drawPass, passData: passData };
   })();
   window.BOOM_CHECKIN = CK;
-
-  /* ── the sticky column at ≥920px: stuck under the bar while it fits the
-     screen; taller than the screen (a complete pass over the door) it sticks
-     by its BOTTOM — a negative top — so the door is reached by scrolling the
-     column, never parked static (on every laptop the column is taller than
-     the viewport, and a release would have meant no sticky at all) ── */
-  (function () {
-    var col = document.querySelector('.hero-right');
-    if (!col || !('ResizeObserver' in window)) return;
-    var upd = function () {
-      if (innerWidth < 920) { col.style.top = ''; return; }
-      var bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80;
-      var h = col.getBoundingClientRect().height;
-      col.style.top = Math.round(Math.min(bar + 14, innerHeight - h - 24)) + 'px';
-    };
-    new ResizeObserver(upd).observe(col);
-    addEventListener('resize', upd, { passive: true });
-    upd();
-  })();
 
   /* ── chrome: scrolled nav, burger ───────────────────────────────────── */
   (function () {

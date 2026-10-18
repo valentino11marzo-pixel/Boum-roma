@@ -486,6 +486,10 @@ const R = {
       `<section class="checkin" id="checkin" aria-label="Check-in">`,
       `  <div class="ck-head"><span class="ck-num" id="ckNum">${esc(k.num.replace('{n}', '1'))}</span></div>`,
       '  <p class="ck-landing" id="ckLanding" hidden></p>',
+      // the one live region for plan and pending lines lives HERE, not in the
+      // pass: on a phone the pass is display:none until the first tap, and a
+      // region that appears with its text misses that first announcement
+      '  <span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
       '  <div class="ck-steps" id="ckSteps">',
       ...steps,
       '  </div>',
@@ -516,10 +520,8 @@ const R = {
       `    <div class="pboard flap-pass" id="ckBoard" data-word="${esc(c.city)}" aria-hidden="true"></div>`,
       `    <p class="pblank" id="ckBlank">${esc(k.landing.blank)}</p>`,
       `    <div class="ppend" id="ckPend" hidden><span class="peye">${esc(k.pending.eyebrow)}</span><p id="ckPendText"></p></div>`,
-      // ONE small live region for the whole pass (the plan once per plan, the
-      // pending sentence once); never the plan box itself, which holds sixteen
-      // controls and ten fragments that would be re-announced on every tick
-      '    <span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
+      // no aria-live on the plan box (sixteen controls, ten fragments re-read
+      // on every tick): the one live region sits in the Check-in, see above
       '    <div class="pplan" id="ckPlanBox" hidden>',
       `      <span class="peye">${esc(k.result.eyebrow)}</span>`,
       '      <h3 id="ckPlan"></h3>',
@@ -1015,7 +1017,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need((html.match(/<article class="pass carta" id="pass"/g) || []).length === 1 && hero.indexOf('<!-- /CHECK-IN -->') < hero.indexOf('<!-- PASS -->') && hero.indexOf('<!-- /PASS -->') < hero.indexOf('class="skipck"'),
     where, 'the pass sits once in the hero, right after the Check-in and before the skip link: the phone\'s reading order is the focus order (the JS moves it to the right column at ≥920)');
   need(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">') && html.includes(`</span><span class="sr">${esc(city.city)}</span></h1>`), where, 'the title board is decorative and the city is read as text');
-  need(html.includes('<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span>') && !/id="ckPlanBox"[^>]*aria-live/.test(html) && html.includes('id="ckLive" role="status" aria-live="polite"'),
+  need(html.includes('<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span>') && !/id="ckPlanBox"[^>]*aria-live/.test(html) && sliceOf(html, '<!-- CHECK-IN -->', '<!-- /CHECK-IN -->').includes('id="ckLive" role="status" aria-live="polite"'),
     where, 'the price board is decorative with the amount as text beside it; the pass has one small live region, not a live plan box');
   need(html.includes(esc(checkinAnswer(city))), where, 'the derived Check-in FAQ answer is not on the page');
   need(!/class="fam"|class="rail"|class="scroll-progress"|class="mouse-glow"|class="machine"|class="tline"|class="truth"|class="band |class="refline"|class="serving"/.test(html), where, 'the v1.2 chrome left the page: family strip, rail, progress bar, glow, route line, timeline, truth band, bottom band');

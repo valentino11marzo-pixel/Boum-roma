@@ -1006,3 +1006,13 @@ Forty-nine agents read the v2 commit across seven lenses; fourteen findings were
 7. **The live-ticket guard checks sameness, not existence.** `resolvesAt` returned 1 for a stage-only rule even when an earlier `where` rule shadowed part of it; the ticket would have printed a plan on tap 1 and switched it on tap 2. Tap 1 now requires every `where` to land on the same rule.
 
 Left open, on purpose: the strip still sells the featured plan on the phone (the pass has its own button); the `#checkin=` fragment still carries the papers mask for the visitor's own resume (GA no longer receives the fragment: `page_location` is set without it); the checkout dialog's copy promises "the same working day", which the founder may want to tie to the desk clock as the OPEN card is.
+
+### 11.15 The second verification (18 Oct)
+
+After merging main (which had rewritten the consent script: the plate born hidden on a phone, 5 s, lifted above the bottom bar), a second verification found fourteen candidates; the refuters again hit the weekly ceiling, so each was read and closed by hand. Three change the design:
+
+1. **No sticky column.** §11.14.6 is withdrawn. Measured at 1440 px the right column (pass + door) is taller than the left (1021 vs 719 px), so sticky had nowhere to move, and where it could, it hid the foot of the door. The CSS and the negative-`top` JS are gone; the test measures both heights.
+2. **The live region lives in the Check-in.** On a phone the pass is `display:none` until the first tap, and a live region that appears together with its text misses its first announcement. The plan is announced from the Check-in; the third tap's note follows it.
+3. **The plate waits only for what it would cover.** §11.14.3 measured the whole screen. It now measures its own box where `show()` would put it (after `lift()`) against the Check-in and the ticket: under a whole ticket it comes. Time spent in the till does not spend the 45 s.
+
+The rest is code: one POST helper that gives up after 20 s (door and till never lock), the desk promise re-checked every minute, the contact error focusing the field actually filled, the pass entering once, a silent worker retired, the closing menu still under reduced motion, print forced black on white.

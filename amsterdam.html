@@ -5,7 +5,7 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config','G-EYCD59RDVJ');</script>
-    <!-- page_location is set WITHOUT the fragment: the Check-in writes the visitor's answers and papers into #checkin=…, and GA must never read them -->
+    <!-- page_location is set WITHOUT the fragment: the visitor's own link (#checkin=…) carries the mask of the papers they hold, and that never goes to GA (the Check-in events send the three answers and a count of papers, nothing more) -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tenant-side rental agent in Amsterdam — BOOM</title>
@@ -42,7 +42,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=b5e1997512">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=1849952cde">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -670,6 +670,7 @@ html {
 <section class="checkin" id="checkin" aria-label="Check-in">
   <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span></div>
   <p class="ck-landing" id="ckLanding" hidden></p>
+  <span class="sr" id="ckLive" role="status" aria-live="polite"></span>
   <div class="ck-steps" id="ckSteps">
       <fieldset class="ck-step" data-step="stage">
         <legend><b>01</b> Where are you in the search?</legend>
@@ -709,7 +710,6 @@ html {
     <div class="pboard flap-pass" id="ckBoard" data-word="Amsterdam" aria-hidden="true"></div>
     <p class="pblank" id="ckBlank">Your plan prints here as you answer.</p>
     <div class="ppend" id="ckPend" hidden><span class="peye">Two plans fit</span><p id="ckPendText"></p></div>
-    <span class="sr" id="ckLive" role="status" aria-live="polite"></span>
     <div class="pplan" id="ckPlanBox" hidden>
       <span class="peye">Your plan</span>
       <h3 id="ckPlan"></h3>
@@ -1412,7 +1412,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=e32f92704c"></script>
+<script src="/assets/boom-city.js?v=40753c1f8e"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

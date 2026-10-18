@@ -344,11 +344,27 @@
       return r.bottom > 0 && r.top < (window.innerHeight || document.documentElement.clientHeight);
     } catch (e) { return false; }
   }
+  // il riquadro nascosto (.zz è visibility:hidden) ha già la sua scatola:
+  // conta solo ciò che coprirebbe davvero, non tutto lo schermo — misurata
+  // DOPO lift(), cioè dove show() lo metterebbe (sopra la striscia in fondo)
+  function plateBox() {
+    try {
+      if (!el) return null;
+      lift();
+      var r = el.getBoundingClientRect();
+      return r.height ? r : null;
+    } catch (e) { return null; }
+  }
+  function meets(n, box) {
+    if (!onScreen(n)) return false;
+    if (!box) return true;
+    try { var r = n.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom; } catch (e) { return true; }
+  }
   function atWork() {
     try {
-      var ck = document.getElementById('checkin'), pass = document.getElementById('pass');
-      if (ck && onScreen(ck) && !ck.querySelector('input:checked')) return true;
-      if (pass && pass.getAttribute('data-state') !== 'blank' && onScreen(pass)) return true;
+      var ck = document.getElementById('checkin'), pass = document.getElementById('pass'), box = plateBox();
+      if (ck && meets(ck, box) && !ck.querySelector('input:checked')) return true;
+      if (pass && pass.getAttribute('data-state') !== 'blank' && meets(pass, box)) return true;
       return false;
     } catch (e) { return false; }
   }
@@ -356,7 +372,8 @@
   var LATE_EVS = ['wheel', 'touchmove', 'pointerdown', 'keydown'];
   function lateGo() {
     if (due) return;
-    if (modalOpen()) { setTimeout(lateGo, 400); return; }
+    // il tempo passato nella cassa non consuma l'attesa: si riparte da lì
+    if (modalOpen()) { armedAt = Date.now(); setTimeout(lateGo, 400); return; }
     if (late && atWork() && Date.now() - armedAt < WAIT_MAX) { setTimeout(lateGo, 1200); return; }
     show();
   }
