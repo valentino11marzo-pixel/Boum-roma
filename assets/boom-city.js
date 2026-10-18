@@ -28,8 +28,8 @@
    same answer folds the step; the menu is inert off-screen (Escape closes,
    focus returns); focus lands on the open file; the price and the city are
    read as text (boards decorative); one small live region instead of a
-   live plan box; the sticky column sticks by its bottom when taller than
-   the screen; a paper tick swaps without a view transition (whose overlay
+   live plan box (18/10: in the Check-in, and no sticky column at all);
+   a paper tick swaps without a view transition (whose overlay
    ate taps); the worker replies are correlated by id; the desk's tz label
    and the "same-day reply" sub follow the clock. */
 (function () {

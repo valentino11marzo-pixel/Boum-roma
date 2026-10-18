@@ -60,7 +60,7 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
    the reading order — which is the DOM order: the build prints the pass right
    after the Check-in, so focus and screen readers meet the ticket where it
    appears. Desk: two columns; the JS moves the pass to the top of the right
-   one, which is sticky (by its bottom when taller than the screen). */
+   one (no sticky, see below). */
 .hero{align-items:start;gap:0}
 .hero-left,.hero-right{display:contents}
 .hero-left>*{order:9}

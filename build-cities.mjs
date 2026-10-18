@@ -502,7 +502,7 @@ const R = {
   // the refund rule on Full Search where money is taken, the note and the
   // refusal after the third tap, the eight papers with the meter, the doors,
   // the share row, the passenger and origin fields, Save and Share). Blank
-  // until the first tap (visible blank at ≥920 in the sticky column, hidden
+  // until the first tap (visible blank at ≥920 in the right column, hidden
   // on a phone until it has something to say — the JS sets data-state).
   pass: (c, shared) => {
     const k = c.checkin, p = k.pass, F = p.fields, d = k.dossier;
