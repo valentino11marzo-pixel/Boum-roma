@@ -340,7 +340,7 @@ const CITY_SERVICE_META = {
   'attended-viewing': {
     emoji: '🎥',
     next1: ['Send the listing', 'Reply with the link and the slots that work for you'],
-    next2: ['We book the viewing', 'With the agent, usually within 48 hours'],
+    next2: ['We book the viewing', 'With the agent, on the first slot that works for you'],
     next3: ['Live video walkthrough', 'You join from anywhere, you ask what you want'],
     next4: ['Written report', 'Light, noise, damp, neighbours, commute — and a straight recommendation'],
   },
