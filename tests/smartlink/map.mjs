@@ -31,6 +31,7 @@ class MapStub {
   addSource(id,data) { this.sources[id]={...data,setData(value){this.data=value;}}; }
   addLayer() {}
   jumpTo() {}
+  fitBounds(bounds) { assert.ok(bounds[0][0] < bounds[1][0] && bounds[0][1] < bounds[1][1]); }
   resize() {}
   remove() {}
 }

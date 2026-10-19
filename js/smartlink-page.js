@@ -166,6 +166,7 @@
         map.addSource('smartlink-area',{type:'geojson',data:RULES.areaCircle(area)});
         map.addLayer({id:'smartlink-area-fill',type:'fill',source:'smartlink-area',paint:{'fill-color':'#ffd700','fill-opacity':.13}});
         map.addLayer({id:'smartlink-area-line',type:'line',source:'smartlink-area',paint:{'line-color':'#ffd700','line-width':2,'line-opacity':.9}});
+        window.BOOM_SMARTLINK_MAP.frame(map, area);
         const markerEl=document.createElement('div'); markerEl.className='map-area'; markerEl.title='Centro indicativo dell’area';
         new maplibregl.Marker({element:markerEl}).setLngLat([area.lng,area.lat]).addTo(map);
         $('map-loading').classList.add('hidden'); map.once('idle',localPois); loadPois(); initSearch();

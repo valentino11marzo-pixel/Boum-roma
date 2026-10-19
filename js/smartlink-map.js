@@ -2,6 +2,11 @@
 (function (root) {
   'use strict';
   let loading;
+  function frame(map, area) {
+    const points = root.BOOM_SMARTLINK.areaCircle(area).geometry.coordinates[0];
+    map.resize();
+    map.fitBounds([[Math.min(...points.map(p => p[0])), Math.min(...points.map(p => p[1]))], [Math.max(...points.map(p => p[0])), Math.max(...points.map(p => p[1]))]], {padding:25, duration:0, maxZoom:14});
+  }
   function load() {
     if (root.maplibregl) return Promise.resolve();
     if (loading) return loading;
@@ -43,7 +48,7 @@
         map.addLayer({ id:'area-fill', type:'fill', source:'area', paint:{'fill-color':'#D4AF37','fill-opacity':0.18} });
         map.addLayer({ id:'area-line', type:'line', source:'area', paint:{'line-color':'#D4AF37','line-width':2} });
       }
-      map.jumpTo({center:[candidate.lng,candidate.lat], zoom:14}); map.resize();
+      frame(map, candidate);
       confirm.disabled = !!confirmed;
     }
     async function select(value) {
@@ -118,5 +123,5 @@
       destroy() { disposed = true; version++; controller?.abort(); map?.remove(); }
     };
   }
-  root.BOOM_SMARTLINK_MAP = {load, mount};
+  root.BOOM_SMARTLINK_MAP = {load, mount, frame};
 })(window);
