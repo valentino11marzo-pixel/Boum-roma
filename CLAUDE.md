@@ -646,6 +646,13 @@ Env: `FEED_AGENCY_EMAIL` (username agenzia sul portale). Attivazione: team
 Support tecnico Immobiliare (FTP batch o credenziali REST + X-IMMO-SOURCE).
 Test: `node tests/feed/run.mjs`.
 
+### Nuova casa guidata nel Catalogo — 17 ottobre 2026
+`addListing` conserva campi e salvataggio del Portal; `listing-guide.js` li presenta in quattro passi su telefono e desktop: casa, condizioni, foto/testo e controllo finale. Camere/arredo e disponibilità restano nei motori comuni, ignoto non diventa disponibile.
+La galleria accetta fino a 24 foto, ottimizzate da `smartlink-photo.js` nel browser; copertina/ordine sono modificabili con pulsanti touch. Nessun modello, upload o documento prima della conferma «Pubblica sul sito BOOM». Il modulo non è una bozza persistente.
+Creazione guidata atomica con docRef stabile: un esito incerto riusa la stessa identità senza sovrascrivere una modifica successiva. Upload riusciti riusati al retry; cambio sessione/form controllato anche dentro la transazione e al completamento. `imagesOriginal` conserva le immagini iniziali ottimizzate, senza cancellare file.
+SmartLink esterno è raggiungibile dal Catalogo e mantiene il suo flusso; Media Studio continua a curare le case esistenti. Nessuna pubblicazione esterna implicita, nuovo endpoint, segreto nel browser o automazione.
+Prove: `catalogoguidato` esercita form, elaborazione foto e salvataggio reali con servizi simulati: 320/390/1280, input mancanti, ordine, upload parziale, commit con risposta persa, modifica concorrente e cambio sessione. `catalogoportale` conserva la modifica selettiva dell’esistente.
+
 ### La scheda casa da AdminFlats — 17 ottobre 2026
 Dal Catalogo «Apri scheda» riunisce disponibilità, fascicolo, proprietario e ricevute dei portali; foto/duplicazione/eliminazione restano nei flussi esistenti, con due azioni nella lista.
 `catalog-home-engine.js` accetta solo `listing.propertyId` e `property.listingId` coerenti: nessun match per nome/indirizzo/ID uguali tra collezioni; proprietari ambigui o senza account non diventano accessi al Portal.
