@@ -96,9 +96,29 @@
   }
   function cleanMap(input) {
     if (!input || typeof input !== 'object') return null;
+    if (input.lat == null || input.lng == null || input.lat === '' || input.lng === '') return null;
     const lat = Number(input.lat), lng = Number(input.lng);
     if (!Number.isFinite(lat) || !Number.isFinite(lng) || lat < 41.70 || lat > 42.05 || lng < 12.25 || lng > 12.75) return null;
     return { lat: Math.round(lat * 10000) / 10000, lng: Math.round(lng * 10000) / 10000, label: cleanText(input.label, 70) || 'Roma', precision: 'area' };
+  }
+  function areaCandidates(query, zones) {
+    const normalize = v => cleanText(v, 180).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+    const q = normalize(query);
+    if (q.length < 3) return [];
+    return Object.entries(zones || {}).filter(([name]) => {
+      const n = normalize(name);
+      return (' ' + q + ' ').includes(' ' + n + ' ') || n.startsWith(q);
+    }).sort(([a], [b]) => b.length - a.length).slice(0, 6).map(([name, coords]) => cleanMap({
+      ...coords, label: name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ') + ', Roma'
+    })).filter(Boolean);
+  }
+  function areaCircle(area, meters = 650) {
+    const coords = [];
+    for (let i = 0; i <= 64; i++) {
+      const t = i / 64 * Math.PI * 2;
+      coords.push([area.lng + meters * Math.cos(t) / (111320 * Math.cos(area.lat * Math.PI / 180)), area.lat + meters * Math.sin(t) / 111320]);
+    }
+    return { type:'Feature', geometry:{ type:'Polygon', coordinates:[coords] }, properties:{} };
   }
   function distanceKm(a, b) {
     if (!a || !b) return null;
@@ -135,7 +155,7 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, distanceKm, makeRecord, publicRecord };
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

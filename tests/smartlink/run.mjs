@@ -195,13 +195,78 @@ try {
   await read(request('GET',{ id }), r);
   assert.equal(r.code, 404);
 
+  // Il collegamento ufficiale usa il handler vero: nessun browser, nessuna scrittura.
+  const regularFetch = globalThis.fetch;
+  let providerCalls = 0, tokenCalls = 0, providerStatus = 200, mismatch = false, emptyGallery = false;
+  const officialPhoto = 'https://images.realitycs.it/img/123/456';
+  const settings = ['SMARTLINK_REALITYCS_ENABLED','REALITYCS_CLIENT_ID','REALITYCS_CLIENT_SECRET','REALITYCS_USERNAME','REALITYCS_PASSWORD'];
+  const beforeEnv = Object.fromEntries(settings.map(key => [key, process.env[key]]));
+  const beforeWrites = writes;
+  try {
+    settings.forEach(key => { process.env[key] = key === 'SMARTLINK_REALITYCS_ENABLED' ? '1' : 'test-credential'; });
+    globalThis.fetch = async (input, options = {}) => {
+      const url = new URL(String(input));
+      if (url.hostname === 'comparables.realitycs.it') {
+        providerCalls++; assert.equal(options.redirect, 'error');
+        if (url.pathname === '/oauth/token') {
+          tokenCalls++; assert.match(options.headers.Authorization, /^Basic /);
+          return Response.json({access_token:'test-official-token',expires_in:14399});
+        }
+        assert.equal(url.pathname, '/comparable/id/123');
+        assert.equal(options.headers.Authorization, 'Bearer test-official-token');
+        if (providerStatus !== 200) return Response.json({}, {status:providerStatus});
+        return Response.json({listingUrl:'https://www.immobiliare.it/annunci/' + (mismatch ? '999' : '123') + '/', contractTypeID:2, extra:{title:'Titolo ufficiale'}, location:{marketZone:'Cipro'}, value:{askingPrice:1500}, grossSquareFootage:50, rooms:2,
+          attachments:{image:emptyGallery ? [] : [officialPhoto,officialPhoto,'https://images.realitycs.it/img/999/456','https://evil.example/photo.jpg']}});
+      }
+      if (url.hostname === 'images.realitycs.it') {
+        assert.equal(url.href, officialPhoto); assert.equal(options.headers.Authorization, 'Bearer test-official-token'); assert.equal(options.redirect,'manual');
+        return new Response(photoBytes,{headers:{'content-type':'image/jpeg'}});
+      }
+      return regularFetch(input, options);
+    };
+    r = response(); await extract(request('POST',{url:canonical.url},'tenant'),r);
+    assert.equal(r.code,403); assert.equal(providerCalls,0);
+    r = response(); await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(r.body.photoOrigin,'official'); assert.equal(r.body.centralImport,'ready');
+    assert.equal(r.body.data.zone,'Cipro'); assert.equal(r.body.data.price,1500);
+    assert.deepEqual(r.body.images,[officialPhoto]); assert.doesNotMatch(JSON.stringify(r.body),/test-credential|test-official-token|Authorization/);
+    r = response(); await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(tokenCalls,1,'OAuth token reused');
+    r = response(); await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:officialPhoto}),r);
+    assert.equal(r.code,200); assert.deepEqual(r.binary,photoBytes);
+    r = response(); await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:'https://images.realitycs.it/img/999/456'}),r);
+    assert.equal(r.code,400,'another listing must not supply images');
+    r = response(); await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:'https://images.realitycs.it.evil.test/img/123/456'}),r);
+    assert.equal(r.code,400);
+    mismatch=true;
+    r = response(); await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(r.body.centralImport,'mismatched_listing'); assert.notEqual(r.body.photoOrigin,'official'); mismatch=false;
+    emptyGallery=true;
+    r=response(); await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(r.body.centralImport,'no_photos'); emptyGallery=false;
+    for (const [http, reason] of [[403,'access_denied'],[404,'not_found'],[429,'rate_limited'],[500,'unavailable']]) {
+      providerStatus=http; r=response(); await extract(request('POST',{url:canonical.url}),r);
+      assert.equal(r.body.centralImport,reason); assert.notEqual(r.body.photoOrigin,'official');
+    }
+    process.env.SMARTLINK_REALITYCS_ENABLED='0'; const beforeCalls=providerCalls;
+    r=response(); await extract(request('POST',{url:canonical.url}),r);
+    assert.equal(r.body.centralImport,'not_configured'); assert.equal(providerCalls,beforeCalls,'kill switch must stop requests');
+    r=response(); await importPhoto(request('POST',{sourceUrl:canonical.url,imageUrl:officialPhoto}),r);
+    assert.equal(r.code,400,'disabled provider must not authorize downloads');
+    assert.equal(writes,beforeWrites,'import does not publish or write records');
+  } finally {
+    globalThis.fetch=regularFetch;
+    settings.forEach(key => { if (beforeEnv[key] === undefined) delete process.env[key]; else process.env[key]=beforeEnv[key]; });
+  }
+
   const page = readFileSync(new URL('../../smartlink.html', import.meta.url), 'utf8');
   assert.match(page, /map-section/);
   assert.match(page, /gallery/);
   assert.doesNotMatch(page, /annuncio originale|sourceUrl|immobiliare\.it/i);
   const portal = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
   assert.match(portal, /smartLinkPhotosChanged/);
-  assert.match(portal, /smartLinkSearchArea/);
+  assert.match(portal, /BOOM_SMARTLINK_MAP.mount/);
+  await import('./map.mjs');
   const storage = readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8');
   assert.match(storage, /match \/smartlinks\/\{draftKey\}\/\{photoFile\}/);
   console.log('SmartLink: fonte privata, auth, foto approvate, mappa indicativa, POI e scheda pubblica ✓');

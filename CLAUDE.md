@@ -134,6 +134,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Il collegamento ufficiale opzionale `api/smartlink/_realitycs.js` legge Immobiliare.it Insights per ID: precede HTML/Radar e funziona senza estensione quando l’account restituisce la galleria. È spento senza `SMARTLINK_REALITYCS_ENABLED=1` e le quattro credenziali `REALITYCS_*`; necessarie per OAuth e accesso ai dati, solo env server. Nessuna nuova dipendenza o collection.
+Il collaudo con credenziali reali resta da fare: non dichiarare risolto il paste mobile o garantiti annunci appena pubblicati. Attivazione e criteri: `docs/SMARTLINK_IMPORTAZIONE_CENTRALE.md`. Errori mancato accesso, limite e annuncio assente sono distinti; nessun segreto o dato agenzia raggiunge il browser.
+Le immagini ufficiali ammesse hanno host fisso `images.realitycs.it` e lo stesso ID dell’annuncio; download senza redirect, limiti MIME/byte invariati. Il prezzo API entra come canone solo con contratto Affitto. Kill switch e riuso token OAuth coperti dal handler vero in `tests/smartlink/run.mjs`.
+La zona nello Studio usa `js/smartlink-map.js`: proposta dal quartiere/titolo, anteprima del cerchio identica al cliente, conferma esplicita oppure scelta senza mappa. Cambio ricerca/annuncio invalida l’approvazione e scarta risposte vecchie; nessuna coordinata precisa della fonte è pubblicata automaticamente. Test di stato in `tests/smartlink/map.mjs`.
 Il collaudo live del 17/10 ha completato da Chrome URL → 12 foto importate automaticamente → Storage → scheda pubblica senza login. Non prova la generazione dal telefono: il ponte Chrome resta necessario quando la fonte blocca il server; manca ancora il servizio centrale.
 Il logo cliente usa `/boom-logo.svg`, asset pubblico del sito. Il precedente percorso sotto `/design/` dava 404 in produzione perché quella directory è esclusa dal deploy.
 Regressione già coperta da `npm test -- crawl smartlink`: nessun asset runtime può dipendere da un percorso escluso.
