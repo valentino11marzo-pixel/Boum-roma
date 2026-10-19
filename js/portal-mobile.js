@@ -948,6 +948,7 @@ window.__pmLoaded = true;
         if (!modal) return;
         // le superfici Magic Sign hanno già il loro design mobile dedicato
         if (modal.classList.contains('ms-editor') || modal.classList.contains('ms-modal')) return;
+        if (overlay.querySelector('[data-listing-guide]')?._listingGuide) { overlay.classList.add('pm-full'); return; }
         // il wizard Deal Link ha già stepper e footer suoi: solo full-screen
         if (overlay.querySelector('[id^="wz"]')) { overlay.classList.add('pm-full'); return; }
         stampInputModes(modal);
