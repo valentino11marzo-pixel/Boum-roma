@@ -12,7 +12,8 @@
 // Headers:  Content-Type: application/json
 //           Authorization: Bearer <firebase-id-token>
 // Body:     {
-//   dryRun?:     boolean   // default true. false = actually push matches.
+//   dryRun?:     boolean   // default true. false = push historic clients;
+//                          // reviewed clients remain internal candidates.
 //   sourceUrl?:  string    // optional in dryRun; required to actually push
 //   source?:     string    // default 'manual'
 //   price:       number    // required, €/month
@@ -22,19 +23,19 @@
 //
 // Response 200 (dryRun): { ok, dryRun:true, propertyId, threshold,
 //                          totalActiveClients, results: [...all scored, sorted] }
-// Response 200 (push):   { ok, dryRun:false, propertyId, pushedTo, skipped,
+// Response 200 (push):   { ok, dryRun:false, propertyId, pushedTo,
+//                          pendingReview, skipped,
 //                          errors, allScores, ... }
 // Response 401/403:      auth/role failure
 // ─────────────────────────────────────────────────────────────────────────
 
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
+import { fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
+import { listActiveClients } from '../pfs/_ingest.js';
+import { ensureCandidate } from '../pfs/_candidates.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
-const ACTIVE_STAGES = new Set([
-  'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
-]);
+const ADMIN_ROLES = new Set(['admin', 'owner']);
 
 async function verifyFirebaseToken(token) {
   if (!token) return null;
@@ -128,14 +129,11 @@ export default async function handler(req, res) {
 
   // ── Fetch active clients + score ─────────────────────────
   let clients = [];
-  try {
-    const all = await fsList('pfsClients', { limit: 200 });
-    clients = all.filter(c => {
-      const stage = c.stage || c.portalStage;
-      if (!stage) return c.portalEnabled === true;
-      return ACTIVE_STAGES.has(stage);
-    });
-  } catch (err) {
+  // A checkout can arrive while this handler scores and writes. The summary
+  // epoch must describe the client snapshot, not the later write time.
+  const clientsSnapshotAt = new Date().toISOString();
+  try { clients = await listActiveClients(); }
+  catch (err) {
     return res.status(500).json({ ok: false, error: 'client_list_failed', detail: err.message });
   }
 
@@ -143,6 +141,7 @@ export default async function handler(req, res) {
     const { score, reasons, reject } = scoreMatch(property, c);
     const alreadyHasIt = Array.isArray(c.portalProperties)
       && c.portalProperties.some(p => p && p.id === stableId);
+    const eligible = !reject && score >= threshold && !alreadyHasIt;
     return {
       clientId: c.id,
       name: c.name || null,
@@ -158,7 +157,8 @@ export default async function handler(req, res) {
       score,
       reasons,
       reject: reject || null,
-      wouldPush: !reject && score >= threshold && !alreadyHasIt,
+      wouldPush: eligible && c.reviewRequired !== true,
+      pendingReview: eligible && c.reviewRequired === true,
       alreadyHasIt,
     };
   });
@@ -179,8 +179,11 @@ export default async function handler(req, res) {
   // ── Live push (same flow as homie/property.js) ───────────
   const now = new Date();
   const pushedTo = [];
+  const pendingReview = [];
+  const reviewedIds = new Set(clients.filter(c => c.reviewRequired === true).map(c => c.id));
   const skipped = [];
   const errors = [];
+  let masterSaved = true;
 
   // 1. Master record
   try {
@@ -192,11 +195,25 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[admin/match-test] master write failed:', err.message);
+    masterSaved = false;
   }
 
   // 2. Push to matched clients
   for (const r of allScores) {
     if (r.alreadyHasIt) { skipped.push({ clientId: r.clientId, name: r.name, score: r.score }); continue; }
+    if (r.pendingReview) {
+      if (!masterSaved) errors.push({ clientId: r.clientId, error: 'master_write_failed' });
+      else try {
+        const client = clients.find(c => c.id === r.clientId);
+        const candidate = await ensureCandidate({ client, propertyId: stableId, property, score: r.score, reasons: r.reasons, now });
+        if (candidate.status === 'pending')
+          pendingReview.push({ clientId: r.clientId, name: r.name, score: r.score, reasons: r.reasons });
+      } catch (e) {
+        console.error('[admin/match-test] candidate write failed:', e.message);
+        errors.push({ clientId: r.clientId, error: 'candidate_write_failed' });
+      }
+      continue;
+    }
     if (!r.wouldPush) continue;
 
     const client = clients.find(c => c.id === r.clientId);
@@ -237,23 +254,37 @@ export default async function handler(req, res) {
     }
   }
 
+  if (masterSaved && reviewedIds.size && !errors.some(e => e.error === 'candidate_write_failed')) try {
+    const saved = await fsGet('pfsProperties/' + stableId);
+    const prev = saved?.matchSummary || {};
+    await fsPatch('pfsProperties/' + stableId, { matchSummary: {
+      ...prev, at: clientsSnapshotAt, threshold, queueVersion: 1,
+      pendingReview: (Array.isArray(prev.pendingReview) ? prev.pendingReview : [])
+        .filter(r => !reviewedIds.has(r.clientId)).concat(pendingReview),
+    } });
+  } catch (err) { errors.push({ step: 'pending_review', error: 'match_summary_write_failed' }); }
+
   await logActivity('admin_match_test', 'pfs_bridge', {
     sourceUrl,
     price,
     propertyId: stableId,
     pushedCount: pushedTo.length,
+    pendingReviewCount: pendingReview.length,
     skippedCount: skipped.length,
     totalActive: clients.length,
     admin: profile.id,
   }, 'admin');
 
-  return res.status(200).json({
-    ok: true,
+  const criticalError = errors.find(e => ['master_write_failed', 'candidate_write_failed', 'match_summary_write_failed'].includes(e.error));
+  return res.status(criticalError ? 500 : 200).json({
+    ok: !criticalError,
+    ...(criticalError ? { error: criticalError.error } : {}),
     dryRun: false,
     propertyId: stableId,
     threshold,
     totalActiveClients: clients.length,
     pushedTo,
+    pendingReview,
     skipped,
     errors,
     allScores,

@@ -6,6 +6,7 @@
 // write it directly anymore). All reads/writes here run under admin creds.
 
 import { fsList } from '../homie/_lib.js';
+import { hydratePublishedShortlists } from '../pfs/_shortlist.js';
 
 // Find the single PFS client whose portalAccessCode matches `code` AND whose
 // portal is enabled. Returns the full doc (with id) or null. Ambiguous → null.
@@ -24,7 +25,7 @@ export async function findClientByCode(code) {
       throw e;
     }
     const enabled = (hits || []).filter(c => c.portalEnabled === true);
-    if (enabled.length === 1) return enabled[0];
+    if (enabled.length === 1) return (await hydratePublishedShortlists(enabled[0])).client;
     if (enabled.length > 1) return null; // duplicate codes → refuse (security)
   }
   return null;
