@@ -8,18 +8,19 @@ Implementazione sul ramo `codex/smartlink-remoto-mappa`, PR #300. Il precedente 
 
 ### Prove della ripresa del 20/10
 
-Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-pratica conservata). CI completa della precedente revisione `a601b5be`: tutti i controlli superati, incluso full-suite; non equivale al collaudo della fonte.
+Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-pratica conservata). CI completa della revisione `f1a8153e`: static-checks, firestore-rules, smoke, full-suite e Vercel superati; non equivale al collaudo della fonte. Le successive modifiche di assistenza/rilascio graduale richiedono una nuova CI.
 
 | Prova | Esito reale | Limite della prova |
 |---|---|---|
 | Homie → Immobiliare `124483437` | `needs_attention/source_blocked`, 0 foto, 4.138 ms | Resta il blocco principale al rilascio richiesto |
 | Homie → CasaFari via Piave, share `23310686611` | Dopo correzione: `ready`, 6 foto su 6, cinque campi valorizzati, 2.357 ms | Prova lettura; non dimostra ancora upload e pubblicazione dal Portal |
 | Scheda BOOM esistente `6DqPja5V0WC6iFrtO00o` | API 200, 12/12 foto scaricabili, WebP, nessuna fonte/identità operatore nel record pubblico | Conferma durata dell'archivio precedente, non nuova importazione |
-| Sessione operatore | Schede Portal al login; richiesto accesso a Valentino | Collaudo autenticato e account assistente ancora pendenti |
+| Sessione operatore | Valentino autenticato admin: importazione nel Portal pubblico senza estensione fermata dal blocco della fonte, zero foto | Prova del percorso precedente; nuovo percorso centrale e account assistente ancora pendenti |
+| Accesso alla sessione Homie | Condivisione schermo già abilitata; connessione a `192.168.1.32` autorizzata da Valentino | Finestra `boomserver` pronta, password da inserire personalmente; nessuna verifica della fonte completata |
 
 Difetto CasaFari riprodotto sulla pagina reale: il parser escludeva il CDN originale Immobiliare e leggeva il prezzo come titolo. Ora usa h2/h1 del template, soltanto le immagini `Property photo`, apre la galleria e verifica il totale dichiarato. La prima correzione recuperava solo 5/6; la navigazione della galleria ha recuperato anche la sesta. Il controllo su foto mancanti è coperto da test di regressione.
 
-Il servizio persistente e il flag restano spenti. Nessun nuovo deploy di produzione: il criterio richiesto «live dopo test riusciti» non è ancora soddisfatto per Immobiliare diretto. Non sostituire la UI di produzione con un lettore disabilitato.
+Il servizio persistente e il flag restano spenti. Nessun nuovo deploy di produzione: il criterio richiesto «live dopo test riusciti» non è ancora soddisfatto per Immobiliare diretto. La UI ora seleziona esplicitamente il percorso attivo: a flag spento conserva l'importazione precedente, a flag acceso usa la coda. Questo consente il rilascio graduale senza imporre un lettore disabilitato.
 
 ## Esperienza prevista
 
@@ -54,6 +55,14 @@ Usa lo stesso browser, profilo e parser del servizio; chiude il browser al termi
 
 Un blocco di accesso richiede un controllo umano della sessione dedicata sul Mac prima di una nuova prova. Completare una verifica non garantisce che la fonte non la richieda di nuovo. Dopo un cambiamento del DOM, usare una regressione del template e confrontare il numero di foto con la galleria, senza allargare la lettura a immagini estranee.
 
+Per il controllo personale, con servizio e probe fermi:
+
+```sh
+/opt/homebrew/bin/node worker.mjs --assist 'https://www.immobiliare.it/annunci/124483437/'
+```
+
+Apre la pagina nel profilo dedicato e la lascia al responsabile; termina quando la finestra viene chiusa. Non estrae dati, non risolve verifiche e non crea job. L'accesso SSH non autentica Condivisione schermo: password del Mac nella finestra di macOS, senza inviarla in chat né salvarla. Il 20/10 l'accesso è ancora in attesa di questo passaggio; modalità assistenza testata nel codice, non ancora eseguita sul Mac.
+
 ## Componenti e necessità
 
 - `api/smartlink/jobs.js`: invio/ripresa privata, massimo cinque richieste pendenti per operatore (limite di cortesia, non transazione globale).
@@ -61,7 +70,7 @@ Un blocco di accesso richiede un controllo umano della sessione dedicata sul Mac
 - `js/smartlink-import-engine.js`: stati, scadenze, lease e proiezione senza token.
 - `api/smartlink/_archive.js`: Sharp già presente nelle dipendenze root/API, massimo 2400 px, metadati rimossi, CDN consentiti e nessun redirect.
 - `smartlinkImports` e `smartlinkWorkers`: nuove collection admin-only, necessarie per ripresa e stato del lettore. Indice `createdBy + createdAt DESC` in `firestore.indexes.json`.
-- `SMARTLINK_REMOTE_ENABLED=1`: nuova variabile server, necessaria come interruttore. Assente/0 ferma nuove richieste e nuove assegnazioni; una ricevuta già in corso può terminare.
+- `SMARTLINK_REMOTE_ENABLED=1`: nuova variabile server, necessaria come interruttore. Assente/0 ferma nuove richieste e nuove assegnazioni; una ricevuta già in corso può terminare. La capability admin può essere letta prima del deploy delle regole/indice. Flag spento: nuove importazioni via extract/Radar/Chrome opzionale, con pagina aperta; storico centrale precedente ancora consultabile. Capability irraggiungibile/sconosciuta: nessuna importazione avviata.
 - `HOMIE_SECRET`: già esistente, letto solo da `~/.boom/env` sul Mac; non copiato nel repo o nel browser.
 - Playwright 1.64.1: nuova dipendenza **solo del runtime Mac**, necessaria per eseguire il browser. Il relativo lockfile è in `tools/smartlink-worker`; non aumenta le dipendenze delle funzioni Vercel. Browser scaricato dalla distribuzione ufficiale Playwright.
 
@@ -69,7 +78,7 @@ Un blocco di accesso richiede un controllo umano della sessione dedicata sul Mac
 
 Il rilascio del Portal segue AGENTS.md: merge su `main` da Valentino/regia, niente deploy manuali di produzione da questo ramo.
 
-1. Rilasciare PR #300 con le regole Firestore. La CI attuale distribuisce rules/storage, **non gli indici**: distribuire anche l'indice di `firestore.indexes.json` e attenderne lo stato pronto.
+1. Dopo CI e revisione, rilasciare PR #300 con flag assente/0: la UI conserva il percorso precedente. La CI attuale distribuisce rules/storage, **non gli indici**: distribuire anche l'indice di `firestore.indexes.json` e attenderne lo stato pronto.
 2. Configurare il flag server nell'ambiente scelto e verificare la distribuzione che lo contiene. Una Preview usa lo stesso progetto Firebase: senza nuove rules/index il percorso resta bloccato; non è un database isolato.
 3. Su Homie il runtime è in `~/.boom/smartlink-runtime/tools/smartlink-worker/`, configurazione `~/.boom/smartlink-reader.json`. Il plist `~/Library/LaunchAgents/com.boom.smartlink-reader.plist` è predisposto, **non caricato**.
 4. Eseguire `node worker.mjs --check` dalla directory runtime: controlla browser installato e heartbeat autenticato. Il secret resta sul Mac. Una Preview protetta richiede la modalità di accesso Vercel autorizzata, senza disattivare la protezione.
@@ -85,6 +94,6 @@ Il rilascio del Portal segue AGENTS.md: merge su `main` da Valentino/regia, nien
 - Crea la scheda di prova e aprila senza login: foto Storage raggiungibili, galleria, POI e JSON senza fonte.
 - Interrompi e riavvia il lettore su una richiesta di prova; verifica ripresa senza doppio risultato. Sito bloccato e Mac offline devono produrre messaggi comprensibili.
 
-Test automatici con rete simulata: `tests/smartlink/remote.mjs` usa handler veri e Sharp reale; verifica concorrenza, permessi, lease, ACK, archivio e fallimenti. `studio.mjs` verifica il controller reale per doppio invio, cambio URL, ripresa e riuso foto. `map.mjs` copre conferma/omissione e risposte obsolete. `tests/rules/runner.mjs` verifica le nuove collection nell'emulatore. Queste prove non dimostrano l'accessibilità reale degli annunci.
+Test automatici con rete simulata: `tests/smartlink/remote.mjs` usa handler veri e Sharp reale; verifica concorrenza, permessi, lease, ACK, archivio, capability prima delle nuove regole/indice e assistenza senza azioni sulla verifica. `studio.mjs` verifica il controller reale in entrambi i modi: doppio invio, cambio URL durante capability/lettura, ripresa e riuso foto. Mutazione che ignora il flag spento: test fallito come atteso; codice ripristinato e suite verde. `map.mjs` copre conferma/omissione e risposte obsolete. `tests/rules/runner.mjs` verifica le nuove collection nell'emulatore. Queste prove non dimostrano l'accessibilità reale degli annunci.
 
 Collaudo UI del 20/10: Studio a 390 px, larghezza contenuto e pagina entrambe 390, senza scorrimento orizzontale; footer e campi corretti per mobile. Import/pubblicazione disattivati in questa prova. Configurazione Vercel entro 50 regole tramite gruppo finito geocode con timeout invariati, coperta da `npm test -- vercelfunctions` (17 mutazioni rilevate).

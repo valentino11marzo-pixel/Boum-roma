@@ -5,12 +5,12 @@ import JOBS from '../../js/smartlink-import-engine.js';
 import {toFsFields,fsDocToJs} from '../../api/homie/_lib.js';
 import jobs from '../../api/smartlink/jobs.js';
 import worker from '../../api/smartlink/worker.js';
-import {processOne,readListing} from '../../tools/smartlink-worker/reader.mjs';
+import {processOne,readListing,openReview} from '../../tools/smartlink-worker/reader.mjs';
 
 const originalFetch=globalThis.fetch, originalFlag=process.env.SMARTLINK_REMOTE_ENABLED,originalSecret=process.env.HOMIE_SECRET;
 process.env.SMARTLINK_REMOTE_ENABLED='1';process.env.HOMIE_SECRET='worker-test-secret';
 const docs=new Map(), writes=[], uploads=[];
-let revision=0,brokenPhotos=false;
+let revision=0,brokenPhotos=false,queueAvailable=true;
 const source='https://www.immobiliare.it/annunci/124483437/';
 const photo='https://pwm.im-cdn.it/image/1823571757/m-c.jpg';
 const bytes=await sharp({create:{width:12,height:8,channels:3,background:'#ececec'}}).jpeg().toBuffer();
@@ -34,6 +34,7 @@ globalThis.fetch=async(input,opts={})=>{
     return Response.json({name:uploads.at(-1)});
   }
   assert.equal(u.hostname,'firestore.googleapis.com','No unexpected network destination');
+  if(!queueAvailable && /smartlink/.test(u.href+JSON.stringify(body))) throw new Error('Queue rules and index not deployed');
   if(u.pathname.endsWith(':runQuery')) {
     const q=body.structuredQuery,filter=q.where?.fieldFilter;
     let result=[...docs.values()].filter(doc=>pathOf(doc.name).split('/')[0]===q.from[0].collectionId);
@@ -69,6 +70,12 @@ try {
   assert.equal((await operator('POST',{url:source,draftKey},'tenant')).code,403);
   assert.equal((await reader({op:'pull'},'wrong')).code,401);
   process.env.SMARTLINK_REMOTE_ENABLED='0';
+  queueAvailable=false;
+  assert.equal((await operator('GET',{capabilities:'1'},'tenant')).code,403,'Capability still requires an admin');
+  assert.deepEqual((await operator('GET',{capabilities:'1'})).body,{ok:true,enabled:false},'UI mode must work before queue rules and index exist');
+  process.env.SMARTLINK_REMOTE_ENABLED='1';
+  assert.deepEqual((await operator('GET',{capabilities:'1'})).body,{ok:true,enabled:true});
+  process.env.SMARTLINK_REMOTE_ENABLED='0';queueAvailable=true;
   assert.equal((await operator('POST',{url:source,draftKey})).body.error,'reader_not_enabled');
   assert.equal((await reader({op:'pull'})).body.enabled,false);
   process.env.SMARTLINK_REMOTE_ENABLED='1';
@@ -101,6 +108,10 @@ try {
   assert.equal(uploads.length,uploadCount,'Retrying an acknowledged completion must not rearchive');
   assert.equal((await operator('GET')).body.jobs.length,1);
   assert.equal((await operator('GET',{},'other')).body.jobs.length,0);
+  process.env.SMARTLINK_REMOTE_ENABLED='0';
+  assert.equal((await operator('GET')).body.enabled,false);
+  assert.equal((await operator('GET')).body.jobs.length,1,'Kill switch must preserve saved imports');
+  process.env.SMARTLINK_REMOTE_ENABLED='1';
 
   const recovery=(await operator('POST',{url:source,draftKey:crypto.randomUUID()})).body.job;
   const first=(await reader({op:'pull'})).body.job;
@@ -167,6 +178,15 @@ try {
   assert.equal(nextClicks,5);assert.equal(checks,5);
   incomplete=true;slide=1;
   assert.equal((await readListing({newPage:async()=>galleryPage},share)).status,'unavailable','A gallery missing a declared photo cannot be marked complete');
+  let reviewOpened=0,reviewNavigation=0;
+  const reviewPage={goto:async(url)=>{assert.equal(url,source);reviewNavigation++;}};
+  const reviewContext={newPage:async()=>{reviewOpened++;return reviewPage;}};
+  for(const url of [undefined,'https://evil.example/annunci/1/','https://www.immobiliare.it/annunci/124483437/?token=x']) {
+    await assert.rejects(openReview(reviewContext,url),/invalid_review_url/);
+  }
+  assert.equal(reviewOpened,0,'Review must reject unsupported URLs before opening a page');
+  assert.equal(await openReview(reviewContext,source),reviewPage);
+  assert.equal(reviewNavigation,1,'Review navigates once and never retries or solves a challenge');
   console.log('SmartLink remoto: coda privata, doppio invio, claim concorrente, recovery, ACK, archivio WebP e blocchi fonte ✓');
 } finally {
   globalThis.fetch=originalFetch;

@@ -1,5 +1,14 @@
 import {canonical,listingSnapshot} from '../smartlink-extension/background.mjs';
 
+// Finestra per il responsabile: nessun clic, lettura dati o claim di lavori.
+// Lo stesso profilo conserva la sessione soltanto dopo l'intervento umano.
+export async function openReview(context,url) {
+  if(!url || canonical(url)!==url) throw new Error('invalid_review_url');
+  const page=await context.newPage();
+  await page.goto(url,{waitUntil:'domcontentloaded',timeout:30000}).catch(()=>{});
+  return page;
+}
+
 // Il browser è quello standard, con profilo dedicato. Nessun proxy, stealth o risolutore di verifiche.
 export async function readListing(context,url) {
   if(canonical(url)!==url) return {status:'unavailable',error:'source_changed'};

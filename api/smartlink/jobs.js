@@ -11,6 +11,9 @@ export default async function handler(req,res) {
   const actor=await requireRole(req,res,['admin']); if(!actor) return;
   try {
     if(req.method==='GET') {
+      const enabled=process.env.SMARTLINK_REMOTE_ENABLED==='1';
+      // Il rilascio della UI può precedere regole e indice della nuova coda.
+      if(req.query?.capabilities==='1') return res.status(200).json({ok:true,enabled});
       const worker=await fsGet('smartlinkWorkers/main');
       if(req.query?.id) {
         if(!/^[A-Za-z0-9_-]{20}$/.test(req.query.id)) return res.status(400).json({ok:false,error:'invalid_id'});
@@ -20,7 +23,7 @@ export default async function handler(req,res) {
       }
       const jobs=await fsList('smartlinkImports',{filter:{field:'createdBy',op:'EQUAL',value:actor.uid},orderBy:{field:'createdAt',direction:'DESCENDING'},limit:100});
       const now=Date.now();
-      return res.status(200).json({ok:true,online:JOBS.workerOnline(worker,now),jobs:jobs.filter(j=>now-Date.parse(j.createdAt)<86400000).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,10).map(JOBS.view)});
+      return res.status(200).json({ok:true,enabled,online:JOBS.workerOnline(worker,now),jobs:jobs.filter(j=>now-Date.parse(j.createdAt)<86400000).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)).slice(0,10).map(JOBS.view)});
     }
     let body; try {body=await readJson(req);} catch {return res.status(400).json({ok:false,error:'invalid_json'});}
     const source=RULES.normalizeUrl(body?.url), key=String(body?.draftKey || '');

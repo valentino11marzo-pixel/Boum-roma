@@ -2,7 +2,8 @@ import {readFile,mkdir,access} from 'node:fs/promises';
 import {homedir} from 'node:os';
 import {join} from 'node:path';
 import {chromium} from 'playwright';
-import {readListing,processOne} from './reader.mjs';
+import {readListing,processOne,openReview} from './reader.mjs';
+import {canonical} from '../smartlink-extension/background.mjs';
 
 const root=join(homedir(),'.boom'), config=JSON.parse(await readFile(join(root,'smartlink-reader.json'),'utf8'));
 const base=new URL(config.baseUrl || 'https://www.boomrome.com');
@@ -30,7 +31,18 @@ async function read(url) {
 async function stop(){stopped=true;await context?.close().catch(()=>{});}
 process.once('SIGTERM',()=>{stop().finally(()=>process.exit(0));});
 process.once('SIGINT',()=>{stop().finally(()=>process.exit(0));});
-if(process.argv.includes('--probe')) {
+if(process.argv.includes('--assist')) {
+  const url=process.argv[process.argv.indexOf('--assist')+1];
+  if(!url || canonical(url)!==url) throw new Error('invalid_review_url');
+  try {
+    context=await chromium.launchPersistentContext(profile,{headless:false,chromiumSandbox:true,acceptDownloads:false});
+    const page=await openReview(context,url);
+    console.log(JSON.stringify({event:'review_open',source:new URL(url).hostname}));
+    // Il responsabile completa la verifica nella finestra e la chiude.
+    // Non tentiamo di risolverla, né riproviamo la lettura automaticamente.
+    await page.waitForEvent('close',{timeout:0}).catch(()=>{});
+  } finally {await stop();}
+} else if(process.argv.includes('--probe')) {
   // Collaudo della stessa lettura del servizio, senza coda o pubblicazione.
   // Nei log soltanto esito e forma dei dati, mai URL, titolo o contenuti.
   const started=Date.now();

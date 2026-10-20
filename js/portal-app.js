@@ -28311,7 +28311,12 @@ IBAN: ${l.iban || '-'}`;
           <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
             <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
             <div class="modal-body sl-studio-body">
-              <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" id="sl_import" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Incolla il link e avvia: BOOM recupera le foto. Puoi chiudere lo Studio e riprendere dalle importazioni recenti. Il cliente non vedrà la fonte.</p></section>
+              <section class="sl-section"><div class="sl-step">01 <span>Annuncio</span></div><label class="form-label" for="sl_source">Incolla il link dell’annuncio</label><div class="sl-inline"><input id="sl_source" type="url" class="form-input" placeholder="https://www.immobiliare.it/annunci/…" oninput="smartLinkSourceChanged()" onkeydown="if(event.key==='Enter'){event.preventDefault();smartLinkExtract()}"><button type="button" class="btn btn-secondary" id="sl_import" onclick="smartLinkExtract()">Importa annuncio e foto</button></div><p id="sl_status" role="status" class="sl-hint">Incolla il link per recuperare dati e foto disponibili. Controllali prima di creare la scheda. Il cliente non vedrà la fonte.</p></section>
+              <details class="sl-connection" id="sl_connection" hidden>
+                <summary>Importazione da questo computer <span class="sl-connection-caption">Collegamento Chrome opzionale</span></summary>
+                <div class="sl-connection-guide"><p>Il lettore centrale è in preparazione. L’importazione attuale legge la fonte o le foto già acquisite dal Radar. Per le fonti che bloccano il server è disponibile il collegamento Chrome su computer.</p>
+                <ol><li><a href="/assets/tools/boom-smartlink-foto-1.0.0.zip" download>Scarica BOOM SmartLink Foto · v1.0.0</a> ed estrai lo ZIP.</li><li>In <code>chrome://extensions</code> attiva <strong>Modalità sviluppatore</strong>, premi <strong>Carica estensione non pacchettizzata</strong> e seleziona la cartella <strong>BOOM-SmartLink-Foto</strong>.</li><li>Ricarica il Portal nello stesso profilo Chrome e importa l’annuncio.</li></ol><p class="sl-hint">Le fonti possono richiedere una verifica personale nel browser. Il collegamento Chrome non è disponibile sul telefono.</p></div>
+              </details>
               <details class="sl-connection"><summary>Le tue importazioni recenti <span class="sl-connection-caption">Riprendi anche da un altro dispositivo</span></summary><div id="sl_recent" class="sl-connection-guide" aria-live="polite">Carico le richieste…</div></details>
               <div class="sl-studio-grid">
                 <section class="sl-section"><div class="sl-step">02 <span>Dettagli</span></div><div class="form-group"><label class="form-label" for="sl_title">Titolo della casa</label><input id="sl_title" class="form-input" maxlength="130" placeholder="Es. Bilocale luminoso a Cipro"></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_price">Canone €/mese</label><input id="sl_price" class="form-input" type="number" min="1" placeholder="Se indicato"></div><div class="form-group"><label class="form-label" for="sl_zone">Zona</label><input id="sl_zone" class="form-input" maxlength="90" placeholder="Es. Roma · Cipro"></div></div><div class="form-row"><div class="form-group"><label class="form-label" for="sl_sqm">m²</label><input id="sl_sqm" class="form-input" type="number" min="1" placeholder="Se indicati"></div><div class="form-group"><label class="form-label" for="sl_rooms">Locali</label><input id="sl_rooms" class="form-input" type="number" min="1" placeholder="Se indicati"></div></div><div class="form-group"><label class="form-label" for="sl_note">Nota BOOM</label><textarea id="sl_note" class="form-textarea" rows="3" maxlength="400" placeholder="Una nota utile scritta da te"></textarea></div></section>
@@ -28369,12 +28374,17 @@ IBAN: ${l.iban || '-'}`;
     }
     async function smartLinkRecent() {
         const box=document.getElementById('sl_recent'); if(!box) return;
+        let enabled;
         try {
+            const capabilities=await smartLinkJobRequest('?capabilities=1');
+            if(!box.isConnected) return;
+            enabled=capabilities.enabled;
+            document.getElementById('sl_connection').hidden=enabled!==false;
             const result=await smartLinkJobRequest();
             if(!box.isConnected) return;
             box.replaceChildren();
             const hint=document.createElement('p'); hint.className='sl-hint';
-            hint.textContent=result.online?'Lettore BOOM collegato. Le richieste continuano anche a pagina chiusa.':'Lettore BOOM non collegato al momento. Le richieste in attesa restano salvate.';
+            hint.textContent=result.enabled===false?'Il lettore centrale non è attivo. Puoi riprendere le richieste già salvate. Le nuove importazioni avvengono da questa pagina.':result.online?'Lettore BOOM collegato. Le richieste continuano anche a pagina chiusa.':'Lettore BOOM non collegato al momento. Le richieste in attesa restano salvate.';
             box.append(hint);
             if(!result.jobs.length) {const empty=document.createElement('p'); empty.textContent='Nessuna importazione nelle ultime 24 ore.';box.append(empty);}
             result.jobs.forEach(job=>{
@@ -28386,7 +28396,7 @@ IBAN: ${l.iban || '-'}`;
                 const button=document.createElement('button');button.type='button';button.className='btn btn-secondary btn-sm';button.textContent='Riprendi';
                 button.addEventListener('click',()=>smartLinkResume(job));row.append(text,button);box.append(row);
             });
-        } catch {if(box.isConnected) box.textContent='Importazioni recenti non raggiungibili. Riprova riaprendo lo Studio.';}
+        } catch {if(box.isConnected) box.textContent=enabled===false?'Il lettore centrale non è attivo. Importa dalla pagina e tienila aperta fino al completamento.':'Importazioni recenti non raggiungibili. Riprova riaprendo lo Studio.';}
     }
     function smartLinkResume(job) {
         if(smartLinkBusy) return;
@@ -28449,8 +28459,15 @@ IBAN: ${l.iban || '-'}`;
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
         document.getElementById('sl_result').replaceChildren();
         document.getElementById('sl_import').disabled=true;
-        status.textContent='Salvo la richiesta di importazione…';
+        smartLinkPhotoPreparing=true;
+        status.textContent='Preparo l’importazione…';
         try {
+            const capabilities=await smartLinkJobRequest('?capabilities=1');
+            if(version!==smartLinkPollVersion) return;
+            document.getElementById('sl_connection').hidden=capabilities.enabled!==false;
+            if(capabilities.enabled===false) {await smartLinkExtractDirect(source,version);return;}
+            if(capabilities.enabled!==true) throw new Error('queue_unavailable');
+            status.textContent='Salvo la richiesta di importazione…';
             const result=await smartLinkJobRequest('',{url:source.url,draftKey:document.getElementById('sl_key').value});
             if(version!==smartLinkPollVersion) return;
             smartLinkApplyJob(result.job);
@@ -28461,6 +28478,73 @@ IBAN: ${l.iban || '-'}`;
             const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.'};
             status.textContent=messages[error.message] || 'Non ho conferma del salvataggio. Premi di nuovo Importa: la stessa richiesta non verrà duplicata.';
             document.getElementById('sl_import').disabled=false;smartLinkRenderPhotos('Foto non ancora importate.');
+            smartLinkPhotoPreparing=false;
+        }
+    }
+
+    function smartLinkBrowserRead(sourceUrl) {
+        if (document.documentElement.dataset.boomSmartlinkExtension !== '1') return Promise.resolve(null);
+        return new Promise(resolve => {
+            const requestId=window.crypto.randomUUID();
+            const done=value => { clearTimeout(timer); window.removeEventListener('message',onMessage); resolve(value); };
+            const onMessage=event => {
+                if (event.source===window && event.origin===location.origin && event.data?.type==='BOOM_SMARTLINK_EXTRACT_RESULT' && event.data.requestId===requestId) done(event.data.result?.ok ? event.data.result : null);
+            };
+            const timer=setTimeout(() => done(null),30000);
+            window.addEventListener('message',onMessage);
+            window.postMessage({type:'BOOM_SMARTLINK_EXTRACT',requestId,url:sourceUrl},location.origin);
+        });
+    }
+
+    async function smartLinkExtractDirect(source,version) {
+        const status=document.getElementById('sl_status');
+        const current=()=>version===smartLinkPollVersion;
+        status.textContent='Leggo l’annuncio e cerco le foto. Tieni aperta questa pagina…';
+        try {
+            const token=await auth.currentUser.getIdToken();
+            let data={images:[],data:{}};
+            try {
+                const response=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url})});
+                const result=await response.json();
+                if(response.ok && result.ok) data=result;
+            } catch { /* Il collegamento Chrome esistente può ancora leggere la fonte. */ }
+            if(!current()) return;
+            if(!data.images?.length) {
+                const browserResult=await smartLinkBrowserRead(source.url);
+                if(!current()) return;
+                if(browserResult?.images?.length) {
+                    const fields={...(browserResult.data || {})};
+                    Object.entries(data.data || {}).forEach(([k,v])=>{if(v) fields[k]=v;});
+                    data={images:browserResult.images,data:fields};
+                }
+            }
+            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && data.data?.[k]) el.value=data.data[k];});
+            smartLinkArea?.suggest(data.data?.zone || data.data?.title || '');
+            const candidates=Array.isArray(data.images)?data.images.slice(0,12):[];
+            if(!candidates.length) {
+                status.textContent='La fonte non ha restituito foto. Il lettore centrale non è ancora attivo; il collegamento Chrome è disponibile su computer.';
+                document.getElementById('sl_connection').open=true;
+                smartLinkRenderPhotos('Foto non disponibili dalla fonte.');return;
+            }
+            let failed=0;
+            for(let i=0;i<candidates.length;i++) {
+                if(!current()) return;
+                smartLinkRenderPhotos(`Importo foto ${i+1} di ${candidates.length}…`);
+                try {
+                    const photo=await fetch('/api/smartlink/import-photo',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({sourceUrl:source.url,imageUrl:candidates[i]})});
+                    if(!photo.ok) throw new Error('photo_unavailable');
+                    const blob=await window.BOOM_SMARTLINK_PHOTO.prepare(await photo.blob());
+                    if(!current()) return;
+                    smartLinkPhotoItems.push({blob,url:URL.createObjectURL(blob),name:'Foto annuncio '+(i+1)});
+                } catch {failed++;}
+            }
+            if(!current()) return;
+            smartLinkRenderPhotos(smartLinkPhotoItems.length?`${smartLinkPhotoItems.length} foto importate. La prima è la copertina.${failed?' '+failed+' non disponibili.':''}`:'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
+            status.textContent=smartLinkPhotoItems.length?'Controlla dati, foto, copertina e zona prima di creare.':'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
+        } catch {
+            if(current()) {status.textContent='Lettura non riuscita. Riprova.';smartLinkRenderPhotos('Foto non disponibili.');}
+        } finally {
+            if(current()) {smartLinkPhotoPreparing=false;document.getElementById('sl_import').disabled=false;}
         }
     }
 
