@@ -58,3 +58,5 @@ Il rilascio del Portal segue AGENTS.md: merge su `main` da Valentino/regia, nien
 - Interrompi e riavvia il lettore su una richiesta di prova; verifica ripresa senza doppio risultato. Sito bloccato e Mac offline devono produrre messaggi comprensibili.
 
 Test automatici con rete simulata: `tests/smartlink/remote.mjs` usa handler veri e Sharp reale; verifica concorrenza, permessi, lease, ACK, archivio e fallimenti. `studio.mjs` verifica il controller reale per doppio invio, cambio URL, ripresa e riuso foto. `map.mjs` copre conferma/omissione e risposte obsolete. `tests/rules/runner.mjs` verifica le nuove collection nell'emulatore. Queste prove non dimostrano l'accessibilità reale degli annunci.
+
+Collaudo UI del 20/10: Studio a 390 px, larghezza contenuto e pagina entrambe 390, senza scorrimento orizzontale; footer e campi corretti per mobile. Import/pubblicazione disattivati in questa prova. Configurazione Vercel entro 50 regole tramite gruppo finito geocode con timeout invariati, coperta da `npm test -- vercelfunctions` (17 mutazioni rilevate).

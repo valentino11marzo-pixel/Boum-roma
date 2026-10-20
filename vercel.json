@@ -709,10 +709,7 @@
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
     },
-    "api/geocode-all.js": {
-      "maxDuration": 60
-    },
-    "api/geocode-bake.js": {
+    "api/geocode-{all,bake}.js": {
       "maxDuration": 60
     },
     "api/magic-sign/submit.js": {

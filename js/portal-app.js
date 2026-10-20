@@ -28286,7 +28286,7 @@ IBAN: ${l.iban || '-'}`;
         smartLinkArea?.destroy();
         smartLinkClearPhotos();
         document.getElementById('modals').innerHTML = `
-        <div class="modal-overlay active" onclick="if(event.target===this)smartLinkClose()">
+        <div class="modal-overlay active sl-studio-overlay" onclick="if(event.target===this)smartLinkClose()">
           <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
             <div class="modal-header sl-studio-header"><div><div class="sl-kicker">BOOM TOOLS / NUOVA CASA</div><h2 id="sl_studio_title">SmartLink Studio<span>.</span></h2><p>Prepara una scheda BOOM da condividere con il cliente.</p></div><button class="modal-close" type="button" aria-label="Chiudi SmartLink Studio" onclick="smartLinkClose()">×</button></div>
             <div class="modal-body sl-studio-body">
