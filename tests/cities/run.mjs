@@ -153,6 +153,7 @@ const wordsOf = (s) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<s
 const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
 const noSelect = (h) => h.replace(/<select[\s\S]*?<\/select>/g, '<select></select>');
 const BUDGET = { hero: 30, checkin: 230, facts: 85, door: 110, state: 70, plate: 50, checks: 170, body: 950 };
+const cfgOf = (h) => { const at = h.indexOf('window.BOOM_CITY = '); return JSON.parse(h.slice(at + 'window.BOOM_CITY = '.length, h.indexOf('</script>', at)).trim().replace(/;$/, '')); };
 const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)" tabindex="-1"(?: data-wait="[^"]*")?>[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
 for (const p of pages) {
   const m = slice(p.html, '<main id="main">', '</main>');
@@ -222,8 +223,13 @@ check(html.includes(`<a href="#contact" class="nav-link nav-door">${L}</a>`) && 
   `one label: nav, menu, footer, door button, strip, the three plates and the pass all read "${ams.door.label}"`);
 const T = esc(ams.till.label);
 check(ams.pricing.plans.every((p) => html.includes(`<button type="button" class="go2" data-pay="${p.id}">${T} · ${eur(p.price)}</button>`)) && html.includes(`<button type="button" class="till" id="ckStart" data-pay="">${T} · <span id="ckStartAmt"></span></button>`)
-  && html.includes(`id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>${T}</b>`) && html.includes(`id="sGo"><span class="lk">🔒</span><span class="tx"><b>${T}</b>`),
-  `every pay control reads "${ams.till.label}" with its price: the plates' second link, the pass, the offer, the dialog`);
+  && html.includes(`id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>${T}</b>`) && html.includes(`id="sGo" data-label-now="${T}"`),
+  `every pay control reads "${ams.till.label}" with its price: the plates' second link, the pass, the offer, the dialog (when "Start now" is ticked)`);
+// The dialog's last button follows the tick, unticked by default: it books and
+// says the work waits for the 14 days; ticked it starts. Never "start" unticked.
+check(html.includes(`id="sGo" data-label-now="${T}" data-label-wait="${esc(ams.till.labelWait)}" data-sub-now="${esc(ams.checkoutCopy.btnSubNow)}" data-sub-wait="${esc(ams.checkoutCopy.btnSubWait)}"><span class="lk">🔒</span><span class="tx"><b>${esc(ams.till.labelWait)}</b><small>${esc(ams.checkoutCopy.btnSubWait)}</small>`)
+  && !/start/i.test(ams.till.labelWait) && /14 days/.test(ams.checkoutCopy.btnSubWait),
+  `the dialog's button reads "${ams.till.labelWait}" until "Start now" is ticked — it never says start while the payer has chosen to wait`);
 check(!/€|\d/.test(ams.door.label + ams.door.sub + ams.door.stripSub) && !/€|\d/.test(ams.till.label), 'the labels themselves carry no number: the price is printed beside them');
 
 // the facts: three authored, two derived, the Rome rating labelled Rome and once
@@ -357,6 +363,7 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   check(throws(() => render(fakeWa, shLive), /config\.WHATSAPP = 39XXXXXXXXXX/) === true, 'live:true with a placeholder config value is refused');
   const noOg = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-og-'));
   check(throws(() => render(clean, shLive, template, noOg), /og-amsterdam\.png is missing/) === true, 'live:true without its social card on disk is refused');
+  check(throws(() => render(clean, shLive, template, noOg), /withdrawal\.html is missing: the checkout links the model withdrawal form/) === true, 'live:true on a selling desk without the model withdrawal form on disk is refused (the till links it)');
   const draftNoOg = clone(ams); draftNoOg.live = false;
   check(render(draftNoOg, shared, template, noOg).placeholders.includes('og-amsterdam.png is missing (python3 design/pages-deco/genera-og-cities.py)'),
     'a draft without the card builds, and lists the card as the thing to make');
@@ -404,6 +411,20 @@ const ber = JSON.parse(read('cities/berlin.json'));
   check(throws(() => render(noWait), /checkoutCopy\.paid\.wait says when the work starts/) === true, 'a paid card that cannot tell a non-ticking payer when the work starts is refused');
   const sameDay = clone(ams); sameDay.checkoutCopy.note = 'Pay by card and we start the same working day.';
   check(throws(() => render(sameDay), /cannot promise the same working day/) === true, 'a till note promising the same working day regardless of the tick is refused');
+  for (const [name, mut, re] of [
+    ['a withdrawal line without the model form ({form})', (c) => { c.checkoutCopy.withdrawal = 'Withdrawal: 14 days from payment, by email to {email}.'; }, /links the model withdrawal form/],
+    ['the btnSub leftover', (c) => { c.checkoutCopy.btnSub = 'Stripe checkout · one minute'; }, /btnSub is a leftover/],
+    ['no till.labelWait', (c) => { delete c.till.labelWait; }, /needs till\.labelWait/],
+    ['a labelWait that says start', (c) => { c.till.labelWait = 'Pay and start later'; }, /needs till\.labelWait/],
+    ['a labelWait equal to the label', (c) => { c.till.labelWait = c.till.label; }, /needs till\.labelWait/],
+    ['a btnSubWait without the 14 days', (c) => { c.checkoutCopy.btnSubWait = 'Stripe checkout'; }, /btnSubWait says the work starts when the 14 days end/],
+    ['a btnSubNow promising today', (c) => { c.checkoutCopy.btnSubNow = 'Starts today · Stripe'; }, /btnSubNow cannot promise/],
+    ['a nextWait promising the same working day', (c) => { c.checkoutCopy.paid.nextWait[1][0] = 'Same working day'; }, /paid\.nextWait/],
+    ['a nextWait with two steps', (c) => { c.checkoutCopy.paid.nextWait.pop(); }, /paid\.nextWait/]
+  ]) {
+    const c = clone(ams); mut(c);
+    check(throws(() => render(c), re) === true, `refused: ${name}`);
+  }
   const badRule = clone(shared); badRule.refund.rule = 'No refunds.';
   check(throws(() => render(ams, badRule), /refund\.rule is the one sentence of the policy/) === true, 'the shared refund rule must be the policy sentence');
   const offNoTill = clone(ams); offNoTill.checkout = false; delete offNoTill.till;
@@ -484,7 +505,7 @@ const ber = JSON.parse(read('cities/berlin.json'));
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
   for (const d of ['cities', 'assets', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
   for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/amsterdam.json', 'assets/boom-city.css', 'assets/boom-city.js',
-    'css/boom-scroll.css', 'css/boom-2026.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'design/pages-deco/solari-engine.html', 'og-amsterdam.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
+    'css/boom-scroll.css', 'css/boom-2026.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'design/pages-deco/solari-engine.html', 'og-amsterdam.png', 'withdrawal.html']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'amsterdam.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'amsterdam.html'), 'utf8').includes('hand-made'),
     'a root page without the GENERATED mark is never overwritten');
@@ -685,6 +706,11 @@ for (const c of [ams, mad]) {
     `${c.slug}: an UNTICKED "Start now" box before the pay button — the payer's own request to start inside the withdrawal period`);
   check(/<p class="recesso">[^<]*14 days[^<]*<a href="mailto:hello@boom-rome\.com">/.test(h) && h.indexOf('class="recesso"') < h.indexOf('id="sGo"'),
     `${c.slug}: how to withdraw (14 days, by email) is on the till before the pay button`);
+  check(/<p class="recesso">[\s\S]*?<a href="\/withdrawal" target="_blank" rel="noopener">model withdrawal form<\/a>[\s\S]*?<\/p>/.test(h),
+    `${c.slug}: the till links the model withdrawal form (Directive 2011/83/EU art. 6(1)(h), Annex I(B))`);
+  check(JSON.stringify(cfgOf(h).PAID_WAIT_NEXT) === JSON.stringify(c.checkoutCopy.paid.nextWait) && !c.checkoutCopy.paid.nextWait.flat().some((y) => /same working day|today/i.test(y))
+    && h.includes('<ul class="next" id="paidNext">'),
+    `${c.slug}: a payer who waits gets their own three steps (config PAID_WAIT_NEXT, swapped into #paidNext) — never "same working day"`);
   check(h.includes(`data-wait="${esc(c.checkoutCopy.paid.wait.replace('{email}', 'hello@boom-rome.com'))}"`) && /14-day/.test(c.checkoutCopy.paid.wait),
     `${c.slug}: the paid card knows what to say to a payer who did not tick: the work begins when the 14 days end`);
   check(!/same working day/i.test(c.checkoutCopy.note) || /withdraw/i.test(c.checkoutCopy.note), `${c.slug}: the till's note does not promise the same working day without the tick`);

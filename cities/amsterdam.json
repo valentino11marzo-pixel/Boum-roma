@@ -514,14 +514,15 @@
   "checkout": true,
   "checkoutCopy": {
     "title": "Start with BOOM Amsterdam",
-    "note": "Choose the service and pay by card. Tick “Start now” and the work starts the same working day; without it, we start when your 14-day withdrawal period ends.",
+    "note": "Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.",
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.pararius.com/… · move-in 1 February",
-    "btnSub": "Stripe checkout · one minute",
+    "btnSubNow": "Starts in the desk’s first open hour · Stripe",
+    "btnSubWait": "Starts when your 14 days end · Stripe",
     "altLead": "Prefer to talk first?",
     "altLink": "Open a file, no payment",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
-    "withdrawal": "Withdrawal: 14 days from payment, by email to {email}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
@@ -551,8 +552,22 @@
           "the work as written on this page"
         ]
       ],
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email confirming your order and the day we start"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving — nothing to re-type"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
       "recourse": "Nothing by then? Write to {email}.",
-      "wait": "You did not ask us to start straight away, so the work begins when your 14-day withdrawal period ends. Want it sooner? Write to {email}."
+      "wait": "You did not tick “Start now”: we start when your 14-day withdrawal period ends. Sooner? Write to {email}."
     }
   },
   "facts": [
@@ -602,6 +617,7 @@
     "stripSub": "free · same-day reply"
   },
   "till": {
-    "label": "Pay and start"
+    "label": "Pay and start",
+    "labelWait": "Pay and book"
   }
 }

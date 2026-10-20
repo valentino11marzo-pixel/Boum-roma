@@ -337,8 +337,8 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await tap(page, '[data-pay="application-pack"]');
   await page.waitForTimeout(600);
   check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
-    && (await page.textContent('#sGoAmt')).trim() === '€199' && (await page.textContent('#sGo')).replace(/\s+/g, ' ').includes('Pay and start'),
-    'the plate\'s pay link opens the dialog on Application Pack, €199 on the till button');
+    && (await page.textContent('#sGoAmt')).trim() === '€199' && /Pay and book/.test((await page.textContent('#sGo')).replace(/\s+/g, ' ')) && !/start/i.test(await page.textContent('#sGo .tx b')),
+    'the plate\'s pay link opens the dialog on Application Pack, €199 on the till button — which books (the tick is off)');
   check(await page.isVisible('#sStart') && !(await page.$eval('#sStart', (e) => e.checked)) && await page.isVisible('#ov .recesso'),
     'the till shows the 14-day withdrawal right and an UNTICKED "Start now" box');
   const beganAt = (await layer(page)).filter((e) => e.name === 'begin_checkout');
@@ -389,8 +389,21 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.waitForTimeout(500);
   await page.fill('#sName', 'Tick Person');
   await page.fill('#sEmail', 'tick@example.com');
+  /* Enter on the checkbox toggles nothing and pays nothing: a keyboard user
+     reaching the tick must not land on Stripe by accident */
+  await page.focus('#sStart');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(300);
+  check(st.checkouts.length === 0 && await page.$eval('dialog#ov', (d) => d.open), 'Enter on the "Start now" box posts nothing: the dialog stays open', String(st.checkouts.length));
+  const sub0 = (await page.textContent('#sGo .tx small')).trim();
   await page.click('#ov label.startnow');
   check(await page.$eval('#sStart', (e) => e.checked), 'tapping the line ticks the box (the whole label is the target)');
+  const b1 = (await page.textContent('#sGo .tx b')).trim(), sub1 = (await page.textContent('#sGo .tx small')).trim();
+  check(b1 === 'Pay and start' && /first open hour/.test(sub1) && /14 days/.test(sub0), 'ticked, the button says "Pay and start" and when (the first desk hour); unticked it said the 14 days', JSON.stringify([sub0, b1, sub1]));
+  await page.click('#ov label.startnow');
+  const b2 = (await page.textContent('#sGo .tx b')).trim();
+  await page.click('#ov label.startnow');
+  check(b2 === 'Pay and book' && (await page.textContent('#sGo .tx b')).trim() === 'Pay and start', 'untick → "Pay and book" again; tick → "Pay and start": the button follows the box both ways');
   await page.click('#sGo');
   await page.waitForURL(/paid=attended-viewing/, { timeout: 4000 }).catch(() => {});
   await page.waitForTimeout(700);
@@ -404,7 +417,15 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   const wait = (await p0.textContent('#paidWait').catch(() => '')) || '';
   check(await p0.isVisible('#paidWait') && /14-day withdrawal period ends/.test(wait) && wait.includes('hello@boom-rome.com'),
     'start=0: the paid card says the work begins when the 14 days end, and how to ask sooner', wait);
+  const steps0 = (await p0.textContent('#paidNext')).replace(/\s+/g, ' ');
+  check(!/same working day/i.test(steps0) && /When the 14 days end/.test(steps0) && /the day we start/.test(steps0) && /Nothing by then\?/.test(steps0),
+    'start=0: the three steps are the waiting payer\'s own — never "same working day" — and the recourse stays', steps0);
   await c0.close();
+  const { ctx: c1, page: p1 } = await open({ query: '?paid=full-search&start=1&session_id=cs_test_ui_now' });
+  await p1.waitForTimeout(500);
+  const steps1 = (await p1.textContent('#paidNext')).replace(/\s+/g, ' ');
+  check(/Same working day/.test(steps1) && !(await p1.isVisible('#paidWait')), 'start=1: the steps of a payer who asked to start, no waiting line', steps1);
+  await c1.close();
 }
 // the same paid landing opened twice counts one sale
 {

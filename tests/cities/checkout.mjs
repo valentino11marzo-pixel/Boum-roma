@@ -91,7 +91,7 @@ const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' 
 const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_city_1', amount_total: over.amount_total ?? 50000, currency: 'eur', customer_email: 'anna@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
 
 const { default: checkout } = await import('../../api/service-checkout.js');
-const { default: webhook } = await import('../../api/stripe-webhook.js');
+const { default: webhook, withdrawalWindow } = await import('../../api/stripe-webhook.js');
 const { CITY_MARKETS, CITY_PLANS, cityOffer, isCityMarket, cityReplyText, cityLabel, cityMode } = await import('../../api/_market.js');
 const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 
@@ -188,30 +188,64 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const r2 = await webhook(stream(event(meta, { id: 'cs_city_ams_1' })), mkRes());
   check(r2.body && r2.body.duplicate === true && emails.length === e0 + 2, 'a Stripe retry of the same session: duplicate, no second email');
 }
-// the 14-day withdrawal right, on the durable medium (Directive 2011/83/EU art. 8(7))
+// the 14-day withdrawal right, on the durable medium (Directive 2011/83/EU art. 8(7)).
+// The period is counted from the Stripe EVENT (the payment, i.e. the conclusion),
+// in Rome calendar days: the conclusion day does not count (Reg. 1182/71), and
+// a period crossing the spring DST change is still 14 calendar days, never 14×24h.
 {
   const base = { service: 'SERVICE', kind: 'full-search', city: 'madrid', market: 'madrid', name: 'Luis Gómez', email: 'luis@example.com', phone: '+34600000000', notes: '', amount_eur: '500' };
-  const created = Date.UTC(2026, 9, 20, 10, 0, 0) / 1000;
+  // 23:30 UTC on 15 March 2026 = 00:30 on 16 March in Rome: the Rome day is the 16th
+  const created = Date.UTC(2026, 2, 15, 23, 30, 0) / 1000;
   const e0 = emails.length;
-  const ev0 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_wait' }); ev0.data.object.created = created;
+  const ev0 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_wait' }); ev0.created = created;
   await webhook(stream(ev0), mkRes());
-  const lead0 = store.get([...store.keys()].find((k) => k.startsWith('leads/svc_') && k.includes('csci') && k.includes('madwait')) || [...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  const lead0 = store.get('leads/svc_cs_city_mad_wait') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
   const admin0 = emails[e0], client0 = emails[e0 + 1];
-  check(lead0 && /Did NOT ask to start now: the work begins when the withdrawal period ends, 3 November 2026\.$/.test(lead0.message), 'no tick: the lead says the work waits, and until when (created + 14 days, Rome)', lead0 && lead0.message);
-  check(admin0 && /did NOT ask to start now/.test(admin0.message || JSON.stringify(admin0)) && /3 November 2026/.test(JSON.stringify(admin0)) && /invoice from Egidi Immobiliare/.test(JSON.stringify(admin0)),
-    'the operator is told to wait until 3 November and to issue the invoice');
-  check(client0 && /is booked$/.test(client0.heading) && /once your 14-day withdrawal period ends, on 3 November 2026/.test(client0.intro)
-    && /To withdraw within 14 days of payment, email hello@boom-rome\.com/.test(client0.closing) && /fully performed/.test(client0.closing) && /invoice from Egidi Immobiliare S\.r\.l\./.test(client0.closing),
-    'the client: "booked", the steps begin on 3 November, how to withdraw, and the invoice', client0 && JSON.stringify([client0.heading, client0.intro]));
+  check(lead0 && /^MADRID — paid order · Full Search · €500 paid\. Start: NOT asked to start now\. Withdrawal period runs to the end of 30 March 2026; the work begins on 31 March 2026\./.test(lead0.message),
+    'no tick: the start line comes FIRST in the lead, with the last day of the period and the day the work begins (Rome calendar, across the DST change)', lead0 && lead0.message);
+  check(lead0 && lead0.city && lead0.city.startNow === false && lead0.city.workFrom === '2026-03-31' && lead0.city.withdrawalEndsOn === '2026-03-30' && lead0.city.workFromLabel === '31 March 2026',
+    'no tick: the lead carries the choice and the dates as fields, not only as words', lead0 && JSON.stringify(lead0.city));
+  const reply0 = lead0 ? cityReplyText(lead0) : '';
+  check(/Payment received for Full Search in Madrid/.test(reply0) && /we start on 31 March 2026, the day after your 14-day withdrawal period ends/.test(reply0) && !/today|opening your file now/i.test(reply0),
+    'no tick: the operator\'s ready reply repeats the start day — never "today"', reply0);
+  check(admin0 && /did NOT ask to start now/.test(JSON.stringify(admin0)) && /30 March 2026/.test(JSON.stringify(admin0)) && /31 March 2026/.test(JSON.stringify(admin0)) && /invoice from Egidi Immobiliare/.test(JSON.stringify(admin0)),
+    'the operator is told the work begins on 31 March and to issue the invoice');
+  check(client0 && /is booked$/.test(client0.heading) && /Here's what happens from 31 March 2026, the day after your 14-day withdrawal period ends/.test(client0.intro)
+    && /your 14-day withdrawal period runs to the end of 30 March 2026 and the work begins on 31 March 2026/.test(client0.closing)
+    && /To withdraw within 14 days of payment, email hello@boom-rome\.com or use the model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal/.test(client0.closing)
+    && /fully performed/.test(client0.closing) && /invoice from Egidi Immobiliare S\.r\.l\./.test(client0.closing),
+    'the client: "booked", the steps begin on 31 March, how to withdraw (email or the model form), and the invoice', client0 && JSON.stringify([client0.heading, client0.intro, client0.closing]));
   const e1 = emails.length;
   await webhook(stream(event({ ...base, start_now: '1' }, { id: 'cs_city_mad_now' })), mkRes());
+  const lead1 = store.get('leads/svc_cs_city_mad_now') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
   const client1 = emails[e1 + 1];
-  check(client1 && /starts now$/.test(client1.heading) && /Here's exactly what happens next/.test(client1.intro) && /You asked us to start straight away/.test(client1.closing) && /refund the price minus the work already done/.test(client1.closing),
-    'the tick: "starts now", the steps begin today, and the partial-refund rule is still said');
+  check(lead1 && /^MADRID — paid order · Full Search · €500 paid\. Start: asked to start now \(inside the 14-day withdrawal period\)\./.test(lead1.message) && lead1.city.startNow === true && lead1.city.workFrom === null,
+    'the tick: the lead says the payer asked to start now', lead1 && lead1.message);
+  check(client1 && /starts now$/.test(client1.heading) && /Here's exactly what happens next/.test(client1.intro) && /You asked us to start straight away/.test(client1.closing) && /refund the price minus the work already done/.test(client1.closing)
+    && /model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal/.test(client1.closing),
+    'the tick: "starts now", the steps begin in the first desk hour, the partial-refund rule and the model form are still said');
   // "Applications within the hour" (of a listing going live) is the product's
   // own promise from the brief; a REPLY within the hour, or work "today", is not
   const all = JSON.stringify(emails.slice(e0)).replace(/Applications within the hour/g, '');
   check(!/within the hour|starts today|start today/i.test(all), 'no email promises a reply within the hour or work "today"');
+}
+// The withdrawal window, alone: Rome calendar days from the conclusion day,
+// across midnight, both DST changes, the year end and a leap year.
+{
+  const w = (iso) => withdrawalWindow(Date.parse(iso) / 1000);
+  const cases = [
+    ['2026-10-19T22:30:00Z', '2026-11-03', '2026-11-04'],   // 00:30 on 20 Oct in Rome
+    ['2026-10-20T21:59:00Z', '2026-11-03', '2026-11-04'],   // 23:59 on 20 Oct in Rome
+    ['2026-10-20T22:01:00Z', '2026-11-04', '2026-11-05'],   // 00:01 on 21 Oct in Rome
+    ['2026-10-20T10:00:00Z', '2026-11-03', '2026-11-04'],   // autumn DST (25 Oct) inside the period
+    ['2027-03-15T12:00:00Z', '2027-03-29', '2027-03-30'],   // spring DST (28 Mar) inside the period
+    ['2027-12-25T12:00:00Z', '2028-01-08', '2028-01-09'],   // the year end
+    ['2028-02-20T12:00:00Z', '2028-03-05', '2028-03-06']    // a leap February
+  ];
+  check(cases.every(([at, last, start]) => w(at).lastDay === last && w(at).startDay === start),
+    'withdrawalWindow: last day = conclusion day + 14, work from the day after, Rome calendar days (DST, midnight, year end, leap year)',
+    JSON.stringify(cases.map(([at]) => [at, w(at).lastDay, w(at).startDay])));
+  check(w('2026-10-19T22:30:00Z').lastLabel === '3 November 2026' && w('2026-10-19T22:30:00Z').startLabel === '4 November 2026', 'withdrawalWindow: the labels read as dates, in English');
 }
 {
   // a Rome service event is what it was

@@ -297,6 +297,14 @@ export function cityReplyText(lead = {}) {
   // step — never a second "thanks for your message".
   if (lead.paid === true) {
     const plan = (lead.city && lead.city.serviceLabel) || 'your order';
+    // They did NOT tick “Start now”: the work starts when the 14-day
+    // withdrawal period ends (Dir. 2011/83/EU art. 7(3)/8(8)). The reply
+    // repeats the day they were promised by email — never “today”.
+    if (lead.city && lead.city.startNow === false && lead.city.workFromLabel) {
+      return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
+        `As you chose at checkout, we start on ${lead.city.workFromLabel}, the day after your 14-day withdrawal period ends. ` +
+        `Want us to start sooner? Reply here asking us to start now — until the work is complete you can still withdraw, paying only for what's done.\n${c.url}`;
+    }
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
       `I'm opening your file now and I'll come back today with the next step and what I need from you.\n${c.url}`;
   }

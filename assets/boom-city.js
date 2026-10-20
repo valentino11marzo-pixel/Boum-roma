@@ -252,6 +252,16 @@
         amt.textContent = p ? eur(p.eur) : '';
       }
       rows.forEach(function (row) { row.querySelector('input').addEventListener('change', paint); });
+      /* the last button says what the payer chose: unticked it books and the
+         work waits for the 14 days, ticked it starts */
+      var tick = $('sStart');
+      function paintStart() {
+        var now = !!(tick && tick.checked);
+        var b = go.querySelector('.tx b'), sm = go.querySelector('.tx small');
+        if (b) b.textContent = go.getAttribute(now ? 'data-label-now' : 'data-label-wait') || b.textContent;
+        if (sm) sm.textContent = go.getAttribute(now ? 'data-sub-now' : 'data-sub-wait') || sm.textContent;
+      }
+      if (tick) { tick.addEventListener('change', paintStart); paintStart(); }
       function open(plan, src, prefill) {
         var id = planOf(plan) ? plan : C.FEATURED;
         rows.forEach(function (row) { var i = row.querySelector('input'); i.checked = i.value === id; });
@@ -315,7 +325,7 @@
         var r = ov.getBoundingClientRect();
         if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) close();
       });
-      [].forEach.call(ov.querySelectorAll('input'), function (el) { el.addEventListener('keydown', function (e) { if (e.key === 'Enter' && el.type !== 'radio') pay(); }); });
+      [].forEach.call(ov.querySelectorAll('input'), function (el) { el.addEventListener('keydown', function (e) { if (e.key === 'Enter' && el.type !== 'radio' && el.type !== 'checkbox') pay(); }); });
       return { open: open, close: close };
     })();
     [].forEach.call(document.querySelectorAll('[data-pay]'), function (b) {
@@ -431,6 +441,14 @@
       var wait = document.createElement('p'); wait.className = 'wait'; wait.id = 'paidWait';
       wait.textContent = card.getAttribute('data-wait');
       $('paidPlan').parentNode.insertBefore(wait, $('paidPlan').nextSibling);
+      /* and the three steps of a payer who waits: never "same working day" */
+      var steps = $('paidNext') ? $('paidNext').querySelectorAll('li') : [];
+      (C.PAID_WAIT_NEXT || []).forEach(function (pair, i) {
+        var li = steps[i]; if (!li) return;
+        var b = li.querySelector('b'), sp = li.querySelector('span');
+        if (b) b.textContent = pair[0];
+        if (sp) sp.textContent = pair[1];
+      });
     }
     card.classList.add('on');
     miniBoard('flapPaid');

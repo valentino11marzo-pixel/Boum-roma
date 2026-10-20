@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, getAdminToken } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, getAdminToken, toFsValue } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
@@ -32,6 +32,11 @@ function toFirestoreFields(obj) {
     else if (typeof v === 'number') fields[k] = Number.isInteger(v)
       ? { integerValue: String(v) } : { doubleValue: v };
     else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    // A nested map or list is encoded as one (homie/_lib toFsValue): String(v)
+    // stored every paid city lead's `city` block as "[object Object]" from
+    // 14/10, so the Telegram card lost the plan and the start day. Dates keep
+    // their old string form — no reader changes shape.
+    else if (typeof v === 'object' && !(v instanceof Date)) fields[k] = toFsValue(v);
     else fields[k] = { stringValue: String(v) };
   }
   return fields;
@@ -346,15 +351,31 @@ const CITY_SERVICE_META = {
   },
 };
 
-// The day the 14-day withdrawal period ends, in Rome (Directive 2011/83/EU
-// art. 9: 14 days from the conclusion of a service contract). Said to the
-// payer who did not tick "Start now", and to the operator who must wait.
-export function withdrawalEnds(createdEpoch) {
-  const d = new Date(((Number(createdEpoch) || 0) * 1000) + 14 * 86400000);
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
-}
+// The 14-day withdrawal period of a service contract (Directive 2011/83/EU
+// art. 9), on the Rome calendar. The day the contract is concluded does not
+// count (Reg. 1182/71, recital 41): paid on 20 October, the period runs to
+// the END of 3 November and the first day work may begin without a request
+// is 4 November. Calendar days, never 14×24h — that slips a day across the
+// October and March clock changes. `concludedEpoch` is the moment of
+// payment (the Stripe event's time, stable across retries), not the moment
+// the Checkout page was opened.
+// The model withdrawal form (Annex I(B)), filled with the trader's details.
+export const WITHDRAWAL_FORM_URL = 'https://www.boomrome.com/withdrawal';
 
-async function handleService(res, session, m) {
+export function withdrawalWindow(concludedEpoch) {
+  const at = new Date((Number(concludedEpoch) || 0) * 1000);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
+  const day = (n) => new Date(Date.UTC(parts.year, parts.month - 1, parts.day + n));
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const label = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  const last = day(14), start = day(15);
+  return { lastDay: iso(last), lastLabel: label(last), startDay: iso(start), startLabel: label(start) };
+}
+// kept for callers that only want the last day of the period
+export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoch).lastLabel;
+
+async function handleService(res, session, m, event = null) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
@@ -378,7 +399,13 @@ async function handleService(res, session, m) {
   // (start_now '1') or not ('0'); a session made before the tick existed
   // carries neither and says nothing.
   const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
-  const waitUntil = cityStart === '0' ? withdrawalEnds(session.created) : '';
+  // the contract is concluded when the payment completes: the event's own
+  // time (a retry carries the same one), never the session's opening
+  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000)) : null;
+  // the start choice goes FIRST in the summary: the Telegram card shows the
+  // first 240 characters, and a pasted listing URL must not push it out
+  const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
+    : cityStart === '0' ? `Start: NOT asked to start now. Withdrawal period runs to the end of ${win.lastLabel}; the work begins on ${win.startLabel}.` : '';
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -392,7 +419,7 @@ async function handleService(res, session, m) {
     phone,
     listingName: m.listing || '',
     message: cityDesk
-      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${cityStart === '1' ? 'Asked to start now (inside the 14-day withdrawal period).' : cityStart === '0' ? `Did NOT ask to start now: the work begins when the withdrawal period ends, ${waitUntil}.` : ''}`.trim()
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
       : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
@@ -407,7 +434,13 @@ async function handleService(res, session, m) {
       sourceRef: `city-${cityKey}`,
       leadType: 'tenant',
       language: 'en',
-      city: { key: cityKey, label: cityDesk.label, mode: 'search', service: m.kind || null, serviceLabel: cityPlan ? cityPlan.label : null, paid: true, at: now },
+      city: {
+        key: cityKey, label: cityDesk.label, mode: 'search', service: m.kind || null, serviceLabel: cityPlan ? cityPlan.label : null, paid: true, at: now,
+        // the payer's choice at the till, as data (cityReplyText reads it):
+        // true = asked to start now, false = start after the 14 days, null = a session from before the tick
+        startNow: cityStart === '1' ? true : cityStart === '0' ? false : null,
+        workFrom: win ? win.startDay : null, workFromLabel: win ? win.startLabel : null, withdrawalEndsOn: win ? win.lastDay : null,
+      },
     } : {}),
   };
   let w = null;
@@ -430,7 +463,7 @@ async function handleService(res, session, m) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: the work begins when the 14-day withdrawal period ends, ${waitUntil}.` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -456,7 +489,7 @@ async function handleService(res, session, m) {
         : cityStart === '0'
           // no "Start now" tick: the steps below begin when the withdrawal
           // period ends — the email must not read as if they start today
-          ? `Payment received — €${amountEur}, Stripe-secured. Here's what happens once your 14-day withdrawal period ends, on ${waitUntil}:`
+          ? `Payment received — €${amountEur}, Stripe-secured. Here's what happens from ${win.startLabel}, the day after your 14-day withdrawal period ends:`
           : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
       card_title: it ? 'I prossimi passi' : 'What happens next',
@@ -476,9 +509,9 @@ async function handleService(res, session, m) {
         : meta.city && cityStart
           // the withdrawal right, on a durable medium (Directive 2011/83/EU art. 8(7))
           ? (cityStart === '1'
-            ? 'You asked us to start straight away, so the desk starts now. '
-            : `You did not ask us to start straight away, so the work begins when your 14-day withdrawal period ends, on ${waitUntil}. Want it sooner? Reply to this email. `)
-            + 'To withdraw within 14 days of payment, email hello@boom-rome.com. If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN
+            ? 'You asked us to start straight away, so the desk starts in its first open hour. '
+            : `You did not ask us to start straight away, so your 14-day withdrawal period runs to the end of ${win.lastLabel} and the work begins on ${win.startLabel}. Want it sooner? Reply to this email. `)
+            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}. If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN
           : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
@@ -1236,7 +1269,7 @@ export default async function handler(req, res) {
   }
 
   if (m.service === 'SERVICE') {
-    return handleService(res, session, m);
+    return handleService(res, session, m, event);
   }
 
   if (m.service === 'PREAGREEMENT') {

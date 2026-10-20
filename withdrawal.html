@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- The model withdrawal form of Directive 2011/83/EU (Annex I(B)), with the
+         trader's details filled in as the Annex requires. Linked from the
+         withdrawal line of the city desks' checkout and from the paid email
+         (api/stripe-webhook.js WITHDRAWAL_FORM_URL). No tracking on this page:
+         a person withdrawing owes us nothing, not even a page view. -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Model withdrawal form — BOOM</title>
+    <meta name="description" content="Withdraw from a BOOM service within 14 days of payment: the EU model withdrawal form with our details filled in, and how the refund works.">
+    <meta name="robots" content="noindex, follow">
+    <meta name="theme-color" content="#060607">
+    <meta name="color-scheme" content="dark">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="canonical" href="https://www.boomrome.com/withdrawal">
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <style>
+        :root { --bg: #060607; --card: #0e0e10; --line: rgba(255,255,255,.1); --text: #f4f1ea; --soft: #a9a59c; --gold: #FFD700; }
+        * { box-sizing: border-box; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { margin: 0; background: var(--bg); color: var(--text); font: 300 16px/1.6 "Helvetica Neue", Inter, Arial, sans-serif; }
+        main { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+        .brand { display: inline-block; color: var(--gold); text-decoration: none; letter-spacing: 6px; font-weight: 400; font-size: 14px; margin-bottom: 28px; }
+        h1 { font-weight: 300; font-size: clamp(26px, 6vw, 38px); line-height: 1.15; margin: 0 0 12px; letter-spacing: .5px; }
+        h2 { font-weight: 400; font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); margin: 40px 0 12px; }
+        p, li { color: var(--text); }
+        .soft { color: var(--soft); }
+        a { color: var(--gold); }
+        ol.how { padding-left: 20px; margin: 0; }
+        ol.how li { margin: 6px 0; }
+        .form { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 20px 18px; }
+        .form p { margin: 0 0 10px; }
+        .form .lead { color: var(--soft); font-size: 14px; }
+        .form ul { list-style: none; padding: 0; margin: 0; }
+        .form li { padding: 8px 0; border-top: 1px solid var(--line); }
+        .form li:first-child { border-top: 0; }
+        .form .foot { color: var(--soft); font-size: 14px; margin-top: 12px; }
+        .helper { display: grid; gap: 14px; }
+        .helper label { display: grid; gap: 6px; font-size: 14px; color: var(--soft); }
+        .helper input, .helper select { width: 100%; min-height: 44px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: #141416; color: var(--text); font: inherit; font-size: 16px; }
+        .helper input:focus-visible, .helper select:focus-visible, .btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 22px; border-radius: 999px; border: 0; background: var(--gold); color: #000; font: 500 15px/1 "Helvetica Neue", Inter, Arial, sans-serif; letter-spacing: .5px; text-decoration: none; cursor: pointer; }
+        .row2 { display: grid; gap: 14px; }
+        @media (min-width: 600px) { .row2 { grid-template-columns: 1fr 1fr; } }
+        footer { margin-top: 48px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--soft); font-size: 13px; }
+        @media print {
+            body { background: #fff; color: #000; }
+            .brand, h2, a { color: #000; }
+            .form { background: #fff; border-color: #000; }
+            .noprint { display: none !important; }
+            p, li, .soft, .form .lead, .form .foot, footer { color: #000; }
+        }
+    </style>
+</head>
+<body>
+<main>
+    <a class="brand" href="/">BOOM</a>
+    <h1>Withdraw from a BOOM service</h1>
+    <p class="soft">For services bought online from BOOM — the Amsterdam and Madrid desks among them. You have 14 days from the day you paid; you don't need to give a reason.</p>
+
+    <h2>How it works</h2>
+    <ol class="how">
+        <li>Send us the form below, or any clear statement that you withdraw, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> before the 14 days end. The day you paid does not count.</li>
+        <li>We refund within 14 days of receiving it, to the card you paid with.</li>
+        <li>If you asked us to start before the 14 days ended (“Start now” at checkout), we deduct only the part of the work already done, in proportion to the price. Once the service is fully performed, the right to withdraw ends.</li>
+    </ol>
+
+    <h2>Model withdrawal form</h2>
+    <div class="form" id="annex-en">
+        <p class="lead">(complete and return this form only if you wish to withdraw from the contract)</p>
+        <ul>
+            <li>— To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy (registered office Viale Liegi 42, 00198 Roma), e-mail hello@boom-rome.com:</li>
+            <li>— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract of sale of the following goods (*)/for the provision of the following service (*),</li>
+            <li>— Ordered on (*)/received on (*),</li>
+            <li>— Name of consumer(s),</li>
+            <li>— Address of consumer(s),</li>
+            <li>— Signature of consumer(s) (only if this form is notified on paper),</li>
+            <li>— Date</li>
+        </ul>
+        <p class="foot">(*) Delete as appropriate.</p>
+    </div>
+
+    <h2 class="noprint">Fill it in here</h2>
+    <form class="helper noprint" id="wf" novalidate>
+        <label for="wService">The service
+            <select id="wService">
+                <option>Full Search</option>
+                <option>Application Pack</option>
+                <option>Attended Viewing</option>
+                <option>Other BOOM service</option>
+            </select>
+        </label>
+        <div class="row2">
+            <label for="wCity">The desk
+                <select id="wCity">
+                    <option>Amsterdam</option>
+                    <option>Madrid</option>
+                    <option>Rome</option>
+                </select>
+            </label>
+            <label for="wDate">Paid on
+                <input id="wDate" type="date">
+            </label>
+        </div>
+        <label for="wName">Your name
+            <input id="wName" autocomplete="name">
+        </label>
+        <label for="wAddress">Your address
+            <input id="wAddress" autocomplete="street-address">
+        </label>
+        <label for="wEmail">The email you paid with
+            <input id="wEmail" type="email" autocomplete="email" inputmode="email">
+        </label>
+        <div><a class="btn" id="wSend" href="mailto:hello@boom-rome.com?subject=Withdrawal">Email the form</a></div>
+        <p class="soft" style="margin:0;font-size:14px">This opens your email app with the form filled in; nothing is sent until you press send there. You can also print this page and sign it.</p>
+    </form>
+
+    <h2>Modulo di recesso tipo</h2>
+    <div class="form" id="annex-it" lang="it">
+        <p class="lead">(compilare e restituire il presente modulo solo se si desidera recedere dal contratto)</p>
+        <ul>
+            <li>— Destinatario: Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma (sede legale Viale Liegi 42, 00198 Roma), e-mail hello@boom-rome.com:</li>
+            <li>— Con la presente io/noi (*) notifichiamo il recesso dal mio/nostro (*) contratto di vendita dei seguenti beni/servizi (*)</li>
+            <li>— Ordinato il (*)/ricevuto il (*)</li>
+            <li>— Nome del/dei consumatore(i)</li>
+            <li>— Indirizzo del/dei consumatore(i)</li>
+            <li>— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea)</li>
+            <li>— Data</li>
+        </ul>
+        <p class="foot">(*) Cancellare la dicitura inutile.</p>
+    </div>
+
+    <footer>Egidi Immobiliare S.r.l. · Via dei Coronari 181/184, 00186 Roma · VAT IT17322991005 · REA RM-1710623 · <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></footer>
+</main>
+<script>
+(function () {
+    var $ = function (id) { return document.getElementById(id); };
+    var send = $('wSend');
+    if (!send) return;
+    /* the visitor's own calendar day, not UTC: at 00:30 in Rome toISOString is still yesterday */
+    function today() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+    function val(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; }
+    function paint() {
+        var body = [
+            'To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy — hello@boom-rome.com',
+            '',
+            'I hereby give notice that I withdraw from my contract for the provision of the following service: ' + val('wService') + ' (' + val('wCity') + ').',
+            'Ordered on: ' + (val('wDate') || '…'),
+            'Name: ' + (val('wName') || '…'),
+            'Address: ' + (val('wAddress') || '…'),
+            'Email used at payment: ' + (val('wEmail') || '…'),
+            'Date: ' + today()
+        ].join('\n');
+        send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal — ' + val('wService') + ' ' + val('wCity'))
+            + '&body=' + encodeURIComponent(body);
+    }
+    ['wService', 'wCity', 'wDate', 'wName', 'wAddress', 'wEmail'].forEach(function (id) {
+        var el = $(id); if (!el) return;
+        el.addEventListener('input', paint); el.addEventListener('change', paint);
+    });
+    try { var q = new URLSearchParams(location.search); var c = q.get('desk'); if (c && $('wCity')) [].forEach.call($('wCity').options, function (o) { if (o.text.toLowerCase() === c.toLowerCase()) o.selected = true; }); } catch (e) {}
+    paint();
+})();
+</script>
+</body>
+</html>

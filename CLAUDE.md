@@ -1879,6 +1879,59 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   mostra), `checkout.mjs` 47 (metadata e ritorno, la stringa "true" che non
   vale, lead/operatore/cliente col 3 novembre, nessuna risposta «within the
   hour»), `tests/recovery` (il caso città, mutazione presa).
+- **IL SECONDO GIRO DEL LIVE (20/10, notte)** — una seconda verifica
+  avversaria sul recesso. La regola unica: tutto ciò che il pagante vede deve
+  concordare con la scelta fatta sulla spunta. Chiuso:
+  1. **Il bottone segue la spunta.** «Pay and start» su una spunta che di
+     default è SPENTA era una contraddizione. Ora `#sGo` legge
+     `till.labelWait` («Pay and book») + `checkoutCopy.btnSubWait` («Starts
+     when your 14 days end») finché la spunta è spenta, e `till.label` +
+     `btnSubNow` («Starts in the desk's first open hour») quando è accesa
+     (`data-label-now/-wait`, `data-sub-now/-wait`, il JS li scambia). I
+     comandi d'ingresso (piatti, biglietto, offerta) restano «Pay and start
+     · €N». Il build rifiuta `labelWait` assente, uguale a `label` o che dica
+     «start», `btnSubWait` senza «14 days», `btnSubNow` con «today»/«same
+     working day», e l'avanzo `btnSub`. Invio sulla casella non paga più
+     (il keydown esclude le checkbox).
+  2. **La card PAGATO di chi aspetta ha i SUOI tre passi**
+     (`checkoutCopy.paid.nextWait` → config `PAID_WAIT_NEXT`, scambiati in
+     `#paidNext` con `start=0`): prima diceva «Same working day» sotto
+     «aspettiamo i 14 giorni». Il build rifiuta un `nextWait` con «same
+     working day»/«today».
+  3. **Le date vengono dall'EVENTO Stripe** (`withdrawalWindow` in
+     `api/stripe-webhook.js`, esportata): giorno di Roma della conclusione,
+     il giorno stesso non conta (Reg. 1182/71), ultimo giorno = +14, lavoro
+     dal giorno dopo — giorni di calendario, mai 14×24h (DST). Pagato il
+     20/10 → periodo fino al 3/11, lavoro dal 4/11 (prima l'email diceva «i
+     passi cominciano il 3 novembre»: il giorno in cui il diritto ancora
+     vale). La riga di partenza sta IN TESTA al riassunto del lead e i fatti
+     stanno in campi: `city.startNow`, `workFrom`, `workFromLabel`,
+     `withdrawalEndsOn`.
+  4. **La risposta pronta dell'operatore** (`cityReplyText`, ordine pagato):
+     con `startNow === false` ripete il giorno di partenza («we start on 4
+     November 2026») e dice come chiedere di anticipare — mai «I'll come
+     back today».
+  5. **Il modulo di recesso tipo** (Allegato I(B), art. 6(1)(h)):
+     `withdrawal.html` (`/withdrawal`, noindex, nessun tracciamento) col
+     testo del modulo EN e IT e i dati di Egidi, più un aiuto che compone
+     l'email (mailto: niente parte senza il tasto Invia del cliente). La riga
+     del recesso nella cassa lo linka (`{form}`, obbligatorio), l'email al
+     cliente lo cita (`WITHDRAWAL_FORM_URL`), e il build rifiuta un desk che
+     vende senza `withdrawal.html` su disco.
+  6. **Un difetto vecchio trovato per strada**: `toFirestoreFields` del
+     webhook scriveva ogni mappa annidata come `String(v)`, cioè «[object
+     Object]». Dal 14/10 il blocco `city` di ogni lead città PAGATO era quella
+     stringa: la card Telegram diceva «Payment received for your order» senza
+     il piano, e la voce del punto 4 non poteva scattare. Ora mappe e liste
+     passano da `toFsValue` (homie/_lib); le date restano stringhe come prima.
+     Gli ordini già scritti NON sono stati riscritti.
+  Test: `run.mjs` 512 (il bottone di default, il link al modulo, il config,
+  nove rifiuti, il modulo mancante su disco), `ui.mjs` 185 (Invio sulla
+  casella, il bottone nei due sensi, i passi di `start=0`/`start=1`; due
+  mutazioni JS prese), `checkout.mjs` 52 (pagamento alle 00:30 di Roma del
+  16/03 col cambio d'ora dentro il periodo, i campi del lead, la risposta
+  pronta, il modulo nelle due email, `withdrawalWindow` su mezzanotte, DST,
+  fine anno, bisestile; la mappa scritta come mappa).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

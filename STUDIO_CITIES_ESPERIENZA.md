@@ -1037,3 +1037,12 @@ A verification pass on the go-live commit found four things a paying stranger wo
 - **Copy that over-promised.** "If we find nothing" became "If we say no", because the refund rule is about declining the search in the first call, not about how the search ends. The Full Search line now says one viewing is included. Madrid says who pays the landlord's agent.
 
 The design held: no new section, the word budgets unchanged (the paid card is at its 70-word cap).
+
+A second verification pass the same night checked that everything the payer sees matches the choice they made on the tick. It found six more things, all closed:
+
+- **The pay button said "start" while the tick was off.** The tick is off by default, so the last button now reads "Pay and book — starts when your 14 days end", and switches to "Pay and start — starts in the desk's first open hour" when the payer ticks. The buttons that open the till still read "Pay and start · €N".
+- **The paid card promised "same working day" to a payer who chose to wait.** A payer who did not tick now gets their own three steps.
+- **The dates were a day early.** The email said the steps begin on the last day the withdrawal right still runs. The period is now counted in Rome calendar days from the Stripe payment: paid on 20 October, the right runs to the end of 3 November, and the work begins on 4 November.
+- **The operator's ready reply said "I'll come back today"** to someone whose work starts in two weeks. It now repeats the start day.
+- **The model withdrawal form was missing.** EU law requires it to be given before the payment. `/withdrawal` carries it in English and Italian with Egidi's details, and the till and the paid email link it.
+- **An older defect surfaced on the way.** Since 14 October the webhook had saved every paid city order's details as the text "[object Object]", so the Telegram card could not name the plan. Nested data is now saved as data. Orders already written were not rewritten.
