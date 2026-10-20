@@ -1,6 +1,7 @@
 // Real handlers, synthetic service boundaries; no network or customer data.
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {createHash} from 'node:crypto';
 import {F,DB,versions,writes,requests,put,external,captureFollowUp,CID,mail,call,reset as resetFixture} from './mail-source-fixture.mjs';
 const REAL_NOW=Date.now,NOW=Date.parse('2026-10-14T10:00:00Z');let clock=NOW;
 Date.now=()=>clock;
@@ -86,6 +87,13 @@ try{
  const newerHeader={lastMessageAt:new Date(NOW).toISOString(),lastDirection:'out',lastMessagePreview:'Risposta WhatsApp più recente',needsReply:false};
  const keepsReply=()=>Object.entries(newerHeader).every(([k,v])=>DB.get('conversations/'+CID)[k]===v);
  const watch=async()=>captureFollowUp({cid:CID,conv:DB.get('conversations/'+CID),messageId:'tracked-wa',text:'Richiesta già seguita',now:NOW-1000});
+ reset();const manualCase=await watch();mail(1);
+ const manualMid='<mail-1@fixture.invalid>',manualId='segretaria_mail_'+createHash('sha256').update(manualMid).digest('hex');
+ put('messages/'+manualId,{conversationId:CID,direction:'in',channel:'email',body:'Ricevuta fixture 1.',emailMessageId:manualMid,
+  at:new Date(NOW-29000).toISOString(),mailboxSource:{mode:'manual'}});
+ put('conversations/'+CID,{...DB.get('conversations/'+CID),segretaria:true,...newerHeader});writes.length=0;r=await cron();
+ check('cron riconosce ricevuta manuale senza tracking, AI o invii anche dopo affidamento',r.duplicates===1&&r.turns===0&&r.refreshed===0
+  &&DB.get('operatorTasks/'+manualCase.id).followUp.lastMessageId==='tracked-wa'&&external.length===0&&__mails.length===0&&keepsReply(),r);
  reset();put('conversations/'+CID,{...DB.get('conversations/'+CID),...newerHeader,segretaria:false});const watched=await watch();mail(1);r=await cron();
  check('cron archivia mail vecchia senza riaprire risposta WhatsApp recente',r.imported===1&&!r.incomplete&&keepsReply(),r);
  check('cron conserva il seguito più recente e non abilita invii o AI',DB.get('operatorTasks/'+watched.id).followUp.lastMessageId==='tracked-wa'&&F.tasks().length===1&&external.length===0&&__mails.length===0&&!DB.get('conversations/'+CID).segretaria,{r,external});
@@ -122,7 +130,7 @@ try{
  r=await scanStatus();check('stato verde richiede prova recente, completa e configurazione presente',r.email.connectionVerified&&r.email.healthy,r);
  clock+=31*60000;r=await scanStatus();check('prova vecchia non resta sana indefinitamente',r.email.connectionVerified&&!r.email.healthy&&!r.email.lastScan.fresh,r);
 }finally{Date.now=REAL_NOW;}
-if(!process.env.BOOM_MAIL_MUTATION)for(const mutation of ['sync_ai_gate','admin_scope','budget_complete','scoped_identity','scoped_atomic','normalized_identity','scheduled_header_order']){
+if(!process.env.BOOM_MAIL_MUTATION)for(const mutation of ['sync_ai_gate','manual_receipt','admin_scope','budget_complete','scoped_identity','scoped_atomic','normalized_identity','scheduled_header_order']){
  const child=spawnSync(process.execPath,[fileURLToPath(import.meta.url)],{env:{...process.env,BOOM_MAIL_MUTATION:mutation},encoding:'utf8',timeout:20000});
  check('mutazione intercettata: '+mutation,child.status!==0&&child.stdout.includes('FAIL')&&!child.stderr.includes('Mutation boundary missing'));
 }

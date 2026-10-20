@@ -144,7 +144,7 @@
     /^_{5,}\s*$/,
     /^(Da|From|Von)\s*:\s.+$/i,
   ];
-  function stripQuoted(text) {
+  function currentEmailText(text) {
     var lines = String(text || '').split(/\r?\n/);
     var out = [];
     for (var i = 0; i < lines.length; i++) {
@@ -155,7 +155,20 @@
       if (quoted) break;
       out.push(ln);
     }
-    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 2000);
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+  // Preserve the canonical import body used by cron deduplication.
+  function stripQuoted(text) {
+    return currentEmailText(text).slice(0, 2000);
+  }
+  // Manual imports also retain the complete source. Consumers apply their own
+  // final limits so omitted facts and source fingerprints remain explicit.
+  function messageText(row) {
+    if (row && row.direction === 'in' && row.channel === 'email' && row.source === 'segretaria-mail'
+        && row.mailboxSource && row.mailboxSource.mode === 'manual' && typeof row.mailboxSource.text === 'string') {
+      return currentEmailText(row.mailboxSource.text);
+    }
+    return row && typeof row.body === 'string' ? row.body : '';
   }
 
   var API = {
@@ -168,6 +181,7 @@
     sanitizeReply: sanitizeReply,
     textHash: textHash,
     stripQuoted: stripQuoted,
+    messageText: messageText,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SEGRETARIA = API;

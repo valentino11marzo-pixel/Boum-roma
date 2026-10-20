@@ -5043,6 +5043,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         return [...result.values()];
     }
+    function portalMailboxConversations(emails) {
+        if (!portalSearchAuthorized()) return [];
+        const wanted = new Set(emails.map(email => String(email).trim().toLowerCase()));
+        const rows = S.conversations || [], counts = new Map();
+        for (const row of rows) counts.set(row.id, (counts.get(row.id) || 0) + 1);
+        return rows.filter(row => /^[\w.-]{1,180}$/.test(row.id || '') && counts.get(row.id) === 1
+            && !row.segretaria && !row.conversationBindingConflict && row.conversationBindingStatus !== 'unavailable' && typeof row.contactEmail === 'string'
+            && wanted.has(row.contactEmail.trim().toLowerCase()))
+            .map(row => ({id:row.id, label:row.contactName || 'Contatto da verificare', email:row.contactEmail.trim()}));
+    }
     function portalOpenMailbox(query) {
         if (!portalSearchAuthorized()) return;
         const mailbox = window.BOOM_MAILBOX;
@@ -5053,7 +5063,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 isCurrent: proof => portalSessionCurrent(proof) && portalSearchAuthorized() && auth.currentUser === proof.user,
                 getToken: proof => proof.user.getIdToken(),
                 findRecordsByEmail: portalMailboxRecords,
-                openRecord: record => portalSearchOpen(record)
+                findConversationsByEmail: portalMailboxConversations,
+                openRecord: record => portalSearchOpen(record),
+                openConversation: id => {
+                    if (!portalSearchAuthorized() || !(S.conversations || []).some(row => row.id === id)) return toast('warning', 'Riapri Inbox per verificare la conversazione collegata.');
+                    S.inboxContext = null;
+                    goTo('inbox');
+                    inboxSelect(id);
+                }
             });
             portalMailboxInitialized = true;
         }
@@ -13216,6 +13233,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxMessageBubble(m) {
         const isOut  = m.direction === 'out';
         const isNote = m.direction === 'note';
+        const original = m.direction === 'in' && m.channel === 'email' && m.mailboxSource?.mode === 'manual'
+            && typeof m.mailboxSource.text === 'string' && m.mailboxSource.text.length <= 262144 ? m.mailboxSource.text : null;
         const bg = isNote ? 'rgba(212,175,55,0.10)' : isOut ? 'rgba(0,122,255,0.18)' : 'rgba(255,255,255,0.06)';
         const align = isOut ? 'flex-end' : isNote ? 'center' : 'flex-start';
         const border = isNote ? '1px solid rgba(212,175,55,0.30)' : 'none';
@@ -13226,7 +13245,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         <div style="display:flex;justify-content:${align};margin-bottom:8px">
             <div style="max-width:75%;padding:10px 14px;border-radius:14px;background:${bg};border:${border};font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word">
                 ${m.subject ? `<div style="font-weight:600;margin-bottom:4px;font-size:12px;opacity:.85">${esc(m.subject)}</div>` : ''}
+                ${original !== null && original !== m.body ? '<div style="font-size:11px;color:var(--text-muted)">Estratto · originale completo qui sotto</div>' : ''}
                 ${esc(m.body || '')}
+                ${original !== null && original !== m.body ? `<details style="white-space:normal;margin-top:10px"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--gold)">Email originale completa</summary><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(original)}</div></details>` : ''}
                 <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:right">${channelIcon} ${tsLabel}</div>
             </div>
         </div>`;
@@ -17201,7 +17222,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div><h1 class="page-title">🏢 Catalogo case</h1><p class="page-subtitle">Una scheda per casa: disponibilità, prezzo e informazioni da usare.</p></div>
                 <div class="page-actions">
                     <a href="https://www.boomrome.com/apartments.html" target="_blank" class="btn btn-secondary">👁️ Vedi Sito</a>
-                    <button class="btn" onclick="openModal('addListing')">+ Nuova casa</button>
+                    <button class="btn btn-secondary" onclick="openExternalSmartLink()">↗ SmartLink esterno</button>
+                    <button class="btn" onclick="openModal('addListing')">+ Nuova casa guidata</button>
                 </div>
             </div>
             
@@ -17460,6 +17482,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         
         const form = e.target;
+        if (form._listingGuide && (!form._listingGuide.ready() || !isAdmin())) return false;
         const data = Object.fromEntries(new FormData(form));
         
         if (!data.name || !data.price) return toast('error', 'Nome e prezzo obbligatori');
@@ -17500,6 +17523,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             file: () => data.file || ''
         };
         const listingData = {};
+        if (!editing && form._listingGuide) Object.assign(listingData, form._listingGuide.photos());
         Object.keys(WRITE).forEach((k) => { if (touched(k)) listingData[k] = WRITE[k](); });
 
         // L'immagine ha tre sorgenti (caricamento, campo nascosto, URL a
@@ -17553,18 +17577,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             } else {
                 listingData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 // Create new listing and get the document reference
-                const docRef = await db.collection('listings').add(listingData);
-                // If no custom file was set, auto-generate the detail page URL
-                if (!listingData.file || listingData.file.trim() === '') {
-                    await docRef.update({ file: 'apartment-detail.html?id=' + docRef.id });
+                if (form._listingGuide) {
+                    // Stable identity survives a lost acknowledgement; never overwrite a later edit on retry.
+                    const docRef = form._listingCreateRef ||= db.collection('listings').doc();
+                    listingData.file = listingData.file?.trim() || 'apartment-detail.html?id=' + docRef.id;
+                    await db.runTransaction(async tx => {
+                        const existing = await tx.get(docRef);
+                        if (!form._listingGuide.ready()) throw new Error('listing_session_changed');
+                        if (!existing.exists) tx.set(docRef, listingData);
+                    });
+                    if (!form._listingGuide.ready()) return false;
+                    form._listingGuide.saved();
+                } else {
+                    const docRef = await db.collection('listings').add(listingData);
+                    if (!listingData.file || listingData.file.trim() === '') {
+                        await docRef.update({ file: 'apartment-detail.html?id=' + docRef.id });
+                    }
                 }
                 toast('success', 'Listing creato!', 'Ora visibile su boomrome.com');
             }
             closeModal(); 
             await refresh();
         } catch (err) { 
+            if (form._listingGuide && !form._listingGuide.ready()) return false;
             console.error('Save listing error:', err);
             toast('error', availabilitySaved ? 'Disponibilità salvata; altri dati da completare' : 'Errore salvataggio', err.message);
+            return false;
         }
     }
 
@@ -18036,19 +18074,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function openModal(type, data) {
         document.body.classList.add('modal-open'); // iOS: blocca lo scroll della pagina dietro
         document.getElementById('modals').innerHTML = getModal(type, data);
+        if (type === 'addListing' && window.BOOM_LISTING_GUIDE) {
+            const actor = auth.currentUser?.uid;
+            window.BOOM_LISTING_GUIDE.mount(document.getElementById('mForm'), {
+                allowed: () => !!actor && auth.currentUser?.uid === actor && isAdmin(),
+                upload: async (blob, key) => {
+                    const ref = storage.ref('listings/' + key + (blob.type === 'image/webp' ? '.webp' : '.jpg'));
+                    await ref.put(blob, {contentType: blob.type});
+                    return ref.getDownloadURL();
+                },
+                save: form => saveListing({preventDefault() {}, target: form}),
+                close: () => closeModal()
+            });
+        }
         setTimeout(() => {
             document.querySelector('.modal-overlay')?.classList.add('active');
             // Initialize image upload for listing modals
             if (type === 'addListing' || type === 'editListing') {
                 listingImageUrl = '';
-                initImageUpload();
+                if (!document.getElementById('mForm')?._listingGuide) initImageUpload();
                 if (type === 'editListing' && data?.image) {
                     setExistingImage(data.image);
                 }
             }
         }, 10); 
     }
-    function closeModal() { document.body.classList.remove('modal-open'); document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
+    function closeModal() { if (document.getElementById('mForm')?._listingGuide?.busy()) return; document.getElementById('mForm')?._listingGuide?.dispose(); document.body.classList.remove('modal-open'); document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
 
     // La search globale su mobile: l'header-center è display:none ≤800px —
     // il bottone 🔍 la riapre come overlay sotto l'header (stessa input,
@@ -18236,30 +18287,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (type === 'confirm') return `<div class="modal-overlay"><div class="modal" style="max-width:400px"><div class="modal-body"><div class="confirm-modal"><div class="confirm-icon">${data.icon || '⚠️'}</div><h3 class="confirm-title">${data.title}</h3><p class="confirm-text">${data.text}</p><div style="display:flex;gap:10px;justify-content:center"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn ${data.danger ? 'btn-danger' : ''}" onclick="${data.action}">${data.btnText || 'Conferma'}</button></div></div></div></div></div>`;
 
         // LISTING MODALS - Complete fields for website sync
-        if (type === 'addListing') return `<div class="modal-overlay"><div class="modal xl" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">🏢 Nuovo Appartamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" onsubmit="saveListing(event)">
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+        if (type === 'addListing') return `<div class="modal-overlay"><div class="modal xl listing-guide-modal" style="max-width:700px"><div class="modal-header"><h3 class="modal-title">Nuova casa</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body" style="max-height:70vh;overflow-y:auto"><form id="mForm" data-listing-guide onsubmit="saveListing(event)">
+            <div data-lg-step="0" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📍 Informazioni Base</h4>
                 <div class="form-row"><div class="form-group"><label class="form-label">Nome Appartamento *</label><input type="text" class="form-input" name="name" required placeholder="Es: Levico Garden"></div><div class="form-group"><label class="form-label">Tipo *</label><input type="text" class="form-input" name="type" placeholder="Es: Garden Floor, Attic, Loft"></div></div>
                 <div class="form-row"><div class="form-group"><label class="form-label">Indirizzo</label><input type="text" class="form-input" name="address" placeholder="Via Levico 15, Trieste"></div><div class="form-group"><label class="form-label">Zona *</label><input type="text" class="form-input" name="zone" required placeholder="Es: Trieste, Trastevere, Centro"></div></div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+            <div data-lg-step="1" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">💰 Prezzo & Disponibilità</h4>
-                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required placeholder="1200"></div><div class="form-group"><label class="form-label">Status *</label><select class="form-select" name="status"><option value="available">🟢 Disponibile</option><option value="waitlist">🟡 Waitlist</option><option value="rented">🔴 Affittato</option></select></div></div>
-                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date">📅 Dalla data indicata</option><option value="now">🟢 Subito</option><option value="unknown">❓ Da concordare</option></select></div></div>
-                <div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Il campo era testo libero e suggeriva "Feb 1, Sep 2026, Immediate": formati che la vetrina non sapeva leggere e mostrava come <b>disponibile oggi</b>. Ora la data è una data — e "da concordare" si dice, non si finge.</div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Prezzo €/mese *</label><input type="number" class="form-input" name="price" required min="1" step="1" placeholder="1200"></div><div class="form-group"><label class="form-label">Status *</label><select class="form-select" name="status"><option value="available">🟢 Disponibile</option><option value="waitlist">🟡 Waitlist</option><option value="rented">🔴 Affittato</option></select></div></div>
+                <div class="form-row"><div class="form-group"><label class="form-label">Disponibile da</label><input type="date" class="form-input" name="availableFromDate"></div><div class="form-group"><label class="form-label">…oppure</label><select class="form-select" name="availableMode"><option value="date">📅 Dalla data indicata</option><option value="now">🟢 Subito</option><option value="unknown" selected>❓ Da verificare</option></select></div></div>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:-8px">Se non conosci la data, lasciala da verificare. La casa non sarà indicata come libera subito.</div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+            <div data-lg-step="0" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏠 Caratteristiche</h4>
                 ${listingFactsFields({})}
                 <div class="form-row"><div class="form-group"><label class="form-label">Superficie m²</label><input type="number" class="form-input" name="sqm" placeholder="65"></div><div class="form-group"><label class="form-label">Formato Superficie</label><input type="text" class="form-input" name="size" placeholder="Es: 65m², 110m²"></div></div>
                 <div class="form-group"><label class="form-label">Piano</label><input type="text" class="form-input" name="floor" placeholder="Es: 2nd Floor, Ground Floor, 5th Floor"></div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+            <div data-lg-step="1" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🏷️ Tags & Features</h4>
                 <div class="form-group"><label class="form-label">Tags (separati da virgola)</label><input type="text" class="form-input" name="tags" placeholder="All Inclusive, Balcony, AC, WiFi, Central"></div>
                 <div class="form-group"><label class="form-label">Features (separati da virgola)</label><input type="text" class="form-input" name="features" placeholder="Balcone, Aria Condizionata, Lavatrice, WiFi"></div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+            <div data-lg-step="2" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📷 Immagine Principale</h4>
                 <div class="image-upload-zone" id="imageUploadZone">
                     <div class="upload-icon">📷</div>
@@ -18275,13 +18326,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <input type="hidden" name="image" id="listingImageUrl">
                 <div class="form-group" style="margin-top:12px;margin-bottom:0"><label class="form-label">Oppure incolla URL immagine</label><input type="url" class="form-input" name="imageUrl" placeholder="https://i.imgur.com/..." onchange="if(this.value){document.getElementById('listingImageUrl').value=this.value}"></div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+            <div data-lg-step="1" style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">🔗 Link</h4>
                 <div class="form-group" style="margin-bottom:0"><label class="form-label">File Pagina Dettaglio</label><input type="text" class="form-input" name="file" placeholder="Es: apartment_levico.html (opzionale)"></div>
             </div>
-            <div style="background:var(--bg);padding:16px;border-radius:8px">
+            <div data-lg-step="2" style="background:var(--bg);padding:16px;border-radius:8px">
                 <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:12px;text-transform:uppercase;letter-spacing:1px">📝 Descrizione</h4>
-                <div class="form-group" style="margin-bottom:0"><label class="form-label">Descrizione Appartamento</label><textarea class="form-textarea" name="description" rows="3" placeholder="Descrizione dettagliata dell'appartamento..."></textarea></div>
+                <div class="form-group" style="margin-bottom:0"><label class="form-label">Descrizione in inglese (facoltativa)</label><textarea class="form-textarea" name="description" rows="3" placeholder="Scrivi soltanto caratteristiche verificate..."></textarea></div>
             </div>
         </form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">💾 Salva & Pubblica</button></div></div></div>`;
 
