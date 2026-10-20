@@ -90,8 +90,13 @@ const page = pages.find((p) => p.slug === 'amsterdam');
 const html = page ? page.html : '';
 check(page && !/\{\{\{?\s*[\w.]+\s*\}\}\}?/.test(html), 'amsterdam: no unresolved {{token}} in the output');
 check(html.includes(GENERATED_MARK), 'amsterdam: carries the GENERATED mark (the overwrite guard depends on it)');
-check(ams.live === false && /<meta name="robots" content="noindex">/.test(html.slice(0, 4000)),
-  'amsterdam is a draft (live:false) and says noindex in the first 4000 chars (tests/seo rule 8 reads exactly there)');
+check(ams.live === true && !/noindex/.test(html.slice(0, 4000)) && /content="index, follow/.test(html.slice(0, 4000)),
+  'amsterdam is LIVE (20/10): no noindex, index, follow in the head');
+{
+  const draft = pages.find((p) => p.slug === 'barcelona');
+  check(draft && JSON.parse(read('cities/barcelona.json')).live === false && /<meta name="robots" content="noindex">/.test(draft.html.slice(0, 4000)),
+    'a draft desk (barcelona, live:false) says noindex in the first 4000 chars (tests/seo rule 8 reads exactly there)');
+}
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam`, `canonical comes from siteUrl: ${canon}`);
 check(/^https:\/\/www\.boomrome\.com$/.test(shared.siteUrl), 'siteUrl is the canonical host www.boomrome.com');
@@ -233,7 +238,9 @@ check(daysLabel([1, 2, 3, 4, 5]) === 'Mon–Fri' && daysLabel([1, 3, 5]) === 'Mo
   const noDays = clone(ams); noDays.factsDerived.deskLine = 'desk {from} to {to} {tz}';
   check(throws(() => render(noDays), /deskLine with \{days\}/) === true, 'a desk line without the days is refused');
 }
-check(/<div data-proof="rome"><dt>/.test(factsHtml) && rows[4][1].includes(`${esc(shared.entity.legalName)} · P.IVA ${shared.entity.vat} · ${shared.rome.rating} on Google in Rome, ${shared.rome.reviews} reviews`) && (html.match(/on Google/g) || []).length === 1,
+const ratingTxt = `${shared.rome.rating} on Google in Rome, ${shared.rome.reviews} reviews`;
+const ratingOut = shared.rome.reviewUrl ? `<a href="${esc(shared.rome.reviewUrl)}" target="_blank" rel="noopener">${ratingTxt}</a>` : ratingTxt;
+check(/<div data-proof="rome"><dt>/.test(factsHtml) && rows[4][1].includes(`${esc(shared.entity.legalName)} · P.IVA ${shared.entity.vat} · ${ratingOut}`) && (html.match(/on Google/g) || []).length === 1,
   'the company: legal name, P.IVA, the Rome rating labelled "on Google in Rome" — once on the page, never as the desk\'s own');
 check(ams.facts[2].text === shared.refund.rule, 'on a sell desk the "if we find nothing" fact IS the refund rule, word for word');
 check(html.includes(`<p class="who"><b>${esc(ams.desk.person)}</b> · ${esc(ams.desk.role)} · desk Mon–Fri ${ams.desk.hours.from} to ${ams.desk.hours.to} <span data-tz>${ams.desk.tzLabel}</span> · <a href="https://wa.me/${shared.contact.whatsapp}"`),
@@ -298,7 +305,12 @@ check((svc.offers || []).every((o) => o.availability === 'https://schema.org/InS
   && o.priceSpecification.price === o.price && o.url === `${shared.siteUrl}/amsterdam#plan-${ams.pricing.plans.find((p) => p.label === o.name).id}` && o.seller['@id'] === org['@id']),
   'every Offer of a search desk is InStock, VAT included in its priceSpecification, and points at its plate');
 check(crumbs['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb` && wp.breadcrumb && wp.breadcrumb['@id'] === crumbs['@id'], 'the WebPage references the BreadcrumbList by id');
-check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome']), 'Organization.areaServed is derived: Rome and the LIVE desks only');
+{
+  const liveCities = fs.readdirSync(path.join(R, 'cities')).filter((f) => /^[a-z-]+\.json$/.test(f) && !f.startsWith('_')).sort()
+    .map((f) => JSON.parse(read('cities/' + f))).filter((c) => c.live === true).map((c) => c.city);
+  check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome', ...liveCities]) && liveCities.includes('Amsterdam') && liveCities.includes('Madrid') && !liveCities.includes('Barcelona'),
+    `Organization.areaServed is derived: Rome and the LIVE desks only (${['Rome', ...liveCities].join(', ')})`);
+}
 {
   const liveAms = clone(ams); liveAms.live = true;
   const sh = clone(shared); sh.rome.reviewUrl = 'https://g.page/r/test/review';
@@ -337,14 +349,15 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   check(res && res.placeholders.length === 0, 'with the review link in place, today\'s Amsterdam data would pass the live guard', err);
   check(res && !/noindex/.test(res.html) && /content="index, follow/.test(res.html) && res.html.includes('<a href="https://g.page/r/test/review" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a>'),
     'a live page drops noindex, declares index, follow, and links the Rome rating to the profile');
-  check(throws(() => render(clean, shared), /rome\.reviewUrl is empty/) === true, 'live:true on a desk that sells without the review link is refused: a rating that cannot be checked is a claim');
+  const shNo = clone(shared); shNo.rome.reviewUrl = '';
+  check(throws(() => render(clean, shNo), /rome\.reviewUrl is empty/) === true, 'live:true on a desk that sells without the review link is refused: a rating that cannot be checked is a claim');
   const photo = clone(clean); photo.hero.lead = 'Your person: [PHOTO OF LOCAL OPERATOR].';
   check(throws(() => render(photo, shLive), /\[PHOTO OF LOCAL OPERATOR\]/) === true, 'live:true with bracketed copy is refused, naming it');
   const fakeWa = clone(clean); fakeWa.config = { WHATSAPP: '39XXXXXXXXXX' };
   check(throws(() => render(fakeWa, shLive), /config\.WHATSAPP = 39XXXXXXXXXX/) === true, 'live:true with a placeholder config value is refused');
   const noOg = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-og-'));
   check(throws(() => render(clean, shLive, template, noOg), /og-amsterdam\.png is missing/) === true, 'live:true without its social card on disk is refused');
-  const draftNoOg = clone(ams);
+  const draftNoOg = clone(ams); draftNoOg.live = false;
   check(render(draftNoOg, shared, template, noOg).placeholders.includes('og-amsterdam.png is missing (python3 design/pages-deco/genera-og-cities.py)'),
     'a draft without the card builds, and lists the card as the thing to make');
   fs.rmSync(noOg, { recursive: true, force: true });
@@ -459,7 +472,7 @@ const ber = JSON.parse(read('cities/berlin.json'));
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-'));
   for (const d of ['cities', 'assets', 'css', 'js', 'design/pages-deco']) fs.mkdirSync(path.join(tmp, d), { recursive: true });
   for (const f of ['cities/_template.html', 'cities/_shared.json', 'cities/amsterdam.json', 'assets/boom-city.css', 'assets/boom-city.js',
-    'css/boom-scroll.css', 'css/boom-2026.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'design/pages-deco/solari-engine.html']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
+    'css/boom-scroll.css', 'css/boom-2026.css', 'js/boom-scroll.js', 'js/boom-consent.js', 'js/boom-track.js', 'design/pages-deco/solari-engine.html', 'og-amsterdam.png']) fs.copyFileSync(path.join(R, f), path.join(tmp, f));
   fs.writeFileSync(path.join(tmp, 'amsterdam.html'), '<!doctype html><title>hand-made</title>');
   check(throws(() => writeAll({ root: tmp }), /not generated by this script — refusing/) === true && fs.readFileSync(path.join(tmp, 'amsterdam.html'), 'utf8').includes('hand-made'),
     'a root page without the GENERATED mark is never overwritten');
@@ -593,12 +606,17 @@ const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
 const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && ber.mode === 'waitlist' && [ams, mad, bcn, par, ber].every((c) => c.live === false),
-  'madrid is a search desk, barcelona, paris and berlin waitlist desks; all five drafts until the founder goes live');
+check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && ber.mode === 'waitlist'
+  && ams.live === true && mad.live === true && [bcn, par, ber].every((c) => c.live === false),
+  'madrid is a search desk, barcelona, paris and berlin waitlist desks; amsterdam and madrid live (20/10), the three waitlist desks drafts until their partners exist');
 for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par, 'PARIS', 5], [ber, 'BERLIN', 6]]) {
   const h = pageOf(c.slug);
   const v = visibleOf(h);
-  check(h.includes(GENERATED_MARK) && /<meta name="robots" content="noindex">/.test(h.slice(0, 4000)) && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`), `${c.slug}: a generated draft — noindex, canonical from siteUrl`);
+  const robotsOk = c.live === true
+    ? !/noindex/.test(h.slice(0, 4000)) && /content="index, follow/.test(h.slice(0, 4000))
+    : /<meta name="robots" content="noindex">/.test(h.slice(0, 4000));
+  check(h.includes(GENERATED_MARK) && robotsOk && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`),
+    `${c.slug}: a generated page — ${c.live === true ? 'live, index, follow' : 'draft, noindex'}, canonical from siteUrl`);
   check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">${word}</span><span class="sr">${c.city}</span></h1>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`), `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells`);
   check(h.includes(`class="bl-desk">${c.city}<br>tenant side</span>`) && h.includes(`<p class="footer-statement">${esc(c.footer.statement)}</p>`), `${c.slug}: the lockup and the tenant-side statement`);
   check(!/founding|cohort|spots? (left|remaining)|locked for life|refundable|€99|deposit of €|no worries|unlock|seamless|hassle-free|waitlist open|join the waitlist|coming soon/i.test(v), `${c.slug}: no founding spot, no counter, no "waitlist open" badge`);

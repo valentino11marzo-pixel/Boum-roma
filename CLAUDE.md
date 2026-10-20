@@ -1785,7 +1785,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
       sta fermo sotto reduced-motion; la stampa forza nero su bianco.
       Test: `tests/cities/run.mjs` 482, `tests/cities/ui.mjs` 175,
       `tests/cities/checkout.mjs` 39, `tests/consent/run.mjs` 25.
-  **Non deciso qui, come prima**: tutti e cinque i desk restano `live:false`;
+  **Non deciso qui, come prima** (superato il 20/10 per Amsterdam e Madrid:
+  vedi «Il live» qui sotto): tutti e cinque i desk restano `live:false`;
   il link recensione di Roma, le ore reali del desk, la foto o il solo nome,
   l'IVA transfrontaliera, i partner AICAT/carte/§34c e la domanda Berlino su
   Application Pack e Attended Viewing come «Vermittlung» sono del fondatore e
@@ -1797,6 +1798,34 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   il pass nascosto sul telefono e bianco a 1440, l'atterraggio sullo schermo,
   i documenti, la porta scritta e svuotata, i link con via, il dialog, il
   consenso che aspetta, le sorelle) + `node tests/cities/checkout.mjs` (39).
+
+- **IL LIVE (20/10/2026 — «voglio andare live con le città europee»).**
+  Decisione del fondatore: **Amsterdam e Madrid** `live:true` (i due desk
+  `search`, gli unici con la cassa), la carta come costruita (€500 · €199 ·
+  €149 IVA inclusa via `/api/service-checkout`), le visite presenziate da una
+  persona sul posto («ho qualcuno»: la copia resta com'è). Barcellona, Parigi
+  e Berlino restano bozze `noindex` finché non esistono i partner (AICAT,
+  carte professionnelle, §34c) e il listino di Berlino sotto il WoVermRG.
+  Cosa è cambiato: `_shared.json rome.reviewUrl` =
+  `https://g.page/r/CfcpUptbNnvZEBM/review` (la scatola delle stelle, passa
+  `api/reviews/_lib.js`; senza, il build rifiuta `live:true` su un desk che
+  vende) e il rating «4.9 on Google in Rome» ora lo linka; le due pagine
+  passano a `index, follow`, entrano in `Organization.areaServed` (derivata:
+  Rome + i soli live) e linkano SOLO la sorella live (Amsterdam ⇄ Madrid, mai
+  una bozza); due `<url>` in `sitemap.xml` (a mano, lastmod 2026-10-20), il
+  link nel footer della home (colonna «Company & Markets», sotto La Réunion),
+  la sezione «BOOM Cities» in `llms.txt` (prezzi IVA inclusa, la regola del
+  rimborso, cosa i desk non fanno, le tre città NON aperte). Ore stampate:
+  lun–ven 09:00–19:00 ora di Roma (`desk` nei due JSON). **In produzione col
+  merge su `main`** (la porta unica): fino ad allora vivono nella Preview.
+  Resta del commercialista: il luogo della prestazione per un servizio legato
+  a un immobile (NL/ES — OSS o partita IVA locale) prima del primo incasso.
+  Test: `tests/cities/run.mjs` 483 (il set live pinnato: due live e tre bozze;
+  robots per città dal SUO `live`; `areaServed` letta dai JSON, mai a mano;
+  il rating linkato; la guardia sulla sovrascrittura costruita con la card
+  social, che una pagina live pretende), `ui` 175, `checkout` 39, `consent`
+  25; `seo`, `crawl`, `llmstxt`, `hometruth`, `verita`, `scroll`, `seogen`,
+  `consentbanner`, `answers`, `faqtruth`, `attribution` verdi.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

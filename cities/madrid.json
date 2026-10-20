@@ -3,7 +3,7 @@
   "city": "Madrid",
   "country": "ES",
   "iata": "MAD",
-  "live": false,
+  "live": true,
   "mode": "search",
   "config": {},
   "meta": {

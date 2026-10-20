@@ -3,7 +3,7 @@
   "city": "Amsterdam",
   "country": "NL",
   "iata": "AMS",
-  "live": false,
+  "live": true,
   "mode": "search",
   "config": {},
   "meta": {

@@ -1016,3 +1016,13 @@ After merging main (which had rewritten the consent script: the plate born hidde
 3. **The plate waits only for what it would cover.** §11.14.3 measured the whole screen. It now measures its own box where `show()` would put it (after `lift()`) against the Check-in and the ticket: under a whole ticket it comes. Time spent in the till does not spend the 45 s.
 
 The rest is code: one POST helper that gives up after 20 s (door and till never lock), the desk promise re-checked every minute, the contact error focusing the field actually filled, the pass entering once, a silent worker retired, the closing menu still under reduced motion, print forced black on white.
+
+### 11.16 Going live (20 Oct)
+
+The founder took **Amsterdam and Madrid** live, the two search desks with the till. Barcelona, Paris and Berlin remain noindex drafts until their partners exist. Nothing in the design changed. A live page differs from a draft only in what the build already derived:
+- `index, follow`;
+- the Rome rating linked to the Google review box (`rome.reviewUrl`, required by the build on a selling desk);
+- the city in `Organization.areaServed`;
+- family links that reach only the other live desk.
+
+The sitemap, the home footer and `llms.txt` were added by hand, as the checklist said. One thing stays open outside the code: the place of supply for VAT on services tied to property in NL/ES. The commercialista settles that before the first card payment.
