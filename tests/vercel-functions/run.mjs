@@ -41,7 +41,7 @@ function mapping(rules, inventory) {
   return result;
 }
 
-const expected = { ...mapping(before.functions, files), 'api/segretaria/owner-command.js': { maxDuration: 60 }, 'api/mailbox/query.js': { maxDuration: 60 } };
+const expected = { ...mapping(before.functions, files), 'api/segretaria/owner-command.js': { maxDuration: 60 }, 'api/mailbox/query.js': { maxDuration: 60 }, 'api/smartlink/worker.js': { maxDuration: 180 } };
 function validate(rules, inventory = files) {
   assert.ok(Object.keys(rules).length <= 50, 'More than 50 function rules');
   const actual = mapping(rules, inventory);
@@ -59,7 +59,10 @@ assert.equal(Object.keys(originalBefore.functions).length, 51);
 assert.equal(Object.keys(before.functions).length, 50);
 assert.equal(Object.keys(config.functions).length, 50);
 const actual = validate(config.functions);
-assert.equal(Object.keys(actual).length, 56);
+assert.equal(Object.keys(actual).length, 57);
+assert.deepEqual(expand('api/geocode-{all,bake}.js'), ['api/geocode-all.js','api/geocode-bake.js']);
+assert.deepEqual(config.functions['api/geocode-{all,bake}.js'], {maxDuration:60});
+assert.deepEqual(actual['api/smartlink/worker.js'], {maxDuration:180}, 'Photo archive fits the worker deadline');
 assert.deepEqual(actual['api/mailbox/query.js'], { maxDuration: 60 }, 'Mailbox deadline fits the function budget');
 assert.deepEqual(actual['api/ai/status.js'], { maxDuration: 30 }, 'Live AI status settings preserved');
 assert.deepEqual(actual['api/preagreement/sign-for.js'], { maxDuration: 60 }, 'Live signing settings preserved');
@@ -78,6 +81,7 @@ mutations++;
 rejected('identical overlapping rule', r => { delete r['api/homie/miniera.js']; r['api/homie/message.js'] = { maxDuration: 60 }; }, /Overlapping/);
 rejected('divergent overlapping rule', r => { delete r['api/homie/miniera.js']; r['api/homie/message.js'] = { maxDuration: 30 }; }, /Overlapping/);
 rejected('group timeout changed', r => { r[group].maxDuration = 30; }, /Settings changed/);
+rejected('smartlink archive deadline changed', r => { r['api/smartlink/worker.js'].maxDuration = 30; }, /Settings changed/);
 rejected('unrelated timeout changed', r => { r['api/portal/ingest.js'].maxDuration = 60; }, /Settings changed/);
 rejected('memory removed', r => { delete r['api/photos/enhance.js'].memory; }, /Settings changed/);
 rejected('memory changed', r => { r['api/ops/gtfs-tempi.js'].memory = 1024; }, /Settings changed/);

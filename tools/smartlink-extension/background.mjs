@@ -21,10 +21,11 @@ export function canonical(raw) {
 
 export function listingSnapshot(sourceUrl) {
   const host = new URL(sourceUrl).hostname;
+  const casafari = /(?:^|\.)casafari\.com$/.test(host);
   const expected = host.includes('immobiliare.it') ? /(?:^|\.)im-cdn\.it$/ :
     host.includes('idealista.it') ? /(?:^|\.)idealista\.(?:it|com)$/ :
     host.includes('subito.it') ? /(?:^|\.)subito\.it$/ :
-    host.includes('casafari.com') ? /(?:^|\.)casafari\.com$/ : /(?:^|\.)casa\.it$/;
+    casafari ? /^(?:[a-z0-9-]+\.)?(?:casafari\.com|im-cdn\.it)$/ : /(?:^|\.)casa\.it$/;
   const images=[], seen=new Set();
   const add = raw => {
     try {
@@ -35,21 +36,23 @@ export function listingSnapshot(sourceUrl) {
     } catch { /* Non è una foto della fonte. */ }
   };
   // In Immobiliare le immagini della galleria sono già nel DOM anche se lazy.
-  for (const image of document.images) {
+  const gallery = casafari ? document.querySelectorAll('img[alt^="Property photo "]') : document.images;
+  for (const image of gallery) {
     for (const candidate of [image.currentSrc,image.src,image.getAttribute('data-src')]) add(candidate);
   }
-  if (images.length<12) {
+  if (!casafari && images.length<12) {
     const html=document.documentElement.outerHTML.slice(0,3_000_000);
     for (const match of html.matchAll(/https:\\?\/\\?\/[a-z0-9.-]+(?:\\?\/[^\s"'<>`]+)?/gi)) {
       add(match[0]); if (images.length>=12) break;
     }
   }
   const text=document.body?.innerText || '';
-  const title=document.querySelector('h1')?.textContent?.trim().slice(0,130) || null;
-  const zone=title?.match(/,\s*([^,]{2,60}),\s*Roma$/i)?.[1]?.trim() || null;
-  const price=text.match(/€\s*([\d.]+)\s*\/\s*mes[ea]/i);
+  // Nel template CasaFari h1 contiene il prezzo, h2 il titolo della casa.
+  const title=document.querySelector(casafari ? 'h2' : 'h1')?.textContent?.trim().slice(0,130) || null;
+  const zone=(casafari ? title?.match(/,\s*([^,]{2,60})$/) : title?.match(/,\s*([^,]{2,60}),\s*Roma$/i))?.[1]?.trim() || null;
+  const price=casafari ? document.querySelector('h1')?.textContent?.match(/([\d.]+)\s*€\s*\/\s*m\b/i) : text.match(/€\s*([\d.]+)\s*\/\s*mes[ea]/i);
   const sqm=text.match(/\b(\d{1,4})\s*m[²2](?=\s|$)/i);
-  const rooms=text.match(/\b(\d{1,2})\s*local[ei]\b/i);
+  const rooms=casafari ? text.match(/\bLocali\s+(\d{1,2})\b/i) : text.match(/\b(\d{1,2})\s*local[ei]\b/i);
   return { images, data:{ title, zone, price:price ? Number(price[1].replace(/\./g,'')) : null, sqm:sqm ? Number(sqm[1]) : null, rooms:rooms ? Number(rooms[1]) : null } };
 }
 

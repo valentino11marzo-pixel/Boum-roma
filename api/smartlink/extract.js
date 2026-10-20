@@ -13,7 +13,9 @@ export default async function handler(req, res) {
   let body;
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
-  const result = await extractListing(body?.url);
+  const source = RULES.normalizeUrl(body?.url);
+  if (!source) return res.status(400).json({ok:false, error:'unsupported_listing_url'});
+  const result = await extractListing(source.url);
   if (result.ok && result.source && !result.images?.length) {
     // Il Radar può aver già visto l'annuncio tramite il browser di Homie.
     // Usiamo solo immagini di una fonte canonica identica e di una CDN attesa.

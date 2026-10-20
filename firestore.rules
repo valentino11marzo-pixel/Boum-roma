@@ -406,6 +406,8 @@ service cloud.firestore {
     match /phoneCalls/{x}                  { allow read, write: if isAdmin(); }
     // SmartLink esterni: il pubblico legge solo la proiezione dell'API.
     match /smartlinks/{x}                  { allow read, write: if isAdmin(); }
+    match /smartlinkImports/{x}            { allow read, write: if isAdmin(); }
+    match /smartlinkWorkers/{x}            { allow read, write: if isAdmin(); }
 
     // ─── Default deny ─────────────────────────────────────────────────
     match /{document=**} {
