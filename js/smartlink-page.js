@@ -67,20 +67,6 @@
   }
   function closeLightbox() { $('lightbox').classList.add('hidden'); document.body.style.overflow=''; $('gallery-main').focus(); }
 
-  function maplibre() {
-    if (window.maplibregl) return Promise.resolve();
-    if (window.__smartlinkMaplibre) return window.__smartlinkMaplibre;
-    window.__smartlinkMaplibre = new Promise((resolve, reject) => {
-      const css = document.createElement('link'); css.rel='stylesheet'; css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css'; document.head.append(css);
-      const script = document.createElement('script'); script.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js'; script.onload=resolve; script.onerror=reject; document.head.append(script);
-    });
-    return window.__smartlinkMaplibre;
-  }
-  function circle(lat, lng, meters) {
-    const coords=[];
-    for (let i=0;i<=64;i++) { const t=i/64*Math.PI*2; coords.push([lng+meters*Math.cos(t)/(111320*Math.cos(lat*Math.PI/180)),lat+meters*Math.sin(t)/111320]); }
-    return {type:'Feature',geometry:{type:'Polygon',coordinates:[coords]},properties:{}};
-  }
   function distance(meters) { return meters < 1000 ? `${meters} m` : `${(meters / 1000).toFixed(1).replace('.',',')} km`; }
   function categoryName(cat) { return ({metro:'Trasporti',spesa:'Spesa',universita:'Istruzione',verde:'Verde'})[cat] || 'Luogo'; }
   function tileCategory(properties) {
@@ -173,13 +159,14 @@
   }
   async function initMap() {
     try {
-      await maplibre();
+      await window.BOOM_SMARTLINK_MAP.load();
       map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[area.lng,area.lat],zoom:14.1,cooperativeGestures:true,attributionControl:true});
       map.addControl(new maplibregl.NavigationControl(),'top-right');
       map.on('load', () => {
-        map.addSource('smartlink-area',{type:'geojson',data:circle(area.lat,area.lng,650)});
+        map.addSource('smartlink-area',{type:'geojson',data:RULES.areaCircle(area)});
         map.addLayer({id:'smartlink-area-fill',type:'fill',source:'smartlink-area',paint:{'fill-color':'#ffd700','fill-opacity':.13}});
         map.addLayer({id:'smartlink-area-line',type:'line',source:'smartlink-area',paint:{'line-color':'#ffd700','line-width':2,'line-opacity':.9}});
+        window.BOOM_SMARTLINK_MAP.frame(map, area);
         const markerEl=document.createElement('div'); markerEl.className='map-area'; markerEl.title='Centro indicativo dell’area';
         new maplibregl.Marker({element:markerEl}).setLngLat([area.lng,area.lat]).addTo(map);
         $('map-loading').classList.add('hidden'); map.once('idle',localPois); loadPois(); initSearch();

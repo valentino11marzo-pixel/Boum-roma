@@ -80,6 +80,13 @@ const anonProv = env.authenticatedContext('anonSess', { firebase: { sign_in_prov
 console.log('\n\x1b[1mBOOM Firestore Rules — test suite\x1b[0m\n');
 
 // ── ADMIN: full access ──────────────────────────────────────────────────
+for (const collection of ['smartlinkImports','smartlinkWorkers']) {
+  await check('admin writes '+collection, assertSucceeds(setDoc(doc(admin,collection,'private'),{sourceUrl:'https://example.test/private'})));
+  for (const [name,db] of [['tenant',tA],['landlord',llA],['anonymous',anon]]) {
+    await check(name+' cannot read '+collection,assertFails(getDoc(doc(db,collection,'private'))));
+    await check(name+' cannot write '+collection,assertFails(setDoc(doc(db,collection,'forged'),{status:'ready'})));
+  }
+}
 console.log('Admin');
 await check('admin reads any contract',  assertSucceeds(getDoc(doc(admin, 'contracts/contractB'))));
 await check('admin reads leads',         assertSucceeds(getDoc(doc(admin, 'leads/lead1'))));

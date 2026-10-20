@@ -1,0 +1,8 @@
+{
+  "name": "boom-smartlink-reader",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Lettore centrale BOOM: runtime browser soltanto sul Mac, senza API dei portali",
+  "dependencies": {"playwright": "1.64.1"}
+}

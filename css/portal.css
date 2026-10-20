@@ -1662,3 +1662,17 @@
 .sl-connection-caption{margin-left:auto;color:var(--text-secondary);font-size:11px}
 .sl-connection-guide{padding:0 18px 16px;color:var(--text-secondary);font-size:12px;line-height:1.7}
 .sl-connection-guide ol{padding-left:20px}.sl-connection-guide li{padding:5px 0}.sl-connection-guide a{color:var(--gold)}.sl-connection-guide strong{color:var(--text-primary);font-weight:500}.sl-connection-guide code{color:var(--text-primary)}
+
+.sl-recent-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid var(--border)}
+.sl-recent-row>div{min-width:0}.sl-recent-row .sl-hint{overflow-wrap:anywhere;margin:4px 0 0}.sl-recent-row .btn{flex:none;min-height:44px}
+
+@media(max-width:720px){
+  .sl-studio-overlay{padding:0;overflow:hidden}
+  .sl-studio-overlay .sl-studio{max-width:100vw!important;margin:0!important;border-radius:0!important;animation:none;height:100vh;height:100dvh;max-height:100vh;max-height:100dvh;margin:0;border:0;width:100%}
+  .sl-studio-header{flex:none;padding:calc(18px + env(safe-area-inset-top,0px)) 18px 16px}
+  .sl-studio input,.sl-studio textarea{font-size:16px}
+  .sl-studio-footer{padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));flex-wrap:nowrap}
+  .sl-studio-footer .btn{flex:0 1 auto;min-width:0;padding:12px}
+  .sl-studio-footer #sl_create{flex:1;white-space:normal}
+  .sl-connection-caption{margin-left:0}
+}
