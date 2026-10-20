@@ -294,6 +294,10 @@
         postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
           city: C.SLUG, kind: id, name: name, email: email, phone: phone,
           notes: ($('sNote').value || '').trim(),
+          /* the payer's own request to start inside the 14-day withdrawal
+             period — never pre-ticked; without it the desk starts when the
+             14 days end (Directive 2011/83/EU art. 7(3)) */
+          startNow: !!($('sStart') && $('sStart').checked),
           company: ($('sCompany').value || '').trim()
         })
           .then(function (res) {
@@ -422,6 +426,12 @@
     if (!card) return;
     form.classList.add('hidden');
     $('paidPlan').textContent = pp.label + ' · ' + eur(pp.eur) + ' · ' + pp.conditionLong;
+    /* no "start now" tick: the work begins when the 14-day withdrawal period ends — say so */
+    if (q.get('start') === '0' && card.getAttribute('data-wait')) {
+      var wait = document.createElement('p'); wait.className = 'wait'; wait.id = 'paidWait';
+      wait.textContent = card.getAttribute('data-wait');
+      $('paidPlan').parentNode.insertBefore(wait, $('paidPlan').nextSibling);
+    }
     card.classList.add('on');
     miniBoard('flapPaid');
     var key = 'boom:paid:' + (sid || plan), seen = false;

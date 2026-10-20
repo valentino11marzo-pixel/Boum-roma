@@ -300,6 +300,14 @@ export function cityReplyText(lead = {}) {
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
       `I'm opening your file now and I'll come back today with the next step and what I need from you.\n${c.url}`;
   }
+  // A checkout started and not finished (api/payments/recover-checkouts.js):
+  // they chose the plan and stopped at the card. The reply names the plan and
+  // asks what stopped them — never a second sales pitch, never a price.
+  if (lead.city && lead.city.abandoned === true) {
+    const plan = lead.city.serviceLabel || 'the service';
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 I saw you started ${plan} for ${c.label} and stopped at the payment. ` +
+      `Anything I can answer before you decide? Happy to do a quick call.\n${c.url}`;
+  }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
     : 'I have your dates, budget and situation. ';

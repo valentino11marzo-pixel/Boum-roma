@@ -414,6 +414,12 @@ dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padd
 .sheet .opt{color:var(--t3b);text-transform:none;letter-spacing:0}
 .sheet .fine{margin-top:12px;font-size:11px;color:var(--t3b);line-height:1.6;text-align:center}
 .sheet .alt a+a{margin-left:0}
+/* the withdrawal right, said before the payment; the early start is the payer's own tick (never pre-ticked) */
+.sheet .startnow{display:flex;gap:10px;align-items:flex-start;margin-top:14px;min-height:44px;font-size:12px;line-height:1.5;color:var(--t2);cursor:pointer;text-transform:none;letter-spacing:0}
+.sheet .startnow input{flex:none;width:20px;height:20px;margin:1px 0 0;accent-color:var(--gold)}
+.sheet .recesso{margin-top:6px;font-size:11px;line-height:1.55;color:var(--t3b)}
+.sheet .recesso a{color:var(--gold)}
+.sent .wait{margin-top:10px;font-size:13px;line-height:1.55;color:var(--t2)}
 
 /* ── the strip: the one door on a phone, no price ── */
 .paybar .go{font-family:inherit;cursor:pointer;border:0;min-height:44px;display:inline-flex;align-items:center}

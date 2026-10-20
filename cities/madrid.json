@@ -141,7 +141,7 @@
         "includes": [
           "Daily search: Idealista, Fotocasa, agencies, off-market",
           "Applications within the hour",
-          "One attended viewing, live video + report (extra €149)",
+          "One attended viewing included, live video + report (more: €149 each)",
           "Rent negotiated, contract checked, padrón supported"
         ],
         "price": 500,
@@ -408,7 +408,7 @@
         "id": "fees",
         "title": "Who pays the agent",
         "at": "Ley 12/2023",
-        "text": "The landlord pays their own agent. A fee charged to you is a red flag. You hire us; we do not act for the landlord."
+        "text": "The landlord pays their own agent. That agent charging you a fee is a red flag. You hire us; we do not act for the landlord."
       },
       {
         "id": "rent",
@@ -514,12 +514,14 @@
   "checkout": true,
   "checkoutCopy": {
     "title": "Start with BOOM Madrid",
-    "note": "Choose the service and pay by card: the work starts the same working day, and the desk writes to you within its first open hour.",
+    "note": "Choose the service and pay by card. Tick “Start now” and the work starts the same working day; without it, we start when your 14-day withdrawal period ends.",
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.idealista.com/… · move-in 1 February",
     "btnSub": "Stripe checkout · one minute",
     "altLead": "Prefer to talk first?",
     "altLink": "Open a file, no payment",
+    "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
+    "withdrawal": "Withdrawal: 14 days from payment, by email to {email}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
     "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
@@ -549,7 +551,8 @@
           "the work as written on this page"
         ]
       ],
-      "recourse": "Nothing by then? Write to {email}."
+      "recourse": "Nothing by then? Write to {email}.",
+      "wait": "You did not ask us to start straight away, so the work begins when your 14-day withdrawal period ends. Want it sooner? Write to {email}."
     }
   },
   "facts": [
@@ -565,7 +568,7 @@
     },
     {
       "key": "nothing",
-      "label": "If we find nothing",
+      "label": "If we say no",
       "text": "Full Search is refunded in full if we decline the search in the first call."
     }
   ],

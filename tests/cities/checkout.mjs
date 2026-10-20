@@ -133,8 +133,14 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'the Stripe product is named for the desk and the plan, with the refund rule');
   check(call.metadata.service === 'SERVICE' && call.metadata.kind === 'full-search' && call.metadata.city === 'amsterdam' && call.metadata.market === 'amsterdam' && call.metadata.notes === 'move-in 1 Feb' && call.metadata.amount_eur === '500',
     'the metadata carries the city twice (city, market) for the webhook');
-  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&session_id={CHECKOUT_SESSION_ID}#contact' && call.cancel_url === 'https://www.boomrome.com/amsterdam#services',
-    'success lands back on the city page (?paid=<plan>), cancel on its plates — never the Rome thank-you page');
+  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}#contact' && call.cancel_url === 'https://www.boomrome.com/amsterdam#services',
+    'success lands back on the city page (?paid=<plan>&start=0), cancel on its plates — never the Rome thank-you page');
+  check(call.metadata.start_now === '0', 'no tick posted: start_now "0" — the work waits for the 14 days');
+  await post(checkout, { city: 'amsterdam', kind: 'application-pack', ...ANNA, startNow: true });
+  const ticked = globalThis.__stripeCalls.at(-1);
+  check(ticked.metadata.start_now === '1' && /\?paid=application-pack&start=1&session_id=/.test(ticked.success_url), 'the tick travels: start_now "1" and &start=1 on the way back');
+  await post(checkout, { city: 'amsterdam', kind: 'application-pack', ...ANNA, startNow: 'true' });
+  check(globalThis.__stripeCalls.at(-1).metadata.start_now === '0', 'only a real boolean true is the payer\'s request: the string "true" is not');
   check(call.phone_number_collection && call.phone_number_collection.enabled === true, 'no phone given: Stripe collects one at checkout');
   const r2 = await post(checkout, { city: 'madrid', kind: 'attended-viewing', ...ANNA, phone: '+34 600 000 000' });
   const c2 = globalThis.__stripeCalls.at(-1);
@@ -169,7 +175,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'paid:true, status new (the Brain sees it), a TENANT with intent city_order', JSON.stringify(lead));
   check(lead && lead.market === 'amsterdam' && lead.sourceRef === 'city-amsterdam' && isCityMarket(lead) && cityMode(lead) === 'search' && cityLabel(lead) === '🇳🇱 Amsterdam',
     'the lead carries the MARKET: api/_market.js recognises Amsterdam — the Commerciale stands down, the card names the city');
-  check(lead && /^AMSTERDAM — paid order · Full Search · €500 paid\. Notes: move-in 1 Feb$/.test(lead.message), 'the summary the operator reads: the city, "paid order", the plan, the amount', lead && lead.message);
+  check(lead && /^AMSTERDAM — paid order · Full Search · €500 paid\. Notes: move-in 1 Feb\.$/.test(lead.message), 'the summary the operator reads: the city, "paid order", the plan, the amount', lead && lead.message);
   check(lead && lead.phone === '+31612345678', 'the phone Stripe collected lands on the lead when the sheet left it empty');
   const reply = cityReplyText({ ...lead, city: { serviceLabel: 'Full Search' } });
   check(/Payment received for Full Search in Amsterdam/.test(reply) && reply.endsWith(CITY_MARKETS.amsterdam.url), 'the pre-written WhatsApp reply acknowledges the payment and links /amsterdam');
@@ -181,6 +187,31 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'the client\'s email: the desk\'s own next steps, the CTA back to the city page — never the Rome catalogue', client && JSON.stringify([client.heading, client.portal_link, client.r1_label]));
   const r2 = await webhook(stream(event(meta, { id: 'cs_city_ams_1' })), mkRes());
   check(r2.body && r2.body.duplicate === true && emails.length === e0 + 2, 'a Stripe retry of the same session: duplicate, no second email');
+}
+// the 14-day withdrawal right, on the durable medium (Directive 2011/83/EU art. 8(7))
+{
+  const base = { service: 'SERVICE', kind: 'full-search', city: 'madrid', market: 'madrid', name: 'Luis Gómez', email: 'luis@example.com', phone: '+34600000000', notes: '', amount_eur: '500' };
+  const created = Date.UTC(2026, 9, 20, 10, 0, 0) / 1000;
+  const e0 = emails.length;
+  const ev0 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_wait' }); ev0.data.object.created = created;
+  await webhook(stream(ev0), mkRes());
+  const lead0 = store.get([...store.keys()].find((k) => k.startsWith('leads/svc_') && k.includes('csci') && k.includes('madwait')) || [...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  const admin0 = emails[e0], client0 = emails[e0 + 1];
+  check(lead0 && /Did NOT ask to start now: the work begins when the withdrawal period ends, 3 November 2026\.$/.test(lead0.message), 'no tick: the lead says the work waits, and until when (created + 14 days, Rome)', lead0 && lead0.message);
+  check(admin0 && /did NOT ask to start now/.test(admin0.message || JSON.stringify(admin0)) && /3 November 2026/.test(JSON.stringify(admin0)) && /invoice from Egidi Immobiliare/.test(JSON.stringify(admin0)),
+    'the operator is told to wait until 3 November and to issue the invoice');
+  check(client0 && /is booked$/.test(client0.heading) && /once your 14-day withdrawal period ends, on 3 November 2026/.test(client0.intro)
+    && /To withdraw within 14 days of payment, email hello@boom-rome\.com/.test(client0.closing) && /fully performed/.test(client0.closing) && /invoice from Egidi Immobiliare S\.r\.l\./.test(client0.closing),
+    'the client: "booked", the steps begin on 3 November, how to withdraw, and the invoice', client0 && JSON.stringify([client0.heading, client0.intro]));
+  const e1 = emails.length;
+  await webhook(stream(event({ ...base, start_now: '1' }, { id: 'cs_city_mad_now' })), mkRes());
+  const client1 = emails[e1 + 1];
+  check(client1 && /starts now$/.test(client1.heading) && /Here's exactly what happens next/.test(client1.intro) && /You asked us to start straight away/.test(client1.closing) && /refund the price minus the work already done/.test(client1.closing),
+    'the tick: "starts now", the steps begin today, and the partial-refund rule is still said');
+  // "Applications within the hour" (of a listing going live) is the product's
+  // own promise from the brief; a REPLY within the hour, or work "today", is not
+  const all = JSON.stringify(emails.slice(e0)).replace(/Applications within the hour/g, '');
+  check(!/within the hour|starts today|start today/i.test(all), 'no email promises a reply within the hour or work "today"');
 }
 {
   // a Rome service event is what it was

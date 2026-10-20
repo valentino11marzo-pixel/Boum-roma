@@ -104,12 +104,13 @@ export default async function handler(req, res) {
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
         amount_eur: String(svc.eur),
-        // Codice del consumo (artt. 50 c.3, 57 c.3, 59): sul Pacchetto
-        // concordato il cliente che chiede di iniziare durante i 14 giorni del
+        // Codice del consumo (artt. 50 c.3, 57 c.3, 59) — Direttiva 2011/83/UE
+        // art. 7(3) per i desk città: sul Pacchetto concordato e su un ordine
+        // città il cliente che chiede di iniziare durante i 14 giorni del
         // recesso lo dice con una spunta sua; senza, si comincia allo scadere
         // dei 14 giorni. Le altre pagine non hanno ancora la spunta: niente
         // campo, e il webhook non dice nulla.
-        ...(body.kind === 'concordato-pack' ? { start_now: body.startNow === true ? '1' : '0' } : {}),
+        ...(body.kind === 'concordato-pack' || offer ? { start_now: body.startNow === true ? '1' : '0' } : {}),
       },
       // A city order lands back on ITS page, which shows the paid state and
       // what happens next (the board spells PAID); a Rome service keeps the
@@ -117,7 +118,7 @@ export default async function handler(req, res) {
       // there, so the page says the right time (48 hours from the data, or
       // after the 14 days).
       success_url: offer
-        ? `${offer.url}?paid=${encodeURIComponent(kind)}&session_id={CHECKOUT_SESSION_ID}#contact`
+        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}#contact`
         : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
           (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
           '&session_id={CHECKOUT_SESSION_ID}',

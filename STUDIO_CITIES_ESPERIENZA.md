@@ -1021,8 +1021,19 @@ The rest is code: one POST helper that gives up after 20 s (door and till never 
 
 The founder took **Amsterdam and Madrid** live, the two search desks with the till. Barcelona, Paris and Berlin remain noindex drafts until their partners exist. Nothing in the design changed. A live page differs from a draft only in what the build already derived:
 - `index, follow`;
-- the Rome rating linked to the Google review box (`rome.reviewUrl`, required by the build on a selling desk);
+- the Rome rating linked to the public Google profile (`rome.profileUrl`, required by the build on a selling desk);
 - the city in `Organization.areaServed`;
 - family links that reach only the other live desk.
 
 The sitemap, the home footer and `llms.txt` were added by hand, as the checklist said. One thing stays open outside the code: the place of supply for VAT on services tied to property in NL/ES. The commercialista settles that before the first card payment.
+
+### 11.17 What the go-live review changed (20 Oct, evening)
+
+A verification pass on the go-live commit found four things a paying stranger would have met. All four are closed.
+
+- **The proof link opened the wrong page.** "4.9 on Google in Rome" linked to the box for *writing* a review, so a sceptical reader who tapped to check landed on a form and saw no reviews. The link now opens the public profile, found by decoding the review link's token to the listing's CID. The build refuses a write-a-review URL.
+- **The till did not state the withdrawal right.** EU consumer law (Directive 2011/83/EU) applies: a service bought at a distance can be withdrawn from for 14 days, and the work may start inside those days only if the payer asks. The dialog now carries an unticked "Start now" box and a withdrawal line, both before the pay button. The paid card and both emails say when the work begins, how to withdraw and what is refunded. This is the same pattern as the Pacchetto concordato in Rome. It adds legal weight, not persuasion, and it sits inside the till, never on the page.
+- **An abandoned city checkout became a Rome lead.** The Commerciale would have written to that person in Italian about Rome apartments. The lead now carries the city's market, and the ready reply names the plan and asks what stopped them.
+- **Copy that over-promised.** "If we find nothing" became "If we say no", because the refund rule is about declining the search in the first call, not about how the search ends. The Full Search line now says one viewing is included. Madrid says who pays the landlord's agent.
+
+The design held: no new section, the word budgets unchanged (the paid card is at its 70-word cap).

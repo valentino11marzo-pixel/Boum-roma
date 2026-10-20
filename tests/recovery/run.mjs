@@ -12,6 +12,7 @@ import {
   classifySession, leadFromSession, recoveryLeadId, recapLine,
   sessionEmail, operatorEmails,
 } from '../../api/payments/recover-checkouts.js';
+import { isCityMarket, cityLabel, cityReplyText } from '../../api/_market.js';
 
 let fails = 0;
 const ok = (name, cond, detail) => {
@@ -76,6 +77,40 @@ const S = (over = {}) => ({
 
   const recap = recapLine(S({ metadata: { service: 'PREAGREEMENT', name: 'Ines', ref: 'BOOM-MS3AWEZB', email: 'i@x.com' }, amount_total: 145000 }));
   ok('la riga recap dice chi, cosa, quanto', recap.includes('pre-accordo') && /€1[.,]?450/.test(recap) && recap.includes('Ines') && recap.includes('BOOM-MS3AWEZB'), recap);
+}
+
+
+// ── 3. un checkout di un desk città (Amsterdam, Madrid) ───────────────────
+// Senza il suo mercato il lead finiva alla macchina romana: il Commerciale
+// scriveva in italiano proponendo case a Roma e la card linkava /apartments.
+{
+  const city = S({
+    id: 'cs_live_cityAMS0000000000000000000001',
+    amount_total: 50000,
+    customer_details: { email: 'anna@example.nl', name: 'Anna de Vries', phone: '+31612345678' },
+    metadata: { service: 'SERVICE', kind: 'full-search', city: 'amsterdam', market: 'amsterdam',
+      name: 'Anna de Vries', email: 'anna@example.nl', phone: '', listing: '', notes: 'Moving in March with my partner', amount_eur: '500', start_now: '0' },
+  });
+  ok('un checkout città scaduto è un lead', classifySession(city, new Set()) === 'lead');
+  const lead = leadFromSession(city, new Date('2026-10-20T10:00:00Z'));
+  ok('il lead porta il SUO mercato', lead.market === 'amsterdam' && lead.sourceRef === 'city-amsterdam');
+  ok('…quindi la macchina romana resta fuori (isCityMarket)', isCityMarket(lead) && cityLabel(lead).includes('Amsterdam'));
+  ok('inquilino, inglese, non pagato', lead.leadType === 'tenant' && lead.language === 'en' && lead.paid === false);
+  ok('intent di ricerca, non di ordine pagato', lead.intent === 'city_search');
+  ok('il riassunto dice città, piano, importo e le note', /^AMSTERDAM — checkout NOT completed/.test(lead.message)
+    && lead.message.includes('Full Search') && lead.message.includes('€500') && lead.message.includes('Moving in March'), lead.message);
+  ok('il telefono raccolto da Stripe non si perde', lead.phone === '+31612345678');
+  ok('il piano viaggia sul lead', lead.city && lead.city.service === 'full-search' && lead.city.abandoned === true);
+  const reply = cityReplyText(lead);
+  ok('la risposta pronta nomina il piano e la città, in inglese', reply.includes('Full Search') && reply.includes('Amsterdam') && reply.startsWith('Hi Anna'), reply);
+  ok('…non dice mai "Payment received" a chi non ha pagato', !/payment received/i.test(reply));
+  ok('…linka la SUA pagina, mai il catalogo di Roma', reply.includes('/amsterdam') && !reply.includes('/apartments'));
+  ok('…e non ripete un prezzo', !/€\s?\d/.test(reply), reply);
+
+  const rome = leadFromSession(S({ metadata: { service: 'SERVICE', kind: 'virtual-viewing', email: 'x@y.com' } }));
+  ok('un servizio di Roma resta di Roma', !isCityMarket(rome) && rome.intent === 'service');
+  const odd = leadFromSession(S({ metadata: { service: 'SERVICE', kind: 'full-search', city: 'lisbon', email: 'x@y.com' } }));
+  ok('una città che non è un desk non inventa un mercato', !isCityMarket(odd));
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nAll green.');

@@ -325,7 +325,7 @@ const SERVICE_META = {
 const CITY_SERVICE_META = {
   'full-search': {
     emoji: '🧭',
-    next1: ['Your brief call', 'Booked today — 20 minutes, your dates, budget and situation'],
+    next1: ['Your brief call', "Booked in the desk's first open hour — 20 minutes, your dates, budget and situation"],
     next2: ['Dossier in 24 hours', 'Local format: income, employer, ID, references, cover letter'],
     next3: ['Applications within the hour', 'From the first listing that fits — you see every one'],
     next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
@@ -345,6 +345,14 @@ const CITY_SERVICE_META = {
     next4: ['Written report', 'Light, noise, damp, neighbours, commute — and a straight recommendation'],
   },
 };
+
+// The day the 14-day withdrawal period ends, in Rome (Directive 2011/83/EU
+// art. 9: 14 days from the conclusion of a service contract). Said to the
+// payer who did not tick "Start now", and to the operator who must wait.
+export function withdrawalEnds(createdEpoch) {
+  const d = new Date(((Number(createdEpoch) || 0) * 1000) + 14 * 86400000);
+  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+}
 
 async function handleService(res, session, m) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
@@ -366,6 +374,11 @@ async function handleService(res, session, m) {
   // Stripe's phone_number_collection lands in customer_details.phone: the
   // city sheet leaves the phone optional, the checkout asks for it.
   const phone = m.phone || (session.customer_details && session.customer_details.phone) || '';
+  // A city order says whether the payer asked to start inside the 14 days
+  // (start_now '1') or not ('0'); a session made before the tick existed
+  // carries neither and says nothing.
+  const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
+  const waitUntil = cityStart === '0' ? withdrawalEnds(session.created) : '';
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -379,7 +392,7 @@ async function handleService(res, session, m) {
     phone,
     listingName: m.listing || '',
     message: cityDesk
-      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes : ''}`.trim()
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${cityStart === '1' ? 'Asked to start now (inside the 14-day withdrawal period).' : cityStart === '0' ? `Did NOT ask to start now: the work begins when the withdrawal period ends, ${waitUntil}.` : ''}`.trim()
       : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
@@ -417,7 +430,7 @@ async function handleService(res, session, m) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a reply within the hour: the clock is running.`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: the work begins when the 14-day withdrawal period ends, ${waitUntil}.` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -435,12 +448,16 @@ async function handleService(res, session, m) {
     const it = meta.lang === 'it';
     if (email) await sendEmailJS({
       to_email: email,
-      heading: it ? `${meta.title} — confermato` : meta.city ? `Your ${meta.title} starts now` : `Your ${meta.title} is confirmed`,
+      heading: it ? `${meta.title} — confermato` : meta.city ? (cityStart === '0' ? `Your ${meta.title} is booked` : `Your ${meta.title} starts now`) : `Your ${meta.title} is confirmed`,
       subheading: it ? 'BOOM Rome — pagato, in lavorazione' : meta.city ? `BOOM ${meta.city.label} — paid, file open` : 'BOOM Rome — paid & scheduled',
       name: firstName,
       intro: it
         ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
-        : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+        : cityStart === '0'
+          // no "Start now" tick: the steps below begin when the withdrawal
+          // period ends — the email must not read as if they start today
+          ? `Payment received — €${amountEur}, Stripe-secured. Here's what happens once your 14-day withdrawal period ends, on ${waitUntil}:`
+          : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
       card_title: it ? 'I prossimi passi' : 'What happens next',
       r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
@@ -456,7 +473,13 @@ async function handleService(res, session, m) {
             : 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso; se preferisce anticipare, ce lo scriva. ')
             + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT
           : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT)
-        : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
+        : meta.city && cityStart
+          // the withdrawal right, on a durable medium (Directive 2011/83/EU art. 8(7))
+          ? (cityStart === '1'
+            ? 'You asked us to start straight away, so the desk starts now. '
+            : `You did not ask us to start straight away, so the work begins when your 14-day withdrawal period ends, on ${waitUntil}. Want it sooner? Reply to this email. `)
+            + 'To withdraw within 14 days of payment, email hello@boom-rome.com. If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN
+          : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });

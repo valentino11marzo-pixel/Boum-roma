@@ -1593,7 +1593,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      scritti: paid by · from abroad · if we find nothing, ≤ 20 parole; due
      DERIVATI: chi risponde dal blocco `desk` con l'orologio vivo «it is 11:17
      at the desk, 09:17 for you», e l'azienda con il rating «4.9 on Google **in
-     Rome**» — una volta, detto Roma, linkato solo quando `rome.reviewUrl`
+     Rome**» — una volta, detto Roma, linkato solo quando `rome.profileUrl`
      esiste, obbligatorio per andare live su un desk che vende). A destra, a
      ≥ 920 px sticky (`.tall` lo libera se più alta dello schermo): il pass e la
      porta. UN DOM, riordinato sul telefono con `display:contents` + `order`.
@@ -1806,10 +1806,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   persona sul posto («ho qualcuno»: la copia resta com'è). Barcellona, Parigi
   e Berlino restano bozze `noindex` finché non esistono i partner (AICAT,
   carte professionnelle, §34c) e il listino di Berlino sotto il WoVermRG.
-  Cosa è cambiato: `_shared.json rome.reviewUrl` =
-  `https://g.page/r/CfcpUptbNnvZEBM/review` (la scatola delle stelle, passa
-  `api/reviews/_lib.js`; senza, il build rifiuta `live:true` su un desk che
-  vende) e il rating «4.9 on Google in Rome» ora lo linka; le due pagine
+  Cosa è cambiato: `_shared.json rome.profileUrl` =
+  `https://maps.google.com/?cid=15671179095441549815` (senza, il build
+  rifiuta `live:true` su un desk che vende) e il rating «4.9 on Google in
+  Rome» ora lo linka; le due pagine
   passano a `index, follow`, entrano in `Organization.areaServed` (derivata:
   Rome + i soli live) e linkano SOLO la sorella live (Amsterdam ⇄ Madrid, mai
   una bozza); due `<url>` in `sitemap.xml` (a mano, lastmod 2026-10-20), il
@@ -1826,6 +1826,59 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   social, che una pagina live pretende), `ui` 175, `checkout` 39, `consent`
   25; `seo`, `crawl`, `llmstxt`, `hometruth`, `verita`, `scroll`, `seogen`,
   `consentbanner`, `answers`, `faqtruth`, `attribution` verdi.
+- **LA REVISIONE DEL LIVE (20/10, sera)** — una verifica avversaria sul
+  commit del live, rilievi letti a mano e chiusi nello stesso giro:
+  1. **Il link della prova apre il PROFILO, non la scatola delle stelle.**
+     `g.page/r/<token>/review` è il link per SCRIVERE una recensione: chi
+     tocca «4.9 on Google in Rome» per controllare atterrava su un modulo, non
+     sulle 47 recensioni. Il token è un protobuf base64 il cui campo 1 è il
+     CID della scheda: decodificato, `https://maps.google.com/?cid=15671179095441549815`.
+     La chiave si chiama ora `rome.profileUrl`; il build rifiuta un URL
+     `/review`/`writereview` e la vecchia chiave `rome.reviewUrl` per nome.
+     Il link per le EMAIL (`REVIEW_URL`, `api/reviews/_lib.js`) resta la
+     scatola delle stelle: lì si chiede di scriverne una.
+  2. **Il recesso di 14 giorni sulla cassa città** (Direttiva 2011/83/UE,
+     artt. 7(3), 8(7), 16(a) — lo schema del Pacchetto concordato): nel
+     `<dialog>`, prima del bottone, la spunta «Start now» MAI pre-selezionata
+     (`checkoutCopy.startNow`: è la richiesta del pagante, e dice che il
+     diritto finisce a servizio interamente eseguito) e la riga del recesso
+     (`checkoutCopy.withdrawal`: 14 giorni, per email). `startNow:true`
+     (solo un booleano vero) → metadata Stripe `start_now` '1'/'0' e
+     `&start=` nel ritorno; con `start=0` la card PAGATO aggiunge
+     `#paidWait` (`checkoutCopy.paid.wait`). Il webhook lo scrive sul lead
+     («Did NOT ask to start now: … 3 November 2026», `withdrawalEnds()` =
+     creazione + 14 giorni, ora di Roma), all'operatore (aspetta fino a
+     quella data, emetti la fattura Egidi IVA inclusa) e al cliente
+     («is booked» invece di «starts now», i passi «once your 14-day
+     withdrawal period ends», come recedere, il rimborso meno il lavoro già
+     fatto se aveva chiesto di iniziare, la fattura) — sul supporto
+     durevole. Il build rifiuta una cassa senza queste tre stringhe e una
+     `note` che prometta «same working day» senza la spunta.
+  3. **Il checkout abbandonato di un desk resta del suo desk**
+     (`api/payments/recover-checkouts.js`): una sessione SERVICE scaduta con
+     `city` nel registro diventa un lead `market: <città>`, `sourceRef
+     city-<città>`, `leadType tenant`, `language en`, `intent city_search`,
+     `city.abandoned: true` e il riassunto «AMSTERDAM — checkout NOT
+     completed · Full Search · €500». Prima nasceva lead romano: il
+     Commerciale gli scriveva in italiano proponendo case a Roma.
+     `cityReplyText` ha la sua voce per l'abbandono: nomina il piano, chiede
+     cosa l'ha fermato, propone una chiamata — mai «Payment received», mai un
+     prezzo.
+  4. Copia: il fatto «If we find nothing» diventa «If we say no» (la regola
+     è il rifiuto nella prima chiamata, non il risultato della ricerca); il
+     controllo II di Madrid dice chi paga l'agente del locatore; la riga
+     della visita nel Full Search di Amsterdam dice quante (una inclusa, le
+     altre €149); l'email all'operatore riporta la promessa vera (primo
+     orario aperto del desk, lun–ven 09:00–19:00 ora di Roma); `llms.txt`
+     mette i due desk in Coverage, Language e nella risposta «does BOOM
+     operate outside Rome», col recesso.
+  Test: `tests/cities/run.mjs` 497 (la spunta non spuntata prima del
+  bottone, la riga del recesso, `data-wait`, quattro rifiuti nuovi, il
+  profilo al posto della scatola), `ui.mjs` 180 (la spunta che viaggia come
+  `startNow:true`, `start=0` che mostra l'attesa, `start=1` che non la
+  mostra), `checkout.mjs` 47 (metadata e ritorno, la stringa "true" che non
+  vale, lead/operatore/cliente col 3 novembre, nessuna risposta «within the
+  hour»), `tests/recovery` (il caso città, mutazione presa).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

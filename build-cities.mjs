@@ -370,14 +370,14 @@ const R = {
   // nothing), two DERIVED so they cannot drift from the desk block and the
   // entity: who answers (the person, the desk hours, a live clock span the
   // JS fills) and the company (legal name, P.IVA, the Rome rating — labelled
-  // Rome, linked when the review URL exists).
+  // Rome, linked to the public Google profile when its URL exists).
   facts: (c, shared) => {
     const d = c.desk, fd = c.factsDerived;
     const rows = list(c, 'facts').map((f) => `  <div><dt>${esc(f.label)}</dt><dd>${esc(f.text)}</dd></div>`);
     rows.push(`  <div><dt>${esc(fd.answers)}</dt><dd>${esc(d.person)}, ${esc(fd.answersLine)} · ${deskLineOf(c)}<span class="clock" id="deskClock" aria-live="off"></span></dd></div>`);
     const rome = shared.rome;
     const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
-    const ratingHtml = rome.reviewUrl ? `<a href="${esc(rome.reviewUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating;
+    const ratingHtml = rome.profileUrl ? `<a href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating;
     rows.push(`  <div data-proof="rome"><dt>${esc(fd.company)}</dt><dd>${esc(shared.entity.legalName)} · P.IVA ${esc(shared.entity.vat)} · ${ratingHtml}</dd></div>`);
     return rows.join('\n');
   },
@@ -596,7 +596,7 @@ const R = {
       '        </div>'
     ];
     const paid = k ? [
-      '        <div class="sent paid" id="fPaid" tabindex="-1">',
+      `        <div class="sent paid" id="fPaid" tabindex="-1" data-wait="${esc(k.paid.wait.replace('{email}', contact.email))}">`,
       `          ${R.tick()}`,
       '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>',
       `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
@@ -629,6 +629,8 @@ const R = {
       `    <div class="fld"><label for="sEmail">${esc(c.form.email.label)}</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="${esc(c.form.email.placeholder)}"></div>`,
       `    <div class="fld"><label for="sPhone">${esc(c.form.phone.label)} <span class="opt">(${esc(c.form.phone.sub)})</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="${esc(c.form.phone.placeholder)}"></div>`,
       `    <div class="fld"><label for="sNote">${esc(k.noteLabel)} <span class="opt">(optional)</span></label><input id="sNote" placeholder="${esc(k.notePlaceholder)}"></div>`,
+      `    <label class="startnow"><input type="checkbox" id="sStart"><span>${esc(k.startNow)}</span></label>`,
+      `    <p class="recesso">${esc(k.withdrawal).replace('{email}', `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`)}</p>`,
       '    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">',
       '    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>',
       `    <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>${esc(c.till.label)}</b><small>${esc(k.btnSub)}</small></span><span class="amt" id="sGoAmt"></span></button>`,
@@ -739,8 +741,8 @@ export function findPlaceholders(html, city, { root = ROOT, shared = null } = {}
   }
   // A sell desk prints "4.9 on Google in Rome": a rating that cannot be
   // clicked is an assertion (STUDIO §3.5). The founder owns the URL.
-  if (shared && city.checkout === true && !(shared.rome && /^https:\/\//.test(shared.rome.reviewUrl || ''))) {
-    found.push('_shared.json rome.reviewUrl is empty: the Rome rating must link to the Google profile on a desk that sells');
+  if (shared && city.checkout === true && !(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || ''))) {
+    found.push('_shared.json rome.profileUrl is empty: the Rome rating must link to the Google profile on a desk that sells');
   }
   return [...new Set(found)];
 }
@@ -785,9 +787,16 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     'cities/_shared.json', 'contact.whatsapp (digits only) and contact.email are required');
   need(shared.refund && typeof shared.refund.rule === 'string' && /refunded in full if we decline the search in the first call/.test(shared.refund.rule),
     'cities/_shared.json', 'refund.rule is the one sentence of the policy: "… refunded in full if we decline the search in the first call" (the founder, 15/10)');
-  need(shared.rome && ['rating', 'reviews', 'since'].every((f) => typeof shared.rome[f] === 'string' && shared.rome[f].trim()) && typeof shared.rome.reviewUrl === 'string',
-    'cities/_shared.json', 'rome needs rating, reviews, since and reviewUrl (empty until the founder supplies it)');
-  need(!shared.rome.reviewUrl || /^https:\/\//.test(shared.rome.reviewUrl), 'cities/_shared.json', 'rome.reviewUrl must be https');
+  need(shared.rome && ['rating', 'reviews', 'since'].every((f) => typeof shared.rome[f] === 'string' && shared.rome[f].trim()) && typeof shared.rome.profileUrl === 'string',
+    'cities/_shared.json', 'rome needs rating, reviews, since and profileUrl (empty until the founder supplies it)');
+  need(!shared.rome.profileUrl || /^https:\/\//.test(shared.rome.profileUrl), 'cities/_shared.json', 'rome.profileUrl must be https');
+  // The proof link is the PUBLIC profile, where the 47 reviews can be read.
+  // The "write a review" box (g.page/r/<id>/review, …/writereview) asks a
+  // stranger to rate a business they have never used — that link belongs in
+  // the client emails (REVIEW_URL), never under a rating offered as proof.
+  need(!/\/review\b|writereview/i.test(shared.rome.profileUrl || ''), 'cities/_shared.json',
+    'rome.profileUrl is a "write a review" link: the proof link must open the public profile (e.g. https://maps.google.com/?cid=…), not the review box');
+  need(shared.rome.reviewUrl === undefined, 'cities/_shared.json', 'rome.reviewUrl was renamed rome.profileUrl (the public profile, 20/10)');
   // the footer year comes from data: read from the clock, --check and the
   // suite went red on every page at the year rollover (the CLI warns when it lags)
   need(/^\d{4}$/.test(String(shared.copyrightYear || '')), 'cities/_shared.json', 'copyrightYear (four digits) is required: the footer year is data, not the clock');
@@ -862,6 +871,19 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       && Array.isArray(k.paid.next) && k.paid.next.length === 3 && k.paid.next.every((x) => Array.isArray(x) && x.length === 2 && x.every((y) => typeof y === 'string' && y.trim())),
       where, 'checkoutCopy.paid needs before, em, text, recourse (a question with {email}) and next: exactly three [label, line] pairs');
     need(typeof city.form.sending === 'string' && city.form.sending.trim(), where, 'checkout:true needs form.sending (the button while the send is in flight)');
+    // A distance sale to a consumer (Directive 2011/83/EU arts. 6, 7(3), 16(a)):
+    // the 14-day withdrawal right is said BEFORE the payment, and work starts
+    // inside those 14 days only on the payer's own request — an unticked box,
+    // never pre-ticked. Without it the right runs up to a year and the work
+    // already done is not owed. Same pattern as the Pacchetto concordato.
+    need(typeof k.startNow === 'string' && /start/i.test(k.startNow) && /withdraw/i.test(k.startNow) && /fully performed/i.test(k.startNow), where,
+      'checkoutCopy.startNow is the payer\'s own request to start inside the withdrawal period, acknowledging the right ends once the service is fully performed');
+    need(typeof k.withdrawal === 'string' && /14 days/.test(k.withdrawal) && /\{email\}/.test(k.withdrawal), where,
+      'checkoutCopy.withdrawal states the 14-day withdrawal right and how to exercise it ({email}) before the payment');
+    need(typeof k.paid.wait === 'string' && /14-day|14 days/.test(k.paid.wait), where,
+      'checkoutCopy.paid.wait says when the work starts for a payer who did not ask to start now');
+    need(!/same working day/i.test(k.note) || /withdraw/i.test(k.note), where,
+      'checkoutCopy.note cannot promise the same working day without saying it depends on the start-now tick');
   } else {
     need(city.till === undefined, where, 'till.label belongs only to a desk with the checkout open');
   }

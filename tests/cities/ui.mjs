@@ -339,6 +339,8 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
     && (await page.textContent('#sGoAmt')).trim() === '€199' && (await page.textContent('#sGo')).replace(/\s+/g, ' ').includes('Pay and start'),
     'the plate\'s pay link opens the dialog on Application Pack, €199 on the till button');
+  check(await page.isVisible('#sStart') && !(await page.$eval('#sStart', (e) => e.checked)) && await page.isVisible('#ov .recesso'),
+    'the till shows the 14-day withdrawal right and an UNTICKED "Start now" box');
   const beganAt = (await layer(page)).filter((e) => e.name === 'begin_checkout');
   check(beganAt.length === 1 && beganAt[0].p.value === 199 && beganAt[0].p.market === 'amsterdam', 'begin_checkout fires once, with the plan\'s value and the market');
   check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'the strip steps back while the dialog is open');
@@ -363,8 +365,8 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.waitForTimeout(900);
   let co = {};
   try { co = JSON.parse(st.checkouts[0].body); } catch (e) {}
-  check(st.checkouts.length === 1 && co.city === 'amsterdam' && co.kind === 'full-search' && co.name === 'Test Person' && co.email === 'test@example.com' && co.company === '' && !('eur' in co) && !('price' in co),
-    'the sheet posts { city, kind, name, email } once — never a price — and follows the URL', JSON.stringify(co));
+  check(st.checkouts.length === 1 && co.city === 'amsterdam' && co.kind === 'full-search' && co.name === 'Test Person' && co.email === 'test@example.com' && co.company === '' && !('eur' in co) && !('price' in co) && co.startNow === false,
+    'the sheet posts { city, kind, name, email, startNow:false } once — never a price — and follows the URL', JSON.stringify(co));
   check(await page.isVisible('#fPaid') && !(await page.isVisible('#cityForm')) && /^Full Search · €500/.test((await page.textContent('#paidPlan')).trim()),
     'back from Stripe the card shows the PAID state for the plan, the form gives way');
   await page.waitForTimeout(1200);
@@ -378,6 +380,31 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.waitForTimeout(500);
   check(!(await page.isVisible('#fPaid')) && await page.isVisible('#cityForm'), 'a reload shows the door again, not a second paid landing');
   await ctx.close();
+}
+// the "Start now" tick travels to the server; the paid landing says when work begins
+{
+  const { ctx, page, st } = await open({ checkout: { status: 200, body: { ok: true, url: `${base}/amsterdam?paid=attended-viewing&start=1&session_id=cs_test_ui_tick#contact` } } });
+  await page.waitForTimeout(500);
+  await tap(page, '[data-pay="attended-viewing"]');
+  await page.waitForTimeout(500);
+  await page.fill('#sName', 'Tick Person');
+  await page.fill('#sEmail', 'tick@example.com');
+  await page.click('#ov label.startnow');
+  check(await page.$eval('#sStart', (e) => e.checked), 'tapping the line ticks the box (the whole label is the target)');
+  await page.click('#sGo');
+  await page.waitForURL(/paid=attended-viewing/, { timeout: 4000 }).catch(() => {});
+  await page.waitForTimeout(700);
+  let co = {};
+  try { co = JSON.parse(st.checkouts[0].body); } catch (e) {}
+  check(co.startNow === true, 'a ticked box posts startNow:true — the payer\'s own request, never inferred', JSON.stringify(co));
+  check(await page.isVisible('#fPaid') && !(await page.isVisible('#paidWait')), 'start=1: the paid card says nothing about waiting');
+  await ctx.close();
+  const { ctx: c0, page: p0 } = await open({ query: '?paid=full-search&start=0&session_id=cs_test_ui_wait' });
+  await p0.waitForTimeout(500);
+  const wait = (await p0.textContent('#paidWait').catch(() => '')) || '';
+  check(await p0.isVisible('#paidWait') && /14-day withdrawal period ends/.test(wait) && wait.includes('hello@boom-rome.com'),
+    'start=0: the paid card says the work begins when the 14 days end, and how to ask sooner', wait);
+  await c0.close();
 }
 // the same paid landing opened twice counts one sale
 {

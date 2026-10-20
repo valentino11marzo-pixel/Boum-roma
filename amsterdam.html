@@ -42,7 +42,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=0e6088031c">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=998cf5f454">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -193,7 +193,7 @@
           "price": "199",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Dutch-format rental dossier in 24 hours, motivation letter, application templates, contract review. VAT included. Invoice from Egidi Immobiliare S.r.l.",
+          "description": "Dutch-format rental dossier in 24 hours, motivation letter, income and guarantor strategy, contract review. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "199",
@@ -759,9 +759,9 @@ html {
       <dl class="facts" id="facts">
   <div><dt>Paid by</dt><dd>We work exclusively for you; never paid by landlords.</dd></div>
   <div><dt>From abroad</dt><dd>Yes. Live video at the viewing, a written report, the contract checked before you sign.</dd></div>
-  <div><dt>If we find nothing</dt><dd>Full Search is refunded in full if we decline the search in the first call.</dd></div>
+  <div><dt>If we say no</dt><dd>Full Search is refunded in full if we decline the search in the first call.</dd></div>
   <div><dt>Who answers</dt><dd>Valentino Egidi, same working day · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET</span><span class="clock" id="deskClock" aria-live="off"></span></dd></div>
-  <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://g.page/r/CfcpUptbNnvZEBM/review" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></dd></div>
+  <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://maps.google.com/?cid=15671179095441549815" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></dd></div>
       </dl>
     </div>
     <div class="hero-right">
@@ -857,7 +857,7 @@ html {
             <p class="refund" id="payOfferRefund">Full Search is refunded in full if we decline the search in the first call.</p>
           </div>
         </div>
-        <div class="sent paid" id="fPaid" tabindex="-1">
+        <div class="sent paid" id="fPaid" tabindex="-1" data-wait="You did not ask us to start straight away, so the work begins when your 14-day withdrawal period ends. Want it sooner? Write to hello@boom-rome.com.">
           <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
           <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>
           <h3>Paid — your file <em>is open.</em></h3>
@@ -907,7 +907,7 @@ html {
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We find it. You move in.</b>
-        <ul class="inc"><li>Daily search: Pararius, Funda, agencies, off-market</li><li>Applications within the hour</li><li>One attended viewing, live video + report (extra €149)</li><li>Rent negotiated, contract checked, BRP supported</li></ul>
+        <ul class="inc"><li>Daily search: Pararius, Funda, agencies, off-market</li><li>Applications within the hour</li><li>One attended viewing included, live video + report (more: €149 each)</li><li>Rent negotiated, contract checked, BRP supported</li></ul>
         <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
         <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
@@ -1099,7 +1099,7 @@ html {
 <!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
 <dialog class="sheet" id="ov" aria-label="Start with BOOM Amsterdam" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
     <div class="sh"><h3>Start with BOOM Amsterdam</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
-    <p class="note">Choose the service and pay by card: the work starts the same working day, and the desk writes to you within its first open hour.</p>
+    <p class="note">Choose the service and pay by card. Tick “Start now” and the work starts the same working day; without it, we start when your 14-day withdrawal period ends.</p>
     <div class="payrows" role="radiogroup" aria-label="Service">
       <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>We find it. You move in.</small></span><em>€500</em></label>
       <label class="payrow"><input type="radio" name="payplan" value="application-pack" data-eur="199" data-label="Application Pack"><span><b>Application Pack</b><small>The paperwork that wins Dutch applications.</small></span><em>€199</em></label>
@@ -1109,6 +1109,8 @@ html {
     <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
     <div class="fld"><label for="sPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+31 …"></div>
     <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.pararius.com/… · move-in 1 February"></div>
+    <label class="startnow"><input type="checkbox" id="sStart"><span>Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
+    <p class="recesso">Withdrawal: 14 days from payment, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
     <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
     <button type="button" class="paybtn" id="sGo"><span class="lk">🔒</span><span class="tx"><b>Pay and start</b><small>Stripe checkout · one minute</small></span><span class="amt" id="sGoAmt"></span></button>
@@ -1168,7 +1170,7 @@ html {
         "includes": [
           "Daily search: Pararius, Funda, agencies, off-market",
           "Applications within the hour",
-          "One attended viewing, live video + report (extra €149)",
+          "One attended viewing included, live video + report (more: €149 each)",
           "Rent negotiated, contract checked, BRP supported"
         ]
       },
@@ -1408,7 +1410,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=48b13c58e1"></script>
+<script src="/assets/boom-city.js?v=0a93f45066"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

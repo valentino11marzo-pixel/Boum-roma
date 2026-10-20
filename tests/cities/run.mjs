@@ -153,7 +153,7 @@ const wordsOf = (s) => s.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<s
 const slice = (h, a, b) => { const i = h.indexOf(a); const j = h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
 const noSelect = (h) => h.replace(/<select[\s\S]*?<\/select>/g, '<select></select>');
 const BUDGET = { hero: 30, checkin: 230, facts: 85, door: 110, state: 70, plate: 50, checks: 170, body: 950 };
-const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)" tabindex="-1">[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
+const stateBlocks = (m) => [...m.matchAll(/<div class="sent(?: paid)?" id="f(?:Done|Paid)" tabindex="-1"(?: data-wait="[^"]*")?>[\s\S]*?\n        <\/div>/g)].map((x) => wordsOf(x[0]));
 for (const p of pages) {
   const m = slice(p.html, '<main id="main">', '</main>');
   const hero = wordsOf(slice(p.html, '<header class="hero"', '<!-- CHECK-IN -->'));
@@ -239,7 +239,7 @@ check(daysLabel([1, 2, 3, 4, 5]) === 'Mon–Fri' && daysLabel([1, 3, 5]) === 'Mo
   check(throws(() => render(noDays), /deskLine with \{days\}/) === true, 'a desk line without the days is refused');
 }
 const ratingTxt = `${shared.rome.rating} on Google in Rome, ${shared.rome.reviews} reviews`;
-const ratingOut = shared.rome.reviewUrl ? `<a href="${esc(shared.rome.reviewUrl)}" target="_blank" rel="noopener">${ratingTxt}</a>` : ratingTxt;
+const ratingOut = shared.rome.profileUrl ? `<a href="${esc(shared.rome.profileUrl)}" target="_blank" rel="noopener">${ratingTxt}</a>` : ratingTxt;
 check(/<div data-proof="rome"><dt>/.test(factsHtml) && rows[4][1].includes(`${esc(shared.entity.legalName)} · P.IVA ${shared.entity.vat} · ${ratingOut}`) && (html.match(/on Google/g) || []).length === 1,
   'the company: legal name, P.IVA, the Rome rating labelled "on Google in Rome" — once on the page, never as the desk\'s own');
 check(ams.facts[2].text === shared.refund.rule, 'on a sell desk the "if we find nothing" fact IS the refund rule, word for word');
@@ -313,7 +313,7 @@ check(crumbs['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb` && wp.breadcrum
 }
 {
   const liveAms = clone(ams); liveAms.live = true;
-  const sh = clone(shared); sh.rome.reviewUrl = 'https://g.page/r/test/review';
+  const sh = clone(shared); sh.rome.profileUrl = 'https://maps.google.com/?cid=1';
   const g = JSON.parse(render(liveAms, sh).html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)[1].replace(/<\/?script[^>]*>/g, ''))['@graph'];
   check(JSON.stringify(g.find((n) => n['@type'] === 'Organization').areaServed) === JSON.stringify(['Rome', 'Amsterdam']), 'once live, the desk\'s city joins areaServed by itself');
 }
@@ -343,14 +343,14 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
 // ── 5 · the live guard bites, and only when it should ─────────────────────
 {
   const clean = clone(ams); clean.live = true;
-  const shLive = clone(shared); shLive.rome.reviewUrl = 'https://g.page/r/test/review';
+  const shLive = clone(shared); shLive.rome.profileUrl = 'https://maps.google.com/?cid=1';
   let res = null, err = '';
   try { res = render(clean, shLive); } catch (x) { err = x.message; }
-  check(res && res.placeholders.length === 0, 'with the review link in place, today\'s Amsterdam data would pass the live guard', err);
-  check(res && !/noindex/.test(res.html) && /content="index, follow/.test(res.html) && res.html.includes('<a href="https://g.page/r/test/review" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a>'),
+  check(res && res.placeholders.length === 0, 'with the profile link in place, today\'s Amsterdam data would pass the live guard', err);
+  check(res && !/noindex/.test(res.html) && /content="index, follow/.test(res.html) && res.html.includes('<a href="https://maps.google.com/?cid=1" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a>'),
     'a live page drops noindex, declares index, follow, and links the Rome rating to the profile');
-  const shNo = clone(shared); shNo.rome.reviewUrl = '';
-  check(throws(() => render(clean, shNo), /rome\.reviewUrl is empty/) === true, 'live:true on a desk that sells without the review link is refused: a rating that cannot be checked is a claim');
+  const shNo = clone(shared); shNo.rome.profileUrl = '';
+  check(throws(() => render(clean, shNo), /rome\.profileUrl is empty/) === true, 'live:true on a desk that sells without the profile link is refused: a rating that cannot be checked is a claim');
   const photo = clone(clean); photo.hero.lead = 'Your person: [PHOTO OF LOCAL OPERATOR].';
   check(throws(() => render(photo, shLive), /\[PHOTO OF LOCAL OPERATOR\]/) === true, 'live:true with bracketed copy is refused, naming it');
   const fakeWa = clone(clean); fakeWa.config = { WHATSAPP: '39XXXXXXXXXX' };
@@ -361,8 +361,12 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   check(render(draftNoOg, shared, template, noOg).placeholders.includes('og-amsterdam.png is missing (python3 design/pages-deco/genera-og-cities.py)'),
     'a draft without the card builds, and lists the card as the thing to make');
   fs.rmSync(noOg, { recursive: true, force: true });
-  const badUrl = clone(shared); badUrl.rome.reviewUrl = 'http://g.page/x';
-  check(throws(() => render(ams, badUrl), /rome\.reviewUrl must be https/) === true, 'a review link that is not https is refused');
+  const badUrl = clone(shared); badUrl.rome.profileUrl = 'http://maps.google.com/?cid=1';
+  check(throws(() => render(ams, badUrl), /rome\.profileUrl must be https/) === true, 'a profile link that is not https is refused');
+  const reviewBox = clone(shared); reviewBox.rome.profileUrl = 'https://g.page/r/CfcpUptbNnvZEBM/review';
+  check(throws(() => render(ams, reviewBox), /"write a review" link/) === true, 'the "write a review" box is refused as the proof link: the reader must land on the public profile and its reviews');
+  const oldKey = clone(shared); oldKey.rome.reviewUrl = 'https://maps.google.com/?cid=1';
+  check(throws(() => render(ams, oldKey), /reviewUrl was renamed rome\.profileUrl/) === true, 'the old key rome.reviewUrl is refused by name, never silently ignored');
 }
 check(findPlaceholders('<p>[A] ok</p><script>var a=[1,2]</script><style>a[href]{}</style>', { slug: 'amsterdam' }, { root: R }).join() === '[A]', 'placeholders are read from visible text, never from scripts or styles');
 check(findPlaceholders('<p>ok</p><input placeholder="[NAME]"><meta name="description" content="BOOM [CITY] works">', { slug: 'amsterdam' }, { root: R }).join('|') === '[NAME] (in an attribute)|[CITY] (in an attribute)',
@@ -392,6 +396,14 @@ const ber = JSON.parse(read('cities/berlin.json'));
   check(throws(() => render(twoFeatured), /at most one plan is featured/) === true, 'two featured plans are refused');
   const noRefund = clone(ams); noRefund.checkoutCopy.fine = 'Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l.';
   check(throws(() => render(noRefund), /must state the refund policy/) === true, 'a till whose sheet drops the refund policy is refused (BOOM policy, 15/10)');
+  const noTick = clone(ams); noTick.checkoutCopy.startNow = 'Start now.';
+  check(throws(() => render(noTick), /checkoutCopy\.startNow is the payer's own request/) === true, 'a "Start now" line that does not say it is the payer\'s request inside the withdrawal period is refused');
+  const noRecesso = clone(ams); noRecesso.checkoutCopy.withdrawal = 'You can cancel.';
+  check(throws(() => render(noRecesso), /checkoutCopy\.withdrawal states the 14-day withdrawal right/) === true, 'a till without the 14-day withdrawal right and how to exercise it is refused');
+  const noWait = clone(ams); delete noWait.checkoutCopy.paid.wait;
+  check(throws(() => render(noWait), /checkoutCopy\.paid\.wait says when the work starts/) === true, 'a paid card that cannot tell a non-ticking payer when the work starts is refused');
+  const sameDay = clone(ams); sameDay.checkoutCopy.note = 'Pay by card and we start the same working day.';
+  check(throws(() => render(sameDay), /cannot promise the same working day/) === true, 'a till note promising the same working day regardless of the tick is refused');
   const badRule = clone(shared); badRule.refund.rule = 'No refunds.';
   check(throws(() => render(ams, badRule), /refund\.rule is the one sentence of the policy/) === true, 'the shared refund rule must be the policy sentence');
   const offNoTill = clone(ams); offNoTill.checkout = false; delete offNoTill.till;
@@ -665,6 +677,17 @@ for (const c of [ams, mad]) {
   check(h.includes(`<b id="openWhen" data-default="${esc(c.form.sentWhenDefault)}">${esc(c.form.sentWhenDefault)}</b>`), `${c.slug}: the reply window is a computed slot with "${c.form.sentWhenDefault}" as the no-JS default`);
   check(h.includes(esc(c.checkoutCopy.fine)) && /refunded in full if we decline the search in the first call/.test(c.checkoutCopy.fine) && /Stripe/.test(c.checkoutCopy.fine) && /Egidi Immobiliare S\.r\.l\./.test(c.checkoutCopy.fine), `${c.slug}: the sheet's fine print says Stripe, the invoicing entity and the refund rule`);
   check(/<p class="alt">[^<]*<a href="#contact" id="ovTalk">/.test(h), `${c.slug}: the sheet keeps the free door one tap away`);
+  // Direttiva 2011/83/UE (artt. 7(3), 16(a)): the 14-day withdrawal right is
+  // said BEFORE the payment, and the work starts inside it only on the payer's
+  // own express request — an unticked box, never pre-selected.
+  const sStart = h.indexOf('<label class="startnow"><input type="checkbox" id="sStart"><span>');
+  check(sStart > 0 && !/id="sStart"[^>]*checked/.test(h) && sStart < h.indexOf('id="sGo"') && /fully performed/.test(c.checkoutCopy.startNow) && h.includes(esc(c.checkoutCopy.startNow)),
+    `${c.slug}: an UNTICKED "Start now" box before the pay button — the payer's own request to start inside the withdrawal period`);
+  check(/<p class="recesso">[^<]*14 days[^<]*<a href="mailto:hello@boom-rome\.com">/.test(h) && h.indexOf('class="recesso"') < h.indexOf('id="sGo"'),
+    `${c.slug}: how to withdraw (14 days, by email) is on the till before the pay button`);
+  check(h.includes(`data-wait="${esc(c.checkoutCopy.paid.wait.replace('{email}', 'hello@boom-rome.com'))}"`) && /14-day/.test(c.checkoutCopy.paid.wait),
+    `${c.slug}: the paid card knows what to say to a payer who did not tick: the work begins when the 14 days end`);
+  check(!/same working day/i.test(c.checkoutCopy.note) || /withdraw/i.test(c.checkoutCopy.note), `${c.slug}: the till's note does not promise the same working day without the tick`);
   check(h.indexOf('id="ov"') > h.indexOf('</main>'), `${c.slug}: the dialog lives outside <main>`);
   const strip = slice(h, '<div class="paybar" id="paybar"', '<a class="go" href="#contact" id="stripGo">');
   check(strip && !/€|\d/.test(visibleOf(strip)) && h.includes(`<a class="go" href="#contact" id="stripGo">${esc(c.door.label)}</a>`), `${c.slug}: the phone's strip carries no price and reads the one label`);
@@ -890,7 +913,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/if \(inp && inp\.checked\) \{ editing = null; sync\(\); \}/.test(js), 'after "change", picking the same answer again folds the step (an already-checked radio fires no change event)');
   check(/postMessage\(\{ id: id, W: 1080/.test(js) && /pendingReq\[m\.id\]/.test(js) && /if \(inflight\) return inflight;/.test(js) && !/w\.onmessage = function/.test(js),
     'the worker\'s replies are correlated by request id on one listener, and a second Save or Share joins the encode in flight');
-  check(/done\.focus\(\{ preventScroll: true \}\)/.test(js) && html.includes('<div class="sent" id="fDone" tabindex="-1">') && html.includes('<div class="sent paid" id="fPaid" tabindex="-1">'), 'after the send focus lands on the open file, not on <body>; the paid card too');
+  check(/done\.focus\(\{ preventScroll: true \}\)/.test(js) && html.includes('<div class="sent" id="fDone" tabindex="-1">') && html.includes('<div class="sent paid" id="fPaid" tabindex="-1"'), 'after the send focus lands on the open file, not on <body>; the paid card too');
   check(/Object\.prototype\.hasOwnProperty\.call\(PLANS, id\)/.test(js) && !/PLANS\[plan\]/.test(js), '?paid=constructor is not a plan: PLANS is read through hasOwnProperty everywhere');
   check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config'"),
     'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there)');
