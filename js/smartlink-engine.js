@@ -37,7 +37,8 @@
     'Immobiliare.it': /^(?:[a-z0-9-]+\.)?im-cdn\.it$/,
     'Idealista': /^(?:[a-z0-9-]+\.)?idealista\.(?:it|com)$/,
     'Subito': /^(?:[a-z0-9-]+\.)?subito\.it$/,
-    'Casafari': /^(?:[a-z0-9-]+\.)?casafari\.com$/,
+    // La galleria SmartLink CasaFari conserva anche il CDN originale Immobiliare.
+    'Casafari': /^(?:[a-z0-9-]+\.)?(?:casafari\.com|im-cdn\.it)$/,
     'Casa.it': /^(?:[a-z0-9-]+\.)?casa\.it$/,
   };
   function photoUrl(raw, sourceName) {

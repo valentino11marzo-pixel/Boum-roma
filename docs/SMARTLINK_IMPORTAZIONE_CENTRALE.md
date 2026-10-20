@@ -4,7 +4,22 @@
 
 Implementazione sul ramo `codex/smartlink-remoto-mappa`, PR #300. Il precedente adattatore API immobiliare è stato rimosso su richiesta di Valentino. Nessun abbonamento o credenziale di un fornitore immobiliare è necessario per questa implementazione.
 
-**Non ancora attivo nel Portal pubblico e non ancora collaudato su un annuncio reale dal Mac.** Il runtime è installato su Homie, con browser dedicato e servizio predisposto ma non avviato. La prova Chrome del 17/10 riguardava l'estensione locale, non prova questo percorso remoto. La preview locale a porta 4181 verifica il componente mappa, non importa annunci. Un accesso di controllo il 20/10 dal browser integrato Codex ha mostrato DataDome Device Check: è prova di un blocco in quella sessione, non del risultato sul Mac Homie.
+**Non ancora attivo nel Portal pubblico. Lettura reale da Homie verificata su CasaFari; ancora bloccata sull'annuncio Immobiliare richiesto.** Il runtime è installato su Homie, con browser dedicato e servizio predisposto ma non avviato. La prova Chrome del 17/10 riguardava l'estensione locale. La preview locale a porta 4181 verifica il componente mappa, non importa annunci.
+
+### Prove della ripresa del 20/10
+
+Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-pratica conservata). CI completa della precedente revisione `a601b5be`: tutti i controlli superati, incluso full-suite; non equivale al collaudo della fonte.
+
+| Prova | Esito reale | Limite della prova |
+|---|---|---|
+| Homie → Immobiliare `124483437` | `needs_attention/source_blocked`, 0 foto, 4.138 ms | Resta il blocco principale al rilascio richiesto |
+| Homie → CasaFari via Piave, share `23310686611` | Dopo correzione: `ready`, 6 foto su 6, cinque campi valorizzati, 2.357 ms | Prova lettura; non dimostra ancora upload e pubblicazione dal Portal |
+| Scheda BOOM esistente `6DqPja5V0WC6iFrtO00o` | API 200, 12/12 foto scaricabili, WebP, nessuna fonte/identità operatore nel record pubblico | Conferma durata dell'archivio precedente, non nuova importazione |
+| Sessione operatore | Schede Portal al login; richiesto accesso a Valentino | Collaudo autenticato e account assistente ancora pendenti |
+
+Difetto CasaFari riprodotto sulla pagina reale: il parser escludeva il CDN originale Immobiliare e leggeva il prezzo come titolo. Ora usa h2/h1 del template, soltanto le immagini `Property photo`, apre la galleria e verifica il totale dichiarato. La prima correzione recuperava solo 5/6; la navigazione della galleria ha recuperato anche la sesta. Il controllo su foto mancanti è coperto da test di regressione.
+
+Il servizio persistente e il flag restano spenti. Nessun nuovo deploy di produzione: il criterio richiesto «live dopo test riusciti» non è ancora soddisfatto per Immobiliare diretto. Non sostituire la UI di produzione con un lettore disabilitato.
 
 ## Esperienza prevista
 
@@ -25,6 +40,19 @@ L'accesso è ancora **admin-only**. L'assistente deve usare un proprio account g
 - 401/403/429, verifica umana o cambio dell'URL diventano un esito esplicito. Nessun tentativo di risolvere CAPTCHA, aggirare restrizioni, copiare cookie personali o usare proxy.
 - Il Mac deve essere acceso, collegato a Internet e con sessione grafica attiva. L'avvio tramite LaunchAgent avviene al login, non prima. Dopo un riavvio senza login il lettore risulta offline.
 - L'accessibilità della fonte e il suo DOM restano dipendenze esterne. Non promettere «sempre funzionante», zero manutenzione o copertura dei cinque portali prima delle prove. Il parser riusa quello già presente; gli aggiornamenti delle pagine possono richiedere adattamenti.
+- La riduzione di manutenzione misurata riguarda l'archivio: le foto già copiate continuano a funzionare senza riaprire la fonte. La cache Radar del vecchio percorso può aiutare solo per annunci già acquisiti; non risolve la prima lettura di un nuovo annuncio bloccato. Non è stata verificata una copia Radar del link richiesto in questa ripresa.
+
+## Diagnosi ripetibile
+
+Sul Mac, dalla directory runtime:
+
+```sh
+/opt/homebrew/bin/node worker.mjs --probe 'https://www.immobiliare.it/annunci/124483437/'
+```
+
+Usa lo stesso browser, profilo e parser del servizio; chiude il browser al termine e non crea richieste né schede. Esce con codice 0 solo per una lettura pronta, altrimenti 1. Stampa soltanto stato, codice errore, numero di immagini, nomi dei campi presenti e millisecondi. Non avviarlo mentre il servizio usa lo stesso profilo. `ready` in questo comando significa «pagina letta», non «foto archiviate e scheda pubblicata».
+
+Un blocco di accesso richiede un controllo umano della sessione dedicata sul Mac prima di una nuova prova. Completare una verifica non garantisce che la fonte non la richieda di nuovo. Dopo un cambiamento del DOM, usare una regressione del template e confrontare il numero di foto con la galleria, senza allargare la lettura a immagini estranee.
 
 ## Componenti e necessità
 

@@ -138,6 +138,35 @@ try {
   status=404;assert.equal((await readListing(context,source)).error,'listing_removed');
   status=200;actualUrl='https://www.immobiliare.it/annunci/999/';assert.equal((await readListing(context,source)).error,'source_changed');
   actualUrl=source;assert.equal((await readListing(context,source)).status,'ready');
+  // CasaFari: cinque foto nel riepilogo, sei nella galleria. L'ultima
+  // deve arrivare dalla navigazione reale prima di dichiarare "ready".
+  const share='https://it.casafari.com/estate/sharepage/test/23310686611';
+  let slide=1, checks=0, nextClicks=0, opened=false, incomplete=false;
+  const galleryImages=Array.from({length:6},(_,i)=>`https://pwm.im-cdn.it/image/${100+i}/xxl.jpg`);
+  const galleryPage={
+    goto:async()=>({status:()=>200,ok:()=>true}),url:()=>share,close:async()=>{},
+    locator:selector=>({
+      first(){return this;},
+      waitFor:async()=>{},
+      textContent:async()=>`${slide} / 6`,
+      click:async()=>{
+        if(selector==='.PropertyGallery__image-button') {opened=true;return;}
+        assert.equal(selector,'.FullScreenGallery__arrow--next','No sharing or contact controls');
+        slide++;nextClicks++;
+      }
+    }),
+    waitForFunction:async(fn,expected)=>{assert.equal(slide,expected);checks++;},
+    evaluate:async(fn)=>{
+      if(fn.name!=='listingSnapshot') return false;
+      assert.equal(opened,true);
+      return {images:incomplete?galleryImages.slice(0,5):[...galleryImages.slice(0,5),galleryImages[slide-1]],data:{title:'Appartamento in via Piave'}};
+    }
+  };
+  const full=await readListing({newPage:async()=>galleryPage},share);
+  assert.equal(full.status,'ready');assert.deepEqual(full.images,galleryImages);
+  assert.equal(nextClicks,5);assert.equal(checks,5);
+  incomplete=true;slide=1;
+  assert.equal((await readListing({newPage:async()=>galleryPage},share)).status,'unavailable','A gallery missing a declared photo cannot be marked complete');
   console.log('SmartLink remoto: coda privata, doppio invio, claim concorrente, recovery, ACK, archivio WebP e blocchi fonte ✓');
 } finally {
   globalThis.fetch=originalFetch;

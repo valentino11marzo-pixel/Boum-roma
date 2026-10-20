@@ -82,6 +82,8 @@ try {
   assert.equal(RULES.normalizeUrl('https://www.immobiliare.it:8443/annunci/123'), null);
   assert.equal(RULES.normalizeUrl('https://www.immobiliare.it/'), null);
   assert.equal(RULES.photoUrl(sourcePhoto,'Immobiliare.it'),sourcePhoto);
+  assert.equal(RULES.photoUrl(sourcePhoto,'Casafari'),sourcePhoto);
+  assert.equal(RULES.photoUrl('https://pwm.im-cdn.it.evil.test/photo.jpg','Casafari'),null);
   assert.equal(RULES.photoUrl('https://127.0.0.1/photo.jpg','Immobiliare.it'),null);
   assert.equal(RULES.photoUrl('https://pwm.im-cdn.it.evil.test/photo.jpg','Immobiliare.it'),null);
   assert.deepEqual(RULES.photoCandidates('<img src="'+sourcePhoto+'"><img src="https://evil.example/photo.jpg">','Immobiliare.it'),[sourcePhoto]);
@@ -97,6 +99,23 @@ try {
     assert.equal(snapshot.images.length,2);
     assert.deepEqual(snapshot.data,{title:'Bilocale a Cipro',zone:null,price:1500,sqm:50,rooms:2});
   } finally { globalThis.document=oldDom; }
+  // Regressione da pagina reale CasaFari: h1 prezzo, h2 casa, foto sul CDN
+  // Immobiliare. Logo, Street View e immagini esterne alla galleria esclusi.
+  const galleryPhotos=Array.from({length:6},(_,i)=>({
+    src:`https://pwm.im-cdn.it/image/${1595786367+i}/xxl.jpg`,currentSrc:'',getAttribute:()=>null
+  }));
+  globalThis.document={
+    images:[...galleryPhotos,{src:'https://pwm.im-cdn.it/image/999/xxl.jpg'}],
+    querySelectorAll:selector=>selector==='img[alt^="Property photo "]'?[...galleryPhotos,galleryPhotos[0]]:[],
+    querySelector:selector=>({textContent:selector==='h1'?'2000 €/m':'Appartamento in affitto in via Piave, Sallustiano - Quartiere'}),
+    body:{innerText:'2 camere • 1 bagni • 60 m² DETTAGLI DELLA PROPRIETÀ Locali 2'},
+    documentElement:{outerHTML:'https://pwm.im-cdn.it/image/999/xxl.jpg'}
+  };
+  try {
+    const snapshot=EXT.listingSnapshot('https://it.casafari.com/estate/sharepage/test/23310686611');
+    assert.deepEqual(snapshot.images,galleryPhotos.map(p=>p.src));
+    assert.deepEqual(snapshot.data,{title:'Appartamento in affitto in via Piave, Sallustiano - Quartiere',zone:'Sallustiano - Quartiere',price:2000,sqm:60,rooms:2});
+  } finally {globalThis.document=oldDom;}
   const canonical = RULES.normalizeUrl('https://www.immobiliare.it/annunci/123/?token=private&utm_source=x');
   assert.equal(canonical.url, 'https://www.immobiliare.it/annunci/123/');
   const bare = RULES.makeRecord({ sourceUrl:canonical.url }, '2026-10-15T12:00:00Z');

@@ -16,7 +16,33 @@ export async function readListing(context,url) {
       return !!document.querySelector('iframe[src*="captcha-delivery.com"]') || /verify (?:that )?you are human|verifica di essere umano|access denied|accesso negato|unusual traffic|device check|captcha/.test(text);
     });
     if(blocked) return {status:'needs_attention',error:'source_blocked'};
-    let snapshot=await page.evaluate(listingSnapshot,url);
+    let snapshot;
+    if (/(?:^|\.)casafari\.com$/.test(new URL(url).hostname)) {
+      // Il riepilogo mostra cinque foto: la galleria espone le restanti.
+      // Si apre soltanto il visualizzatore, senza like/commenti/condivisioni.
+      await page.locator('.PropertyGallery__image-button').first().click({timeout:8000});
+      await page.locator('img.FullScreenGallery__image').waitFor({state:'visible',timeout:8000});
+      const counter=await page.locator('.FullScreenGallery__counter').textContent();
+      const total=Number(counter?.match(/\/\s*(\d+)/)?.[1]);
+      if(!Number.isInteger(total) || total<1) return {status:'unavailable',error:'photos_not_found'};
+      const wanted=Math.min(total,12), images=new Set();
+      for(let index=1;index<=wanted;index++) {
+        snapshot=await page.evaluate(listingSnapshot,url);
+        snapshot.images.forEach(image=>images.add(image));
+        if(images.size>=wanted) break;
+        if(index<wanted) {
+          await page.locator('.FullScreenGallery__arrow--next').click({timeout:5000});
+          await page.waitForFunction(expected=>{
+            const count=document.querySelector('.FullScreenGallery__counter')?.textContent;
+            const image=document.querySelector('img.FullScreenGallery__image');
+            return Number(count?.match(/^\s*(\d+)/)?.[1])===expected && image?.alt==='Property photo '+expected;
+          },index+1,{timeout:5000});
+        }
+      }
+      snapshot.images=[...images].slice(0,12);
+      if(snapshot.images.length<wanted) return {status:'unavailable',error:'photos_not_found'};
+    }
+    snapshot ||= await page.evaluate(listingSnapshot,url);
     if(!snapshot.images.length) {
       await page.waitForLoadState('load',{timeout:8000}).catch(()=>{});
       snapshot=await page.evaluate(listingSnapshot,url);
