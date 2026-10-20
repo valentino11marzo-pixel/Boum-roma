@@ -8,7 +8,7 @@ Implementazione sul ramo `codex/smartlink-remoto-mappa`, PR #300. Il precedente 
 
 ### Prove della ripresa del 20/10
 
-Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-pratica conservata). CI completa della revisione `f1a8153e`: static-checks, firestore-rules, smoke, full-suite e Vercel superati; non equivale al collaudo della fonte. Le successive modifiche di assistenza/rilascio graduale richiedono una nuova CI.
+Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-pratica conservata). CI completa della revisione `18bfec0a`, inclusa assistenza/rilascio graduale: static-checks, firestore-rules, smoke, full-suite e Vercel superati (run `39479168154`). Non equivale al collaudo della fonte.
 
 | Prova | Esito reale | Limite della prova |
 |---|---|---|
@@ -16,7 +16,7 @@ Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-prati
 | Homie → CasaFari via Piave, share `23310686611` | Dopo correzione: `ready`, 6 foto su 6, cinque campi valorizzati, 2.357 ms | Prova lettura; non dimostra ancora upload e pubblicazione dal Portal |
 | Scheda BOOM esistente `6DqPja5V0WC6iFrtO00o` | API 200, 12/12 foto scaricabili, WebP, nessuna fonte/identità operatore nel record pubblico | Conferma durata dell'archivio precedente, non nuova importazione |
 | Sessione operatore | Valentino autenticato admin: importazione nel Portal pubblico senza estensione fermata dal blocco della fonte, zero foto | Prova del percorso precedente; nuovo percorso centrale e account assistente ancora pendenti |
-| Accesso alla sessione Homie | Condivisione schermo già abilitata; connessione a `192.168.1.32` autorizzata da Valentino | Finestra `boomserver` pronta, password da inserire personalmente; nessuna verifica della fonte completata |
+| Accesso alla sessione Homie | Connessione autorizzata; tentativo del 20/10 alle 22:17:17: autenticazione `boomserver` riuscita, poi rifiuto grafico | Client: `server is unable to read/access the screen`; server: `screenCapture flag 0`, `postEvents flag 0`. MDM assente. Nessuna verifica della fonte completata |
 
 Difetto CasaFari riprodotto sulla pagina reale: il parser escludeva il CDN originale Immobiliare e leggeva il prezzo come titolo. Ora usa h2/h1 del template, soltanto le immagini `Property photo`, apre la galleria e verifica il totale dichiarato. La prima correzione recuperava solo 5/6; la navigazione della galleria ha recuperato anche la sesta. Il controllo su foto mancanti è coperto da test di regressione.
 
@@ -61,7 +61,9 @@ Per il controllo personale, con servizio e probe fermi:
 /opt/homebrew/bin/node worker.mjs --assist 'https://www.immobiliare.it/annunci/124483437/'
 ```
 
-Apre la pagina nel profilo dedicato e la lascia al responsabile; termina quando la finestra viene chiusa. Non estrae dati, non risolve verifiche e non crea job. L'accesso SSH non autentica Condivisione schermo: password del Mac nella finestra di macOS, senza inviarla in chat né salvarla. Il 20/10 l'accesso è ancora in attesa di questo passaggio; modalità assistenza testata nel codice, non ancora eseguita sul Mac.
+Apre la pagina nel profilo dedicato e la lascia al responsabile; termina quando la finestra viene chiusa. Non estrae dati, non risolve verifiche e non crea job. Modalità assistenza copiata sul Mac (hash e sintassi verificati), testata nel codice, non ancora eseguita.
+
+Diagnosi successiva al rifiuto segnalato da Valentino: i log confermano autenticazione riuscita e utente autorizzato al gruppo schermo. Il servizio rifiuta invece lettura/controllo grafico; non chiedere ancora la password come presunta soluzione. `profiles status -type enrollment`: MDM assente. Nessuna password, autorizzazione o protezione modificata. Passaggio richiesto: accesso grafico al Mac mini per verificare/riattivare Condivisione schermo, mantenendo l'accesso limitato all'utente esistente; poi nuovo collaudo. [Procedura Apple](https://support.apple.com/it-it/guide/mac-help/mh11848/mac/1000). [Limiti dell'attivazione da riga di comando](https://support.apple.com/en-bw/guide/remote-desktop/apd8b1c65bd/mac). Il listener attivo da solo non dimostra il permesso di acquisizione dello schermo.
 
 ## Componenti e necessità
 
