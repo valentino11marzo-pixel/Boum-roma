@@ -121,6 +121,9 @@ try {
   assert.equal(jobData(blocked.id).status,'needs_attention');
   assert.ok(writes.every(path=>/^(smartlinkImports|smartlinkWorkers)\//.test(path)),'Import never publishes or modifies PFS');
   assert.equal(JOBS.workerOnline({lastSeenAt:new Date(Date.now()+10000).toISOString()},Date.now()),false);
+  const longWait={status:'queued',createdAt:new Date(Date.now()-JOBS.MAX_AGE_MS-1).toISOString()};
+  assert.equal(JOBS.view(longWait).status,'expired');
+  assert.equal(JOBS.view({...longWait,status:'reading',leaseUntil:new Date(Date.now()+60000).toISOString()}).status,'reading','A valid in-flight lease must not look expired while archiving photos');
 
   let reads=0,acks=0,sleeps=0;
   await processOne(claim,async()=>{reads++;return {status:'unavailable',error:'reader_error'};},async()=>{if(++acks<3) throw new Error('lost ACK');return {ok:true};},async()=>{sleeps++;});

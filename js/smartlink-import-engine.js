@@ -16,7 +16,7 @@
   function canComplete(job, token, now) { return job?.status==='reading' && job.leaseToken===token && Date.parse(job.leaseUntil)>now; }
   function workerOnline(worker, now) { const age=now-Date.parse(worker?.lastSeenAt); return age>=0 && age<HEARTBEAT_MS; }
   function view(job) {
-    if(!terminal(job.status) && Date.now()-Date.parse(job.createdAt)>MAX_AGE_MS) job={...job,status:'expired',error:'request_expired'};
+    if(claimable(job,Date.now()) && Date.now()-Date.parse(job.createdAt)>MAX_AGE_MS) job={...job,status:'expired',error:'request_expired'};
     return {id:job.id,sourceUrl:job.sourceUrl,draftKey:job.draftKey,status:job.status,createdAt:job.createdAt,finishedAt:job.finishedAt || null,error:job.error || null,
       ...(job.status==='ready' ? {data:job.data,images:job.images,missingPhotos:job.missingPhotos || 0} : {})};
   }
