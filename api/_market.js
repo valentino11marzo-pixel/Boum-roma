@@ -216,11 +216,11 @@ export const CITY_PLANS = {
 // cityOffer() refuses everything else, so a waitlist city cannot be charged
 // even by a hand-made POST.
 export const CITY_MARKETS = {
-  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
-  madrid:    { label: 'Madrid',    flag: '🇪🇸', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
-  barcelona: { label: 'Barcelona', flag: '🇪🇸', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner', plans: CITY_PLANS },
-  paris:     { label: 'Paris',     flag: '🇫🇷', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
-  berlin:    { label: 'Berlin',    flag: '🇩🇪', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
+  madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner', plans: CITY_PLANS },
+  paris:     { label: 'Paris',     flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
+  berlin:    { label: 'Berlin',    flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
 };
 
 /**
@@ -303,7 +303,7 @@ export function cityReplyText(lead = {}) {
     if (lead.city && lead.city.startNow === false && lead.city.workFromLabel) {
       return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
         `As you chose at checkout, we start on ${lead.city.workFromLabel}, the day after your 14-day withdrawal period ends. ` +
-        `Want us to start sooner? Reply here asking us to start now — until the work is complete you can still withdraw, paying only for what's done.\n${c.url}`;
+        `Want us to start sooner? Reply here asking us to start now: you can still withdraw within the 14 days, paying only for the work already done, and once the service is fully performed the right to withdraw ends.\n${c.url}`;
     }
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Payment received for ${plan} in ${c.label} — thank you. ` +
       `I'm opening your file now and I'll come back today with the next step and what I need from you.\n${c.url}`;

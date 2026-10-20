@@ -537,7 +537,7 @@
     "paid": {
       "before": "Paid — your file",
       "em": "is open.",
-      "text": "Payment received. The Amsterdam desk writes within its first open hour, by email or WhatsApp if you left a number. Questions? Write to",
+      "text": "The Amsterdam desk writes by email, or on WhatsApp if you left a number. Questions? Write to",
       "next": [
         [
           "First desk hour",
@@ -545,7 +545,7 @@
         ],
         [
           "Same working day",
-          "your brief: dates, budget, who's moving — nothing to re-type"
+          "your brief: dates, budget, who's moving"
         ],
         [
           "Then",
@@ -555,11 +555,11 @@
       "nextWait": [
         [
           "First desk hour",
-          "an email confirming your order and the day we start"
+          "an email with your order and start date"
         ],
         [
           "When the 14 days end",
-          "your brief: dates, budget, who’s moving — nothing to re-type"
+          "your brief: dates, budget, who’s moving"
         ],
         [
           "Then",
@@ -567,7 +567,7 @@
         ]
       ],
       "recourse": "Nothing by then? Write to {email}.",
-      "wait": "You did not tick “Start now”: we start when your 14-day withdrawal period ends. Sooner? Write to {email}."
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}."
     }
   },
   "facts": [

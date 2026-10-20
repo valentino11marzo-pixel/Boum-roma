@@ -58,11 +58,11 @@
 <main>
     <a class="brand" href="/">BOOM</a>
     <h1>Withdraw from a BOOM service</h1>
-    <p class="soft">For services bought online from BOOM — the Amsterdam and Madrid desks among them. You have 14 days from the day you paid; you don't need to give a reason.</p>
+    <p class="soft">For services bought online from BOOM — the Amsterdam and Madrid desks and the Rome Pacchetto canone concordato among them. You have 14 days from the day you paid; you don't need to give a reason.</p>
 
     <h2>How it works</h2>
     <ol class="how">
-        <li>Send us the form below, or any clear statement that you withdraw, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> before the 14 days end. The day you paid does not count.</li>
+        <li>Send us the form below, or any clear statement that you withdraw, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> before the 14 days end. The day you paid does not count, and a period ending on a Saturday, Sunday or public holiday runs to the end of the next working day.</li>
         <li>We refund within 14 days of receiving it, to the card you paid with.</li>
         <li>If you asked us to start before the 14 days ended (“Start now” at checkout), we deduct only the part of the work already done, in proportion to the price. Once the service is fully performed, the right to withdraw ends.</li>
     </ol>
@@ -86,18 +86,21 @@
     <form class="helper noprint" id="wf" novalidate>
         <label for="wService">The service
             <select id="wService">
-                <option>Full Search</option>
-                <option>Application Pack</option>
-                <option>Attended Viewing</option>
-                <option>Other BOOM service</option>
+                <option value="">Choose the service</option>
+                <option value="full-search">Full Search</option>
+                <option value="application-pack">Application Pack</option>
+                <option value="attended-viewing">Attended Viewing</option>
+                <option value="concordato-pack">Pacchetto canone concordato</option>
+                <option value="other">Other BOOM service</option>
             </select>
         </label>
         <div class="row2">
             <label for="wCity">The desk
                 <select id="wCity">
-                    <option>Amsterdam</option>
-                    <option>Madrid</option>
-                    <option>Rome</option>
+                    <option value="">Choose the desk</option>
+                    <option value="Amsterdam">Amsterdam</option>
+                    <option value="Madrid">Madrid</option>
+                    <option value="Rome">Rome</option>
                 </select>
             </label>
             <label for="wDate">Paid on
@@ -142,25 +145,37 @@
     /* the visitor's own calendar day, not UTC: at 00:30 in Rome toISOString is still yesterday */
     function today() { var d = new Date(), p = function (n) { return (n < 10 ? '0' : '') + n; }; return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
     function val(id) { var el = $(id); return el ? String(el.value || '').trim() : ''; }
+    /* a select's visible text: the slug in the value is for the link, the email says the name */
+    function label(id) { var el = $(id); if (!el || !el.value) return ''; var o = el.options[el.selectedIndex]; return o ? o.text : ''; }
     function paint() {
+        var svc = label('wService'), desk = label('wCity');
+        var what = svc ? svc + (desk ? ' (' + desk + ')' : '') : '…';
         var body = [
             'To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy — hello@boom-rome.com',
             '',
-            'I hereby give notice that I withdraw from my contract for the provision of the following service: ' + val('wService') + ' (' + val('wCity') + ').',
+            'I hereby give notice that I withdraw from my contract for the provision of the following service: ' + what + '.',
             'Ordered on: ' + (val('wDate') || '…'),
             'Name: ' + (val('wName') || '…'),
             'Address: ' + (val('wAddress') || '…'),
             'Email used at payment: ' + (val('wEmail') || '…'),
             'Date: ' + today()
         ].join('\n');
-        send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal — ' + val('wService') + ' ' + val('wCity'))
+        send.href = 'mailto:hello@boom-rome.com?subject=' + encodeURIComponent('Withdrawal' + (svc ? ' — ' + svc : '') + (desk ? ' ' + desk : ''))
             + '&body=' + encodeURIComponent(body);
     }
     ['wService', 'wCity', 'wDate', 'wName', 'wAddress', 'wEmail'].forEach(function (id) {
         var el = $(id); if (!el) return;
         el.addEventListener('input', paint); el.addEventListener('change', paint);
     });
-    try { var q = new URLSearchParams(location.search); var c = q.get('desk'); if (c && $('wCity')) [].forEach.call($('wCity').options, function (o) { if (o.text.toLowerCase() === c.toLowerCase()) o.selected = true; }); } catch (e) {}
+    /* the link from the checkout names the desk; the link in the paid email
+       names the desk and the service. Nothing else is guessed: a select
+       nobody chose stays on "Choose". */
+    function pick(id, want) {
+        var el = $(id); if (!el || !want) return;
+        want = want.toLowerCase();
+        [].forEach.call(el.options, function (o) { if (o.value && (o.value.toLowerCase() === want || o.text.toLowerCase() === want)) el.value = o.value; });
+    }
+    try { var q = new URLSearchParams(location.search); pick('wCity', q.get('desk')); pick('wService', q.get('service')); } catch (e) {}
     paint();
 })();
 </script>

@@ -415,17 +415,41 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   const { ctx: c0, page: p0 } = await open({ query: '?paid=full-search&start=0&session_id=cs_test_ui_wait' });
   await p0.waitForTimeout(500);
   const wait = (await p0.textContent('#paidWait').catch(() => '')) || '';
-  check(await p0.isVisible('#paidWait') && /14-day withdrawal period ends/.test(wait) && wait.includes('hello@boom-rome.com'),
-    'start=0: the paid card says the work begins when the 14 days end, and how to ask sooner', wait);
+  check(await p0.isVisible('#paidWait') && /14 days end/.test(wait) && wait.includes('hello@boom-rome.com') && !(await p0.isVisible('#paidText')),
+    'start=0: the wait note takes the place of the generic note — the work begins when the 14 days end, and how to ask sooner', wait);
   const steps0 = (await p0.textContent('#paidNext')).replace(/\s+/g, ' ');
-  check(!/same working day/i.test(steps0) && /When the 14 days end/.test(steps0) && /the day we start/.test(steps0) && /Nothing by then\?/.test(steps0),
+  check(!/same working day/i.test(steps0) && /When the 14 days end/.test(steps0) && /start date/.test(steps0) && /Nothing by then\?/.test(steps0),
     'start=0: the three steps are the waiting payer\'s own — never "same working day" — and the recourse stays', steps0);
+  const seen = (pg) => pg.$eval('#fPaid', (card) => [...card.children].filter((el) => el.offsetParent !== null && !el.classList.contains('mini') && el.tagName !== 'svg')
+    .map((el) => el.innerText).join(' ').split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length);
+  const w0 = await seen(p0);
+  check(w0 > 30 && w0 <= 70, 'start=0: the paid card a waiting payer reads is ≤ 70 words on screen', String(w0));
   await c0.close();
   const { ctx: c1, page: p1 } = await open({ query: '?paid=full-search&start=1&session_id=cs_test_ui_now' });
   await p1.waitForTimeout(500);
   const steps1 = (await p1.textContent('#paidNext')).replace(/\s+/g, ' ');
-  check(/Same working day/.test(steps1) && !(await p1.isVisible('#paidWait')), 'start=1: the steps of a payer who asked to start, no waiting line', steps1);
+  check(/Same working day/.test(steps1) && !(await p1.isVisible('#paidWait')) && await p1.isVisible('#paidText'), 'start=1: the steps of a payer who asked to start, the generic note, no waiting line', steps1);
+  const w1 = await seen(p1);
+  check(w1 > 30 && w1 <= 70, 'start=1: the paid card is ≤ 70 words on screen', String(w1));
   await c1.close();
+}
+// the model withdrawal form: blank unless the link names the desk and the service
+{
+  const { ctx, page, st } = await open({ slug: 'withdrawal' });
+  const blank = await page.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value, decodeURIComponent(document.getElementById('wSend').href)]);
+  check(blank[0] === '' && blank[1] === '' && /following service: …\./.test(blank[2]) && /subject=Withdrawal&/.test(blank[2]),
+    'the form page with no link details: no service, no desk pre-chosen, the email says … instead of a guess', JSON.stringify(blank));
+  await page.close();
+  const pg = await ctx.newPage();
+  await pg.goto(`${base}/withdrawal?desk=madrid&service=full-search`, { waitUntil: 'load' });
+  const named = await pg.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value, decodeURIComponent(document.getElementById('wSend').href)]);
+  check(named[0] === 'full-search' && named[1] === 'Madrid' && /following service: Full Search \(Madrid\)\./.test(named[2]),
+    'the link from the paid email names the desk and the service: both chosen, the email says them by name', JSON.stringify(named));
+  await pg.goto(`${base}/withdrawal?desk=Lisbon&service=nonsense`, { waitUntil: 'load' });
+  const odd = await pg.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value]);
+  check(odd[0] === '' && odd[1] === '', 'an unknown desk or service in the link chooses nothing', JSON.stringify(odd));
+  check(st.errors.length === 0, 'the form page: no JS errors', st.errors.join(' | '));
+  await ctx.close();
 }
 // the same paid landing opened twice counts one sale
 {

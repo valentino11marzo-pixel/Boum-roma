@@ -1046,3 +1046,11 @@ A second verification pass the same night checked that everything the payer sees
 - **The operator's ready reply said "I'll come back today"** to someone whose work starts in two weeks. It now repeats the start day.
 - **The model withdrawal form was missing.** EU law requires it to be given before the payment. `/withdrawal` carries it in English and Italian with Egidi's details, and the till and the paid email link it.
 - **An older defect surfaced on the way.** Since 14 October the webhook had saved every paid city order's details as the text "[object Object]", so the Telegram card could not name the plan. Nested data is now saved as data. Orders already written were not rewritten.
+
+The same review left five findings that were confirmed but still open; they were closed by hand, because the verification agents had hit their weekly limit:
+
+- **A period ending on a weekend or holiday was too short.** Under Reg. 1182/71 art. 3(4) it runs to the end of the next working day. Paid on Saturday 17 October, the right now runs to Monday 2 November, not Saturday 31 October, and the work begins on 3 November. Holidays are the union of Italy's and the desk country's, because erring late only lengthens the payer's right.
+- **The ready reply to a payer who waits** said they could withdraw "until the work is complete". It now says what the law says: within the 14 days, paying only for work already done, and the right ends once the service is fully performed.
+- **The confirmation email only linked the model form.** The email is the durable medium, so the form's text now travels inside it. The Rome Pacchetto confirmation gets the Italian version, which it never had.
+- **The form page guessed.** It opened on Full Search in Amsterdam whatever the payer had bought. It now opens blank, and fills in the desk (from the till's link) and the service (from the email's link) only when the link says so.
+- **The paid card was over its budget on screen.** The earlier claim that it sat at the 70-word cap measured the shipped HTML, not what the JavaScript adds. On screen it showed 96 words to a payer who waits and 77 to one who starts. The wait note now replaces the generic note, the plan line uses the short condition, and the card reads 65 words either way. The test now rebuilds the card as the reader sees it.

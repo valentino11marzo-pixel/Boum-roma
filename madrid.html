@@ -857,13 +857,13 @@ html {
             <p class="refund" id="payOfferRefund">Full Search is refunded in full if we decline the search in the first call.</p>
           </div>
         </div>
-        <div class="sent paid" id="fPaid" tabindex="-1" data-wait="You did not tick “Start now”: we start when your 14-day withdrawal period ends. Sooner? Write to hello@boom-rome.com.">
+        <div class="sent paid" id="fPaid" tabindex="-1" data-wait="You did not tick “Start now”: we start when your 14 days end. Sooner? Write to hello@boom-rome.com.">
           <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
           <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>
           <h3>Paid — your file <em>is open.</em></h3>
           <p class="plan" id="paidPlan"></p>
-          <p>Payment received. The Madrid desk writes within its first open hour, by email or WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
-          <ul class="next" id="paidNext"><li><b>First desk hour</b><span>an email from the desk with what we need</span></li><li><b>Same working day</b><span>your brief: dates, budget, who's moving — nothing to re-type</span></li><li><b>Then</b><span>the work as written on this page</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
+          <p id="paidText">The Madrid desk writes by email, or on WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <ul class="next" id="paidNext"><li><b>First desk hour</b><span>an email from the desk with what we need</span></li><li><b>Same working day</b><span>your brief: dates, budget, who's moving</span></li><li><b>Then</b><span>the work as written on this page</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
         </div>
       </div>
       <!-- /THE DOOR -->
@@ -1110,7 +1110,7 @@ html {
     <div class="fld"><label for="sPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+34 …"></div>
     <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.idealista.com/… · move-in 1 February"></div>
     <label class="startnow"><input type="checkbox" id="sStart"><span>Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
-    <p class="recesso">Withdrawal: 14 days from payment, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a href="/withdrawal" target="_blank" rel="noopener">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
+    <p class="recesso">Withdrawal: 14 days from payment, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a href="/withdrawal?desk=Madrid" target="_blank" rel="noopener">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
     <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
     <button type="button" class="paybtn" id="sGo" data-label-now="Pay and start" data-label-wait="Pay and book" data-sub-now="Starts in the desk’s first open hour · Stripe" data-sub-wait="Starts when your 14 days end · Stripe"><span class="lk">🔒</span><span class="tx"><b>Pay and book</b><small>Starts when your 14 days end · Stripe</small></span><span class="amt" id="sGoAmt"></span></button>
@@ -1146,11 +1146,11 @@ html {
     "PAID_WAIT_NEXT": [
       [
         "First desk hour",
-        "an email confirming your order and the day we start"
+        "an email with your order and start date"
       ],
       [
         "When the 14 days end",
-        "your brief: dates, budget, who’s moving — nothing to re-type"
+        "your brief: dates, budget, who’s moving"
       ],
       [
         "Then",
@@ -1424,7 +1424,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=0acd015a9f"></script>
+<script src="/assets/boom-city.js?v=2137bc29c9"></script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

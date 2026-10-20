@@ -1932,6 +1932,52 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   16/03 col cambio d'ora dentro il periodo, i campi del lead, la risposta
   pronta, il modulo nelle due email, `withdrawalWindow` su mezzanotte, DST,
   fine anno, bisestile; la mappa scritta come mappa).
+- **IL TERZO GIRO (20/10, notte)** — i rilievi confermati della stessa
+  verifica, chiusi a mano (i subagenti erano fermi sul tetto settimanale):
+  1. **Sabato, domenica e festivi** (Reg. 1182/71 art. 3(4)): un periodo che
+     finisce di sabato, domenica o festivo arriva alla fine del giorno
+     lavorativo dopo, e il lavoro comincia il giorno lavorativo successivo.
+     Pagato sabato 17/10 → fine il lunedì 2/11 (non sabato 31/10), lavoro dal
+     3/11. Festivi = l'UNIONE di Italia (nazionali, 29 giugno di Roma, 4
+     ottobre dal 2026) e del paese del desk (`CITY_MARKETS.<slug>.country`:
+     `nl` Koningsdag, Bevrijdingsdag, Goede Vrijdag, Paasmaandag, Hemelvaart,
+     Pinkstermaandag; `es` nazionali + Comunidad e città di Madrid, Jueves e
+     Viernes Santo). Un giorno in più allunga il diritto del pagante e ritarda
+     la nostra partenza; uno in meno lo accorcerebbe. Pasqua calcolata
+     (Meeus). `withdrawalWindow(epoch, country)`, `isDeskHoliday` esportate.
+  2. **La risposta pronta a chi aspetta** non dice più «until the work is
+     complete you can still withdraw» (il diritto finisce ai 14 giorni o a
+     servizio interamente eseguito): ora «you can still withdraw within the
+     14 days, paying only for the work already done, and once the service is
+     fully performed the right to withdraw ends».
+  3. **Il modulo DENTRO l'email** (art. 8(7): la conferma è il supporto
+     durevole, e il modulo fa parte dell'informazione dell'art. 6(1)(h)):
+     `WITHDRAWAL_FORM_TEXT` in coda alla chiusura dell'email città, su una
+     riga (il template non tiene gli a capo), e il link porta
+     `?desk=<Città>&service=<piano>`. Lo stesso per il **Pacchetto di Roma**,
+     in italiano (`WITHDRAWAL_FORM_TEXT_IT`, Codice del consumo art. 49(1)(h)),
+     che prima non aveva il modulo affatto.
+  4. **La pagina del modulo non indovina**: servizio e desk partono su
+     «Choose…»; il link della cassa porta `?desk=`, quello dell'email
+     `?desk=&service=`; un valore sconosciuto non sceglie niente; l'email
+     composta scrive «…» dove manca. La pagina dice anche la regola del
+     weekend e copre il Pacchetto.
+  5. **La card PAGATO in 70 parole, misurata come la VEDE il lettore**: il
+     blocco statico ne contava 60, lo schermo ne mostrava 96 a chi aspetta e
+     77 a chi parte subito (riga del piano con `conditionLong`, la nota
+     generica E quella dell'attesa). Ora la riga del piano usa `condition`
+     («flat · incl. VAT»), la nota dell'attesa PRENDE IL POSTO di quella
+     generica (`#paidText` nascosto con `start=0`), copia più corta: 65 e 65.
+     Il test ricompone la card dal config (piano, nota, passi di chi aspetta)
+     e la vecchia copia cade (74).
+  Test: `run.mjs` 514 (la card ricomposta nei due casi, il link al modulo
+  col desk), `ui.mjs` 191 (parole sullo schermo nei due casi, `#paidText`
+  nascosto solo per chi aspetta, la pagina del modulo vuota / col desk e il
+  servizio / con valori sconosciuti), `checkout.mjs` 60 (dieci date con
+  weekend, Ognissanti, Natale, Pasquetta; Hemelvaart e Pinkstermaandag su
+  `nl`, 12 ottobre su `es`, 4 ottobre su `it`; il webhook che passa il paese
+  del desk; il modulo nell'email città e nel Pacchetto; la risposta senza
+  «until the work is complete»).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

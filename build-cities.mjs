@@ -607,7 +607,7 @@ const R = {
       '          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>',
       `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
       '          <p class="plan" id="paidPlan"></p>',
-      `          <p>${esc(k.paid.text)} ${mail}.</p>`,
+      `          <p id="paidText">${esc(k.paid.text)} ${mail}.</p>`,
       `          <ul class="next" id="paidNext">${k.paid.next.map(([a, b]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span></li>`).join('')}<li><b>${esc(k.paid.recourse.split('?')[0])}?</b><span>${esc(k.paid.recourse.split('?').slice(1).join('?').trim()).replace('{email}', mail)}</span></li></ul>`,
       '        </div>'
     ] : [];
@@ -636,7 +636,7 @@ const R = {
       `    <div class="fld"><label for="sPhone">${esc(c.form.phone.label)} <span class="opt">(${esc(c.form.phone.sub)})</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="${esc(c.form.phone.placeholder)}"></div>`,
       `    <div class="fld"><label for="sNote">${esc(k.noteLabel)} <span class="opt">(optional)</span></label><input id="sNote" placeholder="${esc(k.notePlaceholder)}"></div>`,
       `    <label class="startnow"><input type="checkbox" id="sStart"><span>${esc(k.startNow)}</span></label>`,
-      `    <p class="recesso">${esc(k.withdrawal).replace('{email}', `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`).replace('{form}', `<a href="${WITHDRAWAL_PATH}" target="_blank" rel="noopener">model withdrawal form</a>`)}</p>`,
+      `    <p class="recesso">${esc(k.withdrawal).replace('{email}', `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`).replace('{form}', `<a href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}" target="_blank" rel="noopener">model withdrawal form</a>`)}</p>`,
       '    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">',
       '    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>',
       // The last button says what the payer chose: unticked (the default) it

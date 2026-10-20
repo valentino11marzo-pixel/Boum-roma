@@ -435,12 +435,15 @@
     var card = $('fPaid');
     if (!card) return;
     form.classList.add('hidden');
-    $('paidPlan').textContent = pp.label + ' · ' + eur(pp.eur) + ' · ' + pp.conditionLong;
+    /* the short condition: the invoice and the refund rule are in the email; the card stays a glance */
+    $('paidPlan').textContent = pp.label + ' · ' + eur(pp.eur) + ' · ' + pp.condition;
     /* no "start now" tick: the work begins when the 14-day withdrawal period ends — say so */
     if (q.get('start') === '0' && card.getAttribute('data-wait')) {
       var wait = document.createElement('p'); wait.className = 'wait'; wait.id = 'paidWait';
       wait.textContent = card.getAttribute('data-wait');
       $('paidPlan').parentNode.insertBefore(wait, $('paidPlan').nextSibling);
+      /* the wait note takes the place of the generic one: one sentence about what happens, not two */
+      if ($('paidText')) $('paidText').hidden = true;
       /* and the three steps of a payer who waits: never "same working day" */
       var steps = $('paidNext') ? $('paidNext').querySelectorAll('li') : [];
       (C.PAID_WAIT_NEXT || []).forEach(function (pair, i) {

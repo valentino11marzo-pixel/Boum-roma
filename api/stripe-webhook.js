@@ -353,23 +353,90 @@ const CITY_SERVICE_META = {
 
 // The 14-day withdrawal period of a service contract (Directive 2011/83/EU
 // art. 9), on the Rome calendar. The day the contract is concluded does not
-// count (Reg. 1182/71, recital 41): paid on 20 October, the period runs to
-// the END of 3 November and the first day work may begin without a request
-// is 4 November. Calendar days, never 14×24h — that slips a day across the
-// October and March clock changes. `concludedEpoch` is the moment of
-// payment (the Stripe event's time, stable across retries), not the moment
-// the Checkout page was opened.
+// count (Reg. 1182/71 art. 3(1), recital 41 of the Directive): paid on
+// Tuesday 20 October, the period runs to the END of 3 November and the first
+// day work may begin without a request is 4 November. Calendar days, never
+// 14×24h — that slips a day across the October and March clock changes.
+// A last day that falls on a Saturday, a Sunday or a public holiday moves to
+// the end of the next working day (Reg. 1182/71 art. 3(4)): paid on Saturday
+// 17 October, the period ends on Monday 2 November, not on Saturday 31.
+// Which holidays: the union of Italy's (the trader, in Rome) and the desk's
+// country — a day too many only lengthens the payer's right and delays our
+// start, a day too few would shorten a right the law gives them. The day
+// work begins is the next desk working day after the period. `concludedEpoch`
+// is the moment of payment (the Stripe event's time, stable across retries),
+// not the moment the Checkout page was opened.
 // The model withdrawal form (Annex I(B)), filled with the trader's details.
+// The page is the fillable copy; the TEXT travels inside the confirmation
+// email too, because the email is the durable medium (art. 8(7)) and the
+// form is part of the information it must carry (art. 6(1)(h)). One line,
+// the dashes of the Annex kept: the email template does not keep newlines.
 export const WITHDRAWAL_FORM_URL = 'https://www.boomrome.com/withdrawal';
+export const WITHDRAWAL_FORM_TEXT = 'MODEL WITHDRAWAL FORM (complete and return this form only if you wish to withdraw from the contract): '
+  + '— To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy, e-mail hello@boom-rome.com: '
+  + '— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*), '
+  + '— Ordered on (*)/received on (*), — Name of consumer(s), — Address of consumer(s), '
+  + '— Signature of consumer(s) (only if this form is notified on paper), — Date. (*) Delete as appropriate.';
+// the same form for the Rome Pacchetto, in Italian (Codice del consumo
+// art. 49(1)(h), Allegato I parte B)
+export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e restituire il presente modulo solo se si desidera recedere dal contratto): '
+  + '— Destinatario: Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, e-mail hello@boom-rome.com: '
+  + '— Con la presente io/noi (*) notifichiamo il recesso dal mio/nostro (*) contratto di prestazione del seguente servizio (*), '
+  + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
+  + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
 
-export function withdrawalWindow(concludedEpoch) {
+// Easter Sunday, Gregorian (Meeus/Jones/Butcher), as [month, day].
+function easterOf(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const n = h + l - 7 * m + 114;
+  return [Math.floor(n / 31), (n % 31) + 1];
+}
+// Fixed dates as MM-DD, Easter-relative ones as offsets in days.
+const HOLIDAYS = {
+  // national, plus Rome's patron day (29 June); 4 October is a national
+  // holiday again from 2026
+  it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
+  // Nieuwjaar, Koningsdag (26 April when the 27th is a Sunday), Bevrijdingsdag,
+  // Kerst; Goede Vrijdag, Paasmaandag, Hemelvaart, Pinkstermaandag
+  nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
+  // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
+  // La Almudena); Jueves and Viernes Santo
+  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] }
+};
+export function isDeskHoliday(date, country) {
+  const y = date.getUTCFullYear();
+  const mmdd = date.toISOString().slice(5, 10);
+  const [em, ed] = easterOf(y);
+  for (const c of ['it', country]) {
+    const h = HOLIDAYS[c];
+    if (!h) continue;
+    if (h.fixed.includes(mmdd)) return true;
+    if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
+    for (const off of h.easter) {
+      const d = new Date(Date.UTC(y, em - 1, ed + off));
+      if (d.toISOString().slice(5, 10) === mmdd) return true;
+    }
+  }
+  return false;
+}
+const workingDay = (d, country) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isDeskHoliday(d, country);
+
+export function withdrawalWindow(concludedEpoch, country = null) {
   const at = new Date((Number(concludedEpoch) || 0) * 1000);
   const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
     .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
   const day = (n) => new Date(Date.UTC(parts.year, parts.month - 1, parts.day + n));
   const iso = (d) => d.toISOString().slice(0, 10);
   const label = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
-  const last = day(14), start = day(15);
+  let n = 14;
+  while (!workingDay(day(n), country)) n++;
+  const last = day(n);
+  let s = n + 1;
+  while (!workingDay(day(s), country)) s++;
+  const start = day(s);
   return { lastDay: iso(last), lastLabel: label(last), startDay: iso(start), startLabel: label(start) };
 }
 // kept for callers that only want the last day of the period
@@ -401,7 +468,7 @@ async function handleService(res, session, m, event = null) {
   const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
   // the contract is concluded when the payment completes: the event's own
   // time (a retry carries the same one), never the session's opening
-  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000)) : null;
+  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.country || null) : null;
   // the start choice goes FIRST in the summary: the Telegram card shows the
   // first 240 characters, and a pasted listing URL must not push it out
   const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
@@ -504,14 +571,14 @@ async function handleService(res, session, m, event = null) {
           ? (m.start_now === '1'
             ? 'Ci ha chiesto di iniziare subito: partiamo appena riceviamo i dati. '
             : 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso; se preferisce anticipare, ce lo scriva. ')
-            + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT
+            + `Per recedere entro 14 giorni basta una email a hello@boom-rome.com, anche col modulo di recesso tipo (${WITHDRAWAL_FORM_URL}?desk=Rome&service=concordato-pack; il testo è in fondo a questa email). Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ` + OFFICE_HOURS_IT + ' ' + WITHDRAWAL_FORM_TEXT_IT
           : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT)
         : meta.city && cityStart
           // the withdrawal right, on a durable medium (Directive 2011/83/EU art. 8(7))
           ? (cityStart === '1'
             ? 'You asked us to start straight away, so the desk starts in its first open hour. '
             : `You did not ask us to start straight away, so your 14-day withdrawal period runs to the end of ${win.lastLabel} and the work begins on ${win.startLabel}. Want it sooner? Reply to this email. `)
-            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}. If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN
+            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}?desk=${encodeURIComponent(meta.city.label)}&service=${encodeURIComponent(m.kind || '')} (its text is at the end of this email). If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN + ' ' + WITHDRAWAL_FORM_TEXT
           : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',

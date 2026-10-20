@@ -215,6 +215,30 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     && /To withdraw within 14 days of payment, email hello@boom-rome\.com or use the model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal/.test(client0.closing)
     && /fully performed/.test(client0.closing) && /invoice from Egidi Immobiliare S\.r\.l\./.test(client0.closing),
     'the client: "booked", the steps begin on 31 March, how to withdraw (email or the model form), and the invoice', client0 && JSON.stringify([client0.heading, client0.intro, client0.closing]));
+  check(/you can still withdraw within the 14 days, paying only for the work already done, and once the service is fully performed the right to withdraw ends/.test(reply0)
+    && !/until the work is complete/.test(reply0),
+    'no tick: the ready reply says the 14-day right and its end, never "until the work is complete" (the right ends at 14 days or on full performance, whichever first)', reply0);
+  check(client0 && /model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal\?desk=Madrid&service=full-search \(its text is at the end of this email\)/.test(client0.closing)
+    && /MODEL WITHDRAWAL FORM \(complete and return this form only if you wish to withdraw from the contract\)/.test(client0.closing)
+    && /To Egidi Immobiliare S\.r\.l\. \(BOOM\), Via dei Coronari 181\/184, 00186 Roma, Italy, e-mail hello@boom-rome\.com/.test(client0.closing)
+    && /Signature of consumer\(s\) \(only if this form is notified on paper\)/.test(client0.closing),
+    'the confirmation carries the model withdrawal form itself, with our details (Dir. 2011/83/EU art. 6(1)(h), 8(7): the email is the durable medium), and the link names the desk and the service', client0 && client0.closing);
+  // the desk's own holidays reach the order: paid on 28 September 2026 in
+  // Madrid, +14 = Monday 12 October, the Fiesta Nacional → Tuesday 13
+  const ev12 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_hol' }); ev12.created = Date.UTC(2026, 8, 28, 10, 0, 0) / 1000;
+  await webhook(stream(ev12), mkRes());
+  const lead12 = store.get('leads/svc_cs_city_mad_hol') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  check(lead12 && lead12.city && lead12.city.withdrawalEndsOn === '2026-10-13' && lead12.city.workFrom === '2026-10-14',
+    'a Madrid order: the desk country\'s holiday (12 October) moves the end of the period — the webhook passes the desk\'s country', lead12 && JSON.stringify(lead12.city));
+  // the Rome Pacchetto: the same form, in Italian
+  const eIt = emails.length;
+  await webhook(stream(event({ service: 'SERVICE', kind: 'concordato-pack', name: 'Giulia Rossi', email: 'giulia@example.com', phone: '+393331234567', notes: '', amount_eur: '349', start_now: '0' }, { id: 'cs_pack_it', amount_total: 34900 })), mkRes());
+  const clientIt = emails.slice(eIt).find((x) => x.to_email === 'giulia@example.com');
+  check(clientIt && /MODULO DI RECESSO TIPO \(compilare e restituire il presente modulo solo se si desidera recedere dal contratto\)/.test(clientIt.closing)
+    && /Destinatario: Egidi Immobiliare S\.r\.l\. \(BOOM\), Via dei Coronari 181\/184, 00186 Roma/.test(clientIt.closing)
+    && /https:\/\/www\.boomrome\.com\/withdrawal\?desk=Rome&service=concordato-pack/.test(clientIt.closing)
+    && /partiamo allo scadere dei 14 giorni/.test(clientIt.closing),
+    'the Rome Pacchetto confirmation carries the modulo di recesso tipo too (Codice del consumo art. 49(1)(h))', clientIt && clientIt.closing);
   const e1 = emails.length;
   await webhook(stream(event({ ...base, start_now: '1' }, { id: 'cs_city_mad_now' })), mkRes());
   const lead1 = store.get('leads/svc_cs_city_mad_now') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
@@ -230,21 +254,39 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(!/within the hour|starts today|start today/i.test(all), 'no email promises a reply within the hour or work "today"');
 }
 // The withdrawal window, alone: Rome calendar days from the conclusion day,
-// across midnight, both DST changes, the year end and a leap year.
+// across midnight, both DST changes, the year end and a leap year — and a
+// last day on a Saturday, a Sunday or a public holiday moves to the next
+// working day (Reg. 1182/71 art. 3(4)), the work beginning the working day after.
 {
-  const w = (iso) => withdrawalWindow(Date.parse(iso) / 1000);
+  const w = (iso, c = null) => withdrawalWindow(Date.parse(iso) / 1000, c);
   const cases = [
     ['2026-10-19T22:30:00Z', '2026-11-03', '2026-11-04'],   // 00:30 on 20 Oct in Rome
     ['2026-10-20T21:59:00Z', '2026-11-03', '2026-11-04'],   // 23:59 on 20 Oct in Rome
     ['2026-10-20T22:01:00Z', '2026-11-04', '2026-11-05'],   // 00:01 on 21 Oct in Rome
     ['2026-10-20T10:00:00Z', '2026-11-03', '2026-11-04'],   // autumn DST (25 Oct) inside the period
-    ['2027-03-15T12:00:00Z', '2027-03-29', '2027-03-30'],   // spring DST (28 Mar) inside the period
-    ['2027-12-25T12:00:00Z', '2028-01-08', '2028-01-09'],   // the year end
-    ['2028-02-20T12:00:00Z', '2028-03-05', '2028-03-06']    // a leap February
+    ['2026-10-17T10:00:00Z', '2026-11-02', '2026-11-03'],   // +14 = Sat 31 Oct, Sun 1 Nov (Ognissanti) → Mon 2 Nov
+    ['2026-10-23T10:00:00Z', '2026-11-06', '2026-11-09'],   // +14 = Fri 6 Nov: the period ends Friday, work begins Monday
+    ['2026-12-11T10:00:00Z', '2026-12-28', '2026-12-29'],   // +14 = Fri 25 Dec, then 26 (Sat), 27 (Sun) → Mon 28
+    ['2027-03-15T12:00:00Z', '2027-03-30', '2027-03-31'],   // spring DST inside; +14 = Easter Monday 29 Mar → Tue 30
+    ['2027-12-25T12:00:00Z', '2028-01-10', '2028-01-11'],   // the year end; +14 = Sat 8 Jan → Mon 10
+    ['2028-02-20T12:00:00Z', '2028-03-06', '2028-03-07']    // a leap February; +14 = Sun 5 Mar → Mon 6
   ];
   check(cases.every(([at, last, start]) => w(at).lastDay === last && w(at).startDay === start),
-    'withdrawalWindow: last day = conclusion day + 14, work from the day after, Rome calendar days (DST, midnight, year end, leap year)',
+    'withdrawalWindow: conclusion day + 14 Rome calendar days, a weekend or holiday last day moves to the next working day, work from the working day after (DST, midnight, year end, leap year, Easter Monday)',
     JSON.stringify(cases.map(([at]) => [at, w(at).lastDay, w(at).startDay])));
+  // the desk's country adds its own holidays on top of Italy's
+  const nl1 = w('2027-04-22T10:00:00Z', 'nl'), it1 = w('2027-04-22T10:00:00Z');
+  check(nl1.lastDay === '2027-05-07' && nl1.startDay === '2027-05-10' && it1.lastDay === '2027-05-06',
+    'withdrawalWindow (nl): +14 = Thu 6 May 2027, Hemelvaartsdag → Fri 7, work from Mon 10; the Italian calendar alone keeps 6 May',
+    JSON.stringify([nl1, it1]));
+  const nl2 = w('2027-05-03T10:00:00Z', 'nl');
+  check(nl2.lastDay === '2027-05-18' && nl2.startDay === '2027-05-19' && w('2027-05-03T10:00:00Z').lastDay === '2027-05-17',
+    'withdrawalWindow (nl): +14 = Pinkstermaandag 17 May 2027 → Tue 18', JSON.stringify(nl2));
+  check(w('2026-09-28T10:00:00Z', 'es').lastDay === '2026-10-13' && w('2026-09-28T10:00:00Z').lastDay === '2026-10-12',
+    'withdrawalWindow (es): +14 = Mon 12 Oct, Fiesta Nacional in Madrid → Tue 13; the Italian calendar alone keeps 12 Oct',
+    JSON.stringify([w('2026-09-28T10:00:00Z', 'es'), w('2026-09-28T10:00:00Z')]));
+  check(w('2026-09-20T10:00:00Z').lastDay === '2026-10-05' && w('2026-09-20T10:00:00Z').startDay === '2026-10-06',
+    'withdrawalWindow (it): +14 = Sun 4 Oct (San Francesco, a national holiday again from 2026) → Mon 5 Oct');
   check(w('2026-10-19T22:30:00Z').lastLabel === '3 November 2026' && w('2026-10-19T22:30:00Z').startLabel === '4 November 2026', 'withdrawalWindow: the labels read as dates, in English');
 }
 {

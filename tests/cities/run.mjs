@@ -175,6 +175,23 @@ for (const p of pages) {
   check(plates.length === 3 && plates.every((w) => w <= BUDGET.plate), `${p.slug}: every plate ≤ ${BUDGET.plate} words (${plates.join(' · ')})`);
   check(checksW > 0 && checksW <= BUDGET.checks, `${p.slug}: the six checks in ${checksW} words (≤ ${BUDGET.checks})`);
   check(faqA > 0 && body <= BUDGET.body, `${p.slug}: the page without the folded FAQ answers, the end states, the pass and the month list is ${body} words (≤ ${BUDGET.body})`);
+  // the paid card as the reader SEES it, not as it is shipped: the JS fills
+  // the plan line and, for a payer who did not tick "Start now", swaps the
+  // generic note for the wait note and the three steps for nextWait. The
+  // static block alone measured 60 while the screen showed 96 (review 20/10).
+  const cfg = cfgOf(p.html);
+  if (cfg.CHECKOUT === true) {
+    const paidBlock = (m.match(/<div class="sent paid" id="fPaid"[\s\S]*?\n        <\/div>/) || [''])[0];
+    const waitTxt = ((paidBlock.match(/data-wait="([^"]*)"/) || [])[1] || '');
+    const textW = wordsOf((paidBlock.match(/<p id="paidText">([\s\S]*?)<\/p>/) || [])[1] || '');
+    const stepW = (pairs) => pairs.reduce((n, [a, b]) => n + wordsOf(a + ' ' + b), 0);
+    const nextShown = [...paidBlock.matchAll(/<li><b>([\s\S]*?)<\/b><span>([\s\S]*?)<\/span><\/li>/g)].slice(0, 3).map((x) => [x[1], x[2]]);
+    const planW = Math.max(...Object.values(cfg.PLANS).map((pl) => wordsOf(`${pl.label} · €${pl.eur} · ${pl.condition}`)));
+    const now1 = wordsOf(paidBlock) + planW;
+    const wait0 = wordsOf(paidBlock) + planW - textW - stepW(nextShown) + stepW(cfg.PAID_WAIT_NEXT || []) + wordsOf(waitTxt);
+    check(paidBlock && textW > 0 && nextShown.length === 3 && now1 <= BUDGET.state && wait0 <= BUDGET.state,
+      `${p.slug}: the paid card as the reader sees it ≤ ${BUDGET.state} words — ticked ${now1}, waiting ${wait0}`);
+  }
 }
 
 // the hero order: title, lead, the diagnostic, the pass, the skip link, the facts, the door
@@ -706,12 +723,12 @@ for (const c of [ams, mad]) {
     `${c.slug}: an UNTICKED "Start now" box before the pay button — the payer's own request to start inside the withdrawal period`);
   check(/<p class="recesso">[^<]*14 days[^<]*<a href="mailto:hello@boom-rome\.com">/.test(h) && h.indexOf('class="recesso"') < h.indexOf('id="sGo"'),
     `${c.slug}: how to withdraw (14 days, by email) is on the till before the pay button`);
-  check(/<p class="recesso">[\s\S]*?<a href="\/withdrawal" target="_blank" rel="noopener">model withdrawal form<\/a>[\s\S]*?<\/p>/.test(h),
-    `${c.slug}: the till links the model withdrawal form (Directive 2011/83/EU art. 6(1)(h), Annex I(B))`);
+  check(new RegExp(`<p class="recesso">[\\s\\S]*?<a href="\\/withdrawal\\?desk=${c.city}" target="_blank" rel="noopener">model withdrawal form<\\/a>[\\s\\S]*?<\\/p>`).test(h),
+    `${c.slug}: the till links the model withdrawal form with its desk named (Directive 2011/83/EU art. 6(1)(h), Annex I(B))`);
   check(JSON.stringify(cfgOf(h).PAID_WAIT_NEXT) === JSON.stringify(c.checkoutCopy.paid.nextWait) && !c.checkoutCopy.paid.nextWait.flat().some((y) => /same working day|today/i.test(y))
     && h.includes('<ul class="next" id="paidNext">'),
     `${c.slug}: a payer who waits gets their own three steps (config PAID_WAIT_NEXT, swapped into #paidNext) — never "same working day"`);
-  check(h.includes(`data-wait="${esc(c.checkoutCopy.paid.wait.replace('{email}', 'hello@boom-rome.com'))}"`) && /14-day/.test(c.checkoutCopy.paid.wait),
+  check(h.includes(`data-wait="${esc(c.checkoutCopy.paid.wait.replace('{email}', 'hello@boom-rome.com'))}"`) && /14 days/.test(c.checkoutCopy.paid.wait),
     `${c.slug}: the paid card knows what to say to a payer who did not tick: the work begins when the 14 days end`);
   check(!/same working day/i.test(c.checkoutCopy.note) || /withdraw/i.test(c.checkoutCopy.note), `${c.slug}: the till's note does not promise the same working day without the tick`);
   check(h.indexOf('id="ov"') > h.indexOf('</main>'), `${c.slug}: the dialog lives outside <main>`);
@@ -903,7 +920,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   }
   for (const c of [ams, mad]) {
     const k = JSON.stringify(c.checkoutCopy) + JSON.stringify(c.till);
-    check(!/within the hour|starts today|start today/.test(k) && /first open hour/.test(c.checkoutCopy.paid.text) && c.checkoutCopy.paid.recourse === 'Nothing by then? Write to {email}.',
+    check(!/within the hour|starts today|start today/.test(k) && c.checkoutCopy.paid.next[0][0] === 'First desk hour' && /^same working day$/i.test(c.checkoutCopy.paid.next[1][0]) && c.checkoutCopy.paid.recourse === 'Nothing by then? Write to {email}.',
       `${c.slug}: the paid copy promises the desk's first open hour and the same working day, never "within the hour" at Saturday 23:00`);
   }
   check(/other two at opening/.test(ber.facts[0].text) && /Full Search opens under that rule; Application Pack and Attended Viewing are charged at opening/.test(ber.faq.items.find((q) => /Who pays the agent/.test(q.q)).a) && ber.pricing.h2g === 'Charged at opening, or on signing.' && !/nothing in advance/.test(ber.pricing.note),
