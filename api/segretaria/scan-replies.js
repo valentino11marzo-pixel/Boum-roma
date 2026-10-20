@@ -23,13 +23,12 @@ import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
 import { fsGet, fsGetMany, fsGetVersioned, fsCommit, fsPatch, fsList, readJson } from '../homie/_lib.js';
 import { requireRole } from '../_auth.js';
-import { normalizePhone } from '../homie/_lead.js';
-import { resolveLeadConversation } from '../homie/_conversation.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { segretariaTurn } from './_core.js';
 import { listFollowUps, refreshTrackedFollowUp } from './_follow-up.js';
 import { runBudget } from '../_budget.js';
+import { emailKey, emailBinding, scopedConversation, importScopedMessage, patchScopedConversation, canonicalEmailConversation } from './_mail-import.js';
 
 const MEMORY_DOC = 'heartbeat/segretaria-mail-memory';
 const WINDOW_DAYS = 3;
@@ -77,69 +76,6 @@ async function rememberMessages(newIds) {
   throw fail('email_memory_changed');
 }
 
-const emailKey = value => String(value || '').trim().toLowerCase();
-const emailBinding = conv => JSON.stringify([conv.contactType || '', conv.contactId || '', conv.contactUid || '',
-  conv.leadId || '', emailKey(conv.contactEmail), normalizePhone(conv.contactPhone) || '',
-  conv.assignedLandlordId || '', !!conv.conversationBindingConflict]);
-
-async function scopedConversation(conv) {
-  const snapshot = await fsGetVersioned('conversations/' + conv.id);
-  if (!snapshot) throw fail('conversation_not_found', 404);
-  if (emailBinding(snapshot.data) !== emailBinding(conv)) throw fail('conversation_identity_changed', 409);
-  const guards = [{ docPath: 'conversations/' + conv.id, fields: {}, precondition: { updateTime: snapshot.updateTime } }];
-  const leadId = conv.leadId || (conv.contactType === 'lead' ? conv.contactId : null);
-  if (leadId) {
-    const binding = await resolveLeadConversation({ leadId });
-    if (binding.status !== 'bound' || binding.cid !== conv.id || emailBinding(binding.conversation) !== emailBinding(conv))
-      throw fail('conversation_identity_changed', 409);
-    guards.push({ ...binding.bindingGuard, fields: {} });
-  }
-  return { snapshot, guards };
-}
-
-// The message and its header share the same identity/version check. A retry
-// may preserve a newer reply, but may never adopt a newly assigned contact.
-async function importScopedMessage(conv, fields, storedId) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    const { snapshot, guards } = await scopedConversation(conv);
-    const prior = await fsGetVersioned('messages/' + storedId);
-    if (prior && (prior.data.conversationId !== conv.id || prior.data.emailMessageId !== fields.emailMessageId || prior.data.body !== fields.body))
-      throw fail('email_message_identity_conflict', 409);
-    const headerTime = Date.parse(snapshot.data.lastMessageAt || '');
-    if (!Number.isFinite(headerTime) || headerTime < fields.at.getTime()) guards[0].fields = {
-      lastMessageAt: fields.at, lastDirection: 'in', needsReply: true,
-      lastMessagePreview: fields.body.slice(0, 90), updatedAt: fields.at,
-    };
-    try {
-      await fsCommit([...guards, { docPath: 'messages/' + storedId, fields: prior ? {} : fields,
-        precondition: prior ? { updateTime: prior.updateTime } : { exists: false } }]);
-      return prior ? 'duplicate' : 'imported';
-    } catch (error) { if (!error.conflict) throw error; }
-  }
-  throw fail('conversation_changed');
-}
-
-async function patchScopedConversation(conv, fields) {
-  const { guards } = await scopedConversation(conv);
-  guards[0].fields = fields;
-  await fsCommit(guards);
-}
-
-// Handover deliberately marks both the primary lead conversation and its
-// historical WhatsApp alias. Only that exact persisted binding is one person.
-async function canonicalEmailConversation(rows) {
-  if (rows.some(row => row.conversationBindingConflict)) return null;
-  const leadIds = rows.map(c => c.leadId || (c.contactType === 'lead' ? c.contactId : null));
-  const leadId = leadIds[0];
-  if (!leadId) return rows.length === 1 ? rows[0] : null;
-  if (leadIds.some(id => id !== leadId)) return null;
-  const phones = new Set(rows.map(c => c.contactPhone).filter(Boolean).map(normalizePhone));
-  const emails = new Set(rows.map(c => c.contactEmail).filter(Boolean).map(e => String(e).trim().toLowerCase()));
-  const uids = new Set(rows.map(c => c.contactUid).filter(Boolean));
-  if (phones.size > 1 || emails.size > 1 || uids.size > 1) return null;
-  const result = await resolveLeadConversation({ leadId });
-  return result.status === 'bound' && rows.some(row => row.id === result.cid) ? result.conversation : null;
-}
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
@@ -322,6 +258,9 @@ async function run({ dry, syncOnly = false, conversationId = null }) {
         // archive the email without making the conversation appear unanswered.
         const outcome = await importScopedMessage(conv, fields, storedId);
         if (outcome === 'imported') stats.imported++; else stats.duplicates++;
+        // A human imported this source for review. A later scan is not permission
+        // to enroll a case, prepare a reply, or turn the conversation over to AI.
+        if (outcome === 'manual') { newIds.push(mid); continue; }
 
         try {
           let expectedTaskId, sourceGuards;

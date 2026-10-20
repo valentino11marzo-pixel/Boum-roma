@@ -2527,6 +2527,14 @@ limitato a 256 KiB, nessun allegato scaricato, flag letto, importazione, invio o
 Ricerca: le copie archivio non coprono più i record aggiornati; le letture tardive
 non annullano gli snapshot. Nuova sessione azzera l'inattività precedente e il lettore
 posta. Prove `mailbox`, `mailboxui`, `searchui`, `portalsessionui` (incluse mutazioni).
+**20/10 — dall’email al seguito:** il lettore mostra il Reply-To e consente di
+collegare esplicitamente l’email a una conversazione esistente non affidata alla
+Segretaria; niente nuovo lead, associazione alla casa, modello o invio.
+`mailbox/query` rilegge il riferimento firmato e verifica destinatario, contatto,
+testo completo e identità; `_mail-import` conserva il commit atomico del cron.
+Il testo originale resta nella fonte; retry e import cron non duplicano il
+messaggio né avviano un turno automatico. Da Inbox resta «Prendi in carico».
+Prove `mailboximport`, `mailboxui`, `mailbox`, `mailsource`.
 **Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
 e note operative restano nel repository. Verificato il problema con HTTP 200
 sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.

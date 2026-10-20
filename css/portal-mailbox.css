@@ -62,6 +62,14 @@ dialog.portal-mailbox[open]{display:flex;flex-direction:column}
 .mb-records button{display:flex;flex-direction:column;gap:4px;width:100%;min-height:60px;padding:12px;text-align:left;background:var(--bg-elevated);color:var(--text);border:1px solid var(--border);border-radius:10px;margin:8px 0;overflow-wrap:anywhere}
 .mb-records small,.mb-records span{font-size:12px;color:var(--text-secondary)}
 .mb-link{border:0;background:transparent;color:var(--gold);text-decoration:underline;min-height:44px;padding:8px}
+.mb-reply-to{font-size:12px;color:var(--text-secondary);overflow-wrap:anywhere}
+.mb-import{margin-top:24px;padding:18px;border:1px solid var(--border);border-radius:12px;background:var(--bg-elevated);overflow-wrap:anywhere}
+.mb-import h4{font-size:16px;font-weight:500;margin:0 0 8px}
+.mb-import p{font-size:13px;color:var(--text-secondary);line-height:1.6;margin:8px 0 14px}
+.mb-import label{display:block;font-size:12px;margin:0 0 6px}
+.mb-import select{width:100%;min-width:0;min-height:46px;padding:10px;border:1px solid var(--border);border-radius:8px;background:var(--bg-input);color:var(--text);font:inherit;font-size:16px}
+.mb-import .btn{min-height:44px;max-width:100%;margin-top:12px;white-space:normal}
+.mb-import-target strong{color:var(--text)}
 @media(max-width:680px){
   .ow-home.portal-home .ow-search{min-height:46px}
   .ow-home.portal-home .ow-search select{min-height:44px;padding-top:10px;padding-bottom:10px}

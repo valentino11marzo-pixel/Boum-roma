@@ -341,7 +341,7 @@ export async function startConversationFollowUp({cid,messageId,actor,taskId=null
   const sourceGuards=[{docPath:'conversations/'+cid,fields:{},precondition:{updateTime:found.conversation.updateTime}},
     {docPath:'messages/'+messageId,fields:{},precondition:{updateTime:message.updateTime}}];
   let task;
-  try { task=await captureFollowUp({cid,conv,messageId:found.source.eventId,messageVersion:message.updateTime,text:message.data.body,
+  try { task=await captureFollowUp({cid,conv,messageId:found.source.eventId,messageVersion:message.updateTime,text:SEG.messageText(message.data),
     now:Date.parse(found.source.at),preserveNewer:true,sourceGuards,expectedTaskId:taskId||active[0]?.id||null,
     manualIntake:{actor,at:new Date().toISOString(),sourceMessageId:messageId}});
   } catch(error) { if(error.message==='case_selection_changed') return {code:409,error:'case_selection_changed'};
