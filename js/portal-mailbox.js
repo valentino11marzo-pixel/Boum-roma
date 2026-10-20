@@ -1,17 +1,18 @@
-/* Explicit, read-only mailbox UI. Data lives only in the current admin session. */
+/* Explicit mailbox reader and confirmed import into an existing conversation. */
 (function (root) {
   'use strict';
   var adapter, state, dialog, request, sequence = 0, returnFocus;
   var esc = function (value) { return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
   function session() { try { return adapter && adapter.getSession(); } catch (_) { return null; } }
   function valid() { return !!state && !!adapter && adapter.isCurrent(state.session); }
-  function fresh(proof) { return {session:proof, draft:'', searched:'', items:[], source:null, checkedAt:null, nextCursor:null, incomplete:false, searchedOnce:false, selected:null, message:null, records:[], error:'', busy:'', listScroll:0, readerScroll:0}; }
+  function fresh(proof) { return {session:proof, draft:'', searched:'', items:[], source:null, checkedAt:null, nextCursor:null, incomplete:false, searchedOnce:false, selected:null, message:null, records:[], conversations:[], target:'', receipt:null, error:'', busy:'', listScroll:0, readerScroll:0}; }
+  function clearImport() { state.conversations=[];state.target='';state.receipt=null; }
   function stop() { sequence++; if (request) request.abort(); request = null; if (state) state.busy = ''; }
   function reset() { stop(); if (dialog) { dialog.close(); dialog.remove(); dialog = null; } document.body.classList.remove('portal-mailbox-open'); state = null; returnFocus = null; }
   function close() {
     if (!dialog) return;
     saveScroll(); var interrupted = state && state.busy;
-    stop(); if (state && interrupted) state.error = 'Lettura interrotta. Puoi riprovare.';
+    stop(); if (state && interrupted) state.error = interrupted==='import' ? 'Esito del collegamento non verificato. Riprova sulla stessa conversazione: non verrà creata una copia.' : 'Lettura interrotta. Puoi riprovare.';
     dialog.close(); dialog.remove(); dialog = null; document.body.classList.remove('portal-mailbox-open');
     if (returnFocus && returnFocus.isConnected) returnFocus.focus({preventScroll:true});
   }
@@ -26,6 +27,17 @@
     if (!state.source) return 'Cerca nella casella collegata a BOOM';
     return state.source.account + ' · ' + (state.source.coverage === 'all-mail' ? 'Tutta la posta' : 'Solo posta in arrivo');
   }
+  function importPanel(message) {
+    if (state.receipt) return '<section class="mb-import"><strong role="status">'+(state.receipt.duplicate?'Email già collegata.':'Email collegata.')+'</strong><p>La fonte è nella conversazione. Aprila per assegnare il prossimo passo con «Prendi in carico».</p><button class="btn" type="button" data-mb="inbox">Apri conversazione ↗</button></section>';
+    if (message.truncated || message.bodyUnavailable || !message.text.trim() || message.importable===false) return '';
+    var rows=state.conversations, target=rows.find(function(row){return row.id===state.target;});
+    return '<section class="mb-import" aria-label="Collega alla conversazione"><h4>Porta questa email nel lavoro</h4>'
+      + (!rows.length?'<p>Nessuna conversazione caricata con l’email del contatto. Verifica il contatto in Inbox; l’archivio può essere parziale.</p>':
+        '<p>Scegli la conversazione esistente. Il collegamento conserva la fonte; non invia risposte e non attiva la Segretaria.</p><label for="mailboxConversation">Conversazione</label><select id="mailboxConversation" '+(state.busy?'disabled':'')+'><option value="">Scegli il contatto…</option>'
+        + rows.map(function(row){return '<option value="'+esc(row.id)+'" '+(row.id===state.target?'selected':'')+'>'+esc(row.label+' · '+row.email)+'</option>';}).join('')+'</select>'
+        +(target?'<p class="mb-import-target">Collega a <strong>'+esc(target.label)+'</strong><br>'+esc(target.email)+'. La casa resta quella già associata alla conversazione.</p>':'')
+        +'<button class="btn" type="button" data-mb="import" '+(!target||state.busy?'disabled':'')+'>Conferma collegamento</button>')+'</section>';
+  }
   function render() {
     if (!dialog) return;
     if (!valid()) { reset(); return; }
@@ -37,7 +49,7 @@
       + '<form class="mb-search"><label for="mailboxQuery">Cerca nella posta</label><div><input id="mailboxQuery" type="search" autocomplete="off" maxlength="160" value="'+esc(state.draft)+'" placeholder="Nome, indirizzo email o parole…" '+(state.denied?'disabled':'')+'><button type="submit" class="btn" '+(state.busy==='search'||state.denied?'disabled':'')+'>Cerca</button></div></form>'
       + '<div class="mb-source"><strong>'+esc(sourceLabel())+'</strong>'+(state.source?'<span>Cartella: '+esc(state.source.folder)+(state.checkedAt?' · Verificata '+esc(date(state.checkedAt)):'')+(state.source.coverage==='all-mail'?' · Spam e cestino esclusi':'')+'</span>':'<span>La ricerca parte solo con il tuo comando.</span>')+'</div>'
       + (state.error?'<div class="mb-notice mb-error" role="alert">'+esc(state.error)+'</div>':'')
-      + '<div class="mb-status" role="status" aria-live="polite">'+(state.busy==='search'?'Ricerca nella casella…':state.busy==='page'?'Leggo altri risultati…':state.busy==='read'?'Apro il messaggio…':'')+'</div>'
+      + '<div class="mb-status" role="status" aria-live="polite">'+(state.busy==='search'?'Ricerca nella casella…':state.busy==='page'?'Leggo altri risultati…':state.busy==='read'?'Apro il messaggio…':state.busy==='import'?'Verifico la fonte e collego l’email…':'')+'</div>'
       + '<div class="mb-content"><section class="mb-list" aria-label="Risultati email">'
       + (state.searchedOnce?'<div class="mb-list-caption">'+state.items.length+' messaggi per <strong>“'+esc(state.searched)+'”</strong></div>':'')
       + (!state.items.length ? '<div class="mb-empty">'+(!state.searchedOnce?'Trova una comunicazione senza uscire dal portale.':state.incomplete?'Nessun messaggio nella parte verificata. La ricerca è parziale.':'Nessun messaggio trovato per questa ricerca.')+'</div>' : state.items.map(function (item, i) {
@@ -47,15 +59,34 @@
       + (state.nextCursor?'<button type="button" class="btn btn-secondary mb-more" data-mb="more" '+(state.busy?'disabled':'')+'>Mostra altri messaggi</button>':'')+'</section>'
       + '<section class="mb-reader" aria-label="Lettura email">'+(!shown?'<div class="mb-reader-empty"><span aria-hidden="true">↗</span><p>Scegli un messaggio per leggerlo qui.</p></div>':
         '<button type="button" class="mb-back" data-mb="back">← Risultati</button><article><header class="mb-message-header"><h3>'+esc(shown.subject||'Senza oggetto')+'</h3><dl><div><dt>Da</dt><dd>'+esc(people(shown.from)||'Non disponibile')+'</dd></div><div><dt>A</dt><dd>'+esc(people(shown.to)||'Non disponibile')+'</dd></div><div><dt>Data</dt><dd>'+esc(date(shown.at))+'</dd></div></dl>'+(shown.hasAttachments?'<p class="mb-attachment">Allegati presenti · non aperti in questa vista</p>':'')+'</header>'
+        + (message?.replyTo?.length?'<p class="mb-reply-to">Rispondi a: '+esc(people(message.replyTo))+'</p>':'')
         + (!message?'<div class="mb-empty">'+(state.busy==='read'?'Lettura del testo…':'Il testo non è stato caricato. <button type="button" class="mb-link" data-mb="retry-read">Riprova</button>')+'</div>':
           (message.bodyUnavailable?'<p class="mb-notice">Il testo non è disponibile in questa vista. Sono visibili solo i dati del messaggio.</p>':'<div class="mb-message-text">'+esc(message.text||'Il messaggio non contiene testo.')+'</div>')
           + (message.truncated?'<p class="mb-notice">Testo parziale: il messaggio supera il limite di lettura.</p>':'')
-          + '<details class="mb-records"><summary>Schede BOOM con la stessa email'+(state.records.length?' · '+state.records.length:'')+'</summary><p>Confronto esatto degli indirizzi nei dati già caricati. L’archivio può essere parziale; nessuna associazione viene salvata.</p>'+(state.records.length?state.records.map(function (record,i) { return '<button type="button" data-mb="record" data-index="'+i+'"><small>'+esc(record.typeLabel||record.kind)+'</small><strong>'+esc(record.label)+'</strong><span>'+esc(record.matchedEmail)+'</span></button>'; }).join(''):'<p>Nessuna scheda caricata con questi indirizzi.</p>')+'</details>')+'</article>')+'</section></div>';
+          + importPanel(message)
+          + '<details class="mb-records"><summary>Schede BOOM con la stessa email'+(state.records.length?' · '+state.records.length:'')+'</summary><p>Confronto esatto degli indirizzi nei dati già caricati. L’archivio può essere parziale; aprire una scheda non salva associazioni.</p>'+(state.records.length?state.records.map(function (record,i) { return '<button type="button" data-mb="record" data-index="'+i+'"><small>'+esc(record.typeLabel||record.kind)+'</small><strong>'+esc(record.label)+'</strong><span>'+esc(record.matchedEmail)+'</span></button>'; }).join(''):'<p>Nessuna scheda caricata con questi indirizzi.</p>')+'</details>')+'</article>')+'</section></div>';
     dialog.querySelector('.mb-list').scrollTop = state.listScroll;
     dialog.querySelector('.mb-reader').scrollTop = state.readerScroll;
     if (focused) { var input = dialog.querySelector('#mailboxQuery'); input.focus({preventScroll:true}); try { input.setSelectionRange(selection[0],selection[1]); } catch (_) {} }
   }
   function fail(code) {
+    var imports = {
+      email_not_inbound:'Questa email non è un messaggio in entrata per la casella BOOM.',
+      email_sender_ambiguous:'Il contatto nell’email è ambiguo. Il collegamento richiede una verifica.',
+      email_message_id_missing:'Manca il riferimento originale dell’email: non posso collegarla senza rischiare doppioni.',
+      email_body_incomplete:'Il testo è incompleto: questa email non può essere collegata dalla vista attuale.',
+      email_contact_mismatch:'L’email non coincide più con il contatto della conversazione. Verifica in Inbox.',
+      email_identity_ambiguous:'Il collegamento del contatto è ambiguo. Verificalo in Inbox.',
+      conversation_automated:'Questa conversazione è affidata alla Segretaria. Il collegamento manuale è sospeso per evitare azioni automatiche.',
+      conversation_identity_changed:'La conversazione è cambiata. Verifica il contatto in Inbox prima di riprovare.',
+      email_message_identity_conflict:'La stessa email risulta già collegata con dati diversi. Verifica la conversazione esistente.',
+      email_identity_scan_incomplete:'La verifica delle conversazioni è parziale. Il collegamento resta sospeso.',
+      email_date_invalid:'La data originale dell’email non è verificabile. Il collegamento resta sospeso.',
+      conversation_not_found:'La conversazione non è più disponibile. Verifica in Inbox.',
+      conversation_changed:'La conversazione è cambiata durante il collegamento. Verifica in Inbox e riprova.',
+      invalid_conversation_id:'La conversazione selezionata non è valida.'
+    };
+    if (imports[code]) return imports[code];
     return ({invalid_query:'Scrivi da 3 a 160 caratteri per cercare nella posta.',invalid_reference:'Il riferimento è scaduto o non è più valido. Ripeti la ricerca.',message_not_found:'Il messaggio non è più disponibile. Ripeti la ricerca.',mailbox_changed:'La casella è cambiata. Ripeti la ricerca per leggere i dati aggiornati.',config_changed:'Il collegamento email è cambiato. Ripeti la ricerca.',admin_required:'La consultazione richiede una sessione amministratore.',invalid_or_expired_token:'Sessione scaduta. Accedi nuovamente.',mailbox_unconfigured:'La casella email non è configurata sul server.',mailbox_unavailable:'La casella non è raggiungibile. Riprova tra poco.',mailbox_timeout:'La casella non ha risposto in tempo. Riprova.',invalid_response:'La risposta della casella non è leggibile. Riprova.'})[code] || 'Lettura non riuscita. Riprova; i risultati precedenti restano disponibili.';
   }
   function textOK(value, limit) { return typeof value === 'string' && value.length <= limit; }
@@ -87,11 +118,12 @@
     } catch (error) {
       if (!current()) return;
       var code = error.code || (error.name==='AbortError'?'mailbox_timeout':'mailbox_unavailable');
-      if (['mailbox_changed','config_changed','invalid_reference'].includes(code)) { state.items=[];state.selected=null;state.message=null;state.records=[];state.nextCursor=null;state.source=null;state.searchedOnce=false; }
+      if (['mailbox_changed','config_changed','invalid_reference'].includes(code)) { state.items=[];state.selected=null;state.message=null;state.records=[];state.nextCursor=null;state.source=null;state.searchedOnce=false;clearImport(); }
       if (['admin_required','invalid_or_expired_token'].includes(code)) {
         Object.assign(state,{items:[],selected:null,message:null,records:[],nextCursor:null,source:null,checkedAt:null,searchedOnce:false,draft:'',searched:'',incomplete:false,denied:true});
+        clearImport();
       }
-      state.error = fail(code);
+      state.error = type==='import'&&['mailbox_timeout','mailbox_unavailable','invalid_response'].includes(code) ? 'Esito del collegamento non verificato. Riprova sulla stessa conversazione: non verrà creata una copia.' : fail(code);
     } finally {
       clearTimeout(timer);
       if (sequence===seq && state===currentState) { request=null;state.busy=''; if (dialog) { if (valid()) render(); else reset(); } }
@@ -99,7 +131,7 @@
   }
   function search(more) {
     if (!valid()) { reset(); return; }
-    if (state.denied) return;
+    if (state.denied || state.busy==='import') return;
     var query = (more?state.searched:state.draft).trim();
     if (query.length<3 || query.length>160 || /[\u0000-\u001f\u007f]/.test(query)) { stop();state.error=fail('invalid_query');render();dialog?.querySelector('#mailboxQuery').focus();return; }
     if (more && !state.nextCursor) return;
@@ -108,21 +140,35 @@
       if (!sourceOK(data.source) || !Array.isArray(data.items) || data.items.length>20 || !data.items.every(itemOK) || (data.nextCursor!=null && (!textOK(data.nextCursor,4096) || data.nextCursor===cursor)) || typeof data.incomplete!=='boolean') throw {code:'invalid_response'};
       if (more && !sameSource(state.source,data.source)) throw {code:'mailbox_changed'};
       state.source=data.source;state.checkedAt=data.checkedAt;state.items=more?Array.from(new Map(state.items.concat(data.items).map(function (item) { return [item.messageRef,item]; })).values()):data.items;
-      state.nextCursor=data.nextCursor||null;state.incomplete=more?(state.incomplete||data.incomplete):data.incomplete;state.searched=query;state.searchedOnce=true;state.selected=null;state.message=null;state.records=[];state.readerScroll=0;
+      state.nextCursor=data.nextCursor||null;state.incomplete=more?(state.incomplete||data.incomplete):data.incomplete;state.searched=query;state.searchedOnce=true;state.selected=null;state.message=null;state.records=[];state.readerScroll=0;clearImport();
       if (!more) state.listScroll=0;
     });
   }
   function read(item) {
     if (!valid() || !item) return;
     if (state.busy==='read' && state.selected?.messageRef===item.messageRef) return;
-    saveScroll(); state.selected=item;state.message=null;state.records=[];state.readerScroll=0;
+    if (state.busy==='import') return;
+    saveScroll(); state.selected=item;state.message=null;state.records=[];state.readerScroll=0;clearImport();
     return call({action:'read',messageRef:item.messageRef},'read',function (data) {
       var message=data.message;
-      if (!itemOK(message) || message.messageRef!==item.messageRef || !textOK(message.text,262144) || typeof message.truncated!=='boolean' || typeof message.bodyUnavailable!=='boolean') throw {code:'invalid_response'};
+      if (!itemOK(message) || message.messageRef!==item.messageRef || !textOK(message.text,262144) || typeof message.truncated!=='boolean' || typeof message.bodyUnavailable!=='boolean' || (message.replyTo!=null&&!personOK(message.replyTo)) || (message.importable!=null&&typeof message.importable!=='boolean')) throw {code:'invalid_response'};
       if (data.source && (!sourceOK(data.source)||!sameSource(state.source,data.source))) throw {code:'mailbox_changed'};
       state.message=message;
-      var emails=[...new Set(message.from.concat(message.to).map(function (p) { return p.address.trim().toLowerCase(); }).filter(function (email) { return email && email!==state.source?.account.toLowerCase(); }))];
+      var emails=[...new Set(message.from.concat(message.to,message.replyTo||[]).map(function (p) { return (p.address||'').trim().toLowerCase(); }).filter(function (email) { return email && email!==state.source?.account.toLowerCase(); }))];
       state.records=adapter.findRecordsByEmail?.(emails)||[];
+      var contactRows=message.replyTo?.length?message.replyTo:message.from;
+      var contactEmails=[...new Set(contactRows.map(function(p){return (p.address||'').trim().toLowerCase();}).filter(Boolean))];
+      state.conversations=contactEmails.length===1&&contactEmails[0]!==state.source?.account.toLowerCase() ? adapter.findConversationsByEmail?.(contactEmails)||[] : [];
+    });
+  }
+  function importMessage() {
+    if (!valid() || state.busy || !state.message || state.receipt) return;
+    var target=state.conversations.find(function(row){return row.id===state.target;}), message=state.message;
+    if (!target || message.truncated || message.bodyUnavailable || message.importable===false) return;
+    return call({action:'import',messageRef:message.messageRef,conversationId:target.id},'import',function(data){
+      if (data.conversationId!==target.id || !textOK(data.messageId,180) || !data.messageId || typeof data.imported!=='boolean' || typeof data.duplicate!=='boolean' || data.imported===data.duplicate) throw {code:'invalid_response'};
+      if (data.source && (!sourceOK(data.source)||!sameSource(state.source,data.source))) throw {code:'mailbox_changed'};
+      state.receipt={conversationId:target.id,messageId:data.messageId,duplicate:data.duplicate};
     });
   }
   function open(query, options) {
@@ -138,15 +184,19 @@
       dialog.addEventListener('cancel',function (event) { event.preventDefault();close(); });
       dialog.addEventListener('scroll',function (event) { if(!valid())return;if(event.target.matches('.mb-list'))state.listScroll=event.target.scrollTop;if(event.target.matches('.mb-reader'))state.readerScroll=event.target.scrollTop; },true);
       dialog.addEventListener('input',function (event) { if(event.target.id==='mailboxQuery' && valid()) state.draft=event.target.value; });
+      dialog.addEventListener('change',function(event){if(event.target.id==='mailboxConversation'&&valid()&&!state.busy){saveScroll();state.target=event.target.value;state.error='';render();}});
       dialog.addEventListener('submit',function (event) { event.preventDefault(); if(valid()) { state.draft=dialog.querySelector('#mailboxQuery').value;search(false); } });
       dialog.addEventListener('click',function (event) {
         var button=event.target.closest('[data-mb]'); if (!button) return;
         if (button.dataset.mb==='close') return close(); if (!valid()) return reset();
+        if (state.busy==='import') return;
         switch(button.dataset.mb) {
           case 'read': return read(state.items[Number(button.dataset.index)]);
+          case 'import': return importMessage();
+          case 'inbox': { var receipt=state.receipt, proof=state.session;if(receipt){close();if(adapter.isCurrent(proof))adapter.openConversation?.(receipt.conversationId);}return; }
           case 'retry-read': return read(state.selected);
           case 'more': return search(true);
-          case 'back': stop();state.selected=null;state.message=null;state.error='';state.readerScroll=0;render();return;
+          case 'back': stop();state.selected=null;state.message=null;state.error='';state.readerScroll=0;clearImport();render();return;
           case 'record': { var record=state.records[Number(button.dataset.index)], proof=state.session; if(record) { close();if(adapter.isCurrent(proof))adapter.openRecord(record); } return; }
         }
       });

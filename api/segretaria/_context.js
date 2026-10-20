@@ -103,7 +103,7 @@ function verifiedOwnerCommand(row) {
 }
 
 function messageContent(row, limit = CONTEXT_LIMITS.text) {
-  const raw = typeof row.body === 'string' ? row.body.trim() : '';
+  const raw = SEG.messageText(row).trim();
   const attached = Array.isArray(row.attachments) && row.attachments.length > 0;
   // Historical HOMIE imports saved wacli display markers as body, without
   // attachments. They identify missing content, not words spoken by a client.

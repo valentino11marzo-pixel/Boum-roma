@@ -5043,6 +5043,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         return [...result.values()];
     }
+    function portalMailboxConversations(emails) {
+        if (!portalSearchAuthorized()) return [];
+        const wanted = new Set(emails.map(email => String(email).trim().toLowerCase()));
+        const rows = S.conversations || [], counts = new Map();
+        for (const row of rows) counts.set(row.id, (counts.get(row.id) || 0) + 1);
+        return rows.filter(row => /^[\w.-]{1,180}$/.test(row.id || '') && counts.get(row.id) === 1
+            && !row.segretaria && !row.conversationBindingConflict && row.conversationBindingStatus !== 'unavailable' && typeof row.contactEmail === 'string'
+            && wanted.has(row.contactEmail.trim().toLowerCase()))
+            .map(row => ({id:row.id, label:row.contactName || 'Contatto da verificare', email:row.contactEmail.trim()}));
+    }
     function portalOpenMailbox(query) {
         if (!portalSearchAuthorized()) return;
         const mailbox = window.BOOM_MAILBOX;
@@ -5053,7 +5063,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 isCurrent: proof => portalSessionCurrent(proof) && portalSearchAuthorized() && auth.currentUser === proof.user,
                 getToken: proof => proof.user.getIdToken(),
                 findRecordsByEmail: portalMailboxRecords,
-                openRecord: record => portalSearchOpen(record)
+                findConversationsByEmail: portalMailboxConversations,
+                openRecord: record => portalSearchOpen(record),
+                openConversation: id => {
+                    if (!portalSearchAuthorized() || !(S.conversations || []).some(row => row.id === id)) return toast('warning', 'Riapri Inbox per verificare la conversazione collegata.');
+                    S.inboxContext = null;
+                    goTo('inbox');
+                    inboxSelect(id);
+                }
             });
             portalMailboxInitialized = true;
         }
@@ -13216,6 +13233,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxMessageBubble(m) {
         const isOut  = m.direction === 'out';
         const isNote = m.direction === 'note';
+        const original = m.direction === 'in' && m.channel === 'email' && m.mailboxSource?.mode === 'manual'
+            && typeof m.mailboxSource.text === 'string' && m.mailboxSource.text.length <= 262144 ? m.mailboxSource.text : null;
         const bg = isNote ? 'rgba(212,175,55,0.10)' : isOut ? 'rgba(0,122,255,0.18)' : 'rgba(255,255,255,0.06)';
         const align = isOut ? 'flex-end' : isNote ? 'center' : 'flex-start';
         const border = isNote ? '1px solid rgba(212,175,55,0.30)' : 'none';
@@ -13226,7 +13245,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         <div style="display:flex;justify-content:${align};margin-bottom:8px">
             <div style="max-width:75%;padding:10px 14px;border-radius:14px;background:${bg};border:${border};font-size:13px;line-height:1.45;white-space:pre-wrap;word-wrap:break-word">
                 ${m.subject ? `<div style="font-weight:600;margin-bottom:4px;font-size:12px;opacity:.85">${esc(m.subject)}</div>` : ''}
+                ${original !== null && original !== m.body ? '<div style="font-size:11px;color:var(--text-muted)">Estratto · originale completo qui sotto</div>' : ''}
                 ${esc(m.body || '')}
+                ${original !== null && original !== m.body ? `<details style="white-space:normal;margin-top:10px"><summary style="min-height:44px;display:flex;align-items:center;cursor:pointer;color:var(--gold)">Email originale completa</summary><div style="white-space:pre-wrap;overflow-wrap:anywhere">${esc(original)}</div></details>` : ''}
                 <div style="font-size:10px;color:var(--text-muted);margin-top:4px;text-align:right">${channelIcon} ${tsLabel}</div>
             </div>
         </div>`;
