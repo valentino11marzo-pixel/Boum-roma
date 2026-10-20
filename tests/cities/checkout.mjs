@@ -285,8 +285,10 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(w('2026-09-28T10:00:00Z', 'es').lastDay === '2026-10-13' && w('2026-09-28T10:00:00Z').lastDay === '2026-10-12',
     'withdrawalWindow (es): +14 = Mon 12 Oct, Fiesta Nacional in Madrid → Tue 13; the Italian calendar alone keeps 12 Oct',
     JSON.stringify([w('2026-09-28T10:00:00Z', 'es'), w('2026-09-28T10:00:00Z')]));
-  check(w('2026-09-20T10:00:00Z').lastDay === '2026-10-05' && w('2026-09-20T10:00:00Z').startDay === '2026-10-06',
-    'withdrawalWindow (it): +14 = Sun 4 Oct (San Francesco, a national holiday again from 2026) → Mon 5 Oct');
+  // 4 Oct 2026 is a Sunday anyway: only 2027, a Monday, proves the San Francesco holiday
+  check(w('2027-09-20T10:00:00Z').lastDay === '2027-10-05' && w('2027-09-20T10:00:00Z').startDay === '2027-10-06',
+    'withdrawalWindow (it): +14 = Mon 4 Oct 2027 (San Francesco, a national holiday again from 2026) → Tue 5 Oct',
+    JSON.stringify(w('2027-09-20T10:00:00Z')));
   check(w('2026-10-19T22:30:00Z').lastLabel === '3 November 2026' && w('2026-10-19T22:30:00Z').startLabel === '4 November 2026', 'withdrawalWindow: the labels read as dates, in English');
 }
 {
