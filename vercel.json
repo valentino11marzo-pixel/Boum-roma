@@ -815,6 +815,9 @@
     },
     "api/telegram/notify-pending.js": {
       "maxDuration": 60
+    },
+    "api/smartlink/worker.js": {
+      "maxDuration": 180
     }
   },
   "crons": [

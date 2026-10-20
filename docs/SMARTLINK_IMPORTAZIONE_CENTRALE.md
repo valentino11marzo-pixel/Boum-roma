@@ -1,51 +1,60 @@
-# SmartLink · importazione centrale e mappa
+# SmartLink · lettore centrale BOOM
 
 ## Stato del 20 ottobre 2026
 
-Il codice del collegamento ufficiale è predisposto e coperto da test con rete simulata. **Il servizio non è attivo né collaudato con un account reale.** Le variabili necessarie non risultano configurate nel progetto Vercel BOOM. Il normale account Immobiliare.it o Casafari non dimostra l’abilitazione a queste API.
+Implementazione sul ramo `codex/smartlink-remoto-mappa`, PR #300. Il precedente adattatore API immobiliare è stato rimosso su richiesta di Valentino. Nessun abbonamento o credenziale di un fornitore immobiliare è necessario per questa implementazione.
 
-La versione precedente dipende da Chrome quando la fonte blocca il server. Questo requisito non soddisfa il paste da telefono. Il nuovo percorso server usa l’API ufficiale Immobiliare.it Insights per ID annuncio; HTML e Radar restano alternative quando accessibili. Idealista, Subito, Casa.it e Casafari non hanno un nuovo connettore centrale in questo incremento.
+**Non ancora attivo nel Portal pubblico e non ancora collaudato su un annuncio reale dal Mac.** Il runtime è installato su Homie, con browser dedicato e servizio predisposto ma non avviato. La prova Chrome del 17/10 riguardava l'estensione locale, non prova questo percorso remoto. La preview locale a porta 4181 verifica il componente mappa, non importa annunci. Un accesso di controllo il 20/10 dal browser integrato Codex ha mostrato DataDome Device Check: è prova di un blocco in quella sessione, non del risultato sul Mac Homie.
 
-## Accesso necessario
+## Esperienza prevista
 
-Chiedere al referente Immobiliare.it Insights una prova del servizio **Comps — Comparable Detail per listing ID**, con galleria, per gli annunci in affitto a Roma. Prima dell’attivazione verificare con il fornitore:
+1. Portal → Strumenti → SmartLink esterno → incolla URL → Importa annuncio e foto.
+2. La richiesta è salvata; si può chiudere la pagina e riprenderla da **Le tue importazioni recenti**, con lo stesso account anche su un altro dispositivo.
+3. Homie legge l'annuncio in un browser standard. Il server scarica le fotografie, le converte in WebP e le archivia su BOOM. Lo Studio mostra fino a 12 foto, ordine e copertina modificabili. Nessuna estensione è richiesta sul telefono o sul computer dell'operatore.
+4. L'operatore verifica dati e area della mappa, poi crea lo SmartLink. L'importazione non pubblica da sola e non invia messaggi.
+5. La scheda pubblica non espone URL sorgente o identità dell'operatore. Le foto possono conservare i watermark già presenti nella fonte.
 
-- l’annuncio `124483437` e un annuncio pubblicato il giorno della prova sono presenti;
-- disponibilità e latenza di aggiornamento, comprese rimozioni e cambi prezzo;
-- galleria completa e modalità di accesso alle immagini;
-- facoltà di ospitare le immagini sulle schede BOOM condivise con i clienti;
-- costi, quota e limite di richieste adatti al lavoro di Valentino e assistente.
+L'accesso è ancora **admin-only**. L'assistente deve usare un proprio account già abilitato; non viene creato un nuovo ruolo né condivisa la password di Valentino. La cronologia delle importazioni è personale. Integrazione con ricerche/clienti PFS da realizzare successivamente.
 
-Nessuna richiesta al fornitore è stata inviata, nessun abbonamento acquistato. Non occorre installare un plugin sul telefono. Non inviare credenziali in chat.
+## Affidabilità e limiti
 
-Documentazione ufficiale consultata:
+- Firestore è l'unica coda. ID deterministico per operatore e bozza: un doppio clic non duplica il lavoro.
+- Un solo lettore possiede una richiesta; assegnazione atomica con lease di cinque minuti. Interruzioni: massimo due tentativi, poi esito visibile. Richieste ferme oltre un'ora scadono.
+- Un ACK perso ritenta la ricevuta, senza rileggere l'annuncio. Un risultato vecchio non può sovrascrivere la nuova assegnazione.
+- Foto archiviate prima dello stato pronto. Fallimento parziale dichiarato; zero foto non produce una scheda pronta. Il telefono non deve ricaricare le immagini già archiviate.
+- 401/403/429, verifica umana o cambio dell'URL diventano un esito esplicito. Nessun tentativo di risolvere CAPTCHA, aggirare restrizioni, copiare cookie personali o usare proxy.
+- Il Mac deve essere acceso, collegato a Internet e con sessione grafica attiva. L'avvio tramite LaunchAgent avviene al login, non prima. Dopo un riavvio senza login il lettore risulta offline.
+- L'accessibilità della fonte e il suo DOM restano dipendenze esterne. Non promettere «sempre funzionante», zero manutenzione o copertura dei cinque portali prima delle prove. Il parser riusa quello già presente; gli aggiornamenti delle pagine possono richiedere adattamenti.
 
-- [Dettaglio per ID](https://insights.immobiliare.it/webdocs/service/comps/comparable-detail/)
-- [Campi e galleria](https://insights.immobiliare.it/webdocs/service/comps/mapping-output-data/)
-- [OAuth](https://insights.immobiliare.it/webdocs/authentication/)
-- [Tipi di contratto](https://insights.immobiliare.it/webdocs/service/comps/taxonomies-general/)
+## Componenti e necessità
 
-## Configurazione tecnica
+- `api/smartlink/jobs.js`: invio/ripresa privata, massimo cinque richieste pendenti per operatore (limite di cortesia, non transazione globale).
+- `api/smartlink/worker.js`: autenticazione Homie, assegnazione atomica e ricevuta. `maxDuration: 180` per archiviare fino a 12 foto.
+- `js/smartlink-import-engine.js`: stati, scadenze, lease e proiezione senza token.
+- `api/smartlink/_archive.js`: Sharp già presente nelle dipendenze root/API, massimo 2400 px, metadati rimossi, CDN consentiti e nessun redirect.
+- `smartlinkImports` e `smartlinkWorkers`: nuove collection admin-only, necessarie per ripresa e stato del lettore. Indice `createdBy + createdAt DESC` in `firestore.indexes.json`.
+- `SMARTLINK_REMOTE_ENABLED=1`: nuova variabile server, necessaria come interruttore. Assente/0 ferma nuove richieste e nuove assegnazioni; una ricevuta già in corso può terminare.
+- `HOMIE_SECRET`: già esistente, letto solo da `~/.boom/env` sul Mac; non copiato nel repo o nel browser.
+- Playwright 1.64.1: nuova dipendenza **solo del runtime Mac**, necessaria per eseguire il browser. Il relativo lockfile è in `tools/smartlink-worker`; non aumenta le dipendenze delle funzioni Vercel. Browser scaricato dalla distribuzione ufficiale Playwright.
 
-Solo variabili server Vercel, inizialmente nell’ambiente di prova:
+## Installazione e rilascio
 
-| Variabile | Uso |
-| --- | --- |
-| `REALITYCS_CLIENT_ID` | Client OAuth assegnato dal fornitore |
-| `REALITYCS_CLIENT_SECRET` | Segreto del client OAuth |
-| `REALITYCS_USERNAME` | Utente API abilitato |
-| `REALITYCS_PASSWORD` | Password dell’utente API |
-| `SMARTLINK_REALITYCS_ENABLED` | `1` attiva le chiamate; assente o `0` le ferma |
+Il rilascio del Portal segue AGENTS.md: merge su `main` da Valentino/regia, niente deploy manuali di produzione da questo ramo.
 
-Endpoint fissati nel codice, nessun proxy arbitrario. Il token è riusato in memoria fino alla scadenza; non è inviato al browser, salvato in Firestore o scritto nei log. La galleria accetta solo il CDN della fonte o il percorso ufficiale `https://images.realitycs.it/img/{stessoListingId}/{imageId}`. Eventuali diversi formati osservati vanno verificati, senza ampliare indiscriminatamente gli host.
+1. Rilasciare PR #300 con le regole Firestore. La CI attuale distribuisce rules/storage, **non gli indici**: distribuire anche l'indice di `firestore.indexes.json` e attenderne lo stato pronto.
+2. Configurare il flag server nell'ambiente scelto e verificare la distribuzione che lo contiene. Una Preview usa lo stesso progetto Firebase: senza nuove rules/index il percorso resta bloccato; non è un database isolato.
+3. Su Homie il runtime è in `~/.boom/smartlink-runtime/tools/smartlink-worker/`, configurazione `~/.boom/smartlink-reader.json`. Il plist `~/Library/LaunchAgents/com.boom.smartlink-reader.plist` è predisposto, **non caricato**.
+4. Eseguire `node worker.mjs --check` dalla directory runtime: controlla browser installato e heartbeat autenticato. Il secret resta sul Mac. Una Preview protetta richiede la modalità di accesso Vercel autorizzata, senza disattivare la protezione.
+5. Dopo il check, avviare il servizio con `launchctl bootstrap gui/$(id -u) "$HOME/Library/LaunchAgents/com.boom.smartlink-reader.plist"`. L'installer `install.mjs` è idempotente sui file, prepara il servizio senza avviarlo; `--enable` è separato.
+6. Stop immediato: flag a 0 e `launchctl bootout gui/$(id -u)/com.boom.smartlink-reader`. I dati restano in Firestore. Log locali contengono solo eventi e ID richiesta, mai URL o segreti.
 
-## Collaudo richiesto prima di dire «funziona da mobile»
+## Collaudo prima della consegna
 
-1. Account API reale abilitato; verificare che la risposta identifichi esattamente l’URL richiesto e contenga fotografie.
-2. Portal senza estensione, viewport mobile e poi telefono reale: incolla URL, importa, controlla prezzo e dati, scorri/riordina le fotografie.
-3. Zona suggerita → controlla cerchio → conferma. Cambia annuncio: la vecchia zona deve sparire. In alternativa, scegli esplicitamente senza mappa.
-4. Pubblica solo la scheda di prova richiesta. Apri il link senza login, verifica tutte le foto Storage, galleria e punti di interesse. Il JSON pubblico deve escludere la fonte e i dati dell’operatore.
-5. Ripeti con un annuncio nuovo dello stesso giorno. Misura esito e tempi; un caso riuscito non garantisce copertura universale.
-6. Verifica un account personale dell’assistente con i permessi appropriati. L’accesso allo Studio resta admin-only in questo incremento; nessun nuovo privilegio è stato concesso.
+- Annuncio reale `https://www.immobiliare.it/annunci/124483437/` e un annuncio nuovo: esito, numero foto e tempi. Ripetere su altre fonti prima di dichiararle supportate operativamente.
+- Portal senza estensione: incolla, chiudi, riapri, riprendi; controlla dati, galleria e cambio copertina.
+- Telefono reale, poi account personale dell'assistente. Una viewport mobile non equivale alla prova su telefono.
+- Conferma area della mappa, cambia annuncio e verifica invalidazione; prova la scelta senza mappa.
+- Crea la scheda di prova e aprila senza login: foto Storage raggiungibili, galleria, POI e JSON senza fonte.
+- Interrompi e riavvia il lettore su una richiesta di prova; verifica ripresa senza doppio risultato. Sito bloccato e Mac offline devono produrre messaggi comprensibili.
 
-Test locali: `npm test -- smartlink actions crawl`; `node scripts/check-pages.mjs`. Test di rete simulata non equivalgono a disponibilità commerciale o collaudo di produzione. Il rilascio sul dominio deve seguire la regia coordinata del repository.
+Test automatici con rete simulata: `tests/smartlink/remote.mjs` usa handler veri e Sharp reale; verifica concorrenza, permessi, lease, ACK, archivio e fallimenti. `studio.mjs` verifica il controller reale per doppio invio, cambio URL, ripresa e riuso foto. `map.mjs` copre conferma/omissione e risposte obsolete. `tests/rules/runner.mjs` verifica le nuove collection nell'emulatore. Queste prove non dimostrano l'accessibilità reale degli annunci.

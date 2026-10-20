@@ -2,7 +2,6 @@
 import { requireRole } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
 import RULES from '../../js/smartlink-engine.js';
-import { configured, providerPhoto, accessToken } from './_realitycs.js';
 
 const LIMIT = 8_000_000;
 
@@ -13,10 +12,10 @@ export function imageType(bytes) {
   return null;
 }
 
-export async function fetchPhoto(url, authorization) {
+export async function fetchPhoto(url) {
   const r = await fetch(url, {
     redirect: 'manual',
-    headers: { 'Accept':'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8', ...(authorization ? {Authorization:authorization} : {}) },
+    headers: { 'Accept':'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
     signal: AbortSignal.timeout(12000),
   });
   if (!r.ok || !/^image\/(?:jpeg|png|webp)$/i.test((r.headers.get('content-type') || '').split(';')[0])) return null;
@@ -47,11 +46,10 @@ export default async function handler(req, res) {
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok:false, error:'invalid_json' }); }
   const source = RULES.normalizeUrl(body?.sourceUrl);
-  const officialUrl = source && configured() && providerPhoto(body?.imageUrl, source);
-  const url = officialUrl || (source && RULES.photoUrl(body?.imageUrl, source.source));
+  const url = source && RULES.photoUrl(body?.imageUrl, source.source);
   if (!url) return res.status(400).json({ ok:false, error:'invalid_photo_url' });
   try {
-    const photo = await fetchPhoto(url, officialUrl ? 'Bearer ' + await accessToken() : undefined);
+    const photo = await fetchPhoto(url);
     if (!photo) return res.status(422).json({ ok:false, error:'photo_unavailable' });
     res.setHeader('Content-Type', photo.type);
     return res.status(200).end(photo.bytes);

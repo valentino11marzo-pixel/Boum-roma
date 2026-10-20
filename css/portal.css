@@ -1662,3 +1662,6 @@
 .sl-connection-caption{margin-left:auto;color:var(--text-secondary);font-size:11px}
 .sl-connection-guide{padding:0 18px 16px;color:var(--text-secondary);font-size:12px;line-height:1.7}
 .sl-connection-guide ol{padding-left:20px}.sl-connection-guide li{padding:5px 0}.sl-connection-guide a{color:var(--gold)}.sl-connection-guide strong{color:var(--text-primary);font-weight:500}.sl-connection-guide code{color:var(--text-primary)}
+
+.sl-recent-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-top:1px solid var(--border)}
+.sl-recent-row>div{min-width:0}.sl-recent-row .sl-hint{overflow-wrap:anywhere;margin:4px 0 0}.sl-recent-row .btn{flex:none;min-height:44px}
