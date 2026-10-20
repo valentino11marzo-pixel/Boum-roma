@@ -13,6 +13,7 @@ register('data:text/javascript,'+encodeURIComponent(`export async function resol
 if(process.env.BOOM_MAIL_MUTATION){
  const changes={
   sync_ai_gate:["if (syncOnly) { newIds.push(mid); continue; }","if (false) { newIds.push(mid); continue; }"],
+  manual_receipt:["if (outcome === 'manual') { newIds.push(mid); continue; }","if (false) { newIds.push(mid); continue; }"],
   admin_scope:["requireRole(req, res, ['admin'])","requireRole(req, res, null)"],
   budget_complete:["stats.deferred += uids.length - index; stats.incomplete = true; unvisited = 0; break;","stats.deferred += uids.length - index; unvisited = 0; break;"],
   scoped_identity:["if (emailBinding(snapshot.data) !== emailBinding(conv))", "if (false)"],
@@ -21,7 +22,7 @@ if(process.env.BOOM_MAIL_MUTATION){
   scheduled_header_order:["if (outcome === 'imported') stats.imported++; else stats.duplicates++;", "if (outcome === 'imported') stats.imported++; else stats.duplicates++; if (!syncOnly) await fsPatch('conversations/' + conv.id, { lastMessageAt: at, lastDirection: 'in', needsReply: true, lastMessagePreview: text.slice(0,90), updatedAt: at });"]
  };
  const change=changes[process.env.BOOM_MAIL_MUTATION];if(!change)throw Error('Unknown mutation');
- register('data:text/javascript,'+encodeURIComponent(`export async function load(url,c,next){const out=await next(url,c);if(url.endsWith('/api/segretaria/scan-replies.js')){const source=String(out.source);const [before,after]=${JSON.stringify(change)};if(!source.includes(before))throw Error('Mutation boundary missing');return {...out,source:source.replace(before,after)};}return out;}`),import.meta.url);
+ register('data:text/javascript,'+encodeURIComponent(`export async function load(url,c,next){const out=await next(url,c);if(url.endsWith(${JSON.stringify(['scoped_identity','scoped_atomic'].includes(process.env.BOOM_MAIL_MUTATION) ? '/api/segretaria/_mail-import.js' : '/api/segretaria/scan-replies.js')})){const source=String(out.source);const [before,after]=${JSON.stringify(change)};if(!source.includes(before))throw Error('Mutation boundary missing');return {...out,source:source.replace(before,after)};}return out;}`),import.meta.url);
 }
 export const F=await import('../inbox/take-charge-fixture.mjs');
 export const {DB,versions,writes,requests,put}=F;

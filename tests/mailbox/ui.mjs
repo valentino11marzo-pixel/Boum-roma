@@ -10,14 +10,16 @@ import {html as home} from '../oggi/home-harness.mjs';
 import {loadChromium,launchOptions} from '../_browser.mjs';
 const read=p=>readFileSync(new URL('../../'+p,import.meta.url),'utf8');
 const productionHtml=read('portal.html'),app=read('js/portal-app.js');
+const bubble=app.slice(app.indexOf('    function inboxMessageBubble('),app.indexOf('    function inboxComposer('));
 assert(productionHtml.includes('/js/portal-mailbox.js')&&productionHtml.includes('/css/portal-mailbox.css'),'Production loads both assets');
 assert(app.slice(app.indexOf('function portalSessionReset()'),app.indexOf('function portalSourceStatus(')).includes('window.BOOM_MAILBOX?.reset()'),'Session reset clears mailbox');
 assert(app.slice(app.indexOf('auth.onAuthStateChanged(async u =>'),app.indexOf('function loadData(')).includes('window.BOOM_MAILBOX?.reset()'),'New auth generation clears mailbox');
 const html=home.replace('</head>',()=>'<style>'+read('css/portal-mobile.css')+read('css/portal-desktop.css')+'</style></head>').replace('</body>',()=>String.raw`<aside id="sidebar" hidden></aside><script>${read('js/portal-mobile.js')}</script><script>
 window.mailboxIO={calls:[],plans:[],pending:[],jsonPending:[]};
+${bubble}
 window.mailboxSource={account:'office@example.invalid',folder:'[Gmail]/All Mail',coverage:'all-mail'};
 window.mailItem=(id='first',subject='Contratto Casa Aurora')=>({messageRef:id,from:[{name:'Maria Rossi',address:'maria@example.invalid'}],to:[{name:'BOOM',address:'office@example.invalid'}],subject,at:'2026-10-15T09:35:00Z',size:4000,hasAttachments:true});
-window.mailResponse=body=>body.action==='read'?{ok:true,source:mailboxSource,checkedAt:'2026-10-15T10:00:00Z',message:{...mailItem(body.messageRef),text:'Buongiorno Valentino,\n\nla documentazione per Casa Aurora è pronta. Possiamo confermare la consegna delle chiavi?\n\nGrazie,\nMaria',truncated:false,bodyUnavailable:false}}:{ok:true,source:mailboxSource,checkedAt:'2026-10-15T10:00:00Z',items:[mailItem()],nextCursor:null,incomplete:false};
+window.mailResponse=body=>body.action==='import'?{ok:true,source:mailboxSource,conversationId:body.conversationId,messageId:'segretaria_mail_fixture',imported:true,duplicate:false}:body.action==='read'?{ok:true,source:mailboxSource,checkedAt:'2026-10-15T10:00:00Z',message:{...mailItem(body.messageRef),replyTo:[],importable:true,text:'Buongiorno Valentino,\n\nla documentazione per Casa Aurora è pronta. Possiamo confermare la consegna delle chiavi?\n\nGrazie,\nMaria',truncated:false,bodyUnavailable:false}}:{ok:true,source:mailboxSource,checkedAt:'2026-10-15T10:00:00Z',items:[mailItem()],nextCursor:null,incomplete:false};
 const originalFetch=window.fetch;
 window.fetch=async function(url,options){
  if(!String(url).startsWith('/api/mailbox/query'))return originalFetch(url,options);
@@ -29,6 +31,9 @@ window.fetch=async function(url,options){
 };
 S.users.push({id:'exact-user',name:'Maria Rossi',email:' MARIA@example.invalid ',role:'tenant'}, {id:'wrong-user',name:'Maria Rossi',email:'other@example.invalid',role:'tenant'}, {id:'substring-user',name:'Altra Maria',email:'notmaria@example.invalid',role:'tenant'});
 S.clients.push({id:'exact-client',name:'Maria CRM',email:'maria@example.invalid'});
+S.conversations.push({id:'mail-maria',contactName:'Maria Rossi',contactEmail:'maria@example.invalid',segretaria:false},
+ {id:'mail-namesake',contactName:'Maria Rossi',contactEmail:'other@example.invalid'},
+ {id:'mail-automated',contactName:'Maria affidata',contactEmail:'maria@example.invalid',segretaria:true});
 window.mailboxReady=true;
 </script></body>`);
 const server=createServer((req,res)=>{if(req.url==='/'){res.setHeader('Content-Type','text/html; charset=utf-8');res.end(html)}else{res.statusCode=404;res.end()}});
@@ -96,6 +101,23 @@ try{
    if(width<680){await page.locator('[data-mb="back"]').click();assert(await page.locator('.mb-list').evaluate(el=>el.scrollTop>0),'List scroll retained after reading');}
    await page.screenshot({path:join(artifacts,'results-'+width+'.png')});
   });
+  await check('explicit email import uses existing exact conversation and opens the receipt',async()=>{
+   await open();await ready();await page.locator('.mb-result').click();await page.waitForSelector('.mb-message-text');
+   assert.deepEqual(await page.evaluate(()=>portalMailboxConversations(['maria@example.invalid']).map(c=>c.id)),['mail-maria']);
+   assert(await page.locator('[data-mb="import"]').isDisabled(),'No automatic target, even with one match');
+   assert.equal(await page.evaluate(()=>mailboxIO.calls.filter(c=>c.body.action==='import').length),0);
+   await page.locator('#mailboxConversation').selectOption('mail-maria');
+   assert.match(await page.locator('.mb-import-target').innerText(),/Maria Rossi.*maria@example.invalid/s);
+   await page.locator('[data-mb="import"]').click();await page.waitForSelector('[data-mb="inbox"]');
+   assert.deepEqual(await page.evaluate(()=>mailboxIO.calls.at(-1).body),{action:'import',messageRef:'first',conversationId:'mail-maria'});
+   assert.match(await page.locator('.mb-import').innerText(),/Email collegata.*Prendi in carico/s);
+   const geometry=await page.locator('#portalMailbox').evaluate(el=>({scroll:el.scrollWidth,width:el.clientWidth}));
+   assert(geometry.scroll<=geometry.width+1);
+   await page.screenshot({path:join(artifacts,'imported-'+width+'.png')});
+   await page.locator('[data-mb="inbox"]').click();assert.equal(await page.locator('#portalMailbox').count(),0);
+   assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['inboxSelect','mail-maria']);
+   assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+  });
   await check('errors preserve prior results and remote HTML remains text',async()=>{
    await page.evaluate(()=>mailboxIO.plans.push({data:{...mailResponse({action:'search'}),items:[mailItem('xss','<img src=x onerror=alert(1)>')],source:{...mailboxSource,coverage:'inbox-only',folder:'INBOX'}}}));
    await open();await ready();assert.match(await page.locator('.mb-source').innerText(),/Solo posta in arrivo/);assert.equal(await page.locator('#portalMailbox img').count(),0);
@@ -114,6 +136,53 @@ try{
  const check=async(name,fn)=>{await fresh();await fn();assert.deepEqual(errors,[]);checks++;console.log('PASS '+name)};
  const open=async(query='Aurora')=>{await page.locator('#ogWorkQuery').fill(query);await page.getByRole('button',{name:'Cerca nelle email ↗',exact:true}).click()};
  const ready=()=>page.waitForFunction(()=>document.querySelector('.mb-result')&&!document.querySelector('.mb-status')?.textContent);
+ const importReady=async()=>{await open();await ready();await page.locator('.mb-result').click();await page.waitForSelector('#mailboxConversation');await page.locator('#mailboxConversation').selectOption('mail-maria')};
+ await check('Inbox reveals complete manual source after canonical excerpt and escapes HTML',async()=>{
+  await page.evaluate(()=>{const area=document.createElement('div');area.id='testMailBubble';area.innerHTML=inboxMessageBubble({direction:'in',channel:'email',at:'2026-10-15T10:00:00Z',body:'Premessa. '.repeat(220).slice(0,2000),mailboxSource:{mode:'manual',text:'Premessa. '.repeat(220)+'Serve la conferma entro venerdì. <script>window.pwned=true</script>'}});document.body.appendChild(area)});
+  assert.match(await page.locator('#testMailBubble').innerText(),/Estratto/);
+  await page.locator('#testMailBubble summary').click();
+  assert.match(await page.locator('#testMailBubble details').innerText(),/Serve la conferma entro venerdì/);
+  assert.equal(await page.locator('#testMailBubble script').count(),0);
+  assert.equal(await page.evaluate(()=>window.pwned),undefined);
+ });
+ await check('portal Reply-To selects candidate contact but never guesses among multiple senders',async()=>{
+  await open();await ready();
+  await page.evaluate(()=>{const data=mailResponse({action:'read',messageRef:'first'});data.message.from=[{address:'notification@portal.example.invalid'}];data.message.replyTo=[{name:'Maria',address:'maria@example.invalid'}];mailboxIO.plans.push({data})});
+  await page.locator('.mb-result').click();await page.waitForSelector('#mailboxConversation');assert.match(await page.locator('.mb-reply-to').innerText(),/maria@example.invalid/);
+  assert.deepEqual(await page.locator('#mailboxConversation option').allTextContents(),['Scegli il contatto…','Maria Rossi · maria@example.invalid']);
+  await page.locator('[data-mb="back"]').click();
+  await page.evaluate(()=>{const data=mailResponse({action:'read',messageRef:'first'});data.message.replyTo=[{address:'maria@example.invalid'},{address:'other@example.invalid'}];mailboxIO.plans.push({data})});
+  await page.locator('.mb-result').click();await page.waitForSelector('.mb-message-text');assert.equal(await page.locator('[data-mb="import"]').count(),0);
+ });
+ for(const field of ['truncated','bodyUnavailable','importable'])await check('unusable source has no import command: '+field,async()=>{
+  await open();await ready();await page.evaluate(field=>{const data=mailResponse({action:'read',messageRef:'first'});data.message[field]=field!=='importable';mailboxIO.plans.push({data})},field);
+  await page.locator('.mb-result').click();await page.waitForFunction(()=>!document.querySelector('.mb-status')?.textContent);
+  assert.equal(await page.locator('[data-mb="import"]').count(),0);
+ });
+ await check('import single flight, uncertain outcome retries same source and accepts duplicate receipt',async()=>{
+  await importReady();await page.evaluate(()=>mailboxIO.plans.push({hold:true}));
+  await page.locator('[data-mb="import"]').click();await page.waitForFunction(()=>mailboxIO.pending.length===1);
+  await page.locator('[data-mb="import"]').evaluate(el=>el.click());await page.locator('.mb-search').evaluate(form=>form.requestSubmit());
+  assert.equal(await page.evaluate(()=>mailboxIO.calls.filter(c=>c.body.action==='import').length),1);
+  await page.getByRole('button',{name:'Chiudi email'}).click();await page.evaluate(()=>BOOM_MAILBOX.open());
+  assert.match(await page.locator('.mb-error').innerText(),/Esito del collegamento non verificato/);
+  await page.evaluate(()=>mailboxIO.pending.shift()());assert.equal(await page.locator('[data-mb="inbox"]').count(),0);
+  await page.evaluate(()=>mailboxIO.plans.push({data:{...mailResponse({action:'import',conversationId:'mail-maria'}),imported:false,duplicate:true}}));
+  await page.locator('[data-mb="import"]').click();await page.waitForSelector('[data-mb="inbox"]');assert.match(await page.locator('.mb-import').innerText(),/Email già collegata/);
+  const calls=await page.evaluate(()=>mailboxIO.calls.filter(c=>c.body.action==='import'));assert.deepEqual(calls[0].body,calls[1].body);
+ });
+ await check('import response from old account cannot open a conversation or leak a receipt',async()=>{
+  await importReady();await page.evaluate(()=>mailboxIO.plans.push({hold:true}));await page.locator('[data-mb="import"]').click();await page.waitForFunction(()=>mailboxIO.pending.length===1);
+  await page.evaluate(()=>{portalSessionGeneration++;BOOM_MAILBOX.reset();auth.currentUser={uid:'demo-admin',getIdToken:async()=> 'new-token'};mailboxIO.pending.shift()();BOOM_MAILBOX.open('')});
+  assert.equal(await page.locator('[data-mb="inbox"]').count(),0);assert.equal(await page.locator('.mb-message-text').count(),0);
+ });
+ await check('changed target and malformed receipt never become success',async()=>{
+  await importReady();await page.evaluate(()=>mailboxIO.plans.push({status:409,data:{ok:false,error:'conversation_identity_changed'}}));
+  await page.locator('[data-mb="import"]').click();await page.waitForSelector('.mb-error');assert.match(await page.locator('.mb-error').innerText(),/conversazione è cambiata/);assert.equal(await page.locator('[data-mb="inbox"]').count(),0);
+  await page.evaluate(()=>mailboxIO.plans.push({data:{...mailResponse({action:'import',conversationId:'wrong-target'})}}));
+  await page.locator('[data-mb="import"]').click();await page.waitForFunction(()=>document.querySelector('.mb-error')?.textContent.includes('non verificato'));
+  assert.equal(await page.locator('[data-mb="inbox"]').count(),0);
+ });
  for(const phase of ['token','fetch','json'])await check('session switch during '+phase+' cannot display old-account content',async()=>{
   await page.evaluate(phase=>{if(phase==='token')auth.currentUser.getIdToken=()=>new Promise(resolve=>window.releaseMailboxToken=resolve);else mailboxIO.plans.push(phase==='json'?{holdJson:true}:{hold:true})},phase);
   await open();await page.waitForFunction(phase=>phase==='token'?!!window.releaseMailboxToken:phase==='json'?mailboxIO.jsonPending.length===1:mailboxIO.pending.length===1,phase);
