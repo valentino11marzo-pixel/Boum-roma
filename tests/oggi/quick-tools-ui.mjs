@@ -58,7 +58,7 @@ try {
       // uses the real catalog renderer and its explicit button, then getModal.
       await page.evaluate(() => goTo('boom-tools'));
       await page.getByRole('button', { name: '＋ Nuova rata', exact: true }).click();
-      assert.match(await page.locator('#modals .modal-title').innerText(), /Registra Pagamento/);
+      assert.equal(await page.locator('#modals .modal-title').innerText(), 'Nuova rata');
       assert.equal(await page.locator('#mForm [name="contractId"] option[value="contratto-chiuso"]').count(), 0, 'A terminated contract is never selectable for a new payment');
     };
     const select = async (kind, query, text) => {

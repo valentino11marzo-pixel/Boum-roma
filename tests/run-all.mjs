@@ -10,6 +10,9 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'rentwrite', file: 'tests/rent-write/run.mjs', what: 'rate atomiche, centesimi, scadenze civili, retry, concorrenza e rinnovi senza storico' },
+  { name: 'rentwriteui', file: 'tests/rent-write/ui.mjs', what: 'form reali: doppio tap, risposta persa, bozza, sessione e conferma dal server' },
+  { name: 'rentwritemutations', file: 'tests/rent-write/mutate.mjs', what: 'difetti ripristinati: stato protetto, versione obsoleta, centesimi, riferimenti e copertura' },
   { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
   { name: 'mailbox', file: 'tests/mailbox/server.mjs', what: 'ricerca e lettura posta reali, solo admin, MIME limitato, riferimenti e timeout; zero invii o AI' },
   { name: 'mailboxui', file: 'tests/mailbox/ui.mjs', what: 'posta dalla Home, lettore mobile, fonti esplicite, sessioni e risposte concorrenti' },
