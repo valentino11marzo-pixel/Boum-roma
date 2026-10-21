@@ -1,12 +1,13 @@
-// Explicit admin mailbox reads and confirmed import into an existing conversation.
+// Explicit admin mailbox reads, confirmed import and manual contact admission.
 // No flags, attachments, models, automatic enrollment or outbound operations.
 import crypto from 'node:crypto';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { bearerFrom, verifyIdToken } from '../_auth.js';
-import { fsGet, fsList, readJson } from '../homie/_lib.js';
+import { fsGet, readJson } from '../homie/_lib.js';
 import SEG from '../../js/segretaria-engine.js';
 import { MailImportError, emailKey, emailBinding, canonicalEmailConversation, importScopedMessage } from '../segretaria/_mail-import.js';
+import { admitMailboxMessage, matchingEmailConversations } from './_admission.js';
 
 const DEADLINE_MS = 20000, PAGE_SIZE = 20, BODY_BYTES = 256 * 1024, REF_TTL = 15 * 60000;
 const SAFE_ERROR = Symbol('mailbox-error');
@@ -77,23 +78,10 @@ function importSource(row, text, account) {
   return { importable: true, importBlockReason: null, mid, candidate, body, at };
 }
 
-async function importMessage({ row, text, source, proof, cfg, actor, conversationId, run, beforeCommit }) {
+async function importMessage({ row, text, source, proof, cfg, actor, conversationId, admission, run, beforeCommit }) {
   const mail = importSource(row, text, cfg.account);
   if (!mail.importable) throw fail(mail.importBlockReason, 409);
-  const conv = await run(() => fsGet('conversations/' + conversationId));
-  if (!conv) throw fail('conversation_not_found', 404);
-  if (conv.segretaria === true) throw fail('conversation_automated', 409);
-  if (conv.conversationBindingConflict || conv.conversationBindingStatus === 'unavailable')
-    throw fail('conversation_identity_changed', 409);
-  if (emailKey(conv.contactEmail) !== mail.candidate) throw fail('email_contact_mismatch', 409);
-  // Mirror the existing sync-only uniqueness check, including legacy case/space variants.
-  const identityRows = await run(() => fsList('conversations', { limit: 500 }));
-  if (identityRows.length >= 500) throw fail('email_identity_scan_incomplete', 409);
-  const matches = identityRows.filter(c => emailKey(c.contactEmail) === mail.candidate);
-  const candidates = new Map(matches.map(c => [c.id, c])); candidates.set(conv.id, conv);
-  const canonical = await run(() => canonicalEmailConversation([...candidates.values()]));
-  if (canonical?.id !== conversationId || emailBinding(canonical) !== emailBinding(conv))
-    throw fail('email_identity_ambiguous', 409);
+  if (admission && emailKey(admission.confirmedEmail) !== mail.candidate) throw fail('email_confirmation_changed', 409);
   const messageId = 'segretaria_mail_' + hash(mail.mid);
   const fields = {
     conversationId, direction: 'in', channel: 'email', body: mail.body, at: mail.at,
@@ -105,6 +93,20 @@ async function importMessage({ row, text, source, proof, cfg, actor, conversatio
       text: text.text, importedBy: actor,
       importedAt: new Date().toISOString() },
   };
+  if (admission) return admitMailboxMessage({ email: mail.candidate, name: admission.contactName, actor,
+    fields, messageId, run, beforeCommit });
+  const conv = await run(() => fsGet('conversations/' + conversationId));
+  if (!conv) throw fail('conversation_not_found', 404);
+  if (conv.segretaria === true) throw fail('conversation_automated', 409);
+  if (conv.conversationBindingConflict || conv.conversationBindingStatus === 'unavailable')
+    throw fail('conversation_identity_changed', 409);
+  if (emailKey(conv.contactEmail) !== mail.candidate) throw fail('email_contact_mismatch', 409);
+  // Mirror the existing sync-only uniqueness check, including legacy case/space variants.
+  const matches = await matchingEmailConversations(mail.candidate, run);
+  const candidates = new Map(matches.map(c => [c.id, c])); candidates.set(conv.id, conv);
+  const canonical = await run(() => canonicalEmailConversation([...candidates.values()]));
+  if (canonical?.id !== conversationId || emailBinding(canonical) !== emailBinding(conv))
+    throw fail('email_identity_ambiguous', 409);
   const outcome = await run(() => importScopedMessage(conv, fields, messageId, { manualOnly: true, beforeCommit }));
   return { conversationId, messageId, imported: outcome === 'imported', duplicate: outcome !== 'imported' };
 }
@@ -172,9 +174,15 @@ export default async function handler(req, res) {
     const profile = await run(() => fsGet('users/' + user.localId));
     if (profile?.role !== 'admin') throw fail('admin_required', 403);
     const body = await run(() => readJson(req));
-    if (!body || !['search', 'read', 'import'].includes(body.action)) throw fail('invalid_action');
-    const selectedMessage = body.action === 'read' || body.action === 'import';
+    if (!body || !['search', 'read', 'import', 'admit'].includes(body.action)) throw fail('invalid_action');
+    const selectedMessage = ['read', 'import', 'admit'].includes(body.action);
     if (body.action === 'import' && !validId(body.conversationId)) throw fail('invalid_conversation_id');
+    if (body.action === 'admit') {
+      if (typeof body.confirmedEmail !== 'string' || !addressOK(body.confirmedEmail.trim()) || body.confirmedEmail.length > 320)
+        throw fail('email_contact_confirmation_required');
+      if (body.contactName != null && (typeof body.contactName !== 'string' || body.contactName.length > 150 || /[\u0000-\u001f\u007f]/.test(body.contactName)))
+        throw fail('invalid_contact_name');
+    }
     const query = typeof body.query === 'string' ? body.query.trim().replace(/ +/g, ' ') : '';
     if (body.action === 'search' && (query.length < 3 || query.length > 160 || /[\u0000-\u001f\u007f]/.test(query))) throw fail('invalid_query');
     const cfg = configuration();
@@ -200,14 +208,16 @@ export default async function handler(req, res) {
       const row = await run(() => client.fetchOne(String(proof.uid), fetchShape, { uid: true }));
       if (!row || row.uid !== proof.uid) throw fail('message_not_found', 404);
       const text = await readText(client, row, run);
-      if (body.action === 'import') {
+      if (body.action === 'import' || body.action === 'admit') {
         const result = await importMessage({ row, text, source, proof, cfg, actor: user.localId,
-          conversationId: body.conversationId, run,
+          conversationId: body.conversationId, admission: body.action === 'admit'
+            ? { confirmedEmail: body.confirmedEmail, contactName: body.contactName?.trim() } : null, run,
           beforeCommit: () => { if (stopped || Date.now() >= deadline) throw fail('mailbox_timeout', 504); } });
         return res.status(200).json({ ok: true, ...result, source, checkedAt: new Date().toISOString() });
       }
-      const { importable, importBlockReason } = importSource(row, text, cfg.account);
-      return res.status(200).json({ ok: true, message: { ...metadata(row, body.messageRef), ...text, importable, importBlockReason }, source, checkedAt: new Date().toISOString() });
+      const { importable, importBlockReason, candidate } = importSource(row, text, cfg.account);
+      return res.status(200).json({ ok: true, message: { ...metadata(row, body.messageRef), ...text, importable, importBlockReason,
+        importContact: importable ? candidate : null }, source, checkedAt: new Date().toISOString() });
     }
     // TEXT is a literal IMAP string covering headers/body, never gmraw/operators.
     const found = await run(() => client.search({ text: query, ...(proof ? { uid: '1:' + (proof.before - 1) } : {}) }, { uid: true }));
@@ -221,7 +231,7 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, items, source, nextCursor, incomplete: items.length !== selected.length, checkedAt: new Date().toISOString() });
   } catch (error) {
     if (error instanceof MailImportError)
-      return res.status(error.status).json({ ok: false, error: error.message, checkedAt: new Date().toISOString() });
+      return res.status(error.status).json({ ok: false, error: error.message, ...error.details, checkedAt: new Date().toISOString() });
     return res.status(error[SAFE_ERROR] ? error.status : 503).json({ ok: false, error: error[SAFE_ERROR] ? error.code : 'mailbox_unavailable', checkedAt: new Date().toISOString() });
   } finally {
     stopped = true;

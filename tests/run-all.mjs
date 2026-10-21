@@ -14,6 +14,8 @@ const SUITES = [
   { name: 'mailbox', file: 'tests/mailbox/server.mjs', what: 'ricerca e lettura posta reali, solo admin, MIME limitato, riferimenti e timeout; zero invii o AI' },
   { name: 'mailboxui', file: 'tests/mailbox/ui.mjs', what: 'posta dalla Home, lettore mobile, fonti esplicite, sessioni e risposte concorrenti' },
   { name: 'mailboximport', file: 'tests/mailbox/import.mjs', what: 'email scelta → conversazione esistente: fonte riletta, identità, commit atomico, retry e nessun turno automatico' },
+  { name: 'mailboxadmission', file: 'tests/mailbox/admission.mjs', what: 'nuova richiesta email confermata: fonte e conversazione atomiche, identità, retry e seguito senza lead o invii' },
+  { name: 'mailboxjourney', file: 'tests/mailbox/journey.mjs', what: 'browser e handler reali: email → ammissione → Inbox → seguito persistente, mobile/desktop e ack perso' },
   { name: 'aibudgetui', file: 'tests/ai/budget-ui.mjs', what: 'costi reali e limite esplicito, errori e sessioni a 390/1280 senza chiamate AI' },
   { name: 'aibudget', file: 'tests/ai/budget.mjs', what: 'prenotazione preventiva budget cloud, concorrenza, costi ignoti e ruoli; mutazioni' },
   { name: 'maintenanceactions', file: 'tests/portal-workspace/maintenance-actions.mjs', what: 'azioni manutenzione reali, errori, ruoli e cambio sessione' },

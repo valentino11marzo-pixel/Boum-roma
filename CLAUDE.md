@@ -2558,6 +2558,14 @@ testo completo e identità; `_mail-import` conserva il commit atomico del cron.
 Il testo originale resta nella fonte; retry e import cron non duplicano il
 messaggio né avviano un turno automatico. Da Inbox resta «Prendi in carico».
 Prove `mailboximport`, `mailboxui`, `mailbox`, `mailsource`.
+**21/10 — nuova richiesta dall’email:** il lettore ammette un recapito confermato
+in una conversazione Email manuale, con fonte integrale e header nello stesso commit.
+Nessun lead, account, casa, invio o avvio della Segretaria implicito; il seguito usa «Prendi in carico».
+La scansione condivisa include fino a 2000 conversazioni; archivio incompleto/identità ambigua fermano il collegamento.
+Retry e due email simultanee usano lo stesso riferimento; un conflitto rilevato dopo il commit conserva la fonte e richiede verifica.
+L’apertura rilegge il server e conserva la conversazione fuori dalle ultime 200 anche dopo uno snapshot; sessioni obsolete scartate.
+Il dossier segnala recapiti condivisi con identificatori discordanti; il nuovo ingresso sospende la presa in carico se l’identità non è verificabile.
+Prove `mailboxadmission`, `mailboximport`, `mailboxui`, `inboxleadui`, `persona` e `inboxtakecharge`; dati sintetici, nessuna bonifica dello storico.
 **Rilascio 14/10:** `.vercelignore` esclude i Markdown dal sito: manuali, audit
 e note operative restano nel repository. Verificato il problema con HTTP 200
 sul vecchio `/CLAUDE.md`; nessun renderer/API legge questi file a runtime.
