@@ -95,6 +95,16 @@
     if (unique.length !== images.length || unique.some(url => !validImageUrl(url, key))) return null;
     return unique;
   }
+  // Foto già appartenenti allo stesso annuncio BOOM, anche da un'altra bozza.
+  // La verifica si ripete sul server: il browser non può autorizzare un riuso.
+  function reusableImages(record, sourceUrl, images, draftKey) {
+    const source = normalizeUrl(sourceUrl);
+    if (!source || record?.active !== true || normalizeUrl(record.sourceUrl)?.url !== source.url) return null;
+    if (!Array.isArray(images) || !images.length || images.length > 12 || new Set(images).size !== images.length) return null;
+    const archived = new Set((Array.isArray(record.images) ? record.images : []).filter(validPublicImageUrl));
+    if (!archived.size || images.some(url => !archived.has(url) && !validImageUrl(url, draftKey))) return null;
+    return images.slice();
+  }
   function cleanMap(input) {
     if (!input || typeof input !== 'object') return null;
     if (input.lat == null || input.lng == null || input.lat === '' || input.lng === '') return null;
@@ -156,7 +166,7 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

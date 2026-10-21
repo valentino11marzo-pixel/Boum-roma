@@ -19,7 +19,7 @@ function response() {
 }
 function request(method, body, token='admin') { return { method, body, headers:{ authorization:'Bearer '+token }, query:body }; }
 const docs = new Map();
-let remoteFetches = 0, writes = 0, remoteResult = 'blocked';
+let remoteFetches = 0, writes = 0, remoteResult = 'blocked', archiveUnavailable = false;
 const sourcePhoto='https://pwm.im-cdn.it/image/1823571757/m-c.jpg';
 const photoBytes=Buffer.from([0xff,0xd8,0xff,0xe0,0x00,0x10]);
 const originalFetch = globalThis.fetch;
@@ -39,6 +39,13 @@ globalThis.fetch = async (input, opts={}) => {
     ] });
   }
   if (u.hostname === 'firestore.googleapis.com') {
+    if(u.pathname.endsWith(':runQuery')) {
+      if(archiveUnavailable) return new Response('',{status:503});
+      const q=JSON.parse(opts.body).structuredQuery, filter=q.where.fieldFilter;
+      assert.equal(q.from[0].collectionId,'smartlinks');assert.equal(filter.field.fieldPath,'sourceUrl');
+      const matches=[...docs.entries()].filter(([path,doc])=>path.startsWith('smartlinks/') && doc.fields.sourceUrl?.stringValue===filter.value.stringValue);
+      return Response.json(matches.slice(0,q.limit).map(([,document])=>({document})));
+    }
     const path = u.pathname.split('/documents/')[1] || '';
     if (opts.method === 'POST') {
       writes++;
@@ -204,15 +211,48 @@ try {
   assert.equal(r.body.listing.map.label, 'Cipro');
   assert.equal(JSON.stringify(r.body).includes('immobiliare.it'), false);
   assert.deepEqual(RULES.publicRecord({ ...RULES.makeRecord(createBody, '2026-10-15T12:00:00Z'), images:[photo,'https://www.immobiliare.it/photo.jpg'] }).images, [photo]);
+
+  // Lo stesso link da un altro dispositivo riusa l'archivio, senza fonte o upload.
+  const originalDate='2026-10-17T12:00:00.000Z';
+  docs.get('smartlinks/'+id).fields.observedAt={stringValue:originalDate};
+  const remoteBefore=remoteFetches;
+  r=response();await extract(request('POST',{url:canonical.url+'?utm_source=mobile'}),r);
+  assert.equal(r.body.photoOrigin,'boom_archive');assert.equal(r.body.archive.id,id);
+  assert.equal(r.body.archive.observedAt,originalDate);assert.deepEqual(r.body.images,[photo]);
+  assert.equal(remoteFetches,remoteBefore,'An archived listing does not contact the protected source');
+  assert.equal(r.body.data.price,1200);assert.equal(r.body.data.note,undefined);assert.equal(r.body.createdBy,undefined);
+  const reuseKey='33333333-3333-4333-8333-333333333333';
+  const reuse={...createBody,idempotencyKey:reuseKey,archiveId:id};
+  const expectReuseRejected=async(body)=>{const out=response();await create(request('POST',body),out);assert.equal(out.code,400);};
+  await expectReuseRejected({...reuse,archiveId:'../../users/admin'});
+  await expectReuseRejected({...reuse,archiveId:'missing0000000000000'});
+  await expectReuseRejected({...reuse,sourceUrl:canonical.url.replace('123','999')});
+  await expectReuseRejected({...reuse,images:[photo.replace('22222222','99999999')]});
+  await expectReuseRejected({...reuse,images:[photo,photo]});
+  await expectReuseRejected({...reuse,images:[]});
+  r=response();await create(request('POST',reuse),r);assert.equal(r.code,201);
+  const reusedId=r.body.id;assert.notEqual(reusedId,id,'A new revision has a distinct idempotency key');
+  r=response();await create(request('POST',reuse),r);assert.equal(r.code,200);assert.equal(r.body.id,reusedId);
+  r=response();await read(request('GET',{id:reusedId}),r);
+  assert.deepEqual(r.body.listing.images,[photo]);assert.equal(r.body.listing.observedAt,originalDate,'Reusing photos must not certify fresh source data');
+  assert.equal(r.body.listing.reusedFrom,undefined);assert.equal(r.body.listing.sourceUrl,undefined);
+  docs.get('smartlinks/'+reusedId).fields.active={booleanValue:false};
+  archiveUnavailable=true;
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.data.price,1200,'A failed archive query still permits direct source reading');
+  assert.equal(r.body.photoOrigin,undefined);archiveUnavailable=false;
   r = response();
   await pois(request('GET',{ id }), r);
   assert.equal(r.code, 200);
   assert.equal(r.body.points.length, 2);
   assert.equal(r.body.points[0].category, 'metro');
   docs.get('smartlinks/' + id).fields.active = { booleanValue:false };
+  await expectReuseRejected({...reuse,idempotencyKey:'44444444-4444-4444-8444-444444444444'});
   r = response();
   await read(request('GET',{ id }), r);
   assert.equal(r.code, 404);
+  r=response();await extract(request('POST',{url:canonical.url}),r);
+  assert.equal(r.body.photoOrigin,undefined,'Inactive cards cannot feed the archive');
 
   const page = readFileSync(new URL('../../smartlink.html', import.meta.url), 'utf8');
   assert.match(page, /map-section/);
