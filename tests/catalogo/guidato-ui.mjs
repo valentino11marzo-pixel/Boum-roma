@@ -6,7 +6,7 @@ import {loadChromium,launchOptions} from '../_browser.mjs';
 const read=p=>readFileSync(new URL('../../'+p,import.meta.url),'utf8');
 const app=read('js/portal-app.js');
 const part=(a,b)=>app.slice(app.indexOf(a),app.indexOf(b,app.indexOf(a)));
-const code=part('    function adminflatsPage()', '    function editListing(')+part('    function openModal(type, data)', '    // La search globale')+part('    function getModal(type, data)', '    function updateInvAmount(');
+const code=part('    function adminflatsPage()', '    function editListing(')+part('    function openModal(type, data)', '    // La search globale')+part('    function getModal(type, data)', '    function updateInvAmount(')+part('    function initRentWriteForm(', '    function rentWriteError(');
 const html=`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${['portal','portal-finish','portal-mobile','listing-guide'].map(x=>`<link rel="stylesheet" href="/css/${x}.css">`).join('')}</head><body><div id="app" class="app active"><div class="layout"><main id="main" class="main"></main></div></div><div id="modals"></div><p id="result" role="status"></p>
 ${['dispo-engine','listing-facts','smartlink-photo','listing-guide'].map(x=>`<script src="/js/${x}.js"></script>`).join('')}
 <script>

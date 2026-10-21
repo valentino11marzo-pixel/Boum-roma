@@ -226,8 +226,34 @@ function catalogDeleteRoute() {
 let catalogCovered=false;
 try {catalogCovered=catalogDeleteRoute();ok(catalogCovered,'scheda casa → delega → conferma → eliminazione conserva nome e ID con apici');}
 catch(error){ok(false,'eliminazione catalogo delegata: '+error.message);}
-ok(calls.length + Number(covered.has('delete')) + Number(catalogCovered) >= 13,
-  `la scansione VEDE i siti (${calls.length} inline + ${Number(covered.has('delete'))} delega immobile + ${Number(catalogCovered)} delega catalogo eseguite; minimo 13 invariato)`);
+// The payment's generic delete action was replaced by a protected edit form.
+// Exercise its actual submit attribute before counting that replacement.
+function paymentEditRoute(portalSource = app) {
+  const id = `rata'"&\\demo`, name = `Ca' d'Oro "finale" & <b>studio</b>`;
+  const payment = {id,contractId:'c1',month:'2026-10',dueDate:'2026-10-05',amount:950.5,status:'pending',type:'rent',notes:name};
+  const context=vm.createContext({window:{BOOM_RENT:require('../../js/rent-engine.js')},
+    S:{contracts:[{id:'c1',propertyId:'p1',tenantId:'t1',status:'active',rent:950.5}],properties:[{id:'p1',name}],users:[{id:'t1',name}]},payment});
+  vm.runInContext(['esc','rentActionArg','rentPaymentModal'].map(n=>named(portalSource,n)).join('\n'),context);
+  const html=vm.runInContext("rentPaymentModal('editPayment',payment)",context);
+  const notes=html.match(/<textarea[^>]*>([\s\S]*?)<\/textarea>/)?.[1];
+  assert(notes && !notes.includes('<'),'Payment notes remain text');
+  assert.equal(htmlDecode(notes),name);
+  const attr=html.match(/<form[^>]+onsubmit="([^"]*)"/)?.[1];
+  assert(attr,'The real form has a submit action');
+  const event={type:'submit'};let received;
+  new Function('event','updatePayment',htmlDecode(attr))(event,(...args)=>{received=args});
+  assert.deepEqual(received,[event,id],'Submit preserves the hostile payment ID');
+  return true;
+}
+let paymentCovered=false;
+try {paymentCovered=paymentEditRoute();ok(paymentCovered,'modifica rata → form → submit conserva note e ID con apici');}
+catch(error){ok(false,'submit modifica rata: '+error.message);}
+let paymentMutationCaught=false;
+const rawPaymentId=app.replace('updatePayment(event,${rentActionArg(pay.id)})', 'updatePayment(event,"${pay.id}")');
+if(paymentCovered && rawPaymentId!==app){try{paymentEditRoute(rawPaymentId)}catch{paymentMutationCaught=true}}
+ok(paymentMutationCaught,'mutazione: ID crudo nel submit della rata rompe la prova reale');
+ok(calls.length + Number(covered.has('delete')) + Number(catalogCovered) + Number(paymentCovered) >= 13,
+  `la scansione VEDE i siti (${calls.length} inline + ${Number(covered.has('delete'))} delega immobile + ${Number(catalogCovered)} delega catalogo + ${Number(paymentCovered)} submit rata eseguiti; minimo 13 invariato)`);
 let delegatedMutationCaught = false;
 const unescapedId = dossier.replace('data-id="${esc(id)}"', 'data-id="${id}"');
 if (covered.size === 8 && unescapedId !== dossier) {

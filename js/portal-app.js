@@ -11393,8 +11393,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const receipts = document.getElementById('rentUnlinkedReceipts');
         if (receipts) receipts.innerHTML = rentUnlinkedReceiptsHTML();
     }
-    async function reloadRentPayments() {
-        if (!isAdmin() || rentLoadState.status === 'loading') return;
+    async function reloadRentPayments(options) {
+        if (!isAdmin() || (rentLoadState.status === 'loading' && !options?.force)) return;
+        const revision=(rentLoadState.loadRevision||0)+1; rentLoadState.loadRevision=revision;
         const viewerId = auth.currentUser?.uid;
         rentLoadState.status = 'loading'; refreshPaymentsView();
         try {
@@ -11412,10 +11413,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
             let timeout;
             const [payments, properties, contracts, users] = await Promise.race([Promise.all(['payments','properties','contracts','users'].map(load)), new Promise((_,reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 30000); })]).finally(() => clearTimeout(timeout));
+            if (revision !== rentLoadState.loadRevision) return;
             if (auth.currentUser?.uid !== viewerId || !isAdmin()) { rentLoadState.status = 'initial'; return; }
             Object.assign(S, { payments, properties, contracts, users });
             rentLoadState.status = 'ready'; rentLoadState.checkedAt = new Date();
-        } catch (_) { rentLoadState.status = 'error'; }
+        } catch (_) { if (revision !== rentLoadState.loadRevision) return; rentLoadState.status = 'error'; }
         refreshPaymentsView();
     }
     function openRentReportReview(id) {
@@ -18074,6 +18076,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function openModal(type, data) {
         document.body.classList.add('modal-open'); // iOS: blocca lo scroll della pagina dietro
         document.getElementById('modals').innerHTML = getModal(type, data);
+        initRentWriteForm(type, data);
         if (type === 'addListing' && window.BOOM_LISTING_GUIDE) {
             const actor = auth.currentUser?.uid;
             window.BOOM_LISTING_GUIDE.mount(document.getElementById('mForm'), {
@@ -18099,7 +18102,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }, 10); 
     }
-    function closeModal() { if (document.getElementById('mForm')?._listingGuide?.busy()) return; document.getElementById('mForm')?._listingGuide?.dispose(); document.body.classList.remove('modal-open'); document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
+    function closeModal() { if (document.getElementById('mForm')?._rentWrite?.busy) return; if (document.getElementById('mForm')?._listingGuide?.busy()) return; document.getElementById('mForm')?._listingGuide?.dispose(); document.body.classList.remove('modal-open'); document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active')); setTimeout(() => { document.getElementById('modals').innerHTML = ''; selectedFile = null; listingImageUrl = ''; }, 200); }
 
     // La search globale su mobile: l'header-center è display:none ≤800px —
     // il bottone 🔍 la riapre come overlay sotto l'header (stessa input,
@@ -18218,15 +18221,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div><div id="eStudentiFields" style="display:${c.type === 'studenti' ? 'block' : 'none'}"><div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">🎓 Dati specifici contratto studenti (CAF Allegato C)</div><div class="form-group"><label class="form-label">Corso di studi *</label><input type="text" class="form-input" name="studenti_corsoStudi" value="${(c.studenti && c.studenti.corsoStudi) || c.courseName || ''}" placeholder="Es: Laurea Magistrale in International Management"></div><div class="form-row"><div class="form-group"><label class="form-label">Università *</label><input type="text" class="form-input" name="studenti_universita" value="${(c.studenti && c.studenti.universita) || c.universityName || ''}" placeholder="Es: LUISS Guido Carli"></div><div class="form-group"><label class="form-label">Indirizzo università *</label><input type="text" class="form-input" name="studenti_universitaIndirizzo" value="${(c.studenti && c.studenti.universitaIndirizzo) || ''}" placeholder="Es: Viale Romania 32, Roma"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo iscrizione</label><select class="form-select" name="studenti_tipoIscrizione">${['','Laurea Triennale','Laurea Magistrale','Master','Dottorato','Erasmus','Altro'].map(t => `<option value="${t}" ${((c.studenti && c.studenti.tipoIscrizione) || '') === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Anno accademico</label><input type="text" class="form-input" name="studenti_annoAccademico" value="${(c.studenti && c.studenti.annoAccademico) || ''}" placeholder="Es: 2025/2026"></div></div></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo contratto <span style="font-size:10px;color:var(--text-muted)">(decide il MODELLO del PDF)</span></label><select class="form-select" name="type" onchange="const b=document.getElementById('eStudentiFields');if(b)b.style.display=this.value==='studenti'?'block':'none'"><option value="transitorio" ${c.type !== 'studenti' ? 'selected' : ''}>Transitorio — Allegato B</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti universitari — Allegato C</option><option value="3+2" ${c.type === '3+2' ? 'selected' : ''}>3+2 canone concordato — Allegato A</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
-        if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">🔄 Rinnova</button></div></div></div>`; }
+        if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" min="0.01" step="0.01" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" step="0.01" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">🔄 Rinnova</button></div></div></div>`; }
 
         if (type === 'terminateContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">⛔ Termina Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--red-light);padding:16px;border-radius:8px;margin-bottom:16px;border:1px solid var(--red)"><div style="font-weight:600;color:var(--red);margin-bottom:8px">⚠️ Attenzione</div><div style="font-size:13px">Stai per terminare anticipatamente il contratto per <strong>${p?.name}</strong> con <strong>${t?.name}</strong>.</div></div><form id="mForm" onsubmit="terminateContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Data Termine Effettivo *</label><input type="date" class="form-input" name="terminationDate" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label class="form-label">Motivo Termine</label><select class="form-select" name="terminationReason"><option value="mutual">Accordo reciproco</option><option value="tenant_request">Richiesta inquilino</option><option value="landlord_request">Richiesta proprietario</option><option value="breach">Violazione contrattuale</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="terminationNotes" rows="2" placeholder="Dettagli sulla chiusura..."></textarea></div><div class="form-row"><div class="form-group"><label class="form-label">Deposito Restituito €</label><input type="number" class="form-input" name="depositReturned" value="${c.deposit || 0}"></div><div class="form-group"><label class="form-label">Trattenute €</label><input type="number" class="form-input" name="depositWithheld" value="0"></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn btn-danger" onclick="document.getElementById('mForm').requestSubmit()">⛔ Termina</button></div></div></div>`; }
 
-        if (type === 'addPayment') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">💳 Registra Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="savePayment(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required onchange="fillPayAmount(this)"><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${new Date().toISOString().slice(0, 7)}"></div><div class="form-group"><label class="form-label">Importo € *</label><input type="number" class="form-input" name="amount" id="pAmount" required></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${new Date(new Date().getFullYear(), new Date().getMonth() + 1, 5).toISOString().split('T')[0]}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending">In Attesa</option><option value="paid">Pagato</option></select></div></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Registra</button></div></div></div>`; }
+        if (type === 'addPayment') return rentPaymentModal(type, data);
 
-        if (type === 'editPayment') { const pay = data; if (!pay) return ''; const contracts = S.contracts; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updatePayment(event,'${pay.id}')"><div class="form-group"><label class="form-label">Contratto</label><select class="form-select" name="contractId">${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); return `<option value="${c.id}" ${pay.contractId === c.id ? 'selected' : ''}>${p?.name}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Mese</label><input type="month" class="form-input" name="month" value="${pay.month || ''}"></div><div class="form-group"><label class="form-label">Importo €</label><input type="number" class="form-input" name="amount" value="${pay.amount || ''}"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Scadenza</label><input type="date" class="form-input" name="dueDate" value="${pay.dueDate || ''}"></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="pending" ${pay.status === 'pending' ? 'selected' : ''}>In Attesa</option><option value="paid" ${pay.status === 'paid' ? 'selected' : ''}>Pagato</option></select></div></div><div class="form-group"><label class="form-label">Data Pagamento</label><input type="date" class="form-input" name="paidDate" value="${pay.paidDate ? pay.paidDate.split('T')[0] : ''}"></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${pay.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-danger btn-sm" onclick="confirmDelete('payment','${pay.id}','Pagamento ${jsq(pay.month)}')">🗑</button><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editPayment') return rentPaymentModal(type, data);
 
-        if (type === 'bulkPayments') { const contracts = S.contracts.filter(c => c.status === 'active'); return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Genera Pagamenti Multipli</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="generateBulkPayments(event)"><div class="form-group"><label class="form-label">Contratto *</label><select class="form-select" name="contractId" required><option value="">Seleziona...</option>${contracts.map(c => { const p = S.properties.find(x => x.id === c.propertyId); const t = S.users.find(x => x.id === c.tenantId); return `<option value="${c.id}" data-rent="${c.rent}">${p?.name} - ${t?.name} €${c.rent}</option>`; }).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Da Mese *</label><input type="month" class="form-input" name="startMonth" value="${new Date().toISOString().slice(0, 7)}" required></div><div class="form-group"><label class="form-label">Numero Mesi *</label><select class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi (1 anno)</option><option value="24">24 mesi (2 anni)</option></select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Giorno Scadenza</label><input type="number" class="form-input" name="dueDay" value="5" min="1" max="28"></div><div class="form-group"><label class="form-label">Importo € (vuoto = da contratto)</label><input type="number" class="form-input" name="amount" placeholder="Auto"></div></div></form><div style="background:var(--surface);padding:12px;border-radius:8px;margin-top:16px;font-size:12px;color:var(--text-muted)">💡 Verranno generati pagamenti mensili con stato "In Attesa". I mesi già esistenti verranno saltati.</div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">📅 Genera</button></div></div></div>`; }
+        if (type === 'bulkPayments') return rentPaymentModal(type, data);
 
         if (type === 'addMaintenance') return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔧 Nuova Manutenzione</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="saveMaintenance(event)"><div class="form-group"><label class="form-label">Titolo *</label><input type="text" class="form-input" name="title" required></div><div class="form-group"><label class="form-label">Immobile *</label><select class="form-select" name="propertyId" required><option value="">Seleziona...</option>${S.properties.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}</select></div><div class="form-row"><div class="form-group"><label class="form-label">Categoria</label><select class="form-select" name="category"><option value="plumbing">Idraulica</option><option value="electrical">Elettricità</option><option value="heating">Riscaldamento</option><option value="other">Altro</option></select></div><div class="form-group"><label class="form-label">Priorità</label><select class="form-select" name="priority"><option value="low">Bassa</option><option value="medium" selected>Media</option><option value="high">Alta</option><option value="urgent">Urgente</option></select></div></div><div class="form-group"><label class="form-label">Descrizione</label><textarea class="form-textarea" name="description"></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Invia</button></div></div></div>`;
 
@@ -19160,25 +19163,96 @@ ${esc(data.description || '')}</textarea></div>
         }
     }
 
+    // Canoni: il form conserva intento e versione fino alla conferma del server.
+    function initRentWriteForm(type, data) {
+        const form = document.getElementById('mForm');
+        if (!form || !['addPayment','editPayment','bulkPayments','renewContract'].includes(type)) return;
+        form._rentWrite = { actor:auth.currentUser?.uid, busy:false,
+            expected:type==='editPayment' ? window.BOOM_RENT.paymentSnapshot(data) : type==='renewContract' ? window.BOOM_RENT.contractSnapshot(data) : undefined };
+    }
+    function rentWriteError(form, code) {
+        const messages = {
+            state_changed:'I dati sono cambiati. Riapri la scheda aggiornata prima di salvare.',
+            payment_locked:'Questa rata ha un movimento collegato o copre più mesi. Verifica il dettaglio prima di modificarla.',
+            invalid_installment:'Controlla importo, mese e scadenza. Usa al massimo due decimali.',
+            installment_exists:'Esiste già una rata per questo contratto e periodo. Aprila per verificarla.',
+            contract_links_missing:'Il contratto non è collegato a un inquilino e un immobile disponibili. Completa i collegamenti.',
+            contract_rent_conflict:'Il canone del contratto contiene importi discordanti o incompleti. Verificalo prima di generare le rate.',
+            contract_inactive:'Per creare rate scegli un contratto attivo.',
+            renewal_requires_new_version:'Il contratto ha firme, mandati o rate già registrate. Occorre una nuova versione per conservare lo storico.',
+            invalid_renewal:'Controlla il nuovo canone e una scadenza successiva a quella attuale.',
+            request_changed:'Questa richiesta è già stata usata con altri dati. Riapri la scheda aggiornata.',
+            session_changed:'La sessione è cambiata. Riapri la scheda prima di salvare.',
+            save_unavailable:'Salvataggio non confermato. I dati restano qui: riprova con gli stessi valori.',
+            schedule_review_required:'Lo storico richiede una verifica prima di generare nuove rate.'
+        };
+        const message=messages[code] || 'Salvataggio non confermato. Controlla la connessione e riprova.';
+        let node=form.querySelector('[data-rent-error]');
+        if (!node) { node=document.createElement('p'); node.setAttribute('data-rent-error',''); node.setAttribute('role','alert'); form.appendChild(node); }
+        node.textContent=message; node.style.color='var(--red)';
+        node.scrollIntoView?.({block:'nearest',behavior:'smooth'});
+    }
+    async function submitRentMutation(form, payload) {
+        const state=form._rentWrite;
+        const active=()=>!!state && auth.currentUser?.uid===state.actor && isAdmin() && document.getElementById('mForm')===form;
+        if (!active()) { rentWriteError(form,'session_changed'); return; }
+        if (state.busy) return;
+        const serialized=JSON.stringify(payload);
+        // Una risposta persa si recupera ripetendo lo stesso intento, senza duplicare.
+        if (state.serialized!==serialized) {
+            if (state.uncertain) { rentWriteError(form,'save_unavailable'); return; }
+            state.serialized=serialized; state.requestKey=crypto.randomUUID();
+        }
+        state.busy=true;
+        const controls=Array.from(form.closest('.modal').querySelectorAll('button,input,select,textarea'));
+        const disabled=controls.map(x=>x.disabled);
+        controls.forEach(x=>x.disabled=true); form.setAttribute('aria-busy','true');
+        const error=form.querySelector('[data-rent-error]');if(error)error.textContent='Salvataggio in corso…';
+        let timer,expired=false;
+        try {
+            const result=await Promise.race([
+                (async()=>{
+                    const token=await auth.currentUser.getIdToken();
+                    if (!active() || expired) throw new Error('session_changed');
+                    const r=await fetch('/api/payments/admin',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({...payload,requestKey:state.requestKey})});
+                    return {status:r.status,body:await r.json()};
+                })(),
+                new Promise((_,reject)=>{timer=setTimeout(()=>{expired=true;reject(new Error('timeout'));},20000);})
+            ]);
+            if (!active()) return;
+            if (!result.body.ok) {
+                state.uncertain=result.status>=500;
+                rentWriteError(form,result.body.error);return;
+            }
+            state.uncertain=false; state.saved=true;
+            return result.body;
+        } catch (_) { state.uncertain=true; if(active())rentWriteError(form,'save_unavailable'); }
+        finally { clearTimeout(timer);state.busy=false;controls.forEach((x,i)=>x.disabled=disabled[i]);form.removeAttribute('aria-busy'); }
+    }
+    async function finishRentMutation(form, result, message) {
+        if (!result || auth.currentUser?.uid!==form._rentWrite.actor || document.getElementById('mForm')!==form) return;
+        closeModal();
+        toast('success',message);
+        await reloadRentPayments({force:true});
+        if (auth.currentUser?.uid===form._rentWrite.actor && S.page==='contracts' && rentLoadState.status==='ready') renderPage();
+        if (auth.currentUser?.uid===form._rentWrite.actor && rentLoadState.status==='error') toast('warning','Salvato sul server','Elenco non aggiornato: premi Aggiorna per rileggere i dati.');
+    }
+    function rentPaymentModal(type, payment) {
+        const edit=type==='editPayment',bulk=type==='bulkPayments',pay=payment||{};
+        if(edit && !window.BOOM_RENT.editablePayment(pay))return `<div class="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="rentFormTitle"><div class="modal-header"><h3 id="rentFormTitle">Rata protetta</h3><button class="modal-close" aria-label="Chiudi" onclick="closeModal()">×</button></div><div class="modal-body"><p>Questa rata ha un movimento collegato, uno stato da verificare o copre più mesi. Il suo storico va conservato.</p><p>Consulta il dettaglio della rata per verificare incasso, segnalazione e ricevuta.</p></div><div class="modal-footer"><button class="btn" onclick="closeModal()">Torna al dettaglio</button></div></div></div>`;
+        const today=window.BOOM_RENT.civilDay(new Date()).slice(0,7);
+        const contracts=S.contracts.filter(c=>edit || c.status==='active');
+        const options=contracts.map(c=>{const p=S.properties.find(x=>x.id===c.propertyId),t=S.users.find(x=>x.id===c.tenantId);return `<option value="${esc(c.id)}" data-rent="${esc(c.rent)}" ${pay.contractId===c.id?'selected':''}>${esc(p?.name||'Immobile da collegare')} · ${esc(t?.name||'Inquilino da collegare')}</option>`;}).join('');
+        const title=bulk?'Genera rate mensili':edit?'Modifica rata':'Nuova rata';
+        const action=bulk?'generateBulkPayments(event)':edit?`updatePayment(event,${rentActionArg(pay.id)})`:'savePayment(event)';
+        return `<div class="modal-overlay"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="rentFormTitle"><div class="modal-header"><h3 class="modal-title" id="rentFormTitle">${title}</h3><button class="modal-close" aria-label="Chiudi" onclick="closeModal()">×</button></div><div class="modal-body"><p style="color:var(--text-secondary)">${bulk?'I periodi già presenti vengono conservati. Puoi riprovare senza creare duplicati.':'Importo e scadenza saranno verificati prima del salvataggio.'}</p><form id="mForm" onsubmit="${action}"><div class="form-group"><label class="form-label" for="rentContract">Contratto</label><select id="rentContract" class="form-select" name="contractId" required ${!edit&&!bulk?'onchange="fillPayAmount(this)"':''}><option value="">Seleziona un contratto</option>${options}</select></div><div class="form-row"><div class="form-group"><label class="form-label" for="rentMonth">${bulk?'Dal mese':'Mese della rata'}</label><input id="rentMonth" type="month" class="form-input" name="${bulk?'startMonth':'month'}" required value="${esc(pay.month||today)}"></div><div class="form-group"><label class="form-label" for="pAmount">${bulk?'Importo € · vuoto = canone del contratto':'Importo €'}</label><input id="pAmount" type="number" inputmode="decimal" class="form-input" name="amount" min="0.01" max="1000000" step="0.01" ${bulk?'':'required'} value="${esc(pay.amount??'')}" placeholder="${bulk?'Dal contratto':'0,00'}"></div></div>${bulk?`<div class="form-row"><div class="form-group"><label class="form-label" for="rentCount">Numero di mesi</label><select id="rentCount" class="form-select" name="numMonths"><option value="3">3 mesi</option><option value="6">6 mesi</option><option value="12" selected>12 mesi</option><option value="24">24 mesi</option></select></div><div class="form-group"><label class="form-label" for="rentDay">Giorno di scadenza</label><input id="rentDay" class="form-input" type="number" name="dueDay" min="1" max="31" value="5" required><small>Nei mesi più corti si usa l’ultimo giorno.</small></div></div>`:`<div class="form-group"><label class="form-label" for="rentDue">Scadenza</label><input id="rentDue" type="date" class="form-input" name="dueDate" value="${esc(pay.dueDate||today+'-05')}" required></div><input type="hidden" name="status" value="${esc(edit?pay.status:'pending')}"><div class="form-group"><label class="form-label" for="rentNotes">Note</label><textarea id="rentNotes" class="form-textarea" name="notes" rows="2" maxlength="2000">${esc(pay.notes||'')}</textarea></div>`}<p style="font-size:13px;color:var(--text-secondary)">L’incasso si conferma dal dettaglio, dopo aver verificato il pagamento.</p><p data-rent-error role="alert" aria-live="polite"></p></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">${bulk?'Genera rate':edit?'Salva modifiche':'Crea rata'}</button></div></div></div>`;
+    }
+
     async function savePayment(e) {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        try {
-            // tenantId/propertyId dal contratto: senza, la rata NON è leggibile
-            // dall'inquilino né dal proprietario (firestore.rules) e non compare
-            // mai in /casa — soldi dovuti, invisibili a chi paga (audit P0.6).
-            const _c = (S.contracts || []).find(x => x.id === data.contractId);
-            var docRef = await db.collection('payments').add({
-                contractId: data.contractId,
-                tenantId: _c?.tenantId || null, propertyId: _c?.propertyId || null,
-                month: data.month || '', amount: parseInt(data.amount) || 0,
-                dueDate: data.dueDate || null, status: data.status || 'pending',
-                paidDate: data.status === 'paid' ? new Date().toISOString() : null,
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            logActivity('payment_created', 'payment', { id: docRef.id, amount: parseInt(data.amount) || 0, status: data.status || 'pending', contractId: data.contractId });
-            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento registrato!');
-        } catch (err) { toast('error', 'Errore', err.message); }
+        const form=e.target,data=Object.fromEntries(new FormData(form));
+        const result=await submitRentMutation(form,{op:'create',contractId:data.contractId,data});
+        await finishRentMutation(form,result,'Rata salvata sul server');
     }
 
     async function markPaymentPaid(id) {
@@ -19496,13 +19570,13 @@ ${esc(data.description || '')}</textarea></div>
 
         let newRent = contract.rent;
         if (data.newRent) {
-            newRent = parseInt(data.newRent);
+            newRent = window.BOOM_RENT.inputMoney(data.newRent);
         } else if (data.adjustment) {
-            newRent = Math.round(contract.rent * (1 + parseFloat(data.adjustment) / 100));
+            newRent = Math.round(contract.rent * 100 * (1 + parseFloat(data.adjustment) / 100)) / 100;
         }
 
-        const _signed = contract.tenantSignature || contract.landlordSignature
-            || contract.signatureStatus === 'partial' || contract.signatureStatus === 'complete';
+        if (window.BOOM_RENT.inputMoney(newRent)==null) return rentWriteError(e.target,'invalid_renewal');
+        const _signed = window.BOOM_RENT.contractSigned(contract);
         try {
             if (_signed) {
                 // IL RINNOVO DI UN CONTRATTO FIRMATO È UN NUOVO CONTRATTO.
@@ -19575,20 +19649,9 @@ ${esc(data.description || '')}</textarea></div>
                 closeModal(); await refresh();
                 toast('success', '🔄 Rinnovo = NUOVO contratto', 'Firme azzerate — manda l\'invito Magic Sign dal contratto nuovo');
             } else {
-                await db.collection('contracts').doc(id).update({
-                    endDate: data.newEndDate,
-                    rent: newRent,
-                    renewalHistory: firebase.firestore.FieldValue.arrayUnion({
-                        date: new Date().toISOString(),
-                        previousEnd: contract.endDate,
-                        newEnd: data.newEndDate,
-                        previousRent: contract.rent,
-                        newRent: newRent,
-                        notes: data.renewalNotes || ''
-                    }),
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                closeModal(); await refresh(); toast('success', 'Contratto rinnovato!', `Nuova scadenza: ${fmtDate(data.newEndDate)}`);
+                const form=e.target;
+                const result=await submitRentMutation(form,{op:'renew_draft',contractId:id,data:{...data,newRent},expected:form._rentWrite?.expected});
+                await finishRentMutation(form,result,'Canone e durata aggiornati sul server');
             }
         } catch (err) { toast('error', 'Errore', err.message); }
     }
@@ -19612,71 +19675,16 @@ ${esc(data.description || '')}</textarea></div>
 
     async function updatePayment(e, id) {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        try {
-            await db.collection('payments').doc(id).update({
-                contractId: data.contractId,
-                month: data.month || '',
-                amount: parseInt(data.amount) || 0,
-                dueDate: data.dueDate || null,
-                status: data.status,
-                paidDate: data.status === 'paid' && data.paidDate ? data.paidDate : (data.status === 'paid' ? new Date().toISOString() : null),
-                notes: data.notes || '',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            logActivity('payment_updated', 'payment', { id: id, amount: parseInt(data.amount) || 0, status: data.status, contractId: data.contractId });
-            await refreshOnly('payments'); closeModal(); toast('success', 'Pagamento aggiornato!');
-        } catch (err) { toast('error', 'Errore', err.message); }
+        const form=e.target,data=Object.fromEntries(new FormData(form));
+        const result=await submitRentMutation(form,{op:'update',contractId:data.contractId,paymentId:id,data,expected:form._rentWrite?.expected});
+        await finishRentMutation(form,result,'Rata aggiornata sul server');
     }
 
     async function generateBulkPayments(e) {
         e.preventDefault();
-        const data = Object.fromEntries(new FormData(e.target));
-        const contract = S.contracts.find(c => c.id === data.contractId);
-        if (!contract) return toast('error', 'Contratto non trovato');
-        
-        const amount = data.amount ? parseInt(data.amount) : contract.rent;
-        const dueDay = parseInt(data.dueDay) || 5;
-        const numMonths = parseInt(data.numMonths) || 12;
-        const startMonth = new Date(data.startMonth + '-01');
-        
-        const existingMonths = S.payments
-            .filter(p => p.contractId === data.contractId)
-            .map(p => p.month);
-        
-        let created = 0, skipped = 0;
-        // tenantId/propertyId dal contratto: altrimenti le rate generate in blocco
-        // sono invisibili all'inquilino in /casa (firestore.rules — audit P0.6).
-        const _bc = (S.contracts || []).find(x => x.id === data.contractId);
-
-        try {
-            for (let i = 0; i < numMonths; i++) {
-                const payMonth = new Date(startMonth);
-                payMonth.setMonth(payMonth.getMonth() + i);
-                const monthStr = payMonth.toISOString().slice(0, 7);
-                
-                if (existingMonths.includes(monthStr)) {
-                    skipped++;
-                    continue;
-                }
-                
-                const dueDate = new Date(payMonth.getFullYear(), payMonth.getMonth(), dueDay);
-                
-                await db.collection('payments').add({
-                    contractId: data.contractId,
-                    tenantId: _bc?.tenantId || null, propertyId: _bc?.propertyId || null,
-                    month: monthStr,
-                    amount: amount,
-                    dueDate: dueDate.toISOString().split('T')[0],
-                    status: 'pending',
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
-                created++;
-            }
-            
-            closeModal(); await refresh();
-            toast('success', `${created} pagamenti creati!`, skipped > 0 ? `${skipped} già esistenti saltati` : '');
-        } catch (err) { toast('error', 'Errore', err.message); }
+        const form=e.target,data=Object.fromEntries(new FormData(form));
+        const result=await submitRentMutation(form,{op:'bulk',contractId:data.contractId,data});
+        await finishRentMutation(form,result,result?`${result.created} rate create · ${result.skipped} ${result.skipped===1?'periodo già presente':'periodi già presenti'}`: '');
     }
 
     async function updateMaintenance(e, id) {
