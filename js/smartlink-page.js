@@ -130,7 +130,7 @@
       results.hidden=!results.childElementCount;
       timer=setTimeout(async () => {
         try {
-          const url='https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&lat='+area.lat+'&lon='+area.lng+'&limit=5&lang=it&zoom=12';
+          const url='https://photon.komoot.io/api/?q='+encodeURIComponent(q)+'&lat='+area.lat+'&lon='+area.lng+'&limit=5&lang=default&zoom=12';
           const r=await fetch(url); const body=await r.json(); if (current!==seq) return;
           if (results.childElementCount) return;
           (body.features || []).forEach(f => {
