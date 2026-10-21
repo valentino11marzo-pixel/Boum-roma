@@ -45,7 +45,14 @@
     try {
       const value = String(raw || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
       const u = new URL(value);
-      if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash || !PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
+      if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash) return null;
+      // CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione.
+      if(sourceName==='Subito' && u.hostname==='images.sbito.it') {
+        if(!/^\/api\/v1\/sbt-ads-images-pro\/images\/[0-9a-f]{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u.pathname)) return null;
+        u.search='?rule=fullscreen-1x-auto';
+        return u.toString();
+      }
+      if(!PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
       if (!/\.(?:jpe?g|png|webp)(?:$|\?)/i.test(u.pathname + u.search)) return null;
       if (/logo|avatar|icon|sprite|favicon|pixel|badge/i.test(u.pathname)) return null;
       return u.toString();

@@ -2,6 +2,7 @@
 import { requireRole } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
 import RULES from '../../js/smartlink-engine.js';
+import sharp from 'sharp';
 
 const LIMIT = 8_000_000;
 
@@ -9,6 +10,7 @@ export function imageType(bytes) {
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
   if (bytes.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) return 'image/png';
   if (bytes.subarray(0, 4).toString() === 'RIFF' && bytes.subarray(8, 12).toString() === 'WEBP') return 'image/webp';
+  if (bytes.subarray(4, 8).toString() === 'ftyp' && /^(?:avif|avis)$/.test(bytes.subarray(8, 12).toString())) return 'image/avif';
   return null;
 }
 
@@ -18,7 +20,7 @@ export async function fetchPhoto(url) {
     headers: { 'Accept':'image/avif,image/webp,image/png,image/jpeg,image/*;q=0.8' },
     signal: AbortSignal.timeout(12000),
   });
-  if (!r.ok || !/^image\/(?:jpeg|png|webp)$/i.test((r.headers.get('content-type') || '').split(';')[0])) return null;
+  if (!r.ok || !/^image\/(?:jpeg|png|webp|avif)$/i.test((r.headers.get('content-type') || '').split(';')[0])) return null;
   if (Number(r.headers.get('content-length')) > LIMIT) return null;
   const reader = r.body?.getReader();
   if (!reader) return null;
@@ -33,6 +35,16 @@ export async function fetchPhoto(url) {
   }
   const bytes = Buffer.concat(chunks);
   const type = imageType(bytes);
+  // I CDN possono restituire AVIF anche ignorando Accept: rendiamolo leggibile
+  // da tutti i browser prima dell'upload, con lo stesso limite di dimensioni.
+  if (type === 'image/avif') {
+    try {
+      const converted = await sharp(bytes, {limitInputPixels:40_000_000}).rotate()
+        .resize({width:2400,height:2400,fit:'inside',withoutEnlargement:true})
+        .webp({quality:88}).toBuffer();
+      return {bytes:converted,type:'image/webp'};
+    } catch { return null; }
+  }
   return type ? { bytes, type } : null;
 }
 

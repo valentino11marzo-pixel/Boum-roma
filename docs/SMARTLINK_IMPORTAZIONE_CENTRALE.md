@@ -10,6 +10,10 @@ L'importazione principale non chiama l'estensione. Tolta la guida ZIP/installazi
 
 Test: suite SmartLink, Actions e Crawl passate; 100 pagine/85 JS validi. Rimozione intenzionale del controllo stesso annuncio → test fallisce con pubblicazione 201 al posto di 400; controllo ripristinato e suite nuovamente verde. Rilascio e prova autenticata vanno registrati dopo l'esecuzione.
 
+Correzione aggiuntiva su annunci nuovi Subito: il template pubblico usa immagini senza estensione su `images.sbito.it` e può restituire AVIF anche quando Accept chiede WebP/JPG. Il vecchio lettore vedeva zero foto. Ora legge solo le figure della galleria, deduplica le varianti, prende prezzo e misure dai blocchi visibili e converte AVIF in WebP con Sharp già presente. Host e percorso specifici, limiti su byte/pixel, nessuno script della pagina eseguito. Test con HTML minimo rappresentativo, due foto, suggerimenti esclusi, campi mancanti, CDN estranei e AVIF reale/corrotto.
+
+Prova HTTP reale del 21/10 sul Mac locale: annuncio Subito `665150770` (Marconi), €700, 45 m², 2 locali, 1 foto scaricata e decodificata; annuncio `665034710` (Ostiense/Piramide), €1500, 55 m², 2 locali, 6 foto scaricate e decodificate. Il test locale non dimostra ancora l'accessibilità dall'IP Vercel né il percorso Portal → Storage → scheda pubblica. Foto originali non salvate nel repository.
+
 ## Rilascio graduale completato · 20 ottobre 2026, ore 23:03
 
 Su richiesta esplicita di Valentino di pubblicare senza attendere la prova interna Immobiliare, PR #300 unita a main: `47dfeea9f84a8d2c8f15e845fc5366a49b8e6d56`. L’albero Git è identico all’head testato `d52b5e4b` (CI completa verde, run `39491561285`). Produzione Vercel `dpl_HKKNowXi5tVdZynYdTuJbDKwKEEU`, progetto `valentino-boom/boum-roma`, READY, dominio `www.boomrome.com`, build 57 s. Nessun deploy manuale dal ramo.

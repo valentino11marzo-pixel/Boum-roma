@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import sharp from 'sharp';
 
 process.env.FIREBASE_API_KEY = 'test-key';
 process.env.FIREBASE_ADMIN_EMAIL = 'test@example.com';
@@ -8,6 +9,7 @@ const RULES = (await import('../../js/smartlink-engine.js')).default;
 const PHOTO = (await import('../../js/smartlink-photo.js')).default;
 const { toFsFields } = await import('../../api/homie/_lib.js');
 const { default: extract } = await import('../../api/smartlink/extract.js');
+const { parseSmartLinkPage } = await import('../../api/smartlink/_extract.js');
 const { default: importPhoto } = await import('../../api/smartlink/import-photo.js');
 const { default: create } = await import('../../api/smartlink/create.js');
 const { default: read } = await import('../../api/smartlink/read.js');
@@ -22,6 +24,21 @@ const docs = new Map();
 let remoteFetches = 0, writes = 0, remoteResult = 'blocked', archiveUnavailable = false;
 const sourcePhoto='https://pwm.im-cdn.it/image/1823571757/m-c.jpg';
 const photoBytes=Buffer.from([0xff,0xd8,0xff,0xe0,0x00,0x10]);
+const subitoUrl='https://www.subito.it/appartamenti/bilocale-test-roma-123456.htm';
+const subitoPhoto='https://images.sbito.it/api/v1/sbt-ads-images-pro/images/10/10dc7a49-9f52-4698-9c1a-47410fe96885';
+const subitoPhoto2=subitoPhoto.replace('10dc7a49','20dc7a49');
+const unrelatedPhoto=subitoPhoto.replace('10dc7a49','30dc7a49');
+// Struttura visibile del template pubblico Subito osservato il 21/10/2026.
+const subitoHtml=`<html><h1>Bilocale Test</h1>
+<p class="index-module_price__ArUqZ index-module_large__uFBUs">1.500 €</p>
+<section><h6>Dati principali</h6><div><p>55 mq</p><p>2 Locali</p></div></section>
+<figure class="index-module__gHgOiG__carousel-cell flickity-viewport"><picture>
+<source srcset="${subitoPhoto}?rule=gallery-desktop-1x-auto 1x, ${subitoPhoto}?rule=gallery-desktop-2x-auto 2x">
+<img src="${subitoPhoto}?rule=gallery-mobile-1x-auto"></picture></figure>
+<figure class="index-module__gHgOiG__carousel-cell"><img src="${subitoPhoto2}?rule=gallery-mobile-1x-auto"></figure>
+<aside><h3>Altri annunci</h3><img src="${unrelatedPhoto}?rule=gallery-mobile-1x-auto"><p>3 Locali · 150 mq</p></aside></html>`;
+const avifBytes=await sharp({create:{width:32,height:24,channels:3,background:'#fafafa'}}).avif().toBuffer();
+let subitoPhotoResult=avifBytes;
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, opts={}) => {
   const u = new URL(String(input));
@@ -59,7 +76,9 @@ globalThis.fetch = async (input, opts={}) => {
     return doc ? Response.json(doc) : Response.json({ error:'missing' }, { status:404 });
   }
   if (u.hostname === 'pwm.im-cdn.it') return new Response(photoBytes, { headers:{ 'content-type':'image/jpeg' } });
+  if (u.hostname === 'images.sbito.it') return new Response(subitoPhotoResult, {headers:{'content-type':'image/avif'}});
   remoteFetches++;
+  if (u.hostname === 'www.subito.it') return new Response(subitoHtml,{headers:{'content-type':'text/html'}});
   assert.equal(u.hostname, 'www.immobiliare.it');
   if (remoteResult === 'blocked') return new Response('', { status:403 });
   return new Response('<html><script type="application/ld+json">{"@type":"Apartment","name":"Bilocale Test","offers":{"price":"1200"},"floorSize":{"value":62},"numberOfRooms":2,"image":["'+sourcePhoto+'","https://evil.example/photo.jpg"]}</script></html>', { headers:{ 'content-type':'text/html' } });
@@ -94,6 +113,16 @@ try {
   assert.equal(RULES.photoUrl('https://127.0.0.1/photo.jpg','Immobiliare.it'),null);
   assert.equal(RULES.photoUrl('https://pwm.im-cdn.it.evil.test/photo.jpg','Immobiliare.it'),null);
   assert.deepEqual(RULES.photoCandidates('<img src="'+sourcePhoto+'"><img src="https://evil.example/photo.jpg">','Immobiliare.it'),[sourcePhoto]);
+  assert.equal(RULES.photoUrl(subitoPhoto+'?rule=gallery-mobile-1x-auto','Subito'),subitoPhoto+'?rule=fullscreen-1x-auto');
+  for(const url of [subitoPhoto.replace('images.sbito.it','images.sbito.it.evil.test'),subitoPhoto.replace('/images/10/','/avatars/10/'),subitoPhoto.replace('https://','https://user:pass@'),subitoPhoto+'#bad']) {
+    assert.equal(RULES.photoUrl(url,'Subito'),null);
+  }
+  assert.equal(RULES.photoUrl(subitoPhoto,'Immobiliare.it'),null);
+  const subitoParsed=parseSmartLinkPage(subitoHtml,subitoUrl);
+  assert.deepEqual(subitoParsed.data,{title:'Bilocale Test',price:1500,sqm:55,rooms:2});
+  assert.deepEqual(subitoParsed.images,[subitoPhoto,subitoPhoto2].map(url=>url+'?rule=fullscreen-1x-auto'),'Gallery variants deduplicate; recommendation photos excluded');
+  const noGallery=parseSmartLinkPage(subitoHtml.replace(/<figure\b[\s\S]*?<\/figure>/g,'').replace(/<section\b[\s\S]*?<\/section>/g,''),subitoUrl);
+  assert.deepEqual(noGallery.images,[]);assert.equal(noGallery.data.sqm,null);assert.equal(noGallery.data.rooms,null);
   assert.equal(EXT.canonical('https://www.immobiliare.it/annunci/124483437/?utm=x#foto20'),'https://www.immobiliare.it/annunci/124483437/');
   const oldDom=globalThis.document;
   globalThis.document={ images:[
@@ -148,6 +177,14 @@ try {
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' },'tenant'), r);
   assert.equal(r.code, 403);
   assert.equal(remoteFetches, 0);
+  r=response();await extract(request('POST',{url:subitoUrl}),r);
+  assert.equal(r.code,200);assert.equal(r.body.data.price,1500);assert.equal(r.body.images.length,2);
+  r=response();await importPhoto(request('POST',{sourceUrl:subitoUrl,imageUrl:subitoPhoto}),r);
+  assert.equal(r.code,200);assert.equal(r.headers['Content-Type'],'image/webp');
+  const converted=await sharp(r.binary).metadata();assert.equal(converted.width,32);assert.equal(converted.height,24);assert.equal(converted.format,'webp');
+  subitoPhotoResult=Buffer.from('not an image');
+  r=response();await importPhoto(request('POST',{sourceUrl:subitoUrl,imageUrl:subitoPhoto}),r);
+  assert.equal(r.code,422);subitoPhotoResult=avifBytes;
   r = response();
   await extract(request('POST',{ url:'https://www.immobiliare.it/annunci/123/' }), r);
   assert.equal(r.body.status, 'unavailable');
