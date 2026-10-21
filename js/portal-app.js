@@ -11393,8 +11393,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const receipts = document.getElementById('rentUnlinkedReceipts');
         if (receipts) receipts.innerHTML = rentUnlinkedReceiptsHTML();
     }
-    async function reloadRentPayments() {
-        if (!isAdmin() || rentLoadState.status === 'loading') return;
+    async function reloadRentPayments(options) {
+        if (!isAdmin() || (rentLoadState.status === 'loading' && !options?.force)) return;
+        const revision=(rentLoadState.loadRevision||0)+1; rentLoadState.loadRevision=revision;
         const viewerId = auth.currentUser?.uid;
         rentLoadState.status = 'loading'; refreshPaymentsView();
         try {
@@ -11412,10 +11413,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             };
             let timeout;
             const [payments, properties, contracts, users] = await Promise.race([Promise.all(['payments','properties','contracts','users'].map(load)), new Promise((_,reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 30000); })]).finally(() => clearTimeout(timeout));
+            if (revision !== rentLoadState.loadRevision) return;
             if (auth.currentUser?.uid !== viewerId || !isAdmin()) { rentLoadState.status = 'initial'; return; }
             Object.assign(S, { payments, properties, contracts, users });
             rentLoadState.status = 'ready'; rentLoadState.checkedAt = new Date();
-        } catch (_) { rentLoadState.status = 'error'; }
+        } catch (_) { if (revision !== rentLoadState.loadRevision) return; rentLoadState.status = 'error'; }
         refreshPaymentsView();
     }
     function openRentReportReview(id) {
@@ -19231,7 +19233,7 @@ ${esc(data.description || '')}</textarea></div>
         if (!result || auth.currentUser?.uid!==form._rentWrite.actor || document.getElementById('mForm')!==form) return;
         closeModal();
         toast('success',message);
-        await reloadRentPayments();
+        await reloadRentPayments({force:true});
         if (auth.currentUser?.uid===form._rentWrite.actor && S.page==='contracts' && rentLoadState.status==='ready') renderPage();
         if (auth.currentUser?.uid===form._rentWrite.actor && rentLoadState.status==='error') toast('warning','Salvato sul server','Elenco non aggiornato: premi Aggiorna per rileggere i dati.');
     }

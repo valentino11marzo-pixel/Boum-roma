@@ -306,7 +306,7 @@
   function editablePayment(p) {
     return !!p && ['due','overdue'].includes(paymentState(p)) &&
       isRentPayment(p) && (!p.coversTo || p.coversTo===p.month) &&
-      !p.paidDate && !p.bankTxId && !p.receiptUrl && !p.receiptDocumentId && !p.receiptInvoiceId &&
+      !p.paidDate && !p.bankTxId && !p.receiptUrl && !p.receiptDocId && !p.receiptDocumentId && !p.receiptInvoiceId &&
       !p.stripePaymentIntentId && !p.stripeSessionId && !p.checkoutSessionId && !p.paymentIntentId;
   }
   function contractSigned(c) {
