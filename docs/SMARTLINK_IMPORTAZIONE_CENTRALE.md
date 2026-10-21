@@ -1,6 +1,30 @@
 # SmartLink · lettore centrale BOOM
 
-## Stato del 20 ottobre 2026
+## Ripresa autonoma · 21 ottobre 2026
+
+Il collegamento SSH temporaneo del 20/10 non esiste più. La connessione non interattiva al Mac BOOM è stata rifiutata; l'agente SSH locale non ha chiavi. Non sono state cercate password, cambiate autorizzazioni o riaperte le prove DevTools. Il Portal in Chrome conserva invece una sessione admin utilizzabile per il collaudo.
+
+Nuovo percorso preparato: `/api/smartlink/extract` cerca prima in `smartlinks` le schede attive con lo stesso URL canonico. Restituisce soltanto foto Storage e dettagli essenziali, marcati come archivio e con data originale. Riordino/copertina e nuova pubblicazione riusano i file esistenti: nessun download dalla fonte o upload dal telefono. `create` rilegge il riferimento e verifica sorgente, stato attivo e appartenenza di ogni foto; la data non diventa artificiosamente quella di oggi. Nessuna collection, credenziale, libreria o API commerciale nuova.
+
+L'importazione principale non chiama l'estensione. Tolta la guida ZIP/installazione dal Portal; chi dispone già del collegamento trova solo un'alternativa esplicita. Una fonte nuova non leggibile e senza archivio resta non importabile. Questo miglioramento non dimostra il recupero universale o il funzionamento del lettore centrale, ancora spento. Lettura HTTP CasaFari del 21/10 non conclusa entro 15 secondi: non attribuire un CAPTCHA senza averlo osservato.
+
+Test: suite SmartLink, Actions e Crawl passate; 100 pagine/85 JS validi. Rimozione intenzionale del controllo stesso annuncio → test fallisce con pubblicazione 201 al posto di 400; controllo ripristinato e suite nuovamente verde. Rilascio e prova autenticata vanno registrati dopo l'esecuzione.
+
+Correzione aggiuntiva su annunci nuovi Subito: il template pubblico usa immagini senza estensione su `images.sbito.it` e può restituire AVIF anche quando Accept chiede WebP/JPG. Il vecchio lettore vedeva zero foto. Ora legge solo le figure della galleria, deduplica le varianti, prende prezzo e misure dai blocchi visibili e converte AVIF in WebP con Sharp già presente. Host e percorso specifici, limiti su byte/pixel, nessuno script della pagina eseguito. Test con HTML minimo rappresentativo, due foto, suggerimenti esclusi, campi mancanti, CDN estranei e AVIF reale/corrotto.
+
+Prova HTTP reale del 21/10 sul Mac locale: annuncio Subito `665150770` (Marconi), €700, 45 m², 2 locali, 1 foto scaricata e decodificata; annuncio `665034710` (Ostiense/Piramide), €1500, 55 m², 2 locali, 6 foto scaricate e decodificate. Il test locale non dimostra ancora l'accessibilità dall'IP Vercel né il percorso Portal → Storage → scheda pubblica. Foto originali non salvate nel repository.
+
+## Rilascio graduale completato · 20 ottobre 2026, ore 23:03
+
+Su richiesta esplicita di Valentino di pubblicare senza attendere la prova interna Immobiliare, PR #300 unita a main: `47dfeea9f84a8d2c8f15e845fc5366a49b8e6d56`. L’albero Git è identico all’head testato `d52b5e4b` (CI completa verde, run `39491561285`). Produzione Vercel `dpl_HKKNowXi5tVdZynYdTuJbDKwKEEU`, progetto `valentino-boom/boum-roma`, READY, dominio `www.boomrome.com`, build 57 s. Nessun deploy manuale dal ramo.
+
+`SMARTLINK_REMOTE_ENABLED` confermato assente in produzione; servizio Homie fermo. Sono live UI/mappa e percorso diretto precedente; la generazione centrale senza Chrome resta inattiva. Rules/Storage distribuite dal job `deploy-rules` del run `39497016074`; indice centrale ancora da distribuire prima dell’attivazione.
+
+Controlli sul dominio: nove asset confrontati byte per byte con la revisione di rilascio, tutti identici; API jobs/worker senza credenziali 401; sorgenti tools/docs 404. Scheda esistente `6DqPja5V0WC6iFrtO00o`: API 200, 12/12 WebP raggiungibili, nessun URL fonte né identità operatore. Browser senza login: galleria 1→2/12 corretta; mappa con 40 POI, filtro Trasporti con 7 risultati. Query errori runtime delle API SmartLink sul nuovo deploy: nessun record restituito nella finestra del rilascio. Non è un nuovo collaudo autenticato di importazione o dell’account assistente.
+
+Le note sotto registrano la diagnosi prima del rilascio e i prerequisiti della futura attivazione centrale.
+
+## Stato precedente al rilascio del 20 ottobre 2026
 
 Implementazione sul ramo `codex/smartlink-remoto-mappa`, PR #300. Il precedente adattatore API immobiliare è stato rimosso su richiesta di Valentino. Nessun abbonamento o credenziale di un fornitore immobiliare è necessario per questa implementazione.
 
@@ -12,7 +36,7 @@ Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-prati
 
 | Prova | Esito reale | Limite della prova |
 |---|---|---|
-| Homie → Immobiliare `124483437` | `needs_attention/source_blocked`, 0 foto, 4.138 ms | Resta il blocco principale al rilascio richiesto |
+| Homie → Immobiliare `124483437` | `needs_attention/source_blocked`, 0 foto, 4.138 ms | Resta da risolvere prima dell’attivazione centrale |
 | Homie → CasaFari via Piave, share `23310686611` | Dopo correzione: `ready`, 6 foto su 6, cinque campi valorizzati, 2.357 ms | Prova lettura; non dimostra ancora upload e pubblicazione dal Portal |
 | Scheda BOOM esistente `6DqPja5V0WC6iFrtO00o` | API 200, 12/12 foto scaricabili, WebP, nessuna fonte/identità operatore nel record pubblico | Conferma durata dell'archivio precedente, non nuova importazione |
 | Sessione operatore | Valentino autenticato admin: importazione nel Portal pubblico senza estensione fermata dal blocco della fonte, zero foto | Prova del percorso precedente; nuovo percorso centrale e account assistente ancora pendenti |
@@ -20,7 +44,7 @@ Ramo riallineato senza conflitti a `origin/main` `0da2bd42` (PR #301 email-prati
 
 Difetto CasaFari riprodotto sulla pagina reale: il parser escludeva il CDN originale Immobiliare e leggeva il prezzo come titolo. Ora usa h2/h1 del template, soltanto le immagini `Property photo`, apre la galleria e verifica il totale dichiarato. La prima correzione recuperava solo 5/6; la navigazione della galleria ha recuperato anche la sesta. Il controllo su foto mancanti è coperto da test di regressione.
 
-Il servizio persistente e il flag restano spenti. Nessun nuovo deploy di produzione: il criterio richiesto «live dopo test riusciti» non è ancora soddisfatto per Immobiliare diretto. La UI ora seleziona esplicitamente il percorso attivo: a flag spento conserva l'importazione precedente, a flag acceso usa la coda. Questo consente il rilascio graduale senza imporre un lettore disabilitato.
+Prima dell’autorizzazione finale al rilascio graduale, il blocco Immobiliare aveva fermato la pubblicazione. Il servizio persistente e il flag restano spenti anche dopo il rilascio della UI. La UI ora seleziona esplicitamente il percorso attivo: a flag spento conserva l'importazione precedente, a flag acceso usa la coda. Questo consente il rilascio graduale senza imporre un lettore disabilitato.
 
 ## Esperienza prevista
 
@@ -64,6 +88,8 @@ Per il controllo personale, con servizio e probe fermi:
 Apre la pagina nel profilo dedicato e la lascia al responsabile; termina quando la finestra viene chiusa. Non estrae dati, non risolve verifiche e non crea job. Modalità assistenza copiata sul Mac (hash e sintassi verificati), testata nel codice, non ancora eseguita.
 
 Diagnosi successiva al rifiuto segnalato da Valentino: i log confermano autenticazione riuscita e utente autorizzato al gruppo schermo. Il servizio rifiuta invece lettura/controllo grafico; non chiedere ancora la password come presunta soluzione. `profiles status -type enrollment`: MDM assente. Nessuna password, autorizzazione o protezione modificata. Passaggio richiesto: accesso grafico al Mac mini per verificare/riattivare Condivisione schermo, mantenendo l'accesso limitato all'utente esistente; poi nuovo collaudo. [Procedura Apple](https://support.apple.com/it-it/guide/mac-help/mh11848/mac/1000). [Limiti dell'attivazione da riga di comando](https://support.apple.com/en-bw/guide/remote-desktop/apd8b1c65bd/mac). Il listener attivo da solo non dimostra il permesso di acquisizione dello schermo.
+
+Prova alternativa richiesta via SSH: browser dedicato con porta 9441 solo loopback, inoltro SSH locale e scadenza di 30 minuti. L'utente ha aperto manualmente Chrome Inspect (pagina interna bloccata dalla policy dello strumento browser) e confermato la vista remota alle 22:32. Alle 22:37 il CAPTCHA ha richiesto la chiusura di DevTools: questa vista non permette di completare la verifica di Immobiliare. Nessun tentativo di nascondere DevTools o risolvere automaticamente il CAPTCHA. Browser di assistenza e inoltro chiusi; verifica finale: nessun listener 9441 sui due Mac, processo terminato correttamente. Questo metodo non è una soluzione all'importazione richiesta e non va presentato come collaudo riuscito. Non sono stati trovati AnyDesk, TeamViewer, RustDesk, Chrome Remote Desktop Host, Jump Desktop Connect o Splashtop Streamer nei percorsi standard controllati.
 
 ## Componenti e necessità
 

@@ -45,7 +45,14 @@
     try {
       const value = String(raw || '').replace(/\\u002f/gi, '/').replace(/\\\//g, '/').replace(/&amp;/gi, '&');
       const u = new URL(value);
-      if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash || !PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
+      if (u.protocol !== 'https:' || u.port || u.username || u.password || u.hash) return null;
+      // CDN delle fotografie Subito osservato nella galleria pubblica: URL senza estensione.
+      if(sourceName==='Subito' && u.hostname==='images.sbito.it') {
+        if(!/^\/api\/v1\/sbt-ads-images-pro\/images\/[0-9a-f]{2}\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(u.pathname)) return null;
+        u.search='?rule=fullscreen-1x-auto';
+        return u.toString();
+      }
+      if(!PHOTO_HOSTS[sourceName]?.test(u.hostname.toLowerCase())) return null;
       if (!/\.(?:jpe?g|png|webp)(?:$|\?)/i.test(u.pathname + u.search)) return null;
       if (/logo|avatar|icon|sprite|favicon|pixel|badge/i.test(u.pathname)) return null;
       return u.toString();
@@ -94,6 +101,16 @@
     const unique = [...new Set(images.map(String))];
     if (unique.length !== images.length || unique.some(url => !validImageUrl(url, key))) return null;
     return unique;
+  }
+  // Foto già appartenenti allo stesso annuncio BOOM, anche da un'altra bozza.
+  // La verifica si ripete sul server: il browser non può autorizzare un riuso.
+  function reusableImages(record, sourceUrl, images, draftKey) {
+    const source = normalizeUrl(sourceUrl);
+    if (!source || record?.active !== true || normalizeUrl(record.sourceUrl)?.url !== source.url) return null;
+    if (!Array.isArray(images) || !images.length || images.length > 12 || new Set(images).size !== images.length) return null;
+    const archived = new Set((Array.isArray(record.images) ? record.images : []).filter(validPublicImageUrl));
+    if (!archived.size || images.some(url => !archived.has(url) && !validImageUrl(url, draftKey))) return null;
+    return images.slice();
   }
   function cleanMap(input) {
     if (!input || typeof input !== 'object') return null;
@@ -156,7 +173,7 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

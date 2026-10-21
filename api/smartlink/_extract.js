@@ -33,20 +33,33 @@ async function getHtml(startUrl) {
   return null;
 }
 
+export function parseSmartLinkPage(html,url) {
+  const source=RULES.normalizeUrl(url);
+  if(!source) return null;
+  const p=parseListing(html,url);
+  const data={title:RULES.cleanText(p.title,130),price:RULES.positiveNumber(p.price,1000000),
+    sqm:RULES.positiveNumber(p.sqm,100000),rooms:RULES.positiveNumber(p.bedrooms,100)};
+  let images=RULES.photoCandidates(html,source.source,p.images);
+  if(source.source==='Subito') {
+    // Solo la galleria dell'annuncio, mai foto dei suggerimenti o del venditore.
+    const gallery=[...html.matchAll(/<figure\b[^>]*class=["'][^"']*carousel-cell[^"']*["'][^>]*>[\s\S]*?<\/figure>/gi)].map(m=>m[0]).join('');
+    images=RULES.photoCandidates(gallery,source.source);
+    const price=html.match(/<p\b[^>]*class=["'][^"']*index-module_price__[^"']*["'][^>]*>([\s\S]*?)<\/p>/i)?.[1]?.replace(/<[^>]*>/g,'').match(/([\d.,]+)\s*(?:€|&euro;)/)?.[1];
+    if(price) data.price=RULES.positiveNumber(price.replace(/\./g,'').replace(',','.'),1000000);
+    const features=html.match(/<section\b[^>]*>[\s\S]{0,400}?Dati principali[\s\S]*?<\/section>/i)?.[0]?.replace(/<[^>]*>/g,' ') || '';
+    data.sqm=RULES.positiveNumber(features.match(/(\d+)\s*m(?:q|²|2)/i)?.[1],100000);
+    data.rooms=RULES.positiveNumber(features.match(/(\d+)\s*Locali/i)?.[1],100);
+  }
+  return {data,images};
+}
+
 export async function extractListing(rawUrl) {
   const source = RULES.normalizeUrl(rawUrl);
   if (!source) return { ok: false, error: 'unsupported_listing_url' };
   try {
     const page = await getHtml(source.url);
     if (!page) return { ok: true, status: 'unavailable', source };
-    const p = parseListing(page.html, page.url);
-    const data = {
-      title: RULES.cleanText(p.title, 130),
-      price: RULES.positiveNumber(p.price, 1000000),
-      sqm: RULES.positiveNumber(p.sqm, 100000),
-      rooms: RULES.positiveNumber(p.bedrooms, 100),
-    };
-    const images = RULES.photoCandidates(page.html, source.source, p.images);
+    const {data,images}=parseSmartLinkPage(page.html,page.url);
     return { ok: true, status: Object.values(data).some(Boolean) || images.length ? 'partial' : 'unavailable', source, data, images };
   } catch {
     return { ok: true, status: 'unavailable', source };

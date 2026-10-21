@@ -11,7 +11,7 @@ class Element {
   addEventListener(){} setAttribute(){} removeAttribute(){} focus(){} remove(){this.isConnected=false;}
 }
 const nodes=new Map(),get=id=>{if(!nodes.has(id)) nodes.set(id,new Element());return nodes.get(id);};
-let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability;
+let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability,photoImports=0,directPayload;
 async function until(predicate) {for(let i=0;i<100&&!predicate();i++) await Promise.resolve();assert.ok(predicate(),'Expected request was not reached');}
 const source='https://www.immobiliare.it/annunci/124483437/';
 const key=crypto.randomUUID(),photo=n=>`https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/${encodeURIComponent('smartlinks/'+key+'/'+n+'1111111-1111-4111-8111-111111111111.webp')}?alt=media`;
@@ -25,8 +25,8 @@ const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare
       if(holdCapability) return new Promise(resolve=>{finishCapability=()=>resolve({ok:true,json:async()=>({ok:true,enabled})});});
       return {ok:true,json:async()=>({ok:true,enabled})};
     }
-    if(url==='/api/smartlink/extract') {directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});}
-    if(url==='/api/smartlink/import-photo') return {ok:true,blob:async()=>new Blob(['test'],{type:'image/webp'})};
+    if(url==='/api/smartlink/extract') {directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>directPayload || ({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});}
+    if(url==='/api/smartlink/import-photo') {photoImports++;return {ok:true,blob:async()=>new Blob(['test'],{type:'image/webp'})};}
     if(url==='/api/smartlink/create'){published=JSON.parse(opts.body);return {ok:true,json:async()=>({ok:true,url:'https://www.boomrome.com/smartlink?id=test'})};}
     if(opts.method==='POST'){submitted++;return new Promise(resolve=>{finishPost=()=>resolve({ok:true,json:async()=>({ok:true,job:{...ready,status:'queued'}})});});}
     return {ok:true,json:async()=>({ok:true,jobs:[],job:ready,online:true,enabled})};
@@ -63,7 +63,7 @@ assert.equal(submitted,1,'Flag off never queues a central job');
 assert.equal(get('sl_photo_preview').children.length,1);
 assert.equal(get('sl_title').value,'Casa diretta');
 assert.equal(get('sl_import').disabled,false);
-assert.equal(get('sl_connection').hidden,false);
+assert.equal(get('sl_connection').hidden,true,'No installation panel in the normal flow');
 // A late direct result and a late capability result cannot populate a changed URL.
 finishDirect=null;
 const staleDirect=context.smartLinkExtract();await until(()=>finishDirect);
@@ -78,5 +78,25 @@ assert.equal(directCount,2,'A stale capability response must not start extractio
 enabled=undefined;
 await context.smartLinkExtract();assert.equal(submitted,1);assert.equal(directCount,2,'Unknown mode must not guess a fallback');
 assert.equal(get('sl_import').disabled,false);
+context.smartLinkClose();
+// Archive: instant reuse, no upload from phone, truthful age and chosen ordering.
+vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+nodes.clear();enabled=false;get('sl_source').value=source;context.smartLinkSourceChanged();
+directPayload={ok:true,photoOrigin:'boom_archive',archive:{id:'Abcd1234Efgh5678ijkl',observedAt:'2026-10-17T12:00:00.000Z'},data:{title:'Casa archiviata'},images:[photo(1),photo(2)]};
+const importsBefore=photoImports;finishDirect=null;
+const archived=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await archived;
+assert.equal(photoImports,importsBefore,'Archived images are never fetched through the source-photo endpoint');
+assert.equal(get('sl_photo_preview').children.length,2);assert.match(get('sl_status').textContent,/17 ottobre 2026/);
+assert.match(get('sl_status').textContent,/fonte non è stata riletta/);
+context.smartLinkMovePhoto(1,0);published=null;await context.smartLinkCreate();
+assert.deepEqual(published.images,[photo(2),photo(1)]);assert.equal(published.archiveId,directPayload.archive.id);
+assert.notEqual(published.idempotencyKey,key,'Reusing images must not reuse the old publication idempotency key');
+get('sl_source').value=source.replace('124483437','777');context.smartLinkSourceChanged();
+directPayload={ok:true,status:'unavailable',images:[]};finishDirect=null;
+context.document.documentElement.dataset.boomSmartlinkExtension='1';
+context.window.addEventListener=()=>{throw new Error('Normal import must not invoke the browser extension');};
+const empty=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await empty;
+assert.equal(get('sl_photo_preview').children.length,0);assert.match(get('sl_status').textContent,/BOOM non ha foto archiviate/);
+assert.notEqual(get('sl_connection').open,true,'A source failure must not force an installation guide open');
 context.smartLinkClose();
 console.log('SmartLink Studio: gated rollout, direct/queued double submit, source races, resume, archived photo order and publication guard ✓');
