@@ -2093,6 +2093,43 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   pagante fallita → lead + avviso), `ui.mjs` 194 (H1 senza JS, bottone spento,
   Invio che non scrive nell'URL, WhatsApp col desk), `whatsapp` (marcatore →
   market, risposta del cliente di Madrid sul SUO lead), `owners` 137.
+- **LA REVISIONE DELL'AUDIT (21/10, sera)** — una verifica avversaria sul commit
+  dell'audit: 19 rilievi, 17 confermati e chiusi, 2 confutati (il «+» di Roma
+  e la card dei contratti di Madrid). La regola: ogni testo dice ciò che il
+  sistema fa, e nessun numero di un cliente prende il prefisso sbagliato.
+  1. **Il telefono**: `cityPhone` metteva il prefisso del desk su QUALSIASI
+     numero nazionale — un italiano che scrive «333 1234567» su /amsterdam
+     diventava +31…, il WhatsApp della card apriva un numero inesistente e la
+     sua risposta nasceva lead nuovo. Ora il prefisso si mette solo se il
+     numero ha il formato nazionale di quel paese (NL/FR 9 cifre dopo lo 0,
+     ES 9 cifre 6–9, DE solo con lo 0 iniziale); altrimenti `null` e torna la
+     regola italiana di Roma. Il «(0)» dopo il prefisso («+31 (0)6 …») cade.
+  2. **I testi legali**: Termini §12.4 e llms.txt dicevano che il lavoro parte
+     nei 14 giorni «solo con la spunta alla cassa», mentre la card PAGATO,
+     l'email e la risposta pronta invitano a chiederlo dopo per iscritto —
+     ora «con la spunta o poi per iscritto» (anche in /withdrawal). Il
+     bonifico è sparito dai desk (Termini §12.2, nota prezzi, FAQ, llms.txt):
+     nessuna strada manda a chi paga con bonifico il recesso e il modulo, e la
+     cassa è l'unica via pagata costruita. Privacy: l'assistente AI può
+     rispondere da solo sulle chat consegnate (prima «una persona rivede
+     tutto»), un pagamento lasciato a metà riceve UN messaggio, nessun cookie
+     pubblicitario, la cancellazione salvo ciò che la legge conserva; la FAQ
+     dei desk dice lo stesso.
+  3. **L'email del pagante**: `sendEmailJS` ha un tetto di 10 s (un invio
+     appeso teneva la funzione fino al kill dei 60 s, prima di registrare
+     l'esito), e il ramo «duplicate» di un retry Stripe avvisa l'operatore se
+     l'esito non risulta registrato dopo 90 s (avviso idempotente).
+  4. **La pagina**: il bottone della porta, servito spento, ora SEMBRA spento
+     finché lo script non lo apre, e se lo script non arriva una riga dà
+     WhatsApp ed email; `main` rispetta la safe-area in orizzontale; GA riceve
+     un hash del session id, mai l'id; via `availableLanguage` da
+     RealEstateAgent e Service (resta su contactPoint, sul Service va in un
+     ServiceChannel); `<lastmod>` di /terms e /privacy = la loro «Last
+     Updated» (il test lo pretende); bozze senza «24 hours» (il build lo
+     rifiuta su ogni desk) e Barcellona con la cauzione di Madrid.
+  Test: `run.mjs` 558, `ui.mjs` 198 (script del desk che non carica → riga
+  di ripiego; transaction_id opaco), `checkout.mjs` 65 (retry dopo un primo
+  giro morto → avviso; mutazioni prese).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
