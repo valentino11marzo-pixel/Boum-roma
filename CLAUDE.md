@@ -4567,6 +4567,12 @@ prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
 length-capped fields (no general proxying possible); model pinned to haiku,
 max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 ### Canoni per unità e ricavi BOOM — 17 settembre 2026
+**Salvataggi operatore, 21/10:** creazione, modifica e generazione multipla rate passano da `POST /api/payments/admin` (solo admin). Importi a centesimi e scadenze civili sono validati nel motore condiviso; contratto, inquilino e immobile vengono riletti dal server.
+Rata e audit sono atomici, con versione verificata e ricevuta dell’intento: doppio tap, retry dopo risposta persa e richieste concorrenti non creano due rate. Il lock `contracts.rentScheduleRevision` serializza queste operazioni; gli altri generatori storici non sono migrati.
+Il modulo mantiene la bozza su errore, blocca dati obsoleti e conferma solo il commit. Rate con incassi, segnalazioni, checkout, ricevute, più mesi o tipi diversi da canone restano protette; l’incasso conserva il proprio percorso esplicito.
+Il rinnovo in posto di una bozza senza firme, mandati o rate allinea `rent`, `canone` e `durata` nello stesso commit, conservando lo storico. Negli altri casi richiede una nuova versione; il percorso precedente dei rinnovi firmati resta distinto.
+Prove: `rentwrite` (handler vero, rete simulata), `rentwriteui` (controller vero), `rentwritemutations` (cinque difetti reintrodotti). `tests/rent-write/browser.mjs` serve il collaudo locale con soli dati sintetici. Nessuna migrazione di importi reali.
+
 **Chiusura P2 Claude, 18/09:** la revoca amministrativa di un bonifico segnalato richiede motivo (10–500 caratteri), ruolo admin e stato ancora revocabile. `payments/report` salva insieme revoca e audit immutabile in `activityLog`, con CAS e attore autenticato; nessun incasso registrato. Stati pagati/in corso/incerti e prove di regolamento bloccano la revoca.
 Il pagante vede «Ricevuta non ancora disponibile» se il bonifico riconciliato non ha un file. L'admin può archiviare una ricevuta da rata già pagata riletta dal server, senza richiamare `markPaymentPaid`, fatture o comunicazioni.
 `archivePaymentReceipt` riusa documenti esistenti o un ID deterministico; documento e collegamento rata sono atomici. Pagamento cambiato durante upload, ricevuta estranea/ambigua o commit fallito non producono un collegamento falso. Un upload fallito nella fase finale può lasciare un file non collegato, mai una ricevuta dichiarata disponibile.
