@@ -59,10 +59,15 @@ const fromFsV = (v) => {
   return null;
 };
 globalThis.__stripeCalls = [];
+let failClientMail = false;
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
-  if (url.includes('api.emailjs.com')) { emails.push(JSON.parse(opts.body).template_params); return new Response('OK', { status: 200 }); }
+  if (url.includes('api.emailjs.com')) {
+    const tp = JSON.parse(opts.body).template_params;
+    if (failClientMail && tp.to_email !== 'valentino@boom-rome.com') return new Response('quota', { status: 500 });
+    emails.push(tp); return new Response('OK', { status: 200 });
+  }
   if (url.includes('api.telegram.org')) return okJson({ ok: true });
   if (url.includes('firestore.googleapis.com')) {
     const p = url.split('/documents')[1] || '';
@@ -183,7 +188,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const admin = emails[e0], client = emails[e0 + 1];
   check(admin && admin.to_email === 'valentino@boom-rome.com' && /AMSTERDAM — FULL SEARCH — €500 paid/.test(admin.heading) && admin.r4_label === 'Desk' && /Amsterdam/.test(admin.r4_value) && admin.r3_value === '+31612345678',
     'the operator\'s email names the desk and the plan, and carries the phone', admin && admin.heading);
-  check(client && client.to_email === 'anna@example.com' && /Your Amsterdam — Full Search starts now/.test(client.heading) && client.portal_link === 'https://www.boomrome.com/amsterdam' && /Brief call|brief call/i.test(client.r1_label) && /Dossier in 24 hours/.test(client.r2_label),
+  check(client && client.to_email === 'anna@example.com' && /Your Amsterdam — Full Search starts now/.test(client.heading) && client.portal_link === 'https://www.boomrome.com/amsterdam' && /Brief call|brief call/i.test(client.r1_label) && /Dossier in one working day/.test(client.r2_label),
     'the client\'s email: the desk\'s own next steps, the CTA back to the city page — never the Rome catalogue', client && JSON.stringify([client.heading, client.portal_link, client.r1_label]));
   const r2 = await webhook(stream(event(meta, { id: 'cs_city_ams_1' })), mkRes());
   check(r2.body && r2.body.duplicate === true && emails.length === e0 + 2, 'a Stripe retry of the same session: duplicate, no second email');
@@ -248,10 +253,28 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(client1 && /starts now$/.test(client1.heading) && /Here's exactly what happens next/.test(client1.intro) && /You asked us to start straight away/.test(client1.closing) && /refund the price minus the work already done/.test(client1.closing)
     && /model withdrawal form at https:\/\/www\.boomrome\.com\/withdrawal/.test(client1.closing),
     'the tick: "starts now", the steps begin in the first desk hour, the partial-refund rule and the model form are still said');
-  // "Applications within the hour" (of a listing going live) is the product's
-  // own promise from the brief; a REPLY within the hour, or work "today", is not
-  const all = JSON.stringify(emails.slice(e0)).replace(/Applications within the hour/g, '');
-  check(!/within the hour|starts today|start today/i.test(all), 'no email promises a reply within the hour or work "today"');
+  // no email promises speed the desk hours cannot keep: no reply or
+  // application "within the hour", no work "today" (applications go out as
+  // listings appear, the dossier one working day after the papers)
+  const all = JSON.stringify(emails.slice(e0));
+  check(!/within the hour|starts today|start today|in 24 hours/i.test(all), 'no email promises a reply or an application within the hour, work "today", or a dossier "in 24 hours"');
+}
+// The client's confirmation is a durable-medium email: its delivery is
+// recorded, and a failure alerts the operator (a Stripe retry would answer
+// "duplicate" and never resend it).
+{
+  const meta = { service: 'SERVICE', kind: 'application-pack', city: 'amsterdam', start_now: '1', name: 'Bo Ek', email: 'bo@example.com' };
+  await webhook(stream(event(meta, { id: 'cs_city_mail_ok', amount_total: 19900 })), mkRes());
+  const ok1 = store.get('leads/svc_cscitymailok');
+  check(ok1 && typeof ok1.clientEmailSentAt === 'string' && !ok1.clientEmailError && !store.has('agentNotifications/svc-mail-cscitymailok'), 'a delivered confirmation is recorded on the lead, no alert');
+  failClientMail = true;
+  const rFail = mkRes();
+  await webhook(stream(event(meta, { id: 'cs_city_mail_ko', amount_total: 19900 })), rFail);
+  failClientMail = false;
+  const ko1 = store.get('leads/svc_cscitymailko');
+  const alert = store.get('agentNotifications/svc-mail-cscitymailko');
+  check(rFail.body && rFail.body.clientEmail === 'failed' && ko1 && /EmailJS 500/.test(ko1.clientEmailError || '') && alert && alert.priority === 'high' && /NON è partita/.test(alert.summary) && /recesso/.test(alert.summary),
+    'a failed confirmation: the lead says so, and the operator gets an alert to send it by hand (with the withdrawal text)', JSON.stringify(alert));
 }
 // The withdrawal window, alone: Rome calendar days from the conclusion day,
 // across midnight, both DST changes, the year end and a leap year — and a

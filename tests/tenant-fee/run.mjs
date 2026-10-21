@@ -220,9 +220,9 @@ const terms = leggi('terms.html');
   /written in your pre-agreement before anything is paid/.test(t41)
     ? bene('terms.html §4.1 rinvia alla cifra scritta nella proposta')
     : male('terms.html §4.1 non rinvia alla cifra scritta nella proposta prima di pagare');
-  /Last Updated: 15 October 2026/.test(terms)
-    ? bene('terms.html: «Last Updated: 15 October 2026»')
-    : male('terms.html: la data di aggiornamento non è il 15 ottobre 2026');
+  /Last Updated: 21 October 2026/.test(terms)
+    ? bene('terms.html: «Last Updated: 21 October 2026»')
+    : male('terms.html: la data di aggiornamento non è il 21 ottobre 2026');
 }
 
 // ── 3 · «10% of the annual rent» non viaggia mai senza IVA ─────────────

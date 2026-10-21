@@ -29,6 +29,7 @@
 
 import { parseBudgetRange, normalizeForMatch } from '../homie/_match.js';
 import { replyLang } from '../_lang.js';
+import { notRomeTenant } from '../_market.js';
 import FACTS from '../../js/listing-facts.js';
 
 // ── quanto vale un lead che invecchia ──────────────────────────────────────
@@ -154,6 +155,10 @@ export function vetoFor(lead, listing, now = Date.now()) {
   if (['converted', 'won', 'tenant'].includes(status)) return 'è già diventato inquilino';
   if (status === 'lost' && lead.lostReason === 'not_looking') return 'ha detto che non cerca più';
   if (!lead.phone && !lead.email) return 'nessun recapito';
+  // una casa a Roma a chi cerca ad Amsterdam, a un ente o a un proprietario
+  // è la figura che non si recupera (api/_market.js notRomeTenant)
+  const outside = notRomeTenant(lead);
+  if (outside) return outside;
   // la casa che ha già chiesto: la conosce, riproporgliela è un insulto
   if (lead.propertyId && listing && lead.propertyId === listing.id) return 'è la casa che aveva già chiesto';
   // già avvisato di QUESTA casa

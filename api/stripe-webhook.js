@@ -331,14 +331,14 @@ const CITY_SERVICE_META = {
   'full-search': {
     emoji: '🧭',
     next1: ['Your brief call', "Booked in the desk's first open hour — 20 minutes, your dates, budget and situation"],
-    next2: ['Dossier in 24 hours', 'Local format: income, employer, ID, references, cover letter'],
-    next3: ['Applications within the hour', 'From the first listing that fits — you see every one'],
+    next2: ['Dossier in one working day', 'From your papers — local format: income, employer, ID, references, cover letter'],
+    next3: ['Applications as listings appear', 'From the first listing that fits — you see every one'],
     next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
   },
   'application-pack': {
     emoji: '📁',
     next1: ['Send your documents', 'Reply to this email: income proof, employer letter, ID'],
-    next2: ['Dossier in 24 hours', 'Local format, cover letter in the local language and English'],
+    next2: ['Dossier in one working day', 'From your papers — local format, cover letter in the local language and English'],
     next3: ['Income and guarantor strategy', 'Written so a landlord reads it as safe'],
     next4: ['Contract review', 'Before you sign — rent, deposit, charges, contract type'],
   },
@@ -544,9 +544,16 @@ async function handleService(res, session, m, event = null) {
     });
   } catch (err) { console.error('Admin service email error:', err); }
 
+  // The client's confirmation carries the next steps and, for a city order,
+  // the withdrawal information on a durable medium: its delivery is
+  // RECORDED on the lead, and a failure becomes an alert to the operator
+  // (send it by hand) — a Stripe retry returns 'duplicate' above and would
+  // never send it again.
+  let clientMail = 'sent';
   try {
     const it = meta.lang === 'it';
-    if (email) await sendEmailJS({
+    if (!email) throw new Error('no_email');
+    await sendEmailJS({
       to_email: email,
       heading: it ? `${meta.title} — confermato` : meta.city ? (cityStart === '0' ? `Your ${meta.title} is booked` : `Your ${meta.title} starts now`) : `Your ${meta.title} is confirmed`,
       subheading: it ? 'BOOM Rome — pagato, in lavorazione' : meta.city ? `BOOM ${meta.city.label} — paid, file open` : 'BOOM Rome — paid & scheduled',
@@ -583,9 +590,26 @@ async function handleService(res, session, m, event = null) {
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });
-  } catch (err) { console.error('Client service email error:', err); }
+  } catch (err) { console.error('Client service email error:', err); clientMail = String((err && err.message) || err || 'failed').slice(0, 300); }
 
-  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId });
+  try {
+    await patchDoc('leads/svc_' + docId, clientMail === 'sent'
+      ? { clientEmailSentAt: new Date().toISOString() }
+      : { clientEmailError: clientMail, clientEmailFailedAt: new Date().toISOString() });
+  } catch (err) { console.error('client email record:', err.message); }
+  if (clientMail !== 'sent') {
+    try {
+      await writeDoc('agentNotifications', 'svc-mail-' + docId, {
+        type: 'service.client_email_failed',
+        summary: `📭 ${meta.title}${meta.city ? ' · ' + meta.city.label : ''} — €${amountEur} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        ref: { collection: 'leads', id: 'svc_' + docId },
+        dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+      });
+    } catch (_) {}
+  }
+
+  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed' });
 }
 
 async function handleReserve(res, session, m) {

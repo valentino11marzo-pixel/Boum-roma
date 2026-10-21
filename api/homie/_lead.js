@@ -24,6 +24,7 @@
 // qualcun altro, meglio.
 
 import { fsList } from './_lib.js';
+import { cityFromText } from '../_market.js';
 
 // ── il numero, scritto in tutti i modi in cui esiste davvero ───────────────
 // WhatsApp consegna SEMPRE l'internazionale (+393334444444); i portali e i
@@ -139,6 +140,18 @@ export function waRefPatch(lead, text) {
 }
 
 /**
+ * Il desk che il messaggio nomina («Hi BOOM Amsterdam, …», il testo
+ * precompilato dei link WhatsApp delle pagine città): il lead entra con
+ * market = la città, così il Commerciale tace e la card Telegram parla della
+ * città giusta (api/_market.js isCityMarket). Si riempie solo se mancava.
+ */
+export function deskPatch(lead, text) {
+  if (lead && lead.market) return {};
+  const k = cityFromText(text);
+  return k ? { market: k } : {};
+}
+
+/**
  * Il doc `leads` da un messaggio WhatsApp. Puro: nessuna I/O, testabile.
  * Stesso schema di homie/inbound e leads/scan-inbox — niente fork.
  */
@@ -160,6 +173,7 @@ export function buildLead({ text, phone, name, listing, messageId, conversationI
     status: 'new',
     sourceRef: messageId ? String(messageId).slice(0, 200) : null,
     attribution: waRef(text),
+    ...deskPatch(null, text),
     conversationId: conversationId || null,
     raw: { via: 'homie/message', channel: 'whatsapp' },
     createdAt: at || new Date(),

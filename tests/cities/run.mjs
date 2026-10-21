@@ -47,6 +47,7 @@ import {
   buildAll, renderCity, writeAll, fill, findPlaceholders, fragments, familyFor, BuildError, esc, eur, GENERATED_MARK, CELL_EM, WEIGHT_KB,
   checkinAnswer, offerAudience, faqOf, DOSSIER_N, STEP_IDS, resolvesAt, pendingText, monthOptions, anchorAgeMonths, MONTHS, daysLabel
 } from '../../build-cities.mjs';
+import { cityFromText } from '../../api/_market.js';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
@@ -123,8 +124,13 @@ check(html.includes('<body data-consent-late>') && /data-consent-late/.test(read
   'the body asks the consent plate to wait (first move + 600 ms, never over an open dialog) and boom-consent.js honours it');
 
 // the Solari in the title, the prices as text
-check(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">AMSTERDAM</span><span class="sr">Amsterdam</span></h1>'),
-  'the title carries the city as the board word, plain text in the markup (reads without JS); the board is decorative and the city is read as text (a Solari cell holds every glyph twice)');
+check(html.includes('<span id="flapCity" class="flap-city flap-scale" aria-hidden="true" data-word="AMSTERDAM"></span><span class="sr">Amsterdam</span></h1>')
+  && /\.hero h1 \.flap-city:empty::before\{content:attr\(data-word\)\}/.test(read('assets/boom-city.css')) && /host\.getAttribute\('data-word'\)/.test(read('assets/boom-city.js')),
+  'the title board is served EMPTY with the word in data-word (CSS draws it until the cells land, and without JS); the city is read as text once');
+{
+  const h1 = (html.match(/<h1 class="h-2">([\s\S]*?)<\/h1>/) || [])[1] || '';
+  check(h1.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() === `${ams.hero.h1Before} Amsterdam`, `the raw H1 a crawler reads is "${ams.hero.h1Before} Amsterdam" — never "AMSTERDAMAmsterdam"`);
+}
 check(html.includes(`f.style.minWidth='${(9 * CELL_EM).toFixed(2)}em'`) && html.includes("f.style.minHeight='1.27em'"), `the hero reserves 9 cells × ${CELL_EM}em before the board lands (no layout jump)`);
 check(!/flap-prezzo/.test(html) && (html.match(/class="flap-tk /g) || []).length === 1 && (html.match(/id="flapCity"/g) || []).length === 1,
   'boards only where a fact changes: the city in the title, the price on the pass, OPEN/PAID — the plates carry their price as text');
@@ -207,8 +213,42 @@ check(/var where = deskMq\.matches \? 'right' : 'left';/.test(js) && /right\.ins
 check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 && (html.match(/<article class="pass carta" id="pass" data-state="blank"/g) || []).length === 1,
   'the Check-in once, the pass once, blank at parse (the JS sets the state)');
 
+// the pass at ≥920 moves into the door column at PARSE time (no jump after the first paint)
+{
+  const right = slice(html, '<div class="hero-right">', '<!-- THE DOOR -->');
+  check(/r\.insertBefore\(p,r\.firstChild\)/.test(right) && /matchMedia\('\(min-width:920px\)'\)/.test(right) && /\.hero-left>#pass\{display:none\}/.test(read('assets/boom-city.css')),
+    'at ≥920 an inline script moves the pass to the top of the door column before the first paint, and a paint in between never shows it in the left column');
+}
+// the city layer: contrast, targets, the strip clearance, the notch, the cache
+{
+  const ccss = read('assets/boom-city.css');
+  check(/\.sec-h \.num\{color:var\(--t3b\)\}/.test(ccss) && /\.footer-statement\{[^}]*color:var\(--t3b\)/.test(ccss), 'section labels and the tenant-side statement are readable text (--t3b, 6.5:1), not --t4 at 2.2:1');
+  check(/\.nav-toggle\{min-width:44px;min-height:44px/.test(ccss) && /footer\.footer\{padding-bottom:calc\(var\(--space-2xl\) \+ 66px \+ var\(--safe\)\)\}/.test(ccss) && /env\(safe-area-inset-left\)/.test(ccss),
+    'the menu button is a 44px target, the phone strip never covers the footer\'s last row, and in landscape nothing sits under the notch');
+  const vj = JSON.parse(read('vercel.json'));
+  const rule = (vj.headers || []).find((h) => h.source === '/assets/boom-city\\.(css|js)');
+  check(!!rule && rule.headers.some((x) => x.key === 'Cache-Control' && /immutable/.test(x.value)) && !(vj.headers || []).some((h) => /^\/(css|js)\//.test(h.source) && h.headers.some((x) => /immutable/.test(x.value))),
+    'the hashed city assets are cached immutable; the unhashed shared /css and /js never are');
+}
+// the terms the desks link
+{
+  const terms = read('terms.html');
+  const sec = slice(terms, '<h2 id="city-desks">', '</div>');
+  check(html.includes('<li><a href="/terms#city-desks">Terms</a></li>') && slice(html, '<dialog class="sheet" id="ov"', '</dialog>').includes('<a href="/terms#city-desks" target="_blank" rel="noopener">Terms</a>'),
+    'the footer and the till link the desk terms (terms#city-desks), not the Rome rental terms');
+  check(sec && /Full Search €500, Application Pack €199, Attended Viewing €149 per viewing/.test(sec) && sec.includes(shared.refund.rule) && /14 days/.test(sec) && /\/withdrawal/.test(sec) && /not for a result/.test(sec) && /courts/.test(sec),
+    'terms §12 states the desk fees (= CITY_PLANS), the refund rule word for word, the withdrawal (linked, not restated), and the consumer\'s own law and courts');
+  check(/Sections 2 to 7 apply to rentals in Rome/.test(terms) && /This section applies to rentals in Rome/.test(terms), 'the Rome sections say they are Rome\'s');
+}
+// the privacy policy names the processors the lead passes through
+{
+  const pv = read('privacy.html');
+  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Madrid\)/.test(pv),
+    'the privacy policy names the real processors (no AWS or SendGrid it never used) and what a city request is used for');
+}
+
 // the door
-check(html.includes('<form id="cityForm" novalidate') && js.includes("postJson(C.LEAD_ENDPOINT || '/api/city-lead'") && /function postJson\(url, body, ms\)/.test(js) && /ctl\.abort\(\); \}, ms \|\| 20000\)/.test(js) && js.includes("postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout'") && html.includes('"LEAD_ENDPOINT": "/api/city-lead"'), 'the form posts to /api/city-lead (door and till through one POST that gives up after 20 s, so a hung request never locks the button)');
+check(html.includes('<form id="cityForm" method="post" novalidate') && js.includes("postJson(C.LEAD_ENDPOINT || '/api/city-lead'") && /function postJson\(url, body, ms\)/.test(js) && /ctl\.abort\(\); \}, ms \|\| 20000\)/.test(js) && js.includes("postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout'") && html.includes('"LEAD_ENDPOINT": "/api/city-lead"'), 'the form posts to /api/city-lead (door and till through one POST that gives up after 20 s, so a hung request never locks the button)');
 check(/<input id="fCompany" name="company"[^>]*tabindex="-1"[^>]*aria-hidden="true">/.test(html) && !/<label[^>]*>[^<]*ompany/.test(html), 'the honeypot is a hidden field named company, and no visible field shares the name');
 const visibleFields = (html.match(/<(input|select) id="f(Name|Email|Phone|MoveIn|Budget)"/g) || []).length;
 const chips = [...html.matchAll(/<label class="chip( unsure)?"><input type="radio" name="service" value="([^"]+)"><span><b>([^<]*)<\/b><small>([^<]*)<\/small><\/span><\/label>/g)];
@@ -228,14 +268,18 @@ check(anchorAgeMonths('2026-10', new Date('2026-12-15T00:00:00Z')) === 2 && anch
 check(JSON.stringify(monthOptions('2026-11', 3)) === JSON.stringify([{ value: '2026-11', label: 'November 2026' }, { value: '2026-12', label: 'December 2026' }, { value: '2027-01', label: 'January 2027' }]) && MONTHS.length === 12,
   'monthOptions rolls the year over, deterministic labels (no Intl)');
 check(throws(() => monthOptions('2026-13'), /moveInFrom must be YYYY-MM/) === true, 'a bad anchor is refused');
-check(html.includes(`href="https://wa.me/${shared.contact.whatsapp}"`) && html.includes(`mailto:${shared.contact.email}`) && !/39X{4,}/.test(html), 'the WhatsApp and email of the consent line are the real BOOM contacts, never a placeholder');
+const waAms = `https://wa.me/${shared.contact.whatsapp}?text=${encodeURIComponent(shared.contact.waText.split('{city}').join('Amsterdam'))}`;
+check(html.includes(`href="${esc(waAms)}"`) && html.includes(`mailto:${shared.contact.email}`) && !/39X{4,}/.test(html), 'the WhatsApp and email of the consent line are the real BOOM contacts, never a placeholder');
+check(!html.includes(`href="https://wa.me/${shared.contact.whatsapp}"`) && (html.match(new RegExp(`href="https://wa\\.me/${shared.contact.whatsapp}\\?text=`, 'g')) || []).length >= 4
+  && /BOOM Amsterdam/.test(decodeURIComponent(waAms.split('?text=')[1])) && cityFromText(decodeURIComponent(waAms.split('?text=')[1])) === 'amsterdam',
+  'every WhatsApp link opens with the desk named ("Hi BOOM Amsterdam, …"): the server reads the marker and the chat lands in the Amsterdam machine, consent or not');
 check(/<input type="hidden" id="fCheckin" name="checkin" value="">/.test(html) && /<input type="hidden" id="fDossier" name="dossier" value="">/.test(html) && html.indexOf('id="fCheckin"') < html.indexOf('id="fCompany"'),
   'the door carries two hidden fields — the answers and the papers — before the honeypot');
 
 // one label: every door reads door.label, every pay control till.label + the price
 const L = esc(ams.door.label);
 check(html.includes(`<a href="#contact" class="nav-link nav-door">${L}</a>`) && html.includes(`<a href="#contact" class="mobile-menu-cta">${L}</a>`) && html.includes(`<li><a href="#contact">${L}</a></li>`)
-  && html.includes(`<button type="submit" class="paybtn" id="fGo"><span class="lk">✈</span><span class="tx"><b>${L}</b>`) && html.includes(`id="stripGo">${L}</a>`)
+  && html.includes(`<button type="submit" class="paybtn" id="fGo" disabled><span class="lk">✈</span><span class="tx"><b>${L}</b>`) && html.includes(`id="stripGo">${L}</a>`)
   && ams.pricing.plans.every((p) => html.includes(`data-service="${p.id}">${L} →</a>`)) && html.includes(`id="ckFile" data-service=""><span class="lk">✈</span><span class="tx"><b>${L}</b>`),
   `one label: nav, menu, footer, door button, strip, the three plates and the pass all read "${ams.door.label}"`);
 const T = esc(ams.till.label);
@@ -266,7 +310,7 @@ const ratingOut = shared.rome.profileUrl ? `<a href="${esc(shared.rome.profileUr
 check(/<div data-proof="rome"><dt>/.test(factsHtml) && rows[4][1].includes(`${esc(shared.entity.legalName)} · P.IVA ${shared.entity.vat} · ${ratingOut}`) && (html.match(/on Google/g) || []).length === 1,
   'the company: legal name, P.IVA, the Rome rating labelled "on Google in Rome" — once on the page, never as the desk\'s own');
 check(ams.facts[2].text === shared.refund.rule, 'on a sell desk the "if we find nothing" fact IS the refund rule, word for word');
-check(html.includes(`<p class="who"><b>${esc(ams.desk.person)}</b> · ${esc(ams.desk.role)} · desk Mon–Fri ${ams.desk.hours.from} to ${ams.desk.hours.to} <span data-tz>${ams.desk.tzLabel}</span> · <a href="https://wa.me/${shared.contact.whatsapp}"`),
+check(html.includes(`<p class="who"><b>${esc(ams.desk.person)}</b> · ${esc(ams.desk.role)} · desk Mon–Fri ${ams.desk.hours.from} to ${ams.desk.hours.to} <span data-tz>${ams.desk.tzLabel}</span> · <a href="${esc(waAms)}"`),
   'the person line under the three steps reads from the same desk block, days included');
 
 // the refund rule beside every €500 on a sell desk
@@ -296,11 +340,21 @@ const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/
 check(ld.length === 2, 'two JSON-LD blocks: the breadcrumb and the graph');
 const graph = (ld.find((b) => Array.isArray(b['@graph'])) || {})['@graph'] || [];
 const crumbs = ld.find((b) => b['@type'] === 'BreadcrumbList') || {};
-const org = graph.find((n) => n['@type'] === 'Organization') || {};
+const org = graph.find((n) => n['@id'] === `${shared.siteUrl}/#organization`) || {};
 const wp = graph.find((n) => n['@type'] === 'WebPage') || {};
 const svc = graph.find((n) => n['@type'] === 'Service') || {};
 const faqLd = graph.find((n) => n['@type'] === 'FAQPage') || {};
 check(org['@id'] === `${shared.siteUrl}/#organization` && org.url === shared.siteUrl && org.legalName === e.legalName, 'Organization @id/url derive from siteUrl');
+check(org['@type'] === 'RealEstateAgent' && org.name === 'BOOM Rome' && org.alternateName === 'BOOM' && JSON.stringify(org.sameAs) === JSON.stringify([shared.rome.profileUrl]) && !/tenant-side rental search and relocation desk/i.test(org.description || ''),
+  'the #organization node is the one the rest of the site declares (RealEstateAgent "BOOM Rome"), describes the company, and points sameAs at the public profile behind the visible rating');
+check(wp.mainEntity && wp.mainEntity['@id'] === `${shared.siteUrl}/amsterdam#service` && wp.description === ams.meta.description && wp.dateModified === ams.updated && wp.author && wp.author.name === ams.desk.person && wp.publisher['@id'] === org['@id'],
+  'the WebPage names its main entity (the Service), its description, the date it last changed (data, never the clock) and its author');
+{
+  const sm = read('sitemap.xml').match(/<loc>https:\/\/www\.boomrome\.com\/amsterdam<\/loc>\s*<lastmod>([^<]+)<\/lastmod>/);
+  check(!!sm && sm[1] === ams.updated, `the sitemap <lastmod> of /amsterdam is the page's "updated" (${ams.updated})`);
+  const stale = clone(ams); stale.updated = '2026-01-01';
+  check(throws(() => render(stale), /sitemap <lastmod>/) === true, 'a live desk whose "updated" disagrees with its sitemap <lastmod> is refused');
+}
 check((crumbs.itemListElement || []).length === 2 && crumbs.itemListElement[1].item === `${shared.siteUrl}/amsterdam`, 'BreadcrumbList Home → Amsterdam');
 const ids = graph.concat([crumbs]).map((n) => `${n['@type']}|${n['@id'] || n.url || ''}`);
 check(new Set(ids).size === ids.length, 'no entity is declared twice');
@@ -321,9 +375,18 @@ check(chipPrices.every(([id, label, small]) => ams.pricing.plans.some((pl) => pl
   'the chips carry each plan\'s price AND its own condition (one price, one place) + "not sure yet · advise me"');
 check(ams.pricing.plans.every((p) => html.includes(`<ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`)), 'what each fee buys is a ✓ list on its plate, straight from includes[]');
 check(html.indexOf('id="enbref"') > html.indexOf('id="faq"') && html.includes('<details class="sheetfold">'), 'the fact sheet (machine content) sits AFTER the FAQ, folded for humans, whole in the DOM for the machines');
-const feesRow = ams.pricing.plans.map((p) => `<b>${p.label} ${eur(p.price)}</b>${p.unit ? ' ' + esc(p.unit) : ''} (${esc(p.conditionLong)})`).join(' · ');
-check(blocks.fees.includes(feesRow), 'the fact sheet\'s fees row is DERIVED from the plans with each plan\'s long condition');
+const feesOf = (c) => {
+  const same = c.pricing.plans.length > 1 && c.pricing.plans.every((p) => p.conditionLong === c.pricing.plans[0].conditionLong);
+  return c.pricing.plans.map((p) => `<b>${p.label} ${eur(p.price)}</b>${p.unit ? ' ' + esc(p.unit) : ''}${same ? '' : ` (${esc(p.conditionLong)})`}`).join(' · ') + (same ? '. ' + esc(c.pricing.plans[0].conditionLong) : '');
+};
+check(blocks.fees.includes(feesOf(ams)) && (blocks.fees.match(/VAT included/g) || []).length === 1, 'the fact sheet\'s fees row is DERIVED from the plans, the shared condition said ONCE ("VAT included" once, not four times)');
 check(svc.areaServed && svc.areaServed.name === 'Amsterdam' && svc.audience && svc.audience.audienceType && svc.provider['@id'] === org['@id'], 'the Service says where, for whom and by whom');
+check(/expats/i.test(svc.audience.audienceType) && /expats/i.test(ams.meta.title) && ams.meta.title.length <= 62, 'the audience and the title say "expats" — the word the query uses');
+check(svc.hoursAvailable && JSON.stringify(svc.hoursAvailable.dayOfWeek) === JSON.stringify(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']) && svc.hoursAvailable.opens === ams.desk.hours.from && svc.hoursAvailable.closes === ams.desk.hours.to,
+  'the desk hours the page prints are machine-readable on the Service (from the desk block)');
+check((svc.offers || []).every((o) => !('audience' in o)) && (svc.offers || []).find((o) => o.name === 'Attended Viewing').priceSpecification.unitText === 'viewing'
+  && faqLd['@id'] === `${shared.siteUrl}/amsterdam#faq` && faqLd.isPartOf['@id'] === wp['@id'],
+  'no out-of-vocabulary audience on an Offer, the per-viewing price says its unit, the FAQPage belongs to the page');
 check((svc.offers || []).every((o) => o.availability === 'https://schema.org/InStock' && o.priceSpecification && o.priceSpecification.valueAddedTaxIncluded === true
   && o.priceSpecification.price === o.price && o.url === `${shared.siteUrl}/amsterdam#plan-${ams.pricing.plans.find((p) => p.label === o.name).id}` && o.seller['@id'] === org['@id']),
   'every Offer of a search desk is InStock, VAT included in its priceSpecification, and points at its plate');
@@ -338,7 +401,7 @@ check(crumbs['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb` && wp.breadcrum
   const liveAms = clone(ams); liveAms.live = true;
   const sh = clone(shared); sh.rome.profileUrl = 'https://maps.google.com/?cid=1';
   const g = JSON.parse(render(liveAms, sh).html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)[1].replace(/<\/?script[^>]*>/g, ''))['@graph'];
-  check(JSON.stringify(g.find((n) => n['@type'] === 'Organization').areaServed) === JSON.stringify(['Rome', 'Amsterdam']), 'once live, the desk\'s city joins areaServed by itself');
+  check(JSON.stringify(g.find((n) => n['@id'] === `${shared.siteUrl}/#organization`).areaServed) === JSON.stringify(['Rome', 'Amsterdam']), 'once live, the desk\'s city joins areaServed by itself');
 }
 
 // ── 4 · the token engine never prints a hole ──────────────────────────────
@@ -477,7 +540,7 @@ const ber = JSON.parse(read('cities/berlin.json'));
   const longWord = clone(ams); longWord.city = 'Castellammare di Stabia';
   check(throws(() => render(longWord), /board word "CASTELLAMMAREDISTABIA" must be 2–12 letters/) === true, 'a city name too long for the board is refused unless "word" overrides it');
   const accent = clone(ams); accent.city = 'Zürich';
-  check(render(accent).html.includes('>ZURICH</span>'), 'the board word is letters only: the drum has no accents');
+  check(render(accent).html.includes('data-word="ZURICH"></span>'), 'the board word is letters only: the drum has no accents');
   const gold = clone(ams); gold.bref.rows[0].ddHtml = '<b style="color:#D4AF37">x</b>';
   check(throws(() => render(gold), /#D4AF37 is the portal gold/) === true, 'the portal gold is refused even inside trusted markup');
   const sh = clone(shared); sh.siteUrl = 'https://www.boomrome.com/';
@@ -550,11 +613,16 @@ const ber = JSON.parse(read('cities/berlin.json'));
 
 // ── 9 · the door on the server: a tenant in the right MARKET ─────────────
 let written = [];
+const createdIds = new Set();
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   if (u.includes('identitytoolkit') || u.includes('securetoken')) return { ok: true, status: 200, json: async () => ({ idToken: 'fake', localId: 'admin' }) };
   if (u.includes('firestore.googleapis.com')) {
     if ((opts.method || 'GET') === 'POST') {
+      // a create with a documentId that exists answers 409, as Firestore does
+      const docId = (u.match(/[?&]documentId=([^&]+)/) || [])[1];
+      if (docId && createdIds.has(docId)) return { ok: false, status: 409, text: async () => 'ALREADY_EXISTS', json: async () => ({}) };
+      if (docId) createdIds.add(docId);
       written.push({ url: u, body: JSON.parse(opts.body || '{}') });
       return { ok: true, status: 200, json: async () => ({ name: 'projects/p/databases/(default)/documents/leads/ams123' }) };
     }
@@ -581,11 +649,11 @@ const docOf = (coll) => {
   const o = {}; for (const [k, v] of Object.entries(w.body.fields || {})) o[k] = plain(v); return o;
 };
 let ipSeq = 0;
-function call(body, ip) {
+function call(body, ip, headers = {}) {
   written = [];
   let code = 0, payload = null;
   const res = { setHeader() {}, status(c) { code = c; return this; }, json(j) { payload = j; return this; }, end() { return this; } };
-  return handler({ method: 'POST', headers: { 'x-forwarded-for': ip || `10.2.0.${++ipSeq}` }, body, socket: {} }, res)
+  return handler({ method: 'POST', headers: { 'x-forwarded-for': ip || `10.2.0.${++ipSeq}`, ...headers }, body, socket: {} }, res)
     .then(() => ({ code, payload, lead: docOf('leads'), notif: docOf('agentNotifications'), writes: [...written] }));
 }
 const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com', phone: '+31 6 1234 5678', moveIn: '2027-02',
@@ -617,6 +685,21 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(CITY_MARKETS.amsterdam.url) && !reply.includes('/apartments') && !/Roma/.test(reply),
     'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam — never the Rome catalogue');
   check(cityLabel(l) === '🇳🇱 Amsterdam', 'the Telegram card label');
+  check(l && l.phone === '+31612345678' && l.raw.phone === '+31 6 1234 5678', 'the phone is stored as E.164 read with the desk\'s country (the WhatsApp reply arrives so, and now matches); the typed value stays on raw');
+  check(l && l.attribution === null, 'no consent cookie, no attribution: the field is there and empty');
+}
+{
+  // a national number on the Madrid desk, and the first consented touch
+  const r = await call({ city: 'madrid', name: 'Lucía', phone: '612 345 678' }, null, { cookie: 'boom_attr=ai%3Achatgpt%20%C2%B7%20%2Fmadrid' });
+  check(r.code === 200 && r.lead && r.lead.phone === '+34612345678', 'a Spanish national number on the Madrid desk becomes +34… — never the Rome machine\'s +39 guess, never +61 (Australia)', r.lead && r.lead.phone);
+  check(r.lead && r.lead.attribution === 'ai:chatgpt · /madrid', 'the city door carries the first consented touch like every other lead door', r.lead && String(r.lead.attribution));
+  // one page load, one lead: a send retried after a timeout files the same document
+  const once = await call({ ...ANNA, requestId: 'k3x9retry0001' });
+  const twice = await call({ ...ANNA, requestId: 'k3x9retry0001' });
+  check(once.code === 200 && /leads\?documentId=city_k3x9retry0001/.test(once.writes[0].url) && twice.code === 200 && twice.payload.duplicate === true && twice.writes.length === 0,
+    'the same requestId twice: one lead (leads/city_<id>), the retry answers ok and nobody is pinged twice');
+  const bad = await call({ ...ANNA, requestId: '../../etc' });
+  check(bad.code === 200 && !/documentId=/.test(bad.writes[0].url), 'a requestId that is not an id is ignored (auto id), never a path');
 }
 {
   check(moveInLabel('2027-02') === 'February 2027' && moveInLabel('2026-12') === 'December 2026' && moveInLabel('as soon as possible') === 'as soon as possible' && moveInLabel('2027-13') === '2027-13' && moveInLabel(null) === null,
@@ -651,6 +734,47 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(!isCityMarket({ market: 'roma', intent: 'executive_relocation' }) && !isCityMarket({ market: 'reunion' }) && isCityMarket({ sourceRef: 'city-paris' }), 'Rome and La Réunion are not city markets; a sourceRef city-<slug> is');
 }
 
+// ── 9b · the Rome machine never speaks to a city client ───────────────────
+// A city lead lands in `leads` next to Rome's: every tool that writes to a
+// Rome tenant on its own or with one tap must step aside (the 21/10 audit).
+{
+  const { vetoFor } = await import('../../api/leads/_reverse.js');
+  const { vetoRichiamo } = await import('../../api/leads/_richiamo.js');
+  const { stage0 } = await import('../../api/leads/brain.js');
+  const { cityPhone, cityFromText, notRomeTenant } = await import('../../api/_market.js');
+  const { buildLead, deskPatch } = await import('../../api/homie/_lead.js');
+  const now = Date.now();
+  const amsLead = { id: 'a1', market: 'amsterdam', sourceRef: 'city-amsterdam', status: 'new', email: 'a@x.co', phone: '+31612345678', createdAt: new Date(now - 86400000).toISOString(), message: 'AMSTERDAM — tenant-side search · Full Search · €1,500 – €2,000/month.' };
+  const paidRome = { id: 'p1', status: 'new', paid: true, email: 'p@x.co', createdAt: new Date(now - 86400000).toISOString(), message: 'Virtual Viewing bought one-tap (€89).' };
+  const romeLead = { id: 'r1', status: 'new', email: 'r@x.co', createdAt: new Date(now - 86400000).toISOString(), message: 'cerco bilocale a Trastevere' };
+  check(/Amsterdam, non a Roma/.test(vetoFor(amsLead, { id: 'l1' }, now) || '') && vetoFor(romeLead, { id: 'l1' }, now) === null,
+    'the reverse search after a Rome publication never proposes a Rome home to an Amsterdam client (a Rome lead still passes)');
+  check(/Amsterdam, non a Roma/.test(vetoRichiamo(amsLead, { now }) || '') && /cliente pagante/.test(vetoRichiamo(paidRome, { now }) || '') && vetoRichiamo(romeLead, { now }) === null,
+    '/richiama never writes "still looking for a home in Rome?" to a city client or to a client who has already paid');
+  check(/proprietario/.test(notRomeTenant({ leadType: 'landlord', source: 'web' }) || '') && /Réunion/.test(notRomeTenant({ market: 'reunion' }) || '') && notRomeTenant(romeLead) === null,
+    'one copy of the veto: city desks, La Réunion, organisations and Rome landlords are not Rome tenants');
+  const g = stage0(amsLead, new Map()), g2 = stage0({ ...amsLead, phone: '' }, new Map());
+  check(g.final === true && g.grade === 'A' && g2.final === true && g2.grade === 'B' && !/dead/.test(g.grade + g2.grade),
+    'the Lead Brain grades a city lead by rule (A with a phone, B without): never the Rome prompt, never "dead" by AI, never archived');
+  check(stage0({ source: 'web', email: 'x@y.co', message: 'budget €1,500 a month' }, new Map()).reason.includes('budget'), 'a budget written with a thousands separator ("€1,500") counts as a budget');
+  check(cityPhone('+31 6 12345678', 'amsterdam') === '+31612345678' && cityPhone('06 12345678', 'amsterdam') === '+31612345678' && cityPhone('612 345 678', 'madrid') === '+34612345678' && cityPhone('0034 612 345 678', 'madrid') === '+34612345678' && cityPhone('12', 'madrid') === null,
+    'a city phone is read with the desk\'s country: +31 6…, 06…, 612 345 678 → E.164; nonsense → null');
+  check(cityFromText("Hi BOOM Amsterdam, I'm moving to Amsterdam.") === 'amsterdam' && cityFromText('hi boom madrid') === 'madrid' && cityFromText('Ciao BOOM, cerco casa a Roma') === null && cityFromText('I love BOOMAmsterdam') === null,
+    'the desk marker of the prefilled WhatsApp line is read back (case-insensitive, whole words); a Rome message names no desk');
+  check(buildLead({ text: "Hi BOOM Madrid, I'm moving to Madrid.", phone: '+34612345678' }).market === 'madrid' && buildLead({ text: 'ciao, cerco casa', phone: '+393331234567' }).market === undefined
+    && JSON.stringify(deskPatch({ market: 'amsterdam' }, 'Hi BOOM Madrid')) === '{}',
+    'a WhatsApp lead that names a desk enters its market; a Rome one does not; a market already set is never overwritten');
+  const np = read('api/telegram/notify-pending.js');
+  check(/if \(\(l\.phone \|\| l\.email\) && !isCityMarket\(l\) && !isReunion\(l\)\) buttons\.push\(\[\{ text: '🤖 Passa alla Segretaria'/.test(np)
+    && /const ownCard = l => isB2B\(l\) \|\| isCityMarket\(l\) \|\| isReunion\(l\);/.test(np) && /cityPhone\(l\.phone, cityMarketOf\(l\)\)/.test(np),
+    'the Telegram card of a city lead: no 🤖 Segretaria button, never buried in the C digest, WhatsApp to the number read with the desk\'s country');
+  const core = read('api/segretaria/_core.js');
+  const handIdx = core.indexOf('export async function handoverSegretaria'), openIdx = core.indexOf('export async function segretariaOpen'), turnIdx = core.indexOf('export async function segretariaTurn');
+  const guard = (from) => { const body = core.slice(from, from + 900); return body.indexOf('outsideRome(lead)') > -1; };
+  check(guard(handIdx) && guard(openIdx) && core.slice(turnIdx, turnIdx + 1200).indexOf('outsideRome(lead)') < core.slice(turnIdx, turnIdx + 1200).indexOf('captureFollowUp'),
+    'the Segretaria refuses a city or Réunion lead at the hand-over, at the opening, and inside a turn before it does anything');
+}
+
 // ── 10 · the sisters: Madrid (search) and Barcelona, Paris, Berlin (waitlist) ──
 const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
 const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
@@ -667,7 +791,7 @@ for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par,
     : /<meta name="robots" content="noindex">/.test(h.slice(0, 4000));
   check(h.includes(GENERATED_MARK) && robotsOk && h.includes(`<link rel="canonical" href="${shared.siteUrl}/${c.slug}">`),
     `${c.slug}: a generated page — ${c.live === true ? 'live, index, follow' : 'draft, noindex'}, canonical from siteUrl`);
-  check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-hidden="true">${word}</span><span class="sr">${c.city}</span></h1>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`), `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells`);
+  check(h.includes(`<span id="flapCity" class="flap-city flap-scale" aria-hidden="true" data-word="${word}"></span><span class="sr">${c.city}</span></h1>`) && h.includes(`f.style.minWidth='${(cells * CELL_EM).toFixed(2)}em'`), `${c.slug}: the board spells ${word} and the hero reserves ${cells} cells`);
   check(h.includes(`class="bl-desk">${c.city}<br>tenant side</span>`) && h.includes(`<p class="footer-statement">${esc(c.footer.statement)}</p>`), `${c.slug}: the lockup and the tenant-side statement`);
   check(!/founding|cohort|spots? (left|remaining)|locked for life|refundable|€99|deposit of €|no worries|unlock|seamless|hassle-free|waitlist open|join the waitlist|coming soon/i.test(v), `${c.slug}: no founding spot, no counter, no "waitlist open" badge`);
   check(!/[a-z.]!["\s]/i.test(JSON.stringify(c)), `${c.slug}: no exclamation marks in the copy`);
@@ -688,7 +812,7 @@ for (const c of [ams, mad, bcn, par, ber]) {
   const chipsP = [...h.matchAll(/<label class="chip"><input type="radio" name="service" value="([^"]+)"><span><b>[^<]*<\/b><small>([^<]+)<\/small>/g)].map((m) => decode(m[2]));
   check(JSON.stringify(chipsP) === JSON.stringify(c.pricing.plans.map((p) => `${eur(p.price)} · ${p.condition}`)), `${c.slug}: the chips carry the price with each plan's own condition`);
   const fees = slice(h, '<dt>Fees</dt>', '</dd>');
-  check(fees.includes(c.pricing.plans.map((p) => `<b>${p.label} ${eur(p.price)}</b>${p.unit ? ' ' + esc(p.unit) : ''} (${esc(p.conditionLong)})`).join(' · ')), `${c.slug}: the fact sheet's fees row is derived from the plans, long conditions included`);
+  check(fees.includes(feesOf(c)), `${c.slug}: the fact sheet's fees row is derived from the plans (each plan's condition where they differ, once where they agree)`);
   const reg = CITY_MARKETS[c.slug];
   check(!!reg && c.pricing.plans.every((p) => reg.plans && reg.plans[p.id] && reg.plans[p.id].eur === Number(p.price) && reg.plans[p.id].label === p.label), `${c.slug}: the page's prices are the server's (CITY_PLANS)`);
   check(!!reg && (reg.checkout === true) === (c.checkout === true) && reg.mode === c.mode, `${c.slug}: registry ⇄ page agree on the mode and on whether the till is open`);
@@ -838,7 +962,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/^Full Search \(€500\) if you haven't started\. Application Pack \(€199\) if you've found one and need to apply, or you have a shortlist and you're already in Amsterdam\. Attended Viewing \(€149 per viewing\) if you have a shortlist and you're still abroad\. Not sure: open a file, we advise\.$/.test(ans),
     `one sentence per plan, from the phrases of the options, then the free door ("${ans.slice(0, 50)}…")`);
   check(faqOf(ams).find((f) => f.q === q).a === ans && ams.faq.items.find((x) => x.checkin).a === undefined, 'the data carries only the question; faqOf resolves the answer');
-  const aud = Object.fromEntries((svc.offers || []).map((o) => [o.name, o.audience && o.audience.audienceType]));
+  const aud = Object.fromEntries((svc.offers || []).map((o) => [o.name, o.itemOffered && o.itemOffered.audience && o.itemOffered.audience.audienceType]));
   check(aud['Full Search'] === "Tenants who haven't started" && aud['Attended Viewing'] === 'Tenants who have a shortlist and are still abroad' && aud['Application Pack'] === 'Tenants who have found one and need to apply, or who have a shortlist and are already in Amsterdam',
     'every Offer names its audience in the third person, derived from the same rules');
   check(ams.pricing.plans.every((p) => offerAudience(ams, p.id) === aud[p.label]) && offerAudience(ams, 'nope') === null, 'offerAudience is the function the schema uses');
@@ -885,7 +1009,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
       `${c.slug}: the Check-in once in the hero, ${DOSSIER_N} papers on the pass, bound for ${c.iata}`);
     check(vis.some((f) => f.q === c.faq.items.find((x) => x.checkin).q && f.a === a) && a.split(/\s+/).length <= 72, `${c.slug}: the derived FAQ answer is on the page (${a.split(/\s+/).length} words — Berlin's per-plan tail is the longest)`);
     const svcC = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
-    check((svcC.offers || []).every((o) => o.audience && o.audience.audienceType === offerAudience(c, c.pricing.plans.find((p) => p.label === o.name).id)), `${c.slug}: every Offer carries the audience its rules derive`);
+    check((svcC.offers || []).every((o) => !('audience' in o) && o.itemOffered && o.itemOffered['@type'] === 'Service' && o.itemOffered.audience && o.itemOffered.audience.audienceType === offerAudience(c, c.pricing.plans.find((p) => p.label === o.name).id)), `${c.slug}: every Offer's itemOffered Service carries the audience its rules derive`);
     check(c.checkin.steps.map((s) => s.id).join() === STEP_IDS.join() && c.checkin.steps[0].options.every((o) => resolvesAt(c.checkin, o.id) > 0), `${c.slug}: the same three steps, every stage resolving by the second tap`);
   }
   check(ber.checkin.dossier.items.some((i) => /SCHUFA/.test(i.t)) && par.checkin.dossier.items.some((i) => /Visale/.test(i.t)) && bcn.checkin.dossier.items.some((i) => /NIE/.test(i.t)) && ams.checkin.dossier.items.some((i) => /werkgeversverklaring/.test(i.t)),
@@ -958,8 +1082,13 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
     'the worker\'s replies are correlated by request id on one listener, and a second Save or Share joins the encode in flight');
   check(/done\.focus\(\{ preventScroll: true \}\)/.test(js) && html.includes('<div class="sent" id="fDone" tabindex="-1">') && html.includes('<div class="sent paid" id="fPaid" tabindex="-1"'), 'after the send focus lands on the open file, not on <body>; the paid card too');
   check(/Object\.prototype\.hasOwnProperty\.call\(PLANS, id\)/.test(js) && !/PLANS\[plan\]/.test(js), '?paid=constructor is not a plan: PLANS is read through hasOwnProperty everywhere');
-  check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search});gtag('config'"),
-    'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there)');
+  check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search.replace(/([?&])session_id=[^&]*&?/,'$1').replace(/[?&]$/,'')});gtag('config'"),
+    'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there) nor the Stripe session_id of a paid return');
+  {
+    const pl = (search) => search.replace(/([?&])session_id=[^&]*&?/, '$1').replace(/[?&]$/, '');
+    check(pl('?paid=full-search&start=1&session_id=cs_test_123') === '?paid=full-search&start=1' && pl('?session_id=cs_1&paid=x') === '?paid=x' && pl('?paid=x') === '?paid=x' && pl('') === '',
+      'page_location drops session_id wherever it sits in the query, and leaves every other parameter');
+  }
   check(/timeZoneName: 'short'/.test(js) && /function tzLabel\(\)/.test(js) && /querySelectorAll\('\[data-tz\]'\)/.test(js) && /desk\.open\(\) === false/.test(js) && /\['fGo', 'ckFile'\]\.map/.test(js) && /if \(st && \/\^free · \/\.test\(st\.textContent\)\) setText\('stripSub', sub \|\| open\.strip\);/.test(js) && /if \(typeof deskSub === 'function'\) deskSub\(\);/.test(js),
     'the zone label follows the clock (CEST seven months a year) and "same-day reply" is swapped for the window when the desk is closed, on the door, the pass and the strip, re-checked every minute (a page left open across 19:00 changes its promise), a plan named on the strip left alone');
   check(!/col\.style\.top/.test(js) && !/classList\.toggle\('tall'/.test(js) && !/\.hero-right\.tall/.test(css) && !/position:sticky/.test(slice(css, '@media(min-width:920px){', '}\n')),

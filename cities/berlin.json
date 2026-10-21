@@ -97,7 +97,7 @@
       ],
       [
         "Nothing to prepare",
-        "Keep this link: your ticket and papers live in it."
+        "We tell you on the call what papers matter."
       ],
       [
         "Nothing by then?",
@@ -124,7 +124,7 @@
       {
         "k": "3 · The search",
         "v": "Then as in every BOOM city",
-        "s": "The dossier, applications within the hour, a BOOM person at the viewing, rent brake and lease checked before you sign."
+        "s": "The dossier, applications as listings appear, a BOOM person at the viewing, rent brake and lease checked before you sign."
       }
     ]
   },
@@ -138,16 +138,16 @@
         "id": "full-search",
         "label": "Full Search",
         "se": "Full Search · end to end",
-        "name": "We find it. You move in.",
+        "name": "We search. You choose.",
         "includes": [
-          "Daily search: ImmoScout24, Immowelt, Kleinanzeigen, off-market",
-          "Applications within the hour, German-format",
+          "Search every working day: ImmoScout24, Immowelt, Kleinanzeigen",
+          "Applications as listings appear, German-format",
           "Attended viewing, live video + report",
           "Rent brake and lease checked, Nebenkosten read"
         ],
         "featured": true,
         "price": 500,
-        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT · on signing",
         "conditionLong": "List price. Due only once you sign a lease; nothing before."
       },
@@ -174,7 +174,7 @@
         "unit": "per viewing",
         "se": "Attended Viewing",
         "name": "Eyes on the ground.",
-        "text": "You found it, you're abroad. We go.",
+        "text": "Shortlisted, and still abroad? We go.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -456,7 +456,7 @@
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>as listings appear</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
       },
       {
         "dt": "What we don't do",
@@ -539,7 +539,7 @@
     "person": "Valentino Egidi",
     "role": "tenant-side agent",
     "timeZone": "Europe/Rome",
-    "tzLabel": "CET",
+    "tzLabel": "CET/CEST",
     "hours": {
       "from": "09:00",
       "to": "19:00"

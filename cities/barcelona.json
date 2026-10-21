@@ -97,7 +97,7 @@
       ],
       [
         "Nothing to prepare",
-        "Keep this link: your ticket and papers live in it."
+        "We tell you on the call what papers matter."
       ],
       [
         "Nothing by then?",
@@ -124,7 +124,7 @@
       {
         "k": "3 · The search",
         "v": "Then as in every BOOM city",
-        "s": "Spanish-format file, applications within the hour, a BOOM person at the viewing, rent cap and contract checked before you sign."
+        "s": "Spanish-format file, applications as listings appear, a BOOM person at the viewing, rent cap and contract checked before you sign."
       }
     ]
   },
@@ -138,16 +138,16 @@
         "id": "full-search",
         "label": "Full Search",
         "se": "Full Search · end to end",
-        "name": "We find it. You move in.",
+        "name": "We search. You choose.",
         "includes": [
-          "Daily search: Idealista, Fotocasa, Habitaclia, agencies, off-market",
-          "Applications within the hour",
+          "Search every working day: Idealista, Fotocasa, Habitaclia, agencies",
+          "Applications as listings appear",
           "Attended viewing, live video + report",
           "Rent cap and contract checked, padrón supported"
         ],
         "featured": true,
         "price": 500,
-        "offerDescription": "Search, local-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens."
       },
@@ -174,7 +174,7 @@
         "unit": "per viewing",
         "se": "Attended Viewing",
         "name": "Eyes on the ground.",
-        "text": "You found it, you're abroad. We go.",
+        "text": "Shortlisted, and still abroad? We go.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -451,12 +451,12 @@
       },
       {
         "dt": "Fees",
-        "ddHtml": "VAT included, charged only when the desk opens. No percentage of the rent, nothing from landlords or platforms.",
+        "ddHtml": "VAT included. No percentage of the rent, nothing from landlords or platforms.",
         "fees": true
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: Spanish-format file in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings, rent cap and contract checked, padrón supported."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: Spanish-format file in <b>24 hours</b>, applications <b>as listings appear</b>, attended viewings, rent cap and contract checked, padrón supported."
       },
       {
         "dt": "What we don't do",
@@ -539,7 +539,7 @@
     "person": "Valentino Egidi",
     "role": "tenant-side agent",
     "timeZone": "Europe/Rome",
-    "tzLabel": "CET",
+    "tzLabel": "CET/CEST",
     "hours": {
       "from": "09:00",
       "to": "19:00"

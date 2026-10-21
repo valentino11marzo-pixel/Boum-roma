@@ -30,7 +30,8 @@
 // Response 200: { ok: true, id } | 4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from './homie/_lib.js';
-import { CITY_MARKETS } from './_market.js';
+import { CITY_MARKETS, cityPhone } from './_market.js';
+import { attributionFromReq } from './_attribution.js';
 
 // ── Best-effort in-memory rate limit (per warm instance) ──
 const HITS = new Map(); // ip -> [timestamps]
@@ -103,7 +104,15 @@ export default async function handler(req, res) {
 
   const name  = clip(body.name, 120);
   const email = clip(body.email, 160);
-  const phone = clip(body.phone, 40);
+  const phoneTyped = clip(body.phone, 40);
+  // Stored as E.164 read with the DESK's country (api/_market.js cityPhone):
+  // the client's WhatsApp reply arrives as '+31612345678', and a number kept
+  // as typed ('+31 6 12345678', '06 …') never matched it — the reply became
+  // a new Rome lead. The typed value stays in raw.phone.
+  const phone = cityPhone(phoneTyped, cityKey) || phoneTyped;
+  // One page load = one request id (assets/boom-city.js): a submit retried
+  // after a timeout lands on the same document instead of a second lead.
+  const requestId = /^[a-z0-9]{8,40}$/i.test(String(body.requestId || '')) ? String(body.requestId) : null;
 
   const hasEmail = email && email.includes('@') && email.includes('.');
   const hasPhone = phone && /\d{6,}/.test(phone.replace(/\D/g, ''));
@@ -168,6 +177,7 @@ export default async function handler(req, res) {
     // audit
     ingestedBy: 'city-lead',
     sourceRef: `city-${cityKey}`,
+    attribution: attributionFromReq(req, body),   // first consented touch, never blocking
     city: {
       key: cityKey,
       label: city.label,
@@ -180,18 +190,25 @@ export default async function handler(req, res) {
       dossier,
       at: now.toISOString(),
     },
-    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn: moveInRaw, situation, areas, checkin, dossier, message, ip },
+    raw: { city: cityKey, service: serviceKey || null, budget: budgetBand, moveIn: moveInRaw, situation, areas, checkin, dossier, message, phone: phoneTyped, requestId, ip },
     createdAt: now,
     ingestedAt: now,
   };
 
   try {
-    const { id } = await fsCreate('leads', lead);
-    logActivity(`Lead ${city.label} (tenant-side search)`, 'lead', { leadId: id, city: cityKey, service, budgetBand }, 'city-lead');
+    let id;
+    try {
+      ({ id } = await fsCreate('leads', lead, requestId ? `city_${requestId}` : undefined));
+    } catch (e) {
+      // the same page load already filed this lead: success, nobody re-pinged
+      if (e && e.exists && requestId) return res.status(200).json({ ok: true, id: `city_${requestId}`, duplicate: true });
+      throw e;
+    }
 
-    // Fire-and-forget: the lead is already saved, so a failed notify only
-    // means the operator hears about it on the next pulse instead of now.
-    fsCreate('agentNotifications', {
+    // AWAITED, under a cap: on Vercel a write left in flight when the
+    // response goes out can die with the function (the 13/09 lesson). A
+    // failed notify still only means the next pulse instead of now.
+    const notify = fsCreate('agentNotifications', {
       type: 'lead.new',
       summary: `${city.flag} ${city.label.toUpperCase()}${waitlist ? ' · waitlist' : ''} · ${name}` +
         (service && service !== 'unsure' ? ` · ${SERVICES[service]}` : '') +
@@ -206,6 +223,8 @@ export default async function handler(req, res) {
       createdAt: new Date().toISOString(),
       attempts: 0,
     }).catch(e => console.warn('[city-lead] notify failed:', e.message));
+    const activity = Promise.resolve(logActivity(`Lead ${city.label} (tenant-side search)`, 'lead', { leadId: id, city: cityKey, service, budgetBand }, 'city-lead')).catch(() => {});
+    await Promise.race([Promise.allSettled([notify, activity]), new Promise((r) => setTimeout(r, 5000))]);
 
     return res.status(200).json({ ok: true, id });
   } catch (err) {

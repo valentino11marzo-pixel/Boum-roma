@@ -258,6 +258,10 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+EMAILJS_PRIVATE_KEY          # server-side EmailJS REST (api/stripe-webhook.js:
+                             # PFS, SERVICE/city orders, RESERVE). Without it the
+                             # paid client's confirmation fails — recorded on the
+                             # lead + agentNotifications svc-mail-<session>
 LEADS_NOTIFY_EMAIL           # optional — dove arriva l'avviso di ogni candidatura
                              # dal sito (/api/apply-lead); default
                              # ADMIN_NOTIFY_EMAIL → valentino@boom-rome.com
@@ -1279,7 +1283,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   `fieldset.chips` — una tendina nascondeva le tre porte e il loro costo
   dietro un tap; nessun chip pre-spuntato: il server legge «service to
   decide», il bottone del piatto spunta il SUO chip; il radio resta
-  nell'albero per tastiera, screen reader e invio senza JS; la regola
+  nell'albero per tastiera e screen reader (senza JS il modulo NON si invia: dal 21/10 il bottone nasce spento e la pagina indica WhatsApp ed email); la regola
   `.chips .chip` deve battere `.fld label` di boom-2026, altrimenti le
   micro-maiuscole con 1,8px di tracking fanno andare a capo il nome a
   390px); (2) **i piatti dicono cosa compra la tariffa in ✓ righe**
@@ -1992,6 +1996,103 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   `nl`, 12 ottobre su `es`, 4 ottobre su `it`; il webhook che passa il paese
   del desk; il modulo nell'email città e nel Pacchetto; la risposta senza
   «until the work is complete»).
+- **L'AUDIT PRE-LIVE (21/10/2026 — «un giro di controllo per la miglior resa
+  GEO, SEO, motori AI, poi andiamo live»)**. Un workflow di 67 agenti su
+  /amsterdam e /madrid: 60 rilievi, 45 confermati da una verifica avversaria,
+  15 confutati; più un critico di completezza che ha trovato 9 buchi A VALLE
+  della pagina, nella macchina che lavora i lead. Il commercialista ha
+  approvato l'IVA; il profilo Google è confermato; il recesso NON si tocca
+  (decisione del fondatore). Chiuso, in ordine di peso:
+  1. **La macchina di Roma non parla più a un cliente delle città.**
+     `api/_market.js notRomeTenant(lead)` (una copia): desk città, Réunion,
+     enti e proprietari non sono inquilini di Roma. Lo leggono la ricerca
+     rovesciata (`_reverse.js vetoFor`: dopo ogni pubblicazione proponeva
+     «Cappellari Flat, €2.000» a un cliente di Amsterdam) e `/richiama`
+     (`vetoRichiamo`: «still looking for a home in Rome?», anche a chi aveva
+     appena pagato €500 — veto `paid` in più). La Segretaria rifiuta un lead
+     città o Réunion alla consegna, all'apertura e dentro il turno (scala
+     all'operatore): parla di case, slot e servizi di ROMA. La card Telegram
+     di un lead città non ha più il 🤖 e non finisce mai nel riepilogo dei C
+     (il Commerciale si astiene: il riepilogo mentiva). Il **Lead Brain** vota
+     i lead città/Réunion a regola (A con telefono o pagato, B senza): prima il
+     prompt «BOOM Roma» poteva giudicarli «dead» e archiviarli senza card.
+     `BUDGET_RE` legge «€1,500».
+  2. **Il telefono col paese del desk** (`cityPhone(raw, city)`, E.164): la
+     porta salvava «+31 6 1234 5678» com'era scritto, la risposta WhatsApp del
+     cliente (E.164) non lo trovava e nasceva un lead NUOVO di Roma; «612 345
+     678» apriva wa.me verso l'Australia. `city-lead.js` salva E.164 (il
+     digitato in `raw.phone`), la card legge col paese del desk.
+  3. **Ogni link WhatsApp nomina il desk** (`build-cities.mjs waHref`, testo
+     da `_shared.json contact.waText`: «Hi BOOM Amsterdam, I'm moving to
+     Amsterdam.»): senza consenso la chat partiva vuota e il lead entrava a
+     Roma. Il server lo rilegge (`cityFromText`) e `homie/_lead.js deskPatch`
+     mette `market` sul lead nuovo o su quello senza mercato.
+  4. **La porta `/api/city-lead`**: `requestId` per caricamento di pagina →
+     `leads/city_<id>`, un invio ritentato dopo un timeout non fa un secondo
+     lead (409 → ok, nessun ping); `attribution` dal cookie come le altre
+     porte; notifica e attività ATTESE prima della risposta (tetto 5s).
+  5. **L'email di conferma del pagante** (supporto durevole del recesso) passa
+     ancora da EmailJS, ma l'esito si REGISTRA (`clientEmailSentAt` /
+     `clientEmailError` sul lead) e un fallimento crea l'avviso
+     `agentNotifications/svc-mail-<sessione>` («mandala a mano»): prima un
+     retry di Stripe rispondeva `duplicate` e l'email persa restava persa.
+     `EMAILJS_PRIVATE_KEY` va nella lista env (non verificabile da qui: la
+     connessione Vercel non legge le env).
+  6. **Termini e privacy**: `terms.html §12 City desks` (tariffe = CITY_PLANS,
+     rimborso, recesso rinviato a /withdrawal, il diritto e i giudici del
+     paese del consumatore); §2 e §4 dicono che sono di Roma; footer e cassa
+     linkano `/terms#city-desks`. `privacy.html` nomina i fornitori VERI
+     (Firebase, Vercel, Stripe, Gmail/EmailJS, Telegram, Anthropic,
+     Twilio/ElevenLabs/OpenAI, GA col consenso) — AWS e SendGrid non sono mai
+     stati usati — e l'uso di una richiesta città.
+  7. **La verità della copia**: niente «applications within the hour» né
+     «dossier in 24 hours» contro un desk lun–ven 09–19 → «sent as listings
+     appear», «within one working day of your papers» (pagine, JSON-LD,
+     CITY_PLANS, email del webhook); «off-market» tolto (nessuna fonte
+     dimostrabile); il piano Full Search si chiama «We search. You choose.»
+     (non promette un risultato) e la FAQ «What if you don't find anything?»
+     risponde: rimborso se declinata nella prima chiamata, poi «the fee pays
+     for the work, not for a result». Amsterdam: cauzione = due mesi di
+     canone BASE (servicekosten escluse), «Without BRP, a BSN and a bank
+     account get hard». Madrid: «Habitual lease: one month, extra guarantees
+     two months at most. Other lease types differ» — vero sia prima sia dopo
+     il **RDL 29/2026** (in vigore dall'8/10, temporanee nel regime abitativo,
+     garanzia aggiuntiva max un mese), che va **convalidato il 12/11/2026**:
+     ricontrollare col legale dopo quel voto. Fuso «CET/CEST» (CET da solo era
+     falso sette mesi l'anno nell'HTML statico).
+  8. **GEO/SEO**: «expats» in title, audience e «For whom»; la riga Language;
+     una FAQ anti-truffa per desk; FAQ che nominano BOOM (si citano da sole);
+     LAU sciolta (Spain's tenancy law, Ley de Arrendamientos Urbanos); H1
+     servito vuoto con `data-word` (CSS disegna la parola: il crawler legge
+     «Your home in Amsterdam», non «AMSTERDAMAmsterdam»); spazio nel titolo
+     della scheda; riga Fees con «VAT included» UNA volta (`feesRowOf`).
+     JSON-LD: `#organization` = `RealEstateAgent` «BOOM Rome» come le altre 58
+     pagine (alternateName BOOM, sameAs il profilo Google, descrizione vera
+     dell'azienda); WebPage con mainEntity, description, `dateModified` =
+     `updated` del JSON, legato dal build al `<lastmod>` della sitemap (un
+     desk live li ha uguali o il build rifiuta), author; Service con
+     `hoursAvailable`; l'audience delle Offer sotto `itemOffered` (Offer non
+     ha `audience` in schema.org); unitText «viewing»; FAQPage con @id. Link
+     dal footer di apartments, scheda, your-money, how-it-works, try.
+     `llms.txt` allineato (riassunto, bonifico, orari, §12, niente off-market).
+  9. **UX/a11y/perf**: etichette di sezione e dichiarazione a 6,5:1 (erano
+     2,2:1); hamburger 44px; il piede sotto la striscia del telefono; margini
+     sul notch; il pass a ≥920 spostato da uno script inline PRIMA del primo
+     disegno (prima saltava di colonna); asset città `immutable` (hanno
+     `?v=`); GA senza `session_id` del ritorno pagato; il modulo senza JS non
+     manda un GET coi dati (bottone spento, `<noscript>` con WhatsApp/email);
+     «Shortlisted, and still abroad? We go.»; la card OPEN non promette più
+     «keep this link».
+  **Non fatto, dichiarato**: i festivi nel calendario della PAGINA (la promessa
+  «same-day reply» non salta i festivi che il webhook conosce — G7, basso);
+  l'invio dell'email del pagante via Nodemailer invece di EmailJS; la regola
+  di Full Search a ricerca avviata che non trova (il fondatore la decide; la
+  FAQ non la inventa). Test: `run.mjs` 548 (veti, voto, telefono, marcatore,
+  porta con requestId/attribuzione, termini, privacy, schema, H1, mutazioni:
+  nove protezioni rotte per prova, tutte prese), `checkout.mjs` 62 (email del
+  pagante fallita → lead + avviso), `ui.mjs` 194 (H1 senza JS, bottone spento,
+  Invio che non scrive nell'URL, WhatsApp col desk), `whatsapp` (marcatore →
+  market, risposta del cliente di Madrid sul SUO lead), `owners` 137.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

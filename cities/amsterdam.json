@@ -7,16 +7,16 @@
   "mode": "search",
   "config": {},
   "meta": {
-    "title": "Tenant-side rental agent in Amsterdam — BOOM",
-    "description": "BOOM Amsterdam works only for the tenant: Dutch-format dossier in 24 hours, applications within the hour, viewings attended, the contract checked before you sign.",
+    "title": "Tenant-side rental agent for expats in Amsterdam — BOOM",
+    "description": "Apartment search for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications sent as listings appear, viewings attended, contract checked.",
     "ogTitle": "BOOM Amsterdam — an agent on your side of the table",
-    "ogDescription": "Tenant-side rental search for internationals moving to Amsterdam. Dossier in 24 hours, applications within the hour, attended viewings, contract checked. Flat fees, paid by you — never by landlords."
+    "ogDescription": "Tenant-side rental search for expats and internationals moving to Amsterdam. Dossier within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords."
   },
   "service": {
     "name": "BOOM Amsterdam — tenant-side rental search (aanhuurmakelaar)",
     "serviceType": "Tenant-side rental search agent",
-    "audience": "Internationals relocating to Amsterdam",
-    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier in 24 hours, applications within the hour of a listing going live, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
+    "audience": "Expats and internationals relocating to Amsterdam",
+    "description": "Rental search in Amsterdam on the tenant's side only: Dutch-format application dossier within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, negotiation of rent, deposit and service costs, contract check against Dutch law, BRP registration confirmed in writing. Flat fees paid by the tenant, nothing from landlords or platforms."
   },
   "nav": {
     "how": "How it works",
@@ -96,7 +96,7 @@
       ],
       [
         "Nothing to prepare",
-        "Keep this link: your ticket and papers live in it."
+        "We tell you on the call what papers matter."
       ],
       [
         "Nothing by then?",
@@ -117,8 +117,8 @@
       },
       {
         "k": "2 · Dossier & applications",
-        "v": "Dutch-format, in 24 hours",
-        "s": "Income proof, employer statement, ID, references, motivation letter in Dutch and English. Then we apply within the hour of a listing going live."
+        "v": "Dutch-format, one working day",
+        "s": "Income proof, employer statement, ID, references, motivation letter in Dutch and English. Then we apply as listings go live."
       },
       {
         "k": "3 · Viewing & contract",
@@ -137,16 +137,16 @@
         "id": "full-search",
         "label": "Full Search",
         "se": "Full Search · end to end",
-        "name": "We find it. You move in.",
+        "name": "We search. You choose.",
         "includes": [
-          "Daily search: Pararius, Funda, agencies, off-market",
-          "Applications within the hour",
+          "Search every working day: Pararius, Funda, agencies",
+          "Applications as listings appear",
           "One attended viewing included, live video + report (more: €149 each)",
           "Rent negotiated, contract checked, BRP supported"
         ],
         "price": 500,
         "featured": true,
-        "offerDescription": "Search, Dutch-format dossier, applications within the hour, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, Dutch-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT",
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
       },
@@ -157,13 +157,13 @@
         "name": "You search. We make you win.",
         "text": "The paperwork that wins Dutch applications.",
         "includes": [
-          "Dutch-format dossier in 24 hours",
+          "Dutch-format dossier, one working day from your papers",
           "Motivation letter, Dutch + English",
           "Income and guarantor strategy",
           "Contract review before you sign"
         ],
         "price": 199,
-        "offerDescription": "Dutch-format rental dossier in 24 hours, motivation letter, income and guarantor strategy, contract review.",
+        "offerDescription": "Dutch-format rental dossier within one working day of your papers, motivation letter, income and guarantor strategy, contract review.",
         "condition": "flat · incl. VAT",
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
       },
@@ -173,7 +173,7 @@
         "unit": "per viewing",
         "se": "Attended Viewing",
         "name": "Eyes on the ground.",
-        "text": "You found it, you're abroad. We go.",
+        "text": "Shortlisted, and still abroad? We go.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
@@ -271,7 +271,7 @@
           "stage": "found"
         },
         "plan": "application-pack",
-        "why": "You found it. What wins it is the file: Dutch format, in 24 hours."
+        "why": "You found it. What wins it is the file, in the Dutch format."
       },
       {
         "when": {
@@ -292,7 +292,7 @@
     ],
     "notes": {
       "when": {
-        "soon": "Four weeks is tight: applications go out within the hour of a listing.",
+        "soon": "Four weeks is tight: the file must be ready before the right listing appears.",
         "months": "Good timing: the dossier is ready before the listings are.",
         "later": "No rush: open the file now, the search starts when you say."
       }
@@ -339,7 +339,7 @@
         "employer",
         "reference"
       ],
-      "resultAll": "All eight in hand. We format them the Dutch way and apply within the hour of a listing.",
+      "resultAll": "All eight in hand. We format them the Dutch way and apply as listings appear.",
       "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
       "skipped": "Tap the papers you hold above and we say what we would fix first.",
       "eyebrow": "Your papers"
@@ -396,19 +396,19 @@
     "num": "03 — BEFORE YOU SIGN",
     "h2": "Six things we check",
     "h2g": "before you sign.",
-    "sub": "Six points we put in writing on every contract.",
+    "sub": "Put in writing on every contract.",
     "items": [
       {
         "id": "deposit",
         "title": "The deposit cap",
-        "at": "2 months max",
-        "text": "Dutch law caps the deposit at two months' rent. Agents still ask for three. We don't let them."
+        "at": "2× basic rent",
+        "text": "Dutch law caps the deposit at two months' basic rent, service costs excluded. Agents still ask for three. We don't let them."
       },
       {
         "id": "brp",
         "title": "Registration",
         "at": "BRP · BSN",
-        "text": "A landlord cannot forbid registration at the address. No BRP, no BSN, no bank. We confirm it in writing before you pay."
+        "text": "A landlord cannot forbid registration at the address. Without BRP, a BSN and a bank account get hard. We confirm it in writing before you sign."
       },
       {
         "id": "wws",
@@ -446,16 +446,20 @@
       },
       {
         "dt": "For whom",
-        "ddHtml": "Internationals relocating to Amsterdam — employees, researchers, couples and families — from abroad or already in the city."
+        "ddHtml": "Expats and internationals relocating to Amsterdam — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Language",
+        "ddHtml": "English. The motivation letter goes in Dutch and English."
       },
       {
         "dt": "Fees",
         "fees": true,
-        "ddHtml": "VAT included. No percentage of the rent, nothing from landlords or platforms."
+        "ddHtml": "No percentage of the rent, nothing from landlords or platforms."
       },
       {
         "dt": "What we do",
-        "ddHtml": "Dutch-format dossier in <b>24 hours</b>, applications <b>within the hour</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing."
+        "ddHtml": "Dutch-format dossier within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, negotiation, contract check against Dutch law, BRP confirmed in writing."
       },
       {
         "dt": "What we don't do",
@@ -479,7 +483,7 @@
     "items": [
       {
         "q": "Isn't it illegal for agents to charge tenants in the Netherlands?",
-        "a": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. That is what we are."
+        "a": "It is illegal for an agent to charge you when they also act for the landlord — what most \"free\" agencies do. An agent you hire, who works only for you, may charge you for the work. BOOM Amsterdam is that agent (aanhuurmakelaar): hired and paid by the tenant only."
       },
       {
         "q": "Which service is mine?",
@@ -487,15 +491,19 @@
       },
       {
         "q": "How fast will I have an apartment?",
-        "a": "Budget and move-in date decide it. A complete Dutch-format dossier and applications inside the hour are what shorten it. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else."
+        "a": "Budget and move-in date decide it. A complete Dutch-format dossier and applications sent as listings appear are what shorten it. Nobody can promise a date in Amsterdam. Anyone who does is selling you something else."
       },
       {
         "q": "Do I need to be in Amsterdam?",
         "a": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the BRP appointment."
       },
       {
+        "q": "How do I avoid a rental scam in Amsterdam from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and confirm in writing that you can register (BRP) at the address, before you sign."
+      },
+      {
         "q": "What if you don't find anything?",
-        "a": "Then we talk. We say in the first call if your budget and timeline don't fit the market, and we would rather decline a search than take one we don't believe in — if we decline, Full Search is refunded in full."
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take the search on, the fee pays for the work, not for a result: nobody can promise a home."
       },
       {
         "q": "How do I pay?",
@@ -597,7 +605,7 @@
     "person": "Valentino Egidi",
     "role": "tenant-side agent",
     "timeZone": "Europe/Rome",
-    "tzLabel": "CET",
+    "tzLabel": "CET/CEST",
     "hours": {
       "from": "09:00",
       "to": "19:00"
@@ -619,5 +627,6 @@
   "till": {
     "label": "Pay and start",
     "labelWait": "Pay and book"
-  }
+  },
+  "updated": "2026-10-21"
 }

@@ -83,7 +83,9 @@
   (function () {
     var host = $('flapCity');
     if (!host || !BS) return;
-    var word = String(host.textContent || C.WORD || '').trim().toUpperCase();
+    /* the board is served empty (the raw H1 reads the city once); the word
+       is data-word, drawn by CSS until the cells land */
+    var word = String(host.getAttribute('data-word') || C.WORD || '').trim().toUpperCase();
     if (!word) return;
     var b = new BS.Board(host, word.length, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
     if (ridotto) { b.show(word); return; }
@@ -105,7 +107,7 @@
     }
     var toMin = function (hhmm) { var a = hhmm.split(':'); return (+a[0]) * 60 + (+a[1]); };
     /* the zone's short name as the clock sees it (CEST seven months a year),
-       the build's label (CET) when Intl gives a numeric offset instead */
+       the build's season-neutral label (CET/CEST) when Intl gives a numeric offset instead */
     function tzLabel() { var p = parts(D.timeZone); return p && /^[A-Z]{2,5}$/.test(p.tz) ? p.tz : D.tzLabel; }
     /* is the desk open now: true · false · null when the clock is unknown */
     function isOpen() {
@@ -356,6 +358,9 @@
        not Enter in a field (implicit submission) — the flag does; it is
        released only when the send fails */
     var sending = false;
+    /* one request id per page load: a send retried after a timeout files the
+       same lead (api/city-lead.js writes leads/city_<id>), never a second */
+    var requestId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^a-z0-9]/g, '');
     /* the offer after the lead is bound once; the plan and the prefill it
        opens with are the last send's */
     var offerPlan = '', offerPrefill = null, offerBtn = $('payOfferBtn');
@@ -386,6 +391,7 @@
         /* what the Check-in learned, if they used it (the server prints it
            in the operator's summary; empty otherwise) */
         checkin: v('fCheckin'), dossier: v('fDossier'),
+        requestId: requestId,
         company: v('fCompany')
       })
         .then(function (j) {
@@ -420,6 +426,9 @@
           fail('net');
         });
     });
+    /* the button is served disabled: without this script a submit would be a
+       GET to the page with the contact data in the address bar */
+    go.disabled = false;
   }
 
   /* ── the paid landing: Stripe sends the client back to ?paid=<plan> ────

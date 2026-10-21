@@ -43,7 +43,7 @@ import { loadDocumentRelations, documentRelation } from '../documents/_relation.
 import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
-  normalizePhone, phoneVariants, waRefPatch,
+  normalizePhone, phoneVariants, waRefPatch, deskPatch,
 } from './_lead.js';
 // STATIC imports (la lezione nodemailer di CLAUDE.md: il bundler Vercel non
 // traccia i lazy import — un modulo mancante in produzione è un turno perso).
@@ -685,7 +685,7 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
       if (!isNoise(text)) {
         const merged = mergeMessage(lead.message, text);
         if (merged !== lead.message) patch.message = merged;
-        Object.assign(patch, waRefPatch(lead, text));
+        Object.assign(patch, waRefPatch(lead, text), deskPatch(lead, text));
         // la casa può emergere al terzo messaggio, non al primo
         if (!lead.propertyId) {
           const hit = matchListing(text, await loadCatalog());
@@ -725,6 +725,7 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
         lastInboundAt: now,
         ...(prior.phone ? {} : { phone: contactPhone }),
         ...waRefPatch(prior, text),
+        ...deskPatch(prior, text),
       });
     } catch { return { bindingStatus: 'unavailable', bindingReason: 'lead_binding_unavailable' }; }
     return { leadId: prior.id, leadDeduped: true };

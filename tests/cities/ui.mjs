@@ -174,7 +174,13 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   const hidden = await page.$$eval('.rv', (els) => els.filter((e) => getComputedStyle(e).opacity !== '1').length);
   const total = await page.$$eval('.rv', (els) => els.length);
   check(total >= 4 && hidden === 0, `without JS all ${total} reveal blocks are visible`, `${hidden} hidden`);
-  check((await page.textContent('#flapCity')).trim() === 'AMSTERDAM', 'without JS the title still says AMSTERDAM, as text');
+  check(await page.$eval('#flapCity', (f) => getComputedStyle(f, '::before').content === '"AMSTERDAM"' && f.textContent === ''), 'without JS the title still shows AMSTERDAM (CSS draws data-word on the empty board)');
+  check((await page.$eval('h1', (h) => h.textContent.replace(/\s+/g, ' ').trim())) === 'Your home in Amsterdam', 'the H1 text is "Your home in Amsterdam", once');
+  // the door cannot submit without the script: no GET with the contact data in the address bar
+  check(await page.$eval('#fGo', (b) => b.disabled) && await page.isVisible('#cityForm noscript + #fGo, #cityForm .ferr.on'), 'without JS the door button is disabled and the page says where to write instead');
+  await page.fill('#fName', 'Anna'); await page.fill('#fEmail', 'anna@example.com'); await page.press('#fEmail', 'Enter');
+  await page.waitForTimeout(150);
+  check((await page.evaluate(() => location.search)) === '', 'Enter in a field submits nothing without JS (no ?name=…&email=… in the URL)');
   const prices = await page.$$eval('[data-plan-price]', (els) => els.map((e) => e.textContent.trim()));
   check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, on the plates');
   const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
@@ -182,7 +188,7 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
     'without JS the service chips show their price and their condition as text');
   check(await page.$eval('.planline .chips', (e) => getComputedStyle(e).display !== 'none') && await page.$eval('#planline', (e) => e.open), 'without JS the chips are open in the door');
   const wa = await page.getAttribute('.consent a[href^="https://wa.me/"]', 'href');
-  check(wa === 'https://wa.me/393313251961', 'the WhatsApp link is a real href to the real number');
+  check(wa === 'https://wa.me/393313251961?text=' + encodeURIComponent("Hi BOOM Amsterdam, I'm moving to Amsterdam."), 'the WhatsApp link is a real href to the real number, opening with the desk named', wa);
   const goTxt = await page.$$eval('.plates .go', (els) => els.map((e) => e.textContent.trim()));
   check(JSON.stringify(goTxt) === JSON.stringify(['Open my file →', 'Open my file →', 'Open my file →']), 'without JS the plates\' primaries read the one label');
   const gone = await page.evaluate(() => ['#checkin', '#pass', '.skipck', '#paybar'].map((s) => getComputedStyle(document.querySelector(s)).display === 'none'));

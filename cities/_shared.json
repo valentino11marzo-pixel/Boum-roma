@@ -12,10 +12,11 @@
   "contact": {
     "whatsapp": "393313251961",
     "phoneDisplay": "+39 331 325 1961",
-    "email": "hello@boom-rome.com"
+    "email": "hello@boom-rome.com",
+    "waText": "Hi BOOM {city}, I'm moving to {city}."
   },
   "organization": {
-    "name": "BOOM",
+    "name": "BOOM Rome",
     "legalName": "Egidi Immobiliare S.r.l.",
     "logo": {
       "@type": "ImageObject",
@@ -45,7 +46,7 @@
         "it"
       ]
     },
-    "description": "Tenant-side rental search and relocation desk for internationals, born in Rome."
+    "description": "Rental agency born in Rome (Egidi Immobiliare S.r.l.): mid-term apartments and property management in Rome, and tenant-side rental search desks for internationals moving to other European cities."
   },
   "family": [
     {

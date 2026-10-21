@@ -203,9 +203,9 @@ export function b2bReplyText(lead = {}) {
 // first call — the sheet, the FAQ and the build's guard say the same.
 export const CITY_PLANS = {
   'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
-    desc: 'Search on the tenant\'s side: local-format dossier in 24 hours, applications within the hour, one attended viewing with live video and written report, negotiation, contract checked before you sign. Refunded in full if we decline the search in the first call.' },
+    desc: 'Search on the tenant\'s side: local-format dossier within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign. Refunded in full if we decline the search in the first call.' },
   'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
-    desc: 'The dossier that wins applications: local format in 24 hours, cover letter, income and guarantor strategy, contract review before you sign.' },
+    desc: 'The dossier that wins applications: local format within one working day of your papers, cover letter, income and guarantor strategy, contract review before you sign.' },
   'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
     desc: 'A BOOM person attends the viewing in your place: live video walkthrough, written report (light, noise, damp, neighbours, commute) and a straight recommendation.' },
 };
@@ -242,6 +242,69 @@ export function cityOffer(cityKey, planId) {
   const p = (c.plans || {})[id];
   if (!p) return { ok: false, error: 'unknown_service' };
   return { ok: true, city: k, plan: id, eur: p.eur, label: p.label, per: p.per, desc: p.desc, name: `BOOM ${c.label} — ${p.label}`, url: c.url };
+}
+
+/**
+ * The desk a WhatsApp message names. Every WhatsApp link on a city page opens
+ * with a prefilled line ("Hi BOOM Amsterdam, I'm moving to Amsterdam.",
+ * build-cities.mjs waHref): it is the only trace a chat carries of the page
+ * it came from, consent or not. Returns the CITY_MARKETS key or null — a
+ * Rome message never names a desk, so it stays in the Rome machine.
+ * @param {string} text
+ * @returns {string|null}
+ */
+const CITY_TEXT_RE = new RegExp(`\\bBOOM (${Object.values(CITY_MARKETS).map((c) => c.label).join('|')})\\b`, 'i');
+export function cityFromText(text) {
+  const m = CITY_TEXT_RE.exec(String(text || ''));
+  if (!m) return null;
+  const label = m[1].toLowerCase();
+  return Object.keys(CITY_MARKETS).find((k) => CITY_MARKETS[k].label.toLowerCase() === label) || null;
+}
+
+/**
+ * A phone typed on a city page, as E.164, read with the DESK's country — or
+ * null when it cannot be read. WhatsApp delivers E.164 ('+31612345678'): a
+ * number stored as typed ('+31 6 12345678', '06 12345678', '612 345 678')
+ * never matched the client's reply, which then became a NEW Rome lead, and
+ * the Italian guess of the Rome machine turned '06…' into '+39…'.
+ * '+…' and '00…' are international as typed; a national number takes the
+ * desk's country code (the trunk 0 dropped, as NL/FR/DE dial it).
+ * @param {string} raw
+ * @param {string} cityKey
+ * @returns {string|null}
+ */
+const DIAL = { nl: '31', es: '34', fr: '33', de: '49' };
+export function cityPhone(raw, cityKey) {
+  let s = String(raw || '').trim().replace(/[\s().\-\/]/g, '');
+  if (!s) return null;
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+')) {
+    const d = s.slice(1).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15 ? '+' + d : null;
+  }
+  const d = s.replace(/\D/g, '');
+  const c = CITY_MARKETS[String(cityKey || '').toLowerCase()];
+  const cc = c && DIAL[c.country];
+  if (!cc || d.length < 8 || d.length > 13) return null;
+  // typed with the country code but without '+' (e.g. 31612345678)
+  if (d.startsWith(cc) && d.length >= cc.length + 9) return '+' + d;
+  return '+' + cc + d.replace(/^0/, '');
+}
+
+/**
+ * Why a lead is NOT a Rome tenant, or null. The Rome re-engagement tools
+ * (the reverse search after each publication, /richiama) and the Segretaria
+ * speak of Rome homes, Rome viewings and Rome services: an Amsterdam or
+ * Madrid client, a Réunion owner, an organisation or a Rome landlord must
+ * never receive them. One copy of the veto, read by every Rome-only tool.
+ * @param {object} lead
+ * @returns {string|null}
+ */
+export function notRomeTenant(lead = {}) {
+  if (isCityMarket(lead)) return `cerca casa a ${CITY_MARKETS[cityMarketOf(lead)].label}, non a Roma`;
+  if (isReunion(lead)) return 'La Réunion, non Roma';
+  if (isB2B(lead)) return b2bSide(lead) === 'owner' ? 'è un proprietario, non un inquilino' : 'è un ente o un\'azienda, non un inquilino';
+  return null;
 }
 
 /** 'search' | 'waitlist' — the state of the city's desk; 'search' for a lead that is not a city's. */

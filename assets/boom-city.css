@@ -53,6 +53,8 @@ main{padding-top:112px}
 section{margin-top:84px}
 section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 @media(max-width:640px){.sec-h{flex-direction:column;align-items:flex-start;gap:6px}}
+/* the section labels are text, not ornament: --t4 measured 2.17:1 on the void */
+.sec-h .num{color:var(--t3b)}
 .late{content-visibility:auto;contain-intrinsic-size:auto 600px}
 
 /* ── HERO: the question, the pass, the facts, the door ─────────────────────
@@ -67,6 +69,8 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .hero h1{order:1;font-weight:300;font-size:clamp(34px,5.4vw,56px);line-height:1.08;letter-spacing:-.5px;margin-top:0}
 .hero h1 .flap-city{display:inline-block;font-size:.72em;font-weight:300;letter-spacing:0;color:var(--oro-flap);vertical-align:.1em;margin:0 .04em 0 .02em;white-space:nowrap}
 .hero h1 .flap-city .fc2{margin-right:.06em}
+/* the board is served empty (the raw H1 reads the city once): until the cells land, and without JS, CSS draws the word */
+.hero h1 .flap-city:empty::before{content:attr(data-word)}
 .hero .lead{order:2;color:var(--t2);font-size:15px;line-height:1.55;margin-top:14px;max-width:46ch}
 .hero .checkin{order:3;margin-top:18px}
 .hero #pass{order:4;margin-top:14px}
@@ -82,6 +86,8 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
      so sticky had no room to move, and where it could it hid the door's foot */
   .hero-right{align-self:start}
   .hero #pass{margin-top:0}
+  /* a paint between the pass and the inline move never shows it in the left column */
+  .hero-left>#pass{display:none}
   .hero .filecard{margin-top:16px}
   .hero h1{font-weight:200}
 }
@@ -426,12 +432,26 @@ dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padd
 .paybar .pinfo small{color:var(--t3b)}
 
 /* footer: the tenant-side statement sits between tagline and company */
-.footer-statement{font-size:12px;color:var(--text-tertiary);line-height:1.7;margin:-8px 0 18px;max-width:60ch}
+.footer-statement{font-size:12px;color:var(--t3b);line-height:1.7;margin:-8px 0 18px;max-width:60ch}
 
 /* ── polish ── */
 .skip{position:absolute;left:-9999px;top:0;z-index:10002;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
 .skip:focus{left:0}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
+/* the phone strip covers the footer's last row at the bottom of the page:
+   footer.footer gives back the clearance .footer overrides (strip = 66px) */
+@media screen and (max-width:879px){footer.footer{padding-bottom:calc(var(--space-2xl) + 66px + var(--safe))}}
+/* the menu button is a 44px target (it measured 44x36) */
+.nav-toggle{min-width:44px;min-height:44px;justify-content:center;align-items:center}
+/* viewport-fit=cover: in landscape the lockup, the text and the strip keep
+   clear of the sensor housing */
+@supports (padding:max(0px)){
+  .container{padding-left:max(var(--space-lg),env(safe-area-inset-left));padding-right:max(var(--space-lg),env(safe-area-inset-right))}
+  @media (min-width:768px){.container{padding-left:max(var(--space-2xl),env(safe-area-inset-left));padding-right:max(var(--space-2xl),env(safe-area-inset-right))}}
+  .nav .container{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
+  .paybar{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+}
+
 @media(prefers-reduced-motion:reduce){
   .h-2,.h-3,.ck-step,.pass.in{animation:none}
   .rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .sib.on .inc li{opacity:1;transform:none;transition:none}
