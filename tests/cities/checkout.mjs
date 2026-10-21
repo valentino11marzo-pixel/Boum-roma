@@ -85,7 +85,14 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'PATCH') { const flat = store.get(clean) || {}; for (const [k, v] of Object.entries(JSON.parse(opts.body).fields || {})) flat[k] = fromFsV(v); store.set(clean, flat); return okJson({}); }
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: clean, fields: {} });
+    // top-level scalars only (what readDoc reads back)
+    const fields = {};
+    for (const [k, v] of Object.entries(doc)) {
+      if (typeof v === 'string') fields[k] = { stringValue: v };
+      else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+      else if (typeof v === 'number') fields[k] = Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v };
+    }
+    return okJson({ name: clean, fields });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
@@ -275,6 +282,21 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const alert = store.get('agentNotifications/svc-mail-cscitymailko');
   check(rFail.body && rFail.body.clientEmail === 'failed' && ko1 && /EmailJS 500/.test(ko1.clientEmailError || '') && alert && alert.priority === 'high' && /NON è partita/.test(alert.summary) && /recesso/.test(alert.summary),
     'a failed confirmation: the lead says so, and the operator gets an alert to send it by hand (with the withdrawal text)', JSON.stringify(alert));
+  // a first run killed before it recorded the client email (a hung send, a
+  // 60s kill): the Stripe retry answers "duplicate" but tells the operator
+  const old = new Date(Date.now() - 5 * 60000).toISOString();
+  store.set('leads/svc_cscityhang', { type: 'service', market: 'amsterdam', createdAt: old });
+  store.set('leads/svc_cscityfresh', { type: 'service', market: 'amsterdam', createdAt: new Date().toISOString() });
+  const e1 = emails.length;
+  const rHang = mkRes(), rFresh = mkRes();
+  await webhook(stream(event(meta, { id: 'cs_city_hang', amount_total: 19900 })), rHang);
+  await webhook(stream(event(meta, { id: 'cs_city_fresh', amount_total: 19900 })), rFresh);
+  const aHang = store.get('agentNotifications/svc-mail-cscityhang');
+  check(rHang.body && rHang.body.duplicate === true && emails.length === e1 && aHang && aHang.priority === 'high' && /nessuna traccia/.test(aHang.summary) && /recesso/.test(aHang.summary),
+    'a retry on a paid order whose client email was never recorded: still duplicate (no resend), but the operator is alerted', JSON.stringify(aHang));
+  check(rFresh.body && rFresh.body.duplicate === true && !store.has('agentNotifications/svc-mail-cscityfresh'), 'a retry overlapping a first run still in flight (under 90s) raises no false alert');
+  check(/signal: AbortSignal\.timeout\(\d+\)/.test(read('api/stripe-webhook.js').split('async function sendEmailJS')[1].split('\n}')[0]),
+    'EmailJS has a time limit: a hung send becomes a recorded failure, not a 60s kill');
 }
 // The withdrawal window, alone: Rome calendar days from the conclusion day,
 // across midnight, both DST changes, the year end and a leap year — and a

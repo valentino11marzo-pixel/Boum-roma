@@ -74,10 +74,14 @@ async function sendEmailJS(templateParams) {
     template_params: templateParams,
   };
 
+  // A hung send would hold the function until the platform kills it at 60s,
+  // before the delivery is recorded: the 10s limit turns a hang into a throw
+  // the caller records (and alerts on).
   const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!r.ok) {
@@ -518,7 +522,24 @@ async function handleService(res, session, m, event = null) {
     return res.status(500).json({ error: 'lead_write_failed' });
   }
   if (w && w.exists) {
-    // Retry di Stripe su una sessione già processata: email già inviate.
+    // Retry di Stripe su una sessione già processata: le email non si
+    // rimandano. Ma se il primo giro è morto prima di registrare l'esito
+    // dell'email al cliente (né inviata né fallita) l'operatore lo deve
+    // sapere: avviso idempotente (id deterministico), mai su un primo giro
+    // che potrebbe essere ancora in volo (90s).
+    try {
+      const prev = await readDoc('leads/svc_' + docId);
+      const born = Date.parse((prev && prev.createdAt) || '');
+      if (prev && !prev.clientEmailSentAt && !prev.clientEmailFailedAt && Number.isFinite(born) && Date.now() - born > 90000) {
+        await writeDoc('agentNotifications', 'svc-mail-' + docId, {
+          type: 'service.client_email_failed',
+          summary: `📭 Ordine pagato svc_${docId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${prev.market && prev.market !== 'roma' ? ', col testo del recesso' : ''}.`,
+          priority: 'high', status: 'pending', actor: 'stripe-webhook',
+          ref: { collection: 'leads', id: 'svc_' + docId },
+          dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+        });
+      }
+    } catch (_) {}
     return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
   }
 

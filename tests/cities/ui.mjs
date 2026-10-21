@@ -80,7 +80,7 @@ const srv = http.createServer((req, res) => {
 const base = `http://127.0.0.1:${srv.address().port}`;
 const browser = await chromium.launch(launchOptions());
 
-async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null } = {}) {
+async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null, block = null } = {}) {
   const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: width < 600 ? 844 : 900 }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
   const st = { errors: [], posts: [], checkouts: [], foreign: [] };
@@ -96,6 +96,7 @@ async function open({ js = true, width = 390, api = { status: 200, body: { ok: t
   }, clock);
   await page.route('**/*', async (r) => {
     const u = r.request().url();
+    if (block && block.test(u)) return r.abort();
     if (u.startsWith(base + '/api/city-lead')) {
       st.posts.push({ headers: r.request().headers(), body: r.request().postData() || '' });
       if (api.delay) await new Promise((res) => setTimeout(res, api.delay));
@@ -181,6 +182,7 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.fill('#fName', 'Anna'); await page.fill('#fEmail', 'anna@example.com'); await page.press('#fEmail', 'Enter');
   await page.waitForTimeout(150);
   check((await page.evaluate(() => location.search)) === '', 'Enter in a field submits nothing without JS (no ?name=…&email=… in the URL)');
+  check(await page.$eval('#fGo', (b) => +getComputedStyle(b).opacity < 0.8), 'the shut door looks shut (disabled style), not a gold button that does nothing');
   const prices = await page.$$eval('[data-plan-price]', (els) => els.map((e) => e.textContent.trim()));
   check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, on the plates');
   const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
@@ -195,6 +197,25 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   check(gone.every(Boolean), 'without JS the Check-in, the pass, the skip link and the strip are not there (they are behaviour)');
   check((await page.textContent('#faq')).includes("Full Search (€500) if you haven't started."), 'without JS the derived FAQ answer is on the page as text');
   check(await page.$('dialog#ov') !== null && !(await page.$eval('dialog#ov', (d) => d.open)), 'the till is a native <dialog>, closed');
+  await ctx.close();
+}
+// ── JS on, but the desk script never loads: the shut door says where to write ──
+{
+  const { ctx, page, st } = await open({ block: /\/assets\/boom-city\.js/ });
+  await page.waitForTimeout(100);
+  const fb = await page.$eval('#fJsFail', (p) => ({ vis: getComputedStyle(p).display !== 'none', t: p.textContent, links: [...p.querySelectorAll('a')].map((a) => a.getAttribute('href')) })).catch(() => null);
+  check(await page.$eval('#fGo', (b) => b.disabled && +getComputedStyle(b).opacity < 0.8) && fb && fb.vis && /could not load/.test(fb.t)
+    && /^https:\/\/wa\.me\/\d+\?text=/.test(fb.links[0] || '') && /^mailto:/.test(fb.links[1] || ''),
+    'the desk script fails to load: the door looks shut and a line gives WhatsApp and email instead', JSON.stringify(fb));
+  check(st.errors.length === 0, 'and the fallback itself throws nothing', st.errors.join(' | '));
+  await ctx.close();
+}
+// ── the normal load: the door opens and no fallback line is printed ──
+{
+  const { ctx, page } = await open();
+  await page.waitForTimeout(400);   // the .2s fade from the served shut state
+  const door = await page.$eval('#fGo', (b) => [b.disabled, getComputedStyle(b).opacity]);
+  check(door[0] === false && door[1] === '1' && (await page.$('#fJsFail')) === null, 'with the desk script the door is open and no fallback line appears', JSON.stringify(door));
   await ctx.close();
 }
 
@@ -378,7 +399,9 @@ const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 C
   await page.waitForTimeout(1200);
   check(await boardWord(page, '#flapPaid') === 'PAID', 'the small board spells PAID');
   const purchases = (await layer(page)).filter((e) => e.name === 'purchase');
-  check(purchases.length === 1 && purchases[0].p.transaction_id === 'cs_test_ui_1' && purchases[0].p.value === 500, 'ONE purchase event, with Stripe\'s session id and the plan\'s value');
+  const fnv = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); };
+  check(purchases.length === 1 && purchases[0].p.transaction_id === 'city_amsterdam_' + fnv('cs_test_ui_1') && !/cs_/.test(JSON.stringify(purchases[0].p)) && purchases[0].p.value === 500,
+    'ONE purchase event with the plan\'s value; its transaction id is an opaque hash, never Stripe\'s session id', JSON.stringify(purchases[0] && purchases[0].p));
   const keys = await page.evaluate(() => ({ s: Object.keys(sessionStorage), l: Object.keys(localStorage).filter((k) => /paid/.test(k)) }));
   check(keys.s.includes('boom:paid:cs_test_ui_1') && keys.l.length === 0, 'the purchase key lives in sessionStorage for the tab, never in localStorage');
   check(!/paid=/.test(page.url()) && /#contact$/.test(page.url()), 'the query is folded away: the URL can be shared without re-landing on a paid state');

@@ -158,13 +158,13 @@
         "name": "You search. We make you win.",
         "text": "The dossier that wins German applications.",
         "includes": [
-          "German-format dossier in 24 hours",
+          "German-format dossier, one working day",
           "SCHUFA and guarantor strategy for newcomers",
           "Cover note in German",
           "Lease review before you sign"
         ],
         "price": 199,
-        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review.",
+        "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens."
       },
@@ -456,7 +456,7 @@
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier in <b>24 hours</b>, applications <b>as listings appear</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier within <b>one working day</b>, applications <b>as listings appear</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
       },
       {
         "dt": "What we don't do",

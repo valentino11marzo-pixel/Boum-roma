@@ -267,15 +267,29 @@ export function cityFromText(text) {
  * number stored as typed ('+31 6 12345678', '06 12345678', '612 345 678')
  * never matched the client's reply, which then became a NEW Rome lead, and
  * the Italian guess of the Rome machine turned '06…' into '+39…'.
- * '+…' and '00…' are international as typed; a national number takes the
- * desk's country code (the trunk 0 dropped, as NL/FR/DE dial it).
+ * '+…' and '00…' are international as typed ('(0)' after the code dropped:
+ * '+31 (0)6 …' is how Dutch and German numbers are written); a national
+ * number takes the desk's country code ONLY when it has that country's
+ * national format. Anything else — an Italian '333 1234567' typed without
+ * +39, a British '07700…' — is not a number of that country: null, and the
+ * caller keeps what was typed (the Rome guess then reads it as before).
  * @param {string} raw
  * @param {string} cityKey
  * @returns {string|null}
  */
 const DIAL = { nl: '31', es: '34', fr: '33', de: '49' };
+// National significant number per desk country (trunk 0 dropped). NL and FR
+// have 9 digits; ES 9 digits starting 6-9, no trunk 0; DE varies in length,
+// so it is read only when typed WITH its trunk 0.
+const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/ };
+function nationalOf(d, country) {
+  if (country === 'es') return NSN.es.test(d) ? d : null;
+  if (country === 'de') return d.startsWith('0') && NSN.de.test(d.slice(1)) ? d.slice(1) : null;
+  const n = d.replace(/^0/, '');
+  return NSN[country] && NSN[country].test(n) ? n : null;
+}
 export function cityPhone(raw, cityKey) {
-  let s = String(raw || '').trim().replace(/[\s().\-\/]/g, '');
+  let s = String(raw || '').trim().replace(/\(\s*0\s*\)/g, '').replace(/[\s().\-\/]/g, '');
   if (!s) return null;
   if (s.startsWith('00')) s = '+' + s.slice(2);
   if (s.startsWith('+')) {
@@ -285,10 +299,11 @@ export function cityPhone(raw, cityKey) {
   const d = s.replace(/\D/g, '');
   const c = CITY_MARKETS[String(cityKey || '').toLowerCase()];
   const cc = c && DIAL[c.country];
-  if (!cc || d.length < 8 || d.length > 13) return null;
+  if (!cc) return null;
   // typed with the country code but without '+' (e.g. 31612345678)
-  if (d.startsWith(cc) && d.length >= cc.length + 9) return '+' + d;
-  return '+' + cc + d.replace(/^0/, '');
+  if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c.country)) return '+' + cc + nationalOf(d.slice(cc.length), c.country);
+  const n = nationalOf(d, c.country);
+  return n ? '+' + cc + n : null;
 }
 
 /**

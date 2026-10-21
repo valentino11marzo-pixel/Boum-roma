@@ -186,7 +186,7 @@
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
       }
     ],
-    "note": "Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
+    "note": "Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms."
   },
   "checkin": {
     "num": "Check-in · {n} of 3",
@@ -507,11 +507,11 @@
       },
       {
         "q": "How do I pay?",
-        "a": "By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
+        "a": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
       },
       {
         "q": "What do you do with my data?",
-        "a": "It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+        "a": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
       }
     ]
   },

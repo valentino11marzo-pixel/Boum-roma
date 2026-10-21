@@ -192,7 +192,7 @@
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
           <noscript><p class="ferr on">This form needs JavaScript. Write to us on <a href="{{contact.waHref}}">WhatsApp</a> or at <a href="mailto:{{contact.email}}">{{contact.email}}</a>.</p></noscript>
-          <button type="submit" class="paybtn" id="fGo" disabled><span class="lk">✈</span><span class="tx"><b>{{door.label}}</b><small>{{door.sub}}</small></span><span class="amt">→</span></button>
+          <button type="submit" class="paybtn" id="fGo" disabled data-wa="{{contact.waHref}}" data-mail="{{contact.email}}"><span class="lk">✈</span><span class="tx"><b>{{door.label}}</b><small>{{door.sub}}</small></span><span class="amt">→</span></button>
           <p class="consent">{{form.consentLead}} <a href="/privacy">privacy</a>. {{form.consentAlt}} <a href="{{contact.waHref}}" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:{{contact.email}}?subject=BOOM%20{{city}}">{{contact.email}}</a></p>
         </form>
 
@@ -328,6 +328,21 @@
   window.BOOM_CITY = {{{configJson}}};
 </script>
 <script src="/assets/boom-city.js?v={{assetVersion.js}}"></script>
+<script>
+  /* The door is served disabled and the desk script opens it. If that script
+     never ran (a failed download, an early error) the button stays shut: say
+     where to write instead of leaving a door that does nothing. */
+  addEventListener('load', function () {
+    var b = document.getElementById('fGo');
+    if (!b || !b.disabled || document.getElementById('fJsFail')) return;
+    var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
+    p.className = 'ferr on'; p.id = 'fJsFail'; p.setAttribute('role', 'alert');
+    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp';
+    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail');
+    p.append('This form could not load. Write to us on ', wa, ' or at ', ml, '.');
+    b.parentNode.insertBefore(p, b);
+  });
+</script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

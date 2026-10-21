@@ -466,7 +466,10 @@
     miniBoard('flapPaid');
     var key = 'boom:paid:' + (sid || plan), seen = false;
     try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
-    if (!seen) boomTrack('purchase', { transaction_id: sid || ('city_' + Date.now()), currency: 'EUR', value: pp.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + plan, item_name: pp.label, price: pp.eur, quantity: 1 }], market: C.SLUG });
+    /* the Stripe session id names a payer: GA gets an opaque hash of it (FNV-1a), never the id */
+    var h = 0x811c9dc5;
+    for (var hi = 0; hi < sid.length; hi++) { h ^= sid.charCodeAt(hi); h = Math.imul(h, 0x01000193) >>> 0; }
+    if (!seen) boomTrack('purchase', { transaction_id: 'city_' + C.SLUG + '_' + (sid ? ('0000000' + h.toString(16)).slice(-8) : Date.now().toString(36)), currency: 'EUR', value: pp.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + plan, item_name: pp.label, price: pp.eur, quantity: 1 }], market: C.SLUG });
     try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
     setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); try { card.focus({ preventScroll: true }); } catch (e2) {} } catch (e) {} }, 50);
   })();

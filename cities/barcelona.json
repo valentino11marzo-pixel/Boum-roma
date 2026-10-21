@@ -158,13 +158,13 @@
         "name": "You search. We make you win.",
         "text": "The file that wins Spanish applications.",
         "includes": [
-          "Spanish-format file in 24 hours",
+          "Spanish-format file, one working day from your papers",
           "Presentation letter in Spanish",
           "Income, aval and guarantor strategy",
           "Contract review before you sign"
         ],
         "price": 199,
-        "offerDescription": "Local-format rental dossier in 24 hours, cover letter, application templates, contract review.",
+        "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens."
       },
@@ -415,7 +415,7 @@
         "id": "deposit",
         "title": "The deposit",
         "at": "fianza",
-        "text": "One month by law. Extra guarantees are capped at two months' rent. Agents still ask for more. We don't let them."
+        "text": "Habitual lease: one month, extra guarantees two months at most. Other lease types differ, and agents ask for more. We check."
       },
       {
         "id": "contract",
@@ -456,7 +456,7 @@
       },
       {
         "dt": "What we do",
-        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: Spanish-format file in <b>24 hours</b>, applications <b>as listings appear</b>, attended viewings, rent cap and contract checked, padrón supported."
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings, rent cap and contract checked, padrón supported."
       },
       {
         "dt": "What we don't do",

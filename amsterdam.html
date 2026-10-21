@@ -42,7 +42,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=19c59da41e">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=c157d360e5">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -108,10 +108,6 @@
         "Rome",
         "Amsterdam",
         "Madrid"
-      ],
-      "availableLanguage": [
-        "en",
-        "it"
       ],
       "sameAs": [
         "https://maps.google.com/?cid=15671179095441549815"
@@ -192,9 +188,11 @@
         "opens": "09:00",
         "closes": "19:00"
       },
-      "availableLanguage": [
-        "en"
-      ],
+      "availableChannel": {
+        "@type": "ServiceChannel",
+        "serviceUrl": "https://www.boomrome.com/amsterdam",
+        "availableLanguage": "en"
+      },
       "url": "https://www.boomrome.com/amsterdam",
       "offers": [
         {
@@ -344,7 +342,7 @@
           "name": "How do I pay?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
+            "text": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms."
           }
         },
         {
@@ -352,7 +350,7 @@
           "name": "What do you do with my data?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+            "text": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
           }
         }
       ]
@@ -909,7 +907,7 @@ html {
           <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
 
           <noscript><p class="ferr on">This form needs JavaScript. Write to us on <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Amsterdam%2C%20I'm%20moving%20to%20Amsterdam.">WhatsApp</a> or at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p></noscript>
-          <button type="submit" class="paybtn" id="fGo" disabled><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></button>
+          <button type="submit" class="paybtn" id="fGo" disabled data-wa="https://wa.me/393313251961?text=Hi%20BOOM%20Amsterdam%2C%20I'm%20moving%20to%20Amsterdam." data-mail="hello@boom-rome.com"><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></button>
           <p class="consent">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer WhatsApp or email? <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Amsterdam%2C%20I'm%20moving%20to%20Amsterdam." target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=BOOM%20Amsterdam">hello@boom-rome.com</a></p>
         </form>
 
@@ -1000,7 +998,7 @@ html {
         <button type="button" class="go2" data-pay="attended-viewing">Pay and start · €149</button>
       </article>
     </div>
-    <p class="feenote">Pay by card on this page when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</p>
+    <p class="feenote">Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. No percentage of your rent. Nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -1071,11 +1069,11 @@ html {
       </details>
       <details>
         <summary>How do I pay?</summary>
-        <div class="a">By card on this page (Stripe) when you start, or by bank transfer against an invoice from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
+        <div class="a">By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Nothing from landlords, their agents or platforms.</div>
       </details>
       <details>
         <summary>What do you do with my data?</summary>
-        <div class="a">It is used to answer you and to run your search, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will.</div>
+        <div class="a">Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires.</div>
       </details>
     </div>
   </section>
@@ -1500,7 +1498,22 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=33c001e66a"></script>
+<script src="/assets/boom-city.js?v=f28e52693e"></script>
+<script>
+  /* The door is served disabled and the desk script opens it. If that script
+     never ran (a failed download, an early error) the button stays shut: say
+     where to write instead of leaving a door that does nothing. */
+  addEventListener('load', function () {
+    var b = document.getElementById('fGo');
+    if (!b || !b.disabled || document.getElementById('fJsFail')) return;
+    var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
+    p.className = 'ferr on'; p.id = 'fJsFail'; p.setAttribute('role', 'alert');
+    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp';
+    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail');
+    p.append('This form could not load. Write to us on ', wa, ' or at ', ml, '.');
+    b.parentNode.insertBefore(p, b);
+  });
+</script>
 <script defer src="/js/boom-track.js"></script>
 </body>
 </html>

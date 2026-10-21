@@ -711,7 +711,9 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
         // name; the public Google profile behind the visible rating is sameAs.
         '@type': 'RealEstateAgent', '@id': orgId, name: o.name, alternateName: 'BOOM', legalName: o.legalName, url: site, logo: o.logo,
         founder: o.founder, address: o.address, vatID: o.vatID, contactPoint: o.contactPoint,
-        description: o.description, areaServed: served, availableLanguage: ['en', 'it'],
+        // languages: on contactPoint (schema:availableLanguage is not a property
+        // of RealEstateAgent or Service)
+        description: o.description, areaServed: served,
         ...(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || '') ? { sameAs: [shared.rome.profileUrl] } : {})
       },
       {
@@ -735,7 +737,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
         // the desk hours the page prints, from the desk block (Europe/Rome:
         // the same zone as Amsterdam and Madrid)
         hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
-        availableLanguage: ['en'], url: pageUrl,
+        availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: 'en' }, url: pageUrl,
         // Offers on every desk (v1.1), honest about availability: InStock
         // where the desk takes searches, PreOrder where it opens later — the
         // price is a list price and the Offer says in words when it is
@@ -874,6 +876,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.door && typeof city.door.label === 'string' && city.door.label.trim() && typeof city.door.sub === 'string' && typeof city.door.skip === 'string' && typeof city.door.stripSub === 'string',
     where, 'door needs label (the ONE action label), sub, skip and stripSub');
   need(!/€|\d/.test(city.door.label + city.door.sub + city.door.stripSub), where, 'the door label, its sub and the strip never carry a price');
+  // a desk open Mon–Fri 09–19 cannot keep a clock promise: the dossier is
+  // "one working day", applications go "as listings appear" — drafts included
+  need(!/\b24 hours\b|within the hour/i.test(JSON.stringify(city)), where, 'no "24 hours" or "within the hour" in the copy: the desk hours cannot keep it');
 
   // the facts
   const facts = list(city, 'facts');
@@ -1089,7 +1094,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   // pay control reads till.label with its price
   const label = esc(city.door.label);
   need((html.match(new RegExp(`<a href="#contact" class="nav-link nav-door">${label}</a>`)) || []).length === 1, where, 'the nav carries the door label as a text link');
-  need(html.includes(`<button type="submit" class="paybtn" id="fGo" disabled><span class="lk">✈</span><span class="tx"><b>${label}</b>`), where, 'the door button reads door.label and is disabled until the script binds the form (no GET with the contact data)');
+  need(new RegExp(`<button type="submit" class="paybtn" id="fGo" disabled data-wa="https://wa\\.me/[^"?]+\\?text=[^"]+" data-mail="[^"@]+@[^"]+"><span class="lk">✈</span><span class="tx"><b>${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</b>`).test(html)
+    && html.includes("document.getElementById('fJsFail')"), where, 'the door button reads door.label and is disabled until the script binds the form (no GET with the contact data); if the script never runs, the page says where to write');
   need(html.includes(`id="stripGo">${label}</a>`), where, 'the strip reads door.label');
   for (const p of plans) need(html.includes(`data-service="${esc(p.id)}">${label} →</a>`), where, `plate "${p.id}" primary reads door.label`);
   // the lock/plane glyph in .lk is decoration, not the label

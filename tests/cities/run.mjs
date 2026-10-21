@@ -239,12 +239,33 @@ check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 
   check(sec && /Full Search €500, Application Pack €199, Attended Viewing €149 per viewing/.test(sec) && sec.includes(shared.refund.rule) && /14 days/.test(sec) && /\/withdrawal/.test(sec) && /not for a result/.test(sec) && /courts/.test(sec),
     'terms §12 states the desk fees (= CITY_PLANS), the refund rule word for word, the withdrawal (linked, not restated), and the consumer\'s own law and courts');
   check(/Sections 2 to 7 apply to rentals in Rome/.test(terms) && /This section applies to rentals in Rome/.test(terms), 'the Rome sections say they are Rome\'s');
+  // the terms say what the flow does: a payer who did not tick "Start now" can
+  // still ask in writing (the paid card, the email and the operator's reply
+  // invite it), and the only paid route the desks run is the card till
+  check(sec && !/only if you ask us to at checkout/.test(sec) && /“Start now” tick at checkout, or later in writing/.test(sec) && !/bank transfer/i.test(sec),
+    'terms §12: early start by the tick OR later in writing (never "only at checkout"); payment by card, no bank-transfer route nothing serves');
+  const llms = read('llms.txt'), desksLine = llms.split('\n').find((l) => /Full Search €500/.test(l)) || '';
+  check(!/ticks "Start now"\)/.test(desksLine) && /or later in writing/.test(desksLine) && !/bank transfer/.test(desksLine), 'llms.txt says the same as the terms (tick or later in writing, card)');
+  check(!/bank transfer/i.test(JSON.stringify(ams.pricing) + JSON.stringify(ams.faq)), 'the desk page offers no bank-transfer route (nothing sends the withdrawal information to a transfer payer)');
+  // a re-dated page is re-dated in the sitemap too
+  const sm = read('sitemap.xml'), MON = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  for (const [f, u] of [['terms.html', '/terms'], ['privacy.html', '/privacy']]) {
+    const m = read(f).match(/Last Updated:?\s*(?:<\/strong>)?\s*(\d{1,2}) (\w+) (\d{4})/);
+    const iso = m ? `${m[3]}-${String(MON.indexOf(m[2]) + 1).padStart(2, '0')}-${m[1].padStart(2, '0')}` : null;
+    const lm = (sm.match(new RegExp(`<loc>https://www\\.boomrome\\.com${u}</loc>\\s*<lastmod>([\\d-]+)</lastmod>`)) || [])[1];
+    check(iso && lm === iso, `${u}: the sitemap <lastmod> is the page's own "Last Updated" date`, `${iso} vs ${lm}`);
+  }
 }
 // the privacy policy names the processors the lead passes through
 {
   const pv = read('privacy.html');
   check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Madrid\)/.test(pv),
     'the privacy policy names the real processors (no AWS or SendGrid it never used) and what a city request is used for');
+  check(!/a person reviews before anything is sent/.test(pv) && /hands to our AI assistant, it can reply to you/.test(pv) && /do not finish it, we may write to you once/.test(pv) && !/Show relevant ads/.test(pv) && /except the records the law requires us to keep/.test(pv),
+    'privacy says what the machine does: the AI assistant can reply on handed-over chats, an unfinished payment gets one message, no ad cookies, erasure keeps what the law requires');
+  const dataFaq = ams.faq.items.find((f) => /data/.test(f.q)) || {};
+  check(/ask once whether you have questions/.test(dataFaq.a || '') && /invoices and payment records stay/.test(dataFaq.a || '') && !/Ask us to delete it and we will\./.test(dataFaq.a || ''),
+    'the desk FAQ on data matches the policy: one question after an unfinished payment, deletion except what the law keeps');
 }
 
 // the door
@@ -279,7 +300,7 @@ check(/<input type="hidden" id="fCheckin" name="checkin" value="">/.test(html) &
 // one label: every door reads door.label, every pay control till.label + the price
 const L = esc(ams.door.label);
 check(html.includes(`<a href="#contact" class="nav-link nav-door">${L}</a>`) && html.includes(`<a href="#contact" class="mobile-menu-cta">${L}</a>`) && html.includes(`<li><a href="#contact">${L}</a></li>`)
-  && html.includes(`<button type="submit" class="paybtn" id="fGo" disabled><span class="lk">✈</span><span class="tx"><b>${L}</b>`) && html.includes(`id="stripGo">${L}</a>`)
+  && /<button type="submit" class="paybtn" id="fGo" disabled data-wa="[^"]+" data-mail="[^"]+"><span class="lk">✈<\/span><span class="tx"><b>/.test(html) && html.includes(`<span class="tx"><b>${L}</b><small>`) && html.includes(`id="stripGo">${L}</a>`)
   && ams.pricing.plans.every((p) => html.includes(`data-service="${p.id}">${L} →</a>`)) && html.includes(`id="ckFile" data-service=""><span class="lk">✈</span><span class="tx"><b>${L}</b>`),
   `one label: nav, menu, footer, door button, strip, the three plates and the pass all read "${ams.door.label}"`);
 const T = esc(ams.till.label);
@@ -439,6 +460,8 @@ check(eur(1500) === '€1,500' && eur(199) === '€199' && eur(12500) === '€12
   check(throws(() => render(clean, shNo), /rome\.profileUrl is empty/) === true, 'live:true on a desk that sells without the profile link is refused: a rating that cannot be checked is a claim');
   const photo = clone(clean); photo.hero.lead = 'Your person: [PHOTO OF LOCAL OPERATOR].';
   check(throws(() => render(photo, shLive), /\[PHOTO OF LOCAL OPERATOR\]/) === true, 'live:true with bracketed copy is refused, naming it');
+  const fast = clone(ams); fast.pricing.plans[0].offerDescription = 'Dossier in 24 hours.';
+  check(throws(() => render(fast), /24 hours/) === true, 'a clock promise ("24 hours") is refused on any desk, live or draft');
   const fakeWa = clone(clean); fakeWa.config = { WHATSAPP: '39XXXXXXXXXX' };
   check(throws(() => render(fakeWa, shLive), /config\.WHATSAPP = 39XXXXXXXXXX/) === true, 'live:true with a placeholder config value is refused');
   const noOg = fs.mkdtempSync(path.join(os.tmpdir(), 'boom-cities-og-'));
@@ -759,6 +782,11 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(stage0({ source: 'web', email: 'x@y.co', message: 'budget €1,500 a month' }, new Map()).reason.includes('budget'), 'a budget written with a thousands separator ("€1,500") counts as a budget');
   check(cityPhone('+31 6 12345678', 'amsterdam') === '+31612345678' && cityPhone('06 12345678', 'amsterdam') === '+31612345678' && cityPhone('612 345 678', 'madrid') === '+34612345678' && cityPhone('0034 612 345 678', 'madrid') === '+34612345678' && cityPhone('12', 'madrid') === null,
     'a city phone is read with the desk\'s country: +31 6…, 06…, 612 345 678 → E.164; nonsense → null');
+  check(cityPhone('333 1234567', 'amsterdam') === null && cityPhone('3331234567', 'madrid') === null && cityPhone('393331234567', 'amsterdam') === null && cityPhone('3331234567', 'berlin') === null
+    && cityPhone('020 123 4567', 'amsterdam') === '+31201234567' && cityPhone('91 123 45 67', 'madrid') === '+34911234567' && cityPhone('0151 12345678', 'berlin') === '+4915112345678',
+    'an Italian mobile typed without +39 is not a desk number (null: the Rome guess reads it as before); a real local number still is');
+  check(cityPhone('+31 (0)6 12345678', 'amsterdam') === '+31612345678' && cityPhone('+49 (0)151 23456789', 'berlin') === '+4915123456789' && cityPhone('0031 (0)20 1234567', 'amsterdam') === '+31201234567',
+    'the "(0)" after a country code is dropped, as the number is dialled from abroad');
   check(cityFromText("Hi BOOM Amsterdam, I'm moving to Amsterdam.") === 'amsterdam' && cityFromText('hi boom madrid') === 'madrid' && cityFromText('Ciao BOOM, cerco casa a Roma') === null && cityFromText('I love BOOMAmsterdam') === null,
     'the desk marker of the prefilled WhatsApp line is read back (case-insensitive, whole words); a Rome message names no desk');
   check(buildLead({ text: "Hi BOOM Madrid, I'm moving to Madrid.", phone: '+34612345678' }).market === 'madrid' && buildLead({ text: 'ciao, cerco casa', phone: '+393331234567' }).market === undefined

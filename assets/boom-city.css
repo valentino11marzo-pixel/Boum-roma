@@ -274,6 +274,9 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .consent{font-size:11.5px;color:var(--t3b);margin-top:11px;text-align:center;line-height:1.7}
 .consent a{color:var(--t2);text-decoration:underline;display:inline-block;padding:4px 0}
 .paybtn.busy{opacity:.72;pointer-events:none}
+/* served disabled until the desk script opens it: a shut door looks shut */
+#fGo{transition:opacity .2s}
+#fGo:disabled{opacity:.5;cursor:not-allowed;filter:saturate(.4)}
 .paybtn.busy .lk{animation:glide 1.1s ease-in-out infinite}
 @keyframes glide{0%,100%{transform:translateX(0)}50%{transform:translateX(5px)}}
 .paybtn::after{animation:none}
@@ -450,6 +453,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,te
   @media (min-width:768px){.container{padding-left:max(var(--space-2xl),env(safe-area-inset-left));padding-right:max(var(--space-2xl),env(safe-area-inset-right))}}
   .nav .container{padding-left:max(20px,env(safe-area-inset-left));padding-right:max(20px,env(safe-area-inset-right))}
   .paybar{padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  main{padding-left:max(18px,env(safe-area-inset-left));padding-right:max(18px,env(safe-area-inset-right))}
 }
 
 @media(prefers-reduced-motion:reduce){
