@@ -134,6 +134,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Collaudo del 21/10: Photon pubblico rifiuta `lang=it` con HTTP 400. Studio e ricerca cliente ora chiedono `lang=default`, mantenendo i nomi locali e l'interfaccia italiana. Nessun nuovo servizio o segreto.
+`tests/smartlink/map.mjs` esegue entrambi i controller reali con la risposta osservata: ricerca Piramide, scelta/conferma dell'area e risultati per il cliente. La correzione riguarda le ricerche remote; le zone note continuano a usare il dizionario esistente.
+PR #302 pubblicata su main `abce13f8`: importazione reale dal Portal Subito `665034710`, sei foto caricate e tutti i dettagli principali corretti. La mappa personalizzata ha fermato il collaudo finale e viene corretta prima della consegna.
 Dal 21/10 l'importazione diretta cerca prima le schede attive di `smartlinks` con lo stesso URL canonico, tramite `_reuse.js`: riusa le foto Storage senza aprire la fonte o ricaricarle dal telefono. Non crea una nuova cache né modifica PFS.
 Lo Studio dichiara «archivio BOOM» e la data originaria: prezzo/disponibilità restano da riconfermare. Alla pubblicazione `archiveId` è riletto dal server; ogni immagine deve appartenere a quell'annuncio attivo o alla nuova bozza. Origine del riuso privata, data rilevazione conservata, nuova chiave idempotente.
 La via principale non chiama più automaticamente l'estensione e non propone ZIP/configurazioni. Solo un browser già collegato mostra l'alternativa esplicita. Una fonte nuova non accessibile senza foto archiviate continua a dare un esito negativo; non dichiarare risolto il recupero universale.

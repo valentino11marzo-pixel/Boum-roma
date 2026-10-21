@@ -18,6 +18,8 @@ class Element {
   addEventListener(type,handler) { this.events[type]=handler; }
   replaceChildren(...children) { this.children=children; }
   append(...children) { this.children.push(...children); }
+  setAttribute(name,value) { this[name]=value; }
+  get childElementCount() { return this.children.length; }
   scrollIntoView() {}
   focus() {}
   fire(type,event={}) { return this.events[type]?.(event); }
@@ -64,4 +66,36 @@ await search;
 assert.equal(el('[data-area-results]').children.length,0,'stale search cannot overwrite new input');
 assert.equal(picker.ready(),false);
 picker.destroy();
+
+// Risposta reale Photon del 21/10: lang=it dà 400, default usa il nome locale.
+const photonFeature={geometry:{coordinates:[12.4824769,41.8748621]},properties:{name:'Piramide',city:'Roma'}};
+let lookupCalls=0;
+const photonFetch=async url=>{
+  lookupCalls++;
+  const valid=new URL(url).searchParams.get('lang')==='default';
+  return {ok:valid,json:async()=>valid?{features:[photonFeature]}:{lang:[{message:'Language is not supported. Supported are: default, de, en, fr',value:'it'}]}};
+};
+context.fetch=photonFetch;
+const livePicker=context.window.BOOM_SMARTLINK_MAP.mount(host,zones);
+el('input').value='Piramide, Roma';
+await el('[data-area-search]').fire('click');
+assert.equal(el('[data-area-results]').children.length,1,'An unknown area must return the real search result');
+await el('[data-area-results]').children[0].fire('click');
+el('[data-area-confirm]').fire('click');
+assert.equal(livePicker.value().label,'Piramide, Roma');assert.equal(livePicker.value().lat,41.8749);
+livePicker.destroy();
+
+// Esegue anche initSearch della scheda cliente reale: stesso errore, altro percorso UI.
+const pageSource=readFileSync(new URL('../../js/smartlink-page.js',import.meta.url),'utf8');
+const searchCode=pageSource.slice(pageSource.indexOf('  function initSearch()'),pageSource.indexOf('  async function initMap()'));
+const pageNodes=new Map(),pageEl=id=>{if(!pageNodes.has(id))pageNodes.set(id,new Element());return pageNodes.get(id);};
+let searchTimer;
+const searchContext={$:pageEl,points:[],area:zones.cipro,RULES,fetch:photonFetch,
+  setTimeout:fn=>{searchTimer=fn;return 1;},clearTimeout:()=>{},
+  document:{createElement:()=>new Element(),addEventListener:()=>{}}};
+vm.runInNewContext(searchCode+'\ninitSearch();',searchContext);
+pageEl('place-query').value='Piramide';pageEl('place-query').fire('input');await searchTimer();
+assert.equal(pageEl('place-results').hidden,false);
+assert.equal(pageEl('place-results').children[0].textContent,'Piramide','The customer can find a place outside the preloaded POIs');
+assert.equal(lookupCalls,2);
 console.log('SmartLink map: suggestion, explicit confirmation, omission, invalidation and stale search ✓');

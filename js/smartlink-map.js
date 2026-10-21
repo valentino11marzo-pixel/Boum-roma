@@ -88,7 +88,7 @@
       controller = new AbortController(); const searchController = controller;
       const timer = setTimeout(() => searchController.abort(), 8000);
       try {
-        const response = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q + ( /roma/i.test(q) ? '' : ', Roma')) + '&lat=41.9028&lon=12.4964&limit=6&lang=it', {signal:controller.signal});
+        const response = await fetch('https://photon.komoot.io/api/?q=' + encodeURIComponent(q + ( /roma/i.test(q) ? '' : ', Roma')) + '&lat=41.9028&lon=12.4964&limit=6&lang=default', {signal:controller.signal});
         if (!response.ok) throw new Error('search_unavailable');
         const data = await response.json();
         if (disposed || current !== version) return;
