@@ -1,0 +1,561 @@
+{
+  "slug": "berlin",
+  "city": "Berlin",
+  "country": "DE",
+  "iata": "BER",
+  "live": false,
+  "mode": "waitlist",
+  "config": {},
+  "meta": {
+    "title": "Tenant-side rental agent in Berlin — BOOM",
+    "description": "BOOM Berlin works only for the tenant and opens with a licensed partner. Open your file today: rent-brake check, lease read, German dossier, attended viewings.",
+    "ogTitle": "BOOM Berlin — an agent on your side of the table",
+    "ogDescription": "Tenant-side desk for internationals moving to Berlin, opening with a licensed partner. Rent-brake check, lease read, German-format dossier, attended viewings. Paid by you — never by landlords."
+  },
+  "service": {
+    "name": "BOOM Berlin — tenant-side rental desk",
+    "serviceType": "Tenant-side rental search agent",
+    "audience": "Internationals relocating to Berlin",
+    "description": "Tenant-side rental desk for Berlin, opening with a licensed partner (trade permit under §34c GewO). On the tenant's side only: rent checked against the Mietpreisbremse, cold and warm rent read, lease read before signing, German-format dossier, attended viewings with live video and written report, Anmeldung paperwork from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
+  },
+  "nav": {
+    "how": "How it works",
+    "services": "Services",
+    "checks": "Before you sign",
+    "faq": "FAQ",
+    "desk": "tenant side"
+  },
+  "hero": {
+    "h1Before": "Your home in",
+    "lead": "Opening with a licensed partner. Today: your file, your dossier readiness, the six checks before you sign."
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "email": {
+      "label": "Email",
+      "placeholder": "anna@company.com"
+    },
+    "moveIn": {
+      "label": "Move-in",
+      "unsure": "Not sure yet"
+    },
+    "budget": {
+      "label": "Monthly budget (warm)"
+    },
+    "budgetOptions": [
+      "Under €1,000",
+      "€1,000 – €1,500",
+      "€1,500 – €2,200",
+      "€2,200 – €3,000",
+      "€3,000+"
+    ],
+    "service": {
+      "label": "Service",
+      "none": "Which service? Three taps tell you ↑",
+      "from": "from your check-in",
+      "change": "change",
+      "unsure": "Not sure yet",
+      "unsureSub": "advise me",
+      "priceNote": "List prices, VAT included. Each plan says when it is charged."
+    },
+    "more": "More details (optional)",
+    "phone": {
+      "label": "Phone or WhatsApp",
+      "placeholder": "+49 …",
+      "sub": "optional"
+    },
+    "situation": {
+      "label": "Who's moving",
+      "placeholder": "Couple, relocating with employer"
+    },
+    "areas": {
+      "label": "Neighbourhoods",
+      "placeholder": "Prenzlauer Berg, Kreuzberg, Charlottenburg…"
+    },
+    "message": {
+      "label": "Anything else",
+      "placeholder": "Start date, pets, parking, a listing you already found…"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "sentBefore": "Your file is",
+    "sentEm": "open.",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes back by email, or WhatsApp if you left a number."
+      ],
+      [
+        "Nothing to prepare",
+        "We tell you on the call what papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
+  },
+  "how": {
+    "num": "01 — HOW IT WORKS",
+    "h2": "From your file",
+    "h2g": "to the keys.",
+    "steps": [
+      {
+        "k": "1 · File",
+        "v": "Open it today",
+        "s": "Budget warm and cold, move-in date, districts, who's moving, how your income reads to a German landlord. We reply the same working day."
+      },
+      {
+        "k": "2 · Opening",
+        "v": "A licensed partner",
+        "s": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law says when an agent is paid. We open with a licensed partner, not around the rule."
+      },
+      {
+        "k": "3 · The search",
+        "v": "Then as in every BOOM city",
+        "s": "The dossier, applications as listings appear, a BOOM person at the viewing, rent brake and lease checked before you sign."
+      }
+    ]
+  },
+  "pricing": {
+    "num": "02 — SERVICES & FEES",
+    "h2": "Flat fees, set now.",
+    "h2g": "Charged at opening, or on signing.",
+    "sub": "Paid by you, never by landlords, inside German law. Nothing is charged today.",
+    "plans": [
+      {
+        "id": "full-search",
+        "label": "Full Search",
+        "se": "Full Search · end to end",
+        "name": "We search. You choose.",
+        "includes": [
+          "Search every working day: ImmoScout24, Immowelt, Kleinanzeigen",
+          "Applications as listings appear, German-format",
+          "Attended viewing, live video + report",
+          "Rent brake and lease checked, Nebenkosten read"
+        ],
+        "featured": true,
+        "price": 500,
+        "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
+        "condition": "flat · incl. VAT · on signing",
+        "conditionLong": "List price. Due only once you sign a lease; nothing before."
+      },
+      {
+        "id": "application-pack",
+        "label": "Application Pack",
+        "se": "Application Pack",
+        "name": "You search. We make you win.",
+        "text": "The dossier that wins German applications.",
+        "includes": [
+          "German-format dossier, one working day",
+          "SCHUFA and guarantor strategy for newcomers",
+          "Cover note in German",
+          "Lease review before you sign"
+        ],
+        "price": 199,
+        "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
+        "condition": "flat · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens."
+      },
+      {
+        "id": "attended-viewing",
+        "label": "Attended Viewing",
+        "unit": "per viewing",
+        "se": "Attended Viewing",
+        "name": "Eyes on the ground.",
+        "text": "Shortlisted, and still abroad? We go.",
+        "includes": [
+          "A BOOM person attends in your place",
+          "Live video walkthrough",
+          "Written report: light, noise, damp, neighbours, commute",
+          "A straight recommendation"
+        ],
+        "price": 149,
+        "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
+        "condition": "per viewing · incl. VAT · at opening",
+        "conditionLong": "List price. Charged only when the desk opens."
+      }
+    ],
+    "note": "Nothing is charged until the desk opens. German law ties a broker's fee to a signed lease and caps it at two months' net cold rent plus VAT: Full Search is due once you sign. Invoiced by Egidi Immobiliare S.r.l."
+  },
+  "checkin": {
+    "num": "Check-in · {n} of 3",
+    "steps": [
+      {
+        "id": "stage",
+        "label": "Where are you in the search?",
+        "options": [
+          {
+            "id": "zero",
+            "t": "Haven't started",
+            "f": "you haven't started",
+            "code": "START"
+          },
+          {
+            "id": "shortlist",
+            "t": "I have a shortlist",
+            "f": "you have a shortlist",
+            "code": "SHORTLIST"
+          },
+          {
+            "id": "found",
+            "t": "Found one, need to apply",
+            "f": "you've found one and need to apply",
+            "code": "APPLYING"
+          }
+        ]
+      },
+      {
+        "id": "where",
+        "label": "Where are you right now?",
+        "options": [
+          {
+            "id": "abroad",
+            "t": "Still abroad",
+            "f": "you're still abroad",
+            "code": "ABROAD"
+          },
+          {
+            "id": "here",
+            "t": "Already in Berlin",
+            "f": "you're already in Berlin",
+            "code": "IN TOWN"
+          }
+        ]
+      },
+      {
+        "id": "when",
+        "label": "When do you move in?",
+        "options": [
+          {
+            "id": "soon",
+            "t": "Within 4 weeks",
+            "f": "within four weeks",
+            "code": "T-4W"
+          },
+          {
+            "id": "months",
+            "t": "In 1–3 months",
+            "f": "in one to three months",
+            "code": "T-3M"
+          },
+          {
+            "id": "later",
+            "t": "Later, flexible",
+            "f": "later",
+            "code": "OPEN"
+          }
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "when": {
+          "stage": "zero"
+        },
+        "plan": "full-search",
+        "why": "Starting from zero: when the desk opens, Full Search — search, applications, viewing, lease. Due only once you sign."
+      },
+      {
+        "when": {
+          "stage": "found"
+        },
+        "plan": "application-pack",
+        "why": "You found it. What wins it is the dossier: SCHUFA, Selbstauskunft, the lot — ready for the day the desk opens."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "abroad"
+        },
+        "plan": "attended-viewing",
+        "why": "You chose, you're away: when the desk opens a BOOM person goes, films it live and writes it down."
+      },
+      {
+        "when": {
+          "stage": "shortlist",
+          "where": "here"
+        },
+        "plan": "application-pack",
+        "why": "You'll attend yourself. What wins the application is the dossier."
+      }
+    ],
+    "notes": {
+      "when": {
+        "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
+        "months": "Good timing: your dossier is ready before the desk opens.",
+        "later": "No rush: open the file now, you hear from us the day the desk opens."
+      }
+    },
+    "dossier": {
+      "label": "What do you already hold?",
+      "sub": "Tap what you have. A Berlin landlord asks for most of these eight.",
+      "items": [
+        {
+          "id": "id",
+          "t": "Passport or EU ID"
+        },
+        {
+          "id": "contract",
+          "t": "Employment contract"
+        },
+        {
+          "id": "payslips",
+          "t": "Last three payslips (Gehaltsabrechnungen)"
+        },
+        {
+          "id": "schufa",
+          "t": "SCHUFA report"
+        },
+        {
+          "id": "arrears",
+          "t": "No-arrears letter (Mietschuldenfreiheitsbescheinigung)"
+        },
+        {
+          "id": "guarantor",
+          "t": "A guarantor (Bürgschaft), if asked"
+        },
+        {
+          "id": "bank",
+          "t": "Three months of bank statements"
+        },
+        {
+          "id": "letter",
+          "t": "Tenant self-disclosure (Mieterselbstauskunft)"
+        }
+      ],
+      "fixable": [
+        "letter",
+        "schufa",
+        "arrears"
+      ],
+      "resultAll": "All eight in hand. Your dossier waits, formatted the German way, for the day the desk opens.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Selbstauskunft and the format are ours, and we tell you how a newcomer gets a SCHUFA; for the rest we tell you exactly what to ask your employer and your bank.",
+      "skipped": "Tap the papers you hold above and we say what we would fix first.",
+      "eyebrow": "Your papers"
+    },
+    "result": {
+      "eyebrow": "Your plan",
+      "change": "change"
+    },
+    "pass": {
+      "title": "Your boarding pass",
+      "name": {
+        "label": "Passenger (optional)",
+        "placeholder": "Anna K."
+      },
+      "from": {
+        "label": "From (optional)",
+        "placeholder": "LON"
+      },
+      "save": "Save image",
+      "shareBtn": "Share",
+      "saved": "Saved",
+      "guest": "A tenant",
+      "foot": "boomrome.com/berlin",
+      "side": "Tenant side",
+      "fields": {
+        "passenger": "Passenger",
+        "plan": "Plan",
+        "price": "Price",
+        "boarding": "Boarding",
+        "file": "File",
+        "papers": "Papers"
+      }
+    },
+    "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+    "pending": {
+      "eyebrow": "Two plans fit",
+      "text": "One more answer decides: {plans}."
+    },
+    "landing": {
+      "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
+      "friend": "Your friend's answers. Change any of them, then your plan is yours.",
+      "blank": "Your plan prints here as you answer."
+    },
+    "share": {
+      "lead": "Know someone moving too?",
+      "whatsapp": "WhatsApp",
+      "copy": "Copy link",
+      "copied": "Link copied",
+      "plan": "BOOM {city}: a tenant-side desk opening with a licensed partner. My plan in three taps: {url}",
+      "pass": "BOOM {city} — a tenant-side desk opening with a licensed partner. Check in, 20 seconds: {url}"
+    }
+  },
+  "checks": {
+    "num": "03 — BEFORE YOU SIGN",
+    "h2": "Six things we check",
+    "h2g": "before you sign.",
+    "sub": "Six points, in writing, on every Berlin lease.",
+    "items": [
+      {
+        "id": "rentcap",
+        "title": "The rent brake",
+        "at": "Mietpreisbremse",
+        "text": "At signing the rent may not exceed the local comparative rent by more than ten percent, exceptions aside. We check, furniture surcharge included."
+      },
+      {
+        "id": "fees",
+        "title": "Who may charge you",
+        "at": "Bestellerprinzip · §34c GewO",
+        "text": "Whoever orders the agent pays. One you hire is paid only once you sign, within a legal cap. We open with a licensed partner."
+      },
+      {
+        "id": "deposit",
+        "title": "The deposit",
+        "at": "Kaution",
+        "text": "At most three months' cold rent, in three instalments, kept apart from the landlord's money. Anything more is not legal."
+      },
+      {
+        "id": "warm",
+        "title": "Cold or warm",
+        "at": "Kaltmiete · Warmmiete",
+        "text": "The listed rent is often cold. We read the Nebenkosten advance, what it covers, and what the yearly settlement can add."
+      },
+      {
+        "id": "anmeldung",
+        "title": "Registration",
+        "at": "Anmeldung · Wohnungsgeberbestätigung",
+        "text": "You register within two weeks of moving in; the landlord owes you the confirmation form. We make sure it comes with the keys."
+      },
+      {
+        "id": "dossier",
+        "title": "The dossier",
+        "at": "SCHUFA · Selbstauskunft",
+        "text": "Landlords want SCHUFA, payslips, proof of no arrears, ID. Newcomers lack the German ones. We build the file so it reads right."
+      }
+    ]
+  },
+  "bref": {
+    "h2": "BOOM Berlin — fact sheet",
+    "ref": "REF · BERLIN / TENANT SIDE",
+    "rows": [
+      {
+        "dt": "Who",
+        "ddHtml": "BOOM Berlin, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>licensed partner (§34c GewO)</b>. Hired and paid by the tenant only."
+      },
+      {
+        "dt": "For whom",
+        "ddHtml": "Internationals relocating to Berlin — employees, researchers, couples and families — from abroad or already in the city."
+      },
+      {
+        "dt": "Fees",
+        "ddHtml": "VAT included, nothing charged before the desk opens; Full Search due only on a signed lease, inside the German cap. Nothing from landlords or platforms.",
+        "fees": true
+      },
+      {
+        "dt": "What we do",
+        "ddHtml": "Today: your file, opened and kept ready. When the desk opens: German-format dossier within <b>one working day</b>, applications <b>as listings appear</b>, attended viewings, rent brake and lease checked, Anmeldung from day one."
+      },
+      {
+        "dt": "What we don't do",
+        "ddHtml": "We don't list homes, represent landlords, promise a date, or broker in Germany before the desk opens."
+      },
+      {
+        "dt": "Reply time",
+        "ddHtml": "The same working day."
+      },
+      {
+        "dt": "Contact",
+        "contact": true,
+        "ddHtml": ""
+      }
+    ]
+  },
+  "faq": {
+    "num": "04 — QUESTIONS",
+    "h2": "The questions",
+    "h2g": "we get asked.",
+    "items": [
+      {
+        "q": "Why isn't BOOM taking searches in Berlin yet?",
+        "a": "Brokering a flat in Germany needs a trade permit (§34c GewO), and the law sets how a tenant-side agent is paid: only once you sign, within a cap. We open with a licensed partner. Your file waits, ready."
+      },
+      {
+        "q": "Which service will be mine?",
+        "checkin": true
+      },
+      {
+        "q": "What can you do for me today?",
+        "a": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Berlin, warm and cold. The prices on this page are set; nothing is charged before the desk opens, and the Full Search fee only once you sign."
+      },
+      {
+        "q": "Is my rent capped in Berlin?",
+        "a": "Berlin applies the Mietpreisbremse: at signing the rent may not exceed the local comparative rent by more than ten percent, with exceptions for new builds, modernised flats and a higher previous rent. Furnished flats hide a lot in the surcharge. We check."
+      },
+      {
+        "q": "Do I need to be in Berlin?",
+        "a": "No. When the desk opens, a BOOM person attends viewings in your place, with live video and a written report. The lease is read and signed remotely. You arrive for the keys and the Übergabeprotokoll."
+      },
+      {
+        "q": "Who pays the agent in Germany?",
+        "a": "Whoever orders the agent. A landlord's agent cannot charge you. An agent who brokers your tenancy may charge you only once the lease is signed, at most two months' net cold rent plus VAT. Full Search opens under that rule; Application Pack and Attended Viewing are charged at opening."
+      },
+      {
+        "q": "What do you do with my data?",
+        "a": "It is used to answer you and to open your file, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+      }
+    ]
+  },
+  "footer": {
+    "tagline": "Born in Rome, built for people who move countries. The same rules in Berlin: one side of the table, everything in writing — and a licensed partner before the first search.",
+    "statement": "Launching with a licensed partner. BOOM Berlin acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not broker a tenancy in Germany before the desk opens with its licensed partner."
+  },
+  "facts": [
+    {
+      "key": "paid",
+      "label": "Paid by",
+      "text": "You alone; Full Search only once you sign, the other two at opening. Launching with a licensed partner."
+    },
+    {
+      "key": "abroad",
+      "label": "From abroad",
+      "text": "Yes, once the desk opens: live video at the viewing, a written report."
+    },
+    {
+      "key": "nothing",
+      "label": "If we say no",
+      "text": "Full Search is due once you sign. If we decline the search in the first call, nothing is owed."
+    }
+  ],
+  "factsDerived": {
+    "answers": "Who answers",
+    "company": "The company",
+    "answersLine": "same working day",
+    "deskLine": "desk {days} {from} to {to} {tz}"
+  },
+  "desk": {
+    "person": "Valentino Egidi",
+    "role": "tenant-side agent",
+    "timeZone": "Europe/Rome",
+    "tzLabel": "CET/CEST",
+    "hours": {
+      "from": "09:00",
+      "to": "19:00"
+    },
+    "days": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ]
+  },
+  "door": {
+    "label": "Open my file",
+    "sub": "free · same-day reply",
+    "skip": "Rather write first? Open a file",
+    "stripSub": "free · same-day reply"
+  }
+}

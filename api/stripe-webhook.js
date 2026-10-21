@@ -1,10 +1,11 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, getAdminToken } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, getAdminToken, toFsValue } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { CITY_MARKETS, CITY_PLANS } from './_market.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -31,6 +32,11 @@ function toFirestoreFields(obj) {
     else if (typeof v === 'number') fields[k] = Number.isInteger(v)
       ? { integerValue: String(v) } : { doubleValue: v };
     else if (typeof v === 'boolean') fields[k] = { booleanValue: v };
+    // A nested map or list is encoded as one (homie/_lib toFsValue): String(v)
+    // stored every paid city lead's `city` block as "[object Object]" from
+    // 14/10, so the Telegram card lost the plan and the start day. Dates keep
+    // their old string form — no reader changes shape.
+    else if (typeof v === 'object' && !(v instanceof Date)) fields[k] = toFsValue(v);
     else fields[k] = { stringValue: String(v) };
   }
   return fields;
@@ -68,10 +74,14 @@ async function sendEmailJS(templateParams) {
     template_params: templateParams,
   };
 
+  // A hung send would hold the function until the platform kills it at 60s,
+  // before the delivery is recorded: the 10s limit turns a hang into a throw
+  // the caller records (and alerts on).
   const r = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(10000),
   });
 
   if (!r.ok) {
@@ -315,7 +325,128 @@ const SERVICE_META = {
   },
 };
 
-async function handleService(res, session, m) {
+// THE CITY DESKS (BOOM_CITIES_BRIEF.md, 14/10): a plan bought from
+// /amsterdam, /madrid… arrives with metadata.city (api/service-checkout.js →
+// cityOffer). Same SERVICE rail, two differences: the lead carries the
+// MARKET (api/_market.js isCityMarket → the Commerciale stands down, the
+// Telegram card speaks of the city and says the money is in), and the next
+// steps are the desk's, not a Rome service's. Keyed by plan id, any city.
+const CITY_SERVICE_META = {
+  'full-search': {
+    emoji: '🧭',
+    next1: ['Your brief call', "Booked in the desk's first open hour — 20 minutes, your dates, budget and situation"],
+    next2: ['Dossier in one working day', 'From your papers — local format: income, employer, ID, references, cover letter'],
+    next3: ['Applications as listings appear', 'From the first listing that fits — you see every one'],
+    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
+  },
+  'application-pack': {
+    emoji: '📁',
+    next1: ['Send your documents', 'Reply to this email: income proof, employer letter, ID'],
+    next2: ['Dossier in one working day', 'From your papers — local format, cover letter in the local language and English'],
+    next3: ['Income and guarantor strategy', 'Written so a landlord reads it as safe'],
+    next4: ['Contract review', 'Before you sign — rent, deposit, charges, contract type'],
+  },
+  'attended-viewing': {
+    emoji: '🎥',
+    next1: ['Send the listing', 'Reply with the link and the slots that work for you'],
+    next2: ['We book the viewing', 'With the agent, on the first slot that works for you'],
+    next3: ['Live video walkthrough', 'You join from anywhere, you ask what you want'],
+    next4: ['Written report', 'Light, noise, damp, neighbours, commute — and a straight recommendation'],
+  },
+};
+
+// The 14-day withdrawal period of a service contract (Directive 2011/83/EU
+// art. 9), on the Rome calendar. The day the contract is concluded does not
+// count (Reg. 1182/71 art. 3(1), recital 41 of the Directive): paid on
+// Tuesday 20 October, the period runs to the END of 3 November and the first
+// day work may begin without a request is 4 November. Calendar days, never
+// 14×24h — that slips a day across the October and March clock changes.
+// A last day that falls on a Saturday, a Sunday or a public holiday moves to
+// the end of the next working day (Reg. 1182/71 art. 3(4)): paid on Saturday
+// 17 October, the period ends on Monday 2 November, not on Saturday 31.
+// Which holidays: the union of Italy's (the trader, in Rome) and the desk's
+// country — a day too many only lengthens the payer's right and delays our
+// start, a day too few would shorten a right the law gives them. The day
+// work begins is the next desk working day after the period. `concludedEpoch`
+// is the moment of payment (the Stripe event's time, stable across retries),
+// not the moment the Checkout page was opened.
+// The model withdrawal form (Annex I(B)), filled with the trader's details.
+// The page is the fillable copy; the TEXT travels inside the confirmation
+// email too, because the email is the durable medium (art. 8(7)) and the
+// form is part of the information it must carry (art. 6(1)(h)). One line,
+// the dashes of the Annex kept: the email template does not keep newlines.
+export const WITHDRAWAL_FORM_URL = 'https://www.boomrome.com/withdrawal';
+export const WITHDRAWAL_FORM_TEXT = 'MODEL WITHDRAWAL FORM (complete and return this form only if you wish to withdraw from the contract): '
+  + '— To Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, Italy, e-mail hello@boom-rome.com: '
+  + '— I/We (*) hereby give notice that I/We (*) withdraw from my/our (*) contract for the provision of the following service (*), '
+  + '— Ordered on (*)/received on (*), — Name of consumer(s), — Address of consumer(s), '
+  + '— Signature of consumer(s) (only if this form is notified on paper), — Date. (*) Delete as appropriate.';
+// the same form for the Rome Pacchetto, in Italian (Codice del consumo
+// art. 49(1)(h), Allegato I parte B)
+export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e restituire il presente modulo solo se si desidera recedere dal contratto): '
+  + '— Destinatario: Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, e-mail hello@boom-rome.com: '
+  + '— Con la presente io/noi (*) notifichiamo il recesso dal mio/nostro (*) contratto di prestazione del seguente servizio (*), '
+  + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
+  + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
+
+// Easter Sunday, Gregorian (Meeus/Jones/Butcher), as [month, day].
+function easterOf(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const n = h + l - 7 * m + 114;
+  return [Math.floor(n / 31), (n % 31) + 1];
+}
+// Fixed dates as MM-DD, Easter-relative ones as offsets in days.
+const HOLIDAYS = {
+  // national, plus Rome's patron day (29 June); 4 October is a national
+  // holiday again from 2026
+  it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
+  // Nieuwjaar, Koningsdag (26 April when the 27th is a Sunday), Bevrijdingsdag,
+  // Kerst; Goede Vrijdag, Paasmaandag, Hemelvaart, Pinkstermaandag
+  nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
+  // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
+  // La Almudena); Jueves and Viernes Santo
+  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] }
+};
+export function isDeskHoliday(date, country) {
+  const y = date.getUTCFullYear();
+  const mmdd = date.toISOString().slice(5, 10);
+  const [em, ed] = easterOf(y);
+  for (const c of ['it', country]) {
+    const h = HOLIDAYS[c];
+    if (!h) continue;
+    if (h.fixed.includes(mmdd)) return true;
+    if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
+    for (const off of h.easter) {
+      const d = new Date(Date.UTC(y, em - 1, ed + off));
+      if (d.toISOString().slice(5, 10) === mmdd) return true;
+    }
+  }
+  return false;
+}
+const workingDay = (d, country) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isDeskHoliday(d, country);
+
+export function withdrawalWindow(concludedEpoch, country = null) {
+  const at = new Date((Number(concludedEpoch) || 0) * 1000);
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' })
+    .formatToParts(at).filter((x) => x.type !== 'literal').map((x) => [x.type, Number(x.value)]));
+  const day = (n) => new Date(Date.UTC(parts.year, parts.month - 1, parts.day + n));
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const label = (d) => new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'long', year: 'numeric' }).format(d);
+  let n = 14;
+  while (!workingDay(day(n), country)) n++;
+  const last = day(n);
+  let s = n + 1;
+  while (!workingDay(day(s), country)) s++;
+  const start = day(s);
+  return { lastDay: iso(last), lastLabel: label(last), startDay: iso(start), startLabel: label(start) };
+}
+// kept for callers that only want the last day of the period
+export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoch).lastLabel;
+
+async function handleService(res, session, m, event = null) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
@@ -324,7 +455,28 @@ async function handleService(res, session, m) {
   // may carry no address at all).
   const email = (session.customer_details && session.customer_details.email)
     || m.email || session.customer_email || '';
-  const meta = SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' };
+  // A city order: metadata.city names a desk in CITY_MARKETS (written by
+  // api/service-checkout.js from cityOffer — never trusted from a browser).
+  const cityKey = String(m.city || '').toLowerCase();
+  const cityDesk = CITY_MARKETS[cityKey] || null;
+  const cityPlan = cityDesk ? ((cityDesk.plans || CITY_PLANS)[m.kind] || null) : null;
+  const meta = cityDesk
+    ? { ...(CITY_SERVICE_META[m.kind] || { emoji: '✓' }), title: `${cityDesk.label} — ${cityPlan ? cityPlan.label : (m.kind || 'order')}`, city: cityDesk }
+    : (SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' });
+  // Stripe's phone_number_collection lands in customer_details.phone: the
+  // city sheet leaves the phone optional, the checkout asks for it.
+  const phone = m.phone || (session.customer_details && session.customer_details.phone) || '';
+  // A city order says whether the payer asked to start inside the 14 days
+  // (start_now '1') or not ('0'); a session made before the tick existed
+  // carries neither and says nothing.
+  const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
+  // the contract is concluded when the payment completes: the event's own
+  // time (a retry carries the same one), never the session's opening
+  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.country || null) : null;
+  // the start choice goes FIRST in the summary: the Telegram card shows the
+  // first 240 characters, and a pasted listing URL must not push it out
+  const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
+    : cityStart === '0' ? `Start: NOT asked to start now. Withdrawal period runs to the end of ${win.lastLabel}; the work begins on ${win.startLabel}.` : '';
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -332,18 +484,35 @@ async function handleService(res, session, m) {
     status: 'new',
     paid: true,
     source: 'web',
-    intent: 'service',
+    intent: cityDesk ? 'city_order' : 'service',
     name: m.name || '',
     email,
-    phone: m.phone || '',
+    phone,
     listingName: m.listing || '',
-    message: `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
+    message: cityDesk
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
+      : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
     currency: session.currency || 'eur',
     stripe_session_id: session.id,
     paid_at: now,
     createdAt: now,
+    // the market, for api/_market.js (isCityMarket): the Rome machine stays
+    // out, the Commerciale stands down, the card names the city
+    ...(cityDesk ? {
+      market: cityKey,
+      sourceRef: `city-${cityKey}`,
+      leadType: 'tenant',
+      language: 'en',
+      city: {
+        key: cityKey, label: cityDesk.label, mode: 'search', service: m.kind || null, serviceLabel: cityPlan ? cityPlan.label : null, paid: true, at: now,
+        // the payer's choice at the till, as data (cityReplyText reads it):
+        // true = asked to start now, false = start after the 14 days, null = a session from before the tick
+        startNow: cityStart === '1' ? true : cityStart === '0' ? false : null,
+        workFrom: win ? win.startDay : null, workFromLabel: win ? win.startLabel : null, withdrawalEndsOn: win ? win.lastDay : null,
+      },
+    } : {}),
   };
   let w = null;
   try { w = await writeDoc('leads', 'svc_' + docId, lead); }
@@ -353,7 +522,24 @@ async function handleService(res, session, m) {
     return res.status(500).json({ error: 'lead_write_failed' });
   }
   if (w && w.exists) {
-    // Retry di Stripe su una sessione già processata: email già inviate.
+    // Retry di Stripe su una sessione già processata: le email non si
+    // rimandano. Ma se il primo giro è morto prima di registrare l'esito
+    // dell'email al cliente (né inviata né fallita) l'operatore lo deve
+    // sapere: avviso idempotente (id deterministico), mai su un primo giro
+    // che potrebbe essere ancora in volo (90s).
+    try {
+      const prev = await readDoc('leads/svc_' + docId);
+      const born = Date.parse((prev && prev.createdAt) || '');
+      if (prev && !prev.clientEmailSentAt && !prev.clientEmailFailedAt && Number.isFinite(born) && Date.now() - born > 90000) {
+        await writeDoc('agentNotifications', 'svc-mail-' + docId, {
+          type: 'service.client_email_failed',
+          summary: `📭 Ordine pagato svc_${docId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${prev.market && prev.market !== 'roma' ? ', col testo del recesso' : ''}.`,
+          priority: 'high', status: 'pending', actor: 'stripe-webhook',
+          ref: { collection: 'leads', id: 'svc_' + docId },
+          dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+        });
+      }
+    } catch (_) {}
     return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
   }
 
@@ -364,29 +550,42 @@ async function handleService(res, session, m) {
       heading: `${meta.emoji} ${meta.title.toUpperCase()} — €${amountEur} paid`,
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
-      intro: `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
+      intro: meta.city
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.`
+        : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
       r1_icon: '👤', r1_label: 'Client', r1_value: m.name || '—',
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
-      r3_icon: '📱', r3_label: 'Phone', r3_value: m.phone || '—',
-      r4_icon: '🏠', r4_label: 'Property', r4_value: m.listing || '—',
+      r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
+      r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
       closing: `Paid €${amountEur}. ${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/svc_${docId}.`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
   } catch (err) { console.error('Admin service email error:', err); }
 
+  // The client's confirmation carries the next steps and, for a city order,
+  // the withdrawal information on a durable medium: its delivery is
+  // RECORDED on the lead, and a failure becomes an alert to the operator
+  // (send it by hand) — a Stripe retry returns 'duplicate' above and would
+  // never send it again.
+  let clientMail = 'sent';
   try {
     const it = meta.lang === 'it';
-    if (email) await sendEmailJS({
+    if (!email) throw new Error('no_email');
+    await sendEmailJS({
       to_email: email,
-      heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
-      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
+      heading: it ? `${meta.title} — confermato` : meta.city ? (cityStart === '0' ? `Your ${meta.title} is booked` : `Your ${meta.title} starts now`) : `Your ${meta.title} is confirmed`,
+      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : meta.city ? `BOOM ${meta.city.label} — paid, file open` : 'BOOM Rome — paid & scheduled',
       name: firstName,
       intro: it
         ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
-        : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
+        : cityStart === '0'
+          // no "Start now" tick: the steps below begin when the withdrawal
+          // period ends — the email must not read as if they start today
+          ? `Payment received — €${amountEur}, Stripe-secured. Here's what happens from ${win.startLabel}, the day after your 14-day withdrawal period ends:`
+          : `Payment received — €${amountEur}, Stripe-secured. Here's exactly what happens next:`,
       card_color: '#D4AF37',
       card_title: it ? 'I prossimi passi' : 'What happens next',
       r1_icon: '✓', r1_label: (meta.next1 || ['We take it from here'])[0], r1_value: (meta.next1 || ['', 'Right away'])[1],
@@ -400,15 +599,38 @@ async function handleService(res, session, m) {
           ? (m.start_now === '1'
             ? 'Ci ha chiesto di iniziare subito: partiamo appena riceviamo i dati. '
             : 'Non ci ha chiesto di iniziare subito: partiamo allo scadere dei 14 giorni del recesso; se preferisce anticipare, ce lo scriva. ')
-            + 'Per recedere entro 14 giorni basta una email a hello@boom-rome.com. Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT
+            + `Per recedere entro 14 giorni basta una email a hello@boom-rome.com, anche col modulo di recesso tipo (${WITHDRAWAL_FORM_URL}?desk=Rome&service=concordato-pack; il testo è in fondo a questa email). Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ` + OFFICE_HOURS_IT + ' ' + WITHDRAWAL_FORM_TEXT_IT
           : 'Per qualsiasi cosa risponda a questa email o ci scriva su WhatsApp. ' + OFFICE_HOURS_IT)
-        : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
-      cta_text: it ? 'Torna su BOOM' : 'Back to BOOM',
-      portal_link: it ? 'https://www.boomrome.com/canone' : 'https://www.boomrome.com/apartments.html',
+        : meta.city && cityStart
+          // the withdrawal right, on a durable medium (Directive 2011/83/EU art. 8(7))
+          ? (cityStart === '1'
+            ? 'You asked us to start straight away, so the desk starts in its first open hour. '
+            : `You did not ask us to start straight away, so your 14-day withdrawal period runs to the end of ${win.lastLabel} and the work begins on ${win.startLabel}. Want it sooner? Reply to this email. `)
+            + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}?desk=${encodeURIComponent(meta.city.label)}&service=${encodeURIComponent(m.kind || '')} (its text is at the end of this email). If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN + ' ' + WITHDRAWAL_FORM_TEXT
+          : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
+      cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
+      portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });
-  } catch (err) { console.error('Client service email error:', err); }
+  } catch (err) { console.error('Client service email error:', err); clientMail = String((err && err.message) || err || 'failed').slice(0, 300); }
 
-  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId });
+  try {
+    await patchDoc('leads/svc_' + docId, clientMail === 'sent'
+      ? { clientEmailSentAt: new Date().toISOString() }
+      : { clientEmailError: clientMail, clientEmailFailedAt: new Date().toISOString() });
+  } catch (err) { console.error('client email record:', err.message); }
+  if (clientMail !== 'sent') {
+    try {
+      await writeDoc('agentNotifications', 'svc-mail-' + docId, {
+        type: 'service.client_email_failed',
+        summary: `📭 ${meta.title}${meta.city ? ' · ' + meta.city.label : ''} — €${amountEur} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
+        priority: 'high', status: 'pending', actor: 'stripe-webhook',
+        ref: { collection: 'leads', id: 'svc_' + docId },
+        dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
+      });
+    } catch (_) {}
+  }
+
+  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed' });
 }
 
 async function handleReserve(res, session, m) {
@@ -1159,7 +1381,7 @@ export default async function handler(req, res) {
   }
 
   if (m.service === 'SERVICE') {
-    return handleService(res, session, m);
+    return handleService(res, session, m, event);
   }
 
   if (m.service === 'PREAGREEMENT') {

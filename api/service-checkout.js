@@ -13,9 +13,20 @@
 //         notes(optional), company(honeypot) }
 // Response 200: { ok:true, url } → redirect to Stripe Checkout
 // The webhook (service:'SERVICE') writes the paid lead + sends both emails.
+//
+// THE CITY DESKS (BOOM_CITIES_BRIEF.md, 14/10): `{ city, kind }` sells one of
+// a city page's plans — Full Search / Application Pack / Attended Viewing —
+// at the price in CITY_PLANS (api/_market.js), the one copy the server
+// trusts. cityOffer() refuses a waitlist desk and a search desk whose
+// checkout is not open (400 checkout_closed): the page shows the price and
+// opens the file, nobody is charged. The phone is optional here (Stripe
+// collects one at checkout); the webhook files the lead with market = the
+// city, so the Commerciale stands down and the Telegram card speaks of the
+// right city — the same door as /api/city-lead, with the money in.
 
 import Stripe from 'stripe';
 import { CATALOG } from './_catalog.js';
+import { cityOffer } from './_market.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -50,13 +61,24 @@ export default async function handler(req, res) {
   const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || 'unknown';
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
-  const svc = CATALOG[clip(body.kind, 40)];
-  if (!svc) return res.status(400).json({ ok: false, error: 'unknown_service' });
+  const kind = clip(body.kind, 40);
+  const cityKey = clip(body.city, 30).toLowerCase();
+  let svc, offer = null;
+  if (cityKey) {
+    offer = cityOffer(cityKey, kind);
+    if (!offer.ok) return res.status(400).json({ ok: false, error: offer.error });
+    svc = { eur: offer.eur, label: offer.label, desc: offer.desc };
+  } else {
+    svc = CATALOG[kind];
+    if (!svc) return res.status(400).json({ ok: false, error: 'unknown_service' });
+  }
 
   const name  = clip(body.name, 120);
   const email = clip(body.email, 160);
   const phone = clip(body.phone, 40);
-  if (!name || !email.includes('@') || !email.includes('.') || !phone) {
+  // A Rome service coordinates its slot on WhatsApp: the phone is required.
+  // A city order asks for it on the page and Stripe asks again at checkout.
+  if (!name || !email.includes('@') || !email.includes('.') || (!phone && !offer)) {
     return res.status(400).json({ ok: false, error: 'missing_fields' });
   }
 
@@ -65,34 +87,42 @@ export default async function handler(req, res) {
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: email,
+      ...(offer && !phone ? { phone_number_collection: { enabled: true } } : {}),
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: { name: `BOOM ${svc.label}`, description: svc.desc },
+          product_data: { name: offer ? offer.name : `BOOM ${svc.label}`, description: svc.desc },
           unit_amount: svc.eur * 100,
         },
         quantity: 1,
       }],
       metadata: {
         service: 'SERVICE',
-        kind: clip(body.kind, 40),
+        kind,
+        ...(offer ? { city: offer.city, market: offer.city } : {}),
         name, email, phone,
         listing: clip(body.listing, 400),
         notes: clip(body.notes, 400),
         amount_eur: String(svc.eur),
-        // Codice del consumo (artt. 50 c.3, 57 c.3, 59): sul Pacchetto
-        // concordato il cliente che chiede di iniziare durante i 14 giorni del
+        // Codice del consumo (artt. 50 c.3, 57 c.3, 59) — Direttiva 2011/83/UE
+        // art. 7(3) per i desk città: sul Pacchetto concordato e su un ordine
+        // città il cliente che chiede di iniziare durante i 14 giorni del
         // recesso lo dice con una spunta sua; senza, si comincia allo scadere
         // dei 14 giorni. Le altre pagine non hanno ancora la spunta: niente
         // campo, e il webhook non dice nulla.
-        ...(body.kind === 'concordato-pack' ? { start_now: body.startNow === true ? '1' : '0' } : {}),
+        ...(body.kind === 'concordato-pack' || offer ? { start_now: body.startNow === true ? '1' : '0' } : {}),
       },
-      // Il Pacchetto porta la scelta «inizio subito» alla pagina di grazie, che
-      // così dice il tempo giusto (48 ore dai dati, oppure dopo i 14 giorni).
-      success_url: 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
-        (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
-        '&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://www.boomrome.com' + svc.cancel,
+      // A city order lands back on ITS page, which shows the paid state and
+      // what happens next (the board spells PAID); a Rome service keeps the
+      // thank-you page — and the Pacchetto carries its «inizio subito» choice
+      // there, so the page says the right time (48 hours from the data, or
+      // after the 14 days).
+      success_url: offer
+        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}#contact`
+        : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
+          (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
+          '&session_id={CHECKOUT_SESSION_ID}',
+      cancel_url: offer ? `${offer.url}#services` : 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {

@@ -40,6 +40,11 @@
  * e il riquadro dice esattamente ciò che Accetta accende.
  * Il tracciamento parte SOLO dopo una scelta, come prima.
  *
+ * I desk città (<body data-consent-late>, le pagine dove la diagnosi è
+ * l'hero) aspettano di più: la prima mossa del lettore + 600 ms, poi
+ * finché il lettore è al lavoro nell'hero (Check-in senza risposta o
+ * biglietto sullo schermo), 45 s al massimo, mai sopra un <dialog open>.
+ *
  * Storage: localStorage 'boom:consent' = 'all:<ms>' | 'min:<ms>'.
  * The Meta pixel (js/boom-pixel.js) independently requires 'all'.
  */
@@ -195,7 +200,8 @@
     el.classList.remove('zz');
   }
   function onScroll() {
-    if (!due && scrolledEnough()) show();
+    // sui desk città lo scroll non è un segnale (la pagina scorre da sola)
+    if (!late) { if (!due && scrolledEnough()) show(); }
     nudge();
   }
   function arm() {
@@ -205,6 +211,8 @@
     window.addEventListener('resize', nudge, { passive: true });
     document.addEventListener('transitionend', nudge, true);
     document.addEventListener('animationend', nudge, true);
+    // i desk città armano la loro attesa (prima mossa, al lavoro, 45 s)
+    if (late) { armLate(); return; }
     // I 5 secondi contano dall'arrivo: lo script è defer, quindi gira
     // attorno al DOMContentLoaded. Dal load erano 9–10s su una rete vera.
     if (delayed && !due && !wait5) wait5 = setTimeout(show, 5000);
@@ -217,6 +225,7 @@
     window.removeEventListener('resize', nudge, { passive: true });
     document.removeEventListener('transitionend', nudge, true);
     document.removeEventListener('animationend', nudge, true);
+    LATE_EVS.forEach(function (t) { try { window.removeEventListener(t, lateArm, { passive: true }); } catch (e) {} });
     clearTimeout(wait5); clearTimeout(trail); wait5 = trail = 0;
     if (raf) {
       if (window.cancelAnimationFrame) window.cancelAnimationFrame(raf); else clearTimeout(raf);
@@ -291,9 +300,9 @@
 
     // Sul telefono nasce nascosto (.zz) se il momento non è ancora venuto;
     // se nel frattempo il lettore ha già scorso, nasce visibile.
-    if (delayed && !due && scrolledEnough()) due = true;
+    if (delayed && !due && !late && scrolledEnough()) due = true;
     el = document.createElement('div');
-    el.className = 'boomcst' + (delayed && !due ? ' zz' : '');
+    el.className = 'boomcst' + ((delayed || late) && !due ? ' zz' : '');
     el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', T.aria);
     el.innerHTML =
       '<div class="e">' + T.e + '</div>' +
@@ -308,6 +317,83 @@
     }); });
     el.querySelector('.ok').addEventListener('click', function () { save('all'); grant(); close(); });
     el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
+  }
+
+  // ── I desk città (<body data-consent-late>): la targa aspetta il lettore ──
+  // Sui desk città la diagnosi è l'hero (STUDIO_CITIES_ESPERIENZA.md §11):
+  // il riquadro compare dopo la PRIMA MOSSA del lettore — una rotella, un
+  // dito che scorre, un tap FUORI da diagnosi/pass/porta, un tasto — più
+  // 600 ms, e poi aspetta finché il lettore è AL LAVORO nell'hero: il
+  // Check-in senza risposta sullo schermo, o il biglietto sullo schermo (su
+  // un 375px si posava sulle opzioni, dopo il tap sulla porta del biglietto).
+  // Ricontrolla ogni 1,2 s, mostra al più tardi 45 s dopo l'armamento, mai
+  // sopra un <dialog open> (la cassa). Lo scroll EVENT non è un segnale: la
+  // pagina scorre da sola per far atterrare il pass. 8 s senza mosse armano
+  // comunque. Il riquadro nasce nascosto (.zz, come sul telefono) e show()
+  // lo rivela; nulla è salvato prima della scelta, quindi aspettare non
+  // costa nulla al lettore. Le pagine senza l'attributo non cambiano.
+  var late = false;
+  function isLate() { try { return !!(document.body && document.body.hasAttribute('data-consent-late')); } catch (e) { return false; } }
+  function modalOpen() { try { return !!document.querySelector('dialog[open]'); } catch (e) { return false; } }
+  function onScreen(n) {
+    try {
+      if (!n) return false;
+      var cs = getComputedStyle(n);
+      if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+      var r = n.getBoundingClientRect();
+      return r.bottom > 0 && r.top < (window.innerHeight || document.documentElement.clientHeight);
+    } catch (e) { return false; }
+  }
+  // il riquadro nascosto (.zz è visibility:hidden) ha già la sua scatola:
+  // conta solo ciò che coprirebbe davvero, non tutto lo schermo — misurata
+  // DOPO lift(), cioè dove show() lo metterebbe (sopra la striscia in fondo)
+  function plateBox() {
+    try {
+      if (!el) return null;
+      lift();
+      var r = el.getBoundingClientRect();
+      return r.height ? r : null;
+    } catch (e) { return null; }
+  }
+  function meets(n, box) {
+    if (!onScreen(n)) return false;
+    if (!box) return true;
+    try { var r = n.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom; } catch (e) { return true; }
+  }
+  function atWork() {
+    try {
+      var ck = document.getElementById('checkin'), pass = document.getElementById('pass'), box = plateBox();
+      if (ck && meets(ck, box) && !ck.querySelector('input:checked')) return true;
+      if (pass && pass.getAttribute('data-state') !== 'blank' && meets(pass, box)) return true;
+      return false;
+    } catch (e) { return false; }
+  }
+  var WAIT_MAX = 45000, lateArmed = false, armedAt = 0;
+  var LATE_EVS = ['wheel', 'touchmove', 'pointerdown', 'keydown'];
+  function lateGo() {
+    if (due) return;
+    // il tempo passato nella cassa non consuma l'attesa: si riparte da lì
+    if (modalOpen()) { armedAt = Date.now(); setTimeout(lateGo, 400); return; }
+    if (late && atWork() && Date.now() - armedAt < WAIT_MAX) { setTimeout(lateGo, 1200); return; }
+    show();
+  }
+  // un tap DENTRO la diagnosi, il pass o la porta è il lettore al lavoro,
+  // non una mossa oltre: non arma (una rotella sì)
+  function lateInside(ev) {
+    try {
+      if (!ev || ev.type === 'wheel' || ev.type === 'touchmove') return false;
+      return !!(ev.target && ev.target.closest && ev.target.closest('#checkin, #pass, #contact, dialog'));
+    } catch (e) { return false; }
+  }
+  function lateArm(ev) {
+    if (lateArmed || lateInside(ev)) return;
+    lateArmed = true; armedAt = Date.now();
+    LATE_EVS.forEach(function (t) { try { window.removeEventListener(t, lateArm, { passive: true }); } catch (e) {} });
+    setTimeout(lateGo, 600);
+  }
+  function armLate() {
+    LATE_EVS.forEach(function (t) { try { window.addEventListener(t, lateArm, { passive: true }); } catch (e) {} });
+    setTimeout(lateArm, 8000);
   }
 
   // ── Cambiare idea: facile quanto dire sì ─────────────────────────────
@@ -395,6 +481,7 @@
   });
 
   if (!s) {
+    late = isLate();
     delayed = onPhone();
     arm();
     (document.readyState === 'loading')

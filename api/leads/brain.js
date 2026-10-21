@@ -30,6 +30,7 @@
 import { knobs, rejectedLine } from '../_squadra.js';
 import { ai } from '../_ai.js';
 import { pendingNewLeads } from './_fresh.js';
+import { isCityMarket, isReunion } from '../_market.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
@@ -45,7 +46,8 @@ const NOISE_RE = /newsletter|unsubscribe|nuovi annunci|ricerca salvata|price dro
 const INJECTION_RE = /ignore (all|previous|the) instructions|system prompt|\*{3,}\s*INSTRUCTIONS|<\s*(script|iframe)|BEGIN PROMPT|jailbreak/i;
 const EXPAT_RE = /relocat|expat|erasmus|exchange|visiting|researcher|nurse|moving to rome|new job in|trasferisco|trasferimento per lavoro|english/i;
 const EMPLOY_RE = /contratto|indeterminato|determinato|dipendente|impiegat|salary|income|employed|stipendio|partita iva|freelance|smart working/i;
-const BUDGET_RE = /(€|euro|eur)\s?\d{3,4}|\d{3,4}\s?(€|euro|eur)|budget/i;
+// thousands separators too: '€1,500' and '€1.500' are budgets (the city bands are written so)
+const BUDGET_RE = /(€|euro|eur)\s?(\d{1,2}[.,]?\d{3}|\d{3})|(\d{1,2}[.,]?\d{3}|\d{3})\s?(€|euro|eur)|budget/i;
 const MOVEIN_RE = /gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|january|february|march|april|may|june|july|august|september|october|november|december|subito|asap|il prima possibile/i;
 
 // pure + exported for tests
@@ -56,6 +58,13 @@ export function stage0(lead, listingById) {
     return { grade: 'dead', reason: 'portal noise/newsletter', final: true };
   }
   if (!msg && !lead.phone && !lead.email) return { grade: 'dead', reason: 'no content, no contact', final: true };
+  // A city desk (/amsterdam, /madrid) or La Réunion: the AI grader below
+  // judges a Rome tenant ("BOOM Roma"), and a real Amsterdam request read as
+  // "not interested in Rome" became 'dead' and was archived without a card.
+  // A rule grade, final, never the Rome prompt and never dead by AI.
+  if (isCityMarket(lead) || isReunion(lead)) {
+    return { grade: lead.phone || lead.paid === true ? 'A' : 'B', reason: 'desk fuori Roma — voto a regola, mai il prompt di Roma', final: true };
+  }
 
   let score = 0;
   const why = [];

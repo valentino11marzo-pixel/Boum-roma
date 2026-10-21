@@ -246,6 +246,25 @@ for (const l of CATALOG) DB.set(`listings/${l.id}`, l);
   ok('…senza perdere il primo', lead.message.includes('Trastevere'), lead.message);
 }
 
+// 5b-bis. il desk città: il messaggio precompilato delle pagine /amsterdam,
+// /madrid nomina il desk, e il lead entra nel SUO mercato (il Commerciale
+// tace, la card parla della città); un messaggio di Roma resta senza mercato
+{
+  const r = await call({ direction: 'in', channel: 'whatsapp', phone: '+31612340001',
+    name: 'Anna K', body: "Hi BOOM Amsterdam, I'm moving to Amsterdam.\n\nWe need a 2-bed from February.", messageId: 'wc1' });
+  const lead = r.leadId ? DB.get('leads/' + r.leadId) : null;
+  ok('desk città: «Hi BOOM Amsterdam» crea un lead con market amsterdam', !!r.leadCreated && lead && lead.market === 'amsterdam', lead && lead.market);
+  const rome = leads().find(([, l]) => /Trastevere/.test(l.message || ''));
+  ok('un messaggio di Roma senza marcatore resta senza mercato', rome && !rome[1].market, rome && rome[1].market);
+  // the client who filed the form on /madrid replies on WhatsApp: the number
+  // stored as E.164 by api/city-lead.js finds the same lead, never a new Rome one
+  DB.set('leads/cityMad1', { market: 'madrid', phone: '+34612340002', status: 'new', source: 'web', message: 'MADRID — tenant-side search · Full Search.', createdAt: new Date().toISOString() });
+  const before = leads().length;
+  const r2 = await call({ direction: 'in', channel: 'whatsapp', phone: '+34612340002', body: 'Hi, Lucía here, about my search in Madrid', messageId: 'wc2' });
+  const m = DB.get('leads/cityMad1');
+  ok('la risposta WhatsApp del cliente di Madrid arricchisce il SUO lead, nessun lead nuovo', leads().length === before && r2.leadId === 'cityMad1' && /Lucía/.test(m.message) && m.market === 'madrid', r2);
+}
+
 // 5c. un 👍 non crea niente
 {
   const before = leads().length;

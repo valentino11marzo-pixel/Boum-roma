@@ -258,7 +258,7 @@ console.log('\n\x1b[1m▸ le guardie stanno dove si spende\x1b[0m');
 {
   const np = read('api/telegram/notify-pending.js');
   ok('la card lead dice «proprietario», non «ente / azienda»', /b2bSide\(l\) === 'owner' \? '🔑 proprietario'/.test(np));
-  ok('un proprietario/ente non finisce mai nel riepilogo dei C', /ldLight = ldToNotify\.filter\(l => l\.grade === 'C' && !isB2B\(l\)\)/.test(np));
+  ok('un proprietario/ente non finisce mai nel riepilogo dei C', /const ownCard = l => isB2B\(l\)/.test(np) && /ldLight = ldToNotify\.filter\(l => l\.grade === 'C' && !ownCard\(l\)\)/.test(np));
   const com = read('api/employees/commerciale.js');
   ok('il Commerciale tace sui B2B PRIMA di redigere', com.indexOf('if (isB2B(lead)) continue;') > -1
     && com.indexOf('if (isB2B(lead)) continue;') < com.indexOf('proposeFirstReply(lead'));

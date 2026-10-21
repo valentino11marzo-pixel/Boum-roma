@@ -35,6 +35,7 @@ import nodemailer from 'nodemailer';
 import { fsGet, fsList, fsPatch, fsCreate, logActivity } from '../homie/_lib.js';
 import { phoneVariants } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
+import { notRomeTenant } from '../_market.js';
 import { rankLeadsForListing, outreachText, MAX_AGE_DAYS } from './_reverse.js';
 import { tgSend } from '../telegram/_lib.js';
 
@@ -56,6 +57,12 @@ export function vetoRichiamo(lead, ctx = {}) {
   if (['converted', 'won', 'tenant'].includes(status)) return 'è già diventato inquilino';
   if (status === 'lost' && lead.lostReason === 'not_looking') return 'ha detto che non cerca più';
   if (!String(lead.phone || '').trim() && !String(lead.email || '').trim()) return 'nessun recapito';
+  // il richiamo parla di case a Roma: mai a un desk fuori Roma, alla
+  // Réunion, a un ente o a un proprietario (api/_market.js notRomeTenant),
+  // e mai a chi ha già pagato un servizio
+  const outside = notRomeTenant(lead);
+  if (outside) return outside;
+  if (lead.paid === true) return 'cliente pagante: lo segue il servizio che ha comprato';
 
   const t = new Date(lead.createdAt || 0).getTime();
   if (t && (now - t) / D > MAX_AGE_DAYS) return `scritto oltre ${MAX_AGE_DAYS} giorni fa`;
