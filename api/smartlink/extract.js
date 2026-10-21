@@ -3,6 +3,7 @@ import { requireRole } from '../_auth.js';
 import crypto from 'node:crypto';
 import { fsGet, readJson } from '../homie/_lib.js';
 import { extractListing } from './_extract.js';
+import { findArchivedListing } from './_reuse.js';
 import RULES from '../../js/smartlink-engine.js';
 
 export default async function handler(req, res) {
@@ -15,6 +16,10 @@ export default async function handler(req, res) {
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
   const source = RULES.normalizeUrl(body?.url);
   if (!source) return res.status(400).json({ok:false, error:'unsupported_listing_url'});
+  try {
+    const archived=await findArchivedListing(source);
+    if(archived) return res.status(200).json(archived);
+  } catch { /* Un archivio non raggiungibile non impedisce la lettura diretta. */ }
   const result = await extractListing(source.url);
   if (result.ok && result.source && !result.images?.length) {
     // Il Radar può aver già visto l'annuncio tramite il browser di Homie.

@@ -12,8 +12,24 @@ export default async function handler(req, res) {
   let body;
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
-  const record = RULES.makeRecord(body || {}, new Date().toISOString());
+  const now=new Date().toISOString();
+  const archiveId=body?.archiveId;
+  if(archiveId!=null && (typeof archiveId!=='string' || !/^[A-Za-z0-9_-]{20}$/.test(archiveId))) return res.status(400).json({ok:false,error:'invalid_archive'});
+  const record = RULES.makeRecord(archiveId ? {...body,images:[]} : body || {}, now);
   if (!record) return res.status(400).json({ ok: false, error: 'invalid_smartlink_data' });
+  if(archiveId) {
+    let archive;
+    try {archive=await fsGet('smartlinks/'+archiveId);}
+    catch {return res.status(503).json({ok:false,error:'archive_unavailable'});}
+    const images=RULES.reusableImages(archive,record.sourceUrl,body.images,body.idempotencyKey);
+    if(!images) return res.status(400).json({ok:false,error:'invalid_archive_selection'});
+    record.images=images;
+    // Riutilizzare una foto non equivale ad avere ricontrollato l'annuncio oggi.
+    const date=Date.parse(archive.observedAt);
+    record.observedAt=Number.isFinite(date)&&date<=Date.now()?new Date(date).toISOString():null;
+    record.reusedFrom=archiveId;
+    record.createdAt=now;
+  }
   if (!record.images.length) return res.status(400).json({ ok:false, error:'photos_required' });
   const key = String(body.idempotencyKey || '');
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(key)) {

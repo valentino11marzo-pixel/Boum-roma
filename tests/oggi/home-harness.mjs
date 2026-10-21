@@ -153,7 +153,7 @@ const namedPortalFunction = name => {
  return src.slice(match.index, match.index + 5 + next);
 };
 const quickFunctions = [
- 'openModal', 'closeModal', 'getModal', 'fillPayAmount', 'boomToolsPage',
+ 'openModal', 'closeModal', 'getModal', 'initRentWriteForm', 'rentPaymentModal', 'rentActionArg', 'fillPayAmount', 'boomToolsPage',
  'openNewClientWizard', 'renderNewClientWizard', 'closeWizard', 'wizardBack',
  'wizardSyncDates', 'wizardSyncRent', 'wizardStep1Next', 'wizardStep2Next', 'wizardStep3Next',
  'openDocUploadModal', 'openDocUploadForProperty', 'openUserDocUpload',

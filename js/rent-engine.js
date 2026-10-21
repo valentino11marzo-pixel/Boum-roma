@@ -281,7 +281,70 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  // Input monetari del Portal: due decimali, mai parseInt, mai zero implicito.
+  function inputMoney(value, zero) {
+    if (typeof value !== 'string' && typeof value !== 'number') return null;
+    var text = String(value).trim();
+    if (!/^\d+(?:[.,]\d{1,2})?$/.test(text)) return null;
+    var cents = Math.round(Number(text.replace(',', '.')) * 100);
+    return Number.isSafeInteger(cents) && cents >= (zero ? 0 : 1) && cents <= 100000000 ? cents / 100 : null;
+  }
+  function paymentSnapshot(p) {
+    p = p || {};
+    return Object.fromEntries(['contractId','tenantId','propertyId','month','dueDate','status','paidDate','notes'].map(function(k){return [k,str(p[k])];}).concat([['amount',amount(p.amount)]]));
+  }
+  function contractSnapshot(c) {
+    c = c || {};
+    return { propertyId:str(c.propertyId),tenantId:str(c.tenantId),startDate:str(c.startDate),endDate:str(c.endDate),
+      rent:amount(c.rent),canoneMonthly:amount(c.canone && c.canone.monthly),
+      canoneTotal:amount(c.canone && c.canone.total),installments:Number(c.canone && c.canone.installments)||0,
+      status:str(c.status),historyLength:list(c.renewalHistory).length };
+  }
+  function sameSnapshot(a,b) {
+    return !!a && !!b && Object.keys(b).every(function(k){return a[k]===b[k];}) && Object.keys(a).length===Object.keys(b).length;
+  }
+  function editablePayment(p) {
+    return !!p && ['due','overdue'].includes(paymentState(p)) &&
+      isRentPayment(p) && (!p.coversTo || p.coversTo===p.month) &&
+      !p.paidDate && !p.bankTxId && !p.receiptUrl && !p.receiptDocId && !p.receiptDocumentId && !p.receiptInvoiceId &&
+      !p.stripePaymentIntentId && !p.stripeSessionId && !p.checkoutSessionId && !p.paymentIntentId;
+  }
+  function contractSigned(c) {
+    return !!c && (!!c.tenantSignature || !!c.landlordSignature || ['partial','complete'].includes(c.signatureStatus) ||
+      list(c.coTenants).some(function(x){return !!x.signature || !!x.signedAt;}));
+  }
+  function installmentInput(raw, contract) {
+    raw=raw||{};
+    var value=inputMoney(raw.amount), month=monthOf(raw.month), due=day(raw.dueDate);
+    if(value==null || !month || !due || due!==raw.dueDate || str(raw.notes).length>2000 || !contract || !str(contract.tenantId) || !str(contract.propertyId)) return null;
+    return {contractId:raw.contractId,tenantId:contract.tenantId,propertyId:contract.propertyId,
+      amount:value,month:month,dueDate:due,notes:str(raw.notes).slice(0,2000)};
+  }
+  function contractRent(c) {
+    if (!c) return null;
+    var rent=inputMoney(c.rent), monthly=c.canone && c.canone.monthly;
+    return rent!=null && (monthly==null || inputMoney(monthly)===rent) ? rent : null;
+  }
+  function bulkInstallments(raw, contract) {
+    raw=raw||{};
+    var month=monthOf(raw.startMonth), count=Number(raw.numMonths), dueDay=Number(raw.dueDay);
+    var value=inputMoney(raw.amount==null || raw.amount==='' ? contractRent(contract) : raw.amount);
+    if(!month || !Number.isInteger(count) || count<1 || count>24 || !Number.isInteger(dueDay) || dueDay<1 || dueDay>31 || value==null) return null;
+    var parts=month.split('-').map(Number), result=[];
+    for(var i=0;i<count;i++) {
+      var d=new Date(Date.UTC(parts[0],parts[1]-1+i,1)), m=d.toISOString().slice(0,7);
+      var last=new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();
+      var item=installmentInput({contractId:raw.contractId,amount:value,month:m,dueDate:m+'-'+String(Math.min(dueDay,last)).padStart(2,'0')},contract);
+      if(!item) return null;
+      result.push(item);
+    }
+    return result;
+  }
+  function coversMonth(p, month) {
+    return isRentPayment(p) && !!monthOf(p.month) && p.month<=month && (monthOf(p.coversTo)||p.month)>=month;
+  }
+
+  var API = { civilDay:day, contractRent:contractRent, inputMoney:inputMoney, paymentSnapshot:paymentSnapshot, contractSnapshot:contractSnapshot, sameSnapshot:sameSnapshot, editablePayment:editablePayment, contractSigned:contractSigned, installmentInput:installmentInput, bulkInstallments:bulkInstallments, coversMonth:coversMonth, amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isReceiptDocument: isReceiptDocument, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
