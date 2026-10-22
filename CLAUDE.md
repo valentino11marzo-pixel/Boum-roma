@@ -3586,6 +3586,22 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**22/10 — Il punto di oggi:** la stessa area iniziale espone sintesi AI già preparate,
+prossimo passo e motivo usando il validatore delle revisioni; messaggi nuovi, scadenza,
+approvazioni o contesto obsoleto impediscono di riproporre la vecchia sintesi.
+I messaggi recenti già acquisiti emergono anche senza pratica/seguito; collegamenti
+solo per ID e stato verificati; i conclusi recenti sono riletti dal server dopo gli aperti.
+Se la lettura è incompleta non si ripropongono header senza seguito; il totale arretrati resta in coda.
+Lo stato email/WhatsApp viene letto automaticamente, senza scansioni o nuove AI;
+Copertura e pausa restano esplicite. Prove: `oggidesk`, `oggibriefingui`, `oggiclosuresui`.
+
+**22/10 — Esperienza Oggi:** il briefing precede gli strumenti; su desktop sono
+in due colonne, sul telefono il comando Strumenti porta ai sedici ingressi invariati.
+Situazione, azione e motivo precedono filtri e verifiche amministrative; dubbi e fonti
+si espandono nella scheda, restando aperti durante i refresh. La conferma conserva
+la review completa. La prima azione resta sopra la barra del telefono, senza scroll.
+Prove: `portalnavigationui`, `oggihomeui`, `oggiquicktoolsui`, `oggibriefingui`.
+
 **16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
 altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
 raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.
@@ -6958,6 +6974,14 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   creato dalla console e assente dal file). Senza indice la cronologia
   lunga degrada al fallback, non si ferma.
 
+- **Limite preventivo preparazioni (22/10):** recuperata la guardia del 6/10,
+  prima non pubblicata: default20 tentativi automatici/giorno e2/caso, incluso errore.
+  `_preparation-limits` valida la configurazione e lo storico senza azzerare contatori
+  ambigui; `_prepare` prenota con lease+contatore+versione settings nello stesso CAS.
+  Pausa o cap ridotto durante la lettura bloccano la chiamata; cache e manuale restano.
+  Il monitor distingue lo stop; cap tentativi diverso dal budget monetario centrale.
+  Nessuna attivazione implicita. Prove `segretariapreparationlimits`, `segretariaprepara`,
+  `segretariaworker`, `segretariamonitor`, `segretarialiveui` con mutazioni e concorrenza.
 - **Oggi, azioni ed effetti espliciti (21/09 sera)**: le schede distinguono messaggio da rivedere e seguito interno senza bozza; «Da rivedere» non chiama decisioni tutte le richieste. Sintesi breve, contesto consultabile e avviso di fonti parziali restano separati; prima della conferma sono esposti destinatario, testo e dubbi completi.
   `BOOM_PROPOSTA.approvalExpired` governa la scadenza; render e click bloccano nuove conferme scadute, con rielaborazione esplicita e gestione del 409 `preparation_expired`. Ricevute e ripresa della stessa approvazione restano valide; il modulo condiviso assente blocca la conferma.
   Il feedback `approveAgentAction` distingue prova email e WhatsApp da verificare: `executed` o un link non attestano invio. Nessuna lettura della Home genera o invia; una nota testuale non esegue telefonate o lavori.

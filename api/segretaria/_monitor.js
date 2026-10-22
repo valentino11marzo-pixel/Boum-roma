@@ -65,8 +65,8 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
     remainingToday: null,
     status, lastRunAt, checkedAt: new Date(now).toISOString(), counts,
     retryReasons, nextRetryAt: date(heartbeat?.queue?.nextRetryAt), queueScope,
-    stoppedBy: ['time_budget', 'disabled', 'batch_limit'].includes(heartbeat?.stoppedBy) ? heartbeat.stoppedBy : null,
+    stoppedBy: ['time_budget', 'disabled', 'batch_limit', 'automatic_budget'].includes(heartbeat?.stoppedBy) ? heartbeat.stoppedBy : null,
     queueIncomplete: heartbeat?.incomplete === true || queueScope === 'page',
     incomplete: incomplete || usedToday === null || degraded,
-    scope: 'preparation_only' };
+    automaticLimits: true, scope: 'preparation_only' };
 }
