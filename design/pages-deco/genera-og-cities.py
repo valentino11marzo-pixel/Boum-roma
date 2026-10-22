@@ -67,13 +67,22 @@ def card(c):
     da = min(p['price'] for p in c['pricing']['plans'])
     da_label = 'from' if c.get('mode') == 'search' else 'opening &middot; from'
     prezzo = f'<div class="prezzo"><u>{da_label}</u><s>&euro;{da}</s></div>'
-    prova = ' · '.join(c['machine']['items']).replace('<', '&lt;')
+    # the proof line says only what every desk page says too (the v1.2
+    # `machine` strip it used to read is gone, and with it "dossier 24h ·
+    # apply <1h" — speed promises the pages dropped on 21/10 and the card
+    # kept repeating on every WhatsApp share). The yellow line is the first
+    # sentence of the page's own lead.
+    # a waitlist desk does not attend viewings yet: its card says what it
+    # does today (it takes a file), the selling desks what they deliver
+    prova = ('tenant side · flat fees · viewing attended · contract checked'
+             if c.get('mode') == 'search' else 'tenant side · flat fees · your file open today')
+    em = re.split(r'(?<=[.!?])\s', c['hero']['lead'].strip())[0].replace('<', '&lt;')
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
   <div class="marchio"><span>BOOM</span><i>{c['city']} &middot; {c['nav']['desk']}</i></div>
-  <h1>Your home in<br><span class="tab">{celle}</span><br><b>{c['hero']['h1Em']}</b></h1>
+  <h1>Your home in<br><span class="tab">{celle}</span><br><b>{em}</b></h1>
   {prezzo}
   <div class="fondo">
     <span><span class="punto"></span>{prova}</span>

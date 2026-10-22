@@ -27,7 +27,7 @@
     <meta property="og:title" content="BOOM Madrid — an agent on your side of the table">
     <meta property="og:description" content="Tenant-side rental search for expats and internationals moving to Madrid. Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords.">
     <meta property="og:url" content="https://www.boomrome.com/madrid">
-    <meta property="og:image" content="https://www.boomrome.com/og-madrid.png">
+    <meta property="og:image" content="https://www.boomrome.com/og-madrid.png?v=f051b5be59">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BOOM Madrid — an agent on your side of the table">
     <meta name="twitter:description" content="Tenant-side rental search for expats and internationals moving to Madrid. Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords.">
-    <meta name="twitter:image" content="https://www.boomrome.com/og-madrid.png">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-madrid.png?v=f051b5be59">
     <meta name="twitter:image:alt" content="BOOM Madrid — an agent on your side of the table">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -107,6 +107,7 @@
       "areaServed": [
         "Rome",
         "Amsterdam",
+        "Barcelona",
         "Madrid"
       ],
       "sameAs": [
@@ -134,11 +135,11 @@
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
-        "url": "https://www.boomrome.com/og-madrid.png",
+        "url": "https://www.boomrome.com/og-madrid.png?v=f051b5be59",
         "width": 1200,
         "height": 630
       },
-      "dateModified": "2026-10-21",
+      "dateModified": "2026-10-22",
       "publisher": {
         "@id": "https://www.boomrome.com/#organization"
       },
@@ -201,7 +202,7 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation and contract check. VAT included. Invoice from Egidi Immobiliare S.r.l.",
+          "description": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -294,7 +295,7 @@
           "name": "Isn't it the landlord who pays the agent in Spain now?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Yes. Under Ley 12/2023 the landlord bears the costs of their own agent, so that agent charging you is a red flag. You can still hire your own agent, who works only for you, and pay for that work: BOOM Madrid is that agent, and takes nothing from landlords or their agents."
+            "text": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, so that agent charging you is a red flag. BOOM Madrid is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
           }
         },
         {
@@ -334,7 +335,7 @@
           "name": "What if you don't find anything?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take the search on, the fee pays for the work, not for a result: nobody can promise a home."
+            "text": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
           }
         },
         {
@@ -399,6 +400,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html, body { scroll-behavior: auto !important; }
 }
+
+/* LA GRANA SOTTO LA TESTATA (22/10/2026 — «su iPhone il sito scorre sopra
+   la testata»). Safari 26 non legge piu' theme-color: per colorare la
+   striscia dell'orologio interroga UN punto, il centro in alto a 4px
+   (WebKit LocalFrameView::fixedContainerEdges), e risale dall'elemento
+   colpito fino alla prima barra fissa larga quanto la finestra. Un
+   pseudo-elemento colpito conta come il suo host (HitTestResult::
+   setInnerNonSharedNode): la grana del fondo (`body::before`, fissa a
+   tutto schermo, z-index 9999, opacita' 1-2%) stava SOPRA la testata su
+   sedici pagine, home compresa, quindi il punto colpiva il body, nessuna
+   barra veniva trovata, e Safari lasciava vedere la pagina che scorre
+   dietro l'orologio. Sotto ogni testata (la piu' bassa e' a z-index 20)
+   la grana resta identica a vederla. Tutti gli pseudo-elementi di body
+   delle pagine che portano questo blocco sono quella grana: la regola non
+   puo' abbassare un livello vero (tests/cielo lo verifica). */
+body::before, body::after { z-index: 1 !important; }
 </style>
 <script>
 /* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
@@ -699,6 +716,7 @@ html {
     <a href="#faq" class="mobile-menu-link">FAQ</a>
     <span class="mobile-menu-group">BOOM desks</span>
     <a href="/amsterdam" class="mobile-menu-link">Amsterdam</a>
+          <a href="/barcelona" class="mobile-menu-link">Barcelona</a>
           <a href="/" class="mobile-menu-link">BOOM Rome</a>
   </div>
   <a href="#contact" class="mobile-menu-cta">Open my file</a>
@@ -946,7 +964,7 @@ html {
     <div class="steps">
       <div class="step"><span class="dot"></span>
         <div class="k">1 · Brief</div>
-        <div class="v">A 20-minute call</div>
+        <div class="v">A free call</div>
         <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Spanish landlord. We tell you what your budget buys today.</div>
       </div>
       <div class="step"><span class="dot"></span>
@@ -969,12 +987,12 @@ html {
       <span class="num">02 — SERVICES &amp; FEES</span>
       <h2>Flat fees. <span class="g">No percentage of your rent.</span></h2>
     </div>
-    <p class="sec-sub">You pay for the work, and only you pay. VAT included.</p>
+    <p class="sec-sub">Optional, chosen in writing: you pay for the work, and only you pay. VAT included.</p>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We search. You choose.</b>
-        <ul class="inc"><li>Search every working day: Idealista, Fotocasa, agencies</li><li>Applications as listings appear</li><li>One attended viewing included, live video + report (more: €149 each)</li><li>Rent negotiated, contract checked, padrón supported</li></ul>
+        <ul class="inc"><li>Every working day: Idealista, Fotocasa, agencies</li><li>Applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Rent negotiated, contract checked, padrón supported</li><li>Until you sign, or you say stop</li></ul>
         <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
         <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
@@ -1014,8 +1032,8 @@ html {
         <p>Habitual lease: one month, extra guarantees two months at most. Other lease types differ, and agents ask for more. We check.</p>
       </div></div>
       <div class="flow" id="check-fees"><span class="n">II</span><div>
-        <b>Who pays the agent<span class="at">Ley 12/2023</span></b>
-        <p>The landlord pays their own agent. That agent charging you a fee is a red flag. You hire us; we do not act for the landlord.</p>
+        <b>Who pays the agent<span class="at">LAU art. 20</span></b>
+        <p>The landlord pays their own agent and the lease's costs; their agent charging you is a red flag. Hiring us is optional, in writing.</p>
       </div></div>
       <div class="flow" id="check-rent"><span class="n">III</span><div>
         <b>The rent<span class="at">no regional cap</span></b>
@@ -1045,7 +1063,7 @@ html {
     <div class="faq">
       <details>
         <summary>Isn't it the landlord who pays the agent in Spain now?</summary>
-        <div class="a">Yes. Under Ley 12/2023 the landlord bears the costs of their own agent, so that agent charging you is a red flag. You can still hire your own agent, who works only for you, and pay for that work: BOOM Madrid is that agent, and takes nothing from landlords or their agents.</div>
+        <div class="a">Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, so that agent charging you is a red flag. BOOM Madrid is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords.</div>
       </details>
       <details>
         <summary>Which service is mine?</summary>
@@ -1065,7 +1083,7 @@ html {
       </details>
       <details>
         <summary>What if you don't find anything?</summary>
-        <div class="a">We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take the search on, the fee pays for the work, not for a result: nobody can promise a home.</div>
+        <div class="a">We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result.</div>
       </details>
       <details>
         <summary>How do I pay?</summary>
@@ -1146,6 +1164,7 @@ html {
         <h4 class="footer-links-title">BOOM desks</h4>
         <ul class="footer-links-list">
           <li><a href="/amsterdam">Amsterdam</a></li>
+          <li><a href="/barcelona">Barcelona</a></li>
           <li><a href="/">BOOM Rome</a></li>
         </ul>
       </div>
@@ -1256,10 +1275,11 @@ html {
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
-          "Search every working day: Idealista, Fotocasa, agencies",
+          "Every working day: Idealista, Fotocasa, agencies",
           "Applications as listings appear",
-          "One attended viewing included, live video + report (more: €149 each)",
-          "Rent negotiated, contract checked, padrón supported"
+          "One attended viewing (more: €149 each)",
+          "Rent negotiated, contract checked, padrón supported",
+          "Until you sign, or you say stop"
         ]
       },
       "application-pack": {
@@ -1443,8 +1463,8 @@ html {
           "employer",
           "reference"
         ],
-        "resultAll": "All eight in hand. We format them the Spanish way and apply as listings appear.",
-        "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
+        "resultAll": "All eight in hand. Full Search and the Application Pack put them in the Spanish format; Full Search also applies as listings appear.",
+        "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the presentation letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
         "skipped": "Tap the papers you hold above and we say what we would fix first.",
         "eyebrow": "Your papers"
       },
@@ -1498,7 +1518,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=f28e52693e"></script>
+<script src="/assets/boom-city.js?v=6fd5989991"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

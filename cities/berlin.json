@@ -340,8 +340,8 @@
         "schufa",
         "arrears"
       ],
-      "resultAll": "All eight in hand. Your dossier waits, formatted the German way, for the day the desk opens.",
-      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Selbstauskunft and the format are ours, and we tell you how a newcomer gets a SCHUFA; for the rest we tell you exactly what to ask your employer and your bank.",
+      "resultAll": "All eight in hand. When the desk opens, Full Search and the Application Pack put them in the German format.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the cover letter and fills the Selbstauskunft; it and Full Search format your file. For the rest we tell you how a newcomer gets a SCHUFA and what to ask your employer and your bank.",
       "skipped": "Tap the papers you hold above and we say what we would fix first.",
       "eyebrow": "Your papers"
     },

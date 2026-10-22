@@ -8,9 +8,9 @@
     <!-- page_location is set WITHOUT the fragment and WITHOUT the session_id of a paid return (a payment id that names a payer): the visitor's own link (#checkin=…) carries the mask of the papers they hold, and that never goes to GA (the Check-in events send the three answers and a count of papers, nothing more) -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Tenant-side rental agent in Barcelona — BOOM</title>
-    <meta name="description" content="BOOM Barcelona works only for the tenant and opens with a registered local partner. Open your file today: rent-cap check, contract read, Spanish-format file, attended viewings.">
-    <meta name="robots" content="noindex">
+    <title>Tenant-side rental agent for expats in Barcelona — BOOM</title>
+    <meta name="description" content="Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.">
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
     <meta name="author" content="BOOM">
     <meta name="theme-color" content="#060607">
     <meta name="color-scheme" content="dark">
@@ -25,17 +25,17 @@
     <meta property="og:site_name" content="BOOM">
     <meta property="og:locale" content="en_US">
     <meta property="og:title" content="BOOM Barcelona — an agent on your side of the table">
-    <meta property="og:description" content="Tenant-side desk for internationals moving to Barcelona, opening with a registered local partner. Rent-cap check, contract read, Spanish-format file, attended viewings. Paid by you — never by landlords.">
+    <meta property="og:description" content="Tenant-side rental search for expats and internationals moving to Barcelona. Rent-cap check, Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract read. Flat fees, paid by you — never by landlords.">
     <meta property="og:url" content="https://www.boomrome.com/barcelona">
-    <meta property="og:image" content="https://www.boomrome.com/og-barcelona.png">
+    <meta property="og:image" content="https://www.boomrome.com/og-barcelona.png?v=05ca8d35de">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:image:alt" content="BOOM Barcelona — an agent on your side of the table">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BOOM Barcelona — an agent on your side of the table">
-    <meta name="twitter:description" content="Tenant-side desk for internationals moving to Barcelona, opening with a registered local partner. Rent-cap check, contract read, Spanish-format file, attended viewings. Paid by you — never by landlords.">
-    <meta name="twitter:image" content="https://www.boomrome.com/og-barcelona.png">
+    <meta name="twitter:description" content="Tenant-side rental search for expats and internationals moving to Barcelona. Rent-cap check, Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract read. Flat fees, paid by you — never by landlords.">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-barcelona.png?v=05ca8d35de">
     <meta name="twitter:image:alt" content="BOOM Barcelona — an agent on your side of the table">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -107,6 +107,7 @@
       "areaServed": [
         "Rome",
         "Amsterdam",
+        "Barcelona",
         "Madrid"
       ],
       "sameAs": [
@@ -118,7 +119,7 @@
       "@id": "https://www.boomrome.com/barcelona#page",
       "url": "https://www.boomrome.com/barcelona",
       "name": "BOOM Barcelona — an agent on your side of the table",
-      "description": "BOOM Barcelona works only for the tenant and opens with a registered local partner. Open your file today: rent-cap check, contract read, Spanish-format file, attended viewings.",
+      "description": "Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.",
       "inLanguage": "en",
       "isPartOf": {
         "@id": "https://www.boomrome.com/#website"
@@ -134,9 +135,21 @@
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
-        "url": "https://www.boomrome.com/og-barcelona.png",
+        "url": "https://www.boomrome.com/og-barcelona.png?v=05ca8d35de",
         "width": 1200,
         "height": 630
+      },
+      "dateModified": "2026-10-22",
+      "publisher": {
+        "@id": "https://www.boomrome.com/#organization"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Valentino Egidi",
+        "jobTitle": "tenant-side agent",
+        "worksFor": {
+          "@id": "https://www.boomrome.com/#organization"
+        }
       },
       "speakable": {
         "@type": "SpeakableSpecification",
@@ -150,9 +163,9 @@
     {
       "@type": "Service",
       "@id": "https://www.boomrome.com/barcelona#service",
-      "name": "BOOM Barcelona — tenant-side rental desk (agente del inquilino)",
+      "name": "BOOM Barcelona — tenant-side rental search",
       "serviceType": "Tenant-side rental search agent",
-      "description": "Tenant-side rental desk for Barcelona, opening with a registered local partner (AICAT). On the tenant's side only: rent checked against the índice de referencia, contract read before signing, Spanish-format application file, attended viewings with live video and written report, empadronamiento supported. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever.",
+      "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms.",
       "provider": {
         "@id": "https://www.boomrome.com/#organization"
       },
@@ -162,7 +175,7 @@
       },
       "audience": {
         "@type": "Audience",
-        "audienceType": "Internationals relocating to Barcelona"
+        "audienceType": "Expats and internationals relocating to Barcelona"
       },
       "hoursAvailable": {
         "@type": "OpeningHoursSpecification",
@@ -188,8 +201,8 @@
           "name": "Full Search",
           "price": "500",
           "priceCurrency": "EUR",
-          "availability": "https://schema.org/PreOrder",
-          "description": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check. List price. Charged only when the desk opens.",
+          "availability": "https://schema.org/InStock",
+          "description": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -214,8 +227,8 @@
           "name": "Application Pack",
           "price": "199",
           "priceCurrency": "EUR",
-          "availability": "https://schema.org/PreOrder",
-          "description": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review. List price. Charged only when the desk opens.",
+          "availability": "https://schema.org/InStock",
+          "description": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "199",
@@ -240,8 +253,8 @@
           "name": "Attended Viewing",
           "price": "149",
           "priceCurrency": "EUR",
-          "availability": "https://schema.org/PreOrder",
-          "description": "A BOOM person attends the viewing in your place, with live video and a written report. Priced per viewing. List price. Charged only when the desk opens.",
+          "availability": "https://schema.org/InStock",
+          "description": "A BOOM person attends the viewing in your place, with live video and a written report. Priced per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "149",
@@ -279,26 +292,18 @@
       "mainEntity": [
         {
           "@type": "Question",
-          "name": "Why isn't BOOM taking searches in Barcelona yet?",
+          "name": "Isn't it the landlord who pays the agent in Spain?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "In Catalonia, intermediation needs registration in the AICAT register. We open the desk with a registered local partner rather than work around the rule. Your file waits, ready, and you hear from us the day the desk opens."
+            "text": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
           }
         },
         {
           "@type": "Question",
-          "name": "Which service will be mine?",
+          "name": "Which service is mine?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise. List prices, charged only when the desk opens."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What can you do for me today?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Barcelona. The prices on this page are set; nothing is charged until the desk opens and the work starts."
+            "text": "Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise."
           }
         },
         {
@@ -306,7 +311,7 @@
           "name": "Is my rent capped in Barcelona?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "Barcelona is a tensioned residential zone: new rents are capped by the índice de referencia and the previous rent. An asking rent above the cap is leverage, not a given. That check is part of every Barcelona search."
+            "text": "Barcelona is a tensioned residential zone. A new rent can't exceed the last rent of the past five years, updated; for large owners and homes not let in five years, nor the índice de referencia. Temporary leases for work or study are covered too. We check it on every search."
           }
         },
         {
@@ -314,15 +319,31 @@
           "name": "Do I need to be in Barcelona?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "No. When the desk opens, a BOOM person attends viewings in your place, with live video and a written report. The contract is read and signed remotely. You arrive for the keys and the padrón."
+            "text": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón."
           }
         },
         {
           "@type": "Question",
-          "name": "Isn't it the landlord who pays the agent in Spain?",
+          "name": "How do I avoid a rental scam in Barcelona from abroad?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "The landlord bears their own agency costs. An agent you hire, who works only for you, is a different service. That is what we are, and we never take anything from landlords or their agents."
+            "text": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What if you don't find anything?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "How do I pay?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords, their agents or platforms."
           }
         },
         {
@@ -330,7 +351,7 @@
           "name": "What do you do with my data?",
           "acceptedAnswer": {
             "@type": "Answer",
-            "text": "It is used to answer you and to open your file, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will."
+            "text": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
           }
         }
       ]
@@ -379,6 +400,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html, body { scroll-behavior: auto !important; }
 }
+
+/* LA GRANA SOTTO LA TESTATA (22/10/2026 — «su iPhone il sito scorre sopra
+   la testata»). Safari 26 non legge piu' theme-color: per colorare la
+   striscia dell'orologio interroga UN punto, il centro in alto a 4px
+   (WebKit LocalFrameView::fixedContainerEdges), e risale dall'elemento
+   colpito fino alla prima barra fissa larga quanto la finestra. Un
+   pseudo-elemento colpito conta come il suo host (HitTestResult::
+   setInnerNonSharedNode): la grana del fondo (`body::before`, fissa a
+   tutto schermo, z-index 9999, opacita' 1-2%) stava SOPRA la testata su
+   sedici pagine, home compresa, quindi il punto colpiva il body, nessuna
+   barra veniva trovata, e Safari lasciava vedere la pagina che scorre
+   dietro l'orologio. Sotto ogni testata (la piu' bassa e' a z-index 20)
+   la grana resta identica a vederla. Tutti gli pseudo-elementi di body
+   delle pagine che portano questo blocco sono quella grana: la regola non
+   puo' abbassare un livello vero (tests/cielo lo verifica). */
+body::before, body::after { z-index: 1 !important; }
 </style>
 <script>
 /* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
@@ -679,9 +716,7 @@ html {
     <a href="#faq" class="mobile-menu-link">FAQ</a>
     <span class="mobile-menu-group">BOOM desks</span>
     <a href="/amsterdam" class="mobile-menu-link">Amsterdam</a>
-          <a href="/berlin" class="mobile-menu-link">Berlin</a>
           <a href="/madrid" class="mobile-menu-link">Madrid</a>
-          <a href="/paris" class="mobile-menu-link">Paris</a>
           <a href="/" class="mobile-menu-link">BOOM Rome</a>
   </div>
   <a href="#contact" class="mobile-menu-cta">Open my file</a>
@@ -707,7 +742,7 @@ html {
         (function(){var f=document.getElementById('flapCity');
           if(f){f.style.display='inline-block';f.style.minWidth='8.10em';
                 f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="lead h-3">Opening with a registered local partner. Today: your file, your dossier readiness, the six checks before you sign.</p>
+      <p class="lead h-3">Found by someone on your side. Three taps say which service fits, and what it costs.</p>
       <!-- CHECK-IN -->
 <section class="checkin" id="checkin" aria-label="Check-in">
   <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span></div>
@@ -757,7 +792,7 @@ html {
       <h3 id="ckPlan"></h3>
       <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span><small id="ckCond"></small></div>
       <p class="why" id="ckWhy"></p>
-      <p class="condlong" id="ckCondLong"></p>
+      <p class="refund" id="ckRefund" hidden>Full Search is refunded in full if we decline the search in the first call.</p>
       <p class="note" id="ckNote" hidden></p>
       <fieldset class="papers" id="ckPapers" hidden>
         <legend><span class="peye">Your papers</span> What do you already hold?</legend>
@@ -777,6 +812,7 @@ html {
       </fieldset>
       <div class="pdoors">
           <a class="paybtn" href="#contact" id="ckFile" data-service=""><span class="lk">✈</span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></a>
+          <button type="button" class="till" id="ckStart" data-pay="">Pay and start · <span id="ckStartAmt"></span></button>
       </div>
       <div class="pshare"><span>Know someone moving too?</span><a id="ckWa" href="#" target="_blank" rel="noopener">WhatsApp</a><button type="button" id="ckCopy">Copy link</button><span class="ck-copied" id="ckCopied" aria-live="polite"></span></div>
       <div class="pgrid">
@@ -799,9 +835,9 @@ html {
       <a class="skipck" href="#contact">Rather write first? Open a file</a>
       <!-- THE FACTS: the five answers a scam-primed visitor needs before any tap -->
       <dl class="facts" id="facts">
-  <div><dt>Paid by</dt><dd>You alone, once the desk opens. Launching with a registered local partner.</dd></div>
-  <div><dt>From abroad</dt><dd>Yes, once the desk opens: live video at the viewing, a written report.</dd></div>
-  <div><dt>If we say no</dt><dd>Charged only when the desk opens. If we decline the search in the first call, nothing is owed.</dd></div>
+  <div><dt>Paid by</dt><dd>You hire us; we do not act for the landlord.</dd></div>
+  <div><dt>From abroad</dt><dd>Yes. Live video at the viewing, a written report, the contract checked before you sign.</dd></div>
+  <div><dt>If we say no</dt><dd>Full Search is refunded in full if we decline the search in the first call.</dd></div>
   <div><dt>Who answers</dt><dd>Valentino Egidi, same working day · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET/CEST</span><span class="clock" id="deskClock" aria-live="off"></span></dd></div>
   <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://maps.google.com/?cid=15671179095441549815" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></dd></div>
       </dl>
@@ -863,12 +899,12 @@ html {
             <summary><span class="pl-k">Service</span><b id="plText">Which service? Three taps tell you ↑</b><small class="pl-change" id="plChange" hidden>change</small></summary>
             <fieldset class="fld chips"><legend class="sr">Service</legend>
               <div class="chipgrid">
-              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500 · flat · incl. VAT · at opening</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199 · flat · incl. VAT · at opening</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing · incl. VAT · at opening</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500 · flat · incl. VAT</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199 · flat · incl. VAT</small></span></label>
+              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing · incl. VAT</small></span></label>
               <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
               </div>
-            <p class="pricenote">List prices, VAT included. Each plan says when it is charged.</p>
+            <p class="pricenote refund">Full Search is refunded in full if we decline the search in the first call.</p>
             </fieldset>
           </details>
 
@@ -900,6 +936,19 @@ html {
           <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapDone" data-word="OPEN"></span></p>
           <h3>Your file is <em>open.</em></h3>
           <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes back by email, or WhatsApp if you left a number.</span></li><li><b>Nothing to prepare</b><span>We tell you on the call what papers matter.</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
+          <div class="payoffer" id="payOffer" hidden>
+            <p>Want the work to start?</p>
+            <button type="button" class="paybtn" id="payOfferBtn" data-pay=""><span class="lk">🔒</span><span class="tx"><b>Pay and start</b><small>Stripe · the desk writes within its first open hour</small></span><span class="amt" id="payOfferAmt"></span></button>
+            <p class="refund" id="payOfferRefund">Full Search is refunded in full if we decline the search in the first call.</p>
+          </div>
+        </div>
+        <div class="sent paid" id="fPaid" tabindex="-1" data-wait="You did not tick “Start now”: we start when your 14 days end. Sooner? Write to hello@boom-rome.com.">
+          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
+          <p class="mini" aria-hidden="true"><span class="flap-mini" id="flapPaid" data-word="PAID"></span></p>
+          <h3>Paid — your file <em>is open.</em></h3>
+          <p class="plan" id="paidPlan"></p>
+          <p id="paidText">The Barcelona desk writes by email, or on WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
+          <ul class="next" id="paidNext"><li><b>First desk hour</b><span>an email from the desk with what we need</span></li><li><b>Same working day</b><span>your brief: dates, budget, who's moving</span></li><li><b>Then</b><span>the work as written on this page</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
         </div>
       </div>
       <!-- /THE DOOR -->
@@ -910,23 +959,23 @@ html {
   <section id="how" class="rv">
     <div class="sec-h">
       <span class="num">01 — HOW IT WORKS</span>
-      <h2>From your file <span class="g">to the keys.</span></h2>
+      <h2>From the first call <span class="g">to the keys.</span></h2>
     </div>
     <div class="steps">
       <div class="step"><span class="dot"></span>
-        <div class="k">1 · File</div>
-        <div class="v">Open it today</div>
-        <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads to a landlord. We reply the same working day with what your budget buys.</div>
+        <div class="k">1 · Brief</div>
+        <div class="v">A free call</div>
+        <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Catalan landlord. We tell you what your budget buys today.</div>
       </div>
       <div class="step"><span class="dot"></span>
-        <div class="k">2 · Opening</div>
-        <div class="v">A registered local partner</div>
-        <div class="s">Intermediation in Catalonia needs AICAT registration. The desk opens with a registered partner, not around the rule. You hear from us the day it does.</div>
+        <div class="k">2 · File &amp; applications</div>
+        <div class="v">Spanish-format, one working day</div>
+        <div class="s">Payslips or contract, NIE or passport, references, bank statements, a presentation letter in Spanish. Then we apply as listings go live.</div>
       </div>
       <div class="step"><span class="dot"></span>
-        <div class="k">3 · The search</div>
-        <div class="v">Then as in every BOOM city</div>
-        <div class="s">Spanish-format file, applications as listings appear, a BOOM person at the viewing, rent cap and contract checked before you sign.</div>
+        <div class="k">3 · Viewing &amp; contract</div>
+        <div class="v">A BOOM person in the room</div>
+        <div class="s">Live video walkthrough and a written report. Rent cap, deposit, guarantees and lease type checked before you sign. Then keys and padrón.</div>
       </div>
     </div>
     <p class="who"><b>Valentino Egidi</b> · tenant-side agent · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET/CEST</span> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a></p>
@@ -936,35 +985,38 @@ html {
   <section id="services" class="rv">
     <div class="sec-h">
       <span class="num">02 — SERVICES &amp; FEES</span>
-      <h2>Flat fees, set now. <span class="g">Charged when the desk opens.</span></h2>
+      <h2>Flat fees. <span class="g">No percentage of your rent.</span></h2>
     </div>
-    <p class="sec-sub">The same flat fees as every BOOM desk, paid by you, never by landlords. Nothing is charged today.</p>
+    <p class="sec-sub">Optional, chosen in writing: you pay for the work, and only you pay. VAT included.</p>
     <div class="sibs plates">
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We search. You choose.</b>
-        <ul class="inc"><li>Search every working day: Idealista, Fotocasa, Habitaclia, agencies</li><li>Applications as listings appear</li><li>Attended viewing, live video + report</li><li>Rent cap and contract checked, padrón supported</li></ul>
-        <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT · at opening</small></div>
+        <ul class="inc"><li>Every working day: Idealista, Fotocasa, Habitaclia, agencies</li><li>Applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Rent negotiated, cap and contract checked</li><li>Until you sign, or you say stop</li></ul>
+        <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
+        <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
       </article>
       <article class="sib" id="plan-application-pack">
         <div class="se"><span>Application Pack</span></div>
         <b>You search. We make you win.</b>
         <p>The file that wins Spanish applications.</p>
         <ul class="inc"><li>Spanish-format file, one working day from your papers</li><li>Presentation letter in Spanish</li><li>Income, aval and guarantor strategy</li><li>Contract review before you sign</li></ul>
-        <div class="price"><span class="num" data-plan-price="application-pack">€199</span><small>flat · incl. VAT · at opening</small></div>
+        <div class="price"><span class="num" data-plan-price="application-pack">€199</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="application-pack">Open my file →</a>
+        <button type="button" class="go2" data-pay="application-pack">Pay and start · €199</button>
       </article>
       <article class="sib" id="plan-attended-viewing">
         <div class="se"><span>Attended Viewing</span></div>
         <b>Eyes on the ground.</b>
         <p>Shortlisted, and still abroad? We go.</p>
         <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
-        <div class="price"><span class="num" data-plan-price="attended-viewing">€149</span><small>per viewing · incl. VAT · at opening</small></div>
+        <div class="price"><span class="num" data-plan-price="attended-viewing">€149</span><small>per viewing · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="attended-viewing">Open my file →</a>
+        <button type="button" class="go2" data-pay="attended-viewing">Pay and start · €149</button>
       </article>
     </div>
-    <p class="feenote">List prices: nothing is charged until the desk opens with its registered partner; then card or bank transfer when the work starts, invoiced by Egidi Immobiliare S.r.l.</p>
+    <p class="feenote">Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. Order, terms and invoice in Catalan or Spanish on request. No percentage of your rent. Nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</p>
   </section>
 
   <!-- ═══ 03 · BEFORE YOU SIGN — six checks, one line each ═══ -->
@@ -977,23 +1029,23 @@ html {
     <div class="flows">
       <div class="flow" id="check-rentcap"><span class="n">I</span><div>
         <b>The rent cap<span class="at">índice de referencia</span></b>
-        <p>A tensioned zone: new rents are capped by the reference index and the previous rent. Above it is leverage. We run the check.</p>
+        <p>Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years.</p>
       </div></div>
       <div class="flow" id="check-fees"><span class="n">II</span><div>
-        <b>Who may charge you<span class="at">AICAT · Ley 12/2023</span></b>
-        <p>Intermediation in Catalonia needs AICAT registration; the landlord pays their own agent. We open with a registered partner and never take landlord money.</p>
+        <b>Who pays the agent<span class="at">LAU art. 20</span></b>
+        <p>The landlord pays their own agent and the lease's costs. You hire us, in writing, for an optional service.</p>
       </div></div>
       <div class="flow" id="check-deposit"><span class="n">III</span><div>
-        <b>The deposit<span class="at">fianza</span></b>
-        <p>Habitual lease: one month, extra guarantees two months at most. Other lease types differ, and agents ask for more. We check.</p>
+        <b>The deposit<span class="at">fianza · INCASÒL</span></b>
+        <p>Habitual lease: one month, extra guarantees two months at most. The landlord lodges it with INCASÒL; we ask for the receipt.</p>
       </div></div>
       <div class="flow" id="check-contract"><span class="n">IV</span><div>
-        <b>Contract type<span class="at">LAU · temporada</span></b>
-        <p>Many Barcelona listings are 'temporada' leases, which do not protect you like a habitual-residence lease. We check which one you are handed.</p>
+        <b>Contract type<span class="at">LAU · Llei 11/2025</span></b>
+        <p>A temporary lease for work or study must state and prove its reason, and is rent-capped. Otherwise it counts as habitual.</p>
       </div></div>
       <div class="flow" id="check-padron"><span class="n">V</span><div>
         <b>Registration<span class="at">padrón · NIE</span></b>
-        <p>Registered at the town hall with your contract: health card and school place hang on it. We confirm it before you pay.</p>
+        <p>Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it.</p>
       </div></div>
       <div class="flow" id="check-income"><span class="n">VI</span><div>
         <b>Income rules<span class="at">nómina · aval</span></b>
@@ -1010,32 +1062,36 @@ html {
     </div>
     <div class="faq">
       <details>
-        <summary>Why isn't BOOM taking searches in Barcelona yet?</summary>
-        <div class="a">In Catalonia, intermediation needs registration in the AICAT register. We open the desk with a registered local partner rather than work around the rule. Your file waits, ready, and you hear from us the day the desk opens.</div>
+        <summary>Isn't it the landlord who pays the agent in Spain?</summary>
+        <div class="a">Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords.</div>
       </details>
       <details>
-        <summary>Which service will be mine?</summary>
-        <div class="a">Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise. List prices, charged only when the desk opens.</div>
-      </details>
-      <details>
-        <summary>What can you do for me today?</summary>
-        <div class="a">Open your file, answer your questions the same working day, and tell you honestly what your budget buys in Barcelona. The prices on this page are set; nothing is charged until the desk opens and the work starts.</div>
+        <summary>Which service is mine?</summary>
+        <div class="a">Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: open a file, we advise.</div>
       </details>
       <details>
         <summary>Is my rent capped in Barcelona?</summary>
-        <div class="a">Barcelona is a tensioned residential zone: new rents are capped by the índice de referencia and the previous rent. An asking rent above the cap is leverage, not a given. That check is part of every Barcelona search.</div>
+        <div class="a">Barcelona is a tensioned residential zone. A new rent can't exceed the last rent of the past five years, updated; for large owners and homes not let in five years, nor the índice de referencia. Temporary leases for work or study are covered too. We check it on every search.</div>
       </details>
       <details>
         <summary>Do I need to be in Barcelona?</summary>
-        <div class="a">No. When the desk opens, a BOOM person attends viewings in your place, with live video and a written report. The contract is read and signed remotely. You arrive for the keys and the padrón.</div>
+        <div class="a">No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón.</div>
       </details>
       <details>
-        <summary>Isn't it the landlord who pays the agent in Spain?</summary>
-        <div class="a">The landlord bears their own agency costs. An agent you hire, who works only for you, is a different service. That is what we are, and we never take anything from landlords or their agents.</div>
+        <summary>How do I avoid a rental scam in Barcelona from abroad?</summary>
+        <div class="a">Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign.</div>
+      </details>
+      <details>
+        <summary>What if you don't find anything?</summary>
+        <div class="a">We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result.</div>
+      </details>
+      <details>
+        <summary>How do I pay?</summary>
+        <div class="a">By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords, their agents or platforms.</div>
       </details>
       <details>
         <summary>What do you do with my data?</summary>
-        <div class="a">It is used to answer you and to open your file, and for nothing else. No resale, no mailing lists. Ask us to delete it and we will.</div>
+        <div class="a">Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires.</div>
       </details>
     </div>
   </section>
@@ -1049,19 +1105,22 @@ html {
         <h2>BOOM Barcelona — fact sheet <span class="ref" aria-hidden="true">REF · BARCELONA / TENANT SIDE</span></h2>
         <dl>
         <dt>Who</dt>
-        <dd>BOOM Barcelona, the tenant-side desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency, opening with a <b>registered local partner (AICAT)</b>. Hired and paid by the tenant only.</dd>
+        <dd>BOOM Barcelona, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only.</dd>
 
         <dt>For whom</dt>
-        <dd>Internationals relocating to Barcelona — employees, researchers, couples and families — from abroad or already in the city.</dd>
+        <dd>Expats and internationals relocating to Barcelona — employees, researchers, couples and families — from abroad or already in the city.</dd>
+
+        <dt>Language</dt>
+        <dd>English; Spanish for landlords; Catalan or Spanish documents on request.</dd>
 
         <dt>Fees</dt>
-        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. List price. Charged only when the desk opens. VAT included. No percentage of the rent, nothing from landlords or platforms.</dd>
+        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. No percentage of the rent, nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</dd>
 
         <dt>What we do</dt>
-        <dd>Today: your file, opened and kept ready. When the desk opens: Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings, rent cap and contract checked, padrón supported.</dd>
+        <dd>Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, rent cap, contract and lease type checked, padrón supported.</dd>
 
         <dt>What we don't do</dt>
-        <dd>We don't list homes, we don't represent landlords, we don't promise a date, and we don't intermediate in Catalonia before the desk opens.</dd>
+        <dd>We don't list homes, represent landlords or draft their leases, and we don't promise a date.</dd>
 
         <dt>Reply time</dt>
         <dd>The same working day.</dd>
@@ -1084,8 +1143,8 @@ html {
           <span class="bl-div" aria-hidden="true" style="height:30px"></span>
           <span class="bl-desk">Barcelona<br>tenant side</span>
         </div>
-        <p class="footer-tagline">Born in Rome, built for people who move countries. The same rules in Barcelona: one side of the table, everything in writing — and a registered partner before the first search.</p>
-        <p class="footer-statement">Launching with a registered local partner. BOOM Barcelona acts solely as a tenant-side desk: we do not list properties, represent landlords, or receive remuneration from landlords or their agents, and we do not intermediate in Catalonia before the desk opens with its registered partner.</p>
+        <p class="footer-tagline">Born in Rome, built for people who move countries. The same rules in Barcelona: one side of the table, flat fees, everything in writing.</p>
+        <p class="footer-statement">You hire us; we do not act for the landlord. BOOM Barcelona acts solely as a tenant-side search agent: we do not list properties, represent landlords, draft their leases, or receive remuneration from landlords or their agents. Order, terms and invoice in Catalan or Spanish on request; official complaint forms (fulls oficials de reclamació) on request.</p>
         <div class="footer-company">
           <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Registered office: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623
         </div>
@@ -1105,9 +1164,7 @@ html {
         <h4 class="footer-links-title">BOOM desks</h4>
         <ul class="footer-links-list">
           <li><a href="/amsterdam">Amsterdam</a></li>
-          <li><a href="/berlin">Berlin</a></li>
           <li><a href="/madrid">Madrid</a></li>
-          <li><a href="/paris">Paris</a></li>
           <li><a href="/">BOOM Rome</a></li>
         </ul>
       </div>
@@ -1133,7 +1190,26 @@ html {
 </footer>
 
 <!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
-
+<dialog class="sheet" id="ov" aria-label="Start with BOOM Barcelona" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
+    <div class="sh"><h3>Start with BOOM Barcelona</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
+    <p class="note">Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.</p>
+    <div class="payrows" role="radiogroup" aria-label="Service">
+      <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>We search. You choose.</small></span><em>€500</em></label>
+      <label class="payrow"><input type="radio" name="payplan" value="application-pack" data-eur="199" data-label="Application Pack"><span><b>Application Pack</b><small>The file that wins Spanish applications.</small></span><em>€199</em></label>
+      <label class="payrow"><input type="radio" name="payplan" value="attended-viewing" data-eur="149" data-label="Attended Viewing"><span><b>Attended Viewing</b><small>Shortlisted, and still abroad? We go.</small></span><em>€149</em></label>
+    </div>
+    <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Anna Keller"></div>
+    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
+    <div class="fld"><label for="sPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+34 …"></div>
+    <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.idealista.com/… · move-in 1 February"></div>
+    <label class="startnow"><input type="checkbox" id="sStart"><span>Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
+    <p class="recesso">Withdrawal: 14 days from payment, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a href="/withdrawal?desk=Barcelona" target="_blank" rel="noopener">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
+    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
+    <button type="button" class="paybtn" id="sGo" data-label-now="Pay and start" data-label-wait="Pay and book" data-sub-now="Starts in the desk’s first open hour · Stripe" data-sub-wait="Starts when your 14 days end · Stripe"><span class="lk">🔒</span><span class="tx"><b>Pay and book</b><small>Starts when your 14 days end · Stripe</small></span><span class="amt" id="sGoAmt"></span></button>
+    <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Open a file, no payment</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a></p>
+    <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. <a href="/terms#city-desks" target="_blank" rel="noopener">Terms</a></p>
+</dialog>
 
 <!-- the strip on a phone: the one door, no price -->
 <div class="paybar" id="paybar" data-sub="free · same-day reply" data-yourplan="your plan">
@@ -1148,19 +1224,32 @@ html {
     "CITY": "Barcelona",
     "WORD": "BARCELONA",
     "IATA": "BCN",
-    "MODE": "waitlist",
+    "MODE": "search",
     "LEAD_ENDPOINT": "/api/city-lead",
     "SITE_URL": "https://www.boomrome.com",
     "PAGE_URL": "https://www.boomrome.com/barcelona",
     "WHATSAPP": "393313251961",
     "EMAIL": "hello@boom-rome.com",
-    "CHECKOUT": false,
+    "CHECKOUT": true,
     "CHECKOUT_ENDPOINT": "/api/service-checkout",
     "FEATURED": "full-search",
     "DOOR": "Open my file",
-    "TILL": null,
-    "REFUND": null,
-    "PAID_WAIT_NEXT": null,
+    "TILL": "Pay and start",
+    "REFUND": "Full Search is refunded in full if we decline the search in the first call.",
+    "PAID_WAIT_NEXT": [
+      [
+        "First desk hour",
+        "an email with your order and start date"
+      ],
+      [
+        "When the 14 days end",
+        "your brief: dates, budget, who’s moving"
+      ],
+      [
+        "Then",
+        "the work as written on this page"
+      ]
+    ],
     "DESK": {
       "person": "Valentino Egidi",
       "role": "tenant-side agent",
@@ -1182,21 +1271,22 @@ html {
       "full-search": {
         "label": "Full Search",
         "eur": 500,
-        "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
-          "Search every working day: Idealista, Fotocasa, Habitaclia, agencies",
+          "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
           "Applications as listings appear",
-          "Attended viewing, live video + report",
-          "Rent cap and contract checked, padrón supported"
+          "One attended viewing (more: €149 each)",
+          "Rent negotiated, cap and contract checked",
+          "Until you sign, or you say stop"
         ]
       },
       "application-pack": {
         "label": "Application Pack",
         "eur": 199,
-        "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
           "Spanish-format file, one working day from your papers",
@@ -1208,8 +1298,8 @@ html {
       "attended-viewing": {
         "label": "Attended Viewing",
         "eur": 149,
-        "condition": "per viewing · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens.",
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "per viewing",
         "includes": [
           "A BOOM person attends in your place",
@@ -1298,14 +1388,14 @@ html {
             "stage": "zero"
           },
           "plan": "full-search",
-          "why": "Starting from zero: when the desk opens, Full Search — search, applications, viewing, contract."
+          "why": "Starting from zero: we search, apply, attend and check the rent cap and the contract — end to end."
         },
         {
           "when": {
             "stage": "found"
           },
           "plan": "application-pack",
-          "why": "You found it. What wins it is the file: Spanish format, ready for the day the desk opens."
+          "why": "You found it. What wins it is the file, in the Spanish format."
         },
         {
           "when": {
@@ -1313,7 +1403,7 @@ html {
             "where": "abroad"
           },
           "plan": "attended-viewing",
-          "why": "You chose, you're away: when the desk opens a BOOM person goes, films it live and writes it down."
+          "why": "You chose, you're away: a BOOM person goes, films it live and writes it down."
         },
         {
           "when": {
@@ -1326,9 +1416,9 @@ html {
       ],
       "notes": {
         "when": {
-          "soon": "Four weeks is tight and the desk is still opening: open the file today and we tell you honestly what we can do by then.",
-          "months": "Good timing: your file is ready before the desk opens.",
-          "later": "No rush: open the file now, you hear from us the day the desk opens."
+          "soon": "Four weeks is tight: the file must be ready before the right listing appears.",
+          "months": "Good timing: the file is ready before the listings are.",
+          "later": "No rush: open the file now, the search starts when you say."
         }
       },
       "dossier": {
@@ -1373,8 +1463,8 @@ html {
           "employer",
           "reference"
         ],
-        "resultAll": "All eight in hand. Your file waits formatted the Spanish way for the day the desk opens.",
-        "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
+        "resultAll": "All eight in hand. Full Search and the Application Pack put them in the Spanish format; Full Search also applies as listings appear.",
+        "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the presentation letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
         "skipped": "Tap the papers you hold above and we say what we would fix first.",
         "eyebrow": "Your papers"
       },
@@ -1407,7 +1497,7 @@ html {
           "papers": "Papers"
         }
       },
-      "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+      "refusal": "Four weeks is tight. We say so in the first call.",
       "pending": {
         "eyebrow": "Two plans fit",
         "text": "One more answer decides: {plans}."
@@ -1422,13 +1512,13 @@ html {
         "whatsapp": "WhatsApp",
         "copy": "Copy link",
         "copied": "Link copied",
-        "plan": "BOOM {city}: a tenant-side desk opening with a registered local partner. My plan in three taps: {url}",
-        "pass": "BOOM {city} — a tenant-side desk opening with a registered local partner. Check in, 20 seconds: {url}"
+        "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
+        "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
       }
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=f28e52693e"></script>
+<script src="/assets/boom-city.js?v=6fd5989991"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

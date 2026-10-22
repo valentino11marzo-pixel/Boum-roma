@@ -377,6 +377,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html, body { scroll-behavior: auto !important; }
 }
+
+/* LA GRANA SOTTO LA TESTATA (22/10/2026 — «su iPhone il sito scorre sopra
+   la testata»). Safari 26 non legge piu' theme-color: per colorare la
+   striscia dell'orologio interroga UN punto, il centro in alto a 4px
+   (WebKit LocalFrameView::fixedContainerEdges), e risale dall'elemento
+   colpito fino alla prima barra fissa larga quanto la finestra. Un
+   pseudo-elemento colpito conta come il suo host (HitTestResult::
+   setInnerNonSharedNode): la grana del fondo (`body::before`, fissa a
+   tutto schermo, z-index 9999, opacita' 1-2%) stava SOPRA la testata su
+   sedici pagine, home compresa, quindi il punto colpiva il body, nessuna
+   barra veniva trovata, e Safari lasciava vedere la pagina che scorre
+   dietro l'orologio. Sotto ogni testata (la piu' bassa e' a z-index 20)
+   la grana resta identica a vederla. Tutti gli pseudo-elementi di body
+   delle pagine che portano questo blocco sono quella grana: la regola non
+   puo' abbassare un livello vero (tests/cielo lo verifica). */
+body::before, body::after { z-index: 1 !important; }
 </style>
 <script>
 /* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
@@ -463,7 +479,7 @@ html {
         <div class="page-header">
             <span class="page-tag">GDPR Compliant</span>
             <h1>Privacy Policy</h1>
-            <p class="last-updated">Last Updated: 21 October 2026</p>
+            <p class="last-updated">Last Updated: 22 October 2026</p>
         </div>
 
         <div class="highlight-box">
@@ -536,7 +552,7 @@ html {
                 <li><strong>Legal Compliance:</strong> Meeting Italian and EU legal requirements</li>
                 <li><strong>Marketing:</strong> Sending updates about new properties (only with your consent)</li>
                 <li><strong>Analytics:</strong> Understanding how people use BOOM to improve our service</li>
-                <li><strong>City desks (Amsterdam, Madrid):</strong> A request sent from /amsterdam or /madrid — your contact details, your answers to the Check-in and the list of papers you hold — is used to answer you and to run the search you ask for. If you start a payment on the page and do not finish it, we may write to you once, with the details you typed, to ask whether you have questions. It is used for nothing else, and it is not used to offer you homes in Rome.</li>
+                <li><strong>City desks (Amsterdam, Barcelona, Madrid):</strong> A request sent from /amsterdam, /barcelona or /madrid — your contact details, your answers to the Check-in and the list of papers you hold — is used to answer you and to run the search you ask for. If you start a payment on the page and do not finish it, we may write to you once, with the details you typed, to ask whether you have questions. It is used for nothing else, and it is not used to offer you homes in Rome.</li>
             </ul>
         </div>
 

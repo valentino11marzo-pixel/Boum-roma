@@ -5,7 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
-import { CITY_MARKETS, CITY_PLANS } from './_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone } from './_market.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -334,10 +334,10 @@ const SERVICE_META = {
 const CITY_SERVICE_META = {
   'full-search': {
     emoji: '🧭',
-    next1: ['Your brief call', "Booked in the desk's first open hour — 20 minutes, your dates, budget and situation"],
+    next1: ['Your brief call', "Booked in the desk's first open hour: your dates, budget and situation"],
     next2: ['Dossier in one working day', 'From your papers — local format: income, employer, ID, references, cover letter'],
     next3: ['Applications as listings appear', 'From the first listing that fits — you see every one'],
-    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
+    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign — the search runs until you sign or tell us to stop'],
   },
   'application-pack': {
     emoji: '📁',
@@ -408,8 +408,24 @@ const HOLIDAYS = {
   nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
   // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
   // La Almudena); Jueves and Viernes Santo
-  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] }
+  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
+  // the Barcelona desk: Catalonia's labour calendar (DOGC: Ordre EMT/66/2025
+  // for 2026, EMT/52/2026 for 2027 — Cap d'Any, Reis, Treball, Sant Joan,
+  // Assumpció, Diada, Festa Nacional, Tots Sants, Constitució, Immaculada,
+  // Nadal, Sant Esteve; Divendres Sant and Dilluns de Pasqua Florida, NO
+  // Dijous Sant) plus the city of Barcelona's two local days (Pasqua
+  // Granada = Easter+50, La Mercè 24 Sept). Catalonia drops whichever of
+  // 15/8, 1/11, 6/12, 26/12 fall on a Sunday: listing all four is exact
+  // for 2026-2027 and only ever ADDS a day. When La Mercè falls on a Sunday
+  // the city keeps it on Monday the 25th (2023; next in 2028): `merceMonday`,
+  // the same move as Koningsdag in nl. The two local days are set each June
+  // by mayoral decree: re-check yearly. Keyed apart from `country`, which
+  // also drives the +34 phone reading in api/_market.js.
+  'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true }
 };
+// the calendar keys a desk may name (CITY_MARKETS.<slug>.holidays || country):
+// an unknown key would silently fall back to Italy alone, so tests pin it
+export const HOLIDAY_KEYS = Object.keys(HOLIDAYS);
 export function isDeskHoliday(date, country) {
   const y = date.getUTCFullYear();
   const mmdd = date.toISOString().slice(5, 10);
@@ -419,6 +435,7 @@ export function isDeskHoliday(date, country) {
     if (!h) continue;
     if (h.fixed.includes(mmdd)) return true;
     if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
+    if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
     for (const off of h.easter) {
       const d = new Date(Date.UTC(y, em - 1, ed + off));
       if (d.toISOString().slice(5, 10) === mmdd) return true;
@@ -465,14 +482,20 @@ async function handleService(res, session, m, event = null) {
     : (SERVICE_META[m.kind] || { title: m.kind || 'Service', emoji: '✓' });
   // Stripe's phone_number_collection lands in customer_details.phone: the
   // city sheet leaves the phone optional, the checkout asks for it.
-  const phone = m.phone || (session.customer_details && session.customer_details.phone) || '';
+  // A desk order stores the number in E.164 with the desk's country, like
+  // /api/city-lead: the client's WhatsApp reply arrives in E.164, and a
+  // number kept as typed ("612 345 678") would not find this lead and would
+  // open a new Rome one. A number that is not in the desk's national format
+  // (an Italian mobile on /barcelona) stays as typed, for the Rome rule.
+  const phoneTyped = m.phone || '';
+  const phone = (cityDesk && phoneTyped && cityPhone(phoneTyped, cityKey)) || phoneTyped || (session.customer_details && session.customer_details.phone) || '';
   // A city order says whether the payer asked to start inside the 14 days
   // (start_now '1') or not ('0'); a session made before the tick existed
   // carries neither and says nothing.
   const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
   // the contract is concluded when the payment completes: the event's own
   // time (a retry carries the same one), never the session's opening
-  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.country || null) : null;
+  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.holidays || cityDesk.country || null) : null;
   // the start choice goes FIRST in the summary: the Telegram card shows the
   // first 240 characters, and a pasted listing URL must not push it out
   const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
@@ -551,7 +574,7 @@ async function handleService(res, session, m, event = null) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${meta.city.slug === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,

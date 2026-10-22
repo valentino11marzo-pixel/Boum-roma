@@ -220,9 +220,20 @@ const terms = leggi('terms.html');
   /written in your pre-agreement before anything is paid/.test(t41)
     ? bene('terms.html §4.1 rinvia alla cifra scritta nella proposta')
     : male('terms.html §4.1 non rinvia alla cifra scritta nella proposta prima di pagare');
-  /Last Updated: 21 October 2026/.test(terms)
-    ? bene('terms.html: «Last Updated: 21 October 2026»')
-    : male('terms.html: la data di aggiornamento non è il 21 ottobre 2026');
+  // the date the terms say they were updated must not predate the §4.1 rule
+  // they carry (15 October 2026); pinning ONE date broke at every later edit
+  // of the terms (the city desks' §12 moved it to 22 October)
+  {
+    const m = terms.match(/Last Updated: (\d{1,2}) (January|February|March|April|May|June|July|August|September|October|November|December) (\d{4})/);
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const at = m ? Date.UTC(+m[3], MONTHS.indexOf(m[2]), +m[1]) : NaN;
+    // a real calendar day (31 February rolls over) and never in the future:
+    // a typo'd year would otherwise pass for ever
+    const real = m && new Date(at).getUTCDate() === +m[1];
+    real && at >= Date.UTC(2026, 9, 15) && at <= Date.now() + 864e5
+      ? bene(`terms.html: «Last Updated: ${m[1]} ${m[2]} ${m[3]}», non prima della regola del 15 ottobre 2026`)
+      : male('terms.html: la data di aggiornamento manca, non è un giorno vero, è nel futuro o precede il 15 ottobre 2026, quando §4.1 è entrata in vigore');
+  }
 }
 
 // ── 3 · «10% of the annual rent» non viaggia mai senza IVA ─────────────

@@ -2139,6 +2139,118 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   Test: `run.mjs` 558, `ui.mjs` 198 (script del desk che non carica → riga
   di ripiego; transaction_id opaco), `checkout.mjs` 65 (retry dopo un primo
   giro morto → avviso; mutazioni prese).
+- **IL LIVE DI BARCELLONA (22/10/2026 — «manda live anche Barcellona, con
+  possibilità di pagamento vero»).** Superato il punto «Barcellona resta bozza
+  finché non c'è il partner AICAT». **La decisione è del fondatore, presa
+  DOPO essere stato informato** (ricerca del 21/10 letta da riassunti di
+  ricerca, perché il proxy blocca BOE/DOGC — da confermare con un avvocato):
+  (1) in Catalogna chi presta in modo abituale e retribuito servizi di
+  mediazione, CONSULENZA o gestione negli affitti è agente immobiliare (Llei
+  18/2007 art. 55, Decret 12/2010) e va iscritto all'AICAT anche se opera da
+  un altro Stato UE; il numero va nella pubblicità — «apriremo Boom Srl,
+  società di servizi» non cambia l'attività, e oggi chi incassa è Egidi; (2)
+  la LAU art. 20 (Ley 12/2023, poi RDL 29/2026 in vigore dall'8/10, convalida
+  il 12/11) mette costi di gestione e formalizzazione sul locatore «ni directa
+  ni indirectamente»; in Catalogna il DL 1/2025 ne fa un'infrazione (per la
+  maggior parte delle analisi molto grave, €90.001–900.000); Consumo ha
+  multato Alquiler Seguro €3,6M. Tocca anche MADRID, già live. Il fondatore
+  ha scelto «Live con cassa ora». Cosa fa quindi la pagina: NESSUNA
+  affermazione d'iscrizione AICAT (non c'è un numero da stampare: il test lo
+  pretende); il servizio è detto **opzionale e scelto per iscritto** (la sola
+  via difendibile del testo RDL 29/2026) su pricing, Termini §12.1, la
+  domanda «Isn't it the landlord who pays…» (che dice la regola e
+  l'infrazione catalana invece di minimizzarle) e il controllo «Who pays the
+  agent · LAU art. 20»; **documenti in catalano o spagnolo su richiesta** e
+  **fulls oficials de reclamació su richiesta** (Codi de consum art. 128-1,
+  STC 88/2017; Decret 121/2013) su fact sheet, piede, nota prezzi, Termini
+  §12.6. **Da procurare**: i fulls oficials (Agència Catalana del Consum) e
+  una versione catalana di ordine, termini §12, modulo di recesso e fattura
+  pronta su richiesta; il parere scritto di un avvocato (Spagna, Catalogna).
+  - **I fatti della pagina** (stessa ricerca): tetto dell'affitto = l'ultimo
+    canone dei cinque anni e, per grandi proprietari o case non affittate da
+    cinque anni, l'índice de referencia (prima diceva entrambi per tutti);
+    contratti temporanei per lavoro o studio con causa scritta e provata e
+    tetto, altrimenti abituali (Llei 11/2025, art. 66 bis Llei 18/2007 —
+    prima «temporada leases do not protect you»: falso dal 1/1/2026); fianza
+    depositata dal locatore all'INCASÒL (Llei 13/1996), si chiede la
+    ricevuta; padrón: contratto con indirizzo completo, riferimento catastale
+    e due firme. Le stesse frasi in `llms.txt`.
+  - **I festivi del recesso** (`api/stripe-webhook.js` HOLIDAYS `es-bcn`,
+    `CITY_MARKETS.barcelona.holidays`; `country` resta `es` perché legge
+    anche il +34 del telefono): calendario catalano del DOGC (Ordre
+    EMT/66/2025 per il 2026, EMT/52/2026 per il 2027 — Sant Joan, Diada,
+    Sant Esteve, Venerdì Santo, Pasquetta, NIENTE Giovedì Santo) più i due
+    festivi di Barcellona (Pasqua Granada = Pasqua+50, La Mercè 24/9); il
+    25/9 SOLO quando il 24 cade di domenica (`merceMonday`, come Koningsdag:
+    2023, 2028 — contarlo ogni anno spostava di un giorno lavorativo la
+    partenza del pagante nel 2026 e 2027). I due
+    festivi locali li decide il sindaco a giugno: si ricontrollano ogni anno.
+    Il webhook passa `cityDesk.holidays || cityDesk.country`.
+  - **Le decisioni del fondatore sulle tre città che vendono**: la prima
+    chiamata è gratuita, senza durata promessa («A free call» al posto di «A
+    20-minute call» sulla pagina; nell'email di chi ha appena pagato €500
+    la chiamata non si chiama «free»); il Full Search dura
+    «finché firmi o lo fermi» («Until you sign, or you say stop» sul piatto,
+    `CITY_PLANS` desc, Termini §12.2, FAQ «What if you don't find
+    anything?», llms.txt).
+  - **Le card social erano false** (trovato rigenerando Barcellona): il
+    generatore `design/pages-deco/genera-og-cities.py` leggeva chiavi v1.2
+    sparite (`machine`, `hero.h1Em`) e non girava più, quindi
+    `og-amsterdam.png` e `og-madrid.png` in produzione dicevano ancora
+    «dossier 24h · apply <1h», promesse tolte dalle pagine il 21/10. Ora la
+    riga di prova è fissa e vera, la frase gialla è la prima frase del lead
+    della pagina; rigenerate tutte e cinque.
+  - Barcellona entra in sitemap (lastmod 2026-10-22, = `updated`), nel piede
+    «Company & Markets» di sei pagine, nella colonna desk di Amsterdam e
+    Madrid, in `Organization.areaServed`, Termini §12 (titolo, 12.1, 12.5
+    «Paris and Berlin are not open»), privacy, `/withdrawal` (opzione
+    Barcelona), llms.txt. Parigi e Berlino restano bozze `noindex` e sono ora
+    le città dei test «waitlist». `tests/tenant-fee` non fissa più la data
+    dei Termini: pretende che non preceda il 15/10 (la regola §4.1).
+  - **La revisione del go-live** (stesso giorno, 43 agenti su 055d8fad: 38
+    rilievi, 26 confermati, chiusi a mano): **le card social cambiano URL**
+    (`og-<slug>.png?v=<sha256[:10]>` in og:image, twitter:image e
+    primaryImageOfPage — i PNG sono `immutable` per un anno in vercel.json, e
+    una card corretta sotto lo stesso URL poteva restare «AICAT partner ·
+    OPENING» nelle anteprime già in cache; `tests/seo` legge il file senza la
+    query); la riga di prova delle card SEGUE IL MODO (sui waitlist niente
+    «viewing attended · contract checked»); **il telefono del pagante e del
+    checkout abbandonato in E.164 col paese del desk** (`cityPhone`, come la
+    porta: prima la risposta WhatsApp di un pagante di Barcellona apriva un
+    lead romano); la negoziazione torna sul piatto di Barcellona (Stripe e
+    llms la promettevano, la pagina l'aveva tolta); il controllo e la FAQ di
+    MADRID dicono LAU art. 20 e «optional, in writing» come Barcellona;
+    piatti «Every working day: …» (il «Working-day search» si leggeva come
+    una ricerca di un giorno) senza «included» per restare in 50 parole;
+    all'operatore di un ordine di Barcellona il webhook ricorda documenti in
+    catalano/spagnolo e fulls oficials su richiesta; i fulls oficials stanno
+    nel piede e nei Termini §12.6, i documenti in catalano/spagnolo anche su
+    fact sheet e nota prezzi; il piede di `design/pages-deco/pt.html` e
+    `patch-lotto2.py` (sorgente dei sei builder) porta Barcellona; il
+    boarding pass salvato non sovrappone più l'URL e «TENANT SIDE» (il piede
+    si rimpicciolisce, poi «tenant side» scende di riga); la data dei Termini
+    deve essere un giorno vero e mai futura. **Test più severi** (le
+    mutazioni dei revisori passavano in verde): la frase «optional, chosen in
+    writing» ancorata a nota prezzi, controllo LAU art. 20 e FAQ (pagina E
+    FAQPage) per Madrid e Barcellona — non più «optional» ovunque, che le
+    etichette «(optional)» soddisfacevano; AICAT e frasi da waitlist cercate
+    nel SORGENTE (meta e JSON-LD compresi); le frasi superate cercate per
+    AFFERMAZIONE (tetto legato all'índice senza «grandi proprietari / cinque
+    anni», «temporary lease does not protect»); i Termini §12 e llms.txt
+    DERIVATI dai desk (ogni desk che vende nominato, «not open» = esattamente
+    gli altri); le due decisioni del fondatore su ogni desk che vende; i
+    piedi delle sei pagine e del template; `HOLIDAY_KEYS` (ogni desk con la
+    cassa nomina un calendario che il webhook conosce, altrimenti ricadrebbe
+    sull'Italia in silenzio); 12/10 e 6-8/12 catalani; i lead del webhook
+    letti col loro id vero (`svcLead`). **Non fatto, dichiarato**: Madrid
+    tiene «A habitual-residence lease protects you in ways a 'temporada'
+    lease does not» e «extra guarantees two months at most» — da far
+    confermare all'avvocato dopo il voto del 12/11 sul RDL 29/2026 (che
+    porterebbe la garanzia aggiuntiva a un mese).
+  Test: `run.mjs` 588, `checkout.mjs` 76 (es-bcn: Sant Joan, Diada, La
+  Mercè e il suo lunedì, Pasqua Granada, 12/10, 6 e 8/12, niente Giovedì
+  Santo; un ordine pagato a Barcellona attraverso il webhook vero; il
+  telefono in E.164), `ui.mjs` 199.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
@@ -7742,6 +7854,64 @@ la scatola avrebbe segnalato come rotto un caso sano, e una guardia che
 grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
 il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
 layout non deve dipendere dalla rete.
+
+## La striscia dell'orologio su iPhone (css/boom-scroll.css + tests/cielo, 22/10/2026)
+
+«L'header resta bloccato e il sito scorre sopra di lei», su iPhone/Safari, a
+partire dalla home. Non era la testata: era la **tinta della barra di stato**
+di Safari 26. WebKit (`LocalFrameView::fixedContainerEdges`) decide il colore
+della striscia sotto l'orologio con UN punto, al centro e 4px dall'alto,
+ignorando `pointer-events`; un hit su uno pseudo-elemento conta come il suo
+`<body>`; da lì risale al primo box fixed/sticky largo ≥90% e alto >10px. Su
+16 pagine (home compresa) la **grana del fondo** è un `body::before` fisso a
+schermo intero con `z-index: 9999`, SOPRA la testata: il campione cadeva sul
+body e la striscia prendeva il colore del contenuto che scorre, come se la
+pagina passasse sopra la barra. Il vetro smerigliato della testata NON è la
+causa (con `backdrop-filter` WebKit dà `Multiple` e riempie comunque col
+colore della testata) — la prima ipotesi era quella, e i revisori l'hanno
+smontata leggendo il sorgente di WebKit.
+- **La regola** sta nel contratto di scorrimento, l'unico CSS inline su
+  tutte le pagine pubbliche: `body::before, body::after { z-index: 1
+  !important; }`. La grana resta visibile (è a opacità ≤0,05 e non riceve
+  eventi) ma sta sotto la testata.
+- **Una sorgente, 68 copie**: `scripts/scroll-sync.mjs` riscrive il blocco
+  fra i marcatori `BOOM_SCROLL` in ogni `.html` da `css/boom-scroll.css` e
+  `js/boom-scroll.js` (`--check` esce 1 e nomina le pagine stantie); il
+  generatore dei quartieri (`scripts/neighborhoods-build.js`) legge gli
+  stessi due file invece di una copia sua. `build-cities.mjs` lo inlina già
+  dalla sorgente.
+- **`tests/cielo/run.mjs`**: le copie uguali alla sorgente e al generatore;
+  in Chromium a 390×844, scorso a 900px, `elementFromPoint(W/2, 4)` con
+  pointer-events forzati risale alla testata su ogni pagina col contratto
+  (board, deals e skyline non hanno una barra in alto e si saltano); gli
+  pseudo-elementi del body sono fissi, quasi trasparenti e inerti; senza la
+  regola la home ricade sul body (mutazione presa).
+- **Non provabile qui**: serve un iPhone vero con Safari 26 — ricaricare la
+  home e un paio di pagine, scorrere, guardare la striscia accanto
+  all'orologio. **Buco dichiarato**: i builder di `design/pages-deco/`
+  scrivono ancora la grana a 9999 e non emettono il blocco di scorrimento —
+  la regola arriva perché le pagine pubblicate portano il blocco
+  (`scroll-sync`): dopo una ricostruzione da builder va rilanciato
+  `node scripts/scroll-sync.mjs`, e `tests/cielo` lo pretende.
+- **Il commento che rompeva la scheda** (presa dalla CI prima del merge): la
+  prima versione del commento in `css/boom-scroll.css` nominava il tag del
+  body fra parentesi angolari, e quel blocco sta nella `<head>` di 68 pagine.
+  `api/listing.js` inseriva il racconto per i crawler sul PRIMO `<body>` del
+  testo: sulla scheda `/listing/<id>` sarebbe finito dentro il commento CSS.
+  Ora le due sorgenti del contratto non portano testo a forma di tag
+  (`tests/cielo`) e `api/listing.js` inserisce dopo il `<body>` che segue
+  `</head>` (`tests/listing` ne controlla la posizione; mutazioni prese).
+- **La promessa dei documenti** (22/10, trovata dallo studio sul design): la
+  riga della verifica documenti diceva a OGNI biglietto «The letter and the
+  format are ours» e «we apply as listings appear» — anche ad Attended
+  Viewing (€149), che non comprende né l'una né l'altro, e Amsterdam e Madrid
+  erano già live. Ora ogni promessa nomina il piano dalle descrizioni delle
+  offerte: la lettera è dell'Application Pack, il formato del dossier di
+  Application Pack e Full Search, le candidature agli annunci solo di Full
+  Search. Il build rifiuta un `checkin.dossier.resultAll/resultSome` senza il
+  nome di un piano o con «are ours» / «We format» / «we apply» (due rifiuti in
+  `tests/cities`). Se anche Full Search scriva la lettera resta una domanda per
+  il fondatore.
 
 ## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
 

@@ -818,8 +818,16 @@
       var line = String(d.line || ''), lw = Rr - L, wordsArr = line.split(' '), cur = '', ly = y;
       wordsArr.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > lw) { x.fillText(cur, L, ly); ly += 30; cur = w; } else cur = t; });
       if (cur) x.fillText(cur, L, ly);
-      x.fillStyle = 'rgba(255,255,255,.3)'; x.font = '400 19px ' + mono; x.fillText(String(d.foot).toUpperCase().split('').join(' '), L, ly + 60);
-      x.textAlign = 'right'; x.fillStyle = '#3ddc97'; x.fillText(String(d.side).toUpperCase().split('').join(' '), Rr, ly + 60);
+      /* Foot (the page) and side on one baseline only when both fit: on
+         /barcelona "BOOMROME.COM/BARCELONA" ran into "TENANT SIDE" in the
+         saved image. First the foot shrinks, then the side drops a line. */
+      var footT = String(d.foot).toUpperCase().split('').join(' '), sideT = String(d.side).toUpperCase().split('').join(' '), fz = 19;
+      x.font = '400 ' + fz + 'px ' + mono;
+      while (fz > 15 && x.measureText(footT).width + x.measureText(sideT).width + 32 > lw) { fz -= 1; x.font = '400 ' + fz + 'px ' + mono; }
+      var oneLine = x.measureText(footT).width + x.measureText(sideT).width + 32 <= lw;
+      x.fillStyle = 'rgba(255,255,255,.3)'; x.fillText(footT, L, ly + 60);
+      x.fillStyle = '#3ddc97';
+      if (oneLine) { x.textAlign = 'right'; x.fillText(sideT, Rr, ly + 60); } else x.fillText(sideT, L, ly + 92);
       x.textAlign = 'left';
       x.fillStyle = 'rgba(255,255,255,.26)'; x.font = '400 20px ' + mono; x.textAlign = 'center';
       x.fillText(String(d.pageUrl || '').replace(/^https:\/\/(www\.)?/, '').toUpperCase().split('').join(' '), W / 2, cy + chh + 70);

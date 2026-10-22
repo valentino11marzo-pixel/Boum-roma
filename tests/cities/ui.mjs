@@ -939,7 +939,7 @@ for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['
   const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
   check(scrollW <= 390 && chipH.length === 4, `${slug}: 390px, no horizontal scroll, four chips (${chipH.join('/')}px)`);
   const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
-  const wl = ['barcelona', 'paris', 'berlin'].includes(slug);
+  const wl = ['paris', 'berlin'].includes(slug);
   check(chipTxt[0].startsWith('€500') && chipTxt[1].startsWith('€199') && chipTxt[2].startsWith('€149') && chipTxt.every((t, i) => i === 3 || /VAT/.test(t)) && (wl ? chipTxt.slice(0, 3).every((t) => /at opening|on signing/.test(t)) : chipTxt.slice(0, 3).every((t) => !/opening|sign/.test(t))),
     `${slug}: the chips carry the brief's prices with each plan's own condition (${chipTxt.slice(0, 3).join(' | ')})`);
   await tap(page, ckOpt('zero'));

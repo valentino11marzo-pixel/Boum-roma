@@ -186,9 +186,17 @@ export function b2bReplyText(lead = {}) {
 
 // `mode` is the desk's state (BOOM_CITIES_BRIEF.md §4), read by the lead
 // door: 'search' = the desk takes searches today; 'waitlist' = the desk opens
-// with a registered local partner (AICAT in Catalonia, carte professionnelle
-// in France) and the lead is a FILE OPENED, not a search started. The city
+// with a licensed partner (carte professionnelle in France, §34c in
+// Germany) and the lead is a FILE OPENED, not a search started. The city
 // JSON carries the same word; tests/cities keeps the two from drifting.
+// `holidays` names the withdrawal calendar when the desk's region differs
+// from its country's default (api/stripe-webhook.js HOLIDAYS: Barcelona is
+// 'es-bcn', Madrid the 'es' default); `country` stays the ISO code because
+// it also reads the national phone format (cityPhone below).
+// Barcelona went live with the till on 22/10/2026 by the founder's decision,
+// taken after he was told of the AICAT register (Llei 18/2007 art. 55) and
+// of LAU art. 20 as rewritten by RDL 29/2026 — see CLAUDE.md, «IL LIVE DI
+// BARCELLONA».
 // THE PRICE GRID OF THE CITY DESKS — the one copy the server trusts
 // (api/service-checkout.js charges from HERE, never from the browser; the
 // page JSON prints the same numbers and tests/cities pins the two together).
@@ -203,7 +211,7 @@ export function b2bReplyText(lead = {}) {
 // first call — the sheet, the FAQ and the build's guard say the same.
 export const CITY_PLANS = {
   'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
-    desc: 'Search on the tenant\'s side: local-format dossier within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign. Refunded in full if we decline the search in the first call.' },
+    desc: 'Search on the tenant\'s side: local-format dossier within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
   'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
     desc: 'The dossier that wins applications: local format within one working day of your papers, cover letter, income and guarantor strategy, contract review before you sign.' },
   'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
@@ -218,7 +226,7 @@ export const CITY_PLANS = {
 export const CITY_MARKETS = {
   amsterdam: { label: 'Amsterdam', flag: '🇳🇱', country: 'nl', url: 'https://www.boomrome.com/amsterdam', mode: 'search', checkout: true, plans: CITY_PLANS },
   madrid:    { label: 'Madrid',    flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/madrid',    mode: 'search', checkout: true, plans: CITY_PLANS },
-  barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', url: 'https://www.boomrome.com/barcelona', mode: 'waitlist', partner: 'a registered local partner', plans: CITY_PLANS },
+  barcelona: { label: 'Barcelona', flag: '🇪🇸', country: 'es', holidays: 'es-bcn', url: 'https://www.boomrome.com/barcelona', mode: 'search', checkout: true, plans: CITY_PLANS },
   paris:     { label: 'Paris',     flag: '🇫🇷', country: 'fr', url: 'https://www.boomrome.com/paris',     mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
   berlin:    { label: 'Berlin',    flag: '🇩🇪', country: 'de', url: 'https://www.boomrome.com/berlin',    mode: 'waitlist', partner: 'a licensed partner', plans: CITY_PLANS },
 };
