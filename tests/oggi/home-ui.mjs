@@ -75,7 +75,10 @@ try{
    await openDetails('#ogDeskFold');await page.locator('[data-desk-area="contracts"]').click();
    const deskCase=page.locator('[data-desk-item="'+proposal.current.id+'"]');
    assert(await deskCase.isVisible());assert.match(await deskCase.innerText(),/Proposta da rivedere/);
-   assert.match(await deskCase.innerText(),/Rivedi la proposta prima di confermare il seguito/);
+   assert.match(await deskCase.innerText(),/Sintesi AI · da verificare/);
+   assert.match(await deskCase.innerText(),/Nuova proposta di accesso/);
+   assert.match(await deskCase.innerText(),/Passo proposto: Proporre un altro orario/);
+   assert.equal(await deskCase.getByRole('button',{name:'Rivedi proposta ↗'}).count(),1);
    await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;t.followUp.lastInboundAt=oldInbound;oggiSegretariaRender();});
   });
   await check(width+' filtri separano preparazione e attesa senza duplicare casi né generare AI',async()=>{

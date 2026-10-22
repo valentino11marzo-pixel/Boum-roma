@@ -55,6 +55,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
       apiCalls.push({url:String(url),method:options.method||'GET'});
       if(options.method && options.method!=='GET'){apiWrites++;throw Error('Scrittura inattesa');}
       const parsed=new URL(url,'https://local.test');
+      if(parsed.pathname==='/api/segretaria/scan-replies'&&parsed.search==='?status=1')return {ok:true,json:async()=>({ok:true,email:{configured:true,healthy:false,lastScan:null},whatsapp:{bridgeFresh:false}})};
       if(parsed.pathname!=='/api/segretaria/follow-up')throw Error('Chiamata AI/API inattesa: '+url);
       if(holdAPI && !parsed.searchParams.has('id'))await new Promise(resolve=>heldAPI.push(resolve));
       const id=parsed.searchParams.get('id');
@@ -65,6 +66,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
       if(!['conversations','operatorTasks'].includes(name))throw Error('Lettura inattesa: '+name);
       return {name,filter:null,sort:null,max:Infinity,
         where(field,op,value){this.filter=[field,op,value];return this;},orderBy(field,dir){this.sort=[field,dir];return this;},limit(n){this.max=n;return this;},
+        async get(options){if(name!=='operatorTasks'||this.filter?.[0]!=='doneAt'||options?.source!=='server')throw Error('Unexpected snapshot');return {docs:[]};},
         onSnapshot(...args){
           const callbacks=args.filter(arg=>typeof arg==='function'),options=args.find(arg=>arg && typeof arg==='object');
           const sub={query:this,next:callbacks[0],error:callbacks[1],options};
@@ -94,6 +96,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
   const oggi=oggiBody(source);
   const inboxHelpers=['inboxFreshnessUpdate','inboxLiveRefresh'].filter(name=>source.includes('    function '+name+'(') && !oggi.includes('    function '+name+'('));
   await page.addScriptTag({ content: source.match(/    var _inboxState = [^\n]+/)[0] + '\n' + oggi + '\n' + inboxFollowUpBody(source) + '\n'
+    + 'let portalSearchCache=null;\n' + ['portalSearchSourcesRender','portalSearchAuthorized','portalSearchSession'].map(name=>named(name,source)).join('\n') + '\n'
     + [...inboxFunctions, ...inboxHelpers, 'startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(name=>named(name,source)).join('\n') + `
     document.getElementById('main').innerHTML=oggiPage();startInboxListener();
   ` });

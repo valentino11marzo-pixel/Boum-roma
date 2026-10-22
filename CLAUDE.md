@@ -3586,6 +3586,15 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**22/10 — Il punto di oggi:** la stessa area iniziale espone sintesi AI già preparate,
+prossimo passo e motivo usando il validatore delle revisioni; messaggi nuovi, scadenza,
+approvazioni o contesto obsoleto impediscono di riproporre la vecchia sintesi.
+I messaggi recenti già acquisiti emergono anche senza pratica/seguito; collegamenti
+solo per ID e stato verificati; i conclusi recenti sono riletti dal server dopo gli aperti.
+Se la lettura è incompleta non si ripropongono header senza seguito; il totale arretrati resta in coda.
+Lo stato email/WhatsApp viene letto automaticamente, senza scansioni o nuove AI;
+Copertura e pausa restano esplicite. Prove: `oggidesk`, `oggibriefingui`, `oggiclosuresui`.
+
 **16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
 altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
 raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.

@@ -312,6 +312,13 @@
 .ow-home .od-alert strong { font-weight:500; }
 .ow-home .od-case { display:flex; align-items:center; justify-content:space-between; gap:22px; padding:20px 0; border-top:1px solid var(--border); }
 .ow-home .od-case-copy { min-width:0; }
+.ow-home .od-coverage { padding-bottom:16px; font-size:12px; line-height:1.6; color:var(--text-secondary); }
+.ow-home .od-coverage p { margin:0 0 6px; }
+.ow-home .od-coverage summary { cursor:pointer; color:var(--gold); }
+.ow-home .od-coverage details p { margin-top:8px; }
+.ow-home .od-case .od-ai-summary, .ow-home .od-case .od-source-preview { margin:8px 0 12px; }
+.ow-home .od-case .od-next { color:var(--text); }
+.ow-home .od-case .sg-questions { margin:10px 0; font-size:12px; }
 .ow-home .od-case h3 { margin:6px 0; font-size:16px; font-weight:500; line-height:1.4; overflow-wrap:anywhere; }
 .ow-home .od-case p { margin:0; font-size:13px; color:var(--text-secondary); line-height:1.6; overflow-wrap:anywhere; }
 .ow-home .od-case p.od-case-status { font-size:10px; color:var(--gold); letter-spacing:.3px; }
@@ -416,3 +423,5 @@
  .ow-home .ow-active-context > button { max-width:132px; }
  .ow-home .ow-tool { min-height:80px; }
 }
+
+.ow-home .od-case .sg-questions ul { padding-left:18px; }

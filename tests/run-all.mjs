@@ -235,6 +235,8 @@ const SUITES = [
   { name: 'scaricaui', file: 'tests/scarica/ui.mjs',     what: 'il download PROVATO in un browser vero: evento download reale, nome file giusto, ancora attaccata al click, revoca rimandata, e il documento legacy data: che arriva a destinazione' },
   { name: 'oggidesk', file: 'tests/oggi/desk.mjs', what: 'Pratiche operative: raggruppamento, storico, urgenze e copertura senza AI' },
   { name: 'oggideskui', file: 'tests/oggi/desk-ui.mjs', what: 'Home per risultato: azioni sicure, archivio mirato, errori e mobile' },
+  { name: 'oggibriefingui', file: 'tests/oggi/briefing-ui.mjs', what: 'sintesi AI correnti, richieste senza seguito, copertura automatica e mobile' },
+  { name: 'oggiclosuresui', file: 'tests/oggi/briefing-closures-ui.mjs', what: 'richieste concluse: letture ordinate, nuove fonti, errori e corse di sessione' },
   { name: 'oggiworkspace', file: 'tests/oggi/workspace.mjs', what: 'Agenda Roma: fonti data, proposte/conferme, fusi e mutazioni' },
   { name: 'oggihomeui', file: 'tests/oggi/home-ui.mjs', what: 'Home reale: ricerca contestuale, errori, aggiornamenti, zero invii e layout mobile' },
   { name: 'oggimessageui', file: 'tests/oggi/message-ui.mjs', what: 'Messaggio manuale: contesto verificato, copia, ambiguità e nessun invio o AI' },

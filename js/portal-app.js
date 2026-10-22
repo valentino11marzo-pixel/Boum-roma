@@ -2366,7 +2366,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopMaintenanceListener, stopLeadsListener, stopAgentFeedListener]) stop();
         portalSourcesStop();
         oggiSegretariaStopLive(); oggiSegretaria.generation++;
-        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false });
+        Object.assign(oggiSegretaria, { userId: null, modal: null, rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false });
         window.portalSearchReset?.();
         if (typeof _inboxState !== 'undefined') _inboxState = { convId: null, filter: 'open', channel: 'all', search: '', composing: 'reply' };
         const lang = S.lang, isOnline = navigator.onLine;
@@ -5332,7 +5332,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE OWNER COMMAND ═════════════════════════════════════════════
 
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
-    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
+    const oggiSegretaria = { rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
     // Stato effimero della lettura nel browser: non certifica la ricezione
     // WhatsApp sul Mac né la preparazione delle proposte sul server.
     const portalFreshness = { page: null, user: null, observer: null, timer: null };
@@ -5882,7 +5882,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (oggiSegretaria.userId !== uid) {
             oggiSegretariaStopLive();
             oggiSegretaria.generation++;
-            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], closedRows: [], closedComplete: false, dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, deliveryIncomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
         }
         oggiSegretariaStartLive();
         oggiSegretariaRender();
@@ -5890,8 +5890,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     async function oggiSegretariaLoad(force) {
         if (!isAdmin() || !document.getElementById('sgFollowPanel') || (oggiSegretaria.loading && !force)) return;
+        // Read existing health only: opening Oggi never scans a mailbox or starts AI.
+        if (typeof window.portalMailCheckSources === 'function') window.portalMailCheckSources({ automatic: true });
         clearTimeout(oggiSegretaria.timer);
         const generation = ++oggiSegretaria.generation;
+        const user = auth.currentUser, closureSince = new Date(Date.now() - 7 * 86400000);
         oggiSegretaria.loading = true;
         oggiSegretariaRender();
         const rows = new Map();
@@ -5916,9 +5919,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (cursor !== null && (typeof cursor !== 'string' || seen.has(cursor))) throw { code: 'invalid_response' };
                 if (cursor) seen.add(cursor);
             } while (cursor);
+            // Read closures AFTER the open pages, so a case closed between the
+            // two reads cannot fall through both. No message/AI bodies needed.
+            let closedRows = [], closedComplete = false;
+            try {
+                let timeout;
+                const snap = await Promise.race([
+                    db.collection('operatorTasks').where('doneAt', '>=', closureSince).limit(201).get({ source: 'server' }),
+                    new Promise((_, reject) => { timeout = setTimeout(() => reject(new Error('closure_read_timeout')), 10000); })
+                ]).finally(() => clearTimeout(timeout));
+                closedComplete = snap.docs.length <= 200;
+                closedRows = snap.docs.map(doc => ({ ...doc.data(), id: doc.id })).filter(t => t.source === 'segretaria' && t.status === 'done' && t.followUp?.open === false)
+                    .map(t => ({ id: t.id, source: t.source, status: t.status, followUp: { open: false, conversationId: t.followUp.conversationId, lastInboundAt: t.followUp.lastInboundAt, lastMessageId: t.followUp.lastMessageId } }));
+            } catch { /* Never resurrect an old needsReply flag without closure coverage. */ }
+            if (generation !== oggiSegretaria.generation || auth.currentUser !== user || S.page !== 'oggi') return;
+            for (const closed of closedRows) rows.delete(closed.id);
+            oggiSegretaria.closedRows = closedRows;
+            oggiSegretaria.closedComplete = closedComplete && data.incomplete !== true;
             Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, deliveryIncomplete, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
         } catch (e) {
             if (generation === oggiSegretaria.generation) {
+                oggiSegretaria.closedComplete = false;
                 if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, deliveryIncomplete, monitoring: latestMonitor });
                 oggiSegretaria.error = oggiSegretariaError(e);
             }
@@ -6462,11 +6483,42 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     // A deterministic work surface over existing records, never another task store.
     function oggiDeskModel() {
-        return window.BOOM_OGGI_DESK?.build({ state: S, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: oggiSegretaria.rows, pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
+        return window.BOOM_OGGI_DESK?.build({ state: S, conversations: S.conversations || [], allowNewRequests: oggiSegretaria.closedComplete === true, signals: window.BOOM_OGGI?.build(S, new Date().toISOString()).decisions || [], rows: [...oggiSegretaria.rows, ...(oggiSegretaria.closedRows || [])], pendingProposalIds: oggiSegretaria.rows.filter(t => { const proposal = oggiSegretariaPreparation(t); return proposal && !proposal.approval; }).map(t => t.id), nowISO: new Date().toISOString() });
     }
     function oggiDeskItems(model) {
-        return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || [])];
+        return [...(model?.areas || []).flatMap(a => a.items), ...(model?.history || []), ...(model?.waiting || []), ...(model?.summaryItems || [])];
     }
+    function oggiDeskReading(item) {
+        // A summary belongs to the exact action being opened, never another
+        // case grouped under the same house/contract. The existing validator
+        // owns message/context revisions; new headers invalidate old readings.
+        if (item.hasNewInbound || item.action?.fn !== 'oggiSegretariaOpen') return null;
+        const id = item.action.args?.[0];
+        const matches = oggiSegretaria.rows.filter(t => t.id === id && item.caseIds.includes(id));
+        if (matches.length !== 1) return null;
+        const task = matches[0], p = oggiSegretariaPreparation(task);
+        if (!p || p.approval || oggiSegretariaApprovalTimeIssue(p)) return null;
+        return { task, p };
+    }
+    function oggiDeskCoverage() {
+        const m = oggiSegretaria.monitoring, state = portalMailState();
+        const labels = { paused: 'Preparazione AI sospesa.', disabled: 'Preparazione AI disattivata.',
+            delayed: 'Preparazione AI in ritardo.', unavailable: 'Stato della preparazione AI non disponibile.',
+            unknown: 'Stato della preparazione AI da verificare.',
+            working: 'La Segreteria ha preparato nuove proposte nell’ultimo ciclo.',
+            idle: 'Nessuna nuova proposta AI nell’ultimo ciclo.' };
+        const label = oggiSegretaria.error ? 'Preparazione AI: aggiornamento non riuscito.'
+            : labels[m?.status] || 'Preparazione AI: stato da verificare.';
+        const last = Date.parse(m?.lastRunAt || '');
+        const stamp = Number.isFinite(last) ? ' Ultimo ciclo: ' + new Date(last).toLocaleString('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' (Roma).' : '';
+        return `<div class="od-coverage"><p>${esc(label)}${m?.incomplete || m?.queueIncomplete ? ' Lettura della preparazione parziale.' : ''}</p><details data-desk-coverage><summary>Fonti e aggiornamento · copertura parziale</summary><p>${esc(stamp.trim())}</p><p>${esc(state?.summary || 'Email e WhatsApp: stato ancora da verificare.')}</p><p>Il riepilogo usa le conversazioni e le pratiche caricate nel Portal. La lettura delle conversazioni è limitata alle più recenti; non certifica tutta la casella o WhatsApp.</p><p>Portali immobiliari: sono inclusi i dati già acquisiti in BOOM. L’allineamento con i portali esterni non è verificato da questo riepilogo.</p></details></div>`;
+    }
+    window.oggiDeskConversation = function(cid) {
+        if (!isAdmin() || !auth.currentUser || document.body.classList.contains('modal-open')) return;
+        const matches = (S.conversations || []).filter(c => c.id === cid);
+        if (matches.length !== 1 || typeof window.inboxSelect !== 'function') return;
+        goTo('inbox'); window.inboxSelect(cid);
+    };
     function oggiDeskTiming(item) {
         const value = item.timing?.value;
         if (!value) return 'Da impostare';
@@ -6476,12 +6528,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ...(dateOnly ? {} : { hour: '2-digit', minute: '2-digit' })
         });
     }
+    function oggiDeskCard(item) {
+        const reading = oggiDeskReading(item), p = reading?.p;
+        const status = item.hasNewInbound ? 'Nuovo messaggio · contesto da aggiornare'
+            : p ? 'Sintesi AI · da verificare' : item.urgent ? 'Da controllare con priorità' : 'Prossimo passo';
+        const next = p ? p.nextAction.text : item.nextAction;
+        const reason = p ? p.nextAction.reason : item.reason;
+        const timing = p ? { timing: { label: 'Ricontrollo proposto', value: p.nextAction.checkAt } } : item;
+        return `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
+            ${p ? `<p class="od-ai-summary">${esc(p.summary)}</p>${oggiSegretariaQuestions(p)}` : item.preview ? `<p class="od-source-preview"><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}
+            ${p && item.reason === 'Ricontrollo dovuto' ? '<p class="sg-context-notice">Il ricontrollo del seguito è già dovuto.</p>' : ''}
+            ${p && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-context-notice">Servono informazioni verificate prima di confermare.</p>' : ''}
+            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> ${esc(next)}</p>${reason ? `<small><strong>Perché:</strong> ${esc(reason)}</small>` : ''}
+            ${p ? `<small>Fonte ricevuta: ${oggiSegretariaSourceDate(reading.task)} · ${oggiSegretariaPreparedDate(p)}</small>` : ''}
+            <dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(p ? 'Valentino · rivedere la proposta' : item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(timing.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(timing))}</dd></div></dl></div>
+            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(p ? 'Proposta AI' : item.sourceLabel || 'Portale')}</button>` : ''}</div></article>`;
+    }
     function oggiDeskRender() {
         const panel = document.getElementById('ogDeskPanel');
         if (!panel || !isAdmin()) return;
         const model = oggiDeskModel();
         if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
         const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
+        const coverageOpen = panel.querySelector('[data-desk-coverage]')?.open === true;
         const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
         if (oggiWorkspace.deskArea !== 'all' && !model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = 'all';
         const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
@@ -6491,20 +6560,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const issues = [
             S._paError ? 'Proposte non aggiornate.' : !S._paLoaded ? 'Proposte in caricamento.' : S._paPartial ? 'Proposte: lettura parziale.' : '',
             !oggiSegretaria.loaded ? 'Seguiti in caricamento.' : '',
+            oggiSegretaria.loaded && !oggiSegretaria.closedComplete ? 'Verifica delle richieste concluse incompleta: i messaggi senza seguito restano consultabili in Inbox.' : '',
             oggiSegretaria.error, oggiSegretaria.incomplete ? 'Seguiti: lettura parziale.' : '',
             window.BOOM_SEGRETARIA_CASI.workGroups(oggiSegretaria.rows, Date.now(), oggiSegretariaPreparation).invalid ? 'Alcuni seguiti hanno dati incompleti.' : '',
             (model.coverage.unknownDeliveryCount || oggiSegretaria.deliveryIncomplete) ? 'Non tutti gli esiti degli invii sono verificabili: apri il caso per controllarli.' : '',
             typeof portalFreshnessWarning === 'function' ? portalFreshnessWarning() : ''
         ].filter(Boolean);
         const summary = document.getElementById('ogDeskSummary');
-        if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Scadenze e richieste', issues.length ? 'Aggiornamento da verificare' : 'Dati caricati'].join(' · ');
+        if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Richieste e prossimi passi', 'Fonti parziali'].join(' · ');
         panel.innerHTML = `
+            ${oggiDeskCoverage()}
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
             ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
-            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da collegare alla pratica</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
+            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da esaminare</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
             ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
             <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
-            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(item => `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${item.urgent ? 'Da controllare con priorità' : 'Prossimo passo'}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3><p>${esc(item.nextAction)}</p>${item.reason ? `<small>${esc(item.reason)}</small>` : ''}<dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(item.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(item))}</dd></div></dl></div><div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(item.sourceLabel || 'Portale')}</button>` : ''}</div></article>`).join('') : `<p class="ow-empty">Nessun blocco corrente rilevato in questo percorso nei dati caricati. Le verifiche precedenti restano sotto.</p>`}</div>
+            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(oggiDeskCard).join('') : '<p class="ow-empty">Nessuna priorità emersa dai dati caricati. Le fonti parziali non permettono di concludere che sia tutto gestito.</p>'}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Risposte di clienti o collaboratori, con ricontrollo futuro.</small></button></div>
             <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
@@ -6519,22 +6590,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (button.dataset.deskArchive) oggiDeskArchive(button.dataset.deskArchive);
             else if (button.hasAttribute('data-desk-refresh')) { portalFreshnessRecover(); oggiSegretariaLoad(true); oggiLoadProposals(true); }
         };
+        if (coverageOpen && panel.querySelector('[data-desk-coverage]')) panel.querySelector('[data-desk-coverage]').open = true;
         if (focused) [...panel.querySelectorAll('[data-desk-key]')].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
     }
     window.oggiDeskAct = function(id) {
         if (!isAdmin() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
         const item = oggiDeskItems(oggiDeskModel()).find(i => i.id === id), action = item?.action;
         // The desk only opens existing workflows. It cannot approve, send, mark paid or sign.
-        const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen'];
+        const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen', 'oggiDeskConversation'];
         if (!action || !safe.includes(action.fn) || typeof window[action.fn] !== 'function') return oggiDeskArchive('item', id);
         if (action.fn === 'goTo' && !['payments', 'contracts', 'maintenance', 'leads', 'inbox', 'viewings', 'agent-actions'].includes(action.args?.[0])) return oggiDeskArchive('item', id);
-        if (action.fn === 'oggiSegretariaOpen') return oggiSegretariaOpen(item.caseIds[0], '', 'review');
+        if (action.fn === 'oggiSegretariaOpen') return item.caseIds.includes(action.args?.[0]) ? oggiSegretariaOpen(action.args[0], '', 'review') : undefined;
         window[action.fn](...(action.args || []));
     };
     window.oggiDeskArchive = function(mode = 'all', id = null) {
         if (!isAdmin()) return;
         const model = oggiDeskModel(), all = oggiDeskItems(model);
-        const items = mode === 'unlinked' ? model?.history.filter(i => i.caseIds.some(key => model.coverage.newUnlinkedCaseIds?.includes(key))) : mode === 'verification' ? model?.history.filter(i => i.signalIds.some(key => model.coverage.recordVerificationSignalIds?.includes(key))) : mode === 'history' ? model?.history : mode === 'waiting' ? model?.waiting : mode === 'urgent' ? model?.areas.flatMap(a => a.items).filter(i => i.urgent) : mode === 'item' ? all.filter(i => i.id === id) : null;
+        const items = mode === 'unlinked' ? all.filter(i => i.caseIds.some(key => model.coverage.newUnlinkedCaseIds?.includes(key))) : mode === 'verification' ? model?.history.filter(i => i.signalIds.some(key => model.coverage.recordVerificationSignalIds?.includes(key))) : mode === 'history' ? model?.history : mode === 'waiting' ? model?.waiting : mode === 'urgent' ? model?.areas.flatMap(a => a.items).filter(i => i.urgent) : mode === 'item' ? all.filter(i => i.id === id) : null;
         oggiWorkspace.deskFilter = items ? { signalIds: items.flatMap(i => i.signalIds), caseIds: items.flatMap(i => i.caseIds) } : null;
         const archive = document.getElementById('ogQueueArchive');
         if (archive) { archive.open = true; oggiWorkspace.archiveOpen = true; }
@@ -6866,7 +6938,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
             ${oggiWorkspacePanel()}
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
-            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Da seguire</span><small id="ogDeskSummary">Scadenze, richieste e verifiche</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il punto di oggi</span><small id="ogDeskSummary">Richieste, sintesi AI e prossimi passi</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
             <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
@@ -13005,13 +13077,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return data;
         } finally { clearTimeout(timer); }
     }
-    window.portalMailCheckSources = async function() {
+    window.portalMailCheckSources = async function({ automatic = false } = {}) {
         const state = portalMailState();
         if (!state || state.checking) return;
+        if (automatic && state.lastCheckStarted && Date.now() - state.lastCheckStarted < 60000) return;
+        state.lastCheckStarted = Date.now();
         state.checking = true; state.summary = 'Verifico lo stato registrato sul server…'; portalSearchSourcesRender();
         try {
             const data = await portalMailRequest(state, null, () => S.mailSources === state);
             if (!data) return;
+            state.observation = data; state.observedAt = Date.now();
             const e = data.email, w = data.whatsapp, last = e.lastScan;
             const stamp = value => value ? new Date(value).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
             const email = !e.configured ? 'Email: connessione non configurata.' : e.healthy
@@ -13023,7 +13098,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 + (w.bridgeFresh ? 'HOMIE: battito recente, ricezione WhatsApp non verificata.'
                     : 'HOMIE: nessun battito recente. Ricezione WhatsApp non verificata.') + ' Nessuna automazione è stata attivata.';
         } catch (error) { if (portalSessionCurrent(state.proof) && S.mailSources === state) state.summary = portalMailError(error.code); }
-        finally { state.checking = false; if (portalSessionCurrent(state.proof) && S.mailSources === state) portalSearchSourcesRender(); }
+        finally {
+            state.checking = false;
+            if (portalSessionCurrent(state.proof) && S.mailSources === state) {
+                portalSearchSourcesRender();
+                if (S.page === 'oggi') oggiDeskRender();
+            }
+        }
     };
     window.inboxImportEmail = async function(cid) {
         const state = portalMailState(), conv = (S.conversations || []).find(c => c.id === cid);
