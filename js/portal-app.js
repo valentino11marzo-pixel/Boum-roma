@@ -5523,11 +5523,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
             paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
             daily_cap: 'Il servizio precedente segnala un limite giornaliero raggiunto. I seguiti restano disponibili.',
+            automatic_budget: 'Preparazione automatica ferma: limite dei tentativi raggiunto o contatore da verificare. I seguiti restano aperti.',
             delayed: 'Il controllo della preparazione automatica è in ritardo.',
             working: 'Nuove proposte preparate nell’ultimo ciclo.',
             idle: 'Nessuna nuova proposta nell’ultimo ciclo. Le richieste ancora aperte restano da seguire.'
         };
-        const status = continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const status = continuous && m.stoppedBy === 'automatic_budget' && !['paused', 'disabled'].includes(m.status) ? 'automatic_budget' : continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
         const dates = [], counts = [];
         const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
         if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
@@ -5548,22 +5549,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             preparation_in_progress: 'Preparazione già in corso', previous_delivery_unresolved: 'Esito di un invio da verificare',
             preparation_needs_context: 'Informazioni da verificare', source_message_missing: 'Fonte non disponibile',
             context_unavailable: 'Contesto non disponibile', model_timeout: 'Preparazione non conclusa in tempo',
-            unavailable: 'Servizio non disponibile'
+            unavailable: 'Servizio non disponibile', preparation_daily_limit: 'Limite giornaliero dei tentativi',
+            preparation_case_daily_limit: 'Limite dei tentativi per questo caso', preparation_limit_history_unknown: 'Contatore da verificare',
+            preparation_limit_counter_invalid: 'Contatore da verificare', preparation_limit_config_invalid: 'Limite da verificare'
         };
         const retries = Object.entries(m?.retryReasons && typeof m.retryReasons === 'object' ? m.retryReasons : {})
             .filter(([, count]) => Number.isSafeInteger(count) && count > 0)
             .map(([code, count]) => (retryLabels[code] || (code.startsWith('calendar_') ? 'Orario da verificare' : 'Motivo da verificare')) + ': ' + count);
-        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed', 'automatic_budget'].includes(status);
         // L'interruttore (21/09/2026): prima `prepareCases` si poteva accendere
         // solo scrivendo a mano su Firestore, e la Segreteria restava «sospesa»
         // per costruzione. Il tap scrive settings/segretaria dal server (admin).
         const canSwitch = m && m.prepareCases !== null && m.enabled !== false;
         const switchHtml = !canSwitch ? '' : m.prepareCases === true
             ? `<p class="sg-footnote">I nuovi WhatsApp diventano casi da preparare. <button type="button" class="btn btn-sm btn-secondary" data-og-action="preparation-off" onclick="oggiSegretariaSwitchPreparation(false)">Sospendi la preparazione automatica</button></p>`
-            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Da questo momento ogni WhatsApp in entrata diventa un caso e la proposta arriva qui entro un paio di minuti. Niente parte da solo: ogni invio resta una tua conferma.</span></p>`;
+            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Prepara proposte dai messaggi acquisiti e dai seguiti aperti, entro i limiti automatici. Tempi e copertura dipendono dalle fonti disponibili. Ogni invio richiede la tua conferma.</span></p>`;
         const cycle = m?.stoppedBy === 'time_budget' ? 'Il ciclo ha raggiunto il tempo disponibile; le richieste residue restano in coda.'
             : m?.stoppedBy === 'batch_limit' ? 'Il lavoro prosegue per cicli; le richieste residue restano in coda.' : '';
-        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
+        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? (m.automaticLimits ? '<p>Preparazione automatica con limiti preventivi ai tentativi. Questi limiti non sono un tetto monetario.</p>' : '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>') : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
     }
     const oggiSegretariaErrors = {
         unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
@@ -6508,6 +6511,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             working: 'La Segreteria ha preparato nuove proposte nell’ultimo ciclo.',
             idle: 'Nessuna nuova proposta AI nell’ultimo ciclo.' };
         const label = oggiSegretaria.error ? 'Preparazione AI: aggiornamento non riuscito.'
+            : m?.stoppedBy === 'automatic_budget' && !['paused', 'disabled'].includes(m?.status) ? 'Preparazione AI ferma: limite dei tentativi o contatore da verificare.'
             : labels[m?.status] || 'Preparazione AI: stato da verificare.';
         const last = Date.parse(m?.lastRunAt || '');
         const stamp = Number.isFinite(last) ? ' Ultimo ciclo: ' + new Date(last).toLocaleString('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' (Roma).' : '';
@@ -6535,14 +6539,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const next = p ? p.nextAction.text : item.nextAction;
         const reason = p ? p.nextAction.reason : item.reason;
         const timing = p ? { timing: { label: 'Ricontrollo proposto', value: p.nextAction.checkAt } } : item;
-        return `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
-            ${p ? `<p class="od-ai-summary">${esc(p.summary)}</p>${oggiSegretariaQuestions(p)}` : item.preview ? `<p class="od-source-preview"><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}
+        const evidence = `${p ? oggiSegretariaQuestions(p) : ''}
             ${p && item.reason === 'Ricontrollo dovuto' ? '<p class="sg-context-notice">Il ricontrollo del seguito è già dovuto.</p>' : ''}
-            ${p && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-context-notice">Servono informazioni verificate prima di confermare.</p>' : ''}
-            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> ${esc(next)}</p>${reason ? `<small><strong>Perché:</strong> ${esc(reason)}</small>` : ''}
             ${p ? `<small>Fonte ricevuta: ${oggiSegretariaSourceDate(reading.task)} · ${oggiSegretariaPreparedDate(p)}</small>` : ''}
-            <dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(p ? 'Valentino · rivedere la proposta' : item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(timing.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(timing))}</dd></div></dl></div>
-            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(p ? 'Proposta AI' : item.sourceLabel || 'Portale')}</button>` : ''}</div></article>`;
+            <dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(p ? 'Valentino · rivedere la proposta' : item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(timing.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(timing))}</dd></div></dl>`;
+        return `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
+            ${p ? `<p class="od-ai-summary">${esc(p.summary)}</p>` : item.preview ? `<p class="od-source-preview"><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}
+            ${p && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-context-notice">Servono informazioni verificate prima di confermare.</p>' : ''}
+            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> <span>${esc(next)}</span></p>${reason ? `<small><strong>Perché:</strong> ${esc(reason)}</small>` : ''}
+            ${p ? '' : evidence}</div>
+            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(p ? 'Proposta AI' : item.sourceLabel || 'Portale')}</button>` : ''}</div>
+            ${p ? `<details class="od-case-evidence" data-desk-evidence="${esc(item.id)}"><summary data-desk-key="evidence-${esc(item.id)}">${p.uncertainties?.length || p.coverage?.incomplete || p.identityBlocked || p.status !== 'ready' ? 'Da chiarire prima di decidere' : 'Fonti e ricontrollo'}</summary>${evidence}</details>` : ''}</article>`;
     }
     function oggiDeskRender() {
         const panel = document.getElementById('ogDeskPanel');
@@ -6551,6 +6558,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
         const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
         const coverageOpen = panel.querySelector('[data-desk-coverage]')?.open === true;
+        const evidenceOpen = new Set([...panel.querySelectorAll('[data-desk-evidence][open]')].map(el => el.dataset.deskEvidence));
         const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
         if (oggiWorkspace.deskArea !== 'all' && !model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = 'all';
         const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
@@ -6572,14 +6580,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${oggiDeskCoverage()}
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
             ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
-            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} richieste recenti da esaminare</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
-            ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} verifiche contrattuali o amministrative: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
-            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+
             <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(oggiDeskCard).join('') : '<p class="ow-empty">Nessuna priorità emersa dai dati caricati. Le fonti parziali non permettono di concludere che sia tutto gestito.</p>'}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
+            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+            <div class="od-secondary-signals">
+            ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} ${model.coverage.newUnlinkedCount === 1 ? 'richiesta recente' : 'richieste recenti'} da esaminare</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
+            ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} ${model.coverage.recordVerificationCount === 1 ? 'verifica contrattuale o amministrativa' : 'verifiche contrattuali o amministrative'}: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
+
+            </div>
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Risposte di clienti o collaboratori, con ricontrollo futuro.</small></button></div>
             <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
-            <p class="ow-hint">Quadro dei dati caricati. La consultazione non usa crediti AI. ${['paused', 'disabled'].includes(oggiSegretaria.monitoring?.status) ? 'Preparazione automatica sospesa.' : 'Automazioni: verifica lo stato nella coda completa.'}</p>`;
+            <p class="ow-hint od-reading-note">Sintesi delle fonti disponibili · Nessun invio all’apertura.</p>`;
         panel.onclick = event => {
             const button = event.target.closest('button');
             if (!button || !panel.contains(button)) return;
@@ -6590,6 +6602,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (button.dataset.deskArchive) oggiDeskArchive(button.dataset.deskArchive);
             else if (button.hasAttribute('data-desk-refresh')) { portalFreshnessRecover(); oggiSegretariaLoad(true); oggiLoadProposals(true); }
         };
+        for (const el of panel.querySelectorAll('[data-desk-evidence]')) el.open = evidenceOpen.has(el.dataset.deskEvidence);
         if (coverageOpen && panel.querySelector('[data-desk-coverage]')) panel.querySelector('[data-desk-coverage]').open = true;
         if (focused) [...panel.querySelectorAll('[data-desk-key]')].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
     }
@@ -6857,11 +6870,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return{label:record?.label||'Contatto non più disponibile',ids:record?(S.conversations||[]).filter(c=>c.contactId===scope.id&&types.includes(c.contactType)).map(c=>c.id):[]};
     }
     window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
-    function oggiWorkspacePanel() {
+    function oggiWorkspacePanel(withTools = true) {
         return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
             <div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
             <div id="ogWorkResults" aria-live="polite"></div>
-        </section><section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><h2 class="sr-only" id="ogToolsTitle">Strumenti BOOM</h2><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+        </section>${withTools ? oggiQuickToolsPanel() : ''}`;
+    }
+    function oggiQuickToolsPanel() {
+        return `<section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><header class="ow-tools-head"><h2 id="ogToolsTitle">I tuoi strumenti</h2><span>16 accessi rapidi</span></header><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
             <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
         </section>`;
     }
@@ -6935,10 +6951,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
         const name = (S.profile?.name || 'Valentino').split(' ')[0];
         return `<div class="ow-home portal-home">
-            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
-            ${oggiWorkspacePanel()}
-            <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
+            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><a class="ow-tools-jump" href="#ogToolsTitle" onclick="event.preventDefault();document.getElementById('ogToolsTitle').scrollIntoView({block:'start'});document.querySelector('#ogQuickTools button')?.focus({preventScroll:true})">Strumenti ↓</a><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
+            ${oggiWorkspacePanel(false)}
+            <div class="ow-daily-layout">
             <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il punto di oggi</span><small id="ogDeskSummary">Richieste, sintesi AI e prossimi passi</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            ${oggiQuickToolsPanel()}</div>
+            <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
             <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>

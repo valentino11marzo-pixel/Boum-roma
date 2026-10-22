@@ -856,9 +856,63 @@ try {
     && DB.get('heartbeat/segretaria-preparing-' + ID).busy === false, r.code);
   for (const used of [5, 50, 5000]) {
     reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: used });
-    r = await generate(); ok('preparazione continua dopo ' + used + ' tentativi: il contatore misura senza fermare',
+    r = await generate(); ok('richiesta manuale resta disponibile dopo ' + used + ' tentativi',
       r.code === 200 && aiHits === 1 && count() === used + 1 && DB.get('settings/segretaria').dailyCap === 5 && untouched(), r);
   }
+  reset();
+  save('settings/segretaria', { ...DB.get('settings/segretaria'), prepareAutoDailyCap: 0 });
+  r = await prepareNextCase({ now: NOW });
+  ok('tetto automatico zero ferma worker prima del modello', r.stoppedBy === 'automatic_budget' && aiHits === 0 && count() === 0 && !task().preparation && untouched(), r);
+  r = await generate();
+  ok('tetto automatico non blocca incarico manuale esplicito', r.code === 200 && aiHits === 1 && untouched(), r.code);
+
+  reset();
+  save('heartbeat/segretaria-preparations-2026-09-15', { count: 9 });
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  ok('storico non attribuibile ferma solo automazione senza spendere', r.error === 'preparation_limit_history_unknown' && aiHits === 0 && count() === 9 && untouched(), r);
+
+  reset();
+  save('settings/segretaria', { ...DB.get('settings/segretaria'), prepareAutoCaseDailyCap: 1 });
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  const reserved = DB.get('heartbeat/segretaria-preparations-2026-09-15').automaticBudget;
+  ok('prenotazione automatica conservata col contatore prima del risultato', r.code === 200 && reserved.count === 1 && reserved.byCase[ID] === 1, reserved);
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  ok('cache corrente resta gratuita anche a limite raggiunto', r.cached === true && aiHits === 1, r.code);
+  save('messages/m2', { ...DB.get('messages/m1'), at: stamp(NOW), body: 'Nuova domanda per il tecnico.' });
+  revise(t => { t.followUp.lastMessageId = 'm2'; t.followUp.lastInboundAt = stamp(NOW); });
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  ok('nuovo messaggio nello stesso caso non supera il limite automatico', r.error === 'preparation_case_daily_limit' && aiHits === 1 && count() === 1 && untouched(), r);
+  clock += 24 * 3600000;
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  ok('nuovo giorno riapre capacità conservando la pratica', r.code === 200 && aiHits === 2 && task().followUp.lastMessageId === 'm2', r.code);
+
+  reset(); addSecond();
+  save('settings/segretaria', { ...DB.get('settings/segretaria'), prepareAutoDailyCap: 1 });
+  const parallelBudget = await Promise.all([ID, ID2].map(id => prepareCase({ id, actor: 'segretaria-worker', background: true, now: NOW })));
+  ok('due casi concorrenti non spendono due volte l’ultimo posto', aiHits === 1 && count() === 1
+    && parallelBudget.filter(x => x.code === 200).length === 1 && untouched(), parallelBudget.map(x => x.code));
+
+  reset();
+  save('settings/segretaria', { ...DB.get('settings/segretaria'), prepareAutoCaseDailyCap: 1 });
+  aiHook = () => { throw new Error('fixture_provider_failure'); };
+  try { await generate({ actor: 'segretaria-worker', background: true }); } catch { /* attempt still spent */ }
+  aiHook = null;
+  r = await generate({ actor: 'segretaria-worker', background: true });
+  ok('errore provider consuma il tentativo e non innesca altra AI automatica', r.error === 'preparation_case_daily_limit' && aiHits === 1 && count() === 1 && untouched(), r);
+
+  for (const changed of [{ prepareAutoDailyCap: 0 }, { prepareCases: false }, { enabled: false }]) {
+    reset();
+    commitHook = async operations => {
+      if (operations.some(op => op.update?.fields?.busy?.booleanValue === true)) {
+        commitHook = null;
+        save('settings/segretaria', { ...DB.get('settings/segretaria'), ...changed });
+      }
+    };
+    r = await generate({ actor: 'segretaria-worker', background: true });
+    ok('configurazione cambiata prima della prenotazione blocca la spesa: ' + Object.keys(changed)[0],
+      r.code === 409 && aiHits === 0 && count() === 0 && !task().preparation && untouched(), r);
+  }
+
   for (const invalid of [-1, '5', null, 1.5, Number.MAX_SAFE_INTEGER]) {
     reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: invalid });
     r = await generate(); ok('contatore corrotto dichiarato senza modello o scrittura: ' + invalid,
@@ -1458,7 +1512,17 @@ try {
       { name: 'consegna precedente incerta', file: 'api/segretaria/_prepare.js',
         from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
     ];
-    for (const mutant of mutants) {
+    mutants.push(
+      { name: 'limite automatico applicato prima del modello', file: 'api/segretaria/_prepare.js',
+        from: 'if (!reservation.ok) return { code: 429, error: reservation.error };', to: 'if (false) return { code: 429, error: reservation.error };' },
+      { name: 'prenotazione limite salvata nel commit', file: 'api/segretaria/_prepare.js',
+        from: ', ...reservation.fields', to: '' },
+      { name: 'ultimo posto protetto da CAS globale', file: 'api/segretaria/_prepare.js',
+        from: 'precondition: guard(counter)', to: 'precondition: {}' },
+      { name: 'pausa o limite concorrente protetto da CAS configurazione', file: 'api/segretaria/_prepare.js',
+        from: 'precondition: guard(settingsSnapshot)', to: 'precondition: {}' }
+    );
+    for (const mutant of (process.env.BOOM_PREPARATION_LIMIT_MUTATIONS ? mutants.slice(-4) : mutants)) {
       const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-preparation-mutation-'));
       try {
         await fs.cp(root + 'api', scratch + '/api', { recursive: true });

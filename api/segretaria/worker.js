@@ -81,7 +81,8 @@ export async function prepareNextCase({ now = Date.now() } = {}) {
     last = { id: next.id, code: result.code, error: result.code === 200 ? null : safeError(result.error) };
     results.push({ ...last, cached: result.cached === true });
     if (result.code !== 200) errors.push(last);
-    stoppedBy = result.error === 'preparation_time_budget' ? 'time_budget'
+    stoppedBy = ['preparation_daily_limit', 'preparation_limit_history_unknown', 'preparation_limit_counter_invalid', 'preparation_limit_config_invalid'].includes(result.error) ? 'automatic_budget'
+      : result.error === 'preparation_time_budget' ? 'time_budget'
       : result.error === 'preparation_disabled' ? 'disabled' : null;
     if (stoppedBy) break;
     schedulerCursor = (schedulerCursor + 1) % MAX_CASES;

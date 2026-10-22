@@ -168,6 +168,15 @@ try {
     assert.match(await page.locator('#sgPreparationStatus').innerText(),/potrebbero esserci altre richieste/);
     assert.doesNotMatch(await page.locator('#sgPreparationStatus').innerText(),/Tentativi oggi: 0/);
   });
+  await check('limite automatico visibile senza promettere una preparazione illimitata', async () => {
+    await page.evaluate(async()=>{window.apiMonitoring={mode:'continuous',status:'unavailable',automaticLimits:true,stoppedBy:'automatic_budget',usedToday:20,retryReasons:{preparation_daily_limit:1}};await oggiSegretariaLoad(true)});
+    if(!await page.locator('.sg-service-details').evaluate(el=>el.open))await page.locator('.sg-service-details > summary').click();
+    const text=await page.locator('#sgPreparationStatus').innerText();
+    assert.match(text,/Preparazione automatica ferma/);assert.match(text,/limiti preventivi ai tentativi/);
+    assert.match(text,/non sono un tetto monetario/);assert.doesNotMatch(text,/nessuna quota giornaliera/);
+    assert.match(text,/Limite giornaliero dei tentativi: 1/);
+    assert.equal(await page.locator('#editing').inputValue(),'Bozza da finire');
+  });
   await check('un errore nel listener dichiara il ripiego al controllo periodico', async () => {
     await page.evaluate(() => window.subscriptions.operatorTasks.error({code:'permission-denied'}));
     assert.match(await page.locator('#sgFreshness').innerText(),/Aggiornamento immediato indisponibile/);

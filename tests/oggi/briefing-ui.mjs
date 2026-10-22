@@ -23,11 +23,17 @@ window.initialBriefingTask=structuredClone(testIO.followUps[0]);
 const css = ['portal-mobile','portal-desktop'].map(n => readFileSync(new URL('../../css/'+n+'.css', import.meta.url),'utf8')).join('\n');
 let fixtureHtml = html.replace(monitoring, 'monitoring:testIO.monitoring')
   .replace(boot, seed + '\n' + boot).replace('</head>', '<style>'+css+'</style></head>');
+// The manual preview uses the same seeded case with readable demonstration copy.
+if(process.argv.includes('--serve')) fixtureHtml=fixtureHtml.replace(boot, `
+testIO.followUps[0].preparation.summary='Il tecnico propone domani dalle 10 alle 12 per la perdita in cucina. Manca la conferma di chi gli aprirà.';
+testIO.followUps[0].preparation.nextAction.reason='Confermare l’accesso evita un intervento a vuoto.';
+testIO.followUps[0].preparation.uncertainties=[{text:'Il portiere sarà presente nella fascia proposta?'}];
+`+boot);
 // Deliberate regression injection, separate from the IO fixture. The assertions
 // above and below execute the same production functions in the normal run.
 const mutations = {
   stale: ["if (item.hasNewInbound || item.action?.fn !== 'oggiSegretariaOpen')", "if (item.action?.fn !== 'oggiSegretariaOpen')"],
-  escaping: ['${esc(p.summary)}</p>${oggiSegretariaQuestions(p)}', '${p.summary}</p>${oggiSegretariaQuestions(p)}'],
+  escaping: ['${esc(p.summary)}</p>', '${p.summary}</p>'],
   status: ["if (typeof window.portalMailCheckSources === 'function') window.portalMailCheckSources({ automatic: true });", '/* regression: source status no longer checked automatically */']
 };
 if(process.env.BOOM_BRIEFING_MUTATION){
@@ -46,8 +52,9 @@ const server = createServer((req,res) => {
   res.setHeader('Content-Type','text/html; charset=utf-8');res.end(fixtureHtml);
 });
 const chromium=await loadChromium();assert(chromium,'Browser required');
-await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+await new Promise(resolve=>server.listen(Number(process.env.PORT)||0,'127.0.0.1',resolve));
 const base='http://127.0.0.1:'+server.address().port;
+if(process.argv.includes('--serve')) { console.log('Oggi · sintesi AI con dati dimostrativi: '+base); await new Promise(()=>{}); }
 let browser, checks=0;
 const check=async(name,run)=>{await run();checks++;console.log('PASS '+name);};
 const fresh=async page=>{
@@ -73,6 +80,11 @@ try {
       assert.equal(await page.locator('#ogQueueArchive').evaluate(n=>n.open),false);
       const card=page.locator('#ogDeskPanel [data-desk-item]').first();
       assert(await card.locator('.od-ai-summary').isVisible());
+      assert.equal(await card.locator('[data-desk-evidence]').evaluate(n=>n.open),false);
+      assert(await card.locator('[data-desk-evidence] > summary').isVisible());
+      await card.locator('[data-desk-evidence] > summary').click();
+      await page.evaluate(()=>oggiDeskRender());
+      assert.equal(await card.locator('[data-desk-evidence]').evaluate(n=>n.open),true,'Refresh preserves opened evidence');
       assert.match(await card.innerText(),/Sintesi AI · da verificare/);
       assert.match(await card.locator('.od-ai-summary').innerText(),/<img src=x/);
       assert.match(await card.locator('.sg-questions').innerText(),/<b>Non confermato<\/b>/);
@@ -169,6 +181,7 @@ try {
         oggiSegretariaRender();
       });
       await page.locator('#ogDeskFold').screenshot({path:'/private/tmp/boom-oggi-briefing-'+width+'.png'});
+      await page.locator('.ow-home').screenshot({path:'/private/tmp/boom-oggi-home-'+width+'.png'});
     }
     await page.close();
   }
