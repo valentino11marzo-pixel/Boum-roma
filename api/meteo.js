@@ -16,6 +16,7 @@
 // pagina per Firestore è ~zero.
 
 import { fsList } from './homie/_lib.js';
+import { knobValues } from './_squadra.js';
 
 const num = (v) => (Number.isFinite(+v) ? +v : null);
 
@@ -58,6 +59,14 @@ export default async function handler(req, res) {
         priceDrops30d: num(d.priceDrops30d) || 0,
         updatedAt: d.at || null,
       });
+    }
+
+    // La soglia la stampa il Perito su ogni documento; senza documenti (libro
+    // mastro vuoto, o annunci tutti senza zona) si dichiara quella IN VIGORE
+    // — la stessa manopola che pulse applicherà — invece di un null che il
+    // lettore non sa interpretare. knobs è fail-open: al peggio il default.
+    if (minSample == null) {
+      try { minSample = num((await knobValues('perito')).minSample); } catch { /* resta null */ }
     }
 
     zones.sort((a, b) =>
