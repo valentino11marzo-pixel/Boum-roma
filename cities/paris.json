@@ -19,6 +19,7 @@
     "description": "Tenant-side rental desk for Paris, opening with a licensed partner (carte professionnelle, loi Hoguet). On the tenant's side only: rent checked against the encadrement des loyers, lease read before signing, French-format dossier locatif, attended viewings with live video and written report, proof of address from day one. Flat fees set and shown, charged only when the desk opens; nothing from landlords or platforms, ever."
   },
   "nav": {
+    "plan": "Your plan",
     "how": "How it works",
     "services": "Services",
     "checks": "Before you sign",
@@ -27,7 +28,18 @@
   },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "Opening with a licensed partner. Today: your file, your dossier readiness, the six checks before you sign."
+    "lead": "Opening with a licensed partner. Today: your file, your dossier readiness, the six checks before you sign.",
+    "faresNote": "List prices. Charged only when the desk opens."
+  },
+  "glance": {
+    "alt": "Not sure which service? Three questions",
+    "wa": "WhatsApp"
+  },
+  "plan": {
+    "num": "01 — YOUR PLAN",
+    "h2": "Three questions,",
+    "h2g": "one plan.",
+    "head": "Three questions pick the service. Or choose one below."
   },
   "form": {
     "name": {
@@ -107,7 +119,7 @@
     "sentWhenDefault": "Same working day"
   },
   "how": {
-    "num": "01 — HOW IT WORKS",
+    "num": "02 — HOW IT WORKS",
     "h2": "From your file",
     "h2g": "to the keys.",
     "steps": [
@@ -129,7 +141,7 @@
     ]
   },
   "pricing": {
-    "num": "02 — SERVICES & FEES",
+    "num": "03 — SERVICES & FEES",
     "h2": "Flat fees, set now.",
     "h2g": "Charged when the desk opens.",
     "sub": "The same flat fees as every BOOM desk, paid by you, never by landlords. Nothing is charged today.",
@@ -149,7 +161,10 @@
         "price": 500,
         "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens."
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "prepares": [
+          "letter"
+        ]
       },
       {
         "id": "application-pack",
@@ -166,7 +181,10 @@
         "price": 199,
         "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
         "condition": "flat · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens."
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "prepares": [
+          "letter"
+        ]
       },
       {
         "id": "attended-viewing",
@@ -184,7 +202,8 @@
         "price": 149,
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
         "condition": "per viewing · incl. VAT · at opening",
-        "conditionLong": "List price. Charged only when the desk opens."
+        "conditionLong": "List price. Charged only when the desk opens.",
+        "prepares": []
       }
     ],
     "note": "List prices: nothing is charged until the desk opens with its licensed partner; then card or bank transfer, invoiced by Egidi Immobiliare S.r.l."
@@ -335,29 +354,39 @@
           "t": "A one-page presentation"
         }
       ],
-      "fixable": [
-        "letter",
-        "guarantor",
-        "address"
-      ],
-      "resultAll": "All eight in hand. When the desk opens, Full Search and the Application Pack put them in the French format.",
-      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the cover letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer and your bank.",
-      "skipped": "Tap the papers you hold above and we say what we would fix first.",
-      "eyebrow": "Your papers"
+      "eyebrow": "Your papers",
+      "fold": "Check your papers (optional)",
+      "some": "{have} of 8 in hand. Missing: {missing}.",
+      "ours": "{plan} prepares: {ours}, once the desk opens.",
+      "all": "All eight in hand.",
+      "rest": "The rest our first reply goes through."
     },
     "result": {
       "eyebrow": "Your plan",
-      "change": "change"
+      "change": "change",
+      "suggest": "Your answers suggest {plan}",
+      "use": "use it"
     },
     "pass": {
-      "title": "Your boarding pass",
-      "name": {
-        "label": "Passenger (optional)",
-        "placeholder": "Anna K."
+      "titles": {
+        "plan": "BOOM · Your plan",
+        "issued": "BOOM · Your file"
       },
-      "from": {
-        "label": "From (optional)",
-        "placeholder": "LON"
+      "status": {
+        "standby": "STANDBY",
+        "open": "OPEN"
+      },
+      "stub": {
+        "fare": "Fare",
+        "wa": "Or write on WhatsApp"
+      },
+      "boarding": {
+        "waitlist": "When the desk opens"
+      },
+      "firstCall": {
+        "plan": "Your file",
+        "fare": "Free",
+        "line": "Nothing is charged today."
       },
       "save": "Save image",
       "shareBtn": "Share",
@@ -371,7 +400,8 @@
         "price": "Price",
         "boarding": "Boarding",
         "file": "File",
-        "papers": "Papers"
+        "papers": "Papers",
+        "movein": "Move-in"
       }
     },
     "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
@@ -394,7 +424,7 @@
     }
   },
   "checks": {
-    "num": "03 — BEFORE YOU SIGN",
+    "num": "04 — BEFORE YOU SIGN",
     "h2": "Six things we check",
     "h2g": "before you sign.",
     "sub": "Six points, in writing, on every Paris lease.",
@@ -474,7 +504,7 @@
     ]
   },
   "faq": {
-    "num": "04 — QUESTIONS",
+    "num": "05 — QUESTIONS",
     "h2": "The questions",
     "h2g": "we get asked.",
     "items": [
@@ -555,7 +585,6 @@
   "door": {
     "label": "Open my file",
     "sub": "free · same-day reply",
-    "skip": "Rather write first? Open a file",
     "stripSub": "free · same-day reply"
   }
 }

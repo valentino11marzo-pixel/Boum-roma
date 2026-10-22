@@ -1,43 +1,37 @@
 /* assets/boom-city.js — shared behaviour of the BOOM city pages (built by
    build-cities.mjs from cities/<city>.json + cities/_template.html).
    Reads window.BOOM_CITY, inlined by the build: the slug, the board word,
-   the plans with their conditions, the desk block, the Check-in rules.
-   No keys, no third-party form service: the form posts JSON to our own
-   /api/city-lead, which writes the lead into the same pipeline as every
-   other BOOM door (Brain → Telegram → the operator).
-   v2 (16/10, STUDIO_CITIES_ESPERIENZA.md §11): THE DIAGNOSTIC IS THE HERO.
-   The Check-in's steps run stage → where → when; the pass (the ticket) is
-   LIVE — resolved by the rules on the first tap for "haven't started" and
-   "found one", on the second for "shortlist", never a guess in between —
-   and writes into the door (the plan's chip, the move-in month, two hidden
-   fields the server prints on the operator's summary) and never past it.
-   The URL is the memory (#checkin=stage.where.when.docs[.via], rewritten on
-   every answer); nothing is kept on the device beyond the session. The
-   till is a native <dialog>. The pass is exported off the main thread
-   where the browser has OffscreenCanvas, from the same drawing function.
-   Motion is feedback: a step folding, the price board flipping once per
-   plan, the meter moving, OPEN/PAID — nothing loops at rest, everything is
-   still under prefers-reduced-motion. The Solari engine (window.BoomSolari)
-   is inlined by the build; without it the words stay plain text.
-   17/10, after the adversarial review (14 confirmed + 28 triaged findings):
-   a chip the reader chose by hand is never overwritten by a re-render; the
-   door sends once per tap; the pass lands on the tap that resolves it; the
-   strip keeps the build's copy; the auto month follows the answer and
-   leaves when the answer leaves; the board mounts when the pass becomes
-   visible; an own reload is not "the link you received"; re-picking the
-   same answer folds the step; the menu is inert off-screen (Escape closes,
-   focus returns); focus lands on the open file; the price and the city are
-   read as text (boards decorative); one small live region instead of a
-   live plan box (18/10: in the Check-in, and no sticky column at all);
-   a paper tick swaps without a view transition (whose overlay
-   ate taps); the worker replies are correlated by id; the desk's tz label
-   and the "same-day reply" sub follow the clock. */
+   the plans with their conditions, the desk block, the Check-in rules, the
+   ticket's words (ISSUE), what each plan prepares (PREPARES). No keys, no
+   third-party form service: the form posts JSON to our own /api/city-lead,
+   which writes the lead into the same pipeline as every other BOOM door.
+   v1.4 (22/10, "The Itinerary"): the hero is editorial and moves nothing;
+   section 01 holds the three questions, the ticket and the door, in DOM
+   order at every width — no node movers. The ticket is ONE object with
+   one lifecycle: blank → standby (a plan exists: the answers resolved it,
+   a plate chose it, or the door was sent) → open (only after a 200 from
+   /api/city-lead, with the server's file number) → paid (only after GET
+   /api/city-lead?paid= answered paid:true — a ?paid= in the address bar
+   alone stamps nothing and counts nothing). The checked chip in the door is
+   the one truth for the plan; the questions write it only where nobody, or
+   the questions themselves, wrote before. The file number is the server's:
+   the browser never computes it. Every motion runs once and carries
+   information (the printer's emission, the plane one leg per answer, the
+   stamp, the foil flash); nothing loops at rest; reduced motion stops all.
+   Kept from 17/10–18/10: one send per tap; the month the page prefills is
+   its own; an own reload is a resume; re-picking the same answer folds the
+   step; the menu is inert off-screen; focus lands on the open file; boards
+   are decorative with the text beside them; one small live region; a paper
+   tick swaps without a view transition; worker replies correlated by id;
+   the desk's tz label and the door's sub follow the clock. */
 (function () {
   'use strict';
   var C = window.BOOM_CITY || {};
   var PLANS = C.PLANS || {};
   var K = C.CHECKIN || null;
   var D = C.DESK || null;
+  var I = C.ISSUE || (K && K.pass) || {};
+  var DASH = '—';
   var $ = function (id) { return document.getElementById(id); };
   function boomTrack(name, params) { try { if (typeof gtag === 'function') gtag('event', name, params || {}); } catch (e) {} }
   var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -47,6 +41,7 @@
   /* PLANS is plain data: an inherited key (?paid=constructor) is not a plan */
   var planOf = function (id) { return id && Object.prototype.hasOwnProperty.call(PLANS, id) ? PLANS[id] : null; };
   var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var sell = C.CHECKOUT === true;
   /* a POST that never answers must not lock a button for the tab's life:
      20 s, then the send fails in place and the button comes back */
   function postJson(url, body, ms) {
@@ -55,27 +50,23 @@
     return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: ctl ? ctl.signal : undefined })
       .then(function (r) { clearTimeout(to); return r.json(); }, function (e) { clearTimeout(to); throw e; });
   }
-  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-  /* a board that spells one word (the city, OPEN, PAID) — mounted once, shown once */
-  function mountBoard(host, word, drum, stagger) {
+  /* a Solari board: built once, then only the changed cells flip; under
+     reduced motion the cells are set, never spun */
+  function flap(host, word, drum, ref) {
     if (!host) return null;
     if (!BS) { host.textContent = word; return null; }
-    host.textContent = '';
-    var b = new BS.Board(host, word.length, drum);
-    if (ridotto) b.show(word); else b.show(word, stagger || 60, true);
-    return b;
-  }
-  function miniBoard(id) {
-    var host = $(id);
-    if (!host || host.getAttribute('data-mounted')) return;
-    var word = String(host.getAttribute('data-word') || '').toUpperCase();
-    if (!word) return;
-    host.setAttribute('data-mounted', '1');
-    if (!BS) { host.textContent = word; return; }
-    var b = new BS.Board(host, word.length, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-    if (ridotto) { b.show(word); return; }
-    setTimeout(function () { b.show(word, 90, true); }, 250);
+    if (!ref || ref.cells.length !== word.length) {
+      var b = new BS.Board(host, word.length, drum);
+      b.target = word;
+      if (ridotto) b.show(word);
+      /* each cell reads the board's CURRENT target when its turn comes: a word
+         changed before the first spin ends (STANDBY → PAID) is never overwritten */
+      else b.cells.forEach(function (c, i) { setTimeout(function () { c.go(b.target[i] || ' ', drum); }, i * 60); });
+      return b;
+    }
+    ref.target = word;
+    if (ridotto) ref.cells.forEach(function (c, i) { c.set(word[i] || ' '); }); else ref.update(word);
+    return ref;
   }
 
   /* ── the city on the board: ONE settle at load, never re-spun (the title
@@ -155,27 +146,28 @@
   /* ── the door: the month select, the plan line, the send ── */
   var form = $('cityForm');
   var planline = $('planline');
-  /* "free · same-day reply" is the desk's promise while it is open. In the
-     evening and at the weekend the three places that print it (the door
-     button, the pass's door, the strip) say the window instead — the same
-     one the OPEN card computes — so the promise shown before the tap is the
-     one kept after it. */
+  /* "no card · same-day reply" is the desk's promise while it is open. In the
+     evening and at the weekend every place that prints it — each
+     [data-door-sub] (the hero button, the door, the ticket's door) and the
+     strip — says the window instead, the same one the OPEN card computes,
+     so the promise shown before the tap is the one kept after it. */
   var deskSub = (function () {
     var bar = $('paybar');
-    var smalls = ['fGo', 'ckFile'].map(function (id) { var el = $(id); return el && el.querySelector('small'); }).filter(Boolean);
+    var lead = C.DOOR_SUB_LEAD || 'free';
+    var smalls = [].map.call(document.querySelectorAll('[data-door-sub]'), function (el) { return el.querySelector('small'); }).filter(Boolean);
     var open = { sub: smalls[0] ? smalls[0].textContent : '', strip: bar ? bar.getAttribute('data-sub') || '' : '' };
     var last = null;
     function sync() {
       if (!desk) return;
       var closed = desk.open() === false, rw = closed ? desk.replyWindow() : null;
-      var sub = closed && rw ? 'free · ' + rw : null;
+      var sub = closed && rw ? lead + ' · ' + rw : null;
       if (sub === last) return;
       last = sub;
       smalls.forEach(function (sm) { sm.textContent = sub || open.sub; });
       if (bar) {
         bar.setAttribute('data-sub', sub || open.strip);
         /* the strip's line is rewritten only while it shows the default (a plan named there stays) */
-        var st = $('stripSub'); if (st && /^free · /.test(st.textContent)) setText('stripSub', sub || open.strip);
+        var st = $('stripSub'); if (st && st.textContent.indexOf(lead + ' · ') === 0) setText('stripSub', sub || open.strip);
       }
     }
     sync();
@@ -192,8 +184,15 @@
     if (sel.value && sel.value < nowYM) sel.value = '';
   })();
   var service = function () { var r = form && form.querySelector('input[name="service"]:checked'); return r ? r.value : ''; };
-  /* the plan line reads the checked chip: the pass writes it, a plate's
-     button writes it, the visitor can change it under "change" */
+  /* the ticket, filled in below (null where the page has no Check-in) */
+  var T = null;
+  /* one request id per page load: a send retried after a timeout files the
+     same lead (api/city-lead.js writes leads/city_<id>), never a second; once
+     a file is open in this tab the till carries it (one number per person) */
+  var requestId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^a-z0-9]/g, '');
+  var fileRef = '';
+  /* the plan line reads the checked chip: the questions write it, a plate's
+     link writes it, the visitor can change it under "change" */
   function paintPlanline(from) {
     if (!planline) return;
     var id = service(), p = planOf(id), txt = $('plText'), ch = $('plChange');
@@ -215,27 +214,55 @@
     r.checked = true;
     if (planline) { planline.open = false; }
     paintPlanline(from);
+    /* a printed ticket follows the chip; a chip never prints one */
+    if (T) T.refresh();
   }
   if (planline) {
     var sum = planline.querySelector('summary');
     planline.setAttribute('data-none', $('plText').textContent);
     planline.setAttribute('data-unsure', (function () { var u = form.querySelector('.chip.unsure b'); return u ? u.textContent + ' · ' + form.querySelector('.chip.unsure small').textContent : 'Not sure yet'; })());
     planline.setAttribute('data-from', planline.getAttribute('data-from') || '');
-    /* a chip the reader taps is theirs: from then on no render overwrites it */
-    form.addEventListener('change', function (e) { if (e.target && e.target.name === 'service') { form.setAttribute('data-plan-from', 'chip'); paintPlanline('chip'); } });
+    /* a chip the reader taps is theirs: from then on no render overwrites it;
+       a printed ticket follows it (and the Check-in may suggest another) */
+    form.addEventListener('change', function (e) {
+      if (e.target && e.target.name === 'service') { form.setAttribute('data-plan-from', 'chip'); paintPlanline('chip'); if (T) T.render({ plain: true, quiet: true }); }
+    });
     sum.addEventListener('click', function () { /* native toggle */ });
   }
-  /* a plate's button (and the pass's door) preselects its service chip */
-  [].forEach.call(document.querySelectorAll('[data-service]'), function (a) {
-    a.addEventListener('click', function () {
+  /* the hero: one gold door, the fares as plain anchors, the quiet links */
+  (function () {
+    var go = document.querySelector('.hero-go');
+    if (go) go.addEventListener('click', function () { boomTrack('hero_cta', { location: 'hero', market: C.SLUG }); });
+    var hp = $('heroPlan');
+    if (hp) hp.addEventListener('click', function () { boomTrack('hero_cta', { location: 'plan', market: C.SLUG }); });
+    [].forEach.call(document.querySelectorAll('.fare[data-fare]'), function (a) {
+      a.addEventListener('click', function () { boomTrack('fare_click', { plan: a.getAttribute('data-fare'), market: C.SLUG }); });
+    });
+    [['heroWa', 'hero'], ['ckWa2', 'ticket'], ['stripWa', 'strip']].forEach(function (w) {
+      var el = $(w[0]);
+      if (el) el.addEventListener('click', function () { boomTrack('wa_open', { location: w[1], plan: service() || 'none', market: C.SLUG }); });
+    });
+  })();
+  /* a plate's main link prints the ticket on ITS plan and brings the reader
+     up to it (without JS it is a plain link to the door) */
+  [].forEach.call(document.querySelectorAll('.sib [data-service]'), function (a) {
+    a.addEventListener('click', function (e) {
       var id = a.getAttribute('data-service');
-      if (!id) return;
-      var from = a.id === 'ckFile' ? 'checkin' : 'plate';
-      setPlan(id, from);
-      if (form) form.setAttribute('data-plan-from', from);
-      boomTrack('select_item', { item_id: id, source_page: C.SLUG, source: a.id === 'ckFile' ? 'pass' : 'plate' });
+      if (!planOf(id)) return;
+      if (form) form.setAttribute('data-plan-from', 'plate');
+      setPlan(id, 'plate');
+      boomTrack('select_item', { item_id: id, source_page: C.SLUG, source: 'plate' });
+      if (!T) return;
+      e.preventDefault();
+      T.print('plate');
+      T.render({ plain: true, quiet: true });
+      T.toPass();
     });
   });
+  (function () {
+    var f = $('ckFile');
+    if (f) f.addEventListener('click', function () { boomTrack('hero_cta', { location: 'ticket', plan: service() || 'none', market: C.SLUG }); });
+  })();
 
   /* ── the till: a native dialog ──────────────────────────────────────── */
   var ov = C.CHECKOUT === true ? $('ov') : null;
@@ -264,15 +291,16 @@
         if (sm) sm.textContent = go.getAttribute(now ? 'data-sub-now' : 'data-sub-wait') || sm.textContent;
       }
       if (tick) { tick.addEventListener('change', paintStart); paintStart(); }
-      function open(plan, src, prefill) {
+      function open(plan, src) {
         var id = planOf(plan) ? plan : C.FEATURED;
         rows.forEach(function (row) { var i = row.querySelector('input'); i.checked = i.value === id; });
-        if (prefill) {
-          ['sName', 'sEmail', 'sPhone'].forEach(function (f, i) {
-            var el = $(f), v = prefill[['name', 'email', 'phone'][i]];
-            if (el && v && !el.value) el.value = v;
-          });
-        }
+        /* every opening copies the door's name, email and phone into the
+           sheet's empty fields: nothing typed twice, nothing overwritten */
+        [['fName', 'sName'], ['fEmail', 'sEmail'], ['fPhone', 'sPhone']].forEach(function (pr) {
+          var from = $(pr[0]), to = $(pr[1]);
+          var v = from ? String(from.value || '').trim() : '';
+          if (to && v && !to.value) to.value = v;
+        });
         paint();
         err.classList.remove('on');
         lastFocus = document.activeElement;
@@ -303,7 +331,7 @@
         if (phone && phone.replace(/\D/g, '').length < 6) return fail('phone');
         sending = true; go.classList.add('busy');
         boomTrack('add_payment_info', { currency: 'EUR', value: p.eur, market: C.SLUG });
-        postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
+        var body = {
           city: C.SLUG, kind: id, name: name, email: email, phone: phone,
           notes: ($('sNote').value || '').trim(),
           /* the payer's own request to start inside the 14-day withdrawal
@@ -311,7 +339,11 @@
              14 days end (Directive 2011/83/EU art. 7(3)) */
           startNow: !!($('sStart') && $('sStart').checked),
           company: ($('sCompany').value || '').trim()
-        })
+        };
+        /* the file opened in this tab travels with the order: the webhook
+           reuses its number (one person, one number) */
+        if (fileRef) body.fileRef = fileRef;
+        postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', body)
           .then(function (res) {
             if (res && res.ok && res.url) { location.href = res.url; return; }
             throw new Error((res && res.error) || 'failed');
@@ -331,7 +363,6 @@
       return { open: open, close: close };
     })();
     [].forEach.call(document.querySelectorAll('[data-pay]'), function (b) {
-      if (b.id === 'payOfferBtn') return;   /* bound after the lead, with the chosen plan and the prefill */
       b.addEventListener('click', function () {
         var plan = b.getAttribute('data-pay');
         if (!plan) return;
@@ -340,175 +371,19 @@
     });
   }
 
-  /* ── send ──────────────────────────────────────────────────────────────
-     Errors come from the page's own data attributes (city copy never lives
-     here). A failed send gives the button back and says so, in place. */
-  if (form) {
-    var err = $('fErr');
-    var go = $('fGo');
-    var v = function (id) { var el = $(id); return el ? String(el.value || '').trim() : ''; };
-    /* the error is said in place and the field it names takes focus */
-    var fail = function (key) {
-      err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on');
-      boomTrack('form_error', { form: 'file', field: key, market: C.SLUG });
-      var f = key === 'name' ? $('fName') : key === 'email' ? $('fEmail') : key === 'contact' ? (v('fPhone') && !v('fEmail') ? $('fPhone') : $('fEmail')) : null;
-      if (f) { try { f.focus(); } catch (e) {} }
-    };
-    /* ONE send per tap: pointer-events on the button stops a second click,
-       not Enter in a field (implicit submission) — the flag does; it is
-       released only when the send fails */
-    var sending = false;
-    /* one request id per page load: a send retried after a timeout files the
-       same lead (api/city-lead.js writes leads/city_<id>), never a second */
-    var requestId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^a-z0-9]/g, '');
-    /* the offer after the lead is bound once; the plan and the prefill it
-       opens with are the last send's */
-    var offerPlan = '', offerPrefill = null, offerBtn = $('payOfferBtn');
-    if (offerBtn && sheet) offerBtn.addEventListener('click', function () { if (offerPlan) sheet.open(offerPlan, 'after-lead', offerPrefill); });
-    form.addEventListener('submit', function (ev) {
-      ev.preventDefault();
-      if (sending) return;
-      err.classList.remove('on');
-      var name = v('fName'), email = v('fEmail'), phone = v('fPhone');
-      if (name.length < 2) return fail('name');
-      var hasEmail = /^\S+@\S+\.\S+$/.test(email), hasPhone = phone.replace(/\D/g, '').length >= 6;
-      if (!email && !phone) return fail('contact');
-      if (email && !hasEmail) return fail('email');
-      if (!hasEmail && !hasPhone) return fail('contact');
-
-      sending = true;
-      var goText = go.querySelector('b'), restText = goText ? goText.textContent : '';
-      go.style.opacity = .6; go.style.pointerEvents = 'none'; go.classList.add('busy');
-      if (goText && form.getAttribute('data-sending')) goText.textContent = form.getAttribute('data-sending');
-      var picked = service();
-      boomTrack('generate_lead', { channel: 'form', source_page: C.SLUG });
-      boomTrack('door_prefill', { market: C.SLUG, plan: picked || 'none', from: form.getAttribute('data-plan-from') || 'none' });
-      postJson(C.LEAD_ENDPOINT || '/api/city-lead', {
-        city: C.SLUG,
-        name: name, email: email, phone: phone,
-        moveIn: v('fMoveIn'), budget: v('fBudget'), service: picked,
-        situation: v('fSituation'), areas: v('fAreas'), message: v('fMsg'),
-        /* what the Check-in learned, if they used it (the server prints it
-           in the operator's summary; empty otherwise) */
-        checkin: v('fCheckin'), dossier: v('fDossier'),
-        requestId: requestId,
-        company: v('fCompany')
-      })
-        .then(function (j) {
-          if (!j || !j.ok) throw new Error((j && j.error) || 'failed');
-          form.classList.add('hidden');
-          var done = $('fDone');
-          done.classList.add('on');
-          /* who writes, when: computed against the desk clock, never a static promise */
-          var w = $('openWhen'), rw = desk && desk.replyWindow();
-          if (w && rw) w.textContent = rw;
-          miniBoard('flapDone');
-          /* the form left; focus moves onto the open file so it is read, not lost on <body> */
-          try { done.focus({ preventScroll: true }); } catch (e) {}
-          boomTrack('sign_up', { method: 'city_form', market: C.SLUG });
-          /* the till, after the file: the service they chose, their name and
-             email already in the sheet. "Not sure yet" gets no offer — they
-             asked for advice, not a checkout. */
-          var offer = $('payOffer'), pk = planOf(picked);
-          if (offer && sheet && pk && offerBtn) {
-            $('payOfferAmt').textContent = eur(pk.eur);
-            offerBtn.setAttribute('data-pay', picked);
-            /* the refund rule is Full Search's promise: under another plan it would read as theirs */
-            var ofr = $('payOfferRefund'); if (ofr) ofr.hidden = picked !== 'full-search';
-            offerPlan = picked; offerPrefill = { name: name, email: email, phone: phone };
-            offer.hidden = false;
-          }
-        })
-        .catch(function () {
-          sending = false;
-          go.style.opacity = 1; go.style.pointerEvents = ''; go.classList.remove('busy');
-          if (goText) goText.textContent = restText;
-          fail('net');
-        });
-    });
-    /* the button is served disabled: without this script a submit would be a
-       GET to the page with the contact data in the address bar */
-    go.disabled = false;
-  }
-
-  /* ── the paid landing: Stripe sends the client back to ?paid=<plan> ────
-     Shown only where the till exists and the plan is one of ours; the
-     purchase event fires once per session id — the key lives in
-     sessionStorage for the tab's life, never on the device (ePrivacy 5(3):
-     the page keeps nothing of the visitor beyond the session). */
-  (function () {
-    if (C.CHECKOUT !== true || !form) return;
-    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
-    var plan = q.get('paid'), sid = q.get('session_id') || '', pp = planOf(plan);
-    if (!pp) return;
-    var card = $('fPaid');
-    if (!card) return;
-    form.classList.add('hidden');
-    /* the short condition: the invoice and the refund rule are in the email; the card stays a glance */
-    $('paidPlan').textContent = pp.label + ' · ' + eur(pp.eur) + ' · ' + pp.condition;
-    /* no "start now" tick: the work begins when the 14-day withdrawal period ends — say so */
-    if (q.get('start') === '0' && card.getAttribute('data-wait')) {
-      var wait = document.createElement('p'); wait.className = 'wait'; wait.id = 'paidWait';
-      wait.textContent = card.getAttribute('data-wait');
-      $('paidPlan').parentNode.insertBefore(wait, $('paidPlan').nextSibling);
-      /* the wait note takes the place of the generic one: one sentence about what happens, not two */
-      if ($('paidText')) $('paidText').hidden = true;
-      /* and the three steps of a payer who waits: never "same working day" */
-      var steps = $('paidNext') ? $('paidNext').querySelectorAll('li') : [];
-      (C.PAID_WAIT_NEXT || []).forEach(function (pair, i) {
-        var li = steps[i]; if (!li) return;
-        var b = li.querySelector('b'), sp = li.querySelector('span');
-        if (b) b.textContent = pair[0];
-        if (sp) sp.textContent = pair[1];
-      });
-    }
-    card.classList.add('on');
-    miniBoard('flapPaid');
-    var key = 'boom:paid:' + (sid || plan), seen = false;
-    try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
-    /* the Stripe session id names a payer: GA gets an opaque hash of it (FNV-1a), never the id */
-    var h = 0x811c9dc5;
-    for (var hi = 0; hi < sid.length; hi++) { h ^= sid.charCodeAt(hi); h = Math.imul(h, 0x01000193) >>> 0; }
-    if (!seen) boomTrack('purchase', { transaction_id: 'city_' + C.SLUG + '_' + (sid ? ('0000000' + h.toString(16)).slice(-8) : Date.now().toString(36)), currency: 'EUR', value: pp.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + plan, item_name: pp.label, price: pp.eur, quantity: 1 }], market: C.SLUG });
-    try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
-    setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); try { card.focus({ preventScroll: true }); } catch (e2) {} } catch (e) {} }, 50);
-  })();
-
-  /* ── ONE DOM, two places. The build prints the pass right after the
-     Check-in: the phone's reading order IS the focus order (a sighted
-     keyboard user and a screen reader meet the ticket where it appears,
-     not after the facts). At ≥920 the pass moves to the top of the right
-     column, above the door. A node move keeps its state and listeners. ── */
-  var deskMq = matchMedia('(min-width:920px)');
-  (function () {
-    var pass = $('pass'), right = document.querySelector('.hero-right'), ck = $('checkin');
-    if (!pass || !right || !ck) return;
-    function place() {
-      var where = deskMq.matches ? 'right' : 'left';
-      if (where === 'right' && pass.parentNode === right) return;
-      if (where === 'left' && ck.nextElementSibling === pass) return;
-      /* a move re-inserts the node: the focused control inside it would
-         blur and the entrance animation would replay — keep the one, skip
-         the other (the pass has entered already) */
-      var focused = document.activeElement && pass.contains(document.activeElement) ? document.activeElement : null;
-      pass.classList.remove('in');
-      if (where === 'right') right.insertBefore(pass, right.firstChild); else ck.insertAdjacentElement('afterend', pass);
-      if (focused) { try { focused.focus({ preventScroll: true }); } catch (e) {} }
-    }
-    place();
-    try { deskMq.addEventListener('change', place); } catch (e) { try { deskMq.addListener(place); } catch (e2) {} }
-  })();
-
-  /* ══ THE CHECK-IN — the live pass ═══════════════════════════════════════
+  /* ══ THE CHECK-IN AND THE TICKET ════════════════════════════════════════
      Three taps (stage · where · when) → the plan the RULES give (the same
-     rules the build derived the FAQ answer from), on the pass, as soon as
-     the rules can know it; the papers after the third tap; the answers in
-     the URL and, with the visitor's consent to share, in a link. */
+     rules the build derived the FAQ answer from), written into the door's
+     chip where nobody else wrote; the ticket prints on the first resolved
+     state and always shows the checked chip's plan. The papers fold after
+     the third tap; the answers live in the URL and, to share, in a link. */
   var CK = (function () {
-    var root = $('checkin'), pass = $('pass');
+    var root = $('checkin'), pass = $('pass'), wrap = $('passWrap');
     if (!K || !root || !pass) return null;
     var STEPS = ['stage', 'where', 'when'];
-    var touchedDocs = false, editing = null, started = false, lastPlan = null, lastKind = 'blank', boardMounted = false, viewedPlan = null, entered = false;
+    var touchedDocs = false, editing = null, started = false, lastPlan = null, lastKind = 'blank', viewedPlan = null;
+    var printed = false, emitted = false, issued = '', confirming = false, priceBoard = null, statusBoard = null, statusWord = '', lastLive = '';
+    var DOSS = C.DOSSIER || K.dossier, PREP = C.PREPARES || {};
     var stepEl = function (id) { return root.querySelector('.ck-step[data-step="' + id + '"]'); };
     var answer = function (id) { var r = root.querySelector('input[name="ck-' + id + '"]:checked'); return r ? r.value : null; };
     var optOf = function (stepId, optId) {
@@ -524,11 +399,12 @@
       }
       return null;
     };
-    var docsHeld = function () { return [].map.call(pass.querySelectorAll('input[name="ck-doc"]:checked'), function (i) { return i.value; }); };
-    var sell = C.CHECKOUT === true;
+    var docsHeld = function () { return [].map.call(root.querySelectorAll('input[name="ck-doc"]:checked'), function (i) { return i.value; }); };
+    /* the plan's own short line (the fare row's), for a plan the rules did not give */
+    var tagline = function (id) { var e = document.querySelector('.fare[data-fare="' + id + '"] .fn'); return e ? e.textContent : ''; };
 
-    /* where are we: blank · pending (a stage the rules cannot resolve yet) ·
-       resolved (plan known) · complete (the three answers) */
+    /* where the questions are: blank · pending (a stage the rules cannot
+       resolve yet) · resolved (plan known) · complete (the three answers) */
     function state() {
       var st = answer('stage'), wh = answer('where'), wn = answer('when');
       if (!st) return { kind: 'blank' };
@@ -539,7 +415,7 @@
 
     /* the steps appear one after the other; an answered one folds unless it is being changed */
     function sync() {
-      var ready = true, n = 1, firstOpen = null;
+      var ready = true, firstOpen = null;
       STEPS.forEach(function (id, i) {
         var el = stepEl(id), a = answer(id);
         el.hidden = !ready;
@@ -550,8 +426,7 @@
         if (!a && ready && firstOpen === null) firstOpen = i;
         if (!a) ready = false;
       });
-      n = firstOpen === null ? 3 : firstOpen + 1;
-      setText('ckNum', K.num.replace('{n}', String(n)));
+      setText('ckNum', K.num.replace('{n}', String(firstOpen === null ? 3 : firstOpen + 1)));
     }
 
     /* the link that carries the answers: #checkin=<stage>.<where>.<when>.<docs>[.<via>]
@@ -579,7 +454,7 @@
       if (m[4] !== '-' && own) {
         touchedDocs = true;
         var mk = parseInt(m[4], 16);
-        K.dossier.items.forEach(function (it, i) { var cb = pass.querySelector('input[name="ck-doc"][value="' + it.id + '"]'); if (cb) cb.checked = !!(mk & (1 << i)); });
+        K.dossier.items.forEach(function (it, i) { var cb = root.querySelector('input[name="ck-doc"][value="' + it.id + '"]'); if (cb) cb.checked = !!(mk & (1 << i)); });
       }
       return { answered: answered, via: via, docs: m[4] !== '-' };
     }
@@ -590,8 +465,8 @@
     var shareUrl = function (via) { return (C.PAGE_URL || location.origin + location.pathname) + '#checkin=' + hashOf(via); };
     var shareText = function (which, via) { return K.share[which].replace('{city}', C.CITY).replace('{url}', shareUrl(via)); };
 
-    /* one same-document view transition around a swap of the steps and the
-       pass; a plain swap where the API is absent, hidden or motion is off */
+    /* one same-document view transition around a swap of the steps; a plain
+       swap where the API is absent, hidden or motion is off */
     function swap(fn, plain) {
       if (!plain && document.startViewTransition && !ridotto && !document.hidden) {
         try { document.startViewTransition(function () { fn(); }); return; } catch (e) {}
@@ -599,72 +474,176 @@
       fn();
     }
 
-    var papersLine = function () {
-      var held = docsHeld(), N = K.dossier.items.length;
-      if (!touchedDocs && !held.length) return { text: K.dossier.skipped, pct: 0, short: '—', field: '' };
-      if (held.length === N) return { text: K.dossier.resultAll, pct: 100, short: held.length + ' of ' + N, field: held.length + '/' + N };
-      var missing = K.dossier.items.filter(function (it) { return held.indexOf(it.id) < 0; }).map(function (it) { return it.t; });
-      return { text: K.dossier.resultSome.replace('{have}', String(held.length)).replace('{missing}', missing.join(', ')), pct: Math.round(held.length / N * 100), short: held.length + ' of ' + N, field: held.length + '/' + N + ' · missing: ' + missing.join(', ') };
+    /* the papers line: what is in hand, what the CHOSEN plan prepares of
+       what is missing (named only when there is something — Attended Viewing
+       prepares no paper), and the rest */
+    var papersLine = function (planId) {
+      var held = docsHeld(), items = K.dossier.items, N = items.length;
+      if (!touchedDocs && !held.length) return { text: '', pct: 0, short: DASH, field: '' };
+      var miss = items.filter(function (it) { return held.indexOf(it.id) < 0; });
+      var names = function (a) { return a.map(function (it) { return it.t; }).join(', '); };
+      var text = held.length === N ? DOSS.all : DOSS.some.replace('{have}', String(held.length)).replace('{missing}', names(miss));
+      var p = planOf(planId), prep = p && PREP[planId] ? PREP[planId] : [];
+      var ours = miss.filter(function (it) { return prep.indexOf(it.id) > -1; });
+      if (p && ours.length) text += ' ' + DOSS.ours.replace('{plan}', p.label).replace('{ours}', names(ours));
+      if (DOSS.rest) text += ' ' + DOSS.rest;
+      return { text: text, pct: Math.round(held.length / N * 100), short: held.length + '/' + N, field: held.length + '/' + N + (miss.length ? ' · missing: ' + names(miss) : '') };
     };
+
+    /* the WhatsApp text: the desk marker first (api/_market.js reads it),
+       then the plan and the answers once they exist — never a price */
+    function waHref() {
+      var p = planOf(service()), txt = C.WA_TEXT || '';
+      if (p && C.WA_PLAN) {
+        var ans = STEPS.map(function (id) { var a = answer(id); return a ? optOf(id, a).t.toLowerCase() : null; }).filter(Boolean);
+        txt += ' ' + C.WA_PLAN.replace('{plan}', p.label).replace('{answers}', ans.length ? ' · ' + ans.join(' · ') : '');
+      }
+      return 'https://wa.me/' + (C.WHATSAPP || '') + '?text=' + encodeURIComponent(txt);
+    }
+
+    /* ── the ticket ── */
+    function setStatus(word) {
+      if (word === statusWord) return;
+      statusWord = word;
+      statusBoard = flap($('ckStatus'), (word + '       ').slice(0, 7), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', statusBoard);
+      setText('ckStatusSr', word);
+    }
+    /* the page's own scroll that lands the ticket's doors on the screen:
+       layout geometry (offsetTop), never the painted rect — the emission
+       translates the card for 0.9 s and a rect read mid-flight lies */
+    var topOf = function (el) { var t = 0; while (el) { t += el.offsetTop; el = el.offsetParent; } return t; };
+    var barH = function () { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80; };
+    function go(y) { try { scrollTo({ top: y, behavior: ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, y); } }
+    function landDoors(again) {
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        var f = $('ckFile');
+        /* a print inside a view transition lands a frame later: look once more */
+        if (!printed) { if (!again) setTimeout(function () { landDoors(true); }, 120); return; }
+        /* the lowest door showing: the till under the free call where the desk sells */
+        var t = $('ckStart'); if (t && t.offsetParent && topOf(t) > topOf(f)) f = t;
+        if (!f || !f.offsetParent) return;
+        var strip = $('paybar'); var stripH = strip && strip.classList.contains('on') ? strip.offsetHeight : 0;
+        var want = topOf(f) + f.offsetHeight - (innerHeight - stripH - 16);
+        if (want > scrollY + 1) go(want);
+      }); });
+    }
+    function toPass() {
+      requestAnimationFrame(function () { requestAnimationFrame(function () { go(Math.max(0, topOf(pass) - barH() - 12)); }); });
+    }
+    /* the first print in a page load runs the emission once; later prints never replay it */
+    function print(source) {
+      if (printed) return false;
+      printed = true;
+      if (wrap) { wrap.classList.add('printed'); if (!emitted) { emitted = true; wrap.classList.add('in'); } }
+      if ($('ckBlank')) $('ckBlank').hidden = true;
+      pass.setAttribute('data-state', 'standby');
+      var rf = $('ckRefund'); if (rf) rf.hidden = false;
+      paint();
+      boomTrack('plan_print', { source: source || 'checkin', market: C.SLUG });
+      return true;
+    }
+    /* the ticket shows the CHECKED chip's plan; no chip (or "not sure") is the first call */
+    function paint() {
+      if (!printed || issued) return;
+      var s = state(), id = service(), p = planOf(id);
+      pass.setAttribute('data-state', confirming ? 'confirming' : 'standby');
+      setText('ckTitle', (I.titles || {}).plan || '');
+      setStatus(((I.status || {}).standby) || 'STANDBY');
+      /* the route: the reader's own "where" (YOU until answered), the plane one leg per answer */
+      var legs = STEPS.filter(function (x) { return !!answer(x); }).length;
+      pass.style.setProperty('--leg', String(legs));
+      setText('ckFrom', s.wh ? optOf('where', s.wh).code : 'YOU');
+      var fc = I.firstCall || {};
+      if (p) {
+        setText('ckPlan', p.label);
+        setText('ckWhy', s.rule && s.planId === id ? s.rule.why : tagline(id));
+        setText('ckCond', p.condition);
+        setText('ckCondLong', p.conditionLong);
+        setText('ckPriceSr', eur(p.eur) + (p.unit ? ' ' + p.unit : ''));
+        if (lastPlan !== id) { priceBoard = flap($('ckPrice'), eur(p.eur), ' €,.0123456789FRE', priceBoard); lastPlan = id; }
+      } else {
+        setText('ckPlan', fc.plan || '');
+        setText('ckWhy', fc.line || '');
+        setText('ckCond', '');
+        setText('ckCondLong', fc.line || '');
+        setText('ckPriceSr', fc.fare || 'Free');
+        if (lastPlan !== '') { priceBoard = flap($('ckPrice'), String(fc.fare || 'Free').toUpperCase(), ' €,.0123456789FRE', priceBoard); lastPlan = ''; }
+      }
+      /* the refund rule is Full Search's promise: its block keeps its height
+         under any plan, so swapping plans never moves the doors */
+      var rf = $('ckRefund'); if (rf) rf.classList.toggle('off', id !== 'full-search');
+      var note = $('ckNote');
+      if (note) {
+        if (s.kind === 'complete') { note.textContent = (s.st === 'zero' && s.wn === 'soon') ? K.refusal : K.notes.when[s.wn]; note.hidden = false; }
+        else note.hidden = true;
+      }
+      /* move-in: the month the reader picked; else the answer; the page's own prefill never speaks for them */
+      var mv = $('fMoveIn'), mo = mv && mv.value && mv.getAttribute('data-user') ? mv.options[mv.selectedIndex] : null;
+      setText('ckMoveIn', mo ? mo.textContent : (s.wn ? optOf('when', s.wn).t : DASH));
+      setText('ckPassPapers', papersLine(id).short);
+      setText('ckPassFile', DASH);
+      setText('ckPassWhen', DASH);
+      var codes = [s.st ? optOf('stage', s.st).code : null, s.wh ? optOf('where', s.wh).code : null, s.wn ? optOf('when', s.wn).code : null].filter(Boolean);
+      var cl = $('ckCodeLine'); if (cl) setText('ckCodeLine', (cl.getAttribute('data-base') || '') + (codes.length ? ' · ' + codes.join(' · ') : ''));
+      /* the doors, pointed at this plan: the till only on a real plan, never while a payment is being confirmed */
+      var start = $('ckStart');
+      if (start) { start.setAttribute('data-pay', p ? id : ''); setText('ckStartAmt', p ? eur(p.eur) : ''); start.hidden = !p || confirming; }
+      var file = $('ckFile'); if (file) { file.setAttribute('data-service', p ? id : ''); file.hidden = confirming; }
+      var pd = $('ckPending'); if (pd) pd.hidden = !confirming;
+      /* the plan announced once per plan */
+      var say = p ? p.label + ', ' + eur(p.eur) + ', ' + p.condition : (fc.plan || '') + ', ' + (fc.fare || '');
+      if (s.kind === 'complete' && note && !note.hidden) say = (p ? p.label + ', ' + eur(p.eur) : fc.plan) + '. ' + note.textContent;
+      if (say !== lastLive) { lastLive = say; setText('ckLive', say); }
+    }
+    /* OPEN after the 200, PAID after the server said paid: the number is the server's */
+    function issue(kind, o) {
+      o = o || {};
+      if (issued === 'paid' || (issued === kind)) return;
+      if (!printed) print(kind === 'paid' ? 'paid' : 'door');
+      paint();
+      issued = kind; confirming = false;
+      pass.setAttribute('data-state', kind);
+      setText('ckTitle', (I.titles || {}).issued || '');
+      setStatus(((I.status || {})[kind]) || kind.toUpperCase());
+      setText('ckPassFile', o.file || DASH);
+      var B = I.boarding || {};
+      if (kind === 'open') {
+        setText('ckPassenger', String(o.name || '').trim().slice(0, 24) || DASH);
+        setText('ckPassWhen', sell ? ($('openWhen') ? $('openWhen').textContent : DASH) : (B.waitlist || DASH));
+      } else {
+        setText('ckPassWhen', o.startNow === false && o.workFromLabel ? String(B.paidWait || '{date}').replace('{date}', o.workFromLabel) : (B.paidNow || DASH));
+      }
+      var pd = $('ckPending'); if (pd) pd.hidden = true;
+      var file = $('ckFile'); if (file) file.hidden = true;
+      var start = $('ckStart'); if (start && kind === 'paid') start.hidden = true;
+      var st = $('ckStamp'); if (st) st.setAttribute('data-stamp', (kind === 'paid' ? 'PAID' : 'FILE OPEN') + ' · BOOM ' + String(C.WORD || C.CITY || '').toUpperCase());
+      pass.classList.add('struck');
+      var said = (kind === 'paid' ? 'Payment confirmed.' : 'Your file is open.') + (o.file ? ' File ' + o.file + '.' : '');
+      lastLive = said; setText('ckLive', said);
+      boomTrack('pass_issued', { state: kind, market: C.SLUG });
+      if (stripOff) stripOff();
+    }
+    function confirmPaid(plan) {
+      confirming = true;
+      if (form) form.setAttribute('data-plan-from', 'paid');
+      setPlan(plan, 'paid');
+      print('paid');
+      paint();
+    }
 
     function render(opts) {
       opts = opts || {};
       var s = state();
-      var wasHidden = pass.getAttribute('data-state') === 'blank' && getComputedStyle(pass).display === 'none';
       swap(function () {
-        /* the one small live region: the plan once per plan, the pending
-           sentence once — never the whole box (sixteen controls and ten
-           fragments re-announced on every tick) */
-        var live = $('ckLive');
         sync();
-        pass.setAttribute('data-state', s.kind);
-        /* the four bodies of the pass: the hidden attribute is the truth
-           (the first CSS rule makes [hidden] win over any state rule) */
-        if ($('ckBlank')) $('ckBlank').hidden = s.kind !== 'blank';
         if ($('ckPend')) $('ckPend').hidden = s.kind !== 'pending';
-        if ($('ckPlanBox')) $('ckPlanBox').hidden = !(s.kind === 'resolved' || s.kind === 'complete');
-        if ($('ckPapers')) $('ckPapers').hidden = s.kind !== 'complete';
+        if ($('ckPapersBox')) $('ckPapersBox').hidden = s.kind !== 'complete' && !touchedDocs;
         if (s.kind === 'pending') {
-          setText('ckPendText', (C.PENDING || {})[s.stage] || '');
-          setText('ckCode', optOf('stage', s.st).code);
-          if (live) setText('ckLive', (C.PENDING || {})[s.stage] || '');
+          var pt = (C.PENDING || {})[s.stage] || '';
+          setText('ckPendText', pt);
+          if (pt !== lastLive) { lastLive = pt; setText('ckLive', pt); }
         }
-        if (s.kind === 'blank' && live) setText('ckLive', '');
         if (s.kind === 'resolved' || s.kind === 'complete') {
-          var p = s.plan, r = s.rule;
-          var code = [optOf('stage', s.st).code, s.wh ? optOf('where', s.wh).code : null, s.wn ? optOf('when', s.wn).code : null].filter(Boolean).join(' · ');
-          setText('ckCode', code);
-          setText('ckPlan', p.label);
-          setText('ckCond', p.condition);
-          setText('ckWhy', r.why);
-          var refund = $('ckRefund'); if (refund) refund.hidden = s.planId !== 'full-search';
-          setText('ckCondLong', p.conditionLong);
-          /* the price on its board, flipped once per plan; the board is
-             decorative, the amount is read from the text beside it */
-          setText('ckPriceSr', eur(p.eur) + (p.unit ? ' ' + p.unit : ''));
-          if (lastPlan !== s.planId) {
-            mountBoard($('ckPrice'), eur(p.eur), ' €,.0123456789', 60); lastPlan = s.planId;
-            if (live) setText('ckLive', p.label + ', ' + eur(p.eur) + ', ' + p.condition);
-          }
-          /* the note after the third tap: the when note, or the refusal for zero + soon */
-          var note = $('ckNote');
-          if (s.kind === 'complete') {
-            var noteText = (s.st === 'zero' && s.wn === 'soon') ? K.refusal : K.notes.when[s.wn];
-            if (live && note.textContent !== noteText) setText('ckLive', p.label + ', ' + eur(p.eur) + '. ' + noteText);
-            note.textContent = noteText;
-            note.hidden = false;
-          } else note.hidden = true;
-          /* the papers */
-          var pl = papersLine();
-          setText('ckReady', pl.text);
-          var meter = $('ckMeter'); if (meter) { meter.style.setProperty('--meter', pl.pct + '%'); meter.style.width = pl.pct + '%'; }
-          setText('ckPassPapers', pl.short);
-          setText('ckPassWhen', s.wn ? optOf('when', s.wn).t : '—');
-          setText('ckPassFile', code);
-          /* the doors, pointed at this plan */
-          var start = $('ckStart');
-          if (start) { start.setAttribute('data-pay', s.planId); setText('ckStartAmt', eur(p.eur)); }
-          var file = $('ckFile'); if (file) file.setAttribute('data-service', s.planId);
           /* into the door: the chip, the plan line, the hidden fields. A chip
              the reader chose by hand (or from a plate) is theirs: the
              Check-in writes only where nothing or itself wrote before, and
@@ -675,13 +654,8 @@
             form.setAttribute('data-plan-from', 'checkin');
           }
           if ($('fCheckin')) $('fCheckin').value = [optOf('stage', s.st).t, s.wh ? optOf('where', s.wh).t : null, s.wn ? optOf('when', s.wn).t : null].filter(Boolean).join(' · ');
-          if ($('fDossier')) $('fDossier').value = touchedDocs ? pl.field : '';
-          /* the share row */
-          var wa = $('ckWa'); if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(shareText('plan', 'w'));
-          /* the strip names the plan, never the price */
-          setText('stripSub', p.label + ' · ' + ($('paybar') && $('paybar').getAttribute('data-yourplan') || 'your plan'));
+          if (!printed && !issued && !opts.quiet) print('checkin');
         } else {
-          setText('stripSub', $('paybar') ? $('paybar').getAttribute('data-sub') || '' : '');
           /* back to blank or pending: a plan the Check-in had written into the
              door is no longer decided — it leaves (a chip the reader chose by
              hand stays theirs); the answered steps still travel in words */
@@ -691,8 +665,21 @@
             paintPlanline();
           }
           if ($('fCheckin')) $('fCheckin').value = s.st ? [optOf('stage', s.st).t, s.wh ? optOf('where', s.wh).t : null].filter(Boolean).join(' · ') : '';
-          setText('ckPriceSr', '');
         }
+        /* the answers suggest another plan than the one chosen by hand: say
+           so, with a button — never overwrite the reader */
+        var sg = $('ckSuggest'), hand = form && /^(chip|plate)$/.test(form.getAttribute('data-plan-from') || '');
+        var suggest = (s.kind === 'resolved' || s.kind === 'complete') && hand && service() !== s.planId;
+        if (sg) {
+          sg.hidden = !suggest;
+          if (suggest) setText('ckSuggestText', K.result.suggest.replace('{plan}', s.plan.label));
+          sg.setAttribute('data-plan', suggest ? s.planId : '');
+        }
+        /* the papers: the line names what the CHOSEN plan prepares */
+        var pl = papersLine(service());
+        setText('ckReady', pl.text);
+        var meter = $('ckMeter'); if (meter) { meter.style.setProperty('--meter', pl.pct + '%'); meter.style.width = pl.pct + '%'; }
+        if ($('fDossier')) $('fDossier').value = touchedDocs ? pl.field : '';
         /* the move-in month the page prefills from the third answer is marked
            as the page's own: it follows a changed answer and leaves with it;
            a month the reader picked is never touched */
@@ -705,27 +692,11 @@
             else if (auto && mv.value === auto) { mv.value = ''; mv.removeAttribute('data-auto'); }
           }
         }
-        if (!boardMounted && s.kind !== 'blank') { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); }
-        if (s.kind !== 'blank' && !entered && !opts.landing) { entered = true; pass.classList.add('in'); }
-        paintPass();
+        paint();
+        paintLinks();
       }, !!opts.plain);
-      /* the pass must land on the screen the visitor is looking at: scroll
-         only when its bottom would fall below the fold, measured */
-      if (!opts.landing && s.kind !== 'blank' && (wasHidden || opts.resolved)) {
-        requestAnimationFrame(function () { requestAnimationFrame(function () {
-          /* layout geometry, not the painted rect: the entrance animation
-             translates the card for 700 ms and a rect read mid-flight lands
-             it a dozen pixels under the fold */
-          var top = 0, el = pass; while (el) { top += el.offsetTop; el = el.offsetParent; }
-          var bottom = top + pass.offsetHeight;
-          var bar = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80;
-          /* the strip counts only when it is up: in the hero it never is */
-          var strip = $('paybar'); var stripH = strip && strip.classList.contains('on') ? strip.offsetHeight : 0;
-          var want = bottom - (innerHeight - stripH - 16);
-          if (top - want < bar + 8) want = top - bar - 8;            /* never under the fixed bar */
-          if (want > scrollY + 1) { try { scrollTo({ top: want, behavior: ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, want); } }
-        }); });
-      }
+      /* after a tap the ticket's doors land on the screen (never on a landing) */
+      if (opts.tap) landDoors();
       if ((s.kind === 'resolved' || s.kind === 'complete') && (lastKind === 'blank' || lastKind === 'pending' || opts.resolved)) {
         boomTrack('checkin_result', { market: C.SLUG, plan: s.planId, stage: s.st, where: s.wh || '', when: s.wn || '', resolved_at_tap: s.wh && rule(s.st, null) == null ? 2 : 1, docs: touchedDocs ? docsHeld().length : -1 });
       }
@@ -733,119 +704,134 @@
       remember();
       return s;
     }
-
-    /* the pass follows the name and the origin as they are typed */
-    function paintPass() {
-      var name = ($('ckName') && $('ckName').value || '').trim(), from = ($('ckOrigin') && $('ckOrigin').value || '').trim().toUpperCase();
-      setText('ckPassenger', name || K.pass.guest);
-      setText('ckFrom', from || '—');
+    /* the links that carry the plan: WhatsApp (hero, ticket, strip) and the strip's line */
+    function paintLinks() {
+      var h = waHref();
+      ['heroWa', 'ckWa2', 'stripWa'].forEach(function (id) { var a = $(id); if (a && a.getAttribute('href') !== h) a.setAttribute('href', h); });
+      var wa = $('ckWa'); if (wa) wa.href = 'https://wa.me/?text=' + encodeURIComponent(shareText('plan', 'w'));
+      /* the strip names the plan, never the price */
+      var p = planOf(service()), bar = $('paybar');
+      if (p) setText('stripSub', p.label + ' · ' + (bar && bar.getAttribute('data-yourplan') || 'your plan'));
+      else if (bar) setText('stripSub', bar.getAttribute('data-sub') || '');
     }
 
-    /* ── the pass as an image: 1080×1920, drawn by ONE pure function — on an
-       OffscreenCanvas in a Worker where the browser has it (the encode is
-       the one interaction that can breach 200 ms on a mid-range phone),
-       on the main thread behind a busy state otherwise. WebP where the
-       browser encodes it (Safari returns PNG: the type is sniffed). ── */
+    /* ── the ticket as an image: 1080×1920, drawn by ONE pure function — on
+       an OffscreenCanvas in a Worker where the browser has it, on the main
+       thread otherwise. The image is for sharing: no file number, no reply
+       window, no name (the passenger is "A tenant"). The plane is the same
+       path as the page's symbol (Path2D), never a glyph. ── */
     function drawPass(x, d, W, H) {
       function rr(X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
+      function sp(t) { return String(t).toUpperCase().split('').join(' '); }
+      function fit(t, max, size, weight, fam) { var s = size; x.font = weight + ' ' + s + 'px ' + fam; while (x.measureText(t).width > max && s > 14) { s -= 2; x.font = weight + ' ' + s + 'px ' + fam; } return s; }
       var gold = '#FFD700', mono = 'ui-monospace, Menlo, Consolas, monospace', sans = '"Helvetica Neue", Helvetica, Arial, sans-serif';
       x.fillStyle = '#060607'; x.fillRect(0, 0, W, H);
       x.strokeStyle = 'rgba(255,215,0,.035)'; x.lineWidth = 1;
       for (var gx = 0; gx <= W; gx += 80) { x.beginPath(); x.moveTo(gx, 0); x.lineTo(gx, H); x.stroke(); }
       for (var gy = 0; gy <= H; gy += 80) { x.beginPath(); x.moveTo(0, gy); x.lineTo(W, gy); x.stroke(); }
-      var cx = 80, cw = W - 160, chh = 1180, cy = Math.round((H - chh) / 2) - 20, rad = 36;
+      var cx = 80, cw = W - 160, bodyH = 860, stubH = 520, chh = bodyH + stubH, cy = Math.round((H - chh) / 2) - 30, rad = 36, foil = 44;
+      var cut = cy + bodyH;
       x.save(); rr(cx, cy, cw, chh, rad); x.clip();
       var bg = x.createLinearGradient(cx, cy, cx + cw, cy + chh); bg.addColorStop(0, '#101014'); bg.addColorStop(.72, '#080809'); bg.addColorStop(1, '#080809');
       x.fillStyle = bg; x.fillRect(cx, cy, cw, chh);
+      var sb = x.createLinearGradient(0, cut, 0, cy + chh); sb.addColorStop(0, '#0C0C0F'); sb.addColorStop(1, '#070708');
+      x.fillStyle = sb; x.fillRect(cx, cut, cw, stubH);
       x.save(); x.globalAlpha = .5;
       var mk = x.createRadialGradient(cx, cy, 40, cx, cy, cw * 1.1); mk.addColorStop(0, 'rgba(255,215,0,.14)'); mk.addColorStop(1, 'rgba(255,215,0,0)');
       x.strokeStyle = mk; x.lineWidth = 1;
       for (var dd = -chh; dd < cw + chh; dd += 18) { x.beginPath(); x.moveTo(cx + dd, cy); x.lineTo(cx + dd - chh * .47, cy + chh); x.stroke(); }
       for (var d2 = -chh; d2 < cw + chh; d2 += 28) { x.beginPath(); x.moveTo(cx + d2, cy); x.lineTo(cx + d2 + chh * .5, cy + chh); x.stroke(); }
       x.restore();
-      var lam = x.createLinearGradient(0, cy, 0, cy + chh);
+      /* the rosette watermark, very low */
+      x.save(); x.globalAlpha = .05; x.strokeStyle = gold;
+      for (var rr2 = 30; rr2 < 300; rr2 += 18) { x.beginPath(); x.arc(cx + cw - 190, cy + 300, rr2, 0, Math.PI * 2); x.stroke(); }
+      x.restore();
+      var lam = x.createLinearGradient(0, cy, 0, cy + bodyH);
       [[0, '#7a5f16'], [.14, '#f6e27a'], [.32, '#8a6d1f'], [.48, '#fdf0a8'], [.63, '#b8942b'], [.78, '#f6e27a'], [1, '#6b5716']].forEach(function (s) { lam.addColorStop(s[0], s[1]); });
-      x.fillStyle = lam; x.fillRect(cx, cy, 44, chh);
-      x.save(); x.translate(cx + 22, cy + chh / 2); x.rotate(-Math.PI / 2);
+      x.fillStyle = lam; x.fillRect(cx, cy, foil, bodyH);
+      x.save(); x.translate(cx + foil / 2, cy + bodyH / 2); x.rotate(-Math.PI / 2);
       x.fillStyle = 'rgba(20,16,5,.9)'; x.font = '800 15px ' + sans; x.textAlign = 'center'; x.textBaseline = 'middle';
-      x.fillText(('BOOM · ' + d.side + ' · ').toUpperCase().repeat(4).split('').join(String.fromCharCode(8202)), 0, 0);
+      x.fillText(('BOOM · ' + d.side + ' · ').toUpperCase().repeat(3).split('').join(String.fromCharCode(8202)), 0, 0);
       x.restore();
       x.restore();
       rr(cx, cy, cw, chh, rad); x.strokeStyle = 'rgba(255,215,0,.28)'; x.lineWidth = 2; x.stroke();
-      var L = cx + 44 + 64, Rr = cx + cw - 64, y = cy + 92;
+      rr(cx + 10, cy + 10, cw - 20, chh - 20, rad - 8); x.strokeStyle = 'rgba(255,215,0,.12)'; x.lineWidth = 1; x.stroke();
+      var L = cx + foil + 60, Rr = cx + cw - 60, y = cy + 96;
+      /* the mark and the header line, the status word on the right */
       try {
-        if (d.pathD && typeof Path2D === 'function') {
-          var P = new Path2D(d.pathD);
-          x.save(); x.translate(L, y - 46); x.scale(76 / 1024, 76 / 1024); x.translate(0, 1024); x.scale(0.1, -0.1); x.fillStyle = gold; x.fill(P); x.restore();
+        if (d.markD && typeof Path2D === 'function') {
+          var P = new Path2D(d.markD);
+          x.save(); x.translate(L, y - 46); x.scale(64 / 1024, 64 / 1024); x.translate(0, 1024); x.scale(0.1, -0.1); x.fillStyle = gold; x.fill(P); x.restore();
         }
       } catch (e) {}
       x.textBaseline = 'alphabetic'; x.textAlign = 'left';
       x.fillStyle = gold; x.font = '600 22px ' + mono;
-      x.fillText('B O O M  ·  B O A R D I N G   P A S S', L + 96, y);
-      y += 150; x.fillStyle = '#FFF'; x.font = '300 118px ' + sans;
-      var fw = 0;
-      if (d.from) { x.fillText(d.from, L, y); fw = x.measureText(d.from).width + 34; }
-      x.fillStyle = gold; x.font = '300 60px ' + sans; x.fillText('✈', L + fw, y - 8);
-      x.font = '300 118px ' + sans; x.fillText(d.iata || '', L + fw + 86, y);
-      y += 70; var cellW = 64, cellH = 86, gap = 8;
-      x.font = '300 56px ' + sans; x.textAlign = 'center';
-      for (var i = 0; i < d.word.length; i++) {
-        var X = L + i * (cellW + gap);
-        rr(X, y, cellW, cellH, 8); x.fillStyle = '#040404'; x.fill();
-        x.fillStyle = '#121214'; rr(X, y, cellW, cellH / 2, 8); x.fill();
-        x.fillStyle = '#FFE55C'; x.textBaseline = 'middle'; x.fillText(d.word[i], X + cellW / 2, y + cellH / 2 + 2);
-        x.fillStyle = 'rgba(0,0,0,.85)'; x.fillRect(X, y + cellH / 2 - 1.5, cellW, 3);
-      }
-      x.textBaseline = 'alphabetic'; x.textAlign = 'left';
-      y += cellH + 92;
-      var rows = [[d.F.passenger, d.name], [d.F.plan, d.plan], [d.F.price, d.price], [d.F.boarding, d.when], [d.F.file, d.code], [d.F.papers, d.papers]];
-      var colW = (Rr - L) / 2;
-      rows.forEach(function (row, idx) {
-        var X = L + (idx % 2) * colW, Y = y + Math.floor(idx / 2) * 150;
-        x.fillStyle = 'rgba(255,255,255,.3)'; x.font = '400 18px ' + mono; x.fillText(String(row[0]).toUpperCase().split('').join(' '), X, Y);
-        x.fillStyle = '#FFF';
-        var v = String(row[1] || '—'), fsz = 36;
-        x.font = '300 ' + fsz + 'px ' + sans;
-        while (x.measureText(v).width > colW - 40 && fsz > 22) { fsz -= 2; x.font = '300 ' + fsz + 'px ' + sans; }
-        while (x.measureText(v).width > colW - 40 && v.length > 3) v = v.slice(0, -2) + '…';
-        x.fillText(v, X, Y + 50);
-      });
-      y += 3 * 150 + 10;
-      x.save(); x.setLineDash([10, 10]); x.strokeStyle = 'rgba(250,250,250,.22)'; x.lineWidth = 2; x.beginPath(); x.moveTo(cx + 44, y); x.lineTo(cx + cw, y); x.stroke(); x.restore();
-      x.fillStyle = '#060607'; x.beginPath(); x.arc(cx + 44, y, 22, 0, Math.PI * 2); x.fill(); x.beginPath(); x.arc(cx + cw, y, 22, 0, Math.PI * 2); x.fill();
-      y += 80;
-      x.fillStyle = 'rgba(255,255,255,.55)'; x.font = '300 20px ' + sans;
-      var line = String(d.line || ''), lw = Rr - L, wordsArr = line.split(' '), cur = '', ly = y;
-      wordsArr.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > lw) { x.fillText(cur, L, ly); ly += 30; cur = w; } else cur = t; });
-      if (cur) x.fillText(cur, L, ly);
-      /* Foot (the page) and side on one baseline only when both fit: on
-         /barcelona "BOOMROME.COM/BARCELONA" ran into "TENANT SIDE" in the
-         saved image. First the foot shrinks, then the side drops a line. */
-      var footT = String(d.foot).toUpperCase().split('').join(' '), sideT = String(d.side).toUpperCase().split('').join(' '), fz = 19;
-      x.font = '400 ' + fz + 'px ' + mono;
-      while (fz > 15 && x.measureText(footT).width + x.measureText(sideT).width + 32 > lw) { fz -= 1; x.font = '400 ' + fz + 'px ' + mono; }
-      var oneLine = x.measureText(footT).width + x.measureText(sideT).width + 32 <= lw;
-      x.fillStyle = 'rgba(255,255,255,.3)'; x.fillText(footT, L, ly + 60);
-      x.fillStyle = '#3ddc97';
-      if (oneLine) { x.textAlign = 'right'; x.fillText(sideT, Rr, ly + 60); } else x.fillText(sideT, L, ly + 92);
+      x.fillText(sp(d.title), L + 84, y - 8);
+      x.textAlign = 'right'; x.fillStyle = '#FFE55C'; x.font = '400 26px ' + mono; x.fillText(sp(d.status), Rr, y - 8);
       x.textAlign = 'left';
+      /* the route: FROM, the dashed leg with the plane where the answers reached, IATA */
+      y += 150;
+      x.fillStyle = '#FFF'; var fz = fit(d.from, 300, 96, '200', sans); var fw = x.measureText(d.from).width;
+      x.fillText(d.from, L, y);
+      x.font = '200 96px ' + sans; x.textAlign = 'right'; x.fillStyle = gold; x.fillText(d.iata || '', Rr, y);
+      var iw = x.measureText(d.iata || '').width; x.textAlign = 'left';
+      var a0 = L + fw + 30, a1 = Rr - iw - 30, ly = y - fz * 0.34;
+      x.save(); x.setLineDash([10, 10]); x.strokeStyle = 'rgba(250,250,250,.34)'; x.lineWidth = 2; x.beginPath(); x.moveTo(a0, ly); x.lineTo(a1, ly); x.stroke(); x.restore();
+      var px = a0 + (a1 - a0 - 44) * Math.max(0, Math.min(3, d.legs)) / 3;
+      x.strokeStyle = gold; x.lineWidth = 2; x.beginPath(); x.moveTo(a0, ly); x.lineTo(px + 22, ly); x.stroke();
+      try {
+        if (d.planeD && typeof Path2D === 'function') {
+          var Q = new Path2D(d.planeD);
+          x.save(); x.translate(px + 22, ly); x.rotate(Math.PI / 2); x.translate(-22, -22); x.scale(44 / 24, 44 / 24); x.fillStyle = gold; x.fill(Q); x.restore();
+        }
+      } catch (e) {}
+      /* the plan and its line */
+      y += 130; x.fillStyle = '#FFF'; fit(d.plan, Rr - L, 64, '300', sans); x.fillText(d.plan, L, y);
+      y += 60; x.fillStyle = 'rgba(255,255,255,.62)'; x.font = '300 26px ' + sans;
+      var words = String(d.line || '').split(' '), cur = '', lw = Rr - L, lines = 0;
+      words.forEach(function (w) { var t = cur ? cur + ' ' + w : w; if (x.measureText(t).width > lw && cur) { if (lines < 3) x.fillText(cur, L, y); y += 38; lines++; cur = w; } else cur = t; });
+      if (cur && lines < 3) { x.fillText(cur, L, y); }
+      /* the fields a stranger may read: passenger (never a name), move-in, papers */
+      y = cy + bodyH - 130;
+      var rows = [[d.F.passenger, d.guest], [d.F.movein, d.movein], [d.F.papers, d.papers]];
+      var colW = (Rr - L) / 3;
+      rows.forEach(function (row, idx) {
+        var X = L + idx * colW;
+        x.fillStyle = 'rgba(255,255,255,.34)'; x.font = '400 18px ' + mono; x.fillText(sp(row[0]), X, y);
+        x.fillStyle = '#FFF'; var v = String(row[1] || '—'); fit(v, colW - 24, 32, '300', sans); x.fillText(v, X, y + 48);
+      });
+      /* the punched perforation: holes, and the two half-circles cut at the edges */
+      for (var hx = cx + 40; hx < cx + cw - 30; hx += 28) { x.fillStyle = '#060607'; x.beginPath(); x.arc(hx, cut, 6, 0, Math.PI * 2); x.fill(); }
+      x.fillStyle = '#060607'; x.beginPath(); x.arc(cx, cut, 26, 0, Math.PI * 2); x.fill(); x.beginPath(); x.arc(cx + cw, cut, 26, 0, Math.PI * 2); x.fill();
+      /* the stub: FARE, the price, the condition, the barcode and the codes */
+      var sy = cut + 90, SL = cx + 60;
+      x.fillStyle = gold; x.font = '600 20px ' + mono; x.fillText(sp(d.F.fare), SL, sy);
+      x.fillStyle = '#FFE55C'; x.font = '300 110px ' + sans; x.fillText(d.price, SL, sy + 120);
+      var pw = x.measureText(d.price).width;
+      x.fillStyle = 'rgba(255,255,255,.55)'; fit(d.cond, Rr - SL - pw - 30, 24, '400', mono); x.fillText(String(d.cond).toUpperCase(), SL + pw + 26, sy + 112);
+      var bx = SL, by = sy + 170;
+      for (var i = 0; bx < Rr - 60; i++) { var bw = [2, 4, 1, 3, 2, 1, 5, 2][i % 8]; x.fillStyle = 'rgba(255,255,255,.7)'; x.fillRect(bx, by, bw * 2, 80); bx += bw * 2 + [3, 5, 2, 4][i % 4] * 2; }
+      x.fillStyle = 'rgba(255,255,255,.4)'; fit(d.codes, Rr - SL - 50, 20, '400', mono); x.fillText(d.codes, SL, by + 124);
+      x.save(); x.translate(cx + cw - 32, cut + stubH / 2); x.rotate(-Math.PI / 2); x.fillStyle = '#3ddc97'; x.font = '600 18px ' + mono; x.textAlign = 'center'; x.fillText(sp(d.side), 0, 0); x.restore();
       x.fillStyle = 'rgba(255,255,255,.26)'; x.font = '400 20px ' + mono; x.textAlign = 'center';
-      x.fillText(String(d.pageUrl || '').replace(/^https:\/\/(www\.)?/, '').toUpperCase().split('').join(' '), W / 2, cy + chh + 70);
+      x.fillText(sp(String(d.pageUrl || '').replace(/^https:\/\/(www\.)?/, '')), W / 2, cy + chh + 70);
     }
     function passData() {
-      var s = state(), p = s.plan || null, F = K.pass.fields;
-      var pathEl = document.querySelector('#boomMark path');
-      var pl = papersLine();
+      var s = state(), id = service(), p = planOf(id), F = K.pass.fields || {}, fc = I.firstCall || {};
+      var markEl = document.querySelector('#boomMark path'), planeEl = document.querySelector('#boomPlane path');
+      var held = docsHeld(), cl = $('ckCodeLine');
       return {
-        word: String(C.WORD || C.CITY).toUpperCase(), iata: C.IATA || '', side: K.pass.side, foot: K.pass.foot, pageUrl: C.PAGE_URL || '',
-        from: ($('ckOrigin') && $('ckOrigin').value || '').trim().toUpperCase(),
-        name: ($('ckName') && $('ckName').value || '').trim() || K.pass.guest,
-        plan: p ? p.label : '—', price: p ? eur(p.eur) + (p.unit ? ' ' + p.unit : '') : '—',
-        when: s.wn ? optOf('when', s.wn).t : '—',
-        code: $('ckCode') ? $('ckCode').textContent : '—',
-        papers: touchedDocs ? pl.short : '—',
-        line: p ? (s.planId === 'full-search' && sell && C.REFUND ? C.REFUND : p.conditionLong) : '',
-        F: F, pathD: pathEl ? pathEl.getAttribute('d') : ''
+        iata: C.IATA || '', side: K.pass.side, pageUrl: C.PAGE_URL || '',
+        title: (I.titles || {}).plan || 'BOOM', status: ((I.status || {}).standby) || 'STANDBY',
+        from: s.wh ? optOf('where', s.wh).code : 'YOU', legs: STEPS.filter(function (z) { return !!answer(z); }).length,
+        guest: K.pass.guest,
+        plan: p ? p.label : (fc.plan || ''), price: p ? eur(p.eur) : (fc.fare || ''), cond: p ? p.condition : '',
+        line: p ? (s.rule && s.planId === id ? s.rule.why : tagline(id)) : (fc.line || ''),
+        movein: s.wn ? optOf('when', s.wn).t : DASH,
+        papers: touchedDocs ? held.length + '/' + K.dossier.items.length : DASH,
+        codes: cl ? cl.textContent : '',
+        F: { passenger: F.passenger || 'Passenger', movein: F.movein || 'Move-in', papers: F.papers || 'Papers', fare: (I.stub || {}).fare || 'Fare' },
+        markD: markEl ? markEl.getAttribute('d') : '', planeD: planeEl ? planeEl.getAttribute('d') : ''
       };
     }
     var worker = null, workerDead = false, reqSeq = 0, pendingReq = {}, inflight = null;
@@ -885,28 +871,29 @@
         inflight = null;
         if (!b) return null;
         var ext = b.type === 'image/webp' ? 'webp' : 'png';
-        return { blob: b, ext: ext, name: 'boom-' + C.SLUG + '-boarding-pass.' + ext };
+        return { blob: b, ext: ext, name: 'boom-' + C.SLUG + '-plan.' + ext };
       }, function () { inflight = null; return null; });
       return inflight;
     }
+    var busy = function (on) { pass.classList.toggle('busy', on); if (wrap) wrap.classList.toggle('busy', on); };
     function savePass() {
-      pass.classList.add('busy');
+      busy(true);
       return passBlob().then(function (r) {
-        pass.classList.remove('busy');
+        busy(false);
         if (!r) return;
         var a = document.createElement('a'), u = URL.createObjectURL(r.blob);
         a.href = u; a.download = r.name; a.style.display = 'none';
         document.body.appendChild(a); a.click();
         setTimeout(function () { try { URL.revokeObjectURL(u); a.remove(); } catch (e) {} }, 2000);
         var s = $('ckSaved'); if (s) { s.textContent = pass.getAttribute('data-saved') || ''; setTimeout(function () { s.textContent = ''; }, 2400); }
-        boomTrack('pass_save', { market: C.SLUG, format: r.ext, fields_filled: (($('ckName').value ? 1 : 0) + ($('ckOrigin').value ? 1 : 0)) });
+        boomTrack('pass_save', { market: C.SLUG, format: r.ext });
       });
     }
     function sharePass() {
       var text = shareText('pass', 'p');
-      pass.classList.add('busy');
+      busy(true);
       return passBlob().then(function (r) {
-        pass.classList.remove('busy');
+        busy(false);
         var file = r && window.File ? new File([r.blob], r.name, { type: r.blob.type }) : null;
         if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
           boomTrack('pass_share', { market: C.SLUG, method: 'files' });
@@ -937,14 +924,18 @@
 
     /* ── wiring ── */
     root.addEventListener('change', function (e) {
-      var m = /^ck-(stage|where|when)$/.exec(e.target && e.target.name || '');
+      var n = e.target && e.target.name || '';
+      /* a tick is a plain swap: a view transition here puts an overlay over
+         the page for ~370 ms and the next tick lands on it */
+      if (n === 'ck-doc') { touchedDocs = true; render({ plain: true }); return; }
+      var m = /^ck-(stage|where|when)$/.exec(n);
       if (!m) return;
       if (!started) { started = true; boomTrack('checkin_start', { market: C.SLUG, landing_state: landingState }); }
       /* the radio is already checked when change fires: the kind BEFORE the
          tap is the one render remembered, not state() now */
       var before = lastKind;
       editing = null;
-      var s = render({ resolved: before === 'blank' || before === 'pending' });
+      var s = render({ resolved: before === 'blank' || before === 'pending', tap: true });
       boomTrack('checkin_answer', { market: C.SLUG, step: m[1], value: e.target.value, kind: s.kind });
     });
     root.addEventListener('click', function (e) {
@@ -955,6 +946,13 @@
         try { stepEl(editing).querySelector('input:checked, input').focus({ preventScroll: true }); } catch (err) {}
         return;
       }
+      /* "use it": the plan the answers suggest replaces the hand-picked one */
+      var u = e.target && e.target.closest('#ckSuggestUse');
+      if (u) {
+        var sp = $('ckSuggest').getAttribute('data-plan');
+        if (planOf(sp)) { form.setAttribute('data-plan-from', 'checkin'); setPlan(sp, 'checkin'); render({ plain: true }); boomTrack('checkin_suggest_use', { market: C.SLUG, plan: sp }); }
+        return;
+      }
       /* "change", then the same answer again: an already-checked radio fires
          no change event, so the step folds from here */
       var opt = e.target && e.target.closest('.ck-opt');
@@ -963,28 +961,19 @@
         if (inp && inp.checked) { editing = null; sync(); }
       }
     });
-    pass.addEventListener('change', function (e) {
-      /* a tick is a plain swap: a view transition here puts an overlay over
-         the page for ~370 ms and the next tick lands on it */
-      if (e.target && e.target.name === 'ck-doc') { touchedDocs = true; render({ plain: true }); }
-    });
     var mvEl = $('fMoveIn');
     /* touched by the reader (a month, or back to "not sure yet"): theirs from then on */
-    if (mvEl) mvEl.addEventListener('change', function () { mvEl.removeAttribute('data-auto'); mvEl.setAttribute('data-user', '1'); });
-    $('ckCopy').addEventListener('click', copyLink);
-    $('ckWa').addEventListener('click', function () { boomTrack('pass_share', { market: C.SLUG, method: 'whatsapp' }); });
-    $('ckSave').addEventListener('click', savePass);
-    $('ckShare').addEventListener('click', sharePass);
-    ['ckName', 'ckOrigin'].forEach(function (id) { $(id).addEventListener('input', paintPass); });
-    var skip = document.querySelector('.skipck');
-    if (skip) skip.addEventListener('click', function () { boomTrack('checkin_skip', { market: C.SLUG }); });
-    /* the plan seen: fires once per plan when the plan line is fully on
-       screen (the whole pass, complete, is taller than a phone) */
+    if (mvEl) mvEl.addEventListener('change', function () { mvEl.removeAttribute('data-auto'); mvEl.setAttribute('data-user', '1'); paint(); });
+    if ($('ckCopy')) $('ckCopy').addEventListener('click', copyLink);
+    if ($('ckWa')) $('ckWa').addEventListener('click', function () { boomTrack('pass_share', { market: C.SLUG, method: 'whatsapp' }); });
+    if ($('ckSave')) $('ckSave').addEventListener('click', savePass);
+    if ($('ckShare')) $('ckShare').addEventListener('click', sharePass);
+    /* the plan seen: fires once per plan when the plan line is fully on screen */
     if ('IntersectionObserver' in window && $('ckPlan')) {
       new IntersectionObserver(function (es) {
         es.forEach(function (en) {
-          var s = state();
-          if (en.isIntersecting && s.planId && viewedPlan !== s.planId) { viewedPlan = s.planId; boomTrack('checkin_result_view', { market: C.SLUG, plan: s.planId }); }
+          var id = service();
+          if (en.isIntersecting && printed && planOf(id) && viewedPlan !== id) { viewedPlan = id; boomTrack('checkin_result_view', { market: C.SLUG, plan: id }); }
         });
       }, { threshold: 1 }).observe($('ckPlan'));
     }
@@ -1001,7 +990,7 @@
     var landingState = 'cold';
     var h = readHash();
     if (h && h.answered) {
-      var s0 = render({ landing: true });
+      var s0 = render({ landing: true, plain: true });
       var banner = $('ckLanding');
       var received = !!(h.via && h.via !== 'l');
       if (!received) {
@@ -1025,15 +1014,185 @@
          the address bar clean: the first step is the honest landing */
       if (/^#checkin=/.test(location.hash)) { try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {} }
       sync();
+      paintLinks();
     }
-    /* on a wide screen the pass is on the page from load, blank: its city
-       board too — and when a phone turns into a desk before the first tap */
-    var mountBlank = function () { if (!boardMounted && getComputedStyle(pass).display !== 'none') { boardMounted = true; mountBoard($('ckBoard'), String(C.WORD || C.CITY).toUpperCase(), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', 50); } };
-    mountBlank();
-    try { deskMq.addEventListener('change', mountBlank); } catch (e) { try { deskMq.addListener(mountBlank); } catch (e2) {} }
-    return { state: state, render: render, hash: hashOf, shareUrl: shareUrl, passBlob: passBlob, drawPass: drawPass, passData: passData };
+    return {
+      state: state, render: render, hash: hashOf, shareUrl: shareUrl, passBlob: passBlob, drawPass: drawPass, passData: passData,
+      print: print, refresh: function () { if (printed) { paint(); paintLinks(); } else paintLinks(); }, printed: function () { return printed; },
+      issued: function () { return issued; }, issue: issue, confirmPaid: confirmPaid, toPass: toPass
+    };
   })();
+  T = CK;
   window.BOOM_CHECKIN = CK;
+  var stripOff = null;
+
+  /* ── send ──────────────────────────────────────────────────────────────
+     Errors come from the page's own data attributes (city copy never lives
+     here). A failed send gives the button back and says so, in place. */
+  if (form) {
+    var err = $('fErr');
+    var go = $('fGo');
+    var v = function (id) { var el = $(id); return el ? String(el.value || '').trim() : ''; };
+    /* the error is said in place and the field it names takes focus */
+    var fail = function (key) {
+      err.textContent = form.getAttribute('data-err-' + key) || ''; err.classList.add('on');
+      boomTrack('form_error', { form: 'file', field: key, market: C.SLUG });
+      var f = key === 'name' ? $('fName') : key === 'email' ? $('fEmail') : key === 'contact' ? (v('fPhone') && !v('fEmail') ? $('fPhone') : $('fEmail')) : null;
+      if (f) { try { f.focus(); } catch (e) {} }
+    };
+    /* ONE send per tap: pointer-events on the button stops a second click,
+       not Enter in a field (implicit submission) — the flag does; it is
+       released only when the send fails */
+    var sending = false;
+    form.addEventListener('submit', function (ev) {
+      ev.preventDefault();
+      if (sending) return;
+      err.classList.remove('on');
+      var name = v('fName'), email = v('fEmail'), phone = v('fPhone');
+      if (name.length < 2) return fail('name');
+      var hasEmail = /^\S+@\S+\.\S+$/.test(email), hasPhone = phone.replace(/\D/g, '').length >= 6;
+      if (!email && !phone) return fail('contact');
+      if (email && !hasEmail) return fail('email');
+      if (!hasEmail && !hasPhone) return fail('contact');
+
+      /* no ticket yet: it prints now, in the click — and the page scrolls by
+         exactly what it inserted, so the form does not move under the eyes
+         (manual scroll anchoring: Safari does not anchor) */
+      if (T && !T.printed()) {
+        var door = $('contact'), before = door.getBoundingClientRect().top;
+        T.print('door');
+        var after = door.getBoundingClientRect().top;
+        /* instant: the page scrolls smoothly by default, and a glide here would
+           be the very movement the anchoring exists to prevent */
+        if (Math.abs(after - before) >= 1) { try { window.scrollBy({ top: after - before, behavior: 'instant' }); } catch (e) { window.scrollBy(0, after - before); } }
+      }
+      sending = true;
+      var goText = go.querySelector('b'), restText = goText ? goText.textContent : '';
+      go.style.opacity = .6; go.style.pointerEvents = 'none'; go.classList.add('busy');
+      if (goText && form.getAttribute('data-sending')) goText.textContent = form.getAttribute('data-sending');
+      var picked = service();
+      boomTrack('generate_lead', { channel: 'form', source_page: C.SLUG });
+      boomTrack('door_prefill', { market: C.SLUG, plan: picked || 'none', from: form.getAttribute('data-plan-from') || 'none' });
+      postJson(C.LEAD_ENDPOINT || '/api/city-lead', {
+        city: C.SLUG,
+        name: name, email: email, phone: phone,
+        moveIn: v('fMoveIn'), budget: v('fBudget'), service: picked,
+        situation: v('fSituation'), areas: v('fAreas'), message: v('fMsg'),
+        /* what the Check-in learned, if they used it (the server prints it
+           in the operator's summary; empty otherwise) */
+        checkin: v('fCheckin'), dossier: v('fDossier'),
+        requestId: requestId,
+        company: v('fCompany')
+      })
+        .then(function (j) {
+          if (!j || !j.ok) throw new Error((j && j.error) || 'failed');
+          fileRef = typeof j.id === 'string' && /^city_[a-z0-9_]{8,48}$/.test(j.id) ? j.id : 'city_' + requestId;
+          form.classList.add('hidden');
+          var done = $('fDone');
+          done.classList.add('on');
+          /* who writes, when: computed against the desk clock, never a static promise */
+          var w = $('openWhen'), rw = desk && desk.replyWindow();
+          if (w && rw) w.textContent = rw;
+          /* the ticket becomes a boarding pass: the number is the server's */
+          if (T) T.issue('open', { file: j.file, name: name });
+          /* the form left: the ticket comes into view if it is off screen, and
+             focus moves onto the open file so it is read, not lost on <body> */
+          var pass = $('pass');
+          if (pass && pass.getBoundingClientRect().top < 0 && T) T.toPass();
+          try { done.focus({ preventScroll: true }); } catch (e) {}
+          boomTrack('sign_up', { method: 'city_form', market: C.SLUG });
+        })
+        .catch(function () {
+          sending = false;
+          go.style.opacity = 1; go.style.pointerEvents = ''; go.classList.remove('busy');
+          if (goText) goText.textContent = restText;
+          fail('net');
+        });
+    });
+    /* the button is served disabled: without this script a submit would be a
+       GET to the page with the contact data in the address bar */
+    go.disabled = false;
+  }
+
+  /* ── the paid landing: Stripe sends the client back to ?paid=<plan> ────
+     The address bar proves nothing. The page prints the ticket in a
+     "confirming" state and asks the server — GET /api/city-lead?paid=
+     <session>&city=<slug>, which answers paid only when the webhook wrote
+     the PAID lead for this city — at 0 / 1.5 / 3 / 6 / 12 s. Only then the
+     PAID stamp, the file number, the verified steps and ONE purchase event
+     (the key lives in sessionStorage for the tab's life, never on the
+     device: ePrivacy 5(3)). Still pending after the fifth ask: it stays
+     "being confirmed" and the confirmation email does the rest. */
+  (function () {
+    if (C.CHECKOUT !== true || !form) return;
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var plan = q.get('paid'), sid = q.get('session_id') || '', pp = planOf(plan);
+    if (!pp) return;
+    var card = $('fPaid');
+    if (!card) return;
+    form.classList.add('hidden');
+    var h3 = card.querySelector('h3'), h3Html = h3 ? h3.innerHTML : '';
+    var paintPlan = function (p) { $('paidPlan').textContent = p.label + ' · ' + eur(p.eur) + ' · ' + p.condition; };
+    paintPlan(pp);
+    if (h3 && card.getAttribute('data-pending')) h3.textContent = card.getAttribute('data-pending');
+    if ($('paidText')) $('paidText').hidden = true;
+    if ($('paidNext')) $('paidNext').hidden = true;
+    card.classList.add('on');
+    if (T) T.confirmPaid(plan);
+    setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); try { card.focus({ preventScroll: true }); } catch (e2) {} } catch (e) {} }, 50);
+    function onVerified(v) {
+      var vp = planOf(v.plan) ? v.plan : plan, p = planOf(vp);
+      paintPlan(p);
+      if (h3) h3.innerHTML = h3Html;
+      if ($('paidText')) $('paidText').hidden = false;
+      if ($('paidNext')) $('paidNext').hidden = false;
+      /* no "start now" tick: the work begins when the 14-day withdrawal period ends — say so */
+      if (v.startNow === false && card.getAttribute('data-wait')) {
+        var wait = document.createElement('p'); wait.className = 'wait'; wait.id = 'paidWait';
+        wait.textContent = card.getAttribute('data-wait');
+        $('paidPlan').parentNode.insertBefore(wait, $('paidPlan').nextSibling);
+        /* the wait note takes the place of the generic one: one sentence about what happens, not two */
+        if ($('paidText')) $('paidText').hidden = true;
+        /* and the three steps of a payer who waits: never "same working day" */
+        var steps = $('paidNext') ? $('paidNext').querySelectorAll('li') : [];
+        (C.PAID_WAIT_NEXT || []).forEach(function (pair, i) {
+          var li = steps[i]; if (!li) return;
+          var b = li.querySelector('b'), sp = li.querySelector('span');
+          if (b) b.textContent = pair[0];
+          if (sp) sp.textContent = pair[1];
+        });
+      }
+      if (T) {
+        if (vp !== plan) T.confirmPaid(vp);
+        T.issue('paid', v);
+      }
+      var key = 'boom:paid:' + (sid || plan), seen = false;
+      try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
+      /* the Stripe session id names a payer: GA gets an opaque hash of it (FNV-1a), never the id */
+      var h = 0x811c9dc5;
+      for (var hi = 0; hi < sid.length; hi++) { h ^= sid.charCodeAt(hi); h = Math.imul(h, 0x01000193) >>> 0; }
+      if (!seen) boomTrack('purchase', { transaction_id: 'city_' + C.SLUG + '_' + ('0000000' + h.toString(16)).slice(-8), currency: 'EUR', value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + vp, item_name: p.label, price: p.eur, quantity: 1 }], market: C.SLUG });
+      /* verified: the query folds away, the URL can be shared without re-landing */
+      try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
+    }
+    /* the same shape the server accepts: anything else is not worth asking about */
+    if (!/^cs_(test|live)_[A-Za-z0-9]{8,200}$/.test(sid)) return;
+    var at = [0, 1500, 3000, 6000, 12000], n = 0, verified = false;
+    function ask() {
+      if (verified || n >= at.length) return;
+      var wait = at[n] - (n ? at[n - 1] : 0);
+      n++;
+      setTimeout(function () {
+        fetch(C.LEAD_URL + '?paid=' + encodeURIComponent(sid) + '&city=' + encodeURIComponent(C.SLUG), { cache: 'no-store' })
+          .then(function (r) { return r.json(); })
+          .then(function (v) {
+            if (v && v.paid === true && !verified) { verified = true; onVerified(v); return; }
+            ask();
+          }, ask);
+      }, wait);
+    }
+    ask();
+  })();
 
   /* ── chrome: scrolled nav, burger ───────────────────────────────────── */
   (function () {
@@ -1075,14 +1234,22 @@
     [].forEach.call(els, function (el) { io.observe(el); });
   })();
 
-  /* ── the strip: the one door on a phone, past the hero, never over the
-     door itself nor while the till is open; no price ── */
+  /* ── the strip: the one door on a phone once the hero's door has scrolled
+     off; never over the door or the ticket, never while the till is open,
+     and gone for good once a file is opened or paid; no price ── */
   (function () {
-    var bar = $('paybar'), hero = document.querySelector('.hero'), door = $('contact');
-    if (!bar || !hero) return;
-    var doorIn = false;
-    if (door && 'IntersectionObserver' in window) new IntersectionObserver(function (es) { es.forEach(function (e) { doorIn = e.isIntersecting; }); upd(); }, { threshold: .15 }).observe(door);
-    function upd() { bar.classList.toggle('on', hero.getBoundingClientRect().bottom < 0 && !doorIn && !dialogOpen()); }
+    var bar = $('paybar'), cta = document.querySelector('.hero-go') || document.querySelector('.hero');
+    if (!bar || !cta) return;
+    var seen = { contact: false, pass: false }, gone = false;
+    if ('IntersectionObserver' in window) {
+      ['contact', 'pass'].forEach(function (id) {
+        var el = $(id); if (!el) return;
+        new IntersectionObserver(function (es) { es.forEach(function (e) { seen[id] = e.isIntersecting; }); upd(); }, { threshold: 0 }).observe(el);
+      });
+    }
+    function upd() { bar.classList.toggle('on', !gone && cta.getBoundingClientRect().bottom < 0 && !seen.contact && !seen.pass && !dialogOpen()); }
+    stripOff = function () { gone = true; upd(); };
+    if (T && T.issued()) gone = true;
     addEventListener('scroll', upd, { passive: true }); upd();
     /* the till closing is not a scroll: the strip comes back on its own */
     if (ov) ov.addEventListener('close', function () { setTimeout(upd, 0); });

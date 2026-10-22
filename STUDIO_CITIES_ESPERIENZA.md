@@ -1054,3 +1054,54 @@ The same review left five findings that were confirmed but still open; they were
 - **The confirmation email only linked the model form.** The email is the durable medium, so the form's text now travels inside it. The Rome Pacchetto confirmation gets the Italian version, which it never had.
 - **The form page guessed.** It opened on Full Search in Amsterdam whatever the payer had bought. It now opens blank, and fills in the desk (from the till's link) and the service (from the email's link) only when the link says so.
 - **The paid card was over its budget on screen.** The earlier claim that it sat at the 70-word cap measured the shipped HTML, not what the JavaScript adds. On screen it showed 96 words to a payer who waits and 77 to one who starts. The wait note now replaces the generic note, the plan line uses the short condition, and the card reads 65 words either way. The test now rebuilds the card as the reader sees it.
+
+## 12. v1.4, "The Itinerary" (22 Oct 2026)
+
+### 12.1 The decision record
+
+The conversion study put four architectures in front of three judges: International-editorial ("The Itinerary"), Boarding-first, Conversation-first and Eligibility-test. The Itinerary scored highest (86; two of three judges ranked it first). The build keeps its spine, grafts in the other judges' best fixes and changes three things after reading the repo.
+
+- **The hero is editorial.** It answers four questions without a tap: what we do, for whom, what it costs, what to do next. It holds the H1, a lead of 20 words or fewer and a fares board with the three prices as text, each with its own condition. Under the €500 it carries the refund rule word for word (selling desks only). Then one gold button, a quiet WhatsApp link and the proof card. This reverses the v1.3 decision that the diagnosis is the hero.
+- **01 Your plan, directly under the hero.** The three questions, the ticket and the door sit together, ahead of How it works. On a phone this halves the distance to the form. The section has no sticky column (the 18/10 lesson) and no JS node mover, so DOM order is reading order at every width.
+- **One ticket, one status board.** The ticket goes STANDBY → OPEN → PAID, using Rome's word STANDBY rather than a new DRAFT. The checked chip is the single source of truth for the plan, and a plate prints its own plan. An SVG plane moves one leg per answer; U+2708 is gone from the page. The finish follows Rome: a punched perforation, runway lights on hover or focus only, and a printer emission played once.
+- **OPEN and PAID only on server proof** (grafted from Boarding-first). One file number per person, computed by the server as `fileCode()` in `js/scalo-codes.js`. The paid return polls `GET /api/city-lead?paid=`, and the purchase event fires only after verification.
+- **The free call is the goal on the three selling desks.** The main button reads "Start with a free call · no card · same-day reply", and the FAQ "What happens on the free call?" (grafted from Conversation-first) says what that call is. Paris and Berlin keep "Open my file".
+- **The papers truth fix** (grafted from Eligibility-test). Each plan lists what it really prepares. Before this, every desk told an Attended Viewing client "the letter and the format are ours".
+
+**The founder's decisions, 22 Oct:**
+
+- He approved the editorial hero with the fares board.
+- He approved "Start with a free call" on Amsterdam, Madrid and Barcelona.
+- Full Search also writes the letter, so `prepares` is `['letter']` for Full Search and the Application Pack and `[]` for Attended Viewing, on every desk.
+- He approved the budgets: the fact sheet is measured on its own (≤ 210), the visible-body ceiling drops from 950 to 850, and the new fares board has a ceiling of ≤ 75.
+
+### 12.2 As built
+
+Visible body: 827–839 words. Fact sheet: 184–195. Weight: 85.7–87.6 KB gz, with 24.0 KB of JS.
+
+At 390 × 844 the fares board and the hero button fit above the fold on all five desks. The one-line-fares fallback was not needed.
+
+Suites: `tests/cities/run.mjs` 708, `checkout.mjs` 100, `ui.mjs` 219, `tests/scalo` 98, with consent, scroll, cielo, seo, crawl, llmstxt, verita, faqtruth and answers unchanged and green.
+
+Every rewritten guard was proven again by mutation:
+- the refund rule removed from the fares board;
+- purchase fired on a URL alone;
+- a file number made up in the browser;
+- a cross-city `fileRef` reused by the webhook;
+- a papers line that names no plan;
+- Full Search preparing nothing.
+
+### 12.3 Not verified, and open
+
+- **Needs a real iPhone.** CI is Chromium only, with native scroll anchoring switched off to imitate Safari. Three things have not been checked on an iPhone:
+  - the manual scroll anchoring when the door prints the ticket at submit;
+  - the clip-path emission;
+  - the container query of the ticket.
+- **The stacked ticket is about 750 px tall on a phone.** After each tap the page lands both doors on screen, which pushes the next question partly above it. A compact phone stub is not built.
+- **Forced-colors and print** are present but not measured in a browser.
+- **The cookie banner may now come up sooner over the hero buttons on a phone**, since the questions left the hero. This is audit item #16, still unsolved.
+- **File numbers are 25 bits, so a collision is possible.** They are a nickname printed beside the real id, never a key. If the checkout loses `fileRef`, one person ends up with two numbers, both findable in their leads.
+- **Open founder questions:**
+  - calls booked into real slots, given the capacity across three desks plus Rome;
+  - his photo on the page, which needs his consent;
+  - an income-versus-rent check, which needs landlord norms with a source and a date, plus a legal read for Spain.

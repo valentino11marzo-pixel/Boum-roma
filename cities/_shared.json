@@ -13,7 +13,8 @@
     "whatsapp": "393313251961",
     "phoneDisplay": "+39 331 325 1961",
     "email": "hello@boom-rome.com",
-    "waText": "Hi BOOM {city}, I'm moving to {city}."
+    "waText": "Hi BOOM {city}, I'm moving to {city}.",
+    "waPlan": "My plan: {plan}{answers}."
   },
   "organization": {
     "name": "BOOM Rome",

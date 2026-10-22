@@ -2251,6 +2251,105 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   Mercè e il suo lunedì, Pasqua Granada, 12/10, 6 e 8/12, niente Giovedì
   Santo; un ordine pagato a Barcellona attraverso il webhook vero; il
   telefono in E.164), `ui.mjs` 199.
+- **IL BIGLIETTO (v1.4, 22/10/2026 — «The Itinerary»)**. Lo studio sulla
+  conversione dei desk ha messo a confronto quattro architetture davanti a
+  tre giudici; ha vinto quella editoriale, con innesti dalle altre e tre
+  correzioni dopo la lettura del repo. Decisioni del fondatore, prese il
+  22/10: hero editoriale col tabellone delle tariffe; «Start with a free
+  call» come porta su Amsterdam, Madrid e Barcellona («Open my file» resta
+  su Parigi e Berlino); Full Search scrive ANCHE la lettera; i nuovi tetti di
+  parole. Cosa cambia:
+  1. **L'hero è editoriale**: H1, una riga di lead (≤ 20 parole) e il
+     **tabellone delle tariffe** (`R.glance`, `<!-- GLANCE -->`): i tre
+     prezzi come TESTO, ognuno con la sua condizione (il build pretende che
+     prezzo e condizione di ogni piano stiano anche sul suo piatto e sul suo
+     chip), `hero.faresNote` (su Madrid e Barcellona apre «Optional, chosen
+     in writing», sui waitlist contiene «charged»), la regola del rimborso
+     parola per parola sotto i €500 (solo dove si incassa), UN bottone d'oro
+     `a.paybtn.hero-go` con `door.label`, il link alle tre domande e
+     WhatsApp col marcatore del desk. A destra i fatti: `paid`, `abroad` sui
+     desk che vendono (il fatto «If we say no» è sparito perché la stessa
+     frase sta nel tabellone), `paid`, `abroad`, `nothing` sui waitlist.
+     Nessun nodo spostato dal JS: l'ordine del DOM è l'ordine di lettura a
+     ogni larghezza, e niente sticky.
+  2. **01 Your plan** (`<section id="plan">`, subito sotto l'hero e prima di
+     How it works): Check-in → biglietto → porta, ognuno una volta. Sul
+     telefono la porta è a metà della distanza di v1.3. A ≥ 1100 px c'è una
+     griglia 4/6 (Check-in e porta a sinistra, biglietto a destra); sotto i
+     1100 px una colonna sola.
+  3. **Il biglietto** (`#pass`, `data-state` blank → standby → confirming →
+     open → paid): lo stampa la prima risposta che risolve, e lo «stampa» una
+     stampante (`@keyframes emissione`, una volta per caricamento). Mostra il
+     piano del chip SPUNTATO, l'unica fonte. Un chip scelto a mano non si
+     sovrascrive: compare «Your answers suggest X · use it». Un piatto stampa
+     il SUO piano e sale al biglietto. Ha un solo tabellone di stato
+     (`#ckStatus` STANDBY · OPEN · PAID), il prezzo su `#ckPrice`, l'aereo SVG
+     che avanza di una tappa per risposta (`--leg`) e nessun U+2708 in tutta
+     la pagina. Il resto è la finitura di Roma: perforazione, stub col codice
+     a barre, luci di pista solo su hover/focus, timbro d'oro, tutto fermo
+     sotto reduced-motion. «Not sure yet» stampa «Your first call · Free»
+     senza cassa.
+  4. **OPEN e PAID li dà il server, mai l'URL.** Il numero di fascicolo è
+     `fileCode(id)` in `js/scalo-codes.js`: FNV-1a sull'id intero, «BM » + 5
+     caratteri di un alfabeto senza ambiguità. È un soprannome stampato
+     accanto all'id vero, mai una chiave. La pagina non carica quel file e il
+     browser non calcola niente. `POST /api/city-lead` risponde
+     `{ok, id, file}`, anche al 409 dello stesso `requestId`, e scrive
+     `city.file` e «· file BM XXXXX» in coda al riassunto. Senza `requestId`
+     il server conia `city_srv_<12 hex>`. La cassa porta `fileRef`
+     (`/^city_[a-z0-9_]{8,48}$/`, solo sulle offerte città, come
+     `metadata.file_ref`). Il webhook riusa quel numero SOLO se il lead
+     esiste, è dello stesso mercato e il numero ha la forma giusta (una
+     persona, un numero); altrimenti usa `fileCode(svc_…)`. L'id del lead
+     pagato è `serviceLeadId()` (`api/_market.js`, una copia). Al ritorno da
+     Stripe la pagina dice «Payment being confirmed» e interroga `GET
+     /api/city-lead?paid=<sessione>&city=<slug>` a 0, 1,5, 3, 6 e 12 s
+     (no-store, 400 su sessione o desk non validi, 30 richieste ogni 10′ per
+     IP, 503 se Firestore non risponde). La risposta paid porta SOLO piano,
+     numero, `startNow` e `workFromLabel`, mai un dato personale. Solo
+     `onVerified(v)`, dopo `v.paid === true`, stampa PAID e manda l'UNICO
+     `purchase`. `?paid=` da solo non timbra e non conta niente.
+  5. **La verità dei documenti**: ogni piano ha il suo `prepares`, ed è
+     uguale su ogni desk: Full Search e Application Pack preparano la
+     lettera, Attended Viewing niente. La riga dei documenti è `some` (o
+     `all`) + `ours` + `rest`: `ours` = «{plan} prepares: {ours}.» compare
+     solo se il piano scelto prepara qualcosa che manca, e `rest` rinvia alla
+     chiamata gratuita (sui waitlist alla prima risposta). Le chiavi v1.3
+     `fixable/resultAll/resultSome/skipped` e le righe che non nominano il
+     piano sono rifiutate dal build.
+  6. **WhatsApp col piano**: hero, stub e strip (ora con l'icona) mandano
+     `waText` + `contact.waPlan` («My plan: {plan}{answers}.»), mai un prezzo.
+     La cassa si precompila dalla porta a ogni apertura. La FAQ «What happens
+     on the free call?» dà un senso a «the first call» della regola del
+     rimborso. Eventi nuovi (col consenso): `hero_cta`, `fare_click`,
+     `plan_print`, `pass_issued`, `wa_open`.
+  7. **I tetti**: hero ≤ 30, tabellone ≤ 75 (nuovo), fatti ≤ 85, Check-in +
+     biglietto ≤ 230, porta ≤ 110, stati ≤ 70 (la card PAGATO misurata sia in
+     conferma sia verificata), piatti ≤ 50, controlli ≤ 170, scheda dei fatti
+     misurata a sé ≤ 210 (nuovo), corpo visibile **≤ 850** (era 950). Oggi il
+     corpo è fra 827 e 839, la scheda fra 184 e 195; il peso fra 85,7 e
+     87,6 KB gz, col JS a 24,0.
+  **Rovesciato da v1.3, e perché**: la diagnosi non è più l'hero (la gente
+  deve leggere prima prezzi, regola e porta: le domande stanno subito sotto);
+  il biglietto bianco nella colonna destra a ≥ 920 e il mover JS sono spariti
+  (DOM = lettura, niente geometria a rischio); l'offerta di pagare dopo il
+  fascicolo (`#payOffer`, `checkoutCopy.offer`) è ora la cassa dello stub; i
+  mini tabelloni OPEN/PAID della porta sono sostituiti dall'unico stato sul
+  biglietto; spariti anche nome e origine sul biglietto (`pass.name/from`) e
+  lo `door.skip`. Tutte queste chiavi sono rifiutate per nome. La card social
+  dei tre desk che vendono è rigenerata (la riga è la prima frase del lead;
+  un lead oltre 40 caratteri prende la classe `lunga` nel generatore).
+  **Non verificato qui**: l'ancoraggio manuale dello scorrimento all'invio,
+  l'emissione con clip-path e la container query su un iPhone vero (in CI
+  solo Chromium, con l'ancoraggio nativo spento per imitare Safari); forced-colors
+  e stampa non sono misurati in un browser. Il biglietto impilato è alto
+  ~750 px sul telefono. **Aperte, del fondatore**: chiamate su slot veri, la
+  foto, un controllo reddito/canone (servono norme con fonte e una lettura
+  legale per la Spagna).
+  Test: `run.mjs` 708, `checkout.mjs` 100 (`serviceLeadId`, `fileRef`, il
+  giro city-lead → cassa → webhook → GET paid, cross-city e fantasma non
+  riusati), `ui.mjs` 219, `scalo` 98 (`fileCode`: vettori FNV, 1.000 id con
+  prefisso comune senza collisioni).
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
@@ -7886,9 +7985,10 @@ smontata leggendo il sorgente di WebKit.
   (board, deals e skyline non hanno una barra in alto e si saltano); gli
   pseudo-elementi del body sono fissi, quasi trasparenti e inerti; senza la
   regola la home ricade sul body (mutazione presa).
-- **Non provabile qui**: serve un iPhone vero con Safari 26 — ricaricare la
-  home e un paio di pagine, scorrere, guardare la striscia accanto
-  all'orologio. **Buco dichiarato**: i builder di `design/pages-deco/`
+- **Verificata sul telefono vero** dal fondatore il 22/10, dopo il merge di
+  #306: su iPhone/Safari la striscia accanto all'orologio resta della testata.
+  Chromium non ha il campione di WebKit: per una regressione futura la prova
+  vera resta l'iPhone. **Buco dichiarato**: i builder di `design/pages-deco/`
   scrivono ancora la grana a 9999 e non emettono il blocco di scorrimento —
   la regola arriva perché le pagine pubblicate portano il blocco
   (`scroll-sync`): dopo una ricostruzione da builder va rilanciato

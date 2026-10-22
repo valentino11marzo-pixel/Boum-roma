@@ -253,6 +253,17 @@ export function cityOffer(cityKey, planId) {
 }
 
 /**
+ * The id of the lead the SERVICE webhook writes for a paid Stripe session:
+ * leads/svc_<session id, alphanumerics only, 30 characters>. One copy, read
+ * by the webhook (which writes it) and by /api/city-lead (whose GET ?paid=
+ * reads it back to confirm a payment the page cannot prove on its own).
+ * @param {string} sessionId
+ */
+export function serviceLeadId(sessionId) {
+  return 'svc_' + String(sessionId).replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+}
+
+/**
  * The desk a WhatsApp message names. Every WhatsApp link on a city page opens
  * with a prefilled line ("Hi BOOM Amsterdam, I'm moving to Amsterdam.",
  * build-cities.mjs waHref): it is the only trace a chat carries of the page

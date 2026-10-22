@@ -19,6 +19,7 @@
     "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms."
   },
   "nav": {
+    "plan": "Your plan",
     "how": "How it works",
     "services": "Services",
     "checks": "Before you sign",
@@ -27,7 +28,18 @@
   },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "Found by someone on your side. Three taps say which service fits, and what it costs."
+    "lead": "For people moving to Barcelona: we search, apply, attend viewings and check the lease. On your side, never the landlord's.",
+    "faresNote": "Optional, chosen in writing. Flat fees, VAT included."
+  },
+  "glance": {
+    "alt": "Not sure which service? Three questions",
+    "wa": "WhatsApp"
+  },
+  "plan": {
+    "num": "01 — YOUR PLAN",
+    "h2": "Three questions,",
+    "h2g": "one plan.",
+    "head": "Three questions pick the service. Or choose one below."
   },
   "form": {
     "name": {
@@ -92,11 +104,11 @@
     "sentNext": [
       [
         "{when}",
-        "Valentino writes back by email, or WhatsApp if you left a number."
+        "Valentino writes to set your free call."
       ],
       [
         "Nothing to prepare",
-        "We tell you on the call what papers matter."
+        "On the call we say which papers matter."
       ],
       [
         "Nothing by then?",
@@ -106,7 +118,7 @@
     "sentWhenDefault": "Same working day"
   },
   "how": {
-    "num": "01 — HOW IT WORKS",
+    "num": "02 — HOW IT WORKS",
     "h2": "From the first call",
     "h2g": "to the keys.",
     "steps": [
@@ -128,15 +140,15 @@
     ]
   },
   "pricing": {
-    "num": "02 — SERVICES & FEES",
+    "num": "03 — SERVICES & FEES",
     "h2": "Flat fees.",
     "h2g": "No percentage of your rent.",
-    "sub": "Optional, chosen in writing: you pay for the work, and only you pay. VAT included.",
+    "sub": "Optional, chosen in writing: only you pay, for the work.",
     "plans": [
       {
         "id": "full-search",
         "label": "Full Search",
-        "se": "Full Search · end to end",
+        "se": "Full Search",
         "name": "We search. You choose.",
         "includes": [
           "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
@@ -149,7 +161,10 @@
         "price": 500,
         "offerDescription": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search.",
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "prepares": [
+          "letter"
+        ]
       },
       {
         "id": "application-pack",
@@ -166,7 +181,10 @@
         "price": 199,
         "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "prepares": [
+          "letter"
+        ]
       },
       {
         "id": "attended-viewing",
@@ -184,10 +202,11 @@
         "price": 149,
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
         "condition": "per viewing · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
+        "prepares": []
       }
     ],
-    "note": "Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. Order, terms and invoice in Catalan or Spanish on request. No percentage of your rent. Nothing from landlords or platforms."
+    "note": "Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords or platforms."
   },
   "checkin": {
     "num": "Check-in · {n} of 3",
@@ -335,29 +354,41 @@
           "t": "Presentation letter in Spanish"
         }
       ],
-      "fixable": [
-        "letter",
-        "employer",
-        "reference"
-      ],
-      "resultAll": "All eight in hand. Full Search and the Application Pack put them in the Spanish format; Full Search also applies as listings appear.",
-      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the presentation letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
-      "skipped": "Tap the papers you hold above and we say what we would fix first.",
-      "eyebrow": "Your papers"
+      "eyebrow": "Your papers",
+      "fold": "Check your papers (optional)",
+      "some": "{have} of 8 in hand. Missing: {missing}.",
+      "ours": "{plan} prepares: {ours}.",
+      "all": "All eight in hand.",
+      "rest": "The rest we go through on the free call."
     },
     "result": {
       "eyebrow": "Your plan",
-      "change": "change"
+      "change": "change",
+      "suggest": "Your answers suggest {plan}",
+      "use": "use it"
     },
     "pass": {
-      "title": "Your boarding pass",
-      "name": {
-        "label": "Passenger (optional)",
-        "placeholder": "Anna K."
+      "titles": {
+        "plan": "BOOM · Your plan",
+        "issued": "BOOM · Boarding pass"
       },
-      "from": {
-        "label": "From (optional)",
-        "placeholder": "LON"
+      "status": {
+        "standby": "STANDBY",
+        "open": "OPEN",
+        "paid": "PAID"
+      },
+      "stub": {
+        "fare": "Fare",
+        "wa": "Or write on WhatsApp"
+      },
+      "boarding": {
+        "paidNow": "First open hour",
+        "paidWait": "From {date}"
+      },
+      "firstCall": {
+        "plan": "Your first call",
+        "fare": "Free",
+        "line": "Nothing is charged for the call."
       },
       "save": "Save image",
       "shareBtn": "Share",
@@ -371,7 +402,8 @@
         "price": "Price",
         "boarding": "Boarding",
         "file": "File",
-        "papers": "Papers"
+        "papers": "Papers",
+        "movein": "Move-in"
       }
     },
     "refusal": "Four weeks is tight. We say so in the first call.",
@@ -394,7 +426,7 @@
     }
   },
   "checks": {
-    "num": "03 — BEFORE YOU SIGN",
+    "num": "04 — BEFORE YOU SIGN",
     "h2": "Six things we check",
     "h2g": "before you sign.",
     "sub": "Six points we put in writing on every Barcelona contract.",
@@ -478,13 +510,21 @@
     ]
   },
   "faq": {
-    "num": "04 — QUESTIONS",
+    "num": "05 — QUESTIONS",
     "h2": "The questions",
     "h2g": "we get asked.",
     "items": [
       {
         "q": "Isn't it the landlord who pays the agent in Spain?",
         "a": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
+      },
+      {
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "How do I avoid a rental scam in Barcelona from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
       },
       {
         "q": "Which service is mine?",
@@ -497,10 +537,6 @@
       {
         "q": "Do I need to be in Barcelona?",
         "a": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón."
-      },
-      {
-        "q": "How do I avoid a rental scam in Barcelona from abroad?",
-        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
       },
       {
         "q": "What if you don't find anything?",
@@ -529,12 +565,7 @@
     {
       "key": "abroad",
       "label": "From abroad",
-      "text": "Yes. Live video at the viewing, a written report, the contract checked before you sign."
-    },
-    {
-      "key": "nothing",
-      "label": "If we say no",
-      "text": "Full Search is refunded in full if we decline the search in the first call."
+      "text": "Yes. Never pay for a home nobody on your side has seen: we attend, film it live, write it down."
     }
   ],
   "factsDerived": {
@@ -561,10 +592,9 @@
     ]
   },
   "door": {
-    "label": "Open my file",
-    "sub": "free · same-day reply",
-    "skip": "Rather write first? Open a file",
-    "stripSub": "free · same-day reply"
+    "label": "Start with a free call",
+    "sub": "no card · same-day reply",
+    "stripSub": "no card · same-day reply"
   },
   "checkout": true,
   "checkoutCopy": {
@@ -584,10 +614,6 @@
       "email": "A valid email — the invoice and your file go there.",
       "phone": "That number looks incomplete — could you check it?",
       "net": "Checkout hiccuped on our side — try again, or open a file and we'll send a payment link."
-    },
-    "offer": {
-      "lead": "Want the work to start?",
-      "sub": "Stripe · the desk writes within its first open hour"
     },
     "paid": {
       "before": "Paid — your file",
@@ -622,7 +648,8 @@
         ]
       ],
       "recourse": "Nothing by then? Write to {email}.",
-      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}."
+      "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
+      "pending": "Payment being confirmed. Your confirmation comes by email."
     }
   },
   "till": {
