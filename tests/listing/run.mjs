@@ -448,6 +448,12 @@ for (const id of ['A', 'B', 'C', 'D']) {
     count(/<body>/g) === 1 && count(/<\/head>/g) === 1 && count(/<\/html>/g) === 1,
     [count(/<body>/g), count(/<\/head>/g), count(/<\/html>/g)].join('/'));
   check('dollaro: risposta sotto 1,2× il template (niente template incollato)', h.length < tplLen * 1.2, h.length + ' vs ' + tplLen);
+  // 22/10/2026: un commento nella testa che nominava il tag del body ha
+  // portato il racconto per i crawler DENTRO un commento CSS. Il racconto
+  // va subito dopo il <body> vero, quello che segue </head>.
+  const nsAt = h.indexOf('<noscript><section'), headAt = h.indexOf('</head>'), bodyAt = h.indexOf('<body>', headAt);
+  check('il racconto noscript sta subito dopo il <body> vero, dopo </head>',
+    headAt > 0 && bodyAt > headAt && nsAt === bodyAt + '<body>\n'.length, [headAt, bodyAt, nsAt].join('/'));
   const titles = [...h.matchAll(/<title>([^<]*)<\/title>/g)].map((m) => m[1]);
   check('dollaro: un solo <title>, col nome letterale',
     titles.length === 1 && titles[0].startsWith("Loft $' Navona $&amp; $$ "), JSON.stringify(titles));

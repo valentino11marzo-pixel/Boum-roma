@@ -7893,6 +7893,14 @@ smontata leggendo il sorgente di WebKit.
   la regola arriva perché le pagine pubblicate portano il blocco
   (`scroll-sync`): dopo una ricostruzione da builder va rilanciato
   `node scripts/scroll-sync.mjs`, e `tests/cielo` lo pretende.
+- **Il commento che rompeva la scheda** (presa dalla CI prima del merge): la
+  prima versione del commento in `css/boom-scroll.css` nominava il tag del
+  body fra parentesi angolari, e quel blocco sta nella `<head>` di 68 pagine.
+  `api/listing.js` inseriva il racconto per i crawler sul PRIMO `<body>` del
+  testo: sulla scheda `/listing/<id>` sarebbe finito dentro il commento CSS.
+  Ora le due sorgenti del contratto non portano testo a forma di tag
+  (`tests/cielo`) e `api/listing.js` inserisce dopo il `<body>` che segue
+  `</head>` (`tests/listing` ne controlla la posizione; mutazioni prese).
 
 ## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
 

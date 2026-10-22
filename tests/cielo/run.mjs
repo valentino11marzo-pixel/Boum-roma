@@ -36,6 +36,16 @@ const block = scrollBlock(R);
 const files = markedFiles(R);
 const stale = files.filter((f) => { const s = fs.readFileSync(f, 'utf8'); const i = s.indexOf('<!-- BOOM_SCROLL:START -->'); const j = s.indexOf('<!-- BOOM_SCROLL:END -->'); return s.slice(i, j + '<!-- BOOM_SCROLL:END -->'.length) !== block; });
 check(files.length >= 60 && stale.length === 0, `le ${files.length} copie inline del contratto sono uguali alla sorgente${stale.length ? ' — vecchie: ' + stale.map((f) => path.relative(R, f)).join(', ') : ''} (node scripts/scroll-sync.mjs)`);
+// Il blocco vive nella <head> di 68 pagine, e chi legge l'HTML come testo
+// (api/listing.js inserisce il racconto per i crawler sul primo <body>, i
+// test contano i tag) non sa che sta dentro <style>. La prima versione del
+// commento sulla grana nominava il tag del body fra parentesi angolari, e
+// la scheda /listing/<id> metteva il racconto DENTRO il commento CSS. Le due
+// sorgenti non portano testo a forma di tag (la posizione del racconto la
+// controlla tests/listing).
+const tagLike = /<\/?[a-z!]/i;
+const jsSrc = fs.readFileSync(path.join(R, 'js/boom-scroll.js'), 'utf8');
+check(!tagLike.test(css) && !tagLike.test(jsSrc), `le sorgenti del contratto non contengono testo a forma di tag${tagLike.test(css) ? ' — css: «' + css.match(tagLike)[0] + '»' : ''}${tagLike.test(jsSrc) ? ' — js: «' + jsSrc.match(tagLike)[0] + '»' : ''}`);
 const { createRequire } = await import('node:module');
 const nb = createRequire(import.meta.url)(path.join(R, 'scripts/neighborhoods-build.js'));
 check(nb.SCROLL_BLOCK === block, 'il generatore dei quartieri stampa lo stesso blocco (letto dalla sorgente, non una copia a mano)');
