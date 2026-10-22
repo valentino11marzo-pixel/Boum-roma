@@ -2139,6 +2139,75 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   Test: `run.mjs` 558, `ui.mjs` 198 (script del desk che non carica → riga
   di ripiego; transaction_id opaco), `checkout.mjs` 65 (retry dopo un primo
   giro morto → avviso; mutazioni prese).
+- **IL LIVE DI BARCELLONA (22/10/2026 — «manda live anche Barcellona, con
+  possibilità di pagamento vero»).** Superato il punto «Barcellona resta bozza
+  finché non c'è il partner AICAT». **La decisione è del fondatore, presa
+  DOPO essere stato informato** (ricerca del 21/10 letta da riassunti di
+  ricerca, perché il proxy blocca BOE/DOGC — da confermare con un avvocato):
+  (1) in Catalogna chi presta in modo abituale e retribuito servizi di
+  mediazione, CONSULENZA o gestione negli affitti è agente immobiliare (Llei
+  18/2007 art. 55, Decret 12/2010) e va iscritto all'AICAT anche se opera da
+  un altro Stato UE; il numero va nella pubblicità — «apriremo Boom Srl,
+  società di servizi» non cambia l'attività, e oggi chi incassa è Egidi; (2)
+  la LAU art. 20 (Ley 12/2023, poi RDL 29/2026 in vigore dall'8/10, convalida
+  il 12/11) mette costi di gestione e formalizzazione sul locatore «ni directa
+  ni indirectamente»; in Catalogna il DL 1/2025 ne fa un'infrazione (per la
+  maggior parte delle analisi molto grave, €90.001–900.000); Consumo ha
+  multato Alquiler Seguro €3,6M. Tocca anche MADRID, già live. Il fondatore
+  ha scelto «Live con cassa ora». Cosa fa quindi la pagina: NESSUNA
+  affermazione d'iscrizione AICAT (non c'è un numero da stampare: il test lo
+  pretende); il servizio è detto **opzionale e scelto per iscritto** (la sola
+  via difendibile del testo RDL 29/2026) su pricing, Termini §12.1, la
+  domanda «Isn't it the landlord who pays…» (che dice la regola e
+  l'infrazione catalana invece di minimizzarle) e il controllo «Who pays the
+  agent · LAU art. 20»; **documenti in catalano o spagnolo su richiesta** e
+  **fulls oficials de reclamació su richiesta** (Codi de consum art. 128-1,
+  STC 88/2017; Decret 121/2013) su fact sheet, piede, nota prezzi, Termini
+  §12.6. **Da procurare**: i fulls oficials (Agència Catalana del Consum) e
+  una versione catalana di ordine, termini §12, modulo di recesso e fattura
+  pronta su richiesta; il parere scritto di un avvocato (Spagna, Catalogna).
+  - **I fatti della pagina** (stessa ricerca): tetto dell'affitto = l'ultimo
+    canone dei cinque anni e, per grandi proprietari o case non affittate da
+    cinque anni, l'índice de referencia (prima diceva entrambi per tutti);
+    contratti temporanei per lavoro o studio con causa scritta e provata e
+    tetto, altrimenti abituali (Llei 11/2025, art. 66 bis Llei 18/2007 —
+    prima «temporada leases do not protect you»: falso dal 1/1/2026); fianza
+    depositata dal locatore all'INCASÒL (Llei 13/1996), si chiede la
+    ricevuta; padrón: contratto con indirizzo completo, riferimento catastale
+    e due firme. Le stesse frasi in `llms.txt`.
+  - **I festivi del recesso** (`api/stripe-webhook.js` HOLIDAYS `es-bcn`,
+    `CITY_MARKETS.barcelona.holidays`; `country` resta `es` perché legge
+    anche il +34 del telefono): calendario catalano del DOGC (Ordre
+    EMT/66/2025 per il 2026, EMT/52/2026 per il 2027 — Sant Joan, Diada,
+    Sant Esteve, Venerdì Santo, Pasquetta, NIENTE Giovedì Santo) più i due
+    festivi di Barcellona (Pasqua Granada = Pasqua+50, La Mercè 24/9), e il
+    25/9 ogni anno (il Comune sposta La Mercè al lunedì quando il 24 è
+    domenica: 2023, 2028 — un giorno in più allunga solo il diritto). I due
+    festivi locali li decide il sindaco a giugno: si ricontrollano ogni anno.
+    Il webhook passa `cityDesk.holidays || cityDesk.country`.
+  - **Le decisioni del fondatore sulle tre città che vendono**: la prima
+    chiamata è gratuita, senza durata promessa («A free call» al posto di «A
+    20-minute call», anche nell'email del pagante); il Full Search dura
+    «finché firmi o lo fermi» («Until you sign, or you say stop» sul piatto,
+    `CITY_PLANS` desc, Termini §12.2, FAQ «What if you don't find
+    anything?», llms.txt).
+  - **Le card social erano false** (trovato rigenerando Barcellona): il
+    generatore `design/pages-deco/genera-og-cities.py` leggeva chiavi v1.2
+    sparite (`machine`, `hero.h1Em`) e non girava più, quindi
+    `og-amsterdam.png` e `og-madrid.png` in produzione dicevano ancora
+    «dossier 24h · apply <1h», promesse tolte dalle pagine il 21/10. Ora la
+    riga di prova è fissa e vera, la frase gialla è la prima frase del lead
+    della pagina; rigenerate tutte e cinque.
+  - Barcellona entra in sitemap (lastmod 2026-10-22, = `updated`), nel piede
+    «Company & Markets» di sei pagine, nella colonna desk di Amsterdam e
+    Madrid, in `Organization.areaServed`, Termini §12 (titolo, 12.1, 12.5
+    «Paris and Berlin are not open»), privacy, `/withdrawal` (opzione
+    Barcelona), llms.txt. Parigi e Berlino restano bozze `noindex` e sono ora
+    le città dei test «waitlist». `tests/tenant-fee` non fissa più la data
+    dei Termini: pretende che non preceda il 15/10 (la regola §4.1).
+  Test: `run.mjs` 574, `checkout.mjs` 72 (es-bcn: Sant Joan, Diada, La
+  Mercè, Pasqua Granada, niente Giovedì Santo; un ordine pagato a Barcellona
+  attraverso il webhook vero), `ui.mjs` 199.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

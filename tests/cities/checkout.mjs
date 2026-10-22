@@ -110,7 +110,9 @@ const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 // ── 1 · the offer resolver: what may be sold, and why not ──────────────────
 check(cityOffer('amsterdam', 'full-search').ok === true && cityOffer('amsterdam', 'full-search').eur === 500 && cityOffer('Madrid', 'attended-viewing').eur === 149,
   'cityOffer: a search desk with the till open sells its plans at CITY_PLANS prices (city key case-insensitive)');
-check(['barcelona', 'paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed'), 'cityOffer: every waitlist desk is checkout_closed — shown is not charged');
+check(['paris', 'berlin'].every((c) => cityOffer(c, 'full-search').error === 'checkout_closed'), 'cityOffer: every waitlist desk is checkout_closed — shown is not charged');
+check(cityOffer('barcelona', 'full-search').ok === true && cityOffer('barcelona', 'full-search').eur === 500 && cityOffer('barcelona', 'attended-viewing').eur === 149,
+  'cityOffer: Barcelona sells from 22/10 at the CITY_PLANS prices');
 check(cityOffer('rome', 'full-search').error === 'unknown_city' && cityOffer('amsterdam', 'concierge').error === 'unknown_service', 'cityOffer: unknown city, unknown plan');
 check(Object.keys(CITY_PLANS).join() === 'full-search,application-pack,attended-viewing' && CITY_PLANS['full-search'].eur === 500 && CITY_PLANS['application-pack'].eur === 199 && CITY_PLANS['attended-viewing'].eur === 149,
   'CITY_PLANS is the brief\'s grid: 500 / 199 / 149');
@@ -128,8 +130,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const r = await post(checkout, { city: 'berlin', kind: 'full-search', ...ANNA });
   check(r.code === 400 && r.body.error === 'checkout_closed' && globalThis.__stripeCalls.length === before, 'berlin (waitlist): 400 checkout_closed, no Stripe session — a hand-made POST cannot buy a desk that is not open');
   const r2 = await post(checkout, { city: 'paris', kind: 'application-pack', ...ANNA });
-  const r3 = await post(checkout, { city: 'barcelona', kind: 'attended-viewing', ...ANNA });
-  check(r2.body.error === 'checkout_closed' && r3.body.error === 'checkout_closed' && globalThis.__stripeCalls.length === before, 'paris and barcelona: the same refusal');
+  check(r2.body.error === 'checkout_closed' && globalThis.__stripeCalls.length === before, 'paris: the same refusal');
   const r4 = await post(checkout, { city: 'rome', kind: 'full-search', ...ANNA });
   const r5 = await post(checkout, { city: 'amsterdam', kind: 'virtual-viewing', ...ANNA });
   check(r4.code === 400 && r4.body.error === 'unknown_city' && r5.code === 400 && r5.body.error === 'unknown_service' && globalThis.__stripeCalls.length === before,
@@ -158,6 +159,12 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const c2 = globalThis.__stripeCalls.at(-1);
   check(r2.code === 200 && c2.line_items[0].price_data.unit_amount === 14900 && c2.phone_number_collection === undefined && c2.metadata.phone === '+34 600 000 000' && c2.success_url.startsWith('https://www.boomrome.com/madrid?paid=attended-viewing'),
     'madrid Attended Viewing: €149, the phone given travels in the metadata, Stripe does not ask again');
+  const r3 = await post(checkout, { city: 'barcelona', kind: 'full-search', ...ANNA });
+  const c3 = globalThis.__stripeCalls.at(-1);
+  check(r3.code === 200 && c3.line_items[0].price_data.unit_amount === 50000 && c3.metadata.city === 'barcelona' && c3.metadata.start_now === '0'
+    && c3.success_url === 'https://www.boomrome.com/barcelona?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}#contact' && c3.cancel_url === 'https://www.boomrome.com/barcelona#services',
+    'barcelona (live from 22/10): Full Search €500 opens a Stripe session that comes back to /barcelona', JSON.stringify(c3 && { s: c3.success_url, m: c3.metadata }));
+  check(/until you sign or tell us to stop/.test(c3.line_items[0].price_data.product_data.description || ''), 'the Full Search product says how long the search runs (the founder, 22/10): until you sign or tell us to stop');
 }
 // the Rome services are untouched
 {
@@ -242,6 +249,14 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const lead12 = store.get('leads/svc_cs_city_mad_hol') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
   check(lead12 && lead12.city && lead12.city.withdrawalEndsOn === '2026-10-13' && lead12.city.workFrom === '2026-10-14',
     'a Madrid order: the desk country\'s holiday (12 October) moves the end of the period — the webhook passes the desk\'s country', lead12 && JSON.stringify(lead12.city));
+  // and Barcelona reads its OWN calendar, not Madrid's: paid on 10 September
+  // 2026, +14 = Thursday 24 September, La Mercè (a working day in Madrid)
+  const evB = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Marta Puig', email: 'marta@example.com' }, { id: 'cs_city_bcn_hol' });
+  evB.data.object.metadata.start_now = '0'; evB.created = Date.UTC(2026, 8, 10, 10, 0, 0) / 1000;
+  await webhook(stream(evB), mkRes());
+  const leadB = store.get('leads/svc_cs_city_bcn_hol') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  check(leadB && leadB.market === 'barcelona' && leadB.city && leadB.city.withdrawalEndsOn === '2026-09-28' && leadB.city.workFrom === '2026-09-29' && /^BARCELONA — paid order · Full Search · €500 paid/.test(leadB.message),
+    'a Barcelona order: the webhook passes the desk\'s holiday key (es-bcn) — La Mercè moves the end of the period, which the Madrid calendar would not', leadB && JSON.stringify([leadB.message, leadB.city]));
   // the Rome Pacchetto: the same form, in Italian
   const eIt = emails.length;
   await webhook(stream(event({ service: 'SERVICE', kind: 'concordato-pack', name: 'Giulia Rossi', email: 'giulia@example.com', phone: '+393331234567', notes: '', amount_eur: '349', start_now: '0' }, { id: 'cs_pack_it', amount_total: 34900 })), mkRes());
@@ -330,6 +345,23 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   check(w('2026-09-28T10:00:00Z', 'es').lastDay === '2026-10-13' && w('2026-09-28T10:00:00Z').lastDay === '2026-10-12',
     'withdrawalWindow (es): +14 = Mon 12 Oct, Fiesta Nacional in Madrid → Tue 13; the Italian calendar alone keeps 12 Oct',
     JSON.stringify([w('2026-09-28T10:00:00Z', 'es'), w('2026-09-28T10:00:00Z')]));
+  // Barcelona: Catalonia's DOGC calendar plus the city's two local days
+  // (Pasqua Granada, La Mercè) — never Madrid's. Each case is a weekday the
+  // Madrid calendar does not know, or one it knows and Barcelona does not.
+  const bcn = [
+    ['2026-09-10T10:00:00Z', '2026-09-28', '2026-09-29', 'La Mercè (Thu 24 Sep 2026), then the 25th — listed every year because the city moves La Mercè to Monday the 25th when the 24th is a Sunday (2023, 2028): an extra day only lengthens the right → Mon 28'],
+    ['2026-08-28T10:00:00Z', '2026-09-14', '2026-09-15', 'the Diada (Fri 11 Sep 2026) → Mon 14'],
+    ['2026-06-10T10:00:00Z', '2026-06-25', '2026-06-26', 'Sant Joan (Wed 24 Jun 2026) → Thu 25'],
+    ['2026-05-11T10:00:00Z', '2026-05-26', '2026-05-27', 'Pasqua Granada (Mon 25 May 2026) → Tue 26'],
+    ['2027-05-03T10:00:00Z', '2027-05-18', '2027-05-19', 'Pasqua Granada (Mon 17 May 2027) → Tue 18'],
+    ['2027-03-11T10:00:00Z', '2027-03-25', '2027-03-30', 'Thu 25 Mar 2027 is a working day in Catalonia (no Dijous Sant), then Good Friday and Easter Monday'],
+  ];
+  check(bcn.every(([at, last, start]) => w(at, 'es-bcn').lastDay === last && w(at, 'es-bcn').startDay === start),
+    'withdrawalWindow (es-bcn): Sant Joan, the Diada, La Mercè, Pasqua Granada — and no Jueves Santo', JSON.stringify(bcn.map(([at]) => [at, w(at, 'es-bcn').lastDay, w(at, 'es-bcn').startDay])));
+  check(w('2026-09-10T10:00:00Z', 'es').lastDay === '2026-09-24' && w('2027-03-11T10:00:00Z', 'es').lastDay === '2027-03-30',
+    'the Madrid calendar is a different one: it keeps La Mercè a working day and has Jueves Santo — the reason Barcelona has its own key');
+  check(CITY_MARKETS.barcelona.holidays === 'es-bcn' && CITY_MARKETS.barcelona.country === 'es' && CITY_MARKETS.madrid.holidays === undefined,
+    'CITY_MARKETS: Barcelona reads the es-bcn calendar; its country stays es (the +34 phone reading)');
   // 4 Oct 2026 is a Sunday anyway: only 2027, a Monday, proves the San Francesco holiday
   check(w('2027-09-20T10:00:00Z').lastDay === '2027-10-05' && w('2027-09-20T10:00:00Z').startDay === '2027-10-06',
     'withdrawalWindow (it): +14 = Mon 4 Oct 2027 (San Francesco, a national holiday again from 2026) → Tue 5 Oct',

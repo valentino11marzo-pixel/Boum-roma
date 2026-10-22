@@ -334,10 +334,10 @@ const SERVICE_META = {
 const CITY_SERVICE_META = {
   'full-search': {
     emoji: '🧭',
-    next1: ['Your brief call', "Booked in the desk's first open hour — 20 minutes, your dates, budget and situation"],
+    next1: ['Your brief call', "Booked in the desk's first open hour — a free call: your dates, budget and situation"],
     next2: ['Dossier in one working day', 'From your papers — local format: income, employer, ID, references, cover letter'],
     next3: ['Applications as listings appear', 'From the first listing that fits — you see every one'],
-    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign'],
+    next4: ['A BOOM person at the viewing', 'Live video + written report, contract checked before you sign — the search runs until you sign or tell us to stop'],
   },
   'application-pack': {
     emoji: '📁',
@@ -408,7 +408,21 @@ const HOLIDAYS = {
   nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
   // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
   // La Almudena); Jueves and Viernes Santo
-  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] }
+  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
+  // the Barcelona desk: Catalonia's labour calendar (DOGC: Ordre EMT/66/2025
+  // for 2026, EMT/52/2026 for 2027 — Cap d'Any, Reis, Treball, Sant Joan,
+  // Assumpció, Diada, Festa Nacional, Tots Sants, Constitució, Immaculada,
+  // Nadal, Sant Esteve; Divendres Sant and Dilluns de Pasqua Florida, NO
+  // Dijous Sant) plus the city of Barcelona's two local days (Pasqua
+  // Granada = Easter+50, La Mercè 24 Sept). Catalonia drops whichever of
+  // 15/8, 1/11, 6/12, 26/12 fall on a Sunday: listing all four is exact
+  // for 2026-2027 and only ever ADDS a day. 25 Sept is listed too: the city
+  // moved La Mercè to Monday the 25th when the 24th was a Sunday (2023;
+  // next in 2028) — an extra day only lengthens the payer's right, a
+  // missing one would shorten it. The two local days are set each June by
+  // mayoral decree: re-check yearly. Keyed apart from `country`, which
+  // also drives the +34 phone reading in api/_market.js.
+  'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '09-25', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50] }
 };
 export function isDeskHoliday(date, country) {
   const y = date.getUTCFullYear();
@@ -472,7 +486,7 @@ async function handleService(res, session, m, event = null) {
   const cityStart = cityDesk && (m.start_now === '1' || m.start_now === '0') ? m.start_now : null;
   // the contract is concluded when the payment completes: the event's own
   // time (a retry carries the same one), never the session's opening
-  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.country || null) : null;
+  const win = cityStart === '0' ? withdrawalWindow((event && event.created) || Math.floor(Date.now() / 1000), cityDesk.holidays || cityDesk.country || null) : null;
   // the start choice goes FIRST in the summary: the Telegram card shows the
   // first 240 characters, and a pasted listing URL must not push it out
   const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'

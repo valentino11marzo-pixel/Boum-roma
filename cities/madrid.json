@@ -112,7 +112,7 @@
     "steps": [
       {
         "k": "1 · Brief",
-        "v": "A 20-minute call",
+        "v": "A free call",
         "s": "Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Spanish landlord. We tell you what your budget buys today."
       },
       {
@@ -131,7 +131,7 @@
     "num": "02 — SERVICES & FEES",
     "h2": "Flat fees.",
     "h2g": "No percentage of your rent.",
-    "sub": "You pay for the work, and only you pay. VAT included.",
+    "sub": "Optional, chosen in writing: you pay for the work, and only you pay. VAT included.",
     "plans": [
       {
         "id": "full-search",
@@ -139,14 +139,15 @@
         "se": "Full Search · end to end",
         "name": "We search. You choose.",
         "includes": [
-          "Search every working day: Idealista, Fotocasa, agencies",
+          "Working-day search: Idealista, Fotocasa, agencies",
           "Applications as listings appear",
-          "One attended viewing included, live video + report (more: €149 each)",
-          "Rent negotiated, contract checked, padrón supported"
+          "One attended viewing included (more: €149 each)",
+          "Rent negotiated, contract checked, padrón supported",
+          "Until you sign, or you say stop"
         ],
         "price": 500,
         "featured": true,
-        "offerDescription": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search.",
         "condition": "flat · incl. VAT",
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
       },
@@ -503,7 +504,7 @@
       },
       {
         "q": "What if you don't find anything?",
-        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take the search on, the fee pays for the work, not for a result: nobody can promise a home."
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
       },
       {
         "q": "How do I pay?",
@@ -628,5 +629,5 @@
     "label": "Pay and start",
     "labelWait": "Pay and book"
   },
-  "updated": "2026-10-21"
+  "updated": "2026-10-22"
 }

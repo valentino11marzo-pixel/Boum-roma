@@ -94,9 +94,9 @@ check(html.includes(GENERATED_MARK), 'amsterdam: carries the GENERATED mark (the
 check(ams.live === true && !/noindex/.test(html.slice(0, 4000)) && /content="index, follow/.test(html.slice(0, 4000)),
   'amsterdam is LIVE (20/10): no noindex, index, follow in the head');
 {
-  const draft = pages.find((p) => p.slug === 'barcelona');
-  check(draft && JSON.parse(read('cities/barcelona.json')).live === false && /<meta name="robots" content="noindex">/.test(draft.html.slice(0, 4000)),
-    'a draft desk (barcelona, live:false) says noindex in the first 4000 chars (tests/seo rule 8 reads exactly there)');
+  const draft = pages.find((p) => p.slug === 'paris');
+  check(draft && JSON.parse(read('cities/paris.json')).live === false && /<meta name="robots" content="noindex">/.test(draft.html.slice(0, 4000)),
+    'a draft desk (paris, live:false) says noindex in the first 4000 chars (tests/seo rule 8 reads exactly there)');
 }
 const canon = (html.match(/<link rel="canonical" href="([^"]+)"/) || [])[1];
 check(canon === `${shared.siteUrl}/amsterdam`, `canonical comes from siteUrl: ${canon}`);
@@ -259,7 +259,7 @@ check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 
 // the privacy policy names the processors the lead passes through
 {
   const pv = read('privacy.html');
-  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Madrid\)/.test(pv),
+  check(!/AWS|SendGrid/.test(pv) && /Firebase/.test(pv) && /Vercel/.test(pv) && /Telegram/.test(pv) && /Anthropic/.test(pv) && /EmailJS/.test(pv) && /City desks \(Amsterdam, Barcelona, Madrid\)/.test(pv),
     'the privacy policy names the real processors (no AWS or SendGrid it never used) and what a city request is used for');
   check(!/a person reviews before anything is sent/.test(pv) && /hands to our AI assistant, it can reply to you/.test(pv) && /do not finish it, we may write to you once/.test(pv) && !/Show relevant ads/.test(pv) && /except the records the law requires us to keep/.test(pv),
     'privacy says what the machine does: the AI assistant can reply on handed-over chats, an unfinished payment gets one message, no ad cookies, erasure keeps what the law requires');
@@ -415,7 +415,7 @@ check(crumbs['@id'] === `${shared.siteUrl}/amsterdam#breadcrumb` && wp.breadcrum
 {
   const liveCities = fs.readdirSync(path.join(R, 'cities')).filter((f) => /^[a-z-]+\.json$/.test(f) && !f.startsWith('_')).sort()
     .map((f) => JSON.parse(read('cities/' + f))).filter((c) => c.live === true).map((c) => c.city);
-  check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome', ...liveCities]) && liveCities.includes('Amsterdam') && liveCities.includes('Madrid') && !liveCities.includes('Barcelona'),
+  check(JSON.stringify(org.areaServed) === JSON.stringify(['Rome', ...liveCities]) && liveCities.includes('Amsterdam') && liveCities.includes('Madrid') && liveCities.includes('Barcelona') && !liveCities.includes('Paris') && !liveCities.includes('Berlin'),
     `Organization.areaServed is derived: Rome and the LIVE desks only (${['Rome', ...liveCities].join(', ')})`);
 }
 {
@@ -488,9 +488,9 @@ const bcn = JSON.parse(read('cities/barcelona.json'));
 const par = JSON.parse(read('cities/paris.json'));
 const ber = JSON.parse(read('cities/berlin.json'));
 {
-  const wlHtml = render(bcn).html;
+  const wlHtml = render(par).html;
   check(wlHtml.includes('"CHECKOUT": false') && !wlHtml.includes('id="ov"') && wlHtml.includes('data-plan-price="full-search">€500</span>'), 'a waitlist city carries its list prices like every desk — and no till');
-  const wlTill = clone(bcn); wlTill.checkout = true;
+  const wlTill = clone(par); wlTill.checkout = true;
   check(throws(() => render(wlTill), /a waitlist city cannot open a checkout/) === true, 'a waitlist city with checkout:true is refused: shown is not charged');
   const noCopy = clone(ams); delete noCopy.checkoutCopy;
   check(throws(() => render(noCopy), /needs "checkoutCopy"/) === true, 'checkout:true without the sheet\'s copy is refused');
@@ -500,7 +500,7 @@ const ber = JSON.parse(read('cities/berlin.json'));
   check(throws(() => render(pricedTill), /needs till\.label/) === true, 'a till label carrying a number is refused: the price is printed beside the label, from the plan');
   const pricedDoor = clone(ams); pricedDoor.door.sub = 'free · 1 reply';
   check(throws(() => render(pricedDoor), /never carry a price/) === true, 'the door label and its sub never carry a number');
-  const tillOnWl = clone(bcn); tillOnWl.till = { label: 'Pay and start' };
+  const tillOnWl = clone(par); tillOnWl.till = { label: 'Pay and start' };
   check(throws(() => render(tillOnWl), /till\.label belongs only to a desk with the checkout open/) === true, 'till.label on a waitlist desk is refused');
   const twoFeatured = clone(ams); twoFeatured.pricing.plans[1].featured = true;
   check(throws(() => render(twoFeatured), /at most one plan is featured/) === true, 'two featured plans are refused');
@@ -550,7 +550,7 @@ const ber = JSON.parse(read('cities/berlin.json'));
   check(throws(() => render(noVat), /must say VAT/) === true, 'a short condition that does not say VAT is refused: the total price is the price');
   const sellOpening = clone(ams); sellOpening.pricing.plans[0].condition = 'flat · incl. VAT · at opening';
   check(throws(() => render(sellOpening), /never "at opening"/) === true, 'a sell desk\'s condition cannot say "at opening"');
-  const wlNoWhen = clone(bcn); wlNoWhen.pricing.plans[0].condition = 'flat · incl. VAT';
+  const wlNoWhen = clone(par); wlNoWhen.pricing.plans[0].condition = 'flat · incl. VAT';
   check(throws(() => render(wlNoWhen), /says when it is charged/) === true, 'a waitlist plan must say when it is charged, in both strings');
   const berNoSign = clone(ber); berNoSign.pricing.plans[0].condition = 'flat · incl. VAT · at opening'; berNoSign.pricing.plans[0].conditionLong = 'List price. Charged only when the desk opens.';
   check(throws(() => render(berNoSign), /berlin: Full Search is due only once a lease is signed/) === true, 'berlin: Full Search without "sign" in its conditions is refused (WoVermRG §2–§3)');
@@ -594,9 +594,9 @@ const ber = JSON.parse(read('cities/berlin.json'));
     const c = clone(ams); mut(c);
     check(throws(() => render(c), re) === true, `refused: ${name}`);
   }
-  const wlLead = clone(bcn); wlLead.hero.lead = 'Found by someone on your side.';
+  const wlLead = clone(par); wlLead.hero.lead = 'Found by someone on your side.';
   check(throws(() => render(wlLead), /a waitlist desk's lead opens with "Opening with"/) === true, 'a waitlist desk whose lead does not open with "Opening with" is refused: the first line says what exists today');
-  const wlNote = clone(bcn); wlNote.form.service.priceNote = 'List prices, charged only when the desk opens.';
+  const wlNote = clone(par); wlNote.form.service.priceNote = 'List prices, charged only when the desk opens.';
   check(throws(() => render(wlNote), /Each plan says when it is charged/) === true, 'a waitlist price note that states one condition for every plan is refused (Berlin\'s Full Search differs)');
   // the weight gate
   const heavy = template.replace('</body>', `<p hidden>${crypto.randomBytes(120000).toString('hex')}</p></body>`);
@@ -803,14 +803,14 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
     'the Segretaria refuses a city or Réunion lead at the hand-over, at the opening, and inside a turn before it does anything');
 }
 
-// ── 10 · the sisters: Madrid (search) and Barcelona, Paris, Berlin (waitlist) ──
+// ── 10 · the sisters: Madrid and Barcelona (search), Paris, Berlin (waitlist) ──
 const pageOf = (slug) => (pages.find((p) => p.slug === slug) || {}).html || '';
 const visibleOf = (h) => h.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ');
 const ldOf = (h) => [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1]));
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
-check(mad.mode === 'search' && bcn.mode === 'waitlist' && par.mode === 'waitlist' && ber.mode === 'waitlist'
-  && ams.live === true && mad.live === true && [bcn, par, ber].every((c) => c.live === false),
-  'madrid is a search desk, barcelona, paris and berlin waitlist desks; amsterdam and madrid live (20/10), the three waitlist desks drafts until their partners exist');
+check(mad.mode === 'search' && bcn.mode === 'search' && bcn.checkout === true && par.mode === 'waitlist' && ber.mode === 'waitlist'
+  && ams.live === true && mad.live === true && bcn.live === true && [par, ber].every((c) => c.live === false),
+  'madrid and barcelona are search desks with the till (barcelona from 22/10), paris and berlin waitlist desks; amsterdam, madrid and barcelona live, the two waitlist desks drafts until their partners exist');
 for (const [c, word, cells] of [[mad, 'MADRID', 6], [bcn, 'BARCELONA', 9], [par, 'PARIS', 5], [ber, 'BERLIN', 6]]) {
   const h = pageOf(c.slug);
   const v = visibleOf(h);
@@ -851,13 +851,28 @@ for (const c of [ams, mad, bcn, par, ber]) {
     `${c.slug}: the config carries the one label, the till label and the refund rule only where money is taken, the desk block, and each plan's two conditions`);
 }
 {
+  // Barcelona, live with the till from 22/10 (the founder's decision): the
+  // Catalan rules the page names, the service said to be optional and chosen
+  // in writing (LAU art. 20 as rewritten by RDL 29/2026), Catalan documents on
+  // request (Codi de consum art. 128-1), and no AICAT claim the desk cannot
+  // back with a number.
+  const h = pageOf('barcelona'); const v = visibleOf(h);
+  const svcB = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
+  check((svcB.offers || []).map((o) => o.price).join() === '500,199,149' && svcB.areaServed.name === 'Barcelona' && svcB.offers.every((o) => o.availability === 'https://schema.org/InStock'), 'barcelona: the Service carries its three Offers InStock, areaServed Barcelona');
+  check(v.includes('You hire us; we do not act for the landlord.') && bcn.facts[0].text === 'You hire us; we do not act for the landlord.', 'barcelona: the brief\'s must-state sentence, verbatim, as the "paid by" fact');
+  check(/índice de referencia/.test(v) && /INCASÒL/.test(v) && /Llei 11\/2025/.test(v) && /padrón/.test(v) && /LAU art\. 20/.test(v), 'barcelona: the rent cap, the INCASÒL deposit, Llei 11/2025 on temporary leases, the padrón and LAU art. 20 are on the page');
+  check(/optional/i.test(v) && /in writing/i.test(v) && /Catalan or Spanish/.test(v) && /fulls oficials de reclamació/.test(h), 'barcelona: the service is said to be optional and chosen in writing; Catalan documents and the official complaint forms on request');
+  check(!/AICAT/.test(v) && !/registered (local )?partner|desk opens|at opening|Opening with/i.test(v), 'barcelona: no AICAT claim and no waitlist sentence left on the live page');
+  check(!/temporada' leases, which do not protect you|capped by the reference index and the previous rent/.test(v), 'barcelona: the two sentences the 21/10 legal check found outdated are gone');
+}
+{
   const h = pageOf('madrid'); const v = visibleOf(h);
   const svcM = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
   check((svcM.offers || []).map((o) => o.price).join() === '500,199,149' && svcM.areaServed.name === 'Madrid' && svcM.offers.every((o) => o.availability === 'https://schema.org/InStock'), 'madrid: the Service carries its three Offers InStock, areaServed Madrid');
   check(v.includes('You hire us; we do not act for the landlord.') && mad.facts[0].text === 'You hire us; we do not act for the landlord.', 'madrid: the brief\'s must-state sentence, verbatim, as the "paid by" fact');
   check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are on the page');
 }
-for (const c of [ams, mad]) {
+for (const c of [ams, mad, bcn]) {
   const h = pageOf(c.slug);
   check(c.checkout === true && h.includes('"CHECKOUT": true') && h.includes('"CHECKOUT_ENDPOINT": "/api/service-checkout"') && h.includes(`"FEATURED": "${c.pricing.plans.find((p) => p.featured).id}"`), `${c.slug}: the config opens the till and names the featured plan`);
   const rows = [...h.matchAll(/<label class="payrow"><input type="radio" name="payplan" value="([^"]+)" data-eur="(\d+)" data-label="([^"]+)">/g)].map((m) => [m[1], m[2], m[3]]);
@@ -888,7 +903,6 @@ for (const c of [ams, mad]) {
   check(strip && !/€|\d/.test(visibleOf(strip)) && h.includes(`<a class="go" href="#contact" id="stripGo">${esc(c.door.label)}</a>`), `${c.slug}: the phone's strip carries no price and reads the one label`);
 }
 for (const [c, mustState, facts, factsLabel] of [
-  [bcn, 'Launching with a registered local partner.', [/AICAT/, /índice de referencia/, /fianza/, /padrón/], 'AICAT, the índice de referencia, fianza and padrón'],
   [par, 'Launching with a licensed partner.', [/carte professionnelle/, /loi Hoguet/, /encadrement des loyers/, /Visale/, /justificatif de domicile/], 'carte professionnelle, loi Hoguet, the encadrement des loyers, Visale and the justificatif de domicile'],
   [ber, 'Launching with a licensed partner.', [/§\s?34c GewO/, /Mietpreisbremse/, /Bestellerprinzip/, /Kaution/, /Anmeldung/, /SCHUFA/], '§34c GewO, the Mietpreisbremse, the Bestellerprinzip, Kaution, Anmeldung and SCHUFA'],
 ]) {
@@ -906,27 +920,31 @@ for (const [c, mustState, facts, factsLabel] of [
 }
 check(/sign/i.test(ber.pricing.plans[0].condition) && /once you sign a lease/.test(ber.pricing.plans[0].conditionLong) && /once you sign/.test(ber.facts[0].text) && /once you sign/.test(ber.facts[2].text),
   'berlin: Full Search is due only once you sign — the WoVermRG rule — on the plan\'s two conditions and on two of the three facts');
-check(/ List prices\. Full Search due only once you sign a lease; the other plans charged only when the desk opens\.$/.test(checkinAnswer(ber)) && / List prices, charged only when the desk opens\.$/.test(checkinAnswer(bcn)) && !/List prices/.test(checkinAnswer(ams)),
-  'the derived FAQ answer carries each desk\'s truth: Berlin per plan, Barcelona at opening, Amsterdam nothing of the kind');
+check(/ List prices\. Full Search due only once you sign a lease; the other plans charged only when the desk opens\.$/.test(checkinAnswer(ber)) && / List prices, charged only when the desk opens\.$/.test(checkinAnswer(par)) && !/List prices/.test(checkinAnswer(ams)) && !/List prices/.test(checkinAnswer(bcn)),
+  'the derived FAQ answer carries each desk\'s truth: Berlin per plan, Paris at opening, Amsterdam and Barcelona nothing of the kind');
 {
-  const stripe = clone(bcn); stripe.bref.rows[0].ddHtml = '<a href="https://buy.stripe.com/x">pay</a>';
+  const stripe = clone(par); stripe.bref.rows[0].ddHtml = '<a href="https://buy.stripe.com/x">pay</a>';
   check(throws(() => render(stripe), /no Stripe reference/) === true, 'a waitlist city with a Stripe link is refused');
-  const noPriceW = clone(bcn); delete noPriceW.pricing.plans[0].price;
+  const noPriceW = clone(par); delete noPriceW.pricing.plans[0].price;
   check(throws(() => render(noPriceW), /needs a positive price/) === true, 'a waitlist plan without its list price is refused like any other');
-  const flipped = clone(bcn); flipped.mode = 'search'; flipped.hero.lead = 'Found by someone on your side.'; flipped.pricing.plans.forEach((p) => { p.condition = 'flat · incl. VAT'; p.conditionLong = 'VAT included.'; }); delete flipped.form.service.priceNote;
+  const flipped = clone(par); flipped.mode = 'search'; flipped.hero.lead = 'Found by someone on your side.'; flipped.pricing.plans.forEach((p) => { p.condition = 'flat · incl. VAT'; p.conditionLong = 'VAT included.'; }); delete flipped.form.service.priceNote;
   const fh = render(flipped).html;
-  check(fh.includes('"CHECKOUT": false') && !/<dialog/.test(fh) && fh.includes('data-plan-price="full-search">€500</span>'), 'flipping Barcelona to "search" keeps its prices and opens no till by itself');
+  check(fh.includes('"CHECKOUT": false') && !/<dialog/.test(fh) && fh.includes('data-plan-price="full-search">€500</span>'), 'flipping Paris to "search" keeps its prices and opens no till by itself');
 }
 // the family: derived, and a live page never links a draft
 {
-  const A = { slug: 'amsterdam', city: 'Amsterdam', live: true }, B = { slug: 'barcelona', city: 'Barcelona', live: false }, M = { slug: 'madrid', city: 'Madrid', live: true };
-  const all = [M, B, A];
+  const A = { slug: 'amsterdam', city: 'Amsterdam', live: true }, P = { slug: 'paris', city: 'Paris', live: false }, M = { slug: 'madrid', city: 'Madrid', live: true };
+  const all = [M, P, A];
   const hrefs = (c) => familyFor(c, all, shared).map((f) => f.href);
   check(JSON.stringify(hrefs(A)) === JSON.stringify(['/madrid', '/']), 'a LIVE page links only its live sisters (alphabetical), then BOOM Rome');
-  check(JSON.stringify(hrefs(B)) === JSON.stringify(['/amsterdam', '/madrid', '/']), 'a DRAFT page links every sister: the review needs to see the suite');
+  check(JSON.stringify(hrefs(P)) === JSON.stringify(['/amsterdam', '/madrid', '/']), 'a DRAFT page links every sister: the review needs to see the suite');
   check(!hrefs(M).includes('/madrid') && !hrefs(A).includes('/amsterdam'), 'a page is never in its own list');
-  const col = slice(pageOf('barcelona'), `<h4 class="footer-links-title">${esc(shared.desksLabel)}</h4>`, '</ul>');
-  check(/\/amsterdam">Amsterdam[\s\S]*\/berlin">Berlin[\s\S]*\/madrid">Madrid[\s\S]*\/paris">Paris[\s\S]*href="\/">BOOM Rome/.test(col) && !/\/barcelona"/.test(col), 'barcelona (draft): the footer column reads Amsterdam · Berlin · Madrid · Paris · BOOM Rome');
+  const col = slice(pageOf('paris'), `<h4 class="footer-links-title">${esc(shared.desksLabel)}</h4>`, '</ul>');
+  check(/\/amsterdam">Amsterdam[\s\S]*\/barcelona">Barcelona[\s\S]*\/berlin">Berlin[\s\S]*\/madrid">Madrid[\s\S]*href="\/">BOOM Rome/.test(col) && !/\/paris"/.test(col), 'paris (draft): the footer column reads Amsterdam · Barcelona · Berlin · Madrid · BOOM Rome');
+  for (const [slug, others] of [['amsterdam', ['barcelona', 'madrid']], ['barcelona', ['amsterdam', 'madrid']], ['madrid', ['amsterdam', 'barcelona']]]) {
+    const c2 = slice(pageOf(slug), `<h4 class="footer-links-title">${esc(shared.desksLabel)}</h4>`, '</ul>');
+    check(others.every((o) => c2.includes(`/${o}"`)) && !/\/paris"|\/berlin"/.test(c2), `${slug} (live): the footer column links the other live desks (${others.join(', ')}) and no draft`);
+  }
 }
 // the door, per desk: a waitlist lead is a FILE OPENED, said so everywhere the operator reads
 {
@@ -934,9 +952,9 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(m.code === 200 && m.lead.market === 'madrid' && m.lead.intent === 'city_search' && /^MADRID — tenant-side search · Full Search/.test(m.lead.message) && m.notif.summary.startsWith('🇪🇸 MADRID · Anna Keller'), 'madrid: a search lead', m.lead && m.lead.message);
   check(cityMode(m.lead) === 'search' && cityReplyText(m.lead).endsWith(CITY_MARKETS.madrid.url) && cityLabel(m.lead) === '🇪🇸 Madrid', 'madrid: the reply links /madrid');
   const b = await call({ ...ANNA, city: 'barcelona', areas: 'Gràcia' }, '10.3.0.2');
-  check(b.code === 200 && b.lead.intent === 'city_waitlist' && /^BARCELONA — waitlist \(desk opening with a registered partner\) · Full Search/.test(b.lead.message) && b.notif.summary.startsWith('🇪🇸 BARCELONA · waitlist · Anna Keller'),
-    'barcelona: a waitlist lead, said as waitlist on the summary and the card', b.lead && b.lead.message);
-  check(cityMode(b.lead) === 'waitlist' && cityReplyText(b.lead).includes('opening with a registered local partner') && !cityReplyText(b.lead).includes("how we'd run it"), 'barcelona: the reply says the desk is opening and promises no search');
+  check(b.code === 200 && b.lead.market === 'barcelona' && b.lead.intent === 'city_search' && /^BARCELONA — tenant-side search · Full Search/.test(b.lead.message) && b.notif.summary.startsWith('🇪🇸 BARCELONA · Anna Keller'),
+    'barcelona (live from 22/10): a search lead, said as a search on the summary and the card', b.lead && b.lead.message);
+  check(cityMode(b.lead) === 'search' && cityReplyText(b.lead).endsWith(CITY_MARKETS.barcelona.url) && !/opening/.test(cityReplyText(b.lead)), 'barcelona: the reply links /barcelona and no longer says the desk is opening');
   const p = await call({ ...ANNA, city: 'paris', areas: 'Le Marais' }, '10.3.0.3');
   check(p.code === 200 && p.lead.intent === 'city_waitlist' && cityLabel(p.lead) === '🇫🇷 Paris' && cityReplyText(p.lead).includes('opening with a licensed partner'), 'paris: a waitlist lead with the French flag and the licensed partner');
   const g = await call({ ...ANNA, city: 'berlin', areas: 'Prenzlauer Berg' }, '10.3.0.4');
@@ -1058,7 +1076,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
       const c = clone(ams); mut(c);
       check(throws(() => render(c), re) === true, `refused: ${name} — a string nobody sees and everybody believes is live`);
     }
-    const wlShare = clone(bcn); wlShare.checkin.share.plan = 'BOOM {city}: a rental agent on the tenant\'s side, flat fees. My plan in three taps: {url}';
+    const wlShare = clone(par); wlShare.checkin.share.plan = 'BOOM {city}: a rental agent on the tenant\'s side, flat fees. My plan in three taps: {url}';
     check(throws(() => render(wlShare), /says the desk is opening/) === true, 'a waitlist desk\'s share text must say the desk is opening: a forwarded message is not a desk taking searches today');
     const noYear = clone(shared); delete noYear.copyrightYear;
     check(throws(() => render(ams, noYear), /copyrightYear \(four digits\) is required/) === true && html.includes(`<span>© ${shared.copyrightYear} BOOM</span>`) && !/new Date\(\)\.getUTCFullYear\(\)[^;]*year/.test(read('build-cities.mjs').split('year: String(')[1] || ''),
