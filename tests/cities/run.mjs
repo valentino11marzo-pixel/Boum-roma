@@ -1088,6 +1088,9 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
     ['the steps out of order', (c) => { c.checkin.steps = [c.checkin.steps[0], c.checkin.steps[2], c.checkin.steps[1]]; }, /must be exactly stage, where, when in that order/],
     ['seven documents', (c) => { c.checkin.dossier.items.pop(); }, new RegExp(`exactly ${DOSSIER_N} documents`)],
     ['a fixable document not on the list', (c) => { c.checkin.dossier.fixable = ['visa']; }, /fixable must name documents from the list/],
+    // 22/10: the papers line promised the letter and the format to every plan
+    ['a plan-less papers promise (the 20/10 live copy)', (c) => { c.checkin.dossier.resultSome = '{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask.'; }, /must name the plan that does the work/],
+    ['a plan-less «we format and apply»', (c) => { c.checkin.dossier.resultAll = 'All eight in hand. We format them the local way and apply as listings appear.'; }, /must name the plan that does the work/],
     ['a share text without {url}', (c) => { c.checkin.share.plan = 'BOOM {city}, check in.'; }, /must carry \{url\}/],
     ['a share text with a price', (c) => { c.checkin.share.plan = 'BOOM {city}, €500 flat: {url}'; }, /names a price/],
     ['a share text too long', (c) => { c.checkin.share.plan = 'x'.repeat(130) + ' {url}'; }, /over 120 characters/],

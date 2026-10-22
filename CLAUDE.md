@@ -7901,6 +7901,17 @@ smontata leggendo il sorgente di WebKit.
   Ora le due sorgenti del contratto non portano testo a forma di tag
   (`tests/cielo`) e `api/listing.js` inserisce dopo il `<body>` che segue
   `</head>` (`tests/listing` ne controlla la posizione; mutazioni prese).
+- **La promessa dei documenti** (22/10, trovata dallo studio sul design): la
+  riga della verifica documenti diceva a OGNI biglietto «The letter and the
+  format are ours» e «we apply as listings appear» — anche ad Attended
+  Viewing (€149), che non comprende né l'una né l'altro, e Amsterdam e Madrid
+  erano già live. Ora ogni promessa nomina il piano dalle descrizioni delle
+  offerte: la lettera è dell'Application Pack, il formato del dossier di
+  Application Pack e Full Search, le candidature agli annunci solo di Full
+  Search. Il build rifiuta un `checkin.dossier.resultAll/resultSome` senza il
+  nome di un piano o con «are ours» / «We format» / «we apply» (due rifiuti in
+  `tests/cities`). Se anche Full Search scriva la lettera resta una domanda per
+  il fondatore.
 
 ## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
 

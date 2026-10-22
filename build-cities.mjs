@@ -219,6 +219,15 @@ export function validateCheckin(city, plans, where) {
     && d.items.every((i) => /^[a-z]+$/.test(i.id || '') && typeof i.t === 'string' && i.t.trim()), where, `checkin.dossier.items must be exactly ${DOSSIER_N} documents with unique ids`);
   need(Array.isArray(d.fixable) && d.fixable.length && d.fixable.every((id) => d.items.some((i) => i.id === id)), where, 'checkin.dossier.fixable must name documents from the list');
   need(/\{have\}/.test(d.resultSome) && /\{missing\}/.test(d.resultSome), where, 'checkin.dossier.resultSome must carry {have} and {missing}');
+  // 22/10/2026: the papers line told EVERY visitor «the letter and the format
+  // are ours» and «we apply as listings appear» — on the Attended Viewing
+  // ticket (€149) too, which includes neither. The work belongs to a plan, so
+  // the line names it: never a plan-less «ours» or «We format».
+  const labels = list(city, 'pricing.plans').map((p) => p.label).filter(Boolean);
+  for (const f of ['resultAll', 'resultSome']) {
+    need(!/\bare ours\b|\bWe format\b|\bwe apply\b/i.test(d[f]) && labels.some((l) => d[f].includes(l)), where,
+      `checkin.dossier.${f} must name the plan that does the work (${labels.join(' / ')}), never a plan-less «ours»: the ticket shows it for every plan`);
+  }
   const r = k.result;
   need(r && ['eyebrow', 'change'].every((f) => typeof r[f] === 'string' && r[f].trim()), where, 'checkin.result needs eyebrow and change');
   for (const f of ['ctaSearch', 'ctaSearchSub', 'ctaFile', 'ctaFileSub', 'readyEyebrow']) need(r[f] === undefined, where, `checkin.result.${f} is a v1.2 leftover: the door label and the plan's condition are the one copy now`);

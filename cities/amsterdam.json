@@ -340,8 +340,8 @@
         "employer",
         "reference"
       ],
-      "resultAll": "All eight in hand. We format them the Dutch way and apply as listings appear.",
-      "resultSome": "{have} of 8 in hand. Missing: {missing}. The letter and the format are ours; for the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
+      "resultAll": "All eight in hand. Full Search and the Application Pack put them in the Dutch format; Full Search also applies as listings appear.",
+      "resultSome": "{have} of 8 in hand. Missing: {missing}. The Application Pack writes the letter; it and Full Search format your file. For the rest we tell you exactly what to ask your employer, your bank and your last landlord.",
       "skipped": "Tap the papers you hold above and we say what we would fix first.",
       "eyebrow": "Your papers"
     },
