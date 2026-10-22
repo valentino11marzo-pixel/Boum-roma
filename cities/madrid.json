@@ -139,9 +139,9 @@
         "se": "Full Search · end to end",
         "name": "We search. You choose.",
         "includes": [
-          "Working-day search: Idealista, Fotocasa, agencies",
+          "Every working day: Idealista, Fotocasa, agencies",
           "Applications as listings appear",
-          "One attended viewing included (more: €149 each)",
+          "One attended viewing (more: €149 each)",
           "Rent negotiated, contract checked, padrón supported",
           "Until you sign, or you say stop"
         ],
@@ -408,8 +408,8 @@
       {
         "id": "fees",
         "title": "Who pays the agent",
-        "at": "Ley 12/2023",
-        "text": "The landlord pays their own agent. That agent charging you a fee is a red flag. You hire us; we do not act for the landlord."
+        "at": "LAU art. 20",
+        "text": "The landlord pays their own agent and the lease's costs; their agent charging you is a red flag. Hiring us is optional, in writing."
       },
       {
         "id": "rent",
@@ -484,7 +484,7 @@
     "items": [
       {
         "q": "Isn't it the landlord who pays the agent in Spain now?",
-        "a": "Yes. Under Ley 12/2023 the landlord bears the costs of their own agent, so that agent charging you is a red flag. You can still hire your own agent, who works only for you, and pay for that work: BOOM Madrid is that agent, and takes nothing from landlords or their agents."
+        "a": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, so that agent charging you is a red flag. BOOM Madrid is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
       },
       {
         "q": "Which service is mine?",

@@ -30,7 +30,7 @@ import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { tgNotify } from '../pfs/_health.js';
 import { replyLang } from '../_lang.js';
-import { CITY_MARKETS, CITY_PLANS } from '../_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone } from '../_market.js';
 
 const WINDOW_DAYS = 14;
 const LEAD_SERVICES = new Set(['PFS', 'SERVICE', 'RESERVE']);
@@ -124,7 +124,8 @@ export function leadFromSession(s, now = new Date()) {
       language: 'en',
       name,
       email,
-      phone: m.phone || (s.customer_details && s.customer_details.phone) || '',
+      // E.164 with the desk's country, as /api/city-lead and the paid webhook
+      phone: (m.phone && cityPhone(m.phone, cityKey)) || m.phone || (s.customer_details && s.customer_details.phone) || '',
       listingName: m.listing || '',
       message: `${desk.label.toUpperCase()} — checkout NOT completed on ${dateIt(s.created)} · ${planLabel} · €${amountEur}. Reached the payment page and stopped.${m.listing ? ' Property: ' + m.listing + '.' : ''}${m.notes ? ' Notes: ' + m.notes + '.' : ''}`,
       city: { key: cityKey, label: desk.label, mode: desk.mode, service: m.kind || null, serviceLabel: plan ? plan.label : null, abandoned: true },

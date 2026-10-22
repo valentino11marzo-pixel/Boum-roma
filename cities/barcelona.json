@@ -139,15 +139,15 @@
         "se": "Full Search · end to end",
         "name": "We search. You choose.",
         "includes": [
-          "Working-day search: Idealista, Fotocasa, Habitaclia, agencies",
+          "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
           "Applications as listings appear",
-          "One attended viewing included (more: €149 each)",
-          "Rent cap, contract and padrón checked",
+          "One attended viewing (more: €149 each)",
+          "Rent negotiated, cap and contract checked",
           "Until you sign, or you say stop"
         ],
         "featured": true,
         "price": 500,
-        "offerDescription": "Search, Spanish-format application file, applications as listings appear, one attended viewing, rent-cap and contract check, until the tenant signs or stops the search.",
+        "offerDescription": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search.",
         "condition": "flat · incl. VAT",
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l."
       },
@@ -403,7 +403,7 @@
         "id": "rentcap",
         "title": "The rent cap",
         "at": "índice de referencia",
-        "text": "Tensioned zone: a new rent can't top the previous one, nor the reference index for large owners or homes empty five years."
+        "text": "Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years."
       },
       {
         "id": "fees",

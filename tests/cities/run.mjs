@@ -239,6 +239,27 @@ check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 
   check(sec && /Full Search €500, Application Pack €199, Attended Viewing €149 per viewing/.test(sec) && sec.includes(shared.refund.rule) && /14 days/.test(sec) && /\/withdrawal/.test(sec) && /not for a result/.test(sec) && /courts/.test(sec),
     'terms §12 states the desk fees (= CITY_PLANS), the refund rule word for word, the withdrawal (linked, not restated), and the consumer\'s own law and courts');
   check(/Sections 2 to 7 apply to rentals in Rome/.test(terms) && /This section applies to rentals in Rome/.test(terms), 'the Rome sections say they are Rome\'s');
+  // which desks §12 opens and which it closes come from the desks themselves:
+  // every live desk with the till is named, the "not open" sentence (terms and
+  // llms.txt) lists exactly the others
+  {
+    const allDesks = fs.readdirSync(path.join(R, 'cities')).filter((f) => /^[a-z-]+\.json$/.test(f) && !f.startsWith('_')).map((f) => JSON.parse(read('cities/' + f)));
+    const selling = allDesks.filter((c) => c.live === true && c.checkout === true).map((c) => c.city).sort();
+    const closed = allDesks.filter((c) => !(c.live === true && c.checkout === true)).map((c) => c.city).sort();
+    const head = (sec.match(/<h2 id="city-desks">([^<]*)</) || [])[1] || '';
+    const named = (txt) => (txt.match(/([A-Z][a-z]+)(?=,| and | desks)/g) || []).filter((w) => allDesks.some((c) => c.city === w)).sort();
+    const notOpenT = (sec.match(/The ([^.]*?) desks are not open/) || [])[1] || '';
+    const notOpenL = (read('llms.txt').match(/([A-Z][a-z]+(?:,? (?:and )?[A-Z][a-z]+)*) desks are not open/) || [])[1] || '';
+    check(selling.every((n) => head.includes(n) && sec.includes(`BOOM ${n}`)) && JSON.stringify(named(notOpenT + ' desks')) === JSON.stringify(closed) && JSON.stringify(named(notOpenL + ' desks')) === JSON.stringify(closed),
+      `terms §12 names every desk that sells (${selling.join(', ')}) and the "not open" sentence, in the terms and in llms.txt, lists exactly ${closed.join(', ')}`, `${notOpenT} | ${notOpenL}`);
+    check(/Each service is optional: you choose it in writing/.test(sec) && /The first call is free/.test(sec) && /runs until you sign a lease or tell us to stop/.test(sec) && /Barcelona desk[^.]*Catalan or Spanish/.test(sec) && /fulls oficials/.test(sec),
+      'terms §12: the services optional and chosen in writing, the free first call, Full Search until you sign or stop, and Barcelona\'s Catalan documents and complaint forms');
+  }
+  {
+    const wd = read('withdrawal.html');
+    const live = ['amsterdam', 'madrid', 'barcelona'].map((sl) => JSON.parse(read(`cities/${sl}.json`))).filter((c) => c.live === true && c.checkout === true);
+    check(live.every((c) => wd.includes(`<option value="${c.city}">${c.city}</option>`) && wd.includes(c.city)), 'the model withdrawal form offers every desk that sells (/withdrawal)');
+  }
   // the terms say what the flow does: a payer who did not tick "Start now" can
   // still ask in writing (the paid card, the email and the operator's reply
   // invite it), and the only paid route the desks run is the card till
@@ -861,16 +882,62 @@ for (const c of [ams, mad, bcn, par, ber]) {
   check((svcB.offers || []).map((o) => o.price).join() === '500,199,149' && svcB.areaServed.name === 'Barcelona' && svcB.offers.every((o) => o.availability === 'https://schema.org/InStock'), 'barcelona: the Service carries its three Offers InStock, areaServed Barcelona');
   check(v.includes('You hire us; we do not act for the landlord.') && bcn.facts[0].text === 'You hire us; we do not act for the landlord.', 'barcelona: the brief\'s must-state sentence, verbatim, as the "paid by" fact');
   check(/índice de referencia/.test(v) && /INCASÒL/.test(v) && /Llei 11\/2025/.test(v) && /padrón/.test(v) && /LAU art\. 20/.test(v), 'barcelona: the rent cap, the INCASÒL deposit, Llei 11/2025 on temporary leases, the padrón and LAU art. 20 are on the page');
-  check(/optional/i.test(v) && /in writing/i.test(v) && /Catalan or Spanish/.test(v) && /fulls oficials de reclamació/.test(h), 'barcelona: the service is said to be optional and chosen in writing; Catalan documents and the official complaint forms on request');
-  check(!/AICAT/.test(v) && !/registered (local )?partner|desk opens|at opening|Opening with/i.test(v), 'barcelona: no AICAT claim and no waitlist sentence left on the live page');
-  check(!/temporada' leases, which do not protect you|capped by the reference index and the previous rent/.test(v), 'barcelona: the two sentences the 21/10 legal check found outdated are gone');
+  check(/Catalan or Spanish/.test(slice(h, 'id="enbref"', '</dl>')) && /Catalan or Spanish/.test(bcn.pricing.note) && /fulls oficials de reclamació/.test(bcn.footer.statement || ''),
+    'barcelona: Catalan or Spanish documents on the fact sheet and the price note; the official complaint forms in the footer statement (and Terms §12.6)');
+  // the full source — meta description, og, JSON-LD and config included — not
+  // only the visible text: a claim in the description is still a claim
+  check(!/AICAT/.test(h) && !/registered (local )?partner|desk opens|at opening|Opening with/i.test(h), 'barcelona: no AICAT claim and no waitlist sentence anywhere in the page source (meta and JSON-LD included)');
+  // the claim, not the phrasing: a rent-cap sentence that names the reference
+  // index must say whom it binds (large owners, homes unlet for five years),
+  // and no sentence may say a temporary lease does not protect you
+  const sents = h.replace(/<[^>]+>/g, ' ').split(/(?<=[.!?])\s+/);
+  const capBad = sents.filter((x) => /(capped|can't (top|exceed)|cannot exceed|rent cap)/i.test(x) && /(índice de referencia|reference index)/i.test(x) && !/(large owners|five years)/i.test(x));
+  const tempBad = sents.filter((x) => /temporada|temporary lease/i.test(x) && /(not|n't) protect/i.test(x));
+  check(!capBad.length && !tempBad.length, 'barcelona: no sentence ties the reference index to every rent, and none says a temporary lease does not protect you (the claims the 21/10 legal check found outdated)', (capBad[0] || tempBad[0] || '').slice(0, 120));
+}
+// every live desk is linked from the Company & Markets column of the six
+// builder pages AND of their footer source (design/pages-deco/pt.html):
+// a desk going live can't skip the template the builders read
+{
+  const liveDesks = fs.readdirSync(path.join(R, 'cities')).filter((f) => /^[a-z-]+\.json$/.test(f) && !f.startsWith('_')).map((f) => JSON.parse(read('cities/' + f))).filter((c) => c.live === true);
+  const miss = [];
+  for (const f of ['index.html', 'apartments.html', 'apartment-detail.html', 'your-money.html', 'how-it-works.html', 'try.html', 'design/pages-deco/pt.html', 'design/pages-deco/patch-lotto2.py']) {
+    const t = read(f);
+    for (const c of liveDesks) if (!new RegExp(`<a href="/${c.slug}(\\.html)?">BOOM ${c.city}</a>`).test(t)) miss.push(`${f} → ${c.slug}`);
+  }
+  check(liveDesks.length >= 3 && !miss.length, `the footers of the six builder pages and their source template link every live desk (${liveDesks.map((c) => c.slug).join(', ')})`, miss.join('; '));
+  // the social-card generator: a waitlist card never claims the work the desk
+  // does not do yet (the proof line follows the mode)
+  const gen = read('design/pages-deco/genera-og-cities.py');
+  const wl = (gen.match(/'(tenant side[^']*your file open today[^']*)'/) || [])[1] || '';
+  check(!!wl && !/viewing attended|contract checked/.test(wl) && /mode[^\n]*==[^\n]*'search'|'waitlist'/.test(gen), 'the social-card generator gives waitlist desks their own proof line, without "viewing attended" or "contract checked"', wl);
+}
+// LAU art. 20 on BOTH Spanish desks, anchored where the claim must live —
+// not "optional" and "in writing" anywhere (the form labels "(optional)" and
+// "everything in writing" satisfied that and hid a removed claim)
+for (const c of [mad, bcn]) {
+  const h = pageOf(c.slug);
+  const fee = c.checks.items.find((x) => x.id === 'fees');
+  const faq = c.faq.items.find((x) => /landlord who pays the agent/.test(x.q));
+  const faqLd = ((ldOf(h).flatMap((b) => b['@graph'] || [b]).find((b) => b['@type'] === 'FAQPage') || {}).mainEntity || []).find((q) => faq && q.name === faq.q);
+  check(c.pricing.sub.startsWith('Optional, chosen in writing') && h.includes(esc(c.pricing.sub)), `${c.slug}: the price line opens with "Optional, chosen in writing"`);
+  check(!!fee && fee.at === 'LAU art. 20' && /optional/i.test(fee.text) && /in writing/i.test(fee.text) && h.includes(esc(fee.text)), `${c.slug}: the "who pays the agent" check cites LAU art. 20 and says the service is optional and chosen in writing`);
+  check(!!faq && /optional service you hire in writing/.test(faq.a) && !!faqLd && faqLd.acceptedAnswer.text === faq.a, `${c.slug}: the FAQ answers "the landlord pays the agent" with the optional service hired in writing, on the page and in the FAQPage`);
+}
+// the founder's two decisions (22/10) on every desk that sells: the first call
+// is free, Full Search runs until the tenant signs or stops it
+for (const c of [ams, mad, bcn]) {
+  const fs0 = c.pricing.plans.find((p) => p.id === 'full-search');
+  const dk = c.faq.items.find((x) => /don't find anything/.test(x.q));
+  check(/^A free call/.test(c.how.steps[0].v || '') && fs0.includes.includes('Until you sign, or you say stop') && /until you sign or stop it/.test(dk ? dk.a : '') && /until the tenant signs or stops the search/.test(fs0.offerDescription || ''),
+    `${c.slug}: the free first call (step 1), Full Search "until you sign, or you say stop" on the plate, the FAQ and the Offer`);
 }
 {
   const h = pageOf('madrid'); const v = visibleOf(h);
   const svcM = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
   check((svcM.offers || []).map((o) => o.price).join() === '500,199,149' && svcM.areaServed.name === 'Madrid' && svcM.offers.every((o) => o.availability === 'https://schema.org/InStock'), 'madrid: the Service carries its three Offers InStock, areaServed Madrid');
   check(v.includes('You hire us; we do not act for the landlord.') && mad.facts[0].text === 'You hire us; we do not act for the landlord.', 'madrid: the brief\'s must-state sentence, verbatim, as the "paid by" fact');
-  check(/Ley 12\/2023/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are on the page');
+  check(/LAU art\. 20/.test(v) && /fianza/.test(v) && /padrón/.test(v) && /no regional cap/i.test(v), 'madrid: the §4 facts are on the page');
 }
 for (const c of [ams, mad, bcn]) {
   const h = pageOf(c.slug);

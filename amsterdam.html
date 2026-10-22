@@ -27,7 +27,7 @@
     <meta property="og:title" content="BOOM Amsterdam — an agent on your side of the table">
     <meta property="og:description" content="Tenant-side rental search for expats and internationals moving to Amsterdam. Dossier within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords.">
     <meta property="og:url" content="https://www.boomrome.com/amsterdam">
-    <meta property="og:image" content="https://www.boomrome.com/og-amsterdam.png">
+    <meta property="og:image" content="https://www.boomrome.com/og-amsterdam.png?v=486511d998">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BOOM Amsterdam — an agent on your side of the table">
     <meta name="twitter:description" content="Tenant-side rental search for expats and internationals moving to Amsterdam. Dossier within one working day of your papers, applications sent as listings appear, attended viewings, contract checked. Flat fees, paid by you — never by landlords.">
-    <meta name="twitter:image" content="https://www.boomrome.com/og-amsterdam.png">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-amsterdam.png?v=486511d998">
     <meta name="twitter:image:alt" content="BOOM Amsterdam — an agent on your side of the table">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -135,7 +135,7 @@
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
-        "url": "https://www.boomrome.com/og-amsterdam.png",
+        "url": "https://www.boomrome.com/og-amsterdam.png?v=486511d998",
         "width": 1200,
         "height": 630
       },
@@ -400,6 +400,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html, body { scroll-behavior: auto !important; }
 }
+
+/* LA GRANA SOTTO LA TESTATA (22/10/2026 — «su iPhone il sito scorre sopra
+   la testata»). Safari 26 non legge piu' theme-color: per colorare la
+   striscia dell'orologio interroga UN punto, il centro in alto a 4px
+   (WebKit LocalFrameView::fixedContainerEdges), e risale dall'elemento
+   colpito fino alla prima barra fissa larga quanto la finestra. Un
+   pseudo-elemento colpito conta come il suo host (HitTestResult::
+   setInnerNonSharedNode): la grana del fondo (`body::before`, fissa a
+   tutto schermo, z-index 9999, opacita' 1-2%) stava SOPRA la testata su
+   sedici pagine, home compresa, quindi il punto colpiva <body>, nessuna
+   barra veniva trovata, e Safari lasciava vedere la pagina che scorre
+   dietro l'orologio. Sotto ogni testata (la piu' bassa e' a z-index 20)
+   la grana resta identica a vederla. Tutti gli pseudo-elementi di body
+   delle pagine che portano questo blocco sono quella grana: la regola non
+   puo' abbassare un livello vero (tests/cielo lo verifica). */
+body::before, body::after { z-index: 1 !important; }
 </style>
 <script>
 /* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
@@ -976,7 +992,7 @@ html {
       <article class="sib on" id="plan-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We search. You choose.</b>
-        <ul class="inc"><li>Working-day search: Pararius, Funda, agencies</li><li>Applications as listings appear</li><li>One attended viewing included (more: €149 each)</li><li>Rent negotiated, contract checked, BRP supported</li><li>Until you sign, or you say stop</li></ul>
+        <ul class="inc"><li>Every working day: Pararius, Funda, agencies</li><li>Applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Rent negotiated, contract checked, BRP supported</li><li>Until you sign, or you say stop</li></ul>
         <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
         <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
@@ -1259,9 +1275,9 @@ html {
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "unit": "",
         "includes": [
-          "Working-day search: Pararius, Funda, agencies",
+          "Every working day: Pararius, Funda, agencies",
           "Applications as listings appear",
-          "One attended viewing included (more: €149 each)",
+          "One attended viewing (more: €149 each)",
           "Rent negotiated, contract checked, BRP supported",
           "Until you sign, or you say stop"
         ]
@@ -1502,7 +1518,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=f28e52693e"></script>
+<script src="/assets/boom-city.js?v=6fd5989991"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

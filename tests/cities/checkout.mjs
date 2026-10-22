@@ -7,7 +7,7 @@
 // Commerciale stands down and the Telegram card speaks of the city.
 //
 // What breaks if this goes red:
-//   - a waitlist desk (Barcelona, Paris, Berlin) or a search desk whose till
+//   - a waitlist desk (Paris, Berlin) or a search desk whose till
 //     is closed being charged by a hand-made POST (400 checkout_closed, no
 //     Stripe call) — shown is not charged;
 //   - the price coming from the browser instead of CITY_PLANS;
@@ -103,7 +103,9 @@ const stream = (obj) => ({ method: 'POST', headers: { 'stripe-signature': 'sig' 
 const event = (metadata, over = {}) => ({ type: 'checkout.session.completed', data: { object: { id: over.id || 'cs_city_1', amount_total: over.amount_total ?? 50000, currency: 'eur', customer_email: 'anna@example.com', customer_details: over.customer_details || null, payment_intent: 'pi_1', metadata } } });
 
 const { default: checkout } = await import('../../api/service-checkout.js');
-const { default: webhook, withdrawalWindow } = await import('../../api/stripe-webhook.js');
+const { default: webhook, withdrawalWindow, HOLIDAY_KEYS } = await import('../../api/stripe-webhook.js');
+// the lead the webhook writes: leads/svc_<session id, alphanumerics only, 30 chars>
+const svcLead = (sid) => store.get('leads/svc_' + sid.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30));
 const { CITY_MARKETS, CITY_PLANS, cityOffer, isCityMarket, cityReplyText, cityLabel, cityMode } = await import('../../api/_market.js');
 const ANNA = { name: 'Anna Keller', email: 'anna@example.com' };
 
@@ -218,7 +220,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const e0 = emails.length;
   const ev0 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_wait' }); ev0.created = created;
   await webhook(stream(ev0), mkRes());
-  const lead0 = store.get('leads/svc_cs_city_mad_wait') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  const lead0 = svcLead('cs_city_mad_wait');
   const admin0 = emails[e0], client0 = emails[e0 + 1];
   check(lead0 && /^MADRID — paid order · Full Search · €500 paid\. Start: NOT asked to start now\. Withdrawal period runs to the end of 30 March 2026; the work begins on 31 March 2026\./.test(lead0.message),
     'no tick: the start line comes FIRST in the lead, with the last day of the period and the day the work begins (Rome calendar, across the DST change)', lead0 && lead0.message);
@@ -246,7 +248,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   // Madrid, +14 = Monday 12 October, the Fiesta Nacional → Tuesday 13
   const ev12 = event({ ...base, start_now: '0' }, { id: 'cs_city_mad_hol' }); ev12.created = Date.UTC(2026, 8, 28, 10, 0, 0) / 1000;
   await webhook(stream(ev12), mkRes());
-  const lead12 = store.get('leads/svc_cs_city_mad_hol') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  const lead12 = svcLead('cs_city_mad_hol');
   check(lead12 && lead12.city && lead12.city.withdrawalEndsOn === '2026-10-13' && lead12.city.workFrom === '2026-10-14',
     'a Madrid order: the desk country\'s holiday (12 October) moves the end of the period — the webhook passes the desk\'s country', lead12 && JSON.stringify(lead12.city));
   // and Barcelona reads its OWN calendar, not Madrid's: paid on 10 September
@@ -254,9 +256,20 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const evB = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Marta Puig', email: 'marta@example.com' }, { id: 'cs_city_bcn_hol' });
   evB.data.object.metadata.start_now = '0'; evB.created = Date.UTC(2026, 8, 10, 10, 0, 0) / 1000;
   await webhook(stream(evB), mkRes());
-  const leadB = store.get('leads/svc_cs_city_bcn_hol') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
-  check(leadB && leadB.market === 'barcelona' && leadB.city && leadB.city.withdrawalEndsOn === '2026-09-28' && leadB.city.workFrom === '2026-09-29' && /^BARCELONA — paid order · Full Search · €500 paid/.test(leadB.message),
+  const leadB = svcLead('cs_city_bcn_hol');
+  check(leadB && leadB.market === 'barcelona' && leadB.city && leadB.city.withdrawalEndsOn === '2026-09-25' && leadB.city.workFrom === '2026-09-28' && /^BARCELONA — paid order · Full Search · €500 paid/.test(leadB.message),
     'a Barcelona order: the webhook passes the desk\'s holiday key (es-bcn) — La Mercè moves the end of the period, which the Madrid calendar would not', leadB && JSON.stringify([leadB.message, leadB.city]));
+  // the number a payer types on the desk's sheet is stored in E.164 with the
+  // desk's country, as /api/city-lead does: the client's WhatsApp reply
+  // (E.164) must find THIS lead, not open a new Rome one
+  const evP = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Pau Vidal', email: 'pau@example.com', phone: '612 345 678' }, { id: 'cs_city_bcn_phone' });
+  await webhook(stream(evP), mkRes());
+  const leadP = svcLead('cs_city_bcn_phone');
+  check(leadP && leadP.phone === '+34612345678', 'a Barcelona payer\'s "612 345 678" is stored as +34612345678', leadP && leadP.phone);
+  const evI = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Gianni R', email: 'gianni@example.com', phone: '333 1234567' }, { id: 'cs_city_bcn_itphone' });
+  await webhook(stream(evI), mkRes());
+  const leadI = svcLead('cs_city_bcn_itphone');
+  check(leadI && leadI.phone === '333 1234567', 'an Italian mobile typed on /barcelona is not given +34: it stays as typed, for the Rome rule', leadI && leadI.phone);
   // the Rome Pacchetto: the same form, in Italian
   const eIt = emails.length;
   await webhook(stream(event({ service: 'SERVICE', kind: 'concordato-pack', name: 'Giulia Rossi', email: 'giulia@example.com', phone: '+393331234567', notes: '', amount_eur: '349', start_now: '0' }, { id: 'cs_pack_it', amount_total: 34900 })), mkRes());
@@ -268,7 +281,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'the Rome Pacchetto confirmation carries the modulo di recesso tipo too (Codice del consumo art. 49(1)(h))', clientIt && clientIt.closing);
   const e1 = emails.length;
   await webhook(stream(event({ ...base, start_now: '1' }, { id: 'cs_city_mad_now' })), mkRes());
-  const lead1 = store.get('leads/svc_cs_city_mad_now') || store.get([...store.keys()].filter((k) => k.startsWith('leads/svc_')).at(-1));
+  const lead1 = svcLead('cs_city_mad_now');
   const client1 = emails[e1 + 1];
   check(lead1 && /^MADRID — paid order · Full Search · €500 paid\. Start: asked to start now \(inside the 14-day withdrawal period\)\./.test(lead1.message) && lead1.city.startNow === true && lead1.city.workFrom === null,
     'the tick: the lead says the payer asked to start now', lead1 && lead1.message);
@@ -349,7 +362,8 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   // (Pasqua Granada, La Mercè) — never Madrid's. Each case is a weekday the
   // Madrid calendar does not know, or one it knows and Barcelona does not.
   const bcn = [
-    ['2026-09-10T10:00:00Z', '2026-09-28', '2026-09-29', 'La Mercè (Thu 24 Sep 2026), then the 25th — listed every year because the city moves La Mercè to Monday the 25th when the 24th is a Sunday (2023, 2028): an extra day only lengthens the right → Mon 28'],
+    ['2026-09-10T10:00:00Z', '2026-09-25', '2026-09-28', 'La Mercè (Thu 24 Sep 2026) → Fri 25, work from Mon 28 (the 25th is a working day in 2026)'],
+    ['2028-09-11T10:00:00Z', '2028-09-26', '2028-09-27', 'La Mercè on a Sunday (24 Sep 2028): the city keeps it on Monday the 25th → Tue 26'],
     ['2026-08-28T10:00:00Z', '2026-09-14', '2026-09-15', 'the Diada (Fri 11 Sep 2026) → Mon 14'],
     ['2026-06-10T10:00:00Z', '2026-06-25', '2026-06-26', 'Sant Joan (Wed 24 Jun 2026) → Thu 25'],
     ['2026-05-11T10:00:00Z', '2026-05-26', '2026-05-27', 'Pasqua Granada (Mon 25 May 2026) → Tue 26'],
@@ -360,6 +374,14 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
     'withdrawalWindow (es-bcn): Sant Joan, the Diada, La Mercè, Pasqua Granada — and no Jueves Santo', JSON.stringify(bcn.map(([at]) => [at, w(at, 'es-bcn').lastDay, w(at, 'es-bcn').startDay])));
   check(w('2026-09-10T10:00:00Z', 'es').lastDay === '2026-09-24' && w('2027-03-11T10:00:00Z', 'es').lastDay === '2027-03-30',
     'the Madrid calendar is a different one: it keeps La Mercè a working day and has Jueves Santo — the reason Barcelona has its own key');
+  // the national days Catalonia keeps, on a weekday: Fiesta Nacional (Mon 12
+  // Oct 2026) and Constitución + Immaculada (Mon 6 and Wed 8 Dec 2027)
+  check(w('2026-09-28T10:00:00Z', 'es-bcn').lastDay === '2026-10-13' && w('2027-11-22T10:00:00Z', 'es-bcn').lastDay === '2027-12-07' && w('2027-11-22T10:00:00Z', 'es-bcn').startDay === '2027-12-09',
+    'withdrawalWindow (es-bcn): Fiesta Nacional (12 Oct) → 13 Oct; Constitución (Mon 6 Dec 2027) → Tue 7, and the Immaculada (Wed 8) moves the start to Thu 9',
+    JSON.stringify([w('2026-09-28T10:00:00Z', 'es-bcn'), w('2027-11-22T10:00:00Z', 'es-bcn')]));
+  check(Object.entries(CITY_MARKETS).filter(([, d]) => d.checkout === true).length >= 3 && Object.entries(CITY_MARKETS).filter(([, d]) => d.checkout === true).every(([, d]) => HOLIDAY_KEYS.includes(d.holidays || d.country)),
+    'every desk that takes money names a calendar the webhook knows (an unknown key would fall back to Italy alone, in silence); a desk opening its till needs its calendar first',
+    JSON.stringify(Object.entries(CITY_MARKETS).map(([k, d]) => [k, d.holidays || d.country])));
   check(CITY_MARKETS.barcelona.holidays === 'es-bcn' && CITY_MARKETS.barcelona.country === 'es' && CITY_MARKETS.madrid.holidays === undefined,
     'CITY_MARKETS: Barcelona reads the es-bcn calendar; its country stays es (the +34 phone reading)');
   // 4 Oct 2026 is a Sunday anyway: only 2027, a Monday, proves the San Francesco holiday

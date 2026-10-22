@@ -861,7 +861,13 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(/^\d{4}$/.test(String(shared.copyrightYear || '')), 'cities/_shared.json', 'copyrightYear (four digits) is required: the footer year is data, not the clock');
   const months = monthOptions(shared.moveInFrom);
   const pageUrl = `${site}/${city.slug}`;
-  const ogImage = `${site}/og-${city.slug}.png`;
+  // The card's URL carries a hash of its bytes, like the city assets: every
+  // .png is served `immutable` for a year (vercel.json), so a card rewritten
+  // in place under the same URL keeps the OLD one in every cache and in the
+  // scrapers of WhatsApp, LinkedIn and Facebook — the 22/10 cards had to
+  // replace a "dossier 24h · apply <1h" the pages no longer promise.
+  const ogFile = path.join(root, `og-${city.slug}.png`);
+  const ogImage = `${site}/og-${city.slug}.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
 
   // v1.2 leftovers: a key the page no longer reads is a string nobody sees
   // and everybody believes is live. Refused by name.

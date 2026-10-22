@@ -72,7 +72,10 @@ def card(c):
     # apply <1h" — speed promises the pages dropped on 21/10 and the card
     # kept repeating on every WhatsApp share). The yellow line is the first
     # sentence of the page's own lead.
-    prova = 'tenant side · flat fees · viewing attended · contract checked'
+    # a waitlist desk does not attend viewings yet: its card says what it
+    # does today (it takes a file), the selling desks what they deliver
+    prova = ('tenant side · flat fees · viewing attended · contract checked'
+             if c.get('mode') == 'search' else 'tenant side · flat fees · your file open today')
     em = re.split(r'(?<=[.!?])\s', c['hero']['lead'].strip())[0].replace('<', '&lt;')
     return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>

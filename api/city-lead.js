@@ -2,10 +2,10 @@
 // Public lead-capture for the BOOM city pages (/amsterdam, /madrid,
 // /barcelona, /paris, /berlin — the closed list is CITY_MARKETS in
 // _market.js; BOOM_CITIES_BRIEF.md). A city in
-// `mode: 'waitlist'` (Barcelona: no intermediation in Catalonia without AICAT
-// registration) files the SAME tenant lead, but says so: intent
-// `city_waitlist`, summary head "BARCELONA — waitlist", so the operator never
-// reads a file opened as a search to start.
+// `mode: 'waitlist'` (Paris and Berlin: the desk opens with a licensed
+// partner) files the SAME tenant lead, but says so: intent `city_waitlist`,
+// summary head "PARIS — waitlist", so the operator never reads a file opened
+// as a search to start.
 //
 // The design decision that carries the file is the same as executive-lead:
 // this person is a TENANT — someone searching a home for themselves — so the
@@ -149,7 +149,7 @@ export default async function handler(req, res) {
   if (checkin) parts.push(`check-in: ${checkin}`);
   if (dossier) parts.push(`papers ${dossier}`);
   const summary = [
-    `${city.label.toUpperCase()} — ${waitlist ? 'waitlist (desk opening with a registered partner)' : 'tenant-side search'} · ${parts.join(' · ')}.`,
+    `${city.label.toUpperCase()} — ${waitlist ? `waitlist (desk opening with ${city.partner || 'a licensed partner'})` : 'tenant-side search'} · ${parts.join(' · ')}.`,
     message,
   ].filter(Boolean).join(' ');
 

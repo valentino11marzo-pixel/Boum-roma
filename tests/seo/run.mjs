@@ -379,7 +379,7 @@ for (const [f] of pubbliche) {
   const h = testa(fs.readFileSync(path.join(R, f), 'utf8'));
   const img = attr(h, /<meta property="og:image" content="([^"]+)"/);
   if (!img) { ogMorte.push(`${f} → nessuna og:image`); continue; }
-  const rel = img.replace(/^https?:\/\/[^/]+\//, '');
+  const rel = img.replace(/^https?:\/\/[^/]+\//, '').split('?')[0];
   if (!/^https?:/.test(img) || img.includes('boomrome.com')) {
     if (!fs.existsSync(path.join(R, rel))) ogMorte.push(`${f} → og:image assente sul disco (${rel})`);
   }

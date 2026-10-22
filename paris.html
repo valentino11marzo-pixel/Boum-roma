@@ -27,7 +27,7 @@
     <meta property="og:title" content="BOOM Paris — an agent on your side of the table">
     <meta property="og:description" content="Tenant-side desk for internationals moving to Paris, opening with a licensed partner. Rent-cap check, lease read, French-format dossier, attended viewings. Paid by you — never by landlords.">
     <meta property="og:url" content="https://www.boomrome.com/paris">
-    <meta property="og:image" content="https://www.boomrome.com/og-paris.png">
+    <meta property="og:image" content="https://www.boomrome.com/og-paris.png?v=487e9beed3">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -35,7 +35,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BOOM Paris — an agent on your side of the table">
     <meta name="twitter:description" content="Tenant-side desk for internationals moving to Paris, opening with a licensed partner. Rent-cap check, lease read, French-format dossier, attended viewings. Paid by you — never by landlords.">
-    <meta name="twitter:image" content="https://www.boomrome.com/og-paris.png">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-paris.png?v=487e9beed3">
     <meta name="twitter:image:alt" content="BOOM Paris — an agent on your side of the table">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -135,7 +135,7 @@
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
-        "url": "https://www.boomrome.com/og-paris.png",
+        "url": "https://www.boomrome.com/og-paris.png?v=487e9beed3",
         "width": 1200,
         "height": 630
       },
@@ -380,6 +380,22 @@ html {
 @media (prefers-reduced-motion: reduce) {
   html, body { scroll-behavior: auto !important; }
 }
+
+/* LA GRANA SOTTO LA TESTATA (22/10/2026 — «su iPhone il sito scorre sopra
+   la testata»). Safari 26 non legge piu' theme-color: per colorare la
+   striscia dell'orologio interroga UN punto, il centro in alto a 4px
+   (WebKit LocalFrameView::fixedContainerEdges), e risale dall'elemento
+   colpito fino alla prima barra fissa larga quanto la finestra. Un
+   pseudo-elemento colpito conta come il suo host (HitTestResult::
+   setInnerNonSharedNode): la grana del fondo (`body::before`, fissa a
+   tutto schermo, z-index 9999, opacita' 1-2%) stava SOPRA la testata su
+   sedici pagine, home compresa, quindi il punto colpiva <body>, nessuna
+   barra veniva trovata, e Safari lasciava vedere la pagina che scorre
+   dietro l'orologio. Sotto ogni testata (la piu' bassa e' a z-index 20)
+   la grana resta identica a vederla. Tutti gli pseudo-elementi di body
+   delle pagine che portano questo blocco sono quella grana: la regola non
+   puo' abbassare un livello vero (tests/cielo lo verifica). */
+body::before, body::after { z-index: 1 !important; }
 </style>
 <script>
 /* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
@@ -1429,7 +1445,7 @@ html {
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=f28e52693e"></script>
+<script src="/assets/boom-city.js?v=6fd5989991"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say
