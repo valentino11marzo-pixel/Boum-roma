@@ -7,6 +7,7 @@ import INTAKE from '../../js/segretaria-intake-engine.js';
 import PRIORITY from '../../js/segretaria-priority-engine.js';
 import SEG from '../../js/segretaria-engine.js';
 import { cleanOwnerTarget } from './_owner-target.js';
+import { personaDossier } from './_persona.js';
 
 export const FOLLOW_UP_LIMIT = 200;
 export const validFollowUpCursor = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(value) && !['.', '..'].includes(value);
@@ -328,6 +329,10 @@ export async function startConversationFollowUp({cid,messageId,actor,taskId=null
   if(!found.source || found.source.id!==messageId)return {code:409,error:'new_message_reload'};
   const conv=found.conversation.data;
   if(conv.conversationBindingConflict || conv.conversationBindingStatus==='unavailable')return {code:409,error:'identity_not_verified'};
+  if(conv.contactType==='email' && conv.mailboxAdmission) {
+    const dossier=await personaDossier({conversationId:cid});
+    if(dossier.identityAmbiguous || dossier.identityIncomplete)return {code:409,error:'identity_not_verified'};
+  }
   const active=found.rows.filter(t=>t.status==='open'&&t.followUp.open!==false);
   if(active.length>1&&!taskId)return {code:409,error:'case_selection_required'};
   if(taskId&&!active.some(t=>t.id===taskId))return {code:409,error:'case_selection_changed'};
