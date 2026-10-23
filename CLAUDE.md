@@ -2393,10 +2393,12 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   6. **Il riquadro del consenso** aspetta finché il bottone dell'hero gli sta
      sotto (`atWork`). `meets()` chiede ora anche la sovrapposizione
      orizzontale: a 1920 px il riquadro accanto alla porta compare.
-  7. **Il rilievo 4 è respinto, di proposito.** Lo spostamento quando il
-     modulo diventa la card OPEN resta. Tenere lo spazio con un margine
-     peggiorava il desktop, e lo spostamento arriva solo dopo l'invio del
-     lettore. `run.mjs` vieta di rimettere margine, `unhold` e `scrollend`.
+  7. **Il rilievo 4 è respinto, di proposito.** Fianco a fianco (≥ 1100 px)
+     lo spostamento quando il modulo diventa la card OPEN resta. Tenere lo
+     spazio con un margine peggiorava il desktop, e lo spostamento arriva
+     solo dopo l'invio del lettore. `run.mjs` vieta di rimettere margine,
+     `unhold` e `scrollend`. Sul telefono dal terzo giro non c'è più
+     spostamento (vedi sotto).
   8. **Il biglietto disegnato**: le lettere di STANDBY/OPEN/PAID usano lo
      stile del motore Solari (`.phead>b`, non `.phead b`). A ≥ 580 px di
      biglietto il timbro sta in fondo alla colonna del corpo e non copre più
@@ -2412,7 +2414,12 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      your message… The first step is a free call.». Sui waitlist la risposta
      nomina i documenti mancanti dal Check-in, se l'elenco è arrivato intero.
      La porta lo taglia a 200 caratteri e un elenco di otto ne fa 258–291;
-     quando è tagliato, la risposta promette l'elenco. La testa del lead dice
+     quando è tagliato, la risposta promette l'elenco. Dal terzo giro lo dice
+     la porta: `city.dossierClipped`, misurato sul valore spedito (la
+     lunghezza salvata non basta: un taglio su uno spazio lascia 199
+     caratteri e nominava un documento a metà). La risposta nomina l'elenco
+     solo con il flag esattamente `false`; un lead nato prima del flag riceve
+     sempre la promessa. La testa del lead dice
      «free call requested». Il riassunto pagato porta il numero di fascicolo
      in testa, prima delle note. Se la lettura di `file_ref` fallisce, il
      webhook la ritenta una volta; se fallisce ancora, l'ordine tiene il suo
@@ -2433,15 +2440,56 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      - Il testo WhatsApp mette in minuscolo solo la prima lettera.
      - Il numero di fascicolo arriva solo dal server: `run.mjs` vieta ogni
        scrittura di `.file` nel JS.
-  **Peso al limite**: Barcellona 89,9 KB su 90, Amsterdam 89,8, JS 25,3 KB.
-  Ogni aggiunta ai desk che vendono deve prima liberare byte.
+  **Peso**: dopo il terzo giro Barcellona 89,3 KB su 90, Amsterdam 89,2,
+  Madrid 89,1, Parigi 87,4, Berlino 87,7, JS 24,7 KB (liberati accorciando i
+  commenti serviti di `assets/boom-city.js`). Ogni aggiunta ai desk che
+  vendono deve prima liberare byte.
   **Da confermare col fondatore**: le nuove righe di Full Search e
   dell'Application Pack a Parigi e Berlino; su Barcellona «Negotiation, cap
   and contract checks».
   **Non verificato qui**: iPhone vero. Chromium non ha l'ancoraggio di
   scorrimento di Safari, il bfcache di iOS né la barra degli indirizzi che
   cambia altezza.
-  Test: `run.mjs` 751, `checkout.mjs` 104, `ui.mjs` 331, `consent` 25.
+  **Il terzo giro (23/10)**: i rilievi dei verificatori del secondo giro,
+  ciascuno controllato da un verificatore indipendente in Chromium, con
+  mutazioni che fanno cadere i test nuovi.
+  - **Il timbro si stampa sempre.** L'`IntersectionObserver` del timbro
+    leggeva `es[0]`; sotto carico Chromium consegna un lotto con una voce
+    vecchia (fuori schermo) e quella attuale, e il timbro restava spento (15
+    ritorni pagati su 192 al commit precedente). Ora decide sull'ultima voce
+    del lotto: 288/288 ritorni pagati e 448/448 fascicoli aperti timbrati.
+  - **Le opzioni del Check-in non finiscono sotto la barra.** I radio e le
+    spunte nascoste erano 1×1 px in cima alla pillola: `scroll-padding-bottom`
+    proteggeva il pixel, non la pillola (24–38 px coperti). Ora l'input copre
+    tutta la pillola (resta trasparente e senza eventi). Un giro di Tab
+    completo su quattro desk, tre larghezze, con e senza la tacca dell'iPhone:
+    0 px sotto la barra.
+  - **La barra porta solo la città** (`#stripTitle`): «BOOM · Amster…» si
+    tagliava a 375 e 320. Sotto i 340 px gli spazi della barra si stringono
+    perché «Amsterdam» stia intera. La riga sotto (la finestra di risposta)
+    può ancora finire coi puntini, soprattutto a desk chiuso: la finestra
+    intera si legge sulla porta e sul biglietto.
+  - **Sul telefono l'invio non fa più saltare la pagina.** Il modulo si
+    chiudeva nello stesso frame del biglietto e l'ancoraggio di scorrimento
+    faceva salire «How it works» nello schermo prima della planata verso la
+    conferma (CLS fino a 0,9). Ora il biglietto si stampa per primo con
+    l'ancoraggio fatto a mano (`still()`), il modulo diventa card due frame
+    dopo e la pagina atterra nello stesso frame, senza planata. CLS ≤ 0,004
+    su sette misure da 320×568 a 414×896, con e senza ancoraggio (Safari).
+    Il rilievo 36 tiene: il primo passo della conferma è sullo schermo.
+  - **La riga «Your file is open…»** resta su una riga a 320 px (11,5 px
+    sotto i 340).
+  - **Lo spazio fisso del timbro su desktop è respinto**: sui desk che
+    vendono non cambiava niente, sui waitlist lasciava una banda vuota di
+    78 px nel biglietto in attesa.
+  - **Sui waitlist mai «call», da nessuna parte**: il build legge il testo
+    visibile, ogni stringa del config, ogni blocco JSON-LD e gli attributi
+    (meta, aria, data-*); rifiuta una FAQ, il rifiuto del Check-in, una riga
+    dei piatti, un meta, un'`offerDescription`, un messaggio d'errore.
+  - **Non verificato qui**: la riga a 11,5 px su un iPhone SE vero (in
+    Chromium sta in 262 px su 250 disponibili a 12,5; con Helvetica Neue il
+    margine è stretto).
+  Test: `run.mjs` 772, `checkout.mjs` 104, `ui.mjs` 363, `consent` 25.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

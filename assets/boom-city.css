@@ -138,7 +138,7 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .ck-step legend b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:400;font-size:11px;letter-spacing:1.6px;color:var(--gold);margin-right:8px}
 .ck-opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .ck-opt{position:relative;display:block;cursor:pointer;margin:0;text-transform:none;letter-spacing:0;font-size:13.5px}
-.ck-opt input,.ck-doc input{position:absolute;opacity:0;width:1px;height:1px;margin:0;pointer-events:none}
+.ck-opt input,.ck-doc input{position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;margin:0;pointer-events:none}
 .ck-opt span{display:inline-flex;align-items:center;gap:10px;min-height:44px;border:1px solid var(--line);border-radius:100px;padding:9px 14px 9px 16px;background:var(--input);color:var(--t1);line-height:1.3;transition:border-color .3s,background .3s,box-shadow .3s,transform .15s}
 .ck-opt span b{font-weight:400}
 .ck-opt:hover span{border-color:var(--line-gold)}
@@ -522,10 +522,12 @@ dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padd
 /* ── the strip: the one door on a phone, no price ── */
 .paybar .go{font-family:inherit;cursor:pointer;border:0;min-height:44px;display:inline-flex;align-items:center}
 .paybar .pinfo small{color:var(--t3b)}
-/* one height at every width and clock: one line each, no wrap; ≤340 the line goes */
+/* one height at every width and clock: one line each, no wrap; ≤340 the line
+   goes and the gaps tighten (the city name stays whole at 320); the Check-in's
+   sent line shrinks there to stay on one line */
 .paybar .pinfo b,.paybar .pinfo small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .paybar .go{white-space:nowrap}
-@media(max-width:340px){.paybar .pinfo small{display:none}.paybar .go{padding:12px 16px}}
+@media(max-width:340px){.paybar{gap:8px}.paybar .pinfo small{display:none}.paybar .go{padding:12px}.ck-sent{font-size:11.5px;line-height:1.53}}
 /* WhatsApp, the second door: a 44px icon with a name, no digits */
 .paybar .wa-ic{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid var(--line);border-radius:50%;color:var(--t1)}
 .paybar .wa-ic svg{width:20px;height:20px;fill:currentColor}

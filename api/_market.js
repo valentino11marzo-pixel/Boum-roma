@@ -440,11 +440,14 @@ export function cityReplyText(lead = {}) {
   // what can be done today. And its OPEN card promises "Our first reply says
   // which papers matter" (review 22/10): this reply IS that first reply. The
   // papers the Check-in found missing are named — only when the page's list
-  // reached us whole (the door clips the field at 200 characters, and a
-  // paper cut in half is not a paper); all in hand is said so; otherwise the
-  // reply says it will name them.
+  // reached us whole: the door records it (city.dossierClipped, measured on
+  // the posted value; the stored length is no witness, a cut on a space
+  // leaves 199 characters) and a paper cut in half is not a paper. A lead
+  // without the flag (filed before it) is never named. All in hand is said
+  // so; otherwise the reply says it will name them.
   const doss = String((lead.city && lead.city.dossier) || '').trim();
-  const missing = doss.length < 200 ? ((/·\s*missing:\s*(.+)$/.exec(doss) || [])[1] || '').replace(/[\s.]+$/, '') : '';
+  const whole = !!lead.city && lead.city.dossierClipped === false;
+  const missing = whole ? ((/·\s*missing:\s*(.+)$/.exec(doss) || [])[1] || '').replace(/[\s.]+$/, '') : '';
   const held = /^(\d+)\/(\d+)$/.exec(doss);
   const papers = missing ? `From your check-in, the papers to start gathering: ${missing}. `
     : held && held[1] === held[2] ? 'Your check-in says your papers are all in hand. ' : '';

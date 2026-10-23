@@ -1,12 +1,7 @@
-/* assets/boom-city.js — shared behaviour of the BOOM city pages (built by
-   build-cities.mjs; reads window.BOOM_CITY). No keys, no third-party form
-   service: the form posts JSON to our own /api/city-lead. v1.4 ("The
-   Itinerary", CLAUDE.md): DOM order is reading order, no node movers. The
-   ticket's one lifecycle: blank → standby (a plan exists) → open (only on
-   a 200, the server's file number) → paid (only when GET ?paid= says
-   paid:true; the address bar alone stamps and counts nothing). The checked
-   chip is the one truth for the plan. Motion runs once, carries
-   information, stops under reduced motion. */
+/* assets/boom-city.js — the city pages (reads window.BOOM_CITY, posts to
+   our /api/city-lead; CLAUDE.md v1.4). DOM order is reading order. The
+   ticket: blank → standby → open (a 200, the server's file) → paid (GET
+   ?paid= says paid:true). The checked chip is the plan. */
 (function () {
   'use strict';
   var C = window.BOOM_CITY || {};
@@ -166,9 +161,7 @@
   var service = function () { var r = form && form.querySelector('input[name="service"]:checked'); return r ? r.value : ''; };
   /* the ticket, filled in below (null where the page has no Check-in) */
   var T = null;
-  /* one request id per page load: a send retried after a timeout files the
-     same lead (api/city-lead.js writes leads/city_<id>), never a second; once
-     a file is open in this tab the till carries it (one number per person) */
+  /* one request id per load: a retried send files the same lead; the till carries the file */
   var requestId = (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)).replace(/[^a-z0-9]/g, '');
   var fileRef = '';
   /* the plan line reads the checked chip: the questions write it, a plate's
@@ -368,10 +361,7 @@
     });
   }
 
-  /* ══ THE CHECK-IN AND THE TICKET ════════════════════════════════════════
-     Three taps → the plan the RULES give (the FAQ's rules), written into
-     the door's chip where nobody else wrote; the ticket prints on the first
-     resolved state and shows the checked chip's plan; answers in the URL. */
+  /* ══ THE CHECK-IN AND THE TICKET: three taps → the RULES' plan ══ */
   var CK = (function () {
     var root = $('checkin'), pass = $('pass'), wrap = $('passWrap');
     if (!K || !root || !pass) return null;
@@ -506,14 +496,12 @@
       statusBoard = flap($('ckStatus'), (word + '       ').slice(0, 7), ' ABCDEFGHIJKLMNOPQRSTUVWXYZ', statusBoard);
       setText('ckStatusSr', word);
     }
-    /* the page's own scroll that lands the ticket's doors on the screen:
-       layout geometry (offsetTop), never the painted rect — the emission
-       translates the card for 0.9 s and a rect read mid-flight lies */
+    /* layout geometry (offsetTop), never the painted rect: the emission moves the card */
     var topOf = function (el) { var t = 0; while (el) { t += el.offsetTop; el = el.offsetParent; } return t; };
     var barH = function () { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80; };
     var stripH = function () { var s = $('paybar'); return s && s.classList.contains('on') ? s.offsetHeight : 0; };
     var shown = function (el) { return !!(el && !el.hidden && el.offsetParent); };
-    function go(y) { try { scrollTo({ top: y, behavior: ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, y); } }
+    function go(y, i) { try { scrollTo({ top: y, behavior: i ? 'instant' : ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, y); } }
     /* never scroll the KEYBOARD's control under the bar (a tap focuses the radio too) */
     function kbCap(want) {
       var a = document.activeElement, fv = false;
@@ -542,15 +530,16 @@
     }
     /* the one focus target the page moves to: the ticket itself */
     function focusPass() { try { pass.focus({ preventScroll: true }); } catch (e) {} }
-    /* the ticket's top under the bar (f: the focus too); a floor (the sent
-       card's first step) stays on the screen, the top giving way first */
+    /* the ticket's top under the bar (f: focus too); a floor (the sent
+       card's first step) stays on screen, at once: a glide shows the hole */
     function toPass(f, floorEl) {
       if (f) focusPass();
-      requestAnimationFrame(function () { requestAnimationFrame(function () {
+      var run = function () {
         var y = topOf(pass) - barH() - 12;
         if (floorEl) y = Math.max(y, topOf(floorEl) + floorEl.offsetHeight - innerHeight + 16);
-        if (Math.abs((y = Math.max(0, y)) - scrollY) > 1) go(y);
-      }); });
+        if (Math.abs((y = Math.max(0, y)) - scrollY) > 1) go(y, floorEl);
+      };
+      if (floorEl) run(); else requestAnimationFrame(function () { requestAnimationFrame(run); });
     }
     /* the strike (stamp, foil) once the stamp is 60% on screen below the bar;
        at once without an observer or motion. .struck is only the motion */
@@ -559,7 +548,8 @@
       var st = $('ckStamp'), now = function () { if (strikeIO) strikeIO.disconnect(); strikeIO = null; pass.classList.add('struck'); };
       if (strikeIO) strikeIO.disconnect();
       if (!st || ridotto || !window.IntersectionObserver) return now();
-      strikeIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting && es[0].intersectionRatio >= 0.59) now(); }, { rootMargin: '-' + Math.round(barH()) + 'px 0px 0px 0px', threshold: 0.6 });
+      /* a busy frame batches a stale entry first: the last one is now */
+      strikeIO = new IntersectionObserver(function (es) { var e = es[es.length - 1]; if (e.isIntersecting && e.intersectionRatio >= 0.59) now(); }, { rootMargin: '-' + Math.round(barH()) + 'px 0px 0px 0px', threshold: 0.6 });
       strikeIO.observe(st);
     }
     /* the first print in a page load runs the emission once; later prints never replay it */
@@ -770,9 +760,7 @@
       else if (bar) setText('stripSub', bar.getAttribute('data-sub') || '');
     }
 
-    /* ── the ticket as an image: 1080×1920, ONE pure function (a Worker's
-       OffscreenCanvas, else the main thread). For sharing: no file number,
-       no window, no name; the plane is the symbol's Path2D. ── */
+    /* ── the ticket as an image: 1080×1920, one pure function; no file, no name ── */
     function drawPass(x, d, W, H) {
       function rr(X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
       function sp(t) { return String(t).toUpperCase().split('').join(' '); }
@@ -1042,10 +1030,7 @@
       if (s.kind !== 'complete') boomTrack('checkin_abandon', { market: C.SLUG, last_step: answer('when') ? 'when' : answer('where') ? 'where' : answer('stage') ? 'stage' : 'none', docs_ticked: docsHeld().length, unresolved: s.kind === 'pending' });
     });
 
-    /* a link with answers lands on them: partial → the next step with the
-       known ones ticked and a banner; complete from someone else → the
-       ticket and "your friend's answers"; the visitor's own copy link →
-       the ticket with the papers */
+    /* a link with answers lands on them: partial → the next step; complete → the ticket */
     var landingState = 'cold';
     var h = readHash();
     if (h && h.answered) {
@@ -1085,9 +1070,7 @@
   window.BOOM_CHECKIN = CK;
   var stripOff = null;
 
-  /* ── send ──────────────────────────────────────────────────────────────
-     Errors come from the page's own data attributes (city copy never lives
-     here). A failed send gives the button back and says so, in place. */
+  /* ── send: errors from the page's data attributes, said in place ── */
   if (form) {
     var err = $('fErr');
     var go = $('fGo');
@@ -1103,6 +1086,14 @@
        not Enter in a field (implicit submission) — the flag does; it is
        released only when the send fails */
     var sending = false;
+    /* manual scroll anchoring (Safari has none): fn changes the page above
+       the door, which, on screen, then does not move — at once: a glide is
+       the very movement this prevents */
+    var still = function (fn) {
+      var d = $('contact'), r = d.getBoundingClientRect(), b = r.top;
+      fn();
+      if (r.bottom > 0 && b < innerHeight && Math.abs(b = d.getBoundingClientRect().top - b) >= 1) { try { scrollBy({ top: b, behavior: 'instant' }); } catch (e) { scrollBy(0, b); } }
+    };
     form.addEventListener('submit', function (ev) {
       ev.preventDefault();
       if (sending) return;
@@ -1114,17 +1105,8 @@
       if (email && !hasEmail) return fail('email');
       if (!hasEmail && !hasPhone) return fail('contact');
 
-      /* no ticket yet: it prints now, in the click — and the page scrolls by
-         exactly what it inserted, so the form does not move under the eyes
-         (manual scroll anchoring: Safari does not anchor) */
-      if (T && !T.printed()) {
-        var door = $('contact'), before = door.getBoundingClientRect().top;
-        T.print('door');
-        var after = door.getBoundingClientRect().top;
-        /* instant: the page scrolls smoothly by default, and a glide here would
-           be the very movement the anchoring exists to prevent */
-        if (Math.abs(after - before) >= 1) { try { window.scrollBy({ top: after - before, behavior: 'instant' }); } catch (e) { window.scrollBy(0, after - before); } }
-      }
+      /* no ticket yet: it prints now, in the click, the form held still */
+      if (T && !T.printed()) still(function () { T.print('door'); });
       sending = true;
       var goText = go.querySelector('b'), restText = goText ? goText.textContent : '';
       go.style.opacity = .6; go.style.pointerEvents = 'none'; go.classList.add('busy');
@@ -1146,9 +1128,7 @@
         .then(function (j) {
           if (!j || !j.ok) throw new Error((j && j.error) || 'failed');
           fileRef = typeof j.id === 'string' && /^city_[a-z0-9_]{8,48}$/.test(j.id) ? j.id : 'city_' + requestId;
-          form.classList.add('hidden');
           var done = $('fDone');
-          done.classList.add('on');
           /* who writes, when: computed against the desk clock, never a static promise */
           var w = $('openWhen'), rw = desk && desk.replyWindow();
           if (w && rw) w.textContent = rw;
@@ -1159,13 +1139,17 @@
             if (T) T.refresh();
           }
           /* the ticket becomes a boarding pass: the number is the server's */
-          if (T) T.issue('open', { file: j.file, name: name });
-          /* one column: land the confirmation's first step with as much stub
-             as fits, never the €500 till alone; side by side, the ticket only
-             if its top is off screen. The focus goes onto the open file */
-          var pass = $('pass'), one = innerWidth < 1100;
-          if (T && pass && (one || pass.getBoundingClientRect().top < 0)) T.toPass(0, one && (done.querySelector('.next li') || done));
-          try { done.focus({ preventScroll: true }); } catch (e) {}
+          if (T) still(function () { T.issue('open', { file: j.file, name: name }); });
+          /* the form leaves a frame after the ticket changed (the anchor
+             absorbs that); one column lands the first step under the stub,
+             side by side the ticket only if off screen; focus: the file */
+          var pass = $('pass'), one = innerWidth < 1100, sw = function () {
+            form.classList.add('hidden');
+            done.classList.add('on');
+            if (T && pass && (one || pass.getBoundingClientRect().top < 0)) T.toPass(0, one && (done.querySelector('.next li') || done));
+            try { done.focus({ preventScroll: true }); } catch (e) {}
+          };
+          if (document.hidden) sw(); else requestAnimationFrame(function () { requestAnimationFrame(sw); });
           boomTrack('sign_up', { method: 'city_form', market: C.SLUG });
         })
         .catch(function () {
@@ -1180,15 +1164,9 @@
     go.disabled = false;
   }
 
-  /* ── the paid landing: Stripe sends the client back to ?paid=<plan> ────
-     The address bar proves nothing. The page prints the ticket in a
-     "confirming" state and asks the server — GET /api/city-lead?paid=
-     <session>&city=<slug>, which answers paid only when the webhook wrote
-     the PAID lead for this city — at 0 / 1.5 / 3 / 6 / 12 s. Only then the
-     PAID stamp, the file number, the verified steps and ONE purchase event
-     (the key lives in sessionStorage for the tab's life, never on the
-     device: ePrivacy 5(3)). Still pending after the fifth ask: "not
-     confirmed yet", the address beside it. */
+  /* ── the paid landing (?paid=<plan>): the address bar proves nothing.
+     "Confirming", then GET /api/city-lead?paid= at 0/1.5/3/6/12 s; only
+     paid:true stamps PAID and counts ONE purchase (sessionStorage). */
   (function () {
     if (C.CHECKOUT !== true || !form) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
@@ -1207,9 +1185,7 @@
     if ($('paidNext')) $('paidNext').hidden = true;
     card.classList.add('on');
     if (T) T.confirmPaid(plan);
-    /* land on the ticket, the focus on it. A legacy #contact return drops
-       the fragment and lands again at `load` (the browser re-applies its
-       fragment scroll there) unless the reader moved: wheel, touch, key */
+    /* land on the ticket (focus too); a legacy #contact lands again at load unless the reader moved */
     var moved = 0, land = function () { if (T) T.toPass(1); else card.focus(); };
     ['wheel', 'touchstart', 'keydown'].forEach(function (t) { addEventListener(t, function () { moved = 1; }, { passive: true, once: true }); });
     if (location.hash) {
@@ -1317,9 +1293,7 @@
     [].forEach.call(els, function (el) { io.observe(el); });
   })();
 
-  /* ── the strip: the one door on a phone once the hero's door has scrolled
-     off; never over the door or the ticket, never while the till is open,
-     and gone for good once a file is opened or paid; no price ── */
+  /* ── the strip: the phone's door after the hero's; never over the door or ticket; gone once issued ── */
   (function () {
     var bar = $('paybar'), cta = document.querySelector('.hero-go') || document.querySelector('.hero');
     if (!bar || !cta) return;

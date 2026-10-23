@@ -393,6 +393,10 @@ check(!/€|\d/.test(ams.door.label + ams.door.sub + ams.door.stripSub) && !/€
   check(new RegExp(`<a class="wa-ic" id="stripWa" href="${esc(waAms).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg aria-hidden="true"><use href="#boomWa"/></svg></a>`).test(st) && !/€|\d/.test(st.replace(/<[^>]+>/g, ' ')),
     'the phone strip gains a WhatsApp icon (aria-label, no digits shown, the desk marker in its text) and still names no price');
 }
+// round 3: the strip's title is the city alone — the nav carries the brand,
+// and "BOOM · Amsterdam" ran out of line at 375 ("BOOM · Amster…") and 320
+check(pages.length === 5 && pages.every((p) => { const c = JSON.parse(read(`cities/${p.slug}.json`)); return slice(p.html, '<div class="paybar" id="paybar"', '\n</div>').includes(`<b id="stripTitle">${esc(c.city)}</b>`); }),
+  'the phone strip\'s title is the city alone on all five desks (no "BOOM · " before it)');
 
 // the facts: three authored, two derived, the Rome rating labelled Rome and once
 const factsHtml = slice(html, '<dl class="facts"', '</dl>');
@@ -712,6 +716,18 @@ const ber = JSON.parse(read('cities/berlin.json'));
     ['a waitlist fact promising a call', par, (c) => { c.facts[2].text = 'If we decline the search in the first call, nothing is owed.'; }, /its facts promise no call/],
     ['Berlin too', ber, (c) => { c.facts[0].text = 'You alone, after a free call. Launching with a licensed partner.'; }, /its facts promise no call/],
     ['a waitlist ticket promising a call', par, (c) => { c.checkin.pass.firstCall.plan = 'Your first call'; }, /a waitlist desk promises no call/],
+    // round 3: the no-call guard read only the door, the OPEN card and the
+    // facts — a call in a FAQ answer, the refusal, a plate's includes, a meta
+    // tag or the JSON-LD still built. Now the whole page that is read.
+    ['a waitlist FAQ answer promising a call', par, (c) => { c.faq.items.find((x) => x.a).a += ' We can also set a call.'; }, /a waitlist desk promises no call anywhere on its page/],
+    ['a waitlist Check-in refusal promising a call', par, (c) => { c.checkin.refusal = 'Four weeks is tight: book a call and we tell you what we can do.'; }, /a waitlist desk promises no call anywhere on its page/],
+    ['a waitlist plate include promising a call', ber, (c) => { c.pricing.plans[0].includes[0] += ', after a call'; }, /a waitlist desk promises no call anywhere on its page/],
+    ['a waitlist og:description (a meta tag only) promising calls', par, (c) => { c.meta.ogDescription += ' Calls welcome.'; }, /a waitlist desk promises no call anywhere on its page/],
+    ['a waitlist offer description (JSON-LD only) promising a call', ber, (c) => { c.pricing.plans[1].offerDescription += ' We called it.'; }, /a waitlist desk promises no call anywhere on its page/],
+    // the form's error lines live only in data-* attributes (the JS swaps them in)
+    ['a waitlist form error line (a data-* attribute only) promising a call', ber, (c) => { c.form.errors.net = 'The send failed on our side. Try again, or call us.'; }, /a waitlist desk promises no call anywhere on its page/],
+    // in the stringified config "\nCall" has no word boundary: the strings are walked
+    ['a waitlist refusal with "Call" after a line break', par, (c) => { c.checkin.refusal = 'Four weeks is tight.\nCall us and we tell you what we can do.'; }, /a waitlist desk promises no call anywhere on its page/],
     ['a waitlist ticket with a PAID status', par, (c) => { c.checkin.pass.status.paid = 'PAID'; }, /no PAID/],
     ['a Spanish selling desk whose fares note does not open "Optional, chosen in writing"', bcn, (c) => { c.hero.faresNote = 'Flat fees, VAT included.'; }, /opens "Optional, chosen in writing" \(LAU art\. 20\)/],
     ['Madrid too', mad, (c) => { c.hero.faresNote = 'Flat fees. Optional, chosen in writing.'; }, /opens "Optional, chosen in writing"/],
@@ -725,6 +741,15 @@ const ber = JSON.parse(read('cities/berlin.json'));
     }
     const c = clone(base); mut(c);
     check(throws(() => render(c), re) === true, `refused: ${name}`);
+  }
+  // ...and the real waitlist pages pass it: no call anywhere in their source
+  // but code — text, every attribute (meta, aria-*, data-*), the JSON-LD and
+  // the config the JS renders (read here on their own, not with the build's code)
+  for (const c of [par, ber]) {
+    const h = (pages.find((x) => x.slug === c.slug) || {}).html || '';
+    const seen = h.replace(/<script(?![^>]*application\/ld\+json)[^>]*>(?![\s\S]{0,40}window\.BOOM_CITY)[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
+    check(h.length > 0 && !/\bcall(s|ed|ing)?\b/i.test(seen.replace(/\\n/g, ' ')) && seen.includes('application/ld+json') && seen.includes('window.BOOM_CITY') && /data-err-net="/.test(seen),
+      `${c.slug}: the built waitlist page promises no call anywhere but in code (text, attributes, JSON-LD, the config)`);
   }
   // the waitlist fares board: list prices, the note says "charged", no rule
   for (const c of [par, ber]) {
@@ -1355,9 +1380,148 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
     check(all.includes('so I can\'t start a search there yet. Your check-in says your papers are all in hand. I\'ll come back today with where we stand and what we can already do for you.') && !/start gathering/.test(all),
       'all eight in hand: the reply says so, and asks for no paper', all);
     const cut = '0/8 · missing: ' + 'Passport or EU ID, Employment contract or employer attestation, Last three payslips (bulletins de salaire), Last tax notice (avis d\'imposition), Proof of address (justificatif de domicile), Last three rent receipts'.slice(0, 200 - 15);
-    const clipped = cityReplyText({ ...pc.lead, city: { ...pc.lead.city, dossier: cut } });
-    check(cut.length === 200 && !/From your check-in/.test(clipped) && /what we can already do for you and which papers to start gathering\.\n/.test(clipped),
+    // round 3: the door now records the cut (dossierClipped) and the reply
+    // trusts that, not the length — so the fake clipped lead carries the flag
+    // the door writes for it; a lead without the flag (filed before) neither
+    const clipped = cityReplyText({ ...pc.lead, city: { ...pc.lead.city, dossier: cut, dossierClipped: true } });
+    const legacy = { ...pc.lead.city, dossier: cut }; delete legacy.dossierClipped;
+    const clippedLegacy = cityReplyText({ ...pc.lead, city: legacy });
+    check(cut.length === 200 && pc.lead.city.dossierClipped === false && [clipped, clippedLegacy].every((t) => !/From your check-in/.test(t) && /what we can already do for you and which papers to start gathering\.\n/.test(t)),
       'a papers list the door clipped (200 characters) is never named half: the reply says it will name the papers', clipped);
+  }
+  // round 3 (dossier-clip): the length was no witness. The door clipped with
+  // trim then slice(0, 200); when character 199 was a space the reply's own
+  // trim left 199 characters and a CUT list was named — Berlin «…, A guarantor
+  // (Bürgschaft), if asked, Three months of.», Paris «…(quittances),.». The
+  // door records whether it cut, from the POSTED value, and the reply names
+  // the list only when that is exactly false. Every tick subset of the two
+  // waitlist desks, through the real handler, as the page composes the field.
+  {
+    const js = read('assets/boom-city.js');
+    check(js.includes("var names = function (a) { return a.map(function (it) { return it.t; }).join(', '); };")
+      && js.includes("field: held.length + '/' + N + (miss.length ? ' · missing: ' + names(miss) : '')"),
+      'the page still composes the papers field as "<held>/<N> · missing: <labels, comma-joined>" (the enumeration below mirrors it)');
+    const PROMISE = "I'll come back today with where we stand, what we can already do for you and which papers to start gathering.";
+    const NAMED = /From your check-in, the papers to start gathering: (.+)\. I'll come back today with where we stand and what we can already do for you\./;
+    // a named list read back as labels, longest first: null when any piece is not one of the desk's eight verbatim
+    const asLabels = (txt, labels) => { const out = []; let rest = txt;
+      while (rest) { const L = labels.filter((l) => rest === l || rest.startsWith(l + ', ')).sort((x, y) => y.length - x.length)[0]; if (!L) return null; out.push(L); rest = rest === L ? '' : rest.slice(L.length + 2); }
+      return out; };
+    const bl = ber.checkin.dossier.items.map((i) => i.t);
+    check(asLabels('A guarantor (Bürgschaft), if asked, Three months of', bl) === null && asLabels("Last three rent receipts (quittances),", par.checkin.dossier.items.map((i) => i.t)) === null
+      && JSON.stringify(asLabels(bl.slice(4).join(', '), bl)) === JSON.stringify(bl.slice(4)),
+      'the label reader refuses the two fragments seen in round 2 and reads a whole list back verbatim');
+    let ipn = 0;
+    for (const desk of [par, ber]) {
+      const labels = desk.checkin.dossier.items.map((i) => i.t);
+      const N = labels.length;
+      const bad = []; let named = 0, promised = 0, allIn = 0, cuts = 0; const spaceCuts = [];
+      for (let mask = 0; mask < (1 << N); mask++) {
+        const held = labels.filter((_, i) => (mask >> i) & 1), miss = labels.filter((_, i) => !((mask >> i) & 1));
+        const field = held.length + '/' + N + (miss.length ? ' · missing: ' + miss.join(', ') : '');
+        const r = await call({ ...ANNA, city: desk.slug, areas: null, dossier: field }, `10.77.${Math.floor(ipn / 250)}.${ipn++ % 250}`);
+        const c = r.lead && r.lead.city;
+        const rp = c ? cityReplyText(r.lead) : '';
+        const over = field.length > 200;
+        if (over) cuts++;
+        if (over && held.length === 1 && field[199] === ' ') spaceCuts.push({ mask, stored: c && c.dossier, rp, msg: r.lead && r.lead.message });
+        const m = NAMED.exec(rp);
+        const why = !c ? 'no lead'
+          : c.dossierClipped !== over ? `dossierClipped=${c.dossierClipped} for a ${field.length}-character list`
+          : /,\./.test(rp) ? 'a stray ",." in the reply'
+          : m && over ? 'a list the door cut is named'
+          : m && JSON.stringify(asLabels(m[1], labels)) !== JSON.stringify(miss) ? `named "${m[1]}" is not the missing labels verbatim`
+          : !m && /From your check-in/.test(rp) ? 'a papers sentence that is not the whole list'
+          : !m && !over && miss.length ? 'a whole list not named'
+          : !miss.length && !rp.includes('Your check-in says your papers are all in hand.') ? 'eight in hand not said'
+          : !m && miss.length && !rp.includes(PROMISE) ? 'neither the list nor the promise'
+          : null;
+        if (why) bad.push(`mask ${mask}: ${why}`);
+        if (m) named++; else if (miss.length) promised++; else allIn++;
+      }
+      check(!bad.length && named > 0 && promised === cuts && allIn === 1,
+        `${desk.slug}: all ${1 << N} tick subsets through /api/city-lead — ${named} lists named whole (every item one of the eight labels verbatim), ${promised} cut lists answered with the promise, 8/8 «all in hand»; never a fragment, never ",."`, bad.slice(0, 3).join(' | '));
+      check(spaceCuts.length > 0 && spaceCuts.every((x) => x.stored.length === 200 && x.stored.endsWith(' ') && x.rp.includes(PROMISE) && !/From your check-in|,\./.test(x.rp) && x.msg.includes(`papers ${x.stored.trim()}…`)),
+        `${desk.slug}: one paper ticked, the clip lands on a space (the reproduced case) — promise sentence, no fragment, and the operator's summary marks the cut with "…"`, JSON.stringify(spaceCuts[0] || 'no space-cut subset (if the papers copy changed, the enumeration above still covers it)').slice(0, 300));
+    }
+    // a lead filed before the flag (no dossierClipped) is never named, however short; 8/8 still says so
+    const legacyLead = { market: 'paris', intent: 'city_waitlist', name: 'Anna', city: { key: 'paris', mode: 'waitlist', dossier: '7/8 · missing: A one-page presentation' } };
+    const lr = cityReplyText(legacyLead);
+    const la = cityReplyText({ ...legacyLead, city: { ...legacyLead.city, dossier: '8/8' } });
+    check(lr.includes(PROMISE) && !/From your check-in/.test(lr) && la.includes('Your check-in says your papers are all in hand.'),
+      'a legacy lead without the flag gets the promise sentence, never a named list; "8/8" still reads all in hand', lr);
+  }
+  // ...and on the operator's phone. The REAL door writes the leads to an
+  // in-memory Firestore (REST shape: the flag a boolean inside the city map),
+  // the REAL Lead Brain grades them, the REAL notify-pending reads them back
+  // and builds the card: its WhatsApp button carries the ready reply. A list
+  // the door cut on a space gets the promise there too; a whole one is named.
+  {
+    const fetch0 = globalThis.fetch, envKeys = ['CRON_SECRET', 'TELEGRAM_CHAT_ID', 'TELEGRAM_BOT_TOKEN'];
+    const env0 = Object.fromEntries(envKeys.map((k) => [k, process.env[k]]));
+    Object.assign(process.env, { CRON_SECRET: 'cron-r3', TELEGRAM_CHAT_ID: '42', TELEGRAM_BOT_TOKEN: 'tg-r3' });
+    const DB = new Map(), TG = [];
+    const j = (o, s = 200) => ({ ok: s < 400, status: s, json: async () => o, text: async () => JSON.stringify(o) });
+    const docOut = (k) => ({ name: `projects/p/databases/(default)/documents/${k}`, fields: DB.get(k), updateTime: new Date().toISOString() });
+    globalThis.fetch = async (url, opts = {}) => {
+      const u = String(url), method = opts.method || 'GET', body = opts.body ? JSON.parse(opts.body) : null;
+      if (u.includes('identitytoolkit') || u.includes('securetoken')) return j({ idToken: 'fake', localId: 'admin', expiresIn: '3600' });
+      if (u.includes('api.telegram.org')) { TG.push(body || {}); return j({ ok: true, result: { message_id: 900 + TG.length } }); }
+      if (!u.includes('firestore.googleapis.com')) return j({});
+      if (u.includes(':runQuery')) {
+        const coll = body.structuredQuery.from[0].collectionId;
+        return j([...DB.keys()].filter((k) => k.startsWith(coll + '/') && k.split('/').length === 2).map((k) => ({ document: docOut(k) })));
+      }
+      if (u.includes(':commit')) return j({ writeResults: [] });
+      if (u.includes(':batchGet')) return j([]);
+      const p = decodeURIComponent((u.match(/documents\/([^?]+)/) || [])[1] || '');
+      if (method === 'GET') return DB.has(p) ? j(docOut(p)) : j({ error: { code: 404 } }, 404);
+      if (method === 'POST') {
+        const id = decodeURIComponent((u.match(/documentId=([^&]+)/) || [])[1] || `auto${DB.size + 1}`);
+        if (DB.has(`${p}/${id}`)) return j({ error: { status: 'ALREADY_EXISTS' } }, 409);
+        DB.set(`${p}/${id}`, { ...(body.fields || {}) }); return j(docOut(`${p}/${id}`));
+      }
+      if (method === 'PATCH') { DB.set(p, { ...(DB.get(p) || {}), ...(body.fields || {}) }); return j(docOut(p)); }
+      return j({});
+    };
+    try {
+      const brain = (await import('../../api/leads/brain.js')).default;
+      const notify = (await import('../../api/telegram/notify-pending.js')).default;
+      const field = (desk, keep) => { const L = desk.checkin.dossier.items.map((i) => i.t), miss = L.filter((_, i) => !keep(i));
+        return `${L.length - miss.length}/${L.length}` + (miss.length ? ' · missing: ' + miss.join(', ') : ''); };
+      // one paper ticked whose cut lands on a space (the reproduced case), per desk
+      const spaceCut = (desk) => desk.checkin.dossier.items.map((_, t) => field(desk, (i) => i === t)).find((f) => f.length > 200 && f[199] === ' ');
+      const whole = field(par, (i) => i < 6);
+      const sent = [['Paula', par, spaceCut(par)], ['Bruno', ber, spaceCut(ber)], ['Petra', par, whole]];
+      const ids = {};
+      for (const [n, desk, dossier] of sent) {
+        let code = 0, out = null;
+        const res = { setHeader() {}, status(c) { code = c; return this; }, json(o) { out = o; return this; }, end() { return this; } };
+        await handler({ method: 'POST', headers: { 'x-forwarded-for': `10.78.0.${Object.keys(ids).length + 1}` }, body: { ...ANNA, name: `${n} Keller`, city: desk.slug, areas: null, dossier }, socket: {} }, res);
+        ids[n] = code === 200 && out && out.id;
+      }
+      const flag = (n) => { const f = (DB.get(`leads/${ids[n]}`) || {}).city; return f && f.mapValue.fields.dossierClipped && f.mapValue.fields.dossierClipped.booleanValue; };
+      check(!!(sent[0][2] && sent[1][2]) && whole.length < 200 && flag('Paula') === true && flag('Bruno') === true && flag('Petra') === false,
+        'the door stores the flag as a Firestore boolean: true on the two space cuts, false on the whole list');
+      const run = async (h) => { let code = 0; const res = { setHeader() {}, status(c) { code = c; return this; }, json() { return this; }, end() { return this; } };
+        await h({ method: 'GET', headers: { authorization: 'Bearer cron-r3' }, query: {} }, res); return code; };
+      const cb = await run(brain), cn = await run(notify);
+      // the lead's card (the agentNotifications ping of the same lead has no keyboard)
+      const waText = (n) => { const card = TG.find((m) => String(m.text || '').includes(`${n} Keller`) && m.reply_markup);
+        const btn = card && card.reply_markup.inline_keyboard[0].find((b) => /^https:\/\/wa\.me\//.test(b.url || ''));
+        return btn ? new URL(btn.url).searchParams.get('text') : null; };
+      const PROMISE = "I'll come back today with where we stand, what we can already do for you and which papers to start gathering.";
+      const [pa, br, pe] = ['Paula', 'Bruno', 'Petra'].map(waText);
+      check(cb === 200 && cn === 200 && ['Paula', 'Bruno', 'Petra'].every((n) => (DB.get(`leads/${ids[n]}`).grade || {}).stringValue === 'A'),
+        'the Lead Brain grades the three by rule and notify-pending runs (200)');
+      check(!!pa && !!br && [pa, br].every((t) => t.includes(PROMISE) && !/From your check-in|,\./.test(t)) && pa.startsWith('Hi Paula') && br.startsWith('Hi Bruno'),
+        'the Telegram card\'s WhatsApp button, on the two space cuts (Paris, Berlin): the promise sentence, never the fragment', [pa, br].join(' ║ ').slice(0, 400));
+      check(!!pe && pe.includes(`From your check-in, the papers to start gathering: ${whole.split(' · missing: ')[1]}. I'll come back today with where we stand and what we can already do for you.`),
+        'the same button on a whole list names the missing papers', pe);
+    } finally {
+      globalThis.fetch = fetch0;
+      for (const k of envKeys) { if (env0[k] === undefined) delete process.env[k]; else process.env[k] = env0[k]; }
+    }
   }
   const g = await call({ ...ANNA, city: 'berlin', areas: 'Prenzlauer Berg' }, '10.3.0.4');
   check(g.code === 200 && g.lead.intent === 'city_waitlist' && cityLabel(g.lead) === '🇩🇪 Berlin' && cityReplyText(g.lead).includes('opening with a licensed partner'), 'berlin: a waitlist lead with the German flag and the licensed partner');
@@ -1637,7 +1801,7 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(html.includes('<article class="pass carta" id="pass" data-state="blank"') && /<article class="pass carta" id="pass"[^>]* role="region" aria-labelledby="ckTitle" tabindex="-1">/.test(html)
     && /function focusPass\(\) \{ try \{ pass\.focus\(\{ preventScroll: true \}\); \} catch \(e\) \{\} \}/.test(js) && !/focusDoor/.test(js) && (js.match(/T\.toPass\(1\)/g) || []).length >= 2,
     'ONE focus target for the page\'s moves (a plate\'s link in every state, "use it", the paid return, a refused till): the ticket itself, a region named by its title, tabindex -1, focused without a scroll');
-  check(!/marginBottom|unhold|scrollend/.test(js), 'no room held under the door after the send (round 1\'s hold left a blank band and jumped on a slow scroll): the swap\'s shift is accepted');
+  check(!/marginBottom|unhold|scrollend/.test(js), 'no room held under the door after the send (round 1\'s hold left a blank band and jumped on a slow scroll): side by side the swap\'s shift is accepted; on a phone round 3 lands in the swap\'s own frame instead (ui.mjs)');
   check(/var want = kbCap\(topOf\(f\) \+ f\.offsetHeight - innerHeight \+ 16\);/.test(js) && !/innerHeight - stripH\(\) - 16\)\);\n\s+if \(want > scrollY/.test(js), 'the doors land at the foot of the screen: the strip steps back over them, its height is not subtracted');
   check(/if \(T && \(T\.confirming\(\) \|\| T\.issued\(\) === 'paid'\)\) return T\.toPass\(1\);/.test(js) && /function payOff\(\)/.test(js) && /if \(kind === 'paid'\) payOff\(\);/.test(js) && /payOff\(\);\n\s+freeze\(/.test(js),
     'paid, or being confirmed: no [data-pay] opens the till (the reader goes to the ticket) and every pay button is hidden');

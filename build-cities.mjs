@@ -795,9 +795,11 @@ const R = {
   // THE STRIP on a phone (v1.3): the one door, no price. It names the plan
   // once the Check-in has one ("Full Search · your plan"), never a number.
   // v1.4: a 44px WhatsApp icon (the desk marker in its text, no digits shown).
+  // Round 3: its title is the city alone — the nav carries the brand, and
+  // "BOOM · Amsterdam" ran out of line at 375 ("BOOM · Amster…") and 320.
   strip: (c, contact) => [
     `<div class="paybar" id="paybar" data-sub="${esc(c.door.stripSub)}" data-yourplan="${esc(String(c.checkin.result.eyebrow || 'your plan').toLowerCase())}">`,
-    `  <div class="pinfo"><b id="stripTitle">BOOM · ${esc(c.city)}</b><small id="stripSub">${esc(c.door.stripSub)}</small></div>`,
+    `  <div class="pinfo"><b id="stripTitle">${esc(c.city)}</b><small id="stripSub">${esc(c.door.stripSub)}</small></div>`,
     `  <a class="wa-ic" id="stripWa" href="${esc(contact.waHref)}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg aria-hidden="true"><use href="#boomWa"/></svg></a>`,
     `  <a class="go" href="#contact" id="stripGo">${esc(c.door.label)}</a>`,
     '</div>'
@@ -1266,6 +1268,20 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(!/id="ov"|data-pay=|id="fPaid"/.test(html), where, 'a waitlist page mounts no checkout sheet and no pay button');
     need(html.includes('"CHECKOUT": false'), where, 'a waitlist page declares CHECKOUT false');
     need(!html.includes(shared.refund.rule) && !glanceSlice.includes(esc(shared.refund.rule)), where, 'a waitlist page prints no refund rule (not in the fares board either): no money is taken there');
+    // ...and promises no call ANYWHERE a reader, a crawler or an answer engine
+    // reads it: the visible text, the copy the script renders (the config:
+    // the refusal, the plates' includes), every JSON-LD block, the meta tags
+    // and the attributes read aloud or swapped in by the JS (aria-*, data-*:
+    // the form's error lines). Strings are walked, never stringified: in JSON
+    // "\nCall" has no word boundary. Code is not read: a future `.call(` in
+    // an inlined engine is no promise.
+    const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+    const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strs(JSON.parse(m[1])));
+    const bare = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
+    const attrs = [...bare.matchAll(/\s(?:content|alt|title|label|value|placeholder|aria-[\w-]+|data-[\w-]+)="([^"]*)"/g)].map((m) => m[1]);
+    const said = [visibleText(html), ...strs(config), ...ld, ...attrs].join(' \n ');
+    const callAt = said.search(/\bcall(s|ed|ing)?\b/i);
+    need(callAt < 0, where, `a waitlist desk promises no call anywhere on its page (text, FAQ, ticket copy, JSON-LD, meta): the door is "Open my file" — found "…${callAt < 0 ? '' : said.slice(Math.max(0, callAt - 40), callAt + 30).trim()}…"`);
   }
   if (city.checkout !== true) need(!/id="ov"|data-pay=/.test(html), where, 'a desk without checkout mounts no sheet and no pay button');
   // THE REFUND RULE BESIDE EVERY €500 (sell desks, STUDIO §11.10): the fares

@@ -211,6 +211,11 @@ export default async function handler(req, res) {
   // clipped like everything else; empty when the client never used it.
   const checkin = clip(body.checkin, 80);
   const dossier = clip(body.dossier, 200);
+  // Did the clip cut the page's papers list? Measured on the POSTED value: a
+  // cut landing on a space leaves 199 characters after a trim, so the stored
+  // length is no witness. The ready reply names the papers only when this is
+  // exactly false (api/_market.js cityReplyText).
+  const dossierClipped = dossier ? String(body.dossier).trim().length > 200 : null;
 
   // The id is decided BEFORE the write, so the file number can travel in it.
   const id = requestId ? `city_${requestId}` : `city_srv_${crypto.randomBytes(6).toString('hex')}`;
@@ -228,7 +233,7 @@ export default async function handler(req, res) {
   if (situation) parts.push(situation);
   if (areas) parts.push(areas);
   if (checkin) parts.push(`check-in: ${checkin}`);
-  if (dossier) parts.push(`papers ${dossier}`);
+  if (dossier) parts.push(`papers ${dossierClipped ? dossier.trim() + '…' : dossier}`);
   // On a desk that sells the door reads "Start with a free call" (v1.4): the
   // head says what the visitor asked for, so the operator sets the call. A
   // waitlist desk's door is "Open my file" and promises no call.
@@ -270,6 +275,7 @@ export default async function handler(req, res) {
       areas,
       checkin,
       dossier,
+      dossierClipped,
       file,
       at: now.toISOString(),
     },

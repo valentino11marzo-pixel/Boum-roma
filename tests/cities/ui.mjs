@@ -83,6 +83,12 @@
 //     nothing; a chip moved in flight never renames the filed plan; the
 //     issued file freezes the Check-in (inert, same height); no file from
 //     the server prints "—"; WhatsApp keeps "I" and the city's capital;
+//   - round 3: a stale entry batched before the current one still strikes
+//     the stamp (file open and paid return); the form → OPEN swap on a phone
+//     shifts nothing (≤ 0.01, with and without scroll anchoring) and keeps
+//     the first step on screen; the sent line keeps the Check-in head's
+//     height at 320/340; a Tabbed Check-in pill is never under the strip; the
+//     strip's title is the city alone, whole from 320 to 414;
 //   - the till, the withdrawal form, the links that land, the month, the
 //     menu, the sisters at 390 (Madrid and Barcelona sell; Paris and Berlin
 //     open a file with no till), a touch screen; zero JS errors, and no
@@ -126,10 +132,14 @@ const browser = await chromium.launch(launchOptions());
 
 const FILE = 'BM 7K2QX';
 const LEAD_OK = { status: 200, body: { ok: true, id: 'city_ui0000test1', file: FILE } };
-async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null, block = null, hold = 0 } = {}) {
+async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null, block = null, hold = 0, safe = 0, init = null } = {}) {
   const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
-  const st = { errors: [], posts: [], gets: [], checkouts: [], foreign: [] };
+  const st = { errors: [], posts: [], gets: [], checkouts: [], foreign: [], safe: null };
+  // an iPhone's home-indicator inset (env(safe-area-inset-bottom)), emulated
+  if (safe) { try { await (await ctx.newCDPSession(page)).send('Emulation.setSafeAreaInsetsOverride', { insets: { bottom: safe, top: 47 } }); st.safe = 'ok'; } catch (e) { st.safe = 'ERR ' + e.message; } }
+  // a script that runs before the page's own (round 3: a fake IntersectionObserver)
+  if (init) await page.addInitScript(init);
   page.on('pageerror', (e) => st.errors.push(e.message));
   // the consent plate stays closed unless a test is about it
   if (consent) await page.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
@@ -727,11 +737,12 @@ for (const height of [844, 664]) {
 // the stamp strikes when it is ON the screen below the nav (it struck ~640px
 // above, mid-glide); on a phone the page lands the confirmation's first step
 // with the stub above it (it landed the €500 till alone, the "free call" line
-// below the fold); side by side (1440) the page does not move. The form→card
-// swap itself shifts what lies below the door: accepted (round 2, finding 4
-// declined) — it happens only on a converting session, right after the
-// visitor's own send, and the round-1 "hold" that hid it left a 229–404px
-// blank band on a desktop and jumped the page on a slow scroll
+// below the fold); side by side (1440) the page does not move. Side by side
+// the form→card swap still shifts what lies below the door: accepted (round
+// 2, finding 4 declined) — it happens only on a converting session, right
+// after the visitor's own send, and the round-1 "hold" that hid it left a
+// 229–404px blank band on a desktop and jumped the page on a slow scroll. On
+// a phone the landing now happens in the swap's own frame (round 3, below)
 for (const [width, height] of [[390, 844], [390, 664], [1440, 900]]) {
   const { ctx, page, st } = await open({ width, height, api: { ...LEAD_OK, delay: 700 } });
   await page.waitForTimeout(400);
@@ -1675,6 +1686,192 @@ for (const [width, height] of [[320, 640], [375, 667], [390, 844]]) {
     const sh = await page.evaluate(() => { const b = document.getElementById('paybar'); return { on: b.classList.contains('on'), h: b.offsetHeight, var: getComputedStyle(document.documentElement).getPropertyValue('--strip-h').trim(), sub: document.getElementById('stripSub').textContent }; });
     check(sh.on && sh.h <= 72 && sh.var === sh.h + 'px' && bad.length === 0 && seen.size >= 40 && st.errors.length === 0,
       `${width}×${height}, desk ${desk}: the strip is ${sh.h}px (≤ 72, --strip-h ${sh.var}, line "${sh.sub.slice(0, 32)}"), and ${seen.size} Tabs from the top leave nothing focused under it`, JSON.stringify([sh, bad.slice(0, 4), steps]));
+    await ctx.close();
+  }
+}
+
+// ── round 3 (review of v1.4, round 2) ─────────────────────────────────────
+// (strike-batch) a busy main thread hands the stamp's observer ONE batch: a
+// stale entry (off screen) and then the current one (on screen). Deciding on
+// the first entry left the stamp at opacity 0 for good (9 of 240 paid
+// returns, 2 of 30 at 390×844 under CPU 4×). A fake observer delivers exactly
+// that batch for the stamp, and nothing else: the LAST entry must decide
+const STALE_BATCH = () => {
+  const R = window.IntersectionObserver;
+  window.IntersectionObserver = function (cb, opt) {
+    const io = new R(cb, opt), real = io.observe.bind(io);
+    io.observe = (el) => {
+      if (!el || el.id !== 'ckStamp') return real(el);
+      setTimeout(() => cb([{ target: el, isIntersecting: false, intersectionRatio: 0 }, { target: el, isIntersecting: true, intersectionRatio: 1 }], io), 60);
+    };
+    return io;
+  };
+  window.IntersectionObserver.prototype = R.prototype;
+};
+{
+  const { ctx, page, st } = await open({ init: STALE_BATCH });
+  await page.waitForTimeout(400);
+  await tap(page, ckOpt('zero'));
+  await page.waitForTimeout(1200);
+  await page.fill('#fName', 'Anna K.'); await page.fill('#fEmail', 'anna@example.com');
+  await tap(page, '#fGo');
+  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
+  await page.waitForTimeout(600);
+  const a = await T(page);
+  const { ctx: c2, page: p2, st: s2 } = await open({ init: STALE_BATCH, query: '?paid=full-search&start=1&session_id=cs_test_uibatch01', paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: true } } });
+  await p2.waitForTimeout(2500);
+  const b = await T(p2);
+  check(a.state === 'open' && a.struck && b.state === 'paid' && b.struck && st.errors.length + s2.errors.length === 0,
+    `a stale entry batched before the current one: the stamp strikes on the opened file (${a.state}, struck: ${a.struck}) and on the paid return (${b.state}, struck: ${b.struck}) — the last entry decides`, JSON.stringify([st.errors, s2.errors]));
+  await ctx.close(); await c2.close();
+}
+// (swap-cls-320) the form → OPEN swap on a phone: the ticket changes a frame
+// before the form leaves (the scroll anchor — on Safari, the page by hand —
+// keeps the door still), then the page lands at once in the swap's frame. The
+// glide that followed the swap showed what lay below the form rising into
+// its place first: layout shift 0.69 at 320×640 and 0.38 at 390×844 on
+// cb8cc665 (0.91 without scroll anchoring, as Safari). From 550 ms after the
+// tap (past the input window): ≤ 0.01, the confirmation's first step on the
+// screen and the ticket's top given way (finding 36 kept)
+const LS = () => { window.__ls = []; new PerformanceObserver((l) => l.getEntries().forEach((e) => { if (!e.hadRecentInput) window.__ls.push(e.value); })).observe({ type: 'layout-shift' }); };
+for (const [slug, width, height, anchor] of [['amsterdam', 320, 640, 1], ['paris', 320, 640, 1], ['paris', 360, 740, 1], ['amsterdam', 390, 844, 1], ['amsterdam', 390, 844, 0], ['paris', 320, 568, 0]]) {
+  const { ctx, page, st } = await open({ slug, width, height, touch: true, api: { ...LEAD_OK, delay: 700 } });
+  if (!anchor) await page.addStyleTag({ content: '*{overflow-anchor:none!important}' });
+  await page.waitForTimeout(400);
+  await page.$eval(ckOpt('zero'), (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForTimeout(200);
+  await page.tap(ckOpt('zero'));
+  await page.waitForTimeout(1200); await settle(page);
+  await page.fill('#fName', 'Anna K.'); await page.fill('#fEmail', 'anna@example.com');
+  await page.$eval('#fGo', (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+  await page.waitForTimeout(300);
+  await page.tap('#fGo');
+  await page.waitForTimeout(550);
+  await page.evaluate(LS);
+  await page.waitForTimeout(2500);
+  const r = await page.evaluate(() => {
+    const li = document.querySelector('#fDone .next li').getBoundingClientRect(), p = document.getElementById('pass');
+    return { cls: +window.__ls.reduce((a, v) => a + v, 0).toFixed(4), li: [Math.round(li.top), Math.round(li.bottom)], passTop: Math.round(p.getBoundingClientRect().top), ih: innerHeight, state: p.getAttribute('data-state') };
+  });
+  check(r.state === 'open' && r.cls <= 0.01 && r.li[0] >= 0 && r.li[1] <= r.ih && r.passTop < 0 && st.errors.length === 0,
+    `${slug} ${width}×${height}${anchor ? '' : ', no scroll anchoring (as Safari)'}: the form becomes the open file with a layout shift of ${r.cls} (≤ 0.01), its first step on the screen (${r.li[0]}–${r.li[1]}), the ticket's top given way`, JSON.stringify([r, st.errors]));
+  await ctx.close();
+}
+// (sent-wrap-320) "Your file is open. The desk takes it from here." takes
+// the counter's place on ONE line down to 320 (it wrapped at ≤ 335px on
+// cb8cc665 and the Check-in head grew 17px under the reader)
+for (const width of [320, 340]) {
+  const { ctx, page, st } = await open({ width, height: 640 });
+  await page.waitForTimeout(300);
+  await tap(page, ckOpt('zero'));
+  await page.waitForTimeout(1200);
+  const h0 = await page.$eval('#checkin .ck-head', (e) => e.offsetHeight);
+  const r = await page.evaluate(() => {
+    window.BOOM_CHECKIN.issue('open', { file: 'BM 7K2QX', name: 'Anna' });
+    const s = document.getElementById('ckSent');
+    return { h: document.querySelector('#checkin .ck-head').offsetHeight, shown: !s.hidden, lines: Math.round(s.offsetHeight / parseFloat(getComputedStyle(s).lineHeight)), text: s.textContent };
+  });
+  check(r.shown && Math.abs(r.h - h0) <= 1 && r.lines === 1 && st.errors.length === 0,
+    `${width}px: "${r.text}" takes the counter's place on one line — the Check-in head keeps its ${h0}px (${r.h}, ±1 for rounding)`, JSON.stringify([h0, r]));
+  await ctx.close();
+}
+// (pill-under-strip) a Check-in answer is a radio laid over its whole pill
+// (it was a 1×1 input at the pill's top-left: Tab scrolled that pixel clear
+// of the strip and left the 44px pill hanging 24–29px under it, its centre
+// covered). The worst case: the pill just inside the padding line, the
+// control before it focused, Tab. Fresh «Haven't started» with an iPhone's
+// 34px home inset (Paris), the answered «In 1–3 months» (Amsterdam, Paris)
+// and the plain fresh page (Amsterdam), at 320×640, 375×667 and 390×844
+const TAB_TO = async (page, value, d) => {
+  await page.evaluate(([v, d]) => {
+    const t = document.querySelector(`#checkin input[value="${v}"]`);
+    const tab = [...document.querySelectorAll('a[href],button,input,select,textarea,summary,[tabindex]')].filter((e) => {
+      if (e.tabIndex < 0 || e.disabled || e.closest('[inert]') || e.closest('[hidden]')) return false;
+      const cs = getComputedStyle(e); if (cs.visibility === 'hidden' || cs.display === 'none') return false;
+      if (e.type === 'radio' && e !== t) { const g = [...document.querySelectorAll(`input[type=radio][name="${e.name}"]`)]; if (e !== (g.find((x) => x.checked) || g[0])) return false; }
+      return e.getClientRects().length > 0;
+    });
+    const spb = parseFloat(getComputedStyle(document.documentElement).scrollPaddingBottom) || 0;
+    scrollTo({ top: Math.max(0, t.getBoundingClientRect().top + scrollY - (innerHeight - spb - d)), behavior: 'instant' });
+    if (document.activeElement) document.activeElement.blur();
+    tab[tab.indexOf(t) - 1].focus({ preventScroll: true });
+  }, [value, d]);
+  await page.waitForTimeout(300);
+  await page.keyboard.press('Tab');
+  await page.waitForTimeout(80); await settle(page);
+  return page.evaluate((v) => {
+    const t = document.querySelector(`#checkin input[value="${v}"]`), s = t.nextElementSibling.getBoundingClientRect(), bar = document.getElementById('paybar');
+    const on = bar.classList.contains('on'), top = innerHeight - bar.offsetHeight;
+    const ring = getComputedStyle(t.nextElementSibling);
+    return { focused: document.activeElement === t, on, under: on ? Math.max(0, Math.round(Math.min(s.bottom, innerHeight) - Math.max(s.top, top))) : 0, pill: [Math.round(s.top), Math.round(s.bottom)], strip: Math.round(top), ring: ring.outlineStyle === 'solid' && ring.outlineColor === 'rgb(255, 215, 0)' };
+  }, value);
+};
+for (const [width, height] of [[320, 640], [375, 667], [390, 844]]) {
+  for (const [slug, safe, answered, value, name] of [['paris', 34, false, 'zero', "Haven't started, 34px inset"], ['amsterdam', 0, true, 'months', 'In 1–3 months, answered'], ['paris', 0, true, 'months', 'In 1–3 months, answered'], ['amsterdam', 0, false, 'zero', "Haven't started"]]) {
+    const { ctx, page, st } = await open({ slug, width, height, safe, clock: '2026-10-22T21:00:00Z' });
+    await page.waitForTimeout(300);
+    if (answered) for (const v of ['found', 'abroad', 'months']) { await tap(page, ckOpt(v)); await page.waitForTimeout(900); }
+    const runs = [];
+    for (const d of [3, 13, 23, 33, 43]) runs.push(await TAB_TO(page, value, d));
+    const worst = Math.max(...runs.map((r) => r.under));
+    // the strip may rightly step back (the door below in view): what counts is that a focused pill is never under it
+    check(worst === 0 && runs.every((r) => r.focused && r.ring) && (!safe || st.safe === 'ok') && st.errors.length === 0,
+      `${slug} ${width}×${height}, «${name}»: five Tabs onto the pill from just inside the padding line — the focused pill, its gold ring on the pill, never under the strip (worst ${worst}px; strip up in ${runs.filter((r) => r.on).length} of 5)`, JSON.stringify([runs.filter((r) => r.under || !r.focused), st.safe, st.errors]));
+    await ctx.close();
+  }
+}
+// the inputs now lie over their pills (opacity 0, no pointer events): a tap
+// still toggles exactly once — on the pill's centre and on its far edge, by
+// touch and then by mouse — and nothing on the Check-in changes size
+{
+  const { ctx, page, st } = await open({ touch: true });
+  await page.waitForTimeout(300);
+  const box = (sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  const hit = async (sel, fx, how) => {
+    await page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+    await page.waitForTimeout(200);
+    const b = await box(sel + ' span');
+    if (how === 'touch') await page.touchscreen.tap(b.x + b.w * fx, b.y + b.h / 2); else await page.mouse.click(b.x + b.w * fx, b.y + b.h / 2);
+    await page.waitForTimeout(500);
+    return page.$eval(sel + ' input', (i) => i.checked);
+  };
+  const pill = await box(ckOpt('zero') + ' span'), lab = await box(ckOpt('zero'));
+  const z = await hit(ckOpt('zero'), 0.95, 'touch');
+  for (const v of ['abroad', 'months']) { await tap(page, ckOpt(v)); await page.waitForTimeout(900); }
+  await page.$eval('#ckPapersBox', (d) => { d.open = true; });
+  const seq = [];
+  for (const [doc, fx] of [['id', 0.5], ['contract', 0.97]]) seq.push([doc, fx, await hit(ckDoc(doc), fx, 'touch'), await hit(ckDoc(doc), fx, 'mouse')]);
+  check(z && seq.every((q) => q[2] === true && q[3] === false) && pill.h === 44 && lab.h === 44 && st.errors.length === 0,
+    `a Check-in answer and a paper toggle exactly once per tap, centre and edge, touch then mouse (${JSON.stringify(seq.map((q) => q.slice(2)))}); the pill and its label stay 44px`, JSON.stringify([z, seq, pill, lab, st.errors]));
+  await ctx.close();
+}
+// (strip-title) the strip's title is the city alone — the nav carries the
+// brand ("BOOM · Amster…" at 375 and "BOOM ·…" at 320 on cb8cc665). Five
+// desks at five phone widths, the desk open and closed, with and without a
+// plan named: the title whole on one line, the strip one height (≤ 72) and
+// --strip-h its real height
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin']) {
+  const city = JSON.parse(fs.readFileSync(path.join(R, 'cities', `${slug}.json`), 'utf8')).city;
+  for (const [desk, clock] of [['open', '2026-10-22T09:00:00Z'], ['closed', '2026-10-22T21:00:00Z']]) {
+    const { ctx, page, st } = await open({ slug, clock });
+    const bad = [];
+    let n = 0;
+    for (const plan of [false, true]) {
+      if (plan) await page.evaluate(() => { const r = document.querySelector('#cityForm input[name="service"]'); r.checked = true; r.dispatchEvent(new Event('change', { bubbles: true })); });
+      for (const [w, h] of [[320, 640], [341, 700], [375, 667], [390, 844], [414, 896]]) {
+        await page.setViewportSize({ width: w, height: h });
+        await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
+        await page.waitForTimeout(250);
+        const r = await page.evaluate(() => {
+          const b = document.getElementById('paybar'), t = document.getElementById('stripTitle');
+          return { on: b.classList.contains('on'), h: b.offsetHeight, v: getComputedStyle(document.documentElement).getPropertyValue('--strip-h').trim(), sw: t.scrollWidth, cw: t.clientWidth, title: t.textContent, sub: document.getElementById('stripSub').textContent };
+        });
+        n++;
+        if (!(r.on && r.title === city && r.sw <= r.cw && r.h <= 72 && r.v === r.h + 'px' && (!plan || / · your plan$/.test(r.sub)))) bad.push({ w, h, plan, ...r });
+      }
+    }
+    check(n === 10 && bad.length === 0 && st.errors.length === 0,
+      `${slug}, desk ${desk}: the strip reads "${city}" whole at 320/341/375/390/414, with and without a plan named, one height (≤ 72) and --strip-h its real height`, JSON.stringify(bad.slice(0, 3)));
     await ctx.close();
   }
 }
