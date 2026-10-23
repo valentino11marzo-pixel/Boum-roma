@@ -1261,8 +1261,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   `cityLabel`, `cityReplyText`): il Commerciale SI ASTIENE (guardia PRIMA di
   `proposeFirstReply`, come Réunion e B2B) e la card Telegram porta il
   messaggio inglese già scritto — firmato Valentino perché il numero è il
-  suo — col link di `/amsterdam` e SOLO le domande che il modulo non ha già
-  risposto; mai `/apartments` di Roma. Nessuna chiave nel browser, nessun
+  suo — col link di `/amsterdam` (dal 22/10, v1.4: sui desk che vendono
+  propone la chiamata gratuita che la porta promette, «which day and time
+  suit you?», e non fa più domande scritte; sui waitlist dice quali
+  documenti preparare); mai `/apartments` di Roma. Nessuna chiave nel browser, nessun
   servizio terzo: la pagina paga solo gtag (consent default negato) +
   `boom-consent.js` + `boom-track.js` come Executive.
 - `cities/_template.html` (`{{a.b}}` = escapato, `{{{a.b}}}` = HTML; nel
@@ -1453,7 +1455,8 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      → Stripe al prezzo di `CITY_PLANS` (la copia che il server si fida, mai
      il browser: un prezzo nel body è ignorato; `phone_number_collection`
      quando il foglio lo lascia vuoto) → `success_url` = la pagina della
-     città `?paid=<piano>&session_id=…#contact` (mai il thank-you di Roma),
+     città `?paid=<piano>&start=<0|1>&session_id=…`, senza frammento dal
+     22/10 (mai il thank-you di Roma),
      dove il JS mostra lo stato PAGATO (piano e importo, tre righe «cosa
      succede ora», il tabellone che scrive PAID), conta UN `purchase` per
      session id (localStorage) e ripiega la query. Il webhook SERVICE scrive
@@ -2350,6 +2353,95 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   giro city-lead → cassa → webhook → GET paid, cross-city e fantasma non
   riusati), `ui.mjs` 219, `scalo` 98 (`fileCode`: vettori FNV, 1.000 id con
   prefisso comune senza collisioni).
+- **LA REVISIONE DEL BIGLIETTO (22–23/10)**: verifica avversaria su v1.4, 46
+  rilievi confermati in Chromium. Due giri di correzioni, ognuno chiuso da
+  verificatori indipendenti e da prove per mutazione. Le regole nuove:
+  1. **Il ritorno da Stripe atterra sul biglietto.** Il `success_url` dei
+     desk non ha più `#contact`. Il browser riapplica lo scorrimento al
+     frammento al `load`, e in produzione gtag.js ritarda il `load`: misurato
+     con gtag trattenuto 500 ms, 15 casi su 18 finivano lontano dal biglietto.
+     Una sessione Stripe aperta prima del deploy torna ancora con il
+     frammento: la pagina lo toglie (`replaceState`) e rifà l'atterraggio una
+     volta al `load`, se il lettore non si è mosso (wheel, touchstart,
+     keydown, mai l'evento scroll). Dopo la verifica l'URL si ripiega sul solo
+     percorso.
+  2. **Un solo bersaglio per il focus: `#pass`** (`role="region"`,
+     `aria-labelledby="ckTitle"`, `tabindex="-1"`, anello d'oro). Ci portano
+     il link dei piatti (a fascicolo aperto e durante la conferma), «use it»,
+     la cassa rifiutata e il ritorno pagato; la cima del biglietto atterra
+     sotto la nav. Solo l'invio della porta usa il primo passo della card come
+     limite inferiore, così la conferma resta sullo schermo.
+  3. **Dopo OPEN o PAID il Check-in si ferma.** Il focus passa a `#pass`, poi
+     `#ckSteps`, `#ckSuggest` e `#ckPapersBox` diventano `inert`; `#ckSent`
+     resta leggibile (`checkin.sentLine`, obbligatoria su ogni desk, senza €
+     né cifre). Lo stesso succede durante «Payment being confirmed». Una
+     risposta data dopo non va più da nessuna parte.
+  4. **Mai una seconda cassa.** Durante la conferma e dopo PAID ogni
+     `[data-pay]` si nasconde (`payOff`). Un clic forzato porta al biglietto,
+     senza POST. Il piano stampato su PAID è quello confermato dal server
+     (`confirmPaid` sempre prima di `issue('paid')`). Il ritorno dal bfcache
+     (`pageshow` persisted) riapre la cassa. Un `?paid=` senza una sessione
+     `cs_test_`/`cs_live_` ben formata non tocca la pagina. La spunta si
+     disegna solo dopo la verifica (`.ok`). Dopo cinque domande senza
+     risposta la card dice `checkoutCopy.paid.unconfirmed`.
+  5. **La barra del telefono ha un'altezza sola**: 67 px misurati da 320 a
+     390 px, desk aperto o chiuso, testo su una riga con i puntini. Il JS
+     scrive l'altezza vera in `--strip-h`, letta da `scroll-padding-bottom`
+     e dallo spazio del piede: un giro di Tab dall'alto non lascia nessun
+     controllo sotto la barra (WCAG 2.4.11). L'atterraggio sulle porte non
+     sottrae più la barra.
+  6. **Il riquadro del consenso** aspetta finché il bottone dell'hero gli sta
+     sotto (`atWork`). `meets()` chiede ora anche la sovrapposizione
+     orizzontale: a 1920 px il riquadro accanto alla porta compare.
+  7. **Il rilievo 4 è respinto, di proposito.** Lo spostamento quando il
+     modulo diventa la card OPEN resta. Tenere lo spazio con un margine
+     peggiorava il desktop, e lo spostamento arriva solo dopo l'invio del
+     lettore. `run.mjs` vieta di rimettere margine, `unhold` e `scrollend`.
+  8. **Il biglietto disegnato**: le lettere di STANDBY/OPEN/PAID usano lo
+     stile del motore Solari (`.phead>b`, non `.phead b`). A ≥ 580 px di
+     biglietto il timbro sta in fondo alla colonna del corpo e non copre più
+     «Or write on WhatsApp». La rotta si misura sul biglietto (28 px, 22 px
+     sotto i 300). La nav da 1024 a 1199 px resta su una riga. Gli anelli di
+     focus sono d'oro su `.sent` e sulle domande FAQ. Telefono e mese di
+     ingresso stanno sulla stessa riga di base.
+  9. **Il server dice quello che la porta promette.** Sui desk che vendono,
+     la risposta pronta (`cityReplyText`) propone la chiamata gratuita col
+     numero di fascicolo: «By phone or WhatsApp — which day and time suit
+     you?». Il desk lavora lun–ven, quindi mai «this week». Niente più domande
+     scritte. Un lead arrivato da WhatsApp col marcatore riceve «Thanks for
+     your message… The first step is a free call.». Sui waitlist la risposta
+     nomina i documenti mancanti dal Check-in, se l'elenco è arrivato intero.
+     La porta lo taglia a 200 caratteri e un elenco di otto ne fa 258–291;
+     quando è tagliato, la risposta promette l'elenco. La testa del lead dice
+     «free call requested». Il riassunto pagato porta il numero di fascicolo
+     in testa, prima delle note. Se la lettura di `file_ref` fallisce, il
+     webhook la ritenta una volta; se fallisce ancora, l'ordine tiene il suo
+     numero e scrive `city.fileRefUnverified`.
+  10. **I dati**:
+     - Full Search nomina sul piatto e nell'`offerDescription` ciò che il
+       biglietto promette: la lettera di presentazione (Amsterdam, Madrid,
+       Barcellona), la «one-page presentation» (Parigi), la Selbstauskunft,
+       «self-disclosure» (Berlino). Lo stesso vale per l'Application Pack di
+       Parigi e Berlino, e per `CITY_PLANS`.
+     - Il build rifiuta un `prepares` che il piano non vende.
+     - `checkoutCopy.altLink` comincia con `door.label`, e la cassa non dice
+       mai «open a file».
+     - Sui waitlist niente «call», né nei fatti (Parigi e Berlino:
+       «Until it opens · Nothing is charged…») né in `form.sentNext` («Our
+       first reply says which papers matter.»).
+     - Senza JS sparisce anche il link «Three questions» dell'hero.
+     - Il testo WhatsApp mette in minuscolo solo la prima lettera.
+     - Il numero di fascicolo arriva solo dal server: `run.mjs` vieta ogni
+       scrittura di `.file` nel JS.
+  **Peso al limite**: Barcellona 89,9 KB su 90, Amsterdam 89,8, JS 25,3 KB.
+  Ogni aggiunta ai desk che vendono deve prima liberare byte.
+  **Da confermare col fondatore**: le nuove righe di Full Search e
+  dell'Application Pack a Parigi e Berlino; su Barcellona «Negotiation, cap
+  and contract checks».
+  **Non verificato qui**: iPhone vero. Chromium non ha l'ancoraggio di
+  scorrimento di Safari, il bfcache di iOS né la barra degli indirizzi che
+  cambia altezza.
+  Test: `run.mjs` 751, `checkout.mjs` 104, `ui.mjs` 331, `consent` 25.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

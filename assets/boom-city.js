@@ -1,29 +1,12 @@
 /* assets/boom-city.js — shared behaviour of the BOOM city pages (built by
-   build-cities.mjs from cities/<city>.json + cities/_template.html).
-   Reads window.BOOM_CITY, inlined by the build: the slug, the board word,
-   the plans with their conditions, the desk block, the Check-in rules, the
-   ticket's words (ISSUE), what each plan prepares (PREPARES). No keys, no
-   third-party form service: the form posts JSON to our own /api/city-lead,
-   which writes the lead into the same pipeline as every other BOOM door.
-   v1.4 (22/10, "The Itinerary"): the hero is editorial and moves nothing;
-   section 01 holds the three questions, the ticket and the door, in DOM
-   order at every width — no node movers. The ticket is ONE object with
-   one lifecycle: blank → standby (a plan exists: the answers resolved it,
-   a plate chose it, or the door was sent) → open (only after a 200 from
-   /api/city-lead, with the server's file number) → paid (only after GET
-   /api/city-lead?paid= answered paid:true — a ?paid= in the address bar
-   alone stamps nothing and counts nothing). The checked chip in the door is
-   the one truth for the plan; the questions write it only where nobody, or
-   the questions themselves, wrote before. The file number is the server's:
-   the browser never computes it. Every motion runs once and carries
-   information (the printer's emission, the plane one leg per answer, the
-   stamp, the foil flash); nothing loops at rest; reduced motion stops all.
-   Kept from 17/10–18/10: one send per tap; the month the page prefills is
-   its own; an own reload is a resume; re-picking the same answer folds the
-   step; the menu is inert off-screen; focus lands on the open file; boards
-   are decorative with the text beside them; one small live region; a paper
-   tick swaps without a view transition; worker replies correlated by id;
-   the desk's tz label and the door's sub follow the clock. */
+   build-cities.mjs; reads window.BOOM_CITY). No keys, no third-party form
+   service: the form posts JSON to our own /api/city-lead. v1.4 ("The
+   Itinerary", CLAUDE.md): DOM order is reading order, no node movers. The
+   ticket's one lifecycle: blank → standby (a plan exists) → open (only on
+   a 200, the server's file number) → paid (only when GET ?paid= says
+   paid:true; the address bar alone stamps and counts nothing). The checked
+   chip is the one truth for the plan. Motion runs once, carries
+   information, stops under reduced motion. */
 (function () {
   'use strict';
   var C = window.BOOM_CITY || {};
@@ -146,11 +129,8 @@
   /* ── the door: the month select, the plan line, the send ── */
   var form = $('cityForm');
   var planline = $('planline');
-  /* "no card · same-day reply" is the desk's promise while it is open. In the
-     evening and at the weekend every place that prints it — each
-     [data-door-sub] (the hero button, the door, the ticket's door) and the
-     strip — says the window instead, the same one the OPEN card computes,
-     so the promise shown before the tap is the one kept after it. */
+  /* "no card · same-day reply" while the desk is open; closed, every
+     [data-door-sub] and the strip say the window the OPEN card computes */
   var deskSub = (function () {
     var bar = $('paybar');
     var lead = C.DOOR_SUB_LEAD || 'free';
@@ -244,19 +224,21 @@
     });
   })();
   /* a plate's main link prints the ticket on ITS plan and brings the reader
-     up to it (without JS it is a plain link to the door) */
+     (and the focus) up to it; confirming or issued, only the way up. No JS: the door */
   [].forEach.call(document.querySelectorAll('.sib [data-service]'), function (a) {
     a.addEventListener('click', function (e) {
       var id = a.getAttribute('data-service');
       if (!planOf(id)) return;
-      if (form) form.setAttribute('data-plan-from', 'plate');
-      setPlan(id, 'plate');
-      boomTrack('select_item', { item_id: id, source_page: C.SLUG, source: 'plate' });
-      if (!T) return;
+      if (!T || !(T.issued() || T.confirming())) {
+        if (form) form.setAttribute('data-plan-from', 'plate');
+        setPlan(id, 'plate');
+        boomTrack('select_item', { item_id: id, source_page: C.SLUG, source: 'plate' });
+        if (!T) return;
+        T.print('plate');
+        T.render({ plain: true, quiet: true });
+      }
       e.preventDefault();
-      T.print('plate');
-      T.render({ plain: true, quiet: true });
-      T.toPass();
+      T.toPass(1);
     });
   });
   (function () {
@@ -351,8 +333,21 @@
           .catch(function () { sending = false; go.classList.remove('busy'); fail('net'); });
       }
       go.addEventListener('click', pay);
+      /* back from Stripe via the bfcache: the till starts clean */
+      addEventListener('pageshow', function (e) {
+        if (!e.persisted) return;
+        sending = false; go.classList.remove('busy');
+        if (ov.open) close();
+        document.body.style.overflow = '';
+      });
       $('ovX').addEventListener('click', close);
-      $('ovTalk').addEventListener('click', function () { close(); });
+      /* "Prefer to talk first?" keeps the plan the reader was looking at: the
+         door below carries it, as a plate's own link does (not once issued) */
+      $('ovTalk').addEventListener('click', function () {
+        var id = chosen();
+        if (planOf(id) && form && !(T && T.issued())) { form.setAttribute('data-plan-from', 'plate'); setPlan(id, 'plate'); }
+        close();
+      });
       /* a tap on the backdrop closes: the backdrop is the dialog's own box outside its content */
       ov.addEventListener('click', function (e) {
         if (e.target !== ov) return;
@@ -366,17 +361,17 @@
       b.addEventListener('click', function () {
         var plan = b.getAttribute('data-pay');
         if (!plan) return;
+        /* a payment being confirmed, or paid, is never paid twice: the ticket instead */
+        if (T && (T.confirming() || T.issued() === 'paid')) return T.toPass(1);
         sheet.open(plan, b.id || (b.closest('.sib') ? 'plate' : 'page'));
       });
     });
   }
 
   /* ══ THE CHECK-IN AND THE TICKET ════════════════════════════════════════
-     Three taps (stage · where · when) → the plan the RULES give (the same
-     rules the build derived the FAQ answer from), written into the door's
-     chip where nobody else wrote; the ticket prints on the first resolved
-     state and always shows the checked chip's plan. The papers fold after
-     the third tap; the answers live in the URL and, to share, in a link. */
+     Three taps → the plan the RULES give (the FAQ's rules), written into
+     the door's chip where nobody else wrote; the ticket prints on the first
+     resolved state and shows the checked chip's plan; answers in the URL. */
   var CK = (function () {
     var root = $('checkin'), pass = $('pass'), wrap = $('passWrap');
     if (!K || !root || !pass) return null;
@@ -465,13 +460,14 @@
     var shareUrl = function (via) { return (C.PAGE_URL || location.origin + location.pathname) + '#checkin=' + hashOf(via); };
     var shareText = function (which, via) { return K.share[which].replace('{city}', C.CITY).replace('{url}', shareUrl(via)); };
 
-    /* one same-document view transition around a swap of the steps; a plain
+    /* one same-document view transition around a swap of the steps (returned); a plain
        swap where the API is absent, hidden or motion is off */
     function swap(fn, plain) {
       if (!plain && document.startViewTransition && !ridotto && !document.hidden) {
-        try { document.startViewTransition(function () { fn(); }); return; } catch (e) {}
+        try { return document.startViewTransition(function () { fn(); }); } catch (e) {}
       }
       fn();
+      return null;
     }
 
     /* the papers line: what is in hand, what the CHOSEN plan prepares of
@@ -491,11 +487,13 @@
     };
 
     /* the WhatsApp text: the desk marker first (api/_market.js reads it),
-       then the plan and the answers once they exist — never a price */
+       then the plan and the answers once they exist — never a price; an
+       answer loses its first capital, never "I" or the city's */
+    var midCase = function (t) { return /^I\b/.test(t) || (C.CITY && t.indexOf(C.CITY) === 0) ? t : t.charAt(0).toLowerCase() + t.slice(1); };
     function waHref() {
       var p = planOf(service()), txt = C.WA_TEXT || '';
       if (p && C.WA_PLAN) {
-        var ans = STEPS.map(function (id) { var a = answer(id); return a ? optOf(id, a).t.toLowerCase() : null; }).filter(Boolean);
+        var ans = STEPS.map(function (id) { var a = answer(id); return a ? midCase(optOf(id, a).t) : null; }).filter(Boolean);
         txt += ' ' + C.WA_PLAN.replace('{plan}', p.label).replace('{answers}', ans.length ? ' · ' + ans.join(' · ') : '');
       }
       return 'https://wa.me/' + (C.WHATSAPP || '') + '?text=' + encodeURIComponent(txt);
@@ -513,22 +511,56 @@
        translates the card for 0.9 s and a rect read mid-flight lies */
     var topOf = function (el) { var t = 0; while (el) { t += el.offsetTop; el = el.offsetParent; } return t; };
     var barH = function () { return parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--boom-barra')) || 80; };
+    var stripH = function () { var s = $('paybar'); return s && s.classList.contains('on') ? s.offsetHeight : 0; };
+    var shown = function (el) { return !!(el && !el.hidden && el.offsetParent); };
     function go(y) { try { scrollTo({ top: y, behavior: ridotto ? 'auto' : 'smooth' }); } catch (e) { scrollTo(0, y); } }
-    function landDoors(again) {
+    /* never scroll the KEYBOARD's control under the bar (a tap focuses the radio too) */
+    function kbCap(want) {
+      var a = document.activeElement, fv = false;
+      try { fv = root.contains(a) && a.matches(':focus-visible'); } catch (e) {}
+      return fv ? Math.min(want, topOf(a.closest('label') || a) - barH() - 8) : want;
+    }
+    /* where the doors land the strip steps back: its height is not taken off */
+    function landDoors() {
       requestAnimationFrame(function () { requestAnimationFrame(function () {
-        var f = $('ckFile');
-        /* a print inside a view transition lands a frame later: look once more */
-        if (!printed) { if (!again) setTimeout(function () { landDoors(true); }, 120); return; }
         /* the lowest door showing: the till under the free call where the desk sells */
-        var t = $('ckStart'); if (t && t.offsetParent && topOf(t) > topOf(f)) f = t;
-        if (!f || !f.offsetParent) return;
-        var strip = $('paybar'); var stripH = strip && strip.classList.contains('on') ? strip.offsetHeight : 0;
-        var want = topOf(f) + f.offsetHeight - (innerHeight - stripH - 16);
+        var f = $('ckFile'), t = $('ckStart'); if (t && t.offsetParent && topOf(t) > topOf(f)) f = t;
+        if (!printed || !f || !f.offsetParent) return;
+        var want = kbCap(topOf(f) + f.offsetHeight - innerHeight + 16);
         if (want > scrollY + 1) go(want);
       }); });
     }
-    function toPass() {
-      requestAnimationFrame(function () { requestAnimationFrame(function () { go(Math.max(0, topOf(pass) - barH() - 12)); }); });
+    /* the next open question (then the papers fold) on the screen, below the bar */
+    function keepNext() {
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        var pb = $('ckPapersBox'), el = STEPS.map(stepEl).filter(function (x) { return shown(x) && !answer(x.getAttribute('data-step')); })[0] || (shown(pb) ? pb : null);
+        if (!el) return;
+        var t = topOf(el), up = t - barH() - 8, low = t + el.offsetHeight - (innerHeight - stripH() - 16);
+        var want = up < scrollY ? up : low > scrollY ? Math.min(up, low) : null;
+        if (want !== null && Math.abs((want = Math.max(0, kbCap(want))) - scrollY) > 1) go(want);
+      }); });
+    }
+    /* the one focus target the page moves to: the ticket itself */
+    function focusPass() { try { pass.focus({ preventScroll: true }); } catch (e) {} }
+    /* the ticket's top under the bar (f: the focus too); a floor (the sent
+       card's first step) stays on the screen, the top giving way first */
+    function toPass(f, floorEl) {
+      if (f) focusPass();
+      requestAnimationFrame(function () { requestAnimationFrame(function () {
+        var y = topOf(pass) - barH() - 12;
+        if (floorEl) y = Math.max(y, topOf(floorEl) + floorEl.offsetHeight - innerHeight + 16);
+        if (Math.abs((y = Math.max(0, y)) - scrollY) > 1) go(y);
+      }); });
+    }
+    /* the strike (stamp, foil) once the stamp is 60% on screen below the bar;
+       at once without an observer or motion. .struck is only the motion */
+    var strikeIO = null;
+    function strike() {
+      var st = $('ckStamp'), now = function () { if (strikeIO) strikeIO.disconnect(); strikeIO = null; pass.classList.add('struck'); };
+      if (strikeIO) strikeIO.disconnect();
+      if (!st || ridotto || !window.IntersectionObserver) return now();
+      strikeIO = new IntersectionObserver(function (es) { if (es[0].isIntersecting && es[0].intersectionRatio >= 0.59) now(); }, { rootMargin: '-' + Math.round(barH()) + 'px 0px 0px 0px', threshold: 0.6 });
+      strikeIO.observe(st);
     }
     /* the first print in a page load runs the emission once; later prints never replay it */
     function print(source) {
@@ -615,13 +647,27 @@
       }
       var pd = $('ckPending'); if (pd) pd.hidden = true;
       var file = $('ckFile'); if (file) file.hidden = true;
-      var start = $('ckStart'); if (start && kind === 'paid') start.hidden = true;
+      if (kind === 'paid') payOff();
       var st = $('ckStamp'); if (st) st.setAttribute('data-stamp', (kind === 'paid' ? 'PAID' : 'FILE OPEN') + ' · BOOM ' + String(C.WORD || C.CITY || '').toUpperCase());
-      pass.classList.add('struck');
+      strike();
       var said = (kind === 'paid' ? 'Payment confirmed.' : 'Your file is open.') + (o.file ? ' File ' + o.file + '.' : '');
       lastLive = said; setText('ckLive', said);
       boomTrack('pass_issued', { state: kind, market: C.SLUG });
       if (stripOff) stripOff();
+      freeze(SENT);
+    }
+    /* paid or being confirmed: no pay button anywhere */
+    function payOff() { [].forEach.call(document.querySelectorAll('[data-pay]'), function (b) { b.hidden = true; }); }
+    /* an answer after the one POST (or while paying) goes nowhere: the
+       questions go inert, a focus in them onto the ticket; the line stays read */
+    var SENT = ($('ckSent') || {}).textContent;
+    /* a line's first sentence: the frozen head keeps one line while paying */
+    var first = function (el) { return el && el.textContent.replace(/\.\s.*$/, '.'); };
+    function freeze(line) {
+      if (root.contains(document.activeElement)) focusPass();
+      root.classList.add('frozen');
+      ['ckSteps', 'ckSuggest', 'ckPapersBox'].forEach(function (id) { try { $(id).inert = true; } catch (e) {} });
+      var s = $('ckSent'); if (s) { if (line) s.textContent = line; s.hidden = false; }
     }
     function confirmPaid(plan) {
       confirming = true;
@@ -629,12 +675,16 @@
       setPlan(plan, 'paid');
       print('paid');
       paint();
+      payOff();
+      freeze(first($('ckPending')));
     }
 
     function render(opts) {
       opts = opts || {};
       var s = state();
-      swap(function () {
+      /* the ticket BEFORE this render (a view transition swaps a frame later) */
+      var pBefore = printed, planBefore = lastPlan;
+      var vt = swap(function () {
         sync();
         if ($('ckPend')) $('ckPend').hidden = s.kind !== 'pending';
         if ($('ckPapersBox')) $('ckPapersBox').hidden = s.kind !== 'complete' && !touchedDocs;
@@ -695,8 +745,13 @@
         paint();
         paintLinks();
       }, !!opts.plain);
-      /* after a tap the ticket's doors land on the screen (never on a landing) */
-      if (opts.tap) landDoors();
+      /* a tap that prints the ticket or changes its plan lands the doors, any
+         other keeps the next question in view — after the cross-fade, whose
+         snapshot a scroll would drag over the ticket */
+      if (opts.tap) {
+        var land = function () { if (printed && (!pBefore || lastPlan !== planBefore)) landDoors(); else keepNext(); };
+        if (vt && vt.finished) vt.finished.then(function () { land(); }, function () { land(); }); else land();
+      }
       if ((s.kind === 'resolved' || s.kind === 'complete') && (lastKind === 'blank' || lastKind === 'pending' || opts.resolved)) {
         boomTrack('checkin_result', { market: C.SLUG, plan: s.planId, stage: s.st, where: s.wh || '', when: s.wn || '', resolved_at_tap: s.wh && rule(s.st, null) == null ? 2 : 1, docs: touchedDocs ? docsHeld().length : -1 });
       }
@@ -715,11 +770,9 @@
       else if (bar) setText('stripSub', bar.getAttribute('data-sub') || '');
     }
 
-    /* ── the ticket as an image: 1080×1920, drawn by ONE pure function — on
-       an OffscreenCanvas in a Worker where the browser has it, on the main
-       thread otherwise. The image is for sharing: no file number, no reply
-       window, no name (the passenger is "A tenant"). The plane is the same
-       path as the page's symbol (Path2D), never a glyph. ── */
+    /* ── the ticket as an image: 1080×1920, ONE pure function (a Worker's
+       OffscreenCanvas, else the main thread). For sharing: no file number,
+       no window, no name; the plane is the symbol's Path2D. ── */
     function drawPass(x, d, W, H) {
       function rr(X, Y, w, h, r) { x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
       function sp(t) { return String(t).toUpperCase().split('').join(' '); }
@@ -924,6 +977,7 @@
 
     /* ── wiring ── */
     root.addEventListener('change', function (e) {
+      if (issued || confirming) return;
       var n = e.target && e.target.name || '';
       /* a tick is a plain swap: a view transition here puts an overlay over
          the page for ~370 ms and the next tick lands on it */
@@ -939,6 +993,7 @@
       boomTrack('checkin_answer', { market: C.SLUG, step: m[1], value: e.target.value, kind: s.kind });
     });
     root.addEventListener('click', function (e) {
+      if (issued || confirming) return;
       var b = e.target && e.target.closest('.ck-change');
       if (b) {
         editing = b.getAttribute('data-change');
@@ -950,7 +1005,11 @@
       var u = e.target && e.target.closest('#ckSuggestUse');
       if (u) {
         var sp = $('ckSuggest').getAttribute('data-plan');
-        if (planOf(sp)) { form.setAttribute('data-plan-from', 'checkin'); setPlan(sp, 'checkin'); render({ plain: true }); boomTrack('checkin_suggest_use', { market: C.SLUG, plan: sp }); }
+        if (planOf(sp)) {
+          form.setAttribute('data-plan-from', 'checkin'); setPlan(sp, 'checkin'); render({ plain: true });
+          toPass(1);
+          boomTrack('checkin_suggest_use', { market: C.SLUG, plan: sp });
+        }
         return;
       }
       /* "change", then the same answer again: an already-checked radio fires
@@ -1019,7 +1078,7 @@
     return {
       state: state, render: render, hash: hashOf, shareUrl: shareUrl, passBlob: passBlob, drawPass: drawPass, passData: passData,
       print: print, refresh: function () { if (printed) { paint(); paintLinks(); } else paintLinks(); }, printed: function () { return printed; },
-      issued: function () { return issued; }, issue: issue, confirmPaid: confirmPaid, toPass: toPass
+      issued: function () { return issued; }, confirming: function () { return confirming; }, issue: issue, confirmPaid: confirmPaid, toPass: toPass
     };
   })();
   T = CK;
@@ -1093,12 +1152,19 @@
           /* who writes, when: computed against the desk clock, never a static promise */
           var w = $('openWhen'), rw = desk && desk.replyWindow();
           if (w && rw) w.textContent = rw;
+          /* the pass names the plan FILED, not a chip changed in flight */
+          if (service() !== picked) {
+            [].forEach.call(form.querySelectorAll('input[name="service"]'), function (r) { r.checked = r.value === picked; });
+            paintPlanline();
+            if (T) T.refresh();
+          }
           /* the ticket becomes a boarding pass: the number is the server's */
           if (T) T.issue('open', { file: j.file, name: name });
-          /* the form left: the ticket comes into view if it is off screen, and
-             focus moves onto the open file so it is read, not lost on <body> */
-          var pass = $('pass');
-          if (pass && pass.getBoundingClientRect().top < 0 && T) T.toPass();
+          /* one column: land the confirmation's first step with as much stub
+             as fits, never the €500 till alone; side by side, the ticket only
+             if its top is off screen. The focus goes onto the open file */
+          var pass = $('pass'), one = innerWidth < 1100;
+          if (T && pass && (one || pass.getBoundingClientRect().top < 0)) T.toPass(0, one && (done.querySelector('.next li') || done));
           try { done.focus({ preventScroll: true }); } catch (e) {}
           boomTrack('sign_up', { method: 'city_form', market: C.SLUG });
         })
@@ -1121,13 +1187,15 @@
      the PAID lead for this city — at 0 / 1.5 / 3 / 6 / 12 s. Only then the
      PAID stamp, the file number, the verified steps and ONE purchase event
      (the key lives in sessionStorage for the tab's life, never on the
-     device: ePrivacy 5(3)). Still pending after the fifth ask: it stays
-     "being confirmed" and the confirmation email does the rest. */
+     device: ePrivacy 5(3)). Still pending after the fifth ask: "not
+     confirmed yet", the address beside it. */
   (function () {
     if (C.CHECKOUT !== true || !form) return;
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var plan = q.get('paid'), sid = q.get('session_id') || '', pp = planOf(plan);
     if (!pp) return;
+    /* the shape the server accepts, or no payer: the page stays as it is */
+    if (!/^cs_(test|live)_[A-Za-z0-9]{8,200}$/.test(sid)) return;
     var card = $('fPaid');
     if (!card) return;
     form.classList.add('hidden');
@@ -1135,15 +1203,25 @@
     var paintPlan = function (p) { $('paidPlan').textContent = p.label + ' · ' + eur(p.eur) + ' · ' + p.condition; };
     paintPlan(pp);
     if (h3 && card.getAttribute('data-pending')) h3.textContent = card.getAttribute('data-pending');
-    if ($('paidText')) $('paidText').hidden = true;
+    /* the steps wait for the server; the address line (#paidText) stays */
     if ($('paidNext')) $('paidNext').hidden = true;
     card.classList.add('on');
     if (T) T.confirmPaid(plan);
-    setTimeout(function () { try { $('contact').scrollIntoView({ block: 'start' }); try { card.focus({ preventScroll: true }); } catch (e2) {} } catch (e) {} }, 50);
+    /* land on the ticket, the focus on it. A legacy #contact return drops
+       the fragment and lands again at `load` (the browser re-applies its
+       fragment scroll there) unless the reader moved: wheel, touch, key */
+    var moved = 0, land = function () { if (T) T.toPass(1); else card.focus(); };
+    ['wheel', 'touchstart', 'keydown'].forEach(function (t) { addEventListener(t, function () { moved = 1; }, { passive: true, once: true }); });
+    if (location.hash) {
+      try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+      if (document.readyState !== 'complete') addEventListener('load', function () { if (!moved) land(); });
+    }
+    setTimeout(land, 50);
     function onVerified(v) {
       var vp = planOf(v.plan) ? v.plan : plan, p = planOf(vp);
       paintPlan(p);
       if (h3) h3.innerHTML = h3Html;
+      card.classList.add('ok');   // the tick draws now, never before
       if ($('paidText')) $('paidText').hidden = false;
       if ($('paidNext')) $('paidNext').hidden = false;
       /* no "start now" tick: the work begins when the 14-day withdrawal period ends — say so */
@@ -1162,10 +1240,13 @@
           if (sp) sp.textContent = pair[1];
         });
       }
+      /* the PAID plan's chip, whatever was tapped while waiting */
       if (T) {
-        if (vp !== plan) T.confirmPaid(vp);
+        T.confirmPaid(vp);
         T.issue('paid', v);
       }
+      /* the PAID ticket is what lands, again, if the reader has not moved */
+      if (!moved) land();
       var key = 'boom:paid:' + (sid || plan), seen = false;
       try { seen = !!sessionStorage.getItem(key); sessionStorage.setItem(key, '1'); } catch (e) {}
       /* the Stripe session id names a payer: GA gets an opaque hash of it (FNV-1a), never the id */
@@ -1173,13 +1254,17 @@
       for (var hi = 0; hi < sid.length; hi++) { h ^= sid.charCodeAt(hi); h = Math.imul(h, 0x01000193) >>> 0; }
       if (!seen) boomTrack('purchase', { transaction_id: 'city_' + C.SLUG + '_' + ('0000000' + h.toString(16)).slice(-8), currency: 'EUR', value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + vp, item_name: p.label, price: p.eur, quantity: 1 }], market: C.SLUG });
       /* verified: the query folds away, the URL can be shared without re-landing */
-      try { history.replaceState(null, '', location.pathname + '#contact'); } catch (e) {}
+      try { history.replaceState(null, '', location.pathname); } catch (e) {}
     }
-    /* the same shape the server accepts: anything else is not worth asking about */
-    if (!/^cs_(test|live)_[A-Za-z0-9]{8,200}$/.test(sid)) return;
     var at = [0, 1500, 3000, 6000, 12000], n = 0, verified = false;
     function ask() {
-      if (verified || n >= at.length) return;
+      if (verified) return;
+      /* the fifth ask unanswered: "not confirmed yet" on card, stub and Check-in */
+      if (n >= at.length) {
+        var un = card.getAttribute('data-unconfirmed');
+        if (un) { if (h3) h3.textContent = un; setText('ckPending', un); setText('ckSent', un.replace(/\.\s.*$/, '.')); }
+        return;
+      }
       var wait = at[n] - (n ? at[n - 1] : 0);
       n++;
       setTimeout(function () {
@@ -1200,10 +1285,8 @@
     addEventListener('scroll', function () { if (nav) nav.classList.toggle('scrolled', scrollY > 30); }, { passive: true });
     var t = $('navToggle'), m = $('mobileMenu');
     if (t && m) {
-      /* closed, the slid-away menu is out of the tab order and the tree
-         (inert + aria-hidden; the CSS adds visibility for older engines);
-         open, focus moves to its first link, Escape closes and gives focus
-         back to the burger; the consent plate hides while it is open */
+      /* closed: inert + aria-hidden (CSS adds visibility); open: focus on
+         its first link, Escape closes back to the burger */
       var setMenu = function (open) {
         t.classList.toggle('active', open); m.classList.toggle('active', open);
         t.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1247,9 +1330,17 @@
         new IntersectionObserver(function (es) { es.forEach(function (e) { seen[id] = e.isIntersecting; }); upd(); }, { threshold: 0 }).observe(el);
       });
     }
-    function upd() { bar.classList.toggle('on', !gone && cta.getBoundingClientRect().bottom < 0 && !seen.contact && !seen.pass && !dialogOpen()); }
+    /* its measured height for the CSS: --strip-h */
+    var hh = 0;
+    function upd() {
+      var h = bar.offsetHeight;
+      if (h && h !== hh) document.documentElement.style.setProperty('--strip-h', (hh = h) + 'px');
+      bar.classList.toggle('on', !gone && cta.getBoundingClientRect().bottom < 0 && !seen.contact && !seen.pass && !dialogOpen());
+    }
+    addEventListener('resize', upd);
     stripOff = function () { gone = true; upd(); };
-    if (T && T.issued()) gone = true;
+    /* nor while a payment is being confirmed */
+    if ((T && (T.issued() || T.confirming())) || ($('fPaid') && $('fPaid').classList.contains('on'))) gone = true;
     addEventListener('scroll', upd, { passive: true }); upd();
     /* the till closing is not a scroll: the strip comes back on its own */
     if (ov) ov.addEventListener('close', function () { setTimeout(upd, 0); });

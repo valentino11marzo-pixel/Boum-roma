@@ -42,8 +42,9 @@
  *
  * I desk città (<body data-consent-late>, le pagine dove la diagnosi è
  * l'hero) aspettano di più: la prima mossa del lettore + 600 ms, poi
- * finché il lettore è al lavoro nell'hero (Check-in senza risposta o
- * biglietto sullo schermo), 45 s al massimo, mai sopra un <dialog open>.
+ * finché il lettore è al lavoro (Check-in senza risposta, biglietto o
+ * porta dell'hero sotto la targa), 45 s al massimo, mai sopra un
+ * <dialog open>.
  *
  * Storage: localStorage 'boom:consent' = 'all:<ms>' | 'min:<ms>'.
  * The Meta pixel (js/boom-pixel.js) independently requires 'all'.
@@ -325,7 +326,8 @@
   // dito che scorre, un tap FUORI da diagnosi/pass/porta, un tasto — più
   // 600 ms, e poi aspetta finché il lettore è AL LAVORO nell'hero: il
   // Check-in senza risposta sullo schermo, o il biglietto sullo schermo (su
-  // un 375px si posava sulle opzioni, dopo il tap sulla porta del biglietto).
+  // un 375px si posava sulle opzioni, dopo il tap sulla porta del biglietto),
+  // o la porta dell'hero (.hero-cta) proprio dove la targa si poserebbe.
   // Ricontrolla ogni 1,2 s, mostra al più tardi 45 s dopo l'armamento, mai
   // sopra un <dialog open> (la cassa). Lo scroll EVENT non è un segnale: la
   // pagina scorre da sola per far atterrare il pass. 8 s senza mosse armano
@@ -355,16 +357,20 @@
       return r.height ? r : null;
     } catch (e) { return null; }
   }
+  // in altezza E in larghezza (sul desktop la targa sta a sinistra)
   function meets(n, box) {
     if (!onScreen(n)) return false;
     if (!box) return true;
-    try { var r = n.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom; } catch (e) { return true; }
+    try { var r = n.getBoundingClientRect(); return r.bottom > box.top && r.top < box.bottom && r.right > box.left && r.left < box.right; } catch (e) { return true; }
   }
   function atWork() {
     try {
       var ck = document.getElementById('checkin'), pass = document.getElementById('pass'), box = plateBox();
       if (ck && meets(ck, box) && !ck.querySelector('input:checked')) return true;
       if (pass && pass.getAttribute('data-state') !== 'blank' && meets(pass, box)) return true;
+      // la porta dell'hero: su un telefono basso «Accept» le si posava sopra
+      var hc = document.querySelector('.hero-cta');
+      if (hc && meets(hc, box)) return true;
       return false;
     } catch (e) { return false; }
   }

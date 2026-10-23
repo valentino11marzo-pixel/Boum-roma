@@ -211,7 +211,7 @@ export function b2bReplyText(lead = {}) {
 // first call — the sheet, the FAQ and the build's guard say the same.
 export const CITY_PLANS = {
   'full-search':      { eur: 500, label: 'Full Search',      per: 'flat',
-    desc: 'Search on the tenant\'s side: local-format dossier within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
+    desc: 'Search on the tenant\'s side: local-format dossier and cover letter within one working day of your papers, applications sent as listings appear, one attended viewing with live video and written report, negotiation, contract checked before you sign; it runs until you sign or tell us to stop. Refunded in full if we decline the search in the first call.' },
   'application-pack': { eur: 199, label: 'Application Pack', per: 'flat',
     desc: 'The dossier that wins applications: local format within one working day of your papers, cover letter, income and guarantor strategy, contract review before you sign.' },
   'attended-viewing': { eur: 149, label: 'Attended Viewing', per: 'per viewing',
@@ -375,9 +375,10 @@ export function cityLabel(lead = {}) {
 
 /**
  * Il messaggio WhatsApp già scritto per un lead di città: in inglese (la
- * pagina è in inglese e la persona si sta trasferendo da fuori), con le SOLE
- * domande che il modulo non ha già risposto, e il link della SUA pagina —
- * mai /apartments di Roma.
+ * pagina è in inglese e la persona si sta trasferendo da fuori), e il link
+ * della SUA pagina — mai /apartments di Roma. Sui desk che vendono propone
+ * la chiamata gratuita che la porta promette (col numero di fascicolo);
+ * sui desk in apertura chiede le SOLE cose che il modulo non ha già detto.
  * @param {object} lead
  * @returns {string}
  */
@@ -413,14 +414,42 @@ export function cityReplyText(lead = {}) {
     return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 I saw you started ${plan} for ${c.label} and stopped at the payment. ` +
       `Anything I can answer before you decide? Happy to do a quick call.\n${c.url}`;
   }
+  // A desk that sells (v1.4, 22/10): the door reads "Start with a free call"
+  // and the OPEN card promises "Valentino writes to set your free call". The
+  // ready reply SETS the call — never a written questionnaire (the call
+  // covers dates, budget and who is moving, says the FAQ) and never "I'll
+  // come back today" (one more hop before the call). It names the file
+  // number the ticket printed, so the two match. A lead that came from
+  // elsewhere (a WhatsApp message carrying the desk marker) did not tap the
+  // door: it is thanked for its message and offered the same call.
+  if (cityMode(lead) !== 'waitlist') {
+    const file = lead.city && typeof lead.city.file === 'string' ? lead.city.file.trim() : '';
+    const opener = lead.intent === 'city_search'
+      ? `You asked for a free call about your move to ${c.label}`
+      : `Thanks for your message about your move to ${c.label}. The first step is a free call`;
+    // never "this week": the desk is Mon–Fri, and a reply sent on a Friday
+    // evening or a weekend would offer a week already spent (review 22/10)
+    return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 ${opener}${file ? ` (your file ${file})` : ''}.\n` +
+      `By phone or WhatsApp — which day and time suit you?\n${c.url}`;
+  }
   const q = asks.length
     ? `To set up the search properly: ${asks.join(', ')}? `
     : 'I have your dates, budget and situation. ';
-  // A waitlist desk never promises a search it cannot run yet: the reply says
-  // where the desk stands and what can be done today.
-  const next = cityMode(lead) === 'waitlist'
-    ? `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. I'll come back today with where we stand and what we can already do for you.`
-    : "I'll come back today with how we'd run it and the next step.";
+  // A waitlist desk never promises a search it cannot run yet (nor a call:
+  // its door is "Open my file"): the reply says where the desk stands and
+  // what can be done today. And its OPEN card promises "Our first reply says
+  // which papers matter" (review 22/10): this reply IS that first reply. The
+  // papers the Check-in found missing are named — only when the page's list
+  // reached us whole (the door clips the field at 200 characters, and a
+  // paper cut in half is not a paper); all in hand is said so; otherwise the
+  // reply says it will name them.
+  const doss = String((lead.city && lead.city.dossier) || '').trim();
+  const missing = doss.length < 200 ? ((/·\s*missing:\s*(.+)$/.exec(doss) || [])[1] || '').replace(/[\s.]+$/, '') : '';
+  const held = /^(\d+)\/(\d+)$/.exec(doss);
+  const papers = missing ? `From your check-in, the papers to start gathering: ${missing}. `
+    : held && held[1] === held[2] ? 'Your check-in says your papers are all in hand. ' : '';
+  const next = `The ${c.label} desk is opening with ${c.partner || 'a licensed partner'}, so I can't start a search there yet. ${papers}` +
+    `I'll come back today with where we stand${papers ? ' and what we can already do for you' : ', what we can already do for you and which papers to start gathering'}.`;
   return `Hi${first ? ' ' + first : ''}, Valentino here from BOOM 👋 Thanks for your message about your move to ${c.label}.\n` +
     `${q}${next}\n${c.url}`;
 }

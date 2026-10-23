@@ -130,8 +130,12 @@ export default async function handler(req, res) {
       // thank-you page — and the Pacchetto carries its «inizio subito» choice
       // there, so the page says the right time (48 hours from the data, or
       // after the 14 days).
+      // No #contact on the way back (review 22/10): the page lands the payer
+      // on the ticket itself, and a fragment makes the browser re-apply its
+      // own scroll to #contact at `load` — which, with gtag.js holding `load`
+      // in production, arrives AFTER the page's landing and undoes it.
       success_url: offer
-        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}#contact`
+        ? `${offer.url}?paid=${encodeURIComponent(kind)}&start=${body.startNow === true ? '1' : '0'}&session_id={CHECKOUT_SESSION_ID}`
         : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
           (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
           '&session_id={CHECKOUT_SESSION_ID}',

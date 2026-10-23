@@ -42,7 +42,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=3161e3b596">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=3a55d24246">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -202,7 +202,7 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Search, Spanish-format application file, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l.",
+          "description": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -367,7 +367,7 @@
   ]
 }
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap{display:none!important}.planline .chips{display:block!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap,#heroPlan,.hp-sep{display:none!important}.planline .chips{display:block!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -765,7 +765,7 @@ body::before, body::after { z-index: 1 !important; }
         <p class="rule">Full Search is refunded in full if we decline the search in the first call.</p>
         <div class="hero-cta">
           <a class="paybtn hero-go" href="#contact" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>Start with a free call</b><small>no card · same-day reply</small></span><span class="amt">→</span></a>
-          <p class="hero-alt"><a href="#plan" id="heroPlan">Not sure which service? Three questions</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Madrid%2C%20I'm%20moving%20to%20Madrid." id="heroWa" target="_blank" rel="noopener">WhatsApp</a></p>
+          <p class="hero-alt"><a href="#plan" id="heroPlan">Not sure which service? Three questions</a><span class="hp-sep"> · </span><a href="https://wa.me/393313251961?text=Hi%20BOOM%20Madrid%2C%20I'm%20moving%20to%20Madrid." id="heroWa" target="_blank" rel="noopener">WhatsApp</a></p>
         </div>
       </div>
       <!-- /GLANCE -->
@@ -792,10 +792,10 @@ body::before, body::after { z-index: 1 !important; }
     <p class="sec-sub plan-head">Three questions pick the service. Or choose one below.</p>
     <div class="plan-in">
       <!-- CHECK-IN -->
+<span class="sr" id="ckLive" role="status" aria-live="polite"></span>
 <section class="checkin" id="checkin" aria-label="Check-in">
-  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span></div>
+  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span><p class="ck-sent" id="ckSent" hidden>Your file is open. The desk takes it from here.</p></div>
   <p class="ck-landing" id="ckLanding" hidden></p>
-  <span class="sr" id="ckLive" role="status" aria-live="polite"></span>
   <div class="ck-steps" id="ckSteps">
       <fieldset class="ck-step" data-step="stage">
         <legend><b>01</b> Where are you in the search?</legend>
@@ -851,7 +851,7 @@ body::before, body::after { z-index: 1 !important; }
 <div class="uscita printer" id="passWrap">
   <div class="fessura" aria-hidden="true"></div>
   <p class="pblank" id="ckBlank">Your plan prints here as you answer.</p>
-  <article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" aria-label="BOOM · Your plan">
+  <article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" role="region" aria-labelledby="ckTitle" tabindex="-1">
     <div class="lamina" aria-hidden="true"><em>BOOM · TENANT SIDE</em></div>
     <span class="stamp" id="ckStamp" data-stamp="" aria-hidden="true"></span>
     <div class="pbody">
@@ -974,7 +974,7 @@ body::before, body::after { z-index: 1 !important; }
           <h3>Your file is <em>open.</em></h3>
           <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes to set your free call.</span></li><li><b>Nothing to prepare</b><span>On the call we say which papers matter.</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
         </div>
-        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="Payment being confirmed. Your confirmation comes by email." data-wait="You did not tick “Start now”: we start when your 14 days end. Sooner? Write to hello@boom-rome.com.">
+        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="Payment being confirmed. Your confirmation comes by email." data-unconfirmed="Not confirmed yet. If no email reaches you, write to the desk." data-wait="You did not tick “Start now”: we start when your 14 days end. Sooner? Write to hello@boom-rome.com.">
           <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
           <h3>Paid — your file <em>is open.</em></h3>
           <p class="plan" id="paidPlan"></p>
@@ -1023,7 +1023,7 @@ body::before, body::after { z-index: 1 !important; }
       <article class="sib on" id="plate-full-search">
         <div class="se"><span>Full Search</span></div>
         <b>We search. You choose.</b>
-        <ul class="inc"><li>Every working day: Idealista, Fotocasa, agencies</li><li>Applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Rent negotiated, contract checked, padrón supported</li><li>Until you sign, or you say stop</li></ul>
+        <ul class="inc"><li>Every working day: Idealista, Fotocasa, agencies</li><li>Presentation letter, applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Rent negotiated, contract checked, padrón supported</li><li>Until you sign, or you say stop</li></ul>
         <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
         <a class="go" href="#contact" data-service="full-search">Start with a free call →</a>
         <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
@@ -1226,7 +1226,7 @@ body::before, body::after { z-index: 1 !important; }
 </footer>
 
 <!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
-<dialog class="sheet" id="ov" aria-label="Start with BOOM Madrid" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.">
+<dialog class="sheet" id="ov" aria-label="Start with BOOM Madrid" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or start with a free call instead.">
     <div class="sh"><h3>Start with BOOM Madrid</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
     <p class="note">Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.</p>
     <div class="payrows" role="radiogroup" aria-label="Service">
@@ -1243,7 +1243,7 @@ body::before, body::after { z-index: 1 !important; }
     <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
     <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
     <button type="button" class="paybtn" id="sGo" data-label-now="Pay and start" data-label-wait="Pay and book" data-sub-now="Starts in the desk’s first open hour · Stripe" data-sub-wait="Starts when your 14 days end · Stripe"><span class="lk">🔒</span><span class="tx"><b>Pay and book</b><small>Starts when your 14 days end · Stripe</small></span><span class="amt" id="sGoAmt"></span></button>
-    <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Open a file, no payment</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Madrid%2C%20I'm%20moving%20to%20Madrid." target="_blank" rel="noopener">WhatsApp</a></p>
+    <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Start with a free call, no card</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Madrid%2C%20I'm%20moving%20to%20Madrid." target="_blank" rel="noopener">WhatsApp</a></p>
     <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. <a href="/terms#city-desks" target="_blank" rel="noopener">Terms</a></p>
 </dialog>
 
@@ -1357,7 +1357,7 @@ body::before, body::after { z-index: 1 !important; }
         "unit": "",
         "includes": [
           "Every working day: Idealista, Fotocasa, agencies",
-          "Applications as listings appear",
+          "Presentation letter, applications as listings appear",
           "One attended viewing (more: €149 each)",
           "Rent negotiated, contract checked, padrón supported",
           "Until you sign, or you say stop"
@@ -1592,6 +1592,7 @@ body::before, body::after { z-index: 1 !important; }
         }
       },
       "refusal": "Four weeks is tight. We say so in the first call.",
+      "sentLine": "Your file is open. The desk takes it from here.",
       "pending": {
         "eyebrow": "Two plans fit",
         "text": "One more answer decides: {plans}."
@@ -1612,7 +1613,7 @@ body::before, body::after { z-index: 1 !important; }
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=571186b701"></script>
+<script src="/assets/boom-city.js?v=12b9ff1dcb"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

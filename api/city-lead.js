@@ -229,7 +229,10 @@ export default async function handler(req, res) {
   if (areas) parts.push(areas);
   if (checkin) parts.push(`check-in: ${checkin}`);
   if (dossier) parts.push(`papers ${dossier}`);
-  const head = `${city.label.toUpperCase()} — ${waitlist ? `waitlist (desk opening with ${city.partner || 'a licensed partner'})` : 'tenant-side search'} · ${parts.join(' · ')}`;
+  // On a desk that sells the door reads "Start with a free call" (v1.4): the
+  // head says what the visitor asked for, so the operator sets the call. A
+  // waitlist desk's door is "Open my file" and promises no call.
+  const head = `${city.label.toUpperCase()} — ${waitlist ? `waitlist (desk opening with ${city.partner || 'a licensed partner'})` : 'tenant-side search · free call requested'} · ${parts.join(' · ')}`;
   const summary = `${message ? `${head}. ${message}` : head} · file ${file}`;
 
   const now = new Date();

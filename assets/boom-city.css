@@ -38,6 +38,9 @@
 .bl-desk{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;line-height:1.6;font-weight:500}
 .footer-brand-logo .bl-desk{font-size:11px;letter-spacing:3.6px;line-height:1.7;font-family:var(--sans)}
 .nav-link.nav-door{color:var(--gold)}
+/* one line per link (at 1024 the labels wrapped into the lockup) */
+.nav-link{white-space:nowrap}
+@media(min-width:1024px) and (max-width:1199px){.nav-links{gap:20px}}
 .mobile-menu-group{display:block;margin-top:18px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3)}
 /* closed, the menu is off the screen AND off the tab order: visibility
    follows the slide (hidden after the 400 ms out, visible at once on open) */
@@ -123,6 +126,12 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .ck-head{display:flex;justify-content:space-between;gap:10px;align-items:baseline}
 .ck-num{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
 .ck-landing{margin-top:8px;font-size:12.5px;color:var(--t2);line-height:1.5;padding:9px 12px;border:1px solid var(--line-gold);border-radius:10px;background:var(--gold-faint)}
+/* the file is open: the questions freeze (inert), dimmed, and one line
+   takes the counter's place — nothing changes height under the reader */
+.ck-sent{font-size:12.5px;line-height:1.4;color:var(--t1)}
+.checkin.frozen .ck-num{display:none}
+.checkin.frozen>:not(.ck-head){opacity:.45}
+.checkin.frozen .ck-step .ck-change{visibility:hidden}
 .ck-steps{margin-top:10px;display:grid;gap:10px}
 .ck-step{border:0;padding:0;margin:0;min-width:0;animation:fade-up .45s var(--ease) both}
 .ck-step legend{padding:0;font-size:14.5px;font-weight:400;color:var(--t1);line-height:1.35}
@@ -211,7 +220,8 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 /* the rosette watermark, very low */
 .pbody::before{content:'';position:absolute;right:-60px;top:-40px;width:240px;height:240px;border-radius:50%;pointer-events:none;opacity:.05;background:repeating-radial-gradient(circle,var(--gold) 0 1px,transparent 1px 9px)}
 .phead{position:relative;display:flex;align-items:center;gap:6px 10px;justify-content:space-between;flex-wrap:wrap}
-.phead b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
+/* the title only, never the status board's glyphs (.fc2 i b) */
+.phead>b{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold)}
 .flap-mini{display:inline-block;font-size:14px;font-weight:300;letter-spacing:0;color:var(--oro-flap);min-height:1.27em;vertical-align:middle;white-space:nowrap}
 .flap-mini .fc2{margin-right:.06em}
 /* the route: YOU (or the reader's own "where") ⇢ the desk, the plane one leg per answer */
@@ -267,17 +277,26 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
   .stub .paybtn .lk{width:28px;height:28px;border-radius:9px}
   .stub .paybtn b{font-size:14px}
   .stub .paybtn .amt{display:none}
+  /* the route sizes from the ticket's ~272px body, never from 6vw */
+  .proute{font-size:28px;gap:8px}
 }
+/* a 320px screen: the route still fits */
+@container (max-width:300px){.proute{font-size:22px;gap:8px}.pline{min-width:24px;flex-basis:24px}}
 /* the stamp: CSS only, the words in an attribute (out of the reading
    order), gold for OPEN and PAID alike; it strikes once */
 /* an absolute grid child takes its grid area as containing block: stacked,
-   the stamp sits in the stub beside the fare; side by side, at the foot of the body */
+   the stamp sits in the stub beside the fare; side by side, at the foot of
+   the body column (area closed: a start line alone runs to the pass's edge,
+   onto the stub's doors), in room the issued body keeps under its fields */
 .stamp{position:absolute;grid-column:1 / -1;grid-row:3;top:14px;right:34px;z-index:5;pointer-events:none}
 .stamp::after{content:attr(data-stamp);display:block;max-width:150px;padding:8px 12px;text-align:center;border:2px solid var(--gold);border-radius:10px;outline:1px dashed rgba(255,215,0,.55);outline-offset:-6px;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10px;font-weight:700;letter-spacing:2px;line-height:1.3;text-transform:uppercase;color:var(--gold);transform:rotate(-9deg);mix-blend-mode:screen;opacity:.9}
 .stamp[data-stamp=""]::after{display:none}
 .pass.struck .stamp::after{animation:strike .38s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes strike{from{transform:rotate(-9deg) scale(1.6);opacity:0}to{transform:rotate(-9deg) scale(1);opacity:.9}}
-@container (min-width:580px){.stamp{grid-column:2;grid-row:1;top:auto;bottom:16px;right:16px}}
+@container (min-width:580px){.stamp{grid-column:2 / 3;grid-row:1 / 2;top:auto;bottom:14px;right:16px}.pass:is([data-state="open"],[data-state="paid"]) .pbody{padding-bottom:78px}}
+/* the strike waits until the stamp is on the screen: not drawn before it
+   (the room above is the issued state's, so a late strike moves nothing) */
+@media screen{.pass:not(.struck) .stamp::after{opacity:0}}
 /* the doors */
 .pdoors{margin-top:14px;display:grid;gap:8px}
 .pdoors .paybtn{padding:14px 16px}
@@ -302,7 +321,8 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .filecard{position:relative;border:1px solid var(--line-gold);border-radius:20px;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(255,215,0,.04);padding:20px 20px 18px}
 @media(max-width:640px){.filecard{padding:18px 16px 16px}}
 .frow{display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
+/* paired inputs share a bottom edge, whatever their labels' height */
+@media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr));align-items:end}}
 .filecard .fld{margin-top:12px}
 .filecard .frow .fld{margin-top:12px}
 .filecard .frow:first-child .fld{margin-top:0}
@@ -364,6 +384,8 @@ section[id],#contact,#checkin{scroll-margin-top:var(--boom-barra,96px)}
 .sent .tick circle{fill:var(--green-muted);stroke:rgba(61,220,151,.45);stroke-width:1}
 .sent .tick path{fill:none;stroke:var(--green);stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:34;stroke-dashoffset:34}
 .sent.on .tick path{animation:draw .55s var(--ease) .3s forwards}
+/* the paid tick waits for the server (.ok) */
+.sent.paid:not(.ok) .tick{display:none}
 @keyframes draw{to{stroke-dashoffset:0}}
 .sent h3{font-weight:300;font-size:22px;margin-top:10px}
 .sent h3 em{font-style:normal;color:var(--gold)}
@@ -500,6 +522,10 @@ dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padd
 /* ── the strip: the one door on a phone, no price ── */
 .paybar .go{font-family:inherit;cursor:pointer;border:0;min-height:44px;display:inline-flex;align-items:center}
 .paybar .pinfo small{color:var(--t3b)}
+/* one height at every width and clock: one line each, no wrap; ≤340 the line goes */
+.paybar .pinfo b,.paybar .pinfo small{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.paybar .go{white-space:nowrap}
+@media(max-width:340px){.paybar .pinfo small{display:none}.paybar .go{padding:12px 16px}}
 /* WhatsApp, the second door: a 44px icon with a name, no digits */
 .paybar .wa-ic{flex:none;display:inline-grid;place-items:center;width:44px;height:44px;border:1px solid var(--line);border-radius:50%;color:var(--t1)}
 .paybar .wa-ic svg{width:20px;height:20px;fill:currentColor}
@@ -511,9 +537,15 @@ dialog#ov .x{min-width:44px;min-height:44px;display:grid;place-items:center;padd
 .skip{position:absolute;left:-9999px;top:0;z-index:10002;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
 .skip:focus{left:0}
 a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
-/* the phone strip covers the footer's last row at the bottom of the page:
-   footer.footer gives back the clearance .footer overrides (strip = 66px) */
-@media screen and (max-width:879px){footer.footer{padding-bottom:calc(var(--space-2xl) + 66px + var(--safe))}}
+/* the FAQ's details clip: the ring goes inside */
+.faq summary:focus-visible{outline-offset:-4px}
+/* the cards focused by script: the gold ring, never the browser's white */
+.sent:focus,.pass:focus{outline:none}
+.sent:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:16px}
+.pass:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+/* the strip's measured height (--strip-h, safe area in): the footer's last
+   row clears it, and focus scrolls a control above it, never under */
+@media screen and (max-width:879px){footer.footer{padding-bottom:calc(var(--space-2xl) + var(--strip-h,calc(66px + var(--safe))))}html{scroll-padding-bottom:calc(var(--strip-h,calc(66px + var(--safe))) + 12px)}}
 /* the menu button is a 44px target (it measured 44x36) */
 .nav-toggle{min-width:44px;min-height:44px;justify-content:center;align-items:center}
 /* viewport-fit=cover: in landscape the lockup, the text and the strip keep

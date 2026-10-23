@@ -109,7 +109,7 @@
       ],
       [
         "Nothing to prepare",
-        "We tell you on the call what papers matter."
+        "Our first reply says which papers matter."
       ],
       [
         "Nothing by then?",
@@ -153,13 +153,13 @@
         "name": "We search. You choose.",
         "includes": [
           "Search every working day: ImmoScout24, Immowelt, Kleinanzeigen",
-          "Applications as listings appear, German-format",
+          "Self-disclosure, German-format applications as listings appear",
           "Attended viewing, live video + report",
           "Rent brake and lease checked, Nebenkosten read"
         ],
         "featured": true,
         "price": 500,
-        "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, local-format dossier and tenant self-disclosure, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT · on signing",
         "conditionLong": "List price. Due only once you sign a lease; nothing before.",
         "prepares": [
@@ -175,11 +175,11 @@
         "includes": [
           "German-format dossier, one working day",
           "SCHUFA and guarantor strategy for newcomers",
-          "Cover note in German",
+          "Self-disclosure and cover note in German",
           "Lease review before you sign"
         ],
         "price": 199,
-        "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
+        "offerDescription": "Local-format rental dossier within one working day of your papers, tenant self-disclosure and cover letter, application templates, contract review.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens.",
         "prepares": [
@@ -405,6 +405,7 @@
       }
     },
     "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+    "sentLine": "Your file is open. The desk takes it from here.",
     "pending": {
       "eyebrow": "Two plans fit",
       "text": "One more answer decides: {plans}."
@@ -555,8 +556,8 @@
     },
     {
       "key": "nothing",
-      "label": "If we say no",
-      "text": "Full Search is due once you sign. If we decline the search in the first call, nothing is owed."
+      "label": "Until it opens",
+      "text": "Nothing is charged. Then Full Search is due only once you sign."
     }
   ],
   "factsDerived": {

@@ -220,6 +220,11 @@ export function validateCheckin(city, plans, where) {
   need(k.notes && k.notes.when && opts.when.every((o) => typeof k.notes.when[o] === 'string' && k.notes.when[o].trim()), where, 'checkin.notes.when must carry one line for every "when" option');
   need(k.notes.where === undefined, where, 'checkin.notes.where is a v1.2 leftover: the "why" line carries it');
   need(typeof k.refusal === 'string' && k.refusal.trim(), where, 'checkin.refusal is required: the sentence on the ticket for "haven\'t started" + "within four weeks"');
+  // review 22/10: once the file is open (or paid) the Check-in freezes — an
+  // answer given after the one POST would go nowhere — and says so in ONE
+  // line, true on every issued state (a paid return carried no answers)
+  need(typeof k.sentLine === 'string' && k.sentLine.trim() && !/€|\d/.test(k.sentLine), where,
+    'checkin.sentLine is required: the one line the frozen Check-in shows once the file is open or paid (no price, no figure)');
   need(k.pending && typeof k.pending.eyebrow === 'string' && /\{plans\}/.test(k.pending.text || ''), where, 'checkin.pending needs eyebrow and a text with {plans}');
   need(k.landing && ['partial', 'friend', 'blank'].every((f) => typeof k.landing[f] === 'string' && k.landing[f].trim()) && /\{n\}/.test(k.landing.partial) && /\{left\}/.test(k.landing.partial),
     where, 'checkin.landing needs partial (with {n} and {left}), friend and blank');
@@ -255,6 +260,22 @@ export function validateCheckin(city, plans, where) {
   for (const p of plans) {
     need(Array.isArray(p.prepares) && p.prepares.every((x) => ids.has(x)) && new Set(p.prepares).size === p.prepares.length, where,
       `plan "${p.id}": prepares must be a list of the dossier's own paper ids (${[...ids].join(', ')}) — what the ticket may say this plan prepares`);
+  }
+  // ...and what a plan prepares is part of what it SELLS (review 22/10: the
+  // ticket said "Full Search prepares: Presentation letter in Spanish" while
+  // the plate, the Offer and the Stripe product named no letter). Every paper
+  // in prepares[] is named in the plan's ✓ lines AND its offerDescription, by
+  // the head noun of the desk's own label ("Motivation letter, Dutch and
+  // English" → letter, "A one-page presentation" → presentation, "Tenant
+  // self-disclosure (Mieterselbstauskunft)" → self-disclosure).
+  const headNoun = (t) => { const w = String(t).replace(/\([^)]*\)/g, '').split(/,| in /)[0].trim().split(/\s+/); return w[w.length - 1].toLowerCase(); };
+  for (const p of plans) for (const x of (Array.isArray(p.prepares) ? p.prepares : [])) {
+    const it = d.items.find((i) => i.id === x);
+    if (!it) continue;
+    const n = headNoun(it.t);
+    const re = new RegExp(`(^|[^a-z-])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z-]|$)`, 'i');
+    need(re.test((p.includes || []).join(' · ')) && re.test(p.offerDescription || ''), where,
+      `plan "${p.id}" prepares "${it.t}": its ✓ lines and its offerDescription must name it ("${n}") — what the ticket says the plan prepares is what the plate and the Offer sell`);
   }
   const r = k.result;
   need(r && ['eyebrow', 'change', 'use'].every((f) => typeof r[f] === 'string' && r[f].trim()) && /\{plan\}/.test(r.suggest || ''), where,
@@ -572,7 +593,9 @@ const R = {
       sell ? `        <p class="rule">${esc(shared.refund.rule)}</p>` : '',
       '        <div class="hero-cta">',
       `          <a class="paybtn hero-go" href="#contact" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>${esc(c.door.label)}</b><small>${esc(c.door.sub)}</small></span><span class="amt">→</span></a>`,
-      `          <p class="hero-alt"><a href="#plan" id="heroPlan">${esc(c.glance.alt)}</a> · <a href="${esc(contact.waHref)}" id="heroWa" target="_blank" rel="noopener">${esc(c.glance.wa)}</a></p>`,
+      // the separator is its own span: without JS the "three questions" link
+      // and its dot leave together (the Check-in is behaviour)
+      `          <p class="hero-alt"><a href="#plan" id="heroPlan">${esc(c.glance.alt)}</a><span class="hp-sep"> · </span><a href="${esc(contact.waHref)}" id="heroWa" target="_blank" rel="noopener">${esc(c.glance.wa)}</a></p>`,
       '        </div>',
       '      </div>'
     ].filter(Boolean).join('\n');
@@ -597,13 +620,17 @@ const R = {
       '      </fieldset>'
     ].join('\n'));
     return [
-      `<section class="checkin" id="checkin" aria-label="Check-in">`,
-      `  <div class="ck-head"><span class="ck-num" id="ckNum">${esc(k.num.replace('{n}', '1'))}</span></div>`,
-      '  <p class="ck-landing" id="ckLanding" hidden></p>',
       // the one live region for plan and pending lines: the ticket is
       // display:none on a phone until the first tap, and a region that appears
-      // with its text misses that first announcement
-      '  <span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
+      // with its text misses that first announcement. It sits just OUTSIDE the
+      // section: the Check-in turns inert once a file is issued, and an inert
+      // subtree drops the "Your file is open. File BM …" announcement
+      '<span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
+      `<section class="checkin" id="checkin" aria-label="Check-in">`,
+      // the frozen Check-in's one line takes the counter's place in the head
+      // once a file is issued (the JS shows it): the card keeps its height
+      `  <div class="ck-head"><span class="ck-num" id="ckNum">${esc(k.num.replace('{n}', '1'))}</span><p class="ck-sent" id="ckSent" hidden>${esc(k.sentLine)}</p></div>`,
+      '  <p class="ck-landing" id="ckLanding" hidden></p>',
       '  <div class="ck-steps" id="ckSteps">',
       ...steps,
       '  </div>',
@@ -646,7 +673,9 @@ const R = {
       '<div class="uscita printer" id="passWrap">',
       '  <div class="fessura" aria-hidden="true"></div>',
       `  <p class="pblank" id="ckBlank">${esc(k.landing.blank)}</p>`,
-      `  <article class="pass carta" id="pass" data-state="blank" data-copied="${esc(k.share.copied)}" data-saved="${esc(p.saved)}" aria-label="${esc(p.titles.plan)}">`,
+      // the one focus target the page moves to (a plate's link, "use it", the
+      // paid return): a region named by its own title, never in the Tab order
+      `  <article class="pass carta" id="pass" data-state="blank" data-copied="${esc(k.share.copied)}" data-saved="${esc(p.saved)}" role="region" aria-labelledby="ckTitle" tabindex="-1">`,
       `    <div class="lamina" aria-hidden="true"><em>BOOM · ${esc(side)}</em></div>`,
       '    <span class="stamp" id="ckStamp" data-stamp="" aria-hidden="true"></span>',
       '    <div class="pbody">',
@@ -715,7 +744,9 @@ const R = {
       // A payer who did not tick "Start now" waits for the 14 days: the JS
       // swaps the three steps for paid.nextWait (config PAID_WAIT_NEXT) and adds paid.wait, so the
       // card never promises "same working day" to someone who chose to wait.
-      `        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="${esc(k.paid.pending)}" data-wait="${esc(k.paid.wait.replace('{email}', contact.email))}">`,
+      // data-unconfirmed: the heading once the fifth ask went unanswered (the
+      // address line #paidText stays on screen while the payment is confirmed)
+      `        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="${esc(k.paid.pending)}" data-unconfirmed="${esc(k.paid.unconfirmed)}" data-wait="${esc(k.paid.wait.replace('{email}', contact.email))}">`,
       `          ${R.tick()}`,
       `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
       '          <p class="plan" id="paidPlan"></p>',
@@ -999,7 +1030,11 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   const subLead = city.checkout === true ? 'no card' : 'free';
   need([city.door.sub, city.door.stripSub].every((s) => s.startsWith(subLead + ' · ')), where, `door.sub and door.stripSub open with "${subLead} · " (the JS keeps that lead and swaps the window when the desk is closed)`);
   // a desk that is still opening promises no call (founder, 22/10: Paris and Berlin keep "Open my file")
-  if (waitlist) need(!/\bcall\b/i.test(city.door.label + ' ' + city.door.sub), where, 'a waitlist desk\'s door promises no call: the label stays a file');
+  // ...nor does the OPEN card behind it (review 22/10: Paris and Berlin still
+  // read "We tell you on the call what papers matter" under "Open my file")
+  // ...nor its facts (review 22/10, round 2: the third fact still read "If we
+  // decline the search in the first call, nothing is owed")
+  if (waitlist) need(!/\bcall\b/i.test(city.door.label + ' ' + city.door.sub + ' ' + JSON.stringify((city.form && city.form.sentNext) || []) + ' ' + JSON.stringify(city.facts || [])), where, 'a waitlist desk\'s door, its OPEN card (form.sentNext) and its facts promise no call: the label stays a file, and the first reply says what comes next');
   // a desk open Mon–Fri 09–19 cannot keep a clock promise: the dossier is
   // "one working day", applications go "as listings appear" — drafts included
   need(!/\b24 hours\b|within the hour/i.test(JSON.stringify(city)), where, 'no "24 hours" or "within the hour" in the copy: the desk hours cannot keep it');
@@ -1051,9 +1086,16 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
       need(typeof k[f] === 'string' && k[f].trim(), where, `checkoutCopy.${f} is required`);
     }
     need(k.btn === undefined && k.paybarSub === undefined, where, 'checkoutCopy.btn, paybarSub and offer.cta are v1.2 leftovers: the till has one label (till.label)');
+    // the sheet's way out is the page's one door (review 22/10: v1.4 renamed
+    // the door "Start with a free call" and the till still offered "Open a
+    // file, no payment", and its error "open a file")
+    need(typeof k.altLink === 'string' && k.altLink.startsWith(city.door.label) && !/open a file/i.test(JSON.stringify(k)), where,
+      `checkoutCopy.altLink must start with door.label ("${city.door.label}"), and nothing in the sheet says "open a file": the way out of the till is the page's one door`);
     need(k.offer === undefined, where, 'checkoutCopy.offer is a v1.3 leftover: the offer to pay after the file is the ticket stub\'s till (v1.4)');
     need(typeof (k.paid && k.paid.pending) === 'string' && k.paid.pending.trim() && !/€|\d/.test(k.paid.pending), where,
       'checkoutCopy.paid.pending is required: what the paid card and the ticket say until the server confirms the payment (?paid= alone proves nothing)');
+    need(typeof k.paid.unconfirmed === 'string' && /not confirmed yet/i.test(k.paid.unconfirmed) && /\bwrite\b/i.test(k.paid.unconfirmed) && !/€|\d/.test(k.paid.unconfirmed), where,
+      'checkoutCopy.paid.unconfirmed is required: after the fifth unanswered ask the card says the payment is "not confirmed yet" and to write to the desk (no figure, no time)');
     need(city.till && typeof city.till.label === 'string' && city.till.label.trim() && !/€|\d/.test(city.till.label), where, 'checkout:true needs till.label (the one label of every pay control, printed with the price)');
     need(city.till.sub === undefined, where, 'till.sub is a leftover: no control prints it (the sheet button carries checkoutCopy.btnSubNow/btnSubWait)');
     need(k.btnSub === undefined, where, 'checkoutCopy.btnSub is a leftover: the last button follows the tick (btnSubNow / btnSubWait)');
@@ -1308,7 +1350,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(!/class="fam"|class="rail"|class="scroll-progress"|class="mouse-glow"|class="machine"|class="tline"|class="truth"|class="band |class="refline"|class="serving"/.test(html), where, 'the v1.2 chrome left the page: family strip, rail, progress bar, glow, route line, timeline, truth band, bottom band');
   // (g) without JS the Check-in, the ticket, its share row and the strip are
   // behaviour and hidden; the door reads whole (served disabled, the fallback line)
-  need(/<noscript><style>[^<]*\.checkin,#pass,\.pshare,\.paybar\{display:none!important\}/.test(html) && /\.plan-head,#passWrap\{display:none!important\}/.test(html), where, 'without JS the Check-in, the ticket, its share row and the strip are hidden (behaviour), and so are the printer and the line that promises three questions; the rest reads whole');
+  need(/<noscript><style>[^<]*\.checkin,#pass,\.pshare,\.paybar\{display:none!important\}/.test(html) && /\.plan-head,#passWrap,#heroPlan,\.hp-sep\{display:none!important\}/.test(html), where, 'without JS the Check-in, the ticket, its share row and the strip are hidden (behaviour), and so are the printer and the lines that promise three questions (the plan head, and the hero\'s link with its dot); the #plan heading and the rest read whole');
   // the month select from the anchor
   need(html.includes(`<select id="fMoveIn" name="moveIn">`) && months.every((m) => html.includes(`<option value="${m.value}">${esc(m.label)}</option>`)), where, 'the move-in select carries the twenty months from moveInFrom');
 

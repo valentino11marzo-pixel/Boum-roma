@@ -471,14 +471,23 @@ export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoc
 // or one that names nothing, never lends its number). Otherwise the number
 // is derived from the paid lead's own id. fsGet, not the local readDoc:
 // `city` is a nested map, and readDoc flattens maps to null.
+// A read that FAILS is not a lead that is absent (the ASPI lesson): a thrown
+// error (a Firestore 5xx, a login hiccup) is retried once; a 404 (fsGet
+// answers null) is an answer and is not. If the second read fails too the
+// order keeps its own derived number — the nickname never fails a paid
+// order — and the reference it could not check is written on the lead
+// (fileRefUnverified), so the operator can link the two leads by hand.
 const FILE_REF_RE = /^city_[a-z0-9_]{8,48}$/;
 async function cityFileFor(svcId, cityKey, fileRef) {
   if (fileRef && FILE_REF_RE.test(fileRef)) {
-    try {
-      const opened = await fsGet('leads/' + fileRef);
-      const f = opened && opened.market === cityKey && opened.city && typeof opened.city.file === 'string' ? opened.city.file : null;
-      if (f && /^BM [A-Z2-9]{5}$/.test(f)) return { file: f, fileLeadId: fileRef };
-    } catch (e) { console.warn('[service] file_ref read failed:', e && e.message); }
+    let opened = null, failed = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { opened = await fsGet('leads/' + fileRef); failed = false; break; }
+      catch (e) { failed = true; console.warn(`[service] file_ref read failed (attempt ${attempt + 1}):`, e && e.message); }
+    }
+    if (failed) return { file: SCALO.fileCode(svcId), fileLeadId: null, fileRefUnverified: fileRef };
+    const f = opened && opened.market === cityKey && opened.city && typeof opened.city.file === 'string' ? opened.city.file : null;
+    if (f && /^BM [A-Z2-9]{5}$/.test(f)) return { file: f, fileLeadId: fileRef };
   }
   return { file: SCALO.fileCode(svcId), fileLeadId: null };
 }
@@ -536,8 +545,11 @@ async function handleService(res, session, m, event = null) {
     email,
     phone,
     listingName: m.listing || '',
+    // the file number sits in the HEAD, with the plan and the amount: the
+    // Telegram card quotes the first 240 characters, and the client quotes
+    // that number on WhatsApp — a long note must not push it out
     message: cityDesk
-      ? `${`${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()} · file ${cityFile.file}`
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
       : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
@@ -561,6 +573,8 @@ async function handleService(res, session, m, event = null) {
         // the file number (js/scalo-codes.js fileCode), and the lead it came
         // from when the visitor had already opened a file in this city
         file: cityFile.file, fileLeadId: cityFile.fileLeadId,
+        // the file_ref the webhook could not read (twice): the operator links the two leads by hand
+        ...(cityFile.fileRefUnverified ? { fileRefUnverified: cityFile.fileRefUnverified } : {}),
       },
     } : {}),
   };

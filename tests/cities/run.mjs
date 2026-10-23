@@ -212,14 +212,18 @@ for (const p of pages) {
     const paidBlock = (m.match(/<div class="sent paid" id="fPaid"[\s\S]*?\n        <\/div>/) || [''])[0];
     const waitTxt = ((paidBlock.match(/data-wait="([^"]*)"/) || [])[1] || '');
     const pendTxt = ((paidBlock.match(/data-pending="([^"]*)"/) || [])[1] || '');
+    // the heading after the fifth unanswered ask takes the pending one's place (review 22/10, finding 40)
+    const unconfTxt = ((paidBlock.match(/data-unconfirmed="([^"]*)"/) || [])[1] || '');
     const textW = wordsOf((paidBlock.match(/<p id="paidText">([\s\S]*?)<\/p>/) || [])[1] || '');
     const stepW = (pairs) => pairs.reduce((n, [a, b]) => n + wordsOf(a + ' ' + b), 0);
     const nextShown = [...paidBlock.matchAll(/<li><b>([\s\S]*?)<\/b><span>([\s\S]*?)<\/span><\/li>/g)].slice(0, 3).map((x) => [x[1], x[2]]);
     const planW = Math.max(...Object.values(cfg.PLANS).map((pl) => wordsOf(`${pl.label} · €${pl.eur} · ${pl.condition}`)));
     const now1 = wordsOf(paidBlock) + planW;
     const wait0 = wordsOf(paidBlock) + planW - textW - stepW(nextShown) + stepW(cfg.PAID_WAIT_NEXT || []) + wordsOf(waitTxt);
-    const confirming = wordsOf(pendTxt) + planW + textW;
-    check(paidBlock && pendTxt && textW > 0 && nextShown.length === 3 && now1 <= BUDGET.state && wait0 <= BUDGET.state && confirming <= BUDGET.state,
+    // CONFIRMING keeps #paidText on screen (the desk's address: the way to write
+    // while the server has not answered — review 22/10, finding 40)
+    const confirming = Math.max(wordsOf(pendTxt), wordsOf(unconfTxt)) + planW + textW;
+    check(paidBlock && pendTxt && unconfTxt && textW > 0 && nextShown.length === 3 && now1 <= BUDGET.state && wait0 <= BUDGET.state && confirming <= BUDGET.state,
       `${p.slug}: the paid card as the reader sees it ≤ ${BUDGET.state} words — confirming ${confirming}, verified ticked ${now1}, verified waiting ${wait0}`);
   }
 }
@@ -260,8 +264,12 @@ check((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 
 {
   const ccss = read('assets/boom-city.css');
   check(/\.sec-h \.num\{color:var\(--t3b\)\}/.test(ccss) && /\.footer-statement\{[^}]*color:var\(--t3b\)/.test(ccss), 'section labels and the tenant-side statement are readable text (--t3b, 6.5:1), not --t4 at 2.2:1');
-  check(/\.nav-toggle\{min-width:44px;min-height:44px/.test(ccss) && /footer\.footer\{padding-bottom:calc\(var\(--space-2xl\) \+ 66px \+ var\(--safe\)\)\}/.test(ccss) && /env\(safe-area-inset-left\)/.test(ccss),
-    'the menu button is a 44px target, the phone strip never covers the footer\'s last row, and in landscape nothing sits under the notch');
+  // round 2 (finding 28): the clearance and the focus padding read the strip's MEASURED height
+  // (--strip-h, set by the JS; 66px + the safe area only as the fallback), and the strip cannot wrap
+  check(/\.nav-toggle\{min-width:44px;min-height:44px/.test(ccss) && /footer\.footer\{padding-bottom:calc\(var\(--space-2xl\) \+ var\(--strip-h,calc\(66px \+ var\(--safe\)\)\)\)\}/.test(ccss)
+    && /html\{scroll-padding-bottom:calc\(var\(--strip-h,calc\(66px \+ var\(--safe\)\)\) \+ 12px\)\}/.test(ccss) && /\.paybar \.pinfo b,\.paybar \.pinfo small\{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis\}/.test(ccss)
+    && /setProperty\('--strip-h'/.test(read('assets/boom-city.js')) && /env\(safe-area-inset-left\)/.test(ccss),
+    'the menu button is a 44px target, the phone strip (one line each, never a wrap) never covers the footer\'s last row nor a focused control — from its measured height — and in landscape nothing sits under the notch');
   const vj = JSON.parse(read('vercel.json'));
   const rule = (vj.headers || []).find((h) => h.source === '/assets/boom-city\\.(css|js)');
   check(!!rule && rule.headers.some((x) => x.key === 'Cache-Control' && /immutable/.test(x.value)) && !(vj.headers || []).some((h) => /^\/(css|js)\//.test(h.source) && h.headers.some((x) => /immutable/.test(x.value))),
@@ -609,7 +617,13 @@ const ber = JSON.parse(read('cities/berlin.json'));
     ['a btnSubWait without the 14 days', (c) => { c.checkoutCopy.btnSubWait = 'Stripe checkout'; }, /btnSubWait says the work starts when the 14 days end/],
     ['a btnSubNow promising today', (c) => { c.checkoutCopy.btnSubNow = 'Starts today · Stripe'; }, /btnSubNow cannot promise/],
     ['a nextWait promising the same working day', (c) => { c.checkoutCopy.paid.nextWait[1][0] = 'Same working day'; }, /paid\.nextWait/],
-    ['a nextWait with two steps', (c) => { c.checkoutCopy.paid.nextWait.pop(); }, /paid\.nextWait/]
+    ['a nextWait with two steps', (c) => { c.checkoutCopy.paid.nextWait.pop(); }, /paid\.nextWait/],
+    // review 22/10 (finding 40): after the fifth unanswered ask the card says
+    // "not confirmed yet" and to write — never silence, never a figure
+    ['no paid.unconfirmed', (c) => { delete c.checkoutCopy.paid.unconfirmed; }, /checkoutCopy\.paid\.unconfirmed is required/],
+    ['a paid.unconfirmed with a time in figures', (c) => { c.checkoutCopy.paid.unconfirmed = 'Not confirmed yet. Write to the desk within 2 hours.'; }, /checkoutCopy\.paid\.unconfirmed is required/],
+    // review 22/10 (finding 41): the frozen Check-in's one line
+    ['no checkin.sentLine', (c) => { delete c.checkin.sentLine; }, /checkin\.sentLine is required/]
   ]) {
     const c = clone(ams); mut(c);
     check(throws(() => render(c), re) === true, `refused: ${name}`);
@@ -693,7 +707,10 @@ const ber = JSON.parse(read('cities/berlin.json'));
     ['no nav.plan', ams, (c) => { delete c.nav.plan; }, /nav\.plan is required/],
     ['the sections numbered out of order', ams, (c) => { c.how.num = '01 — HOW IT WORKS'; }, /the section numbers follow the page/],
     ['a door sub without its lead ("no card" where the desk sells)', ams, (c) => { c.door.sub = 'free · same-day reply'; }, /door\.sub and door\.stripSub open with "no card · "/],
-    ['a waitlist door promising a call', par, (c) => { c.door.label = 'Start with a free call'; }, /a waitlist desk's door promises no call/],
+    ['a waitlist door promising a call', par, (c) => { c.door.label = 'Start with a free call'; }, /a waitlist desk's door, its OPEN card \(form\.sentNext\) and its facts promise no call/],
+    // review 22/10, round 2: the waitlist's third fact still promised "the first call"
+    ['a waitlist fact promising a call', par, (c) => { c.facts[2].text = 'If we decline the search in the first call, nothing is owed.'; }, /its facts promise no call/],
+    ['Berlin too', ber, (c) => { c.facts[0].text = 'You alone, after a free call. Launching with a licensed partner.'; }, /its facts promise no call/],
     ['a waitlist ticket promising a call', par, (c) => { c.checkin.pass.firstCall.plan = 'Your first call'; }, /a waitlist desk promises no call/],
     ['a waitlist ticket with a PAID status', par, (c) => { c.checkin.pass.status.paid = 'PAID'; }, /no PAID/],
     ['a Spanish selling desk whose fares note does not open "Optional, chosen in writing"', bcn, (c) => { c.hero.faresNote = 'Flat fees, VAT included.'; }, /opens "Optional, chosen in writing" \(LAU art\. 20\)/],
@@ -875,8 +892,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(l && l.source === 'web' && l.status === 'new' && l.leadType === 'tenant' && l.intent === 'city_search', 'schema leads: source web, status new, a TENANT — never B2B, never a special branch');
   check(l && l.market === 'amsterdam' && l.sourceRef === 'city-amsterdam' && isCityMarket(l) && cityMarketOf(l) === 'amsterdam', 'the market is Amsterdam — what api/_market.js reads to keep the Rome machine out');
   check(l && !isReunion(l) && !isB2B(l), 'and it is neither Réunion nor B2B');
-  check(l && /^AMSTERDAM — tenant-side search · Full Search · €1,500 – €2,000\/month · move-in February 2027 · Couple, relocating with employer · De Pijp, Oud-West\. Start date is 1 Feb\. · file BM [A-HJ-NP-Z2-9]{5}$/.test(l.message),
-    'the summary opens with the city and the service, then the numbers — the month select\'s "2027-02" read as "February 2027" — then their words, then the file number', l && l.message);
+  // v1.4 review (22/10): the door on a desk that sells reads "Start with a free
+  // call", so the head says what the visitor asked for
+  check(l && /^AMSTERDAM — tenant-side search · free call requested · Full Search · €1,500 – €2,000\/month · move-in February 2027 · Couple, relocating with employer · De Pijp, Oud-West\. Start date is 1 Feb\. · file BM [A-HJ-NP-Z2-9]{5}$/.test(l.message),
+    'the summary opens with the city, the free call asked for and the service, then the numbers — the month select\'s "2027-02" read as "February 2027" — then their words, then the file number', l && l.message);
   check(l && r.payload.file && l.message.endsWith(` · file ${r.payload.file}`) && l.city.file === r.payload.file && r.payload.file === SCALO.fileCode(r.payload.id),
     'the file number the visitor is shown is the one on the lead, on the summary the operator reads, and fileCode(id) of the record');
   check(l && l.moveIn === 'February 2027' && l.raw.moveIn === '2027-02', 'the lead carries the month label; the raw value stays on raw{}');
@@ -886,6 +905,18 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const reply = cityReplyText(l);
   check(/^Hi Anna, Valentino here from BOOM/.test(reply) && reply.includes('move to Amsterdam') && reply.endsWith(CITY_MARKETS.amsterdam.url) && !reply.includes('/apartments') && !/Roma/.test(reply),
     'the pre-written WhatsApp reply is English, about Amsterdam, links /amsterdam — never the Rome catalogue');
+  // v1.4 review (22/10): the OPEN card promises "Valentino writes to set your
+  // free call" — the ready reply sets it, with the ticket's file number, and
+  // asks nothing in writing that the call covers (no questionnaire, no "I'll
+  // come back today", never a response time in figures)
+  // review 22/10, round 2: never "this week" — the desk is Mon–Fri, and the
+  // reply also goes out on a Friday evening or a weekend
+  check(reply.includes(`You asked for a free call about your move to Amsterdam (your file ${l.city.file}).`) && /By phone or WhatsApp — which day and time suit you\?/.test(reply)
+    && !/this week|budget|who's moving|when do you land|set up the search|come back today|Thanks for your message|\d+\s*(hours?|minutes?|h\b)/i.test(reply),
+    'a selling desk\'s ready reply offers the free call (phone or WhatsApp, the day and time theirs — never "this week"), names the file number, and carries no written questionnaire', reply);
+  const waReply = cityReplyText({ market: 'madrid', name: 'Luis', phone: '+34612345678', message: 'Hi BOOM Madrid, I\'m moving to Madrid.' });
+  check(waReply.startsWith('Hi Luis, Valentino here from BOOM 👋 Thanks for your message about your move to Madrid. The first step is a free call.') && /which day and time suit you\?/.test(waReply) && !/this week|your file|budget|come back today/.test(waReply),
+    'a desk lead that came from WhatsApp (no door, no file) is thanked for its message and offered the same free call', waReply);
   check(cityLabel(l) === '🇳🇱 Amsterdam', 'the Telegram card label');
   check(l && l.phone === '+31612345678' && l.raw.phone === '+31 6 1234 5678', 'the phone is stored as E.164 read with the desk\'s country (the WhatsApp reply arrives so, and now matches); the typed value stays on raw');
   check(l && l.attribution === null, 'no consent cookie, no attribution: the field is there and empty');
@@ -960,7 +991,7 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   check(moveInLabel('2027-02') === 'February 2027' && moveInLabel('2026-12') === 'December 2026' && moveInLabel('as soon as possible') === 'as soon as possible' && moveInLabel('2027-13') === '2027-13' && moveInLabel(null) === null,
     'moveInLabel: YYYY-MM → "February 2027" from a fixed table; free text and a bad month stay verbatim');
   const r = await call({ city: 'Amsterdam', name: 'Jean', phone: '+33 6 12 34 56 78', service: 'concierge', budget: 'Under €1,500', moveIn: 'not sure, spring' });
-  check(r.code === 200 && r.lead && /^AMSTERDAM — tenant-side search · service to decide · Under €1,500\/month · move-in not sure, spring · file BM [A-HJ-NP-Z2-9]{5}$/.test(r.lead.message),
+  check(r.code === 200 && r.lead && /^AMSTERDAM — tenant-side search · free call requested · service to decide · Under €1,500\/month · move-in not sure, spring · file BM [A-HJ-NP-Z2-9]{5}$/.test(r.lead.message),
     'an unknown service is "service to decide"; free text in the month field stays as typed', r.lead && r.lead.message);
   check(bandCeiling('€3,500+') === 3500 && bandCeiling('€2.000 – €2.500') === 2500 && bandCeiling('whatever') === null, 'bandCeiling: 3,500+ → 3500, Italian dots → 2500, no digits → null');
   check(Object.keys(SERVICES).length === 4 && SERVICES.unsure === 'not sure yet', 'the service list is closed');
@@ -1151,7 +1182,50 @@ for (const c of [ams, mad, bcn]) {
   check(!!call && call.a.includes(shared.refund.rule) && /Nothing is charged for the call\./.test(call.a) && !/\d/.test(call.a) && /^A free call/.test(c.how.steps[0].v) && h.includes(`<summary>${esc(call.q)}</summary>`),
     `${c.slug}: the free-call answer carries the refund rule word for word, says nothing is charged, promises no duration (no figure), and matches step 1 ("A free call")`);
 }
-for (const c of [par, ber]) check(!c.faq.items.some((x) => /free call/i.test(x.q)) && !/free call/i.test(JSON.stringify(c.door) + JSON.stringify(c.checkin.pass.firstCall)), `${c.slug}: no free-call question and no call promised where the desk is still opening`);
+for (const c of [par, ber]) check(!c.faq.items.some((x) => /free call/i.test(x.q)) && !/free call/i.test(JSON.stringify(c.door) + JSON.stringify(c.checkin.pass.firstCall)) && !/\bcall\b/i.test(JSON.stringify(c.form.sentNext)) && c.form.sentNext[1][1] === 'Our first reply says which papers matter.',
+  `${c.slug}: no free-call question and no call promised where the desk is still opening — the OPEN card included ("Our first reply says which papers matter.")`);
+// review 22/10: Full Search writes the letter (the founder's decision) — said
+// where it is sold: a ✓ line, the Offer, the Stripe product text and llms.txt,
+// by the noun of each desk's own paper; Application Pack the same on the
+// waitlist desks, whose paper is "a one-page presentation" / "self-disclosure"
+for (const [c, noun] of [[ams, 'Motivation letter'], [mad, 'Presentation letter'], [bcn, 'Presentation letter'], [par, 'One-page presentation'], [ber, 'Self-disclosure']]) {
+  const fs0 = c.pricing.plans.find((p) => p.id === 'full-search');
+  const h = pageOf(c.slug);
+  check(fs0.prepares.includes('letter') && fs0.includes.some((x) => x.startsWith(noun + ', ')) && fs0.includes.length <= 5 && new RegExp(noun.split(' ').pop(), 'i').test(fs0.offerDescription)
+    && h.includes(`<li>${esc(fs0.includes.find((x) => x.startsWith(noun)))}</li>`),
+    `${c.slug}: Full Search names the paper it prepares ("${noun}") on its plate and in its Offer`);
+}
+check(/local-format dossier and cover letter within one working day/.test(CITY_MARKETS.amsterdam.plans['full-search'].desc) && /application file and cover letter within one working day/.test((read('llms.txt').split('\n').find((l) => /Full Search €500/.test(l)) || '')),
+  'the Stripe product text of Full Search (CITY_PLANS) and llms.txt name the cover letter too');
+{
+  const noLetter = clone(mad); const f1 = noLetter.pricing.plans.find((p) => p.id === 'full-search'); f1.includes = f1.includes.map((x) => x.replace('Presentation letter, a', 'A'));
+  check(throws(() => render(noLetter), /plan "full-search" prepares "Presentation letter in Spanish": its ✓ lines and its offerDescription must name it \("letter"\)/) === true,
+    'refused: a plan that prepares the letter while its ✓ lines name no letter (the v1.4 Full Search plate)');
+  const noOffer = clone(ams); const f2 = noOffer.pricing.plans.find((p) => p.id === 'full-search'); f2.offerDescription = f2.offerDescription.replace(' and motivation letter', '');
+  check(throws(() => render(noOffer), /plan "full-search" prepares "Motivation letter, Dutch and English": its ✓ lines and its offerDescription must name it/) === true,
+    'refused: a plan that prepares the letter while its Offer names no letter');
+  const berAp = clone(ber); const f3 = berAp.pricing.plans.find((p) => p.id === 'application-pack'); f3.includes = f3.includes.map((x) => x.replace('Self-disclosure and cover note in German', 'Cover note in German'));
+  check(throws(() => render(berAp), /plan "application-pack" prepares "Tenant self-disclosure \(Mieterselbstauskunft\)": .*\("self-disclosure"\)/) === true,
+    'refused: a waitlist plan whose plate names a different paper from the one the ticket says it prepares (Berlin\'s self-disclosure)');
+  const parCall = clone(par); parCall.form.sentNext[1][1] = 'We tell you on the call what papers matter.';
+  check(throws(() => render(parCall), /its OPEN card \(form\.sentNext\) and its facts promise no call/) === true, 'refused: a waitlist OPEN card that promises a call');
+  const oldAlt = clone(ams); oldAlt.checkoutCopy.altLink = 'Open a file, no payment';
+  check(throws(() => render(oldAlt), /checkoutCopy\.altLink must start with door\.label \("Start with a free call"\)/) === true, 'refused: the till\'s way out under the v1.3 name ("Open a file, no payment")');
+  const renamed = clone(bcn); renamed.checkoutCopy.altLink = 'Book a slot, no card';
+  check(throws(() => render(renamed), /checkoutCopy\.altLink must start with door\.label/) === true, 'refused: the till\'s way out renamed to anything but the door');
+  const oldNet = clone(mad); oldNet.checkoutCopy.errors.net = "Checkout hiccuped on our side — try again, or open a file and we'll send a payment link.";
+  check(throws(() => render(oldNet), /nothing in the sheet says "open a file"/) === true, 'refused: the till\'s network error sending the payer to "open a file"');
+}
+for (const c of [ams, mad, bcn]) {
+  const h = pageOf(c.slug);
+  check(c.checkoutCopy.altLink.startsWith(c.door.label) && h.includes(`id="ovTalk">${esc(c.checkoutCopy.altLink)}</a>`) && /start with a free call instead\.$/.test(c.checkoutCopy.errors.net) && h.includes(`data-err-net="${esc(c.checkoutCopy.errors.net)}"`),
+    `${c.slug}: the till's way out and its error name the page's one door ("${c.checkoutCopy.altLink}")`);
+}
+// "Prefer to talk first?" keeps the till's plan: the door carries it, from 'plate', as a plate link does —
+// but never under an issued ticket (review 22/10, finding 14's twin: the hidden chip, the WhatsApp text and
+// the strip drifted to another plan under a boarding pass)
+check(/\$\('ovTalk'\)\.addEventListener\('click', function \(\) \{\s*var id = chosen\(\);\s*if \(planOf\(id\) && form && !\(T && T\.issued\(\)\)\) \{ form\.setAttribute\('data-plan-from', 'plate'\); setPlan\(id, 'plate'\); \}\s*close\(\);\s*\}\);/.test(js),
+  'the till\'s "talk first" link writes its plan into the door (data-plan-from plate, setPlan) before closing — never once the ticket is issued');
 // the founder's two decisions (22/10) on every desk that sells: the first call
 // is free, Full Search runs until the tenant signs or stops it
 for (const c of [ams, mad, bcn]) {
@@ -1177,6 +1251,8 @@ for (const c of [ams, mad, bcn]) {
     && c.checkoutCopy.paid.pending === 'Payment being confirmed. Your confirmation comes by email.' && c.checkoutCopy.offer === undefined,
     `${c.slug}: the door's end states — OPEN, and PAID with its "being confirmed" sentence until the server answers; no mini boards, no after-file offer (the ticket stub is the offer)`);
   check(h.includes(`<b id="openWhen" data-default="${esc(c.form.sentWhenDefault)}">${esc(c.form.sentWhenDefault)}</b>`), `${c.slug}: the reply window is a computed slot with "${c.form.sentWhenDefault}" as the no-JS default`);
+  check(h.includes(`data-unconfirmed="${esc(c.checkoutCopy.paid.unconfirmed)}"`) && /^Not confirmed yet\./.test(c.checkoutCopy.paid.unconfirmed),
+    `${c.slug}: the paid card carries its "not confirmed yet" heading for the fifth unanswered ask (review 22/10)`);
   check(h.includes(esc(c.checkoutCopy.fine)) && /refunded in full if we decline the search in the first call/.test(c.checkoutCopy.fine) && /Stripe/.test(c.checkoutCopy.fine) && /Egidi Immobiliare S\.r\.l\./.test(c.checkoutCopy.fine), `${c.slug}: the sheet's fine print says Stripe, the invoicing entity and the refund rule`);
   check(/<p class="alt">[^<]*<a href="#contact" id="ovTalk">/.test(h), `${c.slug}: the sheet keeps the free door one tap away`);
   // Direttiva 2011/83/UE (artt. 7(3), 16(a)): the 14-day withdrawal right is
@@ -1212,6 +1288,11 @@ for (const [c, mustState, facts, factsLabel] of [
   const svcW = (ldOf(h).find((b) => Array.isArray(b['@graph']))['@graph']).find((n) => n['@type'] === 'Service');
   check((svcW.offers || []).length === 3 && svcW.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && o.priceSpecification.valueAddedTaxIncluded === true), `${c.slug}: the three Offers are PreOrder with VAT declared`);
   check(v.includes(mustState) && c.facts[0].text.includes(mustState), `${c.slug}: the brief's must-state sentence, verbatim, inside the "paid by" fact`);
+  // review 22/10, round 2: no call is promised on a waitlist desk, the facts included —
+  // the third fact says what is charged until the desk opens (nothing), not "the first call"
+  const wlFacts = visibleOf(slice(h, '<dl class="facts"', '</dl>'));
+  check(wlFacts && !/\bcall\b/i.test(wlFacts) && c.facts[2].key === 'nothing' && /^Nothing is charged\./.test(c.facts[2].text) && wlFacts.includes(c.facts[2].text),
+    `${c.slug}: the facts promise no call; the third says nothing is charged until the desk opens`, wlFacts);
   check(facts.every((re) => re.test(v)), `${c.slug}: ${factsLabel} are on the page`);
   check(h.includes('<p class="condlong" id="ckCondLong"></p>') && !/id="ckRefund"/.test(h) && !/id="ckStart"/.test(h) && h.includes('id="ckFile" data-service=""'), `${c.slug}: the pass prints the plan's long condition instead of a refund rule, and has one door`);
 }
@@ -1246,14 +1327,38 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
 // the door, per desk: a waitlist lead is a FILE OPENED, said so everywhere the operator reads
 {
   const m = await call({ ...ANNA, city: 'madrid', areas: 'Chamberí' }, '10.3.0.1');
-  check(m.code === 200 && m.lead.market === 'madrid' && m.lead.intent === 'city_search' && /^MADRID — tenant-side search · Full Search/.test(m.lead.message) && m.notif.summary.startsWith('🇪🇸 MADRID · Anna Keller'), 'madrid: a search lead', m.lead && m.lead.message);
+  check(m.code === 200 && m.lead.market === 'madrid' && m.lead.intent === 'city_search' && /^MADRID — tenant-side search · free call requested · Full Search/.test(m.lead.message) && m.notif.summary.startsWith('🇪🇸 MADRID · Anna Keller'), 'madrid: a search lead', m.lead && m.lead.message);
   check(cityMode(m.lead) === 'search' && cityReplyText(m.lead).endsWith(CITY_MARKETS.madrid.url) && cityLabel(m.lead) === '🇪🇸 Madrid', 'madrid: the reply links /madrid');
   const b = await call({ ...ANNA, city: 'barcelona', areas: 'Gràcia' }, '10.3.0.2');
-  check(b.code === 200 && b.lead.market === 'barcelona' && b.lead.intent === 'city_search' && /^BARCELONA — tenant-side search · Full Search/.test(b.lead.message) && b.notif.summary.startsWith('🇪🇸 BARCELONA · Anna Keller'),
+  check(b.code === 200 && b.lead.market === 'barcelona' && b.lead.intent === 'city_search' && /^BARCELONA — tenant-side search · free call requested · Full Search/.test(b.lead.message) && b.notif.summary.startsWith('🇪🇸 BARCELONA · Anna Keller'),
     'barcelona (live from 22/10): a search lead, said as a search on the summary and the card', b.lead && b.lead.message);
   check(cityMode(b.lead) === 'search' && cityReplyText(b.lead).endsWith(CITY_MARKETS.barcelona.url) && !/opening/.test(cityReplyText(b.lead)), 'barcelona: the reply links /barcelona and no longer says the desk is opening');
   const p = await call({ ...ANNA, city: 'paris', areas: 'Le Marais' }, '10.3.0.3');
   check(p.code === 200 && p.lead.intent === 'city_waitlist' && cityLabel(p.lead) === '🇫🇷 Paris' && cityReplyText(p.lead).includes('opening with a licensed partner'), 'paris: a waitlist lead with the French flag and the licensed partner');
+  // the waitlist reply is unchanged by the free-call reply of the selling desks:
+  // its door is "Open my file", so no call, and the summary asks for none.
+  // Review 22/10, round 2: its OPEN card promises "Our first reply says which
+  // papers matter" — this reply is that first reply, so it says it
+  check(cityReplyText(p.lead) === `Hi Anna, Valentino here from BOOM 👋 Thanks for your message about your move to Paris.\nI have your dates, budget and situation. The Paris desk is opening with a licensed partner, so I can't start a search there yet. I'll come back today with where we stand, what we can already do for you and which papers to start gathering.\n${CITY_MARKETS.paris.url}`
+    && /^PARIS — waitlist \(desk opening with a licensed partner\) · Full Search/.test(p.lead.message) && !/free call|\bcall\b/i.test(p.lead.message + cityReplyText(p.lead)),
+    'paris: the waitlist reply says where the desk stands and that it will name the papers to start gathering — no call promised where the desk is still opening', cityReplyText(p.lead));
+  // with the Check-in, the first reply names the missing papers itself (the
+  // list as the page sent it), says when all are in hand, and never names a
+  // list the door clipped at 200 characters (a paper cut in half is not a paper)
+  {
+    const ds = '5/8 · missing: Last tax notice (avis d\'imposition), A guarantor, or Visale, A one-page presentation';
+    const pc = await call({ ...ANNA, city: 'paris', areas: 'Le Marais', dossier: ds }, '10.3.0.5');
+    const rp = cityReplyText(pc.lead);
+    check(pc.code === 200 && pc.lead.city.dossier === ds && rp.includes(`so I can't start a search there yet. From your check-in, the papers to start gathering: Last tax notice (avis d'imposition), A guarantor, or Visale, A one-page presentation. I'll come back today with where we stand and what we can already do for you.\n`) && !/\bcall\b/i.test(rp),
+      'paris + Check-in: the first reply names the missing papers to start gathering, once', rp);
+    const all = cityReplyText({ ...pc.lead, city: { ...pc.lead.city, dossier: '8/8' } });
+    check(all.includes('so I can\'t start a search there yet. Your check-in says your papers are all in hand. I\'ll come back today with where we stand and what we can already do for you.') && !/start gathering/.test(all),
+      'all eight in hand: the reply says so, and asks for no paper', all);
+    const cut = '0/8 · missing: ' + 'Passport or EU ID, Employment contract or employer attestation, Last three payslips (bulletins de salaire), Last tax notice (avis d\'imposition), Proof of address (justificatif de domicile), Last three rent receipts'.slice(0, 200 - 15);
+    const clipped = cityReplyText({ ...pc.lead, city: { ...pc.lead.city, dossier: cut } });
+    check(cut.length === 200 && !/From your check-in/.test(clipped) && /what we can already do for you and which papers to start gathering\.\n/.test(clipped),
+      'a papers list the door clipped (200 characters) is never named half: the reply says it will name the papers', clipped);
+  }
   const g = await call({ ...ANNA, city: 'berlin', areas: 'Prenzlauer Berg' }, '10.3.0.4');
   check(g.code === 200 && g.lead.intent === 'city_waitlist' && cityLabel(g.lead) === '🇩🇪 Berlin' && cityReplyText(g.lead).includes('opening with a licensed partner'), 'berlin: a waitlist lead with the German flag and the licensed partner');
   for (const pg of pages) check(CITY_MARKETS[pg.slug] && CITY_MARKETS[pg.slug].mode === pg.mode, `${pg.slug}: the server registry agrees with the page on the desk's mode (${pg.mode})`);
@@ -1277,6 +1382,9 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
       `step "${s.id}": ${opts.length} radio chips, the airport code kept as data-code only (it prints on the ticket stub, not on the chip), ${i ? 'hidden until the step before is answered' : 'shown first'}, a "change" button`);
   }
   check(ck.includes(`<span class="ck-num" id="ckNum">${esc(ams.checkin.num.replace('{n}', '1'))}</span>`) && ck.includes('<p class="ck-landing" id="ckLanding" hidden></p>') && !/<h3/.test(ck), 'the Check-in carries its counter and the landing banner — no title of its own (section 01\'s heading introduces it)');
+  // review 22/10 (finding 41): the line the Check-in shows once frozen with the file, on every desk
+  check(pages.length === 5 && pages.every((p) => { const c = JSON.parse(read(`cities/${p.slug}.json`)); return typeof c.checkin.sentLine === 'string' && p.html.includes(`<p class="ck-sent" id="ckSent" hidden>${esc(c.checkin.sentLine)}</p>`); }),
+    'every desk\'s Check-in carries its frozen line (#ckSent, hidden until a file is issued)');
   // the papers: an OPTIONAL fold of the Check-in (v1.4), the meter and the papers line with them
   const docs = [...ck.matchAll(/<label class="ck-doc"><input type="checkbox" name="ck-doc" value="([a-z]+)"><span>([^<]*)<\/span><\/label>/g)].map((m) => [m[1], decode(m[2])]);
   check(docs.length === DOSSIER_N && JSON.stringify(docs) === JSON.stringify(ams.checkin.dossier.items.map((i) => [i.id, i.t])) && ck.includes(`<details class="papers" id="ckPapersBox" hidden>\n    <summary>${esc(ams.checkin.dossier.fold)}</summary>`)
@@ -1303,14 +1411,22 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(slice(html, '<!-- CHECK-IN -->', '<!-- /CHECK-IN -->').includes('<span class="sr" id="ckLive" role="status" aria-live="polite"></span>') && ck.includes('<p class="ready" id="ckReady" role="status"></p>')
     && (ck.match(/<[^>]*(?:aria-live|role="status")[^>]*>/g) || []).length === 2 && (pass.match(/<[^>]*(?:aria-live|role="status")[^>]*>/g) || []).length === 2 && /id="ckCopied" aria-live="polite"/.test(pass) && /id="ckSaved" aria-live="polite"/.test(pass),
     'the live regions: #ckLive and #ckReady in the Check-in (a region inside the phone\'s display:none ticket misses its first announcement), exactly #ckCopied and #ckSaved under the ticket');
+  // review 22/10 (finding 41): the Check-in turns inert with the file, and an inert subtree is out of the
+  // accessibility tree — #ckLive sits just before the section, so "Your file is open. File BM …" is still announced
+  check(html.indexOf('<span class="sr" id="ckLive"') > -1 && html.indexOf('<span class="sr" id="ckLive"') < html.indexOf('<section class="checkin" id="checkin"') && !slice(html, '<section class="checkin" id="checkin"', '</section>').includes('id="ckLive"'),
+    '#ckLive sits outside the Check-in section that freezes (inert) once a file is issued');
   check(!/id="ckName"|id="ckOrigin"|ckBoard|ppers|pgrid/.test(pass) && ams.checkin.pass.name === undefined && ams.checkin.pass.from === undefined && ams.checkin.pass.guest === 'A tenant' && pass.includes(`<em>BOOM · ${esc(ams.checkin.pass.side.toUpperCase())}</em>`),
     'no name or origin inputs (the passenger is the name typed in the door, once a file is open; the export keeps "A tenant"), the foil reads BOOM · TENANT SIDE');
   check(pass.includes(`<div class="pshare"><button type="button" class="ck-save" id="ckSave">${esc(ams.checkin.pass.save)}</button><button type="button" class="ck-sharebtn" id="ckShare">${esc(ams.checkin.pass.shareBtn)}</button><button type="button" id="ckCopy">${esc(ams.checkin.share.copy)}</button>`)
     && pass.includes(`<a id="ckWa" href="#" target="_blank" rel="noopener">${esc(ams.checkin.share.whatsapp)}</a>`) && pass.indexOf('<div class="pshare">') > pass.indexOf('</article>'),
     'under the card (inside the PASS slice, outside the article): Save image · Share · Copy link, and WhatsApp to a friend');
   check(!/data-word="OPEN"|data-word="PAID"/.test(pass) && !/flap-prezzo|Gate|Seat/.test(pass), 'the ticket carries no v1.2 chrome (gate, seat) and no board that is not its own');
-  check(/<noscript><style>[^<]*\.checkin,#pass,\.pshare,\.paybar\{display:none!important\}\.plan-head,#passWrap\{display:none!important\}/.test(html) && /\.planline \.chips\{display:block/.test(html.slice(html.indexOf('<noscript><style>'))),
-    'without JS the Check-in, the ticket, its share row, the printer, the head line and the strip are hidden, and the chips are open: the door reads whole');
+  // review 22/10: the hero's "Three questions" link (and its dot, its own
+  // span) left with the Check-in — without JS it pointed at a section with no
+  // questions. The #plan h2 stays (spec step 6: the section shows its heading).
+  check(/<noscript><style>[^<]*\.checkin,#pass,\.pshare,\.paybar\{display:none!important\}\.plan-head,#passWrap,#heroPlan,\.hp-sep\{display:none!important\}/.test(html) && /\.planline \.chips\{display:block/.test(html.slice(html.indexOf('<noscript><style>')))
+    && html.includes('<a href="#plan" id="heroPlan">' + esc(ams.glance.alt) + '</a><span class="hp-sep"> · </span><a href=') && !/#plan h2|\.plan-h2|#plan>h2/.test(html.slice(html.indexOf('<noscript><style>'), html.indexOf('</noscript>'))),
+    'without JS the Check-in, the ticket, its share row, the printer, the head line, the hero\'s three-questions link with its dot and the strip are hidden, the #plan heading stays, and the chips are open: the door reads whole');
   // ISSUE, PREPARES, DOSSIER, PAID_PENDING, WA_TEXT, WA_PLAN, DOOR_SUB_LEAD, LEAD_URL: the ticket's config (spec step 9)
   {
     const c0 = cfgOf(html);
@@ -1504,7 +1620,10 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
       // every mention of #ckPassFile is a write of the server's answer or the dash, and nothing
       // else: a «server's file, or one we make up» fallback (o.file || 'BM ' + …) is refused too
       && (js.match(/ckPassFile/g) || []).length === (js.match(/setText\('ckPassFile', (?:DASH|'—'|[jvo]\.file(?: \|\| (?:DASH|'—'))?)\);/g) || []).length
-      && /issue\('open', \{ file: j\.file/.test(js) && /issue\('paid', v\)/.test(js),
+      // the two call sites pinned EXACTLY (review 22/10: a prefix match let
+      // `{ file: j.file || ('BM ' + …) }` through), and no write to a .file
+      // property anywhere (`v.file = …` before issuing PAID)
+      && /T\.issue\('open', \{ file: j\.file, name: name \}\);/.test(js) && /\n\s+T\.issue\('paid', v\);/.test(js) && !/\.file\s*=(?!=)/.test(js),
       'the file number is never computed in the browser: #ckPassFile is written from the POST answer (j.file) or the verify answer (v.file); the only FNV left hashes GA\'s transaction id inside onVerified');
     check(/C\.LEAD_URL \+ '\?paid=' \+ encodeURIComponent\(/.test(js) && /'&city=' \+ (encodeURIComponent\()?C\.SLUG/.test(js), 'the paid landing polls LEAD_URL?paid=<session>&city=<slug> instead of trusting the address bar');
   }
@@ -1514,6 +1633,20 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   check(/postMessage\(\{ id: id, W: 1080/.test(js) && /pendingReq\[m\.id\]/.test(js) && /if \(inflight\) return inflight;/.test(js) && !/w\.onmessage = function/.test(js),
     'the worker\'s replies are correlated by request id on one listener, and a second Save or Share joins the encode in flight');
   check(/done\.focus\(\{ preventScroll: true \}\)/.test(js) && html.includes('<div class="sent" id="fDone" tabindex="-1">') && html.includes('<div class="sent paid" id="fPaid" tabindex="-1"'), 'after the send focus lands on the open file, not on <body>; the paid card too');
+  // round 2 (the second review of 22/10): the page's own moves, read on the source
+  check(html.includes('<article class="pass carta" id="pass" data-state="blank"') && /<article class="pass carta" id="pass"[^>]* role="region" aria-labelledby="ckTitle" tabindex="-1">/.test(html)
+    && /function focusPass\(\) \{ try \{ pass\.focus\(\{ preventScroll: true \}\); \} catch \(e\) \{\} \}/.test(js) && !/focusDoor/.test(js) && (js.match(/T\.toPass\(1\)/g) || []).length >= 2,
+    'ONE focus target for the page\'s moves (a plate\'s link in every state, "use it", the paid return, a refused till): the ticket itself, a region named by its title, tabindex -1, focused without a scroll');
+  check(!/marginBottom|unhold|scrollend/.test(js), 'no room held under the door after the send (round 1\'s hold left a blank band and jumped on a slow scroll): the swap\'s shift is accepted');
+  check(/var want = kbCap\(topOf\(f\) \+ f\.offsetHeight - innerHeight \+ 16\);/.test(js) && !/innerHeight - stripH\(\) - 16\)\);\n\s+if \(want > scrollY/.test(js), 'the doors land at the foot of the screen: the strip steps back over them, its height is not subtracted');
+  check(/if \(T && \(T\.confirming\(\) \|\| T\.issued\(\) === 'paid'\)\) return T\.toPass\(1\);/.test(js) && /function payOff\(\)/.test(js) && /if \(kind === 'paid'\) payOff\(\);/.test(js) && /payOff\(\);\n\s+freeze\(/.test(js),
+    'paid, or being confirmed: no [data-pay] opens the till (the reader goes to the ticket) and every pay button is hidden');
+  check(/\.sent\.paid:not\(\.ok\) \.tick\{display:none\}/.test(css) && (js.match(/card\.classList\.add\('ok'\)/g) || []).length === 1 && /function onVerified[\s\S]*card\.classList\.add\('ok'\)[\s\S]*var at = \[0, 1500/.test(js),
+    'the paid card\'s success tick waits for the server: hidden until onVerified marks the card .ok');
+  check(/\['ckSteps', 'ckSuggest', 'ckPapersBox'\]\.forEach\(function \(id\) \{ try \{ \$\(id\)\.inert = true; \} catch \(e\) \{\} \}\);/.test(js) && !/root\.inert = true/.test(js) && /if \(root\.contains\(document\.activeElement\)\) focusPass\(\);/.test(js) && /if \(issued \|\| confirming\) return;/.test(js),
+    'the frozen Check-in: only its questions, suggestion and papers go inert (the line stays readable), a focus inside moves onto the ticket first, and it freezes while a payment is confirmed too');
+  check(/history\.replaceState\(null, '', location\.pathname\); \}/.test(js) && !/location\.pathname \+ '#contact'/.test(js) && /addEventListener\('load', function \(\) \{ if \(!moved\) land\(\); \}\)/.test(js) && /\['wheel', 'touchstart', 'keydown'\]/.test(js),
+    'the paid return folds to the clean path (no #contact), and a legacy #contact return drops the fragment and lands again at load unless the reader moved (wheel, touch, key — never the scroll event)');
   check(/Object\.prototype\.hasOwnProperty\.call\(PLANS, id\)/.test(js) && !/PLANS\[plan\]/.test(js), '?paid=constructor is not a plan: PLANS is read through hasOwnProperty everywhere');
   check(!/visitor_tz/.test(js) && html.includes("gtag('set',{page_location:location.origin+location.pathname+location.search.replace(/([?&])session_id=[^&]*&?/,'$1').replace(/[?&]$/,'')});gtag('config'"),
     'the visitor\'s time zone never leaves the device, and GA never receives the address-bar fragment (the papers mask lives there) nor the Stripe session_id of a paid return');
@@ -1532,6 +1665,9 @@ check(/ List prices\. Full Search due only once you sign a lease; the other plan
   // the second review round (18/10): what the first round left half done
   check(/function plateBox\(\)/.test(consent) && /lift\(\);\s*var r = el\.getBoundingClientRect\(\)/.test(consent) && /meets\(ck, box\)/.test(consent) && /meets\(pass, box\)/.test(consent),
     'the plate waits only for what it would COVER: its own box, measured where show() would put it, against the Check-in and the ticket');
+  // v1.4 (review 22/10): the hero's gold door under the plate holds it too — on a 390×664 phone «Accept» sat where the door was
+  check(/var hc = document\.querySelector\('\.hero-cta'\);\s*if \(hc && meets\(hc, box\)\) return true;/.test(consent),
+    'the plate also waits while the hero\'s door (.hero-cta) is in its band, never «Accept» where «Start with a free call» was');
   check(/if \(modalOpen\(\)\) \{ armedAt = Date\.now\(\); setTimeout\(lateGo, 400\); return; \}/.test(consent),
     'time spent in the till does not spend the plate\'s 45 s: the wait restarts when the dialog closes');
   check(/key === 'contact' \? \(v\('fPhone'\) && !v\('fEmail'\) \? \$\('fPhone'\) : \$\('fEmail'\)\)/.test(js) && /if \(mv && !mv\.getAttribute\('data-user'\)\)/.test(js) && /to = setTimeout\(function \(\) \{ workerDead = true; worker = null; fin\(null\); \}, 4000\)/.test(js),

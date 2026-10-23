@@ -80,6 +80,9 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (/bottom:calc\(84px/.test(src)) guai.push('resta il vecchio bottom:84px a mano');
   if (!/boom-consent-granted/.test(src) || !/boom-consent-denied/.test(src)) guai.push('gli eventi del consenso sono cambiati');
   if (!/setTimeout\(open, 700\)/.test(src)) guai.push('il desktop non apre più a 700ms');
+  // i desk città (data-consent-late): la targa aspetta solo ciò che coprirebbe DAVVERO —
+  // in altezza E in larghezza (sul desktop sta a sinistra; il caso del browser è in tests/cities/ui.mjs)
+  if (!/r\.bottom > box\.top && r\.top < box\.bottom && r\.right > box\.left && r\.left < box\.right/.test(src)) guai.push('meets() non chiede più la sovrapposizione orizzontale');
   guai.length ? male('sorgente di boom-consent.js:' + elenco(guai)) : bene('boom-consent.js: telefono compatto con lift e .zz, desktop a 700ms, eventi invariati');
 }
 {

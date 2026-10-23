@@ -42,7 +42,7 @@
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
     <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=3161e3b596">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=3a55d24246">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -190,7 +190,7 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/PreOrder",
-          "description": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check. List price. Due only once you sign a lease; nothing before.",
+          "description": "Search, local-format dossier and tenant self-disclosure, applications as listings appear, one attended viewing, negotiation and contract check. List price. Due only once you sign a lease; nothing before.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -216,7 +216,7 @@
           "price": "199",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/PreOrder",
-          "description": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review. List price. Charged only when the desk opens.",
+          "description": "Local-format rental dossier within one working day of your papers, tenant self-disclosure and cover letter, application templates, contract review. List price. Charged only when the desk opens.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "199",
@@ -339,7 +339,7 @@
   ]
 }
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap{display:none!important}.planline .chips{display:block!important}</style></noscript>
+<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap,#heroPlan,.hp-sep{display:none!important}.planline .chips{display:block!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -738,7 +738,7 @@ body::before, body::after { z-index: 1 !important; }
         <p class="fnote">List prices. Nothing is charged today; Full Search only once you sign.</p>
         <div class="hero-cta">
           <a class="paybtn hero-go" href="#contact" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>Open my file</b><small>free · same-day reply</small></span><span class="amt">→</span></a>
-          <p class="hero-alt"><a href="#plan" id="heroPlan">Not sure which service? Three questions</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Berlin%2C%20I'm%20moving%20to%20Berlin." id="heroWa" target="_blank" rel="noopener">WhatsApp</a></p>
+          <p class="hero-alt"><a href="#plan" id="heroPlan">Not sure which service? Three questions</a><span class="hp-sep"> · </span><a href="https://wa.me/393313251961?text=Hi%20BOOM%20Berlin%2C%20I'm%20moving%20to%20Berlin." id="heroWa" target="_blank" rel="noopener">WhatsApp</a></p>
         </div>
       </div>
       <!-- /GLANCE -->
@@ -748,7 +748,7 @@ body::before, body::after { z-index: 1 !important; }
       <dl class="facts" id="facts">
   <div><dt>Paid by</dt><dd>You alone; Full Search only once you sign, the other two at opening. Launching with a licensed partner.</dd></div>
   <div><dt>From abroad</dt><dd>Yes, once the desk opens: live video at the viewing, a written report.</dd></div>
-  <div><dt>If we say no</dt><dd>Full Search is due once you sign. If we decline the search in the first call, nothing is owed.</dd></div>
+  <div><dt>Until it opens</dt><dd>Nothing is charged. Then Full Search is due only once you sign.</dd></div>
   <div><dt>Who answers</dt><dd>Valentino Egidi, same working day · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET/CEST</span><span class="clock" id="deskClock" aria-live="off"></span></dd></div>
   <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://maps.google.com/?cid=15671179095441549815" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></dd></div>
       </dl>
@@ -766,10 +766,10 @@ body::before, body::after { z-index: 1 !important; }
     <p class="sec-sub plan-head">Three questions pick the service. Or choose one below.</p>
     <div class="plan-in">
       <!-- CHECK-IN -->
+<span class="sr" id="ckLive" role="status" aria-live="polite"></span>
 <section class="checkin" id="checkin" aria-label="Check-in">
-  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span></div>
+  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span><p class="ck-sent" id="ckSent" hidden>Your file is open. The desk takes it from here.</p></div>
   <p class="ck-landing" id="ckLanding" hidden></p>
-  <span class="sr" id="ckLive" role="status" aria-live="polite"></span>
   <div class="ck-steps" id="ckSteps">
       <fieldset class="ck-step" data-step="stage">
         <legend><b>01</b> Where are you in the search?</legend>
@@ -825,7 +825,7 @@ body::before, body::after { z-index: 1 !important; }
 <div class="uscita printer" id="passWrap">
   <div class="fessura" aria-hidden="true"></div>
   <p class="pblank" id="ckBlank">Your plan prints here as you answer.</p>
-  <article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" aria-label="BOOM · Your plan">
+  <article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" role="region" aria-labelledby="ckTitle" tabindex="-1">
     <div class="lamina" aria-hidden="true"><em>BOOM · TENANT SIDE</em></div>
     <span class="stamp" id="ckStamp" data-stamp="" aria-hidden="true"></span>
     <div class="pbody">
@@ -944,7 +944,7 @@ body::before, body::after { z-index: 1 !important; }
         <div class="sent" id="fDone" tabindex="-1">
           <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
           <h3>Your file is <em>open.</em></h3>
-          <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes back by email, or WhatsApp if you left a number.</span></li><li><b>Nothing to prepare</b><span>We tell you on the call what papers matter.</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
+          <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes back by email, or WhatsApp if you left a number.</span></li><li><b>Nothing to prepare</b><span>Our first reply says which papers matter.</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
         </div>
       </div>
       <!-- /THE DOOR -->
@@ -988,7 +988,7 @@ body::before, body::after { z-index: 1 !important; }
       <article class="sib on" id="plate-full-search">
         <div class="se"><span>Full Search · end to end</span></div>
         <b>We search. You choose.</b>
-        <ul class="inc"><li>Search every working day: ImmoScout24, Immowelt, Kleinanzeigen</li><li>Applications as listings appear, German-format</li><li>Attended viewing, live video + report</li><li>Rent brake and lease checked, Nebenkosten read</li></ul>
+        <ul class="inc"><li>Search every working day: ImmoScout24, Immowelt, Kleinanzeigen</li><li>Self-disclosure, German-format applications as listings appear</li><li>Attended viewing, live video + report</li><li>Rent brake and lease checked, Nebenkosten read</li></ul>
         <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT · on signing</small></div>
         <a class="go" href="#contact" data-service="full-search">Open my file →</a>
       </article>
@@ -996,7 +996,7 @@ body::before, body::after { z-index: 1 !important; }
         <div class="se"><span>Application Pack</span></div>
         <b>You search. We make you win.</b>
         <p>The dossier that wins German applications.</p>
-        <ul class="inc"><li>German-format dossier, one working day</li><li>SCHUFA and guarantor strategy for newcomers</li><li>Cover note in German</li><li>Lease review before you sign</li></ul>
+        <ul class="inc"><li>German-format dossier, one working day</li><li>SCHUFA and guarantor strategy for newcomers</li><li>Self-disclosure and cover note in German</li><li>Lease review before you sign</li></ul>
         <div class="price"><span class="num" data-plan-price="application-pack">€199</span><small>flat · incl. VAT · at opening</small></div>
         <a class="go" href="#contact" data-service="application-pack">Open my file →</a>
       </article>
@@ -1276,7 +1276,7 @@ body::before, body::after { z-index: 1 !important; }
         "unit": "",
         "includes": [
           "Search every working day: ImmoScout24, Immowelt, Kleinanzeigen",
-          "Applications as listings appear, German-format",
+          "Self-disclosure, German-format applications as listings appear",
           "Attended viewing, live video + report",
           "Rent brake and lease checked, Nebenkosten read"
         ]
@@ -1290,7 +1290,7 @@ body::before, body::after { z-index: 1 !important; }
         "includes": [
           "German-format dossier, one working day",
           "SCHUFA and guarantor strategy for newcomers",
-          "Cover note in German",
+          "Self-disclosure and cover note in German",
           "Lease review before you sign"
         ]
       },
@@ -1508,6 +1508,7 @@ body::before, body::after { z-index: 1 !important; }
         }
       },
       "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+      "sentLine": "Your file is open. The desk takes it from here.",
       "pending": {
         "eyebrow": "Two plans fit",
         "text": "One more answer decides: {plans}."
@@ -1528,7 +1529,7 @@ body::before, body::after { z-index: 1 !important; }
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=571186b701"></script>
+<script src="/assets/boom-city.js?v=12b9ff1dcb"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say

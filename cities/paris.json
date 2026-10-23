@@ -109,7 +109,7 @@
       ],
       [
         "Nothing to prepare",
-        "We tell you on the call what papers matter."
+        "Our first reply says which papers matter."
       ],
       [
         "Nothing by then?",
@@ -153,13 +153,13 @@
         "name": "We search. You choose.",
         "includes": [
           "Search every working day: SeLoger, PAP, Leboncoin, agencies",
-          "Applications as listings appear",
+          "One-page presentation, applications as listings appear",
           "Attended viewing, live video + report",
           "Rent cap and lease checked, charges read"
         ],
         "featured": true,
         "price": 500,
-        "offerDescription": "Search, local-format dossier, applications as listings appear, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search, local-format dossier and one-page presentation, applications as listings appear, one attended viewing, negotiation and contract check.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens.",
         "prepares": [
@@ -175,11 +175,11 @@
         "includes": [
           "French-format dossier locatif, one working day from your papers",
           "Guarantor or Visale strategy",
-          "Cover note in French",
+          "One-page presentation in French",
           "Lease review before you sign"
         ],
         "price": 199,
-        "offerDescription": "Local-format rental dossier within one working day of your papers, cover letter, application templates, contract review.",
+        "offerDescription": "Local-format rental dossier within one working day of your papers, one-page presentation, application templates, contract review.",
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens.",
         "prepares": [
@@ -405,6 +405,7 @@
       }
     },
     "refusal": "Four weeks is tight and the desk is still opening: the first reply says honestly what we can do by then.",
+    "sentLine": "Your file is open. The desk takes it from here.",
     "pending": {
       "eyebrow": "Two plans fit",
       "text": "One more answer decides: {plans}."
@@ -555,8 +556,8 @@
     },
     {
       "key": "nothing",
-      "label": "If we say no",
-      "text": "Charged only when the desk opens. If we decline the search in the first call, nothing is owed."
+      "label": "Until it opens",
+      "text": "Nothing is charged. Opening your file is free, and so is our first reply."
     }
   ],
   "factsDerived": {
