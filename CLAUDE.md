@@ -134,6 +134,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
+Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
+`draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.
+Gli upload riusciti e i loro riferimenti vengono riutilizzati quando si perde la risposta: retry senza nuovi oggetti o URL foto diversi. Test handler e UI reali in `tests/smartlink/{run,studio}.mjs`, inclusi ordine foto, conflitto, nuova versione e interruzione dopo upload.
 Collaudo del 21/10: Photon pubblico rifiuta `lang=it` con HTTP 400. Studio e ricerca cliente ora chiedono `lang=default`, mantenendo i nomi locali e l'interfaccia italiana. Nessun nuovo servizio o segreto.
 `tests/smartlink/map.mjs` esegue entrambi i controller reali con la risposta osservata: ricerca Piramide, scelta/conferma dell'area e risultati per il cliente. La correzione riguarda le ricerche remote; le zone note continuano a usare il dizionario esistente.
 PR #302 pubblicata su main `abce13f8`: importazione reale dal Portal Subito `665034710`, sei foto caricate e tutti i dettagli principali corretti. La mappa personalizzata ha fermato il collaudo finale e viene corretta prima della consegna.

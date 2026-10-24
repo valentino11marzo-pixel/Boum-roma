@@ -235,6 +235,30 @@ try {
   assert.equal(r.body.id, id);
   assert.equal(r.body.duplicate, true);
 
+  // Una chiave conferma il contenuto già pubblicato, non perde modifiche successive.
+  for(const changed of [{price:1600},{title:'Titolo aggiornato'},{note:'Nota aggiornata'},
+    {map:{lat:41.91,lng:12.45,label:'Nuova area'}},{images:[photo.replace('22222222','99999999')]}]) {
+    r=response();await create(request('POST',{...createBody,...changed}),r);
+    assert.equal(r.code,409,'A changed publication must not receive a successful retry');
+    assert.equal(r.body.error,'publication_conflict');
+  }
+  r=response();await create(request('POST',{...createBody,price:'1200',title:' Bilocale   Test '}),r);
+  assert.equal(r.code,200,'Equivalent normalized input remains an idempotent retry');
+  const nextKey='55555555-5555-4555-8555-555555555555';
+  const nextImages=[photo,photo.replace('22222222','99999999')];
+  const nextBody={...createBody,idempotencyKey:nextKey,draftKey:createBody.idempotencyKey,price:1600,images:nextImages};
+  r=response();await create(request('POST',nextBody),r);
+  assert.equal(r.code,201,'A new publication can reuse photos from its explicit draft');
+  assert.notEqual(r.body.id,id);
+  const nextId=r.body.id;
+  r=response();await read(request('GET',{id:nextId}),r);assert.equal(r.body.listing.price,1600);
+  assert.deepEqual(r.body.listing.images,nextImages);
+  r=response();await create(request('POST',{...nextBody,images:nextImages.slice().reverse()}),r);
+  assert.equal(r.code,409,'Changing cover/order is a changed publication');
+  r=response();await create(request('POST',{...createBody,idempotencyKey:'66666666-6666-4666-8666-666666666666',draftKey:nextKey}),r);
+  assert.equal(r.code,400,'An explicit draft never authorizes photos from another draft');
+  docs.get('smartlinks/'+nextId).fields.active={booleanValue:false};
+
   r = response();
   await read(request('GET',{ id }), r);
   assert.equal(r.code, 200);
@@ -244,6 +268,7 @@ try {
   assert.ok(!('sourceUrl' in r.body.listing));
   assert.ok(!('source' in r.body.listing));
   assert.deepEqual(r.body.listing.images, [photo]);
+  assert.equal(r.body.listing.price,1200,'Publishing a new version never changes the old public card');
   assert.equal(r.body.listing.map.precision, 'area');
   assert.equal(r.body.listing.map.label, 'Cipro');
   assert.equal(JSON.stringify(r.body).includes('immobiliare.it'), false);
