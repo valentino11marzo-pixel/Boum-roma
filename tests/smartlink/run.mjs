@@ -331,3 +331,4 @@ try {
 
 await import('./remote.mjs');
 await import('./studio.mjs');
+await import('./index.mjs');
