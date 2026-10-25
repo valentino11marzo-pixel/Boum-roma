@@ -149,7 +149,7 @@
   function makeRecord(input, now) {
     const source = normalizeUrl(input.sourceUrl);
     if (!source) return null;
-    const images = cleanImages(input.images, input.idempotencyKey);
+    const images = cleanImages(input.images, input.draftKey ?? input.idempotencyKey);
     if (!images) return null;
     const map = cleanMap(input.map);
     if (input.map != null && !map) return null;
@@ -173,7 +173,18 @@
     const { title, price, zone, sqm, rooms, note, images, map, observedAt, availability } = d;
     return { title: publicText(title,130) || 'Una casa a Roma', price, zone:publicText(zone,90), sqm, rooms, note:publicText(note,400), images: Array.isArray(images) ? images.filter(validPublicImageUrl).slice(0,12) : [], map: map ? { ...map, label:publicText(map.label,70) || 'Roma' } : null, observedAt, availability };
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord };
+  // Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link.
+  // Le date server cambiano a ogni tentativo e non fanno parte della proposta.
+  function samePublication(a, b) {
+    const content = d => ({sourceUrl:normalizeUrl(d?.sourceUrl)?.url || null,
+      title:cleanText(d?.title,130) || 'Una casa a Roma',price:positiveNumber(d?.price,1000000),
+      zone:cleanText(d?.zone,90),sqm:positiveNumber(d?.sqm,100000),rooms:positiveNumber(d?.rooms,100),
+      note:cleanText(d?.note,400),images:Array.isArray(d?.images)?d.images:[],map:cleanMap(d?.map),
+      reusedFrom:d?.reusedFrom || null,observedAt:d?.reusedFrom ? d.observedAt || null : null,
+      availability:cleanText(d?.availability,60) || 'Da verificare',active:d?.active===true});
+    return !!normalizeUrl(a?.sourceUrl) && JSON.stringify(content(a))===JSON.stringify(content(b));
+  }
+  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord, samePublication };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

@@ -193,6 +193,7 @@ jobs:
             console.log("  tutto il pool (il provider gia filtra):  " + pool + "/*");
           ' "$RESP" "$WIF_PROVIDER"
       - name: Credenziale federata (Workload Identity Federation, nessuna chiave)
+        id: firebase_auth
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/937269017440/locations/global/workloadIdentityPools/github/providers/github
@@ -286,3 +287,12 @@ jobs:
             echo "::error::Il CLI ha firmato col token deprecato (FIREBASE_TOKEN) invece che con la federazione. Le regole SONO in produzione, ma la federazione NON e' stata provata: togli FIREBASE_TOKEN dall'ambiente di questo passo (o il secret dal repo)."
             exit 1
           fi
+      # Solo main: l'eventuale opt-in manuale rules da un ramo non vale per
+      # gli indici. Il controllo aggiunge solo l'indice SmartLink mancante;
+      # non elimina indici, non cambia IAM e conferma soltanto lo stato READY.
+      - name: Verifica indice SmartLink pronto
+        if: github.ref == 'refs/heads/main'
+        timeout-minutes: 6
+        env:
+          SMARTLINK_INDEX_TOKEN: ${{ steps.firebase_auth.outputs.access_token }}
+        run: node tools/ensure-smartlink-index.mjs

@@ -773,6 +773,22 @@ const noReplyEffects = () => AI_REQUESTS.length === 0 && collectionRows('action_
 {
   resetReplyGate();
   const input = turnFixture('proposal_remains_enabled');
+  // Questa prova riguarda la pausa, non l'ora locale ripetuta al cambio DST.
+  // Mezzogiorno UTC successivo è sempre futuro (12–36h) e univoco a Roma.
+  const proposalCheckAtFor = now => {
+    const proposalDate = new Date(now);
+    proposalDate.setUTCDate(proposalDate.getUTCDate() + 1);
+    proposalDate.setUTCHours(12, 0, 0, 0);
+    return proposalDate.toISOString();
+  };
+  for (const instant of ['2026-10-24T23:30:00Z', '2026-10-25T00:30:00Z']) {
+    const now = Date.parse(instant), checkAt = proposalCheckAtFor(now);
+    const timing = CALENDAR.validateCheckTiming({ checkAt }, { declaredLocal: CALENDAR.romeLocalInstant(checkAt) });
+    ok('9f. fixture ricontrollo resta futuro e non ambiguo al cambio ora: ' + instant,
+      Date.parse(checkAt) - now >= 12 * 3600000 && Date.parse(checkAt) - now <= 36 * 3600000 && timing.ok,
+      { instant, checkAt, timing });
+  }
+  const proposalCheckAt = proposalCheckAtFor(liveNow);
   // Explicit operator takeover frees reply ownership; pausing globally does
   // not silently revoke the previously handed conversation.
   await segretariaOffConv(input.cid);
@@ -785,8 +801,8 @@ const noReplyEffects = () => AI_REQUESTS.length === 0 && collectionRows('action_
     AI_REPLY = { summary: 'Il cliente chiede una visita.', recommendation: 'Verificare le opzioni di visita.',
       facts: [{ text: 'Richiesta una visita.', sourceIds, quote: source.text }], commitments: [], uncertainties: [],
       nextAction: { text: 'Verificare le opzioni di visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
-        checkAt: new Date(liveNow + 3600000).toISOString(),
-        checkLocal: CALENDAR.romeLocalInstant(new Date(liveNow + 3600000).toISOString()), practiceRef: 'leads/' + input.lead.id,
+        checkAt: proposalCheckAt,
+        checkLocal: CALENDAR.romeLocalInstant(proposalCheckAt), practiceRef: 'leads/' + input.lead.id,
         sourceIds, reason: 'Serve una verifica prima di confermare.' },
       draft: { channel: 'whatsapp', text: 'Thanks, we will check the viewing options.', sourceIds },
       handoff: { needed: false, reason: 'Valentino verifica e conferma la risposta.', sourceIds } };
@@ -820,12 +836,13 @@ if (!process.env.BOOM_REPLY_GATE_MUTATION) {
     for (const path of ['api', 'js', 'tests/segretaria', 'tests/notify', 'vercel.json'])
       cpSync(join(root, path), join(scratch, path), { recursive: true, filter: p => !p.includes('node_modules') });
     symlinkSync(join(root, 'node_modules'), join(scratch, 'node_modules'), 'dir');
-    const files = ['api/segretaria/_core.js', 'api/telegram/webhook.js'];
+    const files = ['api/segretaria/_core.js', 'api/telegram/webhook.js', 'tests/segretaria/run.mjs'];
     const sources = Object.fromEntries(files.map(f => [f, readFileSync(join(root, f), 'utf8')]));
     for (const [name, file, from, to, expected] of [
       ['flag rimosso', files[0], 'if (raw?.automaticReplies === false)', 'if (false)', '9a. automaticReplies false'],
       ['rilettura rimossa', files[0], 'if (gateBeforeAction.blocked)', 'if (false)', '9e. sospensione durante AI'],
       ['consegna ingannevole', files[1], 'const handoverLine = opened?.blocked', 'const handoverLine = false', '9b. tap Telegram'],
+      ['fixture ricontrollo +1h', files[2], 'return proposalDate.toISOString();', 'return new Date(now + 3600000).toISOString();', '9f. fixture ricontrollo resta futuro e non ambiguo'],
     ]) {
       for (const f of files) writeFileSync(join(scratch, f), sources[f]);
       if (!sources[file].includes(from)) { ok('mutazione ' + name + ': bersaglio presente', false); continue; }
