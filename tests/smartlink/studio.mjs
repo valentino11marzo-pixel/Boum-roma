@@ -12,6 +12,7 @@ class Element {
 }
 const nodes=new Map(),get=id=>{if(!nodes.has(id)) nodes.set(id,new Element());return nodes.get(id);};
 let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability,photoImports=0,directPayload;
+let createMode='ok',allowUploads=false,uploadCount=0,downloadLookupFails=false;
 async function until(predicate) {for(let i=0;i<100&&!predicate();i++) await Promise.resolve();assert.ok(predicate(),'Expected request was not reached');}
 const source='https://www.immobiliare.it/annunci/124483437/';
 const key=crypto.randomUUID(),photo=n=>`https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/${encodeURIComponent('smartlinks/'+key+'/'+n+'1111111-1111-4111-8111-111111111111.webp')}?alt=media`;
@@ -19,7 +20,9 @@ const ready={id:'Abcd1234Efgh5678ijkl',sourceUrl:source,draftKey:key,status:'rea
 const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare:async blob=>blob}},URL,Promise,console,encodeURIComponent,AbortSignal,setTimeout:()=>1,clearTimeout:()=>{},
   document:{getElementById:get,createElement:()=>new Element(),querySelector:()=>get('body'),documentElement:{dataset:{}}},
   auth:{currentUser:{getIdToken:async()=>'admin'}},toast(){},closeModal(){},esc:String,
-  storage:{ref(){throw new Error('An archived photo must not be reuploaded from the phone');}},
+  storage:{ref(){if(!allowUploads) throw new Error('An archived photo must not be reuploaded from the phone');return {child(path){return {
+    async put(){uploadCount++;},async getDownloadURL(){if(downloadLookupFails){downloadLookupFails=false;throw new Error('lookup interrupted');}return 'https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/'+encodeURIComponent(path)+'?alt=media';}
+  };}};}},
   fetch:async(url,opts={})=>{
     if(url==='/api/smartlink/jobs?capabilities=1') {
       if(holdCapability) return new Promise(resolve=>{finishCapability=()=>resolve({ok:true,json:async()=>({ok:true,enabled})});});
@@ -27,7 +30,12 @@ const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare
     }
     if(url==='/api/smartlink/extract') {directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>directPayload || ({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});}
     if(url==='/api/smartlink/import-photo') {photoImports++;return {ok:true,blob:async()=>new Blob(['test'],{type:'image/webp'})};}
-    if(url==='/api/smartlink/create'){published=JSON.parse(opts.body);return {ok:true,json:async()=>({ok:true,url:'https://www.boomrome.com/smartlink?id=test'})};}
+    if(url==='/api/smartlink/create'){
+      published=JSON.parse(opts.body);
+      if(createMode==='lost'){createMode='ok';throw new Error('response lost after save');}
+      if(createMode==='conflict') return {ok:false,status:409,json:async()=>({ok:false,error:'publication_conflict'})};
+      return {ok:true,status:201,json:async()=>({ok:true,url:'https://www.boomrome.com/smartlink?id=test'})};
+    }
     if(opts.method==='POST'){submitted++;return new Promise(resolve=>{finishPost=()=>resolve({ok:true,json:async()=>({ok:true,job:{...ready,status:'queued'}})});});}
     return {ok:true,json:async()=>({ok:true,jobs:[],job:ready,online:true,enabled})};
   }};
@@ -91,6 +99,12 @@ assert.match(get('sl_status').textContent,/fonte non è stata riletta/);
 context.smartLinkMovePhoto(1,0);published=null;await context.smartLinkCreate();
 assert.deepEqual(published.images,[photo(2),photo(1)]);assert.equal(published.archiveId,directPayload.archive.id);
 assert.notEqual(published.idempotencyKey,key,'Reusing images must not reuse the old publication idempotency key');
+const publishedArchiveKey=published.idempotencyKey;
+finishDirect=null;const reimport=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await reimport;
+get('sl_price').value='1600';await context.smartLinkCreate();
+assert.notEqual(published.idempotencyKey,publishedArchiveKey,'Reimport after publication starts a new version even without a central job');
+assert.equal(published.price,'1600');assert.deepEqual(published.images,[photo(1),photo(2)]);
+assert.equal(photoImports,importsBefore,'A new archive version still needs no photo upload');
 get('sl_source').value=source.replace('124483437','777');context.smartLinkSourceChanged();
 directPayload={ok:true,status:'unavailable',images:[]};finishDirect=null;
 context.document.documentElement.dataset.boomSmartlinkExtension='1';
@@ -99,4 +113,30 @@ const empty=context.smartLinkExtract();await until(()=>finishDirect);finishDirec
 assert.equal(get('sl_photo_preview').children.length,0);assert.match(get('sl_status').textContent,/BOOM non ha foto archiviate/);
 assert.notEqual(get('sl_connection').open,true,'A source failure must not force an installation guide open');
 context.smartLinkClose();
-console.log('SmartLink Studio: gated rollout, direct/queued double submit, source races, resume, archived photo order and publication guard ✓');
+// A resumed import may already have a published card: changes need an explicit new version.
+vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+nodes.clear();context.smartLinkResume(ready);get('sl_price').value='1800';createMode='conflict';
+await context.smartLinkCreate();
+assert.equal(get('sl_create').dataset.created,'0');assert.match(get('sl_result').textContent,/già una scheda pubblicata con dati diversi/);
+assert.equal(get('sl_create').textContent,'Crea nuova versione ↗');
+assert.notEqual(get('sl_key').value,key);assert.equal(get('sl_draft_key').value,key);
+createMode='ok';await context.smartLinkCreate();
+assert.notEqual(published.idempotencyKey,key);assert.equal(published.draftKey,key);
+assert.deepEqual(published.images,[photo(1),photo(2)]);assert.equal(published.price,'1800');
+context.smartLinkClose();
+// Retry after a lost create response reuses the exact payload and uploaded objects.
+vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+nodes.clear();enabled=false;get('sl_source').value=source;context.smartLinkSourceChanged();
+directPayload={ok:true,data:{title:'Casa nuova'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg','https://pwm.im-cdn.it/image/456/m-c.jpg']};
+finishDirect=null;const fresh=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await fresh;
+allowUploads=true;downloadLookupFails=true;
+await context.smartLinkCreate();assert.equal(uploadCount,1);
+createMode='lost';await context.smartLinkCreate();
+assert.equal(uploadCount,2,'An interrupted download-URL lookup must not upload the photo again');
+const interruptedPayload=published;
+assert.equal(get('sl_create').dataset.created,'0');
+await context.smartLinkCreate();
+assert.deepEqual(published,interruptedPayload,'A lost response retries the identical proposal, including photo URLs');
+assert.equal(uploadCount,2,'Retry must not create duplicate Storage objects');
+assert.equal(get('sl_create').dataset.created,'1');context.smartLinkClose();
+console.log('SmartLink Studio: gated rollout, source races, resume, archive, distinct publication versions and loss-safe retries ✓');

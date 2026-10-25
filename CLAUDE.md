@@ -134,6 +134,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
+Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
+`draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.
+Gli upload riusciti e i loro riferimenti vengono riutilizzati quando si perde la risposta: retry senza nuovi oggetti o URL foto diversi. Test handler e UI reali in `tests/smartlink/{run,studio}.mjs`, inclusi ordine foto, conflitto, nuova versione e interruzione dopo upload.
 Collaudo del 21/10: Photon pubblico rifiuta `lang=it` con HTTP 400. Studio e ricerca cliente ora chiedono `lang=default`, mantenendo i nomi locali e l'interfaccia italiana. Nessun nuovo servizio o segreto.
 `tests/smartlink/map.mjs` esegue entrambi i controller reali con la risposta osservata: ricerca Piramide, scelta/conferma dell'area e risultati per il cliente. La correzione riguarda le ricerche remote; le zone note continuano a usare il dizionario esistente.
 PR #302 pubblicata su main `abce13f8`: importazione reale dal Portal Subito `665034710`, sei foto caricate e tutti i dettagli principali corretti. La mappa personalizzata ha fermato il collaudo finale e viene corretta prima della consegna.
@@ -144,7 +148,11 @@ Il lettore HTTP Subito riconosce il CDN `images.sbito.it` esclusivamente nel per
 `import-photo` accetta AVIF verificato e lo converte con Sharp in WebP (massimo 40 megapixel in ingresso, 2400 px in uscita) per i browser. Prove reali del 21/10 su due annunci Subito: 1 e 6 foto scaricate/decodificate; collaudo cloud/Portal da registrare separatamente.
 Test in `tests/smartlink/{run,studio}.mjs`: stesso link senza contatti alla fonte, ordine foto senza upload, data non aggiornata artificialmente, annuncio diverso/inattivo/foto estranee rifiutati, nessuna chiamata automatica al ponte Chrome. Il lettore centrale resta spento: SSH della sessione precedente scaduto, nessuna chiave disponibile nell'agente locale.
 Il percorso centrale passa da `api/smartlink/jobs.js` e `worker.js`: richiesta privata e duratura, lettura su Homie, foto archiviate prima dello stato pronto. L'adattatore API immobiliare è stato rimosso; nessuna credenziale o API commerciale della fonte.
-`smartlinkImports`/`smartlinkWorkers` sono admin-only; l'indice `createdBy + createdAt DESC` va distribuito insieme al rilascio (la CI rules non distribuisce gli indici). `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+`smartlinkImports`/`smartlinkWorkers` sono admin-only. `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+Dal 25/10 `deploy-rules`, solo su main, verifica l'indice `smartlinkImports: createdBy ASC + createdAt DESC` dopo rules/storage con `tools/ensure-smartlink-index.mjs`.
+Usa il token temporaneo del passo WIF esistente, senza nuovi secret salvati; legge la specifica versionata ed esegue solo GET/POST dei metadati dell'indice sul progetto e database fissi. Nessuna cancellazione, modifica IAM o scrittura di dati applicativi.
+Un indice esistente READY non viene ricreato; una creazione o un conflitto concorrente devono arrivare a READY entro cinque minuti. Errori di accesso, NEEDS_REPAIR e scadenza fanno fallire il controllo senza dichiarare l'indice pronto.
+Le prove in `tests/smartlink/index.mjs` simulano questi esiti e verificano che il token non finisca nei log. Il risultato reale resta quello del job main: un verde PR non prova il deploy dell'indice né l'importazione dalla fonte.
 `js/smartlink-import-engine.js` governa claim atomico, lease cinque minuti, massimo due tentativi e scadenza un'ora; `tools/smartlink-worker` usa Playwright 1.64.1 in un profilo dedicato. Dipendenza solo Mac, necessaria per il browser; nessuna estensione per l'operatore.
 Lo Studio riprende le importazioni del proprio account, scarta risposte di un URL precedente e riusa le foto archiviate senza upload dal telefono. Test handler/Sharp, concorrenza e interfaccia in `tests/smartlink/{remote,studio}.mjs`; permessi in `tests/rules/runner.mjs`.
 Il worker ha un limite Vercel di 180 secondi per le foto. Per restare nelle 50 regole functions, `geocode-all`/`geocode-bake` condividono un pattern finito con timeout 60 invariato; `tests/vercel-functions` verifica tutti gli handler e le mutazioni.
@@ -6892,6 +6900,10 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
+
+- **Fixture del cambio d’ora (25/10/2026)**: il caso 9f di `tests/segretaria/run.mjs` sceglieva «adesso + un’ora», entrando nell’ora ripetuta di Roma; fallimento riprodotto anche su main `7e2cdf58`.
+  La prova della pausa ora usa mezzogiorno UTC del giorno successivo, sempre futuro e non ambiguo. Le asserzioni su preparazione, conferma esplicita e assenza di invii automatici restano intatte.
+  Il motore calendario continua a rifiutare le ore ripetute. Il fixture viene verificato anche sugli istanti che rompevano la CI, con mutazione della scelta dell’orario; nessuna modifica al comportamento della Segretaria.
 
 - **IL 409 CHE FERMAVA WHATSAPP (21/09/2026, sera — letto nei log di Vercel,
   non dedotto)**. Nelle 24 ore: `/api/homie/message` **946 × 409** contro

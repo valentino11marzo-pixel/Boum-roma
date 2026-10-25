@@ -28310,6 +28310,7 @@ IBAN: ${l.iban || '-'}`;
     }
     function openExternalSmartLink() {
         if (!isAdmin()) return;
+        const draftKey=window.crypto.randomUUID();
         smartLinkBusy=false;
         smartLinkStopPolling(); smartLinkJob=null;
         smartLinkArea?.destroy();
@@ -28330,7 +28331,7 @@ IBAN: ${l.iban || '-'}`;
                 <section class="sl-section sl-photo-section"><div class="sl-step">03 <span>Fotografie</span></div><p class="sl-hint">Le foto dell’annuncio arrivano qui automaticamente. Trascinale per cambiare ordine; la prima diventa copertina. BOOM le ottimizza e le ospita nella scheda.</p><p id="sl_photo_status" role="status" class="sl-hint">Incolla il link per importare le foto.</p><div id="sl_photo_preview" class="sl-photo-grid" aria-label="Foto importate, trascina per riordinare"></div><div class="sl-drop" role="button" tabindex="0" aria-label="Aggiungi altre fotografie" onclick="document.getElementById('sl_photos').click()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();this.click()}" ondragover="event.preventDefault();this.classList.add('dragging')" ondragleave="this.classList.remove('dragging')" ondrop="smartLinkPhotoDrop(event)"><span class="sl-drop-icon">＋</span><strong>Aggiungi altre foto</strong><small>Solo se vuoi integrare quelle importate · fino a 12</small></div><input id="sl_photos" class="sl-file-input" type="file" multiple accept="image/*" aria-label="Aggiungi altre fotografie" onchange="smartLinkPhotosChanged()"></section>
               </div>
               <section class="sl-section"><div class="sl-step">04 <span>Quartiere</span></div><div id="sl_area_picker"></div></section>
-              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${window.crypto.randomUUID()}">
+              <div class="sl-publish-note">Controlla i dati prima di creare. Prezzo e disponibilità sono indicativi; il cliente contatta direttamente BOOM.</div><div id="sl_result" class="sl-result" role="status"></div><input id="sl_key" type="hidden" value="${draftKey}"><input id="sl_draft_key" type="hidden" value="${draftKey}">
             </div>
             <div class="modal-footer sl-studio-footer"><button class="btn btn-secondary" onclick="smartLinkClose()">Chiudi</button><button id="sl_create" class="btn" onclick="smartLinkCreate()">Crea SmartLink BOOM ↗</button></div>
           </div>
@@ -28364,6 +28365,7 @@ IBAN: ${l.iban || '-'}`;
         document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
         smartLinkArea?.reset();
         document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_draft_key').value=document.getElementById('sl_key').value;
         document.getElementById('sl_result').replaceChildren();
         const create=document.getElementById('sl_create');
         create.disabled=false; delete create.dataset.created; create.textContent='Crea SmartLink BOOM ↗';
@@ -28410,6 +28412,7 @@ IBAN: ${l.iban || '-'}`;
         const source=document.getElementById('sl_source'); source.value=job.sourceUrl;
         smartLinkSourceChanged(); smartLinkStopPolling(); smartLinkClearPhotos();
         document.getElementById('sl_key').value=job.draftKey;
+        document.getElementById('sl_draft_key').value=job.draftKey;
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
         document.getElementById('sl_result').replaceChildren();
         smartLinkJob=job; smartLinkApplyJob(job);
@@ -28432,7 +28435,7 @@ IBAN: ${l.iban || '-'}`;
         };
         status.textContent=descriptions[job.status] || 'Importazione da verificare.';
         if(job.status==='ready') {
-            const key=document.getElementById('sl_key').value;
+            const key=document.getElementById('sl_draft_key').value;
             smartLinkPhotoItems=(job.images || []).filter(url=>window.BOOM_SMARTLINK.validImageUrl(url,key)).map((url,i)=>({remoteUrl:url,url,name:'Foto annuncio '+(i+1)}));
             ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && job.data?.[k]) el.value=job.data[k];});
             smartLinkArea?.suggest(job.data?.zone || job.data?.title || '');
@@ -28461,7 +28464,8 @@ IBAN: ${l.iban || '-'}`;
         if(!source) {status.textContent='Incolla il link completo di un annuncio supportato.';return;}
         smartLinkStopPolling();
         const version=smartLinkPollVersion;
-        if(smartLinkJob) document.getElementById('sl_key').value=window.crypto.randomUUID();
+        if(smartLinkJob || document.getElementById('sl_create')?.dataset.created==='1') document.getElementById('sl_key').value=window.crypto.randomUUID();
+        document.getElementById('sl_draft_key').value=document.getElementById('sl_key').value;
         smartLinkJob=null;smartLinkClearPhotos();smartLinkRenderPhotos('Preparo l’importazione…');
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
         document.getElementById('sl_result').replaceChildren();
@@ -28649,29 +28653,39 @@ IBAN: ${l.iban || '-'}`;
         smartLinkBusy=true;
         document.querySelector('.sl-studio-body').inert=true;
         btn.disabled = true; btn.textContent = 'Preparo la scheda…';
-        let created = false;
+        let created = false, publicationConflict = false;
         try {
             await smartLinkPhotoPending;
             const files=[...smartLinkPhotoItems];
             if (!files.length) throw new Error('Nessuna foto pronta. Importa l’annuncio prima di creare lo SmartLink.');
-            const key=value('key'), images=[];
+            const key=value('key'), draftKey=value('draft_key') || key, images=[];
             for (let i=0;i<files.length;i++) {
                 if(files[i].remoteUrl) {
-                    if(!window.BOOM_SMARTLINK.validImageUrl(files[i].remoteUrl,key) && !smartLinkArchive?.images.includes(files[i].remoteUrl)) throw new Error('Foto non valida per questa scheda. Importa di nuovo.');
+                    if(!window.BOOM_SMARTLINK.validImageUrl(files[i].remoteUrl,draftKey) && !smartLinkArchive?.images.includes(files[i].remoteUrl)) throw new Error('Foto non valida per questa scheda. Importa di nuovo.');
                     images.push(files[i].remoteUrl);continue;
                 }
                 btn.textContent='Carico foto '+(i+1)+'/'+files.length+'…';
                 const ext=files[i].blob.type === 'image/jpeg' ? 'jpg' : 'webp';
-                const ref=storage.ref().child('smartlinks/'+key+'/'+window.crypto.randomUUID()+'.'+ext);
-                await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                const ref=files[i].uploadRef || storage.ref().child('smartlinks/'+draftKey+'/'+window.crypto.randomUUID()+'.'+ext);
+                files[i].uploadRef=ref;
+                if(!files[i].uploaded) {
+                    await ref.put(files[i].blob, {contentType:files[i].blob.type,cacheControl:'public,max-age=31536000,immutable'});
+                    files[i].uploaded=true;
+                }
                 const url=await ref.getDownloadURL();
-                if (!window.BOOM_SMARTLINK.validImageUrl(url,key)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                if (!window.BOOM_SMARTLINK.validImageUrl(url,draftKey)) throw new Error('La foto caricata non ha un indirizzo valido. Riprova.');
+                files[i].remoteUrl=url;
                 images.push(url);
             }
             const map=smartLinkArea.value();
             const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
+            if(r.status===409 && d.error==='publication_conflict') {
+                publicationConflict=true;
+                document.getElementById('sl_key').value=window.crypto.randomUUID();
+                throw new Error('Questa importazione ha già una scheda pubblicata con dati diversi. Non è stata modificata. Premi «Crea nuova versione» per pubblicare i dati che hai ora, con un nuovo link.');
+            }
             if (!r.ok || !d.ok) throw new Error(d.error || 'salvataggio non riuscito');
             created = true;
             const msg = 'Ti mando la scheda BOOM della casa che abbiamo visto. Foto, dettagli e dintorni sono qui: ' + d.url;
@@ -28679,7 +28693,7 @@ IBAN: ${l.iban || '-'}`;
             document.getElementById('sl_result').innerHTML = `<div style="padding:18px;border:1px solid var(--gold);border-radius:12px;background:var(--bg-elevated)"><strong>SmartLink creato</strong><div style="font-size:12px;word-break:break-all;margin:10px 0;color:var(--gold)">${esc(d.url)}</div><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('sl_link').value,'Link copiato')">📋 Copia link</button><a class="btn btn-sm btn-secondary" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" style="text-decoration:none">💬 WhatsApp</a><button class="btn btn-sm btn-secondary" onclick="copyToClipboard(document.getElementById('sl_message').value,'Messaggio copiato')">✍️ Copia messaggio</button><a class="btn btn-sm btn-secondary" href="${esc(d.url)}" target="_blank" rel="noopener" style="text-decoration:none">👁 Apri scheda</a></div><input id="sl_link" type="hidden" value="${esc(d.url)}"><input id="sl_message" type="hidden" value="${esc(msg)}"></div>`;
             toast('success', 'SmartLink BOOM creato');
         } catch (e) { const box=document.getElementById('sl_result'); if (box) { box.textContent=e.message; box.classList.add('is-error'); } toast('error', 'SmartLink non creato', e.message); }
-        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : 'Crea SmartLink BOOM ↗'; }
+        finally { smartLinkBusy=false; document.querySelector('.sl-studio-body')?.removeAttribute('inert'); btn.disabled = created; btn.dataset.created = created ? '1' : '0'; btn.textContent = created ? 'SmartLink creato' : publicationConflict ? 'Crea nuova versione ↗' : 'Crea SmartLink BOOM ↗'; }
     }
     // ═══════════════════════════════════════════════════════════════════════════
     // LISTING URL PARSERS — preserved for the upcoming Property Finder / Comparator.
