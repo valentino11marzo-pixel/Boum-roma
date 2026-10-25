@@ -6901,6 +6901,10 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Fixture del cambio d’ora (25/10/2026)**: il caso 9f di `tests/segretaria/run.mjs` sceglieva «adesso + un’ora», entrando nell’ora ripetuta di Roma; fallimento riprodotto anche su main `7e2cdf58`.
+  La prova della pausa ora usa mezzogiorno UTC del giorno successivo, sempre futuro e non ambiguo. Le asserzioni su preparazione, conferma esplicita e assenza di invii automatici restano intatte.
+  Il motore calendario continua a rifiutare le ore ripetute. Il fixture viene verificato anche sugli istanti che rompevano la CI, con mutazione della scelta dell’orario; nessuna modifica al comportamento della Segretaria.
+
 - **IL 409 CHE FERMAVA WHATSAPP (21/09/2026, sera — letto nei log di Vercel,
   non dedotto)**. Nelle 24 ore: `/api/homie/message` **946 × 409** contro
   430 × 200, tutti da quando il ramo del 21/09 è andato in produzione (13:04
