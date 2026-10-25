@@ -169,6 +169,7 @@ const SUITES = [
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
   { name: 'sdd',      file: 'tests/sdd/run.mjs',          what: 'canone automatico SEPA: un addebito per rata per costruzione, mai il deposito, mai debiti pre-mandato, un fallimento non si ritenta da solo, doppio incasso mai sovrascritto' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
+  { name: 'signbutton', file: 'tests/sign/button.mjs',    what: 'il bottone «Firma» di /sign si accende con firma + spunta (inquilino e locatore) e porta alla conferma — il cancello del flusso personalizzato non blocca il contratto BOOM' },
   { name: 'market',   file: 'tests/market/engine.mjs',   what: 'il libro mastro del Perito: un blocco non e una morte, i contatti non entrano, sotto campione niente numeri' },
   { name: 'marketwiring', file: 'tests/market/wiring.mjs', what: 'le giunzioni del Perito: tap best-effort dopo il master, verdetto solo lato server, rules e cron presenti' },
   { name: 'radar',    file: 'tests/radar/run.mjs',        what: 'Il Radar 2.0: due portali = UNA casa (mai falsi merge), il fiuto tace senza campione, le vedette vedono solo il futuro, il Valutatore corregge sui canoni FIRMATI, e con il radar rotto il servizio pagato non si ferma' },
