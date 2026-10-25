@@ -15,6 +15,7 @@
 // Output: { subject, body, language, usage }
 
 import { fsGet, guardPost, okJson, errJson, logActivity } from './_lib.js';
+import { replyLang } from '../_lang.js';
 import { callClaude, extractJson } from './_claude.js';
 
 const SYSTEM = `Sei l'assistente di BOOM Roma, agenzia premium di affitti a Roma (boomrome.com). Scrivi la PRIMA risposta a un lead che ha mostrato interesse per un appartamento o per il servizio di ricerca casa.
@@ -39,7 +40,14 @@ export default async function handler(req, res) {
   }
   if (!lead) return errJson(res, 400, 'leadId or lead required');
 
-  const language = (body.language || lead.language || 'it').toLowerCase().startsWith('en') ? 'en' : 'it';
+  // Una lingua che la macchina non scrive (il 'tr' dei lead di /istanbul: la
+  // lingua della PAGINA che hanno letto) non deve mai ricadere sull'italiano:
+  // decide replyLang dalle loro parole, e senza parole l'inglese. Il caso
+  // storico resta com'era: lingua dichiarata 'en'/'it', o nessuna → 'it'.
+  const declaredLang = String(body.language || lead.language || '').toLowerCase();
+  const language = declaredLang.startsWith('en') ? 'en'
+    : (!declaredLang || declaredLang.startsWith('it')) ? 'it'
+    : replyLang(lead);
   const tone = ['warm', 'professional', 'concise'].includes(body.tone) ? body.tone : 'warm';
 
   const facts = [

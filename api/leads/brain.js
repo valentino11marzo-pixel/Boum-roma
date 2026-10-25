@@ -72,7 +72,9 @@ export function stage0(lead, listingById) {
   if (lead.email) { score += 15; why.push('email'); }
   if (msg.length >= 80) { score += 20; why.push('rich message'); }
   else if (msg.length > 0 && msg.length < 20) { score -= 15; why.push('generic'); }
-  if (lead.language === 'en' || EXPAT_RE.test(msg)) { score += 15; why.push('expat/EN'); }
+  // 'tr' = la pagina in turco di /istanbul: chi la compila si trasferisce a
+  // Roma dall'estero, lo stesso segnale dell'inglese.
+  if (lead.language === 'en' || lead.language === 'tr' || EXPAT_RE.test(msg)) { score += 15; why.push('expat/EN'); }
   if (EMPLOY_RE.test(msg)) { score += 10; why.push('employment'); }
   if (BUDGET_RE.test(msg)) { score += 10; why.push('budget'); }
   if (MOVEIN_RE.test(msg)) { score += 10; why.push('move-in'); }

@@ -64,6 +64,12 @@
     <priority>0.88</priority>
   </url>
   <url>
+    <loc>https://www.boomrome.com/istanbul</loc>
+    <lastmod>2026-10-25</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <!-- LE CITTÀ (20/10/2026, Barcellona dal 22/10): solo i desk live:true di build-cities.mjs.
          Parigi e Berlino restano bozze noindex: entrano qui il
          giorno in cui il loro JSON passa a live:true. -->

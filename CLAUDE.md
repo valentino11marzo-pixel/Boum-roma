@@ -113,6 +113,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
 | `owners.html` | La pagina dei proprietari (`/owners`): IT col Lei + EN, una porta (Valutazione gratuita → `api/owner-lead.js`), quattro gesti suoi / dodici nostri. Vedi «BOOM Proprietari». Test: `node tests/owners/run.mjs`. |
+| `istanbul.html` | `/istanbul`, in turco (EN con `?lang=en`): chi si trasferisce a Roma da İstanbul. Una porta (`/api/leads/web`, modulo `istanbul`), ogni fatto con la sua fonte, la lingua delle risposte in `scripts/istanbul-replies.mjs`. Vedi «BOOM İstanbul → Roma». Test: `node tests/istanbul/run.mjs`. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
@@ -1216,6 +1217,99 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   lingua che non ricade sull'italiano, isB2B/b2bReplyText, guardie asserite
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
+
+### BOOM İstanbul → Roma (`/istanbul` + `api/leads/web.js` modulo `istanbul`) — 25/10/2026
+La pagina per chi si trasferisce a Roma da İstanbul e dalla Turchia. **Turco prima**, inglese a
+scelta (`?lang=en`, mai dedotto dal browser; nessun hreflang: è lo stesso file). Direzione del
+fondatore: «un copy alla Apple» — il nostro unico cliente pagante delle città non aveva nemmeno
+riconosciuto il quiz: qui **niente quiz, niente passi**, un'idea per blocco, il beneficio prima
+della funzione, poche parole (≤ 450 in turco all'apertura). Registro: **sen**, calmo.
+- **Sei blocchi**: hero + porta (nome · WhatsApp o email · mese d'arrivo · nota; honeypot
+  `company`; `requestId` per caricamento; il bottone nasce spento senza JS, `<noscript>` dà
+  WhatsApp/email); 01 «Vize bir adres ister. Otel de olur.» (il fatto chiave: per il visto di
+  iscrizione universitaria il consolato accetta otel delle prime settimane, contratto GIÀ firmato e
+  registrato, konaklama taahhütnamesi con la carta d'identità di chi ospita, o yurt — quindi non si
+  affitta alla cieca; permesso entro 8 giorni lavorativi dall'ingresso; «vize işlemlerini biz
+  yapmayız»); 02 video live (gratis sulle nostre case, «toplam 89 €» Virtual Viewing SOLO per un
+  annuncio trovato altrove — ovunque: pagina, Kısaca, nome dell'Offer); 03 il contratto (modello
+  ufficiale italiano, registrato in 30 giorni, spiegato in inglese, minimo 3 mesi, deposito ≤ 3
+  mensilità, modello studenti); 04 il prezzo (10% di un anno + KDV/IVA 22%, una volta, esempio
+  §4.1; PFS 350 € IVA inclusa §4.2; Remote Move Pack 299 €); 05 FAQ (8, `<details>`; il FAQPage
+  lo genera `scripts/owner-faq.mjs` dalla parte TURCA — `FILES` ora è file → lingua) + «Kısaca»
+  per i motori + l'ultima porta.
+- **Ogni fatto ha la sua fonte, linkata in pagina** (consolato di İstanbul e ambasciata di Ankara
+  2026/27, D.Lgs. 286/1998 art. 5, Sapienza, AdE RLI, L. 392/1978 art. 11, Foro Italico, Polizia di
+  Stato, DiSCo, il modello studenti in `reference/`, Condizioni, catalogo). **Le date DiSCo
+  (29/11 firma, 27/12 registrazione) sono del bando 2026/27**: vivono in UNA risposta della FAQ e si
+  aggiornano ogni anno, o si tolgono. **Mai stampato**: un numero di clienti (il fondatore dice
+  «centinaia» dalla Turchia ma non c'è un conteggio: niente «yüzlerce»), la crisi dei visti 2024,
+  canoni di mercato, «IVA inclusa» su 89/299 (il catalogo non lo dice), la caparra €300, lire, un
+  ufficio a İstanbul, «İngilizce sözleşme», un visto promesso.
+- **La lingua delle risposte in UN posto**: `scripts/istanbul-replies.mjs`
+  (`TURKISH_REPLIES = false`). Oggi risponde Valentino in inglese o italiano; il partner di
+  İstanbul esiste ma non è confermato chi risponderebbe in turco. Lo script riscrive i punti
+  marcati `<!--R:tr-->…<!--/R-->` (sotto la porta, prima FAQ, riga «Dil»; «Yazışma dili …»),
+  `availableLanguage` del SOLO `ServiceChannel` del Service (non è una proprietà di
+  RealEstateAgent né di Service; il `contactPoint` dell'azienda — il numero di Valentino, uguale
+  su ogni pagina — resta en/it anche ad interruttore acceso), il FAQPage e la riga `- Replies:`
+  di llms.txt; `--check` esce 1 se divergono.
+  Accenderlo NON fa scrivere turco alla macchina (`api/_lang.js` e i prompt non hanno un ramo
+  `tr`): da accendere solo con chi risponde davvero.
+- **La porta** (`api/leads/web.js`, nessun endpoint nuovo, nessuna regola in vercel.json): un
+  modulo può ora dichiarare `phoneCountry` (numero E.164 con `phoneE164` di `api/_market.js` —
+  «0532 123 45 67» → +905321234567; prima la card faceva +39532…; il digitato in `raw.phone`),
+  `closed` (liste chiuse: fuori lista si scarta), `language` (dalla pagina letta, campo chiuso),
+  `market`/`origin`/`leadType`, `head` (il riassunto apre «İSTANBUL → ROMA — move-in: settembre
+  2027 · pagina: turca · …», mesi da tabella fissa). Per TUTTI i moduli: `requestId` →
+  `web_<form>_<id>` (409 = `duplicate`, un lead solo) e l'attività ATTESA prima della risposta
+  (tetto 4 s). Gli altri moduli: schema invariato (language null, nessun campo nuovo).
+- **Il lead è un inquilino di ROMA**: `market:'roma'`, `sourceRef`/`origin:'istanbul'`,
+  `leadType:'tenant'`, `language:'tr'`. La macchina intera lo lavora: Brain (`tr` = segnale
+  expat), notify-pending (card «🇹🇷 İstanbul → Roma» via `originOf`, WhatsApp +90 col messaggio di
+  Roma in INGLESE perché `replyLang` non ricade mai sull'italiano per `tr`), Commerciale e
+  Segretaria (🤖 presente). `notRomeTenant` resta null. `ai.reply` passa da `replyLang` per una
+  lingua che non scriviamo (null/it/en invariati). Portale: 🇹🇷 nelle liste lead e nella scheda
+  persona, il wizard cliente parte in inglese.
+- **WhatsApp**: il link precompila «Merhaba BOOM, İstanbul'dan Roma'ya taşınıyorum. (Moving from
+  Istanbul to Rome.)»; `originFromText` lo riconosce e `deskPatch` (homie/_lead) scrive `origin`
+  sul lead WhatsApp (mai un `market`).
+- Il resto: `og-istanbul.png` dal repo (`genera-og-servizi.py og-istanbul`, `<html lang="tr">` per
+  il maiuscolo i→İ, «%10 + KDV»), sitemap (2026-10-25), sezione in llms.txt, redirect
+  `/(tr|turkiye|turkey)` → `/istanbul`, `manualHead` in seo-config, piede «Company & Markets» delle
+  sei pagine e dei builder (`pt.html`, `patch-lotto2.py`), ramo turco del banner cookie
+  (`js/boom-consent.js`, riletto dal madrelingua il 25/10: «“Kabul et” ile … kaynak çerezi (bizi
+  nereden bulduğunu kaydeder) açılır», «Yalnızca zorunlu»; `tests/consent` conta quattro lingue e
+  ha /istanbul fra i piedi col link «Çerez tercihleri»). **Trappola del maiuscolo**: sotto
+  `lang="tr"` il CSS fa i→İ; i nomi italiani/inglesi maiuscoli vanno in uno span `lang="it|en"`.
+- **La revisione del 25/10** (madrelingua turco, verità, UX — vince il madrelingua sulle parole,
+  la verità sul copy): niente calchi («ev sahibi» era il locatore → «Seni evinde ağırlayacak
+  kişinin konaklama taahhütnamesi»; «görüntüleme», «ücretli sözleşme», «resmî model», «seninle
+  İngilizce okuruz», «bir kez» → «tek seferlik», «Kayıtlı merkez» → «Şirket merkezi», KDV numarası
+  → «vergi no.»); le istituzioni sono dette ITALIANE (consolato, ambasciata, polizia); DSU: entro
+  il 27/12 registrazione E comunicazione a DiSCo (altrimenti «pendolare calcolato»); 89 € e 299 €
+  portano «toplam / in total» (Stripe incassa esattamente quella cifra; «KDV dahil» solo quando
+  il commercialista lo conferma — M3b lo vieta finché c'è). UX: `<body data-consent-late>` e la
+  porta `.door.hero-cta` (il riquadro dei cookie non si posa più su «Bize yaz» a 390/320px), e in
+  `boom-consent.js` la targa aspetta anche oltre i 45 s finché il cursore sta in un campo della
+  porta (`inDoor()`, riga a sé: la riga dei 45 s che tests/cities legge resta identica);
+  `boomConsent.relabel()` riscrive il riquadro quando l'interruttore cambia lingua; il link del
+  piede ora riconosce `l-tr`; `--t4` a .5 sulla pagina (5,3:1); bersagli 44px; l'errore SOTTO il
+  campo (aria-invalid + aria-describedby, bordo rosso), il 400 `contact_required` detto sul
+  recapito, la regola email uguale al server, «Gönderiliyor…» + `aria-busy` mentre il POST viaggia.
+- **Aperte, del fondatore**: un contratto firmato a distanza e registrato PRIMA dell'appuntamento
+  del visto è erogabile? e la commissione se il visto è rifiutato (nessuna regola inventata);
+  chi fa la comunicazione di ospitalità/cessione di fabbricato (art. 7 TU, 48 ore) per un
+  inquilino extra-UE (la finalize la mette in scadenza, la pagina non la promette); il documento
+  d'alloggio che chiede la Questura di Roma per il primo permesso (non confermato); il codice
+  fiscale dal consolato di İstanbul per un cittadino turco (non confermato); le ore d'ufficio
+  stampate; chi risponde in turco (l'interruttore); una frase qualitativa sull'esperienza coi
+  clienti turchi (mai un numero); 89 € e 299 € «KDV dahil» (il commercialista, poi
+  `valueAddedTaxIncluded` sulle due Offer e M3b allentato); il nome turco che l'ambasciata usa per
+  la «residenza elettiva» (il PDF non è leggibile dal sandbox: oggi «Seçimli ikamet (residenza
+  elettiva)»).
+- Test: `node tests/istanbul/run.mjs` (handler veri su Firestore in memoria, Brain e card veri;
+  pagina: porta, quiz, tetti, FAQPage, prezzi, frasi vietate anche in turco, numeri di persone,
+  fatti con la fonte, interruttore delle risposte; Chromium a 390px; mutazioni M1–M6).
 
 ### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `api/city-lead.js` + `BOOM_CITIES_BRIEF.md`) — 14/10/2026
 Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi, Berlino), lato inquilino,

@@ -331,6 +331,25 @@ const PAGES = {
       { name: 'Proprietari', url: '/owners' },
     ],
   },
+  // /istanbul (25/10/2026): chi si trasferisce a Roma da İstanbul. Pagina in
+  // TURCO con l'inglese a scelta (?lang=en), testa scritta a mano come
+  // /owners e /executive (FAQPage generato da scripts/owner-faq.mjs, la frase
+  // sulla lingua delle risposte da scripts/istanbul-replies.mjs): il
+  // generatore la salta. Titolo e descrizione copiati alla lettera.
+  'istanbul.html': {
+    path: '/istanbul',
+    manualHead: true,
+    title: "Roma'da kiralık daire, İstanbul'dan seç | BOOM",
+    description:
+      "İstanbul'dan Roma'ya taşınanlar için: evi canlı videoda gör, İtalya'nın resmî kira sözleşmesini İngilizce açıklamayla imzala. Komisyon tek seferlik, tutarı yazılı.",
+    keywords: ["Roma'da kiralık daire", 'Roma kiralık oda', 'İtalya öğrenci vizesi konaklama', 'konaklama taahhütnamesi', 'kayda geçirilmiş kira sözleşmesi', 'DSU bursu kira sözleşmesi'],
+    type: 'website',
+    lang: 'tr',
+    locale: 'tr_TR',
+    ogImage: 'https://www.boomrome.com/og-istanbul.png',
+    priority: 0.8,
+    changefreq: 'monthly',
+  },
 
   'owner.html': {
     path: '/owner',

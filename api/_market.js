@@ -296,11 +296,16 @@ export function cityFromText(text) {
  * @param {string} cityKey
  * @returns {string|null}
  */
-const DIAL = { nl: '31', es: '34', fr: '33', de: '49' };
+// 'tr' (25/10/2026): the /istanbul page (api/leads/web.js, form 'istanbul')
+// reads a Turkish number with phoneE164 below — Turkish mobiles are 5xx plus
+// seven digits, typed with or without the trunk 0. Before, '0532 123 45 67'
+// became '+39532…' at the Telegram card and the client's WhatsApp reply was
+// never matched to the lead. The city desks never name 'tr'.
+const DIAL = { nl: '31', es: '34', fr: '33', de: '49', tr: '90' };
 // National significant number per desk country (trunk 0 dropped). NL and FR
 // have 9 digits; ES 9 digits starting 6-9, no trunk 0; DE varies in length,
 // so it is read only when typed WITH its trunk 0.
-const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/ };
+const NSN = { nl: /^[1-9]\d{8}$/, fr: /^[1-9]\d{8}$/, es: /^[6789]\d{8}$/, de: /^[1-9]\d{5,10}$/, tr: /^5\d{9}$/ };
 function nationalOf(d, country) {
   if (country === 'es') return NSN.es.test(d) ? d : null;
   if (country === 'de') return d.startsWith('0') && NSN.de.test(d.slice(1)) ? d.slice(1) : null;
@@ -323,6 +328,67 @@ export function cityPhone(raw, cityKey) {
   if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c.country)) return '+' + cc + nationalOf(d.slice(cc.length), c.country);
   const n = nationalOf(d, c.country);
   return n ? '+' + cc + n : null;
+}
+
+/**
+ * The same reading as cityPhone, keyed by COUNTRY instead of by desk — for a
+ * page that is not a city desk but knows its visitor's country (/istanbul:
+ * 'tr'). E.164, or null when the number has no shape of that country; the
+ * caller then keeps what was typed (an Italian '333 1234567' typed on the
+ * Turkish page still reads as Italian at the card, as before).
+ * cityPhone stays as it is (the city work is its own).
+ * @param {string} raw
+ * @param {string} country  a key of DIAL ('tr', 'nl', …)
+ * @returns {string|null}
+ */
+export function phoneE164(raw, country) {
+  let s = String(raw || '').trim().replace(/\(\s*0\s*\)/g, '').replace(/[\s().\-\/]/g, '');
+  if (!s) return null;
+  if (s.startsWith('00')) s = '+' + s.slice(2);
+  if (s.startsWith('+')) {
+    const d = s.slice(1).replace(/\D/g, '');
+    return d.length >= 8 && d.length <= 15 ? '+' + d : null;
+  }
+  const c = String(country || '').toLowerCase();
+  const cc = DIAL[c];
+  if (!cc) return null;
+  const d = s.replace(/\D/g, '');
+  if (d.startsWith(cc) && nationalOf(d.slice(cc.length), c)) return '+' + cc + nationalOf(d.slice(cc.length), c);
+  const n = nationalOf(d, c);
+  return n ? '+' + cc + n : null;
+}
+
+/**
+ * WHERE A ROME TENANT IS MOVING FROM — not a market. A lead from /istanbul
+ * is a Rome tenant like any other (the Rome machine works it in full: Brain,
+ * card, Commerciale, Segretaria — notRomeTenant stays null); `origin` only
+ * names the door, so the Telegram card can say «🇹🇷 İstanbul → Roma» even
+ * when the Lead Brain's brief replaces the message. Two witnesses: `origin`
+ * (the page's door, and the WhatsApp marker below) and sourceRef 'istanbul'.
+ * Never read from `intent`: the AI grader rewrites it.
+ */
+export const ORIGINS = {
+  istanbul: { flag: '🇹🇷', label: 'İstanbul → Roma', url: 'https://www.boomrome.com/istanbul' },
+};
+export function originOf(lead = {}) {
+  if (!lead || typeof lead !== 'object') return null;
+  const o = String(lead.origin || '').toLowerCase();
+  if (ORIGINS[o]) return ORIGINS[o];
+  if (String(lead.sourceRef || '').toLowerCase() === 'istanbul') return ORIGINS.istanbul;
+  return null;
+}
+
+/**
+ * The WhatsApp marker of /istanbul: the page pre-fills «Merhaba BOOM,
+ * İstanbul'dan Roma'ya taşınıyorum. (Moving from Istanbul to Rome.)» (or the
+ * English first). Both halves count; 'İ' is written out because a /i regex
+ * does not fold the dotted capital. The key of ORIGINS, or null.
+ * @param {string} text
+ * @returns {string|null}
+ */
+const ISTANBUL_TEXT_RE = /[İIi]stanbul['’]dan Roma['’]ya|from [İIi]stanbul to Rome/i;
+export function originFromText(text) {
+  return ISTANBUL_TEXT_RE.test(String(text || '')) ? 'istanbul' : null;
 }
 
 /**

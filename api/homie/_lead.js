@@ -24,7 +24,7 @@
 // qualcun altro, meglio.
 
 import { fsList } from './_lib.js';
-import { cityFromText } from '../_market.js';
+import { cityFromText, originFromText } from '../_market.js';
 
 // ── il numero, scritto in tutti i modi in cui esiste davvero ───────────────
 // WhatsApp consegna SEMPRE l'internazionale (+393334444444); i portali e i
@@ -146,9 +146,13 @@ export function waRefPatch(lead, text) {
  * città giusta (api/_market.js isCityMarket). Si riempie solo se mancava.
  */
 export function deskPatch(lead, text) {
-  if (lead && lead.market) return {};
+  // Il marcatore di /istanbul nomina la PORTA, non un mercato: il lead resta
+  // a Roma, e `origin` si scrive solo se manca (mai sovrascritto).
+  const o = !(lead && lead.origin) ? originFromText(text) : null;
+  const og = o ? { origin: o } : {};
+  if (lead && lead.market) return og;
   const k = cityFromText(text);
-  return k ? { market: k } : {};
+  return k ? { market: k, ...og } : og;
 }
 
 /**

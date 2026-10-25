@@ -31,7 +31,7 @@
 //
 // Accetta accende SOLO la misura (Google Analytics + il cookie di
 // attribuzione di BOOM): i segnali ad_* restano negati, e il riquadro dice
-// in EN/IT/FR cosa accende. Una scelta scaduta toglie boom_attr.
+// in EN/IT/FR/TR cosa accende. Una scelta scaduta toglie boom_attr.
 //
 // E il RIPENSAMENTO (GDPR art. 7(3), Garante 10/06/2021: ritirare il
 // consenso dev'essere facile quanto darlo). Il riquadro non si riapriva da
@@ -180,12 +180,14 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (adGranted) guai.push('grant() concede segnali pubblicitari: ' + adGranted.join(', '));
   for (const k of ['ad_storage', 'ad_user_data', 'ad_personalization'])
     if (!new RegExp(k + ":\\s*'denied'").test(grant)) guai.push(`grant() non dice «denied» per ${k} (una pagina senza default lo darebbe per concesso)`);
-  // le tre lingue del riquadro: dice cosa accende, non «un cookie»
+  // le quattro lingue del riquadro (EN/IT/FR e TR, dal 25/10 per /istanbul):
+  // dice cosa accende, non «un cookie». In turco il cookie di attribuzione
+  // è il «kaynak çerezi» (il cookie della fonte).
   const testi = [...src.matchAll(/\bp: '((?:[^'\\]|\\.)*)'/g)].map((m) => m[1]);
-  if (testi.length !== 3) guai.push(`testi del riquadro trovati: ${testi.length} invece di 3 (EN/IT/FR)`);
+  if (testi.length !== 4) guai.push(`testi del riquadro trovati: ${testi.length} invece di 4 (EN/IT/FR/TR)`);
   for (const t of testi) {
     if (!/Google Analytics/.test(t)) guai.push(`il riquadro non nomina Google Analytics: «${t.slice(0, 60)}…»`);
-    if (!/attribution|attribuzione/i.test(t)) guai.push(`il riquadro non nomina il cookie di attribuzione: «${t.slice(0, 60)}…»`);
+    if (!/attribution|attribuzione|kaynak çerez/i.test(t)) guai.push(`il riquadro non nomina il cookie di attribuzione: «${t.slice(0, 60)}…»`);
     if (/One analytics cookie|Un cookie di misurazione|Un cookie de mesure/i.test(t)) guai.push(`il riquadro promette ancora UN cookie: «${t.slice(0, 60)}…»`);
     if (t.replace(/<[^>]+>/g, '').length > 170) guai.push(`il riquadro è lungo ${t.replace(/<[^>]+>/g, '').length} caratteri (≤170): «${t.slice(0, 40)}…»`);
   }
@@ -199,7 +201,7 @@ const sw = fs.readFileSync(path.join(R, 'sw.js'), 'utf8');
   if (!/if \(delayed && !due && !wait5\) wait5 = setTimeout\(show, 5000\);/.test(corpo('arm'))) guai.push('arm() non fa partire i 5s');
   if (!/if \(!onPhone\(\)\) \{ el\.style\.removeProperty\('--boomcst-lift'\); return; \}/.test(corpo('lift'))) guai.push('lift() misura anche fuori dal telefono');
   guai.length ? male('boom-consent.js, cosa accende Accetta:' + elenco(guai))
-    : bene('boom-consent.js: Accetta concede solo analytics_storage (ad_* «denied»), il riquadro EN/IT/FR nomina Google Analytics e il cookie di attribuzione; diniego e scadenza tolgono boom_attr; i 5s partono dall\'arrivo');
+    : bene('boom-consent.js: Accetta concede solo analytics_storage (ad_* «denied»), il riquadro EN/IT/FR/TR nomina Google Analytics e il cookie di attribuzione; diniego e scadenza tolgono boom_attr; i 5s partono dall\'arrivo');
 }
 
 const chromium = await loadChromium();
@@ -594,7 +596,7 @@ async function arrivo(sorgente = null) {
 // interruttore di lingua) e su /pre-arrival, che NON carica boom-track.js.
 const RIPENSA = [['/', 'Cookie preferences'], ['/faq', 'Cookie preferences'], ['/owners', 'Preferenze cookie'],
   ['/reunion', 'Préférences cookies'], ['/blog-47-steps', 'Cookie preferences'], ['/privacy', 'Cookie preferences'],
-  ['/pre-arrival', 'Cookie preferences']];
+  ['/pre-arrival', 'Cookie preferences'], ['/istanbul', 'Çerez tercihleri']];
 async function apriCon(url, { consenso = null, cookie = [], sorgente = null, w = 1280, h = 900, mobile = false, init = null } = {}) {
   const ctx = await br.newContext({ viewport: { width: w, height: h }, isMobile: mobile, hasTouch: mobile });
   if (cookie.length) await ctx.addCookies(cookie.map(([name, value]) => ({ name, value, url: BASE })));

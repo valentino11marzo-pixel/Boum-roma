@@ -40,11 +40,13 @@
  * e il riquadro dice esattamente ciò che Accetta accende.
  * Il tracciamento parte SOLO dopo una scelta, come prima.
  *
- * I desk città (<body data-consent-late>, le pagine dove la diagnosi è
- * l'hero) aspettano di più: la prima mossa del lettore + 600 ms, poi
- * finché il lettore è al lavoro (Check-in senza risposta, biglietto o
- * porta dell'hero sotto la targa), 45 s al massimo, mai sopra un
- * <dialog open>.
+ * I desk città e /istanbul (<body data-consent-late>, le pagine dove la
+ * diagnosi o il modulo sono l'hero) aspettano di più: la prima mossa del
+ * lettore + 600 ms, poi finché il lettore è al lavoro (Check-in senza
+ * risposta, biglietto o porta dell'hero .hero-cta sotto la targa), 45 s al
+ * massimo — oltre, solo finché il cursore sta in un campo della porta —
+ * mai sopra un <dialog open>.
+ * Una pagina con l'interruttore di lingua chiama boomConsent.relabel().
  *
  * Storage: localStorage 'boom:consent' = 'all:<ms>' | 'min:<ms>'.
  * The Meta pixel (js/boom-pixel.js) independently requires 'all'.
@@ -280,24 +282,7 @@
         '@media(prefers-reduced-motion:reduce){.boomcst{transition:none}}';
       document.head.appendChild(st);
     }
-    // The banner speaks the page's language. It reads <html lang> rather than
-    // the browser's, because the page has already decided what language the
-    // reader is being served — an English cookie plate on the French /reunion
-    // page is the one element that gives away that it is a translation.
-    // L'italiano e' impersonale di proposito: le pagine italiane danno del
-    // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
-    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
-    var T = lang === 'fr'
-      ? { e: 'Confidentialité',
-          p: 'Accepter active Google Analytics et le cookie d\'attribution de BOOM. Aucune publicité, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
-          no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
-      : lang === 'it'
-      ? { e: 'Privacy',
-          p: 'Accetta attiva Google Analytics e il cookie di attribuzione di BOOM. Nessuna pubblicità, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
-          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
-      : { e: 'Privacy',
-          p: 'Accept turns on Google Analytics and BOOM\'s own attribution cookie. No ads, no data resale — <a href="/privacy">how we handle data</a>.',
-          no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
+    var T = texts();
 
     // Sul telefono nasce nascosto (.zz) se il momento non è ancora venuto;
     // se nel frattempo il lettore ha già scorso, nasce visibile.
@@ -318,6 +303,46 @@
     }); });
     el.querySelector('.ok').addEventListener('click', function () { save('all'); grant(); close(); });
     el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
+  }
+
+  // The banner speaks the page's language. It reads <html lang> rather than
+  // the browser's, because the page has already decided what language the
+  // reader is being served — an English cookie plate on the French /reunion
+  // page is the one element that gives away that it is a translation.
+  // L'italiano e' impersonale di proposito: le pagine italiane danno del
+  // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
+  function texts() {
+    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    return lang === 'fr'
+      ? { e: 'Confidentialité',
+          p: 'Accepter active Google Analytics et le cookie d\'attribution de BOOM. Aucune publicité, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
+          no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
+      // Il turco di /istanbul: la pagina dà del «sen», e il riquadro resta
+      // neutro come l'italiano (il pulsante è un'etichetta, non un ordine).
+      : lang === 'tr'
+      ? { e: 'Gizlilik',
+          p: '“Kabul et” ile Google Analytics ve BOOM\'un kaynak çerezi (bizi nereden bulduğunu kaydeder) açılır. Reklam yok, veri satışı yok — <a href="/privacy">verileri nasıl işliyoruz (İngilizce)</a>.',
+          no: 'Yalnızca zorunlu', ok: 'Kabul et', aria: 'Çerez tercihleri' }
+      : lang === 'it'
+      ? { e: 'Privacy',
+          p: 'Accetta attiva Google Analytics e il cookie di attribuzione di BOOM. Nessuna pubblicità, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
+      : { e: 'Privacy',
+          p: 'Accept turns on Google Analytics and BOOM\'s own attribution cookie. No ads, no data resale — <a href="/privacy">how we handle data</a>.',
+          no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
+  }
+  // Una pagina con l'interruttore di lingua (/istanbul) cambia <html lang>
+  // dopo che il riquadro è nato: relabel() lo riscrive nella lingua nuova.
+  function relabel() {
+    try {
+      if (!el) return;
+      var T = texts(), e = el.querySelector('.e'), p = el.querySelector('p'), no = el.querySelector('.no'), ok = el.querySelector('.ok');
+      el.setAttribute('aria-label', T.aria);
+      if (e) e.textContent = T.e;
+      if (p) p.innerHTML = T.p;
+      if (no) no.textContent = T.no;
+      if (ok) ok.textContent = T.ok;
+    } catch (x) {}
   }
 
   // ── I desk città (<body data-consent-late>): la targa aspetta il lettore ──
@@ -376,10 +401,16 @@
   }
   var WAIT_MAX = 45000, lateArmed = false, armedAt = 0;
   var LATE_EVS = ['wheel', 'touchmove', 'pointerdown', 'keydown'];
+  // chi sta scrivendo nella porta dell'hero (/istanbul: il cursore in un
+  // campo del modulo) non riceve la targa sopra il bottone, oltre i 45 s
+  function inDoor() {
+    try { var a = document.activeElement; return !!(a && a !== document.body && a.closest && a.closest('.hero-cta')); } catch (e) { return false; }
+  }
   function lateGo() {
     if (due) return;
     // il tempo passato nella cassa non consuma l'attesa: si riparte da lì
     if (modalOpen()) { armedAt = Date.now(); setTimeout(lateGo, 400); return; }
+    if (late && inDoor() && atWork()) { setTimeout(lateGo, 1200); return; }
     if (late && atWork() && Date.now() - armedAt < WAIT_MAX) { setTimeout(lateGo, 1200); return; }
     show();
   }
@@ -410,7 +441,7 @@
   // pagina — o nelle sue lingue, se il piede ha già i <span class="l-xx">
   // dell'interruttore. Una pagina che ha già il suo link non ne riceve un
   // secondo.
-  var PREFS = { en: 'Cookie preferences', it: 'Preferenze cookie', fr: 'Préférences cookies' };
+  var PREFS = { en: 'Cookie preferences', it: 'Preferenze cookie', fr: 'Préférences cookies', tr: 'Çerez tercihleri' };
   var PREFS_SEL = '[data-cookie-prefs],a[href="#cookie-preferences"]';
   function pageLang() {
     var l = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
@@ -439,7 +470,7 @@
       // le lingue dell'interruttore della pagina (owners/executive/reunion)
       var box = priv.closest ? (priv.closest('ul,ol,nav,div,p') || priv.parentNode) : priv.parentNode, langs = [];
       [].forEach.call(box.querySelectorAll('[class]'), function (n) {
-        var m = /(?:^|\s)l-(en|it|fr)(?:\s|$)/.exec(n.className);
+        var m = /(?:^|\s)l-(en|it|fr|tr)(?:\s|$)/.exec(n.className);
         if (m && langs.indexOf(m[1]) < 0) langs.push(m[1]);
       });
       if (langs.length) {
@@ -507,7 +538,7 @@
   window.boomConsent = { open: function () {
     if (document.body) reopen();
     else document.addEventListener('DOMContentLoaded', reopen, { once: true });
-  } };
+  }, relabel: relabel };
   function ready() {
     footerLink();
     // …#cookie-preferences nell'indirizzo (un link dalla privacy, un'email)
