@@ -46,11 +46,12 @@ async function fixture(source = portal, mobile = false) {
     const inboxComposer=()=>'<textarea id="inboxBody"></textarea>';
     function inboxPage(){return inboxThreadPanel({id:_inboxState.convId})}
     window.apiCalls=0;window.holdRequests=false;window.held=[];window.apiRows=[];window.apiMonitoring=null;window.apiPages=null;window.apiRequests=[];window.holdCursor=null;
-    window.apiWrites=0;window.fetch=async(url,options={})=>{window.apiCalls++;window.apiRequests.push(url);if(options.method==='POST')window.apiWrites++;const after=new URL(url,'https://local.test').searchParams.get('after');const payload=window.apiPages?window.apiPages[after||'first']:{ok:true,rows:window.apiRows,monitoring:window.apiMonitoring,task:window.apiRows.find(t=>String(url).includes(t.id)),dossier:{practices:[]}};if(window.holdRequests||(after&&after===window.holdCursor))await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>payload}};
+    window.apiWrites=0;window.fetch=async(url,options={})=>{if(String(url).includes('/api/segretaria/scan-replies?status=1')){if(options.method!=='GET')throw Error('Unexpected scan');return {ok:true,json:async()=>({ok:true,email:{configured:true,healthy:false,lastScan:null},whatsapp:{bridgeFresh:false}})}}window.apiCalls++;window.apiRequests.push(url);if(options.method==='POST')window.apiWrites++;const after=new URL(url,'https://local.test').searchParams.get('after');const payload=window.apiPages?window.apiPages[after||'first']:{ok:true,rows:window.apiRows,monitoring:window.apiMonitoring,task:window.apiRows.find(t=>String(url).includes(t.id)),dossier:{practices:[]}};if(window.holdRequests||(after&&after===window.holdCursor))await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>payload}};
     window.subscriptions={};window.unsubscribed=0;window.messageRows=[];
     const db={collection(name){
       const query={name,filter:null,sort:null,max:Infinity,
         where(field,op,value){this.filter=[field,value];return this},orderBy(field,dir){this.sort=[field,dir];return this},limit(n){this.max=n;return this},
+        async get(options){if(name!=='operatorTasks'||this.filter?.[0]!=='doneAt'||options?.source!=='server')throw Error('Unexpected snapshot');return {docs:[]};},
         onSnapshot(...args){
           const [next,error]=args.filter(arg=>typeof arg==='function');
           const key=name==='messages'?name+':'+this.filter[1]:name;
@@ -67,7 +68,7 @@ async function fixture(source = portal, mobile = false) {
     window.emit=(name,rows=[])=>window.subscriptions[name].next({docs:rows.map(r=>({id:r.id,data:()=>r}))});
   ` });
   for (const name of ['js/oggi-engine.js', 'js/oggi-desk-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
-  await page.addScriptTag({ content: sessionHelpers(source) + '\n' + body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + `
+  await page.addScriptTag({ content: sessionHelpers(source) + '\n' + body(source) + '\n' + inboxFollowUpBody(source) + '\n' + listeners(source) + '\nlet portalSearchCache=null;\n' + ['portalSearchSourcesRender','portalSearchAuthorized','portalSearchSession'].map(name=>named(source,name)).join('\n') + `
     document.getElementById('main').innerHTML=oggiPage();
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });
@@ -166,6 +167,15 @@ try {
     assert.match(await page.locator('#sgPreparationStatus').innerText(),/Nessuna nuova proposta nell’ultimo ciclo/);
     assert.match(await page.locator('#sgPreparationStatus').innerText(),/potrebbero esserci altre richieste/);
     assert.doesNotMatch(await page.locator('#sgPreparationStatus').innerText(),/Tentativi oggi: 0/);
+  });
+  await check('limite automatico visibile senza promettere una preparazione illimitata', async () => {
+    await page.evaluate(async()=>{window.apiMonitoring={mode:'continuous',status:'unavailable',automaticLimits:true,stoppedBy:'automatic_budget',usedToday:20,retryReasons:{preparation_daily_limit:1}};await oggiSegretariaLoad(true)});
+    if(!await page.locator('.sg-service-details').evaluate(el=>el.open))await page.locator('.sg-service-details > summary').click();
+    const text=await page.locator('#sgPreparationStatus').innerText();
+    assert.match(text,/Preparazione automatica ferma/);assert.match(text,/limiti preventivi ai tentativi/);
+    assert.match(text,/non sono un tetto monetario/);assert.doesNotMatch(text,/nessuna quota giornaliera/);
+    assert.match(text,/Limite giornaliero dei tentativi: 1/);
+    assert.equal(await page.locator('#editing').inputValue(),'Bozza da finire');
   });
   await check('un errore nel listener dichiara il ripiego al controllo periodico', async () => {
     await page.evaluate(() => window.subscriptions.operatorTasks.error({code:'permission-denied'}));

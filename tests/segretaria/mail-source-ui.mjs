@@ -18,9 +18,10 @@ try{
   const openThread=async()=>{await page.evaluate(()=>goTo('inbox'));await page.locator('[onclick="inboxSelect(\'conv-a\')"]').click();if(!await page.locator('.inbox-thread-info').evaluate(e=>e.open))await page.locator('.inbox-thread-info>summary').click();};
   await page.goto(base+'/workspace#oggi');await page.waitForFunction(()=>window.testReady);await page.waitForTimeout(100);
   await check('opening Home sources performs no mail scan',async()=>{
-   await page.locator('.ow-search-sources>summary').click();assert.equal(calls.length,0);assert.equal(__mail.connections,0);
+   await page.waitForFunction(()=>S.mailSources&&!S.mailSources.checking);
+   await page.locator('.ow-search-sources>summary').click();assert.equal(calls.length,1);assert.equal(calls[0].method,'GET');assert.equal(__mail.connections,0);
    await page.getByRole('button',{name:'Verifica collegamenti',exact:true}).click();await page.waitForFunction(()=>S.mailSources&&!S.mailSources.checking);
-   assert.equal(calls.length,1);assert.equal(calls[0].method,'GET');assert.equal(__mail.connections,0);assert.equal(F.writes.length,0);
+   assert.equal(calls.length,2);assert(calls.every(c=>c.method==='GET'));assert.equal(__mail.connections,0);assert.equal(F.writes.length,0);
    const text=await page.locator('#portalMailSourceStatus').innerText();assert.match(text,/configurata, lettura non ancora verificata/);assert.match(text,/Ricezione WhatsApp non verificata/);assert.match(text,/non tutta la casella/);
    await page.screenshot({path:join(artifacts,'sources-'+width+'.png')});
   });

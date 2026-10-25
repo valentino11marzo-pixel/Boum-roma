@@ -162,7 +162,7 @@
             proposte: 'Proposta', approvazione: 'Proposta da approvare'
         })[signal.kind] || 'Segnale del portale' };
     }
-    function build({ state = {}, signals = [], rows = [], pendingProposalIds = [], nowISO } = {}) {
+    function build({ state = {}, signals = [], rows = [], conversations = [], allowNewRequests = true, pendingProposalIds = [], nowISO } = {}) {
         const now = instant(nowISO);
         if (now === null) throw new TypeError('build requires an explicit current ISO instant with timezone');
         // The caller uses the existing preparation validator. Raw preparation
@@ -203,11 +203,12 @@
             const confirmed = f.confirmed === true && f.needsReview !== true && f.ambiguous !== true;
             const source = confirmed ? reference(state, f.practiceRef) : null, record = canonical(source, state);
             const at = instant(f.checkAt), inbound = instant(f.lastInboundAt);
-            if (!record && inbound !== null && inbound <= now && now - inbound <= 7 * DAY) newUnlinkedCaseIds.push(task.id);
+            if (!record && (text(f.practiceRef) || f.ambiguous === true || delivery === 'unknown') && inbound !== null && inbound <= now && now - inbound <= 7 * DAY) newUnlinkedCaseIds.push(task.id);
             const old = inbound === null || now - inbound > 7 * DAY;
             const pending = pendingProposals.has(task.id), recent = inbound !== null && inbound <= now && !old;
             let bucket, reason;
-            if (!record) { bucket = 'history'; reason = 'Collegamento da verificare'; }
+            if (!record && !text(f.practiceRef) && f.ambiguous !== true && delivery !== 'unknown' && recent) { bucket = 'current'; reason = 'Richiesta da esaminare'; }
+            else if (!record) { bucket = 'history'; reason = delivery === 'unknown' ? 'Esito dell’invio non disponibile' : 'Collegamento da verificare'; }
             else if (delivery === 'failed' || (at !== null && at <= now)) { bucket = 'current'; reason = delivery === 'failed' ? 'Invio non completato' : 'Ricontrollo dovuto'; }
             else if (pending) {
                 bucket = recent ? 'current' : 'history';
@@ -224,17 +225,83 @@
             else if (old) { bucket = 'history'; reason = inbound === null ? 'Data della fonte non disponibile' : 'Fonte oltre 7 giorni'; }
             else { bucket = 'current'; reason = 'Ricontrollo da impostare'; }
             push({ key: record ? record.kind + ':' + record.id : 'case:' + task.id, area: areaFor(source?.kind),
-                bucket, record, title: !record ? 'Seguito · collegamento da verificare' : 'Seguito della pratica',
-                nextAction: !record ? 'Verifica il collegamento alla pratica'
+                bucket, record, title: reason === 'Richiesta da esaminare' ? 'Richiesta da esaminare' : !record ? 'Seguito · collegamento da verificare' : 'Seguito della pratica',
+                preview: reason === 'Richiesta da esaminare' ? text(f.preview).slice(0, 350) : '',
+                nextAction: reason === 'Richiesta da esaminare' ? 'Esamina la richiesta' : !record ? 'Verifica il collegamento alla pratica'
                     : reason === 'Proposta da rivedere' ? 'Rivedi la proposta prima di confermare il seguito' : text(f.nextAction) || 'Verifica il prossimo passo',
                 action: navigation(record, state, '', task.id), signal: null, caseId: task.id,
                 reason,
                 ownership: reason === 'Proposta da rivedere' ? 'Valentino' : record && confirmed && ['valentino', 'boom', 'client', 'collaborator'].includes(f.waitingOn)
                     ? text(f.waitingLabel) || ({ valentino: 'Valentino', boom: 'BOOM', client: 'Cliente', collaborator: 'Collaboratore' })[f.waitingOn] : 'Da confermare',
-                timing: { label: 'Ricontrollo', value: record && confirmed && reason !== 'Proposta da rivedere' && at !== null ? f.checkAt : null },
-                sourceLabel: !record ? 'Collegamento da verificare' : reason === 'Proposta da rivedere' ? 'Proposta da rivedere' : 'Seguito confermato',
-                score: delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : reason.startsWith('Azione affidata a ') ? 45 : bucket === 'current' ? 90 : 20, urgent: false });
+                timing: reason === 'Richiesta da esaminare' ? { label: 'Ricevuta', value: f.lastInboundAt } : { label: 'Ricontrollo', value: record && confirmed && reason !== 'Proposta da rivedere' && at !== null ? f.checkAt : null },
+                sourceLabel: reason === 'Richiesta da esaminare' ? 'Messaggio ricevuto' : !record ? 'Collegamento da verificare' : reason === 'Proposta da rivedere' ? 'Proposta da rivedere' : 'Seguito confermato',
+                score: reason === 'Richiesta da esaminare' ? 65 : delivery === 'failed' ? 96 : reason === 'Proposta da rivedere' ? 94 : reason.startsWith('Azione affidata a ') ? 45 : bucket === 'current' ? 90 : 20, urgent: false });
         });
+        // Headers are an explicit input: this projection never reads messages,
+        // invents a case, or equates people by name/address/phone. A closed case
+        // covers only its recorded inbound, never a later request.
+        const headers = list(conversations), tasks = list(rows).filter(task => task && caseOK(task.id)
+            && task.source === 'segretaria' && task.followUp && ['open', 'done'].includes(task.status)
+            && list(rows).filter(other => other?.id === task.id).length === 1);
+        headers.forEach(conv => {
+            if (!conv || !idOK(conv.id) || headers.filter(other => other?.id === conv.id).length !== 1
+                || !['in', 'out'].includes(conv.lastDirection)
+                || !['email', 'whatsapp', 'mixed'].includes(conv.channel)) return;
+            const received = recordInstant(conv.lastMessageAt);
+            if (received === null || received > now || now - received > 7 * DAY) return;
+            const conflicted = !!conv.conversationBindingConflict || conv.conversationBindingStatus === 'unavailable';
+            const lead = !conflicted && conv.contactType === 'lead' && conv.contactId === conv.leadId
+                ? unique(state, 'lead', conv.leadId) : null;
+            const linkedLead = lead?.conversationId === conv.id ? lead : null;
+            const linked = tasks.filter(task => task.followUp.conversationId === conv.id);
+            const newerThan = task => {
+                const previous = instant(task.followUp.lastInboundAt);
+                return previous === null || previous < received;
+            };
+            for (const entry of entries.filter(entry => linked.some(task => task.id === entry.caseId))) {
+                entry.conversationIds = [conv.id];
+                if (linked.some(task => {
+                    if (task.id !== entry.caseId) return false;
+                    if (conv.lastDirection === 'in') return newerThan(task);
+                    // A reply can arrive before the task poll catches up. An
+                    // AI reading made after that reply remains usable; a newer
+                    // task outbound stamp cannot rescue an older preparation.
+                    const seen = instant(task.preparation ? task.preparation.createdAt : task.lastOutboundAt);
+                    return seen === null || seen > now || seen < received;
+                })) entry.hasNewInbound = true;
+            }
+            // Missing closure coverage hides only newly projected requests;
+            // newer headers must still invalidate readings on existing cases.
+            if (!allowNewRequests || conv.status !== 'open' || conv.needsReply !== true || conv.lastDirection !== 'in') return;
+            for (const entry of entries.filter(entry => linked.some(task => task.id === entry.caseId))) {
+                if (linkedLead && !entry.record && entry.bucket === 'current') entry.key = 'lead:' + linkedLead.id;
+            }
+            const covered = !conflicted && linked.some(task => !newerThan(task)
+                && instant(task.followUp.lastInboundAt) <= now
+                && (task.status === 'done' || receipt(task) === 'unknown' || entries.some(entry => entry.caseId === task.id && ['current', 'waiting'].includes(entry.bucket))));
+            if (covered) return;
+            // Dedup a lead signal only on an unambiguous saved backlink in both
+            // directions. A one-way hint, alias or shared identity is not proof.
+            const unlinked = linked.filter(task => task.status === 'open' && !text(task.followUp.practiceRef));
+            const sameCase = !conflicted && unlinked.length === 1 ? unlinked[0] : null;
+            push({ key: linkedLead ? 'lead:' + linkedLead.id : sameCase ? 'case:' + sameCase.id : 'conversation:' + conv.id,
+                area: 'clients', bucket: 'current', record: linkedLead ? { kind: 'lead', id: linkedLead.id } : null,
+                title: conflicted ? 'Richiesta · identità da verificare' : 'Richiesta da esaminare' + (text(conv.contactName) ? ' · ' + text(conv.contactName) : ''),
+                nextAction: 'Esamina la richiesta', action: { label: 'Apri conversazione', fn: 'oggiDeskConversation', args: [conv.id] },
+                signal: null, caseId: null, conversationIds: [conv.id], request: true,
+                preview: conflicted ? '' : text(conv.lastMessagePreview).slice(0, 350),
+                hasNewInbound: linked.some(newerThan),
+                reason: conflicted ? 'Identità da verificare prima di procedere' : 'Messaggio ricevuto da esaminare',
+                ownership: 'Da confermare', timing: { label: 'Ricevuta', value: new Date(received).toISOString() },
+                sourceLabel: conv.channel === 'email' ? 'Email' : conv.channel === 'whatsapp' ? 'WhatsApp' : 'Conversazione',
+                score: 65, urgent: false });
+        });
+        // The financial total remains reachable as a summary, but cannot take
+        // another priority slot when individual overdue payments are represented.
+        if (entries.some(entry => entry.bucket === 'current' && entry.signal?.kind === 'incassi'
+            && entry.signal.id !== 'pay_all' && signalRecord(entry.signal, state)?.kind === 'payment')) {
+            for (const entry of entries) if (entry.signal?.id === 'pay_all') entry.bucket = 'summary';
+        }
         const today = romeDay(now), last = new Date(Date.parse(today + 'T00:00:00Z') + 6 * DAY).toISOString().slice(0, 10);
         list(state.contracts).forEach(contract => {
             if (!contract || unique(state, 'contract', contract.id) !== contract || contract.status !== 'active') return;
@@ -262,15 +329,17 @@
         });
         const items = [...groups.entries()].map(([id, group]) => {
             group.sort((a, b) => Number(b.urgent) - Number(a.urgent) || b.score - a.score || text(a.signal?.id || a.caseId).localeCompare(text(b.signal?.id || b.caseId)));
-            const first = group[0], allSignals = group.filter(x => x.signal).map(x => x.signal), caseIds = group.map(x => x.caseId).filter(Boolean);
+            const first = group[0], request = group.find(entry => entry.request), allSignals = group.filter(x => x.signal).map(x => x.signal), caseIds = group.map(x => x.caseId).filter(Boolean);
             return { id, area: first.area, bucket: first.bucket, record: first.record, title: recordTitle(first.record, state) || first.title,
-                nextAction: first.nextAction, action: first.action, signals: allSignals, signalIds: group.filter(x => x.original).map(x => x.signal.id), caseIds,
-                reason: first.reason, ownership: first.ownership, timing: first.timing, sourceLabel: first.sourceLabel,
+                nextAction: request?.nextAction || first.nextAction, action: request?.action || first.action, signals: allSignals, signalIds: group.filter(x => x.original).map(x => x.signal.id), caseIds,
+                reason: request?.reason || first.reason, ownership: request?.ownership || first.ownership, timing: request?.timing || first.timing, sourceLabel: request?.sourceLabel || first.sourceLabel,
+                preview: request?.preview ?? first.preview ?? '', conversationIds: [...new Set(group.flatMap(entry => entry.conversationIds || []))],
+                hasNewInbound: group.some(entry => entry.hasNewInbound === true),
                 score: first.score, urgent: group.some(x => x.urgent) };
         }).sort((a, b) => Number(b.urgent) - Number(a.urgent) || b.score - a.score || a.id.localeCompare(b.id));
         const currentItems = items.filter(x => x.bucket === 'current'), history = items.filter(x => x.bucket === 'history'), waiting = items.filter(x => x.bucket === 'waiting');
         return { areas: AREAS.map(area => { const group = currentItems.filter(x => x.area === area.id); return { ...area, items: group, count: group.length }; }),
-            currentItems, history, waiting, coverage: { unknownDeliveryCount: unknownCaseIds.length, unknownCaseIds,
+            currentItems, history, waiting, summaryItems: items.filter(x => x.bucket === 'summary'), coverage: { unknownDeliveryCount: unknownCaseIds.length, unknownCaseIds,
                 newUnlinkedCount: newUnlinkedCaseIds.length, newUnlinkedCaseIds,
                 recordVerificationCount: recordVerificationSignalIds.length, recordVerificationSignalIds },
             counts: { total: items.length, current: currentItems.length, history: history.length, waiting: waiting.length,
