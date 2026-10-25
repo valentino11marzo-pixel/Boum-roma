@@ -134,6 +134,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
+Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
+`draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.
+Gli upload riusciti e i loro riferimenti vengono riutilizzati quando si perde la risposta: retry senza nuovi oggetti o URL foto diversi. Test handler e UI reali in `tests/smartlink/{run,studio}.mjs`, inclusi ordine foto, conflitto, nuova versione e interruzione dopo upload.
 Collaudo del 21/10: Photon pubblico rifiuta `lang=it` con HTTP 400. Studio e ricerca cliente ora chiedono `lang=default`, mantenendo i nomi locali e l'interfaccia italiana. Nessun nuovo servizio o segreto.
 `tests/smartlink/map.mjs` esegue entrambi i controller reali con la risposta osservata: ricerca Piramide, scelta/conferma dell'area e risultati per il cliente. La correzione riguarda le ricerche remote; le zone note continuano a usare il dizionario esistente.
 PR #302 pubblicata su main `abce13f8`: importazione reale dal Portal Subito `665034710`, sei foto caricate e tutti i dettagli principali corretti. La mappa personalizzata ha fermato il collaudo finale e viene corretta prima della consegna.
@@ -144,7 +148,14 @@ Il lettore HTTP Subito riconosce il CDN `images.sbito.it` esclusivamente nel per
 `import-photo` accetta AVIF verificato e lo converte con Sharp in WebP (massimo 40 megapixel in ingresso, 2400 px in uscita) per i browser. Prove reali del 21/10 su due annunci Subito: 1 e 6 foto scaricate/decodificate; collaudo cloud/Portal da registrare separatamente.
 Test in `tests/smartlink/{run,studio}.mjs`: stesso link senza contatti alla fonte, ordine foto senza upload, data non aggiornata artificialmente, annuncio diverso/inattivo/foto estranee rifiutati, nessuna chiamata automatica al ponte Chrome. Il lettore centrale resta spento: SSH della sessione precedente scaduto, nessuna chiave disponibile nell'agente locale.
 Il percorso centrale passa da `api/smartlink/jobs.js` e `worker.js`: richiesta privata e duratura, lettura su Homie, foto archiviate prima dello stato pronto. L'adattatore API immobiliare è stato rimosso; nessuna credenziale o API commerciale della fonte.
-`smartlinkImports`/`smartlinkWorkers` sono admin-only; l'indice `createdBy + createdAt DESC` va distribuito insieme al rilascio (la CI rules non distribuisce gli indici). `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+`smartlinkImports`/`smartlinkWorkers` sono admin-only. `SMARTLINK_REMOTE_ENABLED=1` abilita richieste/claim; senza flag resta spento. Il secret Homie esistente rimane solo sul Mac e server.
+Dal 25/10 `deploy-rules`, solo su main, verifica l'indice `smartlinkImports: createdBy ASC + createdAt DESC` dopo rules/storage con `tools/ensure-smartlink-index.mjs`.
+Usa il token temporaneo del passo WIF esistente, senza nuovi secret salvati; legge la specifica versionata ed esegue solo GET/POST dei metadati dell'indice sul progetto e database fissi. Nessuna cancellazione, modifica IAM o scrittura di dati applicativi.
+Un indice esistente READY non viene ricreato; una creazione o un conflitto concorrente devono arrivare a READY entro cinque minuti. Errori di accesso, NEEDS_REPAIR e scadenza fanno fallire il controllo senza dichiarare l'indice pronto.
+Le prove in `tests/smartlink/index.mjs` simulano questi esiti e verificano che il token non finisca nei log. Il risultato reale resta quello del job main: un verde PR non prova il deploy dell'indice né l'importazione dalla fonte.
+Il probe WIF del 25/10/2026 (run 40147768071) ha misurato HTTP 400 INVALID_ARGUMENT con `pageSize=100` sia sul percorso scoped sia wildcard; wildcard senza parametro ha risposto 200, indice assente.
+LIST usa quindi `collectionGroups/-/indexes` senza `pageSize`, come il CLI Firebase; filtra rigorosamente il solo indice SmartLink. POST resta limitato a `smartlinkImports` e la riuscita richiede ancora una rilettura READY.
+La regressione riproduce il 400 se si reintroduce `pageSize`; `--inspect` resta una diagnosi GET senza scritture. Input/job CI temporanei del probe sono rimossi: i gate ordinari restano tutti attivi.
 `js/smartlink-import-engine.js` governa claim atomico, lease cinque minuti, massimo due tentativi e scadenza un'ora; `tools/smartlink-worker` usa Playwright 1.64.1 in un profilo dedicato. Dipendenza solo Mac, necessaria per il browser; nessuna estensione per l'operatore.
 Lo Studio riprende le importazioni del proprio account, scarta risposte di un URL precedente e riusa le foto archiviate senza upload dal telefono. Test handler/Sharp, concorrenza e interfaccia in `tests/smartlink/{remote,studio}.mjs`; permessi in `tests/rules/runner.mjs`.
 Il worker ha un limite Vercel di 180 secondi per le foto. Per restare nelle 50 regole functions, `geocode-all`/`geocode-bake` condividono un pattern finito con timeout 60 invariato; `tests/vercel-functions` verifica tutti gli handler e le mutazioni.
@@ -3825,6 +3836,22 @@ one-tap), `?demo=landlord` (locatore IT): walkthrough senza API né
 contratti veri, come `/sign?demo=1`.
 
 ### Portal 2.0 — l'esecuzione dell'audit (2026-08, vedi `PORTAL_AUDIT_2026-08.md`)
+**22/10 — Il punto di oggi:** la stessa area iniziale espone sintesi AI già preparate,
+prossimo passo e motivo usando il validatore delle revisioni; messaggi nuovi, scadenza,
+approvazioni o contesto obsoleto impediscono di riproporre la vecchia sintesi.
+I messaggi recenti già acquisiti emergono anche senza pratica/seguito; collegamenti
+solo per ID e stato verificati; i conclusi recenti sono riletti dal server dopo gli aperti.
+Se la lettura è incompleta non si ripropongono header senza seguito; il totale arretrati resta in coda.
+Lo stato email/WhatsApp viene letto automaticamente, senza scansioni o nuove AI;
+Copertura e pausa restano esplicite. Prove: `oggidesk`, `oggibriefingui`, `oggiclosuresui`.
+
+**22/10 — Esperienza Oggi:** il briefing precede gli strumenti; su desktop sono
+in due colonne, sul telefono il comando Strumenti porta ai sedici ingressi invariati.
+Situazione, azione e motivo precedono filtri e verifiche amministrative; dubbi e fonti
+si espandono nella scheda, restando aperti durante i refresh. La conferma conserva
+la review completa. La prima azione resta sopra la barra del telefono, senza scroll.
+Prove: `portalnavigationui`, `oggihomeui`, `oggiquicktoolsui`, `oggibriefingui`.
+
 **16/10 — Oggi, priorità trasversali:** la prima categoria poteva coprire urgenze
 altrove; ora si parte dalla graduatoria esistente, tre pratiche per pagina e tutte
 raggiungibili. Attore, ricontrollo e fonte seguono la stessa azione della scheda.
@@ -7132,6 +7159,10 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Fixture del cambio d’ora (25/10/2026)**: il caso 9f di `tests/segretaria/run.mjs` sceglieva «adesso + un’ora», entrando nell’ora ripetuta di Roma; fallimento riprodotto anche su main `7e2cdf58`.
+  La prova della pausa ora usa mezzogiorno UTC del giorno successivo, sempre futuro e non ambiguo. Le asserzioni su preparazione, conferma esplicita e assenza di invii automatici restano intatte.
+  Il motore calendario continua a rifiutare le ore ripetute. Il fixture viene verificato anche sugli istanti che rompevano la CI, con mutazione della scelta dell’orario; nessuna modifica al comportamento della Segretaria.
+
 - **IL 409 CHE FERMAVA WHATSAPP (21/09/2026, sera — letto nei log di Vercel,
   non dedotto)**. Nelle 24 ore: `/api/homie/message` **946 × 409** contro
   430 × 200, tutti da quando il ramo del 21/09 è andato in produzione (13:04
@@ -7197,6 +7228,14 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   creato dalla console e assente dal file). Senza indice la cronologia
   lunga degrada al fallback, non si ferma.
 
+- **Limite preventivo preparazioni (22/10):** recuperata la guardia del 6/10,
+  prima non pubblicata: default20 tentativi automatici/giorno e2/caso, incluso errore.
+  `_preparation-limits` valida la configurazione e lo storico senza azzerare contatori
+  ambigui; `_prepare` prenota con lease+contatore+versione settings nello stesso CAS.
+  Pausa o cap ridotto durante la lettura bloccano la chiamata; cache e manuale restano.
+  Il monitor distingue lo stop; cap tentativi diverso dal budget monetario centrale.
+  Nessuna attivazione implicita. Prove `segretariapreparationlimits`, `segretariaprepara`,
+  `segretariaworker`, `segretariamonitor`, `segretarialiveui` con mutazioni e concorrenza.
 - **Oggi, azioni ed effetti espliciti (21/09 sera)**: le schede distinguono messaggio da rivedere e seguito interno senza bozza; «Da rivedere» non chiama decisioni tutte le richieste. Sintesi breve, contesto consultabile e avviso di fonti parziali restano separati; prima della conferma sono esposti destinatario, testo e dubbi completi.
   `BOOM_PROPOSTA.approvalExpired` governa la scadenza; render e click bloccano nuove conferme scadute, con rielaborazione esplicita e gestione del 409 `preparation_expired`. Ricevute e ripresa della stessa approvazione restano valide; il modulo condiviso assente blocca la conferma.
   Il feedback `approveAgentAction` distingue prova email e WhatsApp da verificare: `executed` o un link non attestano invio. Nessuna lettura della Home genera o invia; una nota testuale non esegue telefonate o lavori.
