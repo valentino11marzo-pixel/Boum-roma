@@ -55,7 +55,7 @@ export function selectSmartLinkIndex(spec) {
 }
 
 async function checkSmartLinkIndex({fetchImpl=globalThis.fetch,indexesFile=defaultFile,
-  timeoutMs=MAX_WAIT_MS,pollMs=5000,now=Date.now,sleep=pause}={}, {inspectOnly=false,listVariant=LIST_VARIANTS[0]}={}) {
+  timeoutMs=MAX_WAIT_MS,pollMs=5000,now=Date.now,sleep=pause}={}, {inspectOnly=false,listVariant=LIST_VARIANTS[2]}={}) {
   let spec;
   try {spec=JSON.parse(await readFile(indexesFile,'utf8'));}
   catch {throw failure('invalid_index_spec','Impossibile leggere la specifica firestore.indexes.json.');}
@@ -94,6 +94,8 @@ async function checkSmartLinkIndex({fetchImpl=globalThis.fetch,indexesFile=defau
   async function list() {
     const indexes=[],seen=new Set();let pageToken='';
     do {
+      // Come firebase-tools listIndexes: wildcard senza pageSize. Nel probe WIF
+      // reale del 25/10/2026 pageSize=100 restituisce 400, anche sul wildcard.
       const url=new URL(listVariant.endpoint);if(listVariant.pageSize) url.searchParams.set('pageSize','100');
       if(pageToken) url.searchParams.set('pageToken',pageToken);
       const page=await request(url.toString());

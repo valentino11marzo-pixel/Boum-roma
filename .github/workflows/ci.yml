@@ -15,10 +15,6 @@ on:
   # "Run workflow", oppure via API.
   workflow_dispatch:
     inputs:
-      inspect_smartlink_index:
-        description: 'Solo diagnosi in lettura indice SmartLink con WIF: salta test e ogni deploy.'
-        type: boolean
-        default: false
       deploy_rules_from_branch:
         # Le rules di produzione si deployano da main. Questa spunta e' la
         # via d'uscita quando main NON puo' essere toccato (22/09/2026: la
@@ -34,7 +30,6 @@ on:
 
 jobs:
   static-checks:
-    if: inputs.inspect_smartlink_index != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +55,6 @@ jobs:
           node tests/dataops/test.mjs
 
   firestore-rules:
-    if: inputs.inspect_smartlink_index != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -86,7 +80,6 @@ jobs:
           npx firebase emulators:exec --only firestore --project demo-boom-rules 'node runner.mjs'
 
   smoke:
-    if: inputs.inspect_smartlink_index != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -112,7 +105,6 @@ jobs:
   # auto-dichiarano SKIP e non fanno mai fallire il giro — qui Chromium c'è,
   # quindi girano davvero anche le due suite browser dei layer mobile/desktop.
   full-suite:
-    if: inputs.inspect_smartlink_index != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -140,7 +132,7 @@ jobs:
     # Anche su avvio manuale (Actions → CI → Run workflow su main): serve la
     # PRIMA volta che una credenziale viene impostata — senza, per far
     # partire il deploy bisognerebbe inventare un commit vuoto su main.
-    if: inputs.inspect_smartlink_index != true && ((github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || inputs.deploy_rules_from_branch == true)))
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || inputs.deploy_rules_from_branch == true))
     runs-on: ubuntu-latest
     # `id-token: write` e' il permesso di farsi firmare da GitHub il token
     # OIDC con cui il job si presenta a Google (Workload Identity
@@ -304,28 +296,3 @@ jobs:
         env:
           SMARTLINK_INDEX_TOKEN: ${{ steps.firebase_auth.outputs.access_token }}
         run: node tools/ensure-smartlink-index.mjs
-
-  inspect-smartlink-index:
-    if: github.event_name == 'workflow_dispatch' && inputs.inspect_smartlink_index == true
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - name: Credenziale federata per diagnosi in sola lettura
-        id: firebase_auth
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: projects/937269017440/locations/global/workloadIdentityPools/github/providers/github
-          service_account: firebase-adminsdk-fbsvc@boom-property-dashboards.iam.gserviceaccount.com
-          token_format: access_token
-      - name: Ispeziona indice SmartLink senza modifiche
-        timeout-minutes: 2
-        env:
-          SMARTLINK_INDEX_TOKEN: ${{ steps.firebase_auth.outputs.access_token }}
-        run: node tools/ensure-smartlink-index.mjs --inspect

@@ -12,6 +12,7 @@ const spec=JSON.parse(await readFile(specURL,'utf8'));
 const desired=selectSmartLinkIndex(spec);
 const parent='projects/boom-property-dashboards/databases/(default)/collectionGroups/smartlinkImports';
 const endpoint='https://firestore.googleapis.com/v1/'+parent+'/indexes';
+const wildcardEndpoint=endpoint.replace('/collectionGroups/smartlinkImports/','/collectionGroups/-/');
 const TEST_TOKEN='test-smartlink-index-token-never-log';
 const remote=(state='READY',overrides={})=>({name:parent+'/indexes/idx123',queryScope:'COLLECTION',
   fields:[...desired.fields,{fieldPath:'__name__',order:'DESCENDING'}],state,...overrides});
@@ -21,13 +22,14 @@ function scenario(replies) {
   const options={now:()=>time,sleep:async ms=>{time+=ms;},timeoutMs:25,pollMs:5,
     fetchImpl:async(input,opts)=>{
       const url=new URL(input),method=opts.method;
-      assert.equal(url.origin+url.pathname,endpoint,'Only the one fixed index collection may be requested');
+      assert.equal(url.origin+url.pathname,method==='POST'?endpoint:wildcardEndpoint,
+        'LIST uses the fixed database metadata endpoint; POST is restricted to smartlinkImports');
       assert.ok(['GET','POST'].includes(method),'Index bootstrap is additive: never PATCH/DELETE');
       assert.equal(opts.redirect,'error','Credentials must never follow redirects');
       assert.equal(opts.headers.Authorization,'Bearer '+TEST_TOKEN);
       const body=opts.body?JSON.parse(opts.body):undefined;
       if(method==='POST') {assert.deepEqual(body,desired);assert.equal(url.search,'');}
-      else {assert.equal(body,undefined);assert.equal(url.searchParams.get('pageSize'),'100');}
+      else {assert.equal(body,undefined);assert.equal(url.searchParams.has('pageSize'),false);}
       calls.push({url:url.toString(),method,body});
       const reply=replies[Math.min(position++,replies.length-1)];
       return typeof reply==='function'?reply(url,opts):reply.clone();
@@ -118,7 +120,6 @@ try {
 
   // The probe compares fixed REST contracts, including the Firebase CLI list
   // route. Even ABSENT/CREATING must never publish or wait for readiness.
-  const wildcardEndpoint=endpoint.replace('/collectionGroups/smartlinkImports/','/collectionGroups/-/');
   const probeURLs=[endpoint+'?pageSize=100',wildcardEndpoint+'?pageSize=100',wildcardEndpoint];
   const probeCalls=[];
   const probeOptions={fetchImpl:async(url,opts)=>{
@@ -160,6 +161,33 @@ try {
 
   // Mutation: treat CREATING as usable. The same readiness check must then fail.
   const source=await readFile(toolURL,'utf8');
+  // Regression from the actual WIF probe: both REST routes reject pageSize=100;
+  // wildcard without it succeeds. Exercise create + READY through that contract.
+  async function verifyListContract(fn) {
+    let created=false;const methods=[];
+    const result=await fn({fetchImpl:async(input,options)=>{
+      const url=new URL(input);methods.push(options.method);
+      if(options.method==='GET') {
+        if(url.searchParams.has('pageSize')) return json({error:{status:'INVALID_ARGUMENT'}},400);
+        assert.equal(url.origin+url.pathname,wildcardEndpoint);
+        return json({indexes:created?[remote()]:[]});
+      }
+      assert.equal(options.method,'POST');assert.equal(url.toString(),endpoint);
+      assert.deepEqual(JSON.parse(options.body),desired);created=true;
+      return json({name:'create-operation'});
+    }});
+    assert.deepEqual(result,{state:'READY',created:true});assert.deepEqual(methods,['GET','POST','GET']);
+  }
+  await verifyListContract(ensureSmartLinkIndex);
+  const listDefault='listVariant=LIST_VARIANTS[2]';
+  assert.ok(source.includes(listDefault),'Mutation must change the real LIST variant');
+  const pageSizeMutant=source.replace(listDefault,'listVariant=LIST_VARIANTS[1]')
+    .replace("new URL('../firestore.indexes.json',import.meta.url)",`new URL(${JSON.stringify(specURL.href)})`);
+  const changedList=await import('data:text/javascript,'+encodeURIComponent(pageSizeMutant));
+  await assert.rejects(()=>verifyListContract(changedList.ensureSmartLinkIndex),error=>
+    error.code==='index_http_error' && error.diagnostic?.phase==='LIST' && error.diagnostic?.httpStatus===400,
+    'Reintroducing pageSize must reproduce and detect the real REST failure');
+
   const guard="if(matches.some(index=>index.state==='READY'))";
   assert.ok(source.includes(guard),'Mutation must replace the real readiness guard');
   const mutant=source.replace(guard,"if(matches.some(index=>index.state==='READY' || index.state==='CREATING'))")
@@ -178,20 +206,6 @@ try {
   assert.match(step,/SMARTLINK_INDEX_TOKEN:\s*\$\{\{ steps\.firebase_auth\.outputs\.access_token \}\}/);
   assert.match(workflow,/id: firebase_auth\s*\n/);assert.match(step,/timeout-minutes:\s*6\s*\n/);
   assert.match(step,/run: node tools\/ensure-smartlink-index\.mjs/);
-  assert.match(workflow,/inspect_smartlink_index:\s*\n\s*description:.*\n\s*type: boolean\s*\n\s*default: false/);
-  for(const job of ['static-checks','firestore-rules','smoke','full-suite']) {
-    assert.ok(workflow.includes('  '+job+':\n    if: inputs.inspect_smartlink_index != true\n'),job+' skips only the explicit probe');
-  }
-  const deployJob=workflow.slice(workflow.indexOf('  deploy-rules:')).split(/\n  [a-z][\w-]*:/)[0];
-  assert.match(deployJob,/if: inputs\.inspect_smartlink_index != true && \(\(github\.event_name == 'push'/,
-    'The entire rules/index deployment job must be excluded during a probe, even with branch deployment opt-in');
-  const inspectJob=workflow.slice(workflow.indexOf('  inspect-smartlink-index:')).split(/\n  [a-z][\w-]*:/)[0];
-  assert.match(inspectJob,/if: github\.event_name == 'workflow_dispatch' && inputs\.inspect_smartlink_index == true\s*\n/);
-  assert.match(inspectJob,/run: node tools\/ensure-smartlink-index\.mjs --inspect\s*$/);
-  assert.match(inspectJob,/SMARTLINK_INDEX_TOKEN: \$\{\{ steps\.firebase_auth\.outputs\.access_token \}\}/);
-  assert.match(inspectJob,/workload_identity_provider: projects\/937269017440\/locations\/global\/workloadIdentityPools\/github\/providers\/github/);
-  assert.match(inspectJob,/service_account: firebase-adminsdk-fbsvc@boom-property-dashboards\.iam\.gserviceaccount\.com/);
-  assert.doesNotMatch(inspectJob,/npm |firebase-tools|secrets\.|vercel|deploy --/,'Probe job has no install, deployment or new credentials');
 } finally {
   for(const [key,value] of Object.entries(oldConsole)) console[key]=value;
   if(previousToken===undefined) delete process.env.SMARTLINK_INDEX_TOKEN;else process.env.SMARTLINK_INDEX_TOKEN=previousToken;
