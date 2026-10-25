@@ -29,6 +29,11 @@ const changes={
  import_atomic:["await fsCommit([...guards, { docPath: 'messages/' + storedId","await fsCommit([{ docPath: 'messages/' + storedId","/api/segretaria/_mail-import.js"],
  manual_context:["SEG.messageText(row).trim()","typeof row.body === 'string' ? row.body.trim() : ''","/api/segretaria/_context.js"],
  manual_intake:["text:SEG.messageText(message.data)","text:message.data.body","/api/segretaria/_follow-up.js"],
+ admission_confirm:["emailKey(admission.confirmedEmail) !== mail.candidate","false"],
+ admission_atomic:["precondition: { exists: false }","precondition: {}","/api/mailbox/_admission.js"],
+ admission_scan:["const matches = await matchingEmailConversations(email, run);","const matches = [];","/api/mailbox/_admission.js"],
+ admission_dossier:["new Set(personalHits.filter(h => h.e === sharedEmail).map(h => h.p).filter(Boolean)).size > 1","false","/api/segretaria/_persona.js"],
+ admission_takecharge:["dossier.identityAmbiguous || dossier.identityIncomplete","false","/api/segretaria/_follow-up.js"],
 };
 const change=process.env.BOOM_MAILBOX_MUTATION?changes[process.env.BOOM_MAILBOX_MUTATION]:null;
 if(process.env.BOOM_MAILBOX_MUTATION&&!change)throw Error('Unknown mutation');
@@ -55,9 +60,10 @@ globalThis.fetch=async(url,options={})=>{
    await io.step('query');
    const q=body.structuredQuery,filter=q.where?.fieldFilter;
    const field=(r,path)=>path.split('.').reduce((v,k)=>v?.[k],r);
-   const rows=[...io.db].filter(([p,r])=>p.startsWith(q.from[0].collectionId+'/')&&p.split('/').length===2
-    &&(!filter||filter.op==='EQUAL'&&field(r,filter.field.fieldPath)===dec(filter.value)));
-   if(q.orderBy)rows.sort((a,b)=>{for(const order of q.orderBy){const value=r=>{const v=field(r,order.field.fieldPath);return v instanceof Date?v.toISOString():String(v||'');};const n=value(a[1]).localeCompare(value(b[1]));if(n)return order.direction==='DESCENDING'?-n:n;}return a[0].localeCompare(b[0]);});
+   const after=q.startAt?.values?.[0]?.referenceValue?.split('/documents/')[1];
+   const rows=[...io.db].filter(([p,r])=>p.startsWith(q.from[0].collectionId+'/')&&p.split('/').length===2&&(!after||p>after)
+    &&(!filter||filter.op==='EQUAL'&&field(r,filter.field.fieldPath)===dec(filter.value)||filter.op==='IN'&&dec(filter.value).includes(field(r,filter.field.fieldPath))));
+   if(q.orderBy)rows.sort((a,b)=>{for(const order of q.orderBy){const value=entry=>{const v=order.field.fieldPath==='__name__'?entry[0]:field(entry[1],order.field.fieldPath);return v instanceof Date?v.toISOString():String(v||'');};const n=value(a).localeCompare(value(b));if(n)return order.direction==='DESCENDING'?-n:n;}return a[0].localeCompare(b[0]);});
    return json(rows.slice(0,q.limit).map(([p])=>({document:doc(io,p)})));
   }
   if(u.pathname.endsWith(':commit')){

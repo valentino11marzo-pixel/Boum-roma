@@ -5053,6 +5053,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             && wanted.has(row.contactEmail.trim().toLowerCase()))
             .map(row => ({id:row.id, label:row.contactName || 'Contatto da verificare', email:row.contactEmail.trim()}));
     }
+    async function portalMailboxOpenConversation(id) {
+        if (!portalSearchAuthorized() || !/^[\w.-]{1,180}$/.test(id || '') || ['.', '..'].includes(id)) return;
+        const proof = portalSessionProof(), user = auth.currentUser;
+        const current = () => portalSessionCurrent(proof) && auth.currentUser === user && portalSearchAuthorized();
+        let timer;
+        try {
+            const snapshot = await Promise.race([
+                db.collection('conversations').doc(id).get({source:'server'}),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 15000); })
+            ]);
+            if (!current()) return;
+            if (!snapshot.exists) throw new Error('missing');
+            const row = {...snapshot.data(), id};
+            S.conversations = [row, ...(S.conversations || []).filter(c => c.id !== id)];
+            S.inboxContext = null;
+            if (typeof _inboxState !== 'undefined') { _inboxState.search=''; _inboxState.filter='all'; _inboxState.channel='all'; }
+            goTo('inbox');
+            S.inboxExactConversation = {id, row, user};
+            inboxSelect(id);
+        } catch {
+            if (current()) toast('warning', 'La fonte resta salvata. Non riesco ad aprire la conversazione: riapri Email e riprova da lì.');
+        } finally { clearTimeout(timer); }
+    }
     function portalOpenMailbox(query) {
         if (!portalSearchAuthorized()) return;
         const mailbox = window.BOOM_MAILBOX;
@@ -5065,12 +5088,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 findRecordsByEmail: portalMailboxRecords,
                 findConversationsByEmail: portalMailboxConversations,
                 openRecord: record => portalSearchOpen(record),
-                openConversation: id => {
-                    if (!portalSearchAuthorized() || !(S.conversations || []).some(row => row.id === id)) return toast('warning', 'Riapri Inbox per verificare la conversazione collegata.');
-                    S.inboxContext = null;
-                    goTo('inbox');
-                    inboxSelect(id);
-                }
+                openConversation: id => portalMailboxOpenConversation(id)
             });
             portalMailboxInitialized = true;
         }
@@ -12716,7 +12734,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return out;
     }
     function kindLabel(k) {
-        return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente', whatsapp:'WhatsApp' }[k] || k;
+        return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente', whatsapp:'WhatsApp', email:'Email' }[k] || k;
     }
 
     // Lead identity can change after WhatsApp intake. Only the server may
