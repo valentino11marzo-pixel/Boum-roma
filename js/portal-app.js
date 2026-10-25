@@ -15689,13 +15689,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // dietro tre sorelle verdi.
         db.collection('pfsRadarHealth').get().then(snap => {
             let worst = null;
+            // Un agente può avere più battiti (l'Orecchio: richieste e
+            // rimbalzi): conta il PEGGIORE, letto in questo giro.
+            const own = {};
             snap.docs.forEach(d => {
                 if (d.id === 'needsAttention') return;
                 const h = d.data();
-                const direct = SQ.TEAM.find(x => x.health && x.health.col === 'pfsRadarHealth' && x.health.doc === d.id);
-                if (direct) { H[direct.key] = h; return; }
+                const direct = SQ.healthOwner('pfsRadarHealth', d.id);
+                if (direct) { own[direct.key] = SQ.worseHealth(own[direct.key], h); return; }
                 if (!worst || (!h.ok && worst.ok) || (h.consecutiveErrors || 0) > (worst.consecutiveErrors || 0)) worst = h;
             });
+            Object.assign(H, own);
             if (worst) H.scout = worst;
             sqRefresh();
         }).catch(() => {});

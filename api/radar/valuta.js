@@ -16,6 +16,7 @@
 // valutazione senza una porta nuova.
 
 import RADAR from '../../js/radar-engine.js';
+import RM from '../../js/radar-markets.js';
 import { fsGet, fsList, readJson } from '../homie/_lib.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 
@@ -49,12 +50,23 @@ export default async function handler(req, res) {
       fsList('properties', { limit: 300 }).catch(() => []),
     ]);
 
+    // La città della zona chiesta: quella che il Perito ha scritto sulle
+    // statistiche, o il prefisso canonico dello slug ('madrid-centro'). I
+    // contratti BOOM sono di Roma: su una zona di Madrid o Barcellona la
+    // correzione sul firmato NON si applica — 'centro' e 'madrid-centro' sono
+    // compatibili per contenimento (0.8), e i canoni romani diventerebbero
+    // «firmati BOOM in zona» a Madrid.
+    const zoneMarket = (stats && stats.market)
+      || RM.enabledIds().find(m => m !== 'roma' && zoneSlug.startsWith(m + '-'))
+      || 'roma';
+    const signedApplies = zoneMarket === 'roma';
+
     // I canoni firmati della zona: rent dal contratto, mq e zona dalla
     // property collegata. Chi non ha mq o zona non entra — mai inventare.
     const propById = {};
     for (const p of properties) propById[p.id] = p;
     const signed = [];
-    for (const c of contracts) {
+    for (const c of (signedApplies ? contracts : [])) {
       if (DEAD_CONTRACT.has(String(c.status || '').toLowerCase())) continue;
       const rent = Number(c.rent);
       if (!isFinite(rent) || rent <= 0) continue;
@@ -68,12 +80,15 @@ export default async function handler(req, res) {
 
     const out = RADAR.valuta(
       { zone: zoneName, sqm, rooms },
-      { stats, actives: zoneActives.filter(l => l && l.status === 'active'), signed }
+      { stats, actives: zoneActives.filter(l => l && l.status === 'active' && (l.market || 'roma') === zoneMarket), signed }
     );
+    if (out && out.ok && !signedApplies && Array.isArray(out.reasons)) {
+      out.reasons.push('i contratti firmati BOOM sono di Roma: nessuna correzione sul firmato per ' + (RM.marketLabel(zoneMarket, 'it') || zoneMarket));
+    }
 
     return res.status(200).json({
       ok: true,
-      zone: { name: zoneName, slug: zoneSlug },
+      zone: { name: zoneName, slug: zoneSlug, market: zoneMarket },
       subject: { sqm, rooms },
       valuation: out,
     });

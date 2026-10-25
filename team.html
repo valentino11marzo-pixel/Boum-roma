@@ -281,8 +281,7 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
 
   // Il battito lo dichiara il registro (`health: {col, doc}`), così un agente
   // che cambia collection non perde il pallino in silenzio.
-  const beatFor = (col, docId) =>
-    (SQ ? SQ.TEAM : []).find(a => a.health && a.health.col === col && a.health.doc === docId);
+  const beatFor = (col, docId) => (SQ ? SQ.healthOwner(col, docId) : null);
 
   BoomPortal.listen(db.collection('teamHealth'), snap => {
     snap.docs.forEach(d => {
@@ -295,13 +294,17 @@ section > h3 { font-size: 12px; letter-spacing: 3px; color: var(--text-secondary
   // altrimenti una fonte morta sparisce dietro tre sorelle verdi.
   BoomPortal.listen(db.collection('pfsRadarHealth'), snap => {
     let worst = null;
+    // Più battiti per un agente (l'Orecchio: richieste e rimbalzi): conta il
+    // PEGGIORE di questa fotografia, mai un valore rimasto dalla precedente.
+    const own = {};
     snap.docs.forEach(d => {
       if (d.id === 'needsAttention') return;
       const h = d.data();
       const direct = beatFor('pfsRadarHealth', d.id);
-      if (direct) { health[direct.key] = h; return; }
+      if (direct) { own[direct.key] = SQ.worseHealth(own[direct.key], h); return; }
       if (!worst || (!h.ok && worst.ok) || (h.consecutiveErrors || 0) > (worst.consecutiveErrors || 0)) worst = h;
     });
+    Object.assign(health, own);
     if (worst) health.scout = worst;
     render();
   });

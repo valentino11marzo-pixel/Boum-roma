@@ -123,6 +123,13 @@ async function handleGet(req, res) {
       await fsPatch('outreachQueue/' + j.id, { status: 'failed', lastError: 'validazione: ' + v.errors.join(' · ') }).catch(() => {});
       continue;
     }
+    // Il Contatto parla italiano ai proprietari romani: il motore, i testi e
+    // i bracci sul Mac non conoscono i portali di Madrid e Barcellona. Un job
+    // di un'altra città si parcheggia, mai si consegna (radar per mercato).
+    if (j.market && j.market !== 'roma') {
+      await fsPatch('outreachQueue/' + j.id, { status: 'failed', lastError: 'market_not_supported' }).catch(() => {});
+      continue;
+    }
     // IL LEASE È LA CONSEGNA: se il patch a 'sending' non atterra, il job
     // NON parte — un ciclo perso si recupera al giro dopo, un messaggio
     // doppio a un proprietario no. (Niente .catch che inghiotte: la regola

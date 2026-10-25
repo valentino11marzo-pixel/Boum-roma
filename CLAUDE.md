@@ -644,6 +644,13 @@ brand-new leads instantly — context card + one-tap "Apri WhatsApp" (wa.me)
 when there's a phone — while the Commerciale's AI reply draft follows via
 the usual approval card.
 
+### I rimbalzi (`/api/leads/scan-inbox?mode=bounces`, cron 7-59/10) — 25/10/2026
+Nato dal primo ordine pagato di Madrid: il cliente aveva sbagliato l'email alla cassa, EmailJS ha risposto «inviata», Gmail ha rimbalzato tre secondi dopo e nessuno lo ha saputo. La conferma è il supporto durevole del recesso: un rimbalzo è un'informazione da dare all'operatore subito.
+Ogni 10 minuti (7-59/10) il server legge i rimbalzi dalla casella che SPEDISCE (`GMAIL_USER`, cartella Tutti i messaggi in sola lettura, ultimi 3 giorni), non dalla casella degli alert PFS. La parte macchina del DSN (RFC 3464) fa fede; `X-Failed-Recipients` e il testo umano solo se manca (e del testo umano contano solo gli indirizzi scritti come destinatari, mai quelli citati nell'originale). Action failed = definitivo, delayed = ritardo: il ritardo segna `emailDelayedAt` e non avvisa nessuno.
+L'indirizzo si cerca in lead e clienti PFS (scritti, `emailBounce` con una scrittura condizionata: mai un fantasma; email, stato, voto restano intatti) e in proposte, visite, contratti, conversazioni, ricerche, proprietari e utenti (nominati nella card). Un PFS è «pagato» solo con la prova del pagamento. `emailBouncedAfterConfirmationAt` si timbra solo se il rimbalzo non è più vecchio della conferma.
+Poi UNA card Telegram: chi, cosa, perché, col WhatsApp pronto per chiedere l'indirizzo giusto (stessa regola del numero della card dei lead). Non corregge e non rimanda nulla da solo. Un rimbalzo senza alcun record dà una riga, massimo 5 al giorno (backscatter). Idempotenza: `agentNotifications/bounce-<dsnId>` (fsCreate, 409); Telegram giù → claim `failed`, il giro dopo riprova la card intera. Memoria `heartbeat/leads-bounces-memory`, battito `pfsRadarHealth/leads-bounces` (L'Orecchio in /team mostra il peggiore dei due battiti). Nessuna collection o regola nuova. Log: solo codici.
+Da verificare dal vivo: che `GMAIL_USER` sia la stessa casella di EmailJS (`service_74n80th`), le frasi italiane del ritardo di Gmail, che il piano Vercel ammetta 32 cron. Test: `node tests/rimbalzi/run.mjs`.
+
 ### Lingua delle risposte (`api/_lang.js`)
 `replyLang(src)` decides IT vs EN from what the person ACTUALLY wrote
 (Italian function words + accents vs English markers), falling back to an
@@ -6628,6 +6635,14 @@ Test: `node tests/pfs/health.mjs`. Listings that could not be
 auto-ingested (e.g. no price recoverable) land in
 `pfsRadarHealth.needsAttention` — surfaced in `pfs-command.html`, never
 silently dropped.
+
+### Il radar per mercato (Madrid, Barcellona) — 25/10/2026
+Il primo cliente pagante di Full Search è a Madrid, e il radar PFS leggeva solo Roma. `js/radar-markets.js` è il registro unico: città accese, policy agenzie (Roma scarta; Madrid e Barcellona le lasciano passare SEGNALATE, perché in Spagna la provvigione dell'agenzia è del locatore — decisione da confermare col fondatore), risoluzione della città di un annuncio (dichiarata → dominio → alias `+radar-<città>` e testo prima delle fonti storiche romane; ignota o in conflitto = mai ingerita, «da verificare»). Un cliente senza `market` è romano; un mercato scritto male non riceve niente.
+Gli alert istantanei di idealista.com arrivano nella stessa casella di `pfs/scan-inbox`: Roma letta e processata per prima col suo tetto (40), le città dopo e solo se resta tempo (25), mai un detail fetch verso idealista.com; `scan-market` salta i portali solo-città.
+Due cinture: il mazzo filtra per mercato e `scoreMatch` rifiuta un mercato diverso; anche `match-test` e «Aggiungi annuncio» (con la tendina Mercato) rifiutano un cliente di un'altra città. Zone canoniche `Madrid · Chamberí`, gemelli e vedette mai fra città; marketStats, /meteo, mandati, Valutatore e backlog del Perito restano romani. Il brief AI conta le agenzie delle città a parte; il messaggio al proprietario (italiano) solo sugli annunci romani.
+Battito `pfsRadarHealth/inbox-<città>`: l'ora è quella dell'email, conta solo un alert con un annuncio della città, e 48h senza alert con clienti attivi è un guasto che dice perché.
+I formati delle email spagnole sono SINTETICI (`tests/pfs/fixtures/idealista-es.mjs`): la prima email vera li sostituisce. Istruzioni per l'operatore (alias `valentino+radar-madrid@`, account idealista.com per città, ricerca salvata con avviso istantaneo, `urlOverride`) nella PR. Fotocasa e Amsterdam rimandati (Amsterdam nel registro, spenta).
+Test: `markets`, `marketsingest` (mutazioni), `marketsui`.
 
 ## Il Perito (market intelligence — js/market-engine.js + api/market/*)
 

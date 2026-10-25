@@ -33,6 +33,9 @@ export default async function handler(req, res) {
     let minSample = null;
 
     for (const d of docs || []) {
+      // Il bollettino pubblico è di ROMA: le zone di Madrid e Barcellona
+      // (radar per mercato) non entrano qui.
+      if (d.market && d.market !== 'roma') continue;
       const slug = String(d.zone || d.id || '').trim();
       if (!slug) continue;
       const name = slug.replace(/-/g, ' ')

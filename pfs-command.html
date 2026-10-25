@@ -24,6 +24,8 @@
 <!-- Mercato (Fonderia, Arsenale II): market-engine PRIMA di radar-engine (dipendenza UMD) -->
 <script src="/js/market-engine.js"></script>
 <script src="/js/radar-engine.js"></script>
+<!-- Radar per mercato: di quale città è un annuncio, di quale un cliente -->
+<script src="/js/radar-markets.js"></script>
 <script src="/js/outreach-engine.js"></script>
 
 <style>
@@ -713,6 +715,7 @@ body.triage-lock { overflow: hidden; }
             <div class="mfield full"><label for="mf-url">URL annuncio *</label><input type="url" id="mf-url" placeholder="https://…" autocomplete="off"></div>
             <div class="mfield"><label for="mf-price">Prezzo €/mese *</label><input type="number" id="mf-price" min="0" step="50" placeholder="1200"></div>
             <div class="mfield"><label for="mf-zone">Zona</label><input type="text" id="mf-zone" placeholder="Trastevere"></div>
+            <div class="mfield"><label for="mf-market">Mercato</label><select id="mf-market"><option value="">— dal link (automatico)</option><option value="roma">🇮🇹 Roma</option><option value="madrid">🇪🇸 Madrid</option><option value="barcelona">🇪🇸 Barcellona</option></select></div>
             <div class="mfield full"><label for="mf-title">Titolo</label><input type="text" id="mf-title" placeholder="Bilocale luminoso…"></div>
             <div class="mfield full"><label for="mf-address">Indirizzo</label><input type="text" id="mf-address" placeholder="Via …"></div>
             <div class="mfield"><label for="mf-bedrooms">Camere</label><input type="number" id="mf-bedrooms" min="0" step="1" placeholder="2"></div>
@@ -766,6 +769,7 @@ body.triage-lock { overflow: hidden; }
             <div class="mfield full"><label for="cm-zone">Zone preferite</label><input type="text" id="cm-zone" placeholder="Trastevere, Monti"></div>
             <div class="mfield"><label for="cm-bedrooms">Camere</label><select id="cm-bedrooms"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3+</option></select></div>
             <div class="mfield"><label for="cm-movein">Ingresso</label><input type="text" id="cm-movein" placeholder="Settembre 2026"></div>
+            <div class="mfield"><label for="cm-market">Mercato</label><select id="cm-market"><option value="roma">🇮🇹 Roma</option><option value="madrid">🇪🇸 Madrid</option><option value="barcelona">🇪🇸 Barcellona</option></select></div>
             <div class="mfield full"><label for="cm-musthaves">Must have</label><input type="text" id="cm-musthaves" placeholder="Balcone, ascensore…"></div>
             <div class="mfield full"><label for="cm-notes">Note</label><textarea id="cm-notes"></textarea></div>
         </div>
@@ -936,6 +940,11 @@ function flashEl(el) {
 /* ──────────────────────── Constants ──────────────────────── */
 var SOURCES = [
     { key: 'inbox',  label: 'Inbox',   icon: '📨', freshMin: 45 },
+    // Radar per mercato: il flusso degli alert idealista.com di ogni città
+    // (pfsRadarHealth/inbox-<città>, scritto da scan-inbox SOLO se la città ha
+    // clienti attivi o ha visto un alert). Mai visto = grigio "mai": è vero.
+    { key: 'inbox-madrid', label: 'Inbox Madrid', icon: '🇪🇸', freshMin: 45 },
+    { key: 'inbox-barcelona', label: 'Inbox Barcellona', icon: '🇪🇸', freshMin: 45 },
     { key: 'market', label: 'Mercato', icon: '🌐', freshMin: 90 },
     // Gli occhi di Homie: il Mac su IP residenziale, l'unica fonte che può
     // guardare i portali DIRETTAMENTE (il server prende 403). Giro ogni 10',
@@ -951,8 +960,20 @@ var STAT_LABELS = {
     emailsSeen: 'Email viste', alerts: 'Alert', listingsFound: 'Annunci trovati',
     ingested: 'Ingeriti', pushedTotal: 'Push totali', droppedAgency: 'Scartati (agenzia)',
     searches: 'Ricerche', pagesOk: 'Pagine OK', pagesFailed: 'Pagine KO',
-    found: 'Annunci visti', blocked: 'Ricerche bloccate'
+    found: 'Annunci visti', blocked: 'Ricerche bloccate',
+    citySkipped: 'Ricerche città (solo alert email)', citySearchSkipped: 'Ricerca città rinviata (tempo)',
+    marketUnknown: 'Città da verificare'
 };
+// ── Radar per mercato: la città di un annuncio e di un cliente ──
+// (js/radar-markets.js; senza il modulo tutto ricade su Roma, com'era).
+var RMK = window.BOOM_RADAR_MARKETS || null;
+function propMarket(p) { return (p && p.market) || (p && p.marketUnknown ? null : 'roma'); }
+function clientMkt(c) { return RMK ? RMK.clientMarket(c) : 'roma'; }
+function mktTag(m) {
+    if (!m) return '❓ città?';
+    if (m === 'roma' || !RMK) return '';
+    return RMK.marketFlag(m) + ' ' + RMK.marketLabel(m, 'it');
+}
 var ADV = {
     'private': { label: 'Privato',      cls: 'adv-private' },
     'unknown': { label: 'Da verificare', cls: 'adv-unknown' },
@@ -1072,7 +1093,19 @@ function renderHealth() {
     ];
     var stats = h.stats || {};
     Object.keys(stats).forEach(function (k) {
-        rows.push('<div class="hpop-kv"><span>' + esc(STAT_LABELS[k] || k) + '</span><b>' + esc(stats[k]) + '</b></div>');
+        var v = stats[k];
+        if (k === 'byMarket' && v && typeof v === 'object') {
+            // una riga per città: alert · annunci · push (mai "[object Object]")
+            Object.keys(v).forEach(function (m) {
+                var b = v[m] || {};
+                var lab = (RMK && RMK.marketLabel(m, 'it')) || m;
+                rows.push('<div class="hpop-kv"><span>' + esc((RMK ? RMK.marketFlag(m) + ' ' : '') + lab) + '</span><b>' +
+                    esc((b.alerts || 0) + ' alert · ' + (b.listings || 0) + ' annunci · ' + (b.pushed || 0) + ' push') + '</b></div>');
+            });
+            return;
+        }
+        if (v && typeof v === 'object') return; // un oggetto non si stampa come "[object Object]"
+        rows.push('<div class="hpop-kv"><span>' + esc(STAT_LABELS[k] || k) + '</span><b>' + esc(v) + '</b></div>');
     });
     var errHtml = h.blocked
         ? '<div class="hpop-err">🚫 I portali rifiutano gli IP dei datacenter: questa fonte non pu\u00f2 funzionare dal server, e non \u00e8 un guasto passeggero.<br>La fonte portante resta l\'<b>Inbox</b> (email di alert). La via d\'uscita sono gli occhi di Homie (IP residenziale, browser vero).</div>'
@@ -1171,6 +1204,7 @@ function feedCard(p) {
         '<div class="fc-media">' + media +
             '<div class="badge-row">' +
                 '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
+                (mktTag(propMarket(p)) ? '<span class="pbadge" title="Città dell\'annuncio (radar per mercato)">' + esc(mktTag(propMarket(p))) + '</span>' : '') +
                 '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
                 (fiuto.verdict === 'occasione' ? '<span class="pbadge fiuto-badge" title="Il fiuto del radar: occasione">💎 ' + esc(fiuto.score) + '</span>' : '') +
                 (fiuto.verdict === 'sospetto' ? '<span class="pbadge adv-agency" title="Prezzo irrealistico per la zona">⚠ sospetto</span>' : '') +
@@ -1193,10 +1227,12 @@ function feedCard(p) {
                 (url ? '<a class="abtn" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
                 outreachActionBtn(p, oj) +
                 '<button class="abtn" data-action="toggle-outreach">📞 Outreach ' + (outreachOpen ? '▴' : '▾') + '</button>' +
-                '<button class="abtn" data-action="copy-owner">📋 Copia messaggio proprietario</button>' +
+                // il messaggio al proprietario è in italiano e per Roma: fuori
+                // Roma non si offre (come il 📨 Contatto)
+                (propMarket(p) === 'roma' ? '<button class="abtn" data-action="copy-owner">📋 Copia messaggio proprietario</button>' : '') +
             '</div>' +
             '<select class="push-select" data-action="push-client" title="Push curato: entra nel mazzo del cliente scelto (senza soglia)">' +
-                '<option value="">→ Proponi a un cliente…</option>' + activeClientOpts() +
+                '<option value="">→ Proponi a un cliente…</option>' + activeClientOpts(propMarket(p)) +
             '</select>' +
             '<div class="fc-outreach"' + (outreachOpen ? '' : ' hidden') + '>' +
                 '<div class="o-row">' +
@@ -1319,7 +1355,8 @@ function pipeChip(c) {
     var slow = days != null && STAGE_SLOW_DAYS[k] != null && days > STAGE_SLOW_DAYS[k];
     var weakCrit = !fmtBudget(c) || !(String(c.zone || '').trim() || String(c.preferred_areas || '').trim());
     return '<div class="pipe-chip" data-cid="' + esc(c.id) + '">' +
-        '<div class="pc-name"><span>' + esc(c.name || 'Senza nome') + (weakCrit ? ' ⚠️' : '') + '</span>' +
+        '<div class="pc-name"><span>' + esc(c.name || 'Senza nome') + (weakCrit ? ' ⚠️' : '') +
+            (clientMkt(c) !== 'roma' ? ' <span title="Mercato del cliente">' + esc(clientMkt(c) ? RMK.marketFlag(clientMkt(c)) : '❓ mercato?') + '</span>' : '') + '</span>' +
             (days != null ? '<span class="pc-days' + (slow ? ' slow' : '') + '" title="giorni in questo stage">' + days + 'g</span>' : '') + '</div>' +
         (critLine(c) ? '<div class="pc-crit">' + critLine(c) + '</div>' : '<div class="pc-crit" style="color:var(--amber)">criteri mancanti — il radar è cieco</div>') +
         '<div class="pc-stats"><span>🏠 <b>' + s.total + '</b></span><span>❤️ <b>' + s.liked + '</b></span>' +
@@ -1522,6 +1559,11 @@ function openClientModal(id) {
     $('cm-movein').value = c.moveIn || '';
     $('cm-musthaves').value = c.mustHaves || '';
     $('cm-notes').value = c.notes || '';
+    // Il mercato: assente = Roma. Uno scritto male si DICE (il radar intanto
+    // non gli spinge niente) e si corregge scegliendo qui.
+    var cmk = clientMkt(c);
+    $('cm-market').value = cmk || 'roma';
+    if (id && !cmk) $('cm-note').textContent = '⚠ Mercato «' + String(c.market) + '» sconosciuto: il radar non gli manda niente finché non ne scegli uno.';
     $('client-modal-overlay').hidden = false;
     setTimeout(function () { $('cm-name').focus(); }, 60);
 }
@@ -1545,6 +1587,7 @@ function saveClientModal() {
         mustHaves: $('cm-musthaves').value.trim(),
         moveIn: $('cm-movein').value.trim(),
         notes: $('cm-notes').value.trim(),
+        market: $('cm-market').value || 'roma',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     var op;
@@ -1586,6 +1629,11 @@ function saveClientModal() {
 function pushToClient(prop, clientId, selEl) {
     var client = state.clientsById[clientId];
     if (!client || !prop) { if (selEl) selEl.value = ''; return; }
+    if (clientMkt(client) !== propMarket(prop)) {
+        BoomPortal.toast('Città diverse: questo annuncio non può entrare nel mazzo di ' + (client.name || 'questo cliente'), { type: 'warning', duration: 5000 });
+        if (selEl) selEl.value = '';
+        return;
+    }
     var doIt = function () {
         if (selEl) selEl.disabled = true;
         apiPost('/api/casafari/import', {
@@ -1596,12 +1644,14 @@ function pushToClient(prop, clientId, selEl) {
                 title: prop.title, address: prop.address, zone: prop.zone,
                 bedrooms: prop.bedrooms, sqm: prop.sqm, bathrooms: prop.bathrooms,
                 furnished: prop.furnished, images: prop.images, description: prop.description,
-                advertiser: prop.advertiser
+                advertiser: prop.advertiser,
+                market: prop.market || undefined
             }
         }).then(function (r) {
             var res = (r.results && r.results[0]) || {};
             if (res.duplicate) BoomPortal.toast((client.name || 'Il cliente') + ' ha già questa casa nel mazzo (o un suo gemello)', { type: 'info' });
             else if (res.pushed) BoomPortal.toast('🏠 Proposta a ' + (client.name || clientId) + (res.score != null ? ' (score ' + res.score + ')' : ''), { type: 'success', duration: 5000 });
+            else if (res.error === 'market_mismatch') BoomPortal.toast('Non spinto: città diverse (annuncio ' + (res.listingMarket || '?') + ', cliente ' + (res.clientMarket || '?') + ')', { type: 'warning', duration: 6000 });
             else BoomPortal.toast('Non spinto: ' + (res.error || 'motivo ignoto'), { type: 'warning' });
         }).catch(function (err) {
             BoomPortal.toast('Errore push: ' + (err && err.message ? err.message : err), { type: 'error' });
@@ -1617,8 +1667,11 @@ function pushToClient(prop, clientId, selEl) {
     }
 }
 
-function activeClientOpts() {
+// market: solo i clienti di QUELLA città (un annuncio di Madrid non si
+// propone a una cliente di Roma; il server lo rifiuta comunque).
+function activeClientOpts(market) {
     return state.clients.filter(isActiveClient)
+        .filter(function (c) { return market === undefined || (market && clientMkt(c) === market); })
         .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
         .map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || c.id) + '</option>'; })
         .join('');
@@ -1636,6 +1689,8 @@ var OUTREACH_PORTALS = ['immobiliare', 'idealista', 'subito']; // dove esiste un
 
 function outreachActionBtn(p, oj) {
     if (!window.BOOM_OUTREACH) return '';
+    // Il Contatto scrive ai proprietari di ROMA (testi e bracci italiani).
+    if (propMarket(p) !== 'roma') return '';
     var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
     if (advKey === 'agency') return '';
     // Un annuncio arrivato da WhatsApp o inserito a mano non ha una pagina
@@ -1671,6 +1726,7 @@ function omRegen() {
 function openOutreachModal(listingId) {
     var p = findProp(listingId);
     if (!p) { BoomPortal.toast('Annuncio non più nel feed', { type: 'info' }); return; }
+    if (propMarket(p) !== 'roma') { BoomPortal.toast('Il Contatto scrive solo ai proprietari di Roma: questo annuncio è di un\'altra città', { type: 'info', duration: 5000 }); return; }
     state.outreachModal = listingId;
     state.outreachDirty = false;
     $('om-listing-note').textContent = (p.title || p.address || p.sourceUrl || '') +
@@ -1728,6 +1784,7 @@ function omSend() {
         listingId: p.id,
         sourceUrl: p.sourceUrl,
         portal: p.source || null,
+        market: propMarket(p),
         message: message,
         style: $('om-style').value,
         voice: $('om-voice').value,
@@ -1912,6 +1969,8 @@ function searchRow(s) {
         '</div>' +
         '<div class="srow-meta">' +
             '<span>👤 ' + esc(s.clientName || '—') + '</span>' +
+            (s.market && s.market !== 'roma' ? '<span>' + esc(mktTag(s.market)) + '</span>' : '') +
+            (s.portal === 'idealista_es' ? '<span style="color:var(--gold-dark)">salva come alert su idealista.com (alias +radar-' + esc(s.market || '?') + ')</span>' : '') +
             '<span><span class="sdot ' + dotCls + '"></span>' + (s.lastScanAt ? esc(relTime(s.lastScanAt)) : 'mai scansionata') + '</span>' +
             '<span>Trovati: ' + esc(s.lastFound != null ? s.lastFound : '—') + '</span>' +
             '<span>Nuovi: ' + esc(s.lastNew != null ? s.lastNew : '—') + '</span>' +
@@ -1955,7 +2014,7 @@ function attentionItems() {
         var h = state.health[s.key];
         var arr = h && Array.isArray(h.needsAttention) ? h.needsAttention : [];
         arr.forEach(function (it) {
-            out.push({ sourceUrl: it.sourceUrl, source: it.source || s.key, reason: it.reason, subject: it.subject, at: it.at });
+            out.push({ sourceUrl: it.sourceUrl, source: it.source || s.key, reason: it.reason, subject: it.subject, at: it.at, market: it.market || null });
         });
     });
     out.sort(function (a, b) {
@@ -1985,7 +2044,7 @@ function renderAttention() {
             '<div class="att-meta"><span>🕐 ' + esc(relTime(it.at)) + '</span>' +
                 (u ? '<a href="' + esc(u) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
             '</div>' +
-            '<div class="att-actions"><button class="abtn" data-action="ingest" data-url="' + esc(it.sourceUrl || '') + '" data-source="' + esc(it.source || 'manual') + '">➕ Ingerisci</button></div>' +
+            '<div class="att-actions"><button class="abtn" data-action="ingest" data-url="' + esc(it.sourceUrl || '') + '" data-source="' + esc(it.source || 'manual') + '" data-market="' + esc(it.market || '') + '" data-reason="' + esc(it.reason || '') + '">➕ Ingerisci</button></div>' +
         '</div>';
     }).join('');
 }
@@ -2141,6 +2200,7 @@ function triageCardHtml(p) {
         '<div class="tg-media">' + media +
             '<div class="badge-row">' +
                 '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
+                (mktTag(propMarket(p)) ? '<span class="pbadge" title="Città dell\'annuncio (radar per mercato)">' + esc(mktTag(propMarket(p))) + '</span>' : '') +
                 '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
             '</div>' +
         '</div>' +
@@ -2163,8 +2223,8 @@ function triageFootHtml(p) {
         return '<button class="wa-btn" data-taction="wa" data-idx="' + i + '">💬 → ' + esc(first) + '</button>';
     }).join('');
     return '<div class="tg-wa-row">' + wa +
-            '<button class="abtn" data-taction="contact">📨 Contatta</button>' +
-            '<button class="abtn" data-taction="owner">📋 Proprietario</button></div>' +
+            (propMarket(p) === 'roma' ? '<button class="abtn" data-taction="contact">📨 Contatta</button>' : '') +
+            (propMarket(p) === 'roma' ? '<button class="abtn" data-taction="owner">📋 Proprietario</button>' : '') + '</div>' +
         '<div class="tg-btn-row">' +
             '<button class="tg-skip" data-taction="skip">↷ Dopo</button>' +
             '<button class="tg-discard" data-taction="discard">✕ Scarta</button>' +
@@ -2505,10 +2565,12 @@ function ownerMessage(p) {
 
 /* ────────────────────────── Modal ────────────────────────── */
 var modalSource = 'manual';
+var modalMarket = null; // la città, quando il "da verificare" la conosce già
 
 function openModal(prefill) {
     prefill = prefill || {};
     modalSource = prefill.source || 'manual';
+    modalMarket = prefill.market || null;
     $('mf-url').value = prefill.sourceUrl || '';
     $('mf-price').value = '';
     $('mf-title').value = '';
@@ -2518,7 +2580,14 @@ function openModal(prefill) {
     $('mf-sqm').value = '';
     $('mf-desc').value = '';
     $('mf-results').innerHTML = '';
-    $('mf-source-note').textContent = modalSource === 'manual' ? 'Fonte: manuale' : 'Fonte: ' + modalSource + ' (da verifica)';
+    // La città: quella che il "da verificare" già conosce, altrimenti dal
+    // link. Un annuncio fuori Roma senza città nel link (Fotocasa, un
+    // idealista.com senza alias) si dichiara qui — il server rifiuta di
+    // indovinarla (400 market_unknown).
+    $('mf-market').value = modalMarket && RMK && RMK.isEnabledMarket(modalMarket) ? modalMarket : '';
+    var why = prefill.reason === 'market_unknown' || prefill.reason === 'market_conflict'
+        ? ' — città da dichiarare (' + (prefill.reason === 'market_conflict' ? 'prove in conflitto' : 'non dedotta') + ')' : '';
+    $('mf-source-note').textContent = (modalSource === 'manual' ? 'Fonte: manuale' : 'Fonte: ' + modalSource + ' (da verifica)') + why;
     $('modal-overlay').hidden = false;
     setTimeout(function () { (prefill.sourceUrl ? $('mf-price') : $('mf-url')).focus(); }, 60);
 }
@@ -2531,6 +2600,8 @@ function collectModal(dry) {
     if (!safeUrl(url)) { BoomPortal.toast('Inserisci un URL valido (https://…)', { type: 'warning' }); return null; }
     if (!isFinite(price) || price <= 0) { BoomPortal.toast('Inserisci un prezzo valido', { type: 'warning' }); return null; }
     var body = { dryRun: !!dry, sourceUrl: url, source: modalSource || 'manual', price: Math.round(price) };
+    var mk = $('mf-market').value;
+    if (mk) body.market = mk;
     var t = $('mf-title').value.trim(); if (t) body.title = t;
     var a = $('mf-address').value.trim(); if (a) body.address = a;
     var z = $('mf-zone').value.trim(); if (z) body.zone = z;
@@ -2659,6 +2730,7 @@ function bindUI() {
         } else if (action === 'save-outreach') {
             saveOutreach(card, id);
         } else if (action === 'copy-owner') {
+            if (propMarket(prop) !== 'roma') return;
             copyText(ownerMessage(prop)).then(function (ok) {
                 if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
                 else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
@@ -2883,7 +2955,7 @@ function bindUI() {
     $('attention-list').addEventListener('click', function (e) {
         var b = e.target.closest('[data-action="ingest"]');
         if (!b) return;
-        openModal({ sourceUrl: b.getAttribute('data-url'), source: b.getAttribute('data-source') });
+        openModal({ sourceUrl: b.getAttribute('data-url'), source: b.getAttribute('data-source'), market: b.getAttribute('data-market') || null, reason: b.getAttribute('data-reason') || null });
     });
 
     // Modal
@@ -2910,6 +2982,7 @@ function bindUI() {
         var p = triageCurrent();
         if (!p) return;
         if (act === 'owner') {
+            if (propMarket(p) !== 'roma') return;
             buzz();
             copyText(ownerMessage(p)).then(function (ok) {
                 if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
@@ -3139,7 +3212,7 @@ function startListeners() {
         }).then(function (r) { return r.json(); }).then(function (data) {
             if (!data || !data.ok) return;
             var h = {};
-            ['inbox', 'market', 'sync'].forEach(function (k) { if (data.health && data.health[k]) h[k] = data.health[k]; });
+            ['inbox', 'market', 'sync', 'inbox-madrid', 'inbox-barcelona'].forEach(function (k) { if (data.health && data.health[k]) h[k] = data.health[k]; });
             state.health = h;
             state.loaded.health = true;
             renderHealth();

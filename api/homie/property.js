@@ -52,8 +52,10 @@
 import { requireSecret, readJson } from './_lib.js';
 import { DEFAULT_THRESHOLD } from './_match.js';
 import { ingestProperty } from '../pfs/_ingest.js';
+import RM from '../../js/radar-markets.js';
 
-const VALID_SOURCES = new Set(['immobiliare', 'idealista', 'subito', 'whatsapp', 'manual']);
+// 'idealista_es' = idealista.com (Madrid, Barcellona): radar per mercato.
+const VALID_SOURCES = new Set(['immobiliare', 'idealista', 'subito', 'whatsapp', 'manual', 'idealista_es']);
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -77,6 +79,10 @@ export default async function handler(req, res) {
   if (!VALID_SOURCES.has(source)) errors.push(`source must be one of ${[...VALID_SOURCES].join(', ')}`);
   const price = typeof body.price === 'number' ? body.price : parseFloat(body.price);
   if (!isFinite(price) || price <= 0) errors.push('price (number > 0) is required');
+  // La città, se dichiarata, deve essere una città accesa: un refuso non
+  // diventa mai "un'altra città" in silenzio.
+  const market = body.market == null || body.market === '' ? null : String(body.market).trim().toLowerCase();
+  if (market && !RM.isEnabledMarket(market)) errors.push(`market must be one of ${RM.enabledIds().join(', ')}`);
   if (errors.length) return res.status(400).json({ ok: false, error: 'validation', details: errors });
 
   // ── Shared ingestion pipeline (api/pfs/_ingest.js) ───────
@@ -99,6 +105,7 @@ export default async function handler(req, res) {
     contactPhone: body.contactPhone,
     scrapedAt: body.scrapedAt,
     advertiser: body.advertiser || 'private',
+    market,
   }, {
     threshold: Number.isFinite(body.threshold) ? body.threshold : DEFAULT_THRESHOLD,
     ingestedBy: 'homie-property',
@@ -118,6 +125,7 @@ export default async function handler(req, res) {
     ok: true,
     propertyId: result.propertyId,
     droppedAgency: result.droppedAgency || false,
+    ...(result.marketUnknown ? { marketUnknown: true, marketReason: result.marketReason || null } : {}),
     pushedTo: result.pushedTo,
     skipped: result.skipped,
     belowThreshold: result.belowThreshold,
