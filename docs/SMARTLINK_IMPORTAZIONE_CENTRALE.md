@@ -75,7 +75,9 @@ Sul Mac, dalla directory runtime:
 /opt/homebrew/bin/node worker.mjs --probe 'https://www.immobiliare.it/annunci/124483437/'
 ```
 
-Usa lo stesso browser, profilo e parser del servizio; chiude il browser al termine e non crea richieste né schede. Esce con codice 0 solo per una lettura pronta, altrimenti 1. Stampa soltanto stato, codice errore, numero di immagini, nomi dei campi presenti e millisecondi. Non avviarlo mentre il servizio usa lo stesso profilo. `ready` in questo comando significa «pagina letta», non «foto archiviate e scheda pubblicata».
+Usa lo stesso browser, profilo e parser del servizio; chiude il browser al termine e non crea richieste né schede. Esce con codice 0 solo per una lettura pronta, altrimenti 1. Stampa stato, codice errore, numero di immagini, nomi dei campi presenti, millisecondi e diagnostica codificata. Non avviarlo mentre il servizio usa lo stesso profilo. `ready` in questo comando significa «pagina letta», non «foto archiviate e scheda pubblicata».
+
+`diagnostic` contiene solo `phase`, `reason` da una lista chiusa e, quando disponibile, `httpStatus` numerico. `http_rejected` distingue il rifiuto HTTP dalla verifica riconosciuta nella pagina (`verification_page`): un 403 da solo non dimostra un CAPTCHA. `missing_title`, `missing_photos`, `navigation_timeout` e `parser_error` distinguono i guasti senza stampare contenuti o eccezioni. La diagnostica resta nella sonda tramite callback, fuori dalle ricevute dei job e dalla UI; non cambia richieste, retry, browser o gestione dei blocchi.
 
 Un blocco di accesso richiede un controllo umano della sessione dedicata sul Mac prima di una nuova prova. Completare una verifica non garantisce che la fonte non la richieda di nuovo. Dopo un cambiamento del DOM, usare una regressione del template e confrontare il numero di foto con la galleria, senza allargare la lettura a immagini estranee.
 

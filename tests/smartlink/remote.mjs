@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import {readFile} from 'node:fs/promises';
+import {join} from 'node:path';
+import vm from 'node:vm';
 import sharp from 'sharp';
 import JOBS from '../../js/smartlink-import-engine.js';
 import {toFsFields,fsDocToJs} from '../../api/homie/_lib.js';
@@ -149,6 +152,82 @@ try {
   status=404;assert.equal((await readListing(context,source)).error,'listing_removed');
   status=200;actualUrl='https://www.immobiliare.it/annunci/999/';assert.equal((await readListing(context,source)).error,'source_changed');
   actualUrl=source;assert.equal((await readListing(context,source)).status,'ready');
+  // La sonda separa rifiuto HTTP, verifica visibile e parser senza cambiare
+  // gli esiti pubblici né spedire diagnostica nella ricevuta della coda.
+  const privateMarker='private-cookie-and-page-content-must-not-appear';
+  function diagnosticPage(options={}) {
+    const calls={navigation:0,evaluation:0,closed:0};
+    const probePage={
+      goto:async()=>{
+        calls.navigation++;
+        if(options.navigationError) throw options.navigationError;
+        const code=options.status ?? 200;
+        return {status:()=>code,ok:()=>code>=200 && code<300};
+      },
+      url:()=>source,locator:()=>({waitFor:async()=>{}}),waitForLoadState:async()=>{},
+      evaluate:async(fn)=>{
+        calls.evaluation++;
+        if(fn.name==='listingSnapshot') {
+          if(options.parserError) throw options.parserError;
+          return {images:options.images ?? [photo],data:{title:options.title ?? 'Bilocale '+privateMarker}};
+        }
+        return vm.runInNewContext('('+fn.toString()+')()', {document:{title:options.challenge?'Verify you are human':'Annuncio',
+          body:{innerText:privateMarker},querySelector:()=>null}});
+      },
+      close:async()=>{calls.closed++;}
+    };
+    return {calls,context:{newPage:async()=>probePage,close:async()=>{} }};
+  }
+  const scenarios=[
+    ...[401,403,429].map(status=>({options:{status},result:{status:'needs_attention',error:'source_blocked'},diagnostic:{phase:'navigation',reason:'http_rejected',httpStatus:status}})),
+    {options:{challenge:true},result:{status:'needs_attention',error:'source_blocked'},diagnostic:{phase:'verification',reason:'verification_page',httpStatus:200}},
+    {options:{images:[]},result:{status:'unavailable',error:'photos_not_found'},diagnostic:{phase:'parser',reason:'missing_photos',httpStatus:200}},
+    {options:{title:''},result:{status:'unavailable',error:'photos_not_found'},diagnostic:{phase:'parser',reason:'missing_title',httpStatus:200}},
+    {options:{navigationError:Object.assign(new Error(privateMarker),{name:'TimeoutError'})},result:{status:'unavailable',error:'reader_error'},diagnostic:{phase:'navigation',reason:'navigation_timeout'}},
+    {options:{parserError:new Error(privateMarker)},result:{status:'unavailable',error:'reader_error'},diagnostic:{phase:'parser',reason:'parser_error',httpStatus:200}}
+  ];
+  for(const scenario of scenarios) {
+    const fixture=diagnosticPage(scenario.options),diagnostics=[];
+    assert.deepEqual(await readListing(fixture.context,source,value=>diagnostics.push(value)),scenario.result);
+    assert.deepEqual(diagnostics,[scenario.diagnostic]);
+    assert.equal(fixture.calls.navigation,1,'Diagnosis must not navigate again');
+    assert.equal(fixture.calls.closed,1);
+    if(scenario.options.status) assert.equal(fixture.calls.evaluation,0,'Rejected HTTP must stop before DOM inspection');
+    assert.ok(!JSON.stringify(diagnostics).includes(privateMarker));
+    assert.ok(!JSON.stringify(diagnostics).includes(source));
+  }
+  const withoutObserver=diagnosticPage({status:403}),withBrokenObserver=diagnosticPage({status:403});
+  assert.deepEqual(await readListing(withBrokenObserver.context,source,()=>{throw new Error(privateMarker);}),
+    await readListing(withoutObserver.context,source),'Diagnostic callback cannot change the import outcome');
+  let deliveredPacket;
+  const queuedFixture=diagnosticPage({challenge:true}),localDiagnostics=[];
+  await processOne(claim,url=>readListing(queuedFixture.context,url,value=>localDiagnostics.push(value)),
+    async packet=>{deliveredPacket=packet;return {ok:true};},async()=>{});
+  assert.deepEqual(deliveredPacket,{op:'complete',id:claim.id,leaseToken:claim.leaseToken,status:'needs_attention',error:'source_blocked'});
+  assert.equal(localDiagnostics.length,1,'Probe metadata exists only through its observer, never in the completion packet');
+
+  // Esegue l'entrypoint reale con confini file/browser isolati: il segreto
+  // necessario al bootstrap non deve uscire e la sonda non chiama BOOM.
+  const probeScript=(await readFile(new URL('../../tools/smartlink-worker/worker.mjs',import.meta.url),'utf8')).replace(/^import .*;\n/gm,'');
+  const cliFixture=diagnosticPage({status:403}),cliLogs=[];
+  const cliProcess={argv:['node','worker.mjs','--probe',source],once(){},exitCode:0};
+  await vm.runInNewContext('(async()=>{'+probeScript+'})()', {
+    readFile:async path=>path.endsWith('smartlink-reader.json')?'{}':'HOMIE_SECRET='+privateMarker,
+    mkdir:async()=>{},homedir:()=>'/fixture',join,URL,
+    chromium:{launchPersistentContext:async(profile,options)=>{
+      assert.equal(profile,'/fixture/.boom/smartlink-reader-profile');
+      assert.equal(JSON.stringify(options),JSON.stringify({headless:false,chromiumSandbox:true,acceptDownloads:false}));
+      return cliFixture.context;
+    }},readListing,processOne,openReview,process:cliProcess,
+    console:{log:value=>cliLogs.push(value)},
+    fetch:async()=>{throw new Error('Probe must never contact BOOM');}
+  });
+  assert.equal(cliProcess.exitCode,1);assert.equal(cliLogs.length,1);
+  const cliResult=JSON.parse(cliLogs[0]);
+  assert.deepEqual(cliResult.diagnostic,{phase:'navigation',reason:'http_rejected',httpStatus:403});
+  assert.equal(cliResult.status,'needs_attention');assert.equal(cliResult.photoCount,0);
+  assert.ok(!cliLogs[0].includes(privateMarker));assert.ok(!cliLogs[0].includes(source));
+  assert.equal(cliFixture.calls.navigation,1);
   // CasaFari: cinque foto nel riepilogo, sei nella galleria. L'ultima
   // deve arrivare dalla navigazione reale prima di dichiarare "ready".
   const share='https://it.casafari.com/estate/sharepage/test/23310686611';
