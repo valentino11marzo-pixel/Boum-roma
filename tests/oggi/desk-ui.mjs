@@ -34,6 +34,38 @@ try {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
     await fresh(page);
+    await check(width + ' proposte commerciali riconoscibili dalla sintesi salvata e apertura della stessa coda senza invii', async () => {
+      await page.evaluate(() => {
+        S.contracts = []; S.payments = []; S.leads = []; S.clients = []; S.viewingRequests = []; S.preAgreements = []; S.maintenance = [];
+        oggiSegretaria.rows = []; testIO.followUps = [];
+        S.actionQueue = ['Ada Demo', 'Bruno Demo', '<img src=x onerror="window.proposalInjected=true"> Carla Demo'].map((name, i) => ({
+          id: 'proposal-demo-' + i, kind: 'reply', status: 'pending', createdAt: new Date().toISOString(), proposedBy: 'commerciale',
+          summary: 'Prima risposta a ' + name + ' · Casa esempio ' + i + ' (email)',
+          payload: { channel: 'email', draft: 'Bozza sintetica da verificare ' + i }
+        }));
+        oggiWorkspace.deskArea = null; oggiWorkspace.deskPage = 0; oggiSegretariaRender();
+      });
+      await page.locator('[data-desk-area="clients"]').click();
+      assert.equal(await items(page).count(), 3);
+      assert.equal(new Set(await items(page).locator('h3').allTextContents()).size, 3);
+      for (let i = 0; i < 3; i++) {
+        const id = 'proposal-demo-' + i, card = page.locator('[data-desk-item="current:signal:aq_' + id + '"]');
+        const summary = await page.evaluate(id => S.actionQueue.find(row => row.id === id).summary, id);
+        assert.equal(await card.locator('h3').innerText(), summary);
+        assert.match(await card.locator('.od-next').innerText(), /Rivedi la risposta proposta prima di inviarla/);
+        assert.doesNotMatch(await card.innerText(), /Proposta della Squadra|Apri il dettaglio/);
+        await card.locator('[data-desk-act]').click();
+        assert.deepEqual(await page.evaluate(() => oggiWorkspace.deskFilter), { signalIds: ['aq_' + id], caseIds: [] });
+        assert.equal(await page.locator('#ogDecisionPanel .og-item').count(), 1);
+        assert.equal(await page.locator('[data-og-action="aq_' + id + '#0"]').count(), 1);
+        assert.match(await page.locator('#ogDecisionPanel').innerText(), new RegExp('Casa esempio ' + i));
+      }
+      assert.equal(await page.locator('#ogDeskPanel img').count(), 0);
+      assert.equal(await page.evaluate(() => !!window.proposalInjected), false);
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);
+    });
+    await fresh(page);
     await check(width + ' priorità trasversali prima della coda, archivio chiuso e zero effetti all’apertura', async () => {
       assert.deepEqual(await page.locator('[data-desk-area]').evaluateAll(nodes => nodes.map(node => node.dataset.deskArea)), ['all', 'contracts', 'payments', 'appointments', 'maintenance', 'clients']);
       assert.equal(await archiveOpen(page), false);

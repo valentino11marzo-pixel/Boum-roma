@@ -5598,8 +5598,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         follow_up_page_unavailable: 'Non riesco a leggere tutti i seguiti. I dati già visibili sono conservati e potrebbero non essere aggiornati.'
     };
     function oggiSegretariaError(error) {
-        if (String(error && error.code || '').startsWith('calendar_'))
-            return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
+        if (String(error && error.code || '').startsWith('calendar_')) {
+            const reasons = {
+                calendar_source_ambiguous: 'La data proposta deriva da una fonte con giorni o orari ambigui. Apri la conversazione e chiarisci quale disponibilità vale.',
+                calendar_event_ambiguous: 'Il ricontrollo è descritto come precedente a un evento, ma le fonti non identificano un solo evento certo. Verifica quale appuntamento si intende prima di fissare il ricontrollo.',
+                calendar_source_date_conflict: 'Una data della proposta non corrisponde a quella ricavata dalle fonti citate. Controlla le date nei messaggi originali prima di confermarne una.',
+                calendar_weekday_date_conflict: 'Nella proposta il giorno della settimana e la data non coincidono. Verifica entrambi nei messaggi originali.',
+                calendar_year_ambiguous: 'Non è possibile stabilire l’anno della data proposta dalle fonti disponibili. Controlla la data completa del messaggio e dell’evento.',
+                calendar_invalid_date: 'La proposta contiene una data di calendario non valida. Verifica la data nei messaggi originali.',
+                calendar_check_not_before_event: 'Il ricontrollo proposto non precede l’evento, anche se la proposta dice di controllare prima. Verifica se l’evento è ancora da svolgere e imposta un ricontrollo coerente in «Correggi seguito».',
+                calendar_invalid_check_time: 'La data o l’ora del ricontrollo proposto non è valida. Imposta un ricontrollo futuro in «Correggi seguito».',
+                calendar_check_local_missing: 'Nella proposta manca l’ora italiana del ricontrollo. Verifica data e ora in «Correggi seguito».',
+                calendar_check_local_invalid: 'La data o l’ora italiana del ricontrollo proposto non è valida. Verifica data e ora in «Correggi seguito».',
+                calendar_check_local_zone_invalid: 'Il ricontrollo proposto non indica correttamente il fuso orario di Roma. Verifica l’ora italiana in «Correggi seguito».',
+                calendar_check_local_mismatch: 'L’ora italiana dichiarata nella proposta non corrisponde all’istante del ricontrollo. Verifica data e ora in «Correggi seguito».',
+                calendar_check_local_repeated: 'L’ora italiana proposta si ripete durante il cambio dell’ora legale e non identifica un istante unico. Scegli un orario non ambiguo in «Correggi seguito».',
+                calendar_check_local_nonexistent: 'L’ora italiana proposta non esiste nel giorno del cambio dell’ora legale. Scegli un orario valido in «Correggi seguito».',
+                calendar_relative_check_unquantified: 'La proposta dice di ricontrollare poco prima o poco dopo, senza precisare quanto. Chiarisci l’intervallo e imposta un’ora precisa in «Correggi seguito».'
+            };
+            return (reasons[error.code] || 'Non riesco a verificare le date della proposta. Apri la conversazione e controlla data, ora e disponibilità prima di proseguire.')
+                + ' La proposta non è stata accettata; il seguito resta aperto. Nessun messaggio è stato inviato da questa preparazione.';
+        }
         return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
     }
     window.oggiSegretariaSwitchPreparation = async function(enable) {

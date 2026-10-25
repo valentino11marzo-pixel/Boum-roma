@@ -28,6 +28,34 @@ const all = result => [...result.currentItems, ...result.history, ...result.wait
 let passed = 0;
 function check(name, test) { test(); passed++; console.log('PASS ' + name); }
 
+function queueCardContent(engine = E, signalsEngine = OGGI) {
+    // Real commerciale/proposeAction shape: summary is the human title;
+    // there is no title or actionType. Do not replace it with invented names.
+    const actionQueue = ['Ada Demo', 'Bruno Demo', 'Carla Demo'].map((name, i) => ({
+        id: 'reply-' + i, status: 'pending', kind: 'reply', createdAt: NOW,
+        summary: 'Prima risposta a ' + name + ' · Casa esempio ' + i + ' (email)' + (i === 2 ? ' · ' + 'Contesto salvato '.repeat(9).trim() : ''),
+        proposedBy: 'commerciale', payload: { channel: 'email', draft: 'BOZZA NON INVIATA ' + i }
+    }));
+    actionQueue.push({ id: 'explicit', status: 'pending_approval', kind: 'schedule_viewing', createdAt: NOW,
+        title: 'Visita proposta · Casa esempio', summary: 'Confermare la visita dopo aver verificato la disponibilità' });
+    const input = state({ contracts: [], actionQueue });
+    const signals = signalsEngine.build(input, NOW).decisions;
+    const result = build({ state: input, signals }, engine);
+    for (const row of actionQueue) {
+        const item = result.currentItems.find(x => x.signalIds.includes('aq_' + row.id));
+        assert.equal(item.title, row.title || row.summary);
+        assert.equal(item.id, 'current:signal:aq_' + row.id);
+        assert.equal(item.action, null, 'desk opens the exact existing proposal, never approval');
+        assert.equal(item.signalIds.join(','), 'aq_' + row.id);
+        assert.equal(item.nextAction, row.kind === 'reply' ? 'Rivedi la risposta proposta prima di inviarla' : 'Rivedi la proposta prima di approvarla');
+        assert.equal(item.reason, row.title ? row.summary : 'Proposta da verificare prima dell’approvazione');
+        assert(!JSON.stringify(item).includes('BOZZA NON INVIATA'));
+        assert.equal(JSON.stringify(item.signals[0].actions.map(a => a.args)), JSON.stringify([[row.id], [row.id], [row.id]]));
+    }
+    assert.equal(new Set(result.currentItems.map(x => x.title)).size, 4);
+}
+check('real queued proposals keep distinct saved summaries and a review step through both engines', () => queueCardContent());
+
 check('stable five areas, empty means only no work in the supplied snapshot', () => {
     const result = build();
     assert.deepEqual(result.areas.map(x => x.id), ['contracts', 'payments', 'appointments', 'maintenance', 'clients']);
@@ -572,4 +600,13 @@ check('mutation cannot hide new evidence when closure coverage is unavailable', 
 check('mutation cannot ignore outbound evidence newer than a reading', () => {
     mutant("!['in', 'out'].includes(conv.lastDirection)", "conv.lastDirection !== 'in'", outboundFreshness);
 });
-console.log(`\n${passed} desk checks passed (11 semantic mutations).`);
+check('mutations detect anonymous proposal titles, generic next steps and missing summaries', () => {
+    const queueSource = readFileSync(new URL('../../js/oggi-engine.js', import.meta.url), 'utf8');
+    const loadQueue = code => { const context = { module: { exports: {} } }; vm.runInNewContext(code, context); return context.module.exports; };
+    queueCardContent(E, loadQueue(queueSource));
+    assert(queueSource.includes('a.title || a.summary || a.actionType'));
+    assert.throws(() => queueCardContent(E, loadQueue(queueSource.replace('a.title || a.summary || a.actionType', 'a.title || a.actionType'))), assert.AssertionError);
+    mutant('const next = proposalNext || (', 'const next = (', queueCardContent);
+    mutant('text(queued.summary) : \'\'', "'' : ''", queueCardContent);
+});
+console.log(`\n${passed} desk checks passed (14 semantic mutations).`);

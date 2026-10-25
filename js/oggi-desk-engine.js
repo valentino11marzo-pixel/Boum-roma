@@ -185,13 +185,16 @@
             const history = signal.needsVerification === true || signal.kind === 'archivio' || oldApproval
                 || (!source && !aggregate && signal.kind !== 'approvazione');
             const action = aggregate ? { label: 'Verifica incassi', fn: 'goTo', args: ['payments'] } : navigation(record, state, signal.kind);
-            const next = ({ viewContractSignatures: 'Verifica lo stato delle firme', viewContract: 'Apri la pratica e verifica il prossimo passo',
+            const proposalNext = queued ? (queued.kind === 'reply' ? 'Rivedi la risposta proposta prima di inviarla' : 'Rivedi la proposta prima di approvarla') : null;
+            const proposalSummary = queued && text(queued.summary) !== text(signal.title) ? text(queued.summary) : '';
+            const next = proposalNext || ({ viewContractSignatures: 'Verifica lo stato delle firme', viewContract: 'Apri la pratica e verifica il prossimo passo',
                 viewMaintenance: 'Verifica e organizza l’intervento', viewLead: 'Apri la richiesta del cliente', oggiOpenPa: 'Verifica la proposta in console' })[action?.fn]
                 || (signal.kind === 'incassi' ? 'Verifica gli incassi' : signal.kind === 'visita' ? 'Verifica l’appuntamento' : 'Apri il dettaglio');
             push({ key: record ? record.kind + ':' + record.id : 'signal:' + signal.id,
                 area: source ? areaFor(signal.kind === 'archivio' ? source.kind : signal.kind) : areaFor(signal.kind),
                 bucket: history ? 'history' : 'current', record, title: text(signal.title) || 'Segnale da verificare', nextAction: next, action,
-                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare' : text(signal.title) || 'Segnale operativo da verificare',
+                signal, original: true, caseId: null, reason: oldApproval ? 'Proposta precedente da verificare' : history ? text(signal.reason) || 'Dati da verificare'
+                    : queued ? proposalSummary || 'Proposta da verificare prima dell’approvazione' : text(signal.title) || 'Segnale operativo da verificare',
                 ...signalContext(signal, source, state),
                 score: Number.isFinite(signal.score) ? signal.score : 0, urgent: !history && signalUrgent(signal, source, state, now) });
         });
