@@ -22,6 +22,7 @@ const base = 'http://127.0.0.1:' + server.address().port;
 let browser, checks = 0;
 const check = async (name, fn) => { await fn(); console.log('PASS ' + name); checks++; };
 const search = async (page, query, kind = 'all') => {
+  if(!await page.locator('.ow-search-options').evaluate(el=>el.open))await page.locator('.ow-search-options>summary').click();
   await page.locator('#ogWorkKind').selectOption(kind);
   await page.locator('#ogWorkQuery').fill(query);
 };

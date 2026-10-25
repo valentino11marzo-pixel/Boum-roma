@@ -19,10 +19,11 @@ let browser, checks = 0;
 const check = async (name, run) => { await run(); checks++; console.log('PASS ' + name); };
 const items = page => page.locator('#ogDeskPanel [data-desk-item]');
 const itemIds = page => items(page).evaluateAll(nodes => nodes.map(node => node.dataset.deskItem));
-const fresh = async page => {
+const fresh = async (page, options = true) => {
   await page.goto(base); await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
   assert.equal(await page.locator('#ogDeskFold').evaluate(node => node.open), true);
-  await page.waitForSelector('#ogDeskPanel [data-desk-area]');
+  await page.waitForSelector('[data-desk-area]', { state: 'attached' });
+  if (options) await page.locator('[data-desk-options] > summary').click();
 };
 const archiveOpen = page => page.locator('#ogQueueArchive').evaluate(node => node.open);
 
@@ -33,6 +34,60 @@ try {
     page.setDefaultTimeout(4000);
     const errors = []; page.on('pageerror', error => errors.push(error.message));
     await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
+    await fresh(page, false);
+    await check(width + ' primo livello con una sola azione, due righe e quattro strumenti; opzioni chiuse', async () => {
+      await page.evaluate(() => {
+        S.conversations = ['email', 'whatsapp'].map((channel, i) => ({id:'focus-inbound-'+i, status:'open', channel,
+          contactName:'Richiesta dimostrativa '+i, contactType:channel, contactId:'demo-'+i, needsReply:true,
+          lastDirection:'in', lastMessageAt:new Date(Date.now()-i*60000).toISOString(), lastMessagePreview:'Vorrei organizzare una visita.'}));
+        oggiSegretariaRender();
+      });
+      assert.equal(await archiveOpen(page), false);
+      assert.equal(await page.locator('#ogDeskPanel .od-focus').count(), 1);
+      assert.equal(await page.locator('#ogDeskPanel .od-compact').count(), 2);
+      assert.equal(await page.locator('.od-focus [data-desk-act]').count(), 1);
+      assert.equal(await page.locator('[data-desk-area]:visible').count(), 0);
+      assert.equal(await page.locator('#ogQuickTools [data-og-tool]:visible').count(), 0);
+      assert.equal(await page.locator('#ogDailyTools [data-og-shortcut]:visible').count(), 4);
+      assert.deepEqual(await page.locator('#ogDailyTools strong').allTextContents(), ['WhatsApp', 'Email', 'Agenda', 'Documenti']);
+      await page.locator('#ogDailyTools [data-og-shortcut="home:whatsapp"]').focus();
+      await page.evaluate(()=>oggiQuickToolsRender());
+      assert.equal(await page.evaluate(()=>document.activeElement.dataset.ogShortcut),'home:whatsapp');
+      assert.equal(await page.locator('.ow-search-options').evaluate(el => el.open), false);
+      assert.equal(await page.locator('[data-desk-coverage]').evaluate(el => el.open), false);
+      assert.equal(await page.locator('.od-focus [data-desk-evidence]').evaluate(el => el.open), false);
+      assert.equal(await page.locator('#ogWorkQuery').evaluate(el => getComputedStyle(el).fontSize), '16px');
+      assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      assert.deepEqual(await page.evaluate(() => testIO.writes), []);
+    });
+    await fresh(page, false);
+    await check(width + ' la prima azione apre il caso esatto in revisione e conserva bozza e focus al resize', async () => {
+      await page.evaluate(() => {
+        S.maintenance=[];S.conversations=[];S.leads=[];S.actionQueue=[];S.viewingRequests=[];
+        oggiSegretaria.rows=oggiSegretaria.rows.slice(0,1);
+        Object.assign(oggiSegretaria.rows[0].followUp,{lastInboundAt:new Date().toISOString(),nextAction:'Confermare chi apre al tecnico'});
+        oggiSegretariaRender();
+      });
+      const primary=page.locator('.od-focus [data-desk-act]');
+      const focusId=await primary.getAttribute('data-desk-act');
+      await primary.click();await page.waitForSelector('#sgFollowModal');
+      assert.equal(await page.evaluate(()=>oggiSegretaria.modal.id),'sg_'+'a'.repeat(32));
+      assert.equal(await archiveOpen(page),false);
+      await page.locator('[data-sg-modal="edit"]').click();
+      await page.locator('#sgAction').fill('Bozza preservata dopo apertura e ridimensionamento');
+      const initial=await page.locator('#sgAction').evaluate(el=>{window.focusDraft=el;return el.value;});
+      for(const [w,h] of [[390,844],[466,678],[626,890],[890,626],[1280,900],[320,568]]) {
+        await page.setViewportSize({width:w,height:h});
+        assert.equal(await page.locator('#sgAction').inputValue(),initial);
+        assert.equal(await page.locator('#sgAction').evaluate(el=>el===window.focusDraft),true);
+        assert.equal(await page.locator('#sgAction').evaluate(el=>getComputedStyle(el).fontSize),'16px');
+        assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+      }
+      await page.setViewportSize({width,height:1000});
+      await page.locator('[data-sg-modal="cancel"]').first().click();
+      assert.equal(await page.evaluate(()=>document.activeElement.dataset.deskAct),focusId);
+      assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+    });
     await fresh(page);
     await check(width + ' proposte commerciali riconoscibili dalla sintesi salvata e apertura della stessa coda senza invii', async () => {
       await page.evaluate(() => {
@@ -52,7 +107,7 @@ try {
         const id = 'proposal-demo-' + i, card = page.locator('[data-desk-item="current:signal:aq_' + id + '"]');
         const summary = await page.evaluate(id => S.actionQueue.find(row => row.id === id).summary, id);
         assert.equal(await card.locator('h3').innerText(), summary);
-        assert.match(await card.locator('.od-next').innerText(), /Rivedi la risposta proposta prima di inviarla/);
+        assert.match(await card.locator('.od-next,.od-compact-next').innerText(), /Rivedi la risposta proposta prima di inviarla/);
         assert.doesNotMatch(await card.innerText(), /Proposta della Squadra|Apri il dettaglio/);
         await card.locator('[data-desk-act]').click();
         assert.deepEqual(await page.evaluate(() => oggiWorkspace.deskFilter), { signalIds: ['aq_' + id], caseIds: [] });
@@ -66,16 +121,17 @@ try {
       assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);
     });
     await fresh(page);
-    await check(width + ' priorità trasversali prima della coda, archivio chiuso e zero effetti all’apertura', async () => {
+    await check(width + ' priorità trasversali e coda secondaria aperta esplicitamente senza effetti', async () => {
       assert.deepEqual(await page.locator('[data-desk-area]').evaluateAll(nodes => nodes.map(node => node.dataset.deskArea)), ['all', 'contracts', 'payments', 'appointments', 'maintenance', 'clients']);
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
       assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.evaluate(() => !!(document.getElementById('ogDeskPanel').compareDocumentPosition(document.getElementById('ogQueueArchive')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
-      assert.equal(await page.locator('#ogWorkQueue').isVisible(), false);
+      assert.equal(await page.locator('#ogWorkQueue').isVisible(), true);
       assert.equal(await page.locator('[data-desk-area="all"]').getAttribute('aria-pressed'), 'true');
       assert((await items(page).count()) <= 3);
       assert.equal((await itemIds(page))[0], 'current:maintenance:guasto-demo');
-      for (const item of await items(page).all()) {
+      for (const item of await page.locator('#ogDeskPanel .od-focus').all()) {
+        await item.locator('[data-desk-evidence] > summary').click();
         assert.match(await item.locator('.od-case-meta').innerText(), /Prossimo attore/);
         assert.match(await item.locator('.od-case-meta').innerText(), /Roma/);
         assert(await item.locator('[data-desk-details]').isVisible());
@@ -97,6 +153,8 @@ try {
         oggiWorkspace.deskArea = null; oggiWorkspace.deskPage = 0; oggiSegretariaRender();
       });
       await page.locator('[data-desk-area="maintenance"]').click();
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'ogDeskSelection');
+      assert.match(await page.locator('#ogDeskSelection').innerText(),/Pratiche ·/);
       assert.equal(await items(page).count(), 3);
       assert.match(await page.locator('#ogDeskPanel .od-alert').innerText(), /8 casi/);
       const found = [];
@@ -124,6 +182,7 @@ try {
     await fresh(page);
     await check(width + ' i passaggi di una pratica filtrano gli ID esatti e Tutta la coda li ripristina', async () => {
       await page.locator('[data-desk-area="contracts"]').click();
+      await page.locator('[data-desk-item="current:contract:contratto-demo"] [data-desk-evidence]').evaluate(el => el.open = true);
       await page.locator('[data-desk-details="current:contract:contratto-demo"]').click();
       assert.equal(await archiveOpen(page), true);
       assert.deepEqual(await page.evaluate(() => oggiWorkspace.deskFilter), { signalIds: ['sig_contratto-demo'], caseIds: ['sg_' + 'a'.repeat(32)] });
@@ -136,6 +195,7 @@ try {
       assert.match(await page.locator('#ogArchiveScope').innerText(), /Tutti i segnali originali/);
       for (const id of ['sig_contratto-demo', 'mnt_guasto-demo', 'vw_v-proposta'])
         assert.equal(await page.locator('[data-og-action="' + id + '#0"]').count(), 1);
+      await page.locator('[data-desk-item="current:contract:contratto-demo"] [data-desk-evidence]').evaluate(el => el.open = true);
       await page.locator('[data-desk-details="current:contract:contratto-demo"]').click();
       await page.locator('#ogQueueArchive .od-show-all').click();
       assert.equal(await page.evaluate(() => oggiWorkspace.deskFilter), null);
@@ -157,13 +217,13 @@ try {
         testIO.followUps = [undated, ambiguous, unknown, waiting, recentUndated];
         oggiSegretaria.rows = structuredClone(testIO.followUps); oggiSegretariaRender();
       });
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
       assert.equal(await page.locator('[data-desk-archive="history"] strong span').innerText(), '4');
       assert.equal(await page.locator('[data-desk-archive="waiting"] strong span').innerText(), '1');
       assert(await page.locator('[data-desk-archive="history"]').isVisible());
       assert.match(await page.locator('#ogDeskPanel .ow-source-note').innerText(), /Non tutti gli esiti degli invii sono verificabili/);
       assert.doesNotMatch(await page.locator('#ogDeskPanel').innerText(), /tutto a posto|tutto completato/i);
-      assert.match(await page.locator('#ogDeskPanel .od-alert').filter({ has: page.locator('[data-desk-archive="unlinked"]') }).innerText(), /2 richieste recenti/);
+      assert.match(await page.locator('.od-alert').filter({ has: page.locator('[data-desk-archive="unlinked"]') }).innerText(), /2 richieste recenti/);
       assert(await page.locator('[data-desk-archive="verification"]').isVisible());
       await page.locator('[data-desk-archive="unlinked"]').click();
       assert.deepEqual((await page.locator('#sgFollowPanel article[data-sg-id]').evaluateAll(nodes => nodes.map(node => node.dataset.sgId))).sort(), ['b', 'd'].map(letter => 'sg_' + letter.repeat(32)));
@@ -184,7 +244,7 @@ try {
       await page.locator('[data-desk-area="contracts"]').click();
       await page.locator('[data-desk-act="current:contract:contratto-demo"]').click();
       await page.waitForSelector('#sgFollowModal');
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
       await page.locator('[data-sg-modal="edit"]').click();
       await page.locator('#sgAction').fill('Bozza manuale da conservare'); await page.locator('#sgAction').focus();
       await page.evaluate(() => {
@@ -201,7 +261,7 @@ try {
       assert.equal(await page.evaluate(() => document.activeElement.id), 'sgAction');
       assert.deepEqual(await page.evaluate(() => [testIO.writes, testIO.demoWrites, testIO.responses]), [[], [], []]);
       await page.locator('[data-sg-modal="cancel"]').first().click();
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
       assert.equal(await page.evaluate(() => document.activeElement.dataset.deskAct), 'current:contract:contratto-demo');
       assert(await page.locator('[data-desk-act="current:contract:contratto-demo"]').isVisible());
     });
@@ -209,6 +269,8 @@ try {
     await check(width + ' aggiornamento regionale conserva area, focus, ricerca e archivio chiuso', async () => {
       await page.locator('#ogWorkQuery').fill('Aurora');
       await page.locator('[data-desk-area="maintenance"]').click();
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'ogDeskSelection');
+      assert.match(await page.locator('#ogDeskSelection').innerText(),/Pratiche ·/);
       const control = page.locator('[data-desk-act]').first();
       const key = await control.getAttribute('data-desk-key'); await control.focus();
       await page.evaluate(() => { S.maintenance[0].title = 'Titolo aggiornato dal listener'; oggiScheduleUpdate(); });
@@ -216,7 +278,7 @@ try {
       assert.equal(await page.evaluate(() => document.activeElement.dataset.deskKey), key);
       assert.equal(await page.locator('[data-desk-area="maintenance"]').getAttribute('aria-pressed'), 'true');
       assert.equal(await page.locator('#ogWorkQuery').inputValue(), 'Aurora');
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
     });
     await fresh(page);
     await check(width + ' incarichi interni visibili, attesa esterna separata e fonte recuperabile', async () => {
@@ -236,12 +298,12 @@ try {
       assert.deepEqual(new Set(await itemIds(page)),new Set(['current:contract:role-0','current:contract:role-1','current:contract:role-3']));
       const personal = page.locator('[data-desk-item="current:contract:role-0"]');
       assert.match(await personal.innerText(),/Prossima azione valentino/);
-      assert.match(await personal.locator('.od-case-meta').innerText(),/Valentino/);
-      assert.doesNotMatch(await personal.locator('.od-case-meta').innerText(),/Da impostare/);
       assert.doesNotMatch(await page.locator('#ogDeskPanel').innerText(),/NON ATTRIBUIRE/);
       assert.equal(await page.locator('[data-desk-archive="waiting"] strong span').innerText(),'1');
-      await personal.locator('[data-desk-details]').click();
-      assert.deepEqual(await page.evaluate(()=>oggiWorkspace.deskFilter.caseIds),['sg_'+'c'.repeat(32)]);
+      await personal.locator('[data-desk-act]').click();
+      await page.waitForSelector('#sgFollowModal');
+      assert.equal(await page.evaluate(()=>oggiSegretaria.modal.id),'sg_'+'c'.repeat(32));
+      await page.locator('[data-sg-modal="cancel"]').first().click();
       await page.locator('[data-desk-archive="waiting"]').click();
       assert.deepEqual(await page.evaluate(()=>oggiWorkspace.deskFilter.caseIds),['sg_'+'e'.repeat(32)]);
       assert.equal(await page.locator('[data-ow-view="following"]').getAttribute('aria-pressed'),'true');
@@ -249,9 +311,9 @@ try {
       assert(await page.evaluate(()=>document.documentElement.scrollWidth <= innerWidth+1));
     });
     await fresh(page);
-    await check(width + ' errori e letture parziali visibili anche con archivio chiuso', async () => {
+    await check(width + ' errori e letture parziali restano visibili', async () => {
       await page.evaluate(() => { S._paError = true; oggiSegretaria.incomplete = true; oggiSegretaria.error = 'Seguiti non aggiornati: lettura fallita.'; oggiSegretariaRender(); });
-      assert.equal(await archiveOpen(page), false);
+      assert.equal(await archiveOpen(page), true);
       const notice = page.locator('#ogDeskPanel .ow-source-note');
       assert(await notice.isVisible());
       assert.match(await notice.innerText(), /Proposte non aggiornate/);

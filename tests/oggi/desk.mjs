@@ -567,6 +567,104 @@ function paymentSummary(engine = E) {
 }
 check('financial total is reachable summary, not another priority or historical verification', paymentSummary);
 
+function focusPriorities(engine = E) {
+    const s = state({ contracts: [contract(), contract('c2'), contract('c3'), contract('c4')],
+        maintenance: [{ id: 'urgent', contractId: 'c1', priority: 'urgent', status: 'open' }] });
+    const signals = ['c1', 'c2', 'c3', 'c4'].map(id => ({ id: 'rli_' + id, kind: 'registrazioni', daysLeft: -50, score: 100, title: 'Termine precedente' }));
+    signals.push({ id: 'mnt_urgent', kind: 'manutenzione', score: 60, title: 'Intervento' });
+    const rows = [task(1, { practiceRef: 'contracts/c2', lastInboundAt: NOW }),
+        task(2, { practiceRef: null, confirmed: false, lastInboundAt: '2026-10-13T08:00:00Z' })];
+    const result = build({ state: s, signals, rows }, engine), before = JSON.stringify(result);
+    const f = engine.focus(result, { nowISO: NOW });
+    assert.equal(f.items.length, 3);
+    assert.equal(f.items[0].action.fn, 'viewMaintenance', 'Verified urgent maintenance remains first, even grouped into a contract');
+    assert.equal(f.items[0].action.args[0], 'urgent');
+    assert.equal(f.items[0].nextAction, 'Verifica e organizza l’intervento');
+    assert.equal(f.items[1].action.fn, 'oggiSegretariaOpen', 'Exact current case wins over its grouped administrative signal');
+    assert.equal(f.items[1].action.args[0], caseId(1));
+    assert.equal(f.items[2].action.args[0], caseId(2));
+    assert.equal(f.urgentCount, 4, 'Every urgent group remains reachable, not just the focus');
+    assert.equal(JSON.stringify(result), before, 'Focus never sorts or modifies the original queues');
+    assert.deepEqual(new Set(all(result).flatMap(item => item.signalIds)), new Set(signals.map(signal => signal.id)));
+    assert.deepEqual(new Set(all(result).flatMap(item => item.caseIds)), new Set(rows.map(row => row.id)));
+    f.items[1].action.args[0] = 'changed-by-renderer';
+    f.items[1].caseIds.reverse(); f.items[1].signalIds.push('not-a-signal');
+    f.items[1].timing.value = 'changed-by-renderer';
+    assert.equal(JSON.stringify(result), before, 'Focus presentation containers do not alias the original action or IDs');
+}
+check('focus keeps urgent maintenance first and exact recent work before grouped old deadlines, preserving all queues', focusPriorities);
+
+function focusFreshness(engine = E) {
+    const row = task(1, { conversationId: 'conversation-1', lastInboundAt: '2026-10-12T09:00:00Z' },
+        { preparation: { createdAt: '2026-10-12T10:00:00Z' } });
+    const stale = build({ rows: [row], pendingProposalIds: [row.id], conversations: [conversation()] }, engine);
+    const fresh = engine.focus(stale, { nowISO: NOW });
+    assert.equal(fresh.items.length, 1);
+    assert.equal(fresh.items[0].action.fn, 'oggiDeskConversation', 'New source opens the exact conversation, never its stale AI reading');
+    assert.equal(fresh.items[0].action.args[0], 'conversation-1');
+    const replied = build({ rows: [row], pendingProposalIds: [row.id], conversations: [conversation('conversation-1', { lastDirection: 'out', needsReply: false })] }, engine);
+    assert.equal(engine.focus(replied, { nowISO: NOW }).items.length, 0, 'A reply newer than preparation cannot become a fresh AI action');
+    const preparedAfterReply = build({ rows: [{ ...row, preparation: { createdAt: '2026-10-13T09:45:00Z' } }],
+        pendingProposalIds: [row.id], conversations: [conversation('conversation-1', { lastDirection: 'out', needsReply: false })] }, engine);
+    assert.equal(engine.focus(preparedAfterReply, { nowISO: NOW }).items[0].action.args[0], caseId(1), 'Preparation made after the reply stays actionable');
+    const current = build({ rows: [row], pendingProposalIds: [row.id] }, engine);
+    assert.equal(engine.focus(current, { nowISO: NOW }).items[0].action.args[0], caseId(1));
+    assert.equal(engine.focus(current, { nowISO: '2026-10-21T10:00:00Z' }).items.length, 0, 'Focus rechecks source age against its explicit clock');
+    for (const lastInboundAt of ['not-a-date', '2026-10-14T00:00:00Z']) {
+        const invalid = build({ rows: [task(1, { lastInboundAt })], pendingProposalIds: [caseId(1)] }, engine);
+        assert.equal(engine.focus(invalid, { nowISO: NOW }).items.length, 0, 'Missing/future source cannot earn a focus position');
+    }
+}
+check('focus prefers new headers to obsolete readings, rejects outbound-invalidated AI and verifies source age', focusFreshness);
+
+function focusDeliveries(engine = E) {
+    for (const delivery of ['queued', 'pending_execution']) {
+        const result = build({ rows: [withDelivery(task(1), null, delivery)] }, engine);
+        assert.equal(engine.focus(result, { nowISO: NOW }).items.length, 0, 'Pending delivery cannot be presented as a new decision');
+        assert.equal(all(result).flatMap(item => item.caseIds).length, 1);
+        const newer = build({ rows: [withDelivery(task(1, { conversationId: 'conversation-1' }), null, delivery)],
+            conversations: [conversation()] }, engine);
+        assert.equal(engine.focus(newer, { nowISO: NOW }).items.length, 0, 'A newer header does not bypass an unresolved pending delivery');
+        assert(newer.currentItems.some(item => item.action.fn === 'oggiDeskConversation'), 'New source remains reachable in full work');
+    }
+    const result = build({ rows: [withDelivery(task(1), 'delivery_state_unavailable'),
+        task(2, { practiceRef: null, ambiguous: true })] }, engine);
+    const f = engine.focus(result, { nowISO: NOW });
+    assert.equal(f.items.length, 0);
+    assert.equal(f.verificationCount, 2, 'Unknown current delivery and unlinked recovery both remain visible in verification count');
+    assert.equal(all(result).flatMap(item => item.caseIds).length, 2);
+}
+check('focus excludes pending and unknown deliveries without hiding their underlying work or verification count', focusDeliveries);
+
+check('focus never fills three slots with old administrative deadlines or generic detail links', () => {
+    const s = state({ contracts: ['a', 'b', 'c'].map(id => contract(id)) });
+    const signals = ['a', 'b', 'c'].map(id => ({ id: 'rli_' + id, kind: 'registrazioni', daysLeft: -40, score: 100 }));
+    const result = build({ state: s, signals });
+    const f = E.focus(result, { nowISO: NOW });
+    assert.equal(f.items.length, 1); assert.equal(f.urgentCount, 3); assert.equal(result.currentItems.length, 3);
+    const generic = build({ signals: [{ id: 'sig_c1', kind: 'firme', score: 100, title: 'URGENTE!!!' }] });
+    assert.equal(E.focus(generic, { nowISO: NOW }).items.length, 0, 'Prose and score cannot promote a generic administrative reader');
+    const pending = build({ state: state({ actionQueue: [{ id: 'queue', status: 'pending', createdAt: NOW }] }),
+        signals: [{ id: 'aq_queue', kind: 'approvazione', score: 100 }] });
+    assert.equal(E.focus(pending, { nowISO: NOW }).items.length, 0, 'No exact safe reader means no focus, even for a fresh queue item');
+    assert.equal(pending.currentItems.length, 1);
+    const duplicate = build({ rows: [task(1), task(1)] });
+    assert.equal(E.focus(duplicate, { nowISO: NOW }).items.length, 0, 'Duplicate case references cannot provide a verified next action');
+    assert.equal(E.focus(duplicate, { nowISO: NOW }).verificationCount, 1);
+    assert.throws(() => E.focus(result), /explicit current ISO/);
+});
+
+check('focus is deterministic, bounded, accepts frozen model and never uses name matches', () => {
+    const conversations = [1, 2, 3, 4].map(n => conversation('distinct-' + n, { contactName: 'Same name' }));
+    const result = build({ conversations });
+    const freeze = value => { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; };
+    freeze(result);
+    const f = E.focus(result, { nowISO: NOW });
+    assert.equal(f.items.length, 3); assert.equal(result.currentItems.length, 4);
+    assert.equal(new Set(f.items.map(item => item.action.args[0])).size, 3);
+    assert.deepEqual(f, E.focus(build({ conversations: [...conversations].reverse() }), { nowISO: NOW }));
+});
+
 function mutant(before, after, verify) {
     assert(source.includes(before), 'mutation anchor exists');
     const context = { module: { exports: {} }, URL, Intl, Date };
@@ -609,4 +707,9 @@ check('mutations detect anonymous proposal titles, generic next steps and missin
     mutant('const next = proposalNext || (', 'const next = (', queueCardContent);
     mutant('text(queued.summary) : \'\'', "'' : ''", queueCardContent);
 });
-console.log(`\n${passed} desk checks passed (14 semantic mutations).`);
+check('focus mutations catch lost maintenance priority, stale readings and pending delivery promotion', () => {
+    mutant("option.kind === 'maintenance' && option.urgent) rank = 0", "option.kind === 'maintenance' && option.urgent) rank = 3", focusPriorities);
+    mutant("(option.kind === 'request' || !option.hasNewInbound)", 'true', focusFreshness);
+    mutant("['unknown', 'queued', 'pending_execution'].includes(option.delivery)", "option.delivery === 'unknown'", focusDeliveries);
+});
+console.log(`\n${passed} desk checks passed (17 semantic mutations).`);

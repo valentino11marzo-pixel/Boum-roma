@@ -43,6 +43,9 @@ try {
       assert.equal(await page.locator('#ogQuickTools [data-og-tool="home:new-client"]').count(), 0);
       assert.equal(await tool('new-client').count(), 1);
       assert.equal(await page.locator('#ogDeskFold').evaluate(el => el.open), true);
+      assert.equal(await page.locator('#ogDailyTools [data-og-shortcut]').count(), 4);
+      assert.equal(await page.locator('.ow-more-tools').evaluate(el => el.open), false);
+      await page.locator('.ow-more-tools > summary').click();
     };
     const noWrites = async () => {
       assert.deepEqual(await page.evaluate(() => ({ writes: testIO.writes, demoWrites: testIO.demoWrites, responses: testIO.responses })), { writes: [], demoWrites: [], responses: [] });
@@ -62,6 +65,7 @@ try {
       assert.equal(await page.locator('#mForm [name="contractId"] option[value="contratto-chiuso"]').count(), 0, 'A terminated contract is never selectable for a new payment');
     };
     const select = async (kind, query, text) => {
+      if (!await page.locator('.ow-search-options').evaluate(el => el.open)) await page.locator('.ow-search-options > summary').click();
       await page.locator('#ogWorkKind').selectOption(kind);
       await page.locator('#ogWorkQuery').fill(query);
       const result = page.locator('#ogWorkResults .ow-result').filter({ hasText: text || query });
@@ -89,7 +93,7 @@ try {
       console.log('PASS ' + width + ' ' + name);
     };
 
-    await check('sixteen visible launchers follow the open desk; explicit creation opens blank native forms', async () => {
+    await check('sixteen launchers remain reachable inside Altri strumenti; explicit creation opens blank native forms', async () => {
       assert.deepEqual(await page.locator('#ogQuickTools [data-og-tool]').evaluateAll(nodes => nodes.map(node => node.dataset.ogTool)), ids.map(id => 'home:' + id));
       for (const id of ids) assert.equal(await tool(id).isVisible(), true);
       assert.equal(await page.locator('#ogDeskFold').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('ogQuickTools')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
@@ -119,6 +123,7 @@ try {
       assert.equal(await page.locator('#mForm select[name="contractId"]').evaluate(el => el.required), true);
       await close();
       await page.getByRole('button', { name: '← Home', exact: true }).click();
+      await page.locator('.ow-more-tools > summary').click();
       assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     });
 
@@ -244,6 +249,7 @@ try {
           assert.equal(await page.evaluate(() => testIO.reads.includes('messages')), false);
 
           await page.getByRole('button', { name: '← Torna al contesto', exact: true }).click();
+          await page.locator('.ow-more-tools > summary').click();
           assert.deepEqual(await page.evaluate(() => [testState.page, oggiWorkspace.selected.kind, oggiWorkspace.selected.id]), ['oggi', kind, id]);
           assert.equal(await page.locator('#ogQuickContext strong').innerText(), label);
           assert.equal(await page.locator('#ogWorkQuery').inputValue(), query);
@@ -290,6 +296,7 @@ try {
     });
 
     await check('typing a name does not select it; explicit property selection targets the exact ID', async () => {
+      await page.locator('.ow-search-options > summary').click();
       await page.locator('#ogWorkKind').selectOption('property');
       await page.locator('#ogWorkQuery').fill('Casa Aurora');
       assert.equal(await page.locator('#ogWorkResults .ow-result').count(), 2, 'Homonyms stay distinct');
@@ -323,6 +330,7 @@ try {
       assert.equal(await page.locator('#mForm [name="status"]').inputValue(), 'pending');
       await close();
       await page.getByRole('button', { name: '← Home', exact: true }).click();
+      await page.locator('.ow-more-tools > summary').click();
       await tool('maintenance').click();
       assert.equal(await page.locator('#mForm [name="propertyId"]').inputValue(), 'casa-seconda');
       await close();

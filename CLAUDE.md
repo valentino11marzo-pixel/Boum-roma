@@ -3825,6 +3825,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   prima dell’approvazione; l’apertura filtra lo stesso ID, senza approvare o inviare.
   Prove `oggidesk` e `oggideskui`: formato reale con dati sintetici, tre card distinte,
   testo escapato, mobile/desktop, zero scritture e mutazioni del mapping.
+  Dal 25/10 Oggi apre una sola pratica focale e due righe successive: `focus()`
+  ordina fonti recenti e urgenze verificate; il tap rilegge lo stesso caso in review.
+  Quattro strumenti immediati, catalogo completo e fonti dietro approfondimenti;
+  coda/filtri hanno un solo ingresso e la selezione porta il focus ai risultati.
+  Le righe compatte usano la proposta corrente validata, mai il vecchio prossimo passo.
+  Zoom consentito nel viewport, campi a 16px e resize nella stessa sessione conservano
+  bozza e caso: `oggideskui`, `oggibriefingui`, `oggiquicktoolsui`, `portalnavigationui`.
+  Matrice adattiva 320–1280 CSS px; non è un’emulazione certificata di uno specifico iPhone.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

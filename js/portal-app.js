@@ -6534,7 +6534,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             : labels[m?.status] || 'Preparazione AI: stato da verificare.';
         const last = Date.parse(m?.lastRunAt || '');
         const stamp = Number.isFinite(last) ? ' Ultimo ciclo: ' + new Date(last).toLocaleString('it-IT', { timeZone: 'Europe/Rome', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) + ' (Roma).' : '';
-        return `<div class="od-coverage"><p>${esc(label)}${m?.incomplete || m?.queueIncomplete ? ' Lettura della preparazione parziale.' : ''}</p><details data-desk-coverage><summary>Fonti e aggiornamento · copertura parziale</summary><p>${esc(stamp.trim())}</p><p>${esc(state?.summary || 'Email e WhatsApp: stato ancora da verificare.')}</p><p>Il riepilogo usa le conversazioni e le pratiche caricate nel Portal. La lettura delle conversazioni è limitata alle più recenti; non certifica tutta la casella o WhatsApp.</p><p>Portali immobiliari: sono inclusi i dati già acquisiti in BOOM. L’allineamento con i portali esterni non è verificato da questo riepilogo.</p></details></div>`;
+        return `<div class="od-coverage"><details data-desk-coverage><summary><span>${esc(label)}</span><span>Fonti parziali · dettagli</span></summary>${m?.incomplete || m?.queueIncomplete ? '<p>Lettura della preparazione parziale.</p>' : ''}<p>${esc(stamp.trim())}</p><p>${esc(state?.summary || 'Email e WhatsApp: stato ancora da verificare.')}</p><p>Il riepilogo usa le conversazioni e le pratiche caricate nel Portal. La lettura delle conversazioni è limitata alle più recenti; non certifica tutta la casella o WhatsApp.</p><p>Portali immobiliari: sono inclusi i dati già acquisiti in BOOM. L’allineamento con i portali esterni non è verificato da questo riepilogo.</p></details></div>`;
     }
     window.oggiDeskConversation = function(cid) {
         if (!isAdmin() || !auth.currentUser || document.body.classList.contains('modal-open')) return;
@@ -6551,8 +6551,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ...(dateOnly ? {} : { hour: '2-digit', minute: '2-digit' })
         });
     }
-    function oggiDeskCard(item) {
+    function oggiDeskCard(item, compact = false) {
         const reading = oggiDeskReading(item), p = reading?.p;
+        const compactText = p ? p.nextAction.text : item.nextAction === 'Esamina la richiesta' && item.preview ? item.preview : item.nextAction;
+        if (compact) return `<article class="od-compact" data-desk-item="${esc(item.id)}"><button type="button" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}"><span><small>${esc(item.hasNewInbound ? 'Nuovo messaggio · contesto da aggiornare' : p ? 'Proposta da rivedere' : item.sourceLabel || 'Da esaminare')}</small><h3>${esc(item.title)}</h3><span class="od-compact-next">${esc(compactText)}</span></span><span aria-hidden="true">↗</span></button></article>`;
         const status = item.hasNewInbound ? 'Nuovo messaggio · contesto da aggiornare'
             : p ? 'Sintesi AI · da verificare' : item.urgent ? 'Da controllare con priorità' : 'Prossimo passo';
         const next = p ? p.nextAction.text : item.nextAction;
@@ -6562,26 +6564,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${p && item.reason === 'Ricontrollo dovuto' ? '<p class="sg-context-notice">Il ricontrollo del seguito è già dovuto.</p>' : ''}
             ${p ? `<small>Fonte ricevuta: ${oggiSegretariaSourceDate(reading.task)} · ${oggiSegretariaPreparedDate(p)}</small>` : ''}
             <dl class="od-case-meta"><div><dt>Prossimo attore</dt><dd>${esc(p ? 'Valentino · rivedere la proposta' : item.ownership || 'Da confermare')}</dd></div><div><dt>${esc(timing.timing?.label || 'Ricontrollo')} · Roma</dt><dd>${esc(oggiDeskTiming(timing))}</dd></div></dl>`;
-        return `<article class="od-case" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status">${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
+        return `<article class="od-case od-focus" data-desk-item="${esc(item.id)}"><div class="od-case-copy"><p class="od-case-status"><span>Da te serve questo</span> · ${esc(status)}${item.signals.length + item.caseIds.length > 1 ? ' · ' + (item.signals.length + item.caseIds.length) + ' passaggi collegati' : ''}</p><h3>${esc(item.title)}</h3>
             ${p ? `<p class="od-ai-summary">${esc(p.summary)}</p>` : item.preview ? `<p class="od-source-preview"><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}
             ${p && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-context-notice">Servono informazioni verificate prima di confermare.</p>' : ''}
-            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> <span>${esc(next)}</span></p>${reason ? `<small><strong>Perché:</strong> ${esc(reason)}</small>` : ''}
-            ${p ? '' : evidence}</div>
-            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button>${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Fonte e passaggi · ${esc(p ? 'Proposta AI' : item.sourceLabel || 'Portale')}</button>` : ''}</div>
-            ${p ? `<details class="od-case-evidence" data-desk-evidence="${esc(item.id)}"><summary data-desk-key="evidence-${esc(item.id)}">${p.uncertainties?.length || p.coverage?.incomplete || p.identityBlocked || p.status !== 'ready' ? 'Da chiarire prima di decidere' : 'Fonti e ricontrollo'}</summary>${evidence}</details>` : ''}</article>`;
+            <p class="od-next"><strong>${p ? 'Passo proposto' : 'Prossimo passo'}:</strong> <span>${esc(next)}</span></p>
+            </div>
+            <div class="od-case-actions"><button type="button" class="btn btn-sm" data-desk-key="act-${esc(item.id)}" data-desk-act="${esc(item.id)}">${esc(p ? 'Rivedi proposta' : item.action?.label || 'Apri il prossimo passo')} ↗</button></div>
+            ${`<details class="od-case-evidence" data-desk-evidence="${esc(item.id)}"><summary data-desk-key="evidence-${esc(item.id)}">${p && (p.uncertainties?.length || p.coverage?.incomplete || p.identityBlocked || p.status !== 'ready') ? 'Da chiarire prima di decidere' : 'Fonte e dettagli'}</summary>${p ? `<p>${esc(p.summary)}</p>` : item.preview ? `<p><strong>Messaggio ricevuto:</strong> ${esc(item.preview)}</p>` : ''}${reason ? `<p><strong>Perché:</strong> ${esc(reason)}</p>` : ''}${evidence}${item.signalIds.length + item.caseIds.length ? `<button class="ow-link" type="button" data-desk-key="details-${esc(item.id)}" data-desk-details="${esc(item.id)}">Apri tutti i passaggi</button>` : ''}</details>`}</article>`;
     }
     function oggiDeskRender() {
         const panel = document.getElementById('ogDeskPanel');
         if (!panel || !isAdmin()) return;
         const model = oggiDeskModel();
         if (!model) { panel.innerHTML = '<p role="alert">Il quadro del lavoro non è disponibile. La coda completa resta consultabile sotto.</p>'; return; }
-        const focused = panel.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
+        const optionsTarget = document.getElementById('ogDeskOptions');
+        const focused = panel.contains(document.activeElement) || optionsTarget?.contains(document.activeElement) ? document.activeElement?.dataset.deskKey : null;
         const coverageOpen = panel.querySelector('[data-desk-coverage]')?.open === true;
         const evidenceOpen = new Set([...panel.querySelectorAll('[data-desk-evidence][open]')].map(el => el.dataset.deskEvidence));
         const all = model.areas.flatMap(a => a.items), urgent = all.filter(i => i.urgent);
         if (oggiWorkspace.deskArea !== 'all' && !model.areas.some(a => a.id === oggiWorkspace.deskArea)) oggiWorkspace.deskArea = 'all';
         const area = model.areas.find(a => a.id === oggiWorkspace.deskArea);
-        const items = oggiWorkspace.deskArea === 'all' ? model.currentItems : area?.items || [], pageSize = 3, pages = Math.max(1, Math.ceil(items.length / pageSize));
+        const focus = window.BOOM_OGGI_DESK?.focus?.(model, { nowISO: new Date().toISOString() });
+        const items = oggiWorkspace.deskArea === 'all' ? focus?.items || [] : area?.items || [], pageSize = 3, pages = Math.max(1, Math.ceil(items.length / pageSize));
         oggiWorkspace.deskPage = Math.min(oggiWorkspace.deskPage || 0, pages - 1);
         const start = oggiWorkspace.deskPage * pageSize, shown = items.slice(start, start + pageSize);
         const issues = [
@@ -6596,25 +6600,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const summary = document.getElementById('ogDeskSummary');
         if (summary) summary.textContent = [urgent.length ? urgent.length + ' con priorità' : 'Richieste e prossimi passi', 'Fonti parziali'].join(' · ');
         panel.innerHTML = `
-            ${oggiDeskCoverage()}
             ${issues.length ? `<p class="ow-source-note" role="status">${issues.map(esc).join(' ')} <button type="button" class="ow-link" data-desk-key="refresh" data-desk-refresh>Riprova aggiornamento</button></p>` : ''}
             ${urgent.length ? `<div class="od-alert" role="status"><strong>${urgent.length} ${urgent.length === 1 ? 'caso' : 'casi'} con incassi, scadenze o interventi urgenti</strong><button class="ow-link" data-desk-key="urgent" data-desk-archive="urgent" type="button">Apri le priorità ↗</button></div>` : ''}
 
-            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? shown.map(oggiDeskCard).join('') : '<p class="ow-empty">Nessuna priorità emersa dai dati caricati. Le fonti parziali non permettono di concludere che sia tutto gestito.</p>'}</div>
+            ${area ? `<h2 id="ogDeskSelection" class="od-selection-title" tabindex="-1">Pratiche · ${esc(area.label)}</h2>` : ''}
+            <div class="od-cases" aria-label="Pratiche del percorso">${shown.length ? oggiDeskCard(shown[0]) + (shown.length > 1 ? '<div class="od-up-next"><h2>Subito dopo</h2>' + shown.slice(1).map(item => oggiDeskCard(item, true)).join('') + '</div>' : '') : '<p class="ow-empty">Nessuna priorità emersa dai dati caricati. Le fonti parziali non permettono di concludere che sia tutto gestito.</p>'}</div>
             ${pages > 1 ? `<nav class="od-pagination" aria-label="Pagine delle pratiche"><button class="ow-link" type="button" data-desk-key="prev" data-desk-page="-1" ${start ? '' : 'disabled'}>← Precedenti</button><span>${start + 1}–${start + shown.length} di ${items.length} pratiche</span><button class="ow-link" type="button" data-desk-key="next" data-desk-page="1" ${oggiWorkspace.deskPage + 1 < pages ? '' : 'disabled'}>Successive →</button></nav>` : ''}
-            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
+            ${oggiDeskCoverage()}
+            <p class="od-reading-note">Nessun invio all’apertura.</p>`;
+        if (optionsTarget) optionsTarget.innerHTML = `            <div class="od-areas" role="group" aria-label="Scegli il lavoro">${[{ id: 'all', label: 'Prima le priorità', count: model.currentItems.length }, ...model.areas].map(a => `<button type="button" data-desk-area="${esc(a.id)}" data-desk-key="area-${esc(a.id)}" aria-pressed="${a.id === oggiWorkspace.deskArea}"><span>${esc(a.label)}</span><strong>${a.count}</strong></button>`).join('')}</div>
             <div class="od-secondary-signals">
             ${model.coverage.newUnlinkedCount ? `<div class="od-alert" role="status"><strong>${model.coverage.newUnlinkedCount} ${model.coverage.newUnlinkedCount === 1 ? 'richiesta recente' : 'richieste recenti'} da esaminare</strong><button class="ow-link" data-desk-key="unlinked" data-desk-archive="unlinked" type="button">Controlla le richieste ↗</button></div>` : ''}
             ${model.coverage.recordVerificationCount ? `<div class="od-alert" role="status"><strong>${model.coverage.recordVerificationCount} ${model.coverage.recordVerificationCount === 1 ? 'verifica contrattuale o amministrativa' : 'verifiche contrattuali o amministrative'}: dati incompleti o discordanti</strong><button class="ow-link" data-desk-key="verification" data-desk-archive="verification" type="button">Verifica i riferimenti ↗</button></div>` : ''}
 
             </div>
             <div class="od-later"><button type="button" data-desk-key="history" data-desk-archive="history"><strong>Da riallineare <span>${model.history.length}</span></strong><small>Richieste precedenti, date e collegamenti da verificare. Restano aperti.</small></button><button type="button" data-desk-key="waiting" data-desk-archive="waiting"><strong>In attesa <span>${model.waiting.length}</span></strong><small>Risposte di clienti o collaboratori, con ricontrollo futuro.</small></button></div>
-            <nav class="od-heading" aria-label="Altre attività"><button class="ow-link" data-desk-key="all" data-desk-archive="all" type="button">Tutta la coda ↗</button></nav>
-            <p class="ow-hint od-reading-note">Sintesi delle fonti disponibili · Nessun invio all’apertura.</p>`;
+
+`;
         panel.onclick = event => {
             const button = event.target.closest('button');
-            if (!button || !panel.contains(button)) return;
-            if (button.dataset.deskArea) { oggiWorkspace.deskArea = button.dataset.deskArea; oggiWorkspace.deskPage = 0; oggiDeskRender(); }
+            if (!button || (!panel.contains(button) && !optionsTarget?.contains(button))) return;
+            if (button.dataset.deskArea) {
+                oggiWorkspace.deskArea = button.dataset.deskArea; oggiWorkspace.deskPage = 0; oggiDeskRender();
+                const fold = document.getElementById('ogDeskFold'); if (fold) fold.open = true;
+                const heading = document.getElementById('ogDeskSelection') || fold?.querySelector('summary');
+                heading?.scrollIntoView({ block: 'start', behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+                heading?.focus({ preventScroll: true });
+            }
             else if (button.dataset.deskPage) { oggiWorkspace.deskPage = Math.max(0, (oggiWorkspace.deskPage || 0) + Number(button.dataset.deskPage)); oggiDeskRender(); }
             else if (button.dataset.deskAct) oggiDeskAct(button.dataset.deskAct);
             else if (button.dataset.deskDetails) oggiDeskArchive('item', button.dataset.deskDetails);
@@ -6622,12 +6634,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             else if (button.hasAttribute('data-desk-refresh')) { portalFreshnessRecover(); oggiSegretariaLoad(true); oggiLoadProposals(true); }
         };
         for (const el of panel.querySelectorAll('[data-desk-evidence]')) el.open = evidenceOpen.has(el.dataset.deskEvidence);
+        if (optionsTarget) optionsTarget.onclick = panel.onclick;
         if (coverageOpen && panel.querySelector('[data-desk-coverage]')) panel.querySelector('[data-desk-coverage]').open = true;
-        if (focused) [...panel.querySelectorAll('[data-desk-key]')].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
+        if (focused) [...panel.querySelectorAll('[data-desk-key]'), ...(optionsTarget?.querySelectorAll('[data-desk-key]') || [])].find(el => el.dataset.deskKey === focused)?.focus({ preventScroll: true });
     }
     window.oggiDeskAct = function(id) {
         if (!isAdmin() || document.body.classList.contains('modal-open') || document.querySelector('.modal-overlay.active')) return;
-        const item = oggiDeskItems(oggiDeskModel()).find(i => i.id === id), action = item?.action;
+        const model = oggiDeskModel();
+        const focused = oggiWorkspace.deskArea === 'all' ? window.BOOM_OGGI_DESK?.focus?.(model, { nowISO: new Date().toISOString() })?.items || [] : [];
+        const item = oggiWorkspace.deskArea === 'all' ? focused.find(i => i.id === id) : oggiDeskItems(model).find(i => i.id === id), action = item?.action;
+        if (!item) return oggiDeskRender();
         // The desk only opens existing workflows. It cannot approve, send, mark paid or sign.
         const safe = ['viewContract', 'viewContractSignatures', 'viewMaintenance', 'viewLead', 'oggiOpenPa', 'goTo', 'oggiSegretariaOpen', 'oggiDeskConversation'];
         if (!action || !safe.includes(action.fn) || typeof window[action.fn] !== 'function') return oggiDeskArchive('item', id);
@@ -6739,9 +6755,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + (paths[id] || paths.people) + '</svg>';
     }
-    function oggiQuickTools() {
-        const tools = window.BOOM_ACTIONS?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
-        return tools.length ? tools.map(t => `<button class="ow-tool" type="button" data-og-tool="${esc(t.id)}" title="${esc(t.disabled ? t.reason : t.description)}" onclick="oggiQuickTool(this.dataset.ogTool)" ${t.disabled ? 'disabled' : ''}><span class="ow-tool-icon" aria-hidden="true">${oggiToolIcon(t.id.replace('home:', ''))}</span><span class="ow-tool-copy"><strong>${esc(t.label)}</strong><span class="${t.disabled ? 'ow-tool-disabled' : 'sr-only'}">${esc(t.disabled ? t.reason : t.description)}</span></span></button>`).join('')
+    function oggiQuickTools(quick = false) {
+        const allTools = window.BOOM_ACTIONS?.homeTools?.(oggiQuickContext(), S, new Date().getFullYear()) || [];
+        const tools = quick ? ['home:whatsapp', 'home:email', 'home:appointments', 'home:document'].map(id => allTools.find(t => t.id === id)).filter(Boolean) : allTools;
+        return tools.length ? tools.map(t => `<button class="ow-tool" type="button" ${quick ? 'data-og-shortcut' : 'data-og-tool'}="${esc(t.id)}" title="${esc(t.disabled ? t.reason : t.description)}" onclick="oggiQuickTool(this.dataset.ogTool || this.dataset.ogShortcut)" ${t.disabled ? 'disabled' : ''}><span class="ow-tool-icon" aria-hidden="true">${oggiToolIcon(t.id.replace('home:', ''))}</span><span class="ow-tool-copy"><strong>${esc(quick ? ({ 'home:appointments': 'Agenda', 'home:document': 'Documenti' }[t.id] || t.label) : t.label)}</strong><span class="${t.disabled ? 'ow-tool-disabled' : 'sr-only'}">${esc(t.disabled ? t.reason : t.description)}</span></span></button>`).join('')
             : '<p class="ow-source-note">La selezione non è più disponibile. Ripeti la ricerca per aprire uno strumento.</p>';
     }
     function oggiQuickContextLabel() {
@@ -6764,10 +6781,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiQuickToolsRender() {
         const target = document.getElementById('ogQuickTools'), context = document.getElementById('ogQuickContext');
         if (!target || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const daily = document.getElementById('ogDailyTools');
         const focused = target.contains(document.activeElement) ? document.activeElement.closest('[data-og-tool]')?.dataset.ogTool : null;
+        const shortcut = daily?.contains(document.activeElement) ? document.activeElement.closest('[data-og-shortcut]')?.dataset.ogShortcut : null;
         target.innerHTML = oggiQuickTools();
+        if (daily) daily.innerHTML = oggiQuickTools(true);
         if (context) context.innerHTML = oggiQuickContextLabel();
         if (focused) [...target.querySelectorAll('[data-og-tool]')].find(b => b.dataset.ogTool === focused)?.focus({ preventScroll: true });
+        if (shortcut) [...daily.querySelectorAll('[data-og-shortcut]')].find(b => b.dataset.ogShortcut === shortcut)?.focus({ preventScroll: true });
     }
     window.oggiQuickTool = function(id) {
         if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
@@ -6890,16 +6911,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.oggiClearInboxScope = function() { if(!portalSearchAuthorized())return; S.inboxContext=null;_inboxState.homeContext=null;_inboxState.convId=null;inboxRefresh(); };
     function oggiWorkspacePanel(withTools = true) {
-        return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca casa, persona o documento…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"><span aria-hidden="true">⌕</span></div>
-            <div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div>
+        return `<section class="ow-workbench" aria-label="Trova e collega"><div class="ow-search"><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><span aria-hidden="true">⌕</span><input id="ogWorkQuery" value="${esc(oggiWorkspace.query)}" autocomplete="off" maxlength="120" placeholder="Cerca una persona, una casa…" oninput="oggiWorkspaceSearch(this.value)" onfocus="if(!oggiWorkspace.selected)oggiWorkspaceSearch(this.value,true)"></div>
+            <details class="ow-search-options"><summary>Opzioni di ricerca e fonti</summary><label for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">${[['all','Tutto'], ...Object.entries(window.BOOM_PORTAL_SEARCH?.KINDS || {}).map(([kind, meta]) => [kind, meta.plural])].map(([key,label]) => `<option value="${key}" ${oggiWorkspace.kind === key ? 'selected' : ''}>${label}</option>`).join('')}</select><div class="portal-mailbox-entry"><details class="ow-search-sources" ontoggle="if(this.open)portalSearchSourcesRender()"><summary>Fonti e archivio</summary><div id="ogSearchSources"></div></details><button type="button" class="btn btn-sm btn-secondary" onclick="portalOpenMailbox()">Cerca nelle email ↗</button></div></details>
             <div id="ogWorkResults" aria-live="polite"></div>
         </section>${withTools ? oggiQuickToolsPanel() : ''}`;
     }
     function oggiQuickToolsPanel() {
-        return `<section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><header class="ow-tools-head"><h2 id="ogToolsTitle">I tuoi strumenti</h2><span>16 accessi rapidi</span></header><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
-            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button></nav>
+        return `<section class="ow-toolbox portal-home-tools" aria-labelledby="ogToolsTitle"><header class="ow-tools-head"><h2 id="ogToolsTitle">A portata di mano</h2></header><div class="ow-tools-grid ow-daily-tools" id="ogDailyTools">${oggiQuickTools(true)}</div><details class="ow-more-tools"><summary>Altri strumenti</summary><div id="ogQuickContext" class="ow-active-context">${oggiQuickContextLabel()}</div><div class="ow-tools-grid" id="ogQuickTools">${oggiQuickTools()}</div>
+            <nav class="ow-shortcuts" aria-label="Scorciatoie quotidiane"><button type="button" data-og-tool="home:new-client" onclick="oggiQuickTool(this.dataset.ogTool)">＋ Nuovo cliente</button><button type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta</button><button type="button" onclick="goTo('boom-tools')">Tutti gli strumenti ↗</button><button type="button" onclick="goTo('dashboard')">Riepilogo azienda ↗</button></nav>${oggiToolLibrary()}</details>
         </section>`;
     }
+
     async function oggiLoadViewings() {
         if (!isAdmin() || !auth.currentUser) return false;
         const user = auth.currentUser, generation = S._viewingsGeneration = (S._viewingsGeneration || 0) + 1;
@@ -6970,20 +6992,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
         const name = (S.profile?.name || 'Valentino').split(' ')[0];
         return `<div class="ow-home portal-home">
-            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><a class="ow-tools-jump" href="#ogToolsTitle" onclick="event.preventDefault();document.getElementById('ogToolsTitle').scrollIntoView({block:'start'});document.querySelector('#ogQuickTools button')?.focus({preventScroll:true})">Strumenti ↓</a><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
+            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><a class="ow-tools-jump" href="#ogToolsTitle" onclick="event.preventDefault();document.getElementById('ogToolsTitle').scrollIntoView({block:'start'});document.querySelector('#ogDailyTools button')?.focus({preventScroll:true})">Strumenti ↓</a><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
             ${oggiWorkspacePanel(false)}
             <div class="ow-daily-layout">
-            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Il punto di oggi</span><small id="ogDeskSummary">Richieste, sintesi AI e prossimi passi</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
+            <details class="ow-fold portal-home-work" id="ogDeskFold" ${oggiWorkspace.deskOpen ? 'open' : ''} ontoggle="oggiWorkspace.deskOpen=this.open"><summary><span>Un passo alla volta.</span><small id="ogDeskSummary" class="sr-only">Richieste e prossimi passi</small></summary><section id="ogDeskPanel" class="od-panel" aria-label="Il lavoro per risultato"></section></details>
             ${oggiQuickToolsPanel()}</div>
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
-            <div class="ow-columns"><details id="ogQueueArchive" class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa e verifiche</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><button class="ow-link od-show-all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
+            <div class="ow-columns"><details id="ogQueueArchive" data-desk-options class="ow-fold od-archive" ${oggiWorkspace.archiveOpen ? 'open' : ''} ontoggle="oggiWorkspace.archiveOpen=this.open"><summary><span>Coda completa</span><small id="ogArchiveScope">${esc(oggiWorkspace.deskScope)}</small></summary><div id="ogDeskOptions" class="od-options"></div><button class="ow-link od-show-all" data-desk-archive="all" type="button" onclick="oggiDeskArchive('all')">Mostra tutta la coda</button><section id="ogWorkQueue" class="ow-work-queue" aria-label="Il tuo lavoro">
                 <header class="ow-section-head"><h2 id="ogQueueTitle" tabindex="-1">Serve una tua decisione</h2><button class="ow-link" type="button" data-sg-action="refresh" onclick="portalFreshnessRecover();oggiSegretariaLoad(true)" aria-label="Aggiorna i seguiti">Aggiorna seguiti</button></header>
                 <div class="ow-filters" role="group" aria-label="Filtra il lavoro">${[['decisions','Da decidere'],['preparing','Da preparare'],['following','In corso']].map(([key,label]) => `<button type="button" data-ow-view="${key}" aria-pressed="${oggiWorkspace.view === key}" onclick="oggiWorkView('${key}')">${label} <span>…</span></button>`).join('')}</div>
                 <p id="ogQueueDescription" class="ow-hint">Scelte e verifiche che richiedono il tuo intervento.</p>
                 <section id="ogDecisionPanel" aria-label="Decisioni dal portale">${oggiDecisionPanel()}</section>
                 <div id="ogFollowTools">${oggiSegretariaPanel()}</div>
                 <p id="ogQueueEmpty" class="ow-empty" hidden></p>
-            </section></details><aside><section id="ogAgendaPanel" class="ow-agenda-panel" aria-label="Agenda visite">${oggiAgendaPanel()}</section>${oggiToolLibrary()}</aside></div>
+            </section></details><aside><details class="ow-fold ow-agenda-fold"><summary>Agenda e visite</summary><section id="ogAgendaPanel" class="ow-agenda-panel" aria-label="Agenda visite">${oggiAgendaPanel()}</section></details></aside></div>
         </div>`;
     }
 

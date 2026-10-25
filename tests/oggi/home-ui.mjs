@@ -32,6 +32,8 @@ try{
    assert.equal(await page.locator('#ogWorkBriefing').count(),0);
    assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+   assert.equal(await page.locator('.ow-agenda-fold').evaluate(el=>el.open),false);
+   await openDetails('.ow-agenda-fold');
    assert(await page.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible());
   });
   await check(width+' ricerca unica trova clienti, immobili e contratti senza una categoria iniziale',async()=>{
@@ -44,10 +46,10 @@ try{
    kinds.push(...await page.evaluate(()=>oggiWorkspace.records.map(r=>r.kind)));
    assert(kinds.includes('client'));assert(kinds.includes('property'));assert(kinds.includes('contract'));
    assert.equal(kinds.filter(k=>k==='client').length,15);
-   await page.locator('#ogWorkKind').selectOption('client');
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('client');
    assert.equal(await page.locator('.ow-result').count(),12);
    assert.match(await page.locator('#ogWorkResults').innerText(),/1–12 di 15/);
-   await page.locator('#ogWorkQuery').fill('');await page.locator('#ogWorkKind').selectOption('all');
+   await page.locator('#ogWorkQuery').fill('');await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('all');
    assert.equal(await page.evaluate(()=>testIO.actions.length),0);
   });
   await check(width+' decisioni, fonte telefonica e review usano il caso esistente senza AI',async()=>{
@@ -72,7 +74,7 @@ try{
    assert.equal(proposal.waiting,false,'una proposta non approvata non eredita l’attesa del seguito precedente');
    assert(proposal.current,'la proposta recente resta raggiungibile tra i casi correnti');
    assert.equal(proposal.current.reason,'Proposta da rivedere');
-   await openDetails('#ogDeskFold');await page.locator('[data-desk-area="contracts"]').click();
+   await openDetails('#ogDeskFold');await openDetails('[data-desk-options]');await page.locator('[data-desk-area="contracts"]').click();
    const deskCase=page.locator('[data-desk-item="'+proposal.current.id+'"]');
    assert(await deskCase.isVisible());assert.doesNotMatch(await deskCase.innerText(),/Confermato/i);
    assert.match(await deskCase.innerText(),/Sintesi AI · da verificare/);
@@ -128,7 +130,7 @@ try{
    await page.evaluate(()=>{S._paError=false;oggiWorkView('decisions');});
   });
   await check(width+' stesso contesto, caso ambiguo separato e passaggio al contratto',async()=>{
-   await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
    assert.deepEqual(await page.evaluate(()=>oggiWorkspace.related.map(r=>r.kind+':'+r.id).sort()),['contract:contratto-demo','maintenance:guasto-demo']);
    assert.equal(await page.locator('#ogContextDetails').evaluate(e=>e.open),false);
    await openDetails('#ogContextDetails');
@@ -139,13 +141,13 @@ try{
    assert.equal(await page.locator('#ogContextConnections details[data-ow-fold="cases"]').evaluate(e=>e.open),true);
    await page.locator('.ow-related button').filter({hasText:'Contratto'}).click();
    assert.equal(await page.evaluate(()=>oggiWorkspace.selected.id),'contratto-demo');
-   await page.locator('[data-og-tool="home:inventory"]').click();
+   await openDetails('.ow-more-tools');await page.locator('[data-og-tool="home:inventory"]').click();
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?c=contratto-demo']);
    await page.evaluate(()=>{testIO.actions.length=0;});
-   await page.locator('#ogWorkKind').selectOption('property');
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('property');
   });
   await check(width+' il fascicolo reale si apre e torna alla lista senza scritture',async()=>{
-   await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
    await openDetails('#ogContextDetails');
    await page.locator('.ow-context-actions button').filter({hasText:"Apri l'immobile"}).click();
    await page.waitForSelector('#pdos-title');assert.equal(await page.locator('#pdos-title').innerText(),'Casa Aurora');
@@ -157,16 +159,17 @@ try{
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');
    assert.equal(await page.locator('.ow-result').count(),1);assert.equal(await page.evaluate(()=>testIO.actions.length),0);
-   await page.locator('.ow-result').click();await page.locator('[data-og-tool="home:inventory"]').click();
+   await page.locator('.ow-result').click();await openDetails('.ow-more-tools');await page.locator('[data-og-tool="home:inventory"]').click();
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?p=casa-demo']);
-   await page.locator('#ogWorkKind').selectOption('person');await page.locator('#ogWorkQuery').fill('Persona');
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('person');await page.locator('#ogWorkQuery').fill('Persona');
    await page.locator('.ow-result').click();assert(await page.locator('.ow-context-actions button').count()>0);
    await openDetails('#ogContextDetails');
    await page.locator('.ow-context-actions button').first().click();assert.equal(await page.evaluate(()=>testIO.actions.at(-1)[0]),'openPerson');
-   await page.locator('#ogWorkKind').selectOption('contract');await page.locator('#ogWorkQuery').fill('Aurora');assert.equal(await page.locator('.ow-result').count(),1);
+   await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('contract');await page.locator('#ogWorkQuery').fill('Aurora');assert.equal(await page.locator('.ow-result').count(),1);
   });
   await check(width+' data mostrata e precompilata rispettano lo spostamento',async()=>{
-   await page.locator('#ogAgendaPanel').getByRole('button',{name:/Verifica e conferma/}).click();
+   if(await page.locator('#toasts button').count())await page.locator('#toasts button').click();
+   await openDetails('.ow-agenda-fold');await page.locator('#ogAgendaPanel').getByRole('button',{name:/Verifica e conferma/}).click();
    const action=await page.evaluate(()=>testIO.actions.at(-1));assert.equal(action[0],'confirmViewingModal');
    const expected=await page.evaluate(()=>{const d=new Date(S.viewingRequests[1].proposedDateTime);return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')});
    assert.equal(action[2].time,expected);
@@ -185,7 +188,7 @@ try{
    await page.evaluate(async()=>{testIO.failViewings=false;testIO.failProposals=false;await oggiLoadViewings();await oggiLoadProposals(true);});await page.waitForTimeout(220);
   });
   await check(width+' permessi, escaping e nessun overflow',async()=>{
-   await page.evaluate(()=>{S.properties.push({id:'test-xss',name:'<img src=x onerror=alert(1)>',address:'test'});});await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('<img');
+   await page.evaluate(()=>{S.properties.push({id:'test-xss',name:'<img src=x onerror=alert(1)>',address:'test'});});await openDetails('.ow-search-options');await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('<img');
    assert.equal(await page.locator('#ogWorkResults img').count(),0);
    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
    const n=await page.evaluate(()=>testIO.actions.length);await page.evaluate(()=>{S.profile.role='tenant';oggiWorkspaceSelect(0);oggiAgendaAction(0);});assert.equal(await page.evaluate(()=>testIO.actions.length),n);
@@ -213,6 +216,7 @@ try{
   try{
    await p.clock.setFixedTime(new Date(instant));await p.goto(base);await p.waitForFunction(()=>oggiSegretaria.loaded);
    assert.equal(await p.evaluate(()=>S._viewingsSource),'ready');
+   await p.locator('.ow-agenda-fold > summary').click();
    assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible(),true);
    assert.equal(await p.locator('#ogAgendaPanel').getByText('Casa Giardino',{exact:true}).isVisible(),true);
    assert.deepEqual(await p.evaluate(()=>oggiWorkspace.agenda.map(v=>[v.id,v.dateKey,v.label])),[['v-demo',day,'Oggi'],['v-proposta',day,'Oggi']]);
