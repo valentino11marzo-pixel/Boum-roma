@@ -68,6 +68,10 @@ async function run({ dry }) {
   }).length;
 
   // ── Le statistiche, una zona alla volta ───────────────────────────────
+  // Un annuncio senza zona non entra in NESSUNA statistica: se sono tutti
+  // così, il run scrive zero documenti e /meteo resta vuoto senza un errore.
+  // Il 30/09/2026 lo si è dovuto ricostruire dai log — ora il report lo dice.
+  const noZone = ledger.filter(l => !l.zoneSlug).length;
   const zones = [...new Set(ledger.map(l => l.zoneSlug).filter(Boolean))];
   const statsBySlug = {};
   let written = 0, published = 0;
@@ -108,12 +112,14 @@ async function run({ dry }) {
 
   const counts = {
     ledger: ledger.length, actives: actives.length, gone: gone.length,
-    zones: zones.length, zonesPublished: published, checkBacklog: backlog,
+    noZone, zones: zones.length, zonesPublished: published, checkBacklog: backlog,
     mandati: mandati.length,
   };
   const summary = [
     `${ledger.length} annunci a libro (${actives.length} vivi · ${gone.length} morti provate) · `
       + `${zones.length} zone, ${published} con campione sufficiente`,
+    noZone ? `⚠️ ${noZone} annunci SENZA zona (fuori da ogni statistica)`
+      + (zones.length ? '' : ' — nessuna zona da scrivere: /meteo resta vuoto') : '',
     mandati.length ? `🎯 ${mandati.length} candidati mandato (privati fermi oltre l'assorbimento) → /radar` : '',
     backlog > 50 ? `⚠️ ${backlog} verifiche di vita arretrate — gli occhi di Homie girano?` : '',
     rejectedLine(rejected),
