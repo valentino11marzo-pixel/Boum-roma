@@ -24,7 +24,7 @@ function withDelivery(row, error, delivery = 'needs_review') {
     deliveryResult: { id: row.id, actionId, confirmed: true, delivery, ...(error ? { error } : {}) } };
 }
 const build = (input = {}, engine = E) => engine.build({ state: state(), signals: [], rows: [], nowISO: NOW, ...input });
-const all = result => [...result.currentItems, ...result.history, ...result.waiting];
+const all = result => [...result.currentItems, ...result.history, ...result.waiting, ...(result.summaryItems || [])];
 let passed = 0;
 function check(name, test) { test(); passed++; console.log('PASS ' + name); }
 
@@ -391,6 +391,154 @@ check('browser UMD has no IO, reads no messages, does not mutate frozen inputs',
     assert(!/Date\.now\s*\(|new Date\(\s*\)/.test(source));
 });
 
+const conversation = (id = 'conversation-1', extra = {}) => ({ id, status: 'open', channel: 'whatsapp',
+    needsReply: true, lastDirection: 'in', lastMessageAt: '2026-10-13T09:30:00Z',
+    contactName: 'Contatto verificato', lastMessagePreview: 'Possiamo verificare i documenti?', ...extra });
+function incomingRequests(engine = E) {
+    const result = build({ conversations: [conversation(), conversation('email-1', { channel: 'email' })] }, engine);
+    assert.equal(result.currentItems.length, 2);
+    assert.equal(result.history.length, 0);
+    for (const row of result.currentItems) {
+        assert.equal(row.record, null); assert.equal(row.caseIds.length, 0);
+        assert.equal(row.action.fn, 'oggiDeskConversation');
+        assert.equal(row.action.args[0], row.conversationIds[0]);
+        assert.equal(row.timing.label, 'Ricevuta');
+        assert.equal(row.nextAction, 'Esamina la richiesta');
+        assert.equal(row.preview, 'Possiamo verificare i documenti?');
+    }
+}
+check('recent unanswered headers need neither practice nor manual task', incomingRequests);
+check('header eligibility never resurrects replied, closed, snoozed, old, future or duplicate requests', () => {
+    const headers = [conversation('replied', { lastDirection: 'out' }), conversation('answered', { needsReply: false }),
+        conversation('closed', { status: 'closed' }), conversation('snoozed', { status: 'snoozed' }),
+        conversation('old', { lastMessageAt: '2026-10-06T09:59:59Z' }), conversation('future', { lastMessageAt: '2026-10-14T09:00:00Z' }),
+        conversation('invalid', { lastMessageAt: '2026-02-30T09:00:00Z' }), conversation('duplicate'), conversation('duplicate')];
+    assert.equal(build({ conversations: headers }).counts.total, 0);
+    const timestamp = { seconds: Date.parse(NOW) / 1000, nanoseconds: 0 };
+    assert.equal(build({ conversations: [conversation('sdk', { lastMessageAt: timestamp })] }).currentItems.length, 1);
+});
+function incomingAfterCase(engine = E) {
+    const rows = [task(1, { conversationId: 'conversation-1', checkAt: '2026-10-14T10:00:00Z' })];
+    const result = build({ rows, conversations: [conversation()] }, engine);
+    assert.equal(result.currentItems.length, 1, 'new inbound remains visible over a previous external wait');
+    assert.equal(result.currentItems[0].action.fn, 'oggiDeskConversation');
+    assert.equal(result.waiting.length, 1, 'independent confirmed wait is preserved');
+    assert.equal(result.waiting[0].hasNewInbound, true, 'renderer must not use the old AI preparation');
+    assert.equal(result.currentItems[0].hasNewInbound, true);
+    const done = { ...rows[0], status: 'done' };
+    assert.equal(build({ rows: [done], conversations: [conversation()] }, engine).currentItems.length, 1);
+    done.followUp = { ...done.followUp, lastInboundAt: NOW };
+    assert.equal(build({ rows: [done], conversations: [conversation()] }, engine).currentItems.length, 0, 'recorded closed event is not reopened');
+}
+check('new message outruns stale open/done task without cancelling its obligation', incomingAfterCase);
+function incompleteClosures(engine = E) {
+    const result = build({ allowNewRequests: false, conversations: [conversation(), conversation('untracked')],
+        rows: [task(1, { conversationId: 'conversation-1', checkAt: '2026-10-14T10:00:00Z' })] }, engine);
+    assert.equal(result.currentItems.length, 0, 'without closure coverage do not resurrect an untracked request');
+    assert.equal(result.waiting.length, 1);
+    assert.equal(result.waiting[0].hasNewInbound, true, 'existing stale AI remains invalidated even when new requests are gated');
+}
+check('incomplete closure read still invalidates an old reading from a newer loaded header', incompleteClosures);
+function handledFreshness(engine = E) {
+    for (const changes of [{ needsReply: false }, { status: 'closed' }, { status: 'snoozed' }]) {
+        const result = build({ conversations: [conversation('conversation-1', changes)],
+            rows: [task(1, { conversationId: 'conversation-1', checkAt: '2026-10-14T10:00:00Z' })] }, engine);
+        assert.equal(result.currentItems.length, 0, 'handled or hidden requests are not recreated');
+        assert.equal(result.waiting[0].hasNewInbound, true, 'handling a header never validates an old reading');
+    }
+}
+check('handled, closed and snoozed inbound headers still invalidate old case readings', handledFreshness);
+function outboundFreshness(engine = E) {
+    const input = { conversations: [conversation('conversation-1', { lastDirection: 'out', needsReply: false })],
+        rows: [task(1, { conversationId: 'conversation-1', checkAt: '2026-10-14T10:00:00Z' },
+            { lastOutboundAt: NOW, preparation: { createdAt: '2026-10-13T09:00:00Z' } })] };
+    const old = build(input, engine);
+    assert.equal(old.currentItems.length, 0);
+    assert.equal(old.waiting[0].hasNewInbound, true, 'updated outbound task stamp cannot validate an older AI reading');
+    input.rows[0].preparation.createdAt = '2026-10-13T10:01:00Z';
+    const fresh = build({ ...input, nowISO: '2026-10-13T10:02:00Z' }, engine);
+    assert.equal(fresh.waiting[0].hasNewInbound, false, 'a preparation made after the reply is not invalidated');
+    delete input.rows[0].preparation;
+    assert.equal(build(input, engine).waiting[0].hasNewInbound, false, 'without AI a matching task outbound stamp is already current');
+}
+check('outbound evidence hides older AI without hiding a preparation made after the reply', outboundFreshness);
+check('explicit conversation projection is immutable and has no dependency on private message bodies', () => {
+    const conv = conversation();
+    Object.defineProperty(conv, 'messages', { get() { throw Error('Private messages must not be read'); } });
+    Object.freeze(conv); const conversations = Object.freeze([conv]);
+    const result = build({ conversations });
+    assert.equal(result.currentItems.length, 1);
+    assert.equal(conversations[0], conv); assert.equal(conv.lastMessagePreview, 'Possiamo verificare i documenti?');
+    assert.equal(result.currentItems[0].conversationIds[0], conv.id);
+});
+check('current exact task covers the same inbound; one-sided identities and duplicate task IDs do not', () => {
+    const rows = [task(1, { conversationId: 'conversation-1', lastInboundAt: NOW })];
+    const result = build({ rows, conversations: [conversation()] });
+    assert.equal(result.currentItems.length, 1); assert.deepEqual(result.currentItems[0].conversationIds, ['conversation-1']);
+    assert.equal(result.currentItems[0].hasNewInbound, false);
+    assert.equal(build({ rows, conversations: [conversation('other', { contactName: 'Contatto verificato' })] }).currentItems.length, 2);
+    assert(build({ rows: [rows[0], rows[0]], conversations: [conversation()] }).currentItems.some(x => x.action?.fn === 'oggiDeskConversation'));
+});
+check('recent unassigned case is readable without demanding a practice or a new deadline', () => {
+    const row = task(1, { practiceRef: null, confirmed: false, needsReview: true, preview: 'Richiesta ricevuta', conversationId: 'conversation-1' });
+    const result = build({ rows: [row] });
+    assert.equal(result.currentItems.length, 1); assert.equal(result.history.length, 0);
+    assert.equal(result.coverage.newUnlinkedCount, 0);
+    assert.equal(result.currentItems[0].nextAction, 'Esamina la richiesta');
+    assert.equal(result.currentItems[0].preview, 'Richiesta ricevuta');
+    assert.equal(result.currentItems[0].timing.value, row.followUp.lastInboundAt);
+    assert.equal(result.currentItems[0].action.fn, 'oggiSegretariaOpen');
+    const newer = build({ rows: [row], conversations: [conversation()] });
+    assert.equal(newer.currentItems.length, 1); assert.equal(newer.currentItems[0].hasNewInbound, true);
+    assert.equal(newer.currentItems[0].action.fn, 'oggiDeskConversation');
+    assert.equal(newer.currentItems[0].preview, conversation().lastMessagePreview);
+});
+function unknownUnassigned(engine = E) {
+    const row = task(1, { conversationId: 'conversation-1', practiceRef: null, confirmed: false, needsReview: true, lastInboundAt: NOW },
+        { deliveryResult: { error: 'delivery_state_unavailable' } });
+    const result = build({ rows: [row], conversations: [conversation()] }, engine);
+    assert.equal(result.currentItems.length, 0, 'unknown delivery is not promoted by a recent unassigned request');
+    assert.equal(result.history.length, 1);
+    assert.equal(result.history[0].reason, 'Esito dell’invio non disponibile');
+    assert.equal(result.coverage.newUnlinkedCount, 1);
+    assert.equal(result.coverage.unknownDeliveryCount, 1);
+    const newer = build({ rows: [row], conversations: [conversation('conversation-1', { lastMessageAt: '2026-10-13T10:01:00Z' })], nowISO: '2026-10-13T10:02:00Z' }, engine);
+    assert.equal(newer.history.length, 1, 'new evidence cannot hide uncertain earlier delivery');
+    assert.equal(newer.currentItems.length, 1); assert.equal(newer.currentItems[0].urgent, false);
+    assert.equal(newer.currentItems[0].score, 65);
+}
+check('unassigned request keeps unknown delivery in recovery with coverage even when header is loaded', unknownUnassigned);
+check('unassigned task is triage at the same rank as a header, never an artificial due action', () => {
+    const result = build({ rows: [task(1, { practiceRef: null, confirmed: false, needsReview: true })] });
+    assert.equal(result.currentItems[0].score, 65); assert.equal(result.currentItems[0].urgent, false);
+});
+function provenLead(engine = E) {
+    const lead = { id: 'lead-1', status: 'new', grade: 'A', conversationId: 'conversation-1' };
+    const s = state({ leads: [lead] }), signals = OGGI.build(s, NOW).decisions;
+    const conv = conversation('conversation-1', { contactType: 'lead', contactId: lead.id, leadId: lead.id });
+    const result = build({ state: s, signals, conversations: [conv] }, engine);
+    assert.equal(result.currentItems.length, 1); assert(result.currentItems[0].signalIds.includes('lead_lead-1'));
+    assert.equal(result.currentItems[0].action.fn, 'oggiDeskConversation');
+    const unproven = build({ state: state({ leads: [{ ...lead, conversationId: 'other' }] }), signals, conversations: [conv] }, engine);
+    assert.equal(unproven.currentItems.length, 2, 'one-way hint cannot merge the request');
+    const conflict = build({ state: s, signals, conversations: [{ ...conv, conversationBindingConflict: 'mismatch', lastMessagePreview: 'PRIVATE' }] }, engine);
+    assert.equal(conflict.currentItems.length, 2); assert(!JSON.stringify(conflict).includes('PRIVATE'));
+    const row = task(1, { conversationId: conv.id, practiceRef: null, confirmed: false, needsReview: true, lastInboundAt: NOW });
+    assert.equal(build({ state: s, signals, rows: [row], conversations: [conv] }, engine).currentItems.length, 1);
+}
+check('bidirectional lead link combines existing signal and incoming evidence, never an inferred person match', provenLead);
+function paymentSummary(engine = E) {
+    const s = state({ payments: Array.from({ length: 5 }, (_, n) => ({ id: 'p' + n, contractId: 'c1', status: 'overdue', dueDate: '2026-10-10', amount: 500 })) });
+    const signals = OGGI.build(s, NOW).decisions, result = build({ state: s, signals }, engine);
+    assert.equal(result.currentItems.length, 1); assert.equal(result.summaryItems.length, 1);
+    assert.equal(result.summaryItems[0].signalIds[0], 'pay_all');
+    assert.equal(result.summaryItems[0].action.fn, 'goTo'); assert.equal(result.summaryItems[0].action.args[0], 'payments');
+    assert.equal(result.history.length, 0); assert.equal(result.counts.total, 2);
+    assert.deepEqual(new Set(all(result).flatMap(x => x.signalIds)), new Set(signals.map(x => x.id)));
+    assert.equal(build({ state: s, signals: signals.filter(x => x.id === 'pay_all') }, engine).currentItems.length, 1, 'an aggregate alone remains visible');
+}
+check('financial total is reachable summary, not another priority or historical verification', paymentSummary);
+
 function mutant(before, after, verify) {
     assert(source.includes(before), 'mutation anchor exists');
     const context = { module: { exports: {} }, URL, Intl, Date };
@@ -409,4 +557,19 @@ check('mutation cannot hide a future Valentino action among external waits', () 
         "bucket = f.waitingOn === 'valentino' ? 'waiting' : 'current'; reason = 'Azione affidata a '", internalActions);
 });
 
-console.log(`\n${passed} desk checks passed (4 semantic mutations).`);
+check('mutations detect invisible requests, stale-case suppression, inferred lead joins and redundant totals', () => {
+    mutant('const headers = list(conversations)', 'const headers = []', incomingRequests);
+    mutant('return previous === null || previous < received;', 'return false;', incomingAfterCase);
+    mutant('lead?.conversationId === conv.id ? lead : null', 'lead ? lead : null', provenLead);
+    mutant("entry.bucket = 'summary'", "entry.bucket = 'current'", paymentSummary);
+});
+check('mutation cannot promote uncertain delivery into new work', () => {
+    mutant("f.ambiguous !== true && delivery !== 'unknown' && recent", 'f.ambiguous !== true && recent', unknownUnassigned);
+});
+check('mutation cannot hide new evidence when closure coverage is unavailable', () => {
+    mutant('const headers = list(conversations)', 'const headers = allowNewRequests ? list(conversations) : []', incompleteClosures);
+});
+check('mutation cannot ignore outbound evidence newer than a reading', () => {
+    mutant("!['in', 'out'].includes(conv.lastDirection)", "conv.lastDirection !== 'in'", outboundFreshness);
+});
+console.log(`\n${passed} desk checks passed (11 semantic mutations).`);

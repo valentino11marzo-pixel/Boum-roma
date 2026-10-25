@@ -28,7 +28,7 @@ try{
    assert.equal(await page.locator('#ogQueueArchive').evaluate(e=>e.open),false);
    assert.equal(await page.locator('#ogDeskFold').evaluate(e=>e.open),true);
    assert.equal(await page.locator('#ogQuickTools [data-og-tool]').count(),16);
-   assert.equal(await page.locator('#ogQuickTools').evaluate(e=>!!(e.compareDocumentPosition(document.getElementById('ogDeskFold'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+   assert.equal(await page.locator('#ogDeskFold').evaluate(e=>!!(e.compareDocumentPosition(document.getElementById('ogQuickTools'))&Node.DOCUMENT_POSITION_FOLLOWING)),true,'Il briefing precede gli strumenti, mantenuti tutti raggiungibili');
    assert.equal(await page.locator('#ogWorkBriefing').count(),0);
    assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
@@ -74,8 +74,11 @@ try{
    assert.equal(proposal.current.reason,'Proposta da rivedere');
    await openDetails('#ogDeskFold');await page.locator('[data-desk-area="contracts"]').click();
    const deskCase=page.locator('[data-desk-item="'+proposal.current.id+'"]');
-   assert(await deskCase.isVisible());assert.match(await deskCase.innerText(),/Proposta da rivedere/);
-   assert.match(await deskCase.innerText(),/Rivedi la proposta prima di confermare il seguito/);
+   assert(await deskCase.isVisible());assert.doesNotMatch(await deskCase.innerText(),/Confermato/i);
+   assert.match(await deskCase.innerText(),/Sintesi AI · da verificare/);
+   assert.match(await deskCase.innerText(),/Nuova proposta di accesso/);
+   assert.match(await deskCase.innerText(),/Passo proposto:\s+Proporre un altro orario/);
+   assert.equal(await deskCase.getByRole('button',{name:'Rivedi proposta ↗'}).count(),1);
    await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;t.followUp.lastInboundAt=oldInbound;oggiSegretariaRender();});
   });
   await check(width+' filtri separano preparazione e attesa senza duplicare casi né generare AI',async()=>{

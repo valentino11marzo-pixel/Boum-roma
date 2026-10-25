@@ -92,8 +92,21 @@ const db={collection(name){
  testIO.reads.push(name);const filters=[];let cap=Infinity;
  const data=()=>name==='conversations'?S.conversations.filter(row=>S.conversations.filter(c=>c.id===row.id).length===1):name==='operatorTasks'?testIO.followUps:name==='viewingRequests'?S.viewingRequests:[];
  const snap=row=>({id:row.id,exists:true,data:()=>({...row})});
- return {orderBy(){return this;},limit(n){cap=n;return this;},where(field,op,value){filters.push({field,value});return this;},onSnapshot(next){next({docs:[]});return()=>{};},
- async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');let list=data();if(['conversations','operatorTasks'].includes(name))list=list.filter(row=>filters.every(f=>f.field.split('.').reduce((v,k)=>v?.[k],row)===f.value));return{docs:list.slice(0,cap).map(snap)};},
+ return {orderBy(){return this;},limit(n){cap=n;return this;},where(field,op,value){filters.push({field,op,value});return this;},onSnapshot(next){next({docs:[]});return()=>{};},
+ async get(options){
+  const closure=name==='operatorTasks'&&filters.some(f=>f.field==='doneAt');
+  if(closure){
+   (testIO.closureQueries ||= []).push({filters:structuredClone(filters),cap,options,at:Date.now()});
+   testIO.beforeClosureRead?.();if(testIO.failClosures)throw Error('synthetic closure read failure');
+  }
+  if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));
+  if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');
+  let list=closure&&testIO.closedFollowUps?testIO.closedFollowUps:data();
+  if(['conversations','operatorTasks'].includes(name))list=list.filter(row=>filters.every(f=>{const value=f.field.split('.').reduce((v,k)=>v?.[k],row);return f.op==='>='?new Date(value).getTime()>=new Date(f.value).getTime():value===f.value;}));
+  const result={docs:list.slice(0,cap).map(row=>snap(structuredClone(row)))};
+  if(closure&&testIO.holdClosures)await new Promise(r=>(testIO.pendingClosures ||= []).push(r));
+  return result;
+ },
  doc(id){return{async get(){const row=data().find(r=>r.id===id);return row?snap(row):{exists:false,id};},async update(){testIO.writes.push(name);throw Error('No writes in preview');},async set(){testIO.writes.push(name);throw Error('No writes in preview');}}}
  };
 }};
