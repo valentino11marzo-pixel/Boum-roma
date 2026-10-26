@@ -226,6 +226,12 @@ description che prometta il lookup mirato senza il relativo schema.
 > pass its exact reference or name/address; for a search, pass only filters
 > explicitly stated by the caller. The targeted response returns at most two
 > results. `match:exact` with `certainty:verified` identifies one property.
+> `match:none`, empty results or an unmapped portal reference means the home
+> still needs identification/verification, NEVER unavailable or nonexistent,
+> even with complete coverage. Ask for one missing listing reference or address;
+> if already supplied, offer to take a message. Do not substitute homes or sell
+> another service unless requested. Only an identified result with explicit
+> `availability.state:unavailable` supports an unavailable claim.
 > For `match:ambiguous`, `certainty:needs_confirmation`, or availability
 > `needs_confirmation`, ask ONE distinguishing question and do not choose or
 > promise availability. An `unverified_external_reference` is not BOOM data.
