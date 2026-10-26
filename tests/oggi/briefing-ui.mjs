@@ -32,6 +32,7 @@ testIO.followUps[0].preparation.uncertainties=[{text:'Il portiere sarà presente
 // Deliberate regression injection, separate from the IO fixture. The assertions
 // above and below execute the same production functions in the normal run.
 const mutations = {
+  compact: ["const compactText = p ? p.nextAction.text : item.nextAction === 'Esamina la richiesta' && item.preview ? item.preview : item.nextAction;", 'const compactText = item.nextAction;'],
   stale: ["if (item.hasNewInbound || item.action?.fn !== 'oggiSegretariaOpen')", "if (item.action?.fn !== 'oggiSegretariaOpen')"],
   escaping: ['${esc(p.summary)}</p>', '${p.summary}</p>'],
   status: ["if (typeof window.portalMailCheckSources === 'function') window.portalMailCheckSources({ automatic: true });", '/* regression: source status no longer checked automatically */']
@@ -65,7 +66,7 @@ const fresh=async page=>{
 const restore=async page=>page.evaluate(()=>{
   testIO.followUps=[structuredClone(initialBriefingTask)];oggiSegretaria.rows=testIO.followUps;
   S.conversations=S.conversations.filter(c=>c.id==='conv-a');
-  Object.assign(S.conversations[0],{lastMessageAt:recentAt,lastMessagePreview:'Il tecnico può passare domani dalle 10 alle 12.'});
+  Object.assign(S.conversations[0],{lastDirection:'in',lastMessageAt:recentAt,lastMessagePreview:'Il tecnico può passare domani dalle 10 alle 12.'});
   oggiWorkspace.deskArea='all';oggiWorkspace.deskPage=0;oggiSegretariaRender();
 });
 try {
@@ -102,6 +103,27 @@ try {
       assert(statusRequests.length>before,'Automatic status read occurs on initial mount');
       assert(statusRequests.every(r=>r.method==='GET'&&r.url==='/mail-source-api?status=1'));
     });
+    await check(width+' seconda proposta compatta mostra il passo AI corrente e apre il suo caso esatto',async()=>{
+      await page.evaluate(()=>{
+        const second=structuredClone(oggiSegretaria.rows[0]);
+        second.id='sg_'+'b'.repeat(32);
+        Object.assign(second.followUp,{conversationId:'conv-b',practiceRef:'contracts/contratto-secondo',lastMessageId:'message-second',lastInboundAt:new Date(Date.now()-3*3600000).toISOString(),nextAction:'VECCHIO PASSO DA NON MOSTRARE'});
+        Object.assign(second.preparation,{messageId:'message-second',selectedPracticeRef:'contracts/contratto-secondo',summary:'È arrivato il documento della seconda richiesta.'});
+        second.preparation.nextAction.text='Controllare il documento appena ricevuto';
+        S.contracts.push({...S.contracts[0],id:'contratto-secondo',ref:'DEMO-SECONDO'});
+        oggiSegretaria.rows.push(second);testIO.followUps.push(structuredClone(second));oggiSegretariaRender();
+      });
+      const compact=page.locator('.od-compact').filter({hasText:'Controllare il documento appena ricevuto'});
+      assert.equal(await compact.count(),1);
+      assert.match(await compact.innerText(),/Proposta da rivedere/);
+      assert.doesNotMatch(await compact.innerText(),/VECCHIO PASSO/);
+      await compact.locator('[data-desk-act]').click();await page.waitForSelector('#sgFollowModal');
+      assert.equal(await page.evaluate(()=>oggiSegretaria.modal.id),'sg_'+'b'.repeat(32));
+      assert.match(await page.locator('#sgFollowModal').innerText(),/Controllare il documento appena ricevuto/);
+      await page.locator('[data-sg-modal="cancel"]').first().click();
+      assert.equal(await page.evaluate(()=>document.activeElement.dataset.deskAct),'current:contract:contratto-secondo');
+      assert.deepEqual(await page.evaluate(()=>[testIO.writes,testIO.demoWrites,testIO.responses]),[[],[],[]]);
+    });
     for(const variant of ['message','context','approval','expired','coverage','practice','review']) {
       await restore(page);
       await check(width+' '+variant+' non ricicla una sintesi non attuale',async()=>{
@@ -121,6 +143,17 @@ try {
       });
     }
     await restore(page);
+    await check(width+' filtro esplicito non recupera una sintesi superata da una risposta in conversazione',async()=>{
+      await page.evaluate(()=>{
+        Object.assign(S.conversations[0],{lastDirection:'out',lastMessageAt:new Date().toISOString()});oggiSegretariaRender();
+      });
+      if(!await page.locator('#ogQueueArchive').evaluate(el=>el.open))await page.locator('#ogQueueArchive > summary').click();
+      await page.locator('[data-desk-area="contracts"]').click();
+      assert.equal(await page.locator('#ogDeskPanel .od-ai-summary').count(),0);
+      assert.doesNotMatch(await page.locator('#ogDeskPanel').innerText(),/Il tecnico propone domani/);
+      assert.equal(await page.evaluate(()=>document.activeElement.id),'ogDeskSelection');
+    });
+    await restore(page);
     await check(width+' nuovo header invalida subito la sintesi precedente',async()=>{
       await page.evaluate(()=>{
         Object.assign(S.conversations[0],{lastMessageAt:new Date().toISOString(),lastMessagePreview:'Cambio programma: il tecnico può venire soltanto venerdì.'});oggiScheduleUpdate();
@@ -136,13 +169,13 @@ try {
         for(const channel of ['email','whatsapp'])S.conversations.push({id:'fresh-'+channel,status:'open',channel,contactName:channel==='email'?'Richiesta email demo':'Richiesta WhatsApp demo',contactType:channel==='email'?'email':'phone',contactId:channel==='email'?'test@example.invalid':'390000000000',needsReply:true,lastDirection:'in',lastMessageAt:new Date().toISOString(),lastMessagePreview:'Vorrei sapere quando posso visitare. <img src=x onerror="window.briefingInjected=true">'});
         oggiScheduleUpdate();
       });
-      await page.waitForFunction(()=>document.querySelectorAll('#ogDeskPanel .od-source-preview').length===2);
+      await page.waitForFunction(()=>document.querySelectorAll('#ogDeskPanel [data-desk-item]').length===2);
       assert.equal(await page.locator('#ogDeskPanel .od-ai-summary').count(),0);
       for(const channel of ['email','whatsapp']){
         const card=page.locator('#ogDeskPanel [data-desk-item="current:conversation:fresh-'+channel+'"]');
-        assert(await card.isVisible());assert.match(await card.innerText(),/Messaggio ricevuto:/);
+        assert(await card.isVisible());if(await card.locator('.od-source-preview').count())assert.match(await card.innerText(),/Messaggio ricevuto:/);else { assert.match(await card.innerText(),/Richiesta (email|WhatsApp) demo/); assert.match(await card.locator('.od-compact-next').innerText(),/Vorrei sapere quando posso visitare/); }
         assert.equal(await card.locator('img').count(),0);
-        await card.getByRole('button',{name:'Apri conversazione ↗'}).click();
+        await card.locator('[data-desk-act]').click();
         assert.deepEqual(await page.evaluate(()=>testIO.actions.slice(-2)),[['goTo','inbox'],['inboxSelect','fresh-'+channel]]);
         await page.locator('#toasts button').click();
       }

@@ -3825,6 +3825,20 @@ Un giro solo, otto interventi, 33 suite verdi:
   Oggi riconosce anche il contratto collegato dal lato proposta inverso; le registrazioni
   senza basi verificabili non inventano un termine dalla decorrenza. Prove `oggi`,
   `oggidesk`, `oggideskui` e regressioni di home, ricerca, messaggi e fascicoli.
+  Dal 25/10 le proposte di `action_queue` usano anche `summary` come titolo,
+  come già salvato dal Commerciale: prima diventavano tutte «Proposta della Squadra».
+  Il desk conserva il sommario distinto dal titolo e indica di rivedere la proposta
+  prima dell’approvazione; l’apertura filtra lo stesso ID, senza approvare o inviare.
+  Prove `oggidesk` e `oggideskui`: formato reale con dati sintetici, tre card distinte,
+  testo escapato, mobile/desktop, zero scritture e mutazioni del mapping.
+  Dal 25/10 Oggi apre una sola pratica focale e due righe successive: `focus()`
+  ordina fonti recenti e urgenze verificate; il tap rilegge lo stesso caso in review.
+  Quattro strumenti immediati, catalogo completo e fonti dietro approfondimenti;
+  coda/filtri hanno un solo ingresso e la selezione porta il focus ai risultati.
+  Le righe compatte usano la proposta corrente validata, mai il vecchio prossimo passo.
+  Zoom consentito nel viewport, campi a 16px e resize nella stessa sessione conservano
+  bozza e caso: `oggideskui`, `oggibriefingui`, `oggiquicktoolsui`, `portalnavigationui`.
+  Matrice adattiva 320–1280 CSS px; non è un’emulazione certificata di uno specifico iPhone.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header
@@ -7146,6 +7160,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   `_context` dichiara vocali/documenti importati non letti anche senza `attachments`, conservando eventuali caption. Stato commerciale e data passata non attestano disponibilità attuale.
   Le vecchie proposte non approvate richiedono nuova preparazione; conferme e ricevute già esistenti restano consultabili. Il limite giornaliero non viene alzato dal codice.
   Prove: `segretariaprepara`, `segretariacalendario`, `segretariacontesto`, `segretariapropostaui`, più conferma/consegna e mutazioni. Controlli circoscritti, non garanzia generale di comprensione del modello.
+
+- **Rifiuto calendario leggibile (25/10)**: Oggi traduce il codice `calendar_*` restituito dal server in motivo e prossimo controllo: fonte o evento ambiguo, data discordante, ricontrollo tardivo o ora italiana non verificabile.
+  Il codice della risposta resta invariato; il messaggio distingue ciò che è ambiguo da ciò che è incoerente, senza ricostruire la proposta respinta.
+  Veti, salvataggio e conferma restano invariati: nessun retry automatico, nessun invio dalla preparazione; il seguito rimane aperto.
+  `segretariaapprovaltimeui` guida il rifiuto 422 nel dialogo reale, verifica assenza di proposta/conferma e refresh senza retry; la mutazione al vecchio messaggio generico deve fallire.
 
 - **Indice cronologia (16/09)**: in produzione mancava `messages(conversationId ASC, at DESC)`;
   le chat oltre il limite del fallback non potevano ricostruire l'evento WhatsApp, salvato con ID documento diverso.
