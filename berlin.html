@@ -41,7 +41,7 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=1676fcff99">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=cde7c8d662">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -189,7 +189,7 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/PreOrder",
-          "description": "Search, local-format dossier and tenant self-disclosure, applications as listings appear, one attended viewing, negotiation and contract check. List price. Due only once you sign a lease; nothing before.",
+          "description": "Search every working day on ImmoScout24, Immowelt and Kleinanzeigen, tenant self-disclosure and German-format applications as listings appear, an attended viewing with live video and a report, rent brake and lease checked, Nebenkosten read. List price. Due only once you sign a lease; nothing before.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
@@ -212,7 +212,7 @@
           "price": "199",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/PreOrder",
-          "description": "Local-format rental dossier within one working day of your papers, tenant self-disclosure and cover letter, application templates, contract review. List price. Charged only when the desk opens.",
+          "description": "German-format rental dossier within one working day of your papers, a SCHUFA and guarantor strategy, self-disclosure and cover note in German, lease review before you sign. List price. Charged only when the desk opens.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "199",
@@ -732,11 +732,12 @@ body::before, body::after { z-index: 1 !important; }
         <p class="p-desk">BOOM Berlin</p>
         <p class="slot"><span class="slot-t">Tenant side</span><span class="slot-b" aria-hidden="true"></span><span class="sr" id="slotSr" role="status"></span></p>
       </div>
-      <h1 id="h1"><span class="h1a">Your home in</span> <span class="sr">Berlin</span><span class="board" id="placeBoard" aria-hidden="true" data-word="BERLIN" style="--n:6"></span></h1>
+      <h1 id="h1"><span class="h1a">Your home in</span> <span class="sr">Berlin</span></h1>
+      <p class="board-row" aria-hidden="true"><span class="board" id="placeBoard" data-word="BERLIN" style="--n:6"></span></p>
       <p class="lead">Opening with a licensed partner. Today: your file, opened and kept ready. <b>Paid by you, never by landlords.</b></p>
       <!-- FARES -->
       <div class="fares long" id="fares" role="group" aria-labelledby="faresH">
-        <p class="fares-h"><b id="faresH">List prices</b><span>Nothing charged today; Full Search only once you sign</span></p>
+        <p class="fares-h"><b id="faresH">List prices</b><span>Nothing charged today</span></p>
         <details class="fare" name="fare" id="fare-full-search" data-plan="full-search">
           <summary>
             <span class="f-l"><b class="f-name">Full Search</b><span class="f-when">Haven't started yet</span></span>
@@ -785,7 +786,7 @@ body::before, body::after { z-index: 1 !important; }
         <!-- THE DOOR — one node: the door, its two fields, the states. On a
              phone it moves into the open ticket; it is never two doors. -->
         <div id="act">
-          <p class="s-h" id="notSure">Until it opens: nothing is charged. Then Full Search is due only once you sign.</p>
+          <p class="s-h" id="notSure">Not sure which fare? Opening your file is free.</p>
           <p class="plan-ln" id="planLn" hidden><span class="k">Your plan</span><b id="planName"></b></p>
           <form id="fileForm" class="fform" novalidate action="#" autocomplete="on" data-analytics-manual data-analytics-label="Open my file" data-sending="Opening your file…" data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply." data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
             <div id="fFields" class="reveal" hidden>
@@ -794,6 +795,7 @@ body::before, body::after { z-index: 1 !important; }
               <input class="hp" id="fCompany" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
               <p class="consent">Used only to reply to you — <a class="lnk" href="/privacy">privacy</a>. Prefer WhatsApp or email? <a class="lnk" href="https://wa.me/393313251961?text=Hi%20BOOM%20Berlin%2C%20I'm%20moving%20to%20Berlin." target="_blank" rel="noopener">WhatsApp</a> · <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></p>
             </div>
+            <p class="err" id="fNetErr" role="alert"></p>
             <button class="door js" id="door" type="submit" disabled aria-expanded="false" aria-controls="fFields" data-wa="https://wa.me/393313251961?text=Hi%20BOOM%20Berlin%2C%20I'm%20moving%20to%20Berlin." data-mail="hello@boom-rome.com">
               <span><b id="doorL">Open my file</b><small data-window="free · {w}">free · Mon–Fri 09:00–19:00, Rome time</small></span><span class="ar" aria-hidden="true">→</span>
             </button>
@@ -808,7 +810,7 @@ body::before, body::after { z-index: 1 !important; }
               <div><dt>Passenger</dt><dd id="oName"></dd></div>
               <div><dt>File</dt><dd id="oFile"></dd></div>
               <div class="wide"><dt>Next</dt><dd><b id="oNext">Same working day</b> — Valentino writes back by email, or WhatsApp if you left a number.</dd></div>
-              <div class="wide"><dt>Nothing to prepare</dt><dd>Our first reply says which papers matter.</dd></div>
+              <div class="wide"><dt>Nothing to prepare</dt><dd>We tell you which papers to start gathering.</dd></div>
             </dl>
             <p>Nothing by then? Write to <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p>
           </div>
@@ -817,7 +819,7 @@ body::before, body::after { z-index: 1 !important; }
       </div>
       <dl class="fields desk">
         <div><dt>Answers</dt><dd>Valentino Egidi</dd></div>
-        <div><dt>Desk</dt><dd>Mon–Fri 09:00–19:00, Rome time</dd></div>
+        <div><dt>Desk</dt><dd>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</dd></div>
       </dl>
     </div></div>
   </article>
@@ -841,7 +843,7 @@ body::before, body::after { z-index: 1 !important; }
         <details id="check-rentcap"><summary><span class="t">The rent brake<span class="at">Mietpreisbremse</span></span></summary><p>At signing the rent may not exceed the local comparative rent by more than ten percent, exceptions aside. We check, furniture surcharge included.</p></details>
         <details id="check-deposit"><summary><span class="t">The deposit<span class="at">Kaution</span></span></summary><p>At most three months' cold rent, in three instalments, kept apart from the landlord's money. Anything more is not legal.</p></details>
         <details id="check-warm"><summary><span class="t">Cold or warm<span class="at">Kaltmiete · Warmmiete</span></span></summary><p>The listed rent is often cold. We read the Nebenkosten advance, what it covers, and what the yearly settlement can add.</p></details>
-        <details id="papers"><summary><span class="t">The papers a German landlord asks for<span class="at">8 papers</span></span></summary><ul class="papers"><li>Passport or EU ID</li><li>Employment contract</li><li>Last three payslips (Gehaltsabrechnungen)</li><li>SCHUFA report</li><li>No-arrears letter (Mietschuldenfreiheitsbescheinigung)</li><li>A guarantor (Bürgschaft), if asked</li><li>Three months of bank statements</li><li>Tenant self-disclosure (Mieterselbstauskunft)</li></ul><p>The rest our first reply goes through.</p></details>
+        <details id="papers"><summary><span class="t">The papers a German landlord asks for<span class="at">8 papers</span></span></summary><ul class="papers"><li>Passport or EU ID</li><li>Employment contract</li><li>Last three payslips (Gehaltsabrechnungen)</li><li>SCHUFA report</li><li>No-arrears letter (Mietschuldenfreiheitsbescheinigung)</li><li>A guarantor (Bürgschaft), if asked</li><li>Three months of bank statements</li><li>Tenant self-disclosure (Mieterselbstauskunft)</li></ul><p>We tell you which ones to start gathering first.</p></details>
       </div>
     </section>
 
@@ -892,7 +894,7 @@ body::before, body::after { z-index: 1 !important; }
 
 <!-- the phone strip: the one door, only while the pass's door is off screen; no price -->
 <div class="strip js" id="strip" aria-hidden="true" inert>
-  <p class="st-t">Berlin<small data-window="free · {w}">free · Mon–Fri 09:00–19:00, Rome time</small></p>
+  <p class="st-t">Berlin<small data-window="{w}">Mon–Fri 09:00–19:00, Rome time</small></p>
   <button class="st-go" id="stripGo" type="button">Open my file</button>
 </div>
 
@@ -969,14 +971,14 @@ body::before, body::after { z-index: 1 !important; }
     "PAID": null
   };
 </script>
-<script src="/assets/boom-city.js?v=6a4d39d964"></script>
+<script src="/assets/boom-city.js?v=fdf0db9c22"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say
      where to write instead of leaving a door that does nothing. */
   addEventListener('load', function () {
     var b = document.getElementById('door');
-    if (!b || !b.disabled || document.getElementById('jsFail')) return;
+    if (!b || !b.disabled || window.BOOM_TICKET || document.getElementById('jsFail')) return;
     var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
     p.className = 's-h'; p.id = 'jsFail'; p.setAttribute('role', 'alert');
     wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp'; wa.className = 'lnk';

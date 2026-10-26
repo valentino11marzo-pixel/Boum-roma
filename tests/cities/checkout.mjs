@@ -167,7 +167,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   // review 22/10: no #contact on the success URL — a fragment makes the
   // browser re-apply its own scroll at `load` (late in production: gtag.js
   // holds it) and undo the page's landing on the ticket
-  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && call.cancel_url === 'https://www.boomrome.com/amsterdam#services',
+  check(call.success_url === 'https://www.boomrome.com/amsterdam?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && call.cancel_url === 'https://www.boomrome.com/amsterdam#fares',
     'success lands back on the city page (?paid=<plan>&start=0, no fragment: the page lands on the ticket itself), cancel on its plates — never the Rome thank-you page', call.success_url);
   check(call.metadata.start_now === '0', 'no tick posted: start_now "0" — the work waits for the 14 days');
   await post(checkout, { city: 'amsterdam', kind: 'application-pack', ...ANNA, startNow: true });
@@ -183,7 +183,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const r3 = await post(checkout, { city: 'barcelona', kind: 'full-search', ...ANNA });
   const c3 = globalThis.__stripeCalls.at(-1);
   check(r3.code === 200 && c3.line_items[0].price_data.unit_amount === 50000 && c3.metadata.city === 'barcelona' && c3.metadata.start_now === '0'
-    && c3.success_url === 'https://www.boomrome.com/barcelona?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && c3.cancel_url === 'https://www.boomrome.com/barcelona#services',
+    && c3.success_url === 'https://www.boomrome.com/barcelona?paid=full-search&start=0&session_id={CHECKOUT_SESSION_ID}' && c3.cancel_url === 'https://www.boomrome.com/barcelona#fares',
     'barcelona (live from 22/10): Full Search €500 opens a Stripe session that comes back to /barcelona', JSON.stringify(c3 && { s: c3.success_url, m: c3.metadata }));
   check(/until you sign or tell us to stop/.test(c3.line_items[0].price_data.product_data.description || ''), 'the Full Search product says how long the search runs (the founder, 22/10): until you sign or tell us to stop');
 }
@@ -282,7 +282,13 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   // 2026, +14 = Thursday 24 September, La Mercè (a working day in Madrid)
   const evB = event({ ...base, city: 'barcelona', market: 'barcelona', name: 'Marta Puig', email: 'marta@example.com' }, { id: 'cs_city_bcn_hol' });
   evB.data.object.metadata.start_now = '0'; evB.created = Date.UTC(2026, 8, 10, 10, 0, 0) / 1000;
+  const eB = emails.length;
   await webhook(stream(evB), mkRes());
+  // the till promises documents in Catalan or Spanish and the fulls oficials:
+  // the operator's email of a Barcelona order reminds him of both (the check
+  // read meta.city.slug, which CITY_MARKETS never had — it never fired)
+  const opB = emails.slice(eB).find((m) => m.to_email === 'valentino@boom-rome.com');
+  check(opB && /Catalan or Spanish/.test(opB.intro || '') && /fulls oficials/.test(opB.intro || ''), 'a Barcelona order: the operator\'s email reminds him of the Catalan or Spanish documents and the fulls oficials', opB && String(opB.intro).slice(-260));
   const leadB = svcLead('cs_city_bcn_hol');
   check(leadB && leadB.market === 'barcelona' && leadB.city && leadB.city.withdrawalEndsOn === '2026-09-25' && leadB.city.workFrom === '2026-09-28' && /^BARCELONA — paid order · Full Search · €500 paid/.test(leadB.message),
     'a Barcelona order: the webhook passes the desk\'s holiday key (es-bcn) — La Mercè moves the end of the period, which the Madrid calendar would not', leadB && JSON.stringify([leadB.message, leadB.city]));

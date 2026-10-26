@@ -87,7 +87,8 @@
         <p class="p-desk">BOOM {{city}}</p>
         <p class="slot"><span class="slot-t">Tenant side</span><span class="slot-b" aria-hidden="true"></span><span class="sr" id="slotSr" role="status"></span></p>
       </div>
-      <h1 id="h1"><span class="h1a">{{hero.h1Before}}</span> <span class="sr">{{city}}</span><span class="board" id="placeBoard" aria-hidden="true" data-word="{{word}}" style="--n:{{wordLen}}"></span></h1>
+      <h1 id="h1"><span class="h1a">{{hero.h1Before}}</span> <span class="sr">{{city}}</span></h1>
+      <p class="board-row" aria-hidden="true"><span class="board" id="placeBoard" data-word="{{word}}" style="--n:{{wordLen}}"></span></p>
       <p class="lead">{{hero.lead}} <b>{{hero.leadStrong}}</b></p>
       <!-- FARES -->
 {{{faresHtml}}}
@@ -165,7 +166,7 @@
 
 <!-- the phone strip: the one door, only while the pass's door is off screen; no price -->
 <div class="strip js" id="strip" aria-hidden="true" inert>
-  <p class="st-t">{{city}}<small data-window="{{doorLead}} · {w}">{{doorLead}} · {{deskHoursText}}</small></p>
+  <p class="st-t">{{city}}<small data-window="{w}">{{deskHoursText}}</small></p>
   <button class="st-go" id="stripGo" type="button">{{door.label}}</button>
 </div>
 {{{tillHtml}}}
@@ -180,7 +181,7 @@
      where to write instead of leaving a door that does nothing. */
   addEventListener('load', function () {
     var b = document.getElementById('door');
-    if (!b || !b.disabled || document.getElementById('jsFail')) return;
+    if (!b || !b.disabled || window.BOOM_TICKET || document.getElementById('jsFail')) return;
     var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
     p.className = 's-h'; p.id = 'jsFail'; p.setAttribute('role', 'alert');
     wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp'; wa.className = 'lnk';

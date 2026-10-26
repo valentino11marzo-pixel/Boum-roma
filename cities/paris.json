@@ -24,7 +24,7 @@
     "leadStrong": "Paid by you, never by landlords.",
     "faresHead": {
       "b": "List prices",
-      "span": "Charged only when the desk opens"
+      "span": "Nothing charged today"
     }
   },
   "pricing": {
@@ -34,7 +34,6 @@
         "label": "Full Search",
         "name": "We search. You choose.",
         "price": 500,
-        "featured": true,
         "condition": "flat · incl. VAT · at opening",
         "conditionLong": "List price. Charged only when the desk opens.",
         "includes": [
@@ -43,7 +42,7 @@
           "Attended viewing, live video + report",
           "Rent cap and lease checked, charges read"
         ],
-        "offerDescription": "Search, local-format dossier and one-page presentation, applications as listings appear, one attended viewing, negotiation and contract check.",
+        "offerDescription": "Search every working day on SeLoger, PAP, Leboncoin and agencies, a one-page presentation, applications as listings appear, an attended viewing with live video and a report, rent cap and lease checked.",
         "when": "Haven't started yet"
       },
       {
@@ -59,7 +58,7 @@
           "One-page presentation in French",
           "Lease review before you sign"
         ],
-        "offerDescription": "Local-format rental dossier within one working day of your papers, one-page presentation, application templates, contract review.",
+        "offerDescription": "French-format rental dossier within one working day of your papers, a guarantor or Visale strategy, a one-page presentation in French, lease review before you sign.",
         "when": "Found one, or shortlisted and already in Paris"
       },
       {
@@ -82,7 +81,7 @@
     ]
   },
   "stub": {
-    "notSure": "Until it opens: nothing is charged. Opening your file is free, and so is our first reply."
+    "notSure": "Not sure which fare? Opening your file is free."
   },
   "how": {
     "h2": "From your file",
@@ -148,7 +147,7 @@
       "A guarantor, or Visale",
       "A one-page presentation"
     ],
-    "tail": "The rest our first reply goes through."
+    "tail": "We tell you which ones to start gathering first."
   },
   "faq": {
     "h2": "Questions.",
@@ -169,7 +168,6 @@
   },
   "bref": {
     "h2": "BOOM Paris — fact sheet",
-    "ref": "REF · PARIS / TENANT SIDE",
     "rows": [
       {
         "dt": "Who",
@@ -251,7 +249,7 @@
       ],
       [
         "Nothing to prepare",
-        "Our first reply says which papers matter."
+        "We tell you which papers to start gathering."
       ],
       [
         "Nothing by then?",

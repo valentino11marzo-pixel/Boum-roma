@@ -76,6 +76,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 /* the city board: served empty, the word drawn from data-word until the
    cells land (the H1 reads the city once, in the .sr span); the space is
    reserved for the cells so nothing jumps when they come */
+.board-row{margin:0;line-height:0}
 .board{display:inline-block;margin-top:6px;font-weight:300;color:var(--gold);white-space:nowrap;
   font-size:clamp(25px,calc((100vw - 84px) / 8.6),62px);height:1.26em;line-height:1.26em;min-width:calc(var(--n) * .91em);letter-spacing:.27em}
 .board:empty::before{content:attr(data-word)}
@@ -119,7 +120,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
   .f-price{font-size:26px}
 }
 @media (max-width:599px){
-  .fares.long .fare>summary{grid-template-columns:minmax(0,1fr) 18px;grid-template-areas:"l g" "r g";row-gap:6px}
+  .fares.long .fare>summary{grid-template-columns:minmax(0,1fr) 18px;grid-template-areas:"l g" "r g";row-gap:3px}
   .fares.long .f-l{grid-area:l}.fares.long .f-tog{grid-area:g}
   .fares.long .f-r{grid-area:r;display:flex;align-items:baseline;flex-wrap:wrap;gap:2px 10px;text-align:left}
   .fares.long .f-cond{margin:0}.fares.long .f-cond br{display:none}
@@ -170,7 +171,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .door:hover .ar,.pay:hover .ar{transform:translateX(4px)}
 .door:active,.pay:active{transform:translateY(0) scale(.995)}
 .door:focus-visible,.pay:focus-visible{outline:2px solid #fff;outline-offset:3px}
-.door[disabled],.pay[disabled]{filter:saturate(.6) brightness(.85);cursor:progress;transform:none}
+.door[disabled],.pay[disabled],.door[aria-disabled=true],.pay[aria-disabled=true]{filter:saturate(.6) brightness(.85);cursor:progress;transform:none}
 .fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin-top:14px}
 .fields dt{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--t3)}
 .fields dd{margin-top:3px;font-size:14px;line-height:1.35;color:var(--ink)}
@@ -189,7 +190,6 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .err:empty{display:none}
 .consent{margin-top:10px;font-size:12.5px;color:var(--t3)}
 .consent a{display:inline-flex;align-items:center;min-height:32px}
-.reveal{overflow:hidden}
 @media (prefers-reduced-motion:no-preference){
   .reveal.in{animation:rise .45s var(--ease) both}
   @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -202,7 +202,7 @@ h1 .h1a{display:block;color:var(--t2);font-size:clamp(26px,7vw,50px);text-wrap:b
 .card h2 em{font-style:normal;color:var(--gold)}
 .card p{margin-top:10px;font-size:14px;color:var(--t2)}
 .card .fields{margin-top:12px}
-.card h2,.card .k{padding-right:96px}
+.card .stamp~h2,.card .stamp~.k{padding-right:96px}
 .card .next{list-style:none;margin-top:12px;border-top:1px solid var(--line-soft)}
 .card .next li{padding:7px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px;color:var(--t2)}
 .card .next b{color:var(--ink);font-weight:400}
@@ -337,5 +337,9 @@ dialog.till::backdrop{background:rgba(0,0,0,.74);-webkit-backdrop-filter:blur(6p
 .hp{position:absolute!important;left:-9999px;width:1px;height:1px;opacity:0}
 
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:0s!important;animation-duration:0s!important;animation-delay:0s!important}}
-@media (forced-colors:active){.door,.pay,.st-go{border:2px solid ButtonText}.refund{border-left-color:CanvasText}}
+@media (forced-colors:active){.door,.pay,.st-go{border:2px solid ButtonText}.refund{border-left-color:CanvasText}.f-tog::before,.f-tog::after{background:CanvasText}}
 @media print{body{background:#fff;color:#000}.strip,.top .navr,.door,.pay2,.f-tog,dialog{display:none!important}.pass{border-color:#000;box-shadow:none;background:#fff}.pass *,.below *{color:#000!important}}
+/* 200% zoom on a phone (under 300 CSS px): nothing that carries a price or its condition is cut */
+@media (max-width:300px){.f-name{font-size:11px;letter-spacing:.04em;overflow-wrap:anywhere}.f-cond{white-space:normal}.t-head{flex-wrap:wrap;padding-right:0}.t-price{text-align:left}.board{font-size:calc((100vw - 84px) / (var(--n) * .95));min-width:0}}
+/* no orphan word on a headline or a fare's line */
+.card h2{text-wrap:balance}.f-when{text-wrap:pretty}.nw{white-space:nowrap}

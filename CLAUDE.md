@@ -2606,8 +2606,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   caricamento. Il primo schermo del telefono è ora UNA carta d'imbarco
   (`cities/_template.html`, `<article class="pass">`), e il resto della
   pagina sta sotto.
-  1. **La carta**: la città su UN tabellone Solari (H1 servito vuoto con
-     `data-word`, la parola in `.sr`), UNA frase con l'obbligo del desk in
+  1. **La carta**: la città su UN tabellone Solari (`p.board-row`
+     `aria-hidden`, FUORI dall'H1: l'H1 dice «Your home in» + la città in
+     `.sr`, e il suo testo resta quello anche dopo che il tabellone si
+     monta), UNA frase con l'obbligo del desk in
      grassetto (`hero.lead` + `hero.leadStrong`: Amsterdam «We work
      exclusively for you; never paid by landlords.», Spagna «You hire us; we
      do not act for the landlord.», i waitlist aprono «Opening with»), le tre
@@ -2625,7 +2627,10 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      desktop resta nello stub. «Start with a free call» dove si vende, «Open
      my file» su Parigi e Berlino. Il modulo chiede un nome e UN contatto
      («Email or WhatsApp number»: il browser lo divide in `email` o `phone`,
-     il server è lo stesso). Il piano della tariffa aperta viaggia nel lead
+     il server è lo stesso; il numero viaggia COME SCRITTO e lo legge il server
+     col paese del desk — «+31 (0)6 1234 5678» diventa +31612345678). Mentre
+     invia la porta è `aria-disabled`, mai `disabled` (il focus resta lì), e
+     un invio fallito lo dice nel suo avviso `#fNetErr`. Il piano della tariffa aperta viaggia nel lead
      (`service`); nessuna tariffa aperta = «service to decide». OPEN solo
      dopo il 200 col numero di fascicolo del SERVER, PAID solo dopo `GET
      /api/city-lead?paid=` → `paid:true` (0/1,5/3/6/12 s, poi «not confirmed
@@ -2659,7 +2664,7 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      guarantees two months at most» (aspetta il legale dopo il voto del
      12/11 sul RDL 29/2026).
   7. **I tetti**: 460 parole visibili al caricamento (Amsterdam 350, Madrid
-     367, Barcellona 393, Parigi 376, Berlino 366), frase ≤ 30, tariffe ≤ 70,
+     367, Barcellona 393, Parigi 365, Berlino 354), frase ≤ 30, tariffe ≤ 70,
      ogni biglietto ≤ 60, peso ≤ 60 KB gz (JS ≤ 12): un tetto non si alza mai
      per farci stare il testo. Un solo foglio di stile (`boom-city.css`
      autosufficiente, niente `boom-2026.css`).
@@ -2667,6 +2672,46 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
      scheda dei fatti linkava sempre il WhatsApp condiviso anche quando un
      desk dichiara un numero suo (`config.WHATSAPP`); ora legge il contatto
      del desk come ogni altro link.
+  9. **La revisione avversaria (26/10)**: 35 rilievi, 29 confermati in
+     Chromium e chiusi nello stesso giro, 6 confutati. I confermati:
+     il telefono ripulito nel browser rompeva l'E.164 del server (ora passa
+     com'è scritto); la card PAGATO diceva «{date}, when your 14 days end»
+     dove il lavoro comincia il giorno DOPO (`startsWait` = «From {date},
+     after your 14-day withdrawal period», e il build lo pretende); la
+     privacy descriveva ancora il Check-in; il promemoria catalano
+     all'operatore leggeva `meta.city.slug`, che non esiste (ora `cityKey`);
+     a 390×664 la barra in basso copriva la porta (ora la porta conta solo
+     se il bottone d'oro è visibile per metà); la carta OPEN riservava lo
+     spazio del timbro anche senza timbro; `.reveal{overflow:hidden}` tagliava
+     il timbro; la finestra della barra finiva coi puntini; Parigi e Berlino
+     a 390×844 mettevano «chi risponde» sotto la piega (ora «Nothing charged
+     today» in testa alle tariffe e righe impilate più strette: il «at
+     opening / on signing» resta su ogni riga); un bottone di pagamento
+     apriva la cassa mentre la porta gratuita stava inviando, ed Escape non
+     fermava il viaggio verso Stripe (gettone `payTok`); la riga toccata
+     saltava di un frame prima dell'ancoraggio (ora lo scorrimento si
+     corregge nello stesso tocco, e se la riga sopra si chiuderebbe senza
+     spazio per compensare la porta resta nel biglietto sopra); la porta
+     spenta toglieva il focus; a 195 px le condizioni uscivano dalla riga;
+     in forced-colors il + delle tariffe spariva; allargando la finestra il
+     campo che si stava scrivendo usciva dallo schermo; il bagliore dei campi
+     tagliato; la riga «senza JS» di ripiego compariva su una pagina solo
+     lenta (ora aspetta che lo script del desk non ci sia davvero). Nel build: il prezzo dell'Attended Viewing scritto a mano nel
+     controllo del Full Search (ora `(more: €N each)` dal piano), nessun
+     divieto su «24h», «within an hour», «phone you», stelle e voti senza
+     fonte, prezzi € che nessun piano vende, un €500 senza la sua regola nel
+     suo contenitore; chiavi morte nei JSON (ora una lista bianca rifiuta
+     ogni chiave sconosciuta); le Offer di Parigi e Berlino promettevano
+     ciò che la pagina non vende; l'H1 si riempiva delle lettere del
+     tabellone; i segnaposto di questo paragrafo. Confutati: la risposta
+     pronta di un waitlist che rinvia l'elenco dei documenti (è il ripiego
+     documentato), nessun numero di fascicolo raggiungibile dopo OPEN sui
+     desk che vendono (nessuna cassa dopo una porta gratuita, di proposito),
+     l'àncora morta del `cancel_url` (nessun guasto osservabile; portata
+     comunque su `#fares`), due a capo di testo, e il riquadro dei cookie
+     sopra la porta dopo uno scorrimento (codice condiviso del consenso, non
+     un difetto del desk). `fileRef` non viene mandato dalla v1.5: il
+     webhook conia il numero dell'ordine da sé.
   Card social rigenerate (la frase gialla è la prima frase del lead; il
   generatore non legge più `nav.desk`), `updated` e `<lastmod>` delle tre
   pagine live al 26/10, `llms.txt` coi controlli che le pagine nominano
@@ -2676,13 +2721,17 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
   turco, gli annunci d'agenzia a Madrid e Barcellona, il conteggio dei
   clienti turchi, Termini §4.3 («We do not charge: Viewing fees») contro il
   Virtual Viewing a €89.
-  Test: `run.mjs` __RUN__ (ogni divieto del build provato rompendo i dati o
-  il template; le parti server 9/9b invariate), `ui.mjs` __UI__ (Chromium:
-  la carta a 390, la riga che non si muove con l'ancoraggio nativo spento, la
-  porta che entra nel biglietto, la cassa, il ritorno pagato, l'orologio del
-  desk su sei date, 320 px, senza JS; mutazioni sul JS della pagina prese),
-  `calendar.mjs` __CAL__ (festivi, finestra, fuso dell'apertura, la stessa
-  copia per webhook e pagina), `checkout.mjs` 104.
+  Test: `run.mjs` 377 (ogni divieto del build provato rompendo i dati o il
+  template; le parti server 9/9b invariate), `ui.mjs` 131 (Chromium: la
+  carta a 390×844 e 390×664 su ogni desk, la riga che non si muove con
+  l'ancoraggio nativo spento a 320/390/430, la porta che entra nel biglietto,
+  la cassa, il ritorno pagato, l'orologio del desk su sei date, 195 e 320
+  px, forced-colors, senza JS), `calendar.mjs` 35 (festivi, finestra, fuso
+  dell'apertura, la stessa copia per webhook e pagina), `checkout.mjs` 105.
+  Le mutazioni del JS della pagina NON stanno in `ui.mjs`: sette difetti
+  reintrodotti a mano con uno script a parte (cassa aperta durante l'invio,
+  gettone di Stripe, ancoraggio, porta tenuta sopra, porta spenta, focus
+  rubato, numero ripulito), tutti presi da `ui.mjs`.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

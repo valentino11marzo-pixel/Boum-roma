@@ -139,7 +139,7 @@ export default async function handler(req, res) {
         : 'https://www.boomrome.com/thank-you.html?service=' + encodeURIComponent(body.kind) +
           (body.kind === 'concordato-pack' ? '&start=' + (body.startNow === true ? '1' : '0') : '') +
           '&session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: offer ? `${offer.url}#services` : 'https://www.boomrome.com' + svc.cancel,
+      cancel_url: offer ? `${offer.url}#fares` : 'https://www.boomrome.com' + svc.cancel,
     });
     return res.status(200).json({ ok: true, url: session.url });
   } catch (err) {

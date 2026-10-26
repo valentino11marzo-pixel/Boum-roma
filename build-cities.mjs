@@ -88,6 +88,11 @@ export const WEIGHT_KB = { total: 60, js: 12 };
 
 // Visible words, the ceilings that keep the page short (measured on the
 // built HTML, every <details> closed — what a reader sees at load).
+// a clock promise in any of its spellings; a call promised in any words; a
+// rating (a star, or a decimal mark next to stars/reviews/Google)
+export const CLOCK_RE = /\b24\s*-?\s*h(?:ours?|rs?)?\b|\bwithin (?:an|the|one) hour\b|<\s*1\s*h\b|\b24\/7\b/i;
+export const CALL_RE = /\b(?:call(?:s|ed|ing|back|backs)?|phone (?:you|us)|ring (?:you|us)|video[- ]?(?:call|chat))\b/i;
+export const RATING_RE = /★|\brated\s+\d|\b\d[.,]\d\b[^<\n]{0,25}(?:stars?|reviews?|clients?|customers?|ratings?|on Google)/gi;
 export const BUDGET = { lead: 30, fares: 70, ticket: 60, stub: 45, body: 460 };
 
 export class BuildError extends Error {}
@@ -259,6 +264,8 @@ const R = {
       '              <input class="hp" id="fCompany" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">',
       `              <p class="consent">${esc(f.consentLead)} <a class="lnk" href="/privacy">privacy</a>. ${esc(f.consentAlt)} <a class="lnk" href="${esc(contact.waHref)}" target="_blank" rel="noopener">WhatsApp</a> · ${MAIL(contact)}</p>`,
       '            </div>',
+      // a failed send is said here (role=alert), never on a valid contact field
+      '            <p class="err" id="fNetErr" role="alert"></p>',
       `            <button class="door js" id="door" type="submit" disabled aria-expanded="false" aria-controls="fFields" data-wa="${esc(contact.waHref)}" data-mail="${esc(contact.email)}">`,
       `              <span><b id="doorL">${esc(c.door.label)}</b><small data-window="${lead} · {w}">${lead} · ${esc(hours)}</small></span><span class="ar" aria-hidden="true">→</span>`,
       '            </button>',
@@ -569,6 +576,33 @@ const LEFTOVERS = {
   shared: ['moveInFrom', 'desksLabel']
 };
 
+// What the page READS, object by object. Anything else is refused: a key no
+// renderer prints is copy everybody believes is on the page.
+const ALLOWED = {
+  '': ['slug', 'city', 'country', 'iata', 'live', 'mode', 'config', 'updated', 'word', 'meta', 'service', 'hero', 'pricing', 'stub', 'how', 'checks', 'papers', 'faq', 'bref', 'footer', 'desk', 'door', 'form', 'checkout', 'checkoutCopy', 'till'],
+  meta: ['title', 'description', 'ogTitle', 'ogDescription'],
+  service: ['name', 'serviceType', 'description', 'audience'],
+  hero: ['h1Before', 'lead', 'leadStrong', 'faresHead'],
+  'hero.faresHead': ['b', 'span'],
+  pricing: ['plans', 'sub'],
+  plan: ['id', 'label', 'unit', 'name', 'price', 'condition', 'conditionLong', 'includes', 'offerDescription', 'when'],
+  stub: ['notSure'],
+  how: ['h2', 'h2g', 'steps'], checks: ['h2', 'h2g', 'items'], papers: ['summary', 'at', 'items', 'tail'], faq: ['h2', 'items'],
+  bref: ['h2', 'rows'], footer: ['statement'], door: ['label'],
+  desk: ['person', 'role', 'timeZone', 'tzLabel', 'hours', 'days'],
+  form: ['name', 'contact', 'consentLead', 'consentAlt', 'errors', 'sending', 'sentNext', 'sentWhenDefault'],
+  'form.errors': ['name', 'contact', 'email', 'net'],
+  checkoutCopy: ['noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'startNow', 'withdrawal', 'fine', 'errors', 'paid'],
+  'checkoutCopy.errors': ['name', 'email', 'net'],
+  'checkoutCopy.paid': ['before', 'em', 'text', 'next', 'nextWait', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'],
+  till: ['label', 'labelWait']
+};
+function allowOnly(obj, path, where) {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+  const ok = ALLOWED[path];
+  for (const k of Object.keys(obj)) need(ok.includes(k), where, `${path ? path + '.' : ''}${k} is a key the page does not read: remove it (copy nobody sees is copy everybody believes is live)`);
+}
+
 export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city], weigh = true }) {
   const where = `cities/${city.slug}.json`;
   need(/^[a-z0-9-]+$/.test(city.slug || ''), where, 'slug must be lowercase letters, digits and dashes');
@@ -591,8 +625,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   for (const k of LEFTOVERS.shared) need(shared[k] === undefined, 'cities/_shared.json', `${k} is a v1.4 leftover (the month select and the menu left the page)`);
   need(shared.refund && typeof shared.refund.rule === 'string' && /refunded in full if we decline the search in the first call/.test(shared.refund.rule),
     'cities/_shared.json', 'refund.rule is the one sentence of the policy: "… refunded in full if we decline the search in the first call" (the founder, 15/10)');
-  need(shared.rome && ['rating', 'reviews', 'since'].every((f) => str(shared.rome[f])) && typeof shared.rome.profileUrl === 'string',
-    'cities/_shared.json', 'rome needs rating, reviews, since and profileUrl');
+  need(shared.rome && ['rating', 'reviews'].every((f) => str(shared.rome[f])) && typeof shared.rome.profileUrl === 'string',
+    'cities/_shared.json', 'rome needs rating, reviews and profileUrl');
   need(!shared.rome.profileUrl || /^https:\/\//.test(shared.rome.profileUrl), 'cities/_shared.json', 'rome.profileUrl must be https');
   // the proof link is the PUBLIC profile, never the "write a review" box
   need(!/\/review\b|writereview/i.test(shared.rome.profileUrl || ''), 'cities/_shared.json',
@@ -613,6 +647,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.footer && typeof city.footer === 'object', where, 'needs "footer"');
   for (const k of LEFTOVERS.footer) need(city.footer[k] === undefined, where, `footer.${k} is a leftover`);
   if (city.checkoutCopy) for (const k of LEFTOVERS.checkoutCopy) need(city.checkoutCopy[k] === undefined, where, `checkoutCopy.${k} is a leftover: the till's header is the plan`);
+  for (const pth of Object.keys(ALLOWED)) {
+    if (pth === 'plan') { for (const p of (city.pricing && city.pricing.plans) || []) for (const k of LEFTOVERS.plan) need(p[k] === undefined, where, `plan "${p.id}": ${k} is a leftover`); (city.pricing && city.pricing.plans || []).forEach((p) => allowOnly(p, 'plan', where)); continue; }
+    allowOnly(pth ? get(city, pth) : city, pth, where);
+  }
 
   // ── the pass ──
   need(str(city.hero.h1Before) && str(city.hero.lead) && str(city.hero.leadStrong), where, 'hero needs h1Before, lead and leadStrong (the desk\'s must-state, in bold)');
@@ -653,10 +691,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   const fsPlan = plans[0];
   // Full Search's own words: one viewing included, more priced, no date
-  need(fsPlan.includes.some((x) => /\(more: €149 each\)/.test(x)) || waitlist, where, 'Full Search on a desk that sells says "(more: €149 each)": one viewing is included, the rest are priced');
+  const avPrice = eur(plans[2].price);
+  need(fsPlan.includes.some((x) => x.includes(`(more: ${avPrice} each)`)) || waitlist, where, `Full Search on a desk that sells says "(more: ${avPrice} each)": one viewing is included, the rest are priced at the Attended Viewing's own price`);
   need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
   if (city.slug === 'berlin') need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
-  need(plans.filter((p) => p.featured).length <= 1, where, 'at most one plan is featured');
 
   // ── the stub, the door, the desk ──
   need(city.stub && str(city.stub.notSure), where, 'stub.notSure is required: the line over the door (the free door is the neutral decline)');
@@ -664,7 +702,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   need(city.door.label === (sell ? 'Start with a free call' : 'Open my file'), where, `door.label is "${sell ? 'Start with a free call' : 'Open my file'}" on a ${sell ? 'desk that sells' : 'desk still opening'} (the founder, 22/10)`);
   validateDesk(city.desk, where);
   // a desk open Mon–Fri 09–19 cannot keep a clock promise
-  need(!/\b24 hours\b|within the hour|24\/7/i.test(JSON.stringify(city)), where, 'no "24 hours", "within the hour" or "24/7" in the copy: the desk hours cannot keep it');
+  need(!CLOCK_RE.test(JSON.stringify(city)), where, 'no clock promise in the copy ("24 hours", "24h", "24-hour", "within an hour", "<1h", "24/7"): a desk open Mon–Fri 09–19 cannot keep it');
 
   // ── the form (the free call: a name and one contact) ──
   const fm = city.form;
@@ -675,7 +713,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     where, 'form.sentNext is three [label, line] pairs: the first label {when} (computed by the page), the last line naming {email}; plus sentWhenDefault');
   // a desk that is still opening promises no call: its door, its OPEN card,
   // its "not sure" line
-  if (waitlist) need(!/\bcall\b/i.test([city.door.label, city.stub.notSure, JSON.stringify(fm.sentNext)].join(' ')), where, 'a waitlist desk\'s door, its "not sure" line and its OPEN card promise no call');
+  if (waitlist) need(!CALL_RE.test(JSON.stringify(city)), where, 'a waitlist desk promises no call, callback or phone/video conversation anywhere in its data (it takes no call until it opens)');
 
   // ── the below ──
   need(city.how && str(city.how.h2) && str(city.how.h2g) && list(city, 'how.steps').length === 3 && city.how.steps.every((s) => str(s.k) && str(s.h) && str(s.p)), where, 'how needs h2, h2g and three steps {k, h, p}');
@@ -710,6 +748,10 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(pd && ['before', 'em', 'text', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'].every((f) => str(pd[f])), where, 'checkoutCopy.paid needs before, em, text, wait, pending, unconfirmed, startsNow and startsWait');
     need(/\{date\}/.test(pd.startsWait) && /14-day|14 days/.test(pd.wait) && /\{email\}/.test(pd.wait) && /not confirmed yet/i.test(pd.unconfirmed) && !/€|\d/.test(pd.pending + pd.unconfirmed), where,
       'paid.startsWait carries {date}, paid.wait says the 14 days and {email}, paid.unconfirmed says "not confirmed yet"; no figure in the pending lines');
+    // {date} is the webhook's workFromLabel: the first working day AFTER the
+    // withdrawal period, never the day it ends (that would misstate the right)
+    need(/^From \{date\}/.test(pd.startsWait) && !/when your 14 days end|14 days end/i.test(pd.startsWait), where,
+      'paid.startsWait opens "From {date}" and never calls {date} the day the 14 days end: {date} is the first working day after them');
     const three = (a) => Array.isArray(a) && a.length === 3 && a.every((x) => Array.isArray(x) && x.length === 2 && x.every(str));
     need(three(pd.next) && three(pd.nextWait) && !pd.nextWait.flat().some((y) => /same working day|today/i.test(y)), where, 'paid.next and paid.nextWait are three [label, line] pairs; nextWait never "same working day" or "today"');
   } else {
@@ -762,7 +804,8 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     ogImage,
     doorLead,
     deskHoursText: deskHoursText(city.desk),
-    deskLineHtml: esc(deskHoursText(city.desk)),
+    // the hour range never breaks after its dash ("09:00– / 19:00")
+    deskLineHtml: esc(deskHoursText(city.desk)).replace(/(\d{2}:\d{2}–\d{2}:\d{2})/, '<span class="nw">$1</span>'),
     year: String(shared.copyrightYear),
     robotsMeta: city.live
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
@@ -793,7 +836,19 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700; #D4AF37 is the portal gold');
   const vis = visibleText(html);
-  need(!/(?<![\d,.])500\+|\b24\/7\b|off-market|within the hour|whichever is lower/i.test(vis), where, 'no "500+", "24/7", "off-market", "within the hour" or "whichever is lower" on the page');
+  need(!/(?<![\d,.])500\+|off-market|whichever is lower/i.test(vis) && !CLOCK_RE.test(vis), where, 'no "500+", clock promise ("24h", "within an hour", "24/7"…), "off-market" or "whichever is lower" on the page');
+  // EVERY price the page states — visible, in a meta attribute, in the
+  // JSON-LD — is one of the plans' prices: a repriced plan cannot leave a
+  // stale figure behind, a hand-typed one cannot drift
+  {
+    const known = new Set(plans.map((p) => eur(p.price)));
+    const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+    const ldStr = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strs(JSON.parse(m[1])));
+    const metaStr = [...html.matchAll(/<meta [^>]*content="([^"]*)"/g)].map((m) => m[1]);
+    const odd = [vis, ...ldStr, ...metaStr].join(' \n ').match(/€\s?\d[\d,]*/g) || [];
+    const stray = [...new Set(odd.map((x) => x.replace(/\s/g, '')))].filter((x) => !known.has(x));
+    need(!stray.length, where, `a price the plans do not charge is stated on the page: ${stray.join(', ')} (the plans: ${[...known].join(', ')})`);
+  }
   need(!/!(?=[\s<"]|$)/.test(html.replace(/<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
   // every price is one of the plans', on its row with its condition
   const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
@@ -802,7 +857,9 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(fares.includes(`<span class="f-when">${esc(p.when)}</span>`), where, `plan "${p.id}": its "when" line is not on its fare row`);
   }
   // one city board, served empty (the raw H1 reads the city once)
-  need((html.match(/class="board"/g) || []).length === 1 && html.includes(`<span class="sr">${esc(city.city)}</span><span class="board" id="placeBoard" aria-hidden="true" data-word="${esc(word)}" style="--n:${word.length}"></span></h1>`), where, 'one city board, decorative and served empty (data-word drawn by CSS): the H1 reads the city once');
+  // the board sits OUTSIDE the H1: once the Solari cells mount inside it,
+  // the rendered heading would read "AmsterdamAA AMMLM…" to a crawler
+  need((html.match(/class="board"/g) || []).length === 1 && html.includes(`<span class="sr">${esc(city.city)}</span></h1>\n      <p class="board-row" aria-hidden="true"><span class="board" id="placeBoard" data-word="${esc(word)}" style="--n:${word.length}"></span></p>`), where, 'one city board, decorative, served empty and outside the H1 (data-word drawn by CSS): the H1 reads "<h1Before> <City>" before and after the board mounts');
   // the pass holds the fares, the door and the desk, once each
   need((html.match(/<article class="pass" id="pass" data-state="blank"/g) || []).length === 1 && (html.match(/id="door"/g) || []).length === 1 && (html.match(/id="fileForm"/g) || []).length === 1, where, 'the pass once, blank at parse; one door, one form');
   const pass = sliceOf(html, '<article class="pass"', '</article>');
@@ -819,7 +876,12 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   const was = [...html.matchAll(/href="(https:\/\/wa\.me\/[^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
   need(was.length >= 2 && was.every((u) => u === contact.waHref), where, 'every WhatsApp link opens with the desk marker ("Hi BOOM <city>, …"), never a plan or a price');
   // Rome is Rome: the rating appears once, labelled
-  need((html.match(/on Google/g) || []).length === 1 && /on Google in Rome/.test(html), where, 'the Rome rating appears once, labelled "in Rome"');
+  {
+    const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+    const ldStr = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strs(JSON.parse(m[1])));
+    const ratings = ([vis, ...ldStr].join(' \n ').match(RATING_RE) || []).length;
+    need((html.match(/on Google/g) || []).length === 1 && /on Google in Rome/.test(html) && ratings === 1, where, `the Rome rating appears once, labelled "in Rome" — no other rating, star or review count anywhere (${ratings} found)`);
+  }
   // the leftovers of the quiz pages stay gone
   need(!/id="checkin"|id="ckStatus"|id="passWrap"|#checkin=|class="paybar"|id="flapCity"|boomPlane|class="hero"|data-consent="compact"/.test(html), where, 'the quiz, its ticket, the share links, the v1.4 hero and its strip left the page');
   need(!/\u2708/.test(html), where, 'no ✈ (U+2708) on the page');
@@ -838,7 +900,7 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     const bare = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
     const attrs = [...bare.matchAll(/\s(?:content|alt|title|label|value|placeholder|aria-[\w-]+|data-[\w-]+)="([^"]*)"/g)].map((m) => m[1]);
     const said = [vis, ...strs(config), ...ld, ...attrs].join(' \n ');
-    const callAt = said.search(/\bcall(s|ed|ing)?\b/i);
+    const callAt = said.search(CALL_RE);
     need(callAt < 0, where, `a waitlist desk promises no call anywhere on its page (text, JSON-LD, meta, config) — found "…${callAt < 0 ? '' : said.slice(Math.max(0, callAt - 40), callAt + 30).trim()}…"`);
   } else {
     need(!/id="till"|data-pay=/.test(html) || sell, where, 'a desk without checkout mounts no till and no pay button');
@@ -856,15 +918,37 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     need(outside.includes(`<p class="refund fs">${rule}</p>`), where, 'the refund rule is missing under the closed Full Search row, which shows €500');
     need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, 'the refund rule is missing from the till, which shows €500');
     need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, 'the refund rule is missing from the fees row, which shows €500');
-    // every visible €500 outside those blocks (the FAQ answers carry their
-    // own refund sentence) is refused
+    // EVERY €500 sits inside a block that says the rule: its own <details>
+    // (a fare row with its ticket, a FAQ answer), <li>, <dd> or the till's
+    // <dialog> — never "somewhere nearby"; a meta attribute or a JSON-LD
+    // string carrying €500 must carry the rule itself
     const p500 = eur(fsPlan.price);
-    const rest = html
-      .replace(fsRow, ' ').replace(/<dialog class="till"[\s\S]*?<\/dialog>/, ' ').replace(/<dt>Fees<\/dt>[\s\S]*?<\/dd>/, ' ')
-      .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
-    for (const m of rest.matchAll(new RegExp(p500.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))) {
-      const around = rest.slice(Math.max(0, m.index - 600), m.index + 600);
-      need(/refunded in full/.test(around), where, `a ${p500} outside the fares, the till and the fees row stands without the refund rule: "…${visibleText(around.slice(500, 700)).trim()}…"`);
+    const blank = (m) => ' '.repeat(m.length);
+    const bodyAt = html.indexOf('<body');
+    const flat = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>|<!--[\s\S]*?-->/gi, blank);
+    const esc500 = p500.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    for (const m of flat.matchAll(new RegExp(esc500, 'g'))) {
+      if (m.index < bodyAt) {
+        const attr = (flat.slice(flat.lastIndexOf('"', m.index - 1), flat.indexOf('"', m.index + 1) + 1));
+        need(/refunded in full/.test(attr), where, `a ${p500} in the head (a meta attribute) stands without the refund rule`);
+        continue;
+      }
+      let box = null;
+      for (const t of ['li', 'dd', 'details', 'dialog']) {
+        const open = flat.lastIndexOf(`<${t}`, m.index);
+        if (open < 0) continue;
+        const close = flat.indexOf(`</${t}>`, m.index);
+        if (close < 0 || flat.lastIndexOf(`</${t}>`, m.index) > open) continue;
+        if (!box || open > box[0]) box = [open, close];
+      }
+      const inside = box ? flat.slice(box[0], box[1]) : '';
+      need(/refunded in full/.test(inside), where, `a ${p500} stands without the refund rule in its own block: "…${visibleText(flat.slice(Math.max(bodyAt, m.index - 120), m.index + 60)).trim()}…"`);
+    }
+    {
+      const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
+      for (const t of [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((x) => strs(JSON.parse(x[1])))) {
+        if (t.includes(p500)) need(/refunded in full/.test(t), where, `a ${p500} in the JSON-LD stands without the refund rule: "${t.slice(0, 120)}…"`);
+      }
     }
     // the till, in the order the law asks (CRD arts. 6(1)(h), 7(3), 8(2), 16(a))
     const till = sliceOf(html, '<dialog class="till"', '</dialog>');

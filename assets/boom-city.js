@@ -76,36 +76,65 @@
     setTimeout(refreshClock, 60000 - (Date.now() % 60000) + 50);
   }
 
-  /* ── the fares: a row opens ITS ticket in place; the tapped row stays put ── */
+  /* ── the fares: a row opens ITS ticket in place; the tapped row stays put.
+     Without JS the rows are an exclusive accordion (<details name>); with
+     JS the page opens and closes them itself, in the tap, so the layout is
+     final before the next frame and the row is put back under the finger
+     in the same task (Safari has no native scroll anchoring). A ticket
+     ABOVE the tapped row is closed only when the page can scroll back by
+     its height; otherwise it stays open and nothing jumps. ── */
   var fares = $$('details.fare');
   var faresBox = $('fares');
-  var anchor = null;
-  function openFare() { for (var i = 0; i < fares.length; i++) if (fares[i].open) return fares[i]; return null; }
+  var last = null;
+  function openFare() {
+    if (last && last.open) return last;
+    for (var i = 0; i < fares.length; i++) if (fares[i].open) return fares[i];
+    return null;
+  }
+  function scrollByY(dy) { try { scrollBy({ top: dy, left: 0, behavior: 'instant' }); } catch (e) { scrollBy(0, dy); } }
+  function toggleFare(d) {
+    var s = d.querySelector('summary'), y0 = s.getBoundingClientRect().top;
+    var opening = !d.open, closed = [], was = act ? act.parentNode : null;
+    pinned = null;
+    if (opening) fares.forEach(function (o) { if (o !== d && o.open) { o.open = false; closed.push(o); } });
+    d.open = opening;
+    if (opening) last = d;
+    sync();
+    var dy = s.getBoundingClientRect().top - y0;
+    if (dy < -1 && scrollY + dy < -1) {
+      /* not enough page above to scroll back: the tickets above stay open */
+      var back = closed.filter(function (o) { return !!(o.compareDocumentPosition(d) & 4); });
+      if (back.length) {
+        back.forEach(function (o) { o.open = true; });
+        sync();
+        dy = s.getBoundingClientRect().top - y0;
+        /* the door leaving the ticket above still pulls the row up: it stays
+           where it was (the strip offers it while it is off the screen) */
+        if (dy < -1 && scrollY + dy < -1 && was && was !== act.parentNode && was.closest('details.fare')) {
+          pinned = was;
+          sync();
+          dy = s.getBoundingClientRect().top - y0;
+        }
+      }
+    }
+    if (Math.abs(dy) > 1) scrollByY(dy);
+    if (opening) track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG });
+  }
   fares.forEach(function (d) {
-    var s = d.querySelector('summary');
-    s.addEventListener('click', function () { anchor = { s: s, top: s.getBoundingClientRect().top }; });
-    d.addEventListener('toggle', function () {
-      if (d.open) {
-        /* a browser without <details name> exclusivity */
-        fares.forEach(function (o) { if (o !== d && o.open) o.open = false; });
-        track('fare_open', { plan: d.getAttribute('data-plan'), market: C.SLUG });
-      }
-      sync();
-      /* manual scroll anchoring (Safari has none): the row the reader
-         tapped does not move under the finger */
-      if (anchor && anchor.s === s) {
-        var a = anchor; anchor = null;
-        var dy = s.getBoundingClientRect().top - a.top;
-        if (Math.abs(dy) > 1) { try { scrollBy({ top: dy, left: 0, behavior: 'instant' }); } catch (e) { scrollBy(0, dy); } }
-      }
-    });
+    d.removeAttribute('name');
+    d.querySelector('summary').addEventListener('click', function (e) { e.preventDefault(); toggleFare(d); });
+    /* an open set by anyone else (the paid return, the browser's find-in-page) */
+    d.addEventListener('toggle', function () { sync(); });
   });
 
   /* ── the action: ONE node (the door, its form, the states). It sits in the
      stub — or, on a phone, inside the open ticket. Never two doors. ── */
-  var act = $('act'), stubSlot = $('stubSlot');
+  var act = $('act'), stubSlot = $('stubSlot'), pinned = null;
   function currentSlot() {
     if (wide.matches) return stubSlot;
+    /* pinned: the door stays in a ticket above that the page could not scroll past */
+    if (pinned && pinned.closest('details.fare') && pinned.closest('details.fare').open) return pinned;
+    pinned = null;
     var o = openFare();
     return (o && o.querySelector('[data-slot]')) || stubSlot;
   }
@@ -114,7 +143,11 @@
     if (!s || !act || act.parentNode === s) return;
     var had = act.contains(document.activeElement) ? document.activeElement : null;
     s.appendChild(act);
-    if (had) { try { had.focus({ preventScroll: true }); } catch (e) {} }
+    if (had) {
+      try { had.focus({ preventScroll: true }); } catch (e) {}
+      var hr = had.getBoundingClientRect();
+      if (hr.top < 0 || hr.bottom > innerHeight - stripH()) had.scrollIntoView({ block: 'center', behavior: 'auto' });
+    }
   }
   var plan = '';
   function sync() {
@@ -147,7 +180,8 @@
   function splitContact(v) {
     v = String(v || '').trim();
     if (/@/.test(v)) return EMAIL.test(v) ? { email: v } : { bad: 'email' };
-    return (v.match(/\d/g) || []).length >= 7 ? { phone: v.replace(/[^\d+]/g, '') } : { bad: 'contact' };
+    /* as typed: the server reads "+31 (0)6 …" with the desk's country (cityPhone) */
+    return (v.match(/\d/g) || []).length >= 7 ? { phone: v.slice(0, 40) } : { bad: 'contact' };
   }
 
   /* ── the free door: the first tap reveals two fields, the second sends ── */
@@ -166,7 +200,14 @@
       var nm = $('fName');
       var r = act.getBoundingClientRect();
       if (r.top < 0 || r.top > innerHeight * 0.6) act.scrollIntoView({ block: 'start', behavior: reduce ? 'auto' : 'smooth' });
-      setTimeout(function () { try { nm.focus({ preventScroll: true }); } catch (e) { nm.focus(); } }, reduce ? 0 : 320);
+      /* any focus the visitor moves in the meantime wins over ours */
+      var movedOn = false, mark = function () { movedOn = true; };
+      document.addEventListener('focusin', mark, true);
+      setTimeout(function () {
+        document.removeEventListener('focusin', mark, true);
+        if (movedOn) return;
+        try { nm.focus({ preventScroll: true }); } catch (e) { nm.focus(); }
+      }, reduce ? 0 : 320);
     }
   }
   if (form && door) {
@@ -184,19 +225,19 @@
       var picked = planOf(plan) ? plan : '';
       var body = { city: C.SLUG, name: name, service: picked, requestId: requestId, company: ($('fCompany') || {}).value || '' };
       if (c.email) body.email = c.email; else body.phone = c.phone;
-      sending = true; door.disabled = true;
+      sending = true; door.setAttribute('aria-disabled', 'true'); txt('fNetErr', '');
       var label = $('doorL'), was = label.textContent;
       label.textContent = form.getAttribute('data-sending') || was;
       track('generate_lead', { channel: 'form', source_page: C.SLUG, plan: picked || 'none' });
       postJson(C.LEAD_URL || '/api/city-lead', body).then(function (r) {
         if (!r || !r.ok) throw new Error('lead');
-        sending = false;
+        sending = false; door.removeAttribute('aria-disabled');
         setState('open', { name: name, file: r.file || '' });
         track('sign_up', { method: 'city_form', market: C.SLUG });
         convert('City file opened');
       }).catch(function () {
-        sending = false; door.disabled = false; label.textContent = was;
-        setErr(ct, form.getAttribute('data-err-net'));
+        sending = false; door.removeAttribute('aria-disabled'); label.textContent = was;
+        txt('fNetErr', form.getAttribute('data-err-net'));
         track('form_error', { form: 'file', field: 'net', market: C.SLUG });
       });
     });
@@ -225,6 +266,7 @@
     pass.setAttribute('data-state', s);
     /* no second till, and no money asked right after a free door was promised */
     $$('[data-pay]').forEach(function (b) { b.hidden = s !== 'blank'; });
+    if (s !== 'blank') closeTill();
     if (form) form.hidden = s !== 'blank';
     if ($('notSure')) $('notSure').hidden = true;
     if ($('planLn')) $('planLn').hidden = true;
@@ -272,7 +314,7 @@
   }
   function openTill(id, from) {
     var p = planOf(id);
-    if (!p || !till || state() !== 'blank') return;
+    if (!p || !till || state() !== 'blank' || sending) return;
     opener = from || null;
     tf.setAttribute('data-plan', id);
     txt('tTitle', p.label); txt('tPrice', eur(p.eur)); txt('tCond', p.condition); txt('tTag', p.name);
@@ -285,19 +327,24 @@
     if (c.email && !$('tEmail').value) $('tEmail').value = c.email;
     txt('tErr', '');
     $$('#tillForm input[aria-invalid]').forEach(function (i) { setErr(i, ''); });
-    $('tStart').checked = false; $('tGo').disabled = false; paying = false; payLabels();
+    $('tStart').checked = false; $('tGo').removeAttribute('aria-disabled'); paying = false; payLabels();
     if (typeof till.showModal === 'function') { try { till.showModal(); } catch (e) { till.setAttribute('open', ''); } } else till.setAttribute('open', '');
     document.documentElement.style.overflow = 'hidden';
     stripSync();
     track('begin_checkout', { currency: 'EUR', value: p.eur, items: [{ item_id: 'city_' + C.SLUG + '_' + id, item_name: p.label }], market: C.SLUG });
     try { $('tTitle').focus({ preventScroll: true }); } catch (e) {}
   }
-  function closeTill() { if (till && till.open) { if (typeof till.close === 'function') till.close(); else till.removeAttribute('open'); } }
+  var payTok = 0;
+  function closeTill() {
+    payTok++;
+    if (till && till.open) { if (typeof till.close === 'function') till.close(); else till.removeAttribute('open'); }
+  }
   if (till && tf) {
     $$('[data-pay]').forEach(function (b) {
       b.addEventListener('click', function () {
-        /* a payment being confirmed, or paid, is never paid twice */
-        if (state() !== 'blank') { land(act, true); return; }
+        /* a payment being confirmed, or paid, is never paid twice; nor is a
+           till opened while the free door is filing (it promised no card) */
+        if (state() !== 'blank' || sending) { land(act, true); return; }
         openTill(b.getAttribute('data-pay'), b);
       });
     });
@@ -320,14 +367,15 @@
     $('tAlt').addEventListener('click', function () { opener = null; closeTill(); openForm(true); });
     tf.addEventListener('submit', function (e) {
       e.preventDefault();
-      if (paying) return;
+      if (paying || state() !== 'blank') return;
       var n = $('tName'), m = $('tEmail'), bad = null;
       if (!setErr(n, n.value.trim().length < 2 ? till.getAttribute('data-err-name') : '')) bad = bad || n;
       if (!setErr(m, EMAIL.test(m.value.trim()) ? '' : till.getAttribute('data-err-email'))) bad = bad || m;
       if (bad) { bad.focus(); track('form_error', { form: 'till', market: C.SLUG }); return; }
       var id = tf.getAttribute('data-plan'), p = planOf(id);
       if (!p) return;
-      paying = true; $('tGo').disabled = true; txt('tErr', '');
+      paying = true; $('tGo').setAttribute('aria-disabled', 'true'); txt('tErr', '');
+      var tok = payTok;
       track('add_payment_info', { currency: 'EUR', value: p.eur, market: C.SLUG });
       postJson(C.CHECKOUT_ENDPOINT || '/api/service-checkout', {
         city: C.SLUG, kind: id, name: n.value.trim(), email: m.value.trim(),
@@ -338,17 +386,19 @@
         startNow: $('tStart').checked === true,
         company: ($('tCompany').value || '').trim()
       }).then(function (r) {
+        /* the visitor closed the till (or the page moved on) while it flew: stay */
+        if (tok !== payTok || !till.open) { paying = false; $('tGo').removeAttribute('aria-disabled'); return; }
         if (r && r.ok && r.url) { location.href = r.url; return; }
         throw new Error((r && r.error) || 'failed');
       }).catch(function () {
-        paying = false; $('tGo').disabled = false; payLabels();
-        txt('tErr', till.getAttribute('data-err-net'));
+        paying = false; $('tGo').removeAttribute('aria-disabled'); payLabels();
+        if (tok === payTok) txt('tErr', till.getAttribute('data-err-net'));
       });
     });
     /* back from Stripe via the bfcache: the till starts clean */
     addEventListener('pageshow', function (e) {
       if (!e.persisted) return;
-      paying = false; $('tGo').disabled = false;
+      paying = false; $('tGo').removeAttribute('aria-disabled');
       closeTill(); document.documentElement.style.overflow = '';
       if (state() === 'blank') payLabels();
     });
@@ -418,8 +468,10 @@
     strip.setAttribute('aria-hidden', on ? 'false' : 'true');
     document.documentElement.style.setProperty('--strip-h', on ? strip.offsetHeight + 'px' : '0px');
   }
-  if (strip && act && 'IntersectionObserver' in window) {
-    new IntersectionObserver(function (es) { doorGone = !es[es.length - 1].isIntersecting; stripSync(); }).observe(act);
+  if (strip && door && 'IntersectionObserver' in window) {
+    /* the gold button itself, half of it at least: the "not sure" line
+       peeking in at the foot of the screen is not a door */
+    new IntersectionObserver(function (es) { var e = es[es.length - 1]; doorGone = !(e.isIntersecting && e.intersectionRatio >= 0.5); stripSync(); }, { threshold: [0, 0.5, 1] }).observe(door);
     addEventListener('resize', stripSync);
     $('stripGo').addEventListener('click', function () { track('strip_click', { market: C.SLUG }); openForm(true); });
   }

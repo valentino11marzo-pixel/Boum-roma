@@ -136,13 +136,13 @@ check(!/stripe\.com|js\.stripe|web3forms|formspree|fbq\(|connect\.facebook/i.tes
 // the pass: the city on ONE board, served empty; the sentence; the fares; the door; the desk
 const pass = sliceOf(html, '<article class="pass"', '</article>');
 check((html.match(/<article class="pass" id="pass"/g) || []).length === 1 && /<article class="pass" id="pass" data-state="blank"/.test(html), 'one pass, blank at parse');
-check(html.includes('<span class="sr">Amsterdam</span><span class="board" id="placeBoard" aria-hidden="true" data-word="AMSTERDAM" style="--n:9"></span></h1>')
-  && (html.match(/class="board"/g) || []).length === 1, 'one board in the H1, decorative and served empty: a reader and a crawler read "Amsterdam" once');
+check(html.includes('<h1 id="h1"><span class="h1a">Your home in</span> <span class="sr">Amsterdam</span></h1>\n      <p class="board-row" aria-hidden="true"><span class="board" id="placeBoard" data-word="AMSTERDAM" style="--n:9"></span></p>')
+  && (html.match(/class="board"/g) || []).length === 1, 'one board, decorative, served empty and OUTSIDE the H1: the heading reads "Your home in Amsterdam" before and after the cells mount');
 check(/<p class="lead">We search, apply, attend the viewings and check the lease\. <b>We work exclusively for you; never paid by landlords\.<\/b><\/p>/.test(pass),
   'the one sentence, with Amsterdam\'s must-state in bold (brief §4: "never paid by landlords")');
 const iFares = pass.indexOf('<!-- FARES -->'), iAct = pass.indexOf('<div id="act">'), iDesk = pass.indexOf('<dt>Answers</dt>');
 check(iFares > -1 && pass.indexOf('<!-- /FARES -->') < iAct && iAct < iDesk, 'in the pass: the fares, then the door, then who answers');
-check(pass.includes(`<dt>Answers</dt><dd>${ams.desk.person}</dd>`) && pass.includes(`<dt>Desk</dt><dd>${deskHoursText(ams.desk)}</dd>`),
+check(pass.includes(`<dt>Answers</dt><dd>${ams.desk.person}</dd>`) && pass.includes('<dt>Desk</dt><dd>Mon–Fri <span class="nw">09:00–19:00</span>, Rome time</dd>'),
   `who answers and when, in the static HTML: "${ams.desk.person}" · "${deskHoursText(ams.desk)}" (true in every season: never "CET" alone)`);
 check(deskHoursText(ams.desk) === 'Mon–Fri 09:00–19:00, Rome time' && daysLabel([1, 2, 3, 4, 5]) === 'Mon–Fri' && daysLabel([1, 3]) === 'Mon, Wed' && daysLabel([6]) === 'Sat',
   'deskHoursText names the days and the city of the clock');
@@ -172,6 +172,8 @@ check(/<button class="door js" id="door" type="submit" disabled /.test(html) && 
 check(/<div id="fFields" class="reveal" hidden>/.test(html) && /<input id="fName" name="name" autocomplete="name"/.test(html) && /<input id="fContact" name="contact" autocomplete="email" inputmode="email"/.test(html),
   'two fields, revealed by the first tap: a name and ONE contact ("Email or WhatsApp number")');
 check(/<input class="hp" id="fCompany" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">/.test(html), 'the honeypot is there, out of the tab order');
+check(/<p class="err" id="fNetErr" role="alert"><\/p>\s*<button class="door js" id="door"/.test(html), 'a failed send has its own alert next to the door — never written on a valid contact field');
+check(/window\.BOOM_TICKET/.test(sliceOf(html, "addEventListener('load', function ()", '</script>')), 'the "could not load its form" fallback reads the desk script\'s own flag, not the door\'s state (the door is shut for a moment while a real send flies)');
 check(/<form id="fileForm"[^>]*data-analytics-manual/.test(html) && /<form class="tf" id="tillForm"[^>]*data-analytics-manual/.test(html), 'both forms are tracked by hand (boom-track never double-counts a lead)');
 check(html.includes(`<p class="s-h" id="notSure">${esc(ams.stub.notSure)}</p>`), 'the "not sure" line over the door (the free door is the neutral decline)');
 check(/<div id="cOpen" class="card reveal" tabindex="-1" hidden>/.test(html) && /<dd id="oFile"><\/dd>/.test(html) && !/BM [A-HJ-NP-Z2-9]{5}/.test(html),
@@ -365,12 +367,21 @@ refuses((c) => { c.pricing.plans[0].when = 'If you have not started searching fo
 refuses((c) => { c.pricing.plans[1].includes = ['Only one line']; }, /2–5 lines/, 'a ticket with fewer than two "what the fee buys" lines is refused');
 refuses((c) => { c.pricing.plans[0].includes = c.pricing.plans[0].includes.filter((x) => !/more: €149 each/.test(x)); }, /\(more: €149 each\)/, 'Full Search on a selling desk must say one viewing is included and the rest priced');
 refuses((c) => { c.pricing.plans[0].includes = c.pricing.plans[0].includes.filter((x) => !/Until you sign, or you say stop/.test(x)); }, /Until you sign, or you say stop/, 'Full Search must say how long it runs (the founder, 22/10)');
-refuses((c) => { c.pricing.plans[0].featured = true; c.pricing.plans[1].featured = true; }, /at most one plan is featured/, 'two featured plans are refused');
+refuses((c) => { c.pricing.plans[0].featured = true; }, /plan\.featured is a key the page does not read/, 'plan.featured (the v1.4 pay bar sold it) is refused: the page reads no such key');
+refuses((c) => { c.bref.ref = 'REF · AMSTERDAM'; }, /bref\.ref is a key the page does not read/, 'bref.ref is refused: a string nobody sees is a string everybody believes is live');
+refuses((c) => { c.hero2 = { lead: 'x' }; }, /hero2 is a key the page does not read/, 'an unknown top-level key is refused (an allow-list, not a deny-list)');
+refuses((c) => { c.checkoutCopy.paid.recourse = 'Nothing by then?'; }, /checkoutCopy\.paid\.recourse is a key the page does not read/, 'a dead PAID line is refused');
 // the door, the clock, the call
 refuses((c) => { c.door.label = 'Open my file'; }, /door\.label is "Start with a free call"/, 'a selling desk\'s door must read "Start with a free call"');
 refuses((c) => { c.door.label = 'Start with a free call'; }, /door\.label is "Open my file"/, 'a waitlist door must read "Open my file" (it takes no call)', 'paris');
-refuses((c) => { c.pricing.plans[1].offerDescription = 'Your dossier within 24 hours.'; }, /no "24 hours"/, 'a clock promise ("24 hours") is refused on any desk: the desk is Mon–Fri 09–19');
-refuses((c) => { c.stub.notSure = 'Not sure? Book a call with us.'; }, /promise no call/, 'a waitlist "not sure" line that promises a call is refused', 'berlin');
+for (const [what, mut] of [['24 hours', (c) => { c.pricing.plans[1].offerDescription = 'Your dossier within 24 hours.'; }],
+  ['24h', (c) => { c.how.steps[1].h = 'Dutch-format, in 24h'; }], ['24-hour', (c) => { c.meta.description = 'A 24-hour Dutch-format dossier for expats in Amsterdam, tenant side only, viewings attended and contract checked before you sign.'; }],
+  ['within an hour', (c) => { c.pricing.plans[0].includes[1] = 'Applications within an hour of a listing'; }], ['<1h', (c) => { c.how.steps[2].p = 'Applications sent <1h after a listing appears.'; }]]) {
+  refuses(mut, /no clock promise in the copy/, `a clock promise ("${what}") is refused on any desk: the desk is Mon–Fri 09–19`);
+}
+refuses((c) => { c.stub.notSure = 'Not sure? Book a call with us.'; }, /promises no call/, 'a waitlist "not sure" line that promises a call is refused', 'berlin');
+refuses((c) => { c.faq.items[0].a += " We'll phone you to talk it through."; }, /promises no call/, 'a waitlist promising to phone you, in other words, is refused', 'paris');
+refuses((c) => { c.stub.notSure = 'Until it opens nothing is charged. Ask for a callback.'; }, /promises no call/, 'a waitlist offering a callback is refused', 'paris');
 refuses((c) => { c.desk.hours = { from: '19:00', to: '09:00' }; }, /from before to/, 'desk hours backwards are refused');
 refuses((c) => { c.desk.timeZone = 'Europe/Atlantis'; }, /not a time zone Intl accepts/, 'a desk time zone Intl does not know is refused');
 refuses((c) => { c.desk.person = '[NAME]'; }, /desk\.person is the named person/, 'the desk person must be a named person');
@@ -386,6 +397,7 @@ refuses((c) => { c.checkoutCopy.fine = 'Secure card payment by Stripe.'; }, /mus
 refuses((c) => { c.checkoutCopy.startNow = 'Start now.'; }, /payer's own request to start/, 'the start-now line must be the payer\'s request, with the right that ends once fully performed');
 refuses((c) => { c.checkoutCopy.withdrawal = 'You can withdraw within 14 days.'; }, /14-day withdrawal right/, 'the withdrawal line must name the email and link the model form');
 refuses((c) => { c.checkoutCopy.paid.startsWait = 'When your 14 days end'; }, /paid\.startsWait carries \{date\}/, 'the PAID start date for a payer who waits is the server\'s date ({date})');
+refuses((c) => { c.checkoutCopy.paid.startsWait = '{date}, when your 14 days end'; }, /never calls \{date\} the day the 14 days end/, 'the PAID card never calls the work\'s first day the end of the 14 days (the webhook\'s date is the first working day AFTER them: the right to withdraw would read days longer than it is)');
 refuses((c) => { c.checkoutCopy.paid.nextWait[0][1] = 'the desk writes the same working day'; }, /nextWait never "same working day"/, 'the steps of a payer who waits never promise the same working day');
 refuses((c) => { c.checkoutCopy.altLink = 'Open a file instead'; }, /must start with door\.label/, 'the way out of the till is the page\'s one door');
 refuses((c) => { c.checkout = true; c.till = clone(ams.till); c.checkoutCopy = clone(ams.checkoutCopy); }, /a waitlist city cannot open a checkout/, 'a waitlist city with checkout:true is refused: shown is not charged', 'paris');
@@ -404,6 +416,17 @@ refuses((c) => { for (const k of c.how.steps) k.p += ' ' + 'Every word here is r
 // ── 7 · the output refusals (each proven by mutating the template) ────────
 tplRefuses('<!-- FARES -->\n{{{faresHtml}}}', '<!-- FARES -->\n<p>Full Search €500</p>\n{{{faresHtml}}}', /stands without the refund rule/, 'a €500 printed outside the fares, the till and the fees row without the refund rule is refused');
 tplRefuses('<p class="proof">', '<p class="proof">Rated 4.9 on Google — ', /the Rome rating appears once/, 'a second, unlabelled rating is refused');
+refuses((c) => { c.hero.lead = 'Rated ★4.9 · 47 reviews. We search, apply, attend the viewings.'; }, /the Rome rating appears once/, 'a star rating written any other way is refused (the desk has no reviews of its own)');
+refuses((c) => { c.faq.items[1].a += ' Rated 4.9 by 47 clients.'; }, /the Rome rating appears once|a price the plans/, 'a rating hidden in a FAQ answer is refused');
+// every price is a plan's price: a repriced plan cannot leave a stale figure
+refuses((c) => { c.pricing.plans[2].price = 169; }, /more: €169 each|a price the plans do not charge/, 'repricing Attended Viewing without its mentions (the Full Search line, the FAQ) is refused: the stale €149 cannot stay');
+refuses((c) => { c.meta.description = 'Apartment search from €129 for expats in Amsterdam, tenant side only: a Dutch-format dossier, applications, viewings attended, contract checked.'; }, /a price the plans do not charge is stated on the page: €129/, 'a price in a meta description that no plan charges is refused');
+refuses((c) => { c.pricing.plans[2].offerDescription += ' From €99.'; }, /a price the plans do not charge is stated on the page: €99/, 'a price in an Offer description (JSON-LD) that no plan charges is refused');
+// every €500 inside its own block with the rule
+refuses((c) => { c.pricing.plans[1].includes[0] = 'Upgrade to Full Search (€500) at any time'; }, /stands without the refund rule in its own block/, 'a €500 inside another fare\'s ticket is refused (the old check never scanned the other rows)');
+refuses((c) => { c.pricing.plans[2].when = 'Cheaper than €500 Full Search'; }, /stands without the refund rule|"when" line is/, 'a €500 on a closed fare row other than Full Search is refused');
+refuses((c) => { const q = c.faq.items.find((f) => /scam/i.test(f.q)); q.a += ' Full Search costs €500.'; }, /stands without the refund rule in its own block/, 'a €500 in a FAQ answer without its own refund sentence is refused, whatever the neighbouring answer says');
+refuses((c) => { c.service.description += ' Full Search €500.'; }, /in the JSON-LD stands without the refund rule/, 'a €500 in a JSON-LD string without the rule is refused');
 tplRefuses('<a class="skip" href="#main">Skip to content</a>', '<a class="skip" href="#main">Skip to content</a><div id="checkin"></div>', /the quiz, its ticket/, 'the Check-in node cannot come back');
 tplRefuses('<a class="skip" href="#main">Skip to content</a>', '<a class="skip" href="#main">Skip to content</a><span>✈</span>', /no ✈/, 'the airplane glyph cannot come back');
 tplRefuses('<p class="proof">', '<p class="proof">Book now! ', /no exclamation mark/, 'an exclamation mark in the copy is refused');
@@ -467,8 +490,8 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     const svcLd = [...h.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map((m) => JSON.parse(m[1])).find((b) => b['@graph'])['@graph'].find((n) => n['@type'] === 'Service');
     check(svcLd.offers.every((o) => o.availability === 'https://schema.org/PreOrder' && /opens|sign/i.test(o.description) && !/refunded/.test(o.description)), `${s}: its Offers are PreOrder and say when they are charged`);
   }
-  check(PAGE.berlin.includes('Nothing charged today; Full Search only once you sign') && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(PAGE.berlin),
-    'berlin: Full Search is due only once you sign, on the fares and on its row (WoVermRG §2–§3)');
+  check(CITY.berlin.hero.faresHead.span === 'Nothing charged today' && /data-plan-price="full-search">€500<\/span><span class="f-cond">flat ·<br> incl\. VAT · on signing<\/span>/.test(PAGE.berlin),
+    'berlin: nothing is charged today, and Full Search says on its own row that it is due only once you sign (WoVermRG §2–§3)');
   check(/Catalan or Spanish/.test(CITY.barcelona.checkoutCopy.fine) && /fulls oficials/i.test(PAGE.barcelona), 'barcelona: documents in Catalan or Spanish on request, the official complaint forms named');
   for (const s of ['madrid', 'barcelona']) {
     const h = PAGE[s];
@@ -476,6 +499,10 @@ tplRefuses('<p class="proof">', '<p class="proof">Pay by bank transfer · ', /no
     check(/<details id="check-fees"><summary><span class="t">[^<]+<span class="at">[^<]*LAU art\. 20/.test(h), `${s}: the check "Who pays the agent · LAU art. 20"`);
   }
   check(!/AICAT/.test(PAGE.barcelona.replace(/<!--[\s\S]*?-->/g, '')), 'barcelona: no AICAT registration is claimed anywhere (there is no number to print)');
+  for (const s of ['paris', 'berlin']) {
+    const extra = CITY[s].pricing.plans.flatMap((p) => ['negotiat', 'template', 'cover letter'].filter((w) => p.offerDescription.toLowerCase().includes(w) && !p.includes.join(' ').toLowerCase().includes(w)).map((w) => `${p.id}: ${w}`));
+    check(!extra.length, `${s}: its Offers (JSON-LD) promise nothing its tickets do not show (no negotiation, templates or cover letter the page never names)`, extra.join(', '));
+  }
 }
 
 // ── 9 · the build never overwrites a page it did not make ────────────────
@@ -670,6 +697,10 @@ const ANNA = { city: 'amsterdam', name: 'Anna Keller', email: 'anna@example.com'
   const r = await call({ city: 'madrid', name: 'Lucía', phone: '612 345 678' }, null, { cookie: 'boom_attr=ai%3Achatgpt%20%C2%B7%20%2Fmadrid' });
   check(r.code === 200 && r.lead && r.lead.phone === '+34612345678', 'a Spanish national number on the Madrid desk becomes +34… — never the Rome machine\'s +39 guess, never +61 (Australia)', r.lead && r.lead.phone);
   check(r.lead && r.lead.attribution === 'ai:chatgpt · /madrid', 'the city door carries the first consented touch like every other lead door', r.lead && String(r.lead.attribution));
+  // the page posts the number AS TYPED (v1.5 review: stripping the non-digits
+  // made "+31 (0)6 …" into +310612345678, a number that does not exist)
+  const typed = await call({ city: 'amsterdam', name: 'Daan', phone: '+31 (0)6 1234 5678' });
+  check(typed.code === 200 && typed.lead && typed.lead.phone === '+31612345678' && typed.lead.raw.phone === '+31 (0)6 1234 5678', 'a Dutch number typed "+31 (0)6 1234 5678" is stored +31612345678, the typed value kept on raw', typed.lead && typed.lead.phone);
   // one page load, one lead: a send retried after a timeout files the same document
   const once = await call({ ...ANNA, requestId: 'k3x9retry0001' });
   const twice = await call({ ...ANNA, requestId: 'k3x9retry0001' });

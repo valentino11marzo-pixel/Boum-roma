@@ -103,6 +103,7 @@ async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid
     if (u.startsWith(base + '/api/service-checkout')) {
       st.checkouts.push(JSON.parse(r.request().postData() || '{}'));
       const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
+      if (res.delay) await new Promise((x) => setTimeout(x, res.delay));
       return r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
     }
     if (u.startsWith(base)) return r.continue();
@@ -127,7 +128,7 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   const { ctx, page, st } = await open();
   await page.waitForTimeout(1600);
   check(await boardWord(page, '#placeBoard') === 'AMSTERDAM', 'the city settles on its board (AMSTERDAM)');
-  check(await page.$eval('#h1', (h) => h.innerText.replace(/\s+/g, ' ').includes('Your home in') && h.querySelector('.sr').textContent === 'Amsterdam'), 'the H1 reads "Your home in Amsterdam" (the board is decorative)');
+  check(await page.$eval('#h1', (h) => h.textContent === 'Your home in Amsterdam' && !h.querySelector('.board')), 'after the board settles the rendered H1 still reads exactly "Your home in Amsterdam" (the cells live outside it)');
   const fold = 844;
   const doorR = await rect(page, '#door'), lastRow = await rect(page, '#fare-attended-viewing > summary');
   check(lastRow.bottom <= fold && doorR.bottom <= fold, `at 390×844 the three fares (bottom ${Math.round(lastRow.bottom)}) and the gold door (bottom ${Math.round(doorR.bottom)}) are on the first screen`);
@@ -138,6 +139,39 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   check(await shown(page, '#fares > .refund.fs') && await text(page, '#fares > .refund.fs') === RULE, 'the refund rule is rendered under the closed Full Search row');
   check(await noHScroll(page), 'no horizontal scroll at 390');
   check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no request to a foreign host', st.errors.concat(st.foreign).join(' | '));
+  await ctx.close();
+}
+
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin']) {
+  for (const [w, h] of [[390, 844], [1440, 900]]) {
+    const { ctx, page } = await open({ slug, width: w, height: h });
+    await page.waitForTimeout(400);
+    if (w === 390) {
+      const b = await page.evaluate(() => ['#door', '.fields.desk', '#fare-attended-viewing > summary'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().bottom)));
+      check(b.every((x) => x <= 844), `${slug} 390×844: the three fares, the gold door and who answers are all above the fold (${b.join(', ')})`);
+    }
+    // the legally load-bearing first-screen text is RENDERED, not only written
+    const legal = await page.evaluate(() => {
+      const vis = (e) => !!e && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height > 0;
+      return { cond: [...document.querySelectorAll('#fares .f-cond')].map(vis), lead: vis(document.querySelector('.lead b')), head: vis(document.getElementById('faresH')) && vis(document.querySelector('.fares-h span')),
+        rule: document.querySelector('#fares > .refund.fs') ? [vis(document.querySelector('#fares > .refund.fs')), document.querySelector('#fares > .refund.fs').textContent] : null };
+    });
+    const sells = slug !== 'paris' && slug !== 'berlin';
+    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && (sells ? legal.rule && legal.rule[0] && legal.rule[1] === RULE : legal.rule === null),
+      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares${sells ? ' and the refund rule under the closed €500' : ''} are on screen, not only in the HTML`, JSON.stringify(legal));
+    await ctx.close();
+  }
+}
+for (const slug of ['amsterdam', 'madrid', 'barcelona']) {
+  // L1: an iPhone's visible height in Safari (~664): the first screen always
+  // has an action — the gold door, or the strip when the door is under the fold
+  const { ctx, page } = await open({ slug, width: 390, height: 664 });
+  await page.waitForTimeout(600);
+  const a = await page.evaluate(() => {
+    const d = document.getElementById('door').getBoundingClientRect(), s = document.getElementById('strip');
+    return { doorIn: d.top >= 0 && d.bottom <= innerHeight, half: d.top + d.height / 2 <= innerHeight, strip: s.classList.contains('on') };
+  });
+  check(a.doorIn || a.strip, `${slug} 390×664 (Safari's visible height): the gold door or the strip is on the first screen`, JSON.stringify(a));
   await ctx.close();
 }
 
@@ -185,6 +219,34 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   await page.click('#fare-full-search > summary');
   await page.waitForTimeout(250);
   check(await page.$eval('#act', (a) => !!a.closest('#stubSlot')) && await shown(page, '#notSure'), 'closing the ticket puts the door back in the stub, nothing chosen');
+  await ctx.close();
+}
+for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
+  // the common sequence (review B3): Full Search open, a little scroll, tap
+  // Attended Viewing at the bottom of the screen. With Safari's lack of
+  // native anchoring the row must not move — and no frame may be painted
+  // with it displaced (the correction runs in the tap, not in 'toggle')
+  const { ctx, page } = await open({ width: w, height: h });
+  await page.addStyleTag({ content: '*{overflow-anchor:none!important}' });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await page.$eval('#fare-attended-viewing > summary', (e) => e.scrollIntoView({ block: 'end', behavior: 'instant' }));
+  await page.waitForTimeout(200);
+  const trace = await page.evaluate(() => new Promise((done) => {
+    const s = document.querySelector('#fare-attended-viewing > summary');
+    const y0 = s.getBoundingClientRect().top, ys = [];
+    let n = 0;
+    (function frame() { ys.push(s.getBoundingClientRect().top - y0); if (++n < 12) requestAnimationFrame(frame); else done({ ys, open: s.parentNode.open }); })();
+    s.click();
+  }));
+  const worst = Math.max(...trace.ys.map(Math.abs));
+  check(trace.open && worst < 2, `${w}×${h}: Full Search open, a tap on Attended Viewing at the foot of the screen — the row never moves, in any frame (worst ${worst.toFixed(1)} px)`);
+  // the door follows into the new ticket — or, when that move alone would pull
+  // the row up past the top of the page, stays in the open ticket above (the
+  // strip offers it while it is off the screen); either way it says the new plan
+  const where = await page.$eval('#act', (a) => { const f = a.closest('details.fare'); return f && f.open ? f.id : null; });
+  check(where && await text(page, '#planName') === 'Attended Viewing', `${w}×${h}: the door sits in an open ticket (${where}) and says the plan just opened`);
   await ctx.close();
 }
 {
@@ -247,9 +309,11 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   await page.fill('#fContact', '+31 6 1234 5678');
   await page.click('#door');
   await page.waitForTimeout(500);
-  check(st.posts.length === 1 && st.posts[0].phone === '+31612345678' && !st.posts[0].email && st.posts[0].service === '', 'a number in the contact field travels as phone; no fare open = no plan ("to decide" on the server)', JSON.stringify(st.posts[0]));
-  check(await page.getAttribute('#pass', 'data-state') === 'blank' && !(await shown(page, '#cOpen')) && !(await page.$eval('#door', (b) => b.disabled)) && (await text(page, '#fContactErr')) !== '',
-    'a failed send issues nothing, gives the door back and says so on the contact field');
+  check(st.posts.length === 1 && st.posts[0].phone === '+31 6 1234 5678' && !st.posts[0].email && st.posts[0].service === '', 'a number travels AS TYPED (the server reads it with the desk\'s country); no fare open = no plan ("to decide" on the server)', JSON.stringify(st.posts[0]));
+  check(await page.getAttribute('#pass', 'data-state') === 'blank' && !(await shown(page, '#cOpen')) && !(await page.$eval('#door', (b) => b.disabled || b.getAttribute('aria-disabled') === 'true')) && /send failed/i.test(await text(page, '#fNetErr')),
+    'a failed send issues nothing, gives the door back and says so in its own alert');
+  check(await page.$eval('#fContact', (i) => i.getAttribute('aria-invalid') !== 'true') && await page.evaluate(() => document.activeElement && document.activeElement.id === 'door'),
+    'the valid contact field is not marked invalid, and the focus is still on the door (a keyboard user keeps their place)');
   await ctx.close();
 }
 
@@ -297,6 +361,44 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   await ctx.close();
 }
 {
+  // B1: while the free door is filing, no till opens; when OPEN lands, no till is left open
+  const { ctx, page, st } = await open({ api: { ...LEAD_OK, delay: 1500 } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Anna Keller'); await page.fill('#fContact', 'anna@example.com');
+  await page.click('#door');
+  await page.waitForTimeout(150);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id === 'door') && await page.getAttribute('#door', 'aria-disabled') === 'true', 'while the door sends it keeps the focus (aria-disabled, never disabled)');
+  await page.$eval('#fare-full-search [data-pay]', (b) => b.click());
+  await page.waitForTimeout(200);
+  check(!(await page.$eval('#till', (d) => d.open)), 'while the free door is filing, a pay button opens no till (the door promised no card)');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'open', null, { timeout: 5000 }).catch(() => {});
+  check(!(await page.$eval('#till', (d) => d.open)) && st.checkouts.length === 0 && st.posts.length === 1, 'OPEN lands with no till open and nothing sent to the checkout');
+  await page.evaluate(() => window.BOOM_TICKET.openTill('full-search'));
+  check(!(await page.$eval('#till', (d) => d.open)), 'after OPEN the till cannot be opened at all');
+  await ctx.close();
+}
+{
+  // B2: closing the till while its checkout flies stays on the page
+  const { ctx, page, st } = await open({ checkout: { status: 200, body: { ok: true, url: '/withdrawal?stripe=1' }, delay: 1200 } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#fare-application-pack [data-pay]');
+  await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com');
+  await page.click('#tGo');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2200);
+  check(st.checkouts.length === 1 && /\/amsterdam$/.test(new URL(page.url()).pathname) && !(await page.$eval('#till', (d) => d.open)), 'Escape while the checkout flies: the page stays (no Stripe after the visitor said no)', page.url());
+  await page.click('#fare-application-pack [data-pay]');
+  await page.waitForTimeout(200);
+  check(await page.$eval('#till', (d) => d.open) && await page.getAttribute('#tGo', 'aria-disabled') === null, 'the till reopens ready to pay again');
+  await ctx.close();
+}
+{
   const { ctx, page, st } = await open({ paid: (n) => (n < 2 ? { status: 200, body: { ok: true, pending: true } } : { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: false, workFromLabel: '4 November 2026' } }) });
   await page.waitForTimeout(300);
   await page.click('#fare-full-search > summary');
@@ -310,10 +412,11 @@ const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'ut
   check(st.checkouts.length === 1 && st.checkouts[0].startNow === false, 'unticked, the POST says startNow false');
   check(await page.getAttribute('#pass', 'data-state') === 'confirming' && await shown(page, '#cConfirm') && !(await shown(page, '#cPaid')), 'back from Stripe: "being confirmed", never PAID on the address bar\'s word');
   check(await page.$$eval('[data-pay]', (bs) => bs.every((b) => b.hidden)), 'while confirming, no pay button: never paid twice');
+  check(await page.$eval('#cText', (e) => parseFloat(getComputedStyle(e).paddingRight) === 0), 'the confirming card has no stamp, so its sentence keeps the full width (no stamp padding)');
   await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 6000 }).catch(() => {});
   check(await page.getAttribute('#pass', 'data-state') === 'paid' && await text(page, '#pFile') === FILE && await text(page, '#pFare') === 'Full Search · €500', 'the server says paid: PAID with the server\'s file and the plan');
-  check(await text(page, '#pStart') === '4 November 2026, when your 14 days end' && await shown(page, '#pWait') && !(await shown(page, '#pText')) && /14 days end/.test(await text(page, '#pNext')),
-    'not ticked: the start date is the server\'s (the 14 days\' end), the wait note and the wait steps');
+  check(await text(page, '#pStart') === 'From 4 November 2026, after your 14-day withdrawal period' && await shown(page, '#pWait') && !(await shown(page, '#pText')) && /14 days end/.test(await text(page, '#pNext')),
+    'not ticked: the start date is the server\'s first working day AFTER the 14 days (never called their end), the wait note and the wait steps');
   const ev = await events(page);
   const purchases = ev.filter((e) => e.name === 'purchase');
   check(purchases.length === 1 && /^city_amsterdam_[0-9a-f]{8}$/.test(purchases[0].p.transaction_id) && purchases[0].p.value === 500 && !JSON.stringify(purchases[0].p).includes(SID), 'ONE purchase, with an opaque transaction id (never the session id)');
@@ -358,7 +461,8 @@ for (const [slug, clock, want, what] of CLOCKS) {
   const { ctx, page } = await open({ slug, clock });
   await page.waitForTimeout(200);
   const subs = await page.$$eval('[data-window]', (n) => n.map((x) => x.textContent.trim()));
-  check(subs.length === 2 && subs.every((s) => s === want), `${slug}: ${what} → "${want}"`, JSON.stringify(subs));
+  const bare = want.replace(/^(no card|free) · /, '');
+  check(subs.length === 2 && subs[0] === want && subs[1] === bare, `${slug}: ${what} → door "${want}", strip "${bare}"`, JSON.stringify(subs));
   await ctx.close();
 }
 {
@@ -417,6 +521,59 @@ for (const [slug, clock, want, what] of CLOCKS) {
   await ctx.close();
 }
 
+{
+  // B5: 200 % zoom on a 390 phone = 195 CSS px: no price nor condition is cut
+  const { ctx, page } = await open({ width: 195, height: 422, slug: 'berlin' });
+  await page.waitForTimeout(1500);
+  const cut = await page.evaluate(() => [...document.querySelectorAll('.f-cond, .f-price, #placeBoard, .f-name')]
+    .filter((e) => e.offsetParent).map((e) => ({ t: e.textContent.trim().slice(0, 30), r: Math.round(e.getBoundingClientRect().right), sw: e.scrollWidth, cw: e.clientWidth }))
+    .filter((x) => x.r > innerWidth + 1 || x.sw > x.cw + 1));
+  check(cut.length === 0, '195 px (200 % zoom): every condition, price and the board fit — nothing cut', JSON.stringify(cut.slice(0, 3)));
+  await ctx.close();
+  const a = await open({ width: 195, height: 422 });
+  await a.page.click('#fare-full-search > summary');
+  await a.page.waitForTimeout(150);
+  await tap(a.page, '#fare-full-search [data-pay]');
+  await a.page.waitForTimeout(250);
+  const tp = await a.page.evaluate(() => { const b = document.getElementById('tPrice'), d = document.getElementById('till'); return { r: b.getBoundingClientRect().right, dr: d.getBoundingClientRect().right, t: b.textContent }; });
+  check(tp.t === '€500' && tp.r <= tp.dr + 1, '195 px: the till reads €500 whole', JSON.stringify(tp));
+  await a.ctx.close();
+}
+{
+  // B7: forced colors keep the open/closed mark of every fare row
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, forcedColors: 'active' });
+  const page = await ctx.newPage();
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await page.goto(`${base}/amsterdam`, { waitUntil: 'load' });
+  const fc = await page.evaluate(() => { const t = document.querySelector('.f-tog'); return [getComputedStyle(t, '::before').backgroundColor, getComputedStyle(document.body).backgroundColor]; });
+  check(fc[0] !== fc[1] && !/rgba\(0, 0, 0, 0\)/.test(fc[0]), 'forced colors: the +/− of a fare row is drawn in CanvasText, not erased into the Canvas', JSON.stringify(fc));
+  await ctx.close();
+}
+{
+  // B9: crossing 940 px with the cursor in the door keeps the field on screen
+  const { ctx, page } = await open({ width: 820, height: 820 });
+  await page.waitForTimeout(300);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#door');
+  await page.waitForTimeout(400);
+  await page.click('#fContact');
+  await page.keyboard.type('anna@');
+  await page.setViewportSize({ width: 1180, height: 820 });
+  await page.waitForTimeout(400);
+  const f = await page.evaluate(() => { const e = document.activeElement, r = e.getBoundingClientRect(); return { id: e.id, top: r.top, bottom: r.bottom, ih: innerHeight }; });
+  check(f.id === 'fContact' && f.top >= 0 && f.bottom <= f.ih, 'rotating a tablet past 940 px with the cursor in the door: the field follows the door and stays on screen', JSON.stringify(f));
+  await ctx.close();
+}
+{
+  // B10: the fields' focus glow and the consent links' ring are not clipped
+  const { ctx, page } = await open();
+  await page.waitForTimeout(300);
+  await tap(page, '#door');
+  await page.waitForTimeout(500);
+  check(await page.$eval('#fFields', (e) => getComputedStyle(e).overflow === 'visible') && await page.$eval('#cOpen', (e) => getComputedStyle(e).overflow === 'visible'), 'the revealed fields and the state cards do not clip focus rings (no overflow:hidden)');
+  await ctx.close();
+}
 // ── 8 · the sisters ──────────────────────────────────────────────────────
 for (const slug of ['paris', 'berlin']) {
   const { ctx, page, st } = await open({ slug });

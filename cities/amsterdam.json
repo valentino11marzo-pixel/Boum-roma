@@ -35,7 +35,6 @@
         "label": "Full Search",
         "name": "We search. You choose.",
         "price": 500,
-        "featured": true,
         "condition": "flat · incl. VAT",
         "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
@@ -175,7 +174,6 @@
   },
   "bref": {
     "h2": "BOOM Amsterdam — fact sheet",
-    "ref": "REF · AMSTERDAM / TENANT SIDE",
     "rows": [
       {
         "dt": "Who",
@@ -284,7 +282,6 @@
     "errors": {
       "name": "Your name, so we know who we're working for.",
       "email": "A valid email — the invoice and your file go there.",
-      "phone": "That number looks incomplete — could you check it?",
       "net": "Checkout hiccuped on our side — try again, or start with a free call instead."
     },
     "paid": {
@@ -319,12 +316,11 @@
           "the work as written on this page"
         ]
       ],
-      "recourse": "Nothing by then? Write to {email}.",
       "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
       "pending": "Payment being confirmed. Your confirmation comes by email.",
       "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
       "startsNow": "The desk’s first open hour",
-      "startsWait": "{date}, when your 14 days end"
+      "startsWait": "From {date}, after your 14-day withdrawal period"
     }
   },
   "till": {
