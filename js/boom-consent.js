@@ -393,6 +393,10 @@
       var ck = document.getElementById('checkin'), pass = document.getElementById('pass'), box = plateBox();
       if (ck && meets(ck, box) && !ck.querySelector('input:checked')) return true;
       if (pass && pass.getAttribute('data-state') !== 'blank' && meets(pass, box)) return true;
+      // the city desks' door (v1.5): one node, #act, in the stub or in the
+      // open ticket — the plate never lands on it while it is on screen
+      var act = document.getElementById('act');
+      if (act && meets(act, box)) return true;
       // la porta dell'hero: su un telefono basso «Accept» le si posava sopra
       var hc = document.querySelector('.hero-cta');
       if (hc && meets(hc, box)) return true;

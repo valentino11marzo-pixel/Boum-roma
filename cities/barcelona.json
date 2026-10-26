@@ -6,6 +6,7 @@
   "live": true,
   "mode": "search",
   "config": {},
+  "updated": "2026-10-26",
   "meta": {
     "title": "Tenant-side rental agent for expats in Barcelona — BOOM",
     "description": "Apartment search for expats in Barcelona, tenant side only: rent-cap check, Spanish-format file, applications as listings appear, viewings attended, contract read.",
@@ -18,138 +19,25 @@
     "audience": "Expats and internationals relocating to Barcelona",
     "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms."
   },
-  "nav": {
-    "plan": "Your plan",
-    "how": "How it works",
-    "services": "Services",
-    "checks": "Before you sign",
-    "faq": "FAQ",
-    "desk": "tenant side"
-  },
   "hero": {
     "h1Before": "Your home in",
-    "lead": "For people moving to Barcelona: we search, apply, attend viewings and check the lease. On your side, never the landlord's.",
-    "faresNote": "Optional, chosen in writing. Flat fees, VAT included."
-  },
-  "glance": {
-    "alt": "Not sure which service? Three questions",
-    "wa": "WhatsApp"
-  },
-  "plan": {
-    "num": "01 — YOUR PLAN",
-    "h2": "Three questions,",
-    "h2g": "one plan.",
-    "head": "Three questions pick the service. Or choose one below."
-  },
-  "form": {
-    "name": {
-      "label": "Your name",
-      "placeholder": "Anna Keller"
-    },
-    "email": {
-      "label": "Email",
-      "placeholder": "anna@company.com"
-    },
-    "moveIn": {
-      "label": "Move-in",
-      "unsure": "Not sure yet"
-    },
-    "budget": {
-      "label": "Monthly budget"
-    },
-    "budgetOptions": [
-      "Under €1,000",
-      "€1,000 – €1,500",
-      "€1,500 – €2,000",
-      "€2,000 – €3,000",
-      "€3,000+"
-    ],
-    "service": {
-      "label": "Service",
-      "none": "Which service? Three taps tell you ↑",
-      "from": "from your check-in",
-      "change": "change",
-      "unsure": "Not sure yet",
-      "unsureSub": "advise me"
-    },
-    "more": "More details (optional)",
-    "phone": {
-      "label": "Phone or WhatsApp",
-      "placeholder": "+34 …",
-      "sub": "optional"
-    },
-    "situation": {
-      "label": "Who's moving",
-      "placeholder": "Couple, relocating with employer"
-    },
-    "areas": {
-      "label": "Neighbourhoods",
-      "placeholder": "Eixample, Gràcia, Poblenou…"
-    },
-    "message": {
-      "label": "Anything else",
-      "placeholder": "Start date, pets, parking, a listing you already found…"
-    },
-    "consentLead": "Used only to reply to you —",
-    "consentAlt": "Prefer WhatsApp or email?",
-    "sentBefore": "Your file is",
-    "sentEm": "open.",
-    "errors": {
-      "name": "Your name, so we know who we're writing to.",
-      "contact": "An email or a number — otherwise we can't reply.",
-      "email": "That email looks incomplete — could you check it?",
-      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
-    },
-    "sending": "Opening your file…",
-    "sentNext": [
-      [
-        "{when}",
-        "Valentino writes to set your free call."
-      ],
-      [
-        "Nothing to prepare",
-        "On the call we say which papers matter."
-      ],
-      [
-        "Nothing by then?",
-        "Write to {email}."
-      ]
-    ],
-    "sentWhenDefault": "Same working day"
-  },
-  "how": {
-    "num": "02 — HOW IT WORKS",
-    "h2": "From the first call",
-    "h2g": "to the keys.",
-    "steps": [
-      {
-        "k": "1 · Brief",
-        "v": "A free call",
-        "s": "Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Catalan landlord. We tell you what your budget buys today."
-      },
-      {
-        "k": "2 · File & applications",
-        "v": "Spanish-format, one working day",
-        "s": "Payslips or contract, NIE or passport, references, bank statements, a presentation letter in Spanish. Then we apply as listings go live."
-      },
-      {
-        "k": "3 · Viewing & contract",
-        "v": "A BOOM person in the room",
-        "s": "Live video walkthrough and a written report. Rent cap, deposit, guarantees and lease type checked before you sign. Then keys and padrón."
-      }
-    ]
+    "lead": "We search, apply, attend the viewings and check the lease.",
+    "leadStrong": "You hire us; we do not act for the landlord.",
+    "faresHead": {
+      "b": "Optional, chosen in writing",
+      "span": "No percentage of your rent"
+    }
   },
   "pricing": {
-    "num": "03 — SERVICES & FEES",
-    "h2": "Flat fees.",
-    "h2g": "No percentage of your rent.",
-    "sub": "Optional, chosen in writing: only you pay, for the work.",
     "plans": [
       {
         "id": "full-search",
         "label": "Full Search",
-        "se": "Full Search",
         "name": "We search. You choose.",
+        "price": 500,
+        "featured": true,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
           "Presentation letter, applications as listings appear",
@@ -157,287 +45,73 @@
           "Negotiation, cap and contract checks",
           "Until you sign, or you say stop"
         ],
-        "featured": true,
-        "price": 500,
         "offerDescription": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search.",
-        "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "prepares": [
-          "letter"
-        ]
+        "when": "Haven't started yet"
       },
       {
         "id": "application-pack",
         "label": "Application Pack",
-        "se": "Application Pack",
         "name": "You search. We make you win.",
-        "text": "The file that wins Spanish applications.",
+        "price": 199,
+        "condition": "flat · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "Spanish-format file, one working day from your papers",
           "Presentation letter in Spanish",
           "Income, aval and guarantor strategy",
           "Contract review before you sign"
         ],
-        "price": 199,
         "offerDescription": "Spanish-format rental application file within one working day of your papers, presentation letter, income and guarantor strategy, contract review.",
-        "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "prepares": [
-          "letter"
-        ]
+        "when": "Found one, or shortlisted and already in Barcelona"
       },
       {
         "id": "attended-viewing",
         "label": "Attended Viewing",
         "unit": "per viewing",
-        "se": "Attended Viewing",
         "name": "Eyes on the ground.",
-        "text": "Shortlisted, and still abroad? We go.",
+        "price": 149,
+        "condition": "per viewing · incl. VAT",
+        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
         ],
-        "price": 149,
         "offerDescription": "A BOOM person attends the viewing in your place, with live video and a written report.",
-        "condition": "per viewing · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "prepares": []
+        "when": "Shortlisted, still abroad"
       }
     ],
-    "note": "Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords or platforms."
+    "sub": "Optional, chosen in writing: only you pay, for the work."
   },
-  "checkin": {
-    "num": "Check-in · {n} of 3",
+  "stub": {
+    "notSure": "Not sure which fare? On a free call we say which fits, or that none does."
+  },
+  "how": {
+    "h2": "From the first call",
+    "h2g": "to the keys.",
     "steps": [
       {
-        "id": "stage",
-        "label": "Where are you in the search?",
-        "options": [
-          {
-            "id": "zero",
-            "t": "Haven't started",
-            "f": "you haven't started",
-            "code": "START"
-          },
-          {
-            "id": "shortlist",
-            "t": "I have a shortlist",
-            "f": "you have a shortlist",
-            "code": "SHORTLIST"
-          },
-          {
-            "id": "found",
-            "t": "Found one, need to apply",
-            "f": "you've found one and need to apply",
-            "code": "APPLYING"
-          }
-        ]
+        "k": "1 · Brief",
+        "h": "A free call",
+        "p": "Dates, budget, who's moving. We tell you what your budget buys today."
       },
       {
-        "id": "where",
-        "label": "Where are you right now?",
-        "options": [
-          {
-            "id": "abroad",
-            "t": "Still abroad",
-            "f": "you're still abroad",
-            "code": "ABROAD"
-          },
-          {
-            "id": "here",
-            "t": "Already in Barcelona",
-            "f": "you're already in Barcelona",
-            "code": "IN TOWN"
-          }
-        ]
+        "k": "2 · Your file",
+        "h": "Spanish-format, one working day",
+        "p": "Your file and a presentation letter in Spanish. Applications as listings appear."
       },
       {
-        "id": "when",
-        "label": "When do you move in?",
-        "options": [
-          {
-            "id": "soon",
-            "t": "Within 4 weeks",
-            "f": "within four weeks",
-            "code": "T-4W"
-          },
-          {
-            "id": "months",
-            "t": "In 1–3 months",
-            "f": "in one to three months",
-            "code": "T-3M"
-          },
-          {
-            "id": "later",
-            "t": "Later, flexible",
-            "f": "later",
-            "code": "OPEN"
-          }
-        ]
+        "k": "3 · Viewing & lease",
+        "h": "A BOOM person in the room",
+        "p": "Live video and a written report. Rent cap, deposit and lease type checked before you sign."
       }
-    ],
-    "rules": [
-      {
-        "when": {
-          "stage": "zero"
-        },
-        "plan": "full-search",
-        "why": "Starting from zero: we search, apply, attend and check the rent cap and the contract — end to end."
-      },
-      {
-        "when": {
-          "stage": "found"
-        },
-        "plan": "application-pack",
-        "why": "You found it. What wins it is the file, in the Spanish format."
-      },
-      {
-        "when": {
-          "stage": "shortlist",
-          "where": "abroad"
-        },
-        "plan": "attended-viewing",
-        "why": "You chose, you're away: a BOOM person goes, films it live and writes it down."
-      },
-      {
-        "when": {
-          "stage": "shortlist",
-          "where": "here"
-        },
-        "plan": "application-pack",
-        "why": "You'll attend yourself. What wins the application is the file."
-      }
-    ],
-    "notes": {
-      "when": {
-        "soon": "Four weeks is tight: the file must be ready before the right listing appears.",
-        "months": "Good timing: the file is ready before the listings are.",
-        "later": "No rush: open the file now, the search starts when you say."
-      }
-    },
-    "dossier": {
-      "label": "What do you already hold?",
-      "sub": "Tap what you have. A Catalan landlord asks for most of these eight.",
-      "items": [
-        {
-          "id": "id",
-          "t": "Passport or NIE"
-        },
-        {
-          "id": "contract",
-          "t": "Employment contract (contrato)"
-        },
-        {
-          "id": "payslips",
-          "t": "Last three payslips (nóminas)"
-        },
-        {
-          "id": "employer",
-          "t": "Employer letter or vida laboral"
-        },
-        {
-          "id": "bank",
-          "t": "Three months of bank statements"
-        },
-        {
-          "id": "reference",
-          "t": "Previous landlord reference"
-        },
-        {
-          "id": "guarantor",
-          "t": "A guarantor or bank guarantee (aval)"
-        },
-        {
-          "id": "letter",
-          "t": "Presentation letter in Spanish"
-        }
-      ],
-      "eyebrow": "Your papers",
-      "fold": "Check your papers (optional)",
-      "some": "{have} of 8 in hand. Missing: {missing}.",
-      "ours": "{plan} prepares: {ours}.",
-      "all": "All eight in hand.",
-      "rest": "The rest we go through on the free call."
-    },
-    "result": {
-      "eyebrow": "Your plan",
-      "change": "change",
-      "suggest": "Your answers suggest {plan}",
-      "use": "use it"
-    },
-    "pass": {
-      "titles": {
-        "plan": "BOOM · Your plan",
-        "issued": "BOOM · Boarding pass"
-      },
-      "status": {
-        "standby": "STANDBY",
-        "open": "OPEN",
-        "paid": "PAID"
-      },
-      "stub": {
-        "fare": "Fare",
-        "wa": "Or write on WhatsApp"
-      },
-      "boarding": {
-        "paidNow": "First open hour",
-        "paidWait": "From {date}"
-      },
-      "firstCall": {
-        "plan": "Your first call",
-        "fare": "Free",
-        "line": "Nothing is charged for the call."
-      },
-      "save": "Save image",
-      "shareBtn": "Share",
-      "saved": "Saved",
-      "guest": "A tenant",
-      "foot": "boomrome.com/barcelona",
-      "side": "Tenant side",
-      "fields": {
-        "passenger": "Passenger",
-        "plan": "Plan",
-        "price": "Price",
-        "boarding": "Boarding",
-        "file": "File",
-        "papers": "Papers",
-        "movein": "Move-in"
-      }
-    },
-    "refusal": "Four weeks is tight. We say so in the first call.",
-    "sentLine": "Your file is open. The desk takes it from here.",
-    "pending": {
-      "eyebrow": "Two plans fit",
-      "text": "One more answer decides: {plans}."
-    },
-    "landing": {
-      "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
-      "friend": "Your friend's answers. Change any of them, then your plan is yours.",
-      "blank": "Your plan prints here as you answer."
-    },
-    "share": {
-      "lead": "Know someone moving too?",
-      "whatsapp": "WhatsApp",
-      "copy": "Copy link",
-      "copied": "Link copied",
-      "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-      "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
-    }
+    ]
   },
   "checks": {
-    "num": "04 — BEFORE YOU SIGN",
-    "h2": "Six things we check",
+    "h2": "What we check",
     "h2g": "before you sign.",
-    "sub": "Six points we put in writing on every Barcelona contract.",
     "items": [
-      {
-        "id": "rentcap",
-        "title": "The rent cap",
-        "at": "índice de referencia",
-        "text": "Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years."
-      },
       {
         "id": "fees",
         "title": "Who pays the agent",
@@ -445,10 +119,16 @@
         "text": "The landlord pays their own agent and the lease's costs. You hire us, in writing, for an optional service."
       },
       {
+        "id": "rentcap",
+        "title": "The rent cap",
+        "at": "índice de referencia",
+        "text": "Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years."
+      },
+      {
         "id": "deposit",
         "title": "The deposit",
         "at": "fianza · INCASÒL",
-        "text": "Habitual lease: one month, extra guarantees two months at most. The landlord lodges it with INCASÒL; we ask for the receipt."
+        "text": "Habitual lease: one month. The landlord lodges it with INCASÒL; we ask for the receipt."
       },
       {
         "id": "contract",
@@ -461,12 +141,42 @@
         "title": "Registration",
         "at": "padrón · NIE",
         "text": "Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it."
+      }
+    ]
+  },
+  "papers": {
+    "summary": "The papers a Barcelona landlord asks for",
+    "at": "8 papers",
+    "items": [
+      "Passport or NIE",
+      "Employment contract (contrato)",
+      "Last three payslips (nóminas)",
+      "Employer letter or vida laboral",
+      "Three months of bank statements",
+      "Previous landlord reference",
+      "A guarantor or bank guarantee (aval)",
+      "Presentation letter in Spanish"
+    ],
+    "tail": "The rest we go through on the free call."
+  },
+  "faq": {
+    "h2": "Questions.",
+    "items": [
+      {
+        "q": "Isn't it the landlord who pays the agent in Spain?",
+        "a": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
       },
       {
-        "id": "income",
-        "title": "Income rules",
-        "at": "nómina · aval",
-        "text": "Payslips, a bank guarantee, a Spanish guarantor: each landlord asks differently. New job, foreign salary, freelance — we write it so it passes."
+        "q": "What happens on the free call?",
+        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
+      },
+      {
+        "q": "How do I avoid a rental scam in Barcelona from abroad?",
+        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
+      },
+      {
+        "q": "What if you don't find anything?",
+        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
       }
     ]
   },
@@ -510,70 +220,8 @@
       }
     ]
   },
-  "faq": {
-    "num": "05 — QUESTIONS",
-    "h2": "The questions",
-    "h2g": "we get asked.",
-    "items": [
-      {
-        "q": "Isn't it the landlord who pays the agent in Spain?",
-        "a": "Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords."
-      },
-      {
-        "q": "What happens on the free call?",
-        "a": "A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call."
-      },
-      {
-        "q": "How do I avoid a rental scam in Barcelona from abroad?",
-        "a": "Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign."
-      },
-      {
-        "q": "Which service is mine?",
-        "checkin": true
-      },
-      {
-        "q": "Is my rent capped in Barcelona?",
-        "a": "Barcelona is a tensioned residential zone. A new rent can't exceed the last rent of the past five years, updated; for large owners and homes not let in five years, nor the índice de referencia. Temporary leases for work or study are covered too. We check it on every search."
-      },
-      {
-        "q": "Do I need to be in Barcelona?",
-        "a": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón."
-      },
-      {
-        "q": "What if you don't find anything?",
-        "a": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
-      },
-      {
-        "q": "How do I pay?",
-        "a": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords, their agents or platforms."
-      },
-      {
-        "q": "What do you do with my data?",
-        "a": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
-      }
-    ]
-  },
   "footer": {
-    "tagline": "Born in Rome, built for people who move countries. The same rules in Barcelona: one side of the table, flat fees, everything in writing.",
     "statement": "You hire us; we do not act for the landlord. BOOM Barcelona acts solely as a tenant-side search agent: we do not list properties, represent landlords, draft their leases, or receive remuneration from landlords or their agents. Order, terms and invoice in Catalan or Spanish on request; official complaint forms (fulls oficials de reclamació) on request."
-  },
-  "facts": [
-    {
-      "key": "paid",
-      "label": "Paid by",
-      "text": "You hire us; we do not act for the landlord."
-    },
-    {
-      "key": "abroad",
-      "label": "From abroad",
-      "text": "Yes. Never pay for a home nobody on your side has seen: we attend, film it live, write it down."
-    }
-  ],
-  "factsDerived": {
-    "answers": "Who answers",
-    "company": "The company",
-    "answersLine": "same working day",
-    "deskLine": "desk {days} {from} to {to} {tz}"
   },
   "desk": {
     "person": "Valentino Egidi",
@@ -593,14 +241,44 @@
     ]
   },
   "door": {
-    "label": "Start with a free call",
-    "sub": "no card · same-day reply",
-    "stripSub": "no card · same-day reply"
+    "label": "Start with a free call"
+  },
+  "form": {
+    "name": {
+      "label": "Your name",
+      "placeholder": "Anna Keller"
+    },
+    "contact": {
+      "label": "Email or WhatsApp number",
+      "placeholder": "anna@company.com or +34 …"
+    },
+    "consentLead": "Used only to reply to you —",
+    "consentAlt": "Prefer WhatsApp or email?",
+    "errors": {
+      "name": "Your name, so we know who we're writing to.",
+      "contact": "An email or a number — otherwise we can't reply.",
+      "email": "That email looks incomplete — could you check it?",
+      "net": "The send failed on our side. Try again, or email us directly at hello@boom-rome.com."
+    },
+    "sending": "Opening your file…",
+    "sentNext": [
+      [
+        "{when}",
+        "Valentino writes to set your free call."
+      ],
+      [
+        "Nothing to prepare",
+        "On the call we say which papers matter."
+      ],
+      [
+        "Nothing by then?",
+        "Write to {email}."
+      ]
+    ],
+    "sentWhenDefault": "Same working day"
   },
   "checkout": true,
   "checkoutCopy": {
-    "title": "Start with BOOM Barcelona",
-    "note": "Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.",
     "noteLabel": "A listing you already found, or anything we should know",
     "notePlaceholder": "https://www.idealista.com/… · move-in 1 February",
     "btnSubNow": "Starts in the desk’s first open hour · Stripe",
@@ -609,7 +287,7 @@
     "altLink": "Start with a free call, no card",
     "startNow": "Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.",
     "withdrawal": "Withdrawal: 14 days from payment, by email to {email} or with the {form}. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.",
-    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call.",
+    "fine": "Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. Order, terms and invoice in Catalan or Spanish on request.",
     "errors": {
       "name": "Your name, so we know who we're working for.",
       "email": "A valid email — the invoice and your file go there.",
@@ -651,12 +329,13 @@
       "recourse": "Nothing by then? Write to {email}.",
       "wait": "You did not tick “Start now”: we start when your 14 days end. Sooner? Write to {email}.",
       "pending": "Payment being confirmed. Your confirmation comes by email.",
-      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk."
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk.",
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "{date}, when your 14 days end"
     }
   },
   "till": {
     "label": "Pay and start",
     "labelWait": "Pay and book"
-  },
-  "updated": "2026-10-22"
+  }
 }

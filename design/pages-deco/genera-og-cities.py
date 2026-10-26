@@ -37,8 +37,8 @@ body { width:1200px; height:630px; background:#050505; overflow:hidden;
 h1 { font-weight:200; font-size:74px; line-height:1.06; letter-spacing:-.6px;
   max-width:14ch; }
 h1 b { color:#FFD700; font-weight:300; }
-/* a lead whose first sentence is long (v1.4: "For people moving to X: we
-   search, apply, attend viewings and check the lease.") reads at a smaller
+/* a lead whose first sentence is long (v1.5: "We search, apply, attend
+   the viewings and check the lease.") reads at a smaller
    size under the board, instead of running off the card */
 h1 b.lunga { display:block; font-size:36px; line-height:1.25; margin-top:14px; letter-spacing:0; }
 /* la città sul tabellone: celle nere, filo d'oro — la cella Solari ferma */
@@ -86,7 +86,7 @@ def card(c):
 <style>{STILE}</style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
-  <div class="marchio"><span>BOOM</span><i>{c['city']} &middot; {c['nav']['desk']}</i></div>
+  <div class="marchio"><span>BOOM</span><i>{c['city']} &middot; tenant side</i></div>
   <h1>Your home in<br><span class="tab">{celle}</span><br><b{lunga}>{em}</b></h1>
   {prezzo}
   <div class="fondo">

@@ -83,6 +83,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
   ../api/_ai.js           La porta UNICA verso qualunque modello: instrada
                           (cloud · ombra · locale sul Mac), mette il tetto,
                           ricade sul cloud, conta in aiUsage/aiShadow.
+  desk-calendar.js        Il calendario dei desk città, una copia: festivi
+                          (Italia + nl/es/es-bcn), la finestra del desk in
+                          parole col fuso dell'apertura. Lo importa il
+                          webhook (recesso), il build lo inlina nelle pagine.
+                          window.BOOM_DESK_CAL. Vedi «Il biglietto v1.5».
   listing-facts.js        Le regole UNICHE dei fatti di un annuncio: camere
                           (bedroomsOf: `bedrooms` prima, il testo `beds` solo
                           se manca), arredo (furnishedOf), bollette, compenso.
@@ -2595,6 +2600,89 @@ stata rifatta sul sistema VERO**, tenendo l'impianto dati→build:
     Chromium sta in 262 px su 250 disponibili a 12,5; con Helvetica Neue il
     margine è stretto).
   Test: `run.mjs` 772, `checkout.mjs` 104, `ui.mjs` 363, `consent` 25.
+- **IL BIGLIETTO v1.5 (26/10/2026 — «un copy alla Apple»; il fondatore:
+  «Ti do il sì, procedi»).** Il primo cliente pagante delle città non aveva
+  nemmeno riconosciuto il quiz: Amsterdam mostrava 1.065 parole al
+  caricamento. Il primo schermo del telefono è ora UNA carta d'imbarco
+  (`cities/_template.html`, `<article class="pass">`), e il resto della
+  pagina sta sotto.
+  1. **La carta**: la città su UN tabellone Solari (H1 servito vuoto con
+     `data-word`, la parola in `.sr`), UNA frase con l'obbligo del desk in
+     grassetto (`hero.lead` + `hero.leadStrong`: Amsterdam «We work
+     exclusively for you; never paid by landlords.», Spagna «You hire us; we
+     do not act for the landlord.», i waitlist aprono «Opening with»), le tre
+     tariffe, la porta d'oro, chi risponde e quando (`Valentino Egidi` ·
+     `Mon–Fri 09:00–19:00, Rome time`, testo statico vero in ogni stagione).
+  2. **Le tariffe**: ogni riga è un `<details name="fare">` (per chi è, il
+     prezzo con la condizione) che apre il SUO biglietto sul posto: cosa
+     compra la tariffa, la regola del rimborso sotto il €500 dove si vende
+     (sotto la riga chiusa e dentro il biglietto aperto, mai due volte a
+     schermo), un bottone di pagamento discreto. L'ancoraggio dello
+     scorrimento è fatto a mano: la riga toccata non si muove sotto il dito
+     (Safari non ha l'ancoraggio nativo).
+  3. **Una porta**: un solo nodo `#act` (porta, due campi, stati) che sul
+     telefono (< 940 px) si sposta nello slot del biglietto aperto e sul
+     desktop resta nello stub. «Start with a free call» dove si vende, «Open
+     my file» su Parigi e Berlino. Il modulo chiede un nome e UN contatto
+     («Email or WhatsApp number»: il browser lo divide in `email` o `phone`,
+     il server è lo stesso). Il piano della tariffa aperta viaggia nel lead
+     (`service`); nessuna tariffa aperta = «service to decide». OPEN solo
+     dopo il 200 col numero di fascicolo del SERVER, PAID solo dopo `GET
+     /api/city-lead?paid=` → `paid:true` (0/1,5/3/6/12 s, poi «not confirmed
+     yet»), UN `purchase` per sessione con un id opaco (FNV-1a), mai due su un
+     ricaricamento. Durante la conferma e dopo PAID nessun bottone di
+     pagamento.
+  4. **La cassa** resta nell'ordine della CRD: il piano col prezzo, la
+     spunta «Start now» MAI pre-spuntata, la riga del recesso col modulo
+     (`/withdrawal?desk=`), il bottone che segue la spunta («Pay and book»
+     → «Pay and start»), il fine, la via di ritorno alla porta gratuita. Si
+     apre SOLO da un bottone di un biglietto, sul SUO piano; Invio sulla
+     spunta non paga. Madrid e Barcellona: «Optional, chosen in writing» in
+     testa alle tariffe e nella cassa (LAU art. 20).
+  5. **Il calendario del desk è UNO** (`js/desk-calendar.js`, UMD
+     `BOOM_DESK_CAL`): il webhook lo importa (fine del recesso, inizio del
+     lavoro) e il build lo inlina fra i marcatori `BOOM_CALENDAR`. Sotto la
+     porta la finestra vera: «desk open until 19:00 CET», «Tomorrow / Monday
+     from 09:00 CEST» — Koningsdag, la Diada, Natale e i ponti compresi, con
+     la sigla del fuso dell'ISTANTE di apertura (domenica 25/10/2026:
+     «Tomorrow from 09:00 CET»). Parigi e Berlino (`fr`, `de`) non hanno un
+     calendario proprio: leggono l'Italia, dove siede il desk.
+  6. **Tolti** (e rifiutati per nome dal build, `LEFTOVERS`): il Check-in,
+     il misuratore degli otto documenti, il biglietto condivisibile e i link
+     `#checkin=`, la tendina del mese, il secondo campo contatto, la scheda
+     dei fatti dell'hero, l'hero v1.4, la barra coi prezzi,
+     `_shared.json moveInFrom/desksLabel/contact.waPlan`. **Restano** How it
+     works (tre passi), i controlli piegati con la loro etichetta legale, gli
+     otto documenti che chiedono i locatori della città (lista piegata), la
+     FAQ (4 sui desk che vendono, 3 sui waitlist), la scheda dei fatti
+     piegata e intera nel DOM. Madrid e Barcellona non dicono più «extra
+     guarantees two months at most» (aspetta il legale dopo il voto del
+     12/11 sul RDL 29/2026).
+  7. **I tetti**: 460 parole visibili al caricamento (Amsterdam 350, Madrid
+     367, Barcellona 393, Parigi 376, Berlino 366), frase ≤ 30, tariffe ≤ 70,
+     ogni biglietto ≤ 60, peso ≤ 60 KB gz (JS ≤ 12): un tetto non si alza mai
+     per farci stare il testo. Un solo foglio di stile (`boom-city.css`
+     autosufficiente, niente `boom-2026.css`).
+  8. **Un difetto vecchio trovato per strada**: la riga Contatti della
+     scheda dei fatti linkava sempre il WhatsApp condiviso anche quando un
+     desk dichiara un numero suo (`config.WHATSAPP`); ora legge il contatto
+     del desk come ogni altro link.
+  Card social rigenerate (la frase gialla è la prima frase del lead; il
+  generatore non legge più `nav.desk`), `updated` e `<lastmod>` delle tre
+  pagine live al 26/10, `llms.txt` coi controlli che le pagine nominano
+  davvero. **Non verificato qui**: un iPhone vero (Chromium non ha
+  l'ancoraggio di Safari né la barra degli indirizzi che cambia altezza).
+  **Aperte, del fondatore**: l'IVA sugli €89/€299 di Roma, chi risponde in
+  turco, gli annunci d'agenzia a Madrid e Barcellona, il conteggio dei
+  clienti turchi, Termini §4.3 («We do not charge: Viewing fees») contro il
+  Virtual Viewing a €89.
+  Test: `run.mjs` __RUN__ (ogni divieto del build provato rompendo i dati o
+  il template; le parti server 9/9b invariate), `ui.mjs` __UI__ (Chromium:
+  la carta a 390, la riga che non si muove con l'ancoraggio nativo spento, la
+  porta che entra nel biglietto, la cassa, il ritorno pagato, l'orologio del
+  desk su sei date, 320 px, senza JS; mutazioni sul JS della pagina prese),
+  `calendar.mjs` __CAL__ (festivi, finestra, fuso dell'apertura, la stessa
+  copia per webhook e pagina), `checkout.mjs` 104.
 
 ### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
 Rifatta da zero su richiesta del fondatore («non è attraente, non converte,

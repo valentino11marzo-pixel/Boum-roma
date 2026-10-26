@@ -5,7 +5,7 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('set',{page_location:location.origin+location.pathname+location.search.replace(/([?&])session_id=[^&]*&?/,'$1').replace(/[?&]$/,'')});gtag('config','G-EYCD59RDVJ');</script>
-    <!-- page_location is set WITHOUT the fragment and WITHOUT the session_id of a paid return (a payment id that names a payer): the visitor's own link (#checkin=…) carries the mask of the papers they hold, and that never goes to GA (the Check-in events send the three answers and a count of papers, nothing more) -->
+    <!-- page_location is set WITHOUT the fragment and WITHOUT the session_id of a paid return: a payment id names a payer, and it never goes to GA -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Tenant-side rental agent for expats in Barcelona — BOOM</title>
@@ -27,7 +27,7 @@
     <meta property="og:title" content="BOOM Barcelona — an agent on your side of the table">
     <meta property="og:description" content="Tenant-side rental search for expats and internationals moving to Barcelona. Rent-cap check, Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract read. Flat fees, paid by you — never by landlords.">
     <meta property="og:url" content="https://www.boomrome.com/barcelona">
-    <meta property="og:image" content="https://www.boomrome.com/og-barcelona.png?v=467c0ed566">
+    <meta property="og:image" content="https://www.boomrome.com/og-barcelona.png?v=2b6ec03ba2">
     <meta property="og:image:type" content="image/png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
@@ -35,14 +35,13 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="BOOM Barcelona — an agent on your side of the table">
     <meta name="twitter:description" content="Tenant-side rental search for expats and internationals moving to Barcelona. Rent-cap check, Spanish-format file within one working day of your papers, applications sent as listings appear, attended viewings, contract read. Flat fees, paid by you — never by landlords.">
-    <meta name="twitter:image" content="https://www.boomrome.com/og-barcelona.png?v=467c0ed566">
+    <meta name="twitter:image" content="https://www.boomrome.com/og-barcelona.png?v=2b6ec03ba2">
     <meta name="twitter:image:alt" content="BOOM Barcelona — an agent on your side of the table">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/boom-2026.css">
-    <link rel="stylesheet" href="/assets/boom-city.css?v=a736ec05f7">
+    <link rel="stylesheet" href="/assets/boom-city.css?v=1676fcff99">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -135,11 +134,11 @@
       },
       "primaryImageOfPage": {
         "@type": "ImageObject",
-        "url": "https://www.boomrome.com/og-barcelona.png?v=467c0ed566",
+        "url": "https://www.boomrome.com/og-barcelona.png?v=2b6ec03ba2",
         "width": 1200,
         "height": 630
       },
-      "dateModified": "2026-10-22",
+      "dateModified": "2026-10-26",
       "publisher": {
         "@id": "https://www.boomrome.com/#organization"
       },
@@ -154,8 +153,8 @@
       "speakable": {
         "@type": "SpeakableSpecification",
         "cssSelector": [
-          ".hero .lead",
-          ".facts",
+          ".pass .lead",
+          ".foot .stmt",
           ".enbref"
         ]
       }
@@ -165,7 +164,7 @@
       "@id": "https://www.boomrome.com/barcelona#service",
       "name": "BOOM Barcelona — tenant-side rental search",
       "serviceType": "Tenant-side rental search agent",
-      "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms.",
+      "description": "Rental search in Barcelona on the tenant's side only: rent checked against the previous rent and the índice de referencia, Spanish-format application file within one working day of the tenant's papers, applications sent as listings appear, attended viewings with live video and written report, contract and lease type checked before signing, empadronamiento supported. Optional services the tenant chooses in writing, flat fees paid by the tenant, nothing from landlords or platforms. What we don't do: We don't list homes, represent landlords or draft their leases, and we don't promise a date.",
       "provider": {
         "@id": "https://www.boomrome.com/#organization"
       },
@@ -202,24 +201,21 @@
           "price": "500",
           "priceCurrency": "EUR",
           "availability": "https://schema.org/InStock",
-          "description": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l.",
+          "description": "Search, Spanish-format application file and presentation letter, applications as listings appear, one attended viewing, negotiation, rent-cap and contract check, until the tenant signs or stops the search. VAT included. Invoice from Egidi Immobiliare S.r.l. Full Search is refunded in full if we decline the search in the first call.",
           "priceSpecification": {
             "@type": "UnitPriceSpecification",
             "price": "500",
             "priceCurrency": "EUR",
             "valueAddedTaxIncluded": true
           },
-          "url": "https://www.boomrome.com/barcelona#plate-full-search",
+          "url": "https://www.boomrome.com/barcelona#fare-full-search",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
           },
           "itemOffered": {
             "@type": "Service",
             "name": "Full Search",
-            "audience": {
-              "@type": "Audience",
-              "audienceType": "Tenants who haven't started"
-            }
+            "description": "For: Haven't started yet."
           }
         },
         {
@@ -235,17 +231,14 @@
             "priceCurrency": "EUR",
             "valueAddedTaxIncluded": true
           },
-          "url": "https://www.boomrome.com/barcelona#plate-application-pack",
+          "url": "https://www.boomrome.com/barcelona#fare-application-pack",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
           },
           "itemOffered": {
             "@type": "Service",
             "name": "Application Pack",
-            "audience": {
-              "@type": "Audience",
-              "audienceType": "Tenants who have found one and need to apply, or who have a shortlist and are already in Barcelona"
-            }
+            "description": "For: Found one, or shortlisted and already in Barcelona."
           }
         },
         {
@@ -267,17 +260,14 @@
               "unitText": "viewing"
             }
           },
-          "url": "https://www.boomrome.com/barcelona#plate-attended-viewing",
+          "url": "https://www.boomrome.com/barcelona#fare-attended-viewing",
           "seller": {
             "@id": "https://www.boomrome.com/#organization"
           },
           "itemOffered": {
             "@type": "Service",
             "name": "Attended Viewing",
-            "audience": {
-              "@type": "Audience",
-              "audienceType": "Tenants who have a shortlist and are still abroad"
-            }
+            "description": "For: Shortlisted, still abroad."
           }
         }
       ]
@@ -316,50 +306,10 @@
         },
         {
           "@type": "Question",
-          "name": "Which service is mine?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: start with the free call, we advise."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Is my rent capped in Barcelona?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Barcelona is a tensioned residential zone. A new rent can't exceed the last rent of the past five years, updated; for large owners and homes not let in five years, nor the índice de referencia. Temporary leases for work or study are covered too. We check it on every search."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Do I need to be in Barcelona?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón."
-          }
-        },
-        {
-          "@type": "Question",
           "name": "What if you don't find anything?",
           "acceptedAnswer": {
             "@type": "Answer",
             "text": "We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I pay?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords, their agents or platforms."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What do you do with my data?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires."
           }
         }
       ]
@@ -367,7 +317,7 @@
   ]
 }
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap,#heroPlan,.hp-sep{display:none!important}.planline .chips{display:block!important}</style></noscript>
+<noscript><style>.js{display:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -680,581 +630,340 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SOLARI:END -->
+<!-- BOOM_CALENDAR:START — js/desk-calendar.js, inlined by the build (the webhook imports the same file) -->
+<script>
+(function (root) {
+  'use strict';
+  function easterOf(y) {
+    var a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
+    var f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
+    var h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+    var l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+    var n = h + l - 7 * m + 114;
+    return [Math.floor(n / 31), (n % 31) + 1];
+  }
+  var HOLIDAYS = {
+    it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
+    nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
+    es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
+    'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true }
+  };
+  var HOLIDAY_KEYS = Object.keys(HOLIDAYS);
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function isHoliday(y, m, d, key) {
+    var mmdd = pad(m) + '-' + pad(d), em = easterOf(y), keys = ['it', key];
+    for (var j = 0; j < keys.length; j++) {
+      var h = HOLIDAYS[keys[j]];
+      if (!h) continue;
+      if (h.fixed.indexOf(mmdd) >= 0) return true;
+      if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
+      if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
+      for (var q = 0; q < h.easter.length; q++) {
+        var x = new Date(Date.UTC(y, em[0] - 1, em[1] + h.easter[q]));
+        if (x.getUTCMonth() + 1 === m && x.getUTCDate() === d) return true;
+      }
+    }
+    return false;
+  }
+  function isDeskHoliday(date, key) {
+    return isHoliday(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate(), key);
+  }
+  function workingDay(date, key) {
+    var w = date.getUTCDay();
+    return w !== 0 && w !== 6 && !isDeskHoliday(date, key);
+  }
+  var WD = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+  function zoneParts(at, tz) {
+    var o = {};
+    try {
+      new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz || 'Europe/Rome', year: 'numeric', month: 'numeric', day: 'numeric',
+        hour: 'numeric', minute: 'numeric', hourCycle: 'h23', weekday: 'short', timeZoneName: 'short'
+      }).formatToParts(at).forEach(function (x) { o[x.type] = x.value; });
+    } catch (e) { return null; }
+    if (!o.year || WD[o.weekday] === undefined) return null;
+    var name = String(o.timeZoneName || '');
+    if (!/^[A-Z]{2,5}$/.test(name)) name = /\+2$/.test(name) ? 'CEST' : /\+1$/.test(name) ? 'CET' : '';
+    return {
+      y: +o.year, m: +o.month, d: +o.day, wd: WD[o.weekday],
+      min: (+o.hour % 24) * 60 + (+o.minute), tz: name, key: o.year + '-' + pad(+o.month) + '-' + pad(+o.day)
+    };
+  }
+  var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function toMin(s) { var a = String(s).split(':'); return (+a[0]) * 60 + (+a[1]); }
+  function openAt(p, desk, key) {
+    return desk.days.indexOf(p.wd) >= 0 && !isHoliday(p.y, p.m, p.d, key)
+      && p.min >= toMin(desk.hours.from) && p.min < toMin(desk.hours.to);
+  }
+  function deskWindow(now, desk, key) {
+    if (!desk || !desk.hours || !Array.isArray(desk.days)) return null;
+    var tz = desk.timeZone || 'Europe/Rome';
+    var p = zoneParts(now, tz);
+    if (!p) return null;
+    if (openAt(p, desk, key)) return { open: true, until: desk.hours.to, tz: p.tz, line: 'desk open until ' + desk.hours.to + (p.tz ? ' ' + p.tz : '') };
+    var step = 9e5, t = new Date(Math.ceil(now.getTime() / step) * step);
+    var tomorrow = zoneParts(new Date(now.getTime() + 864e5), tz);
+    for (var i = 0; i < 21 * 96; i++, t = new Date(t.getTime() + step)) {
+      var q = zoneParts(t, tz);
+      if (q && openAt(q, desk, key)) {
+        var day = q.key === p.key ? 'Today' : tomorrow && q.key === tomorrow.key ? 'Tomorrow' : DAY_NAMES[q.wd];
+        return { open: false, day: day, from: desk.hours.from, tz: q.tz, line: day + ' from ' + desk.hours.from + (q.tz ? ' ' + q.tz : '') };
+      }
+    }
+    return null;
+  }
+  var API = {
+    HOLIDAYS: HOLIDAYS, HOLIDAY_KEYS: HOLIDAY_KEYS, easterOf: easterOf,
+    isHoliday: isHoliday, isDeskHoliday: isDeskHoliday, workingDay: workingDay,
+    zoneParts: zoneParts, deskWindow: deskWindow
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  if (root) root.BOOM_DESK_CAL = API;
+})(typeof window !== 'undefined' ? window : this);
+</script>
+<!-- BOOM_CALENDAR:END -->
 </head>
 <body data-consent-late>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
   <symbol id="boomMark" viewBox="0 0 1024 1024"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></symbol>
-  <symbol id="boomPlane" viewBox="0 0 24 24"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></symbol>
   <symbol id="boomWa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.388 0-4.59-.837-6.313-2.233l-.44-.361-2.633.882.882-2.633-.361-.44A9.965 9.965 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></symbol>
 </defs></svg>
 
 <a class="skip" href="#main">Skip to content</a>
 
-<!-- the quiet technical layer: the grid and two still orbs, nothing moves at rest -->
-<div class="tech-bg" aria-hidden="true">
-  <div class="tech-orb tech-orb-1"></div>
-  <div class="tech-orb tech-orb-2"></div>
-  <div class="tech-grid"></div>
-</div>
+<header class="wrap top">
+  <a class="brand" href="/" aria-label="BOOM — home"><svg aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+  <nav class="navr" aria-label="Contact">
+    <a class="pill" id="topWa" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#boomWa"/></svg><span class="pl">WhatsApp</span><span class="sr"> the Barcelona desk</span></a>
+  </nav>
+</header>
 
-<nav class="nav" id="nav">
-  <div class="container nav-inner">
-    <a href="/" class="logo" aria-label="BOOM home">
-      <svg class="logo-mark" aria-hidden="true"><use href="#boomMark"/></svg>
-      <span class="logo-text">BOOM</span>
-      <span class="bl-div" aria-hidden="true"></span>
-      <span class="bl-desk">Barcelona<br>tenant side</span>
-    </a>
-    <div class="nav-links">
-      <a href="#plan" class="nav-link">Your plan</a>
-      <a href="#how" class="nav-link">How it works</a>
-      <a href="#services" class="nav-link">Services</a>
-      <a href="#checks" class="nav-link">Before you sign</a>
-      <a href="#faq" class="nav-link">FAQ</a>
-      <a href="#contact" class="nav-link nav-door">Start with a free call</a>
-    </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
-  </div>
-</nav>
-
-<div class="mobile-menu" id="mobileMenu" aria-hidden="true">
-  <div class="mobile-menu-links">
-    <a href="#plan" class="mobile-menu-link">Your plan</a>
-    <a href="#how" class="mobile-menu-link">How it works</a>
-    <a href="#services" class="mobile-menu-link">Services</a>
-    <a href="#checks" class="mobile-menu-link">Before you sign</a>
-    <a href="#faq" class="mobile-menu-link">FAQ</a>
-    <span class="mobile-menu-group">BOOM desks</span>
-    <a href="/amsterdam" class="mobile-menu-link">Amsterdam</a>
-          <a href="/madrid" class="mobile-menu-link">Madrid</a>
-          <a href="/" class="mobile-menu-link">BOOM Rome</a>
-  </div>
-  <a href="#contact" class="mobile-menu-cta">Start with a free call</a>
-</div>
-
-<main id="main">
-
-  <!-- ═══ HERO — editorial (v1.4, "The Itinerary"): what we do, for whom, what it
-       costs (the fares board, prices as text, the refund rule under the €500),
-       what to do next (one gold button). The proof card on the right; on a phone
-       the two columns stack in DOM order. ═══ -->
-  <header class="hero">
-    <div class="hero-left">
-      <h1 class="h-2">Your home in <span id="flapCity" class="flap-city flap-scale" aria-hidden="true" data-word="BARCELONA"></span><span class="sr">Barcelona</span></h1>
-      <script>/* THE SPACE IS RESERVED BEFORE THE BOARD ARRIVES. The city name is a
-         Solari board built by the JS at parse time: the cells are wider and taller
-         than the plain word, and without a reservation everything under the
-         title jumps when they land (the index.html lesson: CLS 0.058, all of it
-         under the reader's eyes). Width = cells x calibrated cell width,
-         measured in Chromium on this page; only with JS, because without JS the
-         board never comes and the space would be a hole around a word. */
-        (function(){var f=document.getElementById('flapCity');
-          if(f){f.style.display='inline-block';f.style.minWidth='8.10em';
-                f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="lead h-3">For people moving to Barcelona: we search, apply, attend viewings and check the lease. On your side, never the landlord's.</p>
-      <!-- GLANCE -->
-      <div class="glance" id="glance">
-        <div class="fares" role="group" aria-label="Fees">
-          <a class="fare" href="#plate-full-search" data-fare="full-search"><span class="fl">Full Search</span><span class="fn">We search. You choose.</span><span class="fp">€500</span><span class="fc">flat · incl. VAT</span></a>
-          <a class="fare" href="#plate-application-pack" data-fare="application-pack"><span class="fl">Application Pack</span><span class="fn">You search. We make you win.</span><span class="fp">€199</span><span class="fc">flat · incl. VAT</span></a>
-          <a class="fare" href="#plate-attended-viewing" data-fare="attended-viewing"><span class="fl">Attended Viewing</span><span class="fn">Eyes on the ground.</span><span class="fp">€149</span><span class="fc">per viewing · incl. VAT</span></a>
-        </div>
-        <p class="fnote">Optional, chosen in writing. Flat fees, VAT included.</p>
-        <p class="rule">Full Search is refunded in full if we decline the search in the first call.</p>
-        <div class="hero-cta">
-          <a class="paybtn hero-go" href="#contact" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>Start with a free call</b><small>no card · same-day reply</small></span><span class="amt">→</span></a>
-          <p class="hero-alt"><a href="#plan" id="heroPlan">Not sure which service? Three questions</a><span class="hp-sep"> · </span><a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." id="heroWa" target="_blank" rel="noopener">WhatsApp</a></p>
-        </div>
+<main class="wrap" id="main">
+  <!-- ═══ THE PASS — the first phone screen is one boarding pass: the city on
+       the board, one sentence (with the desk's must-state), the three fares
+       (who each is for, the price with its condition, the refund rule under
+       the €500 where the desk sells), one gold door, who answers and when.
+       A fare row is a <details>: it opens ITS ticket in place. ═══ -->
+  <article class="pass" id="pass" data-state="blank" aria-labelledby="h1">
+    <div class="p-main">
+      <div class="p-head">
+        <p class="p-desk">BOOM Barcelona</p>
+        <p class="slot"><span class="slot-t">Tenant side</span><span class="slot-b" aria-hidden="true"></span><span class="sr" id="slotSr" role="status"></span></p>
       </div>
-      <!-- /GLANCE -->
-    </div>
-    <div class="hero-right">
-      <!-- THE FACTS: what a scam-primed visitor needs before any tap -->
-      <dl class="facts" id="facts">
-  <div><dt>Paid by</dt><dd>You hire us; we do not act for the landlord.</dd></div>
-  <div><dt>From abroad</dt><dd>Yes. Never pay for a home nobody on your side has seen: we attend, film it live, write it down.</dd></div>
-  <div><dt>Who answers</dt><dd>Valentino Egidi, same working day · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET/CEST</span><span class="clock" id="deskClock" aria-live="off"></span></dd></div>
-  <div data-proof="rome"><dt>The company</dt><dd>Egidi Immobiliare S.r.l. · P.IVA 17322991005 · <a href="https://maps.google.com/?cid=15671179095441549815" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></dd></div>
-      </dl>
-    </div>
-  </header>
-
-  <!-- ═══ 01 · YOUR PLAN — three questions, the ticket they print, the door.
-       DOM order is the reading and the focus order at every width (answer →
-       read the ticket → fill the form); nothing moves nodes around. ═══ -->
-  <section id="plan" class="rv plan">
-    <div class="sec-h">
-      <span class="num">01 — YOUR PLAN</span>
-      <h2>Three questions, <span class="g">one plan.</span></h2>
-    </div>
-    <p class="sec-sub plan-head">Three questions pick the service. Or choose one below.</p>
-    <div class="plan-in">
-      <!-- CHECK-IN -->
-<span class="sr" id="ckLive" role="status" aria-live="polite"></span>
-<section class="checkin" id="checkin" aria-label="Check-in">
-  <div class="ck-head"><span class="ck-num" id="ckNum">Check-in · 1 of 3</span><p class="ck-sent" id="ckSent" hidden>Your file is open. The desk takes it from here.</p></div>
-  <p class="ck-landing" id="ckLanding" hidden></p>
-  <div class="ck-steps" id="ckSteps">
-      <fieldset class="ck-step" data-step="stage">
-        <legend><b>01</b> Where are you in the search?</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="zero" data-code="START"><span><b>Haven't started</b></span></label>
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="shortlist" data-code="SHORTLIST"><span><b>I have a shortlist</b></span></label>
-          <label class="ck-opt"><input type="radio" name="ck-stage" value="found" data-code="APPLYING"><span><b>Found one, need to apply</b></span></label>
-          <button type="button" class="ck-change" data-change="stage" hidden>change</button>
-        </div>
-      </fieldset>
-      <fieldset class="ck-step" data-step="where" hidden>
-        <legend><b>02</b> Where are you right now?</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-where" value="abroad" data-code="ABROAD"><span><b>Still abroad</b></span></label>
-          <label class="ck-opt"><input type="radio" name="ck-where" value="here" data-code="IN TOWN"><span><b>Already in Barcelona</b></span></label>
-          <button type="button" class="ck-change" data-change="where" hidden>change</button>
-        </div>
-      </fieldset>
-      <fieldset class="ck-step" data-step="when" hidden>
-        <legend><b>03</b> When do you move in?</legend>
-        <div class="ck-opts">
-          <label class="ck-opt"><input type="radio" name="ck-when" value="soon" data-code="T-4W"><span><b>Within 4 weeks</b></span></label>
-          <label class="ck-opt"><input type="radio" name="ck-when" value="months" data-code="T-3M"><span><b>In 1–3 months</b></span></label>
-          <label class="ck-opt"><input type="radio" name="ck-when" value="later" data-code="OPEN"><span><b>Later, flexible</b></span></label>
-          <button type="button" class="ck-change" data-change="when" hidden>change</button>
-        </div>
-      </fieldset>
-  </div>
-  <div class="ppend" id="ckPend" hidden><span class="peye">Two plans fit</span><p id="ckPendText"></p></div>
-  <p class="ck-suggest" id="ckSuggest" hidden><span id="ckSuggestText"></span> <button type="button" class="ck-use" id="ckSuggestUse">use it</button></p>
-  <details class="papers" id="ckPapersBox" hidden>
-    <summary>Check your papers (optional)</summary>
-    <fieldset class="ck-papers" id="ckPapers">
-      <legend><span class="peye">Your papers</span> What do you already hold?</legend>
-      <p class="ck-sub">Tap what you have. A Catalan landlord asks for most of these eight.</p>
-      <div class="ck-docs">
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="id"><span>Passport or NIE</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="contract"><span>Employment contract (contrato)</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="payslips"><span>Last three payslips (nóminas)</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="employer"><span>Employer letter or vida laboral</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="bank"><span>Three months of bank statements</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="reference"><span>Previous landlord reference</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="guarantor"><span>A guarantor or bank guarantee (aval)</span></label>
-        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="letter"><span>Presentation letter in Spanish</span></label>
-      </div>
-      <div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div>
-      <p class="ready" id="ckReady" role="status"></p>
-    </fieldset>
-  </details>
-</section>
-      <!-- /CHECK-IN -->
-      <!-- PASS -->
-<div class="uscita printer" id="passWrap">
-  <div class="fessura" aria-hidden="true"></div>
-  <p class="pblank" id="ckBlank">Your plan prints here as you answer.</p>
-  <article class="pass carta" id="pass" data-state="blank" data-copied="Link copied" data-saved="Saved" role="region" aria-labelledby="ckTitle" tabindex="-1">
-    <div class="lamina" aria-hidden="true"><em>BOOM · TENANT SIDE</em></div>
-    <span class="stamp" id="ckStamp" data-stamp="" aria-hidden="true"></span>
-    <div class="pbody">
-      <div class="phead"><b id="ckTitle">BOOM · Your plan</b><span class="flap-mini" id="ckStatus" data-word="STANDBY" aria-hidden="true"></span><span class="sr" id="ckStatusSr">STANDBY</span></div>
-      <div class="proute"><span class="pfrom" id="ckFrom">YOU</span><span class="pline" aria-hidden="true"><i class="ptrail"></i><svg class="pplane"><use href="#boomPlane"/></svg></span><span class="pto">BCN</span></div>
-      <h3 id="ckPlan"></h3>
-      <p class="why" id="ckWhy"></p>
-      <p class="note" id="ckNote" hidden></p>
-      <dl class="pfields">
-        <div><dt>Passenger</dt><dd id="ckPassenger">—</dd></div>
-        <div><dt>Move-in</dt><dd id="ckMoveIn">—</dd></div>
-        <div><dt>Papers</dt><dd id="ckPassPapers">—</dd></div>
-        <div><dt>File</dt><dd id="ckPassFile">—</dd></div>
-        <div class="wide"><dt>Boarding</dt><dd id="ckPassWhen">—</dd></div>
-      </dl>
-    </div>
-    <div class="perf" aria-hidden="true"></div>
-    <aside class="stub">
-      <span class="slabel">Fare</span>
-      <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span><small id="ckCond"></small></div>
-      <p class="refund" id="ckRefund" hidden>Full Search is refunded in full if we decline the search in the first call.</p>
-      <p class="ppending" id="ckPending" hidden>Payment being confirmed. Your confirmation comes by email.</p>
-      <div class="barcode" aria-hidden="true"></div>
-      <p class="codeline" id="ckCodeLine" data-base="BCN · TENANT SIDE">BCN · TENANT SIDE</p>
-      <div class="pdoors">
-        <a class="paybtn" href="#contact" id="ckFile" data-service="" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>Start with a free call</b><small>no card · same-day reply</small></span><span class="amt">→</span></a>
-        <button type="button" class="till" id="ckStart" data-pay="">Pay and start · <span id="ckStartAmt"></span></button>
-        <a class="wa2" id="ckWa2" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">Or write on WhatsApp</a>
-      </div>
-      <span class="sside" aria-hidden="true">TENANT SIDE</span>
-    </aside>
-  </article>
-  <div class="pshare"><button type="button" class="ck-save" id="ckSave">Save image</button><button type="button" class="ck-sharebtn" id="ckShare">Share</button><button type="button" id="ckCopy">Copy link</button><span>Know someone moving too?</span><a id="ckWa" href="#" target="_blank" rel="noopener">WhatsApp</a><span class="ck-copied" id="ckCopied" aria-live="polite"></span><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>
-</div>
-      <!-- /PASS -->
-      <!-- THE DOOR -->
-      <!-- five fields, the service as chips (the checked chip is the plan the ticket prints), everything else folds away -->
-      <div class="filecard" id="contact">
-        <form id="cityForm" method="post" novalidate data-sending="Opening your file…"
-              data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply."
-              data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
-          <div class="frow two">
-            <div class="fld"><label for="fName">Your name</label><input id="fName" name="name" autocomplete="name" placeholder="Anna Keller"></div>
-            <div class="fld"><label for="fEmail">Email</label><input id="fEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
+      <h1 id="h1"><span class="h1a">Your home in</span> <span class="sr">Barcelona</span><span class="board" id="placeBoard" aria-hidden="true" data-word="BARCELONA" style="--n:9"></span></h1>
+      <p class="lead">We search, apply, attend the viewings and check the lease. <b>You hire us; we do not act for the landlord.</b></p>
+      <!-- FARES -->
+      <div class="fares" id="fares" role="group" aria-labelledby="faresH">
+        <p class="fares-h"><b id="faresH">Optional, chosen in writing</b><span>No percentage of your rent</span></p>
+        <details class="fare" name="fare" id="fare-full-search" data-plan="full-search" data-fs>
+          <summary>
+            <span class="f-l"><b class="f-name">Full Search</b><span class="f-when">Haven't started yet</span></span>
+            <span class="f-r"><span class="f-price" data-plan-price="full-search">€500</span><span class="f-cond">flat ·<br> incl. VAT</span></span>
+            <span class="f-tog" aria-hidden="true"></span>
+          </summary>
+          <div class="tk">
+            <p class="tk-tag">We search. You choose.</p>
+            <ul class="tk-inc"><li>Every working day: Idealista, Fotocasa, Habitaclia, agencies</li><li>Presentation letter, applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Negotiation, cap and contract checks</li><li>Until you sign, or you say stop</li></ul>
+            <p class="refund">Full Search is refunded in full if we decline the search in the first call.</p>
+            <div class="tk-slot" data-slot></div>
+            <button class="pay2 js" type="button" data-pay="full-search"><span>Pay and start · €500</span><span class="ar" aria-hidden="true">→</span></button>
           </div>
-          <div class="frow two">
-            <div class="fld"><label for="fPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="+34 …"></div>
-            <div class="fld"><label for="fMoveIn">Move-in</label><select id="fMoveIn" name="moveIn">
-              <option value="">Not sure yet</option>
-              <option value="2026-10">October 2026</option>
-              <option value="2026-11">November 2026</option>
-              <option value="2026-12">December 2026</option>
-              <option value="2027-01">January 2027</option>
-              <option value="2027-02">February 2027</option>
-              <option value="2027-03">March 2027</option>
-              <option value="2027-04">April 2027</option>
-              <option value="2027-05">May 2027</option>
-              <option value="2027-06">June 2027</option>
-              <option value="2027-07">July 2027</option>
-              <option value="2027-08">August 2027</option>
-              <option value="2027-09">September 2027</option>
-              <option value="2027-10">October 2027</option>
-              <option value="2027-11">November 2027</option>
-              <option value="2027-12">December 2027</option>
-              <option value="2028-01">January 2028</option>
-              <option value="2028-02">February 2028</option>
-              <option value="2028-03">March 2028</option>
-              <option value="2028-04">April 2028</option>
-              <option value="2028-05">May 2028</option>
-            </select></div>
+        </details>
+        <p class="refund fs">Full Search is refunded in full if we decline the search in the first call.</p>
+        <details class="fare" name="fare" id="fare-application-pack" data-plan="application-pack">
+          <summary>
+            <span class="f-l"><b class="f-name">Application Pack</b><span class="f-when">Found one, or shortlisted and already in Barcelona</span></span>
+            <span class="f-r"><span class="f-price" data-plan-price="application-pack">€199</span><span class="f-cond">flat ·<br> incl. VAT</span></span>
+            <span class="f-tog" aria-hidden="true"></span>
+          </summary>
+          <div class="tk">
+            <p class="tk-tag">You search. We make you win.</p>
+            <ul class="tk-inc"><li>Spanish-format file, one working day from your papers</li><li>Presentation letter in Spanish</li><li>Income, aval and guarantor strategy</li><li>Contract review before you sign</li></ul>
+            <div class="tk-slot" data-slot></div>
+            <button class="pay2 js" type="button" data-pay="application-pack"><span>Pay and start · €199</span><span class="ar" aria-hidden="true">→</span></button>
           </div>
-          <div class="fld"><label for="fBudget">Monthly budget</label><select id="fBudget" name="budget">
-            <option value="">—</option>
-              <option>Under €1,000</option>
-              <option>€1,000 – €1,500</option>
-              <option>€1,500 – €2,000</option>
-              <option>€2,000 – €3,000</option>
-              <option>€3,000+</option>
-          </select></div>
-          <!-- the service: the pass writes it here; chips with the price and the
-               plan's condition in view, never a dropdown; none pre-checked -->
-          <details class="planline" id="planline" open data-from="from your check-in">
-            <summary><span class="pl-k">Service</span><b id="plText">Which service? Three taps tell you ↑</b><small class="pl-change" id="plChange" hidden>change</small></summary>
-            <fieldset class="fld chips"><legend class="sr">Service</legend>
-              <div class="chipgrid">
-              <label class="chip"><input type="radio" name="service" value="full-search"><span><b>Full Search</b><small>€500 · flat · incl. VAT</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="application-pack"><span><b>Application Pack</b><small>€199 · flat · incl. VAT</small></span></label>
-              <label class="chip"><input type="radio" name="service" value="attended-viewing"><span><b>Attended Viewing</b><small>€149 · per viewing · incl. VAT</small></span></label>
-              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>Not sure yet</b><small>advise me</small></span></label>
-              </div>
-            <p class="pricenote refund">Full Search is refunded in full if we decline the search in the first call.</p>
-            </fieldset>
-          </details>
+        </details>
+        <details class="fare" name="fare" id="fare-attended-viewing" data-plan="attended-viewing">
+          <summary>
+            <span class="f-l"><b class="f-name">Attended Viewing</b><span class="f-when">Shortlisted, still abroad</span></span>
+            <span class="f-r"><span class="f-price" data-plan-price="attended-viewing">€149</span><span class="f-cond">per viewing ·<br> incl. VAT</span></span>
+            <span class="f-tog" aria-hidden="true"></span>
+          </summary>
+          <div class="tk">
+            <p class="tk-tag">Eyes on the ground.</p>
+            <ul class="tk-inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
+            <div class="tk-slot" data-slot></div>
+            <button class="pay2 js" type="button" data-pay="attended-viewing"><span>Pay and start · €149</span><span class="ar" aria-hidden="true">→</span></button>
+          </div>
+        </details>
+      </div>
+      <!-- /FARES -->
+    </div>
 
-          <details class="more">
-            <summary>More details (optional)</summary>
-            <div class="morein">
-              <div class="fld"><label for="fSituation">Who's moving</label><input id="fSituation" name="situation" placeholder="Couple, relocating with employer"></div>
-              <div class="fld"><label for="fAreas">Neighbourhoods</label><input id="fAreas" name="areas" placeholder="Eixample, Gràcia, Poblenou…"></div>
-              <div class="fld"><label for="fMsg">Anything else</label><textarea id="fMsg" name="message" rows="2" placeholder="Start date, pets, parking, a listing you already found…"></textarea></div>
+    <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i></div>
+
+    <div class="stub"><div class="stub-in">
+      <p class="code-big" aria-hidden="true"><span>To</span><b>BCN</b></p>
+      <div id="stubSlot">
+        <!-- THE DOOR — one node: the door, its two fields, the states. On a
+             phone it moves into the open ticket; it is never two doors. -->
+        <div id="act">
+          <p class="s-h" id="notSure">Not sure which fare? On a free call we say which fits, or that none does.</p>
+          <p class="plan-ln" id="planLn" hidden><span class="k">Your plan</span><b id="planName"></b></p>
+          <form id="fileForm" class="fform" novalidate action="#" autocomplete="on" data-analytics-manual data-analytics-label="Free call" data-sending="Opening your file…" data-err-name="Your name, so we know who we're writing to." data-err-contact="An email or a number — otherwise we can't reply." data-err-email="That email looks incomplete — could you check it?" data-err-net="The send failed on our side. Try again, or email us directly at hello@boom-rome.com.">
+            <div id="fFields" class="reveal" hidden>
+              <div class="fld"><label for="fName">Your name</label><input id="fName" name="name" autocomplete="name" placeholder="Anna Keller" aria-describedby="fNameErr"><p class="err" id="fNameErr" aria-live="polite"></p></div>
+              <div class="fld"><label for="fContact">Email or WhatsApp number</label><input id="fContact" name="contact" autocomplete="email" inputmode="email" placeholder="anna@company.com or +34 …" aria-describedby="fContactErr"><p class="err" id="fContactErr" aria-live="polite"></p></div>
+              <input class="hp" id="fCompany" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">
+              <p class="consent">Used only to reply to you — <a class="lnk" href="/privacy">privacy</a>. Prefer WhatsApp or email? <a class="lnk" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a> · <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></p>
             </div>
-          </details>
+            <button class="door js" id="door" type="submit" disabled aria-expanded="false" aria-controls="fFields" data-wa="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." data-mail="hello@boom-rome.com">
+              <span><b id="doorL">Start with a free call</b><small data-window="no card · {w}">no card · Mon–Fri 09:00–19:00, Rome time</small></span><span class="ar" aria-hidden="true">→</span>
+            </button>
+          </form>
+          <noscript><p class="s-h">Write to the desk on <a class="lnk" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona.">WhatsApp</a> or at <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p></noscript>
 
-          <!-- what the Check-in learned (its three answers, the papers in hand): filled by the page, printed in the operator's summary -->
-          <input type="hidden" id="fCheckin" name="checkin" value="">
-          <input type="hidden" id="fDossier" name="dossier" value="">
-          <!-- honeypot: a hidden field real people never see; the server answers 200 and writes nothing -->
-          <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-          <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
+          <div id="cOpen" class="card reveal" tabindex="-1" hidden>
+            <span class="stamp" aria-hidden="true"><span>BOOM<b>OPEN</b>BCN</span></span>
+            <p class="k">Free call</p>
+            <h2>Your file is <em>open.</em></h2>
+            <dl class="fields">
+              <div><dt>Passenger</dt><dd id="oName"></dd></div>
+              <div><dt>File</dt><dd id="oFile"></dd></div>
+              <div class="wide"><dt>Next</dt><dd><b id="oNext">Same working day</b> — Valentino writes to set your free call.</dd></div>
+              <div class="wide"><dt>Nothing to prepare</dt><dd>On the call we say which papers matter.</dd></div>
+            </dl>
+            <p>Nothing by then? Write to <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p>
+          </div>
 
-          <noscript><p class="ferr on">This form needs JavaScript. Write to us on <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona.">WhatsApp</a> or at <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p></noscript>
-          <button type="submit" class="paybtn" id="fGo" disabled data-door-sub data-wa="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." data-mail="hello@boom-rome.com"><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>Start with a free call</b><small>no card · same-day reply</small></span><span class="amt">→</span></button>
-          <p class="consent">Used only to reply to you — <a href="/privacy">privacy</a>. Prefer WhatsApp or email? <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=BOOM%20Barcelona">hello@boom-rome.com</a></p>
-        </form>
+          <div id="cConfirm" class="card reveal" tabindex="-1" hidden data-unconfirmed="Not confirmed yet. If no email reaches you, write to the desk.">
+            <p class="k">Payment</p>
+            <h2 id="cText">Payment being confirmed. Your confirmation comes by email.</h2>
+            <p>Questions? <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></p>
+          </div>
 
-        <!-- the door's end states: the file open and the paid landing. The status
-             lives once, on the ticket; the offer to pay is the ticket stub's till -->
-        <div class="sent" id="fDone" tabindex="-1">
-          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
-          <h3>Your file is <em>open.</em></h3>
-          <ul class="next"><li><b id="openWhen" data-default="Same working day">Same working day</b><span>Valentino writes to set your free call.</span></li><li><b>Nothing to prepare</b><span>On the call we say which papers matter.</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
+          <div id="cPaid" class="card reveal" tabindex="-1" hidden>
+            <span class="stamp" aria-hidden="true"><span>BOOM<b>PAID</b>BCN</span></span>
+            <p class="k">Paid</p>
+            <h2>Paid — your file <em>is open.</em></h2>
+            <dl class="fields">
+              <div><dt>File</dt><dd id="pFile"></dd></div>
+              <div><dt>Fare</dt><dd id="pFare"></dd></div>
+              <div class="wide"><dt>Starts</dt><dd id="pStart"></dd></div>
+            </dl>
+            <ul class="next" id="pNext"><li><b>First desk hour</b> an email from the desk with what we need</li><li><b>Same working day</b> your brief: dates, budget, who's moving</li><li><b>Then</b> the work as written on this page</li></ul>
+            <p id="pText">The Barcelona desk writes by email, or on WhatsApp if you left a number. Questions? Write to <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p>
+            <p id="pWait" hidden>You did not tick “Start now”: we start when your 14 days end. Sooner? Write to <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p>
+          </div>
         </div>
-        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="Payment being confirmed. Your confirmation comes by email." data-unconfirmed="Not confirmed yet. If no email reaches you, write to the desk." data-wait="You did not tick “Start now”: we start when your 14 days end. Sooner? Write to hello@boom-rome.com.">
-          <div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>
-          <h3>Paid — your file <em>is open.</em></h3>
-          <p class="plan" id="paidPlan"></p>
-          <p id="paidText">The Barcelona desk writes by email, or on WhatsApp if you left a number. Questions? Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</p>
-          <ul class="next" id="paidNext"><li><b>First desk hour</b><span>an email from the desk with what we need</span></li><li><b>Same working day</b><span>your brief: dates, budget, who's moving</span></li><li><b>Then</b><span>the work as written on this page</span></li><li><b>Nothing by then?</b><span>Write to <a href="mailto:hello@boom-rome.com" style="color:var(--gold)">hello@boom-rome.com</a>.</span></li></ul>
-        </div>
+        <!-- /THE DOOR -->
       </div>
-      <!-- /THE DOOR -->
-    </div>
-  </section>
+      <dl class="fields desk">
+        <div><dt>Answers</dt><dd>Valentino Egidi</dd></div>
+        <div><dt>Desk</dt><dd>Mon–Fri 09:00–19:00, Rome time</dd></div>
+      </dl>
+    </div></div>
+  </article>
 
-  <!-- ═══ 02 · HOW IT WORKS ═══ -->
-  <section id="how" class="rv">
-    <div class="sec-h">
-      <span class="num">02 — HOW IT WORKS</span>
-      <h2>From the first call <span class="g">to the keys.</span></h2>
-    </div>
-    <div class="steps">
-      <div class="step"><span class="dot"></span>
-        <div class="k">1 · Brief</div>
-        <div class="v">A free call</div>
-        <div class="s">Budget, move-in date, neighbourhoods, who's moving, how your income reads to a Catalan landlord. We tell you what your budget buys today.</div>
+  <p class="proof">Operated by Egidi Immobiliare S.r.l., a registered Italian agency · <a class="lnk" href="https://maps.google.com/?cid=15671179095441549815" target="_blank" rel="noopener">4.9 on Google in Rome, 47 reviews</a></p>
+
+  <div class="below">
+    <section class="sec" id="how" aria-labelledby="howH">
+      <h2 id="howH">From the first call <span class="g">to the keys.</span></h2>
+      <ol class="itin">
+        <li><p class="k">1 · Brief</p><h3>A free call</h3><p>Dates, budget, who's moving. We tell you what your budget buys today.</p></li>
+        <li><p class="k">2 · Your file</p><h3>Spanish-format, one working day</h3><p>Your file and a presentation letter in Spanish. Applications as listings appear.</p></li>
+        <li><p class="k">3 · Viewing &amp; lease</p><h3>A BOOM person in the room</h3><p>Live video and a written report. Rent cap, deposit and lease type checked before you sign.</p></li>
+      </ol>
+    </section>
+
+    <section class="sec" id="checks" aria-labelledby="chkH">
+      <h2 id="chkH">What we check <span class="g">before you sign.</span></h2>
+      <div class="folds">
+        <details id="check-fees"><summary><span class="t">Who pays the agent<span class="at">LAU art. 20</span></span></summary><p>The landlord pays their own agent and the lease's costs. You hire us, in writing, for an optional service.</p></details>
+        <details id="check-rentcap"><summary><span class="t">The rent cap<span class="at">índice de referencia</span></span></summary><p>Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years.</p></details>
+        <details id="check-deposit"><summary><span class="t">The deposit<span class="at">fianza · INCASÒL</span></span></summary><p>Habitual lease: one month. The landlord lodges it with INCASÒL; we ask for the receipt.</p></details>
+        <details id="check-contract"><summary><span class="t">Contract type<span class="at">LAU · Llei 11/2025</span></span></summary><p>A temporary lease for work or study must state and prove its reason, and is rent-capped. Otherwise it counts as habitual.</p></details>
+        <details id="check-padron"><summary><span class="t">Registration<span class="at">padrón · NIE</span></span></summary><p>Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it.</p></details>
+        <details id="papers"><summary><span class="t">The papers a Barcelona landlord asks for<span class="at">8 papers</span></span></summary><ul class="papers"><li>Passport or NIE</li><li>Employment contract (contrato)</li><li>Last three payslips (nóminas)</li><li>Employer letter or vida laboral</li><li>Three months of bank statements</li><li>Previous landlord reference</li><li>A guarantor or bank guarantee (aval)</li><li>Presentation letter in Spanish</li></ul><p>The rest we go through on the free call.</p></details>
       </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">2 · File &amp; applications</div>
-        <div class="v">Spanish-format, one working day</div>
-        <div class="s">Payslips or contract, NIE or passport, references, bank statements, a presentation letter in Spanish. Then we apply as listings go live.</div>
+    </section>
+
+    <section class="sec" id="faq" aria-labelledby="faqH">
+      <h2 id="faqH">Questions.</h2>
+      <div class="folds">
+        <details><summary><span class="t">Isn't it the landlord who pays the agent in Spain?</span></summary><p>Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords.</p></details>
+        <details><summary><span class="t">What happens on the free call?</span></summary><p>A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call.</p></details>
+        <details><summary><span class="t">How do I avoid a rental scam in Barcelona from abroad?</span></summary><p>Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign.</p></details>
+        <details><summary><span class="t">What if you don't find anything?</span></summary><p>We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result.</p></details>
       </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">3 · Viewing &amp; contract</div>
-        <div class="v">A BOOM person in the room</div>
-        <div class="s">Live video walkthrough and a written report. Rent cap, deposit, guarantees and lease type checked before you sign. Then keys and padrón.</div>
-      </div>
-    </div>
-    <p class="who"><b>Valentino Egidi</b> · tenant-side agent · desk Mon–Fri 09:00 to 19:00 <span data-tz>CET/CEST</span> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a></p>
-  </section>
+    </section>
 
-  <!-- ═══ 03 · SERVICES & FEES — three plates, the price as text, one door ═══ -->
-  <section id="services" class="rv">
-    <div class="sec-h">
-      <span class="num">03 — SERVICES &amp; FEES</span>
-      <h2>Flat fees. <span class="g">No percentage of your rent.</span></h2>
-    </div>
-    <p class="sec-sub">Optional, chosen in writing: only you pay, for the work.</p>
-    <div class="sibs plates">
-      <article class="sib on" id="plate-full-search">
-        <div class="se"><span>Full Search</span></div>
-        <b>We search. You choose.</b>
-        <ul class="inc"><li>Every working day: Idealista, Fotocasa, Habitaclia, agencies</li><li>Presentation letter, applications as listings appear</li><li>One attended viewing (more: €149 each)</li><li>Negotiation, cap and contract checks</li><li>Until you sign, or you say stop</li></ul>
-        <div class="price"><span class="num" data-plan-price="full-search">€500</span><small>flat · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="full-search">Start with a free call →</a>
-        <button type="button" class="go2" data-pay="full-search">Pay and start · €500</button>
-      </article>
-      <article class="sib" id="plate-application-pack">
-        <div class="se"><span>Application Pack</span></div>
-        <b>You search. We make you win.</b>
-        <p>The file that wins Spanish applications.</p>
-        <ul class="inc"><li>Spanish-format file, one working day from your papers</li><li>Presentation letter in Spanish</li><li>Income, aval and guarantor strategy</li><li>Contract review before you sign</li></ul>
-        <div class="price"><span class="num" data-plan-price="application-pack">€199</span><small>flat · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="application-pack">Start with a free call →</a>
-        <button type="button" class="go2" data-pay="application-pack">Pay and start · €199</button>
-      </article>
-      <article class="sib" id="plate-attended-viewing">
-        <div class="se"><span>Attended Viewing</span></div>
-        <b>Eyes on the ground.</b>
-        <p>Shortlisted, and still abroad? We go.</p>
-        <ul class="inc"><li>A BOOM person attends in your place</li><li>Live video walkthrough</li><li>Written report: light, noise, damp, neighbours, commute</li><li>A straight recommendation</li></ul>
-        <div class="price"><span class="num" data-plan-price="attended-viewing">€149</span><small>per viewing · incl. VAT</small></div>
-        <a class="go" href="#contact" data-service="attended-viewing">Start with a free call →</a>
-        <button type="button" class="go2" data-pay="attended-viewing">Pay and start · €149</button>
-      </article>
-    </div>
-    <p class="feenote">Pay by card on this page when you start; the invoice comes from Egidi Immobiliare S.r.l. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</p>
-  </section>
-
-  <!-- ═══ 04 · BEFORE YOU SIGN — six checks, one line each ═══ -->
-  <section id="checks" class="rv">
-    <div class="sec-h">
-      <span class="num">04 — BEFORE YOU SIGN</span>
-      <h2>Six things we check <span class="g">before you sign.</span></h2>
-    </div>
-    <p class="sec-sub">Six points we put in writing on every Barcelona contract.</p>
-    <div class="flows">
-      <div class="flow" id="check-rentcap"><span class="n">I</span><div>
-        <b>The rent cap<span class="at">índice de referencia</span></b>
-        <p>Tensioned zone: new rents can't top the previous one, nor the reference index for large owners or homes unlet for five years.</p>
-      </div></div>
-      <div class="flow" id="check-fees"><span class="n">II</span><div>
-        <b>Who pays the agent<span class="at">LAU art. 20</span></b>
-        <p>The landlord pays their own agent and the lease's costs. You hire us, in writing, for an optional service.</p>
-      </div></div>
-      <div class="flow" id="check-deposit"><span class="n">III</span><div>
-        <b>The deposit<span class="at">fianza · INCASÒL</span></b>
-        <p>Habitual lease: one month, extra guarantees two months at most. The landlord lodges it with INCASÒL; we ask for the receipt.</p>
-      </div></div>
-      <div class="flow" id="check-contract"><span class="n">IV</span><div>
-        <b>Contract type<span class="at">LAU · Llei 11/2025</span></b>
-        <p>A temporary lease for work or study must state and prove its reason, and is rent-capped. Otherwise it counts as habitual.</p>
-      </div></div>
-      <div class="flow" id="check-padron"><span class="n">V</span><div>
-        <b>Registration<span class="at">padrón · NIE</span></b>
-        <p>Your lease needs the full address, cadastral reference and both signatures, or the town hall refuses it.</p>
-      </div></div>
-      <div class="flow" id="check-income"><span class="n">VI</span><div>
-        <b>Income rules<span class="at">nómina · aval</span></b>
-        <p>Payslips, a bank guarantee, a Spanish guarantor: each landlord asks differently. New job, foreign salary, freelance — we write it so it passes.</p>
-      </div></div>
-    </div>
-  </section>
-
-  <!-- ═══ 05 · FAQ — the depth, folded away ═══ -->
-  <section id="faq" class="rv">
-    <div class="sec-h">
-      <span class="num">05 — QUESTIONS</span>
-      <h2>The questions <span class="g">we get asked.</span></h2>
-    </div>
-    <div class="faq">
-      <details>
-        <summary>Isn't it the landlord who pays the agent in Spain?</summary>
-        <div class="a">Yes. Spanish law puts the costs of the landlord's agent and of the lease on the landlord, and in Catalonia passing them to the tenant is sanctioned. BOOM Barcelona is a separate, optional service you hire in writing, price shown first; it works only for you and takes nothing from landlords.</div>
-      </details>
-      <details>
-        <summary>What happens on the free call?</summary>
-        <div class="a">A call with Valentino, by phone or WhatsApp, at a time that suits you both. We hear your dates, budget and who is moving, say which service fits, or that none does, and which papers you are missing. Nothing is charged for the call. Full Search is refunded in full if we decline the search in the first call.</div>
-      </details>
-      <details>
-        <summary>How do I avoid a rental scam in Barcelona from abroad?</summary>
-        <div class="a">Never pay a deposit or first rent for a home nobody on your side has seen. With Attended Viewing (€149) a BOOM person visits it in your place, with live video and a written report. With Full Search or Application Pack we also check the contract, and that you can register on the padrón with it, before you sign.</div>
-      </details>
-      <details>
-        <summary>Which service is mine?</summary>
-        <div class="a">Full Search (€500) if you haven't started. Application Pack (€199) if you've found one and need to apply, or you have a shortlist and you're already in Barcelona. Attended Viewing (€149 per viewing) if you have a shortlist and you're still abroad. Not sure: start with the free call, we advise.</div>
-      </details>
-      <details>
-        <summary>Is my rent capped in Barcelona?</summary>
-        <div class="a">Barcelona is a tensioned residential zone. A new rent can't exceed the last rent of the past five years, updated; for large owners and homes not let in five years, nor the índice de referencia. Temporary leases for work or study are covered too. We check it on every search.</div>
-      </details>
-      <details>
-        <summary>Do I need to be in Barcelona?</summary>
-        <div class="a">No. A BOOM person attends viewings in your place, with live video and a written report. The contract is checked and signed remotely. You arrive for the keys and the padrón.</div>
-      </details>
-      <details>
-        <summary>What if you don't find anything?</summary>
-        <div class="a">We tell you in the first call if your budget and timeline don't fit the market; if BOOM declines the search then, the €500 Full Search fee is refunded in full. Once we take it on, the search runs until you sign or stop it, and the fee pays for the work, not for a result.</div>
-      </details>
-      <details>
-        <summary>How do I pay?</summary>
-        <div class="a">By card on this page (Stripe) when you start; the invoice comes from Egidi Immobiliare S.r.l. Flat fees, VAT included. Order, terms and invoice in Catalan or Spanish on request. Nothing from landlords, their agents or platforms.</div>
-      </details>
-      <details>
-        <summary>What do you do with my data?</summary>
-        <div class="a">Used to answer you and run your search; if you stop at the payment, we ask once whether you have questions. No resale, no mailing lists. Ask us to delete it; invoices and payment records stay, as the law requires.</div>
-      </details>
-    </div>
-  </section>
-
-  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human
-       content, and folded for humans: whole in the DOM for the machines ═══ -->
-  <section id="enbref-wrap" class="late">
-    <details class="sheetfold">
-      <summary>BOOM Barcelona — fact sheet</summary>
-      <div class="enbref" id="enbref">
-        <h2>BOOM Barcelona — fact sheet <span class="ref" aria-hidden="true">REF · BARCELONA / TENANT SIDE</span></h2>
-        <dl>
-        <dt>Who</dt>
-        <dd>BOOM Barcelona, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only.</dd>
-
-        <dt>For whom</dt>
-        <dd>Expats and internationals relocating to Barcelona — employees, researchers, couples and families — from abroad or already in the city.</dd>
-
-        <dt>Language</dt>
-        <dd>English; Spanish for landlords; Catalan or Spanish documents on request.</dd>
-
-        <dt>Fees</dt>
-        <dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. No percentage of the rent, nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</dd>
-
-        <dt>What we do</dt>
-        <dd>Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, rent cap, contract and lease type checked, padrón supported.</dd>
-
-        <dt>What we don't do</dt>
-        <dd>We don't list homes, represent landlords or draft their leases, and we don't promise a date.</dd>
-
-        <dt>Reply time</dt>
-        <dd>The same working day.</dd>
-
-        <dt>Contact</dt>
-        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona.">WhatsApp +39 331 325 1961</a> · <a href="https://www.boomrome.com/barcelona" style="color:var(--t2)">boomrome.com/barcelona</a></dd>
+    <!-- in brief — written to be quoted (GEO): folded for people, whole in the DOM for machines -->
+    <section class="sec brief" id="enbref-wrap" aria-label="BOOM Barcelona — fact sheet">
+      <details class="sheet">
+        <summary>BOOM Barcelona — fact sheet</summary>
+        <dl class="enbref" id="enbref">
+          <dt>Who</dt><dd>BOOM Barcelona, the tenant-side rental desk of BOOM — operated by <b>Egidi Immobiliare S.r.l.</b>, a registered Italian agency. You hire us; we do not act for the landlord. Paid by the tenant only.</dd>
+          <dt>For whom</dt><dd>Expats and internationals relocating to Barcelona — employees, researchers, couples and families — from abroad or already in the city.</dd>
+          <dt>Language</dt><dd>English; Spanish for landlords; Catalan or Spanish documents on request.</dd>
+          <dt>Fees</dt><dd><b>Full Search €500</b> · <b>Application Pack €199</b> · <b>Attended Viewing €149</b> per viewing. VAT included. Invoice from Egidi Immobiliare S.r.l. No percentage of the rent, nothing from landlords or platforms. Full Search is refunded in full if we decline the search in the first call.</dd>
+          <dt>What we do</dt><dd>Spanish-format file within <b>one working day</b> of your papers, applications <b>as listings appear</b>, attended viewings with live video and written report, rent cap, contract and lease type checked, padrón supported.</dd>
+          <dt>What we don't do</dt><dd>We don't list homes, represent landlords or draft their leases, and we don't promise a date.</dd>
+          <dt>Reply time</dt><dd>The same working day.</dd>
+          <dt>Contact</dt><dd><a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a class="lnk" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona.">WhatsApp +39 331 325 1961</a> · <a class="lnk" href="https://www.boomrome.com/barcelona">boomrome.com/barcelona</a></dd>
         </dl>
-      </div>
-    </details>
-  </section>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <p class="stmt">You hire us; we do not act for the landlord. BOOM Barcelona acts solely as a tenant-side search agent: we do not list properties, represent landlords, draft their leases, or receive remuneration from landlords or their agents. Order, terms and invoice in Catalan or Spanish on request; official complaint forms (fulls oficials de reclamació) on request.</p>
+      <p>Egidi Immobiliare S.r.l. · Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma · P.IVA 17322991005 · REA RM-1710623</p>
+      <p>BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</p>
+      <nav aria-label="Legal and contact">
+        <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>
+        <a href="tel:+393313251961">+39 331 325 1961</a>
+        <a href="/terms#city-desks">Terms</a>
+        <a href="/privacy">Privacy</a>
+        <a href="/withdrawal?desk=Barcelona">Withdrawal form</a>
+        <a href="/amsterdam">Amsterdam desk</a>
+        <a href="/madrid">Madrid desk</a>
+        <a href="/">BOOM Rome</a>
+      </nav>
+      <p>© 2026 BOOM</p>
+    </footer>
+  </div>
 </main>
 
-<footer class="footer late">
-  <div class="container">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-brand-logo" style="gap:14px">
-          <svg aria-hidden="true" style="width:56px;height:56px"><use href="#boomMark"/></svg>
-          <span style="font-size:26px">BOOM</span>
-          <span class="bl-div" aria-hidden="true" style="height:30px"></span>
-          <span class="bl-desk">Barcelona<br>tenant side</span>
-        </div>
-        <p class="footer-tagline">Born in Rome, built for people who move countries. The same rules in Barcelona: one side of the table, flat fees, everything in writing.</p>
-        <p class="footer-statement">You hire us; we do not act for the landlord. BOOM Barcelona acts solely as a tenant-side search agent: we do not list properties, represent landlords, draft their leases, or receive remuneration from landlords or their agents. Order, terms and invoice in Catalan or Spanish on request; official complaint forms (fulls oficials de reclamació) on request.</p>
-        <div class="footer-company">
-          <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Registered office: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623
-        </div>
-        <div class="footer-tm">BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</div>
-      </div>
-      <div>
-        <h4 class="footer-links-title">Barcelona</h4>
-        <ul class="footer-links-list">
-          <li><a href="#plan">Your plan</a></li>
-          <li><a href="#how">How it works</a></li>
-          <li><a href="#services">Services</a></li>
-          <li><a href="#checks">Before you sign</a></li>
-          <li><a href="#faq">FAQ</a></li>
-          <li><a href="#contact">Start with a free call</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">BOOM desks</h4>
-        <ul class="footer-links-list">
-          <li><a href="/amsterdam">Amsterdam</a></li>
-          <li><a href="/madrid">Madrid</a></li>
-          <li><a href="/">BOOM Rome</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">BOOM</h4>
-        <ul class="footer-links-list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/apartments">Apartments in Rome</a></li>
-          <li><a href="/executive">Executive Roma</a></li>
-          <li><a href="/services">Services</a></li>
-          <li><a href="/welcome-to-rome">Welcome to Rome Kit</a></li>
-          <li><a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a></li>
-          <li><a href="/terms#city-desks">Terms</a></li>
-          <li><a href="/privacy">Privacy</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <span>© 2026 BOOM</span>
-      <span>Egidi Immobiliare S.r.l. · Barcelona</span>
-    </div>
-  </div>
-</footer>
-
-<!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
-<dialog class="sheet" id="ov" aria-label="Start with BOOM Barcelona" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-phone="That number looks incomplete — could you check it?" data-err-net="Checkout hiccuped on our side — try again, or start with a free call instead.">
-    <div class="sh"><h3>Start with BOOM Barcelona</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>
-    <p class="note">Choose the service and pay by card. Tick “Start now” and the desk starts in its first open hour; without it, we start when your 14-day withdrawal period ends.</p>
-    <div class="payrows" role="radiogroup" aria-label="Service">
-      <label class="payrow"><input type="radio" name="payplan" value="full-search" data-eur="500" data-label="Full Search"><span><b>Full Search</b><small>We search. You choose.</small></span><em>€500</em></label>
-      <label class="payrow"><input type="radio" name="payplan" value="application-pack" data-eur="199" data-label="Application Pack"><span><b>Application Pack</b><small>The file that wins Spanish applications.</small></span><em>€199</em></label>
-      <label class="payrow"><input type="radio" name="payplan" value="attended-viewing" data-eur="149" data-label="Attended Viewing"><span><b>Attended Viewing</b><small>Shortlisted, and still abroad? We go.</small></span><em>€149</em></label>
-    </div>
-    <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Anna Keller"></div>
-    <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com"></div>
-    <div class="fld"><label for="sPhone">Phone or WhatsApp <span class="opt">(optional)</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+34 …"></div>
-    <div class="fld"><label for="sNote">A listing you already found, or anything we should know <span class="opt">(optional)</span></label><input id="sNote" placeholder="https://www.idealista.com/… · move-in 1 February"></div>
-    <label class="startnow"><input type="checkbox" id="sStart"><span>Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
-    <p class="recesso">Withdrawal: 14 days from payment, by email to <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a href="/withdrawal?desk=Barcelona" target="_blank" rel="noopener">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
-    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>
-    <button type="button" class="paybtn" id="sGo" data-label-now="Pay and start" data-label-wait="Pay and book" data-sub-now="Starts in the desk’s first open hour · Stripe" data-sub-wait="Starts when your 14 days end · Stripe"><span class="lk">🔒</span><span class="tx"><b>Pay and book</b><small>Starts when your 14 days end · Stripe</small></span><span class="amt" id="sGoAmt"></span></button>
-    <p class="alt">Prefer to talk first? <a href="#contact" id="ovTalk">Start with a free call, no card</a> · <a href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener">WhatsApp</a></p>
-    <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. <a href="/terms#city-desks" target="_blank" rel="noopener">Terms</a></p>
-</dialog>
-
-<!-- the strip on a phone: the one door, no price -->
-<div class="paybar" id="paybar" data-sub="no card · same-day reply" data-yourplan="your plan">
-  <div class="pinfo"><b id="stripTitle">Barcelona</b><small id="stripSub">no card · same-day reply</small></div>
-  <a class="wa-ic" id="stripWa" href="https://wa.me/393313251961?text=Hi%20BOOM%20Barcelona%2C%20I'm%20moving%20to%20Barcelona." target="_blank" rel="noopener" aria-label="WhatsApp"><svg aria-hidden="true"><use href="#boomWa"/></svg></a>
-  <a class="go" href="#contact" id="stripGo">Start with a free call</a>
+<!-- the phone strip: the one door, only while the pass's door is off screen; no price -->
+<div class="strip js" id="strip" aria-hidden="true" inert>
+  <p class="st-t">Barcelona<small data-window="no card · {w}">no card · Mon–Fri 09:00–19:00, Rome time</small></p>
+  <button class="st-go" id="stripGo" type="button">Start with a free call</button>
 </div>
-
-<!-- CONFIG — generated from cities/barcelona.json. No secrets, no keys: the form posts to our own API. -->
+<dialog class="till" id="till" aria-labelledby="tTitle" data-err-name="Your name, so we know who we're working for." data-err-email="A valid email — the invoice and your file go there." data-err-net="Checkout hiccuped on our side — try again, or start with a free call instead.">
+  <form class="tf" id="tillForm" novalidate action="#" data-analytics-manual data-analytics-kind="checkout" data-analytics-label="Till">
+    <button class="x" type="button" id="tillX" aria-label="Close">×</button>
+    <p class="k">Fare · BOOM Barcelona</p>
+    <div class="t-head"><h2 id="tTitle" tabindex="-1"></h2><p class="t-price"><b id="tPrice"></b><span id="tCond"></span></p></div>
+    <p class="t-tag" id="tTag"></p>
+    <ul class="t-inc" id="tInc"></ul>
+    <p class="refund" id="tRule" hidden>Full Search is refunded in full if we decline the search in the first call.</p>
+    <p class="t-opt">Optional, chosen in writing: only you pay, for the work.</p>
+    <div class="fld"><label for="tName">Your name</label><input id="tName" autocomplete="name" placeholder="Anna Keller" aria-describedby="tNameErr"><p class="err" id="tNameErr" aria-live="polite"></p></div>
+    <div class="fld"><label for="tEmail">Email <i>— the invoice and your file go there</i></label><input id="tEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com" aria-describedby="tEmailErr"><p class="err" id="tEmailErr" aria-live="polite"></p></div>
+    <div class="fld"><label for="tNote">A listing you already found, or anything we should know <i>(optional)</i></label><input id="tNote" placeholder="https://www.idealista.com/… · move-in 1 February"></div>
+    <input class="hp" id="tCompany" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <label class="tick"><input type="checkbox" id="tStart"><span>Start now: I ask BOOM to begin before my 14-day withdrawal period ends, and I understand that once the service is fully performed I can no longer withdraw.</span></label>
+    <p class="wd">Withdrawal: 14 days from payment, by email to <a class="lnk" href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> or with the <a class="lnk" href="/withdrawal?desk=Barcelona" target="_blank" rel="noopener">model withdrawal form</a>. If you asked us to start and then withdraw, we refund the price minus the work already done. Without the tick, we start when the 14 days end.</p>
+    <p class="err" id="tErr" role="alert"></p>
+    <button class="pay" id="tGo" type="submit" data-label-now="Pay and start" data-label-wait="Pay and book" data-sub-now="Starts in the desk’s first open hour · Stripe" data-sub-wait="Starts when your 14 days end · Stripe"><span><b id="tGoL">Pay and book</b><small id="tGoS">Starts when your 14 days end · Stripe</small></span><span class="ar" aria-hidden="true">→</span></button>
+    <p class="fine">Secure card payment by Stripe. Invoice from Egidi Immobiliare S.r.l., VAT included. Full Search is refunded in full if we decline the search in the first call. Order, terms and invoice in Catalan or Spanish on request. <a class="lnk" href="/terms#city-desks" target="_blank" rel="noopener">Terms</a></p>
+    <p class="alt">Prefer to talk first? <button type="button" class="lnk" id="tAlt">Start with a free call, no card</button></p>
+  </form>
+</dialog>
+<!-- CONFIG — generated from cities/barcelona.json. No secrets, no keys: the forms post to our own API. -->
 <script>
   window.BOOM_CITY = {
     "SLUG": "barcelona",
@@ -1262,80 +971,13 @@ body::before, body::after { z-index: 1 !important; }
     "WORD": "BARCELONA",
     "IATA": "BCN",
     "MODE": "search",
-    "LEAD_ENDPOINT": "/api/city-lead",
-    "SITE_URL": "https://www.boomrome.com",
-    "PAGE_URL": "https://www.boomrome.com/barcelona",
-    "WHATSAPP": "393313251961",
-    "EMAIL": "hello@boom-rome.com",
     "CHECKOUT": true,
-    "CHECKOUT_ENDPOINT": "/api/service-checkout",
-    "FEATURED": "full-search",
-    "DOOR": "Start with a free call",
-    "TILL": "Pay and start",
-    "REFUND": "Full Search is refunded in full if we decline the search in the first call.",
-    "PAID_WAIT_NEXT": [
-      [
-        "First desk hour",
-        "an email with your order and start date"
-      ],
-      [
-        "When the 14 days end",
-        "your brief: dates, budget, who’s moving"
-      ],
-      [
-        "Then",
-        "the work as written on this page"
-      ]
-    ],
-    "ISSUE": {
-      "titles": {
-        "plan": "BOOM · Your plan",
-        "issued": "BOOM · Boarding pass"
-      },
-      "status": {
-        "standby": "STANDBY",
-        "open": "OPEN",
-        "paid": "PAID"
-      },
-      "boarding": {
-        "paidNow": "First open hour",
-        "paidWait": "From {date}"
-      },
-      "firstCall": {
-        "plan": "Your first call",
-        "fare": "Free",
-        "line": "Nothing is charged for the call."
-      },
-      "stub": {
-        "fare": "Fare",
-        "wa": "Or write on WhatsApp"
-      }
-    },
-    "PREPARES": {
-      "full-search": [
-        "letter"
-      ],
-      "application-pack": [
-        "letter"
-      ],
-      "attended-viewing": []
-    },
-    "DOSSIER": {
-      "some": "{have} of 8 in hand. Missing: {missing}.",
-      "ours": "{plan} prepares: {ours}.",
-      "all": "All eight in hand.",
-      "rest": "The rest we go through on the free call."
-    },
-    "PAID_PENDING": "Payment being confirmed. Your confirmation comes by email.",
-    "WA_TEXT": "Hi BOOM Barcelona, I'm moving to Barcelona.",
-    "WA_PLAN": "My plan: {plan}{answers}.",
-    "DOOR_SUB_LEAD": "no card",
     "LEAD_URL": "/api/city-lead",
+    "CHECKOUT_ENDPOINT": "/api/service-checkout",
+    "DOOR": "Start with a free call",
+    "DOOR_LEAD": "no card",
     "DESK": {
-      "person": "Valentino Egidi",
-      "role": "tenant-side agent",
       "timeZone": "Europe/Rome",
-      "tzLabel": "CET/CEST",
       "hours": {
         "from": "09:00",
         "to": "19:00"
@@ -1348,284 +990,87 @@ body::before, body::after { z-index: 1 !important; }
         5
       ]
     },
+    "HOLIDAYS": "es-bcn",
     "PLANS": {
       "full-search": {
         "label": "Full Search",
         "eur": 500,
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "unit": "",
+        "name": "We search. You choose.",
         "includes": [
           "Every working day: Idealista, Fotocasa, Habitaclia, agencies",
           "Presentation letter, applications as listings appear",
           "One attended viewing (more: €149 each)",
           "Negotiation, cap and contract checks",
           "Until you sign, or you say stop"
-        ]
+        ],
+        "rule": true
       },
       "application-pack": {
         "label": "Application Pack",
         "eur": 199,
         "condition": "flat · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "unit": "",
+        "name": "You search. We make you win.",
         "includes": [
           "Spanish-format file, one working day from your papers",
           "Presentation letter in Spanish",
           "Income, aval and guarantor strategy",
           "Contract review before you sign"
-        ]
+        ],
+        "rule": false
       },
       "attended-viewing": {
         "label": "Attended Viewing",
         "eur": 149,
         "condition": "per viewing · incl. VAT",
-        "conditionLong": "VAT included. Invoice from Egidi Immobiliare S.r.l.",
-        "unit": "per viewing",
+        "name": "Eyes on the ground.",
         "includes": [
           "A BOOM person attends in your place",
           "Live video walkthrough",
           "Written report: light, noise, damp, neighbours, commute",
           "A straight recommendation"
-        ]
-      }
-    },
-    "PENDING": {
-      "shortlist": "One more answer decides: Attended Viewing if you're still abroad, Application Pack if you're already in Barcelona."
-    },
-    "CHECKIN": {
-      "num": "Check-in · {n} of 3",
-      "steps": [
-        {
-          "id": "stage",
-          "label": "Where are you in the search?",
-          "options": [
-            {
-              "id": "zero",
-              "t": "Haven't started",
-              "f": "you haven't started",
-              "code": "START"
-            },
-            {
-              "id": "shortlist",
-              "t": "I have a shortlist",
-              "f": "you have a shortlist",
-              "code": "SHORTLIST"
-            },
-            {
-              "id": "found",
-              "t": "Found one, need to apply",
-              "f": "you've found one and need to apply",
-              "code": "APPLYING"
-            }
-          ]
-        },
-        {
-          "id": "where",
-          "label": "Where are you right now?",
-          "options": [
-            {
-              "id": "abroad",
-              "t": "Still abroad",
-              "f": "you're still abroad",
-              "code": "ABROAD"
-            },
-            {
-              "id": "here",
-              "t": "Already in Barcelona",
-              "f": "you're already in Barcelona",
-              "code": "IN TOWN"
-            }
-          ]
-        },
-        {
-          "id": "when",
-          "label": "When do you move in?",
-          "options": [
-            {
-              "id": "soon",
-              "t": "Within 4 weeks",
-              "f": "within four weeks",
-              "code": "T-4W"
-            },
-            {
-              "id": "months",
-              "t": "In 1–3 months",
-              "f": "in one to three months",
-              "code": "T-3M"
-            },
-            {
-              "id": "later",
-              "t": "Later, flexible",
-              "f": "later",
-              "code": "OPEN"
-            }
-          ]
-        }
-      ],
-      "rules": [
-        {
-          "when": {
-            "stage": "zero"
-          },
-          "plan": "full-search",
-          "why": "Starting from zero: we search, apply, attend and check the rent cap and the contract — end to end."
-        },
-        {
-          "when": {
-            "stage": "found"
-          },
-          "plan": "application-pack",
-          "why": "You found it. What wins it is the file, in the Spanish format."
-        },
-        {
-          "when": {
-            "stage": "shortlist",
-            "where": "abroad"
-          },
-          "plan": "attended-viewing",
-          "why": "You chose, you're away: a BOOM person goes, films it live and writes it down."
-        },
-        {
-          "when": {
-            "stage": "shortlist",
-            "where": "here"
-          },
-          "plan": "application-pack",
-          "why": "You'll attend yourself. What wins the application is the file."
-        }
-      ],
-      "notes": {
-        "when": {
-          "soon": "Four weeks is tight: the file must be ready before the right listing appears.",
-          "months": "Good timing: the file is ready before the listings are.",
-          "later": "No rush: open the file now, the search starts when you say."
-        }
-      },
-      "dossier": {
-        "label": "What do you already hold?",
-        "sub": "Tap what you have. A Catalan landlord asks for most of these eight.",
-        "items": [
-          {
-            "id": "id",
-            "t": "Passport or NIE"
-          },
-          {
-            "id": "contract",
-            "t": "Employment contract (contrato)"
-          },
-          {
-            "id": "payslips",
-            "t": "Last three payslips (nóminas)"
-          },
-          {
-            "id": "employer",
-            "t": "Employer letter or vida laboral"
-          },
-          {
-            "id": "bank",
-            "t": "Three months of bank statements"
-          },
-          {
-            "id": "reference",
-            "t": "Previous landlord reference"
-          },
-          {
-            "id": "guarantor",
-            "t": "A guarantor or bank guarantee (aval)"
-          },
-          {
-            "id": "letter",
-            "t": "Presentation letter in Spanish"
-          }
         ],
-        "eyebrow": "Your papers",
-        "fold": "Check your papers (optional)",
-        "some": "{have} of 8 in hand. Missing: {missing}.",
-        "ours": "{plan} prepares: {ours}.",
-        "all": "All eight in hand.",
-        "rest": "The rest we go through on the free call."
-      },
-      "result": {
-        "eyebrow": "Your plan",
-        "change": "change",
-        "suggest": "Your answers suggest {plan}",
-        "use": "use it"
-      },
-      "pass": {
-        "titles": {
-          "plan": "BOOM · Your plan",
-          "issued": "BOOM · Boarding pass"
-        },
-        "status": {
-          "standby": "STANDBY",
-          "open": "OPEN",
-          "paid": "PAID"
-        },
-        "stub": {
-          "fare": "Fare",
-          "wa": "Or write on WhatsApp"
-        },
-        "boarding": {
-          "paidNow": "First open hour",
-          "paidWait": "From {date}"
-        },
-        "firstCall": {
-          "plan": "Your first call",
-          "fare": "Free",
-          "line": "Nothing is charged for the call."
-        },
-        "save": "Save image",
-        "shareBtn": "Share",
-        "saved": "Saved",
-        "guest": "A tenant",
-        "foot": "boomrome.com/barcelona",
-        "side": "Tenant side",
-        "fields": {
-          "passenger": "Passenger",
-          "plan": "Plan",
-          "price": "Price",
-          "boarding": "Boarding",
-          "file": "File",
-          "papers": "Papers",
-          "movein": "Move-in"
-        }
-      },
-      "refusal": "Four weeks is tight. We say so in the first call.",
-      "sentLine": "Your file is open. The desk takes it from here.",
-      "pending": {
-        "eyebrow": "Two plans fit",
-        "text": "One more answer decides: {plans}."
-      },
-      "landing": {
-        "partial": "{n} of 3 answered, from the link you received. {left} to your plan.",
-        "friend": "Your friend's answers. Change any of them, then your plan is yours.",
-        "blank": "Your plan prints here as you answer."
-      },
-      "share": {
-        "lead": "Know someone moving too?",
-        "whatsapp": "WhatsApp",
-        "copy": "Copy link",
-        "copied": "Link copied",
-        "plan": "BOOM {city}: a rental agent on the tenant's side, flat fees. My plan in three taps: {url}",
-        "pass": "BOOM {city} — a rental agent on the tenant's side, flat fees. Check in, 20 seconds: {url}"
+        "rule": false
       }
+    },
+    "TILL": {
+      "label": "Pay and start",
+      "labelWait": "Pay and book"
+    },
+    "PAID": {
+      "startsNow": "The desk’s first open hour",
+      "startsWait": "{date}, when your 14 days end",
+      "nextWait": [
+        [
+          "First desk hour",
+          "an email with your order and start date"
+        ],
+        [
+          "When the 14 days end",
+          "your brief: dates, budget, who’s moving"
+        ],
+        [
+          "Then",
+          "the work as written on this page"
+        ]
+      ],
+      "unconfirmed": "Not confirmed yet. If no email reaches you, write to the desk."
     }
   };
 </script>
-<script src="/assets/boom-city.js?v=a6d9745bb3"></script>
+<script src="/assets/boom-city.js?v=6a4d39d964"></script>
 <script>
   /* The door is served disabled and the desk script opens it. If that script
      never ran (a failed download, an early error) the button stays shut: say
      where to write instead of leaving a door that does nothing. */
   addEventListener('load', function () {
-    var b = document.getElementById('fGo');
-    if (!b || !b.disabled || document.getElementById('fJsFail')) return;
+    var b = document.getElementById('door');
+    if (!b || !b.disabled || document.getElementById('jsFail')) return;
     var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
-    p.className = 'ferr on'; p.id = 'fJsFail'; p.setAttribute('role', 'alert');
-    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp';
-    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail');
-    p.append('This form could not load. Write to us on ', wa, ' or at ', ml, '.');
+    p.className = 's-h'; p.id = 'jsFail'; p.setAttribute('role', 'alert');
+    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp'; wa.className = 'lnk';
+    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail'); ml.className = 'lnk';
+    p.append('This page could not load its form. Write to the desk on ', wa, ' or at ', ml, '.');
     b.parentNode.insertBefore(p, b);
   });
 </script>

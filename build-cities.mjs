@@ -4,66 +4,63 @@
 //   node build-cities.mjs           regenerate /<slug>.html from cities/<slug>.json
 //   node build-cities.mjs --check   exit 1 when a committed page is not what the build makes
 //
-// Contract: BOOM_CITIES_BRIEF.md (v1.4, 22/10 — "The Itinerary"; the
-// v1.3 spec is §11 of STUDIO_CITIES_ESPERIENZA.md). One template
-// (cities/_template.html), one shared file (cities/_shared.json: domain,
-// legal entity, contacts, the refund rule, the Rome proof — identical on
-// every page), one JSON per city. The generated pages are committed because
-// Vercel serves the repo as-is.
+// Contract: BOOM_CITIES_BRIEF.md (v1.5, 26/10 — «Il biglietto»: the study
+// in STUDIO_CITIES_ESPERIENZA.md §12). One template (cities/_template.html),
+// one shared file (cities/_shared.json: domain, legal entity, contacts, the
+// refund rule, the Rome proof — identical on every page), one JSON per
+// city. The generated pages are committed because Vercel serves the repo
+// as-is.
 //
-// The page is a BOOM 2026 page: css/boom-2026.css + the city layer
-// assets/boom-city.css, gold #FFD700. v1.4 — THE HERO IS EDITORIAL: the H1,
-// one lead line, the fares board (the three prices as text, each plan's own
-// condition, the refund rule word for word under the €500 where the desk
-// sells), one gold door, the proof card. Section 01 (#plan) holds the three
-// questions, the ONE ticket (STANDBY → OPEN → PAID, issued only by a real
-// file or a payment the server confirmed) and the door. One label (door.label:
-// "Start with a free call" where the desk sells, "Open my file" where it is
-// still opening), the till beside the refund rule, boards only where a fact
-// changes under the visitor's hand (the city word at load, the ticket's price
-// and status). The Solari engine and the scroll contract are inlined from
-// their single sources, as on every public page.
+// v1.5 — THE FIRST PHONE SCREEN IS ONE BOARDING PASS. The city on the real
+// Solari board, one sentence that carries the desk's must-state, three fare
+// rows (who each is for, the price with its condition in the same element,
+// the refund rule under the €500 where the desk sells), one gold door, who
+// answers and when. A fare row is a native <details>: it opens ITS ticket
+// in place (what the fee buys, the free door, then "Pay and start" as a
+// quiet second). Below the pass: three steps, the checks and the papers,
+// a few questions and the fact sheet, all folded. The Check-in quiz, the
+// eight-paper meter, the shareable pass image and the #checkin= links of
+// v1.2–v1.4 are gone: the first paying client did not recognise the quiz.
+// The page is self-contained (assets/boom-city.css carries its own tokens
+// on the boom-2026 values: gold #FFD700); the Solari engine, the scroll
+// contract and the desk calendar are inlined from their single sources.
 //
 // Token syntax in the template: {{a.b}} prints the value HTML-escaped,
-// {{{a.b}}} prints it raw. In the city JSON a field whose name ends in `Html`
-// is trusted markup; every other field is escaped. Arrays (steps, plans,
-// checks, faq, …) are rendered by the small functions below.
+// {{{a.b}}} prints it raw. Arrays (plans, steps, checks, faq, …) are
+// rendered by the small functions below.
 //
 // The build refuses, instead of printing something wrong:
 //   - a token with no value (a missing field never becomes an empty string);
 //   - a city with `live: true` that still carries placeholders — bracketed
 //     copy like [NAME], config values like REPLACE_ME / 39XXXXXXXXXX, an
-//     og-<slug>.png that does not exist on disk, or (a sell desk) no Rome
-//     review URL in _shared.json;
-//   - a plan without a price or without its two condition strings, in
-//     either mode (v1.1: EVERY desk shows the list prices; v1.3: each plan
-//     says when it is charged — Berlin's Full Search "sign", the other
-//     waitlist plans "opening", a sell desk "VAT");
-//   - a waitlist city that opens a checkout: `checkout: true`, a Stripe
-//     reference or the checkout sheet on a waitlist page. Shown is not
-//     charged. The server refuses the same (api/_market.js cityOffer);
-//   - a sell desk where a visible €500 stands without the refund rule in
-//     the same block (the fares board, the door, the plates' section, the
-//     ticket, the sheet, the fees row), or a waitlist desk that prints the
-//     refund rule at all;
-//   - a hero that is not title · lead · fares board · facts, a hero carrying
-//     the Check-in, the ticket, the door or a node mover; a section 01
-//     without Check-in · ticket · door in that order; a second status board;
-//     an airplane glyph (the plane is one SVG symbol);
-//   - a papers line that claims work without naming the plan that does it,
-//     or a plan that "prepares" a paper the desk's list does not name;
-//   - on a Spanish desk that sells, a fares note that does not open
-//     "Optional, chosen in writing" (LAU art. 20);
-//   - Check-in rules that leave a path unresolved by the second tap, or
-//     steps in any order but stage, where, when (the live ticket depends
-//     on it — a plan shown before the rules can know it is a horoscope);
-//   - more than one action label (nav, door, pass, plates, strip must all
-//     read door.label; every pay control the till's label with its price);
-//   - the Rome rating printed without the word Rome, a page over the
-//     weight budget (first-party ≤ 90 KB gzipped, city JS ≤ 30 KB), a
-//     share string over 120 characters or naming a price, a leftover key
-//     of the v1.2 page (machine, truth, band, paybar, per, hero.trust…);
-//   - overwriting a root .html it did not generate.
+//     og-<slug>.png that does not exist on disk, (a sell desk) no Rome
+//     profile URL in _shared.json or no withdrawal page on disk;
+//   - a plan without a price, its condition strings or its "for whom" line;
+//     a short condition without "VAT"; a sell desk's condition saying
+//     "opening", a waitlist's not saying when it is charged; Berlin's Full
+//     Search without "sign" in both strings;
+//   - a waitlist city that opens a checkout, names Stripe, a pay button,
+//     a refund rule, a bank transfer or a call ANYWHERE in its output
+//     (text, attributes, JSON-LD, the config the script reads);
+//   - on a sell desk, a block that shows €500 without the refund rule in
+//     it (the fare row and its ticket, the till, the fees row);
+//   - on a Spanish desk that sells, a fares head or a till that does not
+//     open "Optional, chosen in writing" (LAU art. 20), or no LAU art. 20
+//     check, or no landlord-pays question;
+//   - a till that does not say, before the pay button and in this order,
+//     the plan and its price, the UNTICKED start-now request, the 14-day
+//     withdrawal line with the model form; a pay button that does not
+//     follow the tick;
+//   - more than one action label (the door, the strip and the till's way
+//     out all read door.label; every pay control reads till.label with its
+//     price), a digit or a € in a door label or a strip;
+//   - the Rome rating printed without "Rome", or twice; a "500+", "24/7",
+//     "24 hours", "within the hour", "off-market" or an exclamation mark;
+//   - a leftover key of the quiz pages (checkin, glance, plan, facts,
+//     factsDerived, nav, form.moveIn…): a string nobody sees is a string
+//     everybody believes is live;
+//   - a page over the weight budget, or overwriting a root .html it did
+//     not generate.
 // A city with `live: false` builds, carries <meta name="robots"
 // content="noindex">, and the placeholders are listed so nothing is forgotten.
 
@@ -72,28 +69,26 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
+import { CITY_MARKETS } from './api/_market.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 // The model withdrawal form (Directive 2011/83/EU Annex I(B)), linked from the
-// sheet's withdrawal line and from the paid email (api/stripe-webhook.js).
+// till's withdrawal line and from the paid email (api/stripe-webhook.js).
 export const WITHDRAWAL_PATH = '/withdrawal';
 export const TERMS_PATH = '/terms#city-desks';
 export const GENERATED_MARK = 'GENERATED by build-cities.mjs';
 
-// The Solari cell, measured in Chromium on this page: the engine's cell is
-// 0.84em wide (the `.fc2 --cw` declared on the cell itself wins over the
-// calibrated value set on the host — the same geometry as the DAYS of
-// index.html, 3.64em for four cells) plus the .06em margin the city layer
-// sets: 0.90em of the HOST per cell. The hero reserves cells × this BEFORE
-// the board lands (the index.html lesson: the board used to push everything
-// 78px down). Pinned by tests/cities/ui.mjs against the rendered width.
-export const CELL_EM = 0.90;
+// The weight budget: first-party bytes a visitor on a mid-range phone
+// downloads before the page works — the page (with the inlined engine, the
+// scroll contract and the desk calendar), the ticket CSS, the city JS, the
+// consent and tracking scripts (≈20 KB of the total, shared by every
+// page) — and the city JS on its own. v1.4 weighed 89.9 KB of 90 on
+// Barcelona.
+export const WEIGHT_KB = { total: 60, js: 12 };
 
-// The weight budget (STUDIO_CITIES_ESPERIENZA.md §5.2, §11.9): first-party
-// bytes a visitor on a mid-range phone downloads before the page works —
-// the page, the base CSS, the city layer, the consent and tracking scripts —
-// and the city JS on its own. Computed with gzip at build, refused above.
-export const WEIGHT_KB = { total: 90, js: 30 };
+// Visible words, the ceilings that keep the page short (measured on the
+// built HTML, every <details> closed — what a reader sees at load).
+export const BUDGET = { lead: 30, fares: 70, ticket: 60, stub: 45, body: 460 };
 
 export class BuildError extends Error {}
 
@@ -131,318 +126,46 @@ const list = (city, dotted) => {
   need(Array.isArray(v) && v.length, `cities/${city.slug}.json`, `${dotted} must be a non-empty array`);
   return v;
 };
-const words = (s) => String(s || '').split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length;
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
-export const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+export const words = (s) => String(s || '').split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length;
+const str = (v) => typeof v === 'string' && v.trim().length > 0;
 
-// ── THE CHECK-IN (brief v1.2 → v1.3). Three taps (where you are in the
-// search · where you are right now · when you move) → the RULES say which
-// plan, in words; eight documents in the city's format → how many are in
-// hand and what BOOM would fix first; the boarding pass to save or post,
-// with the answers in a link anyone can open. The rules are DATA, read by
-// the build (the FAQ answer and the Offer audiences are derived from them)
-// and by the page (assets/boom-city.js, from the config) — one copy, three
-// readers. v1.3 ORDER: stage → where → when, so every path resolves by the
-// SECOND tap (`zero` and `found` on the first): the ticket is live from the
-// first tap as a rule, never a guess (STUDIO §3.2).
-export const STEP_IDS = ['stage', 'where', 'when'];
-export const DOSSIER_N = 8;
-
-const optsOf = (k) => Object.fromEntries(k.steps.map((s) => [s.id, s.options.map((o) => o.id)]));
-const firstRule = (k, facts) => k.rules.find((r) => Object.entries(r.when).every(([s, o]) => facts[s] === o)) || null;
-
-// After which tap does a stage resolve? 1 when the stage alone decides, 2
-// when the second step is needed for every option of the second step, else
-// never (0). The live ticket is honest only when nothing resolves later than 2.
-export function resolvesAt(k, stage) {
-  const opts = optsOf(k);
-  const byStage = firstRule(k, { stage });
-  const second = STEP_IDS[1];
-  // a stage-only rule decides on tap 1 ONLY if no earlier, more specific rule
-  // takes any `where` away from it: otherwise the ticket would print a plan
-  // on tap 1 and switch it on tap 2 — the guess this function exists to refuse
-  if (byStage && Object.keys(byStage.when).every((s) => s === 'stage') && opts[second].every((o) => firstRule(k, { stage, [second]: o }) === byStage)) return 1;
-  const all = opts[second].every((o) => {
-    const r = firstRule(k, { stage, [second]: o });
-    return r && Object.keys(r.when).every((s) => s === 'stage' || s === second);
-  });
-  return all ? 2 : 0;
-}
-
-// "One more answer decides: Attended Viewing if you're still abroad,
-// Application Pack if you're already in Amsterdam." — derived from the rules
-// for a stage that resolves on the second tap.
-export function pendingText(city, stage) {
-  const k = city.checkin;
-  const second = k.steps[1];
-  const plans = Object.fromEntries(list(city, 'pricing.plans').map((p) => [p.id, p.label]));
-  const parts = second.options.map((o) => {
-    const r = firstRule(k, { stage, [second.id]: o.id });
-    return r ? `${plans[r.plan]} if ${o.f}` : null;
-  }).filter(Boolean);
-  return k.pending.text.replace('{plans}', parts.join(', '));
-}
-
-export function validateCheckin(city, plans, where) {
-  const k = city.checkin;
-  need(k && typeof k === 'object', where, 'needs "checkin" (BOOM_CITIES_BRIEF.md v1.2: the plan finder + dossier readiness + boarding pass)');
-  need(typeof k.num === 'string' && /\{n\}/.test(k.num), where, 'checkin.num is required and carries {n} (the step counter)');
-  for (const f of ['h3', 'sub']) need(k[f] === undefined, where, `checkin.${f} is a v1.2 leftover: the Check-in is the hero now, the H1 and the lead introduce it`);
-  need(Array.isArray(k.steps) && k.steps.map((s) => s.id).join() === STEP_IDS.join(), where, `checkin.steps must be exactly ${STEP_IDS.join(', ')} in that order (the live ticket resolves by the second tap; the hash and the JS depend on it)`);
-  const opts = {};
-  for (const s of k.steps) {
-    need(typeof s.label === 'string' && s.label.trim() && Array.isArray(s.options) && s.options.length >= 2 && s.options.length <= 4, where, `checkin.steps.${s.id} needs a label and 2–4 options`);
-    const seen = new Set();
-    for (const o of s.options) {
-      need(/^[a-z]+$/.test(o.id || '') && !seen.has(o.id), where, `checkin.steps.${s.id}: option id "${o.id}" must be unique, lowercase letters`);
-      seen.add(o.id);
-      need(typeof o.t === 'string' && o.t.trim() && typeof o.f === 'string' && o.f.trim() && typeof o.code === 'string' && /^[A-Z0-9 -]{2,10}$/.test(o.code), where,
-        `checkin.steps.${s.id}.${o.id} needs t (the chip), f (the phrase the FAQ derives) and code (2–10 upper-case chars, on the pass)`);
-    }
-    opts[s.id] = s.options.map((o) => o.id);
-  }
-  const planIds = new Set(plans.map((p) => p.id));
-  need(Array.isArray(k.rules) && k.rules.length, where, 'checkin.rules must be a non-empty array');
-  for (const r of k.rules) {
-    need(r.when && typeof r.when === 'object' && Object.keys(r.when).length, where, 'a checkin rule needs a "when" with at least one step');
-    for (const [s, o] of Object.entries(r.when)) need(opts[s] && opts[s].includes(o), where, `checkin rule: unknown condition ${s}=${o}`);
-    need(!('when' in r.when), where, 'a checkin rule cannot depend on "when": the move-in date never decides the plan, only the note');
-    need(planIds.has(r.plan), where, `checkin rule: plan "${r.plan}" is not one of the plans`);
-    need(typeof r.why === 'string' && r.why.trim(), where, `checkin rule for "${r.plan}" needs a "why" (the sentence on the ticket)`);
-  }
-  // every stage × where must resolve, and by the second tap: a client can
-  // never tap and get no plan, and the ticket never shows a plan the rules
-  // cannot know yet
-  for (const st of opts.stage) for (const wh of opts.where) {
-    need(firstRule(k, { stage: st, where: wh }), where, `checkin.rules leave stage=${st} × where=${wh} without a plan`);
-  }
-  for (const st of opts.stage) need(resolvesAt(k, st) > 0, where, `checkin.rules: stage=${st} does not resolve by the second tap (the live ticket would be a guess)`);
-  need(k.notes && k.notes.when && opts.when.every((o) => typeof k.notes.when[o] === 'string' && k.notes.when[o].trim()), where, 'checkin.notes.when must carry one line for every "when" option');
-  need(k.notes.where === undefined, where, 'checkin.notes.where is a v1.2 leftover: the "why" line carries it');
-  need(typeof k.refusal === 'string' && k.refusal.trim(), where, 'checkin.refusal is required: the sentence on the ticket for "haven\'t started" + "within four weeks"');
-  // review 22/10: once the file is open (or paid) the Check-in freezes — an
-  // answer given after the one POST would go nowhere — and says so in ONE
-  // line, true on every issued state (a paid return carried no answers)
-  need(typeof k.sentLine === 'string' && k.sentLine.trim() && !/€|\d/.test(k.sentLine), where,
-    'checkin.sentLine is required: the one line the frozen Check-in shows once the file is open or paid (no price, no figure)');
-  need(k.pending && typeof k.pending.eyebrow === 'string' && /\{plans\}/.test(k.pending.text || ''), where, 'checkin.pending needs eyebrow and a text with {plans}');
-  need(k.landing && ['partial', 'friend', 'blank'].every((f) => typeof k.landing[f] === 'string' && k.landing[f].trim()) && /\{n\}/.test(k.landing.partial) && /\{left\}/.test(k.landing.partial),
-    where, 'checkin.landing needs partial (with {n} and {left}), friend and blank');
-  const d = k.dossier;
-  // v1.4: the papers moved into an optional fold of the Check-in, and the
-  // lines it prints name only what the CHOSEN plan prepares (prepares[] on
-  // each plan). The v1.3 lines told every plan "the letter and the format are
-  // ours" — also the Attended Viewing client, whose plan prepares nothing.
-  for (const f of ['fixable', 'resultAll', 'resultSome', 'skipped']) {
-    need(d && d[f] === undefined, where, `checkin.dossier.${f} is a v1.3 leftover: the papers line is some + ours + all + rest, and what a plan prepares lives on the plan (pricing.plans[].prepares)`);
-  }
-  need(d && ['label', 'sub', 'eyebrow', 'fold', 'some', 'ours', 'all', 'rest'].every((f) => typeof d[f] === 'string' && d[f].trim()), where,
-    'checkin.dossier needs label, sub, eyebrow, fold, some, ours, all and rest');
-  need(d.go === undefined && d.goSub === undefined, where, 'checkin.dossier.go is a v1.2 leftover: the ticket is live, there is no "Show my plan" button');
-  need(Array.isArray(d.items) && d.items.length === DOSSIER_N && new Set(d.items.map((i) => i.id)).size === DOSSIER_N
-    && d.items.every((i) => /^[a-z]+$/.test(i.id || '') && typeof i.t === 'string' && i.t.trim()), where, `checkin.dossier.items must be exactly ${DOSSIER_N} documents with unique ids`);
-  need(/\{have\}/.test(d.some) && /\{missing\}/.test(d.some), where, 'checkin.dossier.some must carry {have} and {missing}');
-  need(/\{plan\}/.test(d.ours) && /\{ours\}/.test(d.ours), where, 'checkin.dossier.ours must carry {plan} (the chosen plan, filled by the page) and {ours} (the missing papers that plan prepares)');
-  // 22/10/2026: the papers line told EVERY visitor «the letter and the format
-  // are ours» and «we apply as listings appear» — on the Attended Viewing
-  // ticket (€149) too, which includes neither. The work belongs to a plan, so
-  // a line that claims work names it ({plan}, filled with the chosen plan, or
-  // a plan label): never a plan-less «ours», «we format», «we write».
-  const labels = plans.map((p) => p.label).filter(Boolean);
-  const WORK = /\bours\b|\bwe (format|apply|write|prepare|draft|fill)\b|\b(prepares?|writes?|formats?|drafts?)\b/i;
-  for (const f of ['some', 'ours', 'all', 'rest']) {
-    need(!WORK.test(d[f].replace('{ours}', '')) || /\{plan\}/.test(d[f]) || labels.some((l) => d[f].includes(l)), where,
-      `checkin.dossier.${f} must name the plan that does the work ({plan} or ${labels.join(' / ')}), never a plan-less «ours»: the ticket shows it for every plan`);
-  }
-  // what each plan prepares: papers of THIS desk's list, never a promise the
-  // list does not name
-  const ids = new Set(d.items.map((i) => i.id));
-  for (const p of plans) {
-    need(Array.isArray(p.prepares) && p.prepares.every((x) => ids.has(x)) && new Set(p.prepares).size === p.prepares.length, where,
-      `plan "${p.id}": prepares must be a list of the dossier's own paper ids (${[...ids].join(', ')}) — what the ticket may say this plan prepares`);
-  }
-  // ...and what a plan prepares is part of what it SELLS (review 22/10: the
-  // ticket said "Full Search prepares: Presentation letter in Spanish" while
-  // the plate, the Offer and the Stripe product named no letter). Every paper
-  // in prepares[] is named in the plan's ✓ lines AND its offerDescription, by
-  // the head noun of the desk's own label ("Motivation letter, Dutch and
-  // English" → letter, "A one-page presentation" → presentation, "Tenant
-  // self-disclosure (Mieterselbstauskunft)" → self-disclosure).
-  const headNoun = (t) => { const w = String(t).replace(/\([^)]*\)/g, '').split(/,| in /)[0].trim().split(/\s+/); return w[w.length - 1].toLowerCase(); };
-  for (const p of plans) for (const x of (Array.isArray(p.prepares) ? p.prepares : [])) {
-    const it = d.items.find((i) => i.id === x);
-    if (!it) continue;
-    const n = headNoun(it.t);
-    const re = new RegExp(`(^|[^a-z-])${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}([^a-z-]|$)`, 'i');
-    need(re.test((p.includes || []).join(' · ')) && re.test(p.offerDescription || ''), where,
-      `plan "${p.id}" prepares "${it.t}": its ✓ lines and its offerDescription must name it ("${n}") — what the ticket says the plan prepares is what the plate and the Offer sell`);
-  }
-  const r = k.result;
-  need(r && ['eyebrow', 'change', 'use'].every((f) => typeof r[f] === 'string' && r[f].trim()) && /\{plan\}/.test(r.suggest || ''), where,
-    'checkin.result needs eyebrow, change, use and suggest (with {plan}: "Your answers suggest {plan}", shown when a chip picked by hand differs from the rule)');
-  for (const f of ['ctaSearch', 'ctaSearchSub', 'ctaFile', 'ctaFileSub', 'readyEyebrow']) need(r[f] === undefined, where, `checkin.result.${f} is a v1.2 leftover: the door label and the plan's condition are the one copy now`);
-  need(r.share === undefined, where, 'checkin.result.share moved to checkin.share');
-  const sh = k.share;
-  need(sh && ['lead', 'whatsapp', 'copy', 'copied', 'plan', 'pass'].every((f) => typeof sh[f] === 'string' && sh[f].trim()), where,
-    'checkin.share needs lead, whatsapp, copy, copied and the two texts plan, pass');
-  need(sh.papers === undefined, where, 'checkin.share.papers is a leftover: no share sends it (Copy link copies the bare URL) — a string nobody sees');
-  if (city.mode === 'waitlist') for (const f of ['plan', 'pass']) need(/opening/i.test(sh[f]), where, `checkin.share.${f} on a waitlist desk says the desk is opening (a forwarded message must not read as a desk taking searches today)`);
-  for (const f of ['plan', 'pass']) {
-    need(/\{url\}/.test(sh[f]), where, `checkin.share.${f} must carry {url}: a share nobody can follow`);
-    need(sh[f].replace('{url}', '').replace('{city}', city.city).length <= 120, where, `checkin.share.${f} is over 120 characters before the link (WhatsApp previews truncate)`);
-    need(!/€|\d{3}/.test(sh[f]), where, `checkin.share.${f} names a price: a share text never promises a number`);
-  }
-  const p = k.pass;
-  const sell = city.checkout === true;
-  // v1.4: the ticket is issued, not typed. No name or origin inputs (the
-  // passenger is the name typed in the door, once a file is open), no title
-  // before anything is issued: one title per state.
-  for (const f of ['title', 'name', 'from']) need(!p || p[f] === undefined, where, `checkin.pass.${f} is a v1.3 leftover: the ticket reads its passenger from the door and its title from pass.titles (plan / issued)`);
-  need(p && ['save', 'shareBtn', 'saved', 'guest', 'foot', 'side'].every((f) => typeof p[f] === 'string' && p[f].trim())
-    && p.fields && ['passenger', 'plan', 'price', 'boarding', 'file', 'papers', 'movein'].every((f) => typeof p.fields[f] === 'string' && p.fields[f].trim()),
-    where, 'checkin.pass needs save, shareBtn, saved, guest, foot, side and its seven fields (passenger, plan, price, boarding, file, papers, movein)');
-  need(p.titles && ['plan', 'issued'].every((f) => typeof p.titles[f] === 'string' && p.titles[f].trim()), where, 'checkin.pass.titles needs plan (before anything is issued) and issued');
-  const statusKeys = sell ? ['standby', 'open', 'paid'] : ['standby', 'open'];
-  need(p.status && statusKeys.every((f) => typeof p.status[f] === 'string' && /^[A-Z]{2,7}$/.test(p.status[f])) && (sell || p.status.paid === undefined), where,
-    `checkin.pass.status needs ${statusKeys.join(', ')} (2–7 capitals: the status board has seven cells)${sell ? '' : ' — a waitlist desk takes no money, so no PAID'}`);
-  need(p.stub && ['fare', 'wa'].every((f) => typeof p.stub[f] === 'string' && p.stub[f].trim()), where, 'checkin.pass.stub needs fare and wa');
-  // Boarding: where the desk sells, the paid states (first open hour, or the
-  // webhook's computed start date); on a waitlist desk, when it opens. A desk
-  // that takes no money carries no paid words.
-  const wl = city.mode === 'waitlist';
-  need(p.boarding && typeof p.boarding === 'object'
-    && (sell ? typeof p.boarding.paidNow === 'string' && p.boarding.paidNow.trim() && /\{date\}/.test(p.boarding.paidWait || '') : p.boarding.paidNow === undefined && p.boarding.paidWait === undefined)
-    && (wl ? typeof p.boarding.waitlist === 'string' && p.boarding.waitlist.trim() : p.boarding.waitlist === undefined), where,
-    sell ? 'checkin.pass.boarding needs paidNow and paidWait (with {date}, the webhook\'s computed start)' : wl ? 'checkin.pass.boarding needs waitlist (and nothing paid: no money is taken here)' : 'checkin.pass.boarding carries no paid words where no money is taken');
-  need(p.firstCall && ['plan', 'fare', 'line'].every((f) => typeof p.firstCall[f] === 'string' && p.firstCall[f].trim()) && !/€|\d/.test(p.firstCall.fare + p.firstCall.line), where,
-    'checkin.pass.firstCall needs plan, fare and line (no price: nothing is charged for it)');
-  if (wl) need(!/\bcall\b/i.test(p.firstCall.plan + ' ' + p.firstCall.line), where, 'a waitlist desk promises no call (the door is "Open my file"): checkin.pass.firstCall names the file');
-  need(p.sub === undefined, where, 'checkin.pass.sub is a leftover: the pass never printed it');
-  for (const f of ['gate', 'seat', 'status', 'seatValue', 'statusValue']) need(p.fields[f] === undefined, where, `checkin.pass.fields.${f} is a v1.2 leftover (Gate, Seat, Status and the barcode are gone)`);
-  need(p.gateValue === undefined, where, 'checkin.pass.gateValue is a v1.2 leftover');
-  need(typeof city.iata === 'string' && /^[A-Z]{3}$/.test(city.iata), where, '"iata" (three upper-case letters) is required: it is the destination on the pass');
-  return opts;
-}
-
-// The FAQ answer DERIVED from the rules: the same mapping the page applies,
-// in one sentence per plan, so the visible FAQ (and its FAQPage schema) can
-// never say a different plan than the Check-in. On a waitlist desk the
-// closing sentence carries each plan's own condition (Berlin: Full Search
-// on signing, the rest at opening) — the same datum the chip, the plate,
-// the pass and the Offer print.
-export function checkinAnswer(city) {
-  const k = city.checkin;
-  const opt = (s, o) => k.steps.find((x) => x.id === s).options.find((x) => x.id === o);
-  const byPlan = new Map();
-  for (const r of k.rules) {
-    const phrase = Object.entries(r.when).map(([s, o]) => opt(s, o).f).join(' and ');
-    if (!byPlan.has(r.plan)) byPlan.set(r.plan, []);
-    byPlan.get(r.plan).push(phrase);
-  }
-  const plans = list(city, 'pricing.plans');
-  const sentences = plans.filter((p) => byPlan.has(p.id))
-    .map((p) => `${p.label} (${eur(p.price)}${p.unit ? ' ' + p.unit : ''}) if ${byPlan.get(p.id).join(', or ')}.`);
-  // the free door, in the words of the desk's one label: a free call where the
-  // desk sells (v1.4), a file where it is still opening
-  let tail = city.checkout === true ? ' Not sure: start with the free call, we advise.' : ' Not sure: open a file, we advise.';
-  if (city.mode === 'waitlist') {
-    const signing = plans.filter((p) => /sign/i.test(p.conditionLong || ''));
-    tail += signing.length
-      ? ` List prices. ${signing.map((p) => p.label).join(' and ')} due only once you sign a lease; the other plans charged only when the desk opens.`
-      : ' List prices, charged only when the desk opens.';
-  }
-  return sentences.join(' ') + tail;
-}
-
-// "you've found one" → "have found one": the audience of an Offer, in the
-// third person, from the same phrases.
-const who = (phrase) => phrase.replace(/\byou've\b/g, 'have').replace(/\byou haven't\b/g, "haven't").replace(/\byou have\b/g, 'have').replace(/\byou're\b/g, 'are');
-export function offerAudience(city, planId) {
-  const k = city.checkin;
-  const opt = (s, o) => k.steps.find((x) => x.id === s).options.find((x) => x.id === o);
-  const phrases = k.rules.filter((r) => r.plan === planId).map((r) => who(Object.entries(r.when).map(([s, o]) => opt(s, o).f).join(' and ')));
-  return phrases.length ? `Tenants who ${phrases.join(', or who ')}` : null;
-}
-
-// The FAQ with the derived item resolved: what the page prints and what the
-// FAQPage declares come from the same list.
-export function faqOf(city) {
-  return list(city, 'faq.items').map((f) => {
-    if (f.checkin) {
-      need(typeof f.q === 'string' && f.q.trim() && f.a === undefined, `cities/${city.slug}.json`, 'a checkin FAQ item carries only the question: the answer is derived from the rules');
-      return { q: f.q, a: checkinAnswer(city) };
-    }
-    return f;
-  });
-}
-
-// THE FAMILY is derived from the built cities, never kept by hand (a fifth
-// city is a JSON file, BOOM_CITIES_BRIEF.md §1): the sister cities in
-// alphabetical order, then what _shared.json adds (BOOM Rome). One rule, so
-// a client never lands on a page nobody has approved: a LIVE page links only
-// live sisters; a draft page links every sister, because the review needs to
-// see the suite. The page itself is never in its own list. v1.3: the suite
-// leaves the fixed chrome (a strip of pills over every first screen) for a
-// footer column and the mobile menu.
+// THE FAMILY is derived from the built cities, never kept by hand: the
+// sister desks in alphabetical order, then BOOM Rome. A LIVE page links only
+// live sisters (a client never lands on a draft nobody approved); a draft
+// links every sister, because the review needs to see the suite.
 export function familyFor(city, cities, shared) {
   const sisters = (cities || [])
     .filter((c) => c.slug !== city.slug && (city.live !== true || c.live === true))
     .sort((a, b) => a.slug.localeCompare(b.slug))
-    .map((c) => ({ label: c.city, href: `/${c.slug}` }));
+    .map((c) => ({ label: `${c.city} desk`, href: `/${c.slug}` }));
   return [...sisters, ...(shared.family || []).filter((f) => f.href !== `/${city.slug}`)];
 }
 
-// The move-in month select: twenty months from the anchor in _shared.json
-// (value YYYY-MM, label "February 2027"), "Not sure yet" first. Data, not
-// the clock, so --check stays deterministic; the page's JS hides the months
-// already passed, and the CLI warns when the anchor is older than two months.
-export function monthOptions(from, n = 20) {
-  const m = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(String(from || ''));
-  if (!m) throw new BuildError(`cities/_shared.json: moveInFrom must be YYYY-MM (got ${from})`);
-  let y = +m[1], mo = +m[2] - 1;
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    out.push({ value: `${y}-${String(mo + 1).padStart(2, '0')}`, label: `${MONTHS[mo]} ${y}` });
-    mo++; if (mo > 11) { mo = 0; y++; }
-  }
-  return out;
-}
-export function anchorAgeMonths(from, now = new Date()) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(from || ''));
-  if (!m) return Infinity;
-  return (now.getUTCFullYear() - +m[1]) * 12 + (now.getUTCMonth() + 1 - +m[2]);
-}
-
 // The desk block: who answers, in which time zone, which hours and days.
-// One copy for the "Who answers" fact, the clock line, step 1's person line
-// and the OPEN/PAID reply window the page computes against the desk clock.
-// The days are PRINTED ("Mon–Fri"): "desk 09:00 to 19:00" alone read as an
-// open desk on a Saturday, and the promise shown before the tap must be the
-// one the OPEN card keeps after it. The zone label is wrapped so the page's
-// JS can follow the clock (CET is CEST seven months a year).
+// The days are PRINTED ("Mon–Fri"): "09:00 to 19:00" alone read as an open
+// desk on a Saturday.
 const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 export function daysLabel(days) {
   const d = [...days].sort((a, b) => a - b);
   const contiguous = d.every((x, i) => i === 0 || x === d[i - 1] + 1);
   return d.length === 1 ? DAY_SHORT[d[0]] : contiguous ? `${DAY_SHORT[d[0]]}–${DAY_SHORT[d[d.length - 1]]}` : d.map((x) => DAY_SHORT[x]).join(', ');
 }
-export function deskLineOf(c) {
-  const d = c.desk;
-  return c.factsDerived.deskLine.replace('{days}', esc(daysLabel(d.days))).replace('{from}', esc(d.hours.from)).replace('{to}', esc(d.hours.to)).replace('{tz}', `<span data-tz>${esc(d.tzLabel)}</span>`);
+// "Mon–Fri 09:00–19:00, Rome time": what a page without JS, a crawler and
+// the static HTML say — true in every season (the zone is named by city,
+// never as CET, which is wrong seven months a year).
+export function deskHoursText(d) {
+  const zone = d.timeZone === 'Europe/Rome' ? 'Rome time' : `${d.timeZone.split('/').pop().replace(/_/g, ' ')} time`;
+  return `${daysLabel(d.days)} ${d.hours.from}–${d.hours.to}, ${zone}`;
 }
 export function validateDesk(d, where) {
   need(d && typeof d === 'object', where, 'needs "desk" {person, role, timeZone, tzLabel, hours{from,to}, days[]}');
-  need(typeof d.person === 'string' && d.person.trim() && !/[\[\]]/.test(d.person), where, 'desk.person is the named person (no brackets, no placeholder)');
-  need(typeof d.role === 'string' && d.role.trim(), where, 'desk.role is required');
+  need(str(d.person) && !/[\[\]]/.test(d.person), where, 'desk.person is the named person (no brackets, no placeholder)');
+  need(str(d.role), where, 'desk.role is required');
   try { new Intl.DateTimeFormat('en-US', { timeZone: d.timeZone }); } catch (e) { throw new BuildError(`${where}: desk.timeZone "${d.timeZone}" is not a time zone Intl accepts`); }
-  // "CET" alone is wrong seven months a year in the static HTML (what a
-  // crawler and a no-JS reader get); "CET/CEST" is right in every season and
-  // the page's JS still narrows it to the live one.
   need(typeof d.tzLabel === 'string' && /^[A-Z]{2,5}(\/[A-Z]{2,5})?$/.test(d.tzLabel), where, 'desk.tzLabel is the short zone name (CET, or CET/CEST to cover both seasons)');
   const hhmm = (s) => /^([01]\d|2[0-3]):[0-5]\d$/.test(s || '');
   need(d.hours && hhmm(d.hours.from) && hhmm(d.hours.to) && d.hours.from < d.hours.to, where, 'desk.hours needs from and to as HH:MM, from before to');
   need(Array.isArray(d.days) && d.days.length && d.days.every((x) => Number.isInteger(x) && x >= 0 && x <= 6) && new Set(d.days).size === d.days.length, where, 'desk.days is a list of weekdays 0 (Sunday) to 6');
-  need(d.opened === undefined || /^\d{4}-(0[1-9]|1[0-2])$/.test(d.opened), where, 'desk.opened, when present, is YYYY-MM');
 }
 
 // Every WhatsApp link of a desk opens with a prefilled line that names the
@@ -456,8 +179,7 @@ export function waHref(contact, city) {
 
 // The fees row of the fact sheet, DERIVED from the plans: each plan's own
 // condition in brackets when the plans differ (Berlin: Full Search on
-// signing), said ONCE after the list when they are all the same — four
-// "VAT included." in one sentence read as padding to a quoting engine.
+// signing), said ONCE after the list when they are all the same.
 export function feesRowOf(c, shared, extra = '') {
   const plans = list(c, 'pricing.plans');
   const same = plans.length > 1 && plans.every((p) => p.conditionLong === plans[0].conditionLong);
@@ -466,344 +188,198 @@ export function feesRowOf(c, shared, extra = '') {
     + (c.checkout === true ? ' ' + esc(shared.refund.rule) : '');
 }
 
-// ── the array renderers ────────────────────────────────────────────────────
+// The calendar a desk's window reads: the webhook's own key (CITY_MARKETS
+// holidays || country), so the page never says "desk open" on a day the
+// withdrawal counts as a holiday. An unknown key reads Italy alone.
+export function holidayKeyOf(slug) {
+  const m = CITY_MARKETS[slug];
+  return m ? (m.holidays || m.country || null) : null;
+}
+
+// ── the renderers ─────────────────────────────────────────────────────────
+const MAIL = (contact) => `<a class="lnk" href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`;
 const R = {
-  familyLinks: (fam, cls) => fam.map((f) => `<a href="${esc(f.href)}" class="${cls}">${esc(f.label)}</a>`).join('\n          '),
-  familyItems: (fam) => fam.map((f) => `          <li><a href="${esc(f.href)}">${esc(f.label)}</a></li>`).join('\n'),
-
-  budgetOptions: (c) => list(c, 'form.budgetOptions').map((o) => `              <option>${esc(o)}</option>`).join('\n'),
-  monthOptionsHtml: (c, shared) => [`              <option value="">${esc((c.form && c.form.moveIn && c.form.moveIn.unsure) || 'Not sure yet')}</option>`,
-    ...monthOptions(shared.moveInFrom).map((o) => `              <option value="${o.value}">${esc(o.label)}</option>`)].join('\n'),
-
-  // THE FIVE FACTS (STUDIO §1.5, §11.2): what a scam-primed visitor reads
-  // before any tap. Three authored (paid by · from abroad · if we find
-  // nothing), two DERIVED so they cannot drift from the desk block and the
-  // entity: who answers (the person, the desk hours, a live clock span the
-  // JS fills) and the company (legal name, P.IVA, the Rome rating — labelled
-  // Rome, linked to the public Google profile when its URL exists).
-  facts: (c, shared) => {
-    const d = c.desk, fd = c.factsDerived;
-    const rows = list(c, 'facts').map((f) => `  <div><dt>${esc(f.label)}</dt><dd>${esc(f.text)}</dd></div>`);
-    rows.push(`  <div><dt>${esc(fd.answers)}</dt><dd>${esc(d.person)}, ${esc(fd.answersLine)} · ${deskLineOf(c)}<span class="clock" id="deskClock" aria-live="off"></span></dd></div>`);
-    const rome = shared.rome;
-    const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
-    const ratingHtml = rome.profileUrl ? `<a href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating;
-    rows.push(`  <div data-proof="rome"><dt>${esc(fd.company)}</dt><dd>${esc(shared.entity.legalName)} · P.IVA ${esc(shared.entity.vat)} · ${ratingHtml}</dd></div>`);
-    return rows.join('\n');
+  // THE FARES: one row per plan, DERIVED from pricing.plans. The row is the
+  // <summary> of its ticket (label · for whom · price · condition), the
+  // ticket under it says what the fee buys; on a desk that sells, the
+  // refund rule sits under the €500 row (closed) and inside its ticket
+  // (open — the duplicate outside hides by CSS), then the slot the door
+  // moves into on a phone, then the quiet pay button.
+  fares: (c, shared) => {
+    const sell = c.checkout === true;
+    const rule = esc(shared.refund.rule);
+    const rows = list(c, 'pricing.plans').map((p) => {
+      const fs0 = sell && p.id === 'full-search';
+      const cond = esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT');
+      return [
+        `        <details class="fare" name="fare" id="fare-${esc(p.id)}" data-plan="${esc(p.id)}"${fs0 ? ' data-fs' : ''}>`,
+        '          <summary>',
+        `            <span class="f-l"><b class="f-name">${esc(p.label)}</b><span class="f-when">${esc(p.when)}</span></span>`,
+        `            <span class="f-r"><span class="f-price" data-plan-price="${esc(p.id)}">${eur(p.price)}</span><span class="f-cond">${cond}</span></span>`,
+        '            <span class="f-tog" aria-hidden="true"></span>',
+        '          </summary>',
+        '          <div class="tk">',
+        `            <p class="tk-tag">${esc(p.name)}</p>`,
+        `            <ul class="tk-inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
+        fs0 ? `            <p class="refund">${rule}</p>` : '',
+        '            <div class="tk-slot" data-slot></div>',
+        sell ? `            <button class="pay2 js" type="button" data-pay="${esc(p.id)}"><span>${esc(c.till.label)} · ${eur(p.price)}</span><span class="ar" aria-hidden="true">→</span></button>` : '',
+        '          </div>',
+        '        </details>',
+        fs0 ? `        <p class="refund fs">${rule}</p>` : ''
+      ].filter(Boolean).join('\n');
+    });
+    return [
+      `      <div class="fares${c.mode === 'waitlist' ? ' long' : ''}" id="fares" role="group" aria-labelledby="faresH">`,
+      `        <p class="fares-h"><b id="faresH">${esc(c.hero.faresHead.b)}</b><span>${esc(c.hero.faresHead.span)}</span></p>`,
+      ...rows,
+      '      </div>'
+    ].join('\n');
   },
 
-  // The service chips are built from the plans: one price, one place. Radio
-  // buttons in a visible grid (never a dropdown) + "not sure yet". None is
-  // pre-checked — the server reads a missing service as "service to
-  // decide". Every desk prints the price and the plan's own short condition
-  // (v1.3); a waitlist desk adds one line under the grid, a sell desk the
-  // refund rule (so €500 never stands alone in the door).
-  serviceChips: (c) => [
-    ...list(c, 'pricing.plans').map((p) =>
-      `              <label class="chip"><input type="radio" name="service" value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)} · ${esc(p.condition)}</small></span></label>`),
-    `              <label class="chip unsure"><input type="radio" name="service" value="unsure"><span><b>${esc(c.form.service.unsure)}</b><small>${esc(c.form.service.unsureSub)}</small></span></label>`
+  // THE DOOR — one node: the "not sure" line (the free door is the neutral
+  // decline: nothing pre-selected), the plan line once a ticket is open, the
+  // two fields (revealed by the first tap, the name focused), the door, the
+  // states printed where the door was. Without JS the door is hidden and a
+  // line says where to write: no GET ever carries the contact data.
+  act: (c, contact) => {
+    const sell = c.checkout === true;
+    const lead = sell ? 'no card' : 'free';
+    const f = c.form, k = c.checkoutCopy;
+    const hours = deskHoursText(c.desk);
+    const next = f.sentNext;
+    const out = [
+      `          <p class="s-h" id="notSure">${esc(c.stub.notSure)}</p>`,
+      '          <p class="plan-ln" id="planLn" hidden><span class="k">Your plan</span><b id="planName"></b></p>',
+      `          <form id="fileForm" class="fform" novalidate action="#" autocomplete="on" data-analytics-manual data-analytics-label="${sell ? 'Free call' : 'Open my file'}" data-sending="${esc(f.sending)}" data-err-name="${esc(f.errors.name)}" data-err-contact="${esc(f.errors.contact)}" data-err-email="${esc(f.errors.email)}" data-err-net="${esc(f.errors.net)}">`,
+      '            <div id="fFields" class="reveal" hidden>',
+      `              <div class="fld"><label for="fName">${esc(f.name.label)}</label><input id="fName" name="name" autocomplete="name" placeholder="${esc(f.name.placeholder)}" aria-describedby="fNameErr"><p class="err" id="fNameErr" aria-live="polite"></p></div>`,
+      `              <div class="fld"><label for="fContact">${esc(f.contact.label)}</label><input id="fContact" name="contact" autocomplete="email" inputmode="email" placeholder="${esc(f.contact.placeholder)}" aria-describedby="fContactErr"><p class="err" id="fContactErr" aria-live="polite"></p></div>`,
+      // honeypot: a field real people never see; the server answers 200 and writes nothing
+      '              <input class="hp" id="fCompany" name="company" tabindex="-1" autocomplete="off" aria-hidden="true">',
+      `              <p class="consent">${esc(f.consentLead)} <a class="lnk" href="/privacy">privacy</a>. ${esc(f.consentAlt)} <a class="lnk" href="${esc(contact.waHref)}" target="_blank" rel="noopener">WhatsApp</a> · ${MAIL(contact)}</p>`,
+      '            </div>',
+      `            <button class="door js" id="door" type="submit" disabled aria-expanded="false" aria-controls="fFields" data-wa="${esc(contact.waHref)}" data-mail="${esc(contact.email)}">`,
+      `              <span><b id="doorL">${esc(c.door.label)}</b><small data-window="${lead} · {w}">${lead} · ${esc(hours)}</small></span><span class="ar" aria-hidden="true">→</span>`,
+      '            </button>',
+      '          </form>',
+      `          <noscript><p class="s-h">Write to the desk on <a class="lnk" href="${esc(contact.waHref)}">WhatsApp</a> or at ${MAIL(contact)}.</p></noscript>`,
+      '',
+      // OPEN: after the 200, with the server's file number
+      '          <div id="cOpen" class="card reveal" tabindex="-1" hidden>',
+      `            <span class="stamp" aria-hidden="true"><span>BOOM<b>OPEN</b>${esc(c.iata)}</span></span>`,
+      `            <p class="k">${sell ? 'Free call' : 'Your file'}</p>`,
+      '            <h2>Your file is <em>open.</em></h2>',
+      '            <dl class="fields">',
+      '              <div><dt>Passenger</dt><dd id="oName"></dd></div>',
+      '              <div><dt>File</dt><dd id="oFile"></dd></div>',
+      `              <div class="wide"><dt>Next</dt><dd><b id="oNext">${esc(f.sentWhenDefault)}</b> — ${esc(next[0][1])}</dd></div>`,
+      `              <div class="wide"><dt>${esc(next[1][0])}</dt><dd>${esc(next[1][1])}</dd></div>`,
+      '            </dl>',
+      `            <p>${esc(next[2][0])} ${esc(next[2][1]).replace('{email}', MAIL(contact))}</p>`,
+      '          </div>'
+    ];
+    if (sell) {
+      const mail = MAIL(contact);
+      out.push(
+        '',
+        // the payment the server has not confirmed yet: the address bar proves nothing
+        `          <div id="cConfirm" class="card reveal" tabindex="-1" hidden data-unconfirmed="${esc(k.paid.unconfirmed)}">`,
+        '            <p class="k">Payment</p>',
+        `            <h2 id="cText">${esc(k.paid.pending)}</h2>`,
+        `            <p>Questions? ${mail}</p>`,
+        '          </div>',
+        '',
+        // PAID: only after GET /api/city-lead?paid= says paid:true
+        '          <div id="cPaid" class="card reveal" tabindex="-1" hidden>',
+        `            <span class="stamp" aria-hidden="true"><span>BOOM<b>PAID</b>${esc(c.iata)}</span></span>`,
+        '            <p class="k">Paid</p>',
+        `            <h2>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h2>`,
+        '            <dl class="fields">',
+        '              <div><dt>File</dt><dd id="pFile"></dd></div>',
+        '              <div><dt>Fare</dt><dd id="pFare"></dd></div>',
+        '              <div class="wide"><dt>Starts</dt><dd id="pStart"></dd></div>',
+        '            </dl>',
+        `            <ul class="next" id="pNext">${k.paid.next.map(([a, b]) => `<li><b>${esc(a)}</b> ${esc(b)}</li>`).join('')}</ul>`,
+        `            <p id="pText">${esc(k.paid.text)} ${mail}.</p>`,
+        `            <p id="pWait" hidden>${esc(k.paid.wait).replace('{email}', mail)}</p>`,
+        '          </div>'
+      );
+    }
+    return out.join('\n');
+  },
+
+  steps: (c) => list(c, 'how.steps').map((s) =>
+    `        <li><p class="k">${esc(s.k)}</p><h3>${esc(s.h)}</h3><p>${esc(s.p)}</p></li>`).join('\n'),
+
+  // the checks, folded (title + its legal tag; the sentence opens), then the
+  // papers the city's landlords ask for — the GEO answer without a meter
+  checks: (c) => [
+    ...list(c, 'checks.items').map((k) =>
+      `        <details id="check-${esc(k.id)}"><summary><span class="t">${esc(k.title)}<span class="at">${esc(k.at)}</span></span></summary><p>${esc(k.text)}</p></details>`),
+    `        <details id="papers"><summary><span class="t">${esc(c.papers.summary)}<span class="at">${esc(c.papers.at)}</span></span></summary><ul class="papers">${c.papers.items.map((t) => `<li>${esc(t)}</li>`).join('')}</ul><p>${esc(c.papers.tail)}</p></details>`
   ].join('\n'),
 
-  serviceNote: (c, shared) => c.checkout === true
-    ? `            <p class="pricenote refund">${esc(shared.refund.rule)}</p>`
-    : c.form.service.priceNote ? `            <p class="pricenote">${esc(c.form.service.priceNote)}</p>` : '',
-
-  steps: (c) => list(c, 'how.steps').map((s) => [
-    '      <div class="step"><span class="dot"></span>',
-    `        <div class="k">${esc(s.k)}</div>`,
-    `        <div class="v">${esc(s.v)}</div>`,
-    `        <div class="s">${esc(s.s)}</div>`,
-    '      </div>'
-  ].join('\n')).join('\n'),
-
-  // The person under the three steps: one copy of the desk block.
-  who: (c, contact) => {
-    const d = c.desk;
-    return `<p class="who"><b>${esc(d.person)}</b> · ${esc(d.role)} · ${deskLineOf(c)} · <a href="${esc(waHref(contact, c.city))}" target="_blank" rel="noopener">WhatsApp</a></p>`;
-  },
-
-  // THE PLATES (v1.3, ids #plate-<plan> from v1.4 so the fares board links them): the price as TEXT with the plan's own condition, the
-  // ✓ lines, one free primary button that reads the door's label and checks
-  // the plan's chip; on a sell desk a quiet second link opens the till on
-  // ITS plan. Boards left the plates: six boards at rest read as a slot
-  // machine, and the price here is not a fact that changes under the hand.
-  plans: (c) => list(c, 'pricing.plans').map((p) => [
-    `      <article class="sib${p.featured ? ' on' : ''}" id="plate-${esc(p.id)}">`,
-    `        <div class="se"><span>${esc(p.se)}</span>${p.featured && c.pricing.featuredTag ? `<span class="tag">${esc(c.pricing.featuredTag)}</span>` : ''}</div>`,
-    `        <b>${esc(p.name)}</b>`,
-    p.text ? `        <p>${esc(p.text)}</p>` : '',
-    `        <ul class="inc">${p.includes.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`,
-    `        <div class="price"><span class="num" data-plan-price="${esc(p.id)}">${eur(p.price)}</span><small>${esc(p.condition)}</small></div>`,
-    `        <a class="go" href="#contact" data-service="${esc(p.id)}">${esc(c.door.label)} →</a>`,
-    c.checkout === true ? `        <button type="button" class="go2" data-pay="${esc(p.id)}">${esc(c.till.label)} · ${eur(p.price)}</button>` : '',
-    '      </article>'
-  ].filter(Boolean).join('\n')).join('\n'),
-
-  // The fee note under the plates. On a sell desk the refund rule is
-  // APPENDED here by the build, never typed into the city JSON: the plates
-  // show €500, and a price never travels alone (STUDIO §11.10). A waitlist
-  // desk prints no rule — no money is taken there.
-  feenote: (c, shared) => esc(c.pricing.note) + (c.checkout === true ? ' ' + esc(shared.refund.rule) : ''),
-
-  flows: (c) => list(c, 'checks.items').map((k, i) => [
-    `      <div class="flow" id="check-${esc(k.id)}"><span class="n">${ROMAN[i] || i + 1}</span><div>`,
-    `        <b>${esc(k.title)}${k.at ? `<span class="at">${esc(k.at)}</span>` : ''}</b>`,
-    `        <p>${esc(k.text)}</p>`,
-    '      </div></div>'
-  ].join('\n')).join('\n'),
+  faq: (c) => list(c, 'faq.items').map((f) =>
+    `        <details><summary><span class="t">${esc(f.q)}</span></summary><p>${esc(f.a)}</p></details>`).join('\n'),
 
   // The fact sheet: the fees row is DERIVED from the plans (with each plan's
   // own condition and, on a sell desk, the refund rule) and the contact row
   // from _shared.json, so the quotable ledger cannot drift from the page.
-  bref: (c, shared, pageUrl) => list(c, 'bref.rows').map((r) => {
+  bref: (c, shared, pageUrl, contact = shared.contact) => list(c, 'bref.rows').map((r) => {
     let dd = r.ddHtml || '';
     if (r.fees) dd = feesRowOf(c, shared, dd);
     if (r.contact) {
-      const k = shared.contact;
-      dd = `<a href="mailto:${esc(k.email)}">${esc(k.email)}</a> · <a href="${esc(waHref(k, c.city))}">WhatsApp ${esc(k.phoneDisplay)}</a>`
-        + ` · <a href="${esc(pageUrl)}" style="color:var(--t2)">${esc(pageUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`;
+      const k = contact;
+      dd = `<a class="lnk" href="mailto:${esc(k.email)}">${esc(k.email)}</a> · <a class="lnk" href="${esc(waHref(k, c.city))}">WhatsApp ${esc(k.phoneDisplay)}</a>`
+        + ` · <a class="lnk" href="${esc(pageUrl)}">${esc(pageUrl.replace(/^https:\/\/(www\.)?/, ''))}</a>`;
     }
     need(dd, `cities/${c.slug}.json`, `bref row "${r.dt}" has no content`);
-    return `        <dt>${esc(r.dt)}</dt>\n        <dd>${dd}</dd>`;
-  }).join('\n\n'),
+    return `          <dt>${esc(r.dt)}</dt><dd>${dd}</dd>`;
+  }).join('\n'),
 
-  faq: (c) => faqOf(c).map((f) => [
-    '      <details>',
-    `        <summary>${esc(f.q)}</summary>`,
-    `        <div class="a">${esc(f.a)}</div>`,
-    '      </details>'
-  ].join('\n')).join('\n'),
+  footLinks: (c, fam) => [
+    ...(c.checkout === true ? [{ label: 'Withdrawal form', href: `${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}` }] : []),
+    ...fam
+  ].map((l) => `        <a href="${esc(l.href)}">${esc(l.label)}</a>`).join('\n'),
 
-  // THE GLANCE (v1.4): the hero's fares board. One row per plan, DERIVED
-  // from pricing.plans (label · name · price · condition, each row a link to
-  // its plate), the desk's note, on a desk that sells the refund rule word for
-  // word under the €500, then the one gold door and the quiet second routes
-  // (the three questions, WhatsApp with the desk marker). Prices as text,
-  // never a board: a price here does not change under the hand.
-  glance: (c, shared, contact) => {
-    const sell = c.checkout === true;
-    const fares = list(c, 'pricing.plans').map((p) =>
-      `          <a class="fare" href="#plate-${esc(p.id)}" data-fare="${esc(p.id)}"><span class="fl">${esc(p.label)}</span><span class="fn">${esc(p.name)}</span><span class="fp">${eur(p.price)}</span><span class="fc">${esc(p.condition)}</span></a>`);
-    return [
-      '      <div class="glance" id="glance">',
-      '        <div class="fares" role="group" aria-label="Fees">',
-      ...fares,
-      '        </div>',
-      `        <p class="fnote">${esc(c.hero.faresNote)}</p>`,
-      sell ? `        <p class="rule">${esc(shared.refund.rule)}</p>` : '',
-      '        <div class="hero-cta">',
-      `          <a class="paybtn hero-go" href="#contact" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>${esc(c.door.label)}</b><small>${esc(c.door.sub)}</small></span><span class="amt">→</span></a>`,
-      // the separator is its own span: without JS the "three questions" link
-      // and its dot leave together (the Check-in is behaviour)
-      `          <p class="hero-alt"><a href="#plan" id="heroPlan">${esc(c.glance.alt)}</a><span class="hp-sep"> · </span><a href="${esc(contact.waHref)}" id="heroWa" target="_blank" rel="noopener">${esc(c.glance.wa)}</a></p>`,
-      '        </div>',
-      '      </div>'
-    ].filter(Boolean).join('\n');
-  },
-
-  // THE CHECK-IN (v1.4: section 01, under the hero). Three fieldsets of radio
-  // chips (keyboard, screen reader), shown one after the other; an answered
-  // step collapses to its chosen chip with "change". The airport codes stay
-  // as data-code (they print on the ticket stub, not on the chips). Here too:
-  // the pending line (two plans fit), the suggestion when a chip picked by
-  // hand differs from the rule, and the papers in an OPTIONAL fold, with the
-  // meter and the papers line (#ckReady) — the ticket shows only "3/8".
-  checkin: (c) => {
-    const k = c.checkin, d = k.dossier;
-    const steps = k.steps.map((s, i) => [
-      `      <fieldset class="ck-step" data-step="${esc(s.id)}"${i ? ' hidden' : ''}>`,
-      `        <legend><b>${String(i + 1).padStart(2, '0')}</b> ${esc(s.label)}</legend>`,
-      '        <div class="ck-opts">',
-      ...s.options.map((o) => `          <label class="ck-opt"><input type="radio" name="ck-${esc(s.id)}" value="${esc(o.id)}" data-code="${esc(o.code)}"><span><b>${esc(o.t)}</b></span></label>`),
-      `          <button type="button" class="ck-change" data-change="${esc(s.id)}" hidden>${esc(k.result.change)}</button>`,
-      '        </div>',
-      '      </fieldset>'
-    ].join('\n'));
-    return [
-      // the one live region for plan and pending lines: the ticket is
-      // display:none on a phone until the first tap, and a region that appears
-      // with its text misses that first announcement. It sits just OUTSIDE the
-      // section: the Check-in turns inert once a file is issued, and an inert
-      // subtree drops the "Your file is open. File BM …" announcement
-      '<span class="sr" id="ckLive" role="status" aria-live="polite"></span>',
-      `<section class="checkin" id="checkin" aria-label="Check-in">`,
-      // the frozen Check-in's one line takes the counter's place in the head
-      // once a file is issued (the JS shows it): the card keeps its height
-      `  <div class="ck-head"><span class="ck-num" id="ckNum">${esc(k.num.replace('{n}', '1'))}</span><p class="ck-sent" id="ckSent" hidden>${esc(k.sentLine)}</p></div>`,
-      '  <p class="ck-landing" id="ckLanding" hidden></p>',
-      '  <div class="ck-steps" id="ckSteps">',
-      ...steps,
-      '  </div>',
-      `  <div class="ppend" id="ckPend" hidden><span class="peye">${esc(k.pending.eyebrow)}</span><p id="ckPendText"></p></div>`,
-      `  <p class="ck-suggest" id="ckSuggest" hidden><span id="ckSuggestText"></span> <button type="button" class="ck-use" id="ckSuggestUse">${esc(k.result.use)}</button></p>`,
-      `  <details class="papers" id="ckPapersBox" hidden>`,
-      `    <summary>${esc(d.fold)}</summary>`,
-      '    <fieldset class="ck-papers" id="ckPapers">',
-      `      <legend><span class="peye">${esc(d.eyebrow)}</span> ${esc(d.label)}</legend>`,
-      `      <p class="ck-sub">${esc(d.sub)}</p>`,
-      '      <div class="ck-docs">',
-      ...d.items.map((it) => `        <label class="ck-doc"><input type="checkbox" name="ck-doc" value="${esc(it.id)}"><span>${esc(it.t)}</span></label>`),
-      '      </div>',
-      '      <div class="ck-meter" aria-hidden="true"><i id="ckMeter"></i></div>',
-      '      <p class="ready" id="ckReady" role="status"></p>',
-      '    </fieldset>',
-      '  </details>',
-      '</section>'
-    ].join('\n');
-  },
-
-  // THE TICKET (v1.4): the one artifact of the page, in section 01 between
-  // the Check-in and the door. The printer (a 9px slot and its caption, the
-  // only thing shown before a plan exists at ≥1100; nothing on a phone), then
-  // the card: foil, header with the title and the one status board
-  // (#ckStatus: STANDBY → OPEN → PAID, aria-hidden, text beside it), the
-  // route (the reader's own "where" code → the IATA code, the SVG plane on
-  // the leg the answers reached), the plan, the why, the note, the fields
-  // (passenger · move-in · papers · file · boarding — the file number only
-  // ever from the server), the punched perforation, the stub (the fare on its
-  // one board with the amount as text, the condition, the refund rule on a
-  // desk that sells or the long condition, the barcode and its answer codes,
-  // the doors). The stamp is an attribute (no words, out of the reading
-  // order). Under the card, the share row. The JS sets data-state.
-  pass: (c, shared, contact) => {
-    const k = c.checkin, p = k.pass, F = p.fields;
-    const sell = c.checkout === true;
-    const side = String(p.side).toUpperCase();
-    return [
-      '<div class="uscita printer" id="passWrap">',
-      '  <div class="fessura" aria-hidden="true"></div>',
-      `  <p class="pblank" id="ckBlank">${esc(k.landing.blank)}</p>`,
-      // the one focus target the page moves to (a plate's link, "use it", the
-      // paid return): a region named by its own title, never in the Tab order
-      `  <article class="pass carta" id="pass" data-state="blank" data-copied="${esc(k.share.copied)}" data-saved="${esc(p.saved)}" role="region" aria-labelledby="ckTitle" tabindex="-1">`,
-      `    <div class="lamina" aria-hidden="true"><em>BOOM · ${esc(side)}</em></div>`,
-      '    <span class="stamp" id="ckStamp" data-stamp="" aria-hidden="true"></span>',
-      '    <div class="pbody">',
-      `      <div class="phead"><b id="ckTitle">${esc(p.titles.plan)}</b><span class="flap-mini" id="ckStatus" data-word="${esc(p.status.standby)}" aria-hidden="true"></span><span class="sr" id="ckStatusSr">${esc(p.status.standby)}</span></div>`,
-      `      <div class="proute"><span class="pfrom" id="ckFrom">YOU</span><span class="pline" aria-hidden="true"><i class="ptrail"></i><svg class="pplane"><use href="#boomPlane"/></svg></span><span class="pto">${esc(c.iata)}</span></div>`,
-      '      <h3 id="ckPlan"></h3>',
-      '      <p class="why" id="ckWhy"></p>',
-      '      <p class="note" id="ckNote" hidden></p>',
-      '      <dl class="pfields">',
-      `        <div><dt>${esc(F.passenger)}</dt><dd id="ckPassenger">—</dd></div>`,
-      `        <div><dt>${esc(F.movein)}</dt><dd id="ckMoveIn">—</dd></div>`,
-      `        <div><dt>${esc(F.papers)}</dt><dd id="ckPassPapers">—</dd></div>`,
-      `        <div><dt>${esc(F.file)}</dt><dd id="ckPassFile">—</dd></div>`,
-      `        <div class="wide"><dt>${esc(F.boarding)}</dt><dd id="ckPassWhen">—</dd></div>`,
-      '      </dl>',
-      '    </div>',
-      '    <div class="perf" aria-hidden="true"></div>',
-      '    <aside class="stub">',
-      `      <span class="slabel">${esc(p.stub.fare)}</span>`,
-      // the price board is decorative (its cells hold each glyph twice); the amount is read from the text beside it
-      '      <div class="price"><span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span><small id="ckCond"></small></div>',
-      sell ? `      <p class="refund" id="ckRefund" hidden>${esc(shared.refund.rule)}</p>` : '      <p class="condlong" id="ckCondLong"></p>',
-      sell ? `      <p class="ppending" id="ckPending" hidden>${esc(c.checkoutCopy.paid.pending)}</p>` : '',
-      '      <div class="barcode" aria-hidden="true"></div>',
-      `      <p class="codeline" id="ckCodeLine" data-base="${esc(c.iata)} · ${esc(side)}">${esc(c.iata)} · ${esc(side)}</p>`,
-      '      <div class="pdoors">',
-      `        <a class="paybtn" href="#contact" id="ckFile" data-service="" data-door-sub><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>${esc(c.door.label)}</b><small>${esc(c.door.sub)}</small></span><span class="amt">→</span></a>`,
-      sell ? `        <button type="button" class="till" id="ckStart" data-pay="">${esc(c.till.label)} · <span id="ckStartAmt"></span></button>` : '',
-      `        <a class="wa2" id="ckWa2" href="${esc(contact.waHref)}" target="_blank" rel="noopener">${esc(p.stub.wa)}</a>`,
-      '      </div>',
-      `      <span class="sside" aria-hidden="true">${esc(side)}</span>`,
-      '    </aside>',
-      '  </article>',
-      `  <div class="pshare"><button type="button" class="ck-save" id="ckSave">${esc(p.save)}</button><button type="button" class="ck-sharebtn" id="ckShare">${esc(p.shareBtn)}</button><button type="button" id="ckCopy">${esc(k.share.copy)}</button><span>${esc(k.share.lead)}</span><a id="ckWa" href="#" target="_blank" rel="noopener">${esc(k.share.whatsapp)}</a><span class="ck-copied" id="ckCopied" aria-live="polite"></span><span class="ck-copied" id="ckSaved" aria-live="polite"></span></div>`,
-      '</div>'
-    ].filter(Boolean).join('\n');
-  },
-
-  footerBoom: (shared) => (shared.footerBoom || []).map((l) => `          <li><a href="${esc(l.href)}">${esc(l.label)}</a></li>`).join('\n'),
-
-  // THE TWO END STATES OF THE DOOR. "Your file is open" after the lead (the
-  // tick draws); the reply window is computed by the JS from the desk block
-  // against the desk clock ("By 19:00 CET today", "Monday from 09:00 CET") —
-  // "Same working day" until it runs and without JS; the recourse line names
-  // the inbox. The PAID card is what Stripe lands on (?paid=<plan>): it shows
-  // its data-pending sentence until the server confirms the payment (v1.4 —
-  // ?paid= alone proves nothing), then its heading and steps. The status
-  // lives once, on the ticket: no mini boards here; the offer to pay is the
-  // ticket stub's till. Both hidden until true.
-  tick: () => '<div class="tick" aria-hidden="true"><svg viewBox="0 0 54 54"><circle cx="27" cy="27" r="26"/><path d="M16 28l8 8 14-16"/></svg></div>',
-  sent: (c, contact) => {
-    const k = c.checkout === true ? c.checkout_ : null;
-    const mail = `<a href="mailto:${esc(contact.email)}" style="color:var(--gold)">${esc(contact.email)}</a>`;
-    const next = list(c, 'form.sentNext').map(([a, b]) => {
-      const label = a === '{when}' ? `<b id="openWhen" data-default="${esc(c.form.sentWhenDefault)}">${esc(c.form.sentWhenDefault)}</b>` : `<b>${esc(a)}</b>`;
-      return `<li>${label}<span>${esc(b).replace('{email}', mail)}</span></li>`;
-    });
-    const open = [
-      '        <div class="sent" id="fDone" tabindex="-1">',
-      `          ${R.tick()}`,
-      `          <h3>${esc(c.form.sentBefore)} <em>${esc(c.form.sentEm)}</em></h3>`,
-      `          <ul class="next">${next.join('')}</ul>`,
-      '        </div>'
-    ];
-    const paid = k ? [
-      // A payer who did not tick "Start now" waits for the 14 days: the JS
-      // swaps the three steps for paid.nextWait (config PAID_WAIT_NEXT) and adds paid.wait, so the
-      // card never promises "same working day" to someone who chose to wait.
-      // data-unconfirmed: the heading once the fifth ask went unanswered (the
-      // address line #paidText stays on screen while the payment is confirmed)
-      `        <div class="sent paid" id="fPaid" tabindex="-1" data-pending="${esc(k.paid.pending)}" data-unconfirmed="${esc(k.paid.unconfirmed)}" data-wait="${esc(k.paid.wait.replace('{email}', contact.email))}">`,
-      `          ${R.tick()}`,
-      `          <h3>${esc(k.paid.before)} <em>${esc(k.paid.em)}</em></h3>`,
-      '          <p class="plan" id="paidPlan"></p>',
-      `          <p id="paidText">${esc(k.paid.text)} ${mail}.</p>`,
-      `          <ul class="next" id="paidNext">${k.paid.next.map(([a, b]) => `<li><b>${esc(a)}</b><span>${esc(b)}</span></li>`).join('')}<li><b>${esc(k.paid.recourse.split('?')[0])}?</b><span>${esc(k.paid.recourse.split('?').slice(1).join('?').trim()).replace('{email}', mail)}</span></li></ul>`,
-      '        </div>'
-    ] : [];
-    return [...open, ...paid].join('\n');
-  },
-
-  // THE TILL (the Rome Services 2.0 sheet, one per page) as a native
-  // <dialog>: focus trap, Escape and the inert backdrop come from the
-  // browser. The three plans as rows with the price, three fields, the
-  // honeypot, one gold button with the till's label, the quiet way out to
-  // the free door, the fine print with the refund rule. Outside <main>.
-  checkout: (c, contact) => {
+  // THE TILL (one per page, only where the desk sells) as a native <dialog>:
+  // focus trap, Escape and the inert backdrop come from the browser. It opens
+  // only from an explicit pay button, on THAT plan. In DOM order: the plan,
+  // its price and what it buys (the refund rule on Full Search, LAU art. 20
+  // on a Spanish desk); name, email, an optional note; the UNTICKED start-now
+  // request; the withdrawal line with the model form; the pay button that
+  // follows the tick; the fine print; the way back to the free door.
+  till: (c, shared, contact) => {
     if (c.checkout !== true) return '';
-    const k = c.checkout_;
-    const rows = list(c, 'pricing.plans').map((p) =>
-      `      <label class="payrow"><input type="radio" name="payplan" value="${esc(p.id)}" data-eur="${Number(p.price)}" data-label="${esc(p.label)}"><span><b>${esc(p.label)}</b><small>${esc(p.text || p.name)}</small></span><em>${eur(p.price)}</em></label>`).join('\n');
+    const k = c.checkoutCopy, f = c.form;
+    const wd = esc(k.withdrawal)
+      .replace('{email}', MAIL(contact))
+      .replace('{form}', `<a class="lnk" href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}" target="_blank" rel="noopener">model withdrawal form</a>`);
     return [
-      `<dialog class="sheet" id="ov" aria-label="${esc(k.title)}" data-err-name="${esc(k.errors.name)}" data-err-email="${esc(k.errors.email)}" data-err-phone="${esc(k.errors.phone)}" data-err-net="${esc(k.errors.net)}">`,
-      `    <div class="sh"><h3>${esc(k.title)}</h3><button type="button" class="x" id="ovX" aria-label="Close">×</button></div>`,
-      `    <p class="note">${esc(k.note)}</p>`,
-      '    <div class="payrows" role="radiogroup" aria-label="Service">',
-      rows,
-      '    </div>',
-      `    <div class="fld"><label for="sName">${esc(c.form.name.label)}</label><input id="sName" autocomplete="name" placeholder="${esc(c.form.name.placeholder)}"></div>`,
-      `    <div class="fld"><label for="sEmail">${esc(c.form.email.label)}</label><input id="sEmail" type="email" autocomplete="email" inputmode="email" placeholder="${esc(c.form.email.placeholder)}"></div>`,
-      `    <div class="fld"><label for="sPhone">${esc(c.form.phone.label)} <span class="opt">(${esc(c.form.phone.sub)})</span></label><input id="sPhone" type="tel" autocomplete="tel" placeholder="${esc(c.form.phone.placeholder)}"></div>`,
-      `    <div class="fld"><label for="sNote">${esc(k.noteLabel)} <span class="opt">(optional)</span></label><input id="sNote" placeholder="${esc(k.notePlaceholder)}"></div>`,
-      `    <label class="startnow"><input type="checkbox" id="sStart"><span>${esc(k.startNow)}</span></label>`,
-      `    <p class="recesso">${esc(k.withdrawal).replace('{email}', `<a href="mailto:${esc(contact.email)}">${esc(contact.email)}</a>`).replace('{form}', `<a href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(c.city)}" target="_blank" rel="noopener">model withdrawal form</a>`)}</p>`,
-      '    <input id="sCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">',
-      '    <div class="ferr" id="sErr" role="alert" aria-live="polite"></div>',
-      // The last button says what the payer chose: unticked (the default) it
-      // books and the work waits for the 14 days; ticked it starts. The JS
-      // swaps the two pairs on the checkbox; without JS nothing pays anyway.
-      `    <button type="button" class="paybtn" id="sGo" data-label-now="${esc(c.till.label)}" data-label-wait="${esc(c.till.labelWait)}" data-sub-now="${esc(k.btnSubNow)}" data-sub-wait="${esc(k.btnSubWait)}"><span class="lk">🔒</span><span class="tx"><b>${esc(c.till.labelWait)}</b><small>${esc(k.btnSubWait)}</small></span><span class="amt" id="sGoAmt"></span></button>`,
-      `    <p class="alt">${esc(k.altLead)} <a href="#contact" id="ovTalk">${esc(k.altLink)}</a> · <a href="${esc(waHref(contact, c.city))}" target="_blank" rel="noopener">WhatsApp</a></p>`,
-      `    <p class="fine">${esc(k.fine)} <a href="${TERMS_PATH}" target="_blank" rel="noopener">Terms</a></p>`,
+      `<dialog class="till" id="till" aria-labelledby="tTitle" data-err-name="${esc(k.errors.name)}" data-err-email="${esc(k.errors.email)}" data-err-net="${esc(k.errors.net)}">`,
+      '  <form class="tf" id="tillForm" novalidate action="#" data-analytics-manual data-analytics-kind="checkout" data-analytics-label="Till">',
+      '    <button class="x" type="button" id="tillX" aria-label="Close">×</button>',
+      `    <p class="k">Fare · BOOM ${esc(c.city)}</p>`,
+      '    <div class="t-head"><h2 id="tTitle" tabindex="-1"></h2><p class="t-price"><b id="tPrice"></b><span id="tCond"></span></p></div>',
+      '    <p class="t-tag" id="tTag"></p>',
+      '    <ul class="t-inc" id="tInc"></ul>',
+      `    <p class="refund" id="tRule" hidden>${esc(shared.refund.rule)}</p>`,
+      c.pricing.sub ? `    <p class="t-opt">${esc(c.pricing.sub)}</p>` : '',
+      `    <div class="fld"><label for="tName">${esc(f.name.label)}</label><input id="tName" autocomplete="name" placeholder="${esc(f.name.placeholder)}" aria-describedby="tNameErr"><p class="err" id="tNameErr" aria-live="polite"></p></div>`,
+      '    <div class="fld"><label for="tEmail">Email <i>— the invoice and your file go there</i></label><input id="tEmail" type="email" autocomplete="email" inputmode="email" placeholder="anna@company.com" aria-describedby="tEmailErr"><p class="err" id="tEmailErr" aria-live="polite"></p></div>',
+      `    <div class="fld"><label for="tNote">${esc(k.noteLabel)} <i>(optional)</i></label><input id="tNote" placeholder="${esc(k.notePlaceholder)}"></div>`,
+      '    <input class="hp" id="tCompany" tabindex="-1" autocomplete="off" aria-hidden="true">',
+      `    <label class="tick"><input type="checkbox" id="tStart"><span>${esc(k.startNow)}</span></label>`,
+      `    <p class="wd">${wd}</p>`,
+      '    <p class="err" id="tErr" role="alert"></p>',
+      `    <button class="pay" id="tGo" type="submit" data-label-now="${esc(c.till.label)}" data-label-wait="${esc(c.till.labelWait)}" data-sub-now="${esc(k.btnSubNow)}" data-sub-wait="${esc(k.btnSubWait)}"><span><b id="tGoL">${esc(c.till.labelWait)}</b><small id="tGoS">${esc(k.btnSubWait)}</small></span><span class="ar" aria-hidden="true">→</span></button>`,
+      `    <p class="fine">${esc(k.fine)} <a class="lnk" href="${TERMS_PATH}" target="_blank" rel="noopener">Terms</a></p>`,
+      `    <p class="alt">${esc(k.altLead)} <button type="button" class="lnk" id="tAlt">${esc(k.altLink)}</button></p>`,
+      '  </form>',
       '</dialog>'
-    ].join('\n');
-  },
-
-  // THE STRIP on a phone (v1.3): the one door, no price. It names the plan
-  // once the Check-in has one ("Full Search · your plan"), never a number.
-  // v1.4: a 44px WhatsApp icon (the desk marker in its text, no digits shown).
-  // Round 3: its title is the city alone — the nav carries the brand, and
-  // "BOOM · Amsterdam" ran out of line at 375 ("BOOM · Amster…") and 320.
-  strip: (c, contact) => [
-    `<div class="paybar" id="paybar" data-sub="${esc(c.door.stripSub)}" data-yourplan="${esc(String(c.checkin.result.eyebrow || 'your plan').toLowerCase())}">`,
-    `  <div class="pinfo"><b id="stripTitle">${esc(c.city)}</b><small id="stripSub">${esc(c.door.stripSub)}</small></div>`,
-    `  <a class="wa-ic" id="stripWa" href="${esc(contact.waHref)}" target="_blank" rel="noopener" aria-label="WhatsApp"><svg aria-hidden="true"><use href="#boomWa"/></svg></a>`,
-    `  <a class="go" href="#contact" id="stripGo">${esc(c.door.label)}</a>`,
-    '</div>'
-  ].join('\n')
+    ].filter(Boolean).join('\n');
+  }
 };
 
 // ── JSON-LD: Organization (shared) + WebPage (speakable) + Service with its
@@ -819,6 +395,7 @@ function jsonLdBreadcrumb(c, shared, pageUrl) {
     ]
   };
 }
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   const site = shared.siteUrl;
   const o = shared.organization;
@@ -827,17 +404,15 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
   // Where BOOM serves, as a fact: Rome and the desks that are LIVE. A draft
   // never puts its city in the Organization's areaServed.
   const served = ['Rome', ...cities.filter((x) => x.live === true).map((x) => x.city)];
+  // "What we don't do" from the fact sheet rides on the Service: a source
+  // that says its limits is a source an answer engine quotes
+  const dont = (c.bref.rows.find((r) => r.dt === "What we don't do") || {}).ddHtml || '';
   return {
     '@context': 'https://schema.org',
     '@graph': [
       {
-        // The same node as the other pages of the site: RealEstateAgent named
-        // "BOOM Rome" (58 pages declare #organization so). "BOOM" is the short
-        // name; the public Google profile behind the visible rating is sameAs.
         '@type': 'RealEstateAgent', '@id': orgId, name: o.name, alternateName: 'BOOM', legalName: o.legalName, url: site, logo: o.logo,
         founder: o.founder, address: o.address, vatID: o.vatID, contactPoint: o.contactPoint,
-        // languages: on contactPoint (schema:availableLanguage is not a property
-        // of RealEstateAgent or Service)
         description: o.description, areaServed: served,
         ...(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || '') ? { sameAs: [shared.rome.profileUrl] } : {})
       },
@@ -845,49 +420,40 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
         '@type': 'WebPage', '@id': pageUrl + '#page', url: pageUrl, name: c.meta.ogTitle, description: c.meta.description, inLanguage: 'en',
         isPartOf: { '@id': site + '/#website' }, about: { '@id': orgId }, mainEntity: { '@id': pageUrl + '#service' }, breadcrumb: { '@id': pageUrl + '#breadcrumb' },
         primaryImageOfPage: { '@type': 'ImageObject', url: ogImage, width: 1200, height: 630 },
-        // dateModified is DATA (city.updated), never the clock, and the build
-        // pins it to the sitemap lastmod; the author is the desk person the
-        // page already names.
         ...(c.updated ? {
           dateModified: c.updated, publisher: { '@id': orgId },
           author: { '@type': 'Person', name: c.desk.person, jobTitle: c.desk.role, worksFor: { '@id': orgId } }
         } : {}),
-        speakable: { '@type': 'SpeakableSpecification', cssSelector: ['.hero .lead', '.facts', '.enbref'] }
+        speakable: { '@type': 'SpeakableSpecification', cssSelector: ['.pass .lead', '.foot .stmt', '.enbref'] }
       },
       {
         '@type': 'Service', '@id': pageUrl + '#service', name: c.service.name, serviceType: c.service.serviceType,
-        description: c.service.description, provider: { '@id': orgId },
+        description: c.service.description + (dont ? " What we don't do: " + dont.replace(/<[^>]+>/g, '') : ''), provider: { '@id': orgId },
         areaServed: { '@type': 'City', name: c.city },
         audience: { '@type': 'Audience', audienceType: c.service.audience },
-        // the desk hours the page prints, from the desk block (Europe/Rome:
-        // the same zone as Amsterdam and Madrid)
-        hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
+        hoursAvailable: { '@type': 'OpeningHoursSpecification', dayOfWeek: c.desk.days.map((d) => DAY_NAMES[d]), opens: c.desk.hours.from, closes: c.desk.hours.to },
         availableChannel: { '@type': 'ServiceChannel', serviceUrl: pageUrl, availableLanguage: 'en' }, url: pageUrl,
-        // Offers on every desk (v1.1), honest about availability: InStock
-        // where the desk takes searches, PreOrder where it opens later — the
-        // price is a list price and the Offer says in words when it is
-        // charged (each plan's own condition, v1.3). VAT is included on the
-        // page: the priceSpecification states it.
-        // schema:audience is not a property of Offer: the derived audience
-        // rides on the Offer's itemOffered Service. A plan priced per unit
-        // ("per viewing") says so in the price specification.
+        // InStock where the desk takes searches, PreOrder where it opens
+        // later — a list price whose Offer says in words when it is charged.
+        // VAT is included on the page: the price specification states it.
         offers: c.pricing.plans.map((p) => {
           const unitWord = p.unit ? p.unit.replace(/^per\s+/i, '').trim() : '';
           return {
             '@type': 'Offer', name: p.label, price: String(p.price), priceCurrency: 'EUR',
             availability: waitlist ? 'https://schema.org/PreOrder' : 'https://schema.org/InStock',
-            description: (p.offerDescription || p.text || p.name) + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong,
+            description: p.offerDescription + (p.unit ? ' Priced ' + p.unit + '.' : '') + ' ' + p.conditionLong
+              + (c.checkout === true && p.id === 'full-search' ? ' ' + shared.refund.rule : ''),
             priceSpecification: { '@type': 'UnitPriceSpecification', price: String(p.price), priceCurrency: 'EUR', valueAddedTaxIncluded: true,
               ...(unitWord ? { unitText: unitWord, referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitText: unitWord } } : {}) },
-            url: pageUrl + '#plate-' + p.id,
+            url: pageUrl + '#fare-' + p.id,
             seller: { '@id': orgId },
-            ...(offerAudience(c, p.id) ? { itemOffered: { '@type': 'Service', name: p.label, audience: { '@type': 'Audience', audienceType: offerAudience(c, p.id) } } } : {})
+            itemOffered: { '@type': 'Service', name: p.label, description: `For: ${p.when}.` }
           };
         })
       },
       {
         '@type': 'FAQPage', '@id': pageUrl + '#faq', isPartOf: { '@id': pageUrl + '#page' }, inLanguage: 'en',
-        mainEntity: faqOf(c).map((f) => ({
+        mainEntity: list(c, 'faq.items').map((f) => ({
           '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a }
         }))
       }
@@ -897,9 +463,7 @@ function jsonLd(c, shared, pageUrl, ogImage, cities = [c]) {
 
 // What must be replaced before a page may go live. Bracketed copy is found in
 // the VISIBLE text (scripts and styles removed, tags turned into spaces) AND
-// in the markup's attribute values (placeholder=, meta content=, alt, aria):
-// a [NAME] in an input or a [CITY] in the Google snippet shipped unseen when
-// only the text between tags was read.
+// in the markup's attribute values (placeholder=, meta content=, alt, aria).
 export function findPlaceholders(html, city, { root = ROOT, shared = null } = {}) {
   const found = [];
   const noCode = html
@@ -921,26 +485,31 @@ export function findPlaceholders(html, city, { root = ROOT, shared = null } = {}
   // A desk that sells links the model withdrawal form (Annex I(B)): the page
   // it points to must exist, or the link a payer needs is a 404.
   if (city.checkout === true && !fs.existsSync(path.join(root, WITHDRAWAL_PATH.slice(1) + '.html'))) {
-    found.push(`${WITHDRAWAL_PATH.slice(1)}.html is missing: the checkout links the model withdrawal form`);
+    found.push(`${WITHDRAWAL_PATH.slice(1)}.html is missing: the till links the model withdrawal form`);
   }
   // A sell desk prints "4.9 on Google in Rome": a rating that cannot be
-  // clicked is an assertion (STUDIO §3.5). The founder owns the URL.
+  // clicked is an assertion. The founder owns the URL.
   if (shared && city.checkout === true && !(shared.rome && /^https:\/\//.test(shared.rome.profileUrl || ''))) {
     found.push('_shared.json rome.profileUrl is empty: the Rome rating must link to the Google profile on a desk that sells');
   }
   return [...new Set(found)];
 }
 
-// The two fragments every public page inlines, read from their single source.
+// The fragments every page inlines, read from their single source.
 export function fragments(root = ROOT) {
   const scrollCss = fs.readFileSync(path.join(root, 'css/boom-scroll.css'), 'utf8');
   const scrollJs = fs.readFileSync(path.join(root, 'js/boom-scroll.js'), 'utf8');
   const solari = fs.readFileSync(path.join(root, 'design/pages-deco/solari-engine.html'), 'utf8');
+  const cal = fs.readFileSync(path.join(root, 'js/desk-calendar.js'), 'utf8');
   need(/window\.BoomSolari\s*=/.test(solari) && /\.fc2\s*\{/.test(solari), 'design/pages-deco/solari-engine.html',
     'is not the Solari engine fragment (expected the .fc2 cell CSS and window.BoomSolari)');
+  need(/root\.BOOM_DESK_CAL\s*=/.test(cal) && !/<\/?script/i.test(cal), 'js/desk-calendar.js', 'is not the desk calendar (expected window.BOOM_DESK_CAL, no script tags)');
   return {
     scrollBlock: `<!-- BOOM_SCROLL:START -->\n<style>\n${scrollCss}</style>\n<script>\n${scrollJs}</script>\n<!-- BOOM_SCROLL:END -->`,
-    solariEngine: solari.trimEnd()
+    solariEngine: solari.trimEnd(),
+    // the calendar travels without its comments (they stay in the source);
+    // only whole-line comments are dropped, so no string is ever touched
+    deskCalendar: `<script>\n${cal.replace(/\/\*[\s\S]*?\*\//g, '').split('\n').filter((l) => !/^\s*\/\//.test(l) && l.trim()).join('\n')}\n</script>`
   };
 }
 
@@ -950,258 +519,250 @@ export function weightOf(html, root = ROOT) {
   const gz = (buf) => zlib.gzipSync(buf, { level: 9 }).length;
   const file = (f) => gz(fs.readFileSync(path.join(root, f)));
   const js = file('assets/boom-city.js');
-  const total = gz(Buffer.from(html)) + file('css/boom-2026.css') + file('assets/boom-city.css') + js + file('js/boom-consent.js') + file('js/boom-track.js');
+  const total = gz(Buffer.from(html)) + file('assets/boom-city.css') + js + file('js/boom-consent.js') + file('js/boom-track.js');
   return { totalKb: total / 1024, jsKb: js / 1024 };
 }
 
-const visibleText = (html) => html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ');
-const sliceOf = (h, a, b) => { const i = h.indexOf(a); const j = i < 0 ? -1 : h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
+export const visibleText = (html) => html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ').replace(/\s+/g, ' ');
+export const sliceOf = (h, a, b) => { const i = h.indexOf(a); const j = i < 0 ? -1 : h.indexOf(b, i); return i < 0 || j < 0 ? '' : h.slice(i, j); };
+// what a reader sees at load: every <details> closed (its summary only),
+// the elements served hidden, the dialog, the noscript lines and the
+// screen-reader-only text out (a small tag walk: nested elements of the
+// same name are counted, so a hidden card takes all of itself away)
+export function visibleAtLoad(html) {
+  // a closed <details> shows its summary only (the pages nest no details)
+  const body = html.slice(html.indexOf('<body'))
+    .replace(/<details\b(?![^>]*\sopen\b)[^>]*>\s*<summary\b[^>]*>([\s\S]*?)<\/summary>[\s\S]*?<\/details>/gi, ' $1 ');
+  const out = [];
+  const re = /<!--[\s\S]*?-->|<(\/?)([a-zA-Z][a-zA-Z0-9]*)\b([^>]*)>/g;
+  let i = 0, skip = null, depth = 0, m;
+  const VOID = new Set(['br', 'img', 'input', 'meta', 'link', 'hr', 'use', 'path', 'stop', 'source', 'wbr']);
+  while ((m = re.exec(body))) {
+    if (!skip) out.push(body.slice(i, m.index));
+    i = re.lastIndex;
+    if (m[0].startsWith('<!--')) continue;
+    const close = m[1] === '/', name = m[2].toLowerCase(), attrs = m[3] || '';
+    if (skip) {
+      if (name === skip && !VOID.has(name)) { depth += close ? -1 : (/\/\s*$/.test(attrs) ? 0 : 1); if (depth === 0) skip = null; }
+      continue;
+    }
+    if (close || VOID.has(name)) { out.push(' '); continue; }
+    const hidden = /\shidden(?=[\s>=]|$)/.test(' ' + attrs) || /\bclass="sr"/.test(attrs) || /\baria-hidden="true"/.test(attrs) || ['dialog', 'noscript', 'script', 'style', 'template', 'svg'].includes(name);
+    if (hidden) { skip = name; depth = 1; continue; }
+    out.push(' ');
+  }
+  if (!skip) out.push(body.slice(i));
+  return visibleText(out.join(''));
+}
+
+// The keys of the quiz pages (v1.2–v1.4) and of the v1.4 hero: refused by
+// name, so a stale JSON cannot ship them.
+const LEFTOVERS = {
+  top: ['checkin', 'glance', 'plan', 'facts', 'factsDerived', 'nav', 'machine', 'truth', 'band', 'paybar'],
+  hero: ['lead2', 'faresNote', 'eyebrow', 'h1Em', 'sub', 'trust'],
+  form: ['email', 'phone', 'moveIn', 'budget', 'budgetOptions', 'service', 'more', 'situation', 'areas', 'message', 'sentBefore', 'sentEm', 'submit'],
+  pricing: ['num', 'h2', 'h2g', 'note', 'featuredTag'],
+  plan: ['se', 'text', 'prepares', 'cta', 'per'],
+  door: ['sub', 'stripSub', 'skip'],
+  checkoutCopy: ['title', 'note', 'offer', 'btn', 'btnSub', 'paybarSub'],
+  footer: ['tagline', 'status'],
+  shared: ['moveInFrom', 'desksLabel']
+};
 
 export function renderCity({ template, shared, city, assetVersion, frags, root = ROOT, cities = [city], weigh = true }) {
   const where = `cities/${city.slug}.json`;
   need(/^[a-z0-9-]+$/.test(city.slug || ''), where, 'slug must be lowercase letters, digits and dashes');
   need(typeof city.live === 'boolean', where, '"live" must be true or false');
   need(city.mode === 'search' || city.mode === 'waitlist', where, '"mode" must be "search" or "waitlist"');
-  need(typeof city.city === 'string' && city.city.trim(), where, '"city" is required');
+  need(str(city.city), where, '"city" is required');
+  need(typeof city.iata === 'string' && /^[A-Z]{3}$/.test(city.iata), where, '"iata" (three upper-case letters) is required: it is the destination on the stub');
   const waitlist = city.mode === 'waitlist';
-  need(!(waitlist && city.checkout === true), where, 'a waitlist city cannot open a checkout: shown is not charged (BOOM_CITIES_BRIEF.md v1.1)');
+  const sell = city.checkout === true;
+  need(city.checkout === undefined || typeof city.checkout === 'boolean', where, '"checkout" must be true or false when present');
+  need(!(waitlist && sell), where, 'a waitlist city cannot open a checkout: shown is not charged (BOOM_CITIES_BRIEF.md v1.1)');
+  const ES = String(city.country || '').toUpperCase() === 'ES';
 
+  // ── the shared file ──
   const site = shared.siteUrl;
   need(/^https:\/\/[^/]+$/.test(site || ''), 'cities/_shared.json', 'siteUrl must be https://host with no trailing slash');
-  need(shared.contact && /^\d{8,15}$/.test(shared.contact.whatsapp || '') && /@/.test(shared.contact.email || ''),
-    'cities/_shared.json', 'contact.whatsapp (digits only) and contact.email are required');
-  need(typeof shared.contact.waPlan === 'string' && /\{plan\}/.test(shared.contact.waPlan) && /\{answers\}/.test(shared.contact.waPlan) && !/€|\d/.test(shared.contact.waPlan),
-    'cities/_shared.json', 'contact.waPlan is the WhatsApp suffix after the desk marker, with {plan} and {answers} and no price');
+  need(shared.contact && /^\d{8,15}$/.test(shared.contact.whatsapp || '') && /@/.test(shared.contact.email || '') && str(shared.contact.waText) && /\{city\}/.test(shared.contact.waText) && !/€|\d/.test(shared.contact.waText),
+    'cities/_shared.json', 'contact.whatsapp (digits only), contact.email and contact.waText (with {city}, no price) are required');
+  need(shared.contact.waPlan === undefined, 'cities/_shared.json', 'contact.waPlan is a v1.4 leftover: no WhatsApp link carries a plan any more');
+  for (const k of LEFTOVERS.shared) need(shared[k] === undefined, 'cities/_shared.json', `${k} is a v1.4 leftover (the month select and the menu left the page)`);
   need(shared.refund && typeof shared.refund.rule === 'string' && /refunded in full if we decline the search in the first call/.test(shared.refund.rule),
     'cities/_shared.json', 'refund.rule is the one sentence of the policy: "… refunded in full if we decline the search in the first call" (the founder, 15/10)');
-  need(shared.rome && ['rating', 'reviews', 'since'].every((f) => typeof shared.rome[f] === 'string' && shared.rome[f].trim()) && typeof shared.rome.profileUrl === 'string',
-    'cities/_shared.json', 'rome needs rating, reviews, since and profileUrl (empty until the founder supplies it)');
+  need(shared.rome && ['rating', 'reviews', 'since'].every((f) => str(shared.rome[f])) && typeof shared.rome.profileUrl === 'string',
+    'cities/_shared.json', 'rome needs rating, reviews, since and profileUrl');
   need(!shared.rome.profileUrl || /^https:\/\//.test(shared.rome.profileUrl), 'cities/_shared.json', 'rome.profileUrl must be https');
-  // The proof link is the PUBLIC profile, where the 47 reviews can be read.
-  // The "write a review" box (g.page/r/<id>/review, …/writereview) asks a
-  // stranger to rate a business they have never used — that link belongs in
-  // the client emails (REVIEW_URL), never under a rating offered as proof.
+  // the proof link is the PUBLIC profile, never the "write a review" box
   need(!/\/review\b|writereview/i.test(shared.rome.profileUrl || ''), 'cities/_shared.json',
     'rome.profileUrl is a "write a review" link: the proof link must open the public profile (e.g. https://maps.google.com/?cid=…), not the review box');
-  need(shared.rome.reviewUrl === undefined, 'cities/_shared.json', 'rome.reviewUrl was renamed rome.profileUrl (the public profile, 20/10)');
-  // the footer year comes from data: read from the clock, --check and the
-  // suite went red on every page at the year rollover (the CLI warns when it lags)
   need(/^\d{4}$/.test(String(shared.copyrightYear || '')), 'cities/_shared.json', 'copyrightYear (four digits) is required: the footer year is data, not the clock');
-  const months = monthOptions(shared.moveInFrom);
-  const pageUrl = `${site}/${city.slug}`;
-  // The card's URL carries a hash of its bytes, like the city assets: every
-  // .png is served `immutable` for a year (vercel.json), so a card rewritten
-  // in place under the same URL keeps the OLD one in every cache and in the
-  // scrapers of WhatsApp, LinkedIn and Facebook — the 22/10 cards had to
-  // replace a "dossier 24h · apply <1h" the pages no longer promise.
-  const ogFile = path.join(root, `og-${city.slug}.png`);
-  const ogImage = `${site}/og-${city.slug}.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
+  need(shared.entity && ['legalName', 'address', 'registeredOffice', 'vat', 'rea', 'trademark'].every((f) => str(shared.entity[f])), 'cities/_shared.json', 'entity needs legalName, address, registeredOffice, vat, rea, trademark');
 
-  // v1.2 leftovers: a key the page no longer reads is a string nobody sees
-  // and everybody believes is live. Refused by name.
-  for (const k of ['machine', 'truth', 'band', 'paybar']) need(city[k] === undefined, where, `"${k}" is a v1.2 leftover: the route line, the truth band, the bottom band and the priced pay bar left the page (brief v1.3)`);
-  for (const k of ['eyebrow', 'h1Em', 'sub', 'trust', 'servingLead', 'servingNames']) need(city.hero[k] === undefined, where, `hero.${k} is a v1.2 leftover: the hero is the H1 and one lead line (brief v1.3)`);
-  need(city.nav.cta === undefined && city.footer.status === undefined && city.how.tline === undefined && city.how.tlineLand === undefined, where, 'nav.cta, footer.status and how.tline are v1.2 leftovers (one label lives in door.label; the status dot and the timeline left the page)');
-  need(typeof city.hero.lead === 'string' && words(city.hero.lead) <= 20, where, `hero.lead is required and ≤ 20 words (${words(city.hero.lead)})`);
-  if (waitlist) need(/^Opening with/.test(city.hero.lead), where, 'a waitlist desk\'s lead opens with "Opening with" (what exists today, brief v1.3)');
-  need(!list(city, 'faq.items').some((q) => /moving from Rome/i.test(q.q || '')), where, 'the FAQ item "I\'m moving from Rome with BOOM" left the page (brief v1.3)');
-  // v1.4 — THE ITINERARY: an editorial hero (H1, lead, the fares board, one
-  // door), then 01 Your plan (the three questions, the ticket, the door).
-  need(typeof city.hero.faresNote === 'string' && city.hero.faresNote.trim(), where, 'hero.faresNote is required: the line under the fares board');
-  // Spain (LAU art. 20 as rewritten by RDL 29/2026): a price shown on the first
-  // screen of a desk that sells there opens by saying the service is optional
-  // and chosen in writing — the same opening the price line under the plates has
-  if (city.checkout === true && String(city.country || '').toUpperCase() === 'ES') {
-    need(city.hero.faresNote.startsWith('Optional, chosen in writing'), where, 'on a Spanish desk that sells, hero.faresNote opens "Optional, chosen in writing" (LAU art. 20): the prices are on the first screen');
-  }
-  if (waitlist) need(/charged/i.test(city.hero.faresNote), where, 'a waitlist desk\'s hero.faresNote says when (or that nothing is) charged: list prices are not prices taken today');
-  need(city.glance && ['alt', 'wa'].every((f) => typeof city.glance[f] === 'string' && city.glance[f].trim()), where, 'glance needs alt (the link to the three questions) and wa');
-  need(city.plan && ['num', 'h2', 'h2g', 'head'].every((f) => typeof city.plan[f] === 'string' && city.plan[f].trim()), where, 'plan needs num, h2, h2g and head (section 01, Your plan)');
-  need(typeof city.nav.plan === 'string' && city.nav.plan.trim(), where, 'nav.plan is required: the nav, the menu and the footer link section 01');
-  // the sections are numbered in the order they stand
-  const nums = [city.plan.num, city.how.num, city.pricing.num, city.checks.num, city.faq.num].map((n) => String(n || '').slice(0, 2));
-  need(nums.join() === '01,02,03,04,05', where, `the section numbers follow the page: plan 01, how 02, pricing 03, checks 04, faq 05 (got ${nums.join(', ')})`);
+  // ── leftovers ──
+  for (const k of LEFTOVERS.top) need(city[k] === undefined, where, `"${k}" is a leftover of the quiz pages (v1.2–v1.4): the ticket page does not read it`);
+  need(city.hero && typeof city.hero === 'object', where, 'needs "hero"');
+  for (const k of LEFTOVERS.hero) need(city.hero[k] === undefined, where, `hero.${k} is a leftover: the pass reads h1Before, lead, leadStrong and faresHead`);
+  need(city.form && typeof city.form === 'object', where, 'needs "form"');
+  for (const k of LEFTOVERS.form) need(city.form[k] === undefined, where, `form.${k} is a leftover: the free call asks a name and one contact`);
+  need(city.pricing && typeof city.pricing === 'object', where, 'needs "pricing"');
+  for (const k of LEFTOVERS.pricing) need(city.pricing[k] === undefined, where, `pricing.${k} is a leftover: the fares are on the pass`);
+  need(city.door && typeof city.door === 'object', where, 'needs "door"');
+  for (const k of LEFTOVERS.door) need(city.door[k] === undefined, where, `door.${k} is a leftover: the sub-line is the desk window, computed`);
+  need(city.footer && typeof city.footer === 'object', where, 'needs "footer"');
+  for (const k of LEFTOVERS.footer) need(city.footer[k] === undefined, where, `footer.${k} is a leftover`);
+  if (city.checkoutCopy) for (const k of LEFTOVERS.checkoutCopy) need(city.checkoutCopy[k] === undefined, where, `checkoutCopy.${k} is a leftover: the till's header is the plan`);
 
-  // one label
-  need(city.door && city.door.skip === undefined, where, 'door.skip is a v1.3 leftover: the skip link left with the Check-in (the hero holds one door)');
-  need(city.door && typeof city.door.label === 'string' && city.door.label.trim() && typeof city.door.sub === 'string' && typeof city.door.stripSub === 'string',
-    where, 'door needs label (the ONE action label), sub and stripSub');
-  need(!/€|\d/.test(city.door.label + city.door.sub + city.door.stripSub), where, 'the door label, its sub and the strip never carry a price');
-  // the door's sub-line opens with what the page's clock keeps when the desk
-  // is closed (DOOR_SUB_LEAD): "no card" where the desk sells, "free" elsewhere
-  const subLead = city.checkout === true ? 'no card' : 'free';
-  need([city.door.sub, city.door.stripSub].every((s) => s.startsWith(subLead + ' · ')), where, `door.sub and door.stripSub open with "${subLead} · " (the JS keeps that lead and swaps the window when the desk is closed)`);
-  // a desk that is still opening promises no call (founder, 22/10: Paris and Berlin keep "Open my file")
-  // ...nor does the OPEN card behind it (review 22/10: Paris and Berlin still
-  // read "We tell you on the call what papers matter" under "Open my file")
-  // ...nor its facts (review 22/10, round 2: the third fact still read "If we
-  // decline the search in the first call, nothing is owed")
-  if (waitlist) need(!/\bcall\b/i.test(city.door.label + ' ' + city.door.sub + ' ' + JSON.stringify((city.form && city.form.sentNext) || []) + ' ' + JSON.stringify(city.facts || [])), where, 'a waitlist desk\'s door, its OPEN card (form.sentNext) and its facts promise no call: the label stays a file, and the first reply says what comes next');
-  // a desk open Mon–Fri 09–19 cannot keep a clock promise: the dossier is
-  // "one working day", applications go "as listings appear" — drafts included
-  need(!/\b24 hours\b|within the hour/i.test(JSON.stringify(city)), where, 'no "24 hours" or "within the hour" in the copy: the desk hours cannot keep it');
-
-  // the facts
-  // v1.4: on a desk that sells, "if we say no" left the facts — the same
-  // sentence (the refund rule) now stands in the hero, under the €500, word
-  // for word. A waitlist desk keeps its third fact: it says something else.
-  const facts = list(city, 'facts');
-  const factKeys = city.checkout === true ? 'paid,abroad' : 'paid,abroad,nothing';
-  need(facts.map((f) => f.key).join() === factKeys && facts.every((f) => typeof f.label === 'string' && f.label.trim() && typeof f.text === 'string' && f.text.trim() && words(f.text) <= 20),
-    where, `facts are exactly the authored rows ${factKeys} in order, each ≤ 20 words; "who answers" and "the company" are derived`);
-  need(city.factsDerived && ['answers', 'company', 'answersLine', 'deskLine'].every((f) => typeof city.factsDerived[f] === 'string' && city.factsDerived[f].trim()) && /\{days\}.*\{from\}.*\{to\}.*\{tz\}/.test(city.factsDerived.deskLine),
-    where, 'factsDerived needs the two labels, answersLine and a deskLine with {days} {from} {to} {tz} (the days are printed: a desk line without them reads as open on a Saturday)');
-  validateDesk(city.desk, where);
-
-  const plans = list(city, 'pricing.plans');
-  const ids = new Set();
-  for (const p of plans) {
-    need(/^[a-z0-9-]+$/.test(p.id || '') && !ids.has(p.id), where, `plan id "${p.id}" must be unique, lowercase and dashed`);
-    ids.add(p.id);
-    need(p.label && p.se && p.name, where, `plan "${p.id}" needs label, se, name`);
-    need(p.cta === undefined && p.per === undefined, where, `plan "${p.id}": cta and per are v1.2 leftovers (one label; condition + conditionLong)`);
-    need(Array.isArray(p.includes) && p.includes.length >= 2 && p.includes.length <= 5 && p.includes.every((x) => typeof x === 'string' && x.trim()),
-      where, `plan "${p.id}" needs includes: 2–5 lines of what the fee buys`);
-    need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
-    // Every desk prints its list prices (v1.1) with the plan's OWN condition
-    // (v1.3): the chip, the plate, the pass, the fees row and the Offer read
-    // the same two strings, so they can never disagree.
-    need(typeof p.condition === 'string' && p.condition.trim() && typeof p.conditionLong === 'string' && p.conditionLong.trim(), where, `plan "${p.id}" needs condition (short) and conditionLong (a sentence)`);
-    need(/VAT/.test(p.condition), where, `plan "${p.id}": the short condition must say VAT (the total price is the price)`);
-    if (waitlist) {
-      need(/opening|sign/i.test(p.condition) && /opens|sign/i.test(p.conditionLong), where, `plan "${p.id}": a waitlist plan says when it is charged ("at opening" or "on signing") in both strings`);
-    } else {
-      need(/VAT/.test(p.conditionLong) && !/opening|sign/i.test(p.condition), where, `plan "${p.id}": a sell desk's conditionLong says VAT and never "at opening"`);
-    }
-  }
-  if (city.slug === 'berlin') {
-    const fs0 = plans.find((p) => p.id === 'full-search');
-    need(fs0 && /sign/i.test(fs0.condition) && /sign/i.test(fs0.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
-  }
-  need(plans.filter((p) => p.featured).length <= 1, where, 'at most one plan is featured');
-  need(city.checkout === undefined || typeof city.checkout === 'boolean', where, '"checkout" must be true or false when present');
-  need(!(waitlist && city.checkout === true), where, 'a waitlist city cannot open a checkout: shown is not charged (BOOM_CITIES_BRIEF.md v1.1)');
-  if (city.checkout === true) {
-    const k = city.checkoutCopy;
-    need(k && typeof k === 'object', where, 'checkout:true needs "checkoutCopy" (the sheet, the offer after the lead, the paid state)');
-    for (const f of ['title', 'note', 'noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'fine']) {
-      need(typeof k[f] === 'string' && k[f].trim(), where, `checkoutCopy.${f} is required`);
-    }
-    need(k.btn === undefined && k.paybarSub === undefined, where, 'checkoutCopy.btn, paybarSub and offer.cta are v1.2 leftovers: the till has one label (till.label)');
-    // the sheet's way out is the page's one door (review 22/10: v1.4 renamed
-    // the door "Start with a free call" and the till still offered "Open a
-    // file, no payment", and its error "open a file")
-    need(typeof k.altLink === 'string' && k.altLink.startsWith(city.door.label) && !/open a file/i.test(JSON.stringify(k)), where,
-      `checkoutCopy.altLink must start with door.label ("${city.door.label}"), and nothing in the sheet says "open a file": the way out of the till is the page's one door`);
-    need(k.offer === undefined, where, 'checkoutCopy.offer is a v1.3 leftover: the offer to pay after the file is the ticket stub\'s till (v1.4)');
-    need(typeof (k.paid && k.paid.pending) === 'string' && k.paid.pending.trim() && !/€|\d/.test(k.paid.pending), where,
-      'checkoutCopy.paid.pending is required: what the paid card and the ticket say until the server confirms the payment (?paid= alone proves nothing)');
-    need(typeof k.paid.unconfirmed === 'string' && /not confirmed yet/i.test(k.paid.unconfirmed) && /\bwrite\b/i.test(k.paid.unconfirmed) && !/€|\d/.test(k.paid.unconfirmed), where,
-      'checkoutCopy.paid.unconfirmed is required: after the fifth unanswered ask the card says the payment is "not confirmed yet" and to write to the desk (no figure, no time)');
-    need(city.till && typeof city.till.label === 'string' && city.till.label.trim() && !/€|\d/.test(city.till.label), where, 'checkout:true needs till.label (the one label of every pay control, printed with the price)');
-    need(city.till.sub === undefined, where, 'till.sub is a leftover: no control prints it (the sheet button carries checkoutCopy.btnSubNow/btnSubWait)');
-    need(k.btnSub === undefined, where, 'checkoutCopy.btnSub is a leftover: the last button follows the tick (btnSubNow / btnSubWait)');
-    // The sheet's last button follows the "Start now" tick, unticked by
-    // default: it cannot say "start" while the payer has chosen to wait.
-    need(typeof city.till.labelWait === 'string' && city.till.labelWait.trim() && !/€|\d/.test(city.till.labelWait)
-      && city.till.labelWait !== city.till.label && !/start/i.test(city.till.labelWait), where,
-      'checkout:true needs till.labelWait: the last button before the tick, different from till.label and never "start" (the work waits for the 14 days)');
-    need(typeof k.btnSubWait === 'string' && /14 days/.test(k.btnSubWait), where, 'checkoutCopy.btnSubWait says the work starts when the 14 days end');
-    need(typeof k.btnSubNow === 'string' && !/today|same working day/i.test(k.btnSubNow), where, 'checkoutCopy.btnSubNow cannot promise "today" or the same working day: the desk keeps office hours');
-    need(/refunded in full if we decline the search in the first call/i.test(k.fine), where,
-      'checkoutCopy.fine must state the refund policy: "refunded in full if we decline the search in the first call" (BOOM policy, 15/10)');
-    for (const f of ['name', 'email', 'phone', 'net']) need(k.errors && typeof k.errors[f] === 'string' && k.errors[f].trim(), where, `checkoutCopy.errors.${f} is required`);
-    need(k.paid && ['before', 'em', 'text', 'recourse'].every((f) => typeof k.paid[f] === 'string' && k.paid[f].trim()) && /\?/.test(k.paid.recourse) && /\{email\}/.test(k.paid.recourse)
-      && Array.isArray(k.paid.next) && k.paid.next.length === 3 && k.paid.next.every((x) => Array.isArray(x) && x.length === 2 && x.every((y) => typeof y === 'string' && y.trim())),
-      where, 'checkoutCopy.paid needs before, em, text, recourse (a question with {email}) and next: exactly three [label, line] pairs');
-    need(typeof city.form.sending === 'string' && city.form.sending.trim(), where, 'checkout:true needs form.sending (the button while the send is in flight)');
-    // A distance sale to a consumer (Directive 2011/83/EU arts. 6, 7(3), 16(a)):
-    // the 14-day withdrawal right is said BEFORE the payment, and work starts
-    // inside those 14 days only on the payer's own request — an unticked box,
-    // never pre-ticked. Without it the right runs up to a year and the work
-    // already done is not owed. Same pattern as the Pacchetto concordato.
-    need(typeof k.startNow === 'string' && /start/i.test(k.startNow) && /withdraw/i.test(k.startNow) && /fully performed/i.test(k.startNow), where,
-      'checkoutCopy.startNow is the payer\'s own request to start inside the withdrawal period, acknowledging the right ends once the service is fully performed');
-    need(typeof k.withdrawal === 'string' && /14 days/.test(k.withdrawal) && /\{email\}/.test(k.withdrawal) && /\{form\}/.test(k.withdrawal), where,
-      'checkoutCopy.withdrawal states the 14-day withdrawal right and how to exercise it ({email}) and links the model withdrawal form ({form}, Annex I(B)) before the payment');
-    need(Array.isArray(k.paid.nextWait) && k.paid.nextWait.length === 3 && k.paid.nextWait.every((x) => Array.isArray(x) && x.length === 2 && x.every((y) => typeof y === 'string' && y.trim()))
-      && !k.paid.nextWait.flat().some((y) => /same working day|today/i.test(y)), where,
-      'checkoutCopy.paid.nextWait: exactly three [label, line] pairs for a payer who waits for the 14 days, never "same working day" or "today"');
-    need(typeof k.paid.wait === 'string' && /14-day|14 days/.test(k.paid.wait), where,
-      'checkoutCopy.paid.wait says when the work starts for a payer who did not ask to start now');
-    need(!/same working day/i.test(k.note) || /withdraw/i.test(k.note), where,
-      'checkoutCopy.note cannot promise the same working day without saying it depends on the start-now tick');
+  // ── the pass ──
+  need(str(city.hero.h1Before) && str(city.hero.lead) && str(city.hero.leadStrong), where, 'hero needs h1Before, lead and leadStrong (the desk\'s must-state, in bold)');
+  const leadWords = words(city.hero.lead + ' ' + city.hero.leadStrong);
+  need(leadWords <= BUDGET.lead, where, `hero.lead + leadStrong is ${leadWords} words, over ${BUDGET.lead}`);
+  if (waitlist) need(/^Opening with/.test(city.hero.lead), where, 'a waitlist desk\'s lead opens with "Opening with" (what exists today)');
+  // the brief §4 must-states, verbatim, in the lead (the first thing read)
+  if (sell) need(/never paid by landlords|we do not act for the landlord/.test(city.hero.leadStrong), where, 'a sell desk\'s leadStrong is its must-state (Amsterdam: "never paid by landlords"; Spain: "we do not act for the landlord")');
+  if (ES && sell) need(city.hero.leadStrong === 'You hire us; we do not act for the landlord.', where, 'on a Spanish desk the must-state is verbatim: "You hire us; we do not act for the landlord."');
+  if (city.slug === 'amsterdam') need(city.hero.leadStrong === 'We work exclusively for you; never paid by landlords.', where, 'Amsterdam\'s must-state is verbatim: "We work exclusively for you; never paid by landlords."');
+  const fh = city.hero.faresHead;
+  need(fh && str(fh.b) && str(fh.span), where, 'hero.faresHead needs b and span (the line over the fares)');
+  // Spain (LAU art. 20 as rewritten by RDL 29/2026): the prices on the first
+  // screen open by saying the service is optional and chosen in writing
+  if (ES && sell) {
+    need(fh.b === 'Optional, chosen in writing', where, 'on a Spanish desk that sells, hero.faresHead.b is "Optional, chosen in writing" (LAU art. 20): the prices are on the first screen');
+    need(str(city.pricing.sub) && city.pricing.sub.startsWith('Optional, chosen in writing'), where, 'on a Spanish desk that sells, pricing.sub opens "Optional, chosen in writing": the till repeats it before any payment');
+    need(list(city, 'checks.items').some((k) => k.id === 'fees' && /LAU art\. 20/.test(k.at)), where, 'on a Spanish desk the checks keep "Who pays the agent · LAU art. 20"');
+    need(list(city, 'faq.items').some((f) => /landlord who pays the agent/i.test(f.q)), where, 'on a Spanish desk the FAQ keeps the landlord-pays question');
   } else {
-    need(city.till === undefined, where, 'till.label belongs only to a desk with the checkout open');
+    need(city.pricing.sub === undefined, where, 'pricing.sub is the Spanish till line (LAU art. 20) only');
   }
-  // the form
+  if (waitlist) need(/charged/i.test(fh.span), where, 'a waitlist desk\'s faresHead.span says when (or that nothing is) charged: list prices are not prices taken today');
+
+  // ── the plans ──
+  const plans = list(city, 'pricing.plans');
+  need(plans.map((p) => p.id).join() === 'full-search,application-pack,attended-viewing', where, 'the plans are full-search, application-pack, attended-viewing, in that order (the server sells them by these ids: api/_market.js CITY_PLANS)');
+  for (const p of plans) {
+    for (const k of LEFTOVERS.plan) need(p[k] === undefined, where, `plan "${p.id}": ${k} is a leftover`);
+    need(str(p.label) && str(p.name) && str(p.when), where, `plan "${p.id}" needs label, name (its tag line) and when (for whom, on the fare row)`);
+    need(words(p.when) <= 9, where, `plan "${p.id}": the "when" line is ${words(p.when)} words, over 9 (it sits on the fare row)`);
+    need(Array.isArray(p.includes) && p.includes.length >= 2 && p.includes.length <= 5 && p.includes.every(str), where, `plan "${p.id}" needs includes: 2–5 lines of what the fee buys`);
+    need(Number.isFinite(Number(p.price)) && Number(p.price) > 0, where, `plan "${p.id}" needs a positive price`);
+    need(str(p.condition) && str(p.conditionLong) && str(p.offerDescription), where, `plan "${p.id}" needs condition (short), conditionLong (a sentence) and offerDescription`);
+    need(/VAT/.test(p.condition), where, `plan "${p.id}": the short condition must say VAT (the total price is the price)`);
+    if (waitlist) need(/opening|sign/i.test(p.condition) && /opens|sign/i.test(p.conditionLong), where, `plan "${p.id}": a waitlist plan says when it is charged ("at opening" or "on signing") in both strings`);
+    else need(/VAT/.test(p.conditionLong) && !/opening|sign/i.test(p.condition), where, `plan "${p.id}": a sell desk's conditionLong says VAT and never "at opening"`);
+  }
+  const fsPlan = plans[0];
+  // Full Search's own words: one viewing included, more priced, no date
+  need(fsPlan.includes.some((x) => /\(more: €149 each\)/.test(x)) || waitlist, where, 'Full Search on a desk that sells says "(more: €149 each)": one viewing is included, the rest are priced');
+  need(fsPlan.includes.some((x) => /Until you sign, or you say stop/.test(x)) || waitlist, where, 'Full Search says how long it runs: "Until you sign, or you say stop"');
+  if (city.slug === 'berlin') need(/sign/i.test(fsPlan.condition) && /sign/i.test(fsPlan.conditionLong), where, 'berlin: Full Search is due only once a lease is signed (WoVermRG §2–§3) — both condition strings must say "sign"');
+  need(plans.filter((p) => p.featured).length <= 1, where, 'at most one plan is featured');
+
+  // ── the stub, the door, the desk ──
+  need(city.stub && str(city.stub.notSure), where, 'stub.notSure is required: the line over the door (the free door is the neutral decline)');
+  need(str(city.door.label) && !/€|\d/.test(city.door.label), where, 'door.label is the ONE action label, with no price');
+  need(city.door.label === (sell ? 'Start with a free call' : 'Open my file'), where, `door.label is "${sell ? 'Start with a free call' : 'Open my file'}" on a ${sell ? 'desk that sells' : 'desk still opening'} (the founder, 22/10)`);
+  validateDesk(city.desk, where);
+  // a desk open Mon–Fri 09–19 cannot keep a clock promise
+  need(!/\b24 hours\b|within the hour|24\/7/i.test(JSON.stringify(city)), where, 'no "24 hours", "within the hour" or "24/7" in the copy: the desk hours cannot keep it');
+
+  // ── the form (the free call: a name and one contact) ──
   const fm = city.form;
-  need(fm.moveIn && typeof fm.moveIn.label === 'string' && typeof fm.moveIn.unsure === 'string' && fm.moveIn.placeholder === undefined, where, 'form.moveIn needs label and unsure; the free-text placeholder left (the field is a month select)');
-  need(fm.phone && typeof fm.phone.sub === 'string', where, 'form.phone.sub ("optional") is required: the phone is in the first row now');
-  need(fm.service && ['label', 'none', 'from', 'change', 'unsure', 'unsureSub'].every((f) => typeof fm.service[f] === 'string' && fm.service[f].trim()), where, 'form.service needs label, none, from, change, unsure, unsureSub');
-  if (waitlist) need(typeof fm.service.priceNote === 'string' && /when it is charged/.test(fm.service.priceNote) && !/opens/.test(fm.service.priceNote), where, 'a waitlist desk\'s form.service.priceNote says "Each plan says when it is charged" (never one condition for every plan)');
-  else need(fm.service.priceNote === undefined, where, 'a sell desk prints the refund rule under the chips, not a price note');
-  need(fm.submit === undefined && fm.submitSub === undefined && fm.ref === undefined && fm.refRight === undefined && fm.sentText === undefined, where, 'form.submit, submitSub, ref, refRight and sentText are v1.2 leftovers');
-  need(Array.isArray(fm.sentNext) && fm.sentNext.length === 3 && fm.sentNext[0][0] === '{when}' && fm.sentNext.every((x) => Array.isArray(x) && x.length === 2) && /\{email\}/.test(fm.sentNext[2][1]) && typeof fm.sentWhenDefault === 'string',
+  need(fm.name && str(fm.name.label) && str(fm.name.placeholder) && fm.contact && str(fm.contact.label) && str(fm.contact.placeholder), where, 'form needs name {label, placeholder} and contact {label, placeholder}');
+  need(str(fm.consentLead) && str(fm.consentAlt) && str(fm.sending), where, 'form needs consentLead, consentAlt and sending');
+  need(fm.errors && ['name', 'contact', 'email', 'net'].every((f) => str(fm.errors[f])), where, 'form.errors needs name, contact, email and net');
+  need(Array.isArray(fm.sentNext) && fm.sentNext.length === 3 && fm.sentNext[0][0] === '{when}' && fm.sentNext.every((x) => Array.isArray(x) && x.length === 2 && x.every(str)) && /\{email\}/.test(fm.sentNext[2][1]) && str(fm.sentWhenDefault),
     where, 'form.sentNext is three [label, line] pairs: the first label {when} (computed by the page), the last line naming {email}; plus sentWhenDefault');
+  // a desk that is still opening promises no call: its door, its OPEN card,
+  // its "not sure" line
+  if (waitlist) need(!/\bcall\b/i.test([city.door.label, city.stub.notSure, JSON.stringify(fm.sentNext)].join(' ')), where, 'a waitlist desk\'s door, its "not sure" line and its OPEN card promise no call');
+
+  // ── the below ──
+  need(city.how && str(city.how.h2) && str(city.how.h2g) && list(city, 'how.steps').length === 3 && city.how.steps.every((s) => str(s.k) && str(s.h) && str(s.p)), where, 'how needs h2, h2g and three steps {k, h, p}');
+  need(city.checks && str(city.checks.h2) && str(city.checks.h2g), where, 'checks needs h2 and h2g');
+  for (const k of list(city, 'checks.items')) need(/^[a-z-]+$/.test(k.id || '') && str(k.title) && str(k.at) && str(k.text), where, `check "${k.id}" needs id, title, at and text`);
+  need(city.checks.items.length >= 3 && city.checks.items.length <= 6, where, 'three to six checks');
+  need(city.papers && str(city.papers.summary) && city.papers.at === '8 papers' && Array.isArray(city.papers.items) && city.papers.items.length === 8 && city.papers.items.every(str) && str(city.papers.tail), where, 'papers needs summary, at ("8 papers"), the eight papers and a tail');
+  need(city.faq && str(city.faq.h2), where, 'faq needs h2');
+  for (const f of list(city, 'faq.items')) need(str(f.q) && str(f.a) && f.checkin === undefined, where, 'every FAQ item has q and a (the derived "which service" answer left with the quiz)');
+  need(city.faq.items.length >= 3 && city.faq.items.length <= 6, where, 'three to six questions');
+  need(!list(city, 'faq.items').some((q) => /moving from Rome/i.test(q.q)), where, 'the FAQ item "I\'m moving from Rome with BOOM" left the page (brief v1.3)');
+  need(city.bref && str(city.bref.h2) && list(city, 'bref.rows').some((r) => r.fees) && city.bref.rows.some((r) => r.contact) && city.bref.rows.some((r) => r.dt === "What we don't do"), where, 'bref needs h2 and rows with a fees row, a contact row and "What we don\'t do"');
+  need(str(city.footer.statement), where, 'footer.statement is required (the tenant-side statement)');
+
+  // ── the till ──
+  if (sell) {
+    const k = city.checkoutCopy;
+    need(k && typeof k === 'object', where, 'checkout:true needs "checkoutCopy"');
+    for (const f of ['noteLabel', 'notePlaceholder', 'btnSubNow', 'btnSubWait', 'altLead', 'altLink', 'fine']) need(str(k[f]), where, `checkoutCopy.${f} is required`);
+    need(k.altLink.startsWith(city.door.label) && !/open a file/i.test(JSON.stringify(k)), where, `checkoutCopy.altLink must start with door.label ("${city.door.label}"): the way out of the till is the page's one door`);
+    need(city.till && str(city.till.label) && !/€|\d/.test(city.till.label) && str(city.till.labelWait) && !/€|\d/.test(city.till.labelWait) && city.till.labelWait !== city.till.label && !/start/i.test(city.till.labelWait), where,
+      'till needs label (every pay control) and labelWait (the last button before the tick: never "start" — the work waits for the 14 days)');
+    need(/14 days/.test(k.btnSubWait) && !/today|same working day/i.test(k.btnSubNow), where, 'checkoutCopy.btnSubWait says the 14 days; btnSubNow never promises "today" or the same working day');
+    need(/refunded in full if we decline the search in the first call/i.test(k.fine), where, 'checkoutCopy.fine must state the refund policy (BOOM policy, 15/10)');
+    for (const f of ['name', 'email', 'net']) need(k.errors && str(k.errors[f]), where, `checkoutCopy.errors.${f} is required`);
+    // A distance sale to a consumer (Directive 2011/83/EU arts. 6, 7(3), 16(a))
+    need(str(k.startNow) && /start/i.test(k.startNow) && /withdraw/i.test(k.startNow) && /fully performed/i.test(k.startNow), where,
+      'checkoutCopy.startNow is the payer\'s own request to start inside the withdrawal period, acknowledging the right ends once the service is fully performed');
+    need(str(k.withdrawal) && /14 days/.test(k.withdrawal) && /\{email\}/.test(k.withdrawal) && /\{form\}/.test(k.withdrawal), where,
+      'checkoutCopy.withdrawal states the 14-day withdrawal right, how to exercise it ({email}) and links the model withdrawal form ({form}) before the payment');
+    const pd = k.paid;
+    need(pd && ['before', 'em', 'text', 'wait', 'pending', 'unconfirmed', 'startsNow', 'startsWait'].every((f) => str(pd[f])), where, 'checkoutCopy.paid needs before, em, text, wait, pending, unconfirmed, startsNow and startsWait');
+    need(/\{date\}/.test(pd.startsWait) && /14-day|14 days/.test(pd.wait) && /\{email\}/.test(pd.wait) && /not confirmed yet/i.test(pd.unconfirmed) && !/€|\d/.test(pd.pending + pd.unconfirmed), where,
+      'paid.startsWait carries {date}, paid.wait says the 14 days and {email}, paid.unconfirmed says "not confirmed yet"; no figure in the pending lines');
+    const three = (a) => Array.isArray(a) && a.length === 3 && a.every((x) => Array.isArray(x) && x.length === 2 && x.every(str));
+    need(three(pd.next) && three(pd.nextWait) && !pd.nextWait.flat().some((y) => /same working day|today/i.test(y)), where, 'paid.next and paid.nextWait are three [label, line] pairs; nextWait never "same working day" or "today"');
+  } else {
+    need(city.till === undefined && city.checkoutCopy === undefined, where, 'till and checkoutCopy belong only to a desk with the checkout open');
+  }
 
   // The board word: the city, letters only, upper-case — the drum has no
   // accents or spaces (the Solari engine's own alphabet).
   const word = String(city.word || city.city).toUpperCase().normalize('NFD').replace(/[^A-Z]/g, '');
   need(word.length >= 2 && word.length <= 12, where, `board word "${word}" must be 2–12 letters (override with "word")`);
-  validateCheckin(city, plans, where);
 
-  const cfg = city.config || {};
-  const featured = plans.find((p) => p.featured) || plans[0];
+  const pageUrl = `${site}/${city.slug}`;
+  // The card's URL carries a hash of its bytes: every .png is served
+  // `immutable` for a year (vercel.json), so a card rewritten in place under
+  // the same URL keeps the OLD one in every cache and every scraper.
+  const ogFile = path.join(root, `og-${city.slug}.png`);
+  const ogImage = `${site}/og-${city.slug}.png${fs.existsSync(ogFile) ? '?v=' + hash(ogFile) : ''}`;
+  const contact = { ...shared.contact, ...(city.config && city.config.WHATSAPP ? { whatsapp: city.config.WHATSAPP } : {}), ...(city.config && city.config.EMAIL ? { email: city.config.EMAIL } : {}) };
+  contact.waHref = waHref(contact, city.city);
+  const fam = familyFor(city, cities, shared);
+  const doorLead = sell ? 'no card' : 'free';
+  const holidays = holidayKeyOf(city.slug);
+
   const config = {
     SLUG: city.slug, CITY: city.city, WORD: word, IATA: city.iata, MODE: city.mode,
-    LEAD_ENDPOINT: '/api/city-lead', SITE_URL: site, PAGE_URL: pageUrl,
-    WHATSAPP: cfg.WHATSAPP || shared.contact.whatsapp, EMAIL: cfg.EMAIL || shared.contact.email,
-    CHECKOUT: city.checkout === true,
-    CHECKOUT_ENDPOINT: '/api/service-checkout',
-    FEATURED: featured.id,
-    DOOR: city.door.label,
-    TILL: city.checkout === true ? city.till.label : null,
-    REFUND: city.checkout === true ? shared.refund.rule : null,
-    PAID_WAIT_NEXT: city.checkout === true ? city.checkoutCopy.paid.nextWait : null,
-    // v1.4 — the ticket. ISSUE: the words of its states; PREPARES: the papers
-    // each plan prepares (the only ones the papers line may call the plan's);
-    // DOSSIER: the papers lines; PAID_PENDING: the sentence until the server
-    // confirms a payment; WA_TEXT + WA_PLAN: the WhatsApp line (desk marker
-    // first, then "My plan: <plan> · <answers>.", never a price);
-    // DOOR_SUB_LEAD: what the door's sub-line keeps when the desk is closed.
-    ISSUE: { titles: city.checkin.pass.titles, status: city.checkin.pass.status, boarding: city.checkin.pass.boarding, firstCall: city.checkin.pass.firstCall, stub: city.checkin.pass.stub },
-    PREPARES: Object.fromEntries(plans.map((p) => [p.id, p.prepares])),
-    DOSSIER: { some: city.checkin.dossier.some, ours: city.checkin.dossier.ours, all: city.checkin.dossier.all, rest: city.checkin.dossier.rest },
-    PAID_PENDING: city.checkout === true ? city.checkoutCopy.paid.pending : null,
-    WA_TEXT: String(shared.contact.waText || 'Hi BOOM {city}').split('{city}').join(city.city),
-    WA_PLAN: shared.contact.waPlan,
-    DOOR_SUB_LEAD: subLead,
+    CHECKOUT: sell,
     LEAD_URL: '/api/city-lead',
-    DESK: city.desk,
-    PLANS: Object.fromEntries(plans.map((p) => [p.id, { label: p.label, eur: Number(p.price), condition: p.condition, conditionLong: p.conditionLong, unit: p.unit || '', includes: p.includes }])),
-    // the pending sentence per stage that resolves on the second tap, derived
-    // from the same rules
-    PENDING: Object.fromEntries(city.checkin.steps[0].options.filter((o) => resolvesAt(city.checkin, o.id) === 2).map((o) => [o.id, pendingText(city, o.id)])),
-    CHECKIN: city.checkin
+    CHECKOUT_ENDPOINT: '/api/service-checkout',
+    DOOR: city.door.label,
+    DOOR_LEAD: doorLead,
+    DESK: { timeZone: city.desk.timeZone, hours: city.desk.hours, days: city.desk.days },
+    HOLIDAYS: holidays,
+    PLANS: Object.fromEntries(plans.map((p) => [p.id, {
+      label: p.label, eur: Number(p.price), condition: p.condition, name: p.name, includes: p.includes,
+      rule: sell && p.id === 'full-search'
+    }])),
+    TILL: sell ? { label: city.till.label, labelWait: city.till.labelWait } : null,
+    PAID: sell ? { startsNow: city.checkoutCopy.paid.startsNow, startsWait: city.checkoutCopy.paid.startsWait, nextWait: city.checkoutCopy.paid.nextWait, unconfirmed: city.checkoutCopy.paid.unconfirmed } : null
   };
-  const contact = { ...shared.contact, whatsapp: config.WHATSAPP, email: config.EMAIL };
-  contact.waHref = waHref(contact, city.city);
-  const cityForRender = { ...city, checkout_: city.checkout === true ? city.checkoutCopy : null };
-  const fam = familyFor(city, cities, shared);
 
+  const rome = shared.rome;
+  const rating = `${esc(rome.rating)} on Google in Rome, ${esc(rome.reviews)} reviews`;
   const data = {
     ...city,
-    config,
-    sending: city.form.sending || '',
     word,
-    wordEm: (word.length * CELL_EM).toFixed(2),
+    wordLen: String(word.length),
     entity: shared.entity,
     contact,
-    siteUrl: site,
     pageUrl,
     ogImage,
-    desksLabel: shared.desksLabel || 'BOOM desks',
+    doorLead,
+    deskHoursText: deskHoursText(city.desk),
+    deskLineHtml: esc(deskHoursText(city.desk)),
     year: String(shared.copyrightYear),
     robotsMeta: city.live
       ? '<meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">'
@@ -1212,163 +773,120 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
     assetVersion,
     scrollBlock: frags.scrollBlock,
     solariEngine: frags.solariEngine,
-    menuFamilyHtml: R.familyLinks(fam, 'mobile-menu-link'),
-    footerFamilyHtml: R.familyItems(fam),
-    glanceHtml: R.glance(city, shared, contact),
-    checkinHtml: R.checkin(city),
-    passHtml: R.pass(city, shared, contact),
-    factsHtml: R.facts(city, shared),
-    budgetOptionsHtml: R.budgetOptions(city),
-    monthOptionsHtml: R.monthOptionsHtml(city, shared),
-    feenoteHtml: R.feenote(city, shared),
-    serviceChipsHtml: R.serviceChips(city),
-    serviceNoteHtml: R.serviceNote(city, shared),
-    sentHtml: R.sent(cityForRender, contact, shared),
-    checkoutHtml: R.checkout(cityForRender, contact),
-    stripHtml: R.strip(city, contact),
+    deskCalendar: frags.deskCalendar,
+    ratingHtml: rome.profileUrl ? `<a class="lnk" href="${esc(rome.profileUrl)}" target="_blank" rel="noopener">${rating}</a>` : rating,
+    faresHtml: R.fares(city, shared),
+    actHtml: R.act(city, contact),
     stepsHtml: R.steps(city),
-    whoHtml: R.who(city, contact),
-    plansHtml: R.plans(city),
-    flowsHtml: R.flows(city),
-    brefHtml: R.bref(city, shared, pageUrl),
+    checksHtml: R.checks(city),
     faqHtml: R.faq(city),
-    footerBoomHtml: R.footerBoom(shared)
+    brefHtml: R.bref(city, shared, pageUrl, contact),
+    footLinksHtml: R.footLinks(city, fam),
+    tillHtml: R.till(city, shared, contact)
   };
 
   const html = fill(template, data, where);
 
-  // The JSON-LD that landed in the page must parse: the build fails otherwise.
+  // ── the output, read back ──
   for (const m of html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)) {
     try { JSON.parse(m[1]); } catch (e) { throw new BuildError(`${where}: JSON-LD does not parse: ${e.message}`); }
   }
-  // The guard the whole file is for: the gold of the public site, never the portal's.
-  need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700 (boom-2026.css); #D4AF37 is the portal gold');
-  // Every price on the page is one of the plans', printed where the client
-  // reads it: as text on its plate (with its condition) and in its chip.
+  need(!/#D4AF37/i.test(html), where, 'the public pages use #FFD700; #D4AF37 is the portal gold');
+  const vis = visibleText(html);
+  need(!/(?<![\d,.])500\+|\b24\/7\b|off-market|within the hour|whichever is lower/i.test(vis), where, 'no "500+", "24/7", "off-market", "within the hour" or "whichever is lower" on the page');
+  need(!/!(?=[\s<"]|$)/.test(html.replace(/<!--[\s\S]*?-->|<!DOCTYPE[^>]*>|<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ')), where, 'no exclamation mark in the copy');
+  // every price is one of the plans', on its row with its condition
+  const fares = sliceOf(html, '<!-- FARES -->', '<!-- /FARES -->');
   for (const p of plans) {
-    need(html.includes(`<span class="num" data-plan-price="${esc(p.id)}">${eur(p.price)}</span><small>${esc(p.condition)}</small>`), where, `plan "${p.id}": its price ${eur(p.price)} is not on its plate as text with its condition`);
-    need(html.includes(`value="${esc(p.id)}"><span><b>${esc(p.label)}</b><small>${eur(p.price)} · ${esc(p.condition)}</small>`), where, `plan "${p.id}": its price and condition are not in its chip`);
+    need(fares.includes(`<span class="f-price" data-plan-price="${esc(p.id)}">${eur(p.price)}</span><span class="f-cond">${esc(p.condition).replace(' · incl. VAT', ' ·<br> incl. VAT')}</span>`), where, `plan "${p.id}": its price ${eur(p.price)} is not on its fare row with its condition`);
+    need(fares.includes(`<span class="f-when">${esc(p.when)}</span>`), where, `plan "${p.id}": its "when" line is not on its fare row`);
   }
-  need(!/flap-prezzo/.test(html), where, 'no price board on the plates (v1.3): boards only on the title and the ticket');
-  // (e) one price board, one city board, one status board — the last two on the ticket
-  const passSlice = sliceOf(html, '<!-- PASS -->', '<!-- /PASS -->');
-  const ckSlice = sliceOf(html, '<!-- CHECK-IN -->', '<!-- /CHECK-IN -->');
-  const glanceSlice = sliceOf(html, '<!-- GLANCE -->', '<!-- /GLANCE -->');
-  need((html.match(/class="flap-tk /g) || []).length === 1 && (passSlice.match(/class="flap-tk /g) || []).length === 1 && (html.match(/id="flapCity"/g) || []).length === 1, where, 'one price board (on the ticket) and one city board (the title)');
-  need((html.match(/class="flap-mini[ "]/g) || []).length === 1 && /<span class="flap-mini" id="ckStatus" data-word="[A-Z]+" aria-hidden="true"><\/span><span class="sr" id="ckStatusSr">/.test(passSlice), where,
-    'one status board, #ckStatus on the ticket (aria-hidden, the status as text beside it): the OPEN and PAID mini boards of the door left (v1.4)');
-  // (f) no airplane glyph anywhere: one SVG symbol (Rome's path), Path2D in the export
-  need(!/\u2708/.test(html), where, 'no ✈ (U+2708) on the page: the plane is the SVG symbol #boomPlane');
-  need(html.includes('<symbol id="boomPlane" viewBox="0 0 24 24">'), where, 'the plane symbol #boomPlane is in the hidden defs');
-  // Shown is not charged. A waitlist page carries no till: no Stripe word, no
-  // sheet, the config says CHECKOUT false — and the JS mounts nothing. The
-  // server refuses the same POST (api/_market.js cityOffer → checkout_closed).
+  // one city board, served empty (the raw H1 reads the city once)
+  need((html.match(/class="board"/g) || []).length === 1 && html.includes(`<span class="sr">${esc(city.city)}</span><span class="board" id="placeBoard" aria-hidden="true" data-word="${esc(word)}" style="--n:${word.length}"></span></h1>`), where, 'one city board, decorative and served empty (data-word drawn by CSS): the H1 reads the city once');
+  // the pass holds the fares, the door and the desk, once each
+  need((html.match(/<article class="pass" id="pass" data-state="blank"/g) || []).length === 1 && (html.match(/id="door"/g) || []).length === 1 && (html.match(/id="fileForm"/g) || []).length === 1, where, 'the pass once, blank at parse; one door, one form');
+  const pass = sliceOf(html, '<article class="pass"', '</article>');
+  need(pass.includes('<!-- FARES -->') && pass.includes('<!-- /THE DOOR -->') && pass.indexOf('<!-- /FARES -->') < pass.indexOf('<div id="act">'), where, 'the pass holds the fares, then the door');
+  // one label: the door, the strip, the till's way out
+  const label = esc(city.door.label);
+  need(html.includes(`<b id="doorL">${label}</b>`) && html.includes(`<button class="st-go" id="stripGo" type="button">${label}</button>`), where, 'the door and the strip read door.label');
+  const strip = sliceOf(html, '<div class="strip js" id="strip"', '</div>');
+  need(strip && !/€|\b\d{3,}\b/.test(visibleText(strip).replace(/\d{2}:\d{2}/g, '')), where, 'the strip carries no price (the desk hours only)');
+  need(!/Start my search|Get the pack|Book a viewing|Show my plan|Rather write first|Three questions/i.test(vis), where, 'the v1.2–v1.4 labels left the page: one label');
+  const payLabels = [...html.matchAll(/data-pay="[^"]*"[^>]*>([\s\S]*?)<\/button>/g)].map((m) => visibleText(m[1]).trim());
+  if (sell) need(payLabels.length === plans.length && payLabels.every((t, i) => t.startsWith(`${city.till.label} · ${eur(plans[i].price)}`)), where, `every pay control reads till.label with its plan's price (${JSON.stringify(payLabels)})`);
+  // the WhatsApp links open with the desk marker
+  const was = [...html.matchAll(/href="(https:\/\/wa\.me\/[^"]*)"/g)].map((m) => m[1].replace(/&amp;/g, '&'));
+  need(was.length >= 2 && was.every((u) => u === contact.waHref), where, 'every WhatsApp link opens with the desk marker ("Hi BOOM <city>, …"), never a plan or a price');
+  // Rome is Rome: the rating appears once, labelled
+  need((html.match(/on Google/g) || []).length === 1 && /on Google in Rome/.test(html), where, 'the Rome rating appears once, labelled "in Rome"');
+  // the leftovers of the quiz pages stay gone
+  need(!/id="checkin"|id="ckStatus"|id="passWrap"|#checkin=|class="paybar"|id="flapCity"|boomPlane|class="hero"|data-consent="compact"/.test(html), where, 'the quiz, its ticket, the share links, the v1.4 hero and its strip left the page');
+  need(!/\u2708/.test(html), where, 'no ✈ (U+2708) on the page');
+
+  // Shown is not charged. A waitlist page carries no till, no Stripe word, no
+  // pay control, no refund rule, no bank transfer, and promises no call
+  // ANYWHERE a reader, a crawler or an answer engine reads it.
   if (waitlist) {
     need(!/stripe/i.test(html), where, 'a waitlist page carries no Stripe reference');
-    need(!/id="ov"|data-pay=|id="fPaid"/.test(html), where, 'a waitlist page mounts no checkout sheet and no pay button');
+    need(!/id="till"|data-pay=|id="cPaid"|id="cConfirm"/.test(html), where, 'a waitlist page mounts no till, no pay button, no paid card');
     need(html.includes('"CHECKOUT": false'), where, 'a waitlist page declares CHECKOUT false');
-    need(!html.includes(shared.refund.rule) && !glanceSlice.includes(esc(shared.refund.rule)), where, 'a waitlist page prints no refund rule (not in the fares board either): no money is taken there');
-    // ...and promises no call ANYWHERE a reader, a crawler or an answer engine
-    // reads it: the visible text, the copy the script renders (the config:
-    // the refusal, the plates' includes), every JSON-LD block, the meta tags
-    // and the attributes read aloud or swapped in by the JS (aria-*, data-*:
-    // the form's error lines). Strings are walked, never stringified: in JSON
-    // "\nCall" has no word boundary. Code is not read: a future `.call(` in
-    // an inlined engine is no promise.
+    need(!html.includes(shared.refund.rule) && !/refunded in full/i.test(html), where, 'a waitlist page prints no refund rule: no money is taken there');
+    need(!/bank transfer/i.test(html), where, 'a waitlist page names no bank transfer');
     const strs = (v) => (typeof v === 'string' ? [v] : v && typeof v === 'object' ? Object.values(v).flatMap(strs) : []);
     const ld = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].flatMap((m) => strs(JSON.parse(m[1])));
     const bare = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ');
     const attrs = [...bare.matchAll(/\s(?:content|alt|title|label|value|placeholder|aria-[\w-]+|data-[\w-]+)="([^"]*)"/g)].map((m) => m[1]);
-    const said = [visibleText(html), ...strs(config), ...ld, ...attrs].join(' \n ');
+    const said = [vis, ...strs(config), ...ld, ...attrs].join(' \n ');
     const callAt = said.search(/\bcall(s|ed|ing)?\b/i);
-    need(callAt < 0, where, `a waitlist desk promises no call anywhere on its page (text, FAQ, ticket copy, JSON-LD, meta): the door is "Open my file" — found "…${callAt < 0 ? '' : said.slice(Math.max(0, callAt - 40), callAt + 30).trim()}…"`);
+    need(callAt < 0, where, `a waitlist desk promises no call anywhere on its page (text, JSON-LD, meta, config) — found "…${callAt < 0 ? '' : said.slice(Math.max(0, callAt - 40), callAt + 30).trim()}…"`);
+  } else {
+    need(!/id="till"|data-pay=/.test(html) || sell, where, 'a desk without checkout mounts no till and no pay button');
   }
-  if (city.checkout !== true) need(!/id="ov"|data-pay=/.test(html), where, 'a desk without checkout mounts no sheet and no pay button');
-  // THE REFUND RULE BESIDE EVERY €500 (sell desks, STUDIO §11.10): the fares
-  // board in the hero (v1.4), the door (under the chips), the plates' section,
-  // the ticket, the sheet, the fees row — each block that shows the number
-  // carries the sentence.
-  if (city.checkout === true) {
+  // THE REFUND RULE BESIDE EVERY €500 (sell desks): the closed Full Search
+  // row, its open ticket, the till, the fees row — every block that shows
+  // the number carries the sentence. A €500 anywhere else is refused.
+  if (sell) {
     const rule = esc(shared.refund.rule);
-    const blocks = {
-      glance: glanceSlice,
-      door: sliceOf(html, '<!-- THE DOOR -->', '<!-- /THE DOOR -->'),
-      plates: sliceOf(html, '<section id="services"', '</section>'),
-      pass: passSlice,
-      sheet: sliceOf(html, '<dialog class="sheet" id="ov"', '</dialog>'),
-      sheetRows: sliceOf(html, '<dt>Fees</dt>', '</dd>')
-    };
-    for (const [name, b] of Object.entries(blocks)) {
-      need(b, where, `block "${name}" not found on the page`);
-      need(b.includes(rule), where, `the refund rule is missing from the ${name} block, which shows €500 (a price never travels alone)`);
+    const fsId = 'full-search';
+    const fsRow = sliceOf(html, `<details class="fare" name="fare" id="fare-${fsId}"`, '<!-- /FARES -->');
+    const ticket = sliceOf(fsRow, '<div class="tk">', '</details>');
+    const outside = sliceOf(fsRow, '</details>', '<details');
+    need(ticket.includes(`<p class="refund">${rule}</p>`), where, 'the refund rule is missing from the Full Search ticket, which shows €500');
+    need(outside.includes(`<p class="refund fs">${rule}</p>`), where, 'the refund rule is missing under the closed Full Search row, which shows €500');
+    need(sliceOf(html, '<dialog class="till"', '</dialog>').includes(rule), where, 'the refund rule is missing from the till, which shows €500');
+    need(sliceOf(html, '<dt>Fees</dt>', '</dd>').includes(rule), where, 'the refund rule is missing from the fees row, which shows €500');
+    // every visible €500 outside those blocks (the FAQ answers carry their
+    // own refund sentence) is refused
+    const p500 = eur(fsPlan.price);
+    const rest = html
+      .replace(fsRow, ' ').replace(/<dialog class="till"[\s\S]*?<\/dialog>/, ' ').replace(/<dt>Fees<\/dt>[\s\S]*?<\/dd>/, ' ')
+      .replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<!--[\s\S]*?-->/g, ' ');
+    for (const m of rest.matchAll(new RegExp(p500.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))) {
+      const around = rest.slice(Math.max(0, m.index - 600), m.index + 600);
+      need(/refunded in full/.test(around), where, `a ${p500} outside the fares, the till and the fees row stands without the refund rule: "…${visibleText(around.slice(500, 700)).trim()}…"`);
     }
+    // the till, in the order the law asks (CRD arts. 6(1)(h), 7(3), 8(2), 16(a))
+    const till = sliceOf(html, '<dialog class="till"', '</dialog>');
+    const at = (s) => till.indexOf(s);
+    need(at('id="tTitle"') > -1 && at('id="tTitle"') < at('id="tStart"') && at('id="tStart"') < at('class="wd"') && at('class="wd"') < at('id="tGo"'), where, 'the till says the plan and its price, then the start-now request, then the withdrawal line, then the pay button — in that order');
+    need(/<input type="checkbox" id="tStart">/.test(till) && !/id="tStart"[^>]*checked/.test(till), where, 'the start-now box is never pre-ticked');
+    need(till.includes(`href="${WITHDRAWAL_PATH}?desk=${encodeURIComponent(city.city)}"`), where, 'the withdrawal line links the model withdrawal form with the desk');
+    need(till.includes(`<b id="tGoL">${esc(city.till.labelWait)}</b>`) && till.includes(`data-label-now="${esc(city.till.label)}"`), where, 'the pay button reads labelWait until the box is ticked');
+    if (ES) need(till.includes(`<p class="t-opt">${esc(city.pricing.sub)}</p>`) && at('class="t-opt"') < at('id="tGo"'), where, 'on a Spanish desk the till repeats "Optional, chosen in writing" before the pay button');
   }
-  // (i) the fares board is the plates' prices, said the same way: every plan's
-  // price and its own condition, as text, in the hero
+
+  // the visible words at load: short, by measure
+  const atLoad = visibleAtLoad(html);
+  const bodyWords = words(atLoad);
+  need(bodyWords <= BUDGET.body, where, `${bodyWords} visible words at load, over the ${BUDGET.body} budget (the page cannot grow back)`);
+  const faresWords = words(visibleText(fares.replace(/<div class="tk">[\s\S]*?<\/details>/g, '</details>')));
+  need(faresWords <= BUDGET.fares, where, `the fares block is ${faresWords} words closed, over ${BUDGET.fares}`);
   for (const p of plans) {
-    need(glanceSlice.includes(`<a class="fare" href="#plate-${esc(p.id)}" data-fare="${esc(p.id)}"><span class="fl">${esc(p.label)}</span><span class="fn">${esc(p.name)}</span><span class="fp">${eur(p.price)}</span><span class="fc">${esc(p.condition)}</span></a>`)
-      && html.includes(`<article class="sib${p.featured ? ' on' : ''}" id="plate-${esc(p.id)}">`), where, `plan "${p.id}": the fares board must show ${eur(p.price)} with "${p.condition}" and link its plate (#plate-${p.id})`);
+    const tk = sliceOf(fares, `id="fare-${p.id}"`, '</details>');
+    const n = words(visibleText(sliceOf(tk, '<div class="tk">', '<div class="tk-slot"')));
+    need(n <= BUDGET.ticket, where, `the ${p.label} ticket is ${n} words, over ${BUDGET.ticket}`);
   }
-  // (d) one label: the hero's door, the nav link, the door button, the ticket's
-  // door, the plates' primaries, the strip, the menu, the footer and the
-  // sheet's way out all read door.label; every pay control reads till.label
-  // with its price
-  const label = esc(city.door.label);
-  const reLabel = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const lk = '<span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span>';
-  need((html.match(/class="paybtn hero-go"/g) || []).length === 1 && glanceSlice.includes(`<a class="paybtn hero-go" href="#contact" data-door-sub>${lk}<span class="tx"><b>${label}</b><small>${esc(city.door.sub)}</small></span>`), where,
-    'exactly one hero door (a.paybtn.hero-go, in the fares board), reading door.label and its sub');
-  need((html.match(new RegExp(`<a href="#contact" class="nav-link nav-door">${reLabel}</a>`)) || []).length === 1 && html.includes(`<a href="#contact" class="mobile-menu-cta">${label}</a>`) && html.includes(`<li><a href="#contact">${label}</a></li>`),
-    where, 'the nav, the menu and the footer carry the door label');
-  need(new RegExp(`<button type="submit" class="paybtn" id="fGo" disabled data-door-sub data-wa="https://wa\\.me/[^"?]+\\?text=[^"]+" data-mail="[^"@]+@[^"]+">${lk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<span class="tx"><b>${reLabel}</b>`).test(html)
-    && html.includes("document.getElementById('fJsFail')"), where, 'the door button reads door.label and is disabled until the script binds the form (no GET with the contact data); if the script never runs, the page says where to write');
-  need(passSlice.includes(`id="ckFile" data-service="" data-door-sub>${lk}<span class="tx"><b>${label}</b>`), where, 'the ticket\'s door reads door.label');
-  need(html.includes(`id="stripGo">${label}</a>`), where, 'the strip reads door.label');
-  for (const p of plans) need(html.includes(`data-service="${esc(p.id)}">${label} →</a>`), where, `plate "${p.id}" primary reads door.label`);
-  // the lock glyph in .lk is decoration, not the label
-  const payLabels = [...html.matchAll(/data-pay="[^"]*"[^>]*>([\s\S]*?)<\/(?:button|a)>/g)].map((m) => visibleText(m[1]).trim().replace(/^🔒\s*/u, '').trim());
-  if (city.checkout === true) need(payLabels.length && payLabels.every((t) => t.startsWith(city.till.label)), where, `every pay control reads till.label (${JSON.stringify(payLabels)})`);
-  need(!/Start my search|Get the pack|Book a viewing|Ask for the pack|Ask for a viewing|Show my plan|Pay &amp; start|Rather write first/.test(visibleText(html)), where, 'the v1.2 labels and the v1.3 skip link left the page: one label');
-  const strip = sliceOf(html, '<div class="paybar" id="paybar"', '\n</div>');
-  need(strip && !/€|\d/.test(visibleText(strip)) && /<a class="wa-ic" id="stripWa" href="https:\/\/wa\.me\/[^"]+\?text=[^"]+" target="_blank" rel="noopener" aria-label="WhatsApp">/.test(strip), where, 'the strip carries no price, and its WhatsApp icon opens with the desk marker');
-  // Rome is Rome: the rating appears once, labelled, inside data-proof="rome"
-  const rome = sliceOf(html, '<div data-proof="rome">', '</div>');
-  need(rome && /on Google in Rome/.test(rome) && (html.match(/on Google/g) || []).length === 1 && !/(?<![\d,.])500\+/.test(visibleText(html)), where, 'the Rome rating appears once, labelled Rome; "500+ housed" left the city pages');
-  // (a) THE HERO IS EDITORIAL (v1.4): the title, the lead, the fares board,
-  // then the proof — and nothing of section 01. Its only script is the space
-  // reserved for the city board: no node mover (DOM order is the reading
-  // order at every width).
-  const hero = sliceOf(html, '<header class="hero"', '</header>');
-  const hAt = (s) => hero.indexOf(s);
-  need(hAt('<h1') > -1 && hAt('<h1') < hAt('class="lead') && hAt('class="lead') < hAt('<!-- GLANCE -->') && hAt('<!-- /GLANCE -->') < hAt('class="facts"')
-    && !/id="checkin"|id="pass"|id="contact"|id="passWrap"/.test(hero), where, 'the hero holds the title, the lead, the fares board and the facts, in that order — no Check-in, no ticket, no door (they are section 01)');
-  need((hero.match(/<script/g) || []).length === 1 && hero.includes("document.getElementById('flapCity')") && !/insertBefore|appendChild|insertAdjacent/.test(hero), where,
-    'the hero carries one script, the space reserved for the city board: no node mover (v1.4)');
-  // (b) section 01 holds the Check-in, the ticket and the door, once each, in
-  // that order, and comes before How it works
-  const plan = sliceOf(html, '<section id="plan" class="rv plan">', '\n  </section>');
-  const pAt = (s) => plan.indexOf(s);
-  need(plan && ['<!-- CHECK-IN -->', '<!-- PASS -->', '<!-- THE DOOR -->'].every((m) => (html.split(m).length - 1) === 1 && pAt(m) > -1)
-    && pAt('<!-- CHECK-IN -->') < pAt('<!-- PASS -->') && pAt('<!-- PASS -->') < pAt('<!-- THE DOOR -->') && html.indexOf('<section id="plan"') < html.indexOf('<section id="how"'),
-    where, 'section 01 (#plan) holds the Check-in, the ticket and the door, once each and in that order, before How it works');
-  need((html.match(/<section class="checkin" id="checkin"/g) || []).length === 1 && (passSlice.match(/<article class="pass carta" id="pass" data-state="blank"/g) || []).length === 1, where, 'the Check-in once, the ticket once, blank at parse');
-  need(html.includes(`<span id="flapCity" class="flap-city flap-scale" aria-hidden="true" data-word="${esc(word)}"></span><span class="sr">${esc(city.city)}</span></h1>`), where, 'the title board is decorative and served empty (the word is data-word, drawn by CSS without JS): the raw H1 reads the city once');
-  // the live regions: the plan line and the papers line in the Check-in, the
-  // two share confirmations under the ticket, nothing else
-  need(passSlice.includes('<span class="flap-tk flap-scale" id="ckPrice" aria-hidden="true"></span><span class="sr" id="ckPriceSr"></span>')
-    && ckSlice.includes('id="ckLive" role="status" aria-live="polite"') && ckSlice.includes('<p class="ready" id="ckReady" role="status"></p>')
-    && (passSlice.match(/aria-live|role="status"/g) || []).length === 2 && /id="ckCopied" aria-live="polite"/.test(passSlice) && /id="ckSaved" aria-live="polite"/.test(passSlice),
-    where, 'the price board is decorative with the amount as text beside it; the Check-in holds the two live regions (#ckLive, #ckReady), the ticket only its two share confirmations');
-  // (h) the pieces v1.4 removed stay removed
-  need(!/class="skipck"|id="payOffer"|id="ckBoard"|id="ckName"|id="ckOrigin"|id="flapDone"|id="flapPaid"|id="ckPlanBox"|id="ckCode"/.test(html), where,
-    'the skip link, the after-file pay offer, the city board on the ticket, the name and origin inputs, the door\'s mini boards and the code-as-file-number left the page (v1.4)');
-  need(html.includes(esc(checkinAnswer(city))), where, 'the derived Check-in FAQ answer is not on the page');
-  need(!/class="fam"|class="rail"|class="scroll-progress"|class="mouse-glow"|class="machine"|class="tline"|class="truth"|class="band |class="refline"|class="serving"/.test(html), where, 'the v1.2 chrome left the page: family strip, rail, progress bar, glow, route line, timeline, truth band, bottom band');
-  // (g) without JS the Check-in, the ticket, its share row and the strip are
-  // behaviour and hidden; the door reads whole (served disabled, the fallback line)
-  need(/<noscript><style>[^<]*\.checkin,#pass,\.pshare,\.paybar\{display:none!important\}/.test(html) && /\.plan-head,#passWrap,#heroPlan,\.hp-sep\{display:none!important\}/.test(html), where, 'without JS the Check-in, the ticket, its share row and the strip are hidden (behaviour), and so are the printer and the lines that promise three questions (the plan head, and the hero\'s link with its dot); the #plan heading and the rest read whole');
-  // the month select from the anchor
-  need(html.includes(`<select id="fMoveIn" name="moveIn">`) && months.every((m) => html.includes(`<option value="${m.value}">${esc(m.label)}</option>`)), where, 'the move-in select carries the twenty months from moveInFrom');
 
   // The page's dateModified is data, and a hand-written date drifts: a live
   // desk declares "updated" and the build pins it to its sitemap <lastmod>.
@@ -1383,20 +901,17 @@ export function renderCity({ template, shared, city, assetVersion, frags, root =
   }
   const placeholders = findPlaceholders(html, city, { root, shared });
   if (city.live && placeholders.length) {
-    throw new BuildError(`${where} is live:true but still has ${placeholders.length} placeholder(s):\n    - `
-      + placeholders.join('\n    - '));
+    throw new BuildError(`${where} is live:true but still has ${placeholders.length} placeholder(s):\n    - ` + placeholders.join('\n    - '));
   }
   const warnings = [];
-  if (anchorAgeMonths(shared.moveInFrom) > 2) warnings.push(`_shared.json moveInFrom (${shared.moveInFrom}) is older than two months: the page's JS hides the past months, but move the anchor forward and rebuild`);
   if (+shared.copyrightYear < new Date().getUTCFullYear()) warnings.push(`_shared.json copyrightYear (${shared.copyrightYear}) is behind the calendar: update it and rebuild`);
-  // the weight budget, pinned
   let weight = null;
   if (weigh) {
     weight = weightOf(html, root);
     need(weight.totalKb <= WEIGHT_KB.total, where, `first-party weight ${weight.totalKb.toFixed(1)} KB gzipped is over the ${WEIGHT_KB.total} KB budget`);
     need(weight.jsKb <= WEIGHT_KB.js, where, `assets/boom-city.js is ${weight.jsKb.toFixed(1)} KB gzipped, over the ${WEIGHT_KB.js} KB budget`);
   }
-  return { slug: city.slug, file: `${city.slug}.html`, live: city.live, mode: city.mode, html, placeholders, warnings, weight };
+  return { slug: city.slug, file: `${city.slug}.html`, live: city.live, mode: city.mode, html, placeholders, warnings, weight, words: bodyWords };
 }
 
 function readJson(file) {
@@ -1450,7 +965,7 @@ if (isMain) {
     let stale = 0;
     for (const p of writeAll({ check })) {
       if (check && p.stale) { stale++; console.error(`✗ ${p.file} is stale — run: npm run build:cities`); continue; }
-      console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  ${p.live ? 'LIVE' : 'draft (noindex)'}  ·  mode ${p.mode}  ·  ${p.weight ? p.weight.totalKb.toFixed(1) + ' KB gz (js ' + p.weight.jsKb.toFixed(1) + ')' : ''}`);
+      console.log(`${check ? '✓ up to date' : '✓ built'}  ${p.file}  ·  ${p.live ? 'LIVE' : 'draft (noindex)'}  ·  mode ${p.mode}  ·  ${p.words} words at load  ·  ${p.weight ? p.weight.totalKb.toFixed(1) + ' KB gz (js ' + p.weight.jsKb.toFixed(1) + ')' : ''}`);
       for (const w of p.warnings) console.log(`  ⚠ ${w}`);
       if (p.placeholders.length) {
         console.log(`  ${p.placeholders.length} placeholder(s) to replace before live:true:`);

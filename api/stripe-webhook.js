@@ -7,6 +7,7 @@ import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
 import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId } from './_market.js';
 import SCALO from '../js/scalo-codes.js';
+import DESK_CAL from '../js/desk-calendar.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -390,61 +391,15 @@ export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e rest
   + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
   + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
 
-// Easter Sunday, Gregorian (Meeus/Jones/Butcher), as [month, day].
-function easterOf(y) {
-  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
-  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const n = h + l - 7 * m + 114;
-  return [Math.floor(n / 31), (n % 31) + 1];
-}
-// Fixed dates as MM-DD, Easter-relative ones as offsets in days.
-const HOLIDAYS = {
-  // national, plus Rome's patron day (29 June); 4 October is a national
-  // holiday again from 2026
-  it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
-  // Nieuwjaar, Koningsdag (26 April when the 27th is a Sunday), Bevrijdingsdag,
-  // Kerst; Goede Vrijdag, Paasmaandag, Hemelvaart, Pinkstermaandag
-  nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
-  // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
-  // La Almudena); Jueves and Viernes Santo
-  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
-  // the Barcelona desk: Catalonia's labour calendar (DOGC: Ordre EMT/66/2025
-  // for 2026, EMT/52/2026 for 2027 — Cap d'Any, Reis, Treball, Sant Joan,
-  // Assumpció, Diada, Festa Nacional, Tots Sants, Constitució, Immaculada,
-  // Nadal, Sant Esteve; Divendres Sant and Dilluns de Pasqua Florida, NO
-  // Dijous Sant) plus the city of Barcelona's two local days (Pasqua
-  // Granada = Easter+50, La Mercè 24 Sept). Catalonia drops whichever of
-  // 15/8, 1/11, 6/12, 26/12 fall on a Sunday: listing all four is exact
-  // for 2026-2027 and only ever ADDS a day. When La Mercè falls on a Sunday
-  // the city keeps it on Monday the 25th (2023; next in 2028): `merceMonday`,
-  // the same move as Koningsdag in nl. The two local days are set each June
-  // by mayoral decree: re-check yearly. Keyed apart from `country`, which
-  // also drives the +34 phone reading in api/_market.js.
-  'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true }
-};
+// The desk calendar (Italy + the desk's own holidays) lives in ONE copy,
+// js/desk-calendar.js: the city pages print the desk window from the same
+// tables, so a page never says "desk open" on a day this webhook counts as a
+// holiday (Koningsdag, the Diada, Christmas).
 // the calendar keys a desk may name (CITY_MARKETS.<slug>.holidays || country):
 // an unknown key would silently fall back to Italy alone, so tests pin it
-export const HOLIDAY_KEYS = Object.keys(HOLIDAYS);
-export function isDeskHoliday(date, country) {
-  const y = date.getUTCFullYear();
-  const mmdd = date.toISOString().slice(5, 10);
-  const [em, ed] = easterOf(y);
-  for (const c of ['it', country]) {
-    const h = HOLIDAYS[c];
-    if (!h) continue;
-    if (h.fixed.includes(mmdd)) return true;
-    if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
-    if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
-    for (const off of h.easter) {
-      const d = new Date(Date.UTC(y, em - 1, ed + off));
-      if (d.toISOString().slice(5, 10) === mmdd) return true;
-    }
-  }
-  return false;
-}
-const workingDay = (d, country) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isDeskHoliday(d, country);
+export const HOLIDAY_KEYS = DESK_CAL.HOLIDAY_KEYS;
+export const isDeskHoliday = (date, country) => DESK_CAL.isDeskHoliday(date, country);
+const workingDay = (d, country) => DESK_CAL.workingDay(d, country);
 
 export function withdrawalWindow(concludedEpoch, country = null) {
   const at = new Date((Number(concludedEpoch) || 0) * 1000);

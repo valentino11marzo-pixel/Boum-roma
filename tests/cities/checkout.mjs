@@ -565,7 +565,7 @@ check(/Refunded in full if we decline the search in the first call/.test(CITY_PL
   const com = read('api/employees/commerciale.js');
   check(com.indexOf('if (isCityMarket(lead)) continue;') > -1 && com.indexOf('if (isCityMarket(lead)) continue;') < com.indexOf('proposeFirstReply(lead'), 'the Commerciale stands down on a paid city order too (the guard reads the market, not the intent)');
   const js = read('assets/boom-city.js');
-  check(/C\.CHECKOUT === true \? (?:document\.getElementById|\$)\('ov'\) : null/.test(js) && /if \(C\.CHECKOUT !== true \|\| !form\) return;/.test(js),
+  check(/var sell = C\.CHECKOUT === true;/.test(js) && /var till = sell \? \$\('till'\) : null, tf = sell \? \$\('tillForm'\) : null/.test(js) && /function handleReturn\(\) \{\s*if \(!sell\) return;/.test(js),
     'the page JS mounts the till and reads ?paid= ONLY when the build set CHECKOUT true');
   check(/city: C\.SLUG, kind: id/.test(js) && !/\beur:\s*p\.eur\b/.test(js.slice(js.indexOf('function pay()'), js.indexOf('go.addEventListener'))),
     'the sheet posts the city and the plan id — never a price');

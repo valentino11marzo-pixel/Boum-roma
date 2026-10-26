@@ -5,7 +5,7 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('set',{page_location:location.origin+location.pathname+location.search.replace(/([?&])session_id=[^&]*&?/,'$1').replace(/[?&]$/,'')});gtag('config','G-EYCD59RDVJ');</script>
-    <!-- page_location is set WITHOUT the fragment and WITHOUT the session_id of a paid return (a payment id that names a payer): the visitor's own link (#checkin=…) carries the mask of the papers they hold, and that never goes to GA (the Check-in events send the three answers and a count of papers, nothing more) -->
+    <!-- page_location is set WITHOUT the fragment and WITHOUT the session_id of a paid return: a payment id names a payer, and it never goes to GA -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>{{meta.title}}</title>
@@ -41,7 +41,6 @@
     <link rel="icon" href="/favicon.ico" sizes="any">
     <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-    <link rel="stylesheet" href="/css/boom-2026.css">
     <link rel="stylesheet" href="/assets/boom-city.css?v={{assetVersion.css}}">
   <script type="application/ld+json">
 {{{jsonLdBreadcrumb}}}
@@ -49,294 +48,128 @@
   <script type="application/ld+json">
 {{{jsonLd}}}
   </script>
-<noscript><style>.rv,.rv .step,.rv .sib,.rv .flow,.rv .faq details,.rv .inc li{opacity:1!important;transform:none!important;animation:none!important}.checkin,#pass,.pshare,.paybar{display:none!important}.plan-head,#passWrap,#heroPlan,.hp-sep{display:none!important}.planline .chips{display:block!important}</style></noscript>
+<noscript><style>.js{display:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 {{{scrollBlock}}}
 <!-- BOOM_SOLARI:START — design/pages-deco/solari-engine.html, inlined by the build (one copy, byte for byte) -->
 {{{solariEngine}}}
 <!-- BOOM_SOLARI:END -->
+<!-- BOOM_CALENDAR:START — js/desk-calendar.js, inlined by the build (the webhook imports the same file) -->
+{{{deskCalendar}}}
+<!-- BOOM_CALENDAR:END -->
 </head>
 <body data-consent-late>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
   <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient>
   <symbol id="boomMark" viewBox="0 0 1024 1024"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#goldGrad)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/></g></symbol>
-  <symbol id="boomPlane" viewBox="0 0 24 24"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></symbol>
   <symbol id="boomWa" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.611.611l4.458-1.495A11.952 11.952 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.388 0-4.59-.837-6.313-2.233l-.44-.361-2.633.882.882-2.633-.361-.44A9.965 9.965 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></symbol>
 </defs></svg>
 
 <a class="skip" href="#main">Skip to content</a>
 
-<!-- the quiet technical layer: the grid and two still orbs, nothing moves at rest -->
-<div class="tech-bg" aria-hidden="true">
-  <div class="tech-orb tech-orb-1"></div>
-  <div class="tech-orb tech-orb-2"></div>
-  <div class="tech-grid"></div>
-</div>
+<header class="wrap top">
+  <a class="brand" href="/" aria-label="BOOM — home"><svg aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+  <nav class="navr" aria-label="Contact">
+    <a class="pill" id="topWa" href="{{contact.waHref}}" target="_blank" rel="noopener"><svg aria-hidden="true"><use href="#boomWa"/></svg><span class="pl">WhatsApp</span><span class="sr"> the {{city}} desk</span></a>
+  </nav>
+</header>
 
-<nav class="nav" id="nav">
-  <div class="container nav-inner">
-    <a href="/" class="logo" aria-label="BOOM home">
-      <svg class="logo-mark" aria-hidden="true"><use href="#boomMark"/></svg>
-      <span class="logo-text">BOOM</span>
-      <span class="bl-div" aria-hidden="true"></span>
-      <span class="bl-desk">{{city}}<br>{{nav.desk}}</span>
-    </a>
-    <div class="nav-links">
-      <a href="#plan" class="nav-link">{{nav.plan}}</a>
-      <a href="#how" class="nav-link">{{nav.how}}</a>
-      <a href="#services" class="nav-link">{{nav.services}}</a>
-      <a href="#checks" class="nav-link">{{nav.checks}}</a>
-      <a href="#faq" class="nav-link">{{nav.faq}}</a>
-      <a href="#contact" class="nav-link nav-door">{{door.label}}</a>
-    </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu" aria-expanded="false" aria-controls="mobileMenu"><span></span><span></span><span></span></button>
-  </div>
-</nav>
-
-<div class="mobile-menu" id="mobileMenu" aria-hidden="true">
-  <div class="mobile-menu-links">
-    <a href="#plan" class="mobile-menu-link">{{nav.plan}}</a>
-    <a href="#how" class="mobile-menu-link">{{nav.how}}</a>
-    <a href="#services" class="mobile-menu-link">{{nav.services}}</a>
-    <a href="#checks" class="mobile-menu-link">{{nav.checks}}</a>
-    <a href="#faq" class="mobile-menu-link">{{nav.faq}}</a>
-    <span class="mobile-menu-group">{{desksLabel}}</span>
-    {{{menuFamilyHtml}}}
-  </div>
-  <a href="#contact" class="mobile-menu-cta">{{door.label}}</a>
-</div>
-
-<main id="main">
-
-  <!-- ═══ HERO — editorial (v1.4, "The Itinerary"): what we do, for whom, what it
-       costs (the fares board, prices as text, the refund rule under the €500),
-       what to do next (one gold button). The proof card on the right; on a phone
-       the two columns stack in DOM order. ═══ -->
-  <header class="hero">
-    <div class="hero-left">
-      <h1 class="h-2">{{hero.h1Before}} <span id="flapCity" class="flap-city flap-scale" aria-hidden="true" data-word="{{word}}"></span><span class="sr">{{city}}</span></h1>
-      <script>/* THE SPACE IS RESERVED BEFORE THE BOARD ARRIVES. The city name is a
-         Solari board built by the JS at parse time: the cells are wider and taller
-         than the plain word, and without a reservation everything under the
-         title jumps when they land (the index.html lesson: CLS 0.058, all of it
-         under the reader's eyes). Width = cells x calibrated cell width,
-         measured in Chromium on this page; only with JS, because without JS the
-         board never comes and the space would be a hole around a word. */
-        (function(){var f=document.getElementById('flapCity');
-          if(f){f.style.display='inline-block';f.style.minWidth='{{wordEm}}em';
-                f.style.minHeight='1.27em';f.style.textAlign='center';}})();</script>
-      <p class="lead h-3">{{hero.lead}}</p>
-      <!-- GLANCE -->
-{{{glanceHtml}}}
-      <!-- /GLANCE -->
-    </div>
-    <div class="hero-right">
-      <!-- THE FACTS: what a scam-primed visitor needs before any tap -->
-      <dl class="facts" id="facts">
-{{{factsHtml}}}
-      </dl>
-    </div>
-  </header>
-
-  <!-- ═══ 01 · YOUR PLAN — three questions, the ticket they print, the door.
-       DOM order is the reading and the focus order at every width (answer →
-       read the ticket → fill the form); nothing moves nodes around. ═══ -->
-  <section id="plan" class="rv plan">
-    <div class="sec-h">
-      <span class="num">{{plan.num}}</span>
-      <h2>{{plan.h2}} <span class="g">{{plan.h2g}}</span></h2>
-    </div>
-    <p class="sec-sub plan-head">{{plan.head}}</p>
-    <div class="plan-in">
-      <!-- CHECK-IN -->
-{{{checkinHtml}}}
-      <!-- /CHECK-IN -->
-      <!-- PASS -->
-{{{passHtml}}}
-      <!-- /PASS -->
-      <!-- THE DOOR -->
-      <!-- five fields, the service as chips (the checked chip is the plan the ticket prints), everything else folds away -->
-      <div class="filecard" id="contact">
-        <form id="cityForm" method="post" novalidate data-sending="{{sending}}"
-              data-err-name="{{form.errors.name}}" data-err-contact="{{form.errors.contact}}"
-              data-err-email="{{form.errors.email}}" data-err-net="{{form.errors.net}}">
-          <div class="frow two">
-            <div class="fld"><label for="fName">{{form.name.label}}</label><input id="fName" name="name" autocomplete="name" placeholder="{{form.name.placeholder}}"></div>
-            <div class="fld"><label for="fEmail">{{form.email.label}}</label><input id="fEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="{{form.email.placeholder}}"></div>
-          </div>
-          <div class="frow two">
-            <div class="fld"><label for="fPhone">{{form.phone.label}} <span class="opt">({{form.phone.sub}})</span></label><input id="fPhone" name="phone" type="tel" autocomplete="tel" placeholder="{{form.phone.placeholder}}"></div>
-            <div class="fld"><label for="fMoveIn">{{form.moveIn.label}}</label><select id="fMoveIn" name="moveIn">
-{{{monthOptionsHtml}}}
-            </select></div>
-          </div>
-          <div class="fld"><label for="fBudget">{{form.budget.label}}</label><select id="fBudget" name="budget">
-            <option value="">—</option>
-{{{budgetOptionsHtml}}}
-          </select></div>
-          <!-- the service: the pass writes it here; chips with the price and the
-               plan's condition in view, never a dropdown; none pre-checked -->
-          <details class="planline" id="planline" open data-from="{{form.service.from}}">
-            <summary><span class="pl-k">{{form.service.label}}</span><b id="plText">{{form.service.none}}</b><small class="pl-change" id="plChange" hidden>{{form.service.change}}</small></summary>
-            <fieldset class="fld chips"><legend class="sr">{{form.service.label}}</legend>
-              <div class="chipgrid">
-{{{serviceChipsHtml}}}
-              </div>
-{{{serviceNoteHtml}}}
-            </fieldset>
-          </details>
-
-          <details class="more">
-            <summary>{{form.more}}</summary>
-            <div class="morein">
-              <div class="fld"><label for="fSituation">{{form.situation.label}}</label><input id="fSituation" name="situation" placeholder="{{form.situation.placeholder}}"></div>
-              <div class="fld"><label for="fAreas">{{form.areas.label}}</label><input id="fAreas" name="areas" placeholder="{{form.areas.placeholder}}"></div>
-              <div class="fld"><label for="fMsg">{{form.message.label}}</label><textarea id="fMsg" name="message" rows="2" placeholder="{{form.message.placeholder}}"></textarea></div>
-            </div>
-          </details>
-
-          <!-- what the Check-in learned (its three answers, the papers in hand): filled by the page, printed in the operator's summary -->
-          <input type="hidden" id="fCheckin" name="checkin" value="">
-          <input type="hidden" id="fDossier" name="dossier" value="">
-          <!-- honeypot: a hidden field real people never see; the server answers 200 and writes nothing -->
-          <input id="fCompany" name="company" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-          <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
-
-          <noscript><p class="ferr on">This form needs JavaScript. Write to us on <a href="{{contact.waHref}}">WhatsApp</a> or at <a href="mailto:{{contact.email}}">{{contact.email}}</a>.</p></noscript>
-          <button type="submit" class="paybtn" id="fGo" disabled data-door-sub data-wa="{{contact.waHref}}" data-mail="{{contact.email}}"><span class="lk"><svg class="lk-plane" aria-hidden="true"><use href="#boomPlane"/></svg></span><span class="tx"><b>{{door.label}}</b><small>{{door.sub}}</small></span><span class="amt">→</span></button>
-          <p class="consent">{{form.consentLead}} <a href="/privacy">privacy</a>. {{form.consentAlt}} <a href="{{contact.waHref}}" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:{{contact.email}}?subject=BOOM%20{{city}}">{{contact.email}}</a></p>
-        </form>
-
-        <!-- the door's end states: the file open and the paid landing. The status
-             lives once, on the ticket; the offer to pay is the ticket stub's till -->
-{{{sentHtml}}}
+<main class="wrap" id="main">
+  <!-- ═══ THE PASS — the first phone screen is one boarding pass: the city on
+       the board, one sentence (with the desk's must-state), the three fares
+       (who each is for, the price with its condition, the refund rule under
+       the €500 where the desk sells), one gold door, who answers and when.
+       A fare row is a <details>: it opens ITS ticket in place. ═══ -->
+  <article class="pass" id="pass" data-state="blank" aria-labelledby="h1">
+    <div class="p-main">
+      <div class="p-head">
+        <p class="p-desk">BOOM {{city}}</p>
+        <p class="slot"><span class="slot-t">Tenant side</span><span class="slot-b" aria-hidden="true"></span><span class="sr" id="slotSr" role="status"></span></p>
       </div>
-      <!-- /THE DOOR -->
+      <h1 id="h1"><span class="h1a">{{hero.h1Before}}</span> <span class="sr">{{city}}</span><span class="board" id="placeBoard" aria-hidden="true" data-word="{{word}}" style="--n:{{wordLen}}"></span></h1>
+      <p class="lead">{{hero.lead}} <b>{{hero.leadStrong}}</b></p>
+      <!-- FARES -->
+{{{faresHtml}}}
+      <!-- /FARES -->
     </div>
-  </section>
 
-  <!-- ═══ 02 · HOW IT WORKS ═══ -->
-  <section id="how" class="rv">
-    <div class="sec-h">
-      <span class="num">{{how.num}}</span>
-      <h2>{{how.h2}} <span class="g">{{how.h2g}}</span></h2>
-    </div>
-    <div class="steps">
+    <div class="perf" aria-hidden="true"><i class="notch a"></i><i class="notch b"></i></div>
+
+    <div class="stub"><div class="stub-in">
+      <p class="code-big" aria-hidden="true"><span>To</span><b>{{iata}}</b></p>
+      <div id="stubSlot">
+        <!-- THE DOOR — one node: the door, its two fields, the states. On a
+             phone it moves into the open ticket; it is never two doors. -->
+        <div id="act">
+{{{actHtml}}}
+        </div>
+        <!-- /THE DOOR -->
+      </div>
+      <dl class="fields desk">
+        <div><dt>Answers</dt><dd>{{desk.person}}</dd></div>
+        <div><dt>Desk</dt><dd>{{{deskLineHtml}}}</dd></div>
+      </dl>
+    </div></div>
+  </article>
+
+  <p class="proof">Operated by {{entity.legalName}}, a registered Italian agency · {{{ratingHtml}}}</p>
+
+  <div class="below">
+    <section class="sec" id="how" aria-labelledby="howH">
+      <h2 id="howH">{{how.h2}} <span class="g">{{how.h2g}}</span></h2>
+      <ol class="itin">
 {{{stepsHtml}}}
-    </div>
-    {{{whoHtml}}}
-  </section>
+      </ol>
+    </section>
 
-  <!-- ═══ 03 · SERVICES & FEES — three plates, the price as text, one door ═══ -->
-  <section id="services" class="rv">
-    <div class="sec-h">
-      <span class="num">{{pricing.num}}</span>
-      <h2>{{pricing.h2}} <span class="g">{{pricing.h2g}}</span></h2>
-    </div>
-    <p class="sec-sub">{{pricing.sub}}</p>
-    <div class="sibs plates">
-{{{plansHtml}}}
-    </div>
-    <p class="feenote">{{{feenoteHtml}}}</p>
-  </section>
+    <section class="sec" id="checks" aria-labelledby="chkH">
+      <h2 id="chkH">{{checks.h2}} <span class="g">{{checks.h2g}}</span></h2>
+      <div class="folds">
+{{{checksHtml}}}
+      </div>
+    </section>
 
-  <!-- ═══ 04 · BEFORE YOU SIGN — six checks, one line each ═══ -->
-  <section id="checks" class="rv">
-    <div class="sec-h">
-      <span class="num">{{checks.num}}</span>
-      <h2>{{checks.h2}} <span class="g">{{checks.h2g}}</span></h2>
-    </div>
-    <p class="sec-sub">{{checks.sub}}</p>
-    <div class="flows">
-{{{flowsHtml}}}
-    </div>
-  </section>
-
-  <!-- ═══ 05 · FAQ — the depth, folded away ═══ -->
-  <section id="faq" class="rv">
-    <div class="sec-h">
-      <span class="num">{{faq.num}}</span>
-      <h2>{{faq.h2}} <span class="g">{{faq.h2g}}</span></h2>
-    </div>
-    <div class="faq">
+    <section class="sec" id="faq" aria-labelledby="faqH">
+      <h2 id="faqH">{{faq.h2}}</h2>
+      <div class="folds">
 {{{faqHtml}}}
-    </div>
-  </section>
+      </div>
+    </section>
 
-  <!-- ═══ in brief — written to be quoted (GEO). Machine content AFTER the human
-       content, and folded for humans: whole in the DOM for the machines ═══ -->
-  <section id="enbref-wrap" class="late">
-    <details class="sheetfold">
-      <summary>{{bref.h2}}</summary>
-      <div class="enbref" id="enbref">
-        <h2>{{bref.h2}} <span class="ref" aria-hidden="true">{{bref.ref}}</span></h2>
-        <dl>
+    <!-- in brief — written to be quoted (GEO): folded for people, whole in the DOM for machines -->
+    <section class="sec brief" id="enbref-wrap" aria-label="{{bref.h2}}">
+      <details class="sheet">
+        <summary>{{bref.h2}}</summary>
+        <dl class="enbref" id="enbref">
 {{{brefHtml}}}
         </dl>
-      </div>
-    </details>
-  </section>
+      </details>
+    </section>
+
+    <footer class="foot">
+      <p class="stmt">{{footer.statement}}</p>
+      <p>{{entity.legalName}} · {{entity.address}} · Registered office: {{entity.registeredOffice}} · P.IVA {{entity.vat}} · REA {{entity.rea}}</p>
+      <p>{{entity.trademark}}</p>
+      <nav aria-label="Legal and contact">
+        <a href="mailto:{{contact.email}}">{{contact.email}}</a>
+        <a href="tel:+{{contact.whatsapp}}">{{contact.phoneDisplay}}</a>
+        <a href="/terms#city-desks">Terms</a>
+        <a href="/privacy">Privacy</a>
+{{{footLinksHtml}}}
+      </nav>
+      <p>© {{year}} BOOM</p>
+    </footer>
+  </div>
 </main>
 
-<footer class="footer late">
-  <div class="container">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-brand-logo" style="gap:14px">
-          <svg aria-hidden="true" style="width:56px;height:56px"><use href="#boomMark"/></svg>
-          <span style="font-size:26px">BOOM</span>
-          <span class="bl-div" aria-hidden="true" style="height:30px"></span>
-          <span class="bl-desk">{{city}}<br>{{nav.desk}}</span>
-        </div>
-        <p class="footer-tagline">{{footer.tagline}}</p>
-        <p class="footer-statement">{{footer.statement}}</p>
-        <div class="footer-company">
-          <strong>{{entity.legalName}}</strong><br>{{entity.address}}<br>Registered office: {{entity.registeredOffice}}<br>P.IVA {{entity.vat}} · REA {{entity.rea}}
-        </div>
-        <div class="footer-tm">{{entity.trademark}}</div>
-      </div>
-      <div>
-        <h4 class="footer-links-title">{{city}}</h4>
-        <ul class="footer-links-list">
-          <li><a href="#plan">{{nav.plan}}</a></li>
-          <li><a href="#how">{{nav.how}}</a></li>
-          <li><a href="#services">{{nav.services}}</a></li>
-          <li><a href="#checks">{{nav.checks}}</a></li>
-          <li><a href="#faq">{{nav.faq}}</a></li>
-          <li><a href="#contact">{{door.label}}</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">{{desksLabel}}</h4>
-        <ul class="footer-links-list">
-{{{footerFamilyHtml}}}
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">BOOM</h4>
-        <ul class="footer-links-list">
-{{{footerBoomHtml}}}
-          <li><a href="{{contact.waHref}}" target="_blank" rel="noopener">WhatsApp</a></li>
-          <li><a href="/terms#city-desks">Terms</a></li>
-          <li><a href="/privacy">Privacy</a></li>
-        </ul>
-      </div>
-    </div>
-    <div class="footer-bottom">
-      <span>© {{year}} BOOM</span>
-      <span>{{entity.legalName}} · {{city}}</span>
-    </div>
-  </div>
-</footer>
-
-<!-- the till (only where the desk sells: checkout:true — a waitlist desk never carries it) -->
-{{{checkoutHtml}}}
-
-<!-- the strip on a phone: the one door, no price -->
-{{{stripHtml}}}
-
-<!-- CONFIG — generated from cities/{{slug}}.json. No secrets, no keys: the form posts to our own API. -->
+<!-- the phone strip: the one door, only while the pass's door is off screen; no price -->
+<div class="strip js" id="strip" aria-hidden="true" inert>
+  <p class="st-t">{{city}}<small data-window="{{doorLead}} · {w}">{{doorLead}} · {{deskHoursText}}</small></p>
+  <button class="st-go" id="stripGo" type="button">{{door.label}}</button>
+</div>
+{{{tillHtml}}}
+<!-- CONFIG — generated from cities/{{slug}}.json. No secrets, no keys: the forms post to our own API. -->
 <script>
   window.BOOM_CITY = {{{configJson}}};
 </script>
@@ -346,13 +179,13 @@
      never ran (a failed download, an early error) the button stays shut: say
      where to write instead of leaving a door that does nothing. */
   addEventListener('load', function () {
-    var b = document.getElementById('fGo');
-    if (!b || !b.disabled || document.getElementById('fJsFail')) return;
+    var b = document.getElementById('door');
+    if (!b || !b.disabled || document.getElementById('jsFail')) return;
     var p = document.createElement('p'), wa = document.createElement('a'), ml = document.createElement('a');
-    p.className = 'ferr on'; p.id = 'fJsFail'; p.setAttribute('role', 'alert');
-    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp';
-    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail');
-    p.append('This form could not load. Write to us on ', wa, ' or at ', ml, '.');
+    p.className = 's-h'; p.id = 'jsFail'; p.setAttribute('role', 'alert');
+    wa.href = b.getAttribute('data-wa'); wa.textContent = 'WhatsApp'; wa.className = 'lnk';
+    ml.href = 'mailto:' + b.getAttribute('data-mail'); ml.textContent = b.getAttribute('data-mail'); ml.className = 'lnk';
+    p.append('This page could not load its form. Write to the desk on ', wa, ' or at ', ml, '.');
     b.parentNode.insertBefore(p, b);
   });
 </script>

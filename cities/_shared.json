@@ -13,8 +13,7 @@
     "whatsapp": "393313251961",
     "phoneDisplay": "+39 331 325 1961",
     "email": "hello@boom-rome.com",
-    "waText": "Hi BOOM {city}, I'm moving to {city}.",
-    "waPlan": "My plan: {plan}{answers}."
+    "waText": "Hi BOOM {city}, I'm moving to {city}."
   },
   "organization": {
     "name": "BOOM Rome",
@@ -86,7 +85,5 @@
     "since": "2020",
     "profileUrl": "https://maps.google.com/?cid=15671179095441549815"
   },
-  "copyrightYear": "2026",
-  "moveInFrom": "2026-10",
-  "desksLabel": "BOOM desks"
+  "copyrightYear": "2026"
 }
