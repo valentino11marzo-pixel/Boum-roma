@@ -488,5 +488,24 @@ const call = async (query) => {
   for (const path of addedListings.concat(addedPubs)) DB.delete(path);
 }
 
+{
+  const old = DB.get('listings/apt-a');
+  listing('apt-a', {...old, catalogReview:{price:'conflict',availability:'conflict'},
+    description:'Old price 1500, available immediately.'});
+  const r = (await call({op:'catalog',reference:'apt-a',moveIn:'2099-12-31',maxPrice:'2000'})).body.results[0];
+  check('fonti discordanti conservano identita ma non prezzo o data finti', r.id === 'apt-a'
+    && r.priceEurMonth === null && r.availableFrom === null && r.availability.date === null
+    && r.availability.state === 'needs_confirmation' && r.description === null
+    && r.requiresConfirmation.includes('price') && r.requiresConfirmation.includes('availability')
+    && r.criteriaMatch === false, r);
+  const generic = (await call({op:'catalog'})).body.listings.find(r=>r.id==='apt-a');
+  check('conflitti visibili anche nel catalogo compatto', generic.priceEurMonth === null
+    && generic.requiresConfirmation.includes('price') && generic.availability.state === 'needs_confirmation');
+  listing('apt-a', {...old,status:'rented',catalogReview:{availability:'conflict'}});
+  check('conflitto non riapre una casa affittata',
+    (await call({op:'catalog',reference:'apt-a'})).body.results[0].availability.state === 'unavailable');
+  listing('apt-a', old);
+}
+
 console.log(failed ? `\n${failed} FAILED (${passed} passed)` : `\nAll ${passed} property resolver checks passed`);
 process.exit(failed ? 1 : 0);

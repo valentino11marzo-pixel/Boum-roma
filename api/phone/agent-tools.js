@@ -65,8 +65,10 @@ function catalogEntry(l, today) {
   const lane = DISPO.marketLane(normalized, today);
   const catalogState = DISPO.catalogState(normalized, today);
   const unavailable = UNAVAILABLE_STATUSES.has(status);
+  const priceConflict = l.catalogReview?.price === 'conflict';
+  const dateConflict = l.catalogReview?.availability === 'conflict';
   const state = unavailable ? 'unavailable'
-    : !['available', 'waitlist'].includes(status) || catalogState.state === 'check' ? 'needs_confirmation'
+    : dateConflict || !['available', 'waitlist'].includes(status) || catalogState.state === 'check' ? 'needs_confirmation'
     : catalogState.state === 'date' ? 'available_later' : catalogState.state === 'now' ? 'available_now' : 'unavailable';
   return {
     id: l.id, name: text(l.name), address: text(l.address), zone: text(l.zone),
@@ -74,17 +76,19 @@ function catalogEntry(l, today) {
     // le camere con la regola unica del sito (js/listing-facts.js): la voce
     // al telefono dice lo stesso numero della scheda. 0 è un dato
     // (monolocale), null vuol dire che non si sanno
-    priceEurMonth: number(l.price), bedrooms: FACTS.bedroomsOf(l),
+    priceEurMonth: priceConflict ? null : number(l.price), bedrooms: FACTS.bedroomsOf(l),
     sqm: number(l.sqm ?? l.size), bathrooms: number(l.bathrooms), floor: floorText(l.floor),
     // la regola unica dell'arredo (js/listing-facts.js): il catalogo scrive
     // 'yes'/'no'/'partial', e leggere solo il booleano faceva rispondere alla
     // voce «non lo so» su ogni casa vera
     furnished: FACTS.furnishedOf(l.furnished),
     depositMonths: number(l.depositMonths),
-    availableFrom: text(l.availableFrom) || text(l.availableDate),
-    availability: { state, date: lane.iso, precision: lane.precision,
+    availableFrom: dateConflict ? null : text(l.availableFrom) || text(l.availableDate),
+    availability: { state, date: dateConflict ? null : lane.iso, precision: dateConflict ? null : lane.precision,
       yearInferred: lane.yearGuessed, source: lane.source },
-    description: text(l.description, 600), descriptionIt: text(l.descriptionIt, 600),
+    requiresConfirmation: [priceConflict && 'price', dateConflict && 'availability'].filter(Boolean),
+    description: priceConflict || dateConflict ? null : text(l.description, 600),
+    descriptionIt: priceConflict || dateConflict ? null : text(l.descriptionIt, 600),
     descriptionTruncated: typeof l.description === 'string' && l.description.trim().length > 600
       || typeof l.descriptionIt === 'string' && l.descriptionIt.trim().length > 600,
     features: Array.isArray(l.features) ? l.features.map(v => text(v, 80)).filter(Boolean).slice(0, 15) : [],
@@ -100,7 +104,7 @@ function catalogSummary(entry) {
     id: entry.id, name: entry.name, address: entry.address, type: entry.type, zone: entry.zone,
     priceEurMonth: entry.priceEurMonth, bedrooms: entry.bedrooms, sqm: entry.sqm,
     furnished: entry.furnished, availableFrom: entry.availableFrom,
-    availability: entry.availability, url: entry.url,
+    availability: entry.availability, requiresConfirmation: entry.requiresConfirmation, url: entry.url,
   };
 }
 
