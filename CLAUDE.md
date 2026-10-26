@@ -7163,6 +7163,12 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   La nota del catalogo distingue stanza e appartamento intero e richiede verifica quando il tipo è sconosciuto; `bedrooms` non prova il numero totale di locali.
   Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
 
+- **Catalogo voce, assenza non è indisponibilità (26/10)**: nella chiamata reale su Petronio Arbitro il tool restituiva `none + verified` e la voce negava la disponibilità. I 27 record erano letti correttamente: mancava l’annuncio nella fonte BOOM.
+  `phone/agent-tools` rende `none` da confermare, con richiesta del riferimento distinta dalla ricerca senza identità; nessun risultato vuoto prova una casa affittata. Nessuna importazione o cambio commerciale automatico.
+  Il generico conserva indirizzo e stato disponibilità; `DISPO.catalogState` marca date assenti, scadute in waitlist o con anno dedotto da verificare. Il veto rented/reserved resta invariato.
+  Risposte `private,no-store`; letture ripetute vedono le modifiche della fonte. Non è provato che una cache causasse l’incidente.
+  Prove `phone` e `phoneresolver`: 52 controlli resolver, casi assenti Petronio/Val d’Ossola, due Tor di Quinto ambigui, data sconosciuta e quattro mutazioni. Mandato ElevenLabs e completezza dei dati reali sono verifiche separate dal codice.
+
 - **Risolutore Immobile Unico v1 (27/09)**: `phone/agent-tools` conserva il catalogo senza input e accetta riferimenti BOOM/portale mappati, nome o indirizzo e filtri dichiarati.
   Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali diventano `needs_confirmation`, mentre un id BOOM noto viene controllato sul documento esatto.
   Il contratto configurabile del tool (`bot/RECEPTIONIST.md`) dichiara `reference`, `query`, `type`, `zone`, `maxPrice` e `moveIn`; non attesta che i parametri siano già stati applicati sul provider live.
