@@ -169,6 +169,7 @@ const SUITES = [
   { name: 'owners', file: 'tests/owners/run.mjs', what: 'pagina proprietari: il proprietario non riceve mai la voce inquilino (anche /canone), risposta pronta col Lei senza richiedere ciò che sa, una card Telegram valida prima della risposta, una porta sola e solo promesse vere; mutazioni' },
   { name: 'feed',     file: 'tests/feed/run.mjs',         what: 'feed Immobiliare: solo il pubblicabile, identità e date da specifica, la precisione del pin non si spaccia, gzip vero' },
   { name: 'publisher', file: 'tests/publisher/run.mjs',   what: 'Il Pubblicista: diff guidato dallo stato, remove prima di create, fallimenti parcheggiati non a vuoto, pannello bloccato ≠ catalogo allineato' },
+  { name: 'portaladoption', file: 'tests/publisher/adoption.mjs', what: 'codici agenzia su listing esistenti: anteprima, adozione senza ricevuta, versioni e unicità concorrente, resolver voce e mutazione revisione' },
   { name: 'sdd',      file: 'tests/sdd/run.mjs',          what: 'canone automatico SEPA: un addebito per rata per costruzione, mai il deposito, mai debiti pre-mandato, un fallimento non si ritenta da solo, doppio incasso mai sovrascritto' },
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'signbutton', file: 'tests/sign/button.mjs',    what: 'il bottone «Firma» di /sign si accende con firma + spunta (inquilino e locatore) e porta alla conferma — il cancello del flusso personalizzato non blocca il contratto BOOM' },

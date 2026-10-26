@@ -708,6 +708,12 @@ L’API ora restituisce una proiezione minima della stessa casa usata nel confro
 `catalogocasaui` riproduce la modifica dello stesso ID da un altro tab (fallisce prima della correzione), una risposta precedente sorpassata, errore e retry, campi rimossi e nome reso come testo; `catalogocasa` verifica la proiezione limitata ai cinque campi visualizzati.
 
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+**Adozione riferimenti agenzia (26/10):** `scripts/catalogo-adopt-portals.mjs` collega codici verificati ai `listings` esistenti in `portalPubs`, con anteprima predefinita e conferma dell’impronta del piano; non crea case né riscrive prezzo/disponibilità/contratti.
+`managementMode:'reference_only'` permette al catalogo voce di risolvere i codici, ma vieta create/update/remove e rapporti tardivi: nessun hash, stato live, ricevuta o notifica viene inventato. La scheda casa distingue il riferimento dall’invio.
+Adozione e rapporti usano `fsCommit`, versioni lette e incremento atomico di `settings/catalogPortalAdoption.revision`: due scritture concorrenti, anche su case diverse, non passano entrambe. Il piano rifiuta codici già assegnati, letture incomplete, versioni cambiate e Pubblicista abilitato; un retry identico non scrive.
+Il feed Immobiliare si ferma interamente con `reference_only_feed_blocked` se esistono riferimenti Immobiliare senza permesso di gestione, anche per nodo singolo/gzip: omettere una casa dal batch potrebbe essere interpretato come ritiro dal destinatario.
+Prima dell’adozione vanno rilasciate queste guardie; non revocano file o azioni già esportati. Scritture manuali che ignorano la revisione comune restano fuori dal protocollo e non devono correre durante il riallineamento. Nessuna impostazione del Pubblicista viene attivata.
+Prove: `portaladoption`, `publisher`, `catalogocasa`, `feed` e `phoneresolver`; servizi simulati, conflitti atomici, risposta persa, veto completo, voce con URL/codice e mutazioni della revisione e delle guardie.
 Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
 L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
 Il catalogo salvato non prova un aggiornamento su Idealista/Immobiliare: resta necessaria la ricevuta in `portalPubs`.
