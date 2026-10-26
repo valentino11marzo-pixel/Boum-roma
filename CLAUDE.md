@@ -134,6 +134,12 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 26/10 l'archivio riconosce lo stesso ID Immobiliare nelle quattro forme HTTPS con/senza `www` e slash finale; l'equivalenza vale solo per confronti/letture dei record BOOM, senza cambiare `normalizeUrl` o provare altre destinazioni della fonte.
+`_reuse` cerca le varianti in parallelo, deduplica e sceglie la pubblicazione BOOM più recente (`createdAt`, ripiego su `observedAt`), conservando la data originale dell'osservazione. Una query fallita o satura a 50 risultati non certifica un'ultima versione.
+`extract` con `archiveOnly:true` legge esclusivamente `smartlinks`: il Portal lo usa prima di accodare al lettore centrale. Foto già su Storage restano disponibili senza un lettore online o nuovi caricamenti dal telefono; risposte tardive sono scartate.
+Il recupero Radar integra soltanto campi mancanti, senza confondere `bedrooms` con locali; porta un riferimento privato fino alla pubblicazione. `create` rilegge quel record e verifica l'identità, conserva `observedAt:null` e separa `createdAt`: dati archiviati non diventano verificati oggi.
+Reimportare/riprendere lo stesso URL sostituisce i campi autoimportati rimasti invariati; gli edit manuali si conservano. Se derivano da dati storici, `historicalData:true` può soltanto togliere la data di osservazione, non autorizzare foto; cambia il contenuto confrontato nel retry.
+Prove con handler/controller reali in `tests/smartlink/{identity,archive,run,studio}.mjs`: canone della nuova versione, alias, dati mancanti, provenienza, isolamento fonte/foto, errori e corse. Il collaudo di un annuncio nuovo bloccato resta separato: queste correzioni non ne autorizzano l'importazione.
 Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
 Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
 `draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.

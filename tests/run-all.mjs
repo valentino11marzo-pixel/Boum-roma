@@ -17,6 +17,8 @@ const SUITES = [
   { name: 'rentwriteui', file: 'tests/rent-write/ui.mjs', what: 'form reali: doppio tap, risposta persa, bozza, sessione e conferma dal server' },
   { name: 'rentwritemutations', file: 'tests/rent-write/mutate.mjs', what: 'difetti ripristinati: stato protetto, versione obsoleta, centesimi, riferimenti e copertura' },
   { name: 'smartlink', file: 'tests/smartlink/run.mjs', what: 'annuncio esterno: fonte privata, auth admin, foto approvate, mappa indicativa e POI' },
+  { name: 'smartlinkidentity', file: 'tests/smartlink/identity.mjs', what: 'identità archivio per ID Immobiliare, varianti storiche limitate e nessuna modifica alle destinazioni di rete' },
+  { name: 'smartlinkarchive', file: 'tests/smartlink/archive.mjs', what: 'ultima pubblicazione BOOM, foto proprie, età conservata, alias e query incomplete rifiutate' },
   { name: 'mailbox', file: 'tests/mailbox/server.mjs', what: 'ricerca e lettura posta reali, solo admin, MIME limitato, riferimenti e timeout; zero invii o AI' },
   { name: 'mailboxui', file: 'tests/mailbox/ui.mjs', what: 'posta dalla Home, lettore mobile, fonti esplicite, sessioni e risposte concorrenti' },
   { name: 'mailboximport', file: 'tests/mailbox/import.mjs', what: 'email scelta → conversazione esistente: fonte riletta, identità, commit atomico, retry e nessun turno automatico' },
