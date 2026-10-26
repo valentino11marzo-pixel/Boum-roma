@@ -28413,7 +28413,7 @@ IBAN: ${l.iban || '-'}`;
         smartLinkBusy=false;
         smartLinkStopPolling(); smartLinkJob=null;
         smartLinkArea?.destroy();
-        smartLinkClearPhotos();
+        smartLinkClearPhotos(); smartLinkResetFieldState();
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active sl-studio-overlay" onclick="if(event.target===this)smartLinkClose()">
           <div class="modal sl-studio" role="dialog" aria-modal="true" aria-labelledby="sl_studio_title">
@@ -28441,17 +28441,50 @@ IBAN: ${l.iban || '-'}`;
         smartLinkRecent();
     }
 
-    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    let smartLinkArea, smartLinkJob=null, smartLinkArchive=null, smartLinkRadar=null, smartLinkPollTimer, smartLinkPollVersion=0;
+    const smartLinkFields=['title','price','zone','sqm','rooms'];
+    let smartLinkFieldSnapshots={};
+    function smartLinkResetFieldState() { smartLinkFieldSnapshots={}; }
+    // Un nuovo campione sostituisce gli autofill invariati; le modifiche dell'operatore restano.
+    function smartLinkPrepareFields() {
+        const retained={};
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key), prior=smartLinkFieldSnapshots[key];
+            if(!el) return;
+            if(prior && !prior.manual && el.value===prior.value) {
+                el.value='';
+                if(key==='zone' || key==='title') smartLinkArea?.reset();
+            } else if(prior || el.value) retained[key]={value:el.value,historical:prior?.historical===true,manual:true};
+        });
+        smartLinkFieldSnapshots=retained;
+    }
+    function smartLinkApplyFields(data,historical=false) {
+        smartLinkFields.forEach(key=>{
+            const el=document.getElementById('sl_'+key);
+            if(el && !el.value && !smartLinkFieldSnapshots[key]?.manual && data?.[key]) {
+                el.value=data[key]; smartLinkFieldSnapshots[key]={value:el.value,historical};
+            }
+        });
+    }
+    function smartLinkHasHistoricalData() {
+        return smartLinkFields.some(key=>{
+            const value=document.getElementById('sl_'+key)?.value || '', prior=smartLinkFieldSnapshots[key];
+            return !!value.trim() && prior?.historical===true && (prior.manual===true || value!==prior.value);
+        });
+    }
+    function smartLinkHistoryNotice() {
+        return smartLinkHasHistoricalData()?' Hai conservato modifiche a dati di una precedente importazione. La scheda non li indicherà come rilevati oggi.':'';
+    }
     function smartLinkStopPolling() { clearTimeout(smartLinkPollTimer); smartLinkPollVersion++; }
     let smartLinkPhotoItems = [], smartLinkPhotoGeneration = 0, smartLinkPhotoPending = Promise.resolve(), smartLinkPhotoPreparing = false, smartLinkBusy = false;
     function smartLinkClearPhotos() {
-        smartLinkPhotoGeneration++; smartLinkArchive=null;
+        smartLinkPhotoGeneration++; smartLinkArchive=null; smartLinkRadar=null;
         smartLinkPhotoItems.forEach(item => URL.revokeObjectURL(item.url));
         smartLinkPhotoItems = [];
         smartLinkPhotoPending = Promise.resolve();
         smartLinkPhotoPreparing = false;
     }
-    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
+    function smartLinkClose() { if (smartLinkBusy) { toast('info','Attendi il caricamento delle foto'); return; } smartLinkStopPolling(); smartLinkJob=null; document.getElementById('sl_lightbox')?.remove(); smartLinkClearPhotos(); smartLinkResetFieldState(); smartLinkArea?.destroy(); smartLinkArea=null; closeModal(); }
 
     function smartLinkSourceChanged() {
         const source = document.getElementById('sl_source');
@@ -28461,6 +28494,7 @@ IBAN: ${l.iban || '-'}`;
         smartLinkStopPolling(); smartLinkJob=null;
         const importButton=document.getElementById('sl_import'); if(importButton) importButton.disabled=false;
         ['title','price','zone','sqm','rooms','note'].forEach(k => { const el=document.getElementById('sl_'+k); if (el) el.value=''; });
+        smartLinkResetFieldState();
         document.getElementById('sl_photos').value=''; smartLinkClearPhotos(); smartLinkRenderPhotos();
         smartLinkArea?.reset();
         document.getElementById('sl_key').value=window.crypto.randomUUID();
@@ -28509,7 +28543,7 @@ IBAN: ${l.iban || '-'}`;
     function smartLinkResume(job) {
         if(smartLinkBusy) return;
         const source=document.getElementById('sl_source'); source.value=job.sourceUrl;
-        smartLinkSourceChanged(); smartLinkStopPolling(); smartLinkClearPhotos();
+        smartLinkSourceChanged(); smartLinkPrepareFields(); smartLinkStopPolling(); smartLinkClearPhotos();
         document.getElementById('sl_key').value=job.draftKey;
         document.getElementById('sl_draft_key').value=job.draftKey;
         const create=document.getElementById('sl_create');create.disabled=false;delete create.dataset.created;create.textContent='Crea SmartLink BOOM ↗';
@@ -28536,7 +28570,8 @@ IBAN: ${l.iban || '-'}`;
         if(job.status==='ready') {
             const key=document.getElementById('sl_draft_key').value;
             smartLinkPhotoItems=(job.images || []).filter(url=>window.BOOM_SMARTLINK.validImageUrl(url,key)).map((url,i)=>({remoteUrl:url,url,name:'Foto annuncio '+(i+1)}));
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && job.data?.[k]) el.value=job.data[k];});
+            smartLinkApplyFields(job.data);
+            status.textContent+=smartLinkHistoryNotice();
             smartLinkArea?.suggest(job.data?.zone || job.data?.title || '');
             smartLinkRenderPhotos(`${smartLinkPhotoItems.length} foto pronte. La prima è la copertina.${job.missingPhotos?' '+job.missingPhotos+' foto non sono state recuperate.':''}`);
         } else smartLinkRenderPhotos(active?'Recupero automatico in corso…':'Nessuna foto importata.');
@@ -28561,6 +28596,7 @@ IBAN: ${l.iban || '-'}`;
         const source=window.BOOM_SMARTLINK.normalizeUrl(document.getElementById('sl_source')?.value);
         const status=document.getElementById('sl_status');
         if(!source) {status.textContent='Incolla il link completo di un annuncio supportato.';return;}
+        smartLinkPrepareFields();
         smartLinkStopPolling();
         const version=smartLinkPollVersion;
         if(smartLinkJob || document.getElementById('sl_create')?.dataset.created==='1') document.getElementById('sl_key').value=window.crypto.randomUUID();
@@ -28577,6 +28613,16 @@ IBAN: ${l.iban || '-'}`;
             document.getElementById('sl_connection').hidden=capabilities.enabled!==false || document.documentElement.dataset.boomSmartlinkExtension!=='1';
             if(capabilities.enabled===false) {await smartLinkExtractDirect(source,version,useConnectedBrowser===true);return;}
             if(capabilities.enabled!==true) throw new Error('queue_unavailable');
+            // Il controllo dell'archivio non apre la fonte né richiede il lettore.
+            const token=await auth.currentUser.getIdToken();
+            const archiveResponse=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(25000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url,archiveOnly:true})});
+            if(version!==smartLinkPollVersion) return;
+            const archived=await archiveResponse.json();
+            if(version!==smartLinkPollVersion) return;
+            if(!archiveResponse.ok || !archived.ok) throw new Error('archive_unavailable');
+            if(archived.photoOrigin==='boom_archive' && archived.images?.length) {
+                await smartLinkExtractDirect(source,version,false,archived);return;
+            }
             status.textContent='Salvo la richiesta di importazione…';
             const result=await smartLinkJobRequest('',{url:source.url,draftKey:document.getElementById('sl_key').value});
             if(version!==smartLinkPollVersion) return;
@@ -28585,7 +28631,7 @@ IBAN: ${l.iban || '-'}`;
             if(['queued','reading'].includes(result.job.status)) smartLinkPoll(result.job.id,version);
         } catch(error) {
             if(version!==smartLinkPollVersion) return;
-            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.'};
+            const messages={reader_not_enabled:'Il lettore centrale BOOM deve ancora essere attivato. Questa richiesta non è partita.',too_many_pending:'Hai già cinque importazioni in attesa. Riprendile dalle importazioni recenti.',archive_unavailable:'L’archivio BOOM non è raggiungibile. Nessuna nuova richiesta è partita: riprova tra poco.'};
             status.textContent=messages[error.message] || 'Non ho conferma del salvataggio. Premi di nuovo Importa: la stessa richiesta non verrà duplicata.';
             document.getElementById('sl_import').disabled=false;smartLinkRenderPhotos('Foto non ancora importate.');
             smartLinkPhotoPreparing=false;
@@ -28606,14 +28652,14 @@ IBAN: ${l.iban || '-'}`;
         });
     }
 
-    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false) {
+    async function smartLinkExtractDirect(source,version,useConnectedBrowser=false,archivedResult=null) {
         const status=document.getElementById('sl_status');
         const current=()=>version===smartLinkPollVersion;
         status.textContent='Cerco la casa nell’archivio BOOM e nella fonte. Tieni aperta questa pagina…';
         try {
             const token=await auth.currentUser.getIdToken();
-            let data={images:[],data:{}};
-            try {
+            let data=archivedResult || {images:[],data:{}};
+            if(!archivedResult) try {
                 const response=await fetch('/api/smartlink/extract',{method:'POST',signal:AbortSignal.timeout(35000),headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({url:source.url})});
                 const result=await response.json();
                 if(response.ok && result.ok) data=result;
@@ -28625,10 +28671,11 @@ IBAN: ${l.iban || '-'}`;
                 if(browserResult?.images?.length) {
                     const fields={...(browserResult.data || {})};
                     Object.entries(data.data || {}).forEach(([k,v])=>{if(v) fields[k]=v;});
-                    data={images:browserResult.images,data:fields};
+                    data={images:browserResult.images,data:fields,...(data.radar?{radar:data.radar}:{})};
                 }
             }
-            ['title','price','zone','sqm','rooms'].forEach(k=>{const el=document.getElementById('sl_'+k);if(el && !el.value && data.data?.[k]) el.value=data.data[k];});
+            smartLinkRadar=/^h_[a-f0-9]{16}$/.test(data.radar?.id || '') ? {id:data.radar.id} : null;
+            smartLinkApplyFields(data.data,!!smartLinkRadar || data.photoOrigin==='boom_archive');
             smartLinkArea?.suggest(data.data?.zone || data.data?.title || '');
             if(data.photoOrigin==='boom_archive' && /^[A-Za-z0-9_-]{20}$/.test(data.archive?.id || '')) {
                 const images=(Array.isArray(data.images)?data.images:[]).filter(window.BOOM_SMARTLINK.validPublicImageUrl).slice(0,12);
@@ -28637,7 +28684,7 @@ IBAN: ${l.iban || '-'}`;
                     smartLinkPhotoItems=images.map((url,i)=>({url,remoteUrl:url,name:'Foto archivio '+(i+1)}));
                     const date=Date.parse(data.archive.observedAt);
                     const when=Number.isFinite(date)?' del '+new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'long',year:'numeric'}).format(new Date(date)):'';
-                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.';
+                    status.textContent='Foto recuperate dall’archivio BOOM'+when+'. Prezzo e disponibilità vanno riconfermati: la fonte non è stata riletta.'+smartLinkHistoryNotice();
                     smartLinkRenderPhotos(images.length+' foto già archiviate, pronte senza caricamenti. Scegli ordine e copertina.');
                     return;
                 }
@@ -28661,7 +28708,7 @@ IBAN: ${l.iban || '-'}`;
             }
             if(!current()) return;
             smartLinkRenderPhotos(smartLinkPhotoItems.length?`${smartLinkPhotoItems.length} foto importate. La prima è la copertina.${failed?' '+failed+' non disponibili.':''}`:'Le foto sono state trovate, ma il download è bloccato dalla fonte.');
-            status.textContent=smartLinkPhotoItems.length?'Controlla dati, foto, copertina e zona prima di creare.':'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
+            status.textContent=smartLinkPhotoItems.length?(smartLinkRadar?'Sono presenti dati già archiviati dal Radar BOOM. Canone e disponibilità vanno riconfermati; la scheda non li indicherà come verificati oggi.':'Controlla dati, foto, copertina e zona prima di creare.')+smartLinkHistoryNotice():'Nessuna foto pronta. La scheda non può essere pubblicata senza foto.';
         } catch {
             if(current()) {status.textContent='Lettura non riuscita. Riprova.';smartLinkRenderPhotos('Foto non disponibili.');}
         } finally {
@@ -28777,8 +28824,10 @@ IBAN: ${l.iban || '-'}`;
                 images.push(url);
             }
             const map=smartLinkArea.value();
+            const historicalData=smartLinkHasHistoricalData();
+            if(historicalData) document.getElementById('sl_status').textContent=smartLinkHistoryNotice().trim();
             const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
+            const r = await fetch('/api/smartlink/create', { method:'POST', headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer ' + token }, body:JSON.stringify({ idempotencyKey:key, draftKey, ...(smartLinkArchive?{archiveId:smartLinkArchive.id}:{}), ...(smartLinkRadar?{radarId:smartLinkRadar.id}:{}), ...(historicalData?{historicalData:true}:{}), sourceUrl:source.url, title:value('title'), price:value('price'), zone:value('zone'), sqm:value('sqm'), rooms:value('rooms'), note:value('note'), images, map }) });
             const d = await r.json();
             if(r.status===409 && d.error==='publication_conflict') {
                 publicationConflict=true;
