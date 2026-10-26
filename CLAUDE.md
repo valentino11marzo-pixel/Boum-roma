@@ -140,6 +140,12 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ### SmartLink annunci esterni (BOOM Tools)
+Dal 26/10 l'archivio riconosce lo stesso ID Immobiliare nelle quattro forme HTTPS con/senza `www` e slash finale; l'equivalenza vale solo per confronti/letture dei record BOOM, senza cambiare `normalizeUrl` o provare altre destinazioni della fonte.
+`_reuse` cerca le varianti in parallelo, deduplica e sceglie la pubblicazione BOOM più recente (`createdAt`, ripiego su `observedAt`), conservando la data originale dell'osservazione. Una query fallita o satura a 50 risultati non certifica un'ultima versione.
+`extract` con `archiveOnly:true` legge esclusivamente `smartlinks`: il Portal lo usa prima di accodare al lettore centrale. Foto già su Storage restano disponibili senza un lettore online o nuovi caricamenti dal telefono; risposte tardive sono scartate.
+Il recupero Radar integra soltanto campi mancanti, senza confondere `bedrooms` con locali; porta un riferimento privato fino alla pubblicazione. `create` rilegge quel record e verifica l'identità, conserva `observedAt:null` e separa `createdAt`: dati archiviati non diventano verificati oggi.
+Reimportare/riprendere lo stesso URL sostituisce i campi autoimportati rimasti invariati; gli edit manuali si conservano. Se derivano da dati storici, `historicalData:true` può soltanto togliere la data di osservazione, non autorizzare foto; cambia il contenuto confrontato nel retry.
+Prove con handler/controller reali in `tests/smartlink/{identity,archive,run,studio}.mjs`: canone della nuova versione, alias, dati mancanti, provenienza, isolamento fonte/foto, errori e corse. Il collaudo di un annuncio nuovo bloccato resta separato: queste correzioni non ne autorizzano l'importazione.
 Dal 25/10 un retry di pubblicazione conferma solo lo stesso contenuto normalizzato: canone, testo, area, provenienza e ordine foto diversi restituiscono `publication_conflict` (409), mai una falsa riuscita con i vecchi dati.
 Lo Studio propone «Crea nuova versione» dopo un conflitto; la scheda esistente resta invariata e la conferma crea un nuovo ID. Reimportare dopo una pubblicazione avvia già una nuova chiave.
 `draftKey` tiene le foto nella propria cartella anche quando cambia la chiave della pubblicazione; senza il campo resta valido il contratto storico. Foto di altre cartelle restano rifiutate, salvo riuso esplicito verificato tramite `archiveId`.
@@ -708,6 +714,12 @@ L’API ora restituisce una proiezione minima della stessa casa usata nel confro
 `catalogocasaui` riproduce la modifica dello stesso ID da un altro tab (fallisce prima della correzione), una risposta precedente sorpassata, errore e retry, campi rimossi e nome reso come testo; `catalogocasa` verifica la proiezione limitata ai cinque campi visualizzati.
 
 ### Il Pubblicista (`api/publisher/*` + `bot/PUBBLICISTA.md`)
+**Adozione riferimenti agenzia (26/10):** `scripts/catalogo-adopt-portals.mjs` collega codici verificati ai `listings` esistenti in `portalPubs`, con anteprima predefinita e conferma dell’impronta del piano; non crea case né riscrive prezzo/disponibilità/contratti.
+`managementMode:'reference_only'` permette al catalogo voce di risolvere i codici, ma vieta create/update/remove e rapporti tardivi: nessun hash, stato live, ricevuta o notifica viene inventato. La scheda casa distingue il riferimento dall’invio.
+Adozione e rapporti usano `fsCommit`, versioni lette e incremento atomico di `settings/catalogPortalAdoption.revision`: due scritture concorrenti, anche su case diverse, non passano entrambe. Il piano rifiuta codici già assegnati, letture incomplete, versioni cambiate e Pubblicista abilitato; un retry identico non scrive.
+Il feed Immobiliare si ferma interamente con `reference_only_feed_blocked` se esistono riferimenti Immobiliare senza permesso di gestione, anche per nodo singolo/gzip: omettere una casa dal batch potrebbe essere interpretato come ritiro dal destinatario.
+Prima dell’adozione vanno rilasciate queste guardie; non revocano file o azioni già esportati. Scritture manuali che ignorano la revisione comune restano fuori dal protocollo e non devono correre durante il riallineamento. Nessuna impostazione del Pubblicista viene attivata.
+Prove: `portaladoption`, `publisher`, `catalogocasa`, `feed` e `phoneresolver`; servizi simulati, conflitti atomici, risposta persa, veto completo, voce con URL/codice e mutazioni della revisione e delle guardie.
 Dal 17/10 viene integrata la correzione preparata il 12/10: configurazione assente o illeggibile = coda spenta.
 L'esecuzione richiede `settings/publisher.enabled:true` e `portals.<portale>.enabled:true`.
 Il catalogo salvato non prova un aggiornamento su Idealista/Immobiliare: resta necessaria la ricevuta in `portalPubs`.
@@ -5084,6 +5096,14 @@ con lease e recupero senza rifirmare. Legacy parziali senza impronta richiedono
 revisione; PDF ruotati/ritagliati fuori standard vengono rifiutati esplicitamente.
 Test `magicsigncustom`, `magicsigncustommutations`, `magicsigncustomui` e
 `magicsigncustomsigner` (pagina+handler reali, IO sintetico; dopo ui per cache PDF.js).
+**25/10 — il bottone del contratto BOOM non si accendeva.** Lo stesso commit
+(8dd4ec4, in produzione dal 17/10 con #297) ha copiato in `renderSign` il cancello
+`documentReady` del flusso personalizzato; lì nessuna anteprima PDF lo apre, quindi
+firma + spunta lasciavano «Sign contract» spento per sempre (segnalato da una
+cliente). Tolto dal solo flusso standard: la versione letta la lega già il server
+(`contractVersion` → 409 `version_changed`). Il flusso personalizzato resta legato
+alla verifica dell'impronta. Test `signbutton` (Chromium, inquilino e locatore;
+senza la correzione cade).
 
 ### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
 Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
@@ -7627,6 +7647,13 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   La nota del catalogo distingue stanza e appartamento intero e richiede verifica quando il tipo è sconosciuto; `bedrooms` non prova il numero totale di locali.
   Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
 
+- **Catalogo voce, conflitti delle fonti (26/10)**: `catalogReview.price/availability = conflict` fa tacere prezzo/data contesi e descrizioni commerciali nel tool, conservando identità e `requiresConfirmation` anche nella risposta compatta. Nessuna proposta automatica riscrive il prezzo; affittato resta un veto. Il confronto del catalogo può così registrare le differenze senza consegnare alla voce una certezza falsa. `phoneresolver` prova lookup, filtri, catalogo compatto e veto; mutazioni delle due guardie respinte.
+- **Catalogo voce, assenza non è indisponibilità (26/10)**: nella chiamata reale su Petronio Arbitro il tool restituiva `none + verified` e la voce negava la disponibilità. I 27 record erano letti correttamente: mancava l’annuncio nella fonte BOOM.
+  `phone/agent-tools` rende `none` da confermare, con richiesta del riferimento distinta dalla ricerca senza identità; nessun risultato vuoto prova una casa affittata. Nessuna importazione o cambio commerciale automatico.
+  Il generico conserva indirizzo e stato disponibilità; `DISPO.catalogState` marca date assenti, scadute in waitlist o con anno dedotto da verificare. Il veto rented/reserved resta invariato.
+  Risposte `private,no-store`; letture ripetute vedono le modifiche della fonte. Non è provato che una cache causasse l’incidente.
+  Prove `phone` e `phoneresolver`: 52 controlli resolver, casi assenti Petronio/Val d’Ossola, due Tor di Quinto ambigui, data sconosciuta e quattro mutazioni. Mandato ElevenLabs e completezza dei dati reali sono verifiche separate dal codice.
+
 - **Risolutore Immobile Unico v1 (27/09)**: `phone/agent-tools` conserva il catalogo senza input e accetta riferimenti BOOM/portale mappati, nome o indirizzo e filtri dichiarati.
   Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali diventano `needs_confirmation`, mentre un id BOOM noto viene controllato sul documento esatto.
   Il contratto configurabile del tool (`bot/RECEPTIONIST.md`) dichiara `reference`, `query`, `type`, `zone`, `maxPrice` e `moveIn`; non attesta che i parametri siano già stati applicati sul provider live.
@@ -8627,6 +8654,7 @@ Test: `tests/catalogo/{letture,descrizioni,vetrina,strumento,portale}.mjs`,
   | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
+  | `tests/sign/button.mjs` | il bottone «Firma» di /sign si accende con firma + spunta, si spegne togliendone una, porta alla conferma — inquilino e locatore, Chromium vero in demo mode |
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/ai/run.mjs` | La Centrale AI: coi default TUTTO in cloud, `localOk:false` mai in locale, PDF → cloud, immagine → solo con modello visivo, locale giù → cloud dichiarato, ombra che misura senza toccare la risposta (e non salva un cloud giù), contatori atomici col costo dal listino, nei log mai contenuto, porta HTTP (401/403/400 senza scritture), STT locale-prima, anti-deriva chiamanti⇄registro |

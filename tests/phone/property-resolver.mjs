@@ -97,6 +97,14 @@ listing('unreadable-a', {
   name: 'Casa Da Confermare', address: 'Via Incerta 4, Roma', zone: 'EUR',
   type: 'Apartment', price: 1350, status: 'available', availableDate: 'da concordare',
 });
+listing('guessed-a', {
+  name: 'Casa Anno Da Confermare', address: 'Via Calendario 6', zone: 'EUR',
+  type: 'Apartment', price: 1300, status: 'available', availableDate: '1 Aug',
+});
+listing('wait-expired-a', {
+  name: 'Attico Con Vecchia Data', address: 'Via Calendario 8', zone: 'EUR',
+  type: 'Apartment', price: 1300, status: 'waitlist', availableFrom: '2000-01-01',
+});
 listing('montezebio-a', {
   name: 'Prati cozy', address: 'Via Montezebio', zone: 'Prati',
   type: 'Loft', price: 1500, status: 'available', availableFrom: '2099-03-01',
@@ -130,13 +138,14 @@ DB.set('portalPubs/idealista_wait-a', {
 const { default: handler } = await import('../../api/phone/agent-tools.js');
 const call = async (query) => {
   let status = 0, body = null;
+  const headers = {};
   const req = { method: 'GET', query, headers: { 'x-homie-secret': 'resolver-test-secret' }, url: '/api/phone/agent-tools' };
   const res = {
-    setHeader() {}, status(code) { status = code; return this; },
+    setHeader(name, value) { headers[name] = value; }, status(code) { status = code; return this; },
     json(value) { body = value; return this; }, end() { return this; },
   };
   await handler(req, res);
-  return { status, body };
+  return { status, body, headers };
 };
 
 // Retrocompatibilita: op=catalog senza input conserva la risposta storica,
@@ -148,9 +157,19 @@ const call = async (query) => {
   check('catalogo senza input resta compatibile', status === 200 && body.ok && Array.isArray(body.listings));
   check('catalogo live resta entro 25 risultati', body.listings.length === 25
     && body.coverage.listings.responseLimit === 25, body.coverage);
-  check('catalogo live conserva lo schema leggero storico', a?.type === 'Apartment'
+  check('catalogo live conserva identita e disponibilita nello schema leggero', a?.type === 'Apartment'
     && a.priceEurMonth === 1500 && a.availableFrom === 'Immediate'
-    && a.address === undefined && a.description === undefined && a.availability === undefined, a);
+    && a.address === 'Via Aurelia 10, Roma' && a.description === undefined
+    && a.availability?.state === 'available_now', a);
+  check('catalogo generico non perde data ignota, futura e anno dedotto',
+    body.listings.find(row => row.id === 'nodate-a')?.availability?.state === 'needs_confirmation'
+      && body.listings.find(row => row.id === 'guessed-a')?.availability?.state === 'needs_confirmation'
+      && body.listings.find(row => row.id === 'guessed-a')?.availability?.yearInferred === true
+      && body.listings.find(row => row.id === 'wait-a')?.availability?.state === 'available_later'
+      && body.listings.find(row => row.id === 'wait-a')?.availability?.date === '2099-05-01', body.listings);
+  check('nota generica distingue data futura o incerta da indisponibilita',
+    body.note.includes('A future or unconfirmed date does not mean unavailable')
+      && body.note.includes('unverified availability, not proven unavailability'));
   check('proiezione pubblica non espone campi privati',
     !JSON.stringify(body).includes('ownerPhone') && !JSON.stringify(body).includes('internalNotes'));
   check('affittato mai fra le alternative generiche', !body.listings.some(row => row.id === 'rent-a'));
@@ -289,6 +308,11 @@ const call = async (query) => {
   check('senza identita il budget continua a filtrare le alternative',
     alternativesOutsideBudget.body.match === 'none' && alternativesOutsideBudget.body.results.length === 0,
     alternativesOutsideBudget.body);
+  check('ricerca senza risultati chiarisce un criterio senza chiedere un annuncio non citato',
+    alternativesOutsideBudget.body.certainty === 'needs_confirmation'
+      && alternativesOutsideBudget.body.verification.scope === 'search_criteria'
+      && alternativesOutsideBudget.body.verification.nextStep === 'clarify_one_search_criterion',
+    alternativesOutsideBudget.body);
 
   const duplicateWithBudget = await call({
     op: 'catalog', query: 'Via Doppia 8, Roma', maxPrice: '1225',
@@ -337,6 +361,61 @@ const call = async (query) => {
       && unreadableMoveIn.body.results[0].availability.state === 'needs_confirmation'
       && unreadableMoveIn.body.results[0].criteriaMatch === false
       && unreadableMoveIn.body.results[0].criteriaMismatches.includes('moveIn'), unreadableMoveIn.body);
+
+  for (const id of ['guessed-a', 'wait-expired-a']) {
+    const uncertain = await call({ op: 'catalog', reference: id, moveIn: '2099-12-31' });
+    check(id + ': anno dedotto o waitlist scaduta richiede conferma, mai data certa',
+      uncertain.body.match === 'exact'
+        && uncertain.body.results[0].availability.state === 'needs_confirmation'
+        && uncertain.body.results[0].criteriaMatch === false, uncertain.body);
+  }
+}
+
+{
+  // L'incidente reale: una casa citata dal cliente puo essere pubblicata su
+  // un portale senza essere nel catalogo BOOM. Assenza non prova chiusura.
+  for (const query of ['Via Petronio Arbitro', "Via Val d'Ossola"]) {
+    const missing = await call({ op: 'catalog', query });
+    check(query + ': assente significa da verificare, mai indisponibile',
+      missing.body.match === 'none' && missing.body.results.length === 0
+        && missing.body.certainty === 'needs_confirmation'
+        && missing.body.verification?.needed === true
+        && missing.body.verification.scope === 'property_identity_and_availability'
+        && missing.body.verification.nextStep === 'ask_for_listing_link_or_reference'
+        && missing.body.note.includes('does not mean it is unavailable')
+        && missing.body.note.includes('promote a service unless the caller requests'), missing.body);
+  }
+  const unmapped = await call({ op: 'catalog', reference: 'https://www.casa.it/immobili/55039702/' });
+  check('link portale senza mapping richiede verifica senza dichiarare casa chiusa',
+    unmapped.body.match === 'none' && unmapped.body.reason === 'unverified_external_reference'
+      && unmapped.body.certainty === 'needs_confirmation'
+      && unmapped.body.verification?.needed === true
+      && unmapped.body.note.includes('does not mean the home is unavailable'), unmapped.body);
+
+  listing('tor-duplex', { name: 'Tor di Quinto Duplex', address: 'Via Di Tor Di quinto 39',
+    type: 'Duplex', status: 'available', availableFrom: 'Immediate' });
+  listing('tor-onebed', { name: 'Tor di Quinto One-Bed', address: 'Via Di Tor Di Quinto 39',
+    type: 'bilocale', status: 'available', availableFrom: '2099-12-31' });
+  const sameStreet = await call({ op: 'catalog', query: 'Via Di Tor Di Quinto 39' });
+  check('due case reali allo stesso indirizzo restano ambigue anche con date diverse',
+    sameStreet.body.match === 'ambiguous' && sameStreet.body.certainty === 'needs_confirmation'
+      && sameStreet.body.results.length === 2
+      && new Set(sameStreet.body.results.map(row => row.availability.state)).size === 2, sameStreet.body);
+  DB.delete('listings/tor-duplex');
+  DB.delete('listings/tor-onebed');
+}
+
+{
+  const previous = DB.get('listings/apt-a');
+  const first = await call({ op: 'catalog', reference: 'apt-a' });
+  listing('apt-a', { ...previous, availableFrom: '2099-09-01' });
+  const second = await call({ op: 'catalog', reference: 'apt-a' });
+  check('ogni lettura voce usa il catalogo aggiornato e vieta cache HTTP',
+    first.body.results[0].availability.state === 'available_now'
+      && second.body.results[0].availability.state === 'available_later'
+      && second.body.results[0].availability.date === '2099-09-01'
+      && second.headers['Cache-Control'] === 'private, no-store, max-age=0', second);
+  DB.set('listings/apt-a', previous);
 }
 
 {
@@ -407,6 +486,25 @@ const call = async (query) => {
       && partialExternal.body.error === undefined, partialExternal.body);
 
   for (const path of addedListings.concat(addedPubs)) DB.delete(path);
+}
+
+{
+  const old = DB.get('listings/apt-a');
+  listing('apt-a', {...old, catalogReview:{price:'conflict',availability:'conflict'},
+    description:'Old price 1500, available immediately.'});
+  const r = (await call({op:'catalog',reference:'apt-a',moveIn:'2099-12-31',maxPrice:'2000'})).body.results[0];
+  check('fonti discordanti conservano identita ma non prezzo o data finti', r.id === 'apt-a'
+    && r.priceEurMonth === null && r.availableFrom === null && r.availability.date === null
+    && r.availability.state === 'needs_confirmation' && r.description === null
+    && r.requiresConfirmation.includes('price') && r.requiresConfirmation.includes('availability')
+    && r.criteriaMatch === false, r);
+  const generic = (await call({op:'catalog'})).body.listings.find(r=>r.id==='apt-a');
+  check('conflitti visibili anche nel catalogo compatto', generic.priceEurMonth === null
+    && generic.requiresConfirmation.includes('price') && generic.availability.state === 'needs_confirmation');
+  listing('apt-a', {...old,status:'rented',catalogReview:{availability:'conflict'}});
+  check('conflitto non riapre una casa affittata',
+    (await call({op:'catalog',reference:'apt-a'})).body.results[0].availability.state === 'unavailable');
+  listing('apt-a', old);
 }
 
 console.log(failed ? `\n${failed} FAILED (${passed} passed)` : `\nAll ${passed} property resolver checks passed`);

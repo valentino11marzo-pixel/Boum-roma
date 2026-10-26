@@ -13,6 +13,7 @@ class Element {
 const nodes=new Map(),get=id=>{if(!nodes.has(id)) nodes.set(id,new Element());return nodes.get(id);};
 let submitted=0,published,finishPost,enabled=true,finishDirect,directCount=0,holdCapability=false,finishCapability,photoImports=0,directPayload;
 let createMode='ok',allowUploads=false,uploadCount=0,downloadLookupFails=false;
+let archiveOnlyCount=0,archiveOnlyPayload,archiveOnlyFailure=false,holdArchive=false,finishArchive;
 async function until(predicate) {for(let i=0;i<100&&!predicate();i++) await Promise.resolve();assert.ok(predicate(),'Expected request was not reached');}
 const source='https://www.immobiliare.it/annunci/124483437/';
 const key=crypto.randomUUID(),photo=n=>`https://firebasestorage.googleapis.com/v0/b/boom-property-dashboards.firebasestorage.app/o/${encodeURIComponent('smartlinks/'+key+'/'+n+'1111111-1111-4111-8111-111111111111.webp')}?alt=media`;
@@ -28,7 +29,15 @@ const context={window:{crypto,BOOM_SMARTLINK:RULES,BOOM_SMARTLINK_PHOTO:{prepare
       if(holdCapability) return new Promise(resolve=>{finishCapability=()=>resolve({ok:true,json:async()=>({ok:true,enabled})});});
       return {ok:true,json:async()=>({ok:true,enabled})};
     }
-    if(url==='/api/smartlink/extract') {directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>directPayload || ({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});}
+    if(url==='/api/smartlink/extract') {
+      if(JSON.parse(opts.body).archiveOnly===true) {
+        archiveOnlyCount++;
+        const result=()=>({ok:!archiveOnlyFailure,json:async()=>archiveOnlyPayload || {ok:!archiveOnlyFailure,status:'unavailable',images:[]}});
+        if(holdArchive) return new Promise(resolve=>{finishArchive=()=>resolve(result());});
+        return result();
+      }
+      directCount++;return new Promise(resolve=>{finishDirect=()=>resolve({ok:true,json:async()=>directPayload || ({ok:true,data:{title:'Casa diretta',zone:'Cipro'},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']})});});
+    }
     if(url==='/api/smartlink/import-photo') {photoImports++;return {ok:true,blob:async()=>new Blob(['test'],{type:'image/webp'})};}
     if(url==='/api/smartlink/create'){
       published=JSON.parse(opts.body);
@@ -139,4 +148,96 @@ await context.smartLinkCreate();
 assert.deepEqual(published,interruptedPayload,'A lost response retries the identical proposal, including photo URLs');
 assert.equal(uploadCount,2,'Retry must not create duplicate Storage objects');
 assert.equal(get('sl_create').dataset.created,'1');context.smartLinkClose();
-console.log('SmartLink Studio: gated rollout, source races, resume, archive, distinct publication versions and loss-safe retries ✓');
+// An enabled/offline reader must not hide BOOM's own already archived photos.
+vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+nodes.clear();enabled=true;get('sl_source').value=source;context.smartLinkSourceChanged();
+archiveOnlyPayload={ok:true,photoOrigin:'boom_archive',archive:{id:'Abcd1234Efgh5678ijkl',observedAt:'2026-10-17T12:00:00.000Z'},data:{title:'Versione BOOM aggiornata',price:1300},images:[photo(1),photo(2)]};
+const beforeArchive={submitted,directCount,photoImports,uploadCount};
+await context.smartLinkExtract();
+assert.equal(get('sl_photo_preview').children.length,2);assert.equal(get('sl_price').value,'1300');
+assert.equal(submitted,beforeArchive.submitted,'Archive reuse does not queue a source job');
+assert.equal(directCount,beforeArchive.directCount,'Archive-only result must not trigger direct extraction');
+assert.equal(photoImports,beforeArchive.photoImports);assert.match(get('sl_status').textContent,/fonte non è stata riletta/);
+await context.smartLinkCreate();assert.equal(published.archiveId,archiveOnlyPayload.archive.id);
+assert.equal(uploadCount,beforeArchive.uploadCount,'Central mode also reuses Storage photos without phone uploads');
+context.smartLinkClose();
+// An unavailable or stale archive result must not silently start a source job.
+nodes.clear();get('sl_source').value=source;context.smartLinkSourceChanged();archiveOnlyFailure=true;
+await context.smartLinkExtract();assert.equal(submitted,beforeArchive.submitted);
+assert.match(get('sl_status').textContent,/archivio BOOM non è raggiungibile/);assert.equal(get('sl_import').disabled,false);
+archiveOnlyFailure=false;holdArchive=true;finishArchive=null;
+const lateArchive=context.smartLinkExtract();await until(()=>finishArchive);
+get('sl_source').value=source.replace('124483437','445566');context.smartLinkSourceChanged();
+finishArchive();await lateArchive;holdArchive=false;
+assert.equal(submitted,beforeArchive.submitted);assert.equal(get('sl_photo_preview').children.length,0);
+context.smartLinkClose();
+// Radar provenance survives publication and clears when another source is chosen.
+vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+nodes.clear();enabled=false;get('sl_source').value=source;context.smartLinkSourceChanged();
+directPayload={ok:true,photoOrigin:'radar',radar:{id:'h_0123456789abcdef',archivedAt:'2026-10-01T12:00:00Z'},data:{title:'Casa già acquisita',price:1250},images:['https://pwm.im-cdn.it/image/123/m-c.jpg']};
+finishDirect=null;const radar=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await radar;
+assert.equal(get('sl_price').value,'1250');assert.match(get('sl_status').textContent,/non li indicherà come verificati oggi/);
+await context.smartLinkCreate();assert.equal(published.radarId,'h_0123456789abcdef');assert.equal(published.archiveId,undefined);
+context.smartLinkResume(ready);await context.smartLinkCreate();
+assert.equal(published.radarId,undefined,'Resuming another job must not retain Radar provenance');
+assert.equal(published.price,'1500','A resumed job replaces the unchanged Radar price');
+assert.equal(published.historicalData,undefined,'Replaced historical fields do not taint new values');
+context.smartLinkClose();
+// Refresh replaces all unchanged imported fields, including a newly absent price.
+async function directImport(payload) {
+  directPayload=payload;finishDirect=null;
+  const pending=context.smartLinkExtract();await until(()=>finishDirect);finishDirect();await pending;
+}
+function startStudio() {
+  nodes.clear();enabled=false;
+  vm.runInNewContext("smartLinkArea={reset(){},suggest(){},ready(){return true;},value(){return null;},destroy(){}};",context);
+  get('sl_source').value=source;context.smartLinkSourceChanged();
+}
+const directPhotos=['https://pwm.im-cdn.it/image/123/m-c.jpg'];
+const radarPayload={ok:true,photoOrigin:'radar',radar:{id:'h_0123456789abcdef'},
+  data:{title:'Casa storica',price:1250,zone:'Cipro',sqm:50,rooms:2},images:directPhotos};
+startStudio();
+await directImport(radarPayload);
+get('sl_note').value='Nota BOOM da conservare';
+await directImport({ok:true,data:{title:'Casa riletta',zone:'Prati',sqm:55,rooms:3},images:directPhotos});
+assert.equal(get('sl_title').value,'Casa riletta');assert.equal(get('sl_zone').value,'Prati');
+assert.equal(get('sl_sqm').value,'55');assert.equal(get('sl_rooms').value,'3');
+assert.equal(get('sl_price').value,'','A missing fresh price clears the unchanged old auto price');
+await context.smartLinkCreate();
+assert.equal(published.price,'');assert.equal(published.note,'Nota BOOM da conservare');
+assert.equal(published.radarId,undefined);assert.equal(published.historicalData,undefined);
+context.smartLinkClose();
+// Manual changes keep their historical origin across successive fresh imports.
+startStudio();await directImport(radarPayload);get('sl_price').value='1280';
+await directImport({ok:true,data:{title:'Casa nuova',price:1500},images:directPhotos});
+assert.equal(get('sl_price').value,'1280');assert.equal(get('sl_title').value,'Casa nuova');
+assert.equal(get('sl_sqm').value,'');assert.equal(get('sl_rooms').value,'');
+assert.match(get('sl_status').textContent,/modifiche a dati di una precedente importazione/);
+await context.smartLinkCreate();assert.equal(published.historicalData,true);assert.equal(published.radarId,undefined);
+await directImport({ok:true,data:{price:1600},images:directPhotos});
+await context.smartLinkCreate();assert.equal(published.price,'1280');assert.equal(published.historicalData,true);
+// A deliberate manual deletion also stays blank, instead of being refilled.
+get('sl_price').value='';
+await directImport({ok:true,data:{price:1700},images:directPhotos});
+await context.smartLinkCreate();assert.equal(published.price,'');assert.equal(published.historicalData,undefined);
+context.smartLinkClose();
+// Retained data provenance is separate from the ownership of newly archived photos.
+startStudio();
+await directImport({ok:true,photoOrigin:'boom_archive',archive:{id:'Abcd1234Efgh5678ijkl',observedAt:'2026-10-01T12:00:00Z'},data:{price:1250},images:[photo(1)]});
+get('sl_price').value='1290';
+context.smartLinkResume(ready);await context.smartLinkCreate();
+assert.equal(published.price,'1290');assert.equal(published.historicalData,true);
+assert.equal(published.archiveId,undefined);assert.equal(published.radarId,undefined);
+await directImport({ok:true,photoOrigin:'boom_archive',archive:{id:'NewA1234Efgh5678ijkl',observedAt:'2026-10-25T12:00:00Z'},data:{price:1800},images:[photo(2)]});
+await context.smartLinkCreate();assert.equal(published.price,'1290');assert.equal(published.historicalData,true);
+assert.equal(published.archiveId,'NewA1234Efgh5678ijkl','Current photos use the current archive, not the old data reference');
+// A different listing and a closed Studio cannot inherit historical/manual state.
+get('sl_source').value=source.replace('124483437','445566');context.smartLinkSourceChanged();
+await directImport({ok:true,data:{price:2000},images:directPhotos});
+await context.smartLinkCreate();assert.equal(published.price,'2000');assert.equal(published.historicalData,undefined);
+context.smartLinkClose();startStudio();
+await directImport({ok:true,data:{price:2100},images:directPhotos});
+await context.smartLinkCreate();assert.equal(published.price,'2100');assert.equal(published.historicalData,undefined);
+context.smartLinkClose();
+assert.ok(archiveOnlyCount>=4);
+console.log('SmartLink Studio: gated rollout, source races, resume, archive-first central mode, Radar provenance and loss-safe retries ✓');

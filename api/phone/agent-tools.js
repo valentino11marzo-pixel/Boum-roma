@@ -63,27 +63,32 @@ function catalogEntry(l, today) {
   const status = text(l.status)?.toLowerCase() || null;
   const normalized = { ...l, status };
   const lane = DISPO.marketLane(normalized, today);
+  const catalogState = DISPO.catalogState(normalized, today);
   const unavailable = UNAVAILABLE_STATUSES.has(status);
+  const priceConflict = l.catalogReview?.price === 'conflict';
+  const dateConflict = l.catalogReview?.availability === 'conflict';
   const state = unavailable ? 'unavailable'
-    : !['available', 'waitlist'].includes(status) || lane.dateUnreadable ? 'needs_confirmation'
-    : lane.lane === 'ahead' ? 'available_later' : lane.lane === 'now' ? 'available_now' : 'unavailable';
+    : dateConflict || !['available', 'waitlist'].includes(status) || catalogState.state === 'check' ? 'needs_confirmation'
+    : catalogState.state === 'date' ? 'available_later' : catalogState.state === 'now' ? 'available_now' : 'unavailable';
   return {
     id: l.id, name: text(l.name), address: text(l.address), zone: text(l.zone),
     type: text(l.type), status,
     // le camere con la regola unica del sito (js/listing-facts.js): la voce
     // al telefono dice lo stesso numero della scheda. 0 è un dato
     // (monolocale), null vuol dire che non si sanno
-    priceEurMonth: number(l.price), bedrooms: FACTS.bedroomsOf(l),
+    priceEurMonth: priceConflict ? null : number(l.price), bedrooms: FACTS.bedroomsOf(l),
     sqm: number(l.sqm ?? l.size), bathrooms: number(l.bathrooms), floor: floorText(l.floor),
     // la regola unica dell'arredo (js/listing-facts.js): il catalogo scrive
     // 'yes'/'no'/'partial', e leggere solo il booleano faceva rispondere alla
     // voce «non lo so» su ogni casa vera
     furnished: FACTS.furnishedOf(l.furnished),
     depositMonths: number(l.depositMonths),
-    availableFrom: text(l.availableFrom) || text(l.availableDate),
-    availability: { state, date: lane.iso, precision: lane.precision,
+    availableFrom: dateConflict ? null : text(l.availableFrom) || text(l.availableDate),
+    availability: { state, date: dateConflict ? null : lane.iso, precision: dateConflict ? null : lane.precision,
       yearInferred: lane.yearGuessed, source: lane.source },
-    description: text(l.description, 600), descriptionIt: text(l.descriptionIt, 600),
+    requiresConfirmation: [priceConflict && 'price', dateConflict && 'availability'].filter(Boolean),
+    description: priceConflict || dateConflict ? null : text(l.description, 600),
+    descriptionIt: priceConflict || dateConflict ? null : text(l.descriptionIt, 600),
     descriptionTruncated: typeof l.description === 'string' && l.description.trim().length > 600
       || typeof l.descriptionIt === 'string' && l.descriptionIt.trim().length > 600,
     features: Array.isArray(l.features) ? l.features.map(v => text(v, 80)).filter(Boolean).slice(0, 15) : [],
@@ -96,9 +101,10 @@ function catalogEntry(l, today) {
 // costosi servono soltanto al resolver mirato (massimo due schede).
 function catalogSummary(entry) {
   return {
-    id: entry.id, name: entry.name, type: entry.type, zone: entry.zone,
+    id: entry.id, name: entry.name, address: entry.address, type: entry.type, zone: entry.zone,
     priceEurMonth: entry.priceEurMonth, bedrooms: entry.bedrooms, sqm: entry.sqm,
-    furnished: entry.furnished, availableFrom: entry.availableFrom, url: entry.url,
+    furnished: entry.furnished, availableFrom: entry.availableFrom,
+    availability: entry.availability, requiresConfirmation: entry.requiresConfirmation, url: entry.url,
   };
 }
 
@@ -243,18 +249,20 @@ function portalListingIds(reference, pubs) {
   return ids;
 }
 
-function resolverNote(reason) {
+function resolverNote(reason, identityRequested) {
   if (reason === 'exact') return 'This BOOM property identity is verified. Use only the returned fields and preserve any needs_confirmation availability state.';
-  if (reason === 'unverified_external_reference') return 'This external listing reference is not mapped to a BOOM property. Do not claim its availability, price or identity; ask for the BOOM listing or say it needs verification.';
+  if (reason === 'unverified_external_reference') return 'This external listing reference is not mapped to a BOOM property. Its identity and availability need verification; an unmapped reference does not mean the home is unavailable. Do not claim its availability, price or identity. Ask for the BOOM listing or say it needs verification; do not substitute alternatives or promote a service unless the caller requests them.';
   if (reason === 'ambiguous') return 'More than one BOOM property matches. Ask for one distinguishing detail, preferably the full address or BOOM link; do not choose one.';
   if (reason === 'coverage_incomplete') return 'The checked source is only partially covered, so absence or uniqueness is not verified. Ask for the full BOOM link, listing id or exact address before making a claim.';
-  if (reason === 'none') return 'No verified BOOM property matches these facts. Do not invent a listing or treat an external portal ad as current.';
+  if (reason === 'none' && !identityRequested) return 'No matching home is verified against these filters in the checked BOOM catalog. This is not evidence that no suitable home exists or that an unidentified property is unavailable. Clarify one search criterion; do not invent a listing or promote a service unless the caller requests it.';
+  if (reason === 'none') return 'This property has not been identified in the checked BOOM catalog. Its availability is unverified; this does not mean it is unavailable or that no such property exists. Ask for the listing link or reference so it can be verified. Do not invent a listing, treat an external portal ad as current, substitute alternatives or promote a service unless the caller requests them.';
   return 'Use the verified status and availability fields. An unavailable property may be identified, but it is never an alternative to offer.';
 }
 
 async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   const reference = inputValue(req, 'reference');
   const query = inputValue(req, 'query');
+  const identityRequested = !!(reference || query);
   const type = inputValue(req, 'type', 80);
   const zone = inputValue(req, 'zone', 120);
   const rawMaxPrice = inputValue(req, 'maxPrice', 30);
@@ -338,7 +346,7 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
     || resolution.proof === 'portal_mapping' && coverage.portalPubs.complete === true
     || resolution.proof === 'listings_scan' && coverage.listings.complete === true;
   let match = resolution.match;
-  let certainty = match === 'ambiguous' ? 'needs_confirmation' : 'verified';
+  let certainty = match === 'exact' ? 'verified' : 'needs_confirmation';
   if (!proofComplete) {
     // Un cap raggiunto non dimostra ne assenza ne unicita. L'esito resta
     // esplicitamente da confermare, anche quando il primo blocco ha trovato
@@ -364,12 +372,17 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   return { status: 200, body: {
     ok: true, match, certainty, reason, source, checkedAt, coverage,
     candidateCount, truncated: candidateCount > results.length, results,
+    ...(match === 'none' ? { verification: {
+      needed: true, scope: identityRequested ? 'property_identity_and_availability' : 'search_criteria',
+      nextStep: identityRequested ? 'ask_for_listing_link_or_reference' : 'clarify_one_search_criterion',
+    } } : {}),
     ...(match === 'none' && reason === 'unverified_external_reference' ? { error: reason } : {}),
-    note: resolverNote(reason) + filterNote,
+    note: resolverNote(reason, identityRequested) + filterNote,
   } };
 }
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Homie-Secret');
@@ -414,7 +427,7 @@ export default async function handler(req, res) {
           unavailableComplete, unavailableReturned: unavailableListings.length,
           unavailableResponseLimit: UNAVAILABLE_RESPONSE_LIMIT } },
         complete, count: listings.length, listings, unavailableListings,
-        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale. listings contains only offerable homes. unavailableListings is a compact identity index of rented/reserved homes: recognize them but never offer them, and use a targeted reference or query lookup for details. Both lists are bounded; if complete or unavailableComplete is false, or the caller cites a name, address, BOOM link or portal reference, call this tool again with reference or query instead of assuming absence. This is the BOOM catalog, not a fresh search of external portals; a portal ad may be stale.',
+        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale. Use availability.state: available_now means available now, available_later means available from the returned date, and needs_confirmation means the date needs verification. A future or unconfirmed date does not mean unavailable. listings contains homes in the offering, including dates that need confirmation. unavailableListings is a compact identity index of rented/reserved homes: recognize them but never offer them, and use a targeted reference or query lookup for details. Both lists are bounded; if complete or unavailableComplete is false, or the caller cites a name, address, BOOM link or portal reference, call this tool again with reference or query instead of assuming absence. A home missing from this catalog has unverified availability, not proven unavailability: ask for its listing link or reference before suggesting alternatives or services. This is the BOOM catalog, not a fresh search of external portals; a portal ad may be stale.',
       });
     }
 

@@ -24,6 +24,30 @@
       return { url: u.toString(), source: source.name };
     } catch { return null; }
   }
+  // Identità dell'archivio: non cambia gli URL usati per leggere la fonte.
+  function storedListing(raw) {
+    const source = normalizeUrl(raw);
+    if (!source) return null;
+    const value = String(raw || '').trim();
+    // URL() elimina le porte predefinite e le credenziali vuote: non sono alias archivio.
+    const authority = value.replace(/[\t\r\n]/g, '').match(/^https?:\/\/([^/?#\\]+)/i)?.[1];
+    if (!authority || /[:@]/.test(authority)) return null;
+    const u = new URL(source.url);
+    const match = /^(?:www\.)?immobiliare\.it$/.test(u.hostname) && u.pathname.match(/^\/annunci\/([0-9]+)\/?$/);
+    return { url: source.url, id: match ? match[1] : null };
+  }
+  function sameListingUrl(a, b) {
+    const left = storedListing(a), right = storedListing(b);
+    return !!left && !!right && (left.url === right.url || !!left.id && left.id === right.id);
+  }
+  function storedListingUrls(raw) {
+    const listing = storedListing(raw);
+    if (!listing) return [];
+    if (!listing.id) return [listing.url];
+    const path = '/annunci/' + listing.id;
+    return [...new Set([listing.url, ...['www.immobiliare.it', 'immobiliare.it'].flatMap(host =>
+      ['/', ''].map(slash => 'https://' + host + path + slash))])];
+  }
   function cleanText(v, max) { return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max); }
   function publicText(v, max) {
     return cleanText(v, max).replace(/(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:immobiliare\.it|idealista\.it|subito\.it|casafari\.com|casa\.it)(?:\/[^\s]*)?/gi, '').replace(/\s+/g, ' ').trim();
@@ -105,8 +129,7 @@
   // Foto già appartenenti allo stesso annuncio BOOM, anche da un'altra bozza.
   // La verifica si ripete sul server: il browser non può autorizzare un riuso.
   function reusableImages(record, sourceUrl, images, draftKey) {
-    const source = normalizeUrl(sourceUrl);
-    if (!source || record?.active !== true || normalizeUrl(record.sourceUrl)?.url !== source.url) return null;
+    if (record?.active !== true || !sameListingUrl(record.sourceUrl, sourceUrl)) return null;
     if (!Array.isArray(images) || !images.length || images.length > 12 || new Set(images).size !== images.length) return null;
     const archived = new Set((Array.isArray(record.images) ? record.images : []).filter(validPublicImageUrl));
     if (!archived.size || images.some(url => !archived.has(url) && !validImageUrl(url, draftKey))) return null;
@@ -176,15 +199,16 @@
   // Un retry conferma la stessa pubblicazione, mai dati diversi sotto lo stesso link.
   // Le date server cambiano a ogni tentativo e non fanno parte della proposta.
   function samePublication(a, b) {
-    const content = d => ({sourceUrl:normalizeUrl(d?.sourceUrl)?.url || null,
+    const content = d => ({
       title:cleanText(d?.title,130) || 'Una casa a Roma',price:positiveNumber(d?.price,1000000),
       zone:cleanText(d?.zone,90),sqm:positiveNumber(d?.sqm,100000),rooms:positiveNumber(d?.rooms,100),
       note:cleanText(d?.note,400),images:Array.isArray(d?.images)?d.images:[],map:cleanMap(d?.map),
       reusedFrom:d?.reusedFrom || null,observedAt:d?.reusedFrom ? d.observedAt || null : null,
+      historicalData:d?.historicalData===true,
       availability:cleanText(d?.availability,60) || 'Da verificare',active:d?.active===true});
-    return !!normalizeUrl(a?.sourceUrl) && JSON.stringify(content(a))===JSON.stringify(content(b));
+    return sameListingUrl(a?.sourceUrl,b?.sourceUrl) && JSON.stringify(content(a))===JSON.stringify(content(b));
   }
-  const API = { SOURCES, sourceFor, normalizeUrl, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord, samePublication };
+  const API = { SOURCES, sourceFor, normalizeUrl, sameListingUrl, storedListingUrls, cleanText, publicText, positiveNumber, photoUrl, photoCandidates, validImageUrl, validPublicImageUrl, cleanImages, reusableImages, cleanMap, areaCandidates, areaCircle, distanceKm, makeRecord, publicRecord, samePublication };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SMARTLINK = API;
 })(typeof window !== 'undefined' ? window : this);

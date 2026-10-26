@@ -23,7 +23,8 @@
 
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportHealth, tgNotify } from '../pfs/_health.js';
-import { fsList, fsGet, fsPatch, readJson } from '../homie/_lib.js';
+import { fsList, fsGet, fsGetVersioned, fsCommit, readJson } from '../homie/_lib.js';
+import { publicationBlocked, IDENTITY_REVISION_PATH, identityRevisionWrite, portalReferenceConflict } from './_adoption.js';
 import {
   PORTALS, SUGGESTED_INTERVAL_MINUTES,
   worklist, payloadFor, runVerdict,
@@ -47,46 +48,76 @@ export default async function handler(req, res) {
     if (!PORTALS.includes(p)) return res.status(400).json({ ok: false, error: 'bad_portal' });
 
     const results = Array.isArray(body.results) ? body.results.slice(0, 50) : [];
+    if (results.some(r=>r?.id && (typeof r.id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(r.id))))
+      return res.status(400).json({ok:false,error:'invalid_listing_id'});
     let published = 0, removed = 0, failed = 0;
-    const lines = [];
+    const lines = [], skipped = [], conflicts = [];
 
     for (const r of results) {
       if (!r || !r.id) continue;
       const docPath = 'portalPubs/' + p + '_' + r.id;
-      let prev = null;
-      try { prev = await fsGet(docPath); } catch { /* primo giro */ }
       const base = { portal: p, listingId: String(r.id), lastRunAt: new Date(), lastOp: String(r.op || '') };
       try {
+        // Read the shared revision BEFORE the receipt. Adoption and a stale
+        // report cannot both commit, even when they target different IDs.
+        const revision = await fsGetVersioned(IDENTITY_REVISION_PATH);
+        const snapshot = await fsGetVersioned(docPath);
+        const prev = snapshot?.data || null;
+        if (publicationBlocked(prev)) { skipped.push({id:r.id,reason:'reference_only'}); continue; }
+        const allPubs = await fsList('portalPubs',{limit:401,strictResponse:true});
+        if (allPubs.length > 400) throw new Error('incomplete_reference_scan');
+        if (allPubs.some(pub=>pub.listingId === r.id && (!pub.portal || pub.portal === p) && publicationBlocked(pub))) {
+          skipped.push({id:r.id,reason:'reference_only'}); continue;
+        }
+        let fields, line, outcome;
         if (r.ok === true && (r.op === 'create' || r.op === 'update')) {
-          published++;
-          await fsPatch(docPath, {
+          outcome = 'published';
+          fields = {
             ...base, status: 'live', wasLive: true,
             hash: String(r.hash || ''), attempts: 0, lastError: null, failedHash: null,
             remoteId: r.remoteId ? String(r.remoteId) : ((prev && prev.remoteId) || null),
             remoteUrl: r.remoteUrl ? String(r.remoteUrl) : ((prev && prev.remoteUrl) || null),
             publishedAt: new Date(),
-          });
-          lines.push('✓ ' + (r.op === 'create' ? 'pubblicato' : 'aggiornato') + ' <b>' + esc(r.name || r.id) + '</b>'
-            + (r.remoteUrl ? '\n   ' + esc(r.remoteUrl) : ''));
+          };
+          line = '✓ ' + (r.op === 'create' ? 'pubblicato' : 'aggiornato') + ' <b>' + esc(r.name || r.id) + '</b>'
+            + (r.remoteUrl ? '\n   ' + esc(r.remoteUrl) : '');
         } else if (r.ok === true && r.op === 'remove') {
-          removed++;
-          await fsPatch(docPath, { ...base, status: 'removed', wasLive: false, attempts: 0, lastError: null, removedAt: new Date() });
-          lines.push('✕ tolto <b>' + esc(r.name || r.id) + '</b>');
+          outcome = 'removed';
+          fields = { ...base, status: 'removed', wasLive: false, attempts: 0, lastError: null, removedAt: new Date() };
+          line = '✕ tolto <b>' + esc(r.name || r.id) + '</b>';
         } else {
-          failed++;
-          await fsPatch(docPath, {
+          outcome = 'failed';
+          fields = {
             ...base, status: 'error',
             attempts: ((prev && Number(prev.attempts)) || 0) + 1,
             failedHash: String(r.hash || ''),
             lastError: String(r.error || 'unknown').slice(0, 300),
-          });
+          };
         }
+        if (outcome === 'published' && allPubs.some(pub=>'portalPubs/'+pub.id !== docPath
+          && portalReferenceConflict(pub,'portalPubs/'+pub.id,fields))) {
+          conflicts.push({id:r.id,reason:'remote_reference_already_assigned'}); continue;
+        }
+        await fsCommit([identityRevisionWrite(revision), {docPath,fields,
+          precondition:snapshot ? {updateTime:snapshot.updateTime} : {exists:false}}]);
+        if (outcome === 'published') published++;
+        else if (outcome === 'removed') removed++;
+        else failed++;
+        if (line) lines.push(line);
       } catch (e) {
-        console.error('[publisher/queue] state write failed for', docPath, e.message);
+        conflicts.push({id:r.id,reason:e.conflict ? 'changed_since_read' : 'state_write_failed'});
+        console.error('[publisher/queue] state write failed for', docPath);
       }
     }
 
-    const ok = runVerdict(body);
+    // A reference-only report is ignored completely: no receipt, heartbeat
+    // or Telegram recap. A failed conditional write cannot count as success.
+    if (results.length && published + removed + failed === 0 && (skipped.length || conflicts.length))
+      return res.status(conflicts.length ? 409 : 200).json({ok:!conflicts.length,
+        recorded:{published,removed,failed},skipped,conflicts});
+
+    const ok = !conflicts.length && runVerdict({...body,
+      results:published + removed + failed ? [{ok:published + removed > 0}] : []});
     await reportHealth('publisher-' + p, {
       ok,
       stats: { results: results.length, published, removed, failed, blocked: body.blocked === true },
@@ -100,7 +131,7 @@ export default async function handler(req, res) {
       await tgNotify(head + lines.slice(0, 8).join('\n') + tail);
     }
 
-    return res.status(200).json({ ok: true, recorded: { published, removed, failed } });
+    return res.status(conflicts.length ? 409 : 200).json({ ok: !conflicts.length, recorded: { published, removed, failed }, skipped, conflicts });
   }
 
   if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
