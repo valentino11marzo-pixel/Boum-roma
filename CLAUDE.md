@@ -1327,6 +1327,11 @@ della funzione, poche parole (≤ 450 in turco all'apertura). Registro: **sen**,
 - Test: `node tests/istanbul/run.mjs` (handler veri su Firestore in memoria, Brain e card veri;
   pagina: porta, quiz, tetti, FAQPage, prezzi, frasi vietate anche in turco, numeri di persone,
   fatti con la fonte, interruttore delle risposte; Chromium a 390px; mutazioni M1–M6).
+- **La barra a 390px e `tests/testata`** (26/10): la striscia che il test misura (x 120–320,
+  dove sulle altre pagine non c'è niente) qui contiene «İSTANBUL → ROMA» e TR/EN, quindi lo
+  scarto era 184 su una barra OPACA. Ora, quando lo scarto supera la soglia, il test guarda
+  quanto ogni pixel cambia scorrendo: il contenuto della barra è fermo (0), la pagina sotto no
+  (la stessa barra al 55% d'opacità fa 84 ed è rossa). Strisce non confrontabili = rossa.
 
 ### BOOM Cities (`/amsterdam` + `cities/*` + `build-cities.mjs` + `api/city-lead.js` + `BOOM_CITIES_BRIEF.md`) — 14/10/2026
 Le pagine città (Amsterdam, poi Madrid, Barcellona, Parigi, Berlino), lato inquilino,
