@@ -25,7 +25,7 @@
 //
 // maxDuration 60 in vercel.json: gli allegati si scaricano da Storage.
 
-import { readJson, fsGet, fsPatch } from '../homie/_lib.js';
+import { readJson, fsGet, fsPatch, fsGetVersioned } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import ContractFields from '../../js/contract-fields.js';
 import { withProfileDocs } from '../sign/_iddocs.js';
@@ -34,6 +34,8 @@ import {
   reletOf, aspiInvoicesOf, billAspi, billPlansFor, billKindFor, ASPI_KINDS,
 } from './_aspi.js';
 import { parseReceiptInput, recordRegistration } from './_ricevuta.js';
+
+import { adoptExternal, prepareExternal, externalReview, saveRegistrationProgress, resolveCafDelivery, linkExternalParty } from '../contracts/_external.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 const BANK_FIELDS = ['rliDebitIban', 'rliDebitHolder'];
@@ -56,6 +58,7 @@ function bankStatus(contract) {
 
 export default async function handler(req, res) {
   setCors(req, res);
+  res.setHeader('Cache-Control','no-store');
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
@@ -65,7 +68,7 @@ export default async function handler(req, res) {
   const b = await readJson(req).catch(() => ({}));
   const op = clip(b && b.op, 20) || 'status';
   const contractId = clip(b && b.contractId, 80);
-  if (!contractId) return res.status(400).json({ ok: false, error: 'contractId_required' });
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(contractId)) return res.status(400).json({ ok: false, error: 'contractId_required' });
 
   if (op === 'save-bank') {
     // Nessun campo estraneo entra nella patch, neppure se valido altrove.
@@ -86,7 +89,8 @@ export default async function handler(req, res) {
       const contract = await fsGet('contracts/' + contractId);
       if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
       await fsPatch('contracts/' + contractId, patch);
-      return res.status(200).json({ ok: true, bank: bankStatus(patch) });
+      const fresh = await fsGetVersioned('contracts/'+contractId);
+      return res.status(200).json({ ok: true, bank: bankStatus(patch), version:fresh.updateTime });
     } catch {
       // Firestore può includere i dati nella risposta d'errore: mai nei log.
       console.error('[fiscal/registra] bank_save_failed');
@@ -95,6 +99,18 @@ export default async function handler(req, res) {
   }
 
   try {
+    if (op === 'external-adopt' || op === 'external-prepare' || op === 'progress' || op === 'caf-resolve' || op === 'external-party') {
+      const out = op === 'external-adopt' ? await adoptExternal(contractId,b,auth)
+        : op === 'external-prepare' ? await prepareExternal(contractId) : op === 'caf-resolve' ? await resolveCafDelivery(contractId,b,auth) : op === 'external-party' ? await linkExternalParty(contractId,b) : await saveRegistrationProgress(contractId,b,auth);
+      if (out.ok && op === 'external-prepare') {
+        const c = await fsGet('contracts/'+contractId);
+        if (c.registrationStatus === 'registered' && c.registrationReceiptUrl && c.registrationCode) {
+          const r = await recordRegistration(contractId,{date:c.rliRegisteredAt,code:c.registrationCode,file:null,notify:false,confirmReceipt:true,signedHash:c.externalSignedDocument.sha256});
+          out.receiptArchive = r.archive || {ok:false,error:r.error};
+        }
+      }
+      return res.status(out.ok ? 200 : out.status || 422).json(out);
+    }
     if (op === 'send') {
       const out = await sendAspiRequest(contractId, {
         kind: clip(b.kind, 20),
@@ -133,12 +149,14 @@ export default async function handler(req, res) {
     }
 
     // op:'status' — la fotografia per il pannello.
-    const contract = await fsGet('contracts/' + contractId);
+    const versioned = await fsGetVersioned('contracts/' + contractId);
+    const contract = versioned?.data;
     if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
     contract.id = contractId;
     const property = contract.propertyId
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
+    const external = externalReview(contract, property, versioned.updateTime);
     contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
     const settings = await loadAspiSettings();
     const [relet, invoices] = await Promise.all([
@@ -147,6 +165,7 @@ export default async function handler(req, res) {
     ]);
     return res.status(200).json({
       ok: true,
+      external,
       bank: bankStatus(contract),
       settings: {
         email: settings.email, referente: settings.referente, organizzazione: settings.organizzazione,
@@ -179,6 +198,7 @@ export default async function handler(req, res) {
         // Gli esiti DUREVOLI: il pacchetto all'operatore e la ricevuta per
         // destinatario. 'uncertain'/'sending' si mostrano, non si rimandano da soli.
         packEmail: contract.registrationPackEmail || null,
+        cafDelivery: contract.registrationCafDelivery || null,
         receiptDelivery: Object.values(contract.registrationReceiptDelivery || {})
           .filter(d => d && (contract.registrationReceiptHash
             ? d.fileKey === 'sha256:' + contract.registrationReceiptHash

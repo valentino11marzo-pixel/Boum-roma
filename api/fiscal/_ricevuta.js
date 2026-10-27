@@ -18,6 +18,8 @@ import { storageUpload } from '../agent/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, tiles } from '../preagreement/_notify.js';
 import { gather, sendOutcome } from '../sign/_notify.js';
+import completion from '../../js/contract-completion-engine.js';
+import { externalTermsValid } from '../contracts/_external.js';
 import crypto from 'node:crypto';
 
 const MAX_BYTES = 3 * 1024 * 1024;   // una ricevuta AdE pesa decine di KB
@@ -36,7 +38,7 @@ const fmtEN = (s) => {
 export function parseReceiptInput(b, { today } = {}) {
   const x = b || {};
   const date = String(x.date || '').trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(Date.parse(date + 'T00:00:00Z'))) return { error: 'bad_date' };
+  if (!completion.validDate(date)) return { error: 'bad_date' };
   if (today && date > today) return { error: 'future_date' };
   const code = String(x.code || '').trim().toUpperCase();
   if (code && !/^[A-Z0-9][A-Z0-9 /.-]{2,39}$/.test(code)) return { error: 'bad_code' };
@@ -58,7 +60,7 @@ export function parseReceiptInput(b, { today } = {}) {
     const name = String(x.name || '').replace(/[^\w.\- ]+/g, '').slice(0, 80) || ('ricevuta.' + TYPES[ct]);
     file = { buf, contentType: ct, ext: TYPES[ct], name };
   }
-  return { date, code, file, notify: x.notify !== false };
+  return { date, code, file, notify: x.notify !== false, confirmReceipt:x.confirmReceipt===true, signedHash:x.signedHash };
 }
 
 export function receiptDocId(contractId, who) {
@@ -90,7 +92,7 @@ export function receiptDocs(contract, property, { url, fileName, mimeType, code,
     });
   };
   add('tenant', c.tenantId, 'en');
-  add('landlord', p.ownerId || c.landlordId || c.ownerId, 'it');
+  add('landlord', c.externalSignedDocument?.landlordId || p.ownerId || c.landlordId || c.ownerId, 'it');
   (Array.isArray(c.coTenants) ? c.coTenants : []).forEach((x, i) => { if (x && x.userId) add('co' + i, x.userId, 'en'); });
   return out;
 }
@@ -178,10 +180,19 @@ function receiptEmail(r, { propLabel, code, date }) {
 // I/O. Ritorna { ok, ... } e non lancia per i guasti delle parti accessorie
 // (archivio, email): il dato della registrazione è ciò che deve restare.
 export async function recordRegistration(contractId, input, { force = false } = {}) {
-  const contract = await fsGet('contracts/' + contractId);
+  const versioned = await fsGetVersioned('contracts/' + contractId);
+  const contract = versioned?.data;
   if (!contract) return { ok: false, error: 'contract_not_found' };
   contract.id = contractId;
   const property = contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
+
+  if (completion.external(contract)) {
+    if (!completion.definitive(contract) || !externalTermsValid(contract,property)) return {ok:false,error:'signed_terms_changed'};
+    if (input.signedHash !== contract.externalSignedDocument.sha256) return {ok:false,error:'signed_document_changed'};
+    if (!input.confirmReceipt || !input.code || !(input.file || contract.registrationReceiptUrl)) return {ok:false,error:'registration_evidence_required'};
+    if (contract.registrationReceiptHash && (input.code!==contract.registrationCode || input.date!==contract.rliRegisteredAt)) return {ok:false,error:'receipt_already_recorded'};
+    if (input.date < contract.externalSignedDocument.signedDate) return {ok:false,error:'registration_before_signature'};
+  }
 
   let url = contract.registrationReceiptUrl || '';
   let fileName = contract.registrationReceiptName || '';
@@ -189,6 +200,7 @@ export async function recordRegistration(contractId, input, { force = false } = 
   let fileHash = contract.registrationReceiptHash || '';
   if (input.file) {
     fileHash = crypto.createHash('sha256').update(input.file.buf).digest('hex');
+    if (completion.external(contract) && contract.registrationReceiptHash && fileHash!==contract.registrationReceiptHash) return {ok:false,error:'receipt_already_recorded'};
     const path = `contracts/${contractId}/ricevuta-registrazione-${fileHash}.${input.file.ext}`;
     if (!url || contract.registrationReceiptHash !== fileHash) url = await storageUpload(path, input.file.buf, input.file.contentType);
     if (!url) return { ok: false, error: 'storage_unavailable' };
@@ -204,7 +216,11 @@ export async function recordRegistration(contractId, input, { force = false } = 
     ...(input.code ? { registrationCode: input.code } : {}),
     ...(input.file ? { registrationReceiptUrl: url, registrationReceiptHash: fileHash, registrationReceiptName: fileName, registrationReceiptType: mimeType, registrationReceiptAt: now } : {}),
   };
-  await fsPatch('contracts/' + contractId, patch);
+  if (completion.external(contract)) {
+    patch.registrationEvidence = {kind:'registration_confirmed',verifiedAt:now.toISOString(),signedHash:input.signedHash};
+    try { await fsCommit([{docPath:'contracts/'+contractId,fields:patch,precondition:{updateTime:versioned.updateTime}}]); }
+    catch(e) { if(e.conflict) return {ok:false,error:'registration_changed'}; throw e; }
+  } else await fsPatch('contracts/' + contractId, patch);
   const fresh = { ...contract, ...patch };
 
   // Le scadenze della registrazione, in tutte e due le forme che esistono.
@@ -222,12 +238,17 @@ export async function recordRegistration(contractId, input, { force = false } = 
 
   // L'archivio delle parti (solo se c'è un file: un documento senza file è rumore).
   let archived = 0;
+  const archiveFailed = [];
+  const archiveMissing = completion.missingProfiles(fresh,property);
   if (url) {
     for (const d of receiptDocs(fresh, property, { url, fileName, mimeType, code: fresh.registrationCode || '', date: input.date })) {
       try { await fsPatch('documents/' + d.id, { ...d.data, createdAt: now }); archived++; }
-      catch (e) { console.warn('[ricevuta] archive', d.id, e.message); }
+      catch (e) { archiveFailed.push(d.data.party); console.warn('[ricevuta] archive', d.id, e.message); }
     }
   }
+
+  const archiveState = {ok:!!url && !archiveFailed.length && !archiveMissing.length,archived,failed:archiveFailed,missingProfiles:archiveMissing,at:now.toISOString()};
+  if (completion.external(contract)) await fsPatch('contracts/'+contractId,{registrationReceiptArchive:archiveState});
 
   // Le email: UNA volta per destinatario e per file (15/10/2026, review).
   // Prima bastava che partisse a UNO perché il file risultasse «inviato» a
@@ -291,6 +312,7 @@ export async function recordRegistration(contractId, input, { force = false } = 
     registrationReceiptUrl: url || null,
     deadlinesClosed: closed,
     archived,
+    archive:archiveState,
     sent,
     failed,
     uncertain,

@@ -1895,6 +1895,7 @@ function paRow(d){
         +(cid&&coWait&&!sig.tenantSigned?'<button class="pbtn" onclick="coLinksFor(\''+d.id+'\',this)" title="Ogni co-conduttore firma col suo link: email a chi ce l’ha, WhatsApp/copia per tutti">👥 Link co-conduttori ('+sig.coPending.length+')</button>':'')
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
         +(d.landlordSignUrl&&sig.status!=='complete'&&!(sig.tenantSigned&&coWait)?'<button class="pbtn" onclick="copyTxt(\''+(d.delegated?delegaUrl(d.landlordSignUrl):d.landlordSignUrl)+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        +(cid?'<a class="pbtn" href="/portal#aspi='+encodeURIComponent(cid)+'" target="_blank" rel="noopener">'+(sig.status==='complete'?'🏛 Registrazione e documenti':'📎 Firmato fuori da Magic Sign')+'</a>':'')
         +(sig.status==='complete'&&sig.cert?'<a class="pbtn" href="'+sig.cert+'" target="_blank" rel="noopener">Certificato FES</a>':'')
         /* il contratto GENERATO (non ancora firmato): il PDF esiste dalla
            conversione (generatedPDF) ma la console lo mostrava solo a firme

@@ -104,6 +104,7 @@ export default async function handler(req, res) {
   if (!hit) { alertSignFailure('', '', 'invalid_or_used', 'token non riconosciuto'); return res.status(404).json({ ok: false, error: 'invalid_or_used' }); }
 
   const { contract, role, coIndex } = hit;
+  if (contract.externalSignedDocument) return res.status(410).json({ok:false,error:'already_signed',role,signatureStatus:'complete',signedAt:contract.fullySignedAt});
   const contractId = contract.id;
 
   // Sequential signing guard (mirrors lookup — API can't bypass the order):
@@ -419,6 +420,8 @@ export default async function handler(req, res) {
       if (pre) { fresh = pre.data; freshTime = pre.updateTime; }
     } catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
     if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
+
+    if (fresh.externalSignedDocument) return res.status(410).json({ok:false,error:'already_signed',role,signatureStatus:'complete'});
 
     // La versione VISTA dal firmatario è quella che firma (vedi sopra).
     if (seenVersion !== null && versionOf(fresh) !== seenVersion) {

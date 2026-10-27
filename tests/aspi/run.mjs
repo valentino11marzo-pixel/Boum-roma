@@ -120,7 +120,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (globalThis.__fail503 && globalThis.__fail503.has(clean)) return new Response('unavailable', { status: 503 });
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields: toFsFieldsShallow(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, updateTime:'2026-10-01T00:00:00Z', fields: toFsFieldsShallow(doc) });
   }
   throw new Error('fetch non stubbata: ' + url);
 };

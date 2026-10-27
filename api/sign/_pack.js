@@ -80,7 +80,7 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
 
   push('Contratto firmato', '01_Contratto_firmato.pdf',
     signedPdfUrl || contract.signedPdfUrl, 'si genera alla firma completa (Magic Sign)');
-  push('Certificato di firma FES', '02_Certificato_firma_FES.pdf',
+  if (!contract.externalSignedDocument) push('Certificato di firma FES', '02_Certificato_firma_FES.pdf',
     certUrl || contract.signingCertificateUrl, 'si genera alla firma completa');
   push('Scheda di calcolo canone — Allegato 2/B ARPE', '03_Scheda_calcolo_canone_ARPE.pdf',
     schedaPdfUrl || contract.schedaCanoneUrl, 'bottone 📑 Fascicolo sulla riga contratto nel portal (nasce insieme al fascicolo)');

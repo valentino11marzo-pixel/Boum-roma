@@ -4887,6 +4887,14 @@ presente sul profilo usciva «MANCANTE».
   (`landlordIban`) e conto addebito tributi (`rliDebitIban/Holder`, campo
   dell'operatore) sono due righe distinte: nessuno si deduce dall'altro.
   Test: `tests/notify` §1c-bis, `tests/registrazione` §3b–3d.
+- **Firmato fuori da Magic Sign, stessa pratica (27/10/2026, Codex)**.
+  `registra external-adopt` acquisisce byte originali e SHA-256 dopo verifica
+  esplicita e CAS; firme precedenti in storia, nessun FES ricostruito. Il pannello
+  collega profili esistenti e riprende console PA, archivio, scadenza, scheda e pack.
+  CAF: solo firmato + scheda, claim durevole; esito incerto risolto dall’operatore.
+  RLI conserva bozza, attesa SPID, trasmissione/scarto; registrato esterno richiede
+  ricevuta, codice ed esito positivo verificato. Errori di archivio restano recuperabili.
+  Prove: `externalcontract`, `externalcontractmutations`, `externalcontractui`.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
