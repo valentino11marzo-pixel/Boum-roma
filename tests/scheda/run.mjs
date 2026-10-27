@@ -62,6 +62,14 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
+    if (path.startsWith(':commit')) {
+      for(const w of JSON.parse(opts.body).writes){
+        if(!w.updateMask||w.currentDocument?.updateTime!=='2026-01-01T00:00:00Z')throw Error('Invalid conditional write');
+        const key=w.update.name.split('/documents/')[1];
+        store.set(key,{...(store.get(key)||{}),...fromFsFields(w.update.fields)});
+      }
+      return okJson({writeResults:[]});
+    }
     if (path.startsWith(':runQuery')) return okJson([{}]);
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
@@ -78,7 +86,7 @@ globalThis.fetch = async (url, opts = {}) => {
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, updateTime:'2026-01-01T00:00:00Z', fields: toFsFields(doc) });
   }
   throw new Error('fetch non stubbata: ' + url);
 };

@@ -31,13 +31,13 @@ const BASE = 'https://www.boomrome.com';
 export function signatureState(c) {
   if (!c || typeof c !== 'object') return { status: 'none', tenantSigned: false, landlordSigned: false, tenantSignedAt: null, landlordSignedAt: null, fullySignedAt: null };
   const iso = (v) => (!v ? null : typeof v === 'string' ? v : (v && typeof v.toDate === 'function') ? v.toDate().toISOString() : (v && v.seconds) ? new Date(v.seconds * 1000).toISOString() : String(v));
-  const tenantSigned = !!c.tenantSignature;
-  const landlordSigned = !!c.landlordSignature;
+  const tenantSigned = !!(c.externalSignedDocument || c.tenantSignature);
+  const landlordSigned = !!(c.externalSignedDocument || c.landlordSignature);
   // «complete» = locatore + LATO CONDUTTORI completo (co-conduttori
   // compresi): con signingOrder 'any' titolare e locatore potevano aver
   // firmato con un co-conduttore che mancava, e qui risultava «complete».
   const co = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
-  const coPending = co.filter(x => !x.signature).length;
+  const coPending = c.externalSignedDocument ? 0 : co.filter(x => !x.signature).length;
   const coSigned = co.length - coPending;
   const status = c.signatureStatus === 'complete' || (tenantSideComplete(c) && landlordSigned) ? 'complete'
     : (tenantSigned || landlordSigned || coSigned > 0 || c.signatureStatus === 'partial') ? 'partial' : 'none';

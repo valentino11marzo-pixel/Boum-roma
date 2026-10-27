@@ -221,7 +221,7 @@ async function readCapped(r, max) {
   return { buf: Buffer.concat(chunks) };
 }
 
-async function readBytes(b, contractId) {
+export async function readBytes(b, contractId) {
   if (typeof b.pdfBase64 === 'string' && b.pdfBase64.length) {
     const raw = b.pdfBase64.replace(/^data:[^,]*,/, '');
     if (raw.length > Math.ceil(MAX_PDF_BYTES * 4 / 3) + 16) return { error: 'too_large' };
