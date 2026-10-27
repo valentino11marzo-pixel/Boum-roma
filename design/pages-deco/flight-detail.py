@@ -38,8 +38,9 @@ def enhance(html):
     place = place_match.group().replace('<section class="sezione" id="posto">',
         '<section class="sezione" id="posto" role="tabpanel" '
         'aria-labelledby="bfd-everyday-tab" tabindex="0" hidden>', 1)
+    place = re.sub(r"The real map and the real distances, measured from\s+this door — not from the zone's name\.", 'Explore the area and compare journeys. Map precision and travel estimates are shown below.', place)
     place = re.sub(r'<h2 class="titolo">See the <span class="hl">block</span> — before you\s*cross town.</h2>',
-        '<h2 class="titolo">Your everyday. <span class="hl">From this door.</span></h2>', place, count=1)
+        '<h2 class="titolo">Your everyday. <span class="hl">Around here.</span></h2>', place, count=1)
 
     cost_start = html.index('      <div class="chiavi-cima">')
     cost_end = html.index('      <div class="chiavi-compra">', cost_start)
