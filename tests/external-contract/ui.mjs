@@ -1,6 +1,8 @@
 // Real portal controllers in Chromium; HTTP routes run real server handlers.
 // Only auth, Firestore/Storage and SMTP cross an in-memory boundary.
 import {readFileSync} from 'node:fs';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
 import {loadChromium,launchOptions} from '../_browser.mjs';
 import {reset,call,current,PDF,storage,assert,DB} from './fixture.mjs';
 const chromium=await loadChromium();if(!chromium)throw Error('Chromium required: set BOOM_PLAYWRIGHT');
@@ -12,7 +14,7 @@ window.S={contracts:[],deadlines:[]};window.auth={currentUser:{uid:'admin',getId
 window.esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 window.toast=(type,message)=>{window.messages.push({type,message})};window.messages=[];
 window.closeModal=()=>{document.getElementById('modals').innerHTML=''};window.renderPage=()=>{};
-window.storage={ref:path=>({put:async file=>window.fixturePut(path,Array.from(new Uint8Array(await file.arrayBuffer()))),getDownloadURL:async()=> 'https://firebasestorage.googleapis.com/v0/b/delivery-test.firebasestorage.app/o/'+encodeURIComponent(path)+'?alt=media&token=synthetic'})};
+window.storage={ref:path=>({put:async file=>{const r=await fetch('/fixture-storage/'+encodeURIComponent(path),{method:'PUT',body:file});if(!r.ok)throw Error('fixture_storage_failed');},getDownloadURL:async()=> 'https://firebasestorage.googleapis.com/v0/b/delivery-test.firebasestorage.app/o/'+encodeURIComponent(path)+'?alt=media&token=synthetic'})};
 ${code}
 </script></body></html>`;
 const browser=await chromium.launch(launchOptions());let n=0;
@@ -20,10 +22,16 @@ try{
 for(const width of [390,1280]){
  reset();const page=await browser.newPage({viewport:{width,height:900}}),errors=[],requests=[];
  page.on('pageerror',e=>errors.push(e.message));
- await page.exposeFunction('fixturePut',(path,bytes)=>{storage.set(path,Buffer.from(bytes));});
  await page.route('**/*',async route=>{
    const u=new URL(route.request().url());
    if(u.hostname==='boom.test'&&u.pathname==='/')return route.fulfill({contentType:'text/html',body:html});
+   if(u.hostname==='boom.test'&&u.pathname.startsWith('/fixture-storage/')){
+     assert.equal(route.request().method(),'PUT');
+     const path=decodeURIComponent(u.pathname.slice('/fixture-storage/'.length));
+     assert.match(path,/^contracts\/c1\/external-incoming\/[\w-]+\.pdf$/);
+     storage.set(path,route.request().postDataBuffer());
+     return route.fulfill({status:200,body:'stored'});
+   }
    if(u.hostname==='boom.test'&&u.pathname==='/api/fiscal/registra'){
      const b=route.request().postDataJSON();requests.push(b);
      const r=await call(b);return route.fulfill({status:r.code,contentType:'application/json',body:JSON.stringify(r.body)});
@@ -39,7 +47,11 @@ for(const width of [390,1280]){
  assert.equal(requests.filter(x=>x.op==='external-adopt').length,0);
  await page.locator('#extComplete').check();await page.locator('#extTerms').check();
  await page.getByRole('button',{name:'Acquisisci firmato e continua'}).click();
- await page.getByText('Contratto firmato esternamente · stessa pratica',{exact:true}).waitFor({timeout:10000}).catch(async e=>{console.log('UI DEBUG',await page.locator('#externalStatus').textContent(),errors,requests.map(x=>x.op));await page.screenshot({path:'/private/tmp/boom-external-debug.png',fullPage:true});throw e;});
+ await page.getByText('Contratto firmato esternamente · stessa pratica',{exact:true}).waitFor({timeout:10000}).catch(async e=>{
+   console.error('FAIL external UI adoption',JSON.stringify({status:await page.locator('#externalStatus').textContent(),errors,requests:requests.map(x=>x.op)}));
+   await page.screenshot({path:join(tmpdir(),'boom-external-debug.png'),fullPage:true}).catch(shot=>console.error('FAIL diagnostic screenshot',shot.message));
+   throw e;
+ });
  assert.equal(current().signatureStatus,'complete');assert.equal(requests.filter(x=>x.op==='external-adopt').length,1);
  assert.equal(await page.getByRole('link',{name:'Dati per RLI',exact:true}).count(),1);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth),false,'No horizontal scroll');
@@ -57,7 +69,7 @@ for(const width of [390,1280]){
  await page.waitForFunction(()=>document.querySelector('#regSaveBtn')===null);
  assert.equal(current().registrationStatus,'registered');
  assert.equal([...DB.keys()].filter(k=>k.startsWith('documents/registration-receipt_')).length,3);
- await page.evaluate(()=>openAspi('c1'));await page.locator('section[aria-label="Percorso registrazione"]').waitFor();await page.screenshot({animations:'disabled',path:'/private/tmp/boom-external-'+width+'.png',fullPage:true});
+ await page.evaluate(()=>openAspi('c1'));await page.locator('section[aria-label="Percorso registrazione"]').waitFor();await page.screenshot({animations:'disabled',path:join(tmpdir(),'boom-external-'+width+'.png'),fullPage:true});
  assert.deepEqual(errors,[]);n++;console.log('PASS actual portal → server → archives at '+width+'px');await page.close();
 }
 }finally{await browser.close();}

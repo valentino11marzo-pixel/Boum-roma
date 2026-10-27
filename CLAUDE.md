@@ -4895,6 +4895,9 @@ presente sul profilo usciva «MANCANTE».
   RLI conserva bozza, attesa SPID, trasmissione/scarto; registrato esterno richiede
   ricevuta, codice ed esito positivo verificato. Errori di archivio restano recuperabili.
   Prove: `externalcontract`, `externalcontractmutations`, `externalcontractui`.
+  Il test browser trasferisce il PDF grande come corpo binario HTTP, come
+  Storage, senza serializzare milioni di numeri nel ponte Playwright. Le
+  schermate usano `os.tmpdir()` e un errore diagnostico non nasconde il guasto.
 - **Le righe rosse del link pubblico** (dal riesame avversario, stessa
   release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
   ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
