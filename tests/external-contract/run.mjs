@@ -98,4 +98,8 @@ await test('invitation and identity entry points recognize external signatures w
  assert.equal((await inviteCoTenants({contractId:'c1',contract:c,resend:true})).pending.length,0);
  assert.equal((await call({role:'tenant'},sendLink)).body.error,'already_signed');assert.equal(globalThis.deliveryMails.length,0);
 });
+await test('registered practice never sends a second registration request to CAF',async()=>{
+ reset();await adopt();await prepare();await call(receipt());
+ assert.equal((await call({op:'send',bill:false})).body.error,'already_registered');assert.equal(globalThis.deliveryMails.length,0);
+});
 assert.deepEqual(F.unexpected,[]);console.log(`External contract: ${n} end-to-end scenarios passed`);

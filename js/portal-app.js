@@ -25657,7 +25657,7 @@ ${esc(data.description || '')}</textarea></div>
                 <p style="font-size:12px">Originale di ${esc(x.document.pages)} pagine · stipula ${esc(x.document.signedDate)} · controllo dell’operatore registrato.</p>
                 ${!x.termsValid ? '<p role="alert" style="color:var(--red)">I dati sono cambiati dopo la verifica del firmato. Ripristina i dati coerenti con il documento prima di procedere.</p>' : ''}
                 <div style="display:flex;gap:6px;flex-wrap:wrap">${links}</div>
-                <p style="font-size:12px">${Object.entries(labels).map(([k,l]) => `${steps[k]?.ok ? '✓' : '⚠'} ${l}`).join(' · ')}</p>
+                <p style="font-size:12px">${Object.entries(labels).filter(([k])=>!steps[k]?.skipped).map(([k,l]) => `${steps[k]?.ok ? '✓' : '⚠'} ${l}`).join(' · ')}</p>
                 ${x.missingProfiles.length ? `<p role="alert">Documenti non consegnabili: collega il profilo di ${x.missingProfiles.map(who).map(esc).join(', ')} alla pratica.</p>` : ''}
                 ${problems.length ? `<p style="font-size:12px">Allegati da completare: ${problems.map(esc).join(', ')}.</p>` : ''}
                 ${x.receiptArchive && !x.receiptArchive.ok ? '<p role="alert">La ricevuta è salvata, ma manca ancora la pubblicazione in uno o più portali. Riprendi il completamento.</p>' : ''}
@@ -25796,7 +25796,7 @@ ${esc(data.description || '')}</textarea></div>
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
                 <button class="btn btn-secondary" onclick="openRegistered('${contractId}')">✓ Registrato: carica ricevuta</button>
                 <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
-                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia a ${esc(s.referente || 'referente')}</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')" ${st.external?.document && st.state.registrationStatus==='registered' ? 'disabled' : ''}>${st.external?.document && st.state.registrationStatus==='registered' ? 'Registrazione completata' : '✉ Invia a ' + esc(s.referente || 'referente')}</button>
             </div>
         </div></div>`;
         _aspiRenderKind();

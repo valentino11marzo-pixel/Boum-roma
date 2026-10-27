@@ -426,6 +426,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
 
   if (!externalTermsValid(contract,property)) return {ok:false,error:'signed_terms_changed'};
   const external = !!contract.externalSignedDocument;
+  if (external && contract.registrationStatus==='registered') return {ok:false,error:'already_registered'};
 
   // I documenti d'identità anche dai profili delle parti (api/sign/_iddocs.js).
   contract.identityDocs = (await withProfileDocs(contract, property)).identityDocs || contract.identityDocs;
@@ -520,6 +521,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   if (external) {
     const v = await fsGetVersioned('contracts/'+contractId);
     if (!v || v.data.externalSignedDocument?.sha256 !== contract.externalSignedDocument.sha256 || !externalTermsValid(v.data,property)) return {ok:false,error:'signed_terms_changed'};
+    if (v.data.registrationStatus==='registered') return {ok:false,error:'already_registered'};
     const old = v.data.registrationCafDelivery;
     if (old?.status === 'sent') return {ok:true,duplicate:true,kind:old.kind||kind,to:old.to,attachments:old.attachments||[],missing:[],invoice:null};
     if (old) return {ok:false,error:'caf_delivery_uncertain'};
