@@ -7608,7 +7608,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             ${newLeads.length > 0 ? `<div class="dash-list" style="margin-top:14px">
                 ${newLeads.slice(0, 3).map(l => {
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     const when = l.createdAt ? _humanAgo(l.createdAt) : '';
                     return `<div class="dash-row" data-tone="gold">
                         <span class="dash-row-icon">${lang}</span>
@@ -9102,7 +9102,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const isDiscarded = l.status === 'discarded';
                     const isResponded = l.status === 'responded';
                     const timeAgo = l.createdAt ? getTimeAgo(l.createdAt) : '';
-                    const lang = l.language === 'en' ? '🇬🇧' : '🇮🇹';
+                    const lang = l.language === 'en' ? '🇬🇧' : l.language === 'tr' ? '🇹🇷' : '🇮🇹';
                     
                     return `<div class="list-item" style="padding:16px;cursor:pointer;${isNew ? 'border-left:3px solid var(--gold);' : ''}${isDiscarded ? 'opacity:0.5;' : ''}" onclick="viewLead('${l.id}')">
                         <div class="list-icon" style="background:${isNew ? 'var(--gold-light)' : isConverted ? 'var(--green-light)' : isResponded ? 'var(--blue-light)' : 'var(--bg-elevated)'}">
@@ -9348,7 +9348,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let prefill = { name: '', email: '', phone: '', language: 'it', zone: '', budget: 0, propertyId: '', propertyTitle: '', codiceFiscale: '', address: '' };
         if (sourceKind === 'lead' && sourceId) {
             const l = (S.leads || []).find(x => x.id === sourceId) || {};
-            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: (l.language || 'it').toLowerCase(), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
+            Object.assign(prefill, { name: l.name || '', email: l.email || '', phone: l.phone || '', language: ((l.language || 'it').toLowerCase() === 'tr' ? 'en' : (l.language || 'it').toLowerCase()), zone: l.zone || '', budget: l.budget || 0, propertyTitle: l.propertyTitle || '' });
         } else if (sourceKind === 'pfsClient' && sourceId) {
             const c = (S.pfsClients || []).find(x => x.id === sourceId) || {};
             Object.assign(prefill, { name: c.name || '', email: c.email || '', phone: c.phone || '', zone: c.zone || '', budget: c.budget || 0 });
@@ -10018,7 +10018,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const timelineBody = events.length ? `<div style="padding:0 16px">${events.slice(0, 30).map(ev => `<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="flex-shrink:0">${ev.icon}</span><div style="flex:1"><div>${esc(ev.text)}</div><div style="font-size:11px;color:var(--text-muted)">${fmtDate(ev.ts)}</div></div>${ev.link ? `<a class="btn btn-xs btn-secondary" onclick="event.stopPropagation()">apri</a>` : ''}</div>`).join('')}</div>` : null;
 
-        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : '🇮🇹';
+        const personLanguageFlag = language === 'en' || language === 'EN' ? '🇬🇧' : String(language).toLowerCase() === 'tr' ? '🇹🇷' : '🇮🇹';
 
         return `<div class="page-header">
             <div>

@@ -1,58 +1,48 @@
-// tests/cities/ui.mjs — the generated city page (v2, brief v1.3, STUDIO §11)
-// in a real Chromium.
+// tests/cities/ui.mjs — the city desk (v1.5, «il biglietto») in a real
+// Chromium. The page is served from the repo root; /api/city-lead (POST and
+// the paid GET) and /api/service-checkout are answered here, and every
+// request to a host we did not stub is aborted and counted.
 //
 // What it proves:
-//   - with JS OFF the page reads whole: the city in the title as text, the
-//     prices as text on the plates and in the chips, every section visible;
-//     the Check-in, the pass, the skip link and the strip are not there (they
-//     are behaviour), the service chips are open in the door;
-//   - 390px: the Solari board spells the city in the space the hero reserved,
-//     no horizontal scroll; the pass is NOT on the screen until the first tap
-//     (a blank ticket on a phone is a question nobody asked), then it is the
-//     live ticket: resolved from the first tap where the rules allow it
-//     (haven't started → Full Search), pending with the two plans named when
-//     the second tap decides (shortlist), the note and the papers only after
-//     the third; the price spins once per plan on its own board;
-//   - the papers: three ticked → "3 of 8", the missing five by name, the
-//     meter at 38%; the pass grid follows (passenger, boarding, file, papers);
-//   - the door is written by the pass: the chip checked, the plan line says
-//     "from your check-in", the month prefilled from the answer, the two
-//     hidden fields in words; the URL remembers the answers; Copy link
-//     carries the papers (own link, via l), WhatsApp does not (via w);
-//   - a link lands where it says: complete → the ticket; a friend's link →
-//     the banner; partial → the next step; broken → the first step and a
-//     clean address bar;
-//   - the till is a native <dialog>: a plate's button opens it on ITS plan,
-//     Escape closes it, it posts { city, kind } and follows Stripe's URL;
-//     back on ?paid= the PAID state, one purchase per session id, the key in
-//     sessionStorage (never localStorage); the pass's till button too;
-//   - the door: errors in place, one JSON post, OPEN on the board with the
-//     reply window computed against the desk clock, the offer to pay for the
-//     plan they chose (the refund line only under Full Search), "not sure"
-//     gets no offer, a failed send gives the button back;
-//   - the desk clock line reads "it is HH:MM at the desk[, HH:MM for you]";
-//   - the strip carries no price and names the plan once there is one;
-//   - 1440px: the pass is on the page from load, blank, in the right
-//     column above the door; desktop nav with the door as a text link, no
-//     strip;
-//   - reduced motion: the word set still, no pass animation, no stagger;
-//   - the sisters at 390: Madrid sells, Barcelona/Paris/Berlin show list
-//     prices with their own condition and no till; Berlin's Full Search says
-//     "on signing" on the pass;
-//   - the consent plate waits: not before the first move, not on a tap inside
-//     the diagnostic, not while the dialog is open;
-//   - the pass exports as a real 1080×1920 image (webp in Chromium);
-//   - zero JS errors, and no request leaves for a host we did not stub.
-//
-// The page is served from the repo root (it links /css and /assets). Every
-// request outside localhost is aborted: /api/city-lead and
-// /api/service-checkout are answered here.
+//   - the first phone screen is ONE pass: the city settles on its board, the
+//     sentence with the must-state, three fare rows with their prices, the
+//     gold door and who answers — all above the fold at 390×844;
+//   - a tapped fare row does not move under the finger (manual scroll
+//     anchoring, < 2 px), opens ITS ticket in place, closes the other, and on
+//     a phone the ONE door moves into the open ticket (never two doors); at
+//     1440 the door stays in the stub;
+//   - the refund rule is RENDERED once beside the €500: under the closed
+//     Full Search row, inside its open ticket (the outside copy steps back);
+//   - the free door: the first tap reveals two fields and focuses the name,
+//     errors say what to fix in place and clear as the visitor types, the
+//     POST carries the plan the visitor was reading (nothing pre-selected
+//     otherwise) and ONE contact split into email or phone, three Enters make
+//     one POST, OPEN prints the SERVER's file number, a failure prints
+//     nothing and gives the door back;
+//   - pay only from a ticket: the till opens on THAT plan, unticked, "Pay and
+//     book" until the tick, Enter on the tick never pays, its errors in
+//     place, the POST says startNow only when ticked, a refused checkout
+//     says so in the till, Escape gives the focus back;
+//   - the paid return: ?paid= alone stamps nothing — "being confirmed" until
+//     the server says paid:true, then PAID with the server's file, the plan,
+//     the start date (the 14 days' end when the box was not ticked) and ONE
+//     purchase, never twice on a reload; a forged ?paid= does nothing; no pay
+//     button while confirming or after PAID;
+//   - the desk clock: Saturday says "Monday from 09:00", Koningsdag
+//     "Tomorrow", the Diada in Barcelona "Monday", a weekday "desk open until
+//     19:00" — the zone name of the opening instant (CET in winter);
+//   - no JS: the page reads whole, the door is shut and says where to write;
+//   - 320px: no horizontal scroll, every target ≥ 44 px; reduced motion: the
+//     board settles at once; the strip: the same door, after the pass's door
+//     leaves the screen, no price, never with the till open;
+//   - the waitlists (Paris, Berlin): "Open my file", no pay button, no till;
+//     Madrid's till repeats "Optional, chosen in writing";
+//   - zero JS errors, no request to a host we did not stub.
 
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadChromium, launchOptions } from '../_browser.mjs';
-import { CELL_EM } from '../../build-cities.mjs';
 
 const R = path.resolve(new URL('../..', import.meta.url).pathname);
 let ok = 0, ko = 0;
@@ -60,7 +50,7 @@ const bene = (t) => { ok++; console.log('  \x1b[32m✓\x1b[0m ' + t); };
 const male = (t) => { ko++; console.log('  \x1b[31m✗\x1b[0m ' + t); };
 const check = (cond, t, why = '') => (cond ? bene(t) : male(t + (why ? ` — ${why}` : '')));
 
-console.log('\n\x1b[1m▸ citiesui\x1b[0m  the city page in a real browser: the diagnostic, the pass, the door, the till');
+console.log('\n\x1b[1m▸ citiesui\x1b[0m  the city desk in a real browser: the pass, the fares, the door, the till, the paid return, the clock');
 
 const chromium = await loadChromium();
 if (!chromium) {
@@ -80,14 +70,18 @@ const srv = http.createServer((req, res) => {
 const base = `http://127.0.0.1:${srv.address().port}`;
 const browser = await chromium.launch(launchOptions());
 
-async function open({ js = true, width = 390, api = { status: 200, body: { ok: true, id: 'ams1' } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, touch = false, clock = null, block = null } = {}) {
-  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: width < 600 ? 844 : 900 }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
+const FILE = 'BM 7K2QX';
+const LEAD_OK = { status: 200, body: { ok: true, id: 'city_ui0000test1', file: FILE } };
+const SID = 'cs_test_ui0000000001';
+const allErrors = [], allForeign = [];
+async function open({ js = true, width = 390, height = null, api = LEAD_OK, paid = { status: 200, body: { ok: true, pending: true } }, reducedMotion = 'no-preference', slug = 'amsterdam', query = '', checkout = null, consent = true, clock = null, touch = false } = {}) {
+  const ctx = await browser.newContext({ javaScriptEnabled: js, viewport: { width, height: height || (width < 600 ? 844 : 900) }, reducedMotion, ...(touch ? { isMobile: true, hasTouch: true } : {}) });
   const page = await ctx.newPage();
-  const st = { errors: [], posts: [], checkouts: [], foreign: [] };
-  page.on('pageerror', (e) => st.errors.push(e.message));
+  const st = { errors: [], posts: [], gets: [], checkouts: [], foreign: [] };
+  page.on('pageerror', (e) => { st.errors.push(e.message); allErrors.push(`${slug}${query}: ${e.message}`); });
   // the consent plate stays closed unless a test is about it
   if (consent) await page.addInitScript(() => { try { localStorage.setItem('boom:consent', 'min:' + Date.now()); } catch (e) {} });
-  // a fixed clock, for the desk's weekend: new Date() and Date.now() return it, everything else is the real Date
+  // a fixed clock: new Date() and Date.now() return it, everything else is the real Date
   if (clock) await page.addInitScript((iso) => {
     const RD = Date, T = new RD(iso).getTime();
     function D() { return arguments.length ? new RD(...arguments) : new RD(T); }
@@ -96,901 +90,518 @@ async function open({ js = true, width = 390, api = { status: 200, body: { ok: t
   }, clock);
   await page.route('**/*', async (r) => {
     const u = r.request().url();
-    if (block && block.test(u)) return r.abort();
     if (u.startsWith(base + '/api/city-lead')) {
-      st.posts.push({ headers: r.request().headers(), body: r.request().postData() || '' });
+      if (r.request().method() === 'GET') {
+        st.gets.push(u);
+        const b = typeof paid === 'function' ? paid(st.gets.length) : paid;
+        return r.fulfill({ status: b.status, contentType: 'application/json', body: JSON.stringify(b.body) });
+      }
+      st.posts.push(JSON.parse(r.request().postData() || '{}'));
       if (api.delay) await new Promise((res) => setTimeout(res, api.delay));
       return r.fulfill({ status: api.status, contentType: 'application/json', body: JSON.stringify(api.body) });
     }
     if (u.startsWith(base + '/api/service-checkout')) {
-      st.checkouts.push({ headers: r.request().headers(), body: r.request().postData() || '' });
-      const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&session_id=cs_test_ui_1#contact` } };
+      st.checkouts.push(JSON.parse(r.request().postData() || '{}'));
+      const res = checkout || { status: 200, body: { ok: true, url: `${base}/${slug}?paid=full-search&start=0&session_id=${SID}` } };
+      if (res.delay) await new Promise((x) => setTimeout(x, res.delay));
       return r.fulfill({ status: res.status, contentType: 'application/json', body: JSON.stringify(res.body) });
     }
     if (u.startsWith(base)) return r.continue();
-    if (!/googletagmanager\.com/.test(u)) st.foreign.push(u);   // gtag is the one third party every BOOM page loads
+    if (!/googletagmanager\.com/.test(u)) { st.foreign.push(u); allForeign.push(u); }
     return r.abort();
   });
   await page.goto(`${base}/${slug}${query}`, { waitUntil: 'load' });
   return { ctx, page, st };
 }
-const layer = (page) => page.evaluate(() => (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event').map((a) => ({ name: a[1], p: a[2] || {} })));
-const boardWord = (page, id) => page.$eval(id, (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join(''));
-// the strip at the bottom sits over the edge of a 844px viewport: a target is
-// centred before the tap, as a thumb would do, never clicked through the bar
-const tap = async (page, sel) => {
-  await page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
-  await page.waitForTimeout(200);
-  await page.click(sel);
-};
-const ckOpt = (v) => `#checkin .ck-opt:has(input[value="${v}"])`;
-const ckDoc = (v) => `#pass .ck-doc:has(input[value="${v}"])`;
-const vis = (page, sel) => page.$eval(sel, (e) => !e.hidden && !e.closest('[hidden]') && getComputedStyle(e).display !== 'none').catch(() => false);
-const passState = (page) => page.evaluate(() => {
-  const p = document.getElementById('pass');
-  const t = (id) => (document.getElementById(id) || {}).textContent || '';
-  return {
-    state: p.getAttribute('data-state'), display: getComputedStyle(p).display, inClass: p.classList.contains('in'),
-    code: t('ckCode'), plan: t('ckPlan'), cond: t('ckCond'), why: t('ckWhy'), note: t('ckNote'), pend: t('ckPendText'),
-    price: [...document.querySelectorAll('#ckPrice .st b')].map((b) => b.textContent).join(''), priceCells: document.querySelectorAll('#ckPrice .fc2').length,
-    board: [...document.querySelectorAll('#ckBoard .st b')].map((b) => b.textContent).join(''),
-    blankShown: !document.getElementById('ckBlank').hidden, pendShown: !document.getElementById('ckPend').hidden,
-    planShown: !document.getElementById('ckPlanBox').hidden, papersShown: !document.getElementById('ckPapers').hidden,
-    noteShown: !document.getElementById('ckNote').hidden, refundShown: document.getElementById('ckRefund') ? !document.getElementById('ckRefund').hidden : null,
-    ready: t('ckReady'), meter: document.getElementById('ckMeter').style.width, meterVar: document.getElementById('ckMeter').style.getPropertyValue('--meter'),
-    start: document.getElementById('ckStart') ? document.getElementById('ckStart').getAttribute('data-pay') : null, startAmt: t('ckStartAmt'),
-    file: document.getElementById('ckFile').getAttribute('data-service'),
-    chip: (document.querySelector('input[name="service"]:checked') || {}).value || '', plText: t('plText'), planFrom: document.getElementById('cityForm').getAttribute('data-plan-from'),
-    moveIn: document.getElementById('fMoveIn').value, fCheckin: document.getElementById('fCheckin').value, fDossier: document.getElementById('fDossier').value,
-    hash: location.hash, wa: document.getElementById('ckWa').getAttribute('href'),
-    passenger: t('ckPassenger'), passWhen: t('ckPassWhen'), passFile: t('ckPassFile'), passPapers: t('ckPassPapers'), from: t('ckFrom'),
-    stripSub: t('stripSub'), num: t('ckNum'), landing: document.getElementById('ckLanding').hidden ? null : t('ckLanding'),
-    stepsShown: ['stage', 'where', 'when'].map((s) => { const f = document.querySelector(`#checkin .ck-step[data-step="${s}"]`); return !f.hidden && getComputedStyle(f).display !== 'none'; }),
-    rect: (() => { const r = p.getBoundingClientRect(); return { top: Math.round(r.top), bottom: Math.round(r.bottom), h: Math.round(r.height) }; })()
-  };
-});
-const board = (page) => page.evaluate(() => {
-  const f = document.getElementById('flapCity');
-  const cells = [...f.querySelectorAll('.fc2')];
-  const r = f.getBoundingClientRect();
-  const first = cells[0] && cells[0].getBoundingClientRect(), last = cells.length && cells[cells.length - 1].getBoundingClientRect();
-  return {
-    cells: cells.length,
-    letters: cells.map((c) => c.querySelector('.st b').textContent).join(''),
-    hostW: r.width, contentW: cells.length ? last.right - first.left : 0,
-    minW: parseFloat(f.style.minWidth) * parseFloat(getComputedStyle(f).fontSize)
-  };
-});
-const ymPlus = (n) => { const d = new Date(); d.setDate(1); d.setMonth(d.getMonth() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-// the consent plate counts as shown only when it exists and is not held hidden
-// (main's boom-consent creates it with .zz and reveals it with show())
-const plateUp = (page) => page.$eval('.boomcst', (e) => !e.classList.contains('zz') && getComputedStyle(e).visibility !== 'hidden').catch(() => false);
-const WINDOW_RE = /^(By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
-// the door's sub follows the desk clock: "same-day reply" while the desk is open, the window (a time, never a price) when it is closed
-const SUB_RE = /^free · (same-day reply|By 19:00 CES?T today|Today from 09:00 CES?T|Tomorrow from 09:00 CES?T|(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) from 09:00 CES?T)$/;
+const events = (page) => page.evaluate(() => (window.dataLayer || []).map((a) => [].slice.call(a)).filter((a) => a[0] === 'event').map((a) => ({ name: a[1], p: a[2] || {} })));
+const rect = (page, sel) => page.$eval(sel, (e) => { const r = e.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right, h: r.height, w: r.width }; });
+const shown = (page, sel) => page.$eval(sel, (e) => !e.hidden && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden').catch(() => false);
+const text = (page, sel) => page.$eval(sel, (e) => e.textContent.trim().replace(/\s+/g, ' ')).catch(() => null);
+const boardWord = (page, sel) => page.$eval(sel, (e) => [...e.querySelectorAll('.st b')].map((b) => b.textContent).join('').trim()).catch(() => '');
+const center = (page, sel) => page.$eval(sel, (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' }));
+const tap = async (page, sel) => { await center(page, sel); await page.waitForTimeout(120); await page.click(sel); };
+const noHScroll = (page) => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1);
+const RULE = JSON.parse(fs.readFileSync(path.join(R, 'cities/_shared.json'), 'utf8')).refund.rule;
 
-// ── JS off: everything readable, nothing behavioural on the page ─────────
+// ── 1 · the first phone screen is one pass ───────────────────────────────
+{
+  const { ctx, page, st } = await open();
+  await page.waitForTimeout(1600);
+  check(await boardWord(page, '#placeBoard') === 'AMSTERDAM', 'the city settles on its board (AMSTERDAM)');
+  check(await page.$eval('#h1', (h) => h.textContent === 'Your home in Amsterdam' && !h.querySelector('.board')), 'after the board settles the rendered H1 still reads exactly "Your home in Amsterdam" (the cells live outside it)');
+  const fold = 844;
+  const doorR = await rect(page, '#door'), lastRow = await rect(page, '#fare-attended-viewing > summary');
+  check(lastRow.bottom <= fold && doorR.bottom <= fold, `at 390×844 the three fares (bottom ${Math.round(lastRow.bottom)}) and the gold door (bottom ${Math.round(doorR.bottom)}) are on the first screen`);
+  const order = await page.evaluate(() => ['#h1', '.lead', '#fare-full-search', '#fare-application-pack', '#fare-attended-viewing', '#door', '.fields.desk'].map((s) => document.querySelector(s).getBoundingClientRect().top));
+  check(order.every((v, i) => i === 0 || v > order[i - 1]), 'reading order at 390: title · sentence · three fares · door · who answers');
+  check(JSON.stringify(await page.$$eval('.fields.desk dd', (d) => d.map((x) => x.textContent.trim()))) === JSON.stringify(['Valentino Egidi', 'Mon–Fri 09:00–19:00, Rome time']) && await shown(page, '.fields.desk'), 'who answers and when, said on the pass');
+  check(await page.$$eval('#fares details[open]', (d) => d.length) === 0 && await shown(page, '#notSure') && !(await shown(page, '#planLn')), 'nothing pre-selected: no fare open, the "not sure" line over the door');
+  check(await shown(page, '#fares > .refund.fs') && await text(page, '#fares > .refund.fs') === RULE, 'the refund rule is rendered under the closed Full Search row');
+  check(await noHScroll(page), 'no horizontal scroll at 390');
+  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no request to a foreign host', st.errors.concat(st.foreign).join(' | '));
+  await ctx.close();
+}
+
+for (const slug of ['amsterdam', 'madrid', 'barcelona', 'paris', 'berlin']) {
+  for (const [w, h] of [[390, 844], [1440, 900]]) {
+    const { ctx, page } = await open({ slug, width: w, height: h });
+    await page.waitForTimeout(400);
+    if (w === 390) {
+      const b = await page.evaluate(() => ['#door', '.fields.desk', '#fare-attended-viewing > summary'].map((q) => Math.round(document.querySelector(q).getBoundingClientRect().bottom)));
+      check(b.every((x) => x <= 844), `${slug} 390×844: the three fares, the gold door and who answers are all above the fold (${b.join(', ')})`);
+    }
+    // the legally load-bearing first-screen text is RENDERED, not only written
+    const legal = await page.evaluate(() => {
+      const vis = (e) => !!e && !!e.offsetParent && getComputedStyle(e).visibility !== 'hidden' && e.getBoundingClientRect().height > 0;
+      return { cond: [...document.querySelectorAll('#fares .f-cond')].map(vis), lead: vis(document.querySelector('.lead b')), head: vis(document.getElementById('faresH')) && vis(document.querySelector('.fares-h span')),
+        rule: document.querySelector('#fares > .refund.fs') ? [vis(document.querySelector('#fares > .refund.fs')), document.querySelector('#fares > .refund.fs').textContent] : null };
+    });
+    const sells = slug !== 'paris' && slug !== 'berlin';
+    check(legal.cond.length === 3 && legal.cond.every(Boolean) && legal.lead && legal.head && (sells ? legal.rule && legal.rule[0] && legal.rule[1] === RULE : legal.rule === null),
+      `${slug} ${w}: every fare's condition, the must-state in bold, the line over the fares${sells ? ' and the refund rule under the closed €500' : ''} are on screen, not only in the HTML`, JSON.stringify(legal));
+    await ctx.close();
+  }
+}
+for (const slug of ['amsterdam', 'madrid', 'barcelona']) {
+  // L1: an iPhone's visible height in Safari (~664): the first screen always
+  // has an action — the gold door, or the strip when the door is under the fold
+  const { ctx, page } = await open({ slug, width: 390, height: 664 });
+  await page.waitForTimeout(600);
+  const a = await page.evaluate(() => {
+    const d = document.getElementById('door').getBoundingClientRect(), s = document.getElementById('strip');
+    return { doorIn: d.top >= 0 && d.bottom <= innerHeight, half: d.top + d.height / 2 <= innerHeight, strip: s.classList.contains('on') };
+  });
+  check(a.doorIn || a.strip, `${slug} 390×664 (Safari's visible height): the gold door or the strip is on the first screen`, JSON.stringify(a));
+  await ctx.close();
+}
+
+// ── 2 · a fare opens its ticket in place; the door moves into it ──────────
+{
+  const { ctx, page } = await open();
+  // Safari has no native scroll anchoring: switched off here, so only the
+  // page's own anchoring can keep the tapped row still
+  await page.addStyleTag({ content: '*{overflow-anchor:none!important}' });
+  await page.waitForTimeout(400);
+  await page.evaluate(() => window.scrollTo(0, 120));
+  await page.waitForTimeout(200);
+  const before = await rect(page, '#fare-application-pack > summary');
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(250);
+  const after = await rect(page, '#fare-application-pack > summary');
+  check(Math.abs(after.top - before.top) < 2, `the tapped row does not move under the finger (${(after.top - before.top).toFixed(1)} px)`);
+  check(await page.$eval('#fare-application-pack', (d) => d.open) && await shown(page, '#fare-application-pack .tk-tag'), 'the Application Pack ticket opens in place, saying what the fee buys');
+  check(await page.$eval('#act', (a) => !!a.closest('#fare-application-pack [data-slot]')) && await page.$$eval('#act', (a) => a.length) === 1, 'on a phone the ONE door moves into the open ticket (one #act in the page)');
+  check(await shown(page, '#planLn') && await text(page, '#planName') === 'Application Pack' && !(await shown(page, '#notSure')), 'the door says the plan being read');
+  // the row BELOW the open ticket: tapping it closes the ticket above, and
+  // without the page's anchoring the row would jump up by the ticket's height.
+  // Measured with the open ticket's row at the top of the screen, so the page
+  // has room to scroll back (at scrollY 0 nothing can hold it)
+  await page.$eval('#fare-application-pack > summary', (e) => e.scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.waitForTimeout(200);
+  check(await page.evaluate(() => { const r = document.querySelector('#fare-attended-viewing > summary').getBoundingClientRect(); return r.top > 0 && r.bottom < innerHeight && scrollY > document.querySelector('#fare-application-pack .tk').offsetHeight; }), '(the row below is on the screen, with room to scroll back)');
+  const avBefore = await rect(page, '#fare-attended-viewing > summary');
+  await page.click('#fare-attended-viewing > summary');
+  await page.waitForTimeout(250);
+  const avAfter = await rect(page, '#fare-attended-viewing > summary');
+  check(Math.abs(avAfter.top - avBefore.top) < 2, `a row below the open ticket stays under the finger while the ticket above closes (${(avAfter.top - avBefore.top).toFixed(1)} px)`);
+  await page.click('#fare-attended-viewing > summary');
+  await page.waitForTimeout(250);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(250);
+  const fsBefore = await rect(page, '#fare-full-search > summary');
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(250);
+  const fsAfter = await rect(page, '#fare-full-search > summary');
+  check(Math.abs(fsAfter.top - fsBefore.top) < 2, `switching fares keeps the tapped row in place (${(fsAfter.top - fsBefore.top).toFixed(1)} px)`);
+  check(!(await page.$eval('#fare-application-pack', (d) => d.open)) && await page.$eval('#act', (a) => !!a.closest('#fare-full-search [data-slot]')), 'one fare at a time: the other closes, the door follows');
+  check(await shown(page, '#fare-full-search .tk .refund') && !(await shown(page, '#fares > .refund.fs')), 'Full Search open: the refund rule inside its ticket, the copy under the row steps back (said once)');
+  check(await text(page, '#fare-full-search [data-pay] span') === 'Pay and start · €500', 'the ticket\'s quiet pay button reads till.label with its price');
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(250);
+  check(await page.$eval('#act', (a) => !!a.closest('#stubSlot')) && await shown(page, '#notSure'), 'closing the ticket puts the door back in the stub, nothing chosen');
+  await ctx.close();
+}
+for (const [w, h] of [[390, 844], [320, 568], [430, 932]]) {
+  // the common sequence (review B3): Full Search open, a little scroll, tap
+  // Attended Viewing at the bottom of the screen. With Safari's lack of
+  // native anchoring the row must not move — and no frame may be painted
+  // with it displaced (the correction runs in the tap, not in 'toggle')
+  const { ctx, page } = await open({ width: w, height: h });
+  await page.addStyleTag({ content: '*{overflow-anchor:none!important}' });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await page.$eval('#fare-attended-viewing > summary', (e) => e.scrollIntoView({ block: 'end', behavior: 'instant' }));
+  await page.waitForTimeout(200);
+  const trace = await page.evaluate(() => new Promise((done) => {
+    const s = document.querySelector('#fare-attended-viewing > summary');
+    const y0 = s.getBoundingClientRect().top, ys = [];
+    let n = 0;
+    (function frame() { ys.push(s.getBoundingClientRect().top - y0); if (++n < 12) requestAnimationFrame(frame); else done({ ys, open: s.parentNode.open }); })();
+    s.click();
+  }));
+  const worst = Math.max(...trace.ys.map(Math.abs));
+  check(trace.open && worst < 2, `${w}×${h}: Full Search open, a tap on Attended Viewing at the foot of the screen — the row never moves, in any frame (worst ${worst.toFixed(1)} px)`);
+  // the door follows into the new ticket — or, when that move alone would pull
+  // the row up past the top of the page, stays in the open ticket above (the
+  // strip offers it while it is off the screen); either way it says the new plan
+  const where = await page.$eval('#act', (a) => { const f = a.closest('details.fare'); return f && f.open ? f.id : null; });
+  check(where && await text(page, '#planName') === 'Attended Viewing', `${w}×${h}: the door sits in an open ticket (${where}) and says the plan just opened`);
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ width: 1440 });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(250);
+  const main = await rect(page, '.p-main'), stub = await rect(page, '.stub');
+  check(stub.left >= main.right - 2, '1440: the stub sits beside the fares (a boarding pass, two columns)');
+  check(await page.$eval('#act', (a) => !!a.closest('#stubSlot')), '1440: the door stays in the stub when a ticket opens');
+  check(await noHScroll(page), '1440: no horizontal scroll');
+  await ctx.close();
+}
+
+// ── 3 · the free door ─────────────────────────────────────────────────────
+{
+  const { ctx, page, st } = await open({ api: { ...LEAD_OK, delay: 400 } });
+  await page.waitForTimeout(300);
+  check(!(await page.$eval('#door', (b) => b.disabled)), 'the script opens the door it was served shut');
+  check(!(await shown(page, '#fFields')), 'the fields are hidden until the first tap');
+  await page.click('#fare-attended-viewing > summary');
+  await page.waitForTimeout(200);
+  await tap(page, '#door');
+  await page.waitForTimeout(450);
+  check(await shown(page, '#fFields') && await page.evaluate(() => document.activeElement && document.activeElement.id === 'fName'), 'the first tap reveals the two fields and puts the cursor on the name');
+  check(st.posts.length === 0, 'the first tap sends nothing');
+  await page.click('#door');
+  await page.waitForTimeout(150);
+  check(await text(page, '#fNameErr') !== '' && await page.$eval('#fName', (i) => i.getAttribute('aria-invalid') === 'true') && st.posts.length === 0, 'an empty send says what is missing, in place, and sends nothing');
+  await page.fill('#fName', 'Anna Keller');
+  check(await text(page, '#fNameErr') === '', 'the error clears as the visitor types');
+  await page.fill('#fContact', 'anna@');
+  await page.click('#door');
+  await page.waitForTimeout(150);
+  check(/email looks incomplete/i.test(await text(page, '#fContactErr')) && st.posts.length === 0, 'a broken email is caught with the email message');
+  await page.fill('#fContact', 'anna@example.com');
+  await page.focus('#fContact');
+  await page.keyboard.press('Enter'); await page.keyboard.press('Enter'); await page.keyboard.press('Enter');
+  // a submit that does not go through the (disabled) button: only the page's own guard stops it
+  await page.evaluate(() => { const f = document.getElementById('fileForm'); f.requestSubmit(); f.requestSubmit(); });
+  await page.waitForTimeout(900);
+  check(st.posts.length === 1, `three Enters and two scripted submits make ONE POST (${st.posts.length})`);
+  const b = st.posts[0] || {};
+  check(b.city === 'amsterdam' && b.name === 'Anna Keller' && b.email === 'anna@example.com' && !b.phone && b.service === 'attended-viewing' && /^[a-z0-9]{10,}$/.test(b.requestId || '') && b.company === '',
+    'the POST carries the desk, the name, ONE contact (email), the plan being read and one request id', JSON.stringify(b));
+  check(await page.getAttribute('#pass', 'data-state') === 'open' && await text(page, '#oFile') === FILE && await text(page, '#oName') === 'Anna Keller', 'OPEN prints the SERVER\'s file number and the passenger');
+  check(!(await shown(page, '#fileForm')) && (await page.$$eval('[data-pay]', (bs) => bs.every((x) => x.hidden))), 'after the file is open: the form gives way to the card, and no pay button asks for money right after a free door');
+  await page.waitForTimeout(1300);
+  check(await boardWord(page, '.slot .slot-b') === 'OPEN', 'the slot board flips to OPEN');
+  check(await page.evaluate(() => { const r = document.getElementById('cOpen').getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight; }), 'the OPEN card lands on the screen');
+  const ev = await events(page);
+  check(ev.filter((e) => e.name === 'generate_lead').length === 1 && ev.some((e) => e.name === 'sign_up'), 'one generate_lead, one sign_up');
+  await ctx.close();
+}
+{
+  const { ctx, page, st } = await open({ api: { status: 500, body: { ok: false } } });
+  await page.waitForTimeout(300);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Luis');
+  await page.fill('#fContact', '+31 6 1234 5678');
+  await page.click('#door');
+  await page.waitForTimeout(500);
+  check(st.posts.length === 1 && st.posts[0].phone === '+31 6 1234 5678' && !st.posts[0].email && st.posts[0].service === '', 'a number travels AS TYPED (the server reads it with the desk\'s country); no fare open = no plan ("to decide" on the server)', JSON.stringify(st.posts[0]));
+  check(await page.getAttribute('#pass', 'data-state') === 'blank' && !(await shown(page, '#cOpen')) && !(await page.$eval('#door', (b) => b.disabled || b.getAttribute('aria-disabled') === 'true')) && /send failed/i.test(await text(page, '#fNetErr')),
+    'a failed send issues nothing, gives the door back and says so in its own alert');
+  check(await page.$eval('#fContact', (i) => i.getAttribute('aria-invalid') !== 'true') && await page.evaluate(() => document.activeElement && document.activeElement.id === 'door'),
+    'the valid contact field is not marked invalid, and the focus is still on the door (a keyboard user keeps their place)');
+  await ctx.close();
+}
+
+// ── 4 · pay only from a ticket: the till ──────────────────────────────────
+{
+  const { ctx, page, st } = await open({ checkout: { status: 200, body: { ok: false, error: 'stripe_down' } } });
+  await page.waitForTimeout(300);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Anna Keller');
+  await page.fill('#fContact', 'anna@example.com');
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  await tap(page, '#fare-full-search [data-pay]');
+  await page.waitForTimeout(250);
+  check(await page.$eval('#till', (d) => d.open) && await text(page, '#tTitle') === 'Full Search' && await text(page, '#tPrice') === '€500', 'the till opens on THAT plan, with its price');
+  check(await shown(page, '#tRule') && await text(page, '#tRule') === RULE, 'the refund rule is in the till, beside the €500');
+  check(!(await page.$eval('#tStart', (c) => c.checked)) && await text(page, '#tGoL') === 'Pay and book · €500' && /14 days end/.test(await text(page, '#tGoS')), 'unticked: "Pay and book · €500", starts when the 14 days end');
+  check(await page.inputValue('#tName') === 'Anna Keller' && await page.inputValue('#tEmail') === 'anna@example.com', 'the till fills itself from what the visitor already typed');
+  await page.focus('#tStart');
+  await page.keyboard.press('Space');
+  check(await page.$eval('#tStart', (c) => c.checked) && await text(page, '#tGoL') === 'Pay and start · €500' && !/14 days/.test(await text(page, '#tGoS')), 'ticked: "Pay and start · €500"');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(200);
+  check(st.checkouts.length === 0, 'Enter on the tick never pays');
+  await page.fill('#tEmail', 'nope');
+  await page.click('#tGo');
+  await page.waitForTimeout(200);
+  check(st.checkouts.length === 0 && /valid email/i.test(await text(page, '#tEmailErr')), 'a bad email is caught in the till, nothing posted');
+  await page.fill('#tEmail', 'anna@example.com');
+  await page.click('#tGo');
+  await page.waitForTimeout(500);
+  const c = st.checkouts[0] || {};
+  check(st.checkouts.length === 1 && c.city === 'amsterdam' && c.kind === 'full-search' && c.startNow === true && c.name === 'Anna Keller' && !('price' in c) && !('eur' in c), 'the POST names the desk and the plan (never a price) and startNow only because it was ticked', JSON.stringify(c));
+  check(/hiccup/i.test(await text(page, '#tErr')) && !(await page.$eval('#tGo', (b) => b.disabled)), 'a refused checkout is said in the till and the button comes back');
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(200);
+  check(!(await page.$eval('#till', (d) => d.open)) && await page.evaluate(() => document.activeElement && document.activeElement.hasAttribute('data-pay')), 'Escape closes the till and gives the focus back to the pay button');
+  // the second open: a fresh till, unticked again
+  await page.click('#fare-full-search [data-pay]');
+  await page.waitForTimeout(200);
+  check(!(await page.$eval('#tStart', (c2) => c2.checked)) && await text(page, '#tErr') === '', 'the till reopens clean: unticked, no old error');
+  await page.click('#tAlt');
+  await page.waitForTimeout(400);
+  check(!(await page.$eval('#till', (d) => d.open)) && await page.evaluate(() => document.activeElement && document.activeElement.id === 'fName'), '"Prefer to talk first?" closes the till and opens the free door');
+  await ctx.close();
+}
+{
+  // B1: while the free door is filing, no till opens; when OPEN lands, no till is left open
+  const { ctx, page, st } = await open({ api: { ...LEAD_OK, delay: 1500 } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Anna Keller'); await page.fill('#fContact', 'anna@example.com');
+  await page.click('#door');
+  await page.waitForTimeout(150);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id === 'door') && await page.getAttribute('#door', 'aria-disabled') === 'true', 'while the door sends it keeps the focus (aria-disabled, never disabled)');
+  await page.$eval('#fare-full-search [data-pay]', (b) => b.click());
+  await page.waitForTimeout(200);
+  check(!(await page.$eval('#till', (d) => d.open)), 'while the free door is filing, a pay button opens no till (the door promised no card)');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'open', null, { timeout: 5000 }).catch(() => {});
+  check(!(await page.$eval('#till', (d) => d.open)) && st.checkouts.length === 0 && st.posts.length === 1, 'OPEN lands with no till open and nothing sent to the checkout');
+  await page.evaluate(() => window.BOOM_TICKET.openTill('full-search'));
+  check(!(await page.$eval('#till', (d) => d.open)), 'after OPEN the till cannot be opened at all');
+  await ctx.close();
+}
+{
+  // B2: closing the till while its checkout flies stays on the page
+  const { ctx, page, st } = await open({ checkout: { status: 200, body: { ok: true, url: '/withdrawal?stripe=1' }, delay: 1200 } });
+  await page.waitForTimeout(300);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#fare-application-pack [data-pay]');
+  await page.fill('#tName', 'Anna Keller'); await page.fill('#tEmail', 'anna@example.com');
+  await page.click('#tGo');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(2200);
+  check(st.checkouts.length === 1 && /\/amsterdam$/.test(new URL(page.url()).pathname) && !(await page.$eval('#till', (d) => d.open)), 'Escape while the checkout flies: the page stays (no Stripe after the visitor said no)', page.url());
+  await page.click('#fare-application-pack [data-pay]');
+  await page.waitForTimeout(200);
+  check(await page.$eval('#till', (d) => d.open) && await page.getAttribute('#tGo', 'aria-disabled') === null, 'the till reopens ready to pay again');
+  await ctx.close();
+}
+{
+  const { ctx, page, st } = await open({ paid: (n) => (n < 2 ? { status: 200, body: { ok: true, pending: true } } : { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE, startNow: false, workFromLabel: '4 November 2026' } }) });
+  await page.waitForTimeout(300);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#fare-full-search [data-pay]');
+  await page.fill('#tName', 'Anna Keller');
+  await page.fill('#tEmail', 'anna@example.com');
+  await page.click('#tGo');
+  await page.waitForURL(/paid=full-search/, { timeout: 8000 });
+  await page.waitForTimeout(400);
+  check(st.checkouts.length === 1 && st.checkouts[0].startNow === false, 'unticked, the POST says startNow false');
+  check(await page.getAttribute('#pass', 'data-state') === 'confirming' && await shown(page, '#cConfirm') && !(await shown(page, '#cPaid')), 'back from Stripe: "being confirmed", never PAID on the address bar\'s word');
+  check(await page.$$eval('[data-pay]', (bs) => bs.every((b) => b.hidden)), 'while confirming, no pay button: never paid twice');
+  check(await page.$eval('#cText', (e) => parseFloat(getComputedStyle(e).paddingRight) === 0), 'the confirming card has no stamp, so its sentence keeps the full width (no stamp padding)');
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 6000 }).catch(() => {});
+  check(await page.getAttribute('#pass', 'data-state') === 'paid' && await text(page, '#pFile') === FILE && await text(page, '#pFare') === 'Full Search · €500', 'the server says paid: PAID with the server\'s file and the plan');
+  check(await text(page, '#pStart') === 'From 4 November 2026, after your 14-day withdrawal period' && await shown(page, '#pWait') && !(await shown(page, '#pText')) && /14 days end/.test(await text(page, '#pNext')),
+    'not ticked: the start date is the server\'s first working day AFTER the 14 days (never called their end), the wait note and the wait steps');
+  const ev = await events(page);
+  const purchases = ev.filter((e) => e.name === 'purchase');
+  check(purchases.length === 1 && /^city_amsterdam_[0-9a-f]{8}$/.test(purchases[0].p.transaction_id) && purchases[0].p.value === 500 && !JSON.stringify(purchases[0].p).includes(SID), 'ONE purchase, with an opaque transaction id (never the session id)');
+  check(await page.evaluate(() => location.search === '' && location.hash === ''), 'the address line is folded back to the page once verified');
+  await page.goto(`${base}/amsterdam?paid=full-search&start=0&session_id=${SID}`, { waitUntil: 'load' });
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 4000 }).catch(() => {});
+  check((await events(page)).filter((e) => e.name === 'purchase').length === 0, 'a reload of the paid return counts nothing twice');
+  await ctx.close();
+}
+{
+  const { ctx, page, st } = await open({ query: '?paid=full-search&session_id=cs_test_aaaaaaaaaaaa', paid: { status: 200, body: { ok: true, paid: true, plan: 'application-pack', file: 'BM AAAAA', startNow: true } } });
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'paid', null, { timeout: 4000 }).catch(() => {});
+  check(await text(page, '#pFare') === 'Application Pack · €199' && await text(page, '#pStart') === 'The desk’s first open hour' && !(await shown(page, '#pWait')),
+    'PAID prints the plan the SERVER confirmed (not the address bar\'s) and, ticked, starts in the desk\'s first open hour');
+  check(st.gets.length === 1 && /paid=cs_test_aaaaaaaaaaaa&city=amsterdam$/.test(st.gets[0]), 'one GET, with the session and the desk');
+  await ctx.close();
+}
+for (const q of ['?paid=constructor&session_id=cs_test_aaaaaaaaaaaa', '?paid=full-search', '?paid=full-search&session_id=../../x']) {
+  const { ctx, page, st } = await open({ query: q, paid: { status: 200, body: { ok: true, paid: true, plan: 'full-search', file: FILE } } });
+  await page.waitForTimeout(500);
+  check(await page.getAttribute('#pass', 'data-state') === 'blank' && st.gets.length === 0 && await page.evaluate(() => location.search === ''), `a forged return (${q}) changes nothing, asks nothing, and folds the address line`);
+  await ctx.close();
+}
+{
+  const { ctx, page, st } = await open({ query: `?paid=full-search&session_id=${SID}` });
+  await page.waitForFunction(() => document.getElementById('pass').getAttribute('data-state') === 'unconfirmed', null, { timeout: 16000 }).catch(() => {});
+  check(st.gets.length === 5 && await page.getAttribute('#pass', 'data-state') === 'unconfirmed' && /not confirmed yet/i.test(await text(page, '#cText')), 'five asks without a yes: "Not confirmed yet", never PAID', `${st.gets.length} asks`);
+  check((await events(page)).filter((e) => e.name === 'purchase').length === 0, 'no purchase without the server\'s yes');
+  await ctx.close();
+}
+
+// ── 5 · the desk clock ────────────────────────────────────────────────────
+const CLOCKS = [
+  ['amsterdam', '2026-10-31T09:00:00Z', 'no card · Monday from 09:00 CET', 'a Saturday: Monday, and the zone of the opening (CET after the clocks go back)'],
+  ['amsterdam', '2026-04-27T08:00:00Z', 'no card · Tomorrow from 09:00 CEST', 'Koningsdag (27 April): the Amsterdam desk is closed, tomorrow'],
+  ['amsterdam', '2026-10-27T08:00:00Z', 'no card · desk open until 19:00 CET', 'a Tuesday at 09:00: the desk is open'],
+  ['barcelona', '2026-09-11T08:00:00Z', 'no card · Monday from 09:00 CEST', 'the Diada (Friday 11 September) in Barcelona: Monday'],
+  ['madrid', '2026-09-11T08:00:00Z', 'no card · desk open until 19:00 CEST', 'the same Friday in Madrid: open (the Diada is Catalan)'],
+  ['paris', '2026-12-24T19:00:00Z', 'free · Monday from 09:00 CET', 'Christmas Eve at 20:00 on a waitlist desk: Monday (Christmas, Santo Stefano, the weekend)']
+];
+for (const [slug, clock, want, what] of CLOCKS) {
+  const { ctx, page } = await open({ slug, clock });
+  await page.waitForTimeout(200);
+  const subs = await page.$$eval('[data-window]', (n) => n.map((x) => x.textContent.trim()));
+  const bare = want.replace(/^(no card|free) · /, '');
+  check(subs.length === 2 && subs[0] === want && subs[1] === bare, `${slug}: ${what} → door "${want}", strip "${bare}"`, JSON.stringify(subs));
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ clock: '2026-10-27T14:00:00Z' });
+  await page.waitForTimeout(200);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Anna'); await page.fill('#fContact', 'anna@example.com');
+  await page.click('#door');
+  await page.waitForTimeout(500);
+  check(await text(page, '#oNext') === 'By 19:00 CET today', 'OPEN on an open desk: "By 19:00 CET today"');
+  await ctx.close();
+}
+
+// ── 6 · without JS the page reads whole ──────────────────────────────────
 {
   const { ctx, page } = await open({ js: false });
-  const hidden = await page.$$eval('.rv', (els) => els.filter((e) => getComputedStyle(e).opacity !== '1').length);
-  const total = await page.$$eval('.rv', (els) => els.length);
-  check(total >= 4 && hidden === 0, `without JS all ${total} reveal blocks are visible`, `${hidden} hidden`);
-  check(await page.$eval('#flapCity', (f) => getComputedStyle(f, '::before').content === '"AMSTERDAM"' && f.textContent === ''), 'without JS the title still shows AMSTERDAM (CSS draws data-word on the empty board)');
-  check((await page.$eval('h1', (h) => h.textContent.replace(/\s+/g, ' ').trim())) === 'Your home in Amsterdam', 'the H1 text is "Your home in Amsterdam", once');
-  // the door cannot submit without the script: no GET with the contact data in the address bar
-  check(await page.$eval('#fGo', (b) => b.disabled) && await page.isVisible('#cityForm noscript + #fGo, #cityForm .ferr.on'), 'without JS the door button is disabled and the page says where to write instead');
-  await page.fill('#fName', 'Anna'); await page.fill('#fEmail', 'anna@example.com'); await page.press('#fEmail', 'Enter');
-  await page.waitForTimeout(150);
-  check((await page.evaluate(() => location.search)) === '', 'Enter in a field submits nothing without JS (no ?name=…&email=… in the URL)');
-  check(await page.$eval('#fGo', (b) => +getComputedStyle(b).opacity < 0.8), 'the shut door looks shut (disabled style), not a gold button that does nothing');
-  const prices = await page.$$eval('[data-plan-price]', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(prices) === JSON.stringify(['€500', '€199', '€149']), 'without JS the three prices are text, on the plates');
-  const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(chipTxt) === JSON.stringify(['€500 · flat · incl. VAT', '€199 · flat · incl. VAT', '€149 · per viewing · incl. VAT', 'advise me']),
-    'without JS the service chips show their price and their condition as text');
-  check(await page.$eval('.planline .chips', (e) => getComputedStyle(e).display !== 'none') && await page.$eval('#planline', (e) => e.open), 'without JS the chips are open in the door');
-  const wa = await page.getAttribute('.consent a[href^="https://wa.me/"]', 'href');
-  check(wa === 'https://wa.me/393313251961?text=' + encodeURIComponent("Hi BOOM Amsterdam, I'm moving to Amsterdam."), 'the WhatsApp link is a real href to the real number, opening with the desk named', wa);
-  const goTxt = await page.$$eval('.plates .go', (els) => els.map((e) => e.textContent.trim()));
-  check(JSON.stringify(goTxt) === JSON.stringify(['Open my file →', 'Open my file →', 'Open my file →']), 'without JS the plates\' primaries read the one label');
-  const gone = await page.evaluate(() => ['#checkin', '#pass', '.skipck', '#paybar'].map((s) => getComputedStyle(document.querySelector(s)).display === 'none'));
-  check(gone.every(Boolean), 'without JS the Check-in, the pass, the skip link and the strip are not there (they are behaviour)');
-  check((await page.textContent('#faq')).includes("Full Search (€500) if you haven't started."), 'without JS the derived FAQ answer is on the page as text');
-  check(await page.$('dialog#ov') !== null && !(await page.$eval('dialog#ov', (d) => d.open)), 'the till is a native <dialog>, closed');
-  await ctx.close();
-}
-// ── JS on, but the desk script never loads: the shut door says where to write ──
-{
-  const { ctx, page, st } = await open({ block: /\/assets\/boom-city\.js/ });
-  await page.waitForTimeout(100);
-  const fb = await page.$eval('#fJsFail', (p) => ({ vis: getComputedStyle(p).display !== 'none', t: p.textContent, links: [...p.querySelectorAll('a')].map((a) => a.getAttribute('href')) })).catch(() => null);
-  check(await page.$eval('#fGo', (b) => b.disabled && +getComputedStyle(b).opacity < 0.8) && fb && fb.vis && /could not load/.test(fb.t)
-    && /^https:\/\/wa\.me\/\d+\?text=/.test(fb.links[0] || '') && /^mailto:/.test(fb.links[1] || ''),
-    'the desk script fails to load: the door looks shut and a line gives WhatsApp and email instead', JSON.stringify(fb));
-  check(st.errors.length === 0, 'and the fallback itself throws nothing', st.errors.join(' | '));
-  await ctx.close();
-}
-// ── the normal load: the door opens and no fallback line is printed ──
-{
-  const { ctx, page } = await open();
-  await page.waitForTimeout(400);   // the .2s fade from the served shut state
-  const door = await page.$eval('#fGo', (b) => [b.disabled, getComputedStyle(b).opacity]);
-  check(door[0] === false && door[1] === '1' && (await page.$('#fJsFail')) === null, 'with the desk script the door is open and no fallback line appears', JSON.stringify(door));
+  check(!(await shown(page, '#door')) && await page.$eval('#door', (b) => b.disabled) && await shown(page, '#act noscript ~ *, #act .s-h') !== null, 'no JS: the door is hidden and shut');
+  const body = await page.evaluate(() => document.body.innerText);
+  check(/Write to the desk on WhatsApp or at/.test(body), 'no JS: a line says where to write');
+  check(/€500/.test(body) && /€199/.test(body) && /€149/.test(body) && body.includes(RULE), 'no JS: the three prices and the refund rule read as text');
+  check(/From the first call/.test(body) && /What we check/.test(body) && /Questions\./.test(body), 'no JS: every section reads');
+  check(!(await shown(page, '#strip')) && (await page.$$eval('[data-pay]', (b) => b.every((x) => !x.offsetParent))), 'no JS: no strip, no pay button (behaviour, not content)');
   await ctx.close();
 }
 
-// ── 390px: the board, the pass hidden until it has something to say ──────
+// ── 7 · 320px, targets, reduced motion, the strip ─────────────────────────
 {
-  const { ctx, page, st } = await open();
-  await page.waitForTimeout(2600);                           // 600ms + the spin
-  const b = await board(page);
-  check(b.cells === 9 && b.letters === 'AMSTERDAM', `the board spells AMSTERDAM, one cell per letter (${b.cells} cells: "${b.letters}")`);
-  check(Math.abs(b.hostW - b.contentW) < 4 && Math.abs(b.minW - b.contentW) < 4,
-    `the board lands in the space the hero reserved — ${CELL_EM}em/cell: reserved ${b.minW.toFixed(1)}px, cells ${b.contentW.toFixed(1)}px (no layout jump)`);
-  const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
-  check(scrollW <= 390, `390px: no horizontal scroll (scrollWidth ${scrollW})`);
-  let s = await passState(page);
-  check(s.state === 'blank' && s.display === 'none' && JSON.stringify(s.stepsShown) === '[true,false,false]' && s.num === 'Check-in · 1 of 3',
-    'on a phone the pass is not on the screen before the first tap; the Check-in opens on the first step alone');
-  const clock = await page.textContent('#deskClock');
-  check(/^it is \d\d:\d\d at the desk(, \d\d:\d\d for you)?$/.test(clock), `the desk clock line is live ("${clock}")`);
-  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))) && !/€|\d{3}/.test(await page.textContent('#paybar')) && SUB_RE.test((await page.textContent('#stripSub')).trim()), 'at the top the strip is off, and it carries no price (the sub is the desk\'s promise for now)');
-  const order = await page.evaluate(() => ['h1', '.lead', '#checkin', '#pass', '.skipck', '#facts', '#contact'].map((q) => { const e = document.querySelector(q); return e ? Math.round(e.getBoundingClientRect().top + window.scrollY) : -1; }));
-  check(order[0] < order[1] && order[1] < order[2] && order[2] < order[4] && order[4] < order[5] && order[5] < order[6], `390px reading order: title, lead, Check-in, skip link, facts, door (${order.join(' < ')})`);
-  // tap 1: haven't started → resolved at once (the rule needs nothing more)
-  await tap(page, ckOpt('zero'));
-  await page.waitForTimeout(900);
-  s = await passState(page);
-  check(s.state === 'resolved' && s.display !== 'none' && s.inClass && s.planShown && !s.pendShown && !s.blankShown && !s.papersShown && !s.noteShown,
-    'tap 1 (haven\'t started): the pass appears as the live ticket — resolved, no pending line, no papers yet');
-  check(s.plan === 'Full Search' && s.code === 'START' && s.cond === 'flat · incl. VAT' && s.refundShown === true && /Starting from zero/.test(s.why),
-    `the ticket reads Full Search, code START, the condition, the refund rule under it, the why ("${s.why.slice(0, 30)}…")`);
-  await page.waitForTimeout(1500);
-  s = await passState(page);
-  check(s.price === '€500' && s.priceCells === 4 && s.board === 'AMSTERDAM', `the price spun onto its own board ("${s.price}"), the city on the pass board`);
-  check(s.rect.bottom <= 844 + 2 && s.rect.top >= 0, `the pass landed on the screen the visitor is looking at (top ${s.rect.top}, bottom ${s.rect.bottom})`);
-  check(s.chip === 'full-search' && s.plText === 'Full Search · €500 · flat · incl. VAT · from your check-in' && s.planFrom === 'checkin' && s.fCheckin === "Haven't started",
-    'the door is written from the first tap: the chip checked, the plan line says from your check-in, the hidden field in words');
-  check(s.hash === '#checkin=zero.-.-.-' && s.stripSub === 'Full Search · your plan', 'the URL remembers the answer; the strip names the plan, never the price');
-  check(JSON.stringify(s.stepsShown) === '[true,true,false]' && s.num === 'Check-in · 2 of 3' && await page.$eval('#checkin .ck-step[data-step="stage"]', (e) => e.classList.contains('done')),
-    'the answered step collapses, the second step comes, not the third');
-  // change to a shortlist → pending: the second tap decides
-  await tap(page, '#checkin .ck-step[data-step="stage"] .ck-change');
-  await page.waitForTimeout(300);
-  await tap(page, ckOpt('shortlist'));
-  await page.waitForTimeout(700);
-  s = await passState(page);
-  check(s.state === 'pending' && s.pendShown && !s.planShown && /^One more answer decides: Attended Viewing if .*abroad, Application Pack if .*Amsterdam\.$/.test(s.pend) && s.code === 'SHORTLIST',
-    `a shortlist is pending: the pass names the two plans the second tap decides between ("${s.pend.slice(0, 40)}…")`);
-  check(s.chip === '' && s.plText === 'Which service? Three taps tell you ↑' && s.hash === '#checkin=shortlist.-.-.-', 'pending writes nothing into the door: no chip, no plan, the URL updated');
-  await tap(page, ckOpt('abroad'));
-  await page.waitForTimeout(700);
-  s = await passState(page);
-  check(s.state === 'resolved' && s.plan === 'Attended Viewing' && s.code === 'SHORTLIST · ABROAD' && s.cond === 'per viewing · incl. VAT' && s.refundShown === false && !s.noteShown && !s.papersShown,
-    'tap 2 (still abroad): Attended Viewing, the refund line gone (it is Full Search\'s), still no note, no papers');
-  await page.waitForTimeout(1500);
-  s = await passState(page);
-  check(s.price === '€149' && s.start === 'attended-viewing' && s.startAmt === '€149' && s.file === 'attended-viewing' && s.chip === 'attended-viewing',
-    'the board respun to €149; the pass\'s two doors and the chip point at the plan');
-  await tap(page, ckOpt('months'));
-  await page.waitForTimeout(700);
-  s = await passState(page);
-  check(s.state === 'complete' && s.noteShown && s.papersShown && s.code === 'SHORTLIST · ABROAD · T-3M' && /dossier is ready before the listings/.test(s.note),
-    'tap 3 (1–3 months): complete — the when note and the papers appear on the pass');
-  check(s.ready === 'Tap the papers you hold above and we say what we would fix first.' && s.meter === '0%' && s.passPapers === '—' && s.fDossier === '',
-    'with the papers untouched the file line invites, the meter is empty, nothing posted — never "0 of 8"');
-  check(s.moveIn === ymPlus(2) && s.passWhen === 'In 1–3 months' && s.passFile === 'SHORTLIST · ABROAD · T-3M' && s.passenger === 'A tenant',
-    `the move-in month is prefilled from the answer (${ymPlus(2)}); the pass grid carries boarding, file and "A tenant"`);
-  check(s.fCheckin === 'I have a shortlist · Still abroad · In 1–3 months' && s.hash === '#checkin=shortlist.abroad.months.-', 'the hidden field says the three answers in words; the URL carries them');
-  // the papers
-  for (const d of ['id', 'contract', 'payslips']) await tap(page, ckDoc(d));
-  await page.waitForTimeout(500);
-  s = await passState(page);
-  check(/^3 of 8 in hand\. Missing: Employer statement \(werkgeversverklaring\), Previous landlord reference, A guarantor, if your income falls short, Three months of bank statements, Motivation letter, Dutch and English\./.test(s.ready) && s.meter === '38%' && s.meterVar === '38%',
-    `three papers ticked → "3 of 8", the missing five by name, the meter at 38% ("${s.ready.slice(0, 30)}…")`);
-  check(s.passPapers === '3 of 8' && /^3\/8 · missing: Employer statement/.test(s.fDossier) && s.hash === '#checkin=shortlist.abroad.months.b',
-    'the pass grid says 3 of 8, the hidden field names the missing, the URL carries the mask (id+contract+payslips = b)');
-  const share = 'https://www.boomrome.com/amsterdam#checkin=shortlist.abroad.months.';
-  check(s.wa.startsWith('https://wa.me/?text=') && decodeURIComponent(s.wa).includes(share + '-.w') && !decodeURIComponent(s.wa).includes('.b.') && decodeURIComponent(s.wa).includes('BOOM Amsterdam'),
-    'the WhatsApp link carries the answers (via w) and never the papers: a friend\'s papers are not mine');
-  await page.evaluate(() => { try { Object.defineProperty(navigator, 'clipboard', { value: { writeText: (t) => { window.__copied = t; return Promise.resolve(); } }, configurable: true }); } catch (e) {} });
-  await tap(page, '#ckCopy');
+  const { ctx, page } = await open({ width: 320, height: 568 });
+  await page.waitForTimeout(400);
+  check(await noHScroll(page), '320: no horizontal scroll');
+  const small = await page.evaluate(() => [...document.querySelectorAll('#fares summary, #door, .pill, .folds summary')]
+    .filter((e) => e.offsetParent).map((e) => ({ id: e.id || e.className || e.tagName, h: e.getBoundingClientRect().height })).filter((x) => x.h < 44));
+  check(small.length === 0, '320: every fare row, the door, the WhatsApp pill and every fold is ≥ 44 px tall', JSON.stringify(small.slice(0, 4)));
+  await page.click('#fare-full-search > summary');
   await page.waitForTimeout(200);
-  check(await page.evaluate(() => window.__copied) === share + 'b.l' && (await page.textContent('#ckCopied')) === 'Link copied', 'Copy link copies my own link WITH the papers (via l) and says so');
-  const events = await layer(page);
-  check(events.filter((e) => e.name === 'checkin_answer').length === 4 && events.filter((e) => e.name === 'checkin_result').length === 2
-    && events.filter((e) => e.name === 'checkin_result').pop().p.plan === 'attended-viewing' && events.filter((e) => e.name === 'checkin_result')[0].p.resolved_at_tap === 1,
-    'four checkin_answer events (one changed), two checkin_result (one per resolution), the first resolved at tap 1');
-  // the pass follows the name and the origin
-  await page.fill('#ckName', 'Anna K.');
-  await page.fill('#ckOrigin', 'lon');
-  check((await page.textContent('#ckPassenger')) === 'Anna K.' && (await page.textContent('#ckFrom')) === 'LON', 'the pass follows the name and the origin as they are typed (origin upper-cased)');
-  const img = await page.evaluate(async () => {
-    const r = await window.BOOM_CHECKIN.passBlob();
-    const b = r && (r.blob || r);
-    if (!b || typeof b.arrayBuffer !== 'function') return null;
-    const u = new Uint8Array(await b.arrayBuffer());
-    const bmp = await createImageBitmap(b);
-    return { type: b.type, size: b.size, head: String.fromCharCode(...u.slice(0, 4)), w: bmp.width, h: bmp.height };
-  });
-  check(img && (img.type === 'image/webp' ? img.head === 'RIFF' : img.type === 'image/png') && img.w === 1080 && img.h === 1920 && img.size > 10000,
-    `passBlob() is a real ${img && img.type} 1080×1920, ${img && Math.round(img.size / 1024)} KB — a story-sized image to post`);
-  // the till from the pass
-  await tap(page, '#ckStart');
-  await page.waitForTimeout(500);
-  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'attended-viewing' && (await page.textContent('#sGoAmt')).trim() === '€149',
-    'the pass\'s till button opens the dialog on Attended Viewing, €149 on the button');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-  check(!(await page.$eval('dialog#ov', (d) => d.open)), 'Escape closes the dialog (native)');
-  // the lead posts what the Check-in learned
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  let sent = {};
-  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
-  check(st.posts.length === 1 && sent.service === 'attended-viewing' && sent.moveIn === ymPlus(2) && sent.checkin === 'I have a shortlist · Still abroad · In 1–3 months' && /^3\/8 · missing:/.test(sent.dossier),
-    'the lead carries the plan, the month, the three answers in words and the papers', JSON.stringify(sent));
-  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS error, no foreign request through the whole Check-in', st.errors.join(' | ') + st.foreign.join(' | '));
+  check(await noHScroll(page) && (await rect(page, '#fare-full-search [data-pay]')).h >= 44, '320: an open ticket fits, its pay button ≥ 44 px');
   await ctx.close();
 }
-
-// ── the strip, the reveal, the burger ────────────────────────────────────
-{
-  const { ctx, page } = await open();
-  await page.waitForTimeout(500);
-  const rvBefore = await page.$eval('#services', (e) => getComputedStyle(e).opacity);
-  await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
-  await page.waitForTimeout(1200);
-  check(rvBefore === '0' && await page.$eval('#services', (e) => e.classList.contains('in')), 'a section starts hidden and is revealed when scrolled into view');
-  check(await page.$eval('#paybar', (e) => e.classList.contains('on')) && (await page.textContent('#stripGo')).trim() === 'Open my file' && SUB_RE.test((await page.textContent('#stripSub')).trim()),
-    'past the hero the strip comes up, with the one label and no price');
-  check(await page.evaluate(() => document.getElementById('enbref').getBoundingClientRect().top > document.getElementById('faq').getBoundingClientRect().top),
-    'the fact sheet sits below the FAQ: human content first, machine content after');
-  await page.click('#navToggle');
-  check(await page.$eval('#mobileMenu', (e) => e.classList.contains('active')) && await page.getAttribute('#navToggle', 'aria-expanded') === 'true', 'the burger opens the menu');
-  check(await page.$eval('#mobileMenu', (e) => /BOOM desks/.test(e.textContent) && !!e.querySelector('a[href="/madrid"]') && !!e.querySelector('a[href="/"]')), 'the menu lists the desks (the suite left the fixed chrome) and BOOM Rome');
-  await page.click('#mobileMenu a[href="#faq"]');
-  await page.waitForTimeout(300);
-  check(!(await page.$eval('#mobileMenu', (e) => e.classList.contains('active'))), 'a menu link closes it');
-  await ctx.close();
-}
-
-// ── the till: a plate's button opens the dialog on ITS plan, posts, follows, lands PAID ──
-{
-  const { ctx, page, st } = await open();
-  await page.waitForTimeout(500);
-  await tap(page, '[data-pay="application-pack"]');
-  await page.waitForTimeout(600);
-  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
-    && (await page.textContent('#sGoAmt')).trim() === '€199' && /Pay and book/.test((await page.textContent('#sGo')).replace(/\s+/g, ' ')) && !/start/i.test(await page.textContent('#sGo .tx b')),
-    'the plate\'s pay link opens the dialog on Application Pack, €199 on the till button — which books (the tick is off)');
-  check(await page.isVisible('#sStart') && !(await page.$eval('#sStart', (e) => e.checked)) && await page.isVisible('#ov .recesso'),
-    'the till shows the 14-day withdrawal right and an UNTICKED "Start now" box');
-  const beganAt = (await layer(page)).filter((e) => e.name === 'begin_checkout');
-  check(beganAt.length === 1 && beganAt[0].p.value === 199 && beganAt[0].p.market === 'amsterdam', 'begin_checkout fires once, with the plan\'s value and the market');
-  check(!(await page.$eval('#paybar', (e) => e.classList.contains('on'))), 'the strip steps back while the dialog is open');
-  await page.click('.payrow:has(input[value="full-search"])');
-  check((await page.textContent('#sGoAmt')).trim() === '€500', 'choosing another row changes the amount on the button');
-  await page.click('#sGo');
-  check(st.checkouts.length === 0 && await page.$eval('#sErr', (e) => e.classList.contains('on')) && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-name'),
-    'an empty sheet posts nothing and says, in place, that the name is missing');
-  await page.fill('#sName', 'Test Person');
-  await page.fill('#sEmail', 'test@example.com');
-  await page.fill('#sPhone', '12');
-  await page.click('#sGo');
-  check(st.checkouts.length === 0 && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-phone'), 'a two-digit phone is named as incomplete, nothing posted');
-  await page.fill('#sPhone', '');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(200);
-  await tap(page, '[data-pay="full-search"]');
-  await page.waitForTimeout(400);
-  check(await page.$eval('#sName', (e) => e.value) === 'Test Person', 'reopening the dialog keeps what was typed');
-  await page.click('#sGo');
-  await page.waitForURL(/paid=full-search/, { timeout: 4000 }).catch(() => {});
-  await page.waitForTimeout(900);
-  let co = {};
-  try { co = JSON.parse(st.checkouts[0].body); } catch (e) {}
-  check(st.checkouts.length === 1 && co.city === 'amsterdam' && co.kind === 'full-search' && co.name === 'Test Person' && co.email === 'test@example.com' && co.company === '' && !('eur' in co) && !('price' in co) && co.startNow === false,
-    'the sheet posts { city, kind, name, email, startNow:false } once — never a price — and follows the URL', JSON.stringify(co));
-  check(await page.isVisible('#fPaid') && !(await page.isVisible('#cityForm')) && /^Full Search · €500/.test((await page.textContent('#paidPlan')).trim()),
-    'back from Stripe the card shows the PAID state for the plan, the form gives way');
-  await page.waitForTimeout(1200);
-  check(await boardWord(page, '#flapPaid') === 'PAID', 'the small board spells PAID');
-  const purchases = (await layer(page)).filter((e) => e.name === 'purchase');
-  const fnv = (s) => { let h = 0x811c9dc5; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return ('0000000' + h.toString(16)).slice(-8); };
-  check(purchases.length === 1 && purchases[0].p.transaction_id === 'city_amsterdam_' + fnv('cs_test_ui_1') && !/cs_/.test(JSON.stringify(purchases[0].p)) && purchases[0].p.value === 500,
-    'ONE purchase event with the plan\'s value; its transaction id is an opaque hash, never Stripe\'s session id', JSON.stringify(purchases[0] && purchases[0].p));
-  const keys = await page.evaluate(() => ({ s: Object.keys(sessionStorage), l: Object.keys(localStorage).filter((k) => /paid/.test(k)) }));
-  check(keys.s.includes('boom:paid:cs_test_ui_1') && keys.l.length === 0, 'the purchase key lives in sessionStorage for the tab, never in localStorage');
-  check(!/paid=/.test(page.url()) && /#contact$/.test(page.url()), 'the query is folded away: the URL can be shared without re-landing on a paid state');
-  await page.reload({ waitUntil: 'load' });
-  await page.waitForTimeout(500);
-  check(!(await page.isVisible('#fPaid')) && await page.isVisible('#cityForm'), 'a reload shows the door again, not a second paid landing');
-  await ctx.close();
-}
-// the "Start now" tick travels to the server; the paid landing says when work begins
-{
-  const { ctx, page, st } = await open({ checkout: { status: 200, body: { ok: true, url: `${base}/amsterdam?paid=attended-viewing&start=1&session_id=cs_test_ui_tick#contact` } } });
-  await page.waitForTimeout(500);
-  await tap(page, '[data-pay="attended-viewing"]');
-  await page.waitForTimeout(500);
-  await page.fill('#sName', 'Tick Person');
-  await page.fill('#sEmail', 'tick@example.com');
-  /* Enter on the checkbox toggles nothing and pays nothing: a keyboard user
-     reaching the tick must not land on Stripe by accident */
-  await page.focus('#sStart');
-  await page.keyboard.press('Enter');
-  await page.waitForTimeout(300);
-  check(st.checkouts.length === 0 && await page.$eval('dialog#ov', (d) => d.open), 'Enter on the "Start now" box posts nothing: the dialog stays open', String(st.checkouts.length));
-  const sub0 = (await page.textContent('#sGo .tx small')).trim();
-  await page.click('#ov label.startnow');
-  check(await page.$eval('#sStart', (e) => e.checked), 'tapping the line ticks the box (the whole label is the target)');
-  const b1 = (await page.textContent('#sGo .tx b')).trim(), sub1 = (await page.textContent('#sGo .tx small')).trim();
-  check(b1 === 'Pay and start' && /first open hour/.test(sub1) && /14 days/.test(sub0), 'ticked, the button says "Pay and start" and when (the first desk hour); unticked it said the 14 days', JSON.stringify([sub0, b1, sub1]));
-  await page.click('#ov label.startnow');
-  const b2 = (await page.textContent('#sGo .tx b')).trim();
-  await page.click('#ov label.startnow');
-  check(b2 === 'Pay and book' && (await page.textContent('#sGo .tx b')).trim() === 'Pay and start', 'untick → "Pay and book" again; tick → "Pay and start": the button follows the box both ways');
-  await page.click('#sGo');
-  await page.waitForURL(/paid=attended-viewing/, { timeout: 4000 }).catch(() => {});
-  await page.waitForTimeout(700);
-  let co = {};
-  try { co = JSON.parse(st.checkouts[0].body); } catch (e) {}
-  check(co.startNow === true, 'a ticked box posts startNow:true — the payer\'s own request, never inferred', JSON.stringify(co));
-  check(await page.isVisible('#fPaid') && !(await page.isVisible('#paidWait')), 'start=1: the paid card says nothing about waiting');
-  await ctx.close();
-  const { ctx: c0, page: p0 } = await open({ query: '?paid=full-search&start=0&session_id=cs_test_ui_wait' });
-  await p0.waitForTimeout(500);
-  const wait = (await p0.textContent('#paidWait').catch(() => '')) || '';
-  check(await p0.isVisible('#paidWait') && /14 days end/.test(wait) && wait.includes('hello@boom-rome.com') && !(await p0.isVisible('#paidText')),
-    'start=0: the wait note takes the place of the generic note — the work begins when the 14 days end, and how to ask sooner', wait);
-  const steps0 = (await p0.textContent('#paidNext')).replace(/\s+/g, ' ');
-  check(!/same working day/i.test(steps0) && /When the 14 days end/.test(steps0) && /start date/.test(steps0) && /Nothing by then\?/.test(steps0),
-    'start=0: the three steps are the waiting payer\'s own — never "same working day" — and the recourse stays', steps0);
-  const seen = (pg) => pg.$eval('#fPaid', (card) => [...card.children].filter((el) => el.offsetParent !== null && !el.classList.contains('mini') && el.tagName !== 'svg')
-    .map((el) => el.innerText).join(' ').split(/\s+/).filter((w) => /[A-Za-z0-9€]/.test(w)).length);
-  const w0 = await seen(p0);
-  check(w0 > 30 && w0 <= 70, 'start=0: the paid card a waiting payer reads is ≤ 70 words on screen', String(w0));
-  await c0.close();
-  const { ctx: c1, page: p1 } = await open({ query: '?paid=full-search&start=1&session_id=cs_test_ui_now' });
-  await p1.waitForTimeout(500);
-  const steps1 = (await p1.textContent('#paidNext')).replace(/\s+/g, ' ');
-  check(/Same working day/.test(steps1) && !(await p1.isVisible('#paidWait')) && await p1.isVisible('#paidText'), 'start=1: the steps of a payer who asked to start, the generic note, no waiting line', steps1);
-  const w1 = await seen(p1);
-  check(w1 > 30 && w1 <= 70, 'start=1: the paid card is ≤ 70 words on screen', String(w1));
-  await c1.close();
-}
-// the model withdrawal form: blank unless the link names the desk and the service
-{
-  const { ctx, page, st } = await open({ slug: 'withdrawal' });
-  const blank = await page.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value, decodeURIComponent(document.getElementById('wSend').href)]);
-  check(blank[0] === '' && blank[1] === '' && /following service: …\./.test(blank[2]) && /subject=Withdrawal&/.test(blank[2]),
-    'the form page with no link details: no service, no desk pre-chosen, the email says … instead of a guess', JSON.stringify(blank));
-  await page.close();
-  const pg = await ctx.newPage();
-  await pg.goto(`${base}/withdrawal?desk=madrid&service=full-search`, { waitUntil: 'load' });
-  const named = await pg.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value, decodeURIComponent(document.getElementById('wSend').href)]);
-  check(named[0] === 'full-search' && named[1] === 'Madrid' && /following service: Full Search \(Madrid\)\./.test(named[2]),
-    'the link from the paid email names the desk and the service: both chosen, the email says them by name', JSON.stringify(named));
-  await pg.goto(`${base}/withdrawal?desk=Lisbon&service=nonsense`, { waitUntil: 'load' });
-  const odd = await pg.evaluate(() => [document.getElementById('wService').value, document.getElementById('wCity').value]);
-  check(odd[0] === '' && odd[1] === '', 'an unknown desk or service in the link chooses nothing', JSON.stringify(odd));
-  check(st.errors.length === 0, 'the form page: no JS errors', st.errors.join(' | '));
-  await ctx.close();
-}
-// the same paid landing opened twice counts one sale
-{
-  const { ctx, page } = await open({ query: '?paid=full-search&session_id=cs_test_ui_2' });
-  await page.waitForTimeout(400);
-  check(await page.isVisible('#fPaid') && (await layer(page)).filter((e) => e.name === 'purchase').length === 1, 'landing on ?paid=… shows PAID and counts the sale');
-  await page.goto(`${base}/amsterdam?paid=full-search&session_id=cs_test_ui_2`, { waitUntil: 'load' });
-  await page.waitForTimeout(400);
-  check(await page.isVisible('#fPaid') && (await layer(page)).filter((e) => e.name === 'purchase').length === 0, 'the same session id again: the state shows, the sale is not counted twice');
-  const { ctx: c2, page: p2 } = await open({ query: '?paid=concierge&session_id=cs_x' });
-  check(!(await p2.isVisible('#fPaid')) && await p2.isVisible('#cityForm'), 'a ?paid= naming a plan that is not ours is ignored');
-  await c2.close();
-  await ctx.close();
-}
-// the door: chips, errors in place, the send, OPEN with the computed reply window, the offer
-{
-  const { ctx, page, st } = await open();
-  await page.waitForTimeout(600);
-  const picked = () => page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; });
-  check(await picked() === '', 'no service is pre-checked when the page opens');
-  check(await page.$eval('#fMoveIn', (s) => s.options[0].value === '' && s.options[0].textContent === 'Not sure yet' && [...s.options].slice(1).every((o) => /^\d{4}-\d{2}$/.test(o.value))),
-    'the move-in field is a month select: "Not sure yet" first, then months as YYYY-MM');
-  await tap(page, '.chip:has(input[value="application-pack"])');
-  check(await picked() === 'application-pack' && (await page.textContent('#plText')) === 'Application Pack · €199 · flat · incl. VAT', 'tapping a chip chooses the service and the plan line says it (no "from your check-in": the chip was the hand)');
-  await tap(page, '#fGo');
-  check(st.posts.length === 0 && await page.$eval('#fErr', (e) => e.classList.contains('on')) && (await page.textContent('#fErr')) === await page.getAttribute('#cityForm', 'data-err-name'),
-    'an empty form sends nothing and says, in place, that the name is missing');
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'not-an-email');
-  await tap(page, '#fGo');
-  check(st.posts.length === 0 && (await page.textContent('#fErr')) === await page.getAttribute('#cityForm', 'data-err-email'), 'a broken email is named, nothing is sent');
-  await page.fill('#fEmail', 'test@example.com');
-  await page.selectOption('#fMoveIn', { index: 3 });
-  await page.selectOption('#fBudget', { index: 2 });
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  let sent = {};
-  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
-  check(st.posts.length === 1 && st.posts[0].headers['content-type'] === 'application/json' && sent.city === 'amsterdam' && sent.name === 'Test Person'
-    && sent.email === 'test@example.com' && sent.service === 'application-pack' && sent.budget === '€1,500 – €2,000' && /^\d{4}-\d{2}$/.test(sent.moveIn) && sent.company === '',
-    'a valid submit posts JSON once, with the city, the chosen service, the band, the month and an empty honeypot', JSON.stringify(sent));
-  check(await page.isVisible('#fDone') && !(await page.isVisible('#cityForm')), 'on success the form gives way to "your file is open"');
-  const when = (await page.textContent('#openWhen')).trim();
-  check(WINDOW_RE.test(when), `the reply window is computed against the desk clock, never a static promise ("${when}")`);
-  await page.waitForTimeout(1300);
-  check(await boardWord(page, '#flapDone') === 'OPEN', 'the small board spells OPEN');
-  check(await page.isVisible('#payOffer') && (await page.textContent('#payOfferAmt')).trim() === '€199' && await page.$eval('#payOfferRefund', (e) => e.hidden),
-    'on a desk that sells, the card then offers to pay for the plan they chose (€199) — the refund line hidden, it is Full Search\'s');
-  await page.click('#payOfferBtn');
-  await page.waitForTimeout(500);
-  check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack'
-    && await page.$eval('#sName', (e) => e.value) === 'Test Person' && await page.$eval('#sEmail', (e) => e.value) === 'test@example.com',
-    'the offer opens the dialog on that plan with the name and email already in — nothing to re-type');
-  check(st.errors.length === 0 && st.foreign.length === 0, 'no JS errors, no request to a host the page should not call', st.errors.join(' | ') + st.foreign.join(' | '));
-  await ctx.close();
-}
-// Full Search chosen by hand: the offer carries the refund rule
-{
-  const { ctx, page } = await open();
-  await page.waitForTimeout(400);
-  await tap(page, '.chip:has(input[value="full-search"])');
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  check(await page.isVisible('#payOffer') && (await page.textContent('#payOfferAmt')).trim() === '€500' && !(await page.$eval('#payOfferRefund', (e) => e.hidden)),
-    'with Full Search chosen the offer shows €500 and the refund rule beside it');
-  await ctx.close();
-}
-// "not sure yet" gets no offer to pay: they asked for advice
-{
-  const { ctx, page } = await open();
-  await page.waitForTimeout(400);
-  await tap(page, '.chip.unsure');
-  check((await page.textContent('#plText')) === 'Not sure yet · advise me', 'the plan line says "not sure yet · advise me"');
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  check(await page.isVisible('#fDone') && !(await page.isVisible('#payOffer')), '"not sure yet" opens the file and gets no checkout offer');
-  await ctx.close();
-}
-// a failed checkout says so in the dialog and gives the button back
-{
-  const { ctx, page, st } = await open({ checkout: { status: 500, body: { ok: false, error: 'stripe_failed' } } });
-  await page.waitForTimeout(400);
-  await tap(page, '[data-pay="full-search"]');
-  await page.waitForTimeout(400);
-  await page.fill('#sName', 'Test Person');
-  await page.fill('#sEmail', 'test@example.com');
-  await page.click('#sGo');
-  await page.waitForFunction(() => document.getElementById('sErr').classList.contains('on'), null, { timeout: 4000 }).catch(() => {});
-  check(st.checkouts.length === 1 && (await page.textContent('#sErr')) === await page.getAttribute('#ov', 'data-err-net') && !(await page.$eval('#sGo', (e) => e.classList.contains('busy'))) && /amsterdam$/.test(page.url().split('#')[0]),
-    'a failed checkout: the dialog says so in its own words, the button comes back, the page stays');
-  await ctx.close();
-}
-// a failed submit says so and gives the button back
-{
-  const { ctx, page, st } = await open({ api: { status: 500, body: { ok: false, error: 'internal' } } });
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForFunction(() => document.getElementById('fErr').classList.contains('on'), null, { timeout: 4000 }).catch(() => {});
-  check(st.posts.length === 1 && (await page.textContent('#fErr')) === await page.getAttribute('#cityForm', 'data-err-net'),
-    'a failed send shows the page\'s own error text, in place (no alert)');
-  check(await page.$eval('#fGo', (e) => e.style.pointerEvents === '' && e.style.opacity === '1') && !(await page.isVisible('#fDone')),
-    'the button comes back and the "open" state stays hidden');
-  await ctx.close();
-}
-
-// ── links land where they say ────────────────────────────────────────────
-{
-  const { ctx, page } = await open({ query: '#checkin=zero.abroad.soon.-' });
-  await page.waitForTimeout(1900);
-  let s = await passState(page);
-  check(s.state === 'complete' && s.plan === 'Full Search' && s.code === 'START · ABROAD · T-4W' && s.landing === null,
-    'my own link lands straight on the complete ticket: Full Search for someone who has not started, no banner');
-  check(s.note === 'Four weeks is tight. We say so in the first call.' && s.ready === 'Tap the papers you hold above and we say what we would fix first.' && s.meter === '0%',
-    'haven\'t started + within four weeks: the refusal is on the ticket; the papers untouched, the line invites');
-  check(s.start === 'full-search' && s.startAmt === '€500' && s.moveIn === ymPlus(1), 'the till button on the pass says €500; the month prefilled one month out');
-  await ctx.close();
-  const { ctx: c2, page: p2 } = await open({ query: '#checkin=xx.yy' });
-  await p2.waitForTimeout(600);
-  s = await passState(p2);
-  check(s.state === 'blank' && JSON.stringify(s.stepsShown) === '[true,false,false]' && !/checkin/.test(await p2.evaluate(() => location.hash)),
-    'a broken link opens the first step, nothing pre-ticked, and the address bar is clean');
-  await c2.close();
-  const { ctx: c2b, page: p2b } = await open({ query: '#checkin=zero.abroad.nowhere.-.w' });
-  await p2b.waitForTimeout(800);
-  s = await passState(p2b);
-  check(s.state === 'resolved' && s.plan === 'Full Search' && s.landing === '2 of 3 answered, from the link you received.' && JSON.stringify(s.stepsShown) === '[true,true,true]',
-    'a received link with one answer that does not exist keeps the two that do: the ticket resolved, the third step open, the banner counting — and no "taps to your plan" when the plan already prints');
-  await c2b.close();
-  const { ctx: c3, page: p3 } = await open({ query: '#checkin=shortlist.here.later.ff.l' });
-  await p3.waitForTimeout(1900);
-  s = await passState(p3);
-  check(s.plan === 'Application Pack' && s.meter === '100%' && /^All eight in hand\./.test(s.ready) && await p3.$$eval('#pass input[name="ck-doc"]', (els) => els.every((e) => e.checked)) && s.passPapers === '8 of 8',
-    'docs mask ff on my own link (via l): all eight ticked, the meter full, the line says the file is ready');
-  await c3.close();
-  const { ctx: c4, page: p4 } = await open({ query: '#checkin=zero.abroad.soon.b.w' });
-  await p4.waitForTimeout(1200);
-  s = await passState(p4);
-  check(s.state === 'complete' && s.landing === "Your friend's answers. Change any of them, then your plan is yours." && s.meter === '0%' && s.passPapers === '—'
-    && await p4.$$eval('#pass input[name="ck-doc"]', (els) => els.every((e) => !e.checked)),
-    'a friend\'s link (via w): the ticket with the banner, and the friend\'s papers NOT ticked — the mask is ignored on a received link');
-  check((await layer(p4)).find((e) => e.name === 'deeplink_landing').p.via === 'w', 'the landing event names the via');
-  await c4.close();
-  const { ctx: c5, page: p5 } = await open({ query: '#checkin=shortlist.-.-.-.w' });
-  await p5.waitForTimeout(800);
-  s = await passState(p5);
-  check(s.state === 'pending' && s.landing === '1 of 3 answered, from the link you received. One tap to your plan.' && JSON.stringify(s.stepsShown) === '[true,true,false]',
-    'a received partial link lands on the next step with the known answer ticked and counts the taps to the plan (one: a shortlist resolves on the second tap)');
-  await c5.close();
-  // an own reload is a resume, not "the link you received"
-  const { ctx: c6, page: p6 } = await open();
-  await tap(p6, ckOpt('shortlist'));
-  await p6.waitForTimeout(500);
-  await p6.reload({ waitUntil: 'load' });
-  await p6.waitForTimeout(800);
-  s = await passState(p6);
-  const ev6 = await layer(p6);
-  check(s.state === 'pending' && s.landing === null && s.hash === '#checkin=shortlist.-.-.-' && ev6.some((e) => e.name === 'checkin_resume') && !ev6.some((e) => e.name === 'deeplink_landing'),
-    'my own answer, back after a reload: restored in silence (no banner, a resume event, not a deep link)');
-  await c6.close();
-}
-
-// ── the consent plate waits for the reader ───────────────────────────────
-{
-  const { ctx, page } = await open({ consent: false });
-  await page.waitForTimeout(2200);
-  check(!(await plateUp(page)) && await page.$eval('body', (b) => b.hasAttribute('data-consent-late')), 'with data-consent-late the plate is not on the first screen after two seconds of reading');
-  await page.click(ckOpt('zero'));                    // in the first screen: no scroll to reach it
-  await page.waitForTimeout(1800);                      // the page scrolls ITSELF to land the pass: not the reader's move
-  check(!(await plateUp(page)), 'a tap inside the diagnostic is the reader at work (and the page\'s own scroll is not a move): the plate still waits');
-  // the ticket's foot in the band the plate would take (a wheel keeps scrolling after
-  // its event, so the move that arms is a key pressed outside the work area)
-  await page.evaluate(() => { document.activeElement && document.activeElement.blur(); const r = document.getElementById('pass').getBoundingClientRect(); window.scrollBy({ top: r.bottom - (innerHeight - 50), behavior: 'instant' }); });
-  await page.waitForTimeout(200);
-  await page.keyboard.press('Shift');
-  await page.waitForTimeout(1500);
-  check(!(await plateUp(page)), 'a move outside the work area arms it, but the ticket reaches the band the plate would cover: the reader is at work, the plate still waits');
-  await page.evaluate(() => { const r = document.getElementById('pass').getBoundingClientRect(); window.scrollBy({ top: r.bottom - (innerHeight - 160), behavior: 'instant' }); });
-  await page.waitForTimeout(1600);
-  check(await plateUp(page), 'the ticket whole above the plate\'s band: it covers nothing the reader is working on, the plate comes');
-  await page.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
-  await page.waitForTimeout(1600);
-  check((await plateUp(page)), 'once the hero is left the plate comes');
-  await ctx.close();
-  // a small phone, nothing answered: the ceiling must not land the plate on the options
-  const { ctx: c0, page: p0 } = await open({ consent: false, width: 375 });
-  await p0.mouse.wheel(0, 100);
-  await p0.waitForTimeout(1500);
-  check(!(await plateUp(p0)), '375px, the unanswered Check-in on the screen: armed, the plate still waits');
-  await p0.evaluate(() => document.getElementById('how').scrollIntoView({ behavior: 'instant' }));
-  await p0.waitForTimeout(1600);
-  check((await plateUp(p0)), 'scrolled past the Check-in, it comes');
-  await c0.close();
-  const { ctx: c2, page: p2 } = await open({ consent: false });
-  await p2.evaluate(() => document.getElementById('services').scrollIntoView({ behavior: 'instant' }));
-  await p2.waitForTimeout(400);
-  const stripBefore = await p2.$eval('#paybar', (e) => e.classList.contains('on'));
-  await p2.$eval('[data-pay="full-search"]', (el) => el.click());   // the till
-  await p2.waitForTimeout(300);
-  await p2.mouse.wheel(0, 40);
-  await p2.waitForTimeout(1800);
-  check(await p2.$eval('dialog#ov', (d) => d.open) && !(await plateUp(p2)), 'while the till dialog is open the plate holds back (two things asking at once)');
-  const stripOpen = await p2.$eval('#paybar', (e) => e.classList.contains('on'));
-  await p2.keyboard.press('Escape');
-  await p2.waitForTimeout(1200);
-  check((await plateUp(p2)), 'once the dialog closes the plate comes');
-  check(stripBefore && !stripOpen && await p2.$eval('#paybar', (e) => e.classList.contains('on')), 'the strip, off while the till is open, comes back when it closes — without a scroll');
-  await c2.close();
-}
-
-// ── reduced motion: the word is there at once, nothing animates ─────────
 {
   const { ctx, page } = await open({ reducedMotion: 'reduce' });
   await page.waitForTimeout(150);
-  const b = await board(page);
-  check(b.cells === 9 && b.letters === 'AMSTERDAM', 'with reduced motion the board is set still on AMSTERDAM, immediately');
-  check(await page.$$eval('.rv .step, .rv .flow', (els) => els.every((e) => getComputedStyle(e).opacity === '1')), 'with reduced motion the children of a block do not wait for a stagger');
-  await tap(page, ckOpt('zero'));
-  await page.waitForTimeout(300);
-  const s = await passState(page);
-  check(s.state === 'resolved' && s.price === '€500' && await page.$eval('#pass', (e) => getComputedStyle(e).animationName === 'none'),
-    'under reduced motion the pass arrives set — the price on the board at once, no entrance animation');
+  check(await boardWord(page, '#placeBoard') === 'AMSTERDAM', 'reduced motion: the board settles at once');
   await ctx.close();
 }
-// the motion, when it is allowed: the children of a block follow one beat apart
 {
   const { ctx, page } = await open();
-  await page.waitForTimeout(400);
-  const before = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).opacity));
-  await page.evaluate(() => document.getElementById('how').scrollIntoView({ behavior: 'instant' }));
-  await page.waitForTimeout(1600);
-  const after = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).opacity));
-  const delays = await page.$$eval('#how .step', (els) => els.map((e) => getComputedStyle(e).transitionDelay));
-  check(before.every((o) => o === '0') && after.every((o) => o === '1') && new Set(delays).size === delays.length, `the steps start hidden and arrive one beat apart (delays ${delays.join(' ')})`);
+  await page.waitForTimeout(300);
+  check(!(await page.$eval('#strip', (s) => s.classList.contains('on'))), 'the strip is off while the pass\'s door is on the screen');
+  await page.evaluate(() => document.getElementById('how').scrollIntoView({ block: 'start', behavior: 'instant' }));
+  await page.waitForTimeout(500);
+  const on = await page.$eval('#strip', (s) => s.classList.contains('on') && s.getAttribute('aria-hidden') === 'false' && !s.hasAttribute('inert'));
+  check(on && !/€/.test(await text(page, '#strip')), 'past the door, the strip comes: the same door, no price');
+  await page.click('#stripGo');
+  await page.waitForTimeout(700);
+  check(await page.evaluate(() => document.activeElement && document.activeElement.id === 'fName') && await shown(page, '#fFields'), 'the strip\'s door takes the reader to the free door, the name focused');
   await ctx.close();
 }
 
-// ── the review of 17/10: what a real tap sequence found ──────────────────
 {
-  // a chip the reader chose by hand survives a paper tick, a pending stage and a new plan
-  const { ctx, page } = await open();
-  await tap(page, ckOpt('shortlist'));
-  await page.waitForTimeout(700);
-  await tap(page, ckOpt('here'));
-  await page.waitForTimeout(700);
-  await tap(page, ckOpt('months'));
-  await page.waitForTimeout(900);
-  let s = await passState(page);
-  check(s.state === 'complete' && s.chip === 'application-pack' && s.planFrom === 'checkin', 'shortlist · here · months: Application Pack written into the door by the Check-in');
-  await page.$eval('#planline', (d) => { d.open = true; });
-  await tap(page, '.chip:has(input[value="full-search"])');
-  await page.waitForTimeout(200);
-  s = await passState(page);
-  check(s.chip === 'full-search' && s.planFrom === 'chip' && s.plText === 'Full Search · €500 · flat · incl. VAT', 'the reader taps Full Search by hand: the chip is theirs, the plan line says so without "from your check-in"');
-  await tap(page, ckDoc('id'));
+  // B5: 200 % zoom on a 390 phone = 195 CSS px: no price nor condition is cut
+  const { ctx, page } = await open({ width: 195, height: 422, slug: 'berlin' });
+  await page.waitForTimeout(1500);
+  const cut = await page.evaluate(() => [...document.querySelectorAll('.f-cond, .f-price, #placeBoard, .f-name')]
+    .filter((e) => e.offsetParent).map((e) => ({ t: e.textContent.trim().slice(0, 30), r: Math.round(e.getBoundingClientRect().right), sw: e.scrollWidth, cw: e.clientWidth }))
+    .filter((x) => x.r > innerWidth + 1 || x.sw > x.cw + 1));
+  check(cut.length === 0, '195 px (200 % zoom): every condition, price and the board fit — nothing cut', JSON.stringify(cut.slice(0, 3)));
+  await ctx.close();
+  const a = await open({ width: 195, height: 422 });
+  await a.page.click('#fare-full-search > summary');
+  await a.page.waitForTimeout(150);
+  await tap(a.page, '#fare-full-search [data-pay]');
+  await a.page.waitForTimeout(250);
+  const tp = await a.page.evaluate(() => { const b = document.getElementById('tPrice'), d = document.getElementById('till'); return { r: b.getBoundingClientRect().right, dr: d.getBoundingClientRect().right, t: b.textContent }; });
+  check(tp.t === '€500' && tp.r <= tp.dr + 1, '195 px: the till reads €500 whole', JSON.stringify(tp));
+  await a.ctx.close();
+}
+{
+  // B7: forced colors keep the open/closed mark of every fare row
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, forcedColors: 'active' });
+  const page = await ctx.newPage();
+  await page.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort());
+  await page.goto(`${base}/amsterdam`, { waitUntil: 'load' });
+  const fc = await page.evaluate(() => { const t = document.querySelector('.f-tog'); return [getComputedStyle(t, '::before').backgroundColor, getComputedStyle(document.body).backgroundColor]; });
+  check(fc[0] !== fc[1] && !/rgba\(0, 0, 0, 0\)/.test(fc[0]), 'forced colors: the +/− of a fare row is drawn in CanvasText, not erased into the Canvas', JSON.stringify(fc));
+  await ctx.close();
+}
+{
+  // B9: crossing 940 px with the cursor in the door keeps the field on screen
+  const { ctx, page } = await open({ width: 820, height: 820 });
+  await page.waitForTimeout(300);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#door');
   await page.waitForTimeout(400);
-  s = await passState(page);
-  check(s.chip === 'full-search' && s.planFrom === 'chip' && s.passPapers === '1 of 8', 'a paper tick re-renders the pass and leaves the hand-chosen chip alone (it used to flip back to Application Pack)');
-  await tap(page, '#checkin .ck-step[data-step="where"] .ck-change');
-  await page.waitForTimeout(300);
-  await tap(page, ckOpt('abroad'));
-  await page.waitForTimeout(700);
-  s = await passState(page);
-  check(s.state === 'complete' && s.plan === 'Attended Viewing' && s.chip === 'full-search' && s.planFrom === 'chip' && s.file === 'attended-viewing', 'a new plan on the ticket does not overwrite the hand-chosen chip either; the pass\'s own door still points at its plan');
-  await page.fill('#fName', 'Test Person'); await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  const ev = await layer(page);
-  check(ev.find((e) => e.name === 'door_prefill').p.plan === 'full-search' && ev.find((e) => e.name === 'door_prefill').p.from === 'chip', 'the lead goes out with the plan the reader chose, attributed to the chip');
-  await ctx.close();
-  // a pending stage (the second step unanswered) clears a chip the Check-in wrote, never one the reader chose
-  const { ctx: cp, page: pp } = await open();
-  await tap(pp, ckOpt('zero'));
-  await pp.waitForTimeout(700);
-  await pp.$eval('#planline', (d) => { d.open = true; });
-  await tap(pp, '.chip:has(input[value="application-pack"])');
-  await tap(pp, '#checkin .ck-step[data-step="stage"] .ck-change');
-  await pp.waitForTimeout(300);
-  await tap(pp, ckOpt('shortlist'));
-  await pp.waitForTimeout(700);
-  s = await passState(pp);
-  check(s.state === 'pending' && s.chip === 'application-pack' && s.planFrom === 'chip', 'a pending stage clears a chip the Check-in wrote, never one the reader chose');
-  await cp.close();
-}
-{
-  // the door sends ONCE per tap: Enter three times in the email field during a slow round trip
-  const { ctx, page, st } = await open({ api: { status: 200, body: { ok: true, id: 'slow1' }, delay: 1200 } });
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await page.$eval('#planline', (d) => { d.open = true; });
-  await tap(page, '.chip:has(input[value="full-search"])');
-  await page.focus('#fEmail');
-  await page.keyboard.press('Enter'); await page.waitForTimeout(80);
-  await page.keyboard.press('Enter'); await page.waitForTimeout(80);
-  await page.keyboard.press('Enter');
-  await page.waitForSelector('#fDone.on', { timeout: 5000 }).catch(() => {});
-  await page.waitForTimeout(300);
-  const ev = await layer(page);
-  check(st.posts.length === 1 && ev.filter((e) => e.name === 'sign_up').length === 1 && ev.filter((e) => e.name === 'generate_lead').length === 1, `three Enters, one POST, one lead (${st.posts.length} POST, ${ev.filter((e) => e.name === 'sign_up').length} sign_up)`);
-  check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'fDone', 'after the send focus is on the open file, not on <body>');
-  await tap(page, '#payOfferBtn');
+  await page.click('#fContact');
+  await page.keyboard.type('anna@');
+  await page.setViewportSize({ width: 1180, height: 820 });
   await page.waitForTimeout(400);
-  const bc = (await layer(page)).filter((e) => e.name === 'begin_checkout');
-  check(await page.$eval('dialog#ov', (d) => d.open) && bc.length === 1 && bc[0].p.source === 'after-lead' && (await page.inputValue('#sName')) === 'Test Person', 'one click on the offer opens the till once, prefilled (the button is bound once)');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-  check(await page.evaluate(() => document.activeElement && document.activeElement.id) === 'payOfferBtn', 'Escape gives focus back to the offer button');
+  const f = await page.evaluate(() => { const e = document.activeElement, r = e.getBoundingClientRect(); return { id: e.id, top: r.top, bottom: r.bottom, ih: innerHeight }; });
+  check(f.id === 'fContact' && f.top >= 0 && f.bottom <= f.ih, 'rotating a tablet past 940 px with the cursor in the door: the field follows the door and stays on screen', JSON.stringify(f));
   await ctx.close();
 }
 {
-  // the pass lands on the tap that resolves a pending stage
-  const { ctx, page } = await open();
-  await tap(page, ckOpt('shortlist'));
-  await page.waitForTimeout(1200);
-  await page.$eval(ckOpt('abroad'), (el) => el.click());   // where it sits after the landing, no scroll of ours
-  await page.waitForTimeout(1200);
-  const s = await passState(page);
-  check(s.state === 'resolved' && s.rect.bottom <= 846 && s.rect.top >= 0, `the second tap grows the pass by the plan box and the page lands it (top ${s.rect.top}, bottom ${s.rect.bottom})`);
-  // "change", then the same answer: the step folds
-  await tap(page, '#checkin .ck-step[data-step="stage"] .ck-change');
-  await page.waitForTimeout(200);
-  const openBefore = await page.$$eval('#checkin .ck-step[data-step="stage"] .ck-opt', (els) => els.filter((e) => getComputedStyle(e).display !== 'none').length);
-  await tap(page, ckOpt('shortlist'));
-  await page.waitForTimeout(300);
-  const folded = await page.$eval('#checkin .ck-step[data-step="stage"]', (e) => e.classList.contains('done'));
-  check(openBefore === 3 && folded && (await passState(page)).state === 'resolved', 're-picking the same answer after "change" folds the step again (an already-checked radio fires no change event)');
-  // the month the page prefilled follows the answer and leaves with it; a month the reader picked stays
-  await tap(page, ckOpt('soon'));
-  await page.waitForTimeout(500);
-  check((await passState(page)).moveIn === ymPlus(1), `within four weeks → ${ymPlus(1)} prefilled`);
-  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
-  await page.waitForTimeout(200);
-  await tap(page, ckOpt('later'));
-  await page.waitForTimeout(500);
-  check((await passState(page)).moveIn === '', '"later, flexible": the page\'s own prefill leaves (it used to stay and contradict the answer on the lead)');
-  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
-  await page.waitForTimeout(200);
-  await tap(page, ckOpt('months'));
-  await page.waitForTimeout(500);
-  check((await passState(page)).moveIn === ymPlus(2), `"1–3 months" → ${ymPlus(2)}`);
-  await page.selectOption('#fMoveIn', { index: 8 });
-  const mine = await page.inputValue('#fMoveIn');
-  await tap(page, '#checkin .ck-step[data-step="when"] .ck-change');
-  await page.waitForTimeout(200);
-  await tap(page, ckOpt('soon'));
-  await page.waitForTimeout(500);
-  check((await passState(page)).moveIn === mine && mine !== ymPlus(1), 'a month the reader picked is never touched by a changed answer');
-  // four quick paper ticks are four ticks (the view-transition overlay no longer eats the next tap)
-  for (const d of ['id', 'contract', 'payslips', 'bank']) { await page.$eval(ckDoc(d), (el) => el.scrollIntoView({ block: 'center', behavior: 'instant' })); await page.$eval(ckDoc(d) + ' input', (el) => el.click()); await page.waitForTimeout(120); }
-  await page.waitForTimeout(500);
-  check((await passState(page)).passPapers === '4 of 8', 'four ticks 120 ms apart → "4 of 8"');
-  // the price and the plan are read as text; one small live region
-  const a11y = await page.evaluate(() => ({ sr: document.getElementById('ckPriceSr').textContent, live: document.getElementById('ckLive').textContent, boardHidden: document.getElementById('ckPrice').getAttribute('aria-hidden'), boxLive: document.getElementById('ckPlanBox').getAttribute('aria-live'), h1: document.querySelector('.hero h1 .sr').textContent, flapHidden: document.getElementById('flapCity').getAttribute('aria-hidden'), note: document.getElementById('ckNote').textContent }));
-  check(a11y.sr === '€149 per viewing' && a11y.live === 'Attended Viewing, €149. ' + a11y.note && a11y.note.length > 10 && a11y.boardHidden === 'true' && a11y.boxLive === null && a11y.h1 === 'Amsterdam' && a11y.flapHidden === 'true',
-    'the amount is text beside a decorative board, the plan is announced once in a small live region and the third tap\'s note after it, the title board is decorative and the city is read as text');
-  await ctx.close();
-}
-{
-  // the phone's focus order meets the ticket where it appears; the menu is inert off-screen
-  const { ctx, page } = await open();
-  check(await page.evaluate(() => document.getElementById('checkin').nextElementSibling === document.getElementById('pass') && document.getElementById('pass').nextElementSibling.classList.contains('skipck')),
-    '390px: the pass follows the Check-in in the DOM and the skip link follows the pass (reading order = focus order)');
-  const menu = await page.evaluate(() => { const m = document.getElementById('mobileMenu'); return { inert: m.inert === true, vis: getComputedStyle(m).visibility, ah: m.getAttribute('aria-hidden') }; });
-  check(menu.inert && menu.vis === 'hidden' && menu.ah === 'true', 'closed, the menu is inert, visibility hidden and aria-hidden');
-  await page.focus('#navToggle');
-  await page.keyboard.press('Tab');
-  check(await page.evaluate(() => !document.getElementById('mobileMenu').contains(document.activeElement) && !!document.activeElement.closest('#checkin')), 'Tab from the burger skips the ten off-screen links and lands in the Check-in');
-  await page.click('#navToggle');
-  await page.waitForTimeout(600);
-  check(await page.evaluate(() => document.getElementById('mobileMenu').contains(document.activeElement) && document.body.classList.contains('menu-open') && document.getElementById('mobileMenu').inert === false), 'open, focus moves into the menu and the body says menu-open (the consent plate hides under it)');
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(500);
-  check(await page.evaluate(() => !document.getElementById('mobileMenu').classList.contains('active') && document.activeElement.id === 'navToggle' && !document.body.classList.contains('menu-open')), 'Escape closes it and gives focus back to the burger');
-  await tap(page, ckOpt('zero')); await page.waitForTimeout(700);
-  await tap(page, ckOpt('abroad')); await page.waitForTimeout(700);
-  await tap(page, ckOpt('months')); await page.waitForTimeout(900);
-  await page.focus('#checkin input[name="ck-when"]:checked');
-  await page.keyboard.press('Tab');
-  const t1 = await page.evaluate(() => document.activeElement.className);
-  await page.keyboard.press('Tab');
-  const t2 = await page.evaluate(() => !!document.activeElement.closest('#pass'));
-  check(t1 === 'ck-change' && t2, 'after the third answer: Tab → "change", Tab → INTO the pass (it used to jump over the ticket to the skip link and the facts)');
-  await ctx.close();
-}
-{
-  // a phone that widens into a desk before the first tap: the blank pass gets its board
+  // B10: the fields' focus glow and the consent links' ring are not clipped
   const { ctx, page } = await open();
   await page.waitForTimeout(300);
-  await page.setViewportSize({ width: 1024, height: 900 });
-  await page.waitForTimeout(900);
-  const s = await passState(page);
-  check(s.state === 'blank' && s.display !== 'none' && s.board === 'AMSTERDAM' && await page.evaluate(() => document.getElementById('pass').parentNode.classList.contains('hero-right')), 'widened to 1024 before any tap: the pass is in the right column with AMSTERDAM on its board');
+  await tap(page, '#door');
+  await page.waitForTimeout(500);
+  check(await page.$eval('#fFields', (e) => getComputedStyle(e).overflow === 'visible') && await page.$eval('#cOpen', (e) => getComputedStyle(e).overflow === 'visible'), 'the revealed fields and the state cards do not clip focus rings (no overflow:hidden)');
   await ctx.close();
 }
-{
-  // ?paid= with an inherited key is not a plan
-  const { ctx, page } = await open({ query: '?paid=constructor&session_id=cs_x' });
-  await page.waitForTimeout(400);
-  check(!(await page.isVisible('#fPaid')) && await page.isVisible('#cityForm') && !(await layer(page)).some((e) => e.name === 'purchase'), '?paid=constructor shows no PAID card and counts no sale');
-  await ctx.close();
-}
-{
-  // the desk's weekend: the sub says the window, the zone label follows the clock, the days are printed
-  const { ctx, page } = await open({ clock: '2026-10-17T09:00:00Z' });   // Saturday 11:00 in Rome (CEST)
-  await page.waitForTimeout(400);
-  const d = await page.evaluate(() => ({ go: document.querySelector('#fGo small').textContent, pass: document.querySelector('#ckFile small').textContent, strip: document.getElementById('stripSub').textContent, dataSub: document.getElementById('paybar').getAttribute('data-sub'), tz: [...document.querySelectorAll('[data-tz]')].map((e) => e.textContent).join(','), facts: document.querySelector('.facts div:nth-child(4) dd').textContent }));
-  check(d.go === 'free · Monday from 09:00 CEST' && d.pass === d.go && d.strip === d.go && d.dataSub === d.go, `Saturday: "same-day reply" becomes the window on the door, the pass and the strip ("${d.go}")`);
-  check(d.tz === 'CEST,CEST' && /desk Mon–Fri 09:00 to 19:00 CEST/.test(d.facts), 'the zone label reads CEST in October, the facts print the desk days');
-  await page.fill('#fName', 'Test Person'); await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  check((await page.textContent('#openWhen')) === 'Monday from 09:00 CEST' && /Nothing by then\?/.test(await page.textContent('#fDone')), 'the OPEN card says Monday, and the recourse line says "by then", not "tomorrow"');
-  await ctx.close();
-  const { ctx: c2, page: p2 } = await open({ clock: '2026-10-19T09:00:00Z' });   // Monday 11:00
-  await p2.waitForTimeout(300);
-  check((await p2.textContent('#fGo small')) === 'free · same-day reply' && (await p2.textContent('#stripSub')) === 'free · same-day reply', 'Monday at 11:00: the desk is open, the sub stays "same-day reply"');
-  await c2.close();
-}
-
-// ── 1440px: the pass is on the page from load, blank, in the right column ──
-{
-  const { ctx, page } = await open({ width: 1440 });
-  await page.waitForTimeout(2600);
-  const b = await board(page);
-  check(b.cells === 9 && Math.abs(b.minW - b.contentW) < 4, `1440px: the same board, the same reservation (${b.contentW.toFixed(0)}px)`);
-  let s = await passState(page);
-  check(s.state === 'blank' && s.display !== 'none' && s.blankShown && s.board === 'AMSTERDAM' && s.code === '—',
-    'at 1440 the pass is on the page from load, blank, the city on its board and "your plan prints here as you answer"');
-  const geo = await page.evaluate(() => {
-    const h1 = document.querySelector('.hero h1').getBoundingClientRect(), pass = document.getElementById('pass').getBoundingClientRect(), card = document.querySelector('.filecard').getBoundingClientRect();
-    const right = document.querySelector('.hero-right');
-    return { twoCols: pass.left > h1.right && card.left > h1.right, passAboveDoor: pass.bottom <= card.top + 1, passTop: pass.top, h1Top: h1.top, sticky: getComputedStyle(right).position, top: right.style.top, colH: right.getBoundingClientRect().height, leftH: document.querySelector('.hero-left').getBoundingClientRect().height, inRight: document.getElementById('pass').parentNode === right, afterCk: document.getElementById('checkin').nextElementSibling === document.getElementById('pass') };
-  });
-  check(geo.twoCols && geo.passAboveDoor && Math.abs(geo.passTop - geo.h1Top) < 80 && geo.inRight && !geo.afterCk, 'the pass sits beside the title with the door under it: two columns (the JS moved it into the right column)');
-  check(geo.sticky !== 'sticky' && geo.top === '',
-    `no sticky column on the desk (position ${geo.sticky}; right ${Math.round(geo.colH)}px, left ${Math.round(geo.leftH)}px)`);
-  check(await page.isVisible('.nav-links .nav-door') && (await page.textContent('.nav-links .nav-door')).trim() === 'Open my file' && !(await page.isVisible('#navToggle')),
-    '1440px: desktop nav with the door as a text link, no burger');
-  check(await page.$eval('#paybar', (e) => getComputedStyle(e).display === 'none'), '1440px: no strip');
-  await tap(page, ckOpt('found'));
-  await page.waitForTimeout(600);
-  s = await passState(page);
-  check(s.state === 'resolved' && s.plan === 'Application Pack' && s.inClass && geo.passTop >= 0, 'a tap fills the ticket in place: no scroll, no jump at 1440');
-  await ctx.close();
-}
-
-// ── the sisters at 390px ─────────────────────────────────────────────────
-for (const [slug, word] of [['madrid', 'MADRID'], ['barcelona', 'BARCELONA'], ['paris', 'PARIS'], ['berlin', 'BERLIN']]) {
+// ── 8 · the sisters ──────────────────────────────────────────────────────
+for (const slug of ['paris', 'berlin']) {
   const { ctx, page, st } = await open({ slug });
-  await page.waitForTimeout(2600);
-  const b = await board(page);
-  check(b.cells === word.length && b.letters === word && Math.abs(b.minW - b.contentW) < 4, `${slug}: the board spells ${word} in the space the hero reserved (${b.contentW.toFixed(0)}px)`);
-  const scrollW = await page.evaluate(() => document.documentElement.scrollWidth);
-  const chipH = await page.$$eval('.chip', (els) => els.map((e) => Math.round(e.getBoundingClientRect().height)));
-  check(scrollW <= 390 && chipH.length === 4, `${slug}: 390px, no horizontal scroll, four chips (${chipH.join('/')}px)`);
-  const chipTxt = await page.$$eval('.chip small', (els) => els.map((e) => e.textContent.trim()));
-  const wl = ['paris', 'berlin'].includes(slug);
-  check(chipTxt[0].startsWith('€500') && chipTxt[1].startsWith('€199') && chipTxt[2].startsWith('€149') && chipTxt.every((t, i) => i === 3 || /VAT/.test(t)) && (wl ? chipTxt.slice(0, 3).every((t) => /at opening|on signing/.test(t)) : chipTxt.slice(0, 3).every((t) => !/opening|sign/.test(t))),
-    `${slug}: the chips carry the brief's prices with each plan's own condition (${chipTxt.slice(0, 3).join(' | ')})`);
-  await tap(page, ckOpt('zero'));
-  await page.waitForTimeout(1900);
-  const s = await passState(page);
-  if (wl) {
-    check(await page.$('dialog#ov') === null && await page.$('[data-pay]') === null && (await page.textContent('.pricenote')).trim() === 'List prices, VAT included. Each plan says when it is charged.',
-      `${slug}: no dialog, no pay control; under the chips the line says each plan states when it is charged`);
-    check(s.plan === 'Full Search' && s.price === '€500' && s.start === null && s.file === 'full-search' && s.refundShown === null
-      && (slug === 'berlin' ? s.cond === 'flat · incl. VAT · on signing' && /once you sign a lease/.test(await page.textContent('#ckCondLong')) : s.cond === 'flat · incl. VAT · at opening' && /when the desk opens/.test(await page.textContent('#ckCondLong'))),
-      `${slug}: the pass says Full Search €500 with ITS condition ("${s.cond}") and one door, the free file`);
-    await tap(page, '#plan-application-pack .go');
-    await page.waitForTimeout(400);
-    check(await page.$eval('#cityForm', (f) => { const r = f.querySelector('input[name="service"]:checked'); return r ? r.value : ''; }) === 'application-pack',
-      `${slug}: the plate's primary leads to the door and checks its chip`);
-  } else {
-    check(s.plan === 'Full Search' && s.price === '€500' && s.start === 'full-search' && s.refundShown === true, `${slug}: the pass says Full Search €500 with the till button and the refund rule`);
-    await tap(page, '[data-pay="application-pack"]');
-    await page.waitForTimeout(500);
-    check(await page.$eval('dialog#ov', (d) => d.open) && await page.$eval('input[name="payplan"]:checked', (e) => e.value) === 'application-pack', `${slug}: the plate's pay link opens the dialog on its plan`);
-    await page.keyboard.press('Escape');
-    await page.waitForTimeout(200);
-    // the pass wrote Full Search into the door and folded the plan line: a
-    // change by hand starts by unfolding it (the "change" tag on the summary)
-    check(!(await page.$eval('#planline', (d) => d.open)) && !(await page.$eval('#plChange', (e) => e.hidden)), `${slug}: the plan line folded on the plan the pass wrote, with its "change" tag`);
-    await tap(page, '#planline summary');
-    await page.waitForTimeout(200);
-    await tap(page, '.chip:has(input[value="application-pack"])');
-    check((await page.textContent('#plText')) === 'Application Pack · €199 · flat · incl. VAT', `${slug}: a chip chosen by hand replaces the pass's plan and drops the "from your check-in" tag`);
-  }
-  await page.fill('#fName', 'Test Person');
-  await page.fill('#fEmail', 'test@example.com');
-  await tap(page, '#fGo');
-  await page.waitForSelector('#fDone.on', { timeout: 4000 }).catch(() => {});
-  let sent = {};
-  try { sent = JSON.parse(st.posts[0].body); } catch (e) {}
-  check(st.posts.length === 1 && sent.city === slug && sent.service === 'application-pack' && st.errors.length === 0,
-    `${slug}: the form posts city "${slug}" once, with Application Pack chosen, and no JS error`, JSON.stringify(sent) + ' ' + st.errors.join('|'));
+  await page.waitForTimeout(300);
+  check(await text(page, '#doorL') === 'Open my file' && await page.$$eval('[data-pay]', (b) => b.length) === 0 && !(await page.$('#till')), `${slug}: "Open my file", no pay button, no till`);
+  await page.click('#fare-full-search > summary');
+  await page.waitForTimeout(200);
+  check(!(await page.$('#fare-full-search .tk .refund')), `${slug}: no refund rule in the Full Search ticket (no money is taken)`);
+  await tap(page, '#door');
+  await page.fill('#fName', 'Jean'); await page.fill('#fContact', 'jean@example.fr');
+  await page.click('#door');
+  await page.waitForTimeout(500);
+  check(st.posts.length === 1 && st.posts[0].city === slug && await page.getAttribute('#pass', 'data-state') === 'open', `${slug}: the file opens`);
+  await ctx.close();
+}
+{
+  const { ctx, page } = await open({ slug: 'madrid' });
+  await page.waitForTimeout(300);
+  await page.click('#fare-application-pack > summary');
+  await page.waitForTimeout(150);
+  await tap(page, '#fare-application-pack [data-pay]');
+  await page.waitForTimeout(200);
+  check(await shown(page, '.t-opt') && /^Optional, chosen in writing/.test(await text(page, '.t-opt')) && !(await shown(page, '#tRule')), 'madrid: the till repeats "Optional, chosen in writing"; no refund rule on the Application Pack');
   await ctx.close();
 }
 
-// ── a touch screen: the same page, nothing hover-bound ───────────────────
-{
-  const { ctx, page, st } = await open({ touch: true });
-  await page.waitForTimeout(600);
-  await page.tap(ckOpt('zero'));
-  await page.waitForTimeout(800);
-  const s = await passState(page);
-  check(s.state === 'resolved' && s.display !== 'none' && st.errors.length === 0, 'on a touch screen the first tap brings the live ticket, no error');
-  await ctx.close();
-}
+check(allErrors.length === 0, 'zero JS errors across every run', allErrors.slice(0, 3).join(' | '));
+check(allForeign.length === 0, 'no request to a host we did not stub', allForeign.slice(0, 3).join(' | '));
 
 await browser.close();
 srv.close();

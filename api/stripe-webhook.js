@@ -5,7 +5,9 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
-import { CITY_MARKETS, CITY_PLANS, cityPhone } from './_market.js';
+import { CITY_MARKETS, CITY_PLANS, cityPhone, serviceLeadId } from './_market.js';
+import SCALO from '../js/scalo-codes.js';
+import DESK_CAL from '../js/desk-calendar.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -389,61 +391,15 @@ export const WITHDRAWAL_FORM_TEXT_IT = 'MODULO DI RECESSO TIPO (compilare e rest
   + '— Ordinato il (*)/ricevuto il (*), — Nome del/dei consumatore(i), — Indirizzo del/dei consumatore(i), '
   + '— Firma del/dei consumatore(i) (solo se il presente modulo è notificato in versione cartacea), — Data. (*) Cancellare la dicitura inutile.';
 
-// Easter Sunday, Gregorian (Meeus/Jones/Butcher), as [month, day].
-function easterOf(y) {
-  const a = y % 19, b = Math.floor(y / 100), c = y % 100, d = Math.floor(b / 4), e = b % 4;
-  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3);
-  const h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
-  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
-  const n = h + l - 7 * m + 114;
-  return [Math.floor(n / 31), (n % 31) + 1];
-}
-// Fixed dates as MM-DD, Easter-relative ones as offsets in days.
-const HOLIDAYS = {
-  // national, plus Rome's patron day (29 June); 4 October is a national
-  // holiday again from 2026
-  it: { fixed: ['01-01', '01-06', '04-25', '05-01', '06-02', '06-29', '08-15', '10-04', '11-01', '12-08', '12-25', '12-26'], easter: [1] },
-  // Nieuwjaar, Koningsdag (26 April when the 27th is a Sunday), Bevrijdingsdag,
-  // Kerst; Goede Vrijdag, Paasmaandag, Hemelvaart, Pinkstermaandag
-  nl: { fixed: ['01-01', '04-27', '05-05', '12-25', '12-26'], easter: [-2, 1, 39, 50], kingsDay: true },
-  // national, plus the Comunidad and the city of Madrid (2 May, San Isidro,
-  // La Almudena); Jueves and Viernes Santo
-  es: { fixed: ['01-01', '01-06', '05-01', '05-02', '05-15', '08-15', '10-12', '11-01', '11-09', '12-06', '12-08', '12-25'], easter: [-3, -2] },
-  // the Barcelona desk: Catalonia's labour calendar (DOGC: Ordre EMT/66/2025
-  // for 2026, EMT/52/2026 for 2027 — Cap d'Any, Reis, Treball, Sant Joan,
-  // Assumpció, Diada, Festa Nacional, Tots Sants, Constitució, Immaculada,
-  // Nadal, Sant Esteve; Divendres Sant and Dilluns de Pasqua Florida, NO
-  // Dijous Sant) plus the city of Barcelona's two local days (Pasqua
-  // Granada = Easter+50, La Mercè 24 Sept). Catalonia drops whichever of
-  // 15/8, 1/11, 6/12, 26/12 fall on a Sunday: listing all four is exact
-  // for 2026-2027 and only ever ADDS a day. When La Mercè falls on a Sunday
-  // the city keeps it on Monday the 25th (2023; next in 2028): `merceMonday`,
-  // the same move as Koningsdag in nl. The two local days are set each June
-  // by mayoral decree: re-check yearly. Keyed apart from `country`, which
-  // also drives the +34 phone reading in api/_market.js.
-  'es-bcn': { fixed: ['01-01', '01-06', '05-01', '06-24', '08-15', '09-11', '09-24', '10-12', '11-01', '12-06', '12-08', '12-25', '12-26'], easter: [-2, 1, 50], merceMonday: true }
-};
+// The desk calendar (Italy + the desk's own holidays) lives in ONE copy,
+// js/desk-calendar.js: the city pages print the desk window from the same
+// tables, so a page never says "desk open" on a day this webhook counts as a
+// holiday (Koningsdag, the Diada, Christmas).
 // the calendar keys a desk may name (CITY_MARKETS.<slug>.holidays || country):
 // an unknown key would silently fall back to Italy alone, so tests pin it
-export const HOLIDAY_KEYS = Object.keys(HOLIDAYS);
-export function isDeskHoliday(date, country) {
-  const y = date.getUTCFullYear();
-  const mmdd = date.toISOString().slice(5, 10);
-  const [em, ed] = easterOf(y);
-  for (const c of ['it', country]) {
-    const h = HOLIDAYS[c];
-    if (!h) continue;
-    if (h.fixed.includes(mmdd)) return true;
-    if (h.kingsDay && mmdd === '04-26' && new Date(Date.UTC(y, 3, 27)).getUTCDay() === 0) return true;
-    if (h.merceMonday && mmdd === '09-25' && new Date(Date.UTC(y, 8, 24)).getUTCDay() === 0) return true;
-    for (const off of h.easter) {
-      const d = new Date(Date.UTC(y, em - 1, ed + off));
-      if (d.toISOString().slice(5, 10) === mmdd) return true;
-    }
-  }
-  return false;
-}
-const workingDay = (d, country) => d.getUTCDay() !== 0 && d.getUTCDay() !== 6 && !isDeskHoliday(d, country);
+export const HOLIDAY_KEYS = DESK_CAL.HOLIDAY_KEYS;
+export const isDeskHoliday = (date, country) => DESK_CAL.isDeskHoliday(date, country);
+const workingDay = (d, country) => DESK_CAL.workingDay(d, country);
 
 export function withdrawalWindow(concludedEpoch, country = null) {
   const at = new Date((Number(concludedEpoch) || 0) * 1000);
@@ -463,8 +419,38 @@ export function withdrawalWindow(concludedEpoch, country = null) {
 // kept for callers that only want the last day of the period
 export const withdrawalEnds = (concludedEpoch) => withdrawalWindow(concludedEpoch).lastLabel;
 
+// The file number of a paid city order (v1.4): ONE number per person. The
+// checkout carries metadata.file_ref — the lead /api/city-lead opened for
+// this visitor (city_<requestId>) — and its number is reused only when that
+// lead EXISTS and belongs to the SAME city (a reference from another desk,
+// or one that names nothing, never lends its number). Otherwise the number
+// is derived from the paid lead's own id. fsGet, not the local readDoc:
+// `city` is a nested map, and readDoc flattens maps to null.
+// A read that FAILS is not a lead that is absent (the ASPI lesson): a thrown
+// error (a Firestore 5xx, a login hiccup) is retried once; a 404 (fsGet
+// answers null) is an answer and is not. If the second read fails too the
+// order keeps its own derived number — the nickname never fails a paid
+// order — and the reference it could not check is written on the lead
+// (fileRefUnverified), so the operator can link the two leads by hand.
+const FILE_REF_RE = /^city_[a-z0-9_]{8,48}$/;
+async function cityFileFor(svcId, cityKey, fileRef) {
+  if (fileRef && FILE_REF_RE.test(fileRef)) {
+    let opened = null, failed = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try { opened = await fsGet('leads/' + fileRef); failed = false; break; }
+      catch (e) { failed = true; console.warn(`[service] file_ref read failed (attempt ${attempt + 1}):`, e && e.message); }
+    }
+    if (failed) return { file: SCALO.fileCode(svcId), fileLeadId: null, fileRefUnverified: fileRef };
+    const f = opened && opened.market === cityKey && opened.city && typeof opened.city.file === 'string' ? opened.city.file : null;
+    if (f && /^BM [A-Z2-9]{5}$/.test(f)) return { file: f, fileLeadId: fileRef };
+  }
+  return { file: SCALO.fileCode(svcId), fileLeadId: null };
+}
+
 async function handleService(res, session, m, event = null) {
-  const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
+  // leads/svc_<session>: the id /api/city-lead's GET ?paid= reads back (one copy)
+  const svcId = serviceLeadId(session.id);
+  const docId = svcId.slice(4);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
   // customer_details.email is what the buyer TYPED on the Stripe page — it
@@ -500,6 +486,8 @@ async function handleService(res, session, m, event = null) {
   // first 240 characters, and a pasted listing URL must not push it out
   const startLine = cityStart === '1' ? 'Start: asked to start now (inside the 14-day withdrawal period).'
     : cityStart === '0' ? `Start: NOT asked to start now. Withdrawal period runs to the end of ${win.lastLabel}; the work begins on ${win.startLabel}.` : '';
+  // the file number the operator, the client and the page's ticket share
+  const cityFile = cityDesk ? await cityFileFor(svcId, cityKey, typeof m.file_ref === 'string' ? m.file_ref : '') : null;
   const lead = {
     type: 'service',
     service: 'SERVICE',
@@ -512,8 +500,11 @@ async function handleService(res, session, m, event = null) {
     email,
     phone,
     listingName: m.listing || '',
+    // the file number sits in the HEAD, with the plan and the amount: the
+    // Telegram card quotes the first 240 characters, and the client quotes
+    // that number on WhatsApp — a long note must not push it out
     message: cityDesk
-      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
+      ? `${cityDesk.label.toUpperCase()} — paid order · ${cityPlan ? cityPlan.label : m.kind} · €${amountEur} paid · file ${cityFile.file}. ${startLine ? startLine + ' ' : ''}${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}`.trim()
       : `${meta.title} bought one-tap (€${amountEur}). ${m.listing ? 'Property: ' + m.listing + '. ' : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}${m.start_now === '1' ? 'Ha chiesto di iniziare subito (recesso: art. 50 c.3 Cod. cons.).' : m.start_now === '0' ? 'NON ha chiesto di iniziare subito: si comincia allo scadere dei 14 giorni del recesso.' : ''}`,
     amount_paid: session.amount_total || 0,
     amount_eur: amountEur,
@@ -534,11 +525,16 @@ async function handleService(res, session, m, event = null) {
         // true = asked to start now, false = start after the 14 days, null = a session from before the tick
         startNow: cityStart === '1' ? true : cityStart === '0' ? false : null,
         workFrom: win ? win.startDay : null, workFromLabel: win ? win.startLabel : null, withdrawalEndsOn: win ? win.lastDay : null,
+        // the file number (js/scalo-codes.js fileCode), and the lead it came
+        // from when the visitor had already opened a file in this city
+        file: cityFile.file, fileLeadId: cityFile.fileLeadId,
+        // the file_ref the webhook could not read (twice): the operator links the two leads by hand
+        ...(cityFile.fileRefUnverified ? { fileRefUnverified: cityFile.fileRefUnverified } : {}),
       },
     } : {}),
   };
   let w = null;
-  try { w = await writeDoc('leads', 'svc_' + docId, lead); }
+  try { w = await writeDoc('leads', svcId, lead); }
   catch (err) {
     // Soldi incassati ma lead non persistito → 500 così Stripe ritenta.
     console.error('Firestore service lead write error:', err);
@@ -551,19 +547,19 @@ async function handleService(res, session, m, event = null) {
     // sapere: avviso idempotente (id deterministico), mai su un primo giro
     // che potrebbe essere ancora in volo (90s).
     try {
-      const prev = await readDoc('leads/svc_' + docId);
+      const prev = await readDoc('leads/' + svcId);
       const born = Date.parse((prev && prev.createdAt) || '');
       if (prev && !prev.clientEmailSentAt && !prev.clientEmailFailedAt && Number.isFinite(born) && Date.now() - born > 90000) {
         await writeDoc('agentNotifications', 'svc-mail-' + docId, {
           type: 'service.client_email_failed',
-          summary: `📭 Ordine pagato svc_${docId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${prev.market && prev.market !== 'roma' ? ', col testo del recesso' : ''}.`,
+          summary: `📭 Ordine pagato ${svcId}: nessuna traccia dell'email di conferma al cliente — verificare e mandarla a mano${prev.market && prev.market !== 'roma' ? ', col testo del recesso' : ''}.`,
           priority: 'high', status: 'pending', actor: 'stripe-webhook',
-          ref: { collection: 'leads', id: 'svc_' + docId },
+          ref: { collection: 'leads', id: svcId },
           dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
         });
       }
     } catch (_) {}
-    return res.status(200).json({ received: true, duplicate: true, serviceLeadId: 'svc_' + docId });
+    return res.status(200).json({ received: true, duplicate: true, serviceLeadId: svcId });
   }
 
   const firstName = (m.name || '').split(' ')[0] || 'there';
@@ -574,7 +570,7 @@ async function handleService(res, session, m, event = null) {
       subheading: m.name || 'New service purchase',
       name: 'Valentino',
       intro: meta.city
-        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${meta.city.slug === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
+        ? `A paid order from the ${meta.city.label} desk — ${meta.title}. The page promises a message in the desk's first open hour (Mon–Fri 09:00–19:00, Rome time).${cityStart === '1' ? ' The client asked to start now.' : cityStart === '0' ? ` The client did NOT ask to start now: their withdrawal period runs to the end of ${win.lastLabel}, so the brief and the work begin on ${win.startLabel} (an acknowledgement before then is fine; starting earlier needs their written request).` : ''} The page promised an invoice from Egidi Immobiliare S.r.l., VAT included: issue it.${cityKey === 'barcelona' ? ' Barcelona: on request the client gets the order, terms and invoice in Catalan or Spanish and the official complaint forms (fulls oficials de reclamació); a complaint is answered within one month.' : ''}`
         : `Someone just bought ${meta.title} with one tap. Clock is running — the page promises first contact fast.`,
       card_color: '#D4AF37',
       card_title: meta.title,
@@ -582,7 +578,7 @@ async function handleService(res, session, m, event = null) {
       r2_icon: '📧', r2_label: 'Email', r2_value: email || '—',
       r3_icon: '📱', r3_label: 'Phone', r3_value: phone || '—',
       r4_icon: meta.city ? '🏙' : '🏠', r4_label: meta.city ? 'Desk' : 'Property', r4_value: meta.city ? `${meta.city.label}${m.listing ? ' · ' + m.listing : ''}` : (m.listing || '—'),
-      closing: `Paid €${amountEur}. ${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/svc_${docId}.`,
+      closing: `Paid €${amountEur}. ${cityFile ? `Your file: ${cityFile.file}. ` : ''}${m.notes ? 'Notes: ' + m.notes + '. ' : ''}Stripe: ${session.id}. Record: leads/${svcId}.`,
       cta_text: 'Open portal',
       portal_link: 'https://www.boomrome.com/portal.html#leads',
     });
@@ -615,7 +611,9 @@ async function handleService(res, session, m, event = null) {
       r2_icon: '✓', r2_label: (meta.next2 || ['—'])[0], r2_value: (meta.next2 || ['', ''])[1],
       r3_icon: '✓', r3_label: (meta.next3 || ['—'])[0], r3_value: (meta.next3 || ['', ''])[1],
       r4_icon: '✓', r4_label: (meta.next4 || ['—'])[0], r4_value: (meta.next4 || ['', ''])[1],
-      closing: it
+      // a city order names its file number first: the same "BM XXXXX" the
+      // page's ticket and the operator's summary print
+      closing: (cityFile ? `Your file: ${cityFile.file}. ` : '') + (it
         ? (m.kind === 'concordato-pack'
           // Codice del consumo: chi NON ha chiesto di iniziare subito aspetta i
           // 14 giorni del recesso; a tutti si dice come recedere.
@@ -630,14 +628,14 @@ async function handleService(res, session, m, event = null) {
             ? 'You asked us to start straight away, so the desk starts in its first open hour. '
             : `You did not ask us to start straight away, so your 14-day withdrawal period runs to the end of ${win.lastLabel} and the work begins on ${win.startLabel}. Want it sooner? Reply to this email. `)
             + `To withdraw within 14 days of payment, email hello@boom-rome.com or use the model withdrawal form at ${WITHDRAWAL_FORM_URL}?desk=${encodeURIComponent(meta.city.label)}&service=${encodeURIComponent(m.kind || '')} (its text is at the end of this email). If we started at your request and you withdraw, we refund the price minus the work already done; once the service is fully performed, the right to withdraw ends. The invoice from Egidi Immobiliare S.r.l., VAT included, follows by email. Anything else — reply to this email or message us on WhatsApp. ` + OFFICE_HOURS_EN + ' ' + WITHDRAWAL_FORM_TEXT
-          : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN,
+          : 'Anything at all — reply to this email or message us on WhatsApp. ' + OFFICE_HOURS_EN),
       cta_text: it ? 'Torna su BOOM' : meta.city ? `BOOM ${meta.city.label}` : 'Back to BOOM',
       portal_link: it ? 'https://www.boomrome.com/canone' : meta.city ? meta.city.url : 'https://www.boomrome.com/apartments.html',
     });
   } catch (err) { console.error('Client service email error:', err); clientMail = String((err && err.message) || err || 'failed').slice(0, 300); }
 
   try {
-    await patchDoc('leads/svc_' + docId, clientMail === 'sent'
+    await patchDoc('leads/' + svcId, clientMail === 'sent'
       ? { clientEmailSentAt: new Date().toISOString() }
       : { clientEmailError: clientMail, clientEmailFailedAt: new Date().toISOString() });
   } catch (err) { console.error('client email record:', err.message); }
@@ -647,13 +645,13 @@ async function handleService(res, session, m, event = null) {
         type: 'service.client_email_failed',
         summary: `📭 ${meta.title}${meta.city ? ' · ' + meta.city.label : ''} — €${amountEur} PAGATI da ${m.name || email || '?'}, ma l'email di conferma al cliente NON è partita (${clientMail}): mandala a mano${meta.city ? ', col testo del recesso' : ''}.`,
         priority: 'high', status: 'pending', actor: 'stripe-webhook',
-        ref: { collection: 'leads', id: 'svc_' + docId },
+        ref: { collection: 'leads', id: svcId },
         dedupKey: 'svc-mail-' + docId, createdAt: new Date().toISOString(), attempts: 0,
       });
     } catch (_) {}
   }
 
-  return res.status(200).json({ received: true, serviceLeadId: 'svc_' + docId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed' });
+  return res.status(200).json({ received: true, serviceLeadId: svcId, clientEmail: clientMail === 'sent' ? 'sent' : 'failed' });
 }
 
 async function handleReserve(res, session, m) {

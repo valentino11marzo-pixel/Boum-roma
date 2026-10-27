@@ -70,6 +70,14 @@ CARD = [
     ('og-pacchetto', 'Pacchetto concordato', 'Cedolare al 10%,<br><b>senza pratiche.</b>',
      'Verifica del canone · contratto conforme · attestazione e registrazione seguite da noi',
      EUR['concordato-pack']),
+    # /istanbul (25/10/2026): la pagina è TURCA, quindi la card è turca — e
+    # con <html lang="tr">, perché il maiuscolo del marchio deve fare i→İ
+    # (in inglese «İstanbul» verrebbe ISTANBUL e «Roma'da» resterebbe
+    # giusto per caso). Il prezzo è la commissione VERA (Condizioni §4.1),
+    # con l'IVA detta: nessun numero di clienti, nessun tempo.
+    ('og-istanbul', 'İstanbul → Roma', 'Roma\'da bir ev.<br><b>İstanbul\'dan seç.</b>',
+     'Canlı video gezisi · İtalya\'nın resmî sözleşmesi, İngilizce anlatım',
+     None),
 ]
 
 # `python3 genera-og-servizi.py og-owners` rigenera SOLO le card nominate:
@@ -127,13 +135,16 @@ def html(occhiello, titolo, prova, eur):
         blocco = '<div class="prezzo"><u>the guide</u><s>free</s></div>'
     elif occhiello == 'Proprietari':
         blocco = '<div class="prezzo"><u>valutazione</u><s>gratis</s></div>'
+    elif occhiello == 'İstanbul → Roma':
+        blocco = '<div class="prezzo"><u>yıllık kiranın · + KDV</u><s>%10</s></div>'
     else:
         blocco = '<div class="prezzo"><u>per task</u><s>quote</s></div>'
-    return f'''<!DOCTYPE html><html><head><meta charset="utf-8">
+    lingua = 'tr' if occhiello == 'İstanbul → Roma' else 'it' if occhiello in ('Proprietari', 'Il conto della sua casa', 'Pacchetto concordato') else 'en'
+    return f'''<!DOCTYPE html><html lang="{lingua}"><head><meta charset="utf-8">
 <style>{STILE}</style></head><body>
 <div class="griglia"></div><div class="velo"></div>
 <div class="dentro">
-  <div class="marchio"><span>BOOM</span><i>{'Roma' if occhiello in ('Proprietari', 'Il conto della sua casa', 'Pacchetto concordato') else 'Rome'} &middot; {occhiello}</i></div>
+  <div class="marchio"><span>BOOM</span><i>{'' if occhiello == 'İstanbul → Roma' else ('Roma &middot; ' if occhiello in ('Proprietari', 'Il conto della sua casa', 'Pacchetto concordato') else 'Rome &middot; ')}{occhiello}</i></div>
   <h1{' class="lunga"' if titolo.count('<br>') > 1 else ''}>{titolo}</h1>{blocco}
   <div class="fondo">
     <span><span class="punto"></span>{prova}</span>
