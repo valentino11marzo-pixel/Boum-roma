@@ -46,7 +46,8 @@ body.boom-flight #serbaStatus{min-height:1.5em;color:#ffd700;font-size:12px;line
  body.boom-flight.flight-split #muro .canone{font-size:19px;display:flex;gap:5px;align-items:baseline}
  body.boom-flight.flight-split #muro .flap-prezzo{font-size:19px}
  body.boom-flight.flight-split #muro .riga2{font-size:10px;line-height:1.6;flex-wrap:wrap}
- body.boom-flight.flight-split #muro .casa-stato{font-size:9px;left:8px;top:8px;max-width:calc(100% - 16px)}
+ body.boom-flight.flight-split #muro .casa-stato{font-size:9px;left:8px;top:8px;bottom:auto;max-width:calc(100% - 16px)}
+ body.boom-flight.flight-split #muro .casa-chip{display:none}
  body.boom-flight.flight-split #muro .home-cuore{top:auto;bottom:10px;left:8px;right:auto;width:32px;height:32px}
  body.boom-flight.flight-split #muro .home-para{top:auto;bottom:10px;left:44px;right:auto;width:32px;height:32px}
  body.boom-flight.flight-split #muro .flight-pin-button{font-size:9px;padding:0 7px;min-height:32px;right:7px}
