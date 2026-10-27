@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Rent Rome from the sky — every BOOM apartment on a live 3D map of the city. Video-verified, transparent, 48-hour move-in.">
+<meta name="description" content="Explore BOOM homes in a real 3D Rome. Compare the city around each home, keep your places and share your Skyline.">
 <title>BOOM Skyline — rent Rome from the sky</title>
 <link rel="canonical" href="https://www.boomrome.com/skyline">
 <meta property="og:type" content="website">
@@ -17,6 +17,8 @@
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
+<script defer src="/js/flight-map.js?v=20261027a"></script>
+<script defer src="/assets/boom-flight-skyline.js?v=20261027a"></script>
 <style>
 :root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
@@ -244,9 +246,13 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
+<link rel="stylesheet" href="/assets/boom-flight-skyline.css?v=20261027a">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261027a">
+<script defer src="/js/flight-engine.js?v=20261027a"></script>
+<script defer src="/assets/boom-flight.js?v=20261027a"></script>
 </head>
 <body>
-<div id="map"></div>
+<div id="map" aria-label="Interactive map of BOOM homes in Rome"></div>
 
 <div class="bar">
   <a class="brand" href="/"><span class="logo">BO<b>O</b>M</span><span class="ttl">Skyline · Rent Rome from the sky</span></a>
@@ -280,7 +286,8 @@ body::before, body::after { z-index: 1 !important; }
 <div class="load" id="load">
   <div class="dot"></div>
   <div class="t">BOOM · Skyline</div>
-  <div class="s" id="loadMsg">Mapping Rome…</div>
+  <div class="s" id="loadMsg" role="status">Mapping Rome…</div>
+  <a class="sky-load-list" href="/apartments">Open the apartment list ↗</a>
 </div>
 
 <script>
@@ -290,8 +297,46 @@ var ROME=[12.4924,41.8902];
 var $=function(id){return document.getElementById(id);};
 var msg=function(t){var m=$('loadMsg');if(m)m.textContent=t;};
 var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var esc=function(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');};
 var num=function(v){v=Number(v);return isFinite(v)?v:null;};
-var map=null, MARKERS=[], MAXFILTER=0;
+var map=null, MARKERS=[], MAXFILTER=0, SELECTED=null, PENDING_SELECT='';
+var SKY_QUERY=new URLSearchParams(location.search);
+var SKY_REDUCED=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)');
+function skyMotion(ms){return SKY_REDUCED&&SKY_REDUCED.matches?0:ms;}
+function skyEvent(name,detail){window.dispatchEvent(new CustomEvent('boom:skyline-'+name,{detail:detail||{}}));}
+function skyId(id){return /^[A-Za-z0-9_-]{1,100}$/.test(String(id||''))?String(id):'';}
+PENDING_SELECT=skyId(SKY_QUERY.get('home'));
+function clearSelection(){
+  SELECTED=null;
+  MARKERS.forEach(function(m){var el=m.getElement();el.classList.remove('selected');el.setAttribute('aria-pressed','false');});
+  if(map)clearLinks();
+  if(window.__quadrante)window.__quadrante.riposo();
+  skyEvent('selection',{});
+}
+function selectHome(el,options){
+  if(!el||el.classList.contains('dim'))return false;
+  options=options||{};
+  SELECTED=el;
+  MARKERS.forEach(function(m){var e=m.getElement(),on=e===el;e.classList.toggle('selected',on);e.setAttribute('aria-pressed',String(on));});
+  peekHide();showLinks(el.__co);
+  if(window.__quadrante)window.__quadrante.perCasa({lat:el.__co[1],lng:el.__co[0],nome:el.__listing.name||'This home'});
+  skyEvent('selection',{id:el.__id,listing:el.__listing,precision:el.__precision});
+  if(window.parent!==window)window.parent.postMessage({t:'boomSelected',id:el.__id},location.origin);
+  if(options.fly!==false){
+    try{map.stop();map.flyTo({center:el.__markerCo,zoom:el.__precision==='zone'?14.2:15.4,
+      offset:innerWidth>760?[-90,20]:[0,-65],duration:skyMotion(1100),essential:false});}catch(e){}
+  }
+  return true;
+}
+function fitHomes(all){
+  if(!map||!MARKERS.length)return;
+  if(!all){map.stop();map.flyTo({center:[12.485,41.898],zoom:13.4,pitch:SKY_REDUCED&&SKY_REDUCED.matches?0:55,bearing:-20,duration:skyMotion(1000),essential:false});return;}
+  var b=new maplibregl.LngLatBounds(),n=0;
+  MARKERS.forEach(function(m){var el=m.getElement();if(!el.classList.contains('dim')){b.extend(el.__markerCo);n++;}});
+  if(!n)return;
+  if(n<=2){var c=b.getCenter();var a=ANCHORS.slice().sort(function(a,b){return haversine([c.lng,c.lat],a)-haversine([c.lng,c.lat],b);})[0];if(a)b.extend([a[0],a[1]]);}
+  try{map.stop();map.fitBounds(b,{padding:innerWidth>760?{top:165,right:110,bottom:90,left:110}:{top:140,right:45,bottom:150,left:45},maxZoom:14.5,duration:skyMotion(1000),pitch:map.getPitch()});}catch(e){}
+}
 
 /* Rome neighbourhood centres [lng,lat,...keywords] — instant, zero geocoding.
    Building-exact location lives in each listing's own 3D flyover. */
@@ -404,7 +449,7 @@ function buildAnchors(){
     el.appendChild(ic);el.appendChild(nm);el.appendChild(d);
     ANCHOR_MK.push({el:el,dEl:d,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([A[0],A[1]]).addTo(map)});
   });
-  map.on('click',clearLinks); // tapping empty map dismisses the lines
+  map.on('click',function(e){if(!e.originalEvent||!e.originalEvent.target.closest('.sky-pin'))clearSelection();});
 }
 
 function gradeColor(){
@@ -447,6 +492,8 @@ function gradeColor(){
 /* ── I TUOI POSTI — la stessa memoria del detail (boom:pois): scritti
    una volta, ogni superficie risponde. Qui diventano ancore VIVE. ── */
 var TIENI=null, VICINO=false;
+var SHARED_IDS=(SKY_QUERY.get('homes')||'').split(',').map(skyId).filter(Boolean).slice(0,30);
+if(SHARED_IDS.length)TIENI=new Set(SHARED_IDS);
 var MYP=[];
 function mieiLetti(){try{return JSON.parse(localStorage.getItem('boom:pois')||'[]')}catch(e){return[]}}
 function mieiSerba(a){try{localStorage.setItem('boom:pois',JSON.stringify(a.slice(0,4)))}catch(e){}}
@@ -469,9 +516,10 @@ function buildMyPlaces(){
   applyFilter();
 }
 window.addEventListener('message',function(e){
-  if(e.origin!==location.origin)return;
+  if(e.origin!==location.origin||e.source!==window.parent)return;
   var d=e.data||{};
   if(d.t==='boomTieni'&&Array.isArray(d.ids)){TIENI=new Set(d.ids.map(String));if(map)applyFilter();}
+  if(d.t==='boomSelect'&&skyId(d.id)){PENDING_SELECT=skyId(d.id);if(window.BoomSkyline)window.BoomSkyline.select(PENDING_SELECT);}
 });
 
 /* I tasti diretti nel popup — stessa onestà boom-geo del detail: Street
@@ -518,24 +566,28 @@ function peekShow(el,l,price,rented){
   try{map.once('movestart',peekHide);}catch(e){}
 }
 function peekHide(){if(PEEK)PEEK.classList.remove('su');}
-function makePin(l,co){
+function makePin(l,co,actualCo){
+  actualCo=actualCo||co;
   var price=num(l.price);
   var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
-  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__id=String(l.id||''); el.__co=co;
-  el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span>';
+  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__id=String(l.id||''); el.__co=actualCo; el.__markerCo=co; el.__listing=l;
+  el.__precision=window.BOOM_GEO?BOOM_GEO.pinPrecision(l).level:'zone';
+  if(el.__precision==='none')el.__precision='zone';
+  el.tabIndex=0;el.setAttribute('role','button');el.setAttribute('aria-pressed','false');
+  el.setAttribute('aria-label',(l.name||'Apartment')+', '+(price?fmt(price)+' per month':'price on request')+(el.__precision==='zone'?', approximate area':''));
+  el.addEventListener('keydown',function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();el.click();}});
+  el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(el.__precision==='zone'?'≈ ':'')+(price?fmt(price):'—')+'</span>';
   var img=l.image||(l.images&&l.images[0])||'';
   var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px',focusAfterOpen:false}).setHTML(
     '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
-    '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
-    '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
+    '<div class="pc-body"><div class="pc-zone">'+esc(l.zone||l.neighborhood||'Rome')+'</div>'+
+    '<div class="pc-name">'+esc(l.name||'Apartment')+'</div>'+
     '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
     '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
     pinChips(l)+'</div>'
   );
   el.addEventListener('click',function(){
-    peekHide();
-    showLinks(co);
-    try{map.easeTo({center:co,offset:[0,90],duration:650,zoom:map.getZoom()});}catch(e){}
+    selectHome(el);
   });
   if(PEEK_HOVER){
     el.addEventListener('mouseenter',function(){peekShow(el,l,price,rented);});
@@ -559,8 +611,11 @@ function applyFilter(){
       if(dmin>2.0)ok=false;
     }
     el.classList.toggle('dim',!ok); if(ok)shown++;
+    el.hidden=!ok;el.tabIndex=ok?0:-1;
   });
-  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · tap one for its commute lines</span>';}
+  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · choose a home to explore</span>';}
+  if(SELECTED&&SELECTED.classList.contains('dim'))clearSelection();
+  skyEvent('filter',{count:shown});
 }
 
 async function boot(){
@@ -568,7 +623,7 @@ async function boot(){
   try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
   if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
   var EMB=document.documentElement.classList.contains('emb');
-  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true,
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:SKY_REDUCED&&SKY_REDUCED.matches?0:55,bearing:-12,antialias:true,
     /* in finestra (home/discovery) la rotella scorre la PAGINA: lo zoom
        vuole Ctrl+scroll (due dita su touch) — mai piu' lo scroll del
        sito che si impalla dentro la mappa */
@@ -586,10 +641,23 @@ async function boot(){
     var base=null, la=num(l.lat), ln=num(l.lng);
     if(la&&ln) base=[ln,la]; else base=zoneCoord(l);
     if(!base) return;
-    var co=spread(base);
-    makePin(l,co); bounds.extend(co); placed++;
+    var prec=window.BOOM_GEO?BOOM_GEO.pinPrecision(l).level:'zone';
+    var co=(prec==='exact'||prec==='street')?base.slice():spread(base);
+    makePin(l,co,base); bounds.extend(co); placed++;
   });
-  if(placed){ try{ map.fitBounds(bounds,{padding:90,maxZoom:14.5,duration:1500,pitch:55}); }catch(e){} applyFilter(); }
+  if(placed){
+    window.BoomSkyline={map:map,markers:MARKERS,
+      select:function(id,opts){var m=MARKERS.find(function(m){return m.getElement().__id===String(id);});return m?selectHome(m.getElement(),opts):false;},
+      clear:clearSelection,reset:fitHomes,
+      selected:function(){return SELECTED;},
+      filter:function(){return {budget:MAXFILTER,homes:TIENI?Array.from(TIENI):[]};},
+      selectPublicPlace:function(slug){var m=document.getElementById('qfMeta');if(!m)return false;var found=[].some.call(m.options,function(o){return o.value===slug;});if(found){m.value=slug;m.dispatchEvent(new Event('change'));}return found;}
+    };
+    var budget=Number(SKY_QUERY.get('budget'));if([1500,2000,2500].indexOf(budget)>=0){MAXFILTER=budget;[].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){c.classList.toggle('on',Number(c.dataset.max)===budget);});}
+    applyFilter();fitHomes();
+    skyEvent('ready',{api:window.BoomSkyline});
+    if(PENDING_SELECT)window.BoomSkyline.select(PENDING_SELECT,{fly:!SKY_QUERY.get('view')});
+  }
   else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }
 }
 
@@ -674,5 +742,7 @@ async function boot(){
 })();
 })();
 </script>
+<script defer src="/js/boom-consent.js"></script>
+<script defer src="/js/boom-track.js"></script>
 </body>
 </html>

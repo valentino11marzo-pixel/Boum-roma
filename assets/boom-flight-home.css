@@ -1,0 +1,150 @@
+/* BOOM Flight / Home. Presentation only: the catalogue, forms, Solari
+   and the real Skyline retain their existing engines and DOM contracts. */
+.flight-home-hero { padding:112px 0 0; }
+.flight-home-hero .hero-int { grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr); gap:16px; align-items:center; }
+.flight-home-hero .hero-velo { opacity:.12; }
+.flight-home-copy { position:relative; z-index:3; padding:18px 0 28px; min-width:0; }
+.flight-home-copy .hero-eyebrow { padding:0; border-radius:0; box-shadow:none; color:#b6b7bf; font-size:10px; letter-spacing:.19em; line-height:1.5; }
+.flight-home-copy .hero-eyebrow b { background:#FFD700; box-shadow:0 0 12px #ffd70033; }
+.flight-home-copy .hero-title { font-size:clamp(42px,4.55vw,64px); font-weight:200; line-height:1.05; letter-spacing:-.045em; margin-top:24px; text-wrap:initial; }
+.flight-home-copy .flight-home-word { display:block; font-size:clamp(68px,7.2vw,100px); line-height:1.27; min-width:3.64em; min-height:1.27em; letter-spacing:0; margin:5px 0 10px; color:#FFE55C; width:max-content; max-width:100%; }
+.flight-home-copy .flight-home-title-end { display:block; font-size:.9em; letter-spacing:-.045em; }
+.flight-home-copy .hero-sub { max-width:34ch; margin-top:23px; font-size:15px; line-height:1.75; color:#b6b7c0; }
+.flight-home-actions { display:flex; align-items:center; flex-wrap:wrap; gap:22px; margin-top:25px; }
+.flight-home-actions .btn { padding:14px 22px; min-height:46px; font-size:12px; letter-spacing:.01em; text-transform:none; gap:20px; }
+.flight-home-actions .btn span { font-size:19px; font-weight:300; }
+.flight-home-agency { display:inline-flex; align-items:center; gap:12px; min-height:44px; font-size:12px; color:#c2c3ca; }
+.flight-home-agency:hover { color:#FFD700; }
+.flight-home-skyline { position:relative; min-width:0; padding:0; }
+.flight-home-skyline .cielo { height:470px; margin:0; border:1px solid #ffffff14; border-radius:24px; clip-path:inset(0 round 24px); -webkit-clip-path:inset(0 round 24px); background:#0a0b0d; box-shadow:0 30px 100px -50px #000; }
+.flight-home-skyline-heading { position:relative; z-index:5; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:14px; pointer-events:none; }
+.flight-home-skyline-heading>div { padding:6px 10px; background:#0a0b0dec; border:1px solid #ffffff14; border-radius:12px; }
+.flight-home-skyline-heading span { display:block; font-size:13px; font-weight:400; letter-spacing:.27em; color:#f3f3f5; }
+.flight-home-skyline-heading small { display:block; margin-top:3px; color:#9da0aa; font-size:8px; letter-spacing:.14em; }
+.flight-home-expand { pointer-events:auto; min-height:38px; display:inline-flex; align-items:center; gap:10px; padding:10px 13px; border:1px solid #ffffff24; border-radius:100px; font-size:10px; background:#0b0d10ed; color:#c5c6cf; }
+.flight-home-expand span { font-size:16px; letter-spacing:0; }
+.flight-home-expand:hover { color:#FFD700; border-color:#ffd70055; }
+.flight-home-map-note { display:none; position:absolute; bottom:17px; left:20px; right:20px; z-index:4; margin:0; width:max-content; max-width:calc(100% - 40px); padding:7px 10px; font-size:10px; color:#c2c5cf; line-height:1.4; background:#0a0b0de8; border:1px solid #ffffff12; border-radius:8px; pointer-events:none; }
+.flight-home-skyline .cielo-velo { background:#0a0b0d; }
+.flight-home-command { margin-top:23px; position:relative; z-index:3; }
+.flight-home-command .atterro { width:100%; margin:0; padding:10px; display:grid; grid-template-columns:1.2fr 1fr 1fr auto; gap:0; border:1px solid #ffffff21; background:linear-gradient(155deg,#1b1c20,#0d0e10 75%); border-radius:21px; box-shadow:inset 0 1px 0 #ffffff0c,0 20px 60px -35px #000; }
+.flight-home-command .atterro-divisa { display:none; }
+.flight-home-command .atterro-campo { padding:5px 19px; border-right:1px solid #ffffff13; min-width:0; }
+.flight-home-command .atterro-campo>span { color:#8f929f; font-size:10px; letter-spacing:.12em; line-height:1.5; }
+.flight-home-command .atterro-campo select { width:100%; max-width:100%; padding:5px 0; font-size:13px; color:#e6e6ec; min-height:32px; }
+.flight-home-command .atterro-data { min-height:32px; font-size:13px; color:#e6e6ec; }
+.flight-home-command .atterro .btn { margin-left:10px; min-width:180px; height:56px; border-radius:13px; font-size:12px; padding:12px 20px; letter-spacing:.03em; text-transform:none; }
+.flight-home-command .giorno-uno { margin-top:12px; }
+.flight-home-proof { display:flex; align-items:center; justify-content:space-between; gap:24px; padding:17px 1px 21px; border-bottom:1px solid #ffffff15; }
+.flight-home-proof .hero-fede { margin:0; border:0; box-shadow:none; padding:0; border-radius:0; }
+.flight-home-proof .hero-fede span { font-size:10.5px; color:#92959f; line-height:1.6; }
+.flight-home-proof .hero-fede span b { color:#c2c3c9; font-weight:400; }
+.flight-home-proof .hero-fede .hf-stripe { width:35px; }
+.flight-home-steps { display:flex; align-items:center; gap:16px; margin:0; padding:0; list-style:none; flex:none; }
+.flight-home-steps li { color:#8c8f99; font-size:10px; white-space:nowrap; }
+.flight-home-steps li:not(:first-child):before { content:''; width:16px; height:1px; background:#34363b; display:inline-block; vertical-align:middle; margin-right:12px; }
+.flight-home-steps li:first-child { color:#e3e3e8; }
+.flight-home-steps span { color:#c5b65c; font-size:9px; margin-right:6px; }
+.flight-home-arrivals { padding:37px 0 40px; }
+.flight-home-arrivals-grid { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr); gap:44px; align-items:start; }
+.flight-home-section-head { display:flex; align-items:end; justify-content:space-between; gap:18px; margin-bottom:20px; }
+.flight-home-section-head .eyebrow,.flight-home-ecosystem .eyebrow { font-size:10px; letter-spacing:.16em; color:#a7a9b2; }
+.flight-home-section-head .titolo { font-size:34px; font-weight:200; margin-top:9px; letter-spacing:-.025em; }
+.flight-home-section-head .btn-vai { font-size:11px; white-space:nowrap; }
+.flight-home-arrivals .board { min-height:345px; border:1px solid #ffffff18; border-radius:16px; background:#0b0c0e; overflow:hidden; box-shadow:inset 0 1px 0 #ffffff04; }
+.flight-home-arrivals .board .tacca { display:none; }
+.flight-home-arrivals .board-testa { padding:13px 17px; }
+.flight-home-arrivals .board-testa b { font-size:9px; letter-spacing:.18em; }
+.flight-home-arrivals .board-live { font-size:8px; }
+.flight-home-arrivals .tab-colonne { font-size:8px; }
+.flight-home-arrivals .tab-riga { padding-block:10px; }
+.flight-home-arrivals .tab-zona { font-size:13px; }
+.flight-home-arrivals .tab-prezzo { font-size:11px; }
+.flight-home-arrivals .tab-stato { font-size:9px; }
+.flight-home-arrivals .board-piede { padding:12px 16px; font-size:10px; }
+.flight-home-ecosystem { padding-top:3px; min-width:0; }
+.flight-home-ecosystem .titolo { font-size:34px; margin:14px 0; letter-spacing:-.025em; font-weight:200; line-height:1.12; }
+.flight-home-ecosystem>p { font-size:13px; color:#969aa5; line-height:1.7; max-width:39ch; margin-bottom:23px; }
+.flight-home-door { display:flex; justify-content:space-between; align-items:center; gap:20px; padding:15px 0; border-top:1px solid #ffffff14; font-size:14px; color:#e0e1e7; }
+.flight-home-door small { display:block; font-size:11px; color:#969aa5; margin-top:3px; }
+.flight-home-door>span:last-child { color:#c9b657; font-size:18px; transition:transform .25s var(--ease); }
+.flight-home-door:hover>span:last-child { transform:translate(3px,-3px); }
+.flight-home-desks { display:flex; align-items:center; flex-wrap:wrap; column-gap:18px; row-gap:9px; padding-top:17px; border-top:1px solid #ffffff14; }
+.flight-home-desks>span { color:#818691; font-size:8px; letter-spacing:.14em; width:100%; }
+.flight-home-desks a { color:#c9cbd2; font-size:10px; letter-spacing:.11em; min-height:32px; display:inline-flex; align-items:center; }
+.flight-home-desks a:hover { color:#FFD700; }
+@media(max-width:1100px) {
+  .flight-home-hero .hero-int { grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr); }
+  .flight-home-copy .hero-title { font-size:45px; }
+  .flight-home-copy .flight-home-word { font-size:73px; }
+  .flight-home-skyline .cielo { height:470px; }
+  .flight-home-actions { gap:13px; }
+  .flight-home-actions .btn { padding-inline:17px; }
+  .flight-home-agency { font-size:11px; }
+  .flight-home-steps { display:none; }
+  .flight-home-command .atterro .btn { min-width:150px; }
+  .flight-home-arrivals-grid { gap:28px; }
+  .flight-home-arrivals .tab-zona { font-size:11px; }
+}
+@media(max-width:760px) {
+  .flight-home-hero { padding-top:96px; }
+  .flight-home-hero .hero-int { display:block; min-height:0; }
+  .flight-home-copy { padding:13px 3px 0; position:relative; pointer-events:none; }
+  .flight-home-copy a { pointer-events:auto; }
+  .flight-home-copy .hero-eyebrow { font-size:9px; letter-spacing:.15em; }
+  .flight-home-copy .hero-title { font-size:41px; margin-top:18px; letter-spacing:-.035em; }
+  .flight-home-copy .flight-home-word { font-size:65px; margin:0 0 5px; }
+  .flight-home-copy .flight-home-title-end { font-size:37px; }
+  .flight-home-copy .hero-sub { font-size:12px; margin-top:16px; max-width:29ch; }
+  .flight-home-actions { margin-top:18px; gap:17px; }
+  .flight-home-actions .btn { min-height:42px; padding:11px 17px; font-size:11px; }
+  .flight-home-agency { min-height:42px; font-size:11px; }
+  .flight-home-skyline { position:relative; inset:auto; margin-top:24px; }
+  .flight-home-skyline .cielo { height:360px; min-height:360px; border-radius:19px; clip-path:inset(0 round 19px); -webkit-clip-path:inset(0 round 19px); }
+  .flight-home-skyline:before { display:none; }
+  .flight-home-skyline-heading { position:relative; top:auto; left:auto; right:auto; margin-bottom:10px; }
+  .flight-home-skyline-heading>div { padding:6px 9px; }
+  .flight-home-skyline-heading span { font-size:10px; letter-spacing:.2em; }
+  .flight-home-skyline-heading small { display:none; }
+  .flight-home-expand { min-height:34px; font-size:9px; padding:7px 10px; }
+  .flight-home-expand span { font-size:14px; }
+  .flight-home-map-note { left:14px; bottom:14px; font-size:9px; max-width:calc(100% - 28px); }
+  .flight-home-command { margin-top:16px; }
+  .flight-home-command .atterro { grid-template-columns:1.15fr 1fr 1fr; gap:7px 0; padding:9px; border-radius:18px; }
+  .flight-home-command .atterro-campo { padding:3px 9px; }
+  .flight-home-command .atterro-campo:nth-last-of-type(1) { border-right:0; }
+  .flight-home-command .atterro-campo>span { font-size:8px; letter-spacing:.04em; }
+  .flight-home-command .atterro-campo select { font-size:12px; min-height:31px; }
+  .flight-home-command .atterro-data { gap:5px; font-size:12px; min-height:31px; }
+  .flight-home-command .atterro-data svg { width:12px; }
+  .flight-home-command .atterro .btn { grid-column:1/-1; width:100%; height:43px; min-height:43px; margin:0; border-radius:10px; font-size:12px; }
+  .flight-home-proof { padding:14px 0 16px; }
+  .flight-home-proof .hero-fede { align-items:flex-start; gap:10px; }
+  .flight-home-proof .hero-fede span { font-size:10px; }
+  .flight-home-proof .hero-fede .hf-stripe { margin-top:4px; width:31px; }
+  .flight-home-arrivals { padding-top:26px; }
+  .flight-home-arrivals-grid { grid-template-columns:1fr; gap:30px; }
+  .flight-home-section-head .titolo { font-size:29px; }
+  .flight-home-section-head .eyebrow { font-size:9px; }
+  .flight-home-section-head .btn-vai { font-size:10px; }
+  .flight-home-arrivals .board { min-height:335px; }
+  .flight-home-arrivals .tab-zona { font-size:13px; }
+  .flight-home-arrivals .tab-stato { font-size:10px; }
+  .flight-home-ecosystem .titolo { font-size:31px; }
+}
+@media(max-width:360px) {
+  .flight-home-copy .hero-title { font-size:37px; }
+  .flight-home-copy .flight-home-title-end { font-size:33px; }
+  .flight-home-copy .flight-home-word { font-size:60px; }
+  .flight-home-actions { gap:12px; }
+  .flight-home-agency { font-size:10px; }
+  .flight-home-command .atterro-campo { padding-inline:5px; }
+  .flight-home-command .atterro-data svg { display:none; }
+  .flight-home-arrivals .tab-zona { font-size:11.5px; }
+  .flight-home-arrivals .tab-stato { font-size:8.5px; }
+  .flight-home-arrivals .board-piede { font-size:9px; padding-inline:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .flight-home-copy *, .flight-home-door>span:last-child { animation:none!important; transition:none!important; }
+  .flight-home-copy { opacity:1; }
+}

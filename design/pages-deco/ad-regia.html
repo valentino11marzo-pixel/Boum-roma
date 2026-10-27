@@ -208,8 +208,10 @@
     if (!ridotto) setInterval(function () {
       if (document.hidden || !organi.length) return;
       var o = organi[Math.floor(Math.random() * organi.length)];
-      var quale = ['z', 'q', 'd'][Math.floor(Math.random() * 3)];
-      if (o[quale].flutter) o[quale].flutter();
+      var rect = o.el.getBoundingClientRect();
+      if (rect.bottom < 0 || rect.top > innerHeight || !o.el.getClientRects().length) return;
+      /* A pulse on the destination; prices and counts remain readable facts. */
+      if (o.z.flutter) o.z.flutter();
     }, 14000);
   })();
 
@@ -324,17 +326,13 @@
       if (e.key === 'Escape' && !velo.hidden) chiudi(); });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
-      /* la richiesta che il sito vero manda — qui dichiarata, non spedita */
       var corpo = { email: document.getElementById('serbaMail').value.trim(),
         label: document.getElementById('serbaNome').value.trim(),
         criteria: criteri(),
         resultCount: +document.getElementById('conto').textContent,
         company: document.getElementById('serbaEsca').value };
-      if (window.console) console.log('POST /api/search/save', corpo);
-      forma.innerHTML = '<p class="serba-nota" style="font-size:13px;'
-        + 'color:var(--gold);margin-top:0">Saved — PREVIEW. On the live site '
-        + 'you would now get an email the moment a matching home appears.</p>';
-      setTimeout(chiudi, 2200);
+      if (window.BoomSaveSearch) window.BoomSaveSearch.submit(forma, corpo);
+      else document.getElementById('serbaStatus').textContent = 'Please reload this page to save your search.';
     });
   })();
 
@@ -571,14 +569,18 @@
   function vista(mappa) {
     if (!cieloBox) return;
     if (mappa && window.BoomCielo && BoomCielo.apri) BoomCielo.apri();
+    var split = mappa && matchMedia('(min-width:1050px)').matches;
+    document.body.classList.toggle('flight-split', split);
     cieloBox.hidden = !mappa;
-    muro.style.display = mappa ? 'none' : '';
-    if (contoRiga) contoRiga.style.display = mappa ? 'none' : '';
-    if (vuoto) vuoto.style.display = mappa ? 'none' : '';
-    if (vg) vg.classList.toggle('on', !mappa);
-    if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); }
+    muro.style.display = mappa && !split ? 'none' : '';
+    if (contoRiga) contoRiga.style.display = '';
+    if (vuoto) vuoto.style.display = mappa && !split ? 'none' : '';
+    if (vg) { vg.classList.toggle('on', !mappa); vg.setAttribute('aria-pressed', String(!mappa)); }
+    if (vc) { vc.classList.toggle('on', mappa); vc.classList.remove('pulsa'); vc.setAttribute('aria-pressed', String(mappa)); }
+    try { var u = new URL(location.href); u.searchParams.set('view', mappa ? 'skyline' : 'grid'); history.replaceState(null, '', u.pathname + u.search + u.hash); } catch (_) {}
     if (mappa) sincronia();
   }
+  matchMedia('(min-width:1050px)').addEventListener('change', function () { vista(!cieloBox.hidden); });
   if (vg) vg.addEventListener('click', function () { vista(false); });
   if (vc) vc.addEventListener('click', function () { vista(true); });
   if (sky) sky.addEventListener('click', function () {

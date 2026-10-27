@@ -362,12 +362,12 @@ uno(s, A)
 s = s.replace(A, A + "\n"
   "  /* il Quadrante lavora su lat/lng, non su [lng,lat]: si consegna gia'\n"
   "     nella forma giusta, cosi' nessuno converte due volte */\n"
-  "  (function(){var _n=(L&&(L.name||L.title))||'This home';\n"
+  "  (function(){var _n=(l&&(l.name||l.title))||'This home';\n"
   "    (window.__SKY_CASE=window.__SKY_CASE||[]).push({id:el.__id,el:el,\n"
-  "      lat:co[1],lng:co[0],nome:_n});\n"
+  "      lat:actualCo[1],lng:actualCo[0],nome:_n});\n"
   "    function _q(){if(window.__quadrante)\n"
-  "      window.__quadrante.perCasa({lat:co[1],lng:co[0],nome:_n});}\n"
-  "    el.addEventListener('mouseenter',_q); el.addEventListener('click',_q);})();")
+  "      window.__quadrante.perCasa({lat:actualCo[1],lng:actualCo[0],nome:_n});}\n"
+  "    el.addEventListener('click',_q);})();")
 
 A = "function applyFilter(){"
 uno(s, A)

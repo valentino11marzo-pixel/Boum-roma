@@ -336,6 +336,11 @@ if MODO == 'sito':
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
          + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+# Flight is a presentation layer over the original catalogue, never a new snapshot.
+if MODO == 'sito':
+    from importlib.machinery import SourceFileLoader
+    flight = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
+    h = flight.enhance(h, 'apartments')
 uscita = 'boom-discovery.html' if MODO == 'artefatto' else 'boom-discovery-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · {len(mostrate)} case · '

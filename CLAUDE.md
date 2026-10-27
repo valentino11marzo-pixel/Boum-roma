@@ -3023,6 +3023,15 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+### Flight pubblico · 27/10/2026
+Home, Apartments, scheda e Skyline condividono `assets/boom-flight.*`: Your move legge
+`boomSalvate`/`boom:pois`, senza un secondo catalogo; il link condiviso porta solo ID.
+Skyline è nell’hero, lista+mappa convivono su desktop; su telefono si sceglie la vista.
+La scheda ricompone gli slot SSR e i conti veri nel Landing Plan; `<body>` resta letterale.
+`js/flight-map.js` veste entrambe le mappe; camera interrompibile, orbita volontaria,
+precisione dei pin e tempi reali restano ai motori Geo/Mappa. Generatori conservano i layer.
+Test: `flight`, `mappaflight`, `listingssr`, `vetrina`, `hometruth`, `cielo`, `seo`.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
@@ -3030,6 +3039,11 @@ zones[],feats[]}, resultCount?, company(honeypot) }`. Validates email,
 honeypot + per-IP rate limit (same hardening as `/api/canone-lead`), writes
 to the `savedSearches` collection under admin creds (`status:'active'`,
 `lastNotified:null`). Returns `{ ok, id }`.
+
+Flight collega il form pubblico all’endpoint già esistente, al posto del messaggio
+“Saved — PREVIEW”: attesa senza doppi invii, conferma solo con `ok:true` e ID,
+errori/retry senza cancellare i campi. Nessuna sottoscrizione viene creata dai test;
+`tests/flight/run.mjs` esercita il vero trasporto client con risposte di rete simulate.
 
 ### GET `/api/search/matcher` (cron 3×/day)
 The saved-search alert engine. Matches every active `savedSearches` doc

@@ -2092,6 +2092,10 @@ body::before, body::after { z-index: 1 !important; }
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
+<link rel="stylesheet" href="/assets/boom-flight-home.css?v=20261027a">
+<link rel="stylesheet" href="/assets/boom-flight.css?v=20261027a">
+<script defer src="/js/flight-engine.js?v=20261027a"></script>
+<script defer src="/assets/boom-flight.js?v=20261027a"></script>
 </head>
 <body>
 
@@ -2149,36 +2153,46 @@ setTimeout(function () {
 </div>
 
 <!-- ══ HERO — la voce · il tabellone ══════════════════════════ -->
-<header class="hero">
-  <div class="hero-velo" aria-hidden="true">
-  <div class="hero-glow"></div>
-  <canvas id="cartaRoma"></canvas>
-  </div>
-
+<header class="hero flight-home-hero" data-flight-home="true">
+  <div class="hero-velo" aria-hidden="true"><div class="hero-glow"></div><canvas id="cartaRoma"></canvas></div>
   <div class="container hero-int">
-    <div class="coro dentro-subito">
-      <div class="hero-eyebrow"><b></b>Rome rentals for internationals</div>
-      <h1 class="hero-title">GET YOUR <span class="hl">ROME</span> APARTMENT<br>
-        IN <span class="hl"><span id="flapDays" class="flap-scale"
-          aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
-      <script>/* IL POSTO SI RISERVA PRIMA CHE ARRIVI IL TABELLONE.
-         La parola DAYS e' un tabellone a palette costruito dal JS a ~600ms:
-         quattro caselle, cioe' 3,64em contro i 2,65em del testo semplice —
-         misurati a 390, 1024 e 1440px, dove il rapporto e' identico. Quel 72% in piu' mandava il titolo su una
-         riga in piu' e faceva scendere di 78px tutto cio' che segue: era
-         il salto di layout piu' grosso del sito (CLS 0,058, tutto a y=0,
-         cioe' sotto gli occhi di chi ha appena iniziato a leggere).
-         La riserva si mette QUI, subito dopo il titolo e prima del primo
-         paint, e solo con JS attivo: senza JS il tabellone non arriva mai,
-         e riservargli spazio lascerebbe un buco attorno a una parola. */
-        (function(){var f=document.getElementById('flapDays');
-          if(f){f.style.display='inline-block';f.style.minWidth='3.64em';
-                f.style.textAlign='center';
-                /* e l'ALTEZZA: le caselle sono 1,26em contro la riga
-                   di testo, e quei 12px facevano scendere il resto */
-                f.style.minHeight='1.27em';}})();</script>
-      <p class="hero-sub">A registered contract you sign from your phone. Every euro through Stripe, receipted. A named person who answers.</p>
-      <form class="atterro" id="atterro">
+    <div class="flight-home-copy coro dentro-subito">
+      <div class="hero-eyebrow"><b></b>Rome · International arrivals</div>
+      <h1 class="hero-title">NEXT STOP.<span id="flapDays" class="flap-scale flight-home-word" data-word="ROME" aria-label="Rome">ROME</span><span class="flight-home-title-end">FEEL AT HOME.</span></h1>
+      <p class="hero-sub">A home in Rome. A person on your side.<br>Your entire move, connected.</p>
+      <div class="flight-home-actions"><a class="btn btn-primary" href="/skyline">Enter Skyline <span aria-hidden="true">↗</span></a><a class="flight-home-agency" href="#banchina">Meet your agency <span aria-hidden="true">→</span></a></div>
+    </div>
+    <section class="flight-home-skyline" id="skyline" aria-label="Rome Skyline">
+      <div class="flight-home-skyline-heading"><div><span>SKYLINE</span><small>ROME, IN YOUR HANDS</small></div>
+        <a href="/skyline" class="flight-home-expand" aria-label="Open Skyline full screen">Explore full screen <span aria-hidden="true">↗</span></a></div>
+      <div class="cielo" id="cielo">
+      <div class="cielo-mappa" id="cieloMappa"></div>
+
+      <div class="cielo-hud">
+        <span class="cielo-t">Budget</span>
+        <button type="button" class="cielo-c on" data-max="0">All</button>
+        <button type="button" class="cielo-c" data-max="1500">≤ €1,500</button>
+        <button type="button" class="cielo-c" data-max="2000">≤ €2,000</button>
+        <button type="button" class="cielo-c" data-max="2500">≤ €2,500</button>
+        <button type="button" class="cielo-c sat" id="cieloSat"
+          aria-pressed="false">Satellite</button>
+      </div>
+
+      <div class="cielo-conta" id="cieloConta" aria-live="polite"></div>
+
+      <div class="cielo-velo" id="cieloVelo">
+        <span class="punto"></span>
+        <span class="eti">BOOM · Skyline</span>
+        <p class="dice" id="cieloDice">Mapping Rome…</p>
+        <a class="cielo-pieno fuori" href="/skyline">Open the full
+          Skyline</a>
+      </div>
+    </div>
+      <p class="flight-home-map-note">The real city. Your places. Homes to explore.</p>
+    </section>
+  </div>
+  <div class="container flight-home-command">
+    <form class="atterro" id="atterro">
         <div class="atterro-campo ac-data">
         <span id="quandoEti">When do you land?</span>
         <label class="atterro-data" id="quandoBtn">
@@ -2208,22 +2222,20 @@ setTimeout(function () {
           </select></label>
         <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
       </form>
-      <p class="giorno-uno" id="giornoUno" hidden></p>
-      <div class="hero-fede">
+    <p class="giorno-uno" id="giornoUno" hidden></p>
+    <div class="flight-home-proof"><div class="hero-fede">
         <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
         <span><b>Never pay a stranger</b> — every home walked in person
           · <a class="hf-come" href="#apparecchio">How it works ↓</a>
           · <a class="hf-come" href="/try">▶ Try it in 90s</a></span>
-      </div>
-      <a class="porte-eco" href="#banchina">
-        <span class="pe-eti"><b></b>Services</span>
-        <span class="pe-dice">Can't be there? Found one on your own? About
-          to sign? <b>A flat-price door for each</b></span>
-        <span class="pe-vai" aria-hidden="true">→</span>
-      </a>
-    </div>
+      </div><ol class="flight-home-steps" aria-label="Your move with BOOM"><li><span>01</span> Explore</li><li><span>02</span> Choose</li><li><span>03</span> Sign</li><li><span>04</span> Land</li></ol></div>
+  </div>
+</header>
 
-    <aside class="board quadro" aria-label="Live move-in board">
+<section class="sezione flight-home-arrivals" aria-labelledby="flightHomeArrivals">
+  <div class="container flight-home-arrivals-grid">
+    <div class="flight-home-board-wrap"><div class="flight-home-section-head"><div><span class="eyebrow"><i></i>The arrivals board</span><h2 class="titolo" id="flightHomeArrivals">Find your place.</h2></div><a class="btn-vai" href="/apartments">All apartments →</a></div>
+      <aside class="board quadro" aria-label="Live move-in board">
       <span class="tacca"></span>
       <div class="board-testa"><b>ROME · Move-in board</b>
         <span class="board-live"><i></i>LIVE</span></div>
@@ -2231,11 +2243,20 @@ setTimeout(function () {
         <span class="tc-p">€/mo</span><span>Status</span></div>
       <div class="tab-righe" id="tabRighe" aria-live="off"></div>
       <div class="board-piede"><span><b>9</b> homes available now</span>
-        <span>Catalogue updated <b>31 Jul</b></span></div>
+        <span>Rome · homes for living</span></div>
     </aside>
+    </div>
+    <div class="flight-home-ecosystem">
+      <span class="eyebrow"><i></i>One agency. The whole move.</span>
+      <h2 class="titolo">From first search<br>to your first morning.</h2>
+      <p>Find with us, bring a home you found, or let us handle the search. One connected path to your life in Rome.</p>
+      <a class="flight-home-door" href="/property-finding"><span>I’m still searching<small>Property Finding · the wider Rome market</small></span><span aria-hidden="true">↗</span></a>
+      <a class="flight-home-door" href="/deal-assistance"><span>I’ve found a home<small>A person to help with the next steps</small></span><span aria-hidden="true">↗</span></a>
+      <a class="flight-home-door" href="/concierge"><span>I’m getting ready to land<small>Your arrival and everyday support</small></span><span aria-hidden="true">↗</span></a>
+      <div class="flight-home-desks"><span>YOUR TENANT-SIDE DESKS</span><a href="/madrid">MADRID ↗</a><a href="/barcelona">BARCELONA ↗</a></div>
+    </div>
   </div>
-
-</header>
+</section>
 
 <!-- ══ CASE DELLA SETTIMANA + COME FUNZIONA ══════════════════════════════ -->
 <section class="sezione">
@@ -2399,50 +2420,7 @@ setTimeout(function () {
 </section>
 
 <!-- ══ LA SKYLINE — lo strumento vero, dentro la pagina ════════════════ -->
-<section class="sezione" id="skyline">
-  <div class="container">
-    <div class="cielo-capo coro">
-      <div>
-        <span class="eyebrow dentro-subito"><i></i>Skyline 3D · live</span>
-        <h2 class="titolo">Every home on Rome's <span class="hl">real
-          skyline</span>.</h2>
-        <p class="sotto">The actual city in three dimensions — buildings,
-          terrain, satellite. Save your campus or office once and every home
-          answers with the <b>real</b> commute: measured on Rome's timetables,
-          not on a straight line drawn across the map.</p>
-      </div>
-      <a class="cielo-pieno" href="/skyline">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"
-          aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-8 8M3 21l8-8"/>
-        </svg>Full screen</a>
-    </div>
 
-    <div class="cielo sale" id="cielo">
-      <div class="cielo-mappa" id="cieloMappa"></div>
-
-      <div class="cielo-hud">
-        <span class="cielo-t">Budget</span>
-        <button type="button" class="cielo-c on" data-max="0">All</button>
-        <button type="button" class="cielo-c" data-max="1500">≤ €1,500</button>
-        <button type="button" class="cielo-c" data-max="2000">≤ €2,000</button>
-        <button type="button" class="cielo-c" data-max="2500">≤ €2,500</button>
-        <button type="button" class="cielo-c sat" id="cieloSat"
-          aria-pressed="false">Satellite</button>
-      </div>
-
-      <div class="cielo-conta" id="cieloConta" aria-live="polite"></div>
-
-      <div class="cielo-velo" id="cieloVelo">
-        <span class="punto"></span>
-        <span class="eti">BOOM · Skyline</span>
-        <p class="dice" id="cieloDice">Mapping Rome…</p>
-        <a class="cielo-pieno fuori" href="/skyline">Open the full
-          Skyline</a>
-      </div>
-    </div>
-  </div>
-</section>
 
 <!-- ══ LA BANCHINA — dopo il catalogo, non prima ═════════════════════════
      Sta qui per una ragione logica prima che estetica: chiede «nothing
@@ -2993,9 +2971,9 @@ setTimeout(function () {
        in mezzo alla frase piu' importante del sito — si legge come una
        lettera mancante o un widget rotto. */
     var b = new BS.Board(host, 4, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
-    if (ridotto) b.show('DAYS');
+    if (ridotto) b.show(host.getAttribute('data-word') || 'DAYS');
     else {
-      setTimeout(function () { b.show('DAYS', 110, true); }, 600);
+      setTimeout(function () { b.show(host.getAttribute('data-word') || 'DAYS', 110, true); }, 600);
       /* l'insegna resta viva: ogni tanto il rullo rifa' il giro intero
          e riatterra su DAYS — a scheda nascosta tace */
       setInterval(function () {
@@ -4352,6 +4330,9 @@ setTimeout(function () {
       b.addEventListener('click', function (e) {
         e.preventDefault(); e.stopPropagation();
         var u = b.dataset.u;
+        // Another tab or Your move may have changed the same shortlist.
+        try { salvate = new Set(JSON.parse(localStorage.getItem('boomSalvate') || '[]')); }
+        catch (e) { /* preserve this page's last readable selection */ }
         if (salvate.has(u)) salvate.delete(u); else salvate.add(u);
         b.classList.toggle('si', salvate.has(u));
         try { localStorage.setItem('boomSalvate', JSON.stringify(Array.from(salvate))); }
@@ -4850,5 +4831,6 @@ setTimeout(function () {
 <script defer src="/js/boom-consent.js"></script>
 
 <script defer src="/js/boom-track.js"></script>
+<script defer src="/assets/boom-flight-home.js?v=20261027a"></script>
 </body>
 </html>

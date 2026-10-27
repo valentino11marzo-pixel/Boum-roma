@@ -383,10 +383,8 @@
     <div class="disco-testa">
       <div class="coro dentro-subito">
         <div class="hero-eyebrow"><b></b>DISPONIBILI homes available now</div>
-        <h1>Every home here has been <span class="hl">walked in person</span>.</h1>
-        <p class="disco-sotto">No stock photos, no ghost listings. Pick a zone
-          on the board — or tell us when you land and we'll shape the list
-          around you.</p>
+        <h1>Find your place.<br><span class="hl">In your Rome.</span></h1>
+        <p class="disco-sotto">Every home walked in person. Explore the city, then find the one that fits your everyday.</p>
 
         <form class="atterro cerca" id="atterro">
           <div class="atterro-campo ac-data">
@@ -419,7 +417,8 @@
         </form>
       </div>
 
-      <aside class="zone-quadro quadro sale" aria-label="Zones board">
+      <details class="flight-zones"><summary>Choose a neighbourhood <span>ROME</span></summary>
+<aside class="zone-quadro quadro sale" aria-label="Zones board">
         <span class="tacca"></span>
         <div class="zone-testa"><b>ROME · Destinations</b>
           <span class="board-live"><i></i>LIVE</span></div>
@@ -430,6 +429,7 @@
           ALTRE_ZONE · updated <b>AGGIORNATO</b></span>
           <button type="button" id="zoneTutte">All zones</button></div>
       </aside>
+</details>
     </div>
   </div>
 </section>
@@ -513,9 +513,8 @@ VISTA_CIELO
         <button type="button" class="pulisci" id="serbaChiudi">Not now</button>
         <button type="submit" class="btn btn-primary">Save search</button>
       </div>
-      <p class="serba-nota">PREVIEW — nothing is sent from this page. On the
-        live site this becomes a saved search: you only hear from us when a
-        home that matches actually appears.</p>
+      <p class="serba-nota">New matching homes, by email. Unsubscribe in one click. <a href="/privacy">Privacy policy</a>.</p>
+      <p id="serbaStatus" role="status" aria-live="polite"></p>
     </form>
   </div>
 </div>

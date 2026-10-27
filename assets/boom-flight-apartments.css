@@ -1,0 +1,94 @@
+/* One catalogue, two synchronized views. No clone cards, no second filter state. */
+body.boom-flight .disco{padding:112px 0 24px}
+body.boom-flight .disco-velo{opacity:.3}
+body.boom-flight .disco-testa{position:relative;display:block}
+body.boom-flight .disco-testa>.coro{display:grid;grid-template-columns:minmax(0,1fr) minmax(420px,1.1fr);column-gap:60px;align-items:center}
+body.boom-flight .disco h1{font-size:clamp(34px,3.6vw,52px);font-weight:250;letter-spacing:-.045em;line-height:1.03;max-width:12ch;margin:12px 0 0;text-wrap:initial}
+body.boom-flight .disco .hero-eyebrow{grid-column:1;font-size:10px;letter-spacing:.14em}
+body.boom-flight .disco-sotto{grid-column:1;max-width:39ch;font-size:12px;line-height:1.6;margin-top:13px;color:#999}
+body.boom-flight .disco .atterro{grid-column:2;grid-row:1/4;width:100%;margin:0;border-color:#ffffff21;border-radius:7px;box-shadow:0 16px 60px #0005;background:linear-gradient(145deg,#171716,#080809)}
+body.boom-flight .disco .atterro{display:grid;grid-template-columns:1.2fr 1fr 1fr;padding:14px 5px}
+body.boom-flight .disco .atterro-divisa{display:none}
+body.boom-flight .disco .atterro-campo{min-width:0;padding:3px 18px;background:transparent;border:0;border-right:1px solid #ffffff16;border-radius:0;box-shadow:none}
+body.boom-flight .disco .atterro-campo:last-child{border:0}
+body.boom-flight .disco .atterro-campo select{max-width:100%;width:100%;font-size:13px}
+body.boom-flight .disco .hero-eyebrow{border:0;border-radius:0;padding:0;background:none;box-shadow:none}
+.flight-zones{position:relative;width:270px;margin-top:20px;z-index:15;font-size:11px;color:#b7b7b5}.flight-zones>summary{list-style:none;display:flex;justify-content:space-between;gap:10px;cursor:pointer;border-bottom:1px solid #ffffff24;padding:10px 0}.flight-zones>summary::-webkit-details-marker{display:none}.flight-zones>summary::after{content:'+';color:#ffd700}.flight-zones[open]>summary::after{content:'−'}.boom-flight .flight-zones .zone-quadro{position:absolute;left:0;top:100%;width:min(430px,calc(100vw - 40px));min-height:0;background:#0c0c0dfc;box-shadow:0 20px 60px #000b;transform:none!important;opacity:1!important;backdrop-filter:blur(20px)}
+body.boom-flight .stecca{border-top:1px solid #ffffff14;background:#090909eb;backdrop-filter:blur(20px)}
+body.boom-flight .stecca-int{gap:12px;padding-top:13px;padding-bottom:13px}
+body.boom-flight .stecca-cerca{min-width:180px;flex:1}
+body.boom-flight .stecca .gruppo button,body.boom-flight .stecca-piu,body.boom-flight .serba,body.boom-flight .vista-tog button{min-height:40px}
+body.boom-flight .vista-tog{border-radius:5px}
+body.boom-flight .vista-tog button.on{background:#ffd700;color:#050505;border-radius:3px}
+body.boom-flight .muro-conto{padding:12px 0 16px;margin:0;color:#777;font-size:11px;letter-spacing:.03em}
+body.boom-flight .muro-conto b{color:#e9e9e5}
+body.boom-flight .flight-map-heading{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;background:#0c0c0c;border:1px solid #ffffff1c;border-bottom:0;border-radius:8px 8px 0 0;font:400 10px/1.5 Inter,sans-serif;letter-spacing:.13em;text-transform:uppercase;color:#aaa}
+.flight-map-heading span:first-child{color:#ffd700}.flight-map-heading a{color:#bbb;text-decoration:none;font-size:10px;letter-spacing:.03em;text-transform:none}
+body.boom-flight #cielo{height:calc(100svh - 220px);min-height:470px;max-height:800px;border-radius:0 0 8px 8px;border-color:#ffffff1c}
+.flight-pin-button{position:absolute;z-index:5;bottom:10px;right:10px;background:#050505e8;color:#ffd700;border:1px solid #ffd70055;border-radius:4px;min-height:36px;padding:0 10px;font:500 10px/1.2 Inter,sans-serif;cursor:pointer;backdrop-filter:blur(10px)}
+.flight-pin-button:hover{background:#ffd700;color:#050505}
+body.boom-flight #muro .casa-p.flight-selected{outline:1px solid #ffd700;outline-offset:2px;background:#16160e}
+body.boom-flight .casa-p{transition:border-color .2s,background .2s,transform .3s}
+body.boom-flight .casa-p .home-foto{transform:translateZ(0)}
+body.boom-flight .casa-p .home-foto img{transition:transform .65s cubic-bezier(.2,.75,.2,1)}
+body.boom-flight .casa-p:hover .home-foto img{transform:scale(1.035)}
+body.boom-flight #serbaStatus{min-height:1.5em;color:#ffd700;font-size:12px;line-height:1.6;margin-top:16px}
+@media(min-width:1050px){
+ body.boom-flight.flight-split #catalogo>.container{display:grid;grid-template-columns:minmax(330px,.72fr) minmax(0,1.28fr);column-gap:24px;align-items:start}
+ body.boom-flight.flight-split .muro-conto{grid-column:1/-1}
+ body.boom-flight.flight-split #muro{display:grid!important;grid-column:1;grid-row:2;grid-template-columns:minmax(0,1fr);gap:12px}
+ body.boom-flight.flight-split #muro .casa-p:not(.via){display:grid;grid-template-columns:42% minmax(0,1fr);min-height:168px;align-items:stretch;border:1px solid #ffffff12;border-radius:6px;overflow:hidden}
+ body.boom-flight.flight-split #muro .home-foto{height:100%;min-height:168px;aspect-ratio:auto;border-radius:0}
+ body.boom-flight.flight-split #muro .home-foto img{height:100%;object-fit:cover}
+ body.boom-flight.flight-split #muro .corpo{padding:18px 16px;display:flex;flex-direction:column;justify-content:center;gap:13px;min-width:0}
+ body.boom-flight.flight-split #muro .riga1{display:flex;flex-direction:column;align-items:flex-start;gap:13px}
+ body.boom-flight.flight-split #muro .nome{font-size:18px;line-height:1.25;max-width:100%;overflow-wrap:anywhere}
+ body.boom-flight.flight-split #muro .canone{font-size:19px;display:flex;gap:5px;align-items:baseline}
+ body.boom-flight.flight-split #muro .flap-prezzo{font-size:19px}
+ body.boom-flight.flight-split #muro .riga2{font-size:10px;line-height:1.6;flex-wrap:wrap}
+ body.boom-flight.flight-split #muro .casa-stato{font-size:9px;left:8px;top:8px;max-width:calc(100% - 16px)}
+ body.boom-flight.flight-split #muro .home-cuore{top:auto;bottom:10px;left:8px;right:auto;width:32px;height:32px}
+ body.boom-flight.flight-split #muro .home-para{top:auto;bottom:10px;left:44px;right:auto;width:32px;height:32px}
+ body.boom-flight.flight-split #muro .flight-pin-button{font-size:9px;padding:0 7px;min-height:32px;right:7px}
+ body.boom-flight.flight-split #muro #skyCarta{display:none!important}
+ body.boom-flight.flight-split #vistaCielo{grid-column:2;grid-row:2/4;position:sticky;top:calc(var(--stecca-top,76px) + 95px);display:block;min-width:0}
+ body.boom-flight.flight-split #vuoto{grid-column:1;grid-row:2}
+ body.boom-flight .muro-ordine{gap:7px}
+}
+@media(max-width:1049px){
+ body.boom-flight .disco{padding:100px 0 20px}
+ body.boom-flight .disco-testa>.coro{display:block}
+ body.boom-flight .disco h1{font-size:clamp(36px,7vw,52px);max-width:15ch}
+ body.boom-flight .disco-sotto{max-width:50ch;margin-bottom:24px}
+ body.boom-flight .disco .atterro{max-width:100%}
+ body.boom-flight .stecca-int{gap:8px}
+ body.boom-flight .stecca-cerca{flex-basis:100%}
+ body.boom-flight .stecca .gruppo{flex:1}
+ body.boom-flight .stecca .muro-ordine{display:none}
+ body.boom-flight .stecca .serba{font-size:10px}
+ body.boom-flight #cielo{min-height:480px;height:68svh}
+}
+@media(max-width:640px){
+ body.boom-flight .disco .atterro{grid-template-columns:1fr 1fr;padding:10px;gap:10px}
+ body.boom-flight .disco .atterro .ac-data{grid-column:1/-1;border-right:0;border-bottom:1px solid #ffffff15;padding-bottom:10px}
+ body.boom-flight .disco .atterro-campo{padding:3px 8px}
+ body.boom-flight .stecca-int{display:grid;grid-template-columns:minmax(0,1fr) auto;overflow:visible;padding:10px 0;gap:8px;mask-image:none;-webkit-mask-image:none}
+ body.boom-flight .stecca .stecca-cerca{min-width:0;width:100%;grid-column:1;grid-row:1}
+ body.boom-flight .stecca .serba{grid-column:2;grid-row:1;font-size:9px;letter-spacing:.02em;padding:8px}
+ body.boom-flight .stecca .stecca-piu{grid-column:1;grid-row:2;justify-self:start}
+ body.boom-flight .stecca .vista-tog{grid-column:2;grid-row:2;width:auto;justify-self:end}
+ body.boom-flight .stecca::after{display:none}
+ body.boom-flight .disco{padding-top:94px}
+ body.boom-flight .disco h1{font-size:42px;max-width:13ch}
+ body.boom-flight .disco-sotto{font-size:12px}
+ .flight-zones{width:100%;margin-top:12px}
+ body.boom-flight .stecca .gruppo{display:none}
+ body.boom-flight .stecca-piu{flex:1;justify-content:flex-start}
+ body.boom-flight .stecca .serba{margin:0;font-size:10px}
+ body.boom-flight .vista-tog{margin-left:auto}
+ body.boom-flight .vista-tog button{padding:0 10px;font-size:10px}
+ body.boom-flight #catalogo{padding-top:4px!important}
+ body.boom-flight .flight-map-heading{font-size:9px;padding:12px}
+ body.boom-flight #cielo{height:65svh;min-height:440px}
+}
+@media(prefers-reduced-motion:reduce){body.boom-flight .casa-p,body.boom-flight .casa-p .home-foto img{transition:none;transform:none!important}}

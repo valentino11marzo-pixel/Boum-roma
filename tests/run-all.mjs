@@ -264,6 +264,8 @@ const SUITES = [
   { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
   { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },
   { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
+  { name: 'mappaflight', file: 'tests/mappa/flight.mjs', what: 'Skyline Flight: selezione, condivisione, precisione, camera e bridge sicuri' },
+  { name: 'flight', file: 'tests/flight/run.mjs', what: 'Flight: salvati sicuri condivisibili, privacy dei luoghi, vero salva ricerca con errori/retry e invii concorrenti' },
   { name: 'mappa',    file: 'tests/mappa/run.mjs',          what: 'la mappa e un motore solo: mete e coordinate combaciano con la griglia dei tempi, ogni minuto dichiara se è misurato o stimato, le vicine si ordinano per TEMPO e non per linea d\'aria, e il filtro per minuti non promette ciò che non ha misurato' },
   { name: 'mappaui',  file: 'tests/mappa/ui.mjs',           what: 'il Quadrante in un browser vero: regge anche quando la mappa non carica, a riposo non mostra colonne morte, e ogni numero porta il proprio grado di verità' },
   { name: 'telefono', file: 'tests/telefono/run.mjs',      what: 'il sito sotto un dito: a 390px con puntatore grossolano nessun campo di un modulo sta sotto i 16px — su iPhone farebbe zoomare la pagina al primo tap' },

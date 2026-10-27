@@ -347,6 +347,13 @@ if MODO == 'sito':
          + '\n<script src="/js/dispo-engine.js"></script>'
          + '\n' + leggi('vetrina-idrante.html')
          + '\n' + TESTA.SW + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
+# Flight is a final presentation pass: keep source engines and live hooks.
+from flight_home import enhance_home
+h = enhance_home(h)
+if MODO == 'sito':
+    from importlib.machinery import SourceFileLoader
+    flight = SourceFileLoader('flight_shell', os.path.join(os.path.dirname(__file__), 'flight-shell.py')).load_module()
+    h = flight.enhance(h, 'home')
 uscita = 'boom-portale.html' if MODO == 'artefatto' else 'boom-portale-sito.html' 
 open(uscita, 'w', encoding='utf-8').write(h)
 print(f'{uscita} · {len(h)//1024} KB · board {len(board)} righe · '
